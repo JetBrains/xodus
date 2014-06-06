@@ -1,0 +1,73 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'nl.javadude.gradle.plugins:license-gradle-plugin:0.6.0'
+    }
+}
+
+def SNAPSHOT = 'SNAPSHOT'
+version = SNAPSHOT
+if (project.hasProperty("xodusVersion")) {
+    version = project.xodusVersion
+}
+
+allprojects {
+
+}
+
+subprojects {
+    apply plugin: 'license'
+    apply plugin: 'java'
+
+    sourceCompatibility = 1.6
+    compileJava.options.encoding = 'UTF-8'
+    version = rootProject.version
+
+    license {
+        header rootProject.file('license/copyright.ftl')
+        strictCheck true
+        ext.inceptionYear = 2010
+        ext.year = Calendar.getInstance().get(Calendar.YEAR)
+        ext.owner = 'JetBrains s.r.o.'
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        testCompile group: 'junit', name: 'junit', version: '4.+'
+    }
+
+    jar {
+        manifest {
+            attributes "Implementation-Title": "Gradle", "Implementation-Version": version
+        }
+    }
+
+    test {
+        minHeapSize = '1g'
+        maxHeapSize = '1g'
+        jvmArgs = ['-ea', '-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=2808']
+    }
+
+    task zipSources(type: Zip) {
+        from project.sourceSets.main.java
+    }
+
+    if (version == SNAPSHOT) {
+        jar.archiveName = rootProject.name + '-' + project.name + '.jar'
+        zipSources.archiveName = rootProject.name + '-' + project.name + '-src.zip'
+    } else {
+        jar.archiveName = rootProject.name + '-' + project.name + '-' + version + '.jar'
+        zipSources.archiveName = rootProject.name + '-' + project.name + '-src-' + version + '.zip'
+    }
+
+    artifacts {
+        archives zipSources
+    }
+
+}

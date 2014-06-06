@@ -1,0 +1,18 @@
+dependencies {
+    compile project(':vfs')
+    testCompile project(':utils').sourceSets.test.output
+}
+
+task jarTests(type: Jar) {
+    from project.sourceSets.test.output
+}
+
+if (version == DEFAULT_VERSION) {
+    jarTests.archiveName = rootProject.name + '-' + project.name + '-tests.jar'
+} else {
+    jarTests.archiveName = rootProject.name + '-' + project.name + '-tests-' + version + '.jar'
+}
+
+artifacts {
+    archives jarTests
+}

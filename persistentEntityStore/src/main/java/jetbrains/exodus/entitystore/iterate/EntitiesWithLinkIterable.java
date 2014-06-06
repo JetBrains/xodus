@@ -1,0 +1,148 @@
+/**
+ * Copyright 2010 - 2014 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package jetbrains.exodus.entitystore.iterate;
+
+import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.entitystore.*;
+import jetbrains.exodus.entitystore.tables.LinkValue;
+import jetbrains.exodus.entitystore.tables.PropertyKey;
+import jetbrains.exodus.env.Cursor;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+public class EntitiesWithLinkIterable extends EntityIterableBase {
+
+    private final int entityTypeId;
+    private final int linkId;
+
+    static {
+        registerType(getType(), new EntityIterableInstantiator() {
+            @Override
+            public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
+                return new EntitiesWithLinkIterable(store,
+                        Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]));
+            }
+        });
+    }
+
+    public EntitiesWithLinkIterable(@NotNull final PersistentEntityStoreImpl store, final int entityTypeId, final int linkId) {
+        super(store);
+        this.entityTypeId = entityTypeId;
+        this.linkId = linkId;
+    }
+
+    public static EntityIterableType getType() {
+        return EntityIterableType.ENTITIES_WITH_LINK;
+    }
+
+    @Override
+    public boolean isSortedById() {
+        return false;
+    }
+
+    @Override
+    @NotNull
+    public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+        return new LinksIterator(openCursor(txn));
+    }
+
+    @Override
+    @NotNull
+    protected EntityIterableHandle getHandleImpl() {
+        return new ConstantEntityIterableHandle(getStore(), EntitiesWithLinkIterable.getType()) {
+            @Override
+            public boolean hasLinkId(int id) {
+                return linkId == id;
+            }
+
+            @Override
+            public int[] getLinkIds() {
+                return new int[]{linkId};
+            }
+
+            @Override
+            public void getStringHandle(@NotNull final StringBuilder builder) {
+                super.getStringHandle(builder);
+                builder.append('-');
+                builder.append(entityTypeId);
+                builder.append('-');
+                builder.append(linkId);
+            }
+
+            @Override
+            public boolean isMatchedLinkAdded(@NotNull final EntityId source,
+                                              @NotNull final EntityId target,
+                                              final int linkId) {
+                return entityTypeId == source.getTypeId();
+            }
+
+            @Override
+            public boolean isMatchedLinkDeleted(@NotNull final EntityId source,
+                                                @NotNull final EntityId target,
+                                                final int linkId) {
+                return entityTypeId == source.getTypeId();
+            }
+        };
+    }
+
+    protected int getEntityTypeId() {
+        return entityTypeId;
+    }
+
+    private Cursor openCursor(@NotNull final PersistentStoreTransaction txn) {
+        return getStore().getLinksSecondIndexCursor(txn, entityTypeId);
+    }
+
+    private final class LinksIterator extends EntityIteratorBase {
+
+        private boolean hasNext;
+
+        private LinksIterator(@NotNull final Cursor index) {
+            super(EntitiesWithLinkIterable.this);
+            setCursor(index);
+            final ByteIterable key = LinkValue.linkValueToEntry(new LinkValue(PersistentEntityId.EMPTY_ID, linkId));
+            hasNext = index.getSearchKeyRange(key) != null;
+            checkCursorKey();
+        }
+
+        @Override
+        public boolean hasNextImpl() {
+            return hasNext;
+        }
+
+        @Override
+        @Nullable
+        public EntityId nextIdImpl() {
+            if (hasNextImpl()) {
+                explain(getType());
+                final Cursor cursor = getCursor();
+                final PropertyKey key = PropertyKey.entryToPropertyKey(cursor.getValue());
+                final EntityId result = new PersistentEntityId(entityTypeId, key.getEntityLocalId());
+                hasNext = cursor.getNext();
+                checkCursorKey();
+                return result;
+            }
+            return null;
+        }
+
+        private void checkCursorKey() {
+            if (hasNext) {
+                final LinkValue value = LinkValue.entryToLinkValue(getCursor().getKey());
+                hasNext = value.getLinkId() == linkId;
+            }
+        }
+    }
+}

@@ -1,0 +1,13 @@
+rootProject.name = 'xodus'
+
+include 'utils'
+include 'openAPI'
+include 'compress'
+include 'environment'
+include 'vfs'
+include 'luceneDirectory'
+include 'persistentEntityStore'
+include 'query'
+include 'benchmarks'
+include 'samples'
+

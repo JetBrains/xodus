@@ -1,0 +1,14 @@
+dependencies {
+    compile project(':vfs')
+    compile('org.apache.lucene:lucene-core:3.6.+') {
+        transitive = false
+    }
+    compile('org.apache.lucene:lucene-analyzers:3.6.+') {
+        transitive = false
+    }
+    compile('org.apache.lucene:lucene-queries:3.6.+') {
+        transitive = false
+    }
+    testCompile project(':environment').sourceSets.test.output
+    testCompile project(':utils').sourceSets.test.output
+}

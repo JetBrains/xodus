@@ -1,0 +1,152 @@
+/**
+ * Copyright 2010 - 2014 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package jetbrains.exodus.tree;
+
+import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.ByteIterator;
+import jetbrains.exodus.env.EnvironmentImpl;
+import jetbrains.exodus.env.StoreConfiguration;
+import jetbrains.exodus.log.Log;
+import jetbrains.exodus.log.Loggable;
+import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
+import jetbrains.exodus.tree.btree.BTreeMetaInfo;
+import jetbrains.exodus.tree.patricia.PatriciaMetaInfo;
+import jetbrains.exodus.util.LightOutputStream;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.Iterator;
+
+public abstract class TreeMetaInfo {
+
+    public static final TreeMetaInfo EMPTY = new Empty(0);
+
+    protected static final int DUPLICATES_BIT = 1;
+    protected static final int KEY_PREFIXING_BIT = 2;
+
+    public final boolean duplicates;
+    public final long structureId;
+    public final Log log;
+
+    protected TreeMetaInfo(final Log log, boolean duplicates, long structureId) {
+        this.log = log;
+        this.duplicates = duplicates;
+        this.structureId = structureId;
+    }
+
+    public boolean hasDuplicates() {
+        return duplicates;
+    }
+
+    public abstract boolean isKeyPrefixing();
+
+    public long getStructureId() {
+        return structureId;
+    }
+
+    public ByteIterable toByteIterable() { // TODO: generify and extract BTree and Patricia-related stuff to methods
+        byte flags = (byte) (duplicates ? DUPLICATES_BIT : 0);
+        if (isKeyPrefixing()) {
+            flags += KEY_PREFIXING_BIT;
+        }
+        final LightOutputStream output = new LightOutputStream(10);
+        output.write(flags);
+        CompressedUnsignedLongByteIterable.fillBytes(0, output); // legacy format
+        CompressedUnsignedLongByteIterable.fillBytes(structureId, output);
+        return output.asArrayByteIterable();
+    }
+
+    public abstract TreeMetaInfo clone(final long newStructureId);
+
+    public static StoreConfiguration toConfig(@NotNull final TreeMetaInfo metaInfo) {
+        final boolean keyPrefixing = metaInfo.isKeyPrefixing();
+        if (metaInfo.duplicates) {
+            return keyPrefixing ? StoreConfiguration.WITH_DUPLICATES_WITH_PREFIXING :
+                    StoreConfiguration.WITH_DUPLICATES;
+        }
+        return keyPrefixing ? StoreConfiguration.WITHOUT_DUPLICATES_WITH_PREFIXING :
+                StoreConfiguration.WITHOUT_DUPLICATES;
+    }
+
+    public static TreeMetaInfo load(@NotNull final EnvironmentImpl environment, boolean duplicates, boolean keyPrefixing, long structureId) {
+        if (keyPrefixing) {
+            return new PatriciaMetaInfo(environment.getLog(), duplicates, structureId);
+        } else {
+            return new BTreeMetaInfo(environment, duplicates, structureId);
+        }
+    }
+
+    public static TreeMetaInfo load(@NotNull final EnvironmentImpl environment, @NotNull final ByteIterable iterable) {
+        final ByteIterator it = iterable.iterator();
+        final byte flagsByte = it.next();
+        if ((flagsByte & KEY_PREFIXING_BIT) == 0) {
+            return BTreeMetaInfo.load(environment, flagsByte, it);
+        } else {
+            return PatriciaMetaInfo.load(environment, flagsByte, it);
+        }
+    }
+
+    @NotNull
+    public static Iterable<Loggable> getTreeLoggables(@NotNull final ITree tree) {
+        return new TreeLoggableIterable(tree);
+    }
+
+    private static final class Empty extends TreeMetaInfo {
+        private Empty(final long structureId) {
+            super(null, false, structureId);
+        }
+
+        @Override
+        public boolean isKeyPrefixing() {
+            return false;
+        }
+
+        @Override
+        public TreeMetaInfo clone(long newStructureId) {
+            return new Empty(newStructureId);
+        }
+    }
+
+    private static class TreeLoggableIterable implements Iterable<Loggable> {
+        @NotNull
+        private final ITree tree;
+
+        private TreeLoggableIterable(@NotNull final ITree tree) {
+            this.tree = tree;
+        }
+
+        @Override
+        public Iterator<Loggable> iterator() {
+            return new Iterator<Loggable>() {
+                final LongIterator itr = tree.addressIterator();
+
+                @Override
+                public boolean hasNext() {
+                    return itr.hasNext();
+                }
+
+                @Override
+                public Loggable next() {
+                    return tree.getLog().read(itr.next());
+                }
+
+                @Override
+                public void remove() {
+                    throw new UnsupportedOperationException();
+                }
+            };
+        }
+    }
+}

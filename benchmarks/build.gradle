@@ -1,0 +1,22 @@
+dependencies {
+    compile project(':environment')
+    testCompile project(':utils').sourceSets.test.output
+    testCompile project(':environment').sourceSets.test.output
+    testCompile group: 'com.sleepycat', name: 'je', version: '5.+'
+}
+
+jar {
+    from project.sourceSets.test.output
+}
+
+zipSources {
+    from project.sourceSets.test.java
+}
+
+test {
+    enabled = false
+}
+
+task testBenchmarks(type: Test) {
+    enabled = true
+}
