@@ -14,13 +14,10 @@ if (project.hasProperty("xodusVersion")) {
     version = project.xodusVersion
 }
 
-allprojects {
-
-}
-
 subprojects {
     apply plugin: 'license'
     apply plugin: 'java'
+    apply plugin: 'maven-publish'
 
     sourceCompatibility = 1.6
     compileJava.options.encoding = 'UTF-8'
@@ -69,5 +66,26 @@ subprojects {
     artifacts {
         archives zipSources
     }
-
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                groupId 'org.jetbrains.xodus'
+                from components.java {
+                    artifactId
+                }
+                artifact zipSources {
+                    classifier "sources"
+                }
+            }
+        }
+        repositories {
+            maven {
+                url "http://repository.jetbrains.com/xodus"
+                credentials {
+                    username "xodus"
+                    password project.jetbrainsRepositoryXodusPassword
+                }
+            }
+        }
+    }
 }
