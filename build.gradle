@@ -14,6 +14,11 @@ if (project.hasProperty("xodusVersion")) {
     version = project.xodusVersion
 }
 
+def jetbrainsRepositoryXodusPassword = 'pwd'
+if (project.hasProperty("jetbrainsRepositoryXodusPassword")) {
+    jetbrainsRepositoryXodusPassword = project.jetbrainsRepositoryXodusPassword;
+}
+
 subprojects {
     apply plugin: 'license'
     apply plugin: 'java'
@@ -83,7 +88,7 @@ subprojects {
                 url "http://repository.jetbrains.com/xodus"
                 credentials {
                     username "xodus"
-                    password project.jetbrainsRepositoryXodusPassword
+                    password jetbrainsRepositoryXodusPassword
                 }
             }
         }
