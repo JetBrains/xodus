@@ -75,8 +75,10 @@ subprojects {
         publications {
             mavenJava(MavenPublication) {
                 groupId 'org.jetbrains.xodus'
-                from components.java {
-                    artifactId
+                if (jar.enabled) {
+                    from components.java {
+                        artifactId
+                    }
                 }
                 artifact zipSources {
                     classifier "sources"
