@@ -15,6 +15,7 @@ zipSources {
 
 test {
     enabled = false
+    forkEvery = 1L
 }
 
 task testBenchmarks(type: Test) {
