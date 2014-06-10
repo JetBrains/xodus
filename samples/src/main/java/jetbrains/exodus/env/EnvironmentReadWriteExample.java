@@ -15,8 +15,11 @@
  */
 package jetbrains.exodus.env;
 
+import jetbrains.exodus.ArrayByteIterable;
+import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.bindings.StringBinding;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * This example shows low level key/value store access.
@@ -29,18 +32,13 @@ public class EnvironmentReadWriteExample {
         final Environment env = Environments.newInstance("data", EnvironmentConfig.DEFAULT);
 
         //Create or open existing store in environment
-        final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
-            @Override
-            public Store compute(@NotNull final Transaction txn) {
-                return env.openStore("MyStore", StoreConfiguration.WITHOUT_DUPLICATES, txn);
-            }
-        });
+        final Store store = initStore(env);
 
         // Put "myValue" string under the key "myKey"
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
-                store.put(txn, StringBinding.stringToEntry("myKey"), StringBinding.stringToEntry("myValue"));
+                store.put(txn, entry("myKey"), entry("myValue"));
             }
         });
 
@@ -48,11 +46,28 @@ public class EnvironmentReadWriteExample {
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
-                System.out.println(StringBinding.entryToString(store.get(txn, StringBinding.stringToEntry("myKey"))));
+                System.out.println(string(store.get(txn, entry("myKey"))));
             }
         });
 
         // Close environment when we are done
         env.close();
+    }
+
+    private static String string(@Nullable ByteIterable myKey) {
+        return myKey == null ? null : StringBinding.entryToString(myKey);
+    }
+
+    private static ArrayByteIterable entry(String key) {
+        return StringBinding.stringToEntry(key);
+    }
+
+    private static Store initStore(final Environment env) {
+        return env.computeInTransaction(new TransactionalComputable<Store>() {
+            @Override
+            public Store compute(@NotNull final Transaction txn) {
+                return env.openStore("MyStore", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+            }
+        });
     }
 }
