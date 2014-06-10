@@ -178,7 +178,7 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
                 optimizedTree = optimized.getOptimizedTree();
                 sorts = optimized.getSorts();
             } else {
-                long t = System.nanoTime();
+                final long start = System.currentTimeMillis();
                 sorts = new Sorts();
                 final Root root = new Root(sourceTree.getClone());
                 for (OptimizationPlan rules : OptimizationPlan.PLANS) {
@@ -189,11 +189,10 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
                 if (sorts.canBeCached()) {
                     OptimizedTreesCache.get().cacheOptimized(sourceTree, optimizedTree, sorts);
                 }
-                long nanoDelta = System.nanoTime() - t;
-                if (nanoDelta > 1000000) {
-                    float time = nanoDelta / 1000000;
+                final long delta = System.currentTimeMillis() - start;
+                if (delta > 1) {
                     if (log.isDebugEnabled()) {
-                        log.debug("Optimize tree in [" + time + " ms]");
+                        log.debug("Optimize tree in [" + delta + " ms]");
                     }
                     log.trace("---------------------------------------------------");
                     log.trace("Source tree: ");
