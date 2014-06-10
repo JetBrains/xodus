@@ -34,21 +34,20 @@ import java.util.List;
 
 public abstract class TokyoCabinetLikeBenchmarkTestBase extends TreeBenchmarkTestBase {
 
-    private static final int SIZE = 1000000;
     private ByteIterable[] keys;
 
     @Before
     public void generateKeys() {
         DecimalFormat FORMAT = (DecimalFormat) NumberFormat.getIntegerInstance();
         FORMAT.applyPattern("00000000");
-        keys = new ByteIterable[SIZE];
-        for (int i = 0; i < SIZE; i++) {
+        keys = new ByteIterable[TOKYO_CABINET_BENCHMARK_SIZE];
+        for (int i = 0; i < TOKYO_CABINET_BENCHMARK_SIZE; i++) {
             keys[i] = StringBinding.stringToEntry(FORMAT.format(i));
         }
     }
 
     protected void fillTree() {
-        for (int i = 0; i < SIZE; i++) {
+        for (int i = 0; i < TOKYO_CABINET_BENCHMARK_SIZE; i++) {
             tm.add(keys[i], keys[i]);
         }
     }
@@ -56,7 +55,7 @@ public abstract class TokyoCabinetLikeBenchmarkTestBase extends TreeBenchmarkTes
     protected void shuffleKeys() {
         final List<ByteIterable> _keys = new ArrayList<ByteIterable>(Arrays.asList(keys));
         Collections.shuffle(_keys);
-        keys = _keys.toArray(new ByteIterable[SIZE]);
+        keys = _keys.toArray(new ByteIterable[TOKYO_CABINET_BENCHMARK_SIZE]);
     }
 
     @Test
@@ -134,7 +133,7 @@ public abstract class TokyoCabinetLikeBenchmarkTestBase extends TreeBenchmarkTes
                 t = openTree(a, false);
                 Cursor c = t.openCursor();
 
-                for (int i = 0; i < SIZE; i++) {
+                for (int i = 0; i < TOKYO_CABINET_BENCHMARK_SIZE; i++) {
                     c.getSearchKey(keys[i]);
                     iterate(c.getKey());
                     iterate(c.getValue());
@@ -166,7 +165,7 @@ public abstract class TokyoCabinetLikeBenchmarkTestBase extends TreeBenchmarkTes
                 t = openTree(a, false);
                 Cursor c = t.openCursor();
 
-                for (int i = 0; i < SIZE; i++) {
+                for (int i = 0; i < TOKYO_CABINET_BENCHMARK_SIZE; i++) {
                     c.getSearchKeyRange(keys[i]);
                     iterate(c.getKey());
                     iterate(c.getValue());

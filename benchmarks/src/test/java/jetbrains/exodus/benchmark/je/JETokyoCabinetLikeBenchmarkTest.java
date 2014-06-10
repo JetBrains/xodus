@@ -31,8 +31,6 @@ import java.util.Collections;
 
 public class JETokyoCabinetLikeBenchmarkTest extends BenchmarkTestBase {
 
-    private static final int TOKYO_CABINET_BENCHMARK_SIZE = 1000000;
-
     private DatabaseEntry[] keys;
     private Environment env;
 

@@ -41,7 +41,6 @@ import java.util.Collections;
 
 public class EnvTokyoCabinetLikeBenchmarkTest extends BenchmarkTestBase {
 
-    private static final int TOKYO_CABINET_BENCHMARK_SIZE = 1000000;
     private ByteIterable[] keys;
     private Environment env;
 

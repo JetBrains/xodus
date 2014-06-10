@@ -35,6 +35,8 @@ import java.text.NumberFormat;
 @SuppressWarnings({"AssignmentToStaticFieldFromInstanceMethod"})
 public abstract class BenchmarkTestBase {
 
+    protected static final int TOKYO_CABINET_BENCHMARK_SIZE = 1000000;
+
     private static final String TEAMCITY_MESSAGES = "teamcity.messages";
 
     protected static final DecimalFormat FORMATTER;
