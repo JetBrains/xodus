@@ -21,6 +21,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 
+@SuppressWarnings("UnusedDeclaration")
 public final class Environments {
 
     private Environments() {
@@ -32,8 +33,18 @@ public final class Environments {
     }
 
     @NotNull
+    public static Environment newInstance(@NotNull final String dir) {
+        return newInstance(dir, EnvironmentConfig.DEFAULT);
+    }
+
+    @NotNull
     public static Environment newInstance(@NotNull final String dir, @NotNull final EnvironmentConfig ec) {
         return prepare(new EnvironmentImpl(newLogInstance(new File(dir), ec), ec));
+    }
+
+    @NotNull
+    public static Environment newInstance(@NotNull final File dir) {
+        return newInstance(dir, EnvironmentConfig.DEFAULT);
     }
 
     @NotNull
@@ -52,8 +63,18 @@ public final class Environments {
     }
 
     @NotNull
+    public static ContextualEnvironment newContextualInstance(@NotNull final String dir) {
+        return newContextualInstance(dir, EnvironmentConfig.DEFAULT);
+    }
+
+    @NotNull
     public static ContextualEnvironment newContextualInstance(@NotNull final String dir, @NotNull final EnvironmentConfig ec) {
         return prepare(new ContextualEnvironmentImpl(newLogInstance(new File(dir), ec), ec));
+    }
+
+    @NotNull
+    public static ContextualEnvironment newContextualInstance(@NotNull final File dir) {
+        return newContextualInstance(dir, EnvironmentConfig.DEFAULT);
     }
 
     @NotNull
