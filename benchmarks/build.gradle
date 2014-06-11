@@ -3,6 +3,7 @@ dependencies {
     testCompile project(':utils').sourceSets.test.output
     testCompile project(':environment').sourceSets.test.output
     testCompile group: 'com.sleepycat', name: 'je', version: '5.+'
+    testCompile group: 'org.apache.cassandra', name: 'cassandra-all', version: '2.0.+'
 }
 
 jar {
@@ -14,12 +15,12 @@ zipSources {
 }
 
 test {
-    minHeapSize = '1g'
-    maxHeapSize = '1g'
     enabled = false
-    forkEvery = 1L
 }
 
 task testBenchmarks(type: Test) {
     enabled = true
+    minHeapSize = '1g'
+    maxHeapSize = '1g'
+    forkEvery = 1L
 }
