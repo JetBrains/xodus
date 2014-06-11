@@ -49,11 +49,10 @@ public final class PropertiesTable extends Table {
     private final IntHashMap<Store> valueIndexes;
     private final Store allPropsIndex;
 
-    public PropertiesTable(@NotNull final PersistentEntityStoreImpl store,
-                           @NotNull final PersistentStoreTransaction txn,
+    public PropertiesTable(@NotNull final PersistentStoreTransaction txn,
                            @NotNull final String name,
                            @NotNull final StoreConfig primaryConfig) {
-        this.store = store;
+        this.store = txn.getStore();
         this.name = name;
         final Transaction envTxn = txn.getEnvironmentTransaction();
         final Environment env = store.getEnvironment();

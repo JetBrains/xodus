@@ -30,10 +30,10 @@ public class SingleColumnTable extends Table {
         this.database = database;
     }
 
-    public SingleColumnTable(@NotNull PersistentEntityStoreImpl store,
-                             @NotNull final PersistentStoreTransaction txn,
+    public SingleColumnTable(@NotNull final PersistentStoreTransaction txn,
                              @NotNull final String name,
                              @NotNull final StoreConfig config) {
+        final PersistentEntityStoreImpl store = txn.getStore();
         database = store.getEnvironment().openStore(name, config, txn.getEnvironmentTransaction());
         store.trackTableCreation(database, txn);
     }

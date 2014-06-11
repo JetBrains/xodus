@@ -28,10 +28,10 @@ public final class TwoColumnTable extends Table {
     private final Store first;  // 1st column -> 2nd column
     private final Store second; // 2nd column -> 1st column
 
-    public TwoColumnTable(@NotNull final PersistentEntityStoreImpl store,
-                          @NotNull final PersistentStoreTransaction txn,
+    public TwoColumnTable(@NotNull final PersistentStoreTransaction txn,
                           @NotNull final String name,
                           @NotNull final StoreConfig config) {
+        final PersistentEntityStoreImpl store = txn.getStore();
         final Transaction envTxn = txn.getEnvironmentTransaction();
         final Environment env = store.getEnvironment();
         first = env.openStore(name, config, envTxn);

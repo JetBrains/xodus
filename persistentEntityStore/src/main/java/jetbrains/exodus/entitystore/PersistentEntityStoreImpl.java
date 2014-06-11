@@ -180,7 +180,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             this.blobVault = blobVault == null ? createDefaultFSBlobVault() : blobVault;
 
             entitiesSequences = new IntHashMap<PersistentSequence>();
-            final TwoColumnTable entityTypesTable = new TwoColumnTable(this, txn,
+            final TwoColumnTable entityTypesTable = new TwoColumnTable(txn,
                     namingRulez.getEntityTypesTableName(), StoreConfig.WITHOUT_DUPLICATES);
             final PersistentSequence entityTypesSequence = getSequence(txn, namingRulez.getEntityTypesSequenceName());
             entityTypes = new PersistentSequentialDictionary(entityTypesSequence, entityTypesTable) {
@@ -190,19 +190,19 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
             };
             propertyIds = new PersistentSequentialDictionary(getSequence(txn, namingRulez.getPropertyIdsSequenceName()),
-                    new TwoColumnTable(this, txn, namingRulez.getPropertyIdsTableName(), StoreConfig.WITHOUT_DUPLICATES));
+                    new TwoColumnTable(txn, namingRulez.getPropertyIdsTableName(), StoreConfig.WITHOUT_DUPLICATES));
             linkIds = new PersistentSequentialDictionary(getSequence(txn, namingRulez.getLinkIdsSequenceName()),
-                    new TwoColumnTable(this, txn, namingRulez.getLinkIdsTableName(), StoreConfig.WITHOUT_DUPLICATES));
+                    new TwoColumnTable(txn, namingRulez.getLinkIdsTableName(), StoreConfig.WITHOUT_DUPLICATES));
 
             propertyTypes = new PropertyTypes();
             propertyCustomTypeIds = new PersistentSequentialDictionary(getSequence(txn, namingRulez.getPropertyCustomTypesSequence()),
-                    new TwoColumnTable(this, txn, namingRulez.getPropertyCustomTypesTable(), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING));
+                    new TwoColumnTable(txn, namingRulez.getPropertyCustomTypesTable(), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING));
 
             entitiesTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
                 @NotNull
                 @Override
                 public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-                    return new SingleColumnTable(PersistentEntityStoreImpl.this, txn,
+                    return new SingleColumnTable(txn,
                             namingRulez.getEntitiesTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING);
                 }
             });
@@ -210,7 +210,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 @NotNull
                 @Override
                 public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-                    return new SingleColumnTable(PersistentEntityStoreImpl.this, txn,
+                    return new SingleColumnTable(txn,
                             namingRulez.getEntitiesHistoryTableName(entityTypeId), StoreConfig.WITH_DUPLICATES);
                 }
             });
@@ -218,7 +218,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 @NotNull
                 @Override
                 public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-                    return new PropertiesTable(PersistentEntityStoreImpl.this, txn,
+                    return new PropertiesTable(txn,
                             namingRulez.getPropertiesTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES);
                 }
             });
@@ -226,7 +226,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 @NotNull
                 @Override
                 public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-                    return new SingleColumnTable(PersistentEntityStoreImpl.this, txn,
+                    return new SingleColumnTable(txn,
                             namingRulez.getPropertiesHistoryTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES);
                 }
             });
@@ -234,7 +234,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 @NotNull
                 @Override
                 public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-                    return new TwoColumnTable(PersistentEntityStoreImpl.this, txn,
+                    return new TwoColumnTable(txn,
                             namingRulez.getLinksTableName(entityTypeId), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING);
                 }
             });
@@ -242,7 +242,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 @NotNull
                 @Override
                 public Table createTable(@NotNull final PersistentStoreTransaction txn, int entityTypeId) {
-                    return new SingleColumnTable(PersistentEntityStoreImpl.this, txn,
+                    return new SingleColumnTable(txn,
                             namingRulez.getLinksHistoryTableName(entityTypeId), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING);
                 }
             });
@@ -258,7 +258,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 @NotNull
                 @Override
                 public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-                    return new SingleColumnTable(PersistentEntityStoreImpl.this, txn,
+                    return new SingleColumnTable(txn,
                             namingRulez.getBlobsHistoryTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES);
                 }
             });
@@ -2050,7 +2050,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     }
                 }
                 if (indexTable == null) {
-                    indexTable = new SingleColumnTable(this, txn, getUniqueKeyIndexName(index),
+                    indexTable = new SingleColumnTable(txn, getUniqueKeyIndexName(index),
                             StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING);
                 }
                 if (!indexTable.getDatabase().add(txn.getEnvironmentTransaction(), propertyTypes.dataArrayToEntry(props), LongBinding.longToCompressedEntry(entity.getId().getLocalId()))) {
@@ -2207,7 +2207,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final String indexName = getUniqueKeyIndexName(index);
         Table result = uniqueKeyIndices.get(indexName);
         if (result == null) {
-            result = new SingleColumnTable(this, txn, indexName,
+            result = new SingleColumnTable(txn, indexName,
                     StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING);
             uniqueKeyIndices.put(indexName, result);
         }
@@ -2224,10 +2224,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     public void close() {
         try {
             log.info("Closing...");
-            final EntityStoreSharedAsyncProcessor processor = getAsyncProcessor();
-            if (processor != null) {
-                processor.finish();
-            }
+            getAsyncProcessor().finish();
 
             synchronized (this) {
                 blobVault.close();
