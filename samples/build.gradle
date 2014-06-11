@@ -1,5 +1,5 @@
 dependencies {
-    compile project(':persistentEntityStore')
+    compile project(':entity-store')
 }
 
 jar {

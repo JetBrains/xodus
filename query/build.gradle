@@ -1,5 +1,5 @@
 dependencies {
-    compile project(':persistentEntityStore')
-    testCompile project(':persistentEntityStore').sourceSets.test.output
+    compile project(':entity-store')
+    testCompile project(':entity-store').sourceSets.test.output
     testCompile project(':utils').sourceSets.test.output
 }
