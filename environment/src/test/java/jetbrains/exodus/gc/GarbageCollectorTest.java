@@ -128,12 +128,12 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
 
         env.getGC().cleanWholeLog();
 
-        store = openStoreAutoCommit("updateSameKey", StoreConfiguration.USE_EXISTING);
+        store = openStoreAutoCommit("updateSameKey", StoreConfig.USE_EXISTING);
         Assert.assertEquals(1, countAutoCommit(store));
 
         reopenEnvironment();
 
-        store = openStoreAutoCommit("updateSameKey", StoreConfiguration.USE_EXISTING);
+        store = openStoreAutoCommit("updateSameKey", StoreConfig.USE_EXISTING);
         Assert.assertEquals(1, countAutoCommit(store));
     }
 
@@ -150,12 +150,12 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
 
         env.getGC().cleanWholeLog();
 
-        store = openStoreAutoCommit("updateSameKey", StoreConfiguration.USE_EXISTING);
+        store = openStoreAutoCommit("updateSameKey", StoreConfig.USE_EXISTING);
         Assert.assertEquals(1, countAutoCommit(store));
 
         reopenEnvironment();
 
-        store = openStoreAutoCommit("updateSameKey", StoreConfiguration.USE_EXISTING);
+        store = openStoreAutoCommit("updateSameKey", StoreConfig.USE_EXISTING);
         Assert.assertEquals(1, countAutoCommit(store));
     }
 
@@ -290,8 +290,8 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
         return (StoreImpl) openStoreAutoCommit(name, getStoreConfig(false));
     }
 
-    protected StoreConfiguration getStoreConfig(boolean hasDuplicates) {
-        return hasDuplicates ? StoreConfiguration.WITH_DUPLICATES : StoreConfiguration.WITHOUT_DUPLICATES;
+    protected StoreConfig getStoreConfig(boolean hasDuplicates) {
+        return hasDuplicates ? StoreConfig.WITH_DUPLICATES : StoreConfig.WITHOUT_DUPLICATES;
     }
 
     private long createStore(@NotNull final String name, final int keys) {

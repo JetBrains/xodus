@@ -40,37 +40,37 @@ public class StoreTest extends EnvironmentTestsBase {
 
     @Test
     public void testPutWithoutDuplicates() {
-        putWithoutDuplicates(StoreConfiguration.WITHOUT_DUPLICATES);
+        putWithoutDuplicates(StoreConfig.WITHOUT_DUPLICATES);
     }
 
     @Test
     public void testPutWithoutDuplicatesWithPrefixing() {
-        putWithoutDuplicates(StoreConfiguration.WITHOUT_DUPLICATES_WITH_PREFIXING);
+        putWithoutDuplicates(StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING);
     }
 
     @Test
     public void testPutRightWithoutDuplicates() {
-        successivePutRightWithoutDuplicates(StoreConfiguration.WITHOUT_DUPLICATES);
+        successivePutRightWithoutDuplicates(StoreConfig.WITHOUT_DUPLICATES);
     }
 
     @Test
     public void testPutRightWithoutDuplicatesWithPrefixing() {
-        successivePutRightWithoutDuplicates(StoreConfiguration.WITHOUT_DUPLICATES_WITH_PREFIXING);
+        successivePutRightWithoutDuplicates(StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING);
     }
 
     @Test
     public void testTruncateWithinTxn() {
-        truncateWithinTxn(StoreConfiguration.WITHOUT_DUPLICATES);
+        truncateWithinTxn(StoreConfig.WITHOUT_DUPLICATES);
     }
 
     @Test
     public void testTruncateWithinTxnWithPrefixing() {
-        truncateWithinTxn(StoreConfiguration.WITHOUT_DUPLICATES_WITH_PREFIXING);
+        truncateWithinTxn(StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING);
     }
 
     @Test
     public void testRemoveWithoutTransaction() {
-        final Store store = openStoreAutoCommit("store", StoreConfiguration.WITHOUT_DUPLICATES);
+        final Store store = openStoreAutoCommit("store", StoreConfig.WITHOUT_DUPLICATES);
         Transaction txn = env.beginTransaction();
         store.put(txn, getKey(), getValue());
         txn.commit();
@@ -83,7 +83,7 @@ public class StoreTest extends EnvironmentTestsBase {
             }
         });
         try {
-            openStoreAutoCommit("store", StoreConfiguration.USE_EXISTING);
+            openStoreAutoCommit("store", StoreConfig.USE_EXISTING);
             Assert.fail("Exception on open removed db is not thrown!");
         } catch (Exception ex) {
             // ignore
@@ -92,7 +92,7 @@ public class StoreTest extends EnvironmentTestsBase {
 
     @Test
     public void testRemoveWithinTransaction() {
-        final Store store = openStoreAutoCommit("store", StoreConfiguration.WITHOUT_DUPLICATES);
+        final Store store = openStoreAutoCommit("store", StoreConfig.WITHOUT_DUPLICATES);
         Transaction txn = env.beginTransaction();
         store.put(txn, getKey(), getValue());
         txn.commit();
@@ -104,7 +104,7 @@ public class StoreTest extends EnvironmentTestsBase {
         assertEmptyValue(store, getKey());
 
         try {
-            openStoreAutoCommit("store", StoreConfiguration.USE_EXISTING);
+            openStoreAutoCommit("store", StoreConfig.USE_EXISTING);
             Assert.fail("Exception on open removed db is not thrown!");
         } catch (Exception ex) {
             // ignore
@@ -113,7 +113,7 @@ public class StoreTest extends EnvironmentTestsBase {
 
     @Test
     public void testPutWithDuplicates() {
-        final Store store = openStoreAutoCommit("store", StoreConfiguration.WITH_DUPLICATES);
+        final Store store = openStoreAutoCommit("store", StoreConfig.WITH_DUPLICATES);
         Transaction txn = env.beginTransaction();
         store.put(txn, getKey(), getValue());
         txn.commit();
@@ -127,7 +127,7 @@ public class StoreTest extends EnvironmentTestsBase {
 
     @Test
     public void testCloseCursorTwice() {
-        final Store store = openStoreAutoCommit("store", StoreConfiguration.WITH_DUPLICATES);
+        final Store store = openStoreAutoCommit("store", StoreConfig.WITH_DUPLICATES);
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
@@ -147,24 +147,24 @@ public class StoreTest extends EnvironmentTestsBase {
     public void testCreateThreeStoresWithoutAutoCommit() {
         final Environment env = getEnvironment();
         final Transaction txn = env.beginTransaction();
-        env.openStore("store1", StoreConfiguration.WITHOUT_DUPLICATES, txn);
-        env.openStore("store2", StoreConfiguration.WITHOUT_DUPLICATES, txn);
-        final Store store3 = env.openStore("store3", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+        env.openStore("store1", StoreConfig.WITHOUT_DUPLICATES, txn);
+        env.openStore("store2", StoreConfig.WITHOUT_DUPLICATES, txn);
+        final Store store3 = env.openStore("store3", StoreConfig.WITHOUT_DUPLICATES, txn);
         store3.put(txn, getKey(), getValue());
         txn.commit();
     }
 
     @Test
     public void testConcurrentPutLikeJetPassBTree() {
-        concurrentPutLikeJetPass(StoreConfiguration.WITHOUT_DUPLICATES);
+        concurrentPutLikeJetPass(StoreConfig.WITHOUT_DUPLICATES);
     }
 
     @Test
     public void testConcurrentPutLikeJetPassPatricia() {
-        concurrentPutLikeJetPass(StoreConfiguration.WITHOUT_DUPLICATES_WITH_PREFIXING);
+        concurrentPutLikeJetPass(StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING);
     }
 
-    private void putWithoutDuplicates(final StoreConfiguration config) {
+    private void putWithoutDuplicates(final StoreConfig config) {
         final EnvironmentImpl env = getEnvironment();
         Transaction txn = env.beginTransaction();
         final Store store = env.openStore("store", config, txn);
@@ -178,7 +178,7 @@ public class StoreTest extends EnvironmentTestsBase {
         Assert.assertTrue(env.getGC().isExpired(STORE_ROOT_ADDRESS, 1)); // is root of store obsolete
     }
 
-    private void successivePutRightWithoutDuplicates(final StoreConfiguration config) {
+    private void successivePutRightWithoutDuplicates(final StoreConfig config) {
         final Environment env = getEnvironment();
         Transaction txn = env.beginTransaction();
         final Store store = env.openStore("store", config, txn);
@@ -194,7 +194,7 @@ public class StoreTest extends EnvironmentTestsBase {
         assertNotNullStringValue(store, kv11, "11");
     }
 
-    private void truncateWithinTxn(final StoreConfiguration config) {
+    private void truncateWithinTxn(final StoreConfig config) {
         Transaction txn = env.beginTransaction();
         final Store store = env.openStore("store", config, txn);
         store.put(txn, getKey(), getValue());
@@ -206,11 +206,11 @@ public class StoreTest extends EnvironmentTestsBase {
         txn.commit();
         assertEmptyValue(store, getKey());
         Assert.assertTrue(env.getGC().isExpired(STORE_ROOT_ADDRESS, 1)); // root of store should be obsolete
-        openStoreAutoCommit("store", StoreConfiguration.USE_EXISTING);
+        openStoreAutoCommit("store", StoreConfig.USE_EXISTING);
         assertEmptyValue(store, getKey());
     }
 
-    private void concurrentPutLikeJetPass(@NotNull final StoreConfiguration config) {
+    private void concurrentPutLikeJetPass(@NotNull final StoreConfig config) {
         env.getEnvironmentConfig().setGcEnabled(false);
         final Store store = openStoreAutoCommit("store", config);
         final JobProcessor processor = new MultiThreadDelegatingJobProcessor("ConcurrentPutProcessor", 8) {

@@ -101,7 +101,7 @@ public class RecoveryClassLoaderTest {
             env.executeInTransaction(new TransactionalExecutable() {
                 @Override
                 public void execute(@NotNull Transaction txn) {
-                    env.openStore("new_store", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+                    env.openStore("new_store", StoreConfig.WITHOUT_DUPLICATES, txn);
                 }
             });
 

@@ -38,7 +38,7 @@ public class AbortTest extends TestCase {
     }
 
     public void testAbort() {
-        final StoreConfiguration dbConfig = StoreConfiguration.WITHOUT_DUPLICATES;
+        final StoreConfig dbConfig = StoreConfig.WITHOUT_DUPLICATES;
         Transaction txn = env.beginTransaction();
         final Store store = env.openStore("testDatabase", dbConfig, txn);
         final ArrayByteIterable dbEntry = new ArrayByteIterable(new byte[4]);

@@ -127,7 +127,7 @@ public class StoreImpl implements Store {
 
     @Override
     @NotNull
-    public StoreConfiguration getConfig() {
+    public StoreConfig getConfig() {
         return TreeMetaInfo.toConfig(metaInfo);
     }
 

@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.lucene;
 
-import jetbrains.exodus.env.StoreConfiguration;
+import jetbrains.exodus.env.StoreConfig;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.Term;
@@ -273,7 +273,7 @@ public class ExodusLuceneWithPatriciaTests extends ExodusLuceneTestsBase {
     }
 
     @Override
-    protected StoreConfiguration getContentsConfig() {
-        return StoreConfiguration.WITHOUT_DUPLICATES_WITH_PREFIXING;
+    protected StoreConfig getContentsConfig() {
+        return StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING;
     }
 }

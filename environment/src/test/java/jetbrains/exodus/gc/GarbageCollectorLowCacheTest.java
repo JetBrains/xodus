@@ -20,7 +20,7 @@ import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.env.EnvironmentConfig;
 import jetbrains.exodus.env.EnvironmentTestsBase;
 import jetbrains.exodus.env.Store;
-import jetbrains.exodus.env.StoreConfiguration;
+import jetbrains.exodus.env.StoreConfig;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogConfig;
 import org.junit.Test;
@@ -86,8 +86,8 @@ public class GarbageCollectorLowCacheTest extends EnvironmentTestsBase {
         printDiskUsage();
     }
 
-    protected StoreConfiguration getConfig() {
-        return StoreConfiguration.WITHOUT_DUPLICATES;
+    protected StoreConfig getConfig() {
+        return StoreConfig.WITHOUT_DUPLICATES;
     }
 
     private void printDiskUsage() throws IOException, InterruptedException {

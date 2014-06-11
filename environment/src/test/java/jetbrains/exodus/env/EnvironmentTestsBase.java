@@ -185,7 +185,7 @@ public class EnvironmentTestsBase {
         }
     }
 
-    protected Store openStoreAutoCommit(final String name, final StoreConfiguration config) {
+    protected Store openStoreAutoCommit(final String name, final StoreConfig config) {
         return env.computeInTransaction(new TransactionalComputable<Store>() {
             @Override
             public Store compute(@NotNull Transaction txn) {

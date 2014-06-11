@@ -94,5 +94,5 @@ public interface Store {
     String getName();
 
     @NotNull
-    StoreConfiguration getConfig();
+    StoreConfig getConfig();
 }

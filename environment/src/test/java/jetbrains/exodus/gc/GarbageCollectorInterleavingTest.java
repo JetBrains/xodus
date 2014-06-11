@@ -87,8 +87,8 @@ public class GarbageCollectorInterleavingTest extends EnvironmentTestsBase {
         txn.abort();
     }
 
-    protected StoreConfiguration getStoreConfig() {
-        return StoreConfiguration.WITHOUT_DUPLICATES;
+    protected StoreConfig getStoreConfig() {
+        return StoreConfig.WITHOUT_DUPLICATES;
     }
 
     protected int getRecordsNumber() {

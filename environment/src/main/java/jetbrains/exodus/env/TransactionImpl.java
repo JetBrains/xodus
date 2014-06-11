@@ -155,7 +155,7 @@ public class TransactionImpl implements Transaction {
         final String storeName = metaTree.getStoreNameByStructureId(structureId, env);
         return storeName == null ?
                 new StoreEmpty(env, structureId) :
-                env.openStoreImpl(storeName, StoreConfiguration.USE_EXISTING, this, env.getCurrentMetaInfo(storeName, this));
+                env.openStoreImpl(storeName, StoreConfig.USE_EXISTING, this, env.getCurrentMetaInfo(storeName, this));
     }
 
     boolean isIdempotent() {

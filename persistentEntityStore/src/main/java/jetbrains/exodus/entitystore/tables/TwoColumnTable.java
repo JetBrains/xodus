@@ -31,7 +31,7 @@ public final class TwoColumnTable extends Table {
     public TwoColumnTable(@NotNull final PersistentEntityStoreImpl store,
                           @NotNull final PersistentStoreTransaction txn,
                           @NotNull final String name,
-                          @NotNull final StoreConfiguration config) {
+                          @NotNull final StoreConfig config) {
         final Transaction envTxn = txn.getEnvironmentTransaction();
         final Environment env = store.getEnvironment();
         first = env.openStore(name, config, envTxn);

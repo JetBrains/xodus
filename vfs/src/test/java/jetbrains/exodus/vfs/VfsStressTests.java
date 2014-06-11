@@ -17,7 +17,7 @@ package jetbrains.exodus.vfs;
 
 import jetbrains.exodus.env.EnvironmentConfig;
 import jetbrains.exodus.env.EnvironmentTestsBase;
-import jetbrains.exodus.env.StoreConfiguration;
+import jetbrains.exodus.env.StoreConfig;
 import jetbrains.exodus.env.Transaction;
 import jetbrains.exodus.log.LogConfig;
 import org.junit.After;
@@ -57,7 +57,7 @@ public class VfsStressTests extends EnvironmentTestsBase {
     public void testLuceneDirectoryLike() throws IOException {
         final VfsConfig config = new VfsConfig();
         config.setClusteringStrategy(new ClusteringStrategy.QuadraticClusteringStrategy(4));
-        vfs = new VirtualFileSystem(getEnvironment(), config, StoreConfiguration.WITHOUT_DUPLICATES);
+        vfs = new VirtualFileSystem(getEnvironment(), config, StoreConfig.WITHOUT_DUPLICATES);
         Transaction txn = env.beginTransaction();
         File bigFile = vfs.createFile(txn, "big_file");
         txn.commit();

@@ -59,8 +59,8 @@ public class EnvironmentTestInMemory extends EnvironmentTest {
         final int valuesCount = 20;
         final long started = System.currentTimeMillis();
         final Persistent23TreeMap<Integer, Integer> testMap = new Persistent23TreeMap<Integer, Integer>();
-        final Store primary = openStoreAutoCommit("primary", StoreConfiguration.WITHOUT_DUPLICATES);
-        final Store secondary = openStoreAutoCommit("secondary", StoreConfiguration.WITH_DUPLICATES);
+        final Store primary = openStoreAutoCommit("primary", StoreConfig.WITHOUT_DUPLICATES);
+        final Store secondary = openStoreAutoCommit("secondary", StoreConfig.WITH_DUPLICATES);
         while (System.currentTimeMillis() - started < TEST_DURATION) {
             if (rnd.nextInt() % 100 == 1) {
                 Thread.sleep(101);

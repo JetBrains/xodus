@@ -174,14 +174,14 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         allSequences = new HashMap<String, PersistentSequence>();
 
         final PersistentStoreTransaction txn = beginTransaction();
-        sequences = environment.openStore(SEQUENCES_STORE, StoreConfiguration.WITHOUT_DUPLICATES, txn.getEnvironmentTransaction());
+        sequences = environment.openStore(SEQUENCES_STORE, StoreConfig.WITHOUT_DUPLICATES, txn.getEnvironmentTransaction());
         final boolean fromScratch;
         try {
             this.blobVault = blobVault == null ? createDefaultFSBlobVault() : blobVault;
 
             entitiesSequences = new IntHashMap<PersistentSequence>();
             final TwoColumnTable entityTypesTable = new TwoColumnTable(this, txn,
-                    namingRulez.getEntityTypesTableName(), StoreConfiguration.WITHOUT_DUPLICATES);
+                    namingRulez.getEntityTypesTableName(), StoreConfig.WITHOUT_DUPLICATES);
             final PersistentSequence entityTypesSequence = getSequence(txn, namingRulez.getEntityTypesSequenceName());
             entityTypes = new PersistentSequentialDictionary(entityTypesSequence, entityTypesTable) {
                 @Override
@@ -190,20 +190,20 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
             };
             propertyIds = new PersistentSequentialDictionary(getSequence(txn, namingRulez.getPropertyIdsSequenceName()),
-                    new TwoColumnTable(this, txn, namingRulez.getPropertyIdsTableName(), StoreConfiguration.WITHOUT_DUPLICATES));
+                    new TwoColumnTable(this, txn, namingRulez.getPropertyIdsTableName(), StoreConfig.WITHOUT_DUPLICATES));
             linkIds = new PersistentSequentialDictionary(getSequence(txn, namingRulez.getLinkIdsSequenceName()),
-                    new TwoColumnTable(this, txn, namingRulez.getLinkIdsTableName(), StoreConfiguration.WITHOUT_DUPLICATES));
+                    new TwoColumnTable(this, txn, namingRulez.getLinkIdsTableName(), StoreConfig.WITHOUT_DUPLICATES));
 
             propertyTypes = new PropertyTypes();
             propertyCustomTypeIds = new PersistentSequentialDictionary(getSequence(txn, namingRulez.getPropertyCustomTypesSequence()),
-                    new TwoColumnTable(this, txn, namingRulez.getPropertyCustomTypesTable(), StoreConfiguration.WITHOUT_DUPLICATES_WITH_PREFIXING));
+                    new TwoColumnTable(this, txn, namingRulez.getPropertyCustomTypesTable(), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING));
 
             entitiesTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
                 @NotNull
                 @Override
                 public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
                     return new SingleColumnTable(PersistentEntityStoreImpl.this, txn,
-                            namingRulez.getEntitiesTableName(entityTypeId), StoreConfiguration.WITHOUT_DUPLICATES_WITH_PREFIXING);
+                            namingRulez.getEntitiesTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING);
                 }
             });
             entitiesHistoryTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
@@ -211,7 +211,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 @Override
                 public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
                     return new SingleColumnTable(PersistentEntityStoreImpl.this, txn,
-                            namingRulez.getEntitiesHistoryTableName(entityTypeId), StoreConfiguration.WITH_DUPLICATES);
+                            namingRulez.getEntitiesHistoryTableName(entityTypeId), StoreConfig.WITH_DUPLICATES);
                 }
             });
             propertiesTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
@@ -219,7 +219,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 @Override
                 public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
                     return new PropertiesTable(PersistentEntityStoreImpl.this, txn,
-                            namingRulez.getPropertiesTableName(entityTypeId), StoreConfiguration.WITHOUT_DUPLICATES);
+                            namingRulez.getPropertiesTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES);
                 }
             });
             propertiesHistoryTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
@@ -227,7 +227,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 @Override
                 public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
                     return new SingleColumnTable(PersistentEntityStoreImpl.this, txn,
-                            namingRulez.getPropertiesHistoryTableName(entityTypeId), StoreConfiguration.WITHOUT_DUPLICATES);
+                            namingRulez.getPropertiesHistoryTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES);
                 }
             });
             linksTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
@@ -235,7 +235,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 @Override
                 public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
                     return new TwoColumnTable(PersistentEntityStoreImpl.this, txn,
-                            namingRulez.getLinksTableName(entityTypeId), StoreConfiguration.WITH_DUPLICATES_WITH_PREFIXING);
+                            namingRulez.getLinksTableName(entityTypeId), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING);
                 }
             });
             linksHistoryTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
@@ -243,7 +243,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 @Override
                 public Table createTable(@NotNull final PersistentStoreTransaction txn, int entityTypeId) {
                     return new SingleColumnTable(PersistentEntityStoreImpl.this, txn,
-                            namingRulez.getLinksHistoryTableName(entityTypeId), StoreConfiguration.WITH_DUPLICATES_WITH_PREFIXING);
+                            namingRulez.getLinksHistoryTableName(entityTypeId), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING);
                 }
             });
             blobsTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
@@ -251,7 +251,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 @Override
                 public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
                     return new BlobsTable(PersistentEntityStoreImpl.this, txn,
-                            namingRulez.getBlobsTableName(entityTypeId), StoreConfiguration.WITHOUT_DUPLICATES);
+                            namingRulez.getBlobsTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES);
                 }
             });
             blobsHistoryTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
@@ -259,18 +259,18 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 @Override
                 public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
                     return new SingleColumnTable(PersistentEntityStoreImpl.this, txn,
-                            namingRulez.getBlobsHistoryTableName(entityTypeId), StoreConfiguration.WITHOUT_DUPLICATES);
+                            namingRulez.getBlobsHistoryTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES);
                 }
             });
             uniqueKeyIndices = new HashMap<String, Table>();
 
             final String internalSettingsName = namingRulez.getInternalSettingsName();
             final Store settings = environment.openStore(internalSettingsName,
-                    StoreConfiguration.WITHOUT_DUPLICATES, txn.getEnvironmentTransaction(), false);
+                    StoreConfig.WITHOUT_DUPLICATES, txn.getEnvironmentTransaction(), false);
             fromScratch = settings == null;
             if (fromScratch) {
                 internalSettings = environment.openStore(internalSettingsName,
-                        StoreConfiguration.WITHOUT_DUPLICATES, txn.getEnvironmentTransaction(), true);
+                        StoreConfig.WITHOUT_DUPLICATES, txn.getEnvironmentTransaction(), true);
             } else {
                 internalSettings = settings;
             }
@@ -2051,7 +2051,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
                 if (indexTable == null) {
                     indexTable = new SingleColumnTable(this, txn, getUniqueKeyIndexName(index),
-                            StoreConfiguration.WITHOUT_DUPLICATES_WITH_PREFIXING);
+                            StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING);
                 }
                 if (!indexTable.getDatabase().add(txn.getEnvironmentTransaction(), propertyTypes.dataArrayToEntry(props), LongBinding.longToCompressedEntry(entity.getId().getLocalId()))) {
                     throw new EntityStoreException("Failed to insert unique key (already exists), index: " + index + ", values = " + Arrays.toString(props));
@@ -2208,7 +2208,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         Table result = uniqueKeyIndices.get(indexName);
         if (result == null) {
             result = new SingleColumnTable(this, txn, indexName,
-                    StoreConfiguration.WITHOUT_DUPLICATES_WITH_PREFIXING);
+                    StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING);
             uniqueKeyIndices.put(indexName, result);
         }
         return ((SingleColumnTable) result).getDatabase();

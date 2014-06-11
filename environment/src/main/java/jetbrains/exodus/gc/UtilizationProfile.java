@@ -72,7 +72,7 @@ public final class UtilizationProfile {
                 @Override
                 public void execute(@NotNull final Transaction txn) {
                     final StoreImpl store = env.openStore(
-                            GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, StoreConfiguration.WITHOUT_DUPLICATES, txn);
+                            GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES, txn);
                     final Cursor cursor = store.openCursor(txn);
                     try {
                         while (cursor.getNext()) {
@@ -105,7 +105,7 @@ public final class UtilizationProfile {
             @Override
             public void execute(@NotNull Transaction txn) {
                 for (final String storeName : env.getAllStoreNames(txn)) {
-                    final StoreImpl store = env.openStore(storeName, StoreConfiguration.USE_EXISTING, txn);
+                    final StoreImpl store = env.openStore(storeName, StoreConfig.USE_EXISTING, txn);
                     final LongIterator it = store.getUpToDateTree().addressIterator();
                     while (it.hasNext()) {
                         final long address = it.next();
@@ -137,7 +137,7 @@ public final class UtilizationProfile {
             @Override
             public void execute(@NotNull final Transaction txn) {
                 final StoreImpl store = env.openStore(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME,
-                        StoreConfiguration.WITHOUT_DUPLICATES, txn);
+                        StoreConfig.WITHOUT_DUPLICATES, txn);
                 // clear entries for already deleted files
                 final Cursor cursor = store.openCursor(txn);
                 try {

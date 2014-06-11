@@ -15,12 +15,12 @@
  */
 package jetbrains.exodus.lucene;
 
-import jetbrains.exodus.env.StoreConfiguration;
+import jetbrains.exodus.env.StoreConfig;
 
 public class ExodusLuceneWithBTreeTests extends ExodusLuceneWithPatriciaTests {
 
     @Override
-    protected StoreConfiguration getContentsConfig() {
-        return StoreConfiguration.WITHOUT_DUPLICATES;
+    protected StoreConfig getContentsConfig() {
+        return StoreConfig.WITHOUT_DUPLICATES;
     }
 }

@@ -48,43 +48,43 @@ public class VirtualFileSystem {
     }
 
     public VirtualFileSystem(@NotNull final Environment env, @NotNull final VfsConfig config) {
-        this(env, config, StoreConfiguration.WITHOUT_DUPLICATES);
+        this(env, config, StoreConfig.WITHOUT_DUPLICATES);
     }
 
     public VirtualFileSystem(@NotNull final Environment env, @NotNull final VfsConfig config, @Nullable final Transaction txn) {
-        this(env, config, StoreConfiguration.WITHOUT_DUPLICATES, txn);
+        this(env, config, StoreConfig.WITHOUT_DUPLICATES, txn);
     }
 
     public VirtualFileSystem(@NotNull final Environment env,
                              @NotNull final VfsConfig config,
-                             @NotNull final StoreConfiguration contentsStoreConfig) {
+                             @NotNull final StoreConfig contentsStoreConfig) {
         this(env, config, contentsStoreConfig, null);
     }
 
     public VirtualFileSystem(@NotNull final Environment env,
                              @NotNull final VfsConfig config,
-                             @NotNull final StoreConfiguration contentsStoreConfig,
+                             @NotNull final StoreConfig contentsStoreConfig,
                              @Nullable final Transaction txn) {
         this.env = env;
         this.config = config;
         if (txn != null) {
             settings = new VfsSettings(env, env.openStore(
-                    SETTINGS_STORE_NAME, StoreConfiguration.WITHOUT_DUPLICATES_WITH_PREFIXING, txn));
+                    SETTINGS_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn));
             pathnames = env.openStore(
-                    PATHNAMES_STORE_NAME, StoreConfiguration.WITHOUT_DUPLICATES_WITH_PREFIXING, txn);
+                    PATHNAMES_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn);
             contents = env.openStore(CONTENTS_STORE_NAME, contentsStoreConfig, txn);
         } else {
             settings = env.computeInTransaction(new TransactionalComputable<VfsSettings>() {
                 @Override
                 public VfsSettings compute(@NotNull final Transaction txn) {
                     return new VfsSettings(env, env.openStore(
-                            SETTINGS_STORE_NAME, StoreConfiguration.WITHOUT_DUPLICATES_WITH_PREFIXING, txn));
+                            SETTINGS_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn));
                 }
             });
             pathnames = env.computeInTransaction(new TransactionalComputable<Store>() {
                 @Override
                 public Store compute(@NotNull final Transaction txn) {
-                    return env.openStore(PATHNAMES_STORE_NAME, StoreConfiguration.WITHOUT_DUPLICATES_WITH_PREFIXING, txn);
+                    return env.openStore(PATHNAMES_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn);
                 }
             });
             contents = env.computeInTransaction(new TransactionalComputable<Store>() {

@@ -304,7 +304,7 @@ public class Reflect {
                 env.executeInTransaction(new TransactionalExecutable() {
                     @Override
                     public void execute(@NotNull final Transaction txn) {
-                        final StoreImpl store = env.openStore(name, StoreConfiguration.USE_EXISTING, txn);
+                        final StoreImpl store = env.openStore(name, StoreConfig.USE_EXISTING, txn);
                         int storeSize = 0;
                         Cursor cursor = store.openCursor(txn);
                         try {
@@ -345,14 +345,14 @@ public class Reflect {
             int i = 0;
             for (final String name : names) {
                 System.out.print("Copying store " + name + " (" + ++i + " of " + size + ')');
-                final StoreConfiguration[] config = new StoreConfiguration[]{null};
+                final StoreConfig[] config = new StoreConfig[]{null};
                 final long[] storeSize = new long[1];
                 final List<Pair<ByteIterable, ByteIterable>> pairs = new ArrayList<Pair<ByteIterable, ByteIterable>>();
                 try {
                     env.executeInReadonlyTransaction(new TransactionalExecutable() {
                         @Override
                         public void execute(@NotNull final Transaction txn) {
-                            final Store store = env.openStore(name, StoreConfiguration.USE_EXISTING, txn);
+                            final Store store = env.openStore(name, StoreConfig.USE_EXISTING, txn);
                             config[0] = store.getConfig();
                             storeSize[0] = store.count(txn);
                             final Cursor cursor = store.openCursor(txn);

@@ -36,11 +36,11 @@ public final class BlobsTable extends Table {
     public BlobsTable(@NotNull final PersistentEntityStoreImpl store,
                       @NotNull final PersistentStoreTransaction txn,
                       @NotNull final String name,
-                      @NotNull final StoreConfiguration primaryConfig) {
+                      @NotNull final StoreConfig primaryConfig) {
         final Transaction envTxn = txn.getEnvironmentTransaction();
         final Environment env = store.getEnvironment();
         primaryStore = env.openStore(name, primaryConfig, envTxn);
-        allBlobsIndex = env.openStore(name + ALL_PROPS_IDX, StoreConfiguration.WITH_DUPLICATES_WITH_PREFIXING, envTxn);
+        allBlobsIndex = env.openStore(name + ALL_PROPS_IDX, StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, envTxn);
         store.trackTableCreation(primaryStore, txn);
         store.trackTableCreation(allBlobsIndex, txn);
     }

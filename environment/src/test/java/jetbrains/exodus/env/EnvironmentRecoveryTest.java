@@ -120,13 +120,13 @@ public class EnvironmentRecoveryTest extends EnvironmentTestsBase {
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull Transaction txn) {
-                env.openStore("new_store", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+                env.openStore("new_store", StoreConfig.WITHOUT_DUPLICATES, txn);
             }
         });
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull Transaction txn) {
-                env.openStore("another_store", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+                env.openStore("another_store", StoreConfig.WITHOUT_DUPLICATES, txn);
             }
         });
         env.close();
@@ -144,13 +144,13 @@ public class EnvironmentRecoveryTest extends EnvironmentTestsBase {
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull Transaction txn) {
-                env.openStore("new_store", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+                env.openStore("new_store", StoreConfig.WITHOUT_DUPLICATES, txn);
             }
         });
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull Transaction txn) {
-                env.openStore("another_store", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+                env.openStore("another_store", StoreConfig.WITHOUT_DUPLICATES, txn);
             }
         });
         assertLoggableTypes(getLog(), 0, SEQ);

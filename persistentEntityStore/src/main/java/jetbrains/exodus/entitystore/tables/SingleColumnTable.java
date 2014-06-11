@@ -18,7 +18,7 @@ package jetbrains.exodus.entitystore.tables;
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.env.Store;
-import jetbrains.exodus.env.StoreConfiguration;
+import jetbrains.exodus.env.StoreConfig;
 import org.jetbrains.annotations.NotNull;
 
 public class SingleColumnTable extends Table {
@@ -33,7 +33,7 @@ public class SingleColumnTable extends Table {
     public SingleColumnTable(@NotNull PersistentEntityStoreImpl store,
                              @NotNull final PersistentStoreTransaction txn,
                              @NotNull final String name,
-                             @NotNull final StoreConfiguration config) {
+                             @NotNull final StoreConfig config) {
         database = store.getEnvironment().openStore(name, config, txn.getEnvironmentTransaction());
         store.trackTableCreation(database, txn);
     }

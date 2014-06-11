@@ -15,13 +15,13 @@
  */
 package jetbrains.exodus.gc;
 
-import jetbrains.exodus.env.StoreConfiguration;
+import jetbrains.exodus.env.StoreConfig;
 
 public class GarbageCollectorInterleavingTestPrefixing extends GarbageCollectorInterleavingTest {
 
     @Override
-    protected StoreConfiguration getStoreConfig() {
-        return StoreConfiguration.WITHOUT_DUPLICATES_WITH_PREFIXING;
+    protected StoreConfig getStoreConfig() {
+        return StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING;
     }
 
     @Override

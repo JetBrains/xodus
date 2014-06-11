@@ -54,7 +54,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
 
     @Test
     public void testCreateSingleStore() {
-        final Store store = openStoreAutoCommit("new_store", StoreConfiguration.WITHOUT_DUPLICATES);
+        final Store store = openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES);
         assertLoggableTypes(getLog(), 0, BTreeBase.BOTTOM_ROOT,
                 DatabaseRoot.DATABASE_ROOT_TYPE, BTreeBase.BOTTOM_ROOT, BTreeBase.LEAF, BTreeBase.LEAF,
                 BTreeBase.BOTTOM_ROOT, DatabaseRoot.DATABASE_ROOT_TYPE);
@@ -62,7 +62,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
 
     @Test
     public void testFirstLastLoggables() {
-        final Store store = openStoreAutoCommit("new_store", StoreConfiguration.WITHOUT_DUPLICATES);
+        final Store store = openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES);
         final Log log = getLog();
         Loggable l = log.getFirstLoggableOfType(BTreeBase.BOTTOM_ROOT);
         Assert.assertNotNull(l);
@@ -105,7 +105,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         final int count = 100;
         final Transaction txn = env.beginTransaction();
         for (int i = 0; i < count; ++i) {
-            env.openStore("new_store" + i, StoreConfiguration.WITHOUT_DUPLICATES, txn);
+            env.openStore("new_store" + i, StoreConfig.WITHOUT_DUPLICATES, txn);
         }
         txn.commit();
         getEnvironment().close();
@@ -132,7 +132,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         final Transaction txn = env.beginTransaction();
         final int count = 100;
         for (int i = 0; i < count; ++i) {
-            env.openStore("new_store" + i, StoreConfiguration.WITHOUT_DUPLICATES, txn);
+            env.openStore("new_store" + i, StoreConfig.WITHOUT_DUPLICATES, txn);
         }
         final List<String> stores = env.getAllStoreNames(txn);
         txn.commit();
@@ -157,7 +157,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         {
             final Transaction txn = env.beginTransaction();
             try {
-                final Store store = env.openStore("store", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+                final Store store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn);
                 for (int i = 0; i < count; ++i) {
                     store.put(txn, IntegerBinding.intToEntry(i), wtf);
                 }
@@ -173,7 +173,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         env = newEnvironmentInstance(config, envConfig);
         final Transaction txn = env.beginTransaction();
         try {
-            Store store = env.openStore("store", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+            Store store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn);
             store.put(txn, IntegerBinding.intToEntry(count), wtf);
         } finally {
             txn.commit();
@@ -189,7 +189,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
 
     @Test
     public void testUseExistingConfig() {
-        final StoreConfiguration expectedConfig = StoreConfiguration.WITHOUT_DUPLICATES;
+        final StoreConfig expectedConfig = StoreConfig.WITHOUT_DUPLICATES;
         final String name = "testDatabase";
 
         Transaction txn = env.beginTransaction();
@@ -197,7 +197,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         txn.commit();
 
         txn = env.beginTransaction();
-        final Store store = env.openStore(name, StoreConfiguration.USE_EXISTING_READONLY, txn);
+        final Store store = env.openStore(name, StoreConfig.USE_EXISTING_READONLY, txn);
         Assert.assertEquals(expectedConfig, store.getConfig());
         txn.commit();
     }
@@ -207,7 +207,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         setLogFileSize(16);
         env.getEnvironmentConfig().setGcEnabled(true);
 
-        final StoreConfiguration expectedConfig = StoreConfiguration.WITHOUT_DUPLICATES;
+        final StoreConfig expectedConfig = StoreConfig.WITHOUT_DUPLICATES;
 
         for (int j = 0; j < 100; j++) {
             System.out.println("Cycle " + j);
@@ -257,7 +257,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                     public void run() {
                         final Transaction txn = env.beginTransaction();
                         try {
-                            final Store store = env.openStore("store", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+                            final Store store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn);
                             for (int i = 0; i < 10000; ++i) {
                                 final ArrayByteIterable kv = IntegerBinding.intToEntry(i);
                                 store.put(txn, kv, kv);
@@ -284,7 +284,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                     public void run() {
                         final Transaction txn = env.beginTransaction();
                         try {
-                            final Store store = env.openStore("store", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+                            final Store store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn);
                             for (int i = 0; i < 10000; ++i) {
                                 final ByteIterable bi = store.get(txn, IntegerBinding.intToEntry(i));
                                 Assert.assertNotNull(bi);

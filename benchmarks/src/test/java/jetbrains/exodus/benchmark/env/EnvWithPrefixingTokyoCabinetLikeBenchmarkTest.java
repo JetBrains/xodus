@@ -15,12 +15,12 @@
  */
 package jetbrains.exodus.benchmark.env;
 
-import jetbrains.exodus.env.StoreConfiguration;
+import jetbrains.exodus.env.StoreConfig;
 
 public class EnvWithPrefixingTokyoCabinetLikeBenchmarkTest extends EnvTokyoCabinetLikeBenchmarkTest {
 
     @Override
-    protected StoreConfiguration getStoreConfiguration() {
-        return StoreConfiguration.WITH_DUPLICATES_WITH_PREFIXING;
+    protected StoreConfig getStoreConfiguration() {
+        return StoreConfig.WITH_DUPLICATES_WITH_PREFIXING;
     }
 }

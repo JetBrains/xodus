@@ -112,7 +112,7 @@ public class EnvironmentImpl implements Environment {
     @Override
     @NotNull
     public StoreImpl openStore(@NotNull final String name,
-                               @NotNull final StoreConfiguration config,
+                               @NotNull final StoreConfig config,
                                @NotNull final Transaction transaction) {
         final TransactionImpl txn = (TransactionImpl) transaction;
         return openStoreImpl(name, config, txn, getCurrentMetaInfo(name, txn));
@@ -121,7 +121,7 @@ public class EnvironmentImpl implements Environment {
     @Override
     @Nullable
     public StoreImpl openStore(@NotNull final String name,
-                               @NotNull final StoreConfiguration config,
+                               @NotNull final StoreConfig config,
                                @NotNull final Transaction transaction,
                                final boolean creationRequired) {
         final TransactionImpl txn = (TransactionImpl) transaction;
@@ -346,7 +346,7 @@ public class EnvironmentImpl implements Environment {
     @Override
     public void removeStore(@NotNull final String storeName, @NotNull final Transaction transaction) {
         final TransactionImpl txn = (TransactionImpl) transaction;
-        final StoreImpl store = openStore(storeName, StoreConfiguration.USE_EXISTING, txn, false);
+        final StoreImpl store = openStore(storeName, StoreConfig.USE_EXISTING, txn, false);
         if (store == null) {
             throw new ExodusException("Attempt to remove unknown store '" + storeName + '\'');
         }
@@ -510,7 +510,7 @@ public class EnvironmentImpl implements Environment {
      */
     @SuppressWarnings({"AssignmentToMethodParameter"})
     @NotNull
-    StoreImpl openStoreImpl(final String name, StoreConfiguration config, @Nullable final TransactionImpl txn, @Nullable TreeMetaInfo metaInfo) {
+    StoreImpl openStoreImpl(final String name, StoreConfig config, @Nullable final TransactionImpl txn, @Nullable TreeMetaInfo metaInfo) {
         if (config.useExisting) { // this parameter requires to recalculate
             if (metaInfo == null) {
                 throw new ExodusException("Can't restore meta information for store " + name);
@@ -668,7 +668,7 @@ public class EnvironmentImpl implements Environment {
     }
 
     private void truncateStoreImpl(@NotNull final String storeName, @NotNull final TransactionImpl txn) {
-        final StoreImpl store = openStore(storeName, StoreConfiguration.USE_EXISTING, txn, false);
+        final StoreImpl store = openStore(storeName, StoreConfig.USE_EXISTING, txn, false);
         if (store == null) {
             throw new ExodusException("Attempt to truncate unknown store '" + storeName + '\'');
         }

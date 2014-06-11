@@ -27,10 +27,10 @@ public interface Environment extends Backupable {
     String getLocation();
 
     @NotNull
-    Store openStore(@NotNull String name, @NotNull StoreConfiguration config, @NotNull Transaction transaction);
+    Store openStore(@NotNull String name, @NotNull StoreConfig config, @NotNull Transaction transaction);
 
     @Nullable
-    Store openStore(@NotNull String name, @NotNull StoreConfiguration config, @NotNull Transaction transaction, boolean creationRequired);
+    Store openStore(@NotNull String name, @NotNull StoreConfig config, @NotNull Transaction transaction, boolean creationRequired);
 
     /**
      * Executes a task after all currently started transactions are finished.

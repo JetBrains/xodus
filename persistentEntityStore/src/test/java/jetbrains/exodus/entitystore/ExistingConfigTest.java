@@ -45,7 +45,7 @@ public class ExistingConfigTest extends TestCase {
     }
 
     public void testConfig() {
-        final StoreConfiguration expectedConfig = StoreConfiguration.WITHOUT_DUPLICATES; // prefixing wtf
+        final StoreConfig expectedConfig = StoreConfig.WITHOUT_DUPLICATES; // prefixing wtf
         final String name = "testDatabase";
 
         Transaction txn = env.beginTransaction();
@@ -53,7 +53,7 @@ public class ExistingConfigTest extends TestCase {
         txn.commit();
 
         txn = env.beginTransaction();
-        final Store store = env.openStore(name, StoreConfiguration.USE_EXISTING_READONLY, txn);
+        final Store store = env.openStore(name, StoreConfig.USE_EXISTING_READONLY, txn);
         Assert.assertEquals(expectedConfig, store.getConfig());
         txn.commit();
     }

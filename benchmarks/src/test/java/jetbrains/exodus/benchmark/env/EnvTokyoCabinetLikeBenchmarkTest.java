@@ -74,7 +74,7 @@ public class EnvTokyoCabinetLikeBenchmarkTest extends BenchmarkTestBase {
         }
     }
 
-    protected Store openStoreAutoCommit(final String storeName, final StoreConfiguration configuration) {
+    protected Store openStoreAutoCommit(final String storeName, final StoreConfig configuration) {
         return env.computeInTransaction(new TransactionalComputable<Store>() {
             @Override
             public Store compute(@NotNull Transaction txn) {
@@ -220,7 +220,7 @@ public class EnvTokyoCabinetLikeBenchmarkTest extends BenchmarkTestBase {
         env = Environments.newInstance(config, new EnvironmentConfig());
     }
 
-    protected StoreConfiguration getStoreConfiguration() {
-        return StoreConfiguration.WITHOUT_DUPLICATES;
+    protected StoreConfig getStoreConfiguration() {
+        return StoreConfig.WITHOUT_DUPLICATES;
     }
 }

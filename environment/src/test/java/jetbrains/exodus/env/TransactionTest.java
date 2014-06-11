@@ -94,7 +94,7 @@ public class TransactionTest extends EnvironmentTestsBase {
     public void testAtomicity() {
         final Environment env = getEnvironment();
         final Transaction txn = env.beginTransaction();
-        final Store store = env.openStore("new_store", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+        final Store store = env.openStore("new_store", StoreConfig.WITHOUT_DUPLICATES, txn);
         final ArrayByteIterable entry1 = StringBinding.stringToEntry("1");
         store.put(txn, entry1, entry1);
         final ArrayByteIterable entry2 = StringBinding.stringToEntry("2");
@@ -110,7 +110,7 @@ public class TransactionTest extends EnvironmentTestsBase {
     public void testAbort() {
         final Environment env = getEnvironment();
         final Transaction txn = env.beginTransaction();
-        final Store store = env.openStore("new_store", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+        final Store store = env.openStore("new_store", StoreConfig.WITHOUT_DUPLICATES, txn);
         final ArrayByteIterable entry1 = StringBinding.stringToEntry("1");
         store.put(txn, entry1, entry1);
         final ArrayByteIterable entry2 = StringBinding.stringToEntry("2");
@@ -125,7 +125,7 @@ public class TransactionTest extends EnvironmentTestsBase {
         final Environment env = getEnvironment();
         final ByteIterable key = StringBinding.stringToEntry("key");
         Transaction txn = env.beginTransaction();
-        final Store store = env.openStore("new_store", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+        final Store store = env.openStore("new_store", StoreConfig.WITHOUT_DUPLICATES, txn);
         store.put(txn, key, StringBinding.stringToEntry("value"));
         Transaction t = env.beginTransaction();
         Assert.assertNull(store.get(t, key));
@@ -145,7 +145,7 @@ public class TransactionTest extends EnvironmentTestsBase {
         final Environment env = getEnvironment();
         final ByteIterable key = StringBinding.stringToEntry("key");
         Transaction txn = env.beginTransaction();
-        final Store store = env.openStore("new_store", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+        final Store store = env.openStore("new_store", StoreConfig.WITHOUT_DUPLICATES, txn);
         txn.commit();
         txn = env.beginTransaction();
         store.put(txn, key, StringBinding.stringToEntry("value"));
@@ -158,7 +158,7 @@ public class TransactionTest extends EnvironmentTestsBase {
         final Environment env = getEnvironment();
         final ByteIterable key = StringBinding.stringToEntry("key");
         Transaction txn = env.beginTransaction();
-        final Store store = env.openStore("new_store", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+        final Store store = env.openStore("new_store", StoreConfig.WITHOUT_DUPLICATES, txn);
         store.put(txn, key, StringBinding.stringToEntry("value"));
         assertNotNullStringValue(store, key, "value");
         txn.commit();
@@ -214,7 +214,7 @@ public class TransactionTest extends EnvironmentTestsBase {
         final ByteIterable key1 = StringBinding.stringToEntry("key1");
         final ByteIterable key2 = StringBinding.stringToEntry("key2");
         Transaction txn = env.beginTransaction();
-        final Store store = env.openStore("new_store", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+        final Store store = env.openStore("new_store", StoreConfig.WITHOUT_DUPLICATES, txn);
         txn.commit();
         txn = env.beginTransaction();
         store.put(txn, key1, StringBinding.stringToEntry("value1"));
@@ -255,7 +255,7 @@ public class TransactionTest extends EnvironmentTestsBase {
         final ByteIterable key1 = StringBinding.stringToEntry("key1");
         final ByteIterable key2 = StringBinding.stringToEntry("key2");
         Transaction txn = env.beginTransaction();
-        final Store store = env.openStore("new_store", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+        final Store store = env.openStore("new_store", StoreConfig.WITHOUT_DUPLICATES, txn);
         txn.commit();
         txn = env.beginTransaction();
         store.put(txn, key1, StringBinding.stringToEntry("value1"));
@@ -279,7 +279,7 @@ public class TransactionTest extends EnvironmentTestsBase {
         env.executeInReadonlyTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull Transaction txn) {
-                env.openStore("WTF", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+                env.openStore("WTF", StoreConfig.WITHOUT_DUPLICATES, txn);
             }
         });
     }

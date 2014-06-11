@@ -56,7 +56,7 @@ public class OutOfDiskSpaceTest extends EnvironmentTestsBase {
     @Test
     public void testRecovery() throws IOException {
         Transaction txn = env.beginTransaction();
-        env.openStore("new_store", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+        env.openStore("new_store", StoreConfig.WITHOUT_DUPLICATES, txn);
         txn.commit();
         ((LimitedMemoryDataWriter) writer).limit = 15;
         TestUtil.runWithExpectedException(new Runnable() {
@@ -74,7 +74,7 @@ public class OutOfDiskSpaceTest extends EnvironmentTestsBase {
         Transaction txn;
         txn = env.beginTransaction();
         try {
-            env.openStore("another_store", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+            env.openStore("another_store", StoreConfig.WITHOUT_DUPLICATES, txn);
             txn.flush();
         } finally {
             txn.abort();

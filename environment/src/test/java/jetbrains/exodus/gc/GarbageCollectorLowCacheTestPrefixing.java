@@ -15,12 +15,12 @@
  */
 package jetbrains.exodus.gc;
 
-import jetbrains.exodus.env.StoreConfiguration;
+import jetbrains.exodus.env.StoreConfig;
 
 public class GarbageCollectorLowCacheTestPrefixing extends GarbageCollectorLowCacheTest {
 
     @Override
-    protected StoreConfiguration getConfig() {
-        return StoreConfiguration.WITHOUT_DUPLICATES_WITH_PREFIXING;
+    protected StoreConfig getConfig() {
+        return StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING;
     }
 }

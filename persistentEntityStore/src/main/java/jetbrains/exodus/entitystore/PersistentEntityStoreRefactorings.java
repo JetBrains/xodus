@@ -571,8 +571,8 @@ final class PersistentEntityStoreRefactorings {
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
-                final Store store = env.openStore(sourceName, StoreConfiguration.USE_EXISTING, txn);
-                final Store storeCopy = env.openStore(targetName, StoreConfiguration.WITHOUT_DUPLICATES_WITH_PREFIXING, txn);
+                final Store store = env.openStore(sourceName, StoreConfig.USE_EXISTING, txn);
+                final Store storeCopy = env.openStore(targetName, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn);
                 final Cursor cursor = store.openCursor(txn);
                 ArrayByteIterable lastKey = null;
                 while (cursor.getNext()) {

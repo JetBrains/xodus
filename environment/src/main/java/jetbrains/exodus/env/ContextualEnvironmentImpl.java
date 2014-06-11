@@ -77,7 +77,7 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
 
     @NotNull
     @Override
-    public ContextualStoreImpl openStore(@NotNull final String name, @NotNull final StoreConfiguration config) {
+    public ContextualStoreImpl openStore(@NotNull final String name, @NotNull final StoreConfig config) {
         final TransactionImpl txn = beginTransaction();
         try {
             return openStore(name, config, txn);
@@ -88,7 +88,7 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
 
     @Override
     @Nullable
-    public ContextualStoreImpl openStore(@NotNull final String name, @NotNull final StoreConfiguration config, final boolean creationRequired) {
+    public ContextualStoreImpl openStore(@NotNull final String name, @NotNull final StoreConfig config, final boolean creationRequired) {
         final TransactionImpl txn = beginTransaction();
         try {
             return openStore(name, config, txn, creationRequired);
@@ -99,13 +99,13 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
 
     @NotNull
     @Override
-    public ContextualStoreImpl openStore(@NotNull String name, @NotNull StoreConfiguration config, @NotNull Transaction transaction) {
+    public ContextualStoreImpl openStore(@NotNull String name, @NotNull StoreConfig config, @NotNull Transaction transaction) {
         return (ContextualStoreImpl) super.openStore(name, config, transaction);
     }
 
     @Nullable
     @Override
-    public ContextualStoreImpl openStore(@NotNull String name, @NotNull StoreConfiguration config, @NotNull Transaction transaction, boolean creationRequired) {
+    public ContextualStoreImpl openStore(@NotNull String name, @NotNull StoreConfig config, @NotNull Transaction transaction, boolean creationRequired) {
         return (ContextualStoreImpl) super.openStore(name, config, transaction, creationRequired);
     }
 

@@ -16,7 +16,7 @@
 package jetbrains.exodus.lucene;
 
 import jetbrains.exodus.env.ContextualEnvironment;
-import jetbrains.exodus.env.StoreConfiguration;
+import jetbrains.exodus.env.StoreConfig;
 import org.apache.lucene.store.*;
 import org.jetbrains.annotations.NotNull;
 
@@ -34,11 +34,11 @@ public class DebugExodusDirectory extends Directory {
 
     public DebugExodusDirectory(@NotNull final ContextualEnvironment env,
                                 @NotNull final LockFactory lockFactory) throws IOException {
-        this(env, StoreConfiguration.WITH_DUPLICATES, lockFactory);
+        this(env, StoreConfig.WITH_DUPLICATES, lockFactory);
     }
 
     public DebugExodusDirectory(@NotNull final ContextualEnvironment env,
-                                @NotNull final StoreConfiguration contentsStoreConfig,
+                                @NotNull final StoreConfig contentsStoreConfig,
                                 @NotNull final LockFactory lockFactory) throws IOException {
         directory = new ExodusDirectory(env, contentsStoreConfig, lockFactory);
         debugDirectory = new RAMDirectory(directory);

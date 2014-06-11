@@ -15,14 +15,14 @@
  */
 package jetbrains.exodus.gc;
 
-import jetbrains.exodus.env.StoreConfiguration;
+import jetbrains.exodus.env.StoreConfig;
 
 public class GarbageCollectorTestPrefixingInMemory extends GarbageCollectorTestInMemory {
 
     @Override
-    protected StoreConfiguration getStoreConfig(boolean hasDuplicates) {
+    protected StoreConfig getStoreConfig(boolean hasDuplicates) {
         return hasDuplicates ?
-                StoreConfiguration.WITH_DUPLICATES_WITH_PREFIXING :
-                StoreConfiguration.WITHOUT_DUPLICATES_WITH_PREFIXING;
+                StoreConfig.WITH_DUPLICATES_WITH_PREFIXING :
+                StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING;
     }
 }

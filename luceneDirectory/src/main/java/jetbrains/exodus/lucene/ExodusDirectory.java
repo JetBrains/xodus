@@ -16,7 +16,7 @@
 package jetbrains.exodus.lucene;
 
 import jetbrains.exodus.env.ContextualEnvironment;
-import jetbrains.exodus.env.StoreConfiguration;
+import jetbrains.exodus.env.StoreConfig;
 import jetbrains.exodus.env.Transaction;
 import jetbrains.exodus.vfs.ClusteringStrategy;
 import jetbrains.exodus.vfs.File;
@@ -43,11 +43,11 @@ public class ExodusDirectory extends Directory {
 
     public ExodusDirectory(@NotNull final ContextualEnvironment env,
                            @NotNull final LockFactory lockFactory) throws IOException {
-        this(env, StoreConfiguration.WITHOUT_DUPLICATES, lockFactory);
+        this(env, StoreConfig.WITHOUT_DUPLICATES, lockFactory);
     }
 
     public ExodusDirectory(@NotNull final ContextualEnvironment env,
-                           @NotNull final StoreConfiguration contentsStoreConfig,
+                           @NotNull final StoreConfig contentsStoreConfig,
                            @NotNull final LockFactory lockFactory) throws IOException {
         this.env = env;
         vfs = new VirtualFileSystem(env, createDefaultVfsConfig(), contentsStoreConfig);

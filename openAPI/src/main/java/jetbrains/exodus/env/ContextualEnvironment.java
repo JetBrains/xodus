@@ -23,18 +23,18 @@ import java.util.List;
 public interface ContextualEnvironment extends Environment {
 
     @NotNull
-    ContextualStore openStore(@NotNull String name, @NotNull StoreConfiguration config);
+    ContextualStore openStore(@NotNull String name, @NotNull StoreConfig config);
 
     @Nullable
-    ContextualStore openStore(@NotNull String name, @NotNull StoreConfiguration config, final boolean creationRequired);
+    ContextualStore openStore(@NotNull String name, @NotNull StoreConfig config, final boolean creationRequired);
 
     @NotNull
     @Override
-    ContextualStore openStore(@NotNull String name, @NotNull StoreConfiguration config, @NotNull Transaction transaction);
+    ContextualStore openStore(@NotNull String name, @NotNull StoreConfig config, @NotNull Transaction transaction);
 
     @Nullable
     @Override
-    ContextualStore openStore(@NotNull String name, @NotNull StoreConfiguration config, @NotNull Transaction transaction, boolean creationRequired);
+    ContextualStore openStore(@NotNull String name, @NotNull StoreConfig config, @NotNull Transaction transaction, boolean creationRequired);
 
     /**
      * Returns transaction started in current thread if any.

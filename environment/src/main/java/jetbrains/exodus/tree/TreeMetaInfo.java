@@ -18,7 +18,7 @@ package jetbrains.exodus.tree;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.env.EnvironmentImpl;
-import jetbrains.exodus.env.StoreConfiguration;
+import jetbrains.exodus.env.StoreConfig;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
@@ -70,14 +70,14 @@ public abstract class TreeMetaInfo {
 
     public abstract TreeMetaInfo clone(final long newStructureId);
 
-    public static StoreConfiguration toConfig(@NotNull final TreeMetaInfo metaInfo) {
+    public static StoreConfig toConfig(@NotNull final TreeMetaInfo metaInfo) {
         final boolean keyPrefixing = metaInfo.isKeyPrefixing();
         if (metaInfo.duplicates) {
-            return keyPrefixing ? StoreConfiguration.WITH_DUPLICATES_WITH_PREFIXING :
-                    StoreConfiguration.WITH_DUPLICATES;
+            return keyPrefixing ? StoreConfig.WITH_DUPLICATES_WITH_PREFIXING :
+                    StoreConfig.WITH_DUPLICATES;
         }
-        return keyPrefixing ? StoreConfiguration.WITHOUT_DUPLICATES_WITH_PREFIXING :
-                StoreConfiguration.WITHOUT_DUPLICATES;
+        return keyPrefixing ? StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING :
+                StoreConfig.WITHOUT_DUPLICATES;
     }
 
     public static TreeMetaInfo load(@NotNull final EnvironmentImpl environment, boolean duplicates, boolean keyPrefixing, long structureId) {

@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.env;
 
-public enum StoreConfiguration {
+public enum StoreConfig {
 
     WITHOUT_DUPLICATES(0, "00000000"),
     WITH_DUPLICATES(1, "00000001"),
@@ -31,7 +31,7 @@ public enum StoreConfiguration {
     public final boolean useExisting;
     public final boolean readOnly;
 
-    private StoreConfiguration(final int id, final String mask) {
+    private StoreConfig(final int id, final String mask) {
         this.id = id;
         final int bits = Integer.parseInt(mask, 2);
         duplicates = (bits & 1) > 0;

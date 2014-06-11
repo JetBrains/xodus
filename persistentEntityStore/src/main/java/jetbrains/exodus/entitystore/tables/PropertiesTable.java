@@ -52,13 +52,13 @@ public final class PropertiesTable extends Table {
     public PropertiesTable(@NotNull final PersistentEntityStoreImpl store,
                            @NotNull final PersistentStoreTransaction txn,
                            @NotNull final String name,
-                           @NotNull final StoreConfiguration primaryConfig) {
+                           @NotNull final StoreConfig primaryConfig) {
         this.store = store;
         this.name = name;
         final Transaction envTxn = txn.getEnvironmentTransaction();
         final Environment env = store.getEnvironment();
         primaryStore = env.openStore(name, primaryConfig, envTxn);
-        allPropsIndex = env.openStore(name + ALL_PROPS_IDX, StoreConfiguration.WITH_DUPLICATES_WITH_PREFIXING, envTxn);
+        allPropsIndex = env.openStore(name + ALL_PROPS_IDX, StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, envTxn);
         store.trackTableCreation(primaryStore, txn);
         store.trackTableCreation(allPropsIndex, txn);
         valueIndexes = new IntHashMap<Store>();
@@ -135,7 +135,7 @@ public final class PropertiesTable extends Table {
             if (valueIndex == null) {
                 final Transaction envTxn = txn.getEnvironmentTransaction();
                 valueIndex = envTxn.getEnvironment().openStore(
-                        valueIndexName(propertyId), StoreConfiguration.WITH_DUPLICATES, envTxn, creationRequired);
+                        valueIndexName(propertyId), StoreConfig.WITH_DUPLICATES, envTxn, creationRequired);
                 if (valueIndex != null) {
                     store.trackTableCreation(valueIndex, txn);
                     valueIndexes.put(propertyId, valueIndex);

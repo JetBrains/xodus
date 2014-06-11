@@ -66,7 +66,7 @@ public class EnvironmentReadWriteExample {
         return env.computeInTransaction(new TransactionalComputable<Store>() {
             @Override
             public Store compute(@NotNull final Transaction txn) {
-                return env.openStore("MyStore", StoreConfiguration.WITHOUT_DUPLICATES, txn);
+                return env.openStore("MyStore", StoreConfig.WITHOUT_DUPLICATES, txn);
             }
         });
     }

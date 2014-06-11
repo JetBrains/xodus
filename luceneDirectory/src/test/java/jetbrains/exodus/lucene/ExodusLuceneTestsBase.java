@@ -87,7 +87,7 @@ public abstract class ExodusLuceneTestsBase extends EnvironmentTestsBase {
         env = newContextualEnvironmentInstance(config, new EnvironmentConfig());
     }
 
-    protected abstract StoreConfiguration getContentsConfig();
+    protected abstract StoreConfig getContentsConfig();
 
     @After
     @Override

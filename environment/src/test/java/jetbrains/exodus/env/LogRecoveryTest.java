@@ -84,7 +84,7 @@ public class LogRecoveryTest extends EnvironmentTestsBase {
     }
 
     private void cutAndCheckLastLoggableIncomplete(int cutSize, int max) {
-        openStoreAutoCommit("new_store", StoreConfiguration.WITHOUT_DUPLICATES);
+        openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES);
 
         /*final Iterator<Loggable> itr = getLog().getLoggablesIterator(0);
         while (itr.hasNext()) {
