@@ -15,11 +15,12 @@
  */
 package jetbrains.exodus.env;
 
-import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.bindings.StringBinding;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+
+import static jetbrains.exodus.bindings.StringBinding.entryToString;
+import static jetbrains.exodus.bindings.StringBinding.stringToEntry;
+import static jetbrains.exodus.env.StoreConfig.WITHOUT_DUPLICATES;
 
 /**
  * This example shows low level key/value store access.
@@ -29,16 +30,24 @@ public class EnvironmentReadWriteExample {
     public static void main(String[] args) {
 
         //Create environment or open existing one
-        final Environment env = Environments.newInstance("data", EnvironmentConfig.DEFAULT);
+        final Environment env = Environments.newInstance("data");
 
         //Create or open existing store in environment
-        final Store store = initStore(env);
+        final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
+            @Override
+            public Store compute(@NotNull final Transaction txn) {
+                return env.openStore("MyStore", WITHOUT_DUPLICATES, txn);
+            }
+        });
+
+        @NotNull final ByteIterable key = stringToEntry("myKey");
+        @NotNull final ByteIterable value = stringToEntry("myValue");
 
         // Put "myValue" string under the key "myKey"
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
-                store.put(txn, entry("myKey"), entry("myValue"));
+                store.put(txn, key, value);
             }
         });
 
@@ -46,28 +55,13 @@ public class EnvironmentReadWriteExample {
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
-                System.out.println(string(store.get(txn, entry("myKey"))));
+                final ByteIterable entry = store.get(txn, key);
+                assert entry == value;
+                System.out.println(entryToString(entry));
             }
         });
 
         // Close environment when we are done
         env.close();
-    }
-
-    private static String string(@Nullable ByteIterable myKey) {
-        return myKey == null ? null : StringBinding.entryToString(myKey);
-    }
-
-    private static ArrayByteIterable entry(String key) {
-        return StringBinding.stringToEntry(key);
-    }
-
-    private static Store initStore(final Environment env) {
-        return env.computeInTransaction(new TransactionalComputable<Store>() {
-            @Override
-            public Store compute(@NotNull final Transaction txn) {
-                return env.openStore("MyStore", StoreConfig.WITHOUT_DUPLICATES, txn);
-            }
-        });
     }
 }
