@@ -72,26 +72,29 @@ subprojects {
     artifacts {
         archives zipSources
     }
-    publishing {
-        publications {
-            mavenJava(MavenPublication) {
-                groupId 'org.jetbrains.xodus'
-                if (jar.enabled) {
-                    from components.java {
-                        artifactId
+
+    if (project.name != 'benchmarks' && project.name != 'samples') {
+        publishing {
+            publications {
+                mavenJava(MavenPublication) {
+                    groupId 'org.jetbrains.xodus'
+                    if (jar.enabled) {
+                        from components.java {
+                            artifactId
+                        }
+                    }
+                    artifact zipSources {
+                        classifier "sources"
                     }
                 }
-                artifact zipSources {
-                    classifier "sources"
-                }
             }
-        }
-        repositories {
-            maven {
-                url "http://repository.jetbrains.com/xodus"
-                credentials {
-                    username "xodus"
-                    password jetbrainsRepositoryXodusPassword
+            repositories {
+                maven {
+                    url "http://repository.jetbrains.com/xodus"
+                    credentials {
+                        username "xodus"
+                        password jetbrainsRepositoryXodusPassword
+                    }
                 }
             }
         }
