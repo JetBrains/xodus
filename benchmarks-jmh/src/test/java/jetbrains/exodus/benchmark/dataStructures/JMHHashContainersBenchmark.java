@@ -19,9 +19,11 @@ import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import org.openjdk.jmh.annotations.*;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings({"MismatchedQueryAndUpdateOfCollection", "UnusedDeclaration"})
 @State(Scope.Thread)
+@OutputTimeUnit(TimeUnit.MICROSECONDS)
 public class JMHHashContainersBenchmark {
 
     private static final int MAP_SIZE = 100000;
