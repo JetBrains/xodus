@@ -12,3 +12,11 @@ task testBenchmarksJMH(type:JavaExec) {
     main 'org.openjdk.jmh.Main'
     classpath = sourceSets.test.runtimeClasspath
 }
+
+jar {
+    from project.sourceSets.test.output
+}
+
+zipSources {
+    from project.sourceSets.test.java
+}
