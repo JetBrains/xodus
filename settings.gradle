@@ -9,5 +9,6 @@ include 'lucene-directory'
 include 'entity-store'
 include 'query'
 include 'benchmarks'
+include 'benchmarks-jmh'
 include 'samples'
 

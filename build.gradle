@@ -73,7 +73,7 @@ subprojects {
         archives zipSources
     }
 
-    if (project.name != 'benchmarks' && project.name != 'samples') {
+    if (project.name != 'benchmarks' && project.name != 'benchmarks-jmh' && project.name != 'samples') {
         publishing {
             publications {
                 mavenJava(MavenPublication) {

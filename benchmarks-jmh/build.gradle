@@ -1,0 +1,14 @@
+apply plugin:'application'
+
+dependencies {
+    compile project(':utils')
+    testCompile 'org.openjdk.jmh:jmh-core:0.9'
+    testCompile 'org.openjdk.jmh:jmh-generator-annprocess:0.9'
+}
+
+task testBenchmarksJMH(type:JavaExec) {
+    group 'Application'
+    description 'Execute the benchmark timing of this project'
+    main 'org.openjdk.jmh.Main'
+    classpath = sourceSets.test.runtimeClasspath
+}
