@@ -20,59 +20,44 @@ import org.openjdk.jmh.annotations.*;
 
 import java.util.Map;
 
-@SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
+@SuppressWarnings({"MismatchedQueryAndUpdateOfCollection", "UnusedDeclaration"})
 @State(Scope.Thread)
 public class JMHHashContainersBenchmark {
 
-    final Map<Integer, String> javaUtilMap = new HashMap<Integer, String>();
-    int j = 0;
+    private static final int MAP_SIZE = 100000;
+
+    final Map<Integer, String> map = new HashMap<Integer, String>();
+    int existingKey = 0;
+    int missingKey = MAP_SIZE;
 
     @Setup
     public void prepare() {
-        for (int i = 0; i < 100000; ++i) {
-            javaUtilMap.put(i, Integer.toString(i));
+        for (int i = 0; i < MAP_SIZE; ++i) {
+            map.put(i, Integer.toString(i));
         }
     }
 
     @Setup(Level.Invocation)
     public void changeIndex() {
-        j++;
-        if (j >= 100000) {
-            j = 0;
+        if (++existingKey == MAP_SIZE) {
+            existingKey = 0;
         }
+        ++missingKey;
     }
 
     @Benchmark
-    public String javaUtilHashMapGet() {
-        return javaUtilMap.get(j);
+    @Warmup(iterations = 4, time = 1)
+    @Measurement(iterations = 8, batchSize = 10000)
+    @Fork(4)
+    public String hashMapGet() {
+        return map.get(existingKey);
     }
 
-/*
-    public void benchmarkHashMapGet() {
-
-        long started;
-
-        final Map<Integer, String> map = new java.util.HashMap<Integer, String>();
-        started = System.currentTimeMillis();
-        for (int i = 0; i < 1000; ++i) {
-            for (int j = 0; j < 100000; ++j) {
-                map.get(j);
-            }
-        }
-        System.out.println("100 000 000 lookups in java.util.HashMap took " + (System.currentTimeMillis() - started));
-
-        final HashMap<Integer, String> tested = new HashMap<Integer, String>();
-        for (int i = 0; i < 100000; ++i) {
-            tested.put(i, Integer.toString(i));
-        }
-        started = System.currentTimeMillis();
-        for (int i = 0; i < 1000; ++i) {
-            for (int j = 0; j < 100000; ++j) {
-                tested.get(j);
-            }
-        }
-        System.out.println("100 000 000 lookups in HashMap took " + (System.currentTimeMillis() - started));
+    @Benchmark
+    @Warmup(iterations = 4, time = 1)
+    @Measurement(iterations = 8, batchSize = 10000)
+    @Fork(4)
+    public String hashMapGetMissingKey() {
+        return map.get(missingKey);
     }
-*/
-
 }
