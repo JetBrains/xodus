@@ -1,12 +1,14 @@
 apply plugin:'application'
 
 dependencies {
-    compile project(':utils')
+    testCompile project(':benchmarks')
     testCompile 'org.openjdk.jmh:jmh-core:0.9'
     testCompile 'org.openjdk.jmh:jmh-generator-annprocess:0.9'
+    testCompile group: 'com.sleepycat', name: 'je', version: '5.+'
 }
 
 task testBenchmarksJMH(type:JavaExec) {
+    jvmArgs = ['-Xmx1g', '-Xms1g']
     group 'Application'
     description 'Execute the benchmark timing of this project'
     main 'org.openjdk.jmh.Main'
