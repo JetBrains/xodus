@@ -206,8 +206,8 @@ public class JETokyoCabinetLikeBenchmarkTest extends BenchmarkTestBase {
         computeInTransaction(new TransactionalComputable<Object>() {
             @Override
             public Object compute(@NotNull Transaction txn) {
-                for (int i = 0; i < TOKYO_CABINET_BENCHMARK_SIZE; i++) {
-                    store.put(txn, keys[i], keys[i]);
+                for (final DatabaseEntry key : keys) {
+                    store.put(txn, key, key);
                 }
                 return null;
             }
@@ -227,5 +227,4 @@ public class JETokyoCabinetLikeBenchmarkTest extends BenchmarkTestBase {
             txn.commit();
         }
     }
-
 }
