@@ -19,7 +19,6 @@ import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.LongBinding;
-import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.core.dataStructures.hash.LinkedHashSet;
 import jetbrains.exodus.gc.GarbageCollector;
@@ -249,6 +248,7 @@ public class Reflect {
         System.out.print("\r" + message + ' ' + current + " of " + total + ", " + ((current * 100) / total) + "% complete");
     }
 
+    @SuppressWarnings("UnnecessaryBoxing")
     private static void inc(@NotNull final IntHashMap<Integer> counts, final int key) {
         final Integer count = counts.get(key);
         if (count == null) {
@@ -347,7 +347,8 @@ public class Reflect {
                 System.out.print("Copying store " + name + " (" + ++i + " of " + size + ')');
                 final StoreConfig[] config = new StoreConfig[]{null};
                 final long[] storeSize = new long[1];
-                final List<Pair<ByteIterable, ByteIterable>> pairs = new ArrayList<Pair<ByteIterable, ByteIterable>>();
+                final Map<ByteIterable, ByteIterable> pairs = new TreeMap<ByteIterable, ByteIterable>();
+                Throwable storeIsBroken = null;
                 try {
                     env.executeInReadonlyTransaction(new TransactionalExecutable() {
                         @Override
@@ -358,8 +359,7 @@ public class Reflect {
                             final Cursor cursor = store.openCursor(txn);
                             try {
                                 while (cursor.getNext()) {
-                                    pairs.add(new Pair<ByteIterable, ByteIterable>(
-                                            new ArrayByteIterable(cursor.getKey()), new ArrayByteIterable(cursor.getValue())));
+                                    pairs.put(new ArrayByteIterable(cursor.getKey()), new ArrayByteIterable(cursor.getValue()));
                                 }
                             } finally {
                                 cursor.close();
@@ -367,16 +367,40 @@ public class Reflect {
                         }
                     });
                 } catch (Throwable t) {
+                    storeIsBroken = t;
+                }
+                if (storeIsBroken != null) {
+                    try {
+                        env.executeInReadonlyTransaction(new TransactionalExecutable() {
+                            @Override
+                            public void execute(@NotNull final Transaction txn) {
+                                final Store store = env.openStore(name, StoreConfig.USE_EXISTING, txn);
+                                config[0] = store.getConfig();
+                                storeSize[0] = store.count(txn);
+                                final Cursor cursor = store.openCursor(txn);
+                                try {
+                                    while (cursor.getPrev()) {
+                                        pairs.put(new ArrayByteIterable(cursor.getKey()), new ArrayByteIterable(cursor.getValue()));
+                                    }
+                                } finally {
+                                    cursor.close();
+                                }
+                            }
+                        });
+                    } catch (Throwable ignore) {
+                    }
+                }
+                if (storeIsBroken != null) {
                     System.out.println();
-                    logging.error("Failed to completely copy store " + name, t);
+                    logging.error("Failed to completely copy store " + name, storeIsBroken);
                 }
                 System.out.println(". Saved store size = " + storeSize[0] + ", actual number of pairs = " + pairs.size());
                 target.executeInTransaction(new TransactionalExecutable() {
                     @Override
                     public void execute(@NotNull final Transaction txn) {
                         final Store store = target.openStore(name, config[0], txn);
-                        for (final Pair<ByteIterable, ByteIterable> pair : pairs) {
-                            store.putRight(txn, pair.getFirst(), pair.getSecond());
+                        for (final Map.Entry<ByteIterable, ByteIterable> pair : pairs.entrySet()) {
+                            store.putRight(txn, pair.getKey(), pair.getValue());
                         }
                     }
                 });
