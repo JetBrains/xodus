@@ -282,7 +282,7 @@ public class FileSystemBlobVaultOld extends BlobVault {
                                         queue.push(new Pair<File, String>(file, currentPrefix + file.getName() + File.separator));
                                     } else if (file.isFile()) {
                                         if (file.length() == 0) continue;
-                                        if (name.endsWith(blobExtension)) {
+                                        if (name.endsWith(blobExtension) || name.equalsIgnoreCase(VERSION_FILE)) {
                                             nextPair = new Pair<File, String>(file, currentPrefix);
                                             return true;
                                         }
