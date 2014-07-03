@@ -511,8 +511,7 @@ final class PersistentEntityStoreRefactorings {
                                                     txn.preserveBlob(blobHandle);
                                                     store.setBlob(txn, entity, blobName, oldVault.getBlobLocation(blobHandle));
                                                 } catch (IOException e) {
-                                                    log.error("Failed to set blob due to " + e.getMessage() + ". Deleting it...");
-                                                    store.deleteBlob(txn, entity, blobName);
+                                                    log.error("Failed to set blob", e);
                                                 }
                                             }
                                         }
