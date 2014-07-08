@@ -24,7 +24,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Iterates all entities of specified entity type.
+ * Iterates all entities of specified entity type in range of local ids.
  */
 public class EntitiesOfTypeRangeIterable extends EntityIterableBase {
 
