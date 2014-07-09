@@ -49,8 +49,9 @@ public enum EntityIterableType {
     HISTORY_ENTITY_FROM_LINKS_SET("Outgoing links of a set from a history entity", 27),
     ADD_NULL("Left operand appended with null if it's present in the right, but not left one", 28),
     EXCLUDE_NULL("Exclude null", 29),
-    FILTER_TYPE("Filter source iterable by type", 30),
-    ALL_ENTITIES_RANGE("Entities of specific type within id range", 31);
+    FILTER_ENTITY_TYPE("Filter source iterable by entity type", 30),
+    FILTER_LINKS("Filter source iterable by links set", 31),
+    ALL_ENTITIES_RANGE("Entities of specific type within id range", 32);
 
     private final String description;
     private final int type;

@@ -1,47 +1,38 @@
-/**
- * Copyright 2010 - 2014 JetBrains s.r.o.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.entitystore.*;
+import jetbrains.exodus.entitystore.util.EntityIdSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-class FilterEntityTypeIterable extends EntityIterableDecoratorBase {
+public class FilterLinksIterable extends EntityIterableDecoratorBase {
 
     static {
         registerType(getType(), new EntityIterableInstantiator() {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new FilterEntityTypeIterable(
-                        store, Integer.valueOf((String) parameters[0]), (EntityIterableBase) parameters[1]);
+                return new FilterLinksIterable(
+                        store, (String) parameters[0], (EntityIterableBase) parameters[1], (EntityIterable) parameters[2]);
             }
         });
     }
 
-    private final int entityTypeId;
+    @NotNull
+    private final String linkName;
+    @NotNull
+    private final EntityIterable entities;
 
-    protected FilterEntityTypeIterable(@NotNull final PersistentEntityStoreImpl store,
-                                       final int entityTypeId,
-                                       @NotNull final EntityIterableBase source) {
+    public FilterLinksIterable(@NotNull final PersistentEntityStoreImpl store,
+                               @NotNull final String linkName,
+                               @NotNull final EntityIterableBase source,
+                               @NotNull final EntityIterable entities) {
         super(store, source);
-        this.entityTypeId = entityTypeId;
+        this.linkName = linkName;
+        this.entities = entities;
     }
 
     public static EntityIterableType getType() {
-        return EntityIterableType.FILTER_ENTITY_TYPE;
+        return EntityIterableType.FILTER_LINKS;
     }
 
     @NotNull
@@ -53,6 +44,8 @@ class FilterEntityTypeIterable extends EntityIterableDecoratorBase {
             private final EntityIteratorBase sourceIt = (EntityIteratorBase) source.iterator();
             @Nullable
             private EntityId nextId = PersistentEntityId.EMPTY_ID;
+            @Nullable
+            private EntityIdSet idSet = null;
 
             @Override
             protected boolean hasNextImpl() {
@@ -61,8 +54,11 @@ class FilterEntityTypeIterable extends EntityIterableDecoratorBase {
                 }
                 while (sourceIt.hasNext()) {
                     nextId = sourceIt.nextId();
-                    if (nextId == null || nextId.getTypeId() == entityTypeId) {
-                        return true;
+                    if (nextId != null) {
+                        final Entity link = getEntity(nextId).getLink(linkName);
+                        if (link != null && getIdSet().contains(link.getId())) {
+                            return true;
+                        }
                     }
                 }
                 return false;
@@ -73,6 +69,14 @@ class FilterEntityTypeIterable extends EntityIterableDecoratorBase {
                 final EntityId result = nextId;
                 nextId = PersistentEntityId.EMPTY_ID;
                 return result;
+            }
+
+            @NotNull
+            private EntityIdSet getIdSet() {
+                if (idSet == null) {
+                    idSet = ((EntityIterableBase) entities).toSet(txn);
+                }
+                return idSet;
             }
         });
     }
@@ -85,9 +89,11 @@ class FilterEntityTypeIterable extends EntityIterableDecoratorBase {
             public void getStringHandle(@NotNull final StringBuilder builder) {
                 super.getStringHandle(builder);
                 builder.append('-');
-                builder.append(entityTypeId);
+                builder.append(linkName);
                 builder.append('-');
                 decorated.getStringHandle(builder);
+                builder.append('-');
+                entities.getHandle().getStringHandle(builder);
             }
         };
     }

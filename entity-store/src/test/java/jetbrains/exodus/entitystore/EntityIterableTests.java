@@ -163,16 +163,6 @@ public class EntityIterableTests extends EntityStoreTestBase {
         checkIdRange(issues2, 16, 73);
     }
 
-    private static void checkIdRange(EntityIterable issues, int lo, int hi) {
-        int i = lo;
-        for (Entity e : issues) {
-            assertEquals(i, e.getId().getLocalId());
-            assertEquals((i & 1) == 0 ? 50 : 100, e.getProperty("size"));
-            i++;
-        }
-        assertEquals(hi + 1, i);
-    }
-
     public void testFindByPropCount() {
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 100; ++i) {
@@ -374,6 +364,30 @@ public class EntityIterableTests extends EntityStoreTestBase {
         Assert.assertEquals(2, (int) txn.getAll("Issue").selectManyDistinct("assignee").size());
     }
 
+    public void testFindLinks() {
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        createNUsers(txn, 10);
+        txn.flush();
+        for (int i = 0; i < 10; ++i) {
+            final PersistentEntity issue = txn.newEntity("Issue");
+            issue.addLink("author", txn.find("User", "login", "user" + i).getFirst());
+        }
+        txn.flush();
+        final EntityIterable someUsers = txn.find("User", "login", "user3", "user8");
+        final EntityIterable authoredIssues = txn.findWithLinks("Issue", "author");
+        final EntityIterable links0 = txn.findLinks("Issue", someUsers, "author");
+        Assert.assertEquals(someUsers.size(), links0.size());
+        final EntityIterable links1 = ((EntityIterableBase) authoredIssues).findLinks(someUsers, "author");
+        Assert.assertEquals(someUsers.size(), links1.size());
+        final EntityIterator it0 = links0.iterator();
+        final EntityIterator it1 = links1.iterator();
+        while (it0.hasNext() || it1.hasNext()) {
+            Assert.assertTrue(it0.hasNext());
+            Assert.assertTrue(it1.hasNext());
+            Assert.assertEquals(it0.nextId(), it1.nextId());
+        }
+    }
+
     public void testGetFirst() {
         for (int i = 0; i < 256; ++i) {
             Assert.assertNull(EntityIterableBase.EMPTY.getFirst());
@@ -394,6 +408,16 @@ public class EntityIterableTests extends EntityStoreTestBase {
         txn.flush();
         Assert.assertNotNull(txn.getAll("User").getLast());
         Assert.assertEquals("user9", txn.getAll("User").getLast().getProperty("login"));
+    }
+
+    private static void checkIdRange(EntityIterable issues, int lo, int hi) {
+        int i = lo;
+        for (Entity e : issues) {
+            assertEquals(i, e.getId().getLocalId());
+            assertEquals((i & 1) == 0 ? 50 : 100, e.getProperty("size"));
+            i++;
+        }
+        assertEquals(hi + 1, i);
     }
 
     private static void createNUsers(final StoreTransaction txn, final int n) {

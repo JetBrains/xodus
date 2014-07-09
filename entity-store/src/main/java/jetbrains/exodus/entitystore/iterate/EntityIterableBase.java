@@ -82,9 +82,9 @@ public abstract class EntityIterableBase implements EntityIterable {
 
     private static final String INDENT = "|   ";
     // amount of fields appended to iterable string handle
-    static final int[] fields = {0, 1, 2, 3, 3, 4, 2, 2, 2, 3, 4, 2, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 1, 1, 2, 2, 2, 0, 0, 1, 3};
-    // amount of childern recursively appended to iterable string handle 
-    static final int[] children = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 1, 2, 2, 0, 1, 1, 1, 1, 1, 0, 0, 0, 2, 1, 1, 0};
+    static final int[] fields = {0, 1, 2, 3, 3, 4, 2, 2, 2, 3, 4, 2, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 1, 1, 2, 2, 2, 0, 0, 1, 1, 3};
+    // amount of children recursively appended to iterable string handle
+    static final int[] children = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 1, 2, 2, 0, 1, 1, 1, 1, 1, 0, 0, 0, 2, 1, 1, 2, 0};
 
     @Nullable
     private final PersistentEntityStoreImpl store;
@@ -413,8 +413,13 @@ public abstract class EntityIterableBase implements EntityIterable {
     }
 
     @NotNull
-    public Entity getEntity(@NotNull final EntityId id) {
+    public final Entity getEntity(@NotNull final EntityId id) {
         return getStore().getEntity(id);
+    }
+
+    public EntityIterable findLinks(@NotNull final EntityIterable entities,
+                                    @NotNull final String linkName) {
+        return store == null ? EMPTY : new FilterLinksIterable(store, linkName, this, entities);
     }
 
     public boolean isCachedWrapper() {

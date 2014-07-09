@@ -254,7 +254,7 @@ public class SortIndirectIterable extends EntityIterableDecoratorBase {
                         nullIterated = true;
                         //noinspection ConstantConditions
                         foundLinksIterator = //txn.getAll(entityType).intersectSavingOrder(source).
-                                new FilterEntityTypeIterable(getStore(), source, sourceTypeId).
+                                new FilterEntityTypeIterable(getStore(), sourceTypeId, source).
                                         minus(oppositeEntityType == null ?
                                                         txn.findWithLinks(entityType, linkName) :
                                                         txn.findWithLinks(entityType, linkName, oppositeEntityType, oppositeLinkName)
@@ -266,7 +266,7 @@ public class SortIndirectIterable extends EntityIterableDecoratorBase {
                             nullIterated = true;
                             //noinspection ConstantConditions
                             foundLinksIterator = //txn.getAll(entityType).intersectSavingOrder(source).
-                                    new FilterEntityTypeIterable(getStore(), source, sourceTypeId).
+                                    new FilterEntityTypeIterable(getStore(), sourceTypeId, source).
                                             minus(oppositeEntityType == null ?
                                                             txn.findWithLinks(entityType, linkName) :
                                                             txn.findWithLinks(entityType, linkName, oppositeEntityType, oppositeLinkName)

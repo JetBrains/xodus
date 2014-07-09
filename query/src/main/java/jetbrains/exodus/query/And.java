@@ -17,16 +17,38 @@ package jetbrains.exodus.query;
 
 
 import jetbrains.exodus.entitystore.Entity;
+import jetbrains.exodus.entitystore.EntityIterable;
+import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.metadata.ModelMetaData;
 
 public class And extends CommutativeOperator {
+
     public And(final NodeBase left, final NodeBase right) {
         super(left, right);
     }
 
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData) {
-        return queryEngine.intersectAdjusted(getLeft().instantiate(entityType, queryEngine, metaData), getRight().instantiate(entityType, queryEngine, metaData));
+        final NodeBase left = getLeft();
+        final NodeBase right = getRight();
+        if (left instanceof LinksEqualDecorator) {
+            final LinksEqualDecorator leftNode = (LinksEqualDecorator) left;
+            final Iterable<Entity> rightInstance = right.instantiate(entityType, queryEngine, metaData);
+            if (rightInstance instanceof EntityIterableBase) {
+                return ((EntityIterableBase) rightInstance).findLinks(
+                        (EntityIterable) leftNode.getDecorated().instantiate(leftNode.getLinkEntityType(), queryEngine, metaData),
+                        leftNode.getLinkName());
+            }
+        } else if (right instanceof LinksEqualDecorator) {
+            final LinksEqualDecorator rightNode = (LinksEqualDecorator) right;
+            final Iterable<Entity> leftInstance = right.instantiate(entityType, queryEngine, metaData);
+            if (leftInstance instanceof EntityIterableBase) {
+                return ((EntityIterableBase) leftInstance).findLinks(
+                        (EntityIterable) rightNode.getDecorated().instantiate(rightNode.getLinkEntityType(), queryEngine, metaData),
+                        rightNode.getLinkName());
+            }
+        }
+        return queryEngine.intersectAdjusted(left.instantiate(entityType, queryEngine, metaData), right.instantiate(entityType, queryEngine, metaData));
     }
 
     @Override

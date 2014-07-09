@@ -319,12 +319,6 @@ public class EntityIdArrayIterableWrapperTests extends EntityStoreTestBase {
         }
 
         @Override
-        @NotNull
-        public Entity getEntity(@NotNull final EntityId id) {
-            return getStore().getEntity(id);
-        }
-
-        @Override
         public boolean isSortResult() {
             return false;
         }

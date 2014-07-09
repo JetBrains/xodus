@@ -59,7 +59,6 @@ public class HumanReadablePresentationTests extends EntityStoreTestBase {
         checkIterable(new PropertiesIterable(getEntityStore(), 0, 1), "Entities with property sorted by its value 0 1");
         checkIterable(new PropertyValueIterable(getEntityStore(), 0, 1, "value"), "Entities with specified property value 0 1 value");
         checkIterable(new EntitiesOfTypeIterable(txn, getEntityStore(), 0), "All entities of specific type 0");
-        // TODO: fix this and also add FILTER_TYPE
         checkIterable(new EntitiesOfTypeRangeIterable(txn, getEntityStore(), 0, 3, 8), "Entities of specific type within id range 0 3 8");
         checkIterable(new EntitiesWithLinkIterable(getEntityStore(), 0, 1), "Entities with link 0 1");
         checkIterable(new EntitiesWithLinkSortedIterable(getEntityStore(), 0, 1, 2, 3), "Entities with link 0 1");
@@ -116,6 +115,15 @@ public class HumanReadablePresentationTests extends EntityStoreTestBase {
                 "Outgoing links from an entity 0 1 2");
         checkIterable(new EntityToLinksIterable(getEntityStore(), new PersistentEntityId(0, 1), 2, 3),
                 "Incoming links to an entity 0 1 2 3");
+        checkIterable(new FilterEntityTypeIterable(getEntityStore(), 0, EntityIterableBase.EMPTY),
+                "Filter source iterable by entity type 0\n" +
+                        "|   Empty iterable"
+        );
+        checkIterable(new FilterLinksIterable(getEntityStore(), "link", EntityIterableBase.EMPTY, EntityIterableBase.EMPTY),
+                "Filter source iterable by links set link\n" +
+                        "|   Empty iterable\n" +
+                        "|   Empty iterable"
+        );
     }
 
     private void checkIterable(EntityIterable iterable, String presentation) {
