@@ -30,7 +30,7 @@ public interface Dumpable {
     void dump(PrintStream out, int level, @Nullable ToString renderer);
 
     /**
-     * To String renderer for INode implementors
+     * To String renderer for INode implementers
      */
     interface ToString {
 

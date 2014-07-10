@@ -170,7 +170,7 @@ public class TreeCursor implements ITreeCursor {
 
     @Override
     public boolean getNextDup() {
-        // tree without dulicates can has next dup only in -1 position
+        // tree without duplicates can has next dup only in -1 position
         return traverser.getKey() == ByteIterable.EMPTY && getNext();
     }
 
