@@ -461,7 +461,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
     }
 
-    @Deprecated
+    @Override
     public void clear() {
         environment.clear();
     }

@@ -29,6 +29,8 @@ public interface PersistentEntityStore extends EntityStore, Backupable {
     @NotNull
     PersistentEntityStoreConfig getConfig();
 
+    void clear();
+
     void executeInTransaction(@NotNull StoreTransactionalExecutable executable);
 
     void executeInReadonlyTransaction(@NotNull StoreTransactionalExecutable executable);
