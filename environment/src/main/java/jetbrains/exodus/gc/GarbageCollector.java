@@ -16,7 +16,7 @@
 package jetbrains.exodus.gc;
 
 import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
+import jetbrains.exodus.core.dataStructures.LongObjectCache;
 import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.env.EnvironmentImpl;
@@ -40,6 +40,8 @@ public final class GarbageCollector {
 
     private static final org.apache.commons.logging.Log logging = LogFactory.getLog(GarbageCollector.class);
 
+    private static final int STORES_CACHE_SIZE = 1024;
+
     @NotNull
     private final EnvironmentImpl env;
     @NotNull
@@ -55,6 +57,8 @@ public final class GarbageCollector {
     private volatile int newFiles; // number of new files appeared after last cleaning job
     @NotNull
     private final IExpirationChecker expirationChecker;
+    @NotNull
+    private final LongObjectCache<StoreImpl> openStoresCache;
 
     public GarbageCollector(@NotNull final EnvironmentImpl env) {
         this.env = env;
@@ -81,6 +85,7 @@ public final class GarbageCollector {
                 }
             };
         }
+        openStoresCache = new LongObjectCache<StoreImpl>(STORES_CACHE_SIZE);
         env.getLog().addNewFileListener(new NewFileListener() {
             @Override
             public void fileCreated(long fileAddress) {
@@ -155,7 +160,6 @@ public final class GarbageCollector {
             return false;
         }
         loggingInfo("start cleanFile(" + env.getLocation() + File.separatorChar + LogUtil.getLogFilename(fileAddress) + ')');
-        final LongHashMap<StoreImpl> openStores = new LongHashMap<StoreImpl>();
         // At first, we clone whole meta tree inside of 'begin transaction'
         // in order to save it completely on commit of transaction.
         // Thus we can ignore all loggables belonging to the meta tree.
@@ -179,10 +183,10 @@ public final class GarbageCollector {
                 }
                 final long structureId = loggable.getStructureId();
                 if (structureId != Loggable.NO_STRUCTURE_ID && structureId != EnvironmentImpl.META_TREE_ID) {
-                    StoreImpl store = openStores.get(structureId);
+                    StoreImpl store = openStoresCache.tryKey(structureId);
                     if (store == null) {
                         store = txn.openStoreByStructureId(structureId);
-                        openStores.put(structureId, store);
+                        openStoresCache.cacheObject(structureId, store);
                     }
                     store.reclaim(txn, loggable, loggables, expirationChecker);
                 }
