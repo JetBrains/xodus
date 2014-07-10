@@ -38,7 +38,6 @@ public final class LogUtil {
                     name.endsWith(LogUtil.LOG_FILE_EXTENSION);
         }
     };
-    private static final File[] NO_FILES = new File[0];
 
     private static final char[] LOG_FILE_NAME_ALPHABET = "0123456789abcdefghijklmnopqrstuv".toCharArray();
     private static final IntHashMap<Integer> ALPHA_INDEXES;
@@ -69,9 +68,7 @@ public final class LogUtil {
             address >>= 5;
         }
         char[] ext = LOG_FILE_EXTENSION_CHARS;
-        for (int i = 0; i < LOG_FILE_EXTENSION_LENGTH; i++) {
-            name[LOG_FILE_NAME_LENGTH + i] = ext[i];
-        }
+        System.arraycopy(ext, 0, name, LOG_FILE_NAME_LENGTH, LOG_FILE_EXTENSION_LENGTH);
         return new String(name);
     }
 
