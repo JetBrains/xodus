@@ -4,7 +4,7 @@ dependencies {
     testCompile project(':benchmarks')
     testCompile 'org.openjdk.jmh:jmh-core:0.9'
     testCompile 'org.openjdk.jmh:jmh-generator-annprocess:0.9'
-    testCompile group: 'com.sleepycat', name: 'je', version: '5.+'
+    testCompile group: 'com.sleepycat', name: 'je', version: '5.0.73'
 }
 
 task testBenchmarksJMH(type:JavaExec) {
