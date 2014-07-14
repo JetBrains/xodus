@@ -206,12 +206,12 @@ public class VfsFileTests extends VfsTestsBase {
         File file0 = vfs.openFile(txn, "file0", false);
         Assert.assertNotNull(file0);
         Assert.assertEquals(file0.getCreated(), file0.getLastModified());
-        Thread.sleep(110);
+        Thread.sleep(100);
         vfs.touchFile(txn, file0);
         txn.flush();
         file0 = vfs.openFile(txn, "file0", false);
         Assert.assertNotNull(file0);
-        Assert.assertTrue(file0.getCreated() + 100 < file0.getLastModified());
+        Assert.assertTrue(file0.getCreated() + 50 < file0.getLastModified());
         txn.commit();
     }
 
