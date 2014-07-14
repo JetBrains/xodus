@@ -419,7 +419,7 @@ public abstract class EntityIterableBase implements EntityIterable {
 
     public EntityIterable findLinks(@NotNull final EntityIterable entities,
                                     @NotNull final String linkName) {
-        return store == null ? EMPTY : new FilterLinksIterable(store, linkName, this, entities);
+        return store == null || ((EntityIterableBase) entities).store == null ? EMPTY : new FilterLinksIterable(store, linkName, this, entities);
     }
 
     public boolean isCachedWrapper() {
