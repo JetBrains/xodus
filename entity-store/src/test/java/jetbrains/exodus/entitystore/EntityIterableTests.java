@@ -388,6 +388,16 @@ public class EntityIterableTests extends EntityStoreTestBase {
         }
     }
 
+    public void testFindLinksSingular() {
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        createNUsers(txn, 1);
+        final PersistentEntity issue = txn.newEntity("Issue");
+        issue.addLink("author", txn.find("User", "login", "user0").getFirst());
+        txn.flush();
+        Assert.assertEquals(0L, EntityIterableBase.EMPTY.findLinks(txn.getAll("User"), "author").size());
+        Assert.assertEquals(0L, ((EntityIterableBase) txn.getAll("Issue")).findLinks(EntityIterableBase.EMPTY, "author").size());
+    }
+
     public void testGetFirst() {
         for (int i = 0; i < 256; ++i) {
             Assert.assertNull(EntityIterableBase.EMPTY.getFirst());
