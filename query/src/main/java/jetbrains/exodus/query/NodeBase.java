@@ -60,9 +60,6 @@ public abstract class NodeBase {
         while (applied) {
             applied = false;
             for (final NodeBase child : getChildren()) {
-                if (applied) {
-                    break;
-                }
                 if (!rules.applyOnEnter) {
                     child.optimize(sorts, rules);
                 }
@@ -141,10 +138,7 @@ public abstract class NodeBase {
             }
             return equals(leafInst);
         }
-        if (!(getClass().equals(node.getClass()))) {
-            return false;
-        }
-        return matchChildren(node, ctx);
+        return getClass().equals(node.getClass()) && matchChildren(node, ctx);
     }
 
     protected boolean polymorphic() {
