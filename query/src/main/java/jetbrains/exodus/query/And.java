@@ -36,7 +36,7 @@ public class And extends CommutativeOperator {
             final Iterable<Entity> rightInstance = right.instantiate(entityType, queryEngine, metaData);
             if (rightInstance instanceof EntityIterableBase) {
                 return ((EntityIterableBase) rightInstance).findLinks(
-                        ((EntityIterable) leftNode.getDecorated().instantiate(leftNode.getLinkEntityType(), queryEngine, metaData)).getSource(),
+                        ((EntityIterable) leftNode.instantiateDecorated(leftNode.getLinkEntityType(), queryEngine, metaData)).getSource(),
                         leftNode.getLinkName());
             }
         } else if (right instanceof LinksEqualDecorator) {
@@ -44,7 +44,7 @@ public class And extends CommutativeOperator {
             final Iterable<Entity> leftInstance = right.instantiate(entityType, queryEngine, metaData);
             if (leftInstance instanceof EntityIterableBase) {
                 return ((EntityIterableBase) leftInstance).findLinks(
-                        ((EntityIterable) rightNode.getDecorated().instantiate(rightNode.getLinkEntityType(), queryEngine, metaData)).getSource(),
+                        ((EntityIterable) rightNode.instantiateDecorated(rightNode.getLinkEntityType(), queryEngine, metaData)).getSource(),
                         rightNode.getLinkName());
             }
         }

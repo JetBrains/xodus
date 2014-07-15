@@ -52,7 +52,7 @@ public class LinksEqualDecorator extends NodeBase {
         this.decorated = decorated;
     }
 
-    private Iterable<Entity> instantiateDecorated(String entityType, QueryEngine queryEngine, ModelMetaData metaData) {
+    protected Iterable<Entity> instantiateDecorated(String entityType, QueryEngine queryEngine, ModelMetaData metaData) {
         Iterable<Entity> result = decorated.instantiate(entityType, queryEngine, metaData);
         final EntityMetaData emd = metaData == null ? null : metaData.getEntityMetaData(entityType);
         if (emd != null) {
