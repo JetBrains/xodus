@@ -18,37 +18,40 @@ package jetbrains.exodus.query;
 
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.EntityIterable;
+import jetbrains.exodus.entitystore.EntityIterator;
+import jetbrains.exodus.entitystore.EntityStoreException;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.metadata.ModelMetaData;
+import org.jetbrains.annotations.NotNull;
 
+import java.util.Iterator;
+
+@SuppressWarnings("SpellCheckingInspection")
 public class And extends CommutativeOperator {
+
+    private static final boolean traceFindLinks = Boolean.getBoolean("jetbrains.exodus.query.traceFindLinks");
 
     public And(final NodeBase left, final NodeBase right) {
         super(left, right);
     }
 
     @Override
-    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData) {
+    public Iterable<Entity> instantiate(final String entityType, final QueryEngine queryEngine, final ModelMetaData metaData) {
         final NodeBase left = getLeft();
         final NodeBase right = getRight();
+        final Instantiatable directClosure = new Instantiatable() {
+            @Override
+            public Iterable<Entity> instantiate() {
+                return queryEngine.intersectAdjusted(left.instantiate(entityType, queryEngine, metaData), right.instantiate(entityType, queryEngine, metaData));
+            }
+        };
         if (left instanceof LinksEqualDecorator) {
-            final LinksEqualDecorator leftNode = (LinksEqualDecorator) left;
-            final Iterable<Entity> rightInstance = right.instantiate(entityType, queryEngine, metaData);
-            if (rightInstance instanceof EntityIterableBase) {
-                return ((EntityIterableBase) rightInstance).findLinks(
-                        ((EntityIterable) leftNode.instantiateDecorated(leftNode.getLinkEntityType(), queryEngine, metaData)).getSource(),
-                        leftNode.getLinkName());
-            }
-        } else if (right instanceof LinksEqualDecorator) {
-            final LinksEqualDecorator rightNode = (LinksEqualDecorator) right;
-            final Iterable<Entity> leftInstance = right.instantiate(entityType, queryEngine, metaData);
-            if (leftInstance instanceof EntityIterableBase) {
-                return ((EntityIterableBase) leftInstance).findLinks(
-                        ((EntityIterable) rightNode.instantiateDecorated(rightNode.getLinkEntityType(), queryEngine, metaData)).getSource(),
-                        rightNode.getLinkName());
-            }
+            return instantiateCustom(entityType, queryEngine, metaData, right, (LinksEqualDecorator) left, directClosure);
         }
-        return queryEngine.intersectAdjusted(left.instantiate(entityType, queryEngine, metaData), right.instantiate(entityType, queryEngine, metaData));
+        if (right instanceof LinksEqualDecorator) {
+            return instantiateCustom(entityType, queryEngine, metaData, left, (LinksEqualDecorator) right, directClosure);
+        }
+        return directClosure.instantiate();
     }
 
     @Override
@@ -71,5 +74,43 @@ public class And extends CommutativeOperator {
     @Override
     public String getSimpleName() {
         return "and";
+    }
+
+    private static Iterable<Entity> instantiateCustom(@NotNull final String entityType,
+                                                      @NotNull final QueryEngine queryEngine,
+                                                      @NotNull final ModelMetaData metaData,
+                                                      @NotNull final NodeBase self,
+                                                      @NotNull final LinksEqualDecorator decorator,
+                                                      @NotNull final Instantiatable directClosure) {
+        final Iterable<Entity> selfInstance = self.instantiate(entityType, queryEngine, metaData);
+        if (selfInstance instanceof EntityIterableBase) {
+            final EntityIterable result = ((EntityIterableBase) selfInstance).findLinks(
+                    ((EntityIterable) decorator.instantiateDecorated(decorator.getLinkEntityType(), queryEngine, metaData)).getSource(),
+                    decorator.getLinkName());
+            if (traceFindLinks) {
+                final Iterator<Entity> directIt = directClosure.instantiate().iterator();
+                final EntityIterator it = result.iterator();
+                while (true) {
+                    final boolean directHasNext = directIt.hasNext();
+                    final boolean hasNext = it.hasNext();
+                    if (directHasNext != hasNext) {
+                        throw new EntityStoreException("Invalid custom findLinks() result: different sizes");
+                    }
+                    if (!hasNext) {
+                        break;
+                    }
+                    if (!directIt.next().getId().equals(it.nextId())) {
+                        throw new EntityStoreException("Invalid custom findLinks() result");
+                    }
+                }
+            }
+            return result;
+        }
+        return directClosure.instantiate();
+    }
+
+    private interface Instantiatable {
+
+        Iterable<Entity> instantiate();
     }
 }
