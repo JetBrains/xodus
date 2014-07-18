@@ -636,6 +636,14 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         replayData = null;
     }
 
+    public void disposeCreatedIterators() {
+        // dispose opened entity iterables
+        for (final EntityIterator iterator : createdIterators) {
+            iterator.dispose();
+        }
+        createdIterators.clear();
+    }
+
     boolean preloadPropertyValues() {
         return propEntriesCache.hitRate() >= PROPS_CACHE_TARGET_HIT_RATE;
     }
@@ -829,14 +837,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             deferredBlobsToDelete = new LongHashSet();
         }
         deferredBlobsToDelete.add(blobHandle);
-    }
-
-    protected void disposeCreatedIterators() {
-        // dispose opened entity iterables
-        for (final EntityIterator iterator : createdIterators) {
-            iterator.dispose();
-        }
-        createdIterators.clear();
     }
 
     protected void revertCaches() {
