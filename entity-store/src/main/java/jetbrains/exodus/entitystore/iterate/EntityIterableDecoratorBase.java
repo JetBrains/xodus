@@ -52,7 +52,8 @@ public abstract class EntityIterableDecoratorBase extends EntityIterableBase {
 
     @Override
     public boolean canBeCached() {
-        return source.canBeCached() || source.isCachedWrapper();
+        // this is actually overkill until decorator has a txn itself
+        return super.canBeCached() && (source.canBeCached() || source.isCachedWrapper());
     }
 
     @NotNull

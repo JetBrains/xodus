@@ -75,7 +75,7 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
      * @return iterable which is cached or "it" itself if it's not cached.
      */
     public EntityIterableBase putIfNotCached(@NotNull final EntityIterableBase it) {
-        if (!store.isCachingEnabled() || it.hasCustomTxn() || !it.canBeCached()) {
+        if (!store.isCachingEnabled() || !it.canBeCached()) {
             return it;
         }
 

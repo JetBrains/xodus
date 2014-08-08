@@ -133,10 +133,6 @@ public abstract class EntityIterableBase implements EntityIterable {
         return txnGetter.getTxn(this);
     }
 
-    public boolean hasCustomTxn() {
-        return txnGetter != TxnGetterStategy.DEFAULT;
-    }
-
     @Override
     public boolean isEmpty() {
         // EMPTY iterable
@@ -409,7 +405,7 @@ public abstract class EntityIterableBase implements EntityIterable {
      * @return true if should.
      */
     public boolean canBeCached() {
-        return true;
+        return txnGetter == TxnGetterStategy.DEFAULT; // !hasCustomTxn
     }
 
     @NotNull
