@@ -8,7 +8,7 @@ buildscript {
     }
 }
 
-def SNAPSHOT = 'SNAPSHOT'
+def SNAPSHOT = '1.0-SNAPSHOT'
 version = SNAPSHOT
 if (project.hasProperty("xodusVersion")) {
     version = project.xodusVersion

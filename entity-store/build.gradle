@@ -7,7 +7,7 @@ task jarTests(type: Jar) {
     from project.sourceSets.test.output
 }
 
-def SNAPSHOT = 'SNAPSHOT'
+def SNAPSHOT = '1.0-SNAPSHOT'
 
 if (version == SNAPSHOT) {
     jarTests.archiveName = rootProject.name + '-' + project.name + '-tests.jar'
