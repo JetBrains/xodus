@@ -29,7 +29,7 @@ public abstract class BinaryOperator extends NodeBase {
     private static Log log = LogFactory.getLog(BinaryOperator.class);
     private static boolean isWarnEnabled = log.isWarnEnabled();
     private static final int MAXIMUM_LEGAL_DEPTH = 200;
-    private static final int GREAT_DEPTH_LOGGING_FREQ = 10000;
+    private static final int LARGE_DEPTH_LOGGING_FREQ = 10000;
     private static volatile long lastLoggedMillis = 0;
 
     private NodeBase left;
@@ -53,7 +53,7 @@ public abstract class BinaryOperator extends NodeBase {
                 leftDepth + 1;
         if (isWarnEnabled && depth >= MAXIMUM_LEGAL_DEPTH && (depth % MAXIMUM_LEGAL_DEPTH) == 0) {
             final long millis = System.currentTimeMillis();
-            if (millis - lastLoggedMillis > GREAT_DEPTH_LOGGING_FREQ) {
+            if (millis - lastLoggedMillis > LARGE_DEPTH_LOGGING_FREQ) {
                 lastLoggedMillis = millis;
                 log.warn("Binary operator of too great depth", new Throwable());
             }
