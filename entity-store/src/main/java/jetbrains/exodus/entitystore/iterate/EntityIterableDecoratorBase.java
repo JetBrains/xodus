@@ -29,6 +29,7 @@ public abstract class EntityIterableDecoratorBase extends EntityIterableBase {
                                           @NotNull final EntityIterableBase source) {
         super(store);
         this.source = source;
+        this.txnGetter = source.txnGetter;
     }
 
     @Override
