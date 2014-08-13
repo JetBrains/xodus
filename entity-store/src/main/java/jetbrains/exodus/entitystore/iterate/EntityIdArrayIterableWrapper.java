@@ -44,9 +44,9 @@ public class EntityIdArrayIterableWrapper extends CachedWrapperIterable {
     @SuppressWarnings({"ConstantConditions", "OverlyNestedMethod", "OverlyLongMethod", "OverriddenMethodCallDuringObjectConstruction"})
     public EntityIdArrayIterableWrapper(@NotNull final PersistentStoreTransaction txn,
                                         @NotNull final PersistentEntityStoreImpl store,
-                                        @NotNull final EntityIterableBase sourceIterable) {
-        super(store, sourceIterable.getHandle());
-        final EntityIteratorBase it = (EntityIteratorBase) sourceIterable.getIteratorImpl(txn);
+                                        @NotNull final EntityIterableBase source) {
+        super(store, source);
+        final EntityIteratorBase it = (EntityIteratorBase) source.getIteratorImpl(txn);
         try {
             if (!it.hasNext()) {
                 singleTypeId = true;
@@ -57,7 +57,7 @@ public class EntityIdArrayIterableWrapper extends CachedWrapperIterable {
                 final IntArrayList typeIds = IntArrayListSpinAllocator.alloc();
                 final LongArrayList localIds = LongArrayListSpinAllocator.alloc();
                 try {
-                    if (sourceIterable.isSortedById()) {
+                    if (source.isSortedById()) {
                         int lastTypeId = -1;
                         boolean first = true;
                         EntityId id = extractNextId(it);

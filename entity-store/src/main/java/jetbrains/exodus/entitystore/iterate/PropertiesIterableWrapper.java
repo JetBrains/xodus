@@ -42,9 +42,9 @@ public class PropertiesIterableWrapper extends CachedWrapperIterable {
 
     @SuppressWarnings({"ConstantConditions", "ObjectAllocationInLoop"})
     public PropertiesIterableWrapper(@Nullable final PersistentEntityStoreImpl store,
-                                     @NotNull final EntityIterableHandle sourceHandle,
-                                     @Nullable final PropertyValueIterator it) {
-        super(store, sourceHandle);
+                                     @Nullable final PropertyValueIterator it,
+                                     @NotNull final EntityIterableBase source) {
+        super(store, source);
         index = new Persistent23Tree<IndexEntry>();
         mutableIndex = null;
         if (it == null) {
@@ -83,7 +83,7 @@ public class PropertiesIterableWrapper extends CachedWrapperIterable {
 
     // constructor for mutating source index
     private PropertiesIterableWrapper(@NotNull final PropertiesIterableWrapper source) {
-        super(source.getStore(), source.sourceHandle);
+        super(source.getStore(), source);
         entityTypeId = source.entityTypeId;
         index = source.index.getClone();
         mutableIndex = index.beginWrite();

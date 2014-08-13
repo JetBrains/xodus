@@ -24,12 +24,13 @@ import org.jetbrains.annotations.Nullable;
 public abstract class CachedWrapperIterable extends EntityIterableBase {
 
     @NotNull
-    protected final EntityIterableHandle sourceHandle;
+    private final EntityIterableHandle sourceHandle;
 
     protected CachedWrapperIterable(@Nullable final PersistentEntityStoreImpl store,
-                                    @NotNull final EntityIterableHandle sourceHandle) {
+                                    @NotNull final EntityIterableBase source) {
         super(store);
-        this.sourceHandle = sourceHandle;
+        sourceHandle = source.getHandle();
+        txnGetter = source.txnGetter;
     }
 
     @Override
