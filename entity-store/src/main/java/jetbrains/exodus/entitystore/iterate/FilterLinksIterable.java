@@ -35,7 +35,7 @@ public class FilterLinksIterable extends EntityIterableDecoratorBase {
     @NotNull
     private final String linkName;
     @NotNull
-    private final EntityIterable entities;
+    private final EntityIterableBase entities;
 
     public FilterLinksIterable(@NotNull final PersistentEntityStoreImpl store,
                                @NotNull final String linkName,
@@ -43,7 +43,7 @@ public class FilterLinksIterable extends EntityIterableDecoratorBase {
                                @NotNull final EntityIterable entities) {
         super(store, source);
         this.linkName = linkName;
-        this.entities = entities;
+        this.entities = (EntityIterableBase) entities.getSource();
     }
 
     public static EntityIterableType getType() {
@@ -89,7 +89,7 @@ public class FilterLinksIterable extends EntityIterableDecoratorBase {
             @NotNull
             private EntityIdSet getIdSet() {
                 if (idSet == null) {
-                    idSet = ((EntityIterableBase) entities).toSet(txn);
+                    idSet = entities.toSet(txn);
                 }
                 return idSet;
             }
