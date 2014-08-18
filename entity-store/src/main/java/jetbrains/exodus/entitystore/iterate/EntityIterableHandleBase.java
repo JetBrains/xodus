@@ -83,7 +83,7 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
             builder.append('-');
             storeIdLength = builder.length();
             getStringHandle(builder);
-            cachedStringHandle = StringInterner.intern(builder.toString());
+            cachedStringHandle = StringInterner.intern(builder, 100);
         }
         return cachedStringHandle;
     }

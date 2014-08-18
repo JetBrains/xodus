@@ -35,7 +35,6 @@ import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.log.iterate.FixedLengthByteIterable;
 import jetbrains.exodus.util.ByteArraySizedInputStream;
 import jetbrains.exodus.util.LightByteArrayOutputStream;
-import jetbrains.exodus.util.StringInterner;
 import jetbrains.exodus.util.UTFUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -631,7 +630,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     public void cacheEntityId(@NotNull final String representation, @NotNull final EntityId id) {
-        entityIdCache.cacheObject(StringInterner.intern(representation), id);
+        entityIdCache.cacheObject(representation, id);
     }
 
     @Nullable

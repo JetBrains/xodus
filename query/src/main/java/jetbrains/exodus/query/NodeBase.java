@@ -189,7 +189,7 @@ public abstract class NodeBase {
     }
 
     String getHandle() {
-        return StringInterner.intern(getHandle(new StringBuilder(32)).toString());
+        return StringInterner.intern(getHandle(new StringBuilder(32)), 100);
     }
 
     public StringBuilder getHandle(StringBuilder sb) {

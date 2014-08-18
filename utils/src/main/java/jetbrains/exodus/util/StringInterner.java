@@ -16,6 +16,7 @@
 package jetbrains.exodus.util;
 
 import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache;
+import org.jetbrains.annotations.NotNull;
 
 public class StringInterner {
 
@@ -34,5 +35,17 @@ public class StringInterner {
         final String copy = new String(s);
         cache.cacheObject(copy, copy);
         return copy;
+    }
+
+    public static String intern(@NotNull final StringBuilder builder, final int maxLen) {
+        final String result = builder.toString();
+        final String cached = cache.tryKey(result);
+        if (cached != null) {
+            return cached;
+        }
+        if (builder.length() <= maxLen) {
+            cache.cacheObject(result, result);
+        }
+        return result;
     }
 }
