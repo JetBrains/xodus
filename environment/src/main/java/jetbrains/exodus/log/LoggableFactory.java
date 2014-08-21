@@ -47,7 +47,7 @@ public abstract class LoggableFactory {
                                        final int dataLength,
                                        final long structureId) {
         if (type < 0 || type >= FACTORY.length) {
-            throw new ArrayIndexOutOfBoundsException();
+            throw new ExodusException("Invalid loggable type");
         }
         final LoggableFactory prototype = FACTORY[type];
         if (prototype != null) {
