@@ -24,12 +24,14 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.util.Iterator;
+import java.util.List;
 
 public class BackupBean implements Backupable {
 
     private static final Log log = LogFactory.getLog(BackupBean.class);
 
-    private final Backupable target;
+    private final Backupable[] targets;
     private volatile long backupStartTicks;
     private String backupPath;
     private boolean backupToZip;
@@ -38,7 +40,15 @@ public class BackupBean implements Backupable {
     private Throwable backupException;
 
     public BackupBean(final Backupable target) {
-        this.target = target;
+        targets = new Backupable[]{target};
+    }
+
+    public BackupBean(final List<Backupable> targets) {
+        final int targetsCount = targets.size();
+        if (targetsCount < 1) {
+            throw new IllegalArgumentException();
+        }
+        this.targets = targets.toArray(new Backupable[targetsCount]);
     }
 
     public void setBackupPath(@NotNull final String backupPath) {
@@ -91,24 +101,76 @@ public class BackupBean implements Backupable {
 
     @Override
     public BackupStrategy getBackupStrategy() {
-        final BackupStrategy wrapped = target.getBackupStrategy();
+        final int targetsCount = targets.length;
+        final BackupStrategy[] wrapped = new BackupStrategy[targetsCount];
+        for (int i = 0; i < targetsCount; i++) {
+            wrapped[i] = targets[i].getBackupStrategy();
+        }
         return new BackupStrategy() {
             @Override
             public void beforeBackup() throws Exception {
                 backupStartTicks = System.currentTimeMillis();
                 log.info("Backing up database...");
-                wrapped.beforeBackup();
+                for (final BackupStrategy strategy : wrapped) {
+                    strategy.beforeBackup();
+                }
             }
 
             @Override
             public Iterable<Pair<File, String>> listFiles() {
-                return wrapped.listFiles();
+                return new Iterable<Pair<File, String>>() {
+                    @Override
+                    public Iterator<Pair<File, String>> iterator() {
+                        return new Iterator<Pair<File, String>>() {
+
+                            @Nullable
+                            private Pair<File, String> next = null;
+                            private int i = 0;
+                            @NotNull
+                            private Iterator<Pair<File, String>> it = EMPTY.listFiles().iterator();
+
+                            @Override
+                            public boolean hasNext() {
+                                return getNext() != null;
+                            }
+
+                            @Override
+                            public Pair<File, String> next() {
+                                try {
+                                    return getNext();
+                                } finally {
+                                    next = null;
+                                }
+                            }
+
+                            @Override
+                            public void remove() {
+                                throw new UnsupportedOperationException("remove");
+                            }
+
+                            private Pair<File, String> getNext() {
+                                if (next == null) {
+                                    while (!it.hasNext()) {
+                                        if (i >= targetsCount) {
+                                            return next;
+                                        }
+                                        it = wrapped[i++].listFiles().iterator();
+                                    }
+                                    next = it.next();
+                                }
+                                return next;
+                            }
+                        };
+                    }
+                };
             }
 
             @Override
             public void afterBackup() throws Exception {
                 try {
-                    wrapped.afterBackup();
+                    for (final BackupStrategy strategy : wrapped) {
+                        strategy.afterBackup();
+                    }
                 } finally {
                     backupStartTicks = 0;
                 }
