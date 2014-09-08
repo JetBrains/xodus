@@ -119,8 +119,8 @@ public class HumanReadablePresentationTests extends EntityStoreTestBase {
                 "Filter source iterable by entity type 0\n" +
                         "|   Empty iterable"
         );
-        checkIterable(new FilterLinksIterable(getEntityStore(), "link", EntityIterableBase.EMPTY, EntityIterableBase.EMPTY),
-                "Filter source iterable by links set link\n" +
+        checkIterable(new FilterLinksIterable(getEntityStore(), 0, EntityIterableBase.EMPTY, EntityIterableBase.EMPTY),
+                "Filter source iterable by links set 0\n" +
                         "|   Empty iterable\n" +
                         "|   Empty iterable"
         );

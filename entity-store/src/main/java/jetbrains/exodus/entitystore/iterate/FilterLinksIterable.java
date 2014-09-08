@@ -30,7 +30,7 @@ public class FilterLinksIterable extends EntityIterableDecoratorBase {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
                 return new FilterLinksIterable(
-                        store, (Integer) parameters[0], (EntityIterableBase) parameters[1], (EntityIterable) parameters[2]);
+                        store, Integer.valueOf((String) parameters[0]), (EntityIterableBase) parameters[1], (EntityIterable) parameters[2]);
             }
         });
     }
