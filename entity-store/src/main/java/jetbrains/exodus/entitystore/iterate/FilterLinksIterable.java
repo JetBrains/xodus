@@ -15,7 +15,10 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
+import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.entitystore.*;
+import jetbrains.exodus.entitystore.tables.LinkValue;
+import jetbrains.exodus.entitystore.tables.PropertyKey;
 import jetbrains.exodus.entitystore.util.EntityIdSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -27,22 +30,21 @@ public class FilterLinksIterable extends EntityIterableDecoratorBase {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
                 return new FilterLinksIterable(
-                        store, (String) parameters[0], (EntityIterableBase) parameters[1], (EntityIterable) parameters[2]);
+                        store, (Integer) parameters[0], (EntityIterableBase) parameters[1], (EntityIterable) parameters[2]);
             }
         });
     }
 
-    @NotNull
-    private final String linkName;
+    private final int linkId;
     @NotNull
     private final EntityIterableBase entities;
 
     public FilterLinksIterable(@NotNull final PersistentEntityStoreImpl store,
-                               @NotNull final String linkName,
+                               @NotNull final int linkId,
                                @NotNull final EntityIterableBase source,
                                @NotNull final EntityIterable entities) {
         super(store, source);
-        this.linkName = linkName;
+        this.linkId = linkId;
         this.entities = (EntityIterableBase) entities.getSource();
     }
 
@@ -61,6 +63,8 @@ public class FilterLinksIterable extends EntityIterableDecoratorBase {
             private EntityId nextId = PersistentEntityId.EMPTY_ID;
             @Nullable
             private EntityIdSet idSet = null;
+            @NotNull
+            private final PersistentEntityStoreImpl store = FilterLinksIterable.this.getStore();
 
             @Override
             protected boolean hasNextImpl() {
@@ -70,9 +74,12 @@ public class FilterLinksIterable extends EntityIterableDecoratorBase {
                 while (sourceIt.hasNext()) {
                     nextId = sourceIt.nextId();
                     if (nextId != null) {
-                        final Entity link = getEntity(nextId).getLink(linkName);
-                        if (link != null && getIdSet().contains(link.getId())) {
-                            return true;
+                        final ByteIterable valueEntry = store.getLinkDataGetter().getUpToDateEntry(
+                                txn, nextId.getTypeId(), new PropertyKey(nextId.getLocalId(), linkId));
+                        if (valueEntry != null) {
+                            if (getIdSet().contains(LinkValue.entryToLinkValue(valueEntry).getEntityId())) {
+                                return true;
+                            }
                         }
                     }
                 }
@@ -104,7 +111,7 @@ public class FilterLinksIterable extends EntityIterableDecoratorBase {
             public void getStringHandle(@NotNull final StringBuilder builder) {
                 super.getStringHandle(builder);
                 builder.append('-');
-                builder.append(linkName);
+                builder.append(linkId);
                 builder.append('-');
                 decorated.getStringHandle(builder);
                 builder.append('-');

@@ -318,8 +318,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             return EMPTY;
         }
-        final int linkId = store.getLinkId(getTransaction(), linkName, false);
-        return new SelectDistinctIterable(store, this, linkId);
+        return new SelectDistinctIterable(store, this, store.getLinkId(getTransaction(), linkName, false));
     }
 
     @NotNull
@@ -332,8 +331,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             return EMPTY;
         }
-        final int linkId = store.getLinkId(getTransaction(), linkName, false);
-        return new SelectManyDistinctIterable(store, this, linkId);
+        return new SelectManyDistinctIterable(store, this, store.getLinkId(getTransaction(), linkName, false));
     }
 
     @Nullable
@@ -415,7 +413,14 @@ public abstract class EntityIterableBase implements EntityIterable {
 
     public EntityIterable findLinks(@NotNull final EntityIterable entities,
                                     @NotNull final String linkName) {
-        return store == null || ((EntityIterableBase) entities).store == null ? EMPTY : new FilterLinksIterable(store, linkName, this, entities);
+        if (store == null) {
+            return EMPTY;
+        }
+        final int linkId = store.getLinkId(getTransaction(), linkName, false);
+        if (linkId < 0) {
+            return EMPTY;
+        }
+        return ((EntityIterableBase) entities).store == null ? EMPTY : new FilterLinksIterable(store, linkId, this, entities);
     }
 
     public boolean isCachedWrapper() {

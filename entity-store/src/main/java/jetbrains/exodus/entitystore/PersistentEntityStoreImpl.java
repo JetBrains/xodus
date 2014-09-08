@@ -633,6 +633,10 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         entityIdCache.cacheObject(representation, id);
     }
 
+    public DataGetter getLinkDataGetter() {
+        return linkDataGetter;
+    }
+
     @Nullable
     Comparable getProperty(@NotNull final PersistentStoreTransaction txn,
                            @NotNull final PersistentEntity entity,
@@ -2357,7 +2361,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
     }
 
-    private interface DataGetter {
+    public interface DataGetter {
         Store getHistory(@NotNull PersistentStoreTransaction txn, int typeId);
 
         ByteIterable getUpToDateEntry(@NotNull PersistentStoreTransaction txn, int typeId, PropertyKey key);
