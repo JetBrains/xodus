@@ -39,7 +39,7 @@ public final class RandomAccessLoggableIterator implements Iterator<RandomAccess
 
     @Override
     public RandomAccessLoggable next() {
-        final RandomAccessLoggable result = log.read(address);
+        final RandomAccessLoggable result = log.read(log.readIteratorFrom(address), address);
         address += result.length();
         return result;
     }
