@@ -330,7 +330,7 @@ public final class Log implements Closeable {
         return bufferedWriter.getHighPage(alignedAddress);
     }
 
-    public int getCachePageSize() {
+    public final int getCachePageSize() {
         return cachePageSize;
     }
 

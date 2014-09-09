@@ -25,11 +25,13 @@ final class DataIterator extends CompoundByteIteratorBase {
 
     @NotNull
     private final Log log;
+    private final LogCache logCache;
     private long currentAddress;
 
     DataIterator(@NotNull final Log log, final long startAddress) {
         super(ArrayByteIterable.getEmptyIterator());
         this.log = log;
+        logCache = log.cache;
         currentAddress = startAddress;
     }
 
@@ -39,9 +41,8 @@ final class DataIterator extends CompoundByteIteratorBase {
         final int alignment = (int) (prevAddress % log.getCachePageSize());
         final ArrayByteIterable page;
         final long newAddress = prevAddress - alignment;
-
         try {
-            page = log.cache.getPage(log, newAddress);
+            page = logCache.getPage(log, newAddress);
         } catch (BlockNotFoundException e) {
             return null;
         }
@@ -49,7 +50,6 @@ final class DataIterator extends CompoundByteIteratorBase {
         if (readBytes <= alignment) { // alignment is >= 0 for sure
             return null;
         }
-
         currentAddress = newAddress;
         return page.iterator(alignment);
     }
