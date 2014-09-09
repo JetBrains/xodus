@@ -15,10 +15,7 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
-import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.entitystore.*;
-import jetbrains.exodus.entitystore.tables.LinkValue;
-import jetbrains.exodus.entitystore.tables.PropertyKey;
 import jetbrains.exodus.entitystore.util.EntityIdSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -40,7 +37,7 @@ public class FilterLinksIterable extends EntityIterableDecoratorBase {
     private final EntityIterableBase entities;
 
     public FilterLinksIterable(@NotNull final PersistentEntityStoreImpl store,
-                               @NotNull final int linkId,
+                               final int linkId,
                                @NotNull final EntityIterableBase source,
                                @NotNull final EntityIterable entities) {
         super(store, source);
@@ -74,12 +71,9 @@ public class FilterLinksIterable extends EntityIterableDecoratorBase {
                 while (sourceIt.hasNext()) {
                     nextId = sourceIt.nextId();
                     if (nextId != null) {
-                        final ByteIterable valueEntry = store.getLinkDataGetter().getUpToDateEntry(
-                                txn, nextId.getTypeId(), new PropertyKey(nextId.getLocalId(), linkId));
-                        if (valueEntry != null) {
-                            if (getIdSet().contains(LinkValue.entryToLinkValue(valueEntry).getEntityId())) {
-                                return true;
-                            }
+                        final PersistentEntityId targetId = store.getLinkAsEntityId(txn, store.getEntity(nextId), linkId);
+                        if (targetId != null && getIdSet().contains(targetId)) {
+                            return true;
                         }
                     }
                 }

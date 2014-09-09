@@ -633,10 +633,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         entityIdCache.cacheObject(representation, id);
     }
 
-    public DataGetter getLinkDataGetter() {
-        return linkDataGetter;
-    }
-
     @Nullable
     Comparable getProperty(@NotNull final PersistentStoreTransaction txn,
                            @NotNull final PersistentEntity entity,
@@ -1287,6 +1283,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @Nullable
     PersistentEntity getLink(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity from, final int linkId) {
+        final PersistentEntityId resultId = getLinkAsEntityId(txn, from, linkId);
+        return resultId == null ? null : getEntity(resultId);
+    }
+
+    @Nullable
+    public PersistentEntityId getLinkAsEntityId(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity from, int linkId) {
         PersistentEntityId resultId = txn.getCachedLink(from, linkId);
         if (resultId == null) {
             final ByteIterable resultEntry = getRawLink(txn, from, linkId);
@@ -1295,7 +1297,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 txn.cacheLink(from, linkId, resultId);
             }
         }
-        return resultId == null ? null : getEntity(resultId);
+        return resultId;
     }
 
     @Nullable
@@ -2361,7 +2363,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
     }
 
-    public interface DataGetter {
+    private interface DataGetter {
+
         Store getHistory(@NotNull PersistentStoreTransaction txn, int typeId);
 
         ByteIterable getUpToDateEntry(@NotNull PersistentStoreTransaction txn, int typeId, PropertyKey key);
