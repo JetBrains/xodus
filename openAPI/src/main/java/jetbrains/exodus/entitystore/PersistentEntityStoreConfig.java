@@ -39,6 +39,8 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public static final String EXPLAIN_ON = "exodus.entityStore.explainOn";
 
+    public static final String UNIQUE_INDICES_USE_BTREE = "exodus.entityStore.uniqueIndices.useBtree";
+
     public static final String DEBUG_LINK_DATA_GETTER = "exodus.entityStore.debugLinkDataGetter";
 
     public static final String ENTITY_ITERABLE_CACHE_SIZE = "exodus.entityStore.entityIterableCache.size";
@@ -72,6 +74,7 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(MAX_IN_PLACE_BLOB_SIZE, 10000),
                 new Pair(CACHING_DISABLED, false),
                 new Pair(EXPLAIN_ON, false),
+                new Pair(UNIQUE_INDICES_USE_BTREE, false),
                 new Pair(DEBUG_LINK_DATA_GETTER, false),
                 new Pair(ENTITY_ITERABLE_CACHE_SIZE, defaultEntityIterableCacheSize()),
                 new Pair(ENTITY_ITERABLE_CACHE_THREAD_COUNT, Runtime.getRuntime().availableProcessors() > 3 ? 2 : 1),
@@ -147,6 +150,14 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public void setExplainOn(final boolean explainOn) {
         setSetting(EXPLAIN_ON, explainOn);
+    }
+
+    public boolean getUniqueIndicesUseBtree() {
+        return (Boolean) getSetting(UNIQUE_INDICES_USE_BTREE);
+    }
+
+    public void setUniqueIndicesUseBtree(final boolean useBtree) {
+        setSetting(UNIQUE_INDICES_USE_BTREE, useBtree);
     }
 
     public boolean isDebugLinkDataGetter() {
