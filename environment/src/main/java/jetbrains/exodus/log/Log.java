@@ -672,8 +672,9 @@ public final class Log implements Closeable {
     }
 
     private void tryLock() {
-        if (!config.getWriter().lock(config.getLockTimeout())) {
-            throw new ExodusException("Can't get lock. Release previous lock.");
+        final long lockTimeout = config.getLockTimeout();
+        if (!config.getWriter().lock(lockTimeout)) {
+            throw new ExodusException("Can't acquire environment lock after " + lockTimeout + " ms.");
         }
     }
 
