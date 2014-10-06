@@ -64,34 +64,34 @@ public final class UtilizationProfile {
      * Loads utilization profile.
      */
     public void load() {
-        // if utilization profile was saved in the log and we should not compute it from scratch then load it
-        if (env.storeExists(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME) &&
-                !env.getEnvironmentConfig().getGcUtilizationFromScratch()) {
-            final Map<Long, FileUtilization> filesUtilization = new TreeMap<Long, FileUtilization>();
+        if (env.getEnvironmentConfig().getGcUtilizationFromScratch()) {
+            computeUtilizationFromScratch();
+        } else {
             env.executeInReadonlyTransaction(new TransactionalExecutable() {
                 @Override
                 public void execute(@NotNull final Transaction txn) {
-                    final StoreImpl store = env.openStore(
-                            GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES, txn);
-                    final Cursor cursor = store.openCursor(txn);
-                    try {
-                        while (cursor.getNext()) {
-                            final long fileAddress = LongBinding.compressedEntryToLong(cursor.getKey());
-                            final long freeBytes = CompressedUnsignedLongByteIterable.getLong(cursor.getValue());
-                            filesUtilization.put(fileAddress, new FileUtilization(freeBytes));
+                    if (!env.storeExists(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, txn)) {
+                        computeUtilizationFromScratch();
+                    } else {
+                        final Map<Long, FileUtilization> filesUtilization = new TreeMap<Long, FileUtilization>();
+                        final StoreImpl store = env.openStore(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES, txn);
+                        final Cursor cursor = store.openCursor(txn);
+                        try {
+                            while (cursor.getNext()) {
+                                final long fileAddress = LongBinding.compressedEntryToLong(cursor.getKey());
+                                final long freeBytes = CompressedUnsignedLongByteIterable.getLong(cursor.getValue());
+                                filesUtilization.put(fileAddress, new FileUtilization(freeBytes));
+                            }
+                        } finally {
+                            cursor.close();
                         }
-                    } finally {
-                        cursor.close();
+                        synchronized (UtilizationProfile.this.filesUtilization) {
+                            UtilizationProfile.this.filesUtilization.clear();
+                            UtilizationProfile.this.filesUtilization.putAll(filesUtilization);
+                        }
                     }
                 }
             });
-            synchronized (this.filesUtilization) {
-                this.filesUtilization.clear();
-                this.filesUtilization.putAll(filesUtilization);
-            }
-            // if utilization profile wasn't saved in the log then compute it from scratch
-        } else {
-            computeUtilizationFromScratch();
         }
         estimateTotalBytes();
     }

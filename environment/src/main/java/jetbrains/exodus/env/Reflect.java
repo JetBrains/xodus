@@ -292,9 +292,14 @@ public class Reflect {
                 return env.getAllStoreNames(txn);
             }
         });
-        if (env.storeExists(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME)) {
-            names.add(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME);
-        }
+        env.executeInReadonlyTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                if (env.storeExists(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, txn)) {
+                    names.add(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME);
+                }
+            }
+        });
         final int size = names.size();
         System.out.println("Done. Stores found: " + size);
         int i = 0;

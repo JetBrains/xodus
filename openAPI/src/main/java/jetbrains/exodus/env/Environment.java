@@ -48,6 +48,8 @@ public interface Environment extends Backupable {
     @NotNull
     List<String> getAllStoreNames(@NotNull Transaction transaction);
 
+    boolean storeExists(@NotNull String storeName, @NotNull Transaction transaction);
+
     void truncateStore(@NotNull String storeName, @NotNull Transaction transaction);
 
     void removeStore(@NotNull String storeName, @NotNull Transaction transaction);

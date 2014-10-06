@@ -362,8 +362,12 @@ public class EnvironmentImpl implements Environment {
 
     @Override
     @NotNull
-    public List<String> getAllStoreNames(@NotNull Transaction transaction) {
+    public List<String> getAllStoreNames(@NotNull final Transaction transaction) {
         return ((TransactionImpl) transaction).getAllStoreNames();
+    }
+
+    public boolean storeExists(@NotNull final String storeName, @NotNull final Transaction transaction) {
+        return getCurrentMetaInfo(storeName, (TransactionImpl) transaction) != null;
     }
 
     @NotNull
@@ -384,10 +388,6 @@ public class EnvironmentImpl implements Environment {
     @Override
     public void resumeGC() {
         gc.resume();
-    }
-
-    public boolean storeExists(@NotNull final String storeName) {
-        return getMetaTree(null).getMetaInfo(storeName, this) != null;
     }
 
     public BTreeBalancePolicy getBTreeBalancePolicy() {
