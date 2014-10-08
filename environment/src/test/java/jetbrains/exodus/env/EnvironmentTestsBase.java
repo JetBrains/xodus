@@ -207,7 +207,7 @@ public class EnvironmentTestsBase {
 
     protected ByteIterable getAutoCommit(@NotNull final Store store,
                                          @NotNull final ByteIterable key) {
-        return env.computeInTransaction(new TransactionalComputable<ByteIterable>() {
+        return env.computeInReadonlyTransaction(new TransactionalComputable<ByteIterable>() {
             @Override
             public ByteIterable compute(@NotNull Transaction txn) {
                 return store.get(txn, key);

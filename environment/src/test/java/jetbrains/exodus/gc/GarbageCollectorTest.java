@@ -272,6 +272,37 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
     }
 
     @Test
+    public void removeStoreCreateStoreGet() {
+        set2KbFileWithoutGC(); // patricia root loggable with 250+ children can't fit one kb
+        Store store = openStoreAutoCommit("store");
+        for (int i = 0; i < 1000; ++i) {
+            putAutoCommit(store, IntegerBinding.intToEntry(i), IntegerBinding.intToEntry(i));
+        }
+        Assert.assertTrue(env.getLog().getNumberOfFiles() > 1);
+
+        env.getGC().cleanWholeLog();
+
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                env.removeStore("store", txn);
+            }
+        });
+
+        store = openStoreAutoCommit("store");
+        for (int i = 0; i < 1000; ++i) {
+            putAutoCommit(store, IntegerBinding.intToEntry(i), IntegerBinding.intToEntry(i));
+        }
+
+        env.getGC().cleanWholeLog();
+
+        for (int i = 0; i < 1000; ++i) {
+            Assert.assertEquals(i, IntegerBinding.entryToInt(getAutoCommit(store, IntegerBinding.intToEntry(i))));
+        }
+    }
+
+
+    @Test
     public void xd98() {
         setLogFileSize(64);
         env.getEnvironmentConfig().setGcEnabled(false);
