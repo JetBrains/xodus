@@ -15,9 +15,7 @@
  */
 package jetbrains.exodus.env;
 
-import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.ITreeMutable;
-import jetbrains.exodus.tree.TreeMetaInfo;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -40,12 +38,12 @@ class ReadonlyTransaction extends TransactionImpl {
     }
 
     @Override
-    void storeRemoved(@NotNull final String storeName, @NotNull final ITree tree) {
+    void storeRemoved(@NotNull final StoreImpl store) {
         throw new ReadonlyTransactionException();
     }
 
     @Override
-    void storeCreated(@NotNull final String storeName, @NotNull final TreeMetaInfo metaInfo) {
+    void storeCreated(@NotNull final StoreImpl store) {
         throw new ReadonlyTransactionException();
     }
 

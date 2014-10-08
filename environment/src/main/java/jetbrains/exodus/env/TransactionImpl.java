@@ -16,8 +16,9 @@
 package jetbrains.exodus.env;
 
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.decorators.HashMapDecorator;
-import jetbrains.exodus.core.dataStructures.hash.HashMap;
+import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.ITreeMutable;
@@ -36,11 +37,11 @@ public class TransactionImpl implements Transaction {
     @NotNull
     private MetaTree metaTree;
     @NotNull
-    private final Map<String, ITree> immutableTrees;
+    private final LongHashMap<ITree> immutableTrees;
     @NotNull
-    private final Map<String, ITreeMutable> mutableTrees;
+    private final Map<Long, ITreeMutable> mutableTrees;
     @NotNull
-    private final Map<String, ITree> removedStores;
+    private final LongHashMap<Pair<String, ITree>> removedStores;
     @NotNull
     private final Map<String, TreeMetaInfo> createdStores;
     @Nullable
@@ -55,9 +56,9 @@ public class TransactionImpl implements Transaction {
                     @Nullable final Runnable beginHook, final boolean cloneMeta) {
         this.env = env;
         this.creatingThread = creatingThread;
-        immutableTrees = new HashMap<String, ITree>();
-        mutableTrees = new TreeMap<String, ITreeMutable>();
-        removedStores = new HashMapDecorator<String, ITree>();
+        immutableTrees = new LongHashMap<ITree>();
+        mutableTrees = new TreeMap<Long, ITreeMutable>();
+        removedStores = new LongHashMap<Pair<String, ITree>>();
         createdStores = new HashMapDecorator<String, TreeMetaInfo>();
         this.beginHook = new Runnable() {
             @Override
@@ -83,9 +84,9 @@ public class TransactionImpl implements Transaction {
         metaTree = origin.metaTree;
         commitHook = origin.commitHook;
         creatingThread = origin.creatingThread;
-        immutableTrees = new HashMap<String, ITree>();
-        mutableTrees = new HashMap<String, ITreeMutable>();
-        removedStores = new HashMapDecorator<String, ITree>();
+        immutableTrees = new LongHashMap<ITree>();
+        mutableTrees = new TreeMap<Long, ITreeMutable>();
+        removedStores = new LongHashMap<Pair<String, ITree>>();
         createdStores = new HashMapDecorator<String, TreeMetaInfo>();
         trace = env.transactionTimeout() > 0 ? new Throwable() : null;
         created = System.currentTimeMillis();
@@ -162,18 +163,21 @@ public class TransactionImpl implements Transaction {
         return mutableTrees.isEmpty() && removedStores.isEmpty() && createdStores.isEmpty();
     }
 
-    void storeRemoved(@NotNull final String storeName, @NotNull final ITree tree) {
-        removedStores.put(storeName, tree);
-        immutableTrees.remove(storeName);
-        mutableTrees.remove(storeName);
+    void storeRemoved(@NotNull final StoreImpl store) {
+        final long structureId = store.getStructureId();
+        final ITree tree = store.openImmutableTree(metaTree);
+        removedStores.put(structureId, new Pair<String, ITree>(store.getName(), tree));
+        immutableTrees.remove(structureId);
+        mutableTrees.remove(structureId);
     }
 
     boolean isStoreNew(@NotNull final String name) {
         return createdStores.containsKey(name);
     }
 
-    void storeCreated(@NotNull final String storeName, @NotNull final TreeMetaInfo metaInfo) {
-        createdStores.put(storeName, metaInfo);
+    void storeCreated(@NotNull final StoreImpl store) {
+        getMutableTree(store);
+        createdStores.put(store.getName(), store.getMetaInfo());
     }
 
     boolean checkVersion(final long root) {
@@ -181,17 +185,17 @@ public class TransactionImpl implements Transaction {
     }
 
     Iterable<Loggable>[] doCommit(@NotNull final MetaTree[] out) {
-        final Set<Map.Entry<String, ITreeMutable>> entries = mutableTrees.entrySet();
-        final Set<Map.Entry<String, ITree>> removedEntries = removedStores.entrySet();
+        final Set<Map.Entry<Long, ITreeMutable>> entries = mutableTrees.entrySet();
+        final Set<Map.Entry<Long, Pair<String, ITree>>> removedEntries = removedStores.entrySet();
         final int size = entries.size() + removedEntries.size();
         //noinspection unchecked
         final Iterable<Loggable>[] expiredLoggables = new Iterable[size + 1];
         int i = 0;
         final ITreeMutable metaTreeMutable = metaTree.tree.getMutableCopy();
-        for (final Map.Entry<String, ITree> entry : removedEntries) {
-            final ITree tree = entry.getValue();
-            MetaTree.removeStore(metaTreeMutable, entry.getKey(), tree.getStructureId());
-            expiredLoggables[i++] = TreeMetaInfo.getTreeLoggables(tree);
+        for (final Map.Entry<Long, Pair<String, ITree>> entry : removedEntries) {
+            final Pair<String, ITree> value = entry.getValue();
+            MetaTree.removeStore(metaTreeMutable, value.getFirst(), entry.getKey());
+            expiredLoggables[i++] = TreeMetaInfo.getTreeLoggables(value.getSecond());
         }
         removedStores.clear();
         for (final Map.Entry<String, TreeMetaInfo> entry : createdStores.entrySet()) {
@@ -199,7 +203,7 @@ public class TransactionImpl implements Transaction {
         }
         createdStores.clear();
         final Collection<Loggable> last;
-        for (final Map.Entry<String, ITreeMutable> entry : entries) {
+        for (final Map.Entry<Long, ITreeMutable> entry : entries) {
             final ITreeMutable treeMutable = entry.getValue();
             expiredLoggables[i++] = treeMutable.getExpiredLoggables();
             MetaTree.saveTree(metaTreeMutable, treeMutable);
@@ -221,28 +225,18 @@ public class TransactionImpl implements Transaction {
         }
     }
 
-    @Nullable
-    TreeMetaInfo getMetaInfo(@NotNull final String storeName) {
-        return metaTree.getMetaInfo(storeName, env);
-    }
-
     @NotNull
     ITreeMutable getMutableTree(@NotNull final StoreImpl store) {
         if (creatingThread != null && !creatingThread.equals(Thread.currentThread())) {
             throw new ExodusException("Can't create mutable tree in a thread different from the one which transaction was created in.");
         }
-        final String name = store.getName();
-        ITreeMutable result = mutableTrees.get(name);
+        final long structureId = store.getStructureId();
+        ITreeMutable result = mutableTrees.get(structureId);
         if (result == null) {
             result = getImmutableTree(store).getMutableCopy();
-            mutableTrees.put(name, result);
+            mutableTrees.put(structureId, result);
         }
         return result;
-    }
-
-    @NotNull
-    Map<String, ITreeMutable> getMutableTrees() {
-        return mutableTrees;
     }
 
     /**
@@ -250,11 +244,11 @@ public class TransactionImpl implements Transaction {
      * @return whether a mutable tree is created for specified store.
      */
     boolean hasTreeMutable(@NotNull final StoreImpl store) {
-        return mutableTrees.containsKey(store.getName());
+        return mutableTrees.containsKey(store.getStructureId());
     }
 
     void removeTreeMutable(@NotNull final StoreImpl store) {
-        mutableTrees.remove(store.getName());
+        mutableTrees.remove(store.getStructureId());
     }
 
     @Nullable
@@ -285,8 +279,7 @@ public class TransactionImpl implements Transaction {
 
     @NotNull
     ITree getTree(@NotNull final StoreImpl store) {
-        final String name = store.getName();
-        final ITreeMutable result = mutableTrees.get(name);
+        final ITreeMutable result = mutableTrees.get(store.getStructureId());
         if (result == null) {
             return getImmutableTree(store);
         }
@@ -299,11 +292,11 @@ public class TransactionImpl implements Transaction {
 
     @NotNull
     private ITree getImmutableTree(@NotNull final StoreImpl store) {
-        final String name = store.getName();
-        ITree result = immutableTrees.get(name);
+        final long structureId = store.getStructureId();
+        ITree result = immutableTrees.get(structureId);
         if (result == null) {
             result = store.openImmutableTree(metaTree);
-            immutableTrees.put(name, result);
+            immutableTrees.put(structureId, result);
         }
         return result;
     }

@@ -22,7 +22,6 @@ import jetbrains.exodus.gc.GarbageCollector;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.log.Loggable;
-import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.TreeMetaInfo;
 import jetbrains.exodus.tree.btree.BTree;
 import jetbrains.exodus.tree.btree.BTreeBalancePolicy;
@@ -350,9 +349,7 @@ public class EnvironmentImpl implements Environment {
         if (store == null) {
             throw new ExodusException("Attempt to remove unknown store '" + storeName + '\'');
         }
-        final ITree tree = store.openImmutableTree(txn.getMetaTree());
-        txn.getMutableTrees().remove(storeName);
-        txn.storeRemoved(storeName, tree);
+        txn.storeRemoved(store);
     }
 
     @Override
@@ -528,7 +525,7 @@ public class EnvironmentImpl implements Environment {
             metaInfo = TreeMetaInfo.load(this, config.duplicates, config.prefixing, structureId);
             result = createStore(name, metaInfo);
             txn.getMutableTree(result);
-            txn.storeCreated(name, metaInfo);
+            txn.storeCreated(result);
         } else {
             final boolean hasDuplicates = metaInfo.hasDuplicates();
             if (hasDuplicates != config.duplicates) {
@@ -668,14 +665,14 @@ public class EnvironmentImpl implements Environment {
     }
 
     private void truncateStoreImpl(@NotNull final String storeName, @NotNull final TransactionImpl txn) {
-        final StoreImpl store = openStore(storeName, StoreConfig.USE_EXISTING, txn, false);
+        StoreImpl store = openStore(storeName, StoreConfig.USE_EXISTING, txn, false);
         if (store == null) {
             throw new ExodusException("Attempt to truncate unknown store '" + storeName + '\'');
         }
-        txn.storeRemoved(storeName, store.openImmutableTree(txn.getMetaTree()));
+        txn.storeRemoved(store);
         final TreeMetaInfo metaInfoCloned = store.getMetaInfo().clone(allocateStructureId());
-        txn.getMutableTree(new StoreImpl(this, storeName, metaInfoCloned));
-        txn.storeCreated(storeName, metaInfoCloned);
+        store = new StoreImpl(this, storeName, metaInfoCloned);
+        txn.storeCreated(store);
     }
 
     private static void applyEnvironmentSettings(@NotNull final String location,

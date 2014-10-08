@@ -118,7 +118,7 @@ public class StoreImpl implements Store {
 
     @Override
     public void persistCreation(@NotNull Transaction txn) {
-        ((TransactionImpl) txn).storeCreated(getName(), getMetaInfo());
+        ((TransactionImpl) txn).storeCreated(this);
     }
 
     @Override
@@ -152,7 +152,7 @@ public class StoreImpl implements Store {
     }
 
     public ITree openImmutableTree(@NotNull final MetaTree metaTree) {
-        final long structureId = metaInfo.getStructureId();
+        final long structureId = getStructureId();
         final long upToDateRootAddress = metaTree.getRootAddress(structureId);
         final boolean hasDuplicates = metaInfo.hasDuplicates();
         final boolean treeIsEmpty = upToDateRootAddress == Loggable.NULL_ADDRESS;
@@ -173,5 +173,9 @@ public class StoreImpl implements Store {
             }
         }
         return result;
+    }
+
+    long getStructureId() {
+        return metaInfo.getStructureId();
     }
 }
