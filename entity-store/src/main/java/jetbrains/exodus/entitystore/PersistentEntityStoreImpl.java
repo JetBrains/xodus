@@ -119,8 +119,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @NotNull
     private final OpenTablesCache blobsHistoryTables;
     @NotNull
-    private final HashMap<String, Table> uniqueKeyIndices;
-    @NotNull
     private final Store internalSettings;
     @NotNull
     private Store sequences;
@@ -261,7 +259,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                             namingRulez.getBlobsHistoryTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES);
                 }
             });
-            uniqueKeyIndices = new HashMap<String, Table>();
 
             final String internalSettingsName = namingRulez.getInternalSettingsName();
             final Store settings = environment.openStore(internalSettingsName,
@@ -2212,14 +2209,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @NotNull
     public synchronized Store getUniqueKeyIndex(@NotNull final PersistentStoreTransaction txn, @NotNull final Index index) {
-        final String indexName = getUniqueKeyIndexName(index);
-        Table result = uniqueKeyIndices.get(indexName);
-        if (result == null) {
-            result = new SingleColumnTable(txn, indexName,
-                    StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING);
-            uniqueKeyIndices.put(indexName, result);
-        }
-        return ((SingleColumnTable) result).getDatabase();
+        return environment.openStore(getUniqueKeyIndexName(index), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn.getEnvironmentTransaction());
     }
 
     @Override
