@@ -270,7 +270,7 @@ public class EnvironmentTestsBase {
     protected void assertNotNullStringValue(final Store store,
                                             final ByteIterable keyEntry,
                                             final String value) {
-        env.executeInReadonlyTransaction(new TransactionalExecutable() {
+        env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull Transaction txn) {
                 assertNotNullStringValue(txn, store, keyEntry, value);
