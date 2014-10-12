@@ -173,6 +173,18 @@ public class StoreTest extends EnvironmentTestsBase {
     }
 
     @Test
+    public void testNewlyCreatedStoreExists_XD_394() {
+        final Environment env = getEnvironment();
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                final Store store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn);
+                Assert.assertTrue(env.storeExists(store.getName(), txn));
+            }
+        });
+    }
+
+    @Test
     public void testConcurrentPutLikeJetPassBTree() {
         concurrentPutLikeJetPass(StoreConfig.WITHOUT_DUPLICATES);
     }
