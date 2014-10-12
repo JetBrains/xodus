@@ -155,6 +155,24 @@ public class StoreTest extends EnvironmentTestsBase {
     }
 
     @Test
+    public void testCreateTwiceInTransaction_XD_394() {
+        final Environment env = getEnvironment();
+        final Store[] store = {null};
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                store[0] = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn);
+                store[0].put(txn, getKey(), getValue());
+                final Store sameNameStore = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn);
+                sameNameStore.put(txn, getKey2(), getValue2());
+            }
+        });
+        Assert.assertNotNull(store[0]);
+        assertNotNullStringValue(store[0], getKey(), "value");
+        assertNotNullStringValue(store[0], getKey2(), "value2");
+    }
+
+    @Test
     public void testConcurrentPutLikeJetPassBTree() {
         concurrentPutLikeJetPass(StoreConfig.WITHOUT_DUPLICATES);
     }
@@ -274,6 +292,10 @@ public class StoreTest extends EnvironmentTestsBase {
 
     private static ByteIterable getKey() {
         return StringBinding.stringToEntry("key");
+    }
+
+    private static ByteIterable getKey2() {
+        return StringBinding.stringToEntry("key2");
     }
 
     private static ByteIterable getValue() {
