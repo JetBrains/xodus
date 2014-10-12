@@ -171,13 +171,21 @@ public class TransactionImpl implements Transaction {
         mutableTrees.remove(structureId);
     }
 
-    boolean isStoreNew(@NotNull final String name) {
-        return createdStores.containsKey(name);
-    }
-
     void storeCreated(@NotNull final StoreImpl store) {
         getMutableTree(store);
         createdStores.put(store.getName(), store.getMetaInfo());
+    }
+
+    /**
+     * Returns tree meta info by name of a newly created (in this transaction) store.
+     */
+    @Nullable
+    TreeMetaInfo getNewStoreMetaInfo(@NotNull final String name) {
+        return createdStores.get(name);
+    }
+
+    boolean isStoreNew(@NotNull final String name) {
+        return createdStores.containsKey(name);
     }
 
     boolean checkVersion(final long root) {

@@ -492,7 +492,8 @@ public class EnvironmentImpl implements Environment {
     }
 
     TreeMetaInfo getCurrentMetaInfo(final String name, @NotNull final TransactionImpl txn) {
-        return txn.getMetaTree().getMetaInfo(name, this);
+        final TreeMetaInfo newlyCreated = txn.getNewStoreMetaInfo(name);
+        return newlyCreated != null ? newlyCreated : txn.getMetaTree().getMetaInfo(name, this);
     }
 
     /**
