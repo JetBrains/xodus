@@ -19,6 +19,7 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.LongObjectCache;
 import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
+import jetbrains.exodus.core.execution.JobProcessorAdapter;
 import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.env.StoreImpl;
 import jetbrains.exodus.env.TransactionImpl;
@@ -95,6 +96,10 @@ public final class GarbageCollector {
                 }
             }
         });
+    }
+
+    public void setCleanerJobProcessor(@NotNull final JobProcessorAdapter processor) {
+        cleaner.setJobProcessor(processor);
     }
 
     public void wake() {

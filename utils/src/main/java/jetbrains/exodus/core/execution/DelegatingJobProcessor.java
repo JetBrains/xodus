@@ -27,6 +27,10 @@ public class DelegatingJobProcessor<T extends JobProcessorAdapter> extends JobPr
         this.delegate = delegate;
     }
 
+    public T getDelegate() {
+        return delegate;
+    }
+
     @Override
     public void start() {
         if (!started.getAndSet(true)) {

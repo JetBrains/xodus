@@ -26,38 +26,52 @@ final class BackgroundCleaner {
     private static final Log logging = LogFactory.getLog(BackgroundCleaner.class);
 
     @NotNull
-    private final JobProcessorAdapter processor;
-    private final long threadId;
-    @NotNull
     private final GarbageCollector gc;
     @NotNull
     private final BackgroundCleaningJob backgroundCleaningJob;
+    @NotNull
+    private JobProcessorAdapter processor;
+    private long threadId;
+
     private volatile boolean isSuspended;
 
     // background cleaner is always created suspended
     BackgroundCleaner(@NotNull final GarbageCollector gc) {
-        if (gc.getEnvironment().getEnvironmentConfig().isLogCacheShared()) {
-            final ThreadJobProcessor threadJobProcessor =
-                    ThreadJobProcessorPool.getOrCreateJobProcessor("Exodus shared background cleaner");
-            threadId = threadJobProcessor.getId();
-            //noinspection unchecked
-            processor = new DelegatingJobProcessor<ThreadJobProcessor>(threadJobProcessor);
-            processor.start();
-        } else {
-            final ThreadJobProcessor threadJobProcessor =
-                    new ThreadJobProcessor("Exodus background cleaner for " + gc.getEnvironment().getLocation());
-            threadJobProcessor.start();
-            threadId = threadJobProcessor.getId();
-            processor = threadJobProcessor;
-        }
-        processor.setExceptionHandler(new JobProcessorExceptionHandler() {
-            @Override
-            public void handle(JobProcessor processor, Job job, Throwable t) {
-                logging.error(t, t);
-            }
-        });
         this.gc = gc;
         backgroundCleaningJob = new BackgroundCleaningJob(gc);
+        if (gc.getEnvironment().getEnvironmentConfig().isLogCacheShared()) {
+            setJobProcessor(new DelegatingJobProcessor<ThreadJobProcessor>(
+                    ThreadJobProcessorPool.getOrCreateJobProcessor("Exodus shared background cleaner")));
+        } else {
+            setJobProcessor(new ThreadJobProcessor("Exodus background cleaner for " + gc.getEnvironment().getLocation()));
+        }
+    }
+
+    void setJobProcessor(@NotNull final JobProcessorAdapter processor) {
+        JobProcessorAdapter result = null;
+        if (processor instanceof ThreadJobProcessor) {
+            result = processor;
+            threadId = ((ThreadJobProcessor) processor).getId();
+        } else if (processor instanceof DelegatingJobProcessor) {
+            final JobProcessorAdapter delegate = ((DelegatingJobProcessor) processor).getDelegate();
+            if (delegate instanceof ThreadJobProcessor) {
+                result = processor;
+                threadId = ((ThreadJobProcessor) delegate).getId();
+            }
+        }
+        if (result == null) {
+            throw new ExodusException("Unexpected job processor: " + processor);
+        }
+        if (result.getExceptionHandler() == null) {
+            result.setExceptionHandler(new JobProcessorExceptionHandler() {
+                @Override
+                public void handle(JobProcessor processor, Job job, Throwable t) {
+                    logging.error(t, t);
+                }
+            });
+        }
+        result.start();
+        this.processor = result;
     }
 
     void finish() {
