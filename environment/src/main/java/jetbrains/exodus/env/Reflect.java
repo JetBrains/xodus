@@ -347,12 +347,13 @@ public class Reflect {
             });
             final int size = names.size();
             System.out.println("Stores found: " + size);
+
             int i = 0;
             for (final String name : names) {
                 System.out.print("Copying store " + name + " (" + ++i + " of " + size + ')');
                 final StoreConfig[] config = new StoreConfig[]{null};
                 final long[] storeSize = new long[1];
-                final Map<ByteIterable, ByteIterable> pairs = new TreeMap<ByteIterable, ByteIterable>();
+                final Map<ByteIterable, Set<ByteIterable>> pairs = new TreeMap<ByteIterable, Set<ByteIterable>>();
                 Throwable storeIsBroken = null;
                 try {
                     env.executeInReadonlyTransaction(new TransactionalExecutable() {
@@ -364,7 +365,13 @@ public class Reflect {
                             final Cursor cursor = store.openCursor(txn);
                             try {
                                 while (cursor.getNext()) {
-                                    pairs.put(new ArrayByteIterable(cursor.getKey()), new ArrayByteIterable(cursor.getValue()));
+                                    final ArrayByteIterable key = new ArrayByteIterable(cursor.getKey());
+                                    Set<ByteIterable> valuesSet = pairs.get(key);
+                                    if (valuesSet == null) {
+                                        valuesSet = new TreeSet<ByteIterable>();
+                                        pairs.put(key, valuesSet);
+                                    }
+                                    valuesSet.add(new ArrayByteIterable(cursor.getValue()));
                                 }
                             } finally {
                                 cursor.close();
@@ -385,7 +392,13 @@ public class Reflect {
                                 final Cursor cursor = store.openCursor(txn);
                                 try {
                                     while (cursor.getPrev()) {
-                                        pairs.put(new ArrayByteIterable(cursor.getKey()), new ArrayByteIterable(cursor.getValue()));
+                                        final ArrayByteIterable key = new ArrayByteIterable(cursor.getKey());
+                                        Set<ByteIterable> valuesSet = pairs.get(key);
+                                        if (valuesSet == null) {
+                                            valuesSet = new TreeSet<ByteIterable>();
+                                            pairs.put(key, valuesSet);
+                                        }
+                                        valuesSet.add(new ArrayByteIterable(cursor.getValue()));
                                     }
                                 } finally {
                                     cursor.close();
@@ -404,8 +417,12 @@ public class Reflect {
                     @Override
                     public void execute(@NotNull final Transaction txn) {
                         final Store store = target.openStore(name, config[0], txn);
-                        for (final Map.Entry<ByteIterable, ByteIterable> pair : pairs.entrySet()) {
-                            store.putRight(txn, pair.getKey(), pair.getValue());
+                        for (final Map.Entry<ByteIterable, Set<ByteIterable>> pair : pairs.entrySet()) {
+                            final ByteIterable key = pair.getKey();
+                            final Set<ByteIterable> valueSet = pair.getValue();
+                            for (final ByteIterable value : valueSet) {
+                                store.putRight(txn, key, value);
+                            }
                         }
                     }
                 });
