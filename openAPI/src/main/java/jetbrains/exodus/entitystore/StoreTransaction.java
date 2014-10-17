@@ -354,6 +354,4 @@ public interface StoreTransaction {
     void enableReplayData();
 
     void disableReplayData();
-
-    void disposeCreatedIterators();
 }

@@ -628,15 +628,17 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
     }
 
+    @Override
     public void enableReplayData() {
         replayData = new ReplayData(store);
     }
 
+    @Override
     public void disableReplayData() {
         replayData = null;
     }
 
-    public void disposeCreatedIterators() {
+    void disposeCreatedIterators() {
         // dispose opened entity iterables
         for (final EntityIterator iterator : createdIterators) {
             iterator.dispose();
