@@ -54,29 +54,37 @@ final class BackgroundCleaningJob extends Job {
         if (gc != null && canContinue()) {
             final Log log = gc.getEnvironment().getLog();
             if (gc.getMinFileAge() < log.getNumberOfFiles()) {
-                GarbageCollector.loggingInfo("Starting background cleaner loop for " + log.getLocation());
-                final int newFiles = gc.getNewFiles();
-                final Long[] sparseFiles = gc.getUtilizationProfile().getFilesSortedByUtilization();
-                for (int i = 0; i < sparseFiles.length && canContinue(); ++i) {
-                    // reset new files count before each cleaned file to prevent queueing of the
-                    // next cleaning job before this one is not finished
-                    gc.resetNewFiles();
-                    final long file = sparseFiles[i];
-                    if (i > newFiles) {
-                        if (!gc.cleanFile(file)) {
-                            break;
-                        }
-                    } else {
-                        for (int j = 0; j < 4 && !gc.cleanFile(file) && canContinue(); ++j) {
-                            Thread.yield();
-                        }
-                    }
+                gc.getCleaner().setCleaning(true);
+                try {
+                    doCleanLog(log, gc);
+                } finally {
+                    gc.getCleaner().setCleaning(false);
                 }
-                gc.resetNewFiles();
-                GarbageCollector.loggingInfo("Finished background cleaner loop for " + log.getLocation());
             }
         }
+    }
 
+    private void doCleanLog(@NotNull final Log log, @NotNull final GarbageCollector gc) {
+        GarbageCollector.loggingInfo("Starting background cleaner loop for " + log.getLocation());
+        final int newFiles = gc.getNewFiles();
+        final Long[] sparseFiles = gc.getUtilizationProfile().getFilesSortedByUtilization();
+        for (int i = 0; i < sparseFiles.length && canContinue(); ++i) {
+            // reset new files count before each cleaned file to prevent queueing of the
+            // next cleaning job before this one is not finished
+            gc.resetNewFiles();
+            final long file = sparseFiles[i];
+            if (i > newFiles) {
+                if (!gc.cleanFile(file)) {
+                    break;
+                }
+            } else {
+                for (int j = 0; j < 4 && !gc.cleanFile(file) && canContinue(); ++j) {
+                    Thread.yield();
+                }
+            }
+        }
+        gc.resetNewFiles();
+        GarbageCollector.loggingInfo("Finished background cleaner loop for " + log.getLocation());
     }
 
     private boolean canContinue() {

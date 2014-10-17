@@ -91,7 +91,7 @@ public final class GarbageCollector {
             @Override
             public void fileCreated(long fileAddress) {
                 ++newFiles;
-                if (!cleaner.isCurrentThread() && newFiles > cleanerFilesInterval && isTooMuchFreeSpace()) {
+                if (!cleaner.isCleaning() && newFiles > cleanerFilesInterval && isTooMuchFreeSpace()) {
                     wake();
                 }
             }

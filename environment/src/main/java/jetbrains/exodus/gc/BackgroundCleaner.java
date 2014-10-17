@@ -34,6 +34,7 @@ final class BackgroundCleaner {
     private long threadId;
 
     private volatile boolean isSuspended;
+    private volatile boolean isCleaning;
 
     // background cleaner is always created suspended
     BackgroundCleaner(@NotNull final GarbageCollector gc) {
@@ -121,6 +122,14 @@ final class BackgroundCleaner {
                 }
             });
         }
+    }
+
+    boolean isCleaning() {
+        return isCleaning;
+    }
+
+    void setCleaning(boolean isCleaning) {
+        this.isCleaning = isCleaning;
     }
 
     void cleanWholeLog() {
