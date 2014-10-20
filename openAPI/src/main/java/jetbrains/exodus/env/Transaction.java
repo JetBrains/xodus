@@ -20,6 +20,8 @@ import org.jetbrains.annotations.Nullable;
 
 public interface Transaction {
 
+    boolean isIdempotent();
+
     void abort();
 
     boolean commit();

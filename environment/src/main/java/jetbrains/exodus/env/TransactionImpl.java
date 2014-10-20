@@ -93,6 +93,10 @@ public class TransactionImpl implements Transaction {
         env.registerTransaction(this);
     }
 
+    public boolean isIdempotent() {
+        return mutableTrees.isEmpty() && removedStores.isEmpty() && createdStores.isEmpty();
+    }
+
     @Override
     public void abort() {
         doRevert();
@@ -157,10 +161,6 @@ public class TransactionImpl implements Transaction {
         return storeName == null ?
                 new StoreEmpty(env, structureId) :
                 env.openStoreImpl(storeName, StoreConfig.USE_EXISTING, this, env.getCurrentMetaInfo(storeName, this));
-    }
-
-    boolean isIdempotent() {
-        return mutableTrees.isEmpty() && removedStores.isEmpty() && createdStores.isEmpty();
     }
 
     void storeRemoved(@NotNull final StoreImpl store) {
