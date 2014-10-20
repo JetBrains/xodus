@@ -354,6 +354,7 @@ public class Reflect {
                 final StoreConfig[] config = new StoreConfig[]{null};
                 final long[] storeSize = new long[1];
                 final Map<ByteIterable, Set<ByteIterable>> pairs = new TreeMap<ByteIterable, Set<ByteIterable>>();
+                final int[] totalPairs = {0};
                 Throwable storeIsBroken = null;
                 try {
                     env.executeInReadonlyTransaction(new TransactionalExecutable() {
@@ -371,7 +372,9 @@ public class Reflect {
                                         valuesSet = new TreeSet<ByteIterable>();
                                         pairs.put(key, valuesSet);
                                     }
-                                    valuesSet.add(new ArrayByteIterable(cursor.getValue()));
+                                    if (valuesSet.add(new ArrayByteIterable(cursor.getValue()))) {
+                                        ++totalPairs[0];
+                                    }
                                 }
                             } finally {
                                 cursor.close();
@@ -398,7 +401,9 @@ public class Reflect {
                                             valuesSet = new TreeSet<ByteIterable>();
                                             pairs.put(key, valuesSet);
                                         }
-                                        valuesSet.add(new ArrayByteIterable(cursor.getValue()));
+                                        if (valuesSet.add(new ArrayByteIterable(cursor.getValue()))) {
+                                            ++totalPairs[0];
+                                        }
                                     }
                                 } finally {
                                     cursor.close();
@@ -412,7 +417,7 @@ public class Reflect {
                     System.out.println();
                     logging.error("Failed to completely copy store " + name, storeIsBroken);
                 }
-                System.out.println(". Saved store size = " + storeSize[0] + ", actual number of pairs = " + pairs.size());
+                System.out.println(". Saved store size = " + storeSize[0] + ", actual number of pairs = " + totalPairs[0]);
                 target.executeInTransaction(new TransactionalExecutable() {
                     @Override
                     public void execute(@NotNull final Transaction txn) {
