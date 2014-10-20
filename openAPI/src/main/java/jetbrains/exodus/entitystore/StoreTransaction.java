@@ -32,6 +32,12 @@ public interface StoreTransaction {
     EntityStore getStore();
 
     /**
+     * Answers on the question does the transaction actually contains any changes that can be flushed or committed.
+     * @return true if there are no changes that will be saved on {@link #flush() flush} or {@link #commit() commit}.
+     */
+    boolean isIdempotent();
+
+    /**
      * Commits all changes and finishes this transaction. Use {@link #abort() abort} to finish transaction ignoring changes.
      * <p/> Typical pattern for committing changes can look like the following:
      * <pre>

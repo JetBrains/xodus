@@ -135,6 +135,13 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     @Override
+    public boolean isIdempotent() {
+        return getEnvironmentTransaction().isIdempotent() &&
+                (blobStreams == null || blobStreams.isEmpty()) &&
+                (blobFiles == null || blobFiles.isEmpty());
+    }
+
+    @Override
     public boolean commit() {
         apply();
         return doCommit();
