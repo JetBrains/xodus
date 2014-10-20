@@ -113,6 +113,12 @@ public final class GarbageCollector {
         }
     }
 
+    public void wakeAt(final long millis) {
+        if (env.getEnvironmentConfig().isGcEnabled()) {
+            cleaner.queueCleaningJobAt(millis);
+        }
+    }
+
     public int getMaximumFreeSpacePercent() {
         return 100 - env.getEnvironmentConfig().getGcMinUtilization();
     }

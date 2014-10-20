@@ -94,6 +94,11 @@ public class EnvironmentImpl implements Environment {
     }
 
     @Override
+    public long getCreated() {
+        return log.getCreated();
+    }
+
+    @Override
     @NotNull
     public String getLocation() {
         return log.getLocation();

@@ -115,12 +115,13 @@ final class BackgroundCleaner {
 
     void queueCleaningJob() {
         if (gc.getEnvironment().getEnvironmentConfig().isGcEnabled()) {
-            processor.queue(new Job() {
-                @Override
-                protected void execute() throws Throwable {
-                    processor.queue(backgroundCleaningJob);
-                }
-            });
+            processor.queue(backgroundCleaningJob);
+        }
+    }
+
+    void queueCleaningJobAt(final long millis) {
+        if (gc.getEnvironment().getEnvironmentConfig().isGcEnabled()) {
+            processor.queueAt(backgroundCleaningJob, millis);
         }
     }
 

@@ -45,6 +45,7 @@ public final class Log implements Closeable {
 
     @NotNull
     private final LogConfig config;
+    private final long created;
     @NotNull
     private final String location;
     private final LongSkipList blockAddrs;
@@ -78,6 +79,7 @@ public final class Log implements Closeable {
     public Log(@NotNull final LogConfig config) {
         this.config = config;
         tryLock();
+        created = System.currentTimeMillis();
         blockAddrs = new LongSkipList();
         loggableCache = new RandomAccessLoggable[LOGGABLE_CACHE_SIZE * LOGGABLE_CACHE_GENERATIONS];
         clearLoggableCache();
@@ -157,6 +159,10 @@ public final class Log implements Closeable {
             setHighAddress(approvedHighAddress);
         }
         flush(true);
+    }
+
+    public long getCreated() {
+        return created;
     }
 
     @NotNull

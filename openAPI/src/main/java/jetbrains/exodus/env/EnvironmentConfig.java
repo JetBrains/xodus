@@ -59,6 +59,8 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public static final String GC_ENABLED = "exodus.gc.enabled";
 
+    public static final String GC_START_IN = "exodus.gc.startIn"; // in milliseconds
+
     public static final String GC_MIN_UTILIZATION = "exodus.gc.minUtilization";
 
     public static final String GC_RENAME_FILES = "exodus.gc.renameFiles";
@@ -96,6 +98,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
                 new Pair(TREE_MAX_PAGE_SIZE, 128),
                 new Pair(GC_ENABLED, true),
+                new Pair(GC_START_IN, 0),
                 new Pair(GC_MIN_UTILIZATION, 50),
                 new Pair(GC_RENAME_FILES, false),
                 new Pair(GC_USE_EXPIRATION_CHECKER, true),
@@ -109,7 +112,7 @@ public final class EnvironmentConfig extends AbstractConfig {
         return (Long) getSetting(MEMORY_USAGE);
     }
 
-    public void setMemoryUsage(long maxMemory) {
+    public void setMemoryUsage(final long maxMemory) {
         setSetting(MEMORY_USAGE, maxMemory);
     }
 
@@ -248,6 +251,17 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public void setGcEnabled(boolean enabled) {
         setSetting(GC_ENABLED, enabled);
+    }
+
+    public int getGcStartIn() {
+        return (Integer) getSetting(GC_START_IN);
+    }
+
+    public void setGcStartIn(final int startInMillis) {
+        if (startInMillis < 0) {
+            throw new InvalidSettingException("GC can't be postponed for that number of milliseconds: " + startInMillis);
+        }
+        setSetting(GC_START_IN, startInMillis);
     }
 
     public int getGcMinUtilization() {

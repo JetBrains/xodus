@@ -16,6 +16,7 @@
 package jetbrains.exodus.gc;
 
 import jetbrains.exodus.core.execution.Job;
+import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.log.Log;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -52,7 +53,15 @@ final class BackgroundCleaningJob extends Job {
     protected void execute() throws Throwable {
         final GarbageCollector gc = this.gc;
         if (gc != null && canContinue()) {
-            final Log log = gc.getEnvironment().getLog();
+            final EnvironmentImpl env = gc.getEnvironment();
+            final int gcStartIn = env.getEnvironmentConfig().getGcStartIn();
+            if (gcStartIn != 0) {
+                final long minTimeToInvokeCleaner = gcStartIn + env.getCreated();
+                if (minTimeToInvokeCleaner > System.currentTimeMillis()) {
+                    gc.wakeAt(minTimeToInvokeCleaner);
+                }
+            }
+            final Log log = env.getLog();
             if (gc.getMinFileAge() < log.getNumberOfFiles()) {
                 gc.getCleaner().setCleaning(true);
                 try {
