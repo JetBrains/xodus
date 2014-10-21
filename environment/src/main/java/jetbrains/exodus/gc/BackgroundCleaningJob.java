@@ -59,6 +59,7 @@ final class BackgroundCleaningJob extends Job {
                 final long minTimeToInvokeCleaner = gcStartIn + env.getCreated();
                 if (minTimeToInvokeCleaner > System.currentTimeMillis()) {
                     gc.wakeAt(minTimeToInvokeCleaner);
+                    return;
                 }
             }
             final Log log = env.getLog();
