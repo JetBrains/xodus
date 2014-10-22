@@ -88,13 +88,15 @@ final class BackgroundCleaner {
         synchronized (backgroundCleaningJob) {
             if (!isSuspended) {
                 isSuspended = true;
-                // wait for trivial latch job in order to make sure that last started cleaning job has finished
-                processor.waitForLatchJob(new LatchJob() {
-                    @Override
-                    protected void execute() throws Throwable {
-                        release();
-                    }
-                }, 100);
+                if (!isCurrentThread()) {
+                    // wait for trivial latch job in order to make sure that last started cleaning job has finished
+                    processor.waitForLatchJob(new LatchJob() {
+                        @Override
+                        protected void execute() throws Throwable {
+                            release();
+                        }
+                    }, 100);
+                }
             }
         }
     }
