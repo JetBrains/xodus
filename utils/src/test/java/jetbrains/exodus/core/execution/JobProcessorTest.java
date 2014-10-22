@@ -270,10 +270,10 @@ public class JobProcessorTest {
     public void testFairness() throws InterruptedException {
         createProcessor();
         processor.start();
-        new SleepTimeAfterTimeJob("third", processor, 2000, 1000);
-        new SleepTimeAfterTimeJob("second", processor, 1000, 1000);
-        new SleepTimeAfterTimeJob("first", processor, 0, 1000);
-        Thread.sleep(500);
+        new SleepTimeAfterTimeJob("third", processor, 2500, 1000);
+        new SleepTimeAfterTimeJob("second", processor, 1500, 1000);
+        new SleepTimeAfterTimeJob("first", processor, 500, 1000);
+        Thread.sleep(1000);
         Job currentJob = processor.getCurrentJob();
         Assert.assertNotNull(currentJob);
         Assert.assertEquals("first", ((SleepTimeAfterTimeJob) currentJob).name);
