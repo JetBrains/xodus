@@ -1979,39 +1979,44 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @Override
     public void updateUniqueKeyIndices(@NotNull final Iterable<Index> indices) {
-        executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                final PersistentStoreTransaction t = (PersistentStoreTransaction) txn;
-                final PersistentStoreTransaction snapshot = t.getSnapshot();
-                try {
-                    final Collection<String> indexNames = new HashSet<String>();
-                    for (final String dbName : environment.getAllStoreNames(t.getEnvironmentTransaction())) {
-                        if (namingRulez.isUniqueKeyIndexName(dbName)) {
-                            indexNames.add(dbName);
+        environment.suspendGC();
+        try {
+            executeInTransaction(new StoreTransactionalExecutable() {
+                @Override
+                public void execute(@NotNull StoreTransaction txn) {
+                    final PersistentStoreTransaction t = (PersistentStoreTransaction) txn;
+                    final PersistentStoreTransaction snapshot = t.getSnapshot();
+                    try {
+                        final Collection<String> indexNames = new HashSet<String>();
+                        for (final String dbName : environment.getAllStoreNames(t.getEnvironmentTransaction())) {
+                            if (namingRulez.isUniqueKeyIndexName(dbName)) {
+                                indexNames.add(dbName);
+                            }
                         }
-                    }
-                    for (final Index index : indices) {
-                        final String indexName = getUniqueKeyIndexName(index);
-                        if (indexNames.contains(indexName)) {
-                            indexNames.remove(indexName);
-                        } else {
-                            createUniqueKeyIndex(t, snapshot, index);
+                        for (final Index index : indices) {
+                            final String indexName = getUniqueKeyIndexName(index);
+                            if (indexNames.contains(indexName)) {
+                                indexNames.remove(indexName);
+                            } else {
+                                createUniqueKeyIndex(t, snapshot, index);
+                            }
                         }
+                        // remove obsolete indices
+                        for (final String indexName : indexNames) {
+                            removeObsoleteUniqueKeyIndex(t, indexName);
+                        }
+                        if (log.isTraceEnabled()) {
+                            log.trace("Flush index persistent transaction " + t);
+                        }
+                        t.flush();
+                    } finally {
+                        snapshot.abort(); // reading snapshot is obsolete now
                     }
-                    // remove obsolete indices
-                    for (final String indexName : indexNames) {
-                        removeObsoleteUniqueKeyIndex(t, indexName);
-                    }
-                    if (log.isTraceEnabled()) {
-                        log.trace("Flush index persistent transaction " + t);
-                    }
-                    t.flush();
-                } finally {
-                    snapshot.abort(); // reading snapshot is obsolete now
                 }
-            }
-        });
+            });
+        } finally {
+            environment.resumeGC();
+        }
     }
 
     private void removeObsoleteUniqueKeyIndex(@NotNull final PersistentStoreTransaction txn, @NotNull final String indexName) {
