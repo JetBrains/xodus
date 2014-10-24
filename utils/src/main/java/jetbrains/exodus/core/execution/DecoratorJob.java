@@ -59,11 +59,11 @@ public abstract class DecoratorJob extends Job {
     public abstract DecoratorJob newDecoratorJob(final Job decorated, final Priority priority);
 
     @NotNull
-    protected Job getDecorated() {
+    public Job getDecorated() {
         return decorated;
     }
 
-    protected void setDecorated(@NotNull final Job decorated) {
+    public void setDecorated(@NotNull final Job decorated) {
         this.decorated = decorated;
         setProcessor(decorated.getProcessor());
     }
