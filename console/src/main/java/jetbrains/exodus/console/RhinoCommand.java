@@ -169,7 +169,9 @@ public class RhinoCommand implements Command, Runnable {
                         public void execute(@NotNull StoreTransaction txn) {
                             ScriptableObject.putProperty(scope, "txn", Context.javaToJS(txn, scope));
                             Object result = script.exec(cx, scope);
-                            println(Context.toString(result));
+                            if (result != Context.getUndefinedValue()) {
+                                println(Context.toString(result));
+                            }
                         }
                     });
 
