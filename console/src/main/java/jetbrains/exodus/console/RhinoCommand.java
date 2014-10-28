@@ -1,30 +1,35 @@
 package jetbrains.exodus.console;
 
+import jetbrains.exodus.entitystore.PersistentEntityStore;
+import jetbrains.exodus.entitystore.StoreTransaction;
+import jetbrains.exodus.entitystore.StoreTransactionalExecutable;
 import org.apache.sshd.server.Command;
 import org.apache.sshd.server.Environment;
 import org.apache.sshd.server.ExitCallback;
+import org.jetbrains.annotations.NotNull;
 import org.mozilla.javascript.*;
 import org.mozilla.javascript.tools.ToolErrorReporter;
 
 import java.awt.event.KeyEvent;
 import java.io.*;
-import java.lang.reflect.UndeclaredThrowableException;
-import java.text.MessageFormat;
-import java.util.Locale;
-import java.util.ResourceBundle;
 
 /**
  *
  */
 public class RhinoCommand implements Command, Runnable {
 
+    private static final String INITIAL_SCRIPT = "default.js";
     private InputStreamReader in;
     private PrintStream out;
     private PrintStream err;
     private ExitCallback callback;
     private volatile boolean stopped = false;
 
-    RhinoCommand() {
+    @NotNull
+    private PersistentEntityStore entityStore;
+
+    RhinoCommand(@NotNull PersistentEntityStore entityStore) {
+        this.entityStore = entityStore;
     }
 
     @Override
@@ -95,8 +100,6 @@ public class RhinoCommand implements Command, Runnable {
             while (true) {
                 char c = (char) in.read();
 
-                //System.out.println((int)c);
-
                 if (c == -1 || c == 3) return null;
                 if (c == '\n' || c == '\r') {
                     println();
@@ -113,53 +116,62 @@ public class RhinoCommand implements Command, Runnable {
         }
     }
 
-    private boolean isPrintableChar( char c ) {
-        Character.UnicodeBlock block = Character.UnicodeBlock.of( c );
+    private boolean isPrintableChar(char c) {
+        Character.UnicodeBlock block = Character.UnicodeBlock.of(c);
         return (!Character.isISOControl(c)) &&
                 c != KeyEvent.CHAR_UNDEFINED &&
                 block != null &&
                 block != Character.UnicodeBlock.SPECIALS;
     }
 
-    private void processInput(Context cx) {
-        Scriptable scope = cx.initStandardObjects();
+    private Scriptable createScope(Context cx) {
+        final Scriptable scope = cx.initStandardObjects(null, true);
+        ScriptableObject.putProperty(scope, "store", Context.javaToJS(entityStore, scope));
+        try {
+            cx.evaluateReader(scope, new InputStreamReader(Console.class.getResourceAsStream(INITIAL_SCRIPT)), INITIAL_SCRIPT, 1, null);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return scope;
+    }
+
+    private void processInput(final Context cx) {
+        final Scriptable scope = createScope(cx);
 
         println(cx.getImplementationVersion());
-        println("Welcome to xodus console.");
+        println("Welcome to xodus console. To exit press Ctrl-C.");
 
         boolean hitEOF = false;
-        while (!hitEOF) {
+        while (true) {
             out.flush();
             int lineno = 0;
-            String source = "";
+            final StringBuilder source = new StringBuilder();
 
             // Collect lines of source to compile.
             while (true) {
                 lineno++;
-                String newline;
                 print('>');
-                newline = readLine();
-                if (newline == null) {
-                    hitEOF = true;
-                    break;
-                }
-                source = source + newline + "\n";
-                if (cx.stringIsCompilableUnit(source)) break;
+                String newline = readLine();
+                if (newline == null) return;
+                source.append(newline).append("\n");
+                if (cx.stringIsCompilableUnit(source.toString())) break;
             }
+
+            // execute script in transaction
             try {
-                long start = System.currentTimeMillis();
-                Script script = cx.compileString(source, "<stdin>", lineno, null);
+                final Script script = cx.compileString(source.toString(), "<stdin>", lineno, null);
                 if (script != null) {
-                    Object result = script.exec(cx, scope);
-                    // Avoid printing out undefined or function definitions.
-                    if (result != Context.getUndefinedValue() && !(result instanceof Function && source.trim().startsWith("function"))) {
-                        try {
+                    long start = System.currentTimeMillis();
+
+                    entityStore.executeInTransaction(new StoreTransactionalExecutable() {
+                        @Override
+                        public void execute(@NotNull StoreTransaction txn) {
+                            ScriptableObject.putProperty(scope, "txn", Context.javaToJS(txn, scope));
+                            Object result = script.exec(cx, scope);
                             println(Context.toString(result));
-                        } catch (RhinoException rex) {
-                            ToolErrorReporter.reportException(
-                                    cx.getErrorReporter(), rex);
                         }
-                    }
+                    });
+
                     println("Complete in " + ((System.currentTimeMillis() - start)) + " ms");
                 }
             } catch (RhinoException rex) {

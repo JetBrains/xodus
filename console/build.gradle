@@ -1,12 +1,16 @@
-apply plugin: 'java'
+apply plugin:'application'
+
+mainClassName = "jetbrains.exodus.console.Console"
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    compile 'org.apache.sshd:apache-sshd:0.12.0'
     compile 'org.jetbrains:annotations:13.0'
+    compile 'org.apache.sshd:apache-sshd:0.12.0'
     compile 'org.mozilla:rhino:1.7R4'
+    compile 'commons-cli:commons-cli:1.2'
+    compile project(':entity-store')
     //testCompile 'junit:junit:4.11'
 }

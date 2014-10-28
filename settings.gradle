@@ -11,4 +11,5 @@ include 'query'
 include 'benchmarks'
 include 'benchmarks-jmh'
 include 'samples'
+include 'console'
 
