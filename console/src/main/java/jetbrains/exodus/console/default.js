@@ -1,11 +1,18 @@
-/**
- * Created by vadim on 10/28/14.
- */
+var MAX_ITEMS_TO_PRINT = 1000;
+
 function all(type) {
+  return entityIterableToString(txn.getAll(type));
+}
+
+function find(type, propertyName, propertyValue) {
+  return entityIterableToString(txn.find(type, propertyName, propertyValue));
+}
+
+function entityIterableToString(entityIterable) {
+  var iter = entityIterable.iterator();
   var count = 0;
   var res = "";
-  var iter = txn.getAll(type).iterator();
-  while (count++ < 1000 && iter.hasNext()) {
+  while (count++ < MAX_ITEMS_TO_PRINT && iter.hasNext()) {
     var item = iter.next();
     res += entityToString(item) + "\n\r";
   }
@@ -14,7 +21,7 @@ function all(type) {
     res += "And more...\n\r"
   }
 
-  res += "Total " + txn.getAll(type).size();
+  res += "Total " + entityIterable.size();
   return res;
 }
 
