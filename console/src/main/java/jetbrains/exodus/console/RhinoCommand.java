@@ -127,6 +127,7 @@ public class RhinoCommand implements Command, Runnable {
     private Scriptable createScope(Context cx) {
         final Scriptable scope = cx.initStandardObjects(null, true);
         ScriptableObject.putProperty(scope, "store", Context.javaToJS(entityStore, scope));
+        ScriptableObject.putProperty(scope, "out", Context.javaToJS(out, scope));
         try {
             cx.evaluateReader(scope, new InputStreamReader(Console.class.getResourceAsStream(INITIAL_SCRIPT)), INITIAL_SCRIPT, 1, null);
         } catch (IOException e) {

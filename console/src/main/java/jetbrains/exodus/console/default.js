@@ -1,38 +1,46 @@
 var MAX_ITEMS_TO_PRINT = 1000;
 
+function print(s) {
+  out.print(s);
+  out.flush();
+}
+
+function println(s) {
+  if (!s) s = "";
+  out.print(s + "\n\r");
+  out.flush();
+}
+
 function all(type) {
-  return entityIterableToString(txn.getAll(type));
+  return printEntityIterable(txn.getAll(type));
 }
 
 function find(type, propertyName, propertyValue) {
-  return entityIterableToString(txn.find(type, propertyName, propertyValue));
+  return printEntityIterable(txn.find(type, propertyName, propertyValue));
 }
 
-function entityIterableToString(entityIterable) {
+function printEntityIterable(entityIterable) {
   var iter = entityIterable.iterator();
   var count = 0;
-  var res = "";
   while (count++ < MAX_ITEMS_TO_PRINT && iter.hasNext()) {
     var item = iter.next();
-    res += entityToString(item) + "\n\r";
+    printEntity(item);
+    println();
   }
 
   if (iter.hasNext()) {
-    res += "And more...\n\r"
+    println("And more...");
   }
 
-  res += "Total " + entityIterable.size();
-  return res;
+  println("Total " + entityIterable.size());
 }
 
-function entityToString(item) {
-  var res = item.getType() + " " + item.getId() + "\n\r";
+function printEntity(item) {
+  println(item.getType() + " " + item.getId());
 
   var properties = item.getPropertyNames().iterator();
   while (properties.hasNext()) {
     var property = properties.next();
-    res += property + "=[" + item.getProperty(property) + "]\n\r"
+    println(property + "=[" + item.getProperty(property) + "]");
   }
-
-  return res;
 }
