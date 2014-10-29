@@ -75,7 +75,7 @@ public final class EnvironmentConfig extends AbstractConfig {
     /**
      * Cleaner checks log utilization and runs if necessary after this many new files are created in the log.
      */
-    public static final String GC_CLEANER_FILES_INTERVAL = "exodus.gc.cleaner.filesInterval";
+    public static final String GC_FILES_INTERVAL = "exodus.gc.filesInterval";
 
     public static final String GC_UTILIZATION_FROM_SCRATCH = "exodus.gc.utilization.fromScratch";
 
@@ -103,7 +103,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(GC_RENAME_FILES, false),
                 new Pair(GC_USE_EXPIRATION_CHECKER, true),
                 new Pair(GC_MIN_FILE_AGE, 2),
-                new Pair(GC_CLEANER_FILES_INTERVAL, 1),
+                new Pair(GC_FILES_INTERVAL, 1),
                 new Pair(GC_UTILIZATION_FROM_SCRATCH, false)
         });
     }
@@ -302,15 +302,15 @@ public final class EnvironmentConfig extends AbstractConfig {
         setSetting(GC_MIN_FILE_AGE, minAge);
     }
 
-    public int getGcCleanerFilesInterval() {
-        return (Integer) getSetting(GC_CLEANER_FILES_INTERVAL);
+    public int getGcFilesInterval() {
+        return (Integer) getSetting(GC_FILES_INTERVAL);
     }
 
-    public void setGcCleanerFilesInterval(int files) throws InvalidSettingException {
+    public void setGcFilesInterval(int files) throws InvalidSettingException {
         if (files < 1) {
             throw new InvalidSettingException("Invalid number of files: " + files);
         }
-        setSetting(GC_CLEANER_FILES_INTERVAL, files);
+        setSetting(GC_FILES_INTERVAL, files);
     }
 
     public boolean getGcUtilizationFromScratch() {

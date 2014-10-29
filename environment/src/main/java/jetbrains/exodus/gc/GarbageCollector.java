@@ -54,7 +54,7 @@ public final class GarbageCollector {
     @NotNull
     private final BackgroundCleaner cleaner;
     private final int minFileAge;
-    private final int cleanerFilesInterval;
+    private final int filesInterval;
     private volatile int newFiles; // number of new files appeared after last cleaning job
     @NotNull
     private final IExpirationChecker expirationChecker;
@@ -64,12 +64,12 @@ public final class GarbageCollector {
     public GarbageCollector(@NotNull final EnvironmentImpl env) {
         this.env = env;
         minFileAge = env.getEnvironmentConfig().getGcFileMinAge();
-        cleanerFilesInterval = env.getEnvironmentConfig().getGcCleanerFilesInterval();
+        filesInterval = env.getEnvironmentConfig().getGcFilesInterval();
         pendingFilesToDelete = new LongHashSet();
         deletionQueue = new ConcurrentLinkedQueue<Long>();
         utilizationProfile = new UtilizationProfile(env, this);
         cleaner = new BackgroundCleaner(this);
-        newFiles = cleanerFilesInterval + 1;
+        newFiles = filesInterval + 1;
         if (!env.getEnvironmentConfig().getGcUseExpirationChecker()) {
             expirationChecker = IExpirationChecker.NONE;
         } else {
@@ -91,7 +91,7 @@ public final class GarbageCollector {
             @Override
             public void fileCreated(long fileAddress) {
                 ++newFiles;
-                if (!cleaner.isCleaning() && newFiles > cleanerFilesInterval && isTooMuchFreeSpace()) {
+                if (!cleaner.isCleaning() && newFiles > filesInterval && isTooMuchFreeSpace()) {
                     wake();
                 }
             }
