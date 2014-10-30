@@ -18,11 +18,19 @@ function stat() {
 }
 
 function all(type) {
-  return printEntityIterable(txn.getAll(type));
+  printEntityIterable(txn.getAll(type));
 }
 
-function find(type, propertyName, propertyValue) {
-  return printEntityIterable(txn.find(type, propertyName, propertyValue));
+function find(type, propertyName, propertyValue, maxValue) {
+  if (maxValue == undefined) {
+    printEntityIterable(txn.find(type, propertyName, propertyValue));
+  } else {
+    printEntityIterable(txn.find(type, propertyName, propertyValue, maxValue));
+  }
+}
+
+function findStartingWith(type, propertyName, propertyValue) {
+  printEntityIterable(txn.findStartingWith(type, propertyName, propertyValue));
 }
 
 function printEntityIterable(entityIterable) {
