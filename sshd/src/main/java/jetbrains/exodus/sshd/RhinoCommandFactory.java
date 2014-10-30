@@ -1,4 +1,4 @@
-package jetbrains.exodus.console;
+package jetbrains.exodus.sshd;
 
 import jetbrains.exodus.entitystore.PersistentEntityStore;
 import org.apache.sshd.common.Factory;

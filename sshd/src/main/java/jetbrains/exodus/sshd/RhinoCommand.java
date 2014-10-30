@@ -1,4 +1,4 @@
-package jetbrains.exodus.console;
+package jetbrains.exodus.sshd;
 
 import jetbrains.exodus.entitystore.PersistentEntityStore;
 import jetbrains.exodus.entitystore.StoreTransaction;
@@ -129,7 +129,7 @@ public class RhinoCommand implements Command, Runnable {
         ScriptableObject.putProperty(scope, "store", Context.javaToJS(entityStore, scope));
         ScriptableObject.putProperty(scope, "out", Context.javaToJS(out, scope));
         try {
-            cx.evaluateReader(scope, new InputStreamReader(Console.class.getResourceAsStream(INITIAL_SCRIPT)), INITIAL_SCRIPT, 1, null);
+            cx.evaluateReader(scope, new InputStreamReader(this.getClass().getResourceAsStream(INITIAL_SCRIPT)), INITIAL_SCRIPT, 1, null);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

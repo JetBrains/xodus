@@ -1,0 +1,13 @@
+apply plugin:'java'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'org.jetbrains:annotations:13.0'
+    compile 'org.apache.sshd:apache-sshd:0.12.0'
+    compile 'org.mozilla:rhino:1.7R4'
+    compile project(':openAPI')
+    //testCompile 'junit:junit:4.11'
+}

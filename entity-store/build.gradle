@@ -1,5 +1,6 @@
 dependencies {
     compile project(':vfs')
+    compile project(':sshd')
     testCompile project(':utils').sourceSets.test.output
 }
 
