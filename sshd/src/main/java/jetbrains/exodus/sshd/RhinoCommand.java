@@ -1,5 +1,6 @@
 package jetbrains.exodus.sshd;
 
+import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.entitystore.PersistentEntityStore;
 import jetbrains.exodus.entitystore.StoreTransaction;
 import jetbrains.exodus.entitystore.StoreTransactionalExecutable;
@@ -12,6 +13,9 @@ import org.mozilla.javascript.tools.ToolErrorReporter;
 
 import java.awt.event.KeyEvent;
 import java.io.*;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 /**
  *
@@ -69,6 +73,7 @@ public class RhinoCommand implements Command, Runnable {
     @Override
     public void run() {
         Context cx = Context.enter();
+        cx.setClassShutter(new ClassShutterImpl());
         cx.setErrorReporter(new ErrorReporterImpl());
         try {
             processInput(cx);
@@ -212,6 +217,18 @@ public class RhinoCommand implements Command, Runnable {
 
         @Override
         public void warning(String message, String sourceName, int line, String lineSource, int lineOffset) {
+        }
+    }
+
+    private static Set<String> FORBIDDEN_CLASSES = new HashSet<String>() {{
+        add("java.lang.System");
+    }};
+
+    private class ClassShutterImpl implements ClassShutter {
+
+        @Override
+        public boolean visibleToScripts(String fullClassName) {
+            return !FORBIDDEN_CLASSES.contains(fullClassName);
         }
     }
 }
