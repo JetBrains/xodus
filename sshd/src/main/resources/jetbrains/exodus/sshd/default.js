@@ -68,10 +68,10 @@ function gc(on) {
     cfg.setGcEnabled(on);
   }
 
-  println("Gc is [" + cfg.isGcEnabled() + "]");
+  println("GC is [" + cfg.isGcEnabled() + "]");
 }
 
-function add(type, props) {
+function add(type, props, flush, print) {
   var entity = txn.newEntity(type);
 
   if (props) {
@@ -83,6 +83,10 @@ function add(type, props) {
     }
   }
 
-  txn.flush();
-  printEntity(entity);
+  if (flush || flush == undefined) {
+    txn.flush();
+  }
+  if (print || print == undefined) {
+    printEntity(entity);
+  }
 }
