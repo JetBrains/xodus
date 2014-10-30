@@ -105,6 +105,12 @@ public class RhinoCommand implements Command, Runnable {
                     println();
                     break;
                 }
+                // delete
+                if (c == 127 && s.length() > 0) {
+                    s.deleteCharAt(s.length() - 1);
+                    print('\b');
+                }
+
                 if (!isPrintableChar(c)) continue;
 
                 print(c);
