@@ -43,4 +43,10 @@ function printEntity(item) {
     var property = properties.next();
     println(property + "=[" + item.getProperty(property) + "]");
   }
+
+  var links = item.getLinkNames().iterator();
+  while (links.hasNext()) {
+    var link = links.next();
+    println(link + "=[" + item.getLink(link) + "]");
+  }
 }
