@@ -41,7 +41,7 @@ public abstract class EntityStoreTestBase extends TestBase {
     protected void setUp() throws Exception {
         isPartiallyTornDown = false;
         shouldCleanopOnTearDown = true;
-        store = createStore(getDatabaseFolder());
+        store = createStoreInternal(getDatabaseFolder());
         if (needsImplicitTxn()) {
             txn = store.beginTransaction();
         }
@@ -52,6 +52,10 @@ public abstract class EntityStoreTestBase extends TestBase {
             databaseFolder = initTempFolder();
         }
         return databaseFolder;
+    }
+
+    protected PersistentEntityStoreImpl createStoreInternal(String dbTempFolder) throws Exception {
+        return createStore(dbTempFolder);
     }
 
     public static PersistentEntityStoreImpl createStore(String dbTempFolder) throws Exception {
