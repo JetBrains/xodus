@@ -49,15 +49,8 @@ final class StuckTransactionMonitor extends Job {
                 final long created = oldestTxn.getCreated();
                 if (created + env.getEnvironmentConfig().getEnvMonitorTxnsTimeout() < System.currentTimeMillis()) {
                     final Thread creatingThread = oldestTxn.getCreatingThread();
-                    final StringBuilder errorMessage = new StringBuilder();
-                    errorMessage.append("Transaction timed out: created at ");
-                    errorMessage.append(new Date(created).toString());
-                    errorMessage.append(", thread = ");
-                    errorMessage.append(creatingThread);
-                    errorMessage.append('(');
-                    errorMessage.append(creatingThread == null ? "" : creatingThread.getId());
-                    errorMessage.append(')');
-                    logging.error(errorMessage.toString(), oldestTxn.getTrace());
+                    logging.error("Transaction timed out: created at " + new Date(created).toString() + ", thread = " +
+                            creatingThread + '(' + (creatingThread == null ? "" : creatingThread.getId()) + ')', oldestTxn.getTrace());
                 }
             } finally {
                 queueThis();
