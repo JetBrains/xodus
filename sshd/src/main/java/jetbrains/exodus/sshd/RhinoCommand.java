@@ -193,8 +193,7 @@ public class RhinoCommand implements Command, Runnable {
             } catch (VirtualMachineError ex) {
                 // Treat StackOverflow and OutOfMemory as runtime errors
                 ex.printStackTrace();
-                String msg = ToolErrorReporter.getMessage("msg.uncaughtJSException", ex.toString());
-                Context.reportError(msg);
+                Context.reportError(ex.toString());
             }
         }
     }
