@@ -11,6 +11,15 @@ function println(s) {
   out.flush();
 }
 
+function stat() {
+  var types = txn.getEntityTypes().iterator();
+  while (types.hasNext()) {
+    var type = types.next();
+
+    println(type + ": " + txn.getAll(type).size());
+  }
+}
+
 function all(type) {
   return printEntityIterable(txn.getAll(type));
 }
