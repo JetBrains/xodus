@@ -162,7 +162,7 @@ public class RhinoCommand implements Command, Runnable {
             // Collect lines of source to compile.
             while (true) {
                 lineno++;
-                print('>');
+                print(lineno == 1 ? '>' : ' ');
                 String newline = readLine();
                 if (newline == null) return;
                 source.append(newline).append("\n");
