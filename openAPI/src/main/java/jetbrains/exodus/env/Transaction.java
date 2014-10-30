@@ -36,4 +36,11 @@ public interface Transaction {
     Environment getEnvironment();
 
     void setCommitHook(@Nullable Runnable hook);
+
+    /**
+     * Time when the transaction acquired its database snapshot, i.e. time when it was created, reverted or successfully flushed.
+     *
+     * @return the difference, measured in milliseconds, between the current time and midnight, January 1, 1970 UTC.
+     */
+    long getCreated();
 }

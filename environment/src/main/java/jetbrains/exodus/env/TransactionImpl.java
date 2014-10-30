@@ -142,6 +142,11 @@ public class TransactionImpl implements Transaction {
         commitHook = hook;
     }
 
+    @Override
+    public long getCreated() {
+        return created;
+    }
+
     public boolean forceFlush() {
         return env.flushTransaction(this, true);
     }
@@ -149,10 +154,6 @@ public class TransactionImpl implements Transaction {
     @Nullable
     public Throwable getTrace() {
         return trace;
-    }
-
-    public long getCreated() {
-        return created;
     }
 
     @NotNull
