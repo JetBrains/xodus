@@ -300,6 +300,10 @@ public class TransactionTest extends EnvironmentTestsBase {
         try {
             Assert.assertTrue(txn.flush());
             Assert.assertTrue(txn.getCreated() > started + 150);
+            store.put(txn, StringBinding.stringToEntry("key"), StringBinding.stringToEntry("new value"));
+            Thread.sleep(200);
+            txn.revert();
+            Assert.assertTrue(txn.getCreated() > started + 350);
         } finally {
             txn.abort();
         }
