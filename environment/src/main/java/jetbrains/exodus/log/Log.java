@@ -235,12 +235,10 @@ public final class Log implements Closeable {
 
         // update buffered writer
         final DataWriter baseWriter = config.getWriter();
-        final LongSkipList.SkipListNode lastFile = blockAddrs.getMaximumNode();
-        if (lastFile == null) {
+        if (blockAddrs.isEmpty()) {
             this.highAddress = 0;
             setBufferedWriter(createEmptyBufferedWriter(baseWriter));
         } else {
-            final long lastFileAddress = lastFile.getKey();
             final long oldHighPageAddress = getHighPageAddress();
             this.highAddress = highAddress;
             final long highPageAddress = getHighPageAddress();
