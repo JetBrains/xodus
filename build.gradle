@@ -61,12 +61,13 @@ subprojects {
         from project.sourceSets.main.java
     }
 
+    def outputProjectName = rootProject.name + '-' + project.name;
     if (version == SNAPSHOT) {
-        jar.archiveName = rootProject.name + '-' + project.name + '.jar'
-        zipSources.archiveName = rootProject.name + '-' + project.name + '-src.zip'
+        jar.archiveName = outputProjectName + '.jar'
+        zipSources.archiveName = outputProjectName + '-src.zip'
     } else {
-        jar.archiveName = rootProject.name + '-' + project.name + '-' + version + '.jar'
-        zipSources.archiveName = rootProject.name + '-' + project.name + '-src-' + version + '.zip'
+        jar.archiveName = outputProjectName + '-' + version + '.jar'
+        zipSources.archiveName = outputProjectName + '-' + version + '-src.zip'
     }
 
     artifacts {
@@ -76,15 +77,14 @@ subprojects {
     if (project.name != 'benchmarks' && project.name != 'benchmarks-jmh' && project.name != 'samples') {
         publishing {
             publications {
-                mavenJava(MavenPublication) {
+                publishProject(MavenPublication) {
                     groupId 'org.jetbrains.xodus'
+                    artifactId outputProjectName
                     if (jar.enabled) {
-                        from components.java {
-                            artifactId
-                        }
+                        artifact jar
                     }
                     artifact zipSources {
-                        classifier "sources"
+                        classifier "src"
                     }
                 }
             }
