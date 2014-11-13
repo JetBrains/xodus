@@ -1,6 +1,5 @@
 package jetbrains.exodus.sshd;
 
-import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.entitystore.PersistentEntityStore;
 import jetbrains.exodus.entitystore.StoreTransaction;
 import jetbrains.exodus.entitystore.StoreTransactionalExecutable;
@@ -14,7 +13,6 @@ import org.mozilla.javascript.tools.ToolErrorReporter;
 import java.awt.event.KeyEvent;
 import java.io.*;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -148,13 +146,17 @@ public class RhinoCommand implements Command, Runnable {
     }
 
     private void processInput(final Context cx) {
-        final Scriptable scope = createScope(cx);
+        final Scriptable[] scopeWrapper = {null};
 
         println(cx.getImplementationVersion());
         println("Welcome to xodus console. To exit press Ctrl-C.");
 
         boolean hitEOF = false;
         while (true) {
+            if (scopeWrapper[0] == null) {
+                scopeWrapper[0] = createScope(cx);
+            }
+
             out.flush();
             int lineno = 0;
             final StringBuilder source = new StringBuilder();
@@ -169,6 +171,8 @@ public class RhinoCommand implements Command, Runnable {
                 if (cx.stringIsCompilableUnit(source.toString())) break;
             }
 
+            final API api = new API();
+
             // execute script in transaction
             try {
                 final Script script = cx.compileString(source.toString(), "<stdin>", lineno, null);
@@ -178,7 +182,9 @@ public class RhinoCommand implements Command, Runnable {
                     entityStore.executeInTransaction(new StoreTransactionalExecutable() {
                         @Override
                         public void execute(@NotNull StoreTransaction txn) {
+                            final Scriptable scope = scopeWrapper[0];
                             ScriptableObject.putProperty(scope, "txn", Context.javaToJS(txn, scope));
+                            ScriptableObject.putProperty(scope, "api", Context.javaToJS(api, scope));
                             Object result = script.exec(cx, scope);
                             if (result != Context.getUndefinedValue()) {
                                 println(Context.toString(result));
@@ -195,6 +201,23 @@ public class RhinoCommand implements Command, Runnable {
                 ex.printStackTrace();
                 Context.reportError(ex.toString());
             }
+
+            if (api.reset) {
+                scopeWrapper[0] = null;
+            }
+        }
+    }
+
+    public static class API {
+        private boolean reset;
+
+        public void reset() {
+            reset = true;
+        }
+
+        @Override
+        public String toString() {
+            return "API";
         }
     }
 
