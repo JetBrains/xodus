@@ -283,4 +283,29 @@ public class TransactionTest extends EnvironmentTestsBase {
             }
         });
     }
+
+    @Test
+    public void test_XD_401() throws Exception {
+        final Environment env = getEnvironment();
+        final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
+            @Override
+            public Store compute(@NotNull final Transaction txn) {
+                return env.openStore("store", StoreConfig.WITH_DUPLICATES, txn);
+            }
+        });
+        final Transaction txn = env.beginTransaction();
+        final long started = txn.getCreated();
+        store.put(txn, StringBinding.stringToEntry("key"), StringBinding.stringToEntry("value"));
+        Thread.sleep(200);
+        try {
+            Assert.assertTrue(txn.flush());
+            Assert.assertTrue(txn.getCreated() > started + 150);
+            store.put(txn, StringBinding.stringToEntry("key"), StringBinding.stringToEntry("new value"));
+            Thread.sleep(200);
+            txn.revert();
+            Assert.assertTrue(txn.getCreated() > started + 350);
+        } finally {
+            txn.abort();
+        }
+    }
 }

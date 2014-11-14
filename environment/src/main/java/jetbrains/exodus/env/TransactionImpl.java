@@ -50,7 +50,7 @@ public class TransactionImpl implements Transaction {
     private Runnable commitHook;
     @Nullable
     private final Throwable trace;
-    private final long created;
+    private long created;
 
     TransactionImpl(@NotNull final EnvironmentImpl env, @Nullable final Thread creatingThread,
                     @Nullable final Runnable beginHook, final boolean cloneMeta) {
@@ -72,7 +72,7 @@ public class TransactionImpl implements Transaction {
             }
         };
         trace = env.transactionTimeout() > 0 ? new Throwable() : null;
-        created = System.currentTimeMillis();
+        invalidateCreated();
         holdNewestSnapshot();
     }
 
@@ -89,7 +89,7 @@ public class TransactionImpl implements Transaction {
         removedStores = new LongHashMap<Pair<String, ITree>>();
         createdStores = new HashMapDecorator<String, TreeMetaInfo>();
         trace = env.transactionTimeout() > 0 ? new Throwable() : null;
-        created = System.currentTimeMillis();
+        invalidateCreated();
         env.registerTransaction(this);
     }
 
@@ -110,7 +110,11 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public boolean flush() {
-        return env.flushTransaction(this, false);
+        final boolean result = env.flushTransaction(this, false);
+        if (result) {
+            invalidateCreated();
+        }
+        return result;
     }
 
     @Override
@@ -124,6 +128,7 @@ public class TransactionImpl implements Transaction {
         if (!env.isRegistered(this)) {
             throw new ExodusException("Transaction should remain registered after revert");
         }
+        invalidateCreated();
     }
 
     @Override
@@ -142,6 +147,11 @@ public class TransactionImpl implements Transaction {
         commitHook = hook;
     }
 
+    @Override
+    public long getCreated() {
+        return created;
+    }
+
     public boolean forceFlush() {
         return env.flushTransaction(this, true);
     }
@@ -149,10 +159,6 @@ public class TransactionImpl implements Transaction {
     @Nullable
     public Throwable getTrace() {
         return trace;
-    }
-
-    public long getCreated() {
-        return created;
     }
 
     @NotNull
@@ -292,6 +298,10 @@ public class TransactionImpl implements Transaction {
             return getImmutableTree(store);
         }
         return result;
+    }
+
+    private void invalidateCreated() {
+        created = System.currentTimeMillis();
     }
 
     private void holdNewestSnapshot() {
