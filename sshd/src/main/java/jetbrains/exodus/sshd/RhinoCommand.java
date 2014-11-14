@@ -3,6 +3,8 @@ package jetbrains.exodus.sshd;
 import jetbrains.exodus.entitystore.PersistentEntityStore;
 import jetbrains.exodus.entitystore.StoreTransaction;
 import jetbrains.exodus.entitystore.StoreTransactionalExecutable;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.sshd.server.Command;
 import org.apache.sshd.server.Environment;
 import org.apache.sshd.server.ExitCallback;
@@ -13,6 +15,7 @@ import org.mozilla.javascript.tools.ToolErrorReporter;
 import java.awt.event.KeyEvent;
 import java.io.*;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -20,18 +23,22 @@ import java.util.Set;
  */
 public class RhinoCommand implements Command, Runnable {
 
-    private static final String INITIAL_SCRIPT = "default.js";
+    private static final Log log = LogFactory.getLog(RhinoCommand.class);
+
+    private static final String[] INITIAL_SCRIPTS = {"init.js", "functions.js", "opt.js"};
     private InputStreamReader in;
     private PrintStream out;
     private PrintStream err;
     private ExitCallback callback;
+    private Scriptable scope;
     private volatile boolean stopped = false;
+    private final Object lock = new Object();
 
     @NotNull
-    private PersistentEntityStore entityStore;
+    private Map<String, Object> config;
 
-    RhinoCommand(@NotNull PersistentEntityStore entityStore) {
-        this.entityStore = entityStore;
+    RhinoCommand(@NotNull Map<String, Object> config) {
+        this.config = config;
     }
 
     @Override
@@ -76,8 +83,18 @@ public class RhinoCommand implements Command, Runnable {
         try {
             processInput(cx);
         } finally {
-            Context.exit();
             callback.onExit(0);
+            synchronized (lock) {
+                try {
+                    if (scope != null) {
+                        evalResourceScript(cx, scope, "destroy.js");
+                        scope = null;
+                    }
+                } finally {
+                    stopped = true;
+                    Context.exit();
+                }
+            }
         }
     }
 
@@ -135,26 +152,31 @@ public class RhinoCommand implements Command, Runnable {
 
     private Scriptable createScope(Context cx) {
         final Scriptable scope = cx.initStandardObjects(null, true);
-        ScriptableObject.putProperty(scope, "store", Context.javaToJS(entityStore, scope));
+        NativeObject config = new NativeObject();
+        for (Map.Entry<String, Object> entry : this.config.entrySet()) {
+            config.defineProperty(entry.getKey(), entry.getValue(), NativeObject.READONLY);
+        }
+        config.defineProperty("implementationVersion", cx.getImplementationVersion(), NativeObject.READONLY);
+        ScriptableObject.putProperty(scope, "config", config);
         ScriptableObject.putProperty(scope, "out", Context.javaToJS(out, scope));
-        try {
-            cx.evaluateReader(scope, new InputStreamReader(this.getClass().getResourceAsStream(INITIAL_SCRIPT)), INITIAL_SCRIPT, 1, null);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        for (String name : INITIAL_SCRIPTS) {
+            evalResourceScript(cx, scope, name);
         }
         return scope;
     }
 
+    private void evalResourceScript(Context cx, Scriptable scope, String name) {
+        try {
+            cx.evaluateReader(scope, new InputStreamReader(this.getClass().getResourceAsStream(name)), name, 1, null);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private void processInput(final Context cx) {
-        final Scriptable[] scopeWrapper = {null};
-
-        println(cx.getImplementationVersion());
-        println("Welcome to xodus console. To exit press Ctrl-C.");
-
-        boolean hitEOF = false;
         while (true) {
-            if (scopeWrapper[0] == null) {
-                scopeWrapper[0] = createScope(cx);
+            if (scope == null) {
+                scope = createScope(cx);
             }
 
             out.flush();
@@ -179,18 +201,19 @@ public class RhinoCommand implements Command, Runnable {
                 if (script != null) {
                     long start = System.currentTimeMillis();
 
-                    entityStore.executeInTransaction(new StoreTransactionalExecutable() {
-                        @Override
-                        public void execute(@NotNull StoreTransaction txn) {
-                            final Scriptable scope = scopeWrapper[0];
-                            ScriptableObject.putProperty(scope, "txn", Context.javaToJS(txn, scope));
-                            ScriptableObject.putProperty(scope, "api", Context.javaToJS(api, scope));
-                            Object result = script.exec(cx, scope);
-                            if (result != Context.getUndefinedValue()) {
-                                println(Context.toString(result));
+                    ScriptableObject.putProperty(scope, "api", Context.javaToJS(api, scope));
+                    PersistentEntityStore entityStore = getPersistentStore(scope);
+                    if (entityStore == null) {
+                        processScript(script, cx, scope);
+                    } else {
+                        entityStore.executeInTransaction(new StoreTransactionalExecutable() {
+                            @Override
+                            public void execute(@NotNull StoreTransaction txn) {
+                                ScriptableObject.putProperty(scope, "txn", Context.javaToJS(txn, scope));
+                                processScript(script, cx, scope);
                             }
-                        }
-                    });
+                        });
+                    }
 
                     println("Complete in " + ((System.currentTimeMillis() - start)) + " ms");
                 }
@@ -203,8 +226,26 @@ public class RhinoCommand implements Command, Runnable {
             }
 
             if (api.reset) {
-                scopeWrapper[0] = null;
+                synchronized (lock) {
+                    evalResourceScript(cx, scope, "destroy.js");
+                    scope = null;
+                }
             }
+        }
+    }
+
+    private PersistentEntityStore getPersistentStore(Scriptable scope) {
+        Object store = scope.get("store", null);
+        if (store == null || store == UniqueTag.NOT_FOUND) {
+            return null;
+        }
+        return (PersistentEntityStore) Context.jsToJava(store, PersistentEntityStore.class);
+    }
+
+    protected void processScript(Script script, Context cx, Scriptable scope) {
+        Object result = script.exec(cx, scope);
+        if (result != Context.getUndefinedValue()) {
+            println(Context.toString(result));
         }
     }
 

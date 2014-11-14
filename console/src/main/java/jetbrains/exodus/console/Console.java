@@ -1,14 +1,11 @@
 package jetbrains.exodus.console;
 
-import jetbrains.exodus.entitystore.PersistentEntityStore;
-import jetbrains.exodus.entitystore.PersistentEntityStores;
-import jetbrains.exodus.env.EnvironmentConfig;
-import jetbrains.exodus.env.Environments;
+import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.sshd.RhinoServer;
 import org.apache.commons.cli.*;
 
-import java.io.File;
 import java.io.IOException;
+import java.util.Map;
 
 /**
  *
@@ -21,13 +18,11 @@ public class Console {
         Long port = (Long) line.getParsedOptionValue("l");
         port = port == null ? 2222 : port;
         String password = line.getOptionValue('p', null);
-        String path = line.getOptionValue('x', System.getProperty("user.home") + File.separator + "teamsysdata");
 
-        new RhinoServer(port.intValue(), password, createEntityStore(path));
-    }
+        Map<String, Object> config = new HashMap<String, Object>();
+        config.put("location", line.getOptionValue('x', null));
 
-    private static PersistentEntityStore createEntityStore(String path) {
-        return PersistentEntityStores.newInstance(Environments.newInstance(path, new EnvironmentConfig()), "teamsysstore");
+        new RhinoServer(port.intValue(), password, config);
     }
 
     private static CommandLine getCommandLine(String[] args) throws ParseException {

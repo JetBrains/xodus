@@ -1,9 +1,10 @@
 package jetbrains.exodus.sshd;
 
-import jetbrains.exodus.entitystore.PersistentEntityStore;
 import org.apache.sshd.common.Factory;
 import org.apache.sshd.server.Command;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.Map;
 
 /**
  *
@@ -11,14 +12,14 @@ import org.jetbrains.annotations.NotNull;
 public class RhinoCommandFactory implements Factory<Command> {
 
     @NotNull
-    private PersistentEntityStore store;
+    private Map<String, Object> config;
 
-    RhinoCommandFactory(@NotNull PersistentEntityStore store) {
-        this.store = store;
+    RhinoCommandFactory(@NotNull Map<String, Object> config) {
+        this.config = config;
     }
 
     @Override
     public Command create() {
-        return new RhinoCommand(store);
+        return new RhinoCommand(config);
     }
 }

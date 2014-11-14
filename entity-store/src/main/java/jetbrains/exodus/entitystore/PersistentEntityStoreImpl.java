@@ -301,7 +301,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private void startSshd(PersistentEntityStoreConfig config) {
         if (config.getSshdPort() != null) {
             try {
-                sshd = new RhinoServer(config.getSshdPort(), config.getSshdPassword(), this);
+                HashMap<String, Object> opts = new HashMap<String, Object>();
+                opts.put("store", this);
+                sshd = new RhinoServer(config.getSshdPort(), config.getSshdPassword(), opts);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -310,7 +312,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     private void stopSshd() throws InterruptedException {
         try {
-            sshd.stop();
+            if (sshd != null) {
+                sshd.stop();
+            }
         } catch (Exception e) {
             log.error("Failed to stop sshd server", e);
         }
