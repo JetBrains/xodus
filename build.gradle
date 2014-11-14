@@ -67,15 +67,15 @@ subprojects {
         from project.sourceSets.main.java
     }
 
-    def outputProjectName = rootProject.name + '-' + project.name;
+    def projectName = rootProject.name + '-' + project.name;
     if (version == SNAPSHOT) {
-        jar.archiveName = outputProjectName + '.jar'
-        javadocJar.archiveName = outputProjectName + '-javadoc.jar'
-        sourceJar.archiveName = outputProjectName + '-sources.jar'
+        jar.archiveName = projectName + '.jar'
+        javadocJar.archiveName = projectName + '-javadoc.jar'
+        sourceJar.archiveName = projectName + '-sources.jar'
     } else {
-        jar.archiveName = outputProjectName + '-' + version + '.jar'
-        javadocJar.archiveName = outputProjectName + '-' + version + '-javadoc.jar'
-        sourceJar.archiveName = outputProjectName + '-' + version + '-sources.jar'
+        jar.archiveName = projectName + '-' + version + '.jar'
+        javadocJar.archiveName = projectName + '-' + version + '-javadoc.jar'
+        sourceJar.archiveName = projectName + '-' + version + '-sources.jar'
     }
 
     artifacts {
@@ -88,12 +88,41 @@ subprojects {
             publications {
                 publishProject(MavenPublication) {
                     groupId 'org.jetbrains.xodus'
-                    artifactId outputProjectName
+                    artifactId projectName
                     if (jar.enabled) {
                         artifact jar
                     }
                     artifact javadocJar
                     artifact sourceJar
+                    pom.withXml {
+                        asNode().children().last() + {
+                            resolveStrategy = DELEGATE_FIRST
+                            packaging 'jar'
+                            name 'Xodus'
+                            description 'Xodus is transactional schemaless embedded pure-java database'
+                            url 'http://jetbrains.github.io/xodus'
+                            scm {
+                                url 'https://github.com/JetBrains/xodus'
+                                connection 'scm:git:https://github.com/JetBrains/xodus.git'
+                                developerConnection 'scm:git:https://github.com/JetBrains/xodus.git'
+                            }
+                            licenses {
+                                license {
+                                    name 'The Apache Software License, Version 2.0'
+                                    url 'http://www.apache.org/license/LICENSE-2.0.txt'
+                                    distribution 'repo'
+                                }
+                            }
+                            developers {
+                                developer {
+                                    id 'JetBrains'
+                                    name 'JetBrains Team'
+                                    organization 'JetBrains s.r.o'
+                                    organizationUrl 'http://www.jetbrains.com'
+                                }
+                            }
+                        }
+                    }
                 }
             }
             repositories {
