@@ -9,7 +9,7 @@ jar {
     from project.sourceSets.test.output
 }
 
-zipSources {
+sourceJar {
     from project.sourceSets.test.java
 }
 

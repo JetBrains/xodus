@@ -57,21 +57,22 @@ subprojects {
         testLogging.showStandardStreams = true;
     }
 
-    task zipSources(type: Zip) {
+    task sourceJar(type: Jar) {
+        classifier = 'sources'
         from project.sourceSets.main.java
     }
 
     def outputProjectName = rootProject.name + '-' + project.name;
     if (version == SNAPSHOT) {
         jar.archiveName = outputProjectName + '.jar'
-        zipSources.archiveName = outputProjectName + '-src.zip'
+        sourceJar.archiveName = outputProjectName + '-sources.jar'
     } else {
         jar.archiveName = outputProjectName + '-' + version + '.jar'
-        zipSources.archiveName = outputProjectName + '-' + version + '-src.zip'
+        sourceJar.archiveName = outputProjectName + '-' + version + '-sources.jar'
     }
 
     artifacts {
-        archives zipSources
+        archives sourceJar
     }
 
     if (project.name != 'benchmarks' && project.name != 'benchmarks-jmh' && project.name != 'samples') {
@@ -83,9 +84,7 @@ subprojects {
                     if (jar.enabled) {
                         artifact jar
                     }
-                    artifact zipSources {
-                        classifier "src"
-                    }
+                    artifact sourceJar
                 }
             }
             repositories {
