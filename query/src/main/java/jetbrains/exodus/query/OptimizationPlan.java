@@ -17,15 +17,20 @@ package jetbrains.exodus.query;
 
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 public class OptimizationPlan {
-    private static final OptimizationPlan prepare = new OptimizationPlan(false);
-    private static final OptimizationPlan optimize = new OptimizationPlan(false);
-    private static final OptimizationPlan pushNotUpAndGenMinus = new OptimizationPlan(false);
-    private static final OptimizationPlan removeSingleNot = new OptimizationPlan(false);
-    public static final Iterable<OptimizationPlan> PLANS;
+    public static final NodeBase ALL = NodeFactory.all();
+    public static final NodeBase PE2PNN = new PropertyEqualToPropertyNoNull(0);
+    public static final NodeBase LE2LNN = new LinkEqualToLinkNotNull(0);
+    public static final NodeBase MPR = new MergePropertyRanges(0);
+
+    private static final NodeBase A = wildcard(0);
+    private static final NodeBase B = wildcard(1);
+    private static final NodeBase C = wildcard(2);
+    private static final NodeBase D = wildcard(3);
+
+    public static final List<OptimizationPlan> PLANS;
 
     /* package */ final List<OptimizationRule> rules;
     /**
@@ -34,7 +39,12 @@ public class OptimizationPlan {
     public final boolean applyOnEnter;
 
     static {
-        final Collection<OptimizationPlan> plans = new ArrayList<OptimizationPlan>(4);
+        final OptimizationPlan prepare = new OptimizationPlan(false);
+        final OptimizationPlan optimize = new OptimizationPlan(false);
+        final OptimizationPlan pushNotUpAndGenMinus = new OptimizationPlan(false);
+        final OptimizationPlan removeSingleNot = new OptimizationPlan(false);
+
+        final List<OptimizationPlan> plans = new ArrayList<OptimizationPlan>(4);
         plans.add(prepare);
         plans.add(optimize);
         plans.add(pushNotUpAndGenMinus);
@@ -42,50 +52,70 @@ public class OptimizationPlan {
         PLANS = plans;
 
         // a \ b == a & !b
-        prepare.add(new Minus(new Wildcard(0), new Wildcard(1)), new And(new Wildcard(0), new UnaryNot(new Wildcard(1))));
+        prepare.add(minus(A, B), and(A, not(B)));
 
         // ( a | b ) & ( a | c ) == a | ( b & c )
-        optimize.add(new And(new Or(new Wildcard(0), new Wildcard(1)), new Or(new Wildcard(0), new Wildcard(2))), new Or(new Wildcard(0), new And(new Wildcard(1), new Wildcard(2))));
+        optimize.add(and(or(A, B), or(A, C)), or(A, and(B, C)));
         // ( a & b ) | ( a & c ) == a & ( b | c )
-        optimize.add(new Or(new And(new Wildcard(0), new Wildcard(1)), new And(new Wildcard(0), new Wildcard(2))), new And(new Wildcard(0), new Or(new Wildcard(1), new Wildcard(2))));
+        optimize.add(or(and(A, B), and(A, C)), and(A, or(B, C)));
         // all & a == a
-        optimize.add(new And(NodeFactory.all(), new Wildcard(0)), new Wildcard(0));
+        optimize.add(and(ALL, A), A);
         // all | a == all
-        optimize.add(new Or(NodeFactory.all(), new Wildcard(0)), NodeFactory.all());
+        optimize.add(or(ALL, A), ALL);
         // a & !( a & !b ) == a & b
         // needed for optimizing a \ ( a \ b ) which is a & b
-        optimize.add(new And(new Wildcard(0), new UnaryNot(new And(new Wildcard(0), new UnaryNot(new Wildcard(1))))), new And(new Wildcard(0), new Wildcard(1)));
+        optimize.add(and(A, not(and(A, not(B)))), and(A, B));
         // for optimizing #Unassigned #Unresolved when no project is selected (if some assignee bundles differ)
         // ( ( a & b ) | c ) | ( d & b ) == ( ( a | d ) & b ) | c
-        optimize.add(new Or(new Or(new And(new Wildcard(0), new Wildcard(1)), new Wildcard(2)), new And(new Wildcard(3), new Wildcard(1))), new Or(new And(new Or(new Wildcard(0), new Wildcard(3)), new Wildcard(1)), new Wildcard(2)));
+        optimize.add(or(or(and(A, B), C), and(D, B)), or(and(or(A, D), B), C));
         // ( a <= x <= b && c <= x <= d ) == ( max( a, c ) <= x <= min( b, d ) )
-        optimize.add(new MergePropertyRanges(0), new MergePropertyRanges(0));
+        optimize.add(MPR, MPR);
 
         // !!a == a
-        pushNotUpAndGenMinus.add(new UnaryNot(new UnaryNot(new Wildcard(0))), new Wildcard(0));
+        pushNotUpAndGenMinus.add(not(not(A)), A);
         // !a & !b == !( a | b )
-        pushNotUpAndGenMinus.add(new And(new UnaryNot(new Wildcard(0)), new UnaryNot(new Wildcard(1))), new UnaryNot(new Or(new Wildcard(0), new Wildcard(1))));
+        pushNotUpAndGenMinus.add(and(not(A), not(B)), not(or(A, B)));
         // !a | !b == !( a & b )
-        pushNotUpAndGenMinus.add(new Or(new UnaryNot(new Wildcard(0)), new UnaryNot(new Wildcard(1))), new UnaryNot(new And(new Wildcard(0), new Wildcard(1))));
+        pushNotUpAndGenMinus.add(or(not(A), not(B)), not(and(A, B)));
         // a & !b == a \ b
-        pushNotUpAndGenMinus.add(new And(new Wildcard(0), new UnaryNot(new Wildcard(1))), new Minus(new Wildcard(0), new Wildcard(1)));
+        pushNotUpAndGenMinus.add(and(A, not(B)), minus(A, B));
         // a | !b == !( b \ a )
-        pushNotUpAndGenMinus.add(new Or(new Wildcard(0), new UnaryNot(new Wildcard(1))), new UnaryNot(new Minus(new Wildcard(1), new Wildcard(0))));
+        pushNotUpAndGenMinus.add(or(A, not(B)), not(minus(B, A)));
         // a & ( prop == null ) == a \ ( prop != null )
-        pushNotUpAndGenMinus.add(new And(new Wildcard(0), new PropertyEqualToPropertyNoNull(0)), new Minus(new Wildcard(0), new PropertyEqualToPropertyNoNull(0)));
+        pushNotUpAndGenMinus.add(and(A, PE2PNN), minus(A, PE2PNN));
         // a | ( prop == null ) == !( ( prop != null ) \ a )
-        pushNotUpAndGenMinus.add(new Or(new Wildcard(0), new PropertyEqualToPropertyNoNull(0)), new UnaryNot(new Minus(new PropertyEqualToPropertyNoNull(0), new Wildcard(0))));
+        pushNotUpAndGenMinus.add(or(A, PE2PNN), not(minus(PE2PNN, A)));
         // ( prop == null ) == !( prop != null )
-        pushNotUpAndGenMinus.add(new PropertyEqualToPropertyNoNull(0), new UnaryNot(new PropertyEqualToPropertyNoNull(0)));
+        pushNotUpAndGenMinus.add(PE2PNN, not(PE2PNN));
         // a & ( link == null ) == a \ ( link != null )
-        pushNotUpAndGenMinus.add(new And(new Wildcard(0), new LinkEqualToLinkNotNull(0)), new Minus(new Wildcard(0), new LinkEqualToLinkNotNull(0)));
+        pushNotUpAndGenMinus.add(and(A, LE2LNN), minus(A, LE2LNN));
         // a | ( link == null ) == !( ( link != null ) \ a )
-        pushNotUpAndGenMinus.add(new Or(new Wildcard(0), new LinkEqualToLinkNotNull(0)), new UnaryNot(new Minus(new LinkEqualToLinkNotNull(0), new Wildcard(0))));
+        pushNotUpAndGenMinus.add(or(A, LE2LNN), not(minus(LE2LNN, A)));
         // ( link == null ) == !( link != null )
-        pushNotUpAndGenMinus.add(new LinkEqualToLinkNotNull(0), new UnaryNot(new LinkEqualToLinkNotNull(0)));
+        pushNotUpAndGenMinus.add(LE2LNN, not(LE2LNN));
 
         // !a == all \ a
-        removeSingleNot.add(new UnaryNot(new Wildcard(0)), new Minus(NodeFactory.all(), new Wildcard(0)));
+        removeSingleNot.add(not(A), minus(ALL, A));
+    }
+
+    public static UnaryNot not(NodeBase child) {
+        return new UnaryNot(child);
+    }
+
+    public static Or or(NodeBase left, NodeBase right) {
+        return new Or(left, right);
+    }
+
+    public static Minus minus(NodeBase left, NodeBase right) {
+        return new Minus(left, right);
+    }
+
+    public static And and(NodeBase left, NodeBase right) {
+        return new And(left, right);
+    }
+
+    public static Wildcard wildcard(int t) {
+        return new Wildcard(t);
     }
 
     public OptimizationPlan(boolean a) {
@@ -121,6 +151,12 @@ public class OptimizationPlan {
                 }
             }
             rules.add(new OptimizationRule(root.getChild(), dest));
+        }
+    }
+
+    public static void resetAll() {
+        for (int i = 0; i < PLANS.size(); i++) {
+            PLANS.set(i, new OptimizationPlan(false));
         }
     }
 
