@@ -98,22 +98,7 @@ public class RhinoCommand implements Command, Runnable {
         }
     }
 
-    private void println(String s) {
-        out.print(s + "\n\r");
-        out.flush();
-    }
-
-    private void println() {
-        out.print("\n\r");
-        out.flush();
-    }
-
-    private void print(char s) {
-        out.print(s);
-        out.flush();
-    }
-
-    private String readLine() {
+    private String readLine(API api) {
         StringBuilder s = new StringBuilder();
 
         try {
@@ -122,18 +107,18 @@ public class RhinoCommand implements Command, Runnable {
 
                 if (c == -1 || c == 3) return null;
                 if (c == '\n' || c == '\r') {
-                    println();
+                    api.newLine();
                     break;
                 }
                 // delete
                 if (c == 127 && s.length() > 0) {
                     s.deleteCharAt(s.length() - 1);
-                    print('\b');
+                    api.printChar('\b');
                 }
 
                 if (!isPrintableChar(c)) continue;
 
-                print(c);
+                api.printChar(c);
                 s.append(c);
             }
             return s.toString();
@@ -150,7 +135,7 @@ public class RhinoCommand implements Command, Runnable {
                 block != Character.UnicodeBlock.SPECIALS;
     }
 
-    private Scriptable createScope(Context cx) {
+    private Scriptable createScope(Context cx, API api) {
         final Scriptable scope = cx.initStandardObjects(null, true);
         NativeObject config = new NativeObject();
         for (Map.Entry<String, Object> entry : this.config.entrySet()) {
@@ -158,7 +143,7 @@ public class RhinoCommand implements Command, Runnable {
         }
         config.defineProperty("implementationVersion", cx.getImplementationVersion(), NativeObject.READONLY);
         ScriptableObject.putProperty(scope, "config", config);
-        ScriptableObject.putProperty(scope, "out", Context.javaToJS(out, scope));
+        ScriptableObject.putProperty(scope, "api", Context.javaToJS(api, scope));
         for (String name : INITIAL_SCRIPTS) {
             evalResourceScript(cx, scope, name);
         }
@@ -175,8 +160,10 @@ public class RhinoCommand implements Command, Runnable {
 
     private void processInput(final Context cx) {
         while (true) {
+            final API api = new API();
+
             if (scope == null) {
-                scope = createScope(cx);
+                scope = createScope(cx, api);
             }
 
             out.flush();
@@ -186,14 +173,12 @@ public class RhinoCommand implements Command, Runnable {
             // Collect lines of source to compile.
             while (true) {
                 lineno++;
-                print(lineno == 1 ? '>' : ' ');
-                String newline = readLine();
+                api.printChar(lineno == 1 ? '>' : ' ');
+                String newline = readLine(api);
                 if (newline == null) return;
                 source.append(newline).append("\n");
                 if (cx.stringIsCompilableUnit(source.toString())) break;
             }
-
-            final API api = new API();
 
             // execute script in transaction
             try {
@@ -201,21 +186,20 @@ public class RhinoCommand implements Command, Runnable {
                 if (script != null) {
                     long start = System.currentTimeMillis();
 
-                    ScriptableObject.putProperty(scope, "api", Context.javaToJS(api, scope));
                     PersistentEntityStore entityStore = getPersistentStore(scope);
                     if (entityStore == null) {
-                        processScript(script, cx, scope);
+                        processScript(api, script, cx, scope);
                     } else {
                         entityStore.executeInTransaction(new StoreTransactionalExecutable() {
                             @Override
                             public void execute(@NotNull StoreTransaction txn) {
                                 ScriptableObject.putProperty(scope, "txn", Context.javaToJS(txn, scope));
-                                processScript(script, cx, scope);
+                                processScript(api, script, cx, scope);
                             }
                         });
                     }
 
-                    println("Complete in " + ((System.currentTimeMillis() - start)) + " ms");
+                    api.println("Complete in " + ((System.currentTimeMillis() - start)) + " ms");
                 }
             } catch (RhinoException rex) {
                 ToolErrorReporter.reportException(cx.getErrorReporter(), rex);
@@ -242,14 +226,14 @@ public class RhinoCommand implements Command, Runnable {
         return (PersistentEntityStore) Context.jsToJava(store, PersistentEntityStore.class);
     }
 
-    protected void processScript(Script script, Context cx, Scriptable scope) {
+    protected void processScript(API api, Script script, Context cx, Scriptable scope) {
         Object result = script.exec(cx, scope);
         if (result != Context.getUndefinedValue()) {
-            println(Context.toString(result));
+            api.println(Context.toString(result));
         }
     }
 
-    public static class API {
+    public class API {
         private boolean reset;
 
         public void reset() {
@@ -259,6 +243,29 @@ public class RhinoCommand implements Command, Runnable {
         @Override
         public String toString() {
             return "API";
+        }
+
+        public void print(String s) {
+            out.print(s == null ? null : s.replace("\n", "\n\r"));
+            out.flush();
+        }
+
+        public void println(String s) {
+            print(s + "\n\r");
+        }
+
+        public void newLine() {
+            out.print("\n\r");
+            out.flush();
+        }
+
+        public void printChar(char s) {
+            if (s == '\n') {
+                newLine();
+            } else {
+                out.print(s);
+                out.flush();
+            }
         }
     }
 
@@ -270,7 +277,8 @@ public class RhinoCommand implements Command, Runnable {
                 s.append(line).append(": ");
             }
             s.append(message);
-            println(s.toString());
+            err.print(s.toString() + "\n\r");
+            err.flush();
         }
 
         @Override

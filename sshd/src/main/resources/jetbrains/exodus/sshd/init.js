@@ -2,14 +2,12 @@ var MAX_ITEMS_TO_PRINT = 1000;
 
 function print(s) {
   if (!s) s = "";
-  out.print(s);
-  out.flush();
+  api.print(s);
 }
 
 function println(s) {
   if (!s) s = "";
-  out.print(s + "\n\r");
-  out.flush();
+  api.println(s);
 }
 
 function newEnvironment(location) {
