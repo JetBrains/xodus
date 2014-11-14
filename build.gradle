@@ -57,6 +57,11 @@ subprojects {
         testLogging.showStandardStreams = true;
     }
 
+    task javadocJar(type: Jar, dependsOn: javadoc) {
+        classifier = 'javadoc'
+        from javadoc.destinationDir
+    }
+
     task sourceJar(type: Jar) {
         classifier = 'sources'
         from project.sourceSets.main.java
@@ -65,13 +70,16 @@ subprojects {
     def outputProjectName = rootProject.name + '-' + project.name;
     if (version == SNAPSHOT) {
         jar.archiveName = outputProjectName + '.jar'
+        javadocJar.archiveName = outputProjectName + '-javadoc.jar'
         sourceJar.archiveName = outputProjectName + '-sources.jar'
     } else {
         jar.archiveName = outputProjectName + '-' + version + '.jar'
+        javadocJar.archiveName = outputProjectName + '-' + version + '-javadoc.jar'
         sourceJar.archiveName = outputProjectName + '-' + version + '-sources.jar'
     }
 
     artifacts {
+        archives javadocJar
         archives sourceJar
     }
 
@@ -84,6 +92,7 @@ subprojects {
                     if (jar.enabled) {
                         artifact jar
                     }
+                    artifact javadocJar
                     artifact sourceJar
                 }
             }
