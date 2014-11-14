@@ -82,7 +82,5 @@ function optimizeTree(tree) {
         root.optimize(sorts, iterator.next());
     }
     root.cleanSorts(sorts);
-    var result = root.getChild();
-    println(result);
-    return result;
+    return root.getChild();
 }
