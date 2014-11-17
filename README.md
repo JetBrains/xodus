@@ -1,13 +1,16 @@
-#JetBrains Exodus
-JetBrains Java [key-value store database implementation](http://en.wikipedia.org/wiki/NoSQL).
-Key features
+#JetBrains Xodus
+JetBrains Xodus is transactional schemaless embedded pure Java database. Initially, the database was developed for
+[JetBrains YouTrack](http://jetbrains.com/youtrack) bug and issue tracker. Currently it is used more widely in
+JetBrains server-side products. The database is developing for more than 4 years.
+
+Key features:
 - transactional (ACID-compliant)
 - schemaless
 - embedded
 - pure Java
 
-Originally this database was developed as database for [JetBrains YouTrack](http://jetbrains.com/youtrack) issue tracker.
-Currently it is more widely used in other JetBrains-related products. The database is developing for over than 3 years.
+[Learn more](https://github.com/JetBrains/xodus/wiki)
 
+[Check out the latest (nightly) builds](https://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build)
 
-*todo usage examples
+[File an issue or bug](http://xodus.myjetbrains.com/youtrack)
