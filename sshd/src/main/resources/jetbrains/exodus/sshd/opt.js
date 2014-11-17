@@ -25,6 +25,7 @@ function prepareOptimizationPlanDSL() {
 
 function resetOptimizations() {
     Packages.jetbrains.exodus.query.OptimizationPlan.resetAll();
+    prepareOptimizationPlanDSL();
 }
 
 function initOptimizations() {
