@@ -94,7 +94,7 @@ subprojects {
         archives sourceJar
     }
 
-    if (project.name != 'benchmarks' && project.name != 'benchmarks-jmh' && project.name != 'samples') {
+    if (!(project.name in ['benchmarks', 'benchmarks-jmh', 'samples', 'sshd'])) {
         publishing {
             publications {
                 xodus(MavenPublication) {
