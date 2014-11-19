@@ -33,6 +33,7 @@ public class QueryTreeTest extends EntityStoreTestBase {
     private PropertyEqual propertyEqualNull;
     private PropertyNotNull propertyNotNull;
     private LinkEqual linkEqualNull;
+    private LinkEqual linkEqual;
     private LinkNotNull linkNotNull;
     private Concat concat;
     private QueryEngine queryEngine;
@@ -166,6 +167,12 @@ public class QueryTreeTest extends EntityStoreTestBase {
         Assert.assertFalse(propertyEqualNull.equals(propertyEqual));
         Assert.assertFalse(propertyEqual.equals(linkEqualNull));
         Assert.assertFalse(linkEqualNull.equals(propertyEqual));
+    }
+
+    public void testPropertyNotNull() throws Exception {
+        prepare();
+        Assert.assertEquals(new Minus(linkEqual, propertyNotNull), getOptimizedTree(new Minus(new Minus(linkEqual, propertyNotNull), propertyNotNull)));
+        Assert.assertEquals(new Minus(linkEqual, propertyNotNull), getOptimizedTree(new Minus(new Minus(new Minus(linkEqual, propertyNotNull), propertyNotNull), propertyNotNull)));
     }
 
     public void testGetAll() throws Exception {
@@ -316,6 +323,7 @@ public class QueryTreeTest extends EntityStoreTestBase {
         propertyEqual = new PropertyEqual("s", "value");
         propertyEqualNull = new PropertyEqual("s", null);
         propertyNotNull = new PropertyNotNull("s");
+        linkEqual = new LinkEqual("itself", enumeration);
         linkEqualNull = new LinkEqual("itself", null);
         linkNotNull = new LinkNotNull("itself");
         concat = new Concat(propertyEqual, linkNotNull);

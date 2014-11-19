@@ -14,9 +14,19 @@ if (project.hasProperty("xodusVersion")) {
     version = project.xodusVersion
 }
 
-def jetbrainsRepositoryXodusPassword = 'pwd'
-if (project.hasProperty("jetbrainsRepositoryXodusPassword")) {
-    jetbrainsRepositoryXodusPassword = project.jetbrainsRepositoryXodusPassword;
+def mavenPublishUrl = "http://repository.jetbrains.com/xodus"
+if (project.hasProperty("mavenPublishUrl")) {
+    mavenPublishUrl = project.mavenPublishUrl
+}
+
+def mavenPublishUsername = 'xodus'
+if (project.hasProperty("mavenPublishUsername")) {
+    mavenPublishUsername = project.mavenPublishUsername;
+}
+
+def mavenPublishPassword = 'pwd'
+if (project.hasProperty("mavenPublishPassword")) {
+    mavenPublishPassword = project.mavenPublishPassword;
 }
 
 subprojects {
@@ -79,6 +89,7 @@ subprojects {
     }
 
     artifacts {
+        archives jar
         archives javadocJar
         archives sourceJar
     }
@@ -86,7 +97,7 @@ subprojects {
     if (project.name != 'benchmarks' && project.name != 'benchmarks-jmh' && project.name != 'samples') {
         publishing {
             publications {
-                publishProject(MavenPublication) {
+                xodus(MavenPublication) {
                     groupId 'org.jetbrains.xodus'
                     artifactId projectName
                     if (jar.enabled) {
@@ -99,7 +110,7 @@ subprojects {
                             resolveStrategy = DELEGATE_FIRST
                             packaging 'jar'
                             name 'Xodus'
-                            description 'Xodus is transactional schemaless embedded pure-java database'
+                            description 'Xodus is pure Java transactional schemaless embedded  database'
                             url 'http://jetbrains.github.io/xodus'
                             scm {
                                 url 'https://github.com/JetBrains/xodus'
@@ -127,10 +138,10 @@ subprojects {
             }
             repositories {
                 maven {
-                    url "http://repository.jetbrains.com/xodus"
+                    url mavenPublishUrl
                     credentials {
-                        username "xodus"
-                        password jetbrainsRepositoryXodusPassword
+                        username mavenPublishUsername
+                        password mavenPublishPassword
                     }
                 }
             }

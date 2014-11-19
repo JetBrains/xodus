@@ -81,6 +81,8 @@ public class OptimizationPlan {
         pushNotUpAndGenMinus.add(and(A, not(B)), minus(A, B));
         // a | !b == !( b \ a )
         pushNotUpAndGenMinus.add(or(A, not(B)), not(minus(B, A)));
+        // (a \ b) \ b == a \ b
+        pushNotUpAndGenMinus.add(minus(minus(A, B), B), minus(A, B));
         // a & ( prop == null ) == a \ ( prop != null )
         pushNotUpAndGenMinus.add(and(A, PE2PNN), minus(A, PE2PNN));
         // a | ( prop == null ) == !( ( prop != null ) \ a )
