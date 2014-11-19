@@ -61,10 +61,6 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public static final String TRANSACTION_BLOB_STRINGS_CACHE_SIZE = "exodus.entityStore.transaction.blobStringsCacheSize";
 
-    public static final String SSHD_PORT = "exodus.entityStore.sshd.port";
-
-    public static final String SSHD_PASSWORD = "exodus.entityStore.sshd.password";
-
     private static final int MAX_DEFAULT_ENTITY_ITERABLE_CACHE_SIZE = 4096;
 
     public PersistentEntityStoreConfig() {
@@ -242,22 +238,6 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public void setTransactionBlobStringsCacheSize(final int transactionBlobStringsCacheSize) {
         setSetting(TRANSACTION_BLOB_STRINGS_CACHE_SIZE, transactionBlobStringsCacheSize);
-    }
-
-    public void setSshdPort(int port) {
-        setSetting(SSHD_PORT, port);
-    }
-
-    public void setSshdPassword(String password) {
-        setSetting(SSHD_PASSWORD, password);
-    }
-
-    public Integer getSshdPort() {
-        return (Integer)getSetting(SSHD_PORT);
-    }
-
-    public String getSshdPassword() {
-        return (String) getSetting(SSHD_PASSWORD);
     }
 
     private static int defaultEntityIterableCacheSize() {

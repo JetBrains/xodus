@@ -19,7 +19,6 @@ import jetbrains.exodus.*;
 import jetbrains.exodus.bindings.ComparableBinding;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.LongBinding;
-import jetbrains.exodus.sshd.RhinoServer;
 import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
@@ -137,7 +136,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private final DataGetter blobDataGetter;
     private final long startedAt;
     private long transactionCount;
-    private RhinoServer sshd;
 
     @NotNull
     private final Set<TableCreationOperation> tableCreationLog = new HashSet<TableCreationOperation>();
@@ -288,35 +286,11 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             preloadTxn.commit();
         }
 
-        startSshd(config);
-
         startedAt = System.currentTimeMillis();
         transactionCount = 0;
 
         if (log.isDebugEnabled()) {
             log.debug("Created successfully.");
-        }
-    }
-
-    private void startSshd(PersistentEntityStoreConfig config) {
-        if (config.getSshdPort() != null) {
-            try {
-                HashMap<String, Object> opts = new HashMap<String, Object>();
-                opts.put("store", this);
-                sshd = new RhinoServer(config.getSshdPort(), config.getSshdPassword(), opts);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-    }
-
-    private void stopSshd() throws InterruptedException {
-        try {
-            if (sshd != null) {
-                sshd.stop();
-            }
-        } catch (Exception e) {
-            log.error("Failed to stop sshd server", e);
         }
     }
 
@@ -2253,7 +2227,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     public void close() {
         try {
             log.info("Closing...");
-            stopSshd();
             getAsyncProcessor().finish();
 
             synchronized (this) {
