@@ -8,35 +8,24 @@ buildscript {
     }
 }
 
-def SNAPSHOT = '1.0-SNAPSHOT'
-version = SNAPSHOT
-if (project.hasProperty("xodusVersion")) {
-    version = project.xodusVersion
-}
-
-def mavenPublishUrl = "http://repository.jetbrains.com/xodus"
-if (project.hasProperty("mavenPublishUrl")) {
-    mavenPublishUrl = project.mavenPublishUrl
-}
-
-def mavenPublishUsername = 'xodus'
-if (project.hasProperty("mavenPublishUsername")) {
-    mavenPublishUsername = project.mavenPublishUsername;
-}
-
-def mavenPublishPassword = 'pwd'
-if (project.hasProperty("mavenPublishPassword")) {
-    mavenPublishPassword = project.mavenPublishPassword;
-}
+group = 'org.jetbrains.xodus'
+version = hasProperty('xodusVersion') ? project.xodusVersion : '1.0-SNAPSHOT'
+def isSnapshot = version.endsWith('SNAPSHOT');
+def mavenPublishUrl = hasProperty('mavenPublishUrl') ? project.mavenPublishUrl : 'http://repository.jetbrains.com/xodus'
+def mavenPublishUsername = hasProperty('mavenPublishUsername') ? project.mavenPublishUsername : 'xodus'
+def mavenPublishPassword = hasProperty('mavenPublishPassword') ? project.mavenPublishPassword : ''
 
 subprojects {
     apply plugin: 'license'
     apply plugin: 'java'
-    apply plugin: 'maven-publish'
+    apply plugin: 'maven'
 
     sourceCompatibility = 1.6
     compileJava.options.encoding = 'UTF-8'
+    group = rootProject.group
     version = rootProject.version
+
+    def needsPublication = !(project.name in ['benchmarks', 'benchmarks-jmh', 'samples', 'sshd'])
 
     license {
         header rootProject.file('license/copyright.ftl')
@@ -56,7 +45,7 @@ subprojects {
 
     jar {
         manifest {
-            attributes "Implementation-Title": "Gradle", "Implementation-Version": version
+            attributes 'Implementation-Title': 'Gradle', 'Implementation-Version': version
         }
     }
 
@@ -78,7 +67,7 @@ subprojects {
     }
 
     def projectName = rootProject.name + '-' + project.name;
-    if (version == SNAPSHOT) {
+    if (isSnapshot) {
         jar.archiveName = projectName + '.jar'
         javadocJar.archiveName = projectName + '-javadoc.jar'
         sourceJar.archiveName = projectName + '-sources.jar'
@@ -89,34 +78,35 @@ subprojects {
     }
 
     artifacts {
-        archives jar
-        archives javadocJar
-        archives sourceJar
+        archives jar, javadocJar, sourceJar
     }
 
-    if (!(project.name in ['benchmarks', 'benchmarks-jmh', 'samples', 'sshd'])) {
-        publishing {
-            publications {
-                xodus(MavenPublication) {
-                    groupId 'org.jetbrains.xodus'
-                    artifactId projectName
-                    if (jar.enabled) {
-                        artifact jar
-                    }
-                    artifact javadocJar
-                    artifact sourceJar
-                    pom.withXml {
-                        asNode().children().last() + {
-                            resolveStrategy = DELEGATE_FIRST
-                            packaging 'jar'
+    if (needsPublication) {
+
+        afterEvaluate { project ->
+            uploadArchives {
+                repositories {
+                    mavenDeployer {
+                        pom.groupId = project.group
+                        pom.artifactId = projectName
+                        pom.version = version
+
+                        repository(url: mavenPublishUrl) {
+                            authentication(userName: mavenPublishUsername, password: mavenPublishPassword)
+                        }
+
+                        pom.project {
                             name 'Xodus'
-                            description 'Xodus is pure Java transactional schemaless embedded  database'
+                            packaging 'jar'
+                            description 'Xodus is pure Java transactional schemaless embedded database'
                             url 'http://jetbrains.github.io/xodus'
+
                             scm {
                                 url 'https://github.com/JetBrains/xodus'
                                 connection 'scm:git:https://github.com/JetBrains/xodus.git'
                                 developerConnection 'scm:git:https://github.com/JetBrains/xodus.git'
                             }
+
                             licenses {
                                 license {
                                     name 'The Apache Software License, Version 2.0'
@@ -124,6 +114,7 @@ subprojects {
                                     distribution 'repo'
                                 }
                             }
+
                             developers {
                                 developer {
                                     id 'JetBrains'
@@ -133,15 +124,6 @@ subprojects {
                                 }
                             }
                         }
-                    }
-                }
-            }
-            repositories {
-                maven {
-                    url mavenPublishUrl
-                    credentials {
-                        username mavenPublishUsername
-                        password mavenPublishPassword
                     }
                 }
             }
