@@ -25,7 +25,7 @@ subprojects {
     group = rootProject.group
     version = rootProject.version
 
-    def needsPublication = !(project.name in ['benchmarks', 'benchmarks-jmh', 'samples', 'sshd'])
+    def needsPublication = !(project.name in ['benchmarks', 'benchmarks-jmh', 'console', 'samples', 'sshd'])
 
     license {
         header rootProject.file('license/copyright.ftl')
