@@ -1,7 +1,7 @@
 #JetBrains Xodus
 JetBrains Xodus is pure Java transactional schemaless embedded database. Initially, it was developed for
-[JetBrains YouTrack](http://jetbrains.com/youtrack) bug and issue tracker. Currently it is used more widely in
-JetBrains server-side products. The database is developing for more than 4 years.
+[JetBrains YouTrack](http://jetbrains.com/youtrack) bug and issue tracker; at the moment it is used in
+some internal JetBrains projects as well. The database has been under development for more than 4 years.
 
 Key features:
 - Xodus is written in pure Java.
