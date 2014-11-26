@@ -7,7 +7,7 @@ Key features:
 - Xodus is written in pure Java.
 - Xodus is transactional and fully ACID-compliant.
 - Xodus is highly concurrent.
-- Xodus is schemaless. One can you it as Key-Value store, or Entity store with volatile scheme.
+- Xodus is schemaless and agile. No schema migrations or refactorings.
 - Xodus is embedded and requires no dedicated server. No installation of it, no administration of it, no intercommunication with it.
 
 Xodus 1.0-SNAPSHOT artifacts are available in [Maven Central](https://oss.sonatype.org/content/repositories/snapshots/org/jetbrains/xodus) repository.
