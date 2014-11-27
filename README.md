@@ -6,7 +6,7 @@ some internal JetBrains projects as well.
 Key features:
 - Xodus is written in pure Java.
 - Xodus is transactional and fully ACID-compliant.
-- Xodus is highly concurrent. In implements [MVCC](https://en.wikipedia.org/wiki/Multiversion_concurrency_control) and
+- Xodus is highly concurrent. [MVCC](https://en.wikipedia.org/wiki/Multiversion_concurrency_control) and
 true [snapshot isolation](https://en.wikipedia.org/wiki/Snapshot_isolation) allow completely non-blocking reads.
 - Xodus is schemaless and agile. No schema migrations or refactorings.
 - Xodus is embedded and requires no dedicated server. No installation of it, no administration of it, no intercommunication with it.
