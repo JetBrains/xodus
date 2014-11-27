@@ -1,15 +1,15 @@
 #JetBrains Xodus
-JetBrains Xodus is pure Java transactional schemaless embedded database. Initially, it was developed for
-[JetBrains YouTrack](http://jetbrains.com/youtrack) bug and issue tracker; at the moment it is used in
-some internal JetBrains projects as well.
+JetBrains Xodus is a pure Java transactional schemaless embedded database. Initially, it was developed for
+the [JetBrains YouTrack](http://jetbrains.com/youtrack) a comprehensive issue tracking and project management tool.
+At the moment Xodus is also used in some internal JetBrains projects.
 
 Key features:
 - Xodus is written in pure Java.
 - Xodus is transactional and fully ACID-compliant.
-- Xodus is highly concurrent. [MVCC](https://en.wikipedia.org/wiki/Multiversion_concurrency_control) and
-true [snapshot isolation](https://en.wikipedia.org/wiki/Snapshot_isolation) allow completely non-blocking reads.
-- Xodus is schemaless and agile. No schema migrations or refactorings.
-- Xodus is embedded and requires no dedicated server. No installation of it, no administration of it, no intercommunication with it.
+- Xodus is highly concurrent. Reads are completely non-blocking due to [MVCC](https://en.wikipedia.org/wiki/Multiversion_concurrency_control) and
+true [snapshot isolation](https://en.wikipedia.org/wiki/Snapshot_isolation).
+- Xodus is schemaless and agile. It requires no schema migrations or refactorings.
+- Xodus is embedded. It doesn’t require an installation and administration. No intercommunication with dedicated server is needed.
 
 Xodus 1.0-SNAPSHOT artifacts are available in [Maven Central](https://oss.sonatype.org/content/repositories/snapshots/org/jetbrains/xodus) repository.
 
@@ -17,4 +17,4 @@ Xodus 1.0-SNAPSHOT artifacts are available in [Maven Central](https://oss.sonaty
 
 [Check out the latest (nightly) builds](https://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build)
 
-[File an issue or bug](http://xodus.myjetbrains.com/youtrack)
+[Report an issue](http://xodus.myjetbrains.com/youtrack)
