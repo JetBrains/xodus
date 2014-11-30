@@ -357,9 +357,12 @@ public abstract class EntityIterableBase implements EntityIterable {
     @Override
     public Entity getLast() {
         final EntityIteratorBase it = (EntityIteratorBase) iterator();
-        final EntityId id = it.getLast();
-        it.disposeIfShouldBe();
-        return id == null ? null : getEntity(id);
+        try {
+            final EntityId id = it.getLast();
+            return id == null ? null : getEntity(id);
+        } finally {
+            it.disposeIfShouldBe();
+        }
     }
 
     @NotNull

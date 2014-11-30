@@ -119,13 +119,24 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
         public EntityId nextIdImpl() {
             if (hasNextImpl()) {
                 explain(getType());
-                final Cursor cursor = getCursor();
-                final long localId = LongBinding.compressedEntryToLong(cursor.getKey());
-                final EntityId result = new PersistentEntityId(entityTypeId, localId);
+                final EntityId result = getEntityId();
                 hasNextValid = false;
                 return result;
             }
             return null;
+        }
+
+        @Nullable
+        @Override
+        public EntityId getLast() {
+            if (!getCursor().getPrev()) {
+                return null;
+            }
+            return getEntityId();
+        }
+
+        private EntityId getEntityId() {
+            return new PersistentEntityId(entityTypeId, LongBinding.compressedEntryToLong(getCursor().getKey()));
         }
     }
 

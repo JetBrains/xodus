@@ -420,6 +420,18 @@ public class EntityIterableTests extends EntityStoreTestBase {
         Assert.assertEquals("user9", txn.getAll("User").getLast().getProperty("login"));
     }
 
+    public void testGetLastOfGetAll() {
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        final int count = 100000;
+        createNUsers(txn, count);
+        txn.flush();
+        final long started = System.currentTimeMillis();
+        final Entity lastUser = txn.getAll("User").getLast();
+        System.out.println(System.currentTimeMillis() - started);
+        Assert.assertNotNull(lastUser);
+        Assert.assertEquals("user" + (count - 1), lastUser.getProperty("login"));
+    }
+
     private static void checkIdRange(EntityIterable issues, int lo, int hi) {
         int i = lo;
         for (Entity e : issues) {
