@@ -270,7 +270,7 @@ public class EntityTests extends EntityStoreTestBase {
         final StoreTransaction txn = getStoreTransaction();
         final Entity entity = txn.newEntity("Issue");
         Assert.assertNull(entity.getBlob("body"));
-        final URL data = this.getClass().getClassLoader().getResource("data.txt");
+        final URL data = this.getClass().getClassLoader().getResource("testXD_362.data");
 
         entity.setBlob("body", data.openStream());
         Assert.assertTrue(entity.getBlobSize("body") > 0L);
