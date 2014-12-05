@@ -130,6 +130,15 @@ subprojects {
                                     distribution 'repo'
                                 }
                             }
+
+                            developers {
+                                developer {
+                                    id 'JetBrains'
+                                    name 'JetBrains Team'
+                                    organization 'JetBrains s.r.o'
+                                    organizationUrl 'http://www.jetbrains.com'
+                                }
+                            }
                         }
                     }
                 }
