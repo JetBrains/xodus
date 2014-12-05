@@ -11,13 +11,21 @@ buildscript {
 
 group = 'org.jetbrains.xodus'
 version = hasProperty('xodusVersion') ? project.xodusVersion : '1.0-SNAPSHOT'
-def isSnapshot = version.endsWith('SNAPSHOT');
+def isSnapshot = version.endsWith('SNAPSHOT')
 def mavenPublishUrl = hasProperty('mavenPublishUrl') ? project.mavenPublishUrl : 'http://repository.jetbrains.com/xodus'
 def mavenPublishUsername = hasProperty('mavenPublishUsername') ? project.mavenPublishUsername : 'xodus'
 def mavenPublishPassword = hasProperty('mavenPublishPassword') ? project.mavenPublishPassword : ''
 def signingKeyId = hasProperty('signingKeyId') ? project.signingKeyId : ''
 def signingPassword = hasProperty('signingPassword') ? project.signingPassword : ''
 def signingSecretKeyRingFile = hasProperty('signingSecretKeyRingFile') ? project.signingSecretKeyRingFile : ''
+
+def getArtifactId(project) {
+    return project.getRootProject().name + '-' + project.name
+}
+
+def shouldDeploy(project) {
+    return !(project.name in ['benchmarks', 'benchmarks-jmh', 'console', 'samples', 'sshd'])
+}
 
 subprojects {
     apply plugin: 'license'
@@ -56,7 +64,7 @@ subprojects {
         minHeapSize = '1g'
         maxHeapSize = '1g'
         jvmArgs = ['-ea', '-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=2808']
-        testLogging.showStandardStreams = true;
+        testLogging.showStandardStreams = true
     }
 
     task javadocJar(type: Jar, dependsOn: javadoc) {
@@ -69,21 +77,14 @@ subprojects {
         from project.sourceSets.main.java
     }
 
-    def projectName = rootProject.name + '-' + project.name;
-    if (isSnapshot) {
-        jar.archiveName = projectName + '.jar'
-        javadocJar.archiveName = projectName + '-javadoc.jar'
-        sourceJar.archiveName = projectName + '-sources.jar'
-    } else {
-        jar.archiveName = projectName + '-' + version + '.jar'
-        javadocJar.archiveName = projectName + '-' + version + '-javadoc.jar'
-        sourceJar.archiveName = projectName + '-' + version + '-sources.jar'
-    }
+    def artifactIdAndVersion = isSnapshot ? getArtifactId(project) : getArtifactId(project) + '-' + version
+    jar.archiveName = artifactIdAndVersion + '.jar'
+    javadocJar.archiveName = artifactIdAndVersion + '-javadoc.jar'
+    sourceJar.archiveName = artifactIdAndVersion + '-sources.jar'
 
     artifacts {
         archives jar, javadocJar, sourceJar
     }
-
 
     if (!isSnapshot) {
         ext.'signing.keyId' = signingKeyId
@@ -92,29 +93,24 @@ subprojects {
     }
 
     afterEvaluate { project ->
-        if (!(project.name in ['benchmarks', 'benchmarks-jmh', 'console', 'samples', 'sshd'])) {
+        if (shouldDeploy(project)) {
             uploadArchives {
                 repositories {
                     mavenDeployer {
 
-                        // never deploy tests artifacts (relates to XD-406)
-                        addFilter('ignore tests') { artifact, file ->
-                            !file.name.contains('tests')
-                        }
                         beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
-
-                        pom.groupId = project.group
-                        pom.artifactId = projectName
-                        pom.version = version
 
                         repository(url: mavenPublishUrl) {
                             authentication(userName: mavenPublishUsername, password: mavenPublishPassword)
                         }
 
                         pom.project {
+                            groupId project.group
+                            artifactId getArtifactId(project)
+                            version version
                             name 'Xodus'
+                            description 'Xodus is pure Java transactional schema-less embedded database'
                             packaging 'jar'
-                            description 'Xodus is pure Java transactional schemaless embedded database'
                             url 'http://jetbrains.github.io/xodus'
 
                             scm {
