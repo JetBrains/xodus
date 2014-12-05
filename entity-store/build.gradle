@@ -3,17 +3,19 @@ dependencies {
     testCompile project(':utils').sourceSets.test.output
 }
 
-task jarTests(type: Jar) {
-    from project.sourceSets.test.output
-}
+// do not build tests artifact if there is task 'uploadArchives' (fixes XD-406)
+if (!gradle.startParameter.getTaskNames().contains('uploadArchives')) {
+    task jarTests(type: Jar) {
+        from project.sourceSets.test.output
+    }
 
-def SNAPSHOT = '1.0-SNAPSHOT'
+    if (version.endsWith('SNAPSHOT')) {
+        jarTests.archiveName = rootProject.name + '-' + project.name + '-tests.jar'
+    } else {
+        jarTests.archiveName = rootProject.name + '-' + project.name + '-tests-' + version + '.jar'
+    }
 
-if (version == SNAPSHOT) {
-    jarTests.archiveName = rootProject.name + '-' + project.name + '-tests.jar'
-} else {
-    jarTests.archiveName = rootProject.name + '-' + project.name + '-tests-' + version + '.jar'
-}
-artifacts {
-    archives jarTests
+    artifacts {
+        archives jarTests
+    }
 }

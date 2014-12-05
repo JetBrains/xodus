@@ -97,6 +97,10 @@ subprojects {
                 repositories {
                     mavenDeployer {
 
+                        // never deploy tests artifacts (relates to XD-406)
+                        addFilter('ignore tests') { artifact, file ->
+                            !file.name.contains('tests')
+                        }
                         beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
 
                         pom.groupId = project.group
@@ -131,7 +135,7 @@ subprojects {
                 }
             }
             signing {
-                required { !isSnapshot && gradle.taskGraph.hasTask("uploadArchives") }
+                required { !isSnapshot && gradle.taskGraph.hasTask('uploadArchives') }
                 sign configurations.archives
             }
         }
