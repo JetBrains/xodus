@@ -10,7 +10,7 @@ buildscript {
 }
 
 group = 'org.jetbrains.xodus'
-version = hasProperty('xodusVersion') ? project.xodusVersion : '1.0-SNAPSHOT'
+version = hasProperty('xodusVersion') ? project.xodusVersion : ''
 def isSnapshot = version.endsWith('SNAPSHOT')
 def mavenPublishUrl = hasProperty('mavenPublishUrl') ? project.mavenPublishUrl : 'http://repository.jetbrains.com/xodus'
 def mavenPublishUsername = hasProperty('mavenPublishUsername') ? project.mavenPublishUsername : 'xodus'
@@ -19,12 +19,8 @@ def signingKeyId = hasProperty('signingKeyId') ? project.signingKeyId : ''
 def signingPassword = hasProperty('signingPassword') ? project.signingPassword : ''
 def signingSecretKeyRingFile = hasProperty('signingSecretKeyRingFile') ? project.signingSecretKeyRingFile : ''
 
-def getArtifactId(project) {
-    return project.getRootProject().name + '-' + project.name
-}
-
 def shouldDeploy(project) {
-    return !(project.name in ['benchmarks', 'benchmarks-jmh', 'console', 'samples', 'sshd'])
+    return project.version.length() > 0 && !(project.name in ['benchmarks', 'benchmarks-jmh', 'console', 'samples', 'sshd'])
 }
 
 subprojects {
@@ -37,6 +33,7 @@ subprojects {
     compileJava.options.encoding = 'UTF-8'
     group = rootProject.group
     version = rootProject.version
+    archivesBaseName = rootProject.name + '-' + project.name
 
     license {
         header rootProject.file('license/copyright.ftl')
@@ -77,11 +74,6 @@ subprojects {
         from project.sourceSets.main.java
     }
 
-    def artifactIdAndVersion = isSnapshot ? getArtifactId(project) : getArtifactId(project) + '-' + version
-    jar.archiveName = artifactIdAndVersion + '.jar'
-    javadocJar.archiveName = artifactIdAndVersion + '-javadoc.jar'
-    sourceJar.archiveName = artifactIdAndVersion + '-sources.jar'
-
     artifacts {
         archives jar, javadocJar, sourceJar
     }
@@ -105,9 +97,6 @@ subprojects {
                         }
 
                         pom.project {
-                            groupId project.group
-                            artifactId getArtifactId(project)
-                            version version
                             name 'Xodus'
                             description 'Xodus is pure Java transactional schema-less embedded database'
                             packaging 'jar'

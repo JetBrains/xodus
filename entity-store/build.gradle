@@ -9,7 +9,7 @@ if (!gradle.startParameter.getTaskNames().contains('uploadArchives')) {
         from project.sourceSets.test.output
     }
 
-    if (version.endsWith('SNAPSHOT')) {
+    if (version.length() == 0) {
         jarTests.archiveName = rootProject.name + '-' + project.name + '-tests.jar'
     } else {
         jarTests.archiveName = rootProject.name + '-' + project.name + '-tests-' + version + '.jar'
