@@ -127,7 +127,7 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
 
     public long getCachedCount(@NotNull final EntityIterableHandle handle) {
         final Long result = iterableCountsCache.tryKey(handle);
-        return result == null ? -1 : result;
+        return result == null ? -1L : result;
     }
 
     public void setCachedCount(@NotNull final EntityIterableHandle handle, final long count) {
