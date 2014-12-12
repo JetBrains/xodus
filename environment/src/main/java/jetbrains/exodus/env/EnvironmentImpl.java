@@ -55,6 +55,7 @@ public class EnvironmentImpl implements Environment {
     private final AtomicLong structureId;
     private final TransactionSet txns;
     private final LinkedList<RunnableWithTxnRoot> txnSafeTasks;
+    private final StoreGetCache storeGetCache;
     private final GarbageCollector gc;
     private final Object commitLock = new Object();
     private final Object metaLock = new Object();
@@ -79,6 +80,8 @@ public class EnvironmentImpl implements Environment {
         structureId = new AtomicLong(meta.getSecond());
         txns = new TransactionSet();
         txnSafeTasks = new LinkedList<RunnableWithTxnRoot>();
+        storeGetCache = new StoreGetCache(ec.getEnvStoreGetCacheSize());
+
         gc = new GarbageCollector(this);
 
         throwableOnCommit = null;
@@ -600,6 +603,10 @@ public class EnvironmentImpl implements Environment {
     @Nullable
     TransactionImpl getNewestTransaction() {
         return txns.getNewestTransaction();
+    }
+
+    StoreGetCache getStoreGetCache() {
+        return storeGetCache;
     }
 
     static boolean isUtilizationProfile(@NotNull final String storeName) {

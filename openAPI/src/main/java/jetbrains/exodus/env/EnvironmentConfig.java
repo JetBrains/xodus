@@ -49,6 +49,8 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public static final String LOG_SYNC_PERIOD = "exodus.log.syncPeriod"; // in milliseconds
 
+    public static final String ENV_STOREGET_CACHE_SIZE = "exodus.env.storeGetCacheSize";
+
     public static final String ENV_CLOSE_FORCEDLY = "exodus.env.closeForcedly";
 
     public static final String ENV_MONITOR_TXNS_TIMEOUT = "exodus.env.monitorTxns.timeout"; // in milliseconds
@@ -93,6 +95,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
                 new Pair(LOG_CLEAR_INVALID, false),
                 new Pair(LOG_SYNC_PERIOD, 1000L),
+                new Pair(ENV_STOREGET_CACHE_SIZE, 65536),
                 new Pair(ENV_CLOSE_FORCEDLY, false),
                 new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
                 new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
@@ -202,6 +205,14 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public void setLogSyncPeriod(long millis) {
         setSetting(LOG_SYNC_PERIOD, millis);
+    }
+
+    public int getEnvStoreGetCacheSize() {
+        return (Integer) getSetting(ENV_STOREGET_CACHE_SIZE);
+    }
+
+    public void setEnvStoreGetCacheSize() {
+
     }
 
     public boolean getEnvCloseForcedly() {

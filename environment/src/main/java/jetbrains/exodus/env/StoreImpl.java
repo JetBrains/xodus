@@ -58,7 +58,24 @@ public class StoreImpl implements Store {
     @Override
     @Nullable
     public ByteIterable get(@NotNull final Transaction txn, @NotNull final ByteIterable key) {
-        return ((TransactionImpl) txn).getTree(this).get(key);
+        final ITree tree = ((TransactionImpl) txn).getTree(this);
+        final long treeRootAddress = tree.getRootAddress();
+        final ByteIterable result;
+        // if either tree is empty or mutable
+        if (treeRootAddress == Loggable.NULL_ADDRESS) {
+            result = tree.get(key);
+        } else {
+            final StoreGetCache storeGetCache = environment.getStoreGetCache();
+            final ByteIterable cached = storeGetCache.tryKey(treeRootAddress, key);
+            if (cached != null) {
+                return cached;
+            }
+            result = tree.get(key);
+            if (result != null) {
+                storeGetCache.cacheObject(treeRootAddress, key, result);
+            }
+        }
+        return result;
     }
 
     @Override

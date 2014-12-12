@@ -103,8 +103,6 @@ public abstract class ByteIterableBase implements ByteIterable {
     }
 
     /**
-     * For tests
-     *
      * @return hash code computed using all bytes of the iterable.
      */
     @Override
