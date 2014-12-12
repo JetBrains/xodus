@@ -57,11 +57,6 @@ public class SoftObjectCache<K, V> extends ObjectCacheBase<K, V> {
     }
 
     @Override
-    public double hitRate() {
-        return attempts == 0 ? 0 : ((double) hits) / ((double) attempts);
-    }
-
-    @Override
     public V tryKey(@NotNull final K key) {
         ++attempts;
         final ObjectCache<K, V> chunk = getChunk(key, false);
