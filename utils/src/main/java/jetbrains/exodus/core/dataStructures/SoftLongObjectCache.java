@@ -39,7 +39,7 @@ public class SoftLongObjectCache<V> {
             cacheSize = MIN_SIZE;
         }
         //noinspection unchecked
-        chunks = new SoftReference[SoftObjectCache.computeNumberOfChunks(cacheSize)];
+        chunks = new SoftReference[SoftObjectCacheBase.computeNumberOfChunks(cacheSize)];
         chuckSize = cacheSize / chunks.length;
         clear();
     }
