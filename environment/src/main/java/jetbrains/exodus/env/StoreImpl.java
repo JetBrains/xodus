@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.env;
 
+import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.Loggable;
@@ -35,6 +36,9 @@ import java.util.Iterator;
 
 @SuppressWarnings({"ClassNameSameAsAncestorName"})
 public class StoreImpl implements Store {
+
+    @NotNull
+    private static final ByteIterable NULL_CACHED_VALUE = new ArrayByteIterable(ByteIterable.EMPTY);
 
     @NotNull
     private final EnvironmentImpl environment;
@@ -68,12 +72,10 @@ public class StoreImpl implements Store {
             final StoreGetCache storeGetCache = environment.getStoreGetCache();
             final ByteIterable cached = storeGetCache.tryKey(treeRootAddress, key);
             if (cached != null) {
-                return cached;
+                return cached == NULL_CACHED_VALUE ? null : cached;
             }
             result = tree.get(key);
-            if (result != null) {
-                storeGetCache.cacheObject(treeRootAddress, key, result);
-            }
+            storeGetCache.cacheObject(treeRootAddress, key, result == null ? NULL_CACHED_VALUE : result);
         }
         return result;
     }
