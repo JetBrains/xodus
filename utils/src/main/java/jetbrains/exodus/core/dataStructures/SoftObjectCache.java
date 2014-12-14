@@ -15,26 +15,10 @@
  */
 package jetbrains.exodus.core.dataStructures;
 
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-
 public class SoftObjectCache<K, V> extends SoftObjectCacheBase<K, V> {
 
-    private final Lock lock;
-
-    public SoftObjectCache(int cacheSize) {
+    public SoftObjectCache(final int cacheSize) {
         super(cacheSize);
-        lock = new ReentrantLock();
-    }
-
-    @Override
-    public void lock() {
-        lock.lock();
-    }
-
-    @Override
-    public void unlock() {
-        lock.unlock();
     }
 
     @Override

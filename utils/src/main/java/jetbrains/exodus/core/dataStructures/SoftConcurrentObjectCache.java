@@ -22,14 +22,6 @@ public class SoftConcurrentObjectCache<K, V> extends SoftObjectCacheBase<K, V> {
     }
 
     @Override
-    public void lock() {
-    }
-
-    @Override
-    public void unlock() {
-    }
-
-    @Override
     protected ObjectCacheBase<K, V> newChunk(final int chunkSize) {
         return new ConcurrentObjectCache<K, V>(chunkSize);
     }

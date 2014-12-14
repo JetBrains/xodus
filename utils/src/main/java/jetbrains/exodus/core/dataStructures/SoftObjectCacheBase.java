@@ -48,10 +48,18 @@ abstract class SoftObjectCacheBase<K, V> extends ObjectCacheBase<K, V> {
     }
 
     @Override
+    public final void lock() {
+    }
+
+    @Override
+    public final void unlock() {
+    }
+
+    @Override
     public V tryKey(@NotNull final K key) {
         ++attempts;
         final ObjectCacheBase<K, V> chunk = getChunk(key, false);
-        final V result = chunk == null ? null : chunk.tryKey(key);
+        final V result = chunk == null ? null : chunk.tryKeyLocked(key);
         if (result != null) {
             ++hits;
         }
@@ -61,20 +69,41 @@ abstract class SoftObjectCacheBase<K, V> extends ObjectCacheBase<K, V> {
     @Override
     public V getObject(@NotNull final K key) {
         final ObjectCacheBase<K, V> chunk = getChunk(key, false);
-        return chunk == null ? null : chunk.getObject(key);
+        if (chunk == null) {
+            return null;
+        }
+        chunk.lock();
+        try {
+            return chunk.getObject(key);
+        } finally {
+            chunk.unlock();
+        }
     }
 
     @Override
     public V cacheObject(@NotNull final K key, @NotNull final V value) {
         final ObjectCacheBase<K, V> chunk = getChunk(key, true);
         assert chunk != null;
-        return chunk.cacheObject(key, value);
+        chunk.lock();
+        try {
+            return chunk.cacheObject(key, value);
+        } finally {
+            chunk.unlock();
+        }
     }
 
     @Override
     public V remove(@NotNull final K key) {
         final ObjectCacheBase<K, V> chunk = getChunk(key, false);
-        return chunk == null ? null : chunk.remove(key);
+        if (chunk == null) {
+            return null;
+        }
+        chunk.lock();
+        try {
+            return chunk.remove(key);
+        } finally {
+            chunk.unlock();
+        }
     }
 
     @Override
