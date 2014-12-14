@@ -27,10 +27,10 @@ import org.jetbrains.annotations.Nullable;
  */
 class StoreGetCache {
 
-    private final SoftConcurrentObjectCache<KeyEntry, ByteIterable> cache;
+    private final SoftConcurrentObjectCache<KeyEntry, ArrayByteIterable> cache;
 
     StoreGetCache(final int cacheSize) {
-        cache = new SoftConcurrentObjectCache<KeyEntry, ByteIterable>(cacheSize);
+        cache = new SoftConcurrentObjectCache<KeyEntry, ArrayByteIterable>(cacheSize);
     }
 
     @Nullable
@@ -38,8 +38,8 @@ class StoreGetCache {
         return cache.tryKey(new KeyEntry(treeRootAddress, key));
     }
 
-    void cacheObject(final long treeRootAddress, @NotNull final ByteIterable key, @NotNull final ByteIterable value) {
-        cache.cacheObject(new KeyEntry(treeRootAddress, key), new ArrayByteIterable(value));
+    void cacheObject(final long treeRootAddress, @NotNull final ByteIterable key, @NotNull final ArrayByteIterable value) {
+        cache.cacheObject(new KeyEntry(treeRootAddress, key), value);
     }
 
     private static class KeyEntry {

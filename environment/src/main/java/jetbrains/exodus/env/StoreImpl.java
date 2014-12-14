@@ -38,7 +38,7 @@ import java.util.Iterator;
 public class StoreImpl implements Store {
 
     @NotNull
-    private static final ByteIterable NULL_CACHED_VALUE = new ArrayByteIterable(ByteIterable.EMPTY);
+    private static final ArrayByteIterable NULL_CACHED_VALUE = new ArrayByteIterable(ByteIterable.EMPTY);
 
     @NotNull
     private final EnvironmentImpl environment;
@@ -75,7 +75,7 @@ public class StoreImpl implements Store {
                 return cached == NULL_CACHED_VALUE ? null : cached;
             }
             result = tree.get(key);
-            storeGetCache.cacheObject(treeRootAddress, key, result == null ? NULL_CACHED_VALUE : result);
+            storeGetCache.cacheObject(treeRootAddress, key, result == null ? NULL_CACHED_VALUE : new ArrayByteIterable(result));
         }
         return result;
     }
