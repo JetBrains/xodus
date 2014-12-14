@@ -46,7 +46,6 @@ import java.util.Set;
 public class PersistentStoreTransaction implements StoreTransaction, TxnGetterStategy {
 
     private static final int COPY_CACHED_VALUES = 50;
-    private static final double PROPS_CACHE_TARGET_HIT_RATE = .3;
 
     @NotNull
     public static final ByteIterable ZERO_VERSION_ENTRY = IntegerBinding.intToCompressedEntry(0);
@@ -56,12 +55,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     protected final Transaction txn;
     @NotNull
     protected final Set<EntityIterator> createdIterators;
-    @NotNull
-    private final ObjectCacheBase<PropertyId, ByteIterable> propEntriesCache;
-    @NotNull
     private final ObjectCacheBase<PropertyId, Comparable> propsCache;
-    @NotNull
-    private final ObjectCacheBase<PropertyId, ByteIterable> linkEntriesCache;
     @NotNull
     private final ObjectCacheBase<PropertyId, PersistentEntityId> linksCache;
     @NotNull
@@ -92,16 +86,10 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         this.txn = txn;
         createdIterators = new HashSet<EntityIterator>();
         final PersistentEntityStoreConfig config = store.getConfig();
-        final int propsCacheSize = config.getTransactionPropsCacheSize();
-        propEntriesCache = createObjectCache(propsCacheSize);
-        propsCache = createObjectCache(propsCacheSize);
-        final int linksCacheSize = config.getTransactionLinksCacheSize();
-        linkEntriesCache = createObjectCache(linksCacheSize);
-        linksCache = createObjectCache(linksCacheSize);
+        propsCache = createObjectCache(config.getTransactionPropsCacheSize());
+        linksCache = createObjectCache(config.getTransactionLinksCacheSize());
         blobStringsCache = createObjectCache(config.getTransactionBlobStringsCacheSize());
-        propEntriesCache.fillWith(source.propEntriesCache, COPY_CACHED_VALUES);
         propsCache.fillWith(source.propsCache, COPY_CACHED_VALUES);
-        linkEntriesCache.fillWith(source.linkEntriesCache, COPY_CACHED_VALUES);
         linksCache.fillWith(source.linksCache, COPY_CACHED_VALUES);
         blobStringsCache.fillWith(source.blobStringsCache, COPY_CACHED_VALUES);
         localCache = source.localCache;
@@ -111,12 +99,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         this.store = store;
         createdIterators = new HashSet<EntityIterator>();
         final PersistentEntityStoreConfig config = store.getConfig();
-        final int propsCacheSize = config.getTransactionPropsCacheSize();
-        propEntriesCache = createObjectCache(propsCacheSize);
-        propsCache = createObjectCache(propsCacheSize);
-        final int linksCacheSize = config.getTransactionLinksCacheSize();
-        linkEntriesCache = createObjectCache(linksCacheSize);
-        linksCache = createObjectCache(linksCacheSize);
+        propsCache = createObjectCache(config.getTransactionPropsCacheSize());
+        linksCache = createObjectCache(config.getTransactionLinksCacheSize());
         blobStringsCache = createObjectCache(config.getTransactionBlobStringsCacheSize());
         final Runnable beginHook = new Runnable() {
             @Override
@@ -364,10 +348,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (len == 0) {
             return getAll(entityType);
         }
-        final StringBuilder builder = new StringBuilder();
-        builder.append(value);
-        builder.append(Character.MAX_VALUE);
-        return find(entityType, propertyName, value, builder.toString());
+        return find(entityType, propertyName, value, value + Character.MAX_VALUE);
     }
 
     @NotNull
@@ -653,21 +634,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         createdIterators.clear();
     }
 
-    boolean preloadPropertyValues() {
-        return propEntriesCache.hitRate() >= PROPS_CACHE_TARGET_HIT_RATE;
-    }
-
-    void cachePropertyEntry(@NotNull final PersistentEntityId fromId, final int propId, @NotNull final ByteIterable valueEntry) {
-        final PropertyId fromEnd = new PropertyId(fromId, propId);
-        if (propEntriesCache.getObject(fromEnd) == null) {
-            propEntriesCache.cacheObject(fromEnd, valueEntry);
-        }
-    }
-
-    ByteIterable getCachedPropertyEntry(@NotNull final PersistentEntity from, final int propId) {
-        return propEntriesCache.tryKey(new PropertyId(from.getId(), propId));
-    }
-
     void cacheProperty(@NotNull final PersistentEntityId fromId, final int propId, @NotNull final Comparable value) {
         final PropertyId fromEnd = new PropertyId(fromId, propId);
         if (propsCache.getObject(fromEnd) == null) {
@@ -677,18 +643,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     Comparable getCachedProperty(@NotNull final PersistentEntity from, final int propId) {
         return propsCache.tryKey(new PropertyId(from.getId(), propId));
-    }
-
-    void cacheLinkEntry(@NotNull final PersistentEntity from, final int linkId, @NotNull final ByteIterable toEntry) {
-        final PropertyId fromEnd = new PropertyId(from.getId(), linkId);
-        if (linkEntriesCache.getObject(fromEnd) != null) {
-            throw new IllegalStateException("Link is already cached, at first it should be invalidated");
-        }
-        linkEntriesCache.cacheObject(fromEnd, toEntry);
-    }
-
-    ByteIterable getCachedLinkEntry(@NotNull final PersistentEntity from, final int linkId) {
-        return linkEntriesCache.tryKey(new PropertyId(from.getId(), linkId));
     }
 
     void cacheLink(@NotNull final PersistentEntity from, final int linkId, @NotNull final PersistentEntityId to) {
@@ -737,7 +691,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                          @Nullable final Comparable oldValue,
                          @Nullable final Comparable newValue) {
         final PropertyId propId = new PropertyId(id, propertyId);
-        propEntriesCache.remove(propId);
         propsCache.remove(propId);
         updateMutableCache(new PropertyChangedHandleChecker(id.getTypeId(), id.getLocalId(), propertyId, oldValue, newValue));
     }
@@ -746,7 +699,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                    @NotNull final PersistentEntityId targetId,
                    final int linkId) {
         final PropertyId propId = new PropertyId(sourceId, linkId);
-        linkEntriesCache.remove(propId);
         linksCache.remove(propId);
         updateMutableCache(new LinkAddedHandleChecker(sourceId, targetId, linkId));
     }
@@ -755,7 +707,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                      @NotNull final PersistentEntityId targetId,
                      final int linkId) {
         final PropertyId propId = new PropertyId(sourceId, linkId);
-        linkEntriesCache.remove(propId);
         linksCache.remove(propId);
         updateMutableCache(new LinkDeletedHandleChecker(sourceId, targetId, linkId));
     }
@@ -854,9 +805,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     private void revertCaches(final boolean clearPropsAndLinksCache) {
         if (clearPropsAndLinksCache) {
-            propEntriesCache.clear();
             propsCache.clear();
-            linkEntriesCache.clear();
             linksCache.clear();
             blobStringsCache.clear();
         }

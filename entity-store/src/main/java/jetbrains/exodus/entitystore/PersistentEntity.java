@@ -372,8 +372,4 @@ public class PersistentEntity implements Entity {
     public int compareTo(@NotNull final Entity o) {
         return id.compareTo(o.getId());
     }
-
-    public void preloadLinks(final int count) {
-        store.preloadLinks(getTransaction(), this, count);
-    }
 }

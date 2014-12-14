@@ -131,7 +131,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private Explainer explainer;
 
     private final DataGetter propertyDataGetter;
-    private final DataGetter propertyPreloadDataGetter;
     private final DataGetter linkDataGetter;
     private final DataGetter blobDataGetter;
     private final long startedAt;
@@ -165,7 +164,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         cachingDisabled = config.isCachingDisabled();
         explainer = new Explainer(config.isExplainOn());
         propertyDataGetter = new PropertyDataGetter();
-        propertyPreloadDataGetter = new PropertyPreloadDataGetter();
         linkDataGetter = config.isDebugLinkDataGetter() ? new DebugLinkDataGetter() : new LinkDataGetter();
         blobDataGetter = new BlobDataGetter();
         allSequences = new HashMap<String, PersistentSequence>();
@@ -653,12 +651,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     public ByteIterable getRawProperty(@NotNull final PersistentStoreTransaction txn,
                                        @NotNull final PersistentEntity entity,
                                        final int propertyId) {
-        ByteIterable result = txn.getCachedPropertyEntry(entity, propertyId);
-        if (result == null) {
-            result = getRawValue(txn, entity, propertyId,
-                    txn.preloadPropertyValues() ? propertyPreloadDataGetter : propertyDataGetter);
-        }
-        return result == ByteIterable.EMPTY ? null : result;
+        return getRawValue(txn, entity, propertyId, propertyDataGetter);
     }
 
     public boolean setProperty(@NotNull final PersistentStoreTransaction txn,
@@ -1301,21 +1294,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private ByteIterable getRawLink(@NotNull final PersistentStoreTransaction txn,
                                     @NotNull final PersistentEntity from,
                                     final int linkId) {
-        ByteIterable result = txn.getCachedLinkEntry(from, linkId);
-        if (result != null) {
-            if (result == ByteIterable.EMPTY) {
-                result = null;
-            }
-        } else {
-            result = getRawValue(txn, from, linkId, linkDataGetter);
-            if (result == null) {
-                txn.cacheLinkEntry(from, linkId, ByteIterable.EMPTY);
-            } else {
-                result = new ArrayByteIterable(result);
-                txn.cacheLinkEntry(from, linkId, result);
-            }
-        }
-        return result;
+        return getRawValue(txn, from, linkId, linkDataGetter);
     }
 
     @Nullable
@@ -1396,47 +1375,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             }
             return new EntityFromHistoryLinkSetIterable(this, fromId, nextVersion, linkNames);
         }
-    }
-
-    void preloadLinks(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity entity, final int count) {
-        final PersistentEntityId id = entity.getId();
-        final long localId = id.getLocalId();
-        final ByteIterable keyEntry = PropertyKey.propertyKeyToEntry(new PropertyKey(localId, 0));
-        final Cursor cursor = getLinksFirstIndexCursor(txn, id.getTypeId());
-        try {
-            final List<ByteIterable> preloaded = new ArrayList<ByteIterable>();
-            int lastPropId = -1;
-            if (cursor.getSearchKey(keyEntry) != null) {
-                boolean success = true;
-                for (int i = 0; success && i < count; ++i, success = cursor.getNext()) {
-                    final PropertyKey currentKey = PropertyKey.entryToPropertyKey(cursor.getKey());
-                    if (currentKey.getEntityLocalId() != localId) {
-                        break;
-                    }
-                    final int propId = currentKey.getPropertyId();
-                    if (lastPropId != propId) {
-                        cachePreloadedLinks(txn, entity, preloaded, lastPropId);
-                        lastPropId = propId;
-                    }
-                    preloaded.add(new ArrayByteIterable(cursor.getValue()));
-                }
-                if (preloaded.size() == 1) {
-                    cachePreloadedLinks(txn, entity, preloaded, lastPropId);
-                }
-            }
-        } finally {
-            cursor.close();
-        }
-    }
-
-    private void cachePreloadedLinks(@NotNull final PersistentStoreTransaction txn,
-                                     @NotNull final PersistentEntity from,
-                                     @NotNull final List<ByteIterable> linkedEntries,
-                                     final int propertyId) {
-        if (linkedEntries.size() == 1) {
-            txn.cacheLinkEntry(from, propertyId, linkedEntries.get(0));
-        }
-        linkedEntries.clear();
     }
 
     boolean deleteLink(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity from, final int linkId, @NotNull final PersistentEntity to) {
@@ -2377,49 +2315,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
         @Override
         public ByteIterable getUpToDateEntry(@NotNull final PersistentStoreTransaction txn, int typeId, PropertyKey key) {
-            ByteIterable result = getPropertiesTable(txn, typeId).get(txn, PropertyKey.propertyKeyToEntry(key));
-            final PersistentEntityId fromId = new PersistentEntityId(typeId, key.getEntityLocalId());
-            final int propertyId = key.getPropertyId();
-            if (result == null) {
-                txn.cachePropertyEntry(fromId, propertyId, ByteIterable.EMPTY);
-            } else {
-                result = new ArrayByteIterable(result);
-                txn.cachePropertyEntry(fromId, propertyId, result);
-            }
-            return result;
-        }
-    }
-
-    private class PropertyPreloadDataGetter extends PropertyDataGetter {
-
-        @Override
-        public ByteIterable getUpToDateEntry(@NotNull PersistentStoreTransaction txn, int typeId, PropertyKey key) {
-            final Cursor cursor = getPrimaryPropertyIndexCursor(txn, typeId);
-            try {
-                ByteIterable result = null;
-                final long localId = key.getEntityLocalId();
-                final PersistentEntityId fromId = new PersistentEntityId(typeId, localId);
-                final int propertyId = key.getPropertyId();
-                int propsToPreload = config.getTransactionPropsCacheSize() / 4;
-                for (boolean success = cursor.getSearchKeyRange(PropertyKey.propertyKeyToEntry(new PropertyKey(localId, 0))) != null;
-                     success; success = cursor.getNext() && propsToPreload > 0, --propsToPreload) {
-                    final PropertyKey nextKey = PropertyKey.entryToPropertyKey(cursor.getKey());
-                    if (nextKey.getEntityLocalId() != localId) {
-                        break;
-                    }
-                    final ByteIterable valueEntry = new ArrayByteIterable(cursor.getValue());
-                    final int nextPropId = nextKey.getPropertyId();
-                    if (nextPropId == propertyId) {
-                        result = valueEntry;
-                    } else {
-                        txn.cachePropertyEntry(fromId, nextPropId, valueEntry);
-                    }
-                }
-                txn.cachePropertyEntry(fromId, propertyId, result == null ? ByteIterable.EMPTY : result);
-                return result;
-            } finally {
-                cursor.close();
-            }
+            return getPropertiesTable(txn, typeId).get(txn, PropertyKey.propertyKeyToEntry(key));
         }
     }
 
