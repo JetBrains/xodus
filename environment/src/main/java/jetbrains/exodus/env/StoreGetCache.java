@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.env;
 
+import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.core.dataStructures.SoftConcurrentObjectCache;
 import org.jetbrains.annotations.NotNull;
@@ -38,7 +39,7 @@ class StoreGetCache {
     }
 
     void cacheObject(final long treeRootAddress, @NotNull final ByteIterable key, @NotNull final ByteIterable value) {
-        cache.cacheObject(new KeyEntry(treeRootAddress, key), value);
+        cache.cacheObject(new KeyEntry(treeRootAddress, key), new ArrayByteIterable(value));
     }
 
     private static class KeyEntry {
