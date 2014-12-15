@@ -15,47 +15,30 @@
  */
 package jetbrains.exodus.query;
 
-
-import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache;
-import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
+import jetbrains.exodus.core.dataStructures.SoftConcurrentObjectCache;
 import jetbrains.exodus.core.dataStructures.SoftObjectCache;
+import jetbrains.exodus.core.dataStructures.SoftObjectCacheBase;
 
 public class OptimizedTreesCache {
-    private static final OptimizedTreesCache INSTANCE = new OptimizedTreesCache();
 
-    private final ObjectCacheBase<String, OptimizedTreeAndSorts> cache;
+    private static final OptimizedTreesCache INSTANCE = new OptimizedTreesCache();
+    private static final int CACHE_SIZE = 16384;
+
+    private final SoftObjectCacheBase<String, OptimizedTreeAndSorts> cache;
 
     private OptimizedTreesCache() {
-        final boolean blocking = "false".equals(System.getProperty("exodus.query.tree.cache.nonBlocking"));
-        final int size = getCacheSize();
+        final boolean blocking = "false".equals(System.getProperty("exodus.query.treeCache.nonBlocking"));
         cache = blocking ?
-                new SoftObjectCache<String, OptimizedTreeAndSorts>(size) :
-                new ConcurrentObjectCache<String, OptimizedTreeAndSorts>(size);
-    }
-
-    private int getCacheSize() {
-        return 16384;
+                new SoftObjectCache<String, OptimizedTreeAndSorts>(CACHE_SIZE) :
+                new SoftConcurrentObjectCache<String, OptimizedTreeAndSorts>(CACHE_SIZE);
     }
 
     OptimizedTreeAndSorts findOptimized(NodeBase tree) {
-        return cache.tryKeyLocked(tree.getHandle());
+        return cache.tryKey(tree.getHandle());
     }
 
     void cacheOptimized(NodeBase original, NodeBase optimized, Sorts sorts) {
-        final String key = original.getHandle();
-        cache.lock();
-        try {
-            if (cache.getObject(key) == null) {
-                cache.cacheObject(key, new OptimizedTreeAndSorts(optimized, sorts));
-            }
-        } finally {
-            cache.unlock();
-        }
-    }
-
-    @Deprecated
-    public void clear() {
-        //TODO: remove
+        cache.cacheObject(original.getHandle(), new OptimizedTreeAndSorts(optimized, sorts));
     }
 
     public static OptimizedTreesCache get() {

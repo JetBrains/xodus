@@ -21,7 +21,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.lang.ref.SoftReference;
 
-abstract class SoftObjectCacheBase<K, V> extends ObjectCacheBase<K, V> {
+public abstract class SoftObjectCacheBase<K, V> extends ObjectCacheBase<K, V> {
 
     public static final int MIN_SIZE = 16;
 
