@@ -42,6 +42,10 @@ class StoreGetCache {
         cache.cacheObject(new KeyEntry(treeRootAddress, key), value);
     }
 
+    double hitRate() {
+        return cache.hitRate();
+    }
+
     private static class KeyEntry {
 
         private final long treeRootAddress;

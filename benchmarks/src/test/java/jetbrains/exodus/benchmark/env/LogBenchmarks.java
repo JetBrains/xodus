@@ -16,6 +16,7 @@
 package jetbrains.exodus.benchmark.env;
 
 import jetbrains.exodus.core.dataStructures.LongArrayList;
+import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.log.LogTestsBase;
 import jetbrains.exodus.log.LoggableToWrite;
 import jetbrains.exodus.util.Random;
@@ -103,15 +104,10 @@ public class LogBenchmarks extends LogTestsBase {
         }
 
         long readTime = System.currentTimeMillis() - start;
-        System.out.println(percent + "% of memory for cache: random read took " + readTime + ". Cache hit rate: " + hitRateString(getLog().getCacheHitRate()));
+        System.out.println(percent + "% of memory for cache: random read took " + readTime + ". Cache hit rate: " + ObjectCacheBase.formatHitRate(getLog().getCacheHitRate()));
         if (myMessenger != null) {
             myMessenger.putValue(valueName + "_randomRead", readTime);
         }
         System.out.println();
-    }
-
-    private String hitRateString(double hr) {
-        int result = (int) (hr * 1000);
-        return String.valueOf((result / 10)) + '.' + (result % 10) + '%';
     }
 }

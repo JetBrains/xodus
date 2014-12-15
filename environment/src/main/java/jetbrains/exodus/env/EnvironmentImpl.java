@@ -17,6 +17,7 @@ package jetbrains.exodus.env;
 
 import jetbrains.exodus.BackupStrategy;
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.gc.GarbageCollector;
 import jetbrains.exodus.log.Log;
@@ -258,21 +259,24 @@ public class EnvironmentImpl implements Environment {
         // in order to avoid deadlock, do not finish gc inside lock
         // it is safe to invoke gc.finish() several times
         gc.finish();
-        final double hitRate;
+        final double logCacheHitRate;
+        final double storeGetCacheHitRate;
         synchronized (commitLock) {
             if (!isOpen()) {
                 throw new IllegalStateException("Already closed, see cause for previous close stack trace", throwableOnClose);
             }
             checkInactive(ec.getEnvCloseForcedly());
             gc.saveUtilizationProfile();
-            hitRate = log.getCacheHitRate() * 100;
+            logCacheHitRate = log.getCacheHitRate();
             log.close();
+            storeGetCacheHitRate = storeGetCache.hitRate();
             throwableOnClose = new Throwable();
             throwableOnCommit = EnvironmentClosedException.INSTANCE;
         }
         runAllTransactionSafeTasks();
         if (logging.isInfoEnabled()) {
-            logging.info("Exodus log cache hit rate: " + hitRate + '%');
+            logging.info("Exodus log cache hit rate: " + ObjectCacheBase.formatHitRate(logCacheHitRate));
+            logging.info("Store get cache hit rate: " + ObjectCacheBase.formatHitRate(storeGetCacheHitRate));
         }
     }
 

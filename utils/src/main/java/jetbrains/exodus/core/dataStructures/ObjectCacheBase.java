@@ -101,4 +101,14 @@ public abstract class ObjectCacheBase<K, V> {
     public abstract V getObject(@NotNull final K key);
 
     public abstract int count();
+
+    /**
+     * Formats hit rate in percent with one decimal place.
+     *
+     * @param hitRate hit rate value in the interval [0..1]
+     */
+    public static String formatHitRate(final double hitRate) {
+        final int result = (int) (hitRate * 1000);
+        return String.valueOf((result / 10)) + '.' + (result % 10) + '%';
+    }
 }
