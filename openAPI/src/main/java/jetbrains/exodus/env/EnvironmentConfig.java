@@ -211,8 +211,8 @@ public final class EnvironmentConfig extends AbstractConfig {
         return (Integer) getSetting(ENV_STOREGET_CACHE_SIZE);
     }
 
-    public void setEnvStoreGetCacheSize() {
-
+    public void setEnvStoreGetCacheSize(final int storeGetCacheSize) {
+        setSetting(ENV_STOREGET_CACHE_SIZE, storeGetCacheSize);
     }
 
     public boolean getEnvCloseForcedly() {
