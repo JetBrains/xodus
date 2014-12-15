@@ -17,11 +17,13 @@ package jetbrains.exodus;
 
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
+import jetbrains.exodus.core.dataStructures.hash.LinkedHashSet;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 
 public abstract class AbstractConfig {
 
@@ -30,6 +32,9 @@ public abstract class AbstractConfig {
 
     @NotNull
     private final Map<String, Object> settings;
+    @NotNull
+    private final Set<ChangedSettingsListener> listeners;
+
 
     protected AbstractConfig(@NotNull final Pair<String, Object>[] props) {
         settings = new HashMap<String, Object>();
@@ -49,6 +54,7 @@ public abstract class AbstractConfig {
             }
             setSetting(propName, value);
         }
+        listeners = new LinkedHashSet<ChangedSettingsListener>();
     }
 
     public Object getSetting(@NotNull final String key) {
@@ -57,10 +63,19 @@ public abstract class AbstractConfig {
 
     public void setSetting(@NotNull final String key, @NotNull final Object value) {
         settings.put(key, value);
+        fireChangedSettingsListeners(key);
     }
 
     public Map<String, Object> getSettings() {
         return Collections.unmodifiableMap(settings);
+    }
+
+    public void addChangedSettingsListener(@NotNull final ChangedSettingsListener listener) {
+        listeners.add(listener);
+    }
+
+    public void removeChangedSettingsListener(@NotNull final ChangedSettingsListener listener) {
+        listeners.remove(listener);
     }
 
     public void setSettings(@NotNull final Map<String, String> settings) throws InvalidSettingException {
@@ -104,6 +119,12 @@ public abstract class AbstractConfig {
         }
     }
 
+    private void fireChangedSettingsListeners(@NotNull final String settingName) {
+        for (final ChangedSettingsListener listener : listeners) {
+            listener.settingChanged(settingName);
+        }
+    }
+
     private static boolean getBoolean(@NotNull final String propName, final boolean defaultValue) {
         final String value = System.getProperty(propName);
         return value == null ? defaultValue : "true".equalsIgnoreCase(value);
@@ -113,5 +134,10 @@ public abstract class AbstractConfig {
         if (builder.length() > 0) {
             builder.append('\n');
         }
+    }
+
+    public interface ChangedSettingsListener {
+
+        public void settingChanged(@NotNull final String settingName);
     }
 }
