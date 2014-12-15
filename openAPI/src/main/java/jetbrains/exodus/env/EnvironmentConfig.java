@@ -95,7 +95,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
                 new Pair(LOG_CLEAR_INVALID, false),
                 new Pair(LOG_SYNC_PERIOD, 1000L),
-                new Pair(ENV_STOREGET_CACHE_SIZE, 65536),
+                new Pair(ENV_STOREGET_CACHE_SIZE, 0),
                 new Pair(ENV_CLOSE_FORCEDLY, false),
                 new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
                 new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
@@ -212,6 +212,9 @@ public final class EnvironmentConfig extends AbstractConfig {
     }
 
     public void setEnvStoreGetCacheSize(final int storeGetCacheSize) {
+        if (storeGetCacheSize < 0) {
+            throw new InvalidSettingException("Negative StoreGetCache size");
+        }
         setSetting(ENV_STOREGET_CACHE_SIZE, storeGetCacheSize);
     }
 

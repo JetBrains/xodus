@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.env;
 
+import jetbrains.exodus.AbstractConfig;
 import jetbrains.exodus.BackupStrategy;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
@@ -56,7 +57,9 @@ public class EnvironmentImpl implements Environment {
     private final AtomicLong structureId;
     private final TransactionSet txns;
     private final LinkedList<RunnableWithTxnRoot> txnSafeTasks;
-    private final StoreGetCache storeGetCache;
+    @Nullable
+    private StoreGetCache storeGetCache;
+    private final StoreGetCacheSizeSettingListener cacheSizeSettingListener;
     private final GarbageCollector gc;
     private final Object commitLock = new Object();
     private final Object metaLock = new Object();
@@ -81,7 +84,9 @@ public class EnvironmentImpl implements Environment {
         structureId = new AtomicLong(meta.getSecond());
         txns = new TransactionSet();
         txnSafeTasks = new LinkedList<RunnableWithTxnRoot>();
-        storeGetCache = new StoreGetCache(ec.getEnvStoreGetCacheSize());
+        invalidateStoreGetCache();
+        cacheSizeSettingListener = new StoreGetCacheSizeSettingListener();
+        ec.addChangedSettingsListener(cacheSizeSettingListener);
 
         gc = new GarbageCollector(this);
 
@@ -267,9 +272,10 @@ public class EnvironmentImpl implements Environment {
             }
             checkInactive(ec.getEnvCloseForcedly());
             gc.saveUtilizationProfile();
+            ec.removeChangedSettingsListener(cacheSizeSettingListener);
             logCacheHitRate = log.getCacheHitRate();
             log.close();
-            storeGetCacheHitRate = storeGetCache.hitRate();
+            storeGetCacheHitRate = storeGetCache == null ? 0 : storeGetCache.hitRate();
             throwableOnClose = new Throwable();
             throwableOnCommit = EnvironmentClosedException.INSTANCE;
         }
@@ -609,6 +615,7 @@ public class EnvironmentImpl implements Environment {
         return txns.getNewestTransaction();
     }
 
+    @Nullable
     StoreGetCache getStoreGetCache() {
         return storeGetCache;
     }
@@ -692,6 +699,11 @@ public class EnvironmentImpl implements Environment {
         txn.storeCreated(store);
     }
 
+    private void invalidateStoreGetCache() {
+        final int storeGetCacheSize = ec.getEnvStoreGetCacheSize();
+        storeGetCache = storeGetCacheSize == 0 ? null : new StoreGetCache(storeGetCacheSize);
+    }
+
     private static void applyEnvironmentSettings(@NotNull final String location,
                                                  @NotNull final EnvironmentConfig ec) {
         final File propsFile = new File(location, ENVIRONMENT_PROPERTIES_FILE);
@@ -710,6 +722,16 @@ public class EnvironmentImpl implements Environment {
                 }
             } catch (IOException e) {
                 throw ExodusException.toExodusException(e);
+            }
+        }
+    }
+
+    private class StoreGetCacheSizeSettingListener implements AbstractConfig.ChangedSettingsListener {
+
+        @Override
+        public void settingChanged(@NotNull final String settingName) {
+            if (settingName.equals(EnvironmentConfig.ENV_STOREGET_CACHE_SIZE)) {
+                invalidateStoreGetCache();
             }
         }
     }

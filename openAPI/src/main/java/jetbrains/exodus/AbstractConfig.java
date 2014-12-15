@@ -38,6 +38,7 @@ public abstract class AbstractConfig {
 
     protected AbstractConfig(@NotNull final Pair<String, Object>[] props) {
         settings = new HashMap<String, Object>();
+        listeners = new LinkedHashSet<ChangedSettingsListener>();
         for (final Pair<String, Object> prop : props) {
             final String propName = prop.getFirst();
             final Object defaultValue = prop.getSecond();
@@ -54,7 +55,6 @@ public abstract class AbstractConfig {
             }
             setSetting(propName, value);
         }
-        listeners = new LinkedHashSet<ChangedSettingsListener>();
     }
 
     public Object getSetting(@NotNull final String key) {
