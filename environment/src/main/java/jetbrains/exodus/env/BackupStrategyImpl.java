@@ -25,7 +25,7 @@ import java.io.File;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-public class BackupStrategyImpl implements BackupStrategy {
+class BackupStrategyImpl implements BackupStrategy {
 
     @NotNull
     private final EnvironmentImpl environment;
