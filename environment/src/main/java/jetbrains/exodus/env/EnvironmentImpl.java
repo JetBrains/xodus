@@ -293,66 +293,7 @@ public class EnvironmentImpl implements Environment {
 
     @Override
     public BackupStrategy getBackupStrategy() {
-        return new BackupStrategy() {
-            @Override
-            public void beforeBackup() {
-                suspendGC();
-            }
-
-            @Override
-            public Iterable<Pair<File, String>> listFiles() {
-                return new Iterable<Pair<File, String>>() {
-                    final File[] files = IOUtil.listFiles(new File(log.getLocation()));
-                    int i = 0;
-                    File current;
-
-                    @Override
-                    public Iterator<Pair<File, String>> iterator() {
-                        return new Iterator<Pair<File, String>>() {
-
-                            @Override
-                            public boolean hasNext() {
-                                if (current != null) {
-                                    return true;
-                                }
-                                while (i < files.length) {
-                                    final File next = files[i++];
-                                    if (next.isFile() && next.length() != 0 && next.getName().endsWith(LogUtil.LOG_FILE_EXTENSION)) {
-                                        current = next;
-                                        return true;
-                                    }
-                                }
-                                return false;
-                            }
-
-                            @Override
-                            public Pair<File, String> next() {
-                                if (!hasNext()) {
-                                    throw new NoSuchElementException();
-                                }
-                                final Pair<File, String> result = new Pair<File, String>(current, "");
-                                current = null;
-                                return result;
-                            }
-
-                            @Override
-                            public void remove() {
-                                throw new UnsupportedOperationException();
-                            }
-                        };
-                    }
-                };
-            }
-
-            @Override
-            public void afterBackup() {
-                resumeGC();
-            }
-
-            @Override
-            public void onError(Throwable t) {
-            }
-        };
+        return new BackupStrategyImpl(this);
     }
 
     @Override
