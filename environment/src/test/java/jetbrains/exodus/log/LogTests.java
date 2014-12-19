@@ -42,8 +42,8 @@ public class LogTests extends LogTestsBase {
         super.setUp();
         LoggableFactory.registerLoggable(DUMMY_LOGGABLE.getType(), new LoggableFactory() {
             @Override
-            protected RandomAccessLoggable create(long address, int length, @NotNull RandomAccessByteIterable data, int dataLength, long structureId) {
-                return new RandomAccessLoggable(address, DUMMY_LOGGABLE.getType(), length, RandomAccessByteIterable.EMPTY, dataLength, structureId);
+            protected RandomAccessLoggable create(long address, int length, @NotNull ByteIterableWithAddress data, int dataLength, long structureId) {
+                return new RandomAccessLoggable(address, DUMMY_LOGGABLE.getType(), length, ByteIterableWithAddress.EMPTY, dataLength, structureId);
             }
         });
     }
@@ -187,7 +187,7 @@ public class LogTests extends LogTestsBase {
             public void run() {
                 final LoggableFactory factory = new LoggableFactory() {
                     @Override
-                    protected RandomAccessLoggable create(long address, int length, @NotNull RandomAccessByteIterable data, int dataLength, long structureId) {
+                    protected RandomAccessLoggable create(long address, int length, @NotNull ByteIterableWithAddress data, int dataLength, long structureId) {
                         throw new UnsupportedOperationException("Shouldn't be there");
                     }
                 };

@@ -20,10 +20,10 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.LongBinding;
+import jetbrains.exodus.log.ByteIterableWithAddress;
 import jetbrains.exodus.log.ByteIteratorWithAddress;
 import jetbrains.exodus.log.CompoundByteIterator;
 import jetbrains.exodus.log.Loggable;
-import jetbrains.exodus.log.RandomAccessByteIterable;
 import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -37,7 +37,7 @@ final class ImmutableNode extends NodeBase {
     private final short childrenCount;
     private final byte childAddressLength;
 
-    ImmutableNode(@NotNull final PatriciaTreeBase tree, final long address, final int type, @NotNull final RandomAccessByteIterable data) {
+    ImmutableNode(@NotNull final PatriciaTreeBase tree, final long address, final int type, @NotNull final ByteIterableWithAddress data) {
         this(tree, address, type, data.iterator());
     }
 

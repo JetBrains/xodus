@@ -17,10 +17,7 @@ package jetbrains.exodus.tree.patricia;
 
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.log.Log;
-import jetbrains.exodus.log.Loggable;
-import jetbrains.exodus.log.RandomAccessByteIterable;
-import jetbrains.exodus.log.RandomAccessLoggable;
+import jetbrains.exodus.log.*;
 import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.tree.ITreeCursor;
 import jetbrains.exodus.tree.TreeCursor;
@@ -44,7 +41,7 @@ public class PatriciaTree extends PatriciaTreeBase {
         if (!nodeIsRoot(type)) {
             throw new ExodusException("Unexpected root page type: " + type);
         }
-        final RandomAccessByteIterable data = rootLoggable.getData();
+        final ByteIterableWithAddress data = rootLoggable.getData();
         final ByteIterator itr = data.iterator();
         size = CompressedUnsignedLongByteIterable.getLong(itr);
         int offset = CompressedUnsignedLongByteIterable.getCompressedSize(size);

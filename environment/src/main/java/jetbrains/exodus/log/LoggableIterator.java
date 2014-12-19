@@ -37,11 +37,11 @@ final class LoggableIterator implements Iterator<Loggable> {
     }
 
     @Override
-    public Loggable next() {
+    public RandomAccessLoggable next() {
         if (!hasNext()) {
             return null;
         }
-        final Loggable result = log.read(it);
+        final RandomAccessLoggable result = log.read(it);
         skip = (NullLoggable.isNullLoggable(result)) ? 0 : result.getDataLength();
         return result;
     }
@@ -54,10 +54,6 @@ final class LoggableIterator implements Iterator<Loggable> {
 
     @Override
     public void remove() {
-    }
-
-    long getHighAddress() {
-        return it.getHighAddress() + skip;
     }
 
     private void skip() {

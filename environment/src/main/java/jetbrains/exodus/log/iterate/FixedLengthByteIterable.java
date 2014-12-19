@@ -45,7 +45,7 @@ public class FixedLengthByteIterable extends ByteIterableBase {
     public int compareTo(ByteIterable right) {
         if (source instanceof RandomAccessByteIterable) {
             final RandomAccessByteIterable src = (RandomAccessByteIterable) source;
-            return RandomAccessByteIterable.compare(offset, length, right, src.getLog(), src.getAddress());
+            return src.compareTo(offset, length, right);
         }
         return super.compareTo(right);
     }

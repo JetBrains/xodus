@@ -60,12 +60,12 @@ final class DataIterator extends CompoundByteIteratorBase {
 
     @NotNull
     @Override
-    protected ArrayByteIterable.Iterator getCurrent() {
+    public ArrayByteIterable.Iterator getCurrent() {
         return (ArrayByteIterable.Iterator) super.getCurrent();
     }
 
     @Override
     protected void onFail(@NotNull String message) throws ExodusException {
-        super.onFail(message + ", address is: " + getHighAddress());
+        super.onFail(message + ", address = " + getHighAddress());
     }
 }

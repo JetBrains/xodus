@@ -43,7 +43,7 @@ public abstract class LoggableFactory {
     static RandomAccessLoggable create(final long address,
                                        final int type,
                                        final int length,
-                                       @NotNull final RandomAccessByteIterable data,
+                                       @NotNull final ByteIterableWithAddress data,
                                        final int dataLength,
                                        final long structureId) {
         if (type < 0 || type >= FACTORY.length) {
@@ -68,7 +68,7 @@ public abstract class LoggableFactory {
      */
     protected abstract RandomAccessLoggable create(final long address,
                                                    final int length,
-                                                   @NotNull final RandomAccessByteIterable data,
+                                                   @NotNull final ByteIterableWithAddress data,
                                                    final int dataLength,
                                                    final long structureId);
 }

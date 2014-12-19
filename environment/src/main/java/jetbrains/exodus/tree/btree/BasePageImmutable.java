@@ -50,7 +50,7 @@ abstract class BasePageImmutable extends BasePage implements IByteIterableCompar
      * @param tree tree containing the page.
      * @param data binary data to load the page from.
      */
-    protected BasePageImmutable(@NotNull final BTreeBase tree, @NotNull final RandomAccessByteIterable data) {
+    protected BasePageImmutable(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data) {
         this.tree = tree;
         final ByteIteratorWithAddress itr = data.iterator();
         size = CompressedUnsignedLongByteIterable.getInt(itr) >> 1;

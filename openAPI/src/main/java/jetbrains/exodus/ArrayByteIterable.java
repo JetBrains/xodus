@@ -136,6 +136,14 @@ public class ArrayByteIterable extends ByteIterableBase {
             return result;
         }
 
+        public byte[] getBytesUnsafe() {
+            return bytes;
+        }
+
+        public int getLength() {
+            return length;
+        }
+
         public int getOffset() {
             return offset;
         }

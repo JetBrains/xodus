@@ -30,7 +30,7 @@ final class DatabaseRoot extends RandomAccessLoggable {
         @Override
         protected RandomAccessLoggable create(final long address,
                                               final int length,
-                                              @NotNull final RandomAccessByteIterable data,
+                                              @NotNull final ByteIterableWithAddress data,
                                               final int dataLength,
                                               final long structureId) {
             final ByteIterator it = data.iterator();
@@ -52,7 +52,7 @@ final class DatabaseRoot extends RandomAccessLoggable {
                          final boolean isValid,
                          final long address,
                          final int length,
-                         @NotNull final RandomAccessByteIterable data,
+                         @NotNull final ByteIterableWithAddress data,
                          final int dataLength) {
         super(address, DATABASE_ROOT_TYPE, length, data, dataLength, NO_STRUCTURE_ID);
         this.rootAddress = rootAddress;

@@ -22,105 +22,32 @@ import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.log.iterate.CompoundByteIteratorBase;
 import org.jetbrains.annotations.NotNull;
 
-@SuppressWarnings({"PublicMethodNotExposedInInterface", "CovariantCompareTo"})
-public class RandomAccessByteIterable implements ByteIterable {
+public class RandomAccessByteIterable extends ByteIterableWithAddress {
 
-    public static final RandomAccessByteIterable EMPTY = new RandomAccessByteIterable(0, null) {
-        @Override
-        public ByteIteratorWithAddress iterator() {
-            return ByteIteratorWithAddress.EMPTY;
-        }
-
-        @Override
-        public ByteIteratorWithAddress iterator(long offset) {
-            return ByteIteratorWithAddress.EMPTY;
-        }
-
-    };
-
+    @NotNull
     private final Log log;
-    private final long address;
 
-    public RandomAccessByteIterable(long address, Log log) {
-        this.address = address;
+    public RandomAccessByteIterable(final long address, @NotNull final Log log) {
+        super(address);
         this.log = log;
     }
 
     @Override
     public ByteIteratorWithAddress iterator() {
-        return new CompoundByteIterator(address, log);
+        return new CompoundByteIterator(getAddress(), log);
     }
 
-    public ByteIteratorWithAddress iterator(long offset) {
-        return new CompoundByteIterator(address + offset, log);
+    public ByteIteratorWithAddress iterator(final int offset) {
+        return new CompoundByteIterator(getAddress() + offset, log);
     }
 
-    @Override
-    public byte[] getBytesUnsafe() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public int getLength() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public int compareTo(ByteIterable right) {
-        // can't compare  
-        throw new UnsupportedOperationException();
-    }
-
-    public Log getLog() {
-        return log;
-    }
-
-    public long getAddress() {
-        return address;
-    }
-
-    public static int compare(final int offset, final int myLen, final ByteIterable right, Log log, long address) {
-        final LogCache cache = log.cache;
-        final int pageSize = log.getCachePageSize();
-        long alignedAddress = address + offset;
-        long endAddress = alignedAddress + myLen;
-        endAddress -= endAddress % pageSize;
-        int leftStep = (int) (alignedAddress % pageSize);
-        alignedAddress -= leftStep;
-        ArrayByteIterable left = cache.getPage(log, alignedAddress);
-
-        int leftLen = left.getLength();
-        if (leftLen <= leftStep) { // alignment is >= 0 for sure
-            throw new BlockNotFoundException(alignedAddress);
-        }
-        byte[] leftArray = left.getBytesUnsafe();
-        byte[] rightArray = right.getBytesUnsafe();
-        final int rightLen = right.getLength();
-        int rightStep = 0;
-
-        while (true) {
-            int limit = Math.min(myLen, Math.min(leftLen - leftStep, rightLen));
-            while (rightStep < limit) {
-                byte b1 = leftArray[leftStep++];
-                byte b2 = rightArray[rightStep++];
-                if (b1 != b2) {
-                    return (b1 & 0xff) - (b2 & 0xff);
-                }
-            }
-            if (rightStep == rightLen || alignedAddress >= endAddress) {
-                return myLen - rightLen;
-            }
-            // move left array to next cache page
-            left = cache.getPage(log, alignedAddress += pageSize);
-            leftArray = left.getBytesUnsafe();
-            leftLen = left.getLength();
-            leftStep = 0;
-        }
+    public int compareTo(final int offset, final int len, @NotNull final ByteIterable right) {
+        return compare(offset, len, right, log, getAddress());
     }
 
     @NotNull
-    public RandomAccessByteIterable clone(long offset) {
-        return new RandomAccessByteIterable(address + offset, log);
+    public RandomAccessByteIterable clone(final int offset) {
+        return new RandomAccessByteIterable(getAddress() + offset, log);
     }
 
     @SuppressWarnings({"OverlyLongMethod", "MethodWithTooManyParameters"})
@@ -191,6 +118,45 @@ public class RandomAccessByteIterable implements ByteIterable {
             }
         }
         return -(low + 1);  // key not found.
+    }
+
+    private static int compare(final int offset, final int len, final ByteIterable right, Log log, final long address) {
+        final LogCache cache = log.cache;
+        final int pageSize = log.getCachePageSize();
+        long alignedAddress = address + offset;
+        long endAddress = alignedAddress + len;
+        endAddress -= endAddress % pageSize;
+        int leftStep = (int) (alignedAddress % pageSize);
+        alignedAddress -= leftStep;
+        ArrayByteIterable left = cache.getPage(log, alignedAddress);
+
+        int leftLen = left.getLength();
+        if (leftLen <= leftStep) { // alignment is >= 0 for sure
+            throw new BlockNotFoundException(alignedAddress);
+        }
+        byte[] leftArray = left.getBytesUnsafe();
+        byte[] rightArray = right.getBytesUnsafe();
+        final int rightLen = right.getLength();
+        int rightStep = 0;
+
+        while (true) {
+            int limit = Math.min(len, Math.min(leftLen - leftStep, rightLen));
+            while (rightStep < limit) {
+                byte b1 = leftArray[leftStep++];
+                byte b2 = rightArray[rightStep++];
+                if (b1 != b2) {
+                    return (b1 & 0xff) - (b2 & 0xff);
+                }
+            }
+            if (rightStep == rightLen || alignedAddress >= endAddress) {
+                return len - rightLen;
+            }
+            // move left array to next cache page
+            left = cache.getPage(log, alignedAddress += pageSize);
+            leftArray = left.getBytesUnsafe();
+            leftLen = left.getLength();
+            leftStep = 0;
+        }
     }
 
     private static class BinarySearchIterator implements ByteIterator {

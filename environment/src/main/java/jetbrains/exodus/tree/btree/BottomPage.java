@@ -16,8 +16,8 @@
 package jetbrains.exodus.tree.btree;
 
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.log.ByteIterableWithAddress;
 import jetbrains.exodus.log.ByteIteratorWithAddress;
-import jetbrains.exodus.log.RandomAccessByteIterable;
 import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -30,7 +30,7 @@ class BottomPage extends BasePageImmutable {
         super(tree);
     }
 
-    protected BottomPage(@NotNull BTreeBase tree, @NotNull RandomAccessByteIterable data) {
+    protected BottomPage(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data) {
         super(tree, data);
     }
 

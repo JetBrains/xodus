@@ -16,8 +16,8 @@
 package jetbrains.exodus.tree.btree;
 
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.log.ByteIterableWithAddress;
 import jetbrains.exodus.log.ByteIteratorWithAddress;
-import jetbrains.exodus.log.RandomAccessByteIterable;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.log.iterate.FixedLengthByteIterable;
@@ -36,7 +36,7 @@ class LeafNode extends BaseLeafNode {
 
     LeafNode(@NotNull final RandomAccessLoggable loggable) {
         this.loggable = loggable;
-        final RandomAccessByteIterable data = loggable.getData();
+        final ByteIterableWithAddress data = loggable.getData();
         final ByteIteratorWithAddress iterator = data.iterator();
         keyLength = CompressedUnsignedLongByteIterable.getInt(iterator);
         final long dataAddress = iterator.getAddress();
@@ -55,14 +55,12 @@ class LeafNode extends BaseLeafNode {
 
     @Override
     public int compareKeyTo(@NotNull final ByteIterable iterable) {
-        final RandomAccessByteIterable data = loggable.getData();
-        return RandomAccessByteIterable.compare(keyRecordSize, keyLength, iterable, data.getLog(), data.getAddress());
+        return loggable.getData().compareTo(keyRecordSize, keyLength, iterable);
     }
 
     @Override
     public int compareValueTo(@NotNull final ByteIterable iterable) {
-        final RandomAccessByteIterable data = loggable.getData();
-        return RandomAccessByteIterable.compare(keyRecordSize + keyLength, valueLength, iterable, data.getLog(), data.getAddress());
+        return loggable.getData().compareTo(keyRecordSize + keyLength, valueLength, iterable);
     }
 
     @Override
@@ -83,7 +81,7 @@ class LeafNode extends BaseLeafNode {
     }
 
     @NotNull
-    RandomAccessByteIterable getRawValue() {
+    ByteIterableWithAddress getRawValue() {
         return loggable.getData().clone(keyRecordSize + keyLength);
     }
 

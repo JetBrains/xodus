@@ -18,6 +18,7 @@ package jetbrains.exodus;
 import jetbrains.exodus.util.ByteIterableUtil;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 @SuppressWarnings({"ProtectedField"})
 public abstract class ByteIterableBase implements ByteIterable {
@@ -122,19 +123,21 @@ public abstract class ByteIterableBase implements ByteIterable {
     @SuppressWarnings({"AssignmentToForLoopParameter"})
     @Override
     public String toString() {
-        final byte[] a = getBytesUnsafe();
-        if (a == null) {
+        return toString(getBytesUnsafe(), 0, getLength());
+    }
+
+    public static String toString(@Nullable final byte[] bytes, final int start, final int end) {
+        if (bytes == null) {
             return "null";
         }
-        final int length = getLength();
-        if (length <= 0) {
+        if (end <= start) {
             return "[]";
         }
-        StringBuilder b = new StringBuilder();
+        final StringBuilder b = new StringBuilder();
         b.append('[');
-        for (int i = 0; ; ) {
-            b.append(a[i++]);
-            if (i == length) {
+        for (int i = start; ; ) {
+            b.append(bytes[i++]);
+            if (i == end) {
                 return b.append(']').toString();
             }
             b.append(", ");
@@ -156,6 +159,7 @@ public abstract class ByteIterableBase implements ByteIterable {
         }
     }
 
+    @NotNull
     public static byte[] readIterator(@NotNull final ByteIterator it, final int size) {
         if (size == 0) {
             return EMPTY_BYTES;
@@ -164,7 +168,7 @@ public abstract class ByteIterableBase implements ByteIterable {
             return SINGLE_BYTES[(it.next() & 0xff)];
         }
         final byte[] result = new byte[size];
-        for (int i = 0; i < result.length; i++) {
+        for (int i = 0; i < size; i++) {
             result[i] = it.next();
         }
         return result;

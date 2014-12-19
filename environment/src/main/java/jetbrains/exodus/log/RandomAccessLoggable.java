@@ -24,14 +24,14 @@ public class RandomAccessLoggable implements Loggable {
     private final byte headerLength;
     private final int length;
     @NotNull
-    private final RandomAccessByteIterable data;
-    private final long structureId;
+    private final ByteIterableWithAddress data;
+    private final int structureId;
 
     @SuppressWarnings({"ConstructorWithTooManyParameters"})
     public RandomAccessLoggable(final long address,
                                 final int type,
                                 final int length,
-                                @NotNull final RandomAccessByteIterable data,
+                                @NotNull final ByteIterableWithAddress data,
                                 final int dataLength,
                                 final long structureId) {
         this.address = address;
@@ -39,7 +39,7 @@ public class RandomAccessLoggable implements Loggable {
         headerLength = (byte) (length - dataLength);
         this.length = length;
         this.data = data;
-        this.structureId = structureId;
+        this.structureId = (int) structureId;
     }
 
     @Override
@@ -59,7 +59,7 @@ public class RandomAccessLoggable implements Loggable {
 
     @NotNull
     @Override
-    public RandomAccessByteIterable getData() {
+    public ByteIterableWithAddress getData() {
         return data;
     }
 

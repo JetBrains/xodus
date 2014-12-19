@@ -18,8 +18,8 @@ package jetbrains.exodus.tree.btree;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.bindings.LongBinding;
+import jetbrains.exodus.log.ByteIterableWithAddress;
 import jetbrains.exodus.log.ByteIteratorWithAddress;
-import jetbrains.exodus.log.RandomAccessByteIterable;
 import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -30,7 +30,7 @@ public class InternalPage extends BasePageImmutable {
 
     private int childAddressLen;
 
-    protected InternalPage(@NotNull BTreeBase tree, @NotNull RandomAccessByteIterable data) {
+    protected InternalPage(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data) {
         super(tree, data);
     }
 

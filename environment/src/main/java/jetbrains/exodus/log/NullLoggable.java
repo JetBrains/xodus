@@ -25,7 +25,7 @@ public final class NullLoggable extends RandomAccessLoggable {
     private static final NullLoggable PROTOTYPE = new NullLoggable(TYPE);
 
     NullLoggable(final long address) {
-        super(address, TYPE, LENGTH, RandomAccessByteIterable.EMPTY, 0, NO_STRUCTURE_ID);
+        super(address, TYPE, LENGTH, ByteIterableWithAddress.EMPTY, 0, NO_STRUCTURE_ID);
     }
 
     @NotNull

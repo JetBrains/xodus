@@ -141,16 +141,19 @@ public final class Log implements Closeable {
             long approvedHighAddress = lastFileAddress;
             try {
                 while (lastFileLoggables.hasNext()) {
-                    final Loggable loggable = lastFileLoggables.next();
+                    final RandomAccessLoggable loggable = lastFileLoggables.next();
                     final int dataLength = NullLoggable.isNullLoggable(loggable) ? 0 : loggable.getDataLength();
                     if (dataLength > 0) {
                         // if not null loggable read all data to the end
-                        final ByteIterator data = loggable.getData().iterator();
+                        final ByteIteratorWithAddress data = loggable.getData().iterator();
                         for (int i = 0; i < dataLength; ++i) {
+                            if (!data.hasNext()) {
+                                throw new ExodusException("Can't read loggable fully, address = " + data.getAddress());
+                            }
                             data.next();
                         }
                     }
-                    approvedHighAddress = lastFileLoggables.getHighAddress();
+                    approvedHighAddress = loggable.getAddress() + loggable.length();
                 }
             } catch (ExodusException e) { // if an exception is thrown then last loggable wasn't read correctly
                 logging.error("Exception on Log recovery. Approved high address = " + approvedHighAddress, e);
@@ -373,7 +376,6 @@ public final class Log implements Closeable {
         }
         // put new loggable to probation generation
         return loggableCache[cacheIndex] = read(readIteratorFrom(address), address);
-        //return read(readIteratorFrom(address), address);
     }
 
     @NotNull
@@ -392,8 +394,16 @@ public final class Log implements Closeable {
         final long dataAddress = it.getHighAddress();
         final int headerLength = (int) (dataAddress - address);
         final int length = dataLength + headerLength;
+        if (dataLength == 0) {
+            return LoggableFactory.create(address, type, length, ByteIterableWithAddress.EMPTY, dataLength, structureId);
+        }
+        final ArrayByteIterable.Iterator currentPageIt = it.getCurrent();
+        final byte[] currentPage = currentPageIt.getBytesUnsafe();
+        final int currentOffset = currentPageIt.getOffset();
         return LoggableFactory.create(address, type, length,
-                dataLength == 0 ? RandomAccessByteIterable.EMPTY : new RandomAccessByteIterable(dataAddress, this),
+                currentPage.length - currentOffset < dataLength ?
+                        new RandomAccessByteIterable(dataAddress, this) :
+                        new ArrayByteIterableWithAddress(dataAddress, currentPage, currentOffset, Math.min(dataLength, currentPageIt.getLength() - currentOffset)),
                 dataLength, structureId);
     }
 

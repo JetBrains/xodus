@@ -17,8 +17,8 @@ package jetbrains.exodus.tree.btree;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.log.ByteIterableWithAddress;
 import jetbrains.exodus.log.Log;
-import jetbrains.exodus.log.RandomAccessByteIterable;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import jetbrains.exodus.tree.INode;
 import jetbrains.exodus.tree.ITree;
@@ -123,7 +123,7 @@ public abstract class BTreeBase implements ITree {
     }
 
     @NotNull
-    protected final BasePage loadPage(int type, @NotNull RandomAccessByteIterable data) {
+    protected final BasePage loadPage(final int type, @NotNull final ByteIterableWithAddress data) {
         final BasePageImmutable result;
 
         switch (type) {
