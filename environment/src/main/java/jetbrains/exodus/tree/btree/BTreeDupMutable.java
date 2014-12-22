@@ -71,7 +71,7 @@ final class BTreeDupMutable extends BTreeMutable {
         final ByteIterable rootDataIterable = rootPage.getData();
         ByteIterable[] iterables;
         long result;
-        final boolean canReTry;
+        final boolean canRetry;
         if (log.isLastFileAddress(startAddress)) {
             sizeIterable = CompressedUnsignedLongByteIterable.getIterable(size << 1);
             iterables = new ByteIterable[]{keyIterable, key, sizeIterable, rootDataIterable};
@@ -80,12 +80,12 @@ final class BTreeDupMutable extends BTreeMutable {
                 address = result;
                 return result;
             } else {
-                canReTry = false;
+                canRetry = false;
             }
         } else {
-            canReTry = true;
+            canRetry = true;
         }
-        if (log.read(startAddress).getType() == NullLoggable.TYPE) {
+        if (NullLoggable.isNullLoggable(log.read(startAddress))) {
             final long lengthBound = log.getFileLengthBound();
             startAddress += (lengthBound - startAddress % lengthBound);
         }
@@ -94,9 +94,9 @@ final class BTreeDupMutable extends BTreeMutable {
                 CompressedUnsignedLongByteIterable.getIterable(log.getHighAddress() - startAddress);
         iterables = new ByteIterable[]{keyIterable, key, sizeIterable, offsetIterable, rootDataIterable};
         final Loggable loggable = new LoggableToWrite(type, new CompoundByteIterable(iterables), structureId);
-        result = canReTry ? log.tryWrite(loggable) : log.writeContinuously(loggable);
+        result = canRetry ? log.tryWrite(loggable) : log.writeContinuously(loggable);
         if (result < 0) {
-            if (canReTry) {
+            if (canRetry) {
                 iterables[3] = CompressedUnsignedLongByteIterable.getIterable(log.getHighAddress() - startAddress);
                 result = log.writeContinuously(new LoggableToWrite(type, new CompoundByteIterable(iterables), structureId));
 
