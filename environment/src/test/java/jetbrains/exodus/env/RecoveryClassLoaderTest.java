@@ -21,6 +21,7 @@ import jetbrains.exodus.io.FileDataWriter;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogConfig;
 import jetbrains.exodus.log.Loggable;
+import jetbrains.exodus.log.RandomAccessLoggable;
 import jetbrains.exodus.util.IOUtil;
 import org.jetbrains.annotations.NotNull;
 import org.junit.After;
@@ -123,7 +124,7 @@ public class RecoveryClassLoaderTest {
             // only 'max' first loggables should remain
             // assertLoggableTypes(max, log.getLoggablesIterator(0), SEQ);
 
-            final Iterator<Loggable> iter = log.getLoggablesIterator(0);
+            final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(0);
             Loggable last = null;
             while (iter.hasNext()) {
                 last = iter.next();

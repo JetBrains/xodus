@@ -111,7 +111,7 @@ public class Reflect {
         for (int i = fileAddresses.length - 1; i >= 0; i--) {
             final long address = fileAddresses[i];
             final long endAddress = address + log.getFileSize(address);
-            final Iterator<Loggable> itr = log.getLoggablesIterator(address);
+            final Iterator<RandomAccessLoggable> itr = log.getLoggableIterator(address);
             while (itr.hasNext()) {
                 final Loggable loggable = itr.next();
                 if (loggable.getType() == DatabaseRoot.DATABASE_ROOT_TYPE) {
@@ -219,7 +219,7 @@ public class Reflect {
         for (int i = fileAddresses.length - 1; i >= 0; ) {
             echoProgress("Gathering log statistics, reading file", fileAddresses.length, fileAddresses.length - i);
             final long address = fileAddresses[i--];
-            final Iterator<Loggable> it = log.getLoggablesIterator(address);
+            final Iterator<RandomAccessLoggable> it = log.getLoggableIterator(address);
             while (it.hasNext()) {
                 final Loggable loggable = it.next();
                 final long la = loggable.getAddress();

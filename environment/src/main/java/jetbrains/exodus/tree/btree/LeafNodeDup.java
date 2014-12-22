@@ -189,10 +189,7 @@ class LeafNodeDup extends LeafNode {
         final long startAddress = tree.getStartAddress();
         final Log log = tree.log;
         if (startAddress != Loggable.NULL_ADDRESS && log.hasAddress(startAddress)) {
-            final BoundLoggableIterator itr = new BoundLoggableIterator(
-                    log.getRandomAccessLoggableIterator(startAddress),
-                    log.getFileAddress(getAddress())
-            );
+            final BoundLoggableIterator itr = new BoundLoggableIterator(log.getLoggableIterator(startAddress), log.getFileAddress(getAddress()));
             collect(context.expirationChecker, context.dupLeafsLo, itr.next(), itr);
         }
         super.reclaim(context);
@@ -231,10 +228,10 @@ class LeafNodeDup extends LeafNode {
 
     private static final class BoundLoggableIterator implements Iterator<RandomAccessLoggable> {
         @NotNull
-        private final RandomAccessLoggableIterator data;
+        private final LoggableIterator data;
         private final long upperBound;
 
-        private BoundLoggableIterator(@NotNull final RandomAccessLoggableIterator data, final long upperBound) {
+        private BoundLoggableIterator(@NotNull final LoggableIterator data, final long upperBound) {
             this.data = data;
             this.upperBound = upperBound;
         }

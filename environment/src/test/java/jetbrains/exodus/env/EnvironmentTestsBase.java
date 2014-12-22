@@ -28,7 +28,10 @@ import jetbrains.exodus.io.DataReader;
 import jetbrains.exodus.io.DataWriter;
 import jetbrains.exodus.io.FileDataReader;
 import jetbrains.exodus.io.FileDataWriter;
-import jetbrains.exodus.log.*;
+import jetbrains.exodus.log.Log;
+import jetbrains.exodus.log.LogConfig;
+import jetbrains.exodus.log.LoggableFactory;
+import jetbrains.exodus.log.RandomAccessLoggable;
 import jetbrains.exodus.util.CompressBackupUtil;
 import jetbrains.exodus.util.IOUtil;
 import jetbrains.exodus.util.TeamCityMessenger;
@@ -234,28 +237,15 @@ public class EnvironmentTestsBase {
         });
     }
 
-    protected static void assertLoggableTypes(final Iterator<Loggable> it, final int... types) {
+    protected static void assertLoggableTypes(final Iterator<RandomAccessLoggable> it, final int... types) {
         assertLoggableTypes(Integer.MAX_VALUE, it, types);
     }
 
     protected static void assertLoggableTypes(final Log log, final int address, final int... types) {
-        assertLoggableTypes(Integer.MAX_VALUE, log.getLoggablesIterator(address), types);
-        assertLoggableTypes2(Integer.MAX_VALUE, log.getRandomAccessLoggableIterator(address), types);
+        assertLoggableTypes(Integer.MAX_VALUE, log.getLoggableIterator(address), types);
     }
 
-    protected static void assertLoggableTypes(final int max, final Iterator<Loggable> it, final int... types) {
-        int i = 0;
-        for (int type : types) {
-            if (++i > max) {
-                break;
-            }
-            Assert.assertTrue(it.hasNext());
-            Assert.assertEquals(type, it.next().getType());
-        }
-        Assert.assertFalse(it.hasNext());
-    }
-
-    protected static void assertLoggableTypes2(final int max, final Iterator<RandomAccessLoggable> it, final int... types) {
+    protected static void assertLoggableTypes(final int max, final Iterator<RandomAccessLoggable> it, final int... types) {
         int i = 0;
         for (int type : types) {
             if (++i > max) {

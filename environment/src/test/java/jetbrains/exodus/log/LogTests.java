@@ -210,7 +210,7 @@ public class LogTests extends LogTestsBase {
             getLog().write(DUMMY_LOGGABLE);
         }
         getLog().setHighAddress(3);
-        final Iterator<Loggable> loggablesIterator = getLog().getLoggablesIterator(0);
+        final Iterator<RandomAccessLoggable> loggablesIterator = getLog().getLoggableIterator(0);
         loggablesIterator.next();
         Assert.assertFalse(loggablesIterator.hasNext());
     }
@@ -222,16 +222,16 @@ public class LogTests extends LogTestsBase {
             getLog().write(DUMMY_LOGGABLE);
         }
         getLog().setHighAddress(0);
-        Assert.assertFalse(getLog().getLoggablesIterator(0).hasNext());
+        Assert.assertFalse(getLog().getLoggableIterator(0).hasNext());
     }
 
     @Test
     public void testSetHighAddress_XD_317() {
         getLog().write(DUMMY_LOGGABLE);
         getLog().setHighAddress(0);
-        Assert.assertFalse(getLog().getLoggablesIterator(0).hasNext());
+        Assert.assertFalse(getLog().getLoggableIterator(0).hasNext());
         getLog().write(NullLoggable.create());
-        final Iterator<Loggable> it = getLog().getLoggablesIterator(0);
+        final Iterator<RandomAccessLoggable> it = getLog().getLoggableIterator(0);
         Assert.assertTrue(it.hasNext());
         Assert.assertTrue(NullLoggable.isNullLoggable(it.next()));
         Assert.assertFalse(it.hasNext());
@@ -306,7 +306,7 @@ public class LogTests extends LogTestsBase {
             getLog().write(createDataLoggable(i));
         }
         getLog().flush();
-        final Iterator<Loggable> it = getLog().getLoggablesIterator(0);
+        final Iterator<RandomAccessLoggable> it = getLog().getLoggableIterator(0);
         int i = 0;
         while (it.hasNext()) {
             Loggable l = it.next();
@@ -324,7 +324,7 @@ public class LogTests extends LogTestsBase {
         for (int i = 0; i < count; ++i) {
             getLog().write(createDataLoggable(i));
         }
-        final Iterator<RandomAccessLoggable> it = getLog().getRandomAccessLoggableIterator(0);
+        final Iterator<RandomAccessLoggable> it = getLog().getLoggableIterator(0);
         int i = 0;
         while (it.hasNext()) {
             System.out.println(i);

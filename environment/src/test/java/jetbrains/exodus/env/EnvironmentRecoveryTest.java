@@ -137,7 +137,7 @@ public class EnvironmentRecoveryTest extends EnvironmentTestsBase {
         config.setReader(reader);
         config.setWriter(writer);
         env = newEnvironmentInstance(config, new EnvironmentConfig()); // recovery pending
-        assertLoggableTypes(C, env.getLog().getLoggablesIterator(0), SEQ);
+        assertLoggableTypes(C, env.getLog().getLoggableIterator(0), SEQ);
     }
 
     private void cutAndCheckLastLoggableIncomplete(int cutAt, int max) {
@@ -163,7 +163,7 @@ public class EnvironmentRecoveryTest extends EnvironmentTestsBase {
         config.setReader(reader);
         config.setWriter(writer);
         env = newEnvironmentInstance(config, new EnvironmentConfig()); // recovery pending
-        assertLoggableTypes(max, env.getLog().getLoggablesIterator(0), SEQ);
+        assertLoggableTypes(max, env.getLog().getLoggableIterator(0), SEQ);
     }
 
 }

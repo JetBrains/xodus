@@ -186,7 +186,7 @@ public final class GarbageCollector {
                 ));
             }
             final long nextFileAddress = log.getNextFileAddress(fileAddress);
-            final Iterator<RandomAccessLoggable> loggables = log.getRandomAccessLoggableIterator(fileAddress);
+            final Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(fileAddress);
             while (loggables.hasNext()) {
                 final RandomAccessLoggable loggable = loggables.next();
                 if (nextFileAddress != Loggable.NULL_ADDRESS && loggable.getAddress() >= nextFileAddress) {

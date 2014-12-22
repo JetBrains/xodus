@@ -72,7 +72,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
 
         tm = ((BTree) (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), false, 1))).getMutableCopy();
 
-        final Iterator<RandomAccessLoggable> iter = log.getRandomAccessLoggableIterator(savedLeafAddress);
+        final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(savedLeafAddress);
         Assert.assertTrue(tm.reclaim(iter.next(), iter));
 
         final AddressIterator addressIterator = getTreeAddresses(getTree());
@@ -113,7 +113,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
 
         tm = ((BTree) (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), false, 1))).getMutableCopy();
 
-        final Iterator<RandomAccessLoggable> iter = log.getRandomAccessLoggableIterator(savedLeafAddress);
+        final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(savedLeafAddress);
         Assert.assertTrue(tm.reclaim(iter.next(), iter));
 
         System.out.println(tm.getExpiredLoggables().size());
@@ -142,7 +142,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         rootAddress = tm.save();
         tm = ((BTree) (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), false, 1))).getMutableCopy();
 
-        final Iterator<RandomAccessLoggable> iter = log.getRandomAccessLoggableIterator(rootAddress);
+        final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(rootAddress);
         Assert.assertTrue(tm.reclaim(iter.next(), iter)); // root should be reclaimed
     }
 
@@ -158,7 +158,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         final ILeafNode savedLeaf = getTree().getRoot().get(key);
         Assert.assertNotNull(savedLeaf);
 
-        final Iterator<RandomAccessLoggable> iter = log.getRandomAccessLoggableIterator(savedLeaf.getAddress());
+        final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(savedLeaf.getAddress());
         Assert.assertTrue(tm.reclaim(iter.next(), iter));
 
         final AddressIterator addressIterator = getTreeAddresses(getTree());
@@ -180,7 +180,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
 
         tm = ((BTree) (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), false, 1))).getMutableCopy();
 
-        final Iterator<RandomAccessLoggable> iter = log.getRandomAccessLoggableIterator(0);
+        final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(0);
         RandomAccessLoggable leaf = iter.next();
         RandomAccessLoggable next;
         while (true) {
@@ -218,7 +218,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         final ILeafNode savedLeaf = getTree().getRoot().get(key);
         Assert.assertNotNull(savedLeaf);
 
-        final Iterator<RandomAccessLoggable> iter = log.getRandomAccessLoggableIterator(savedLeaf.getAddress());
+        final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(savedLeaf.getAddress());
         Assert.assertTrue(tm.reclaim(iter.next(), iter));
 
         final AddressIterator addressIterator = getTreeAddresses(getTree());
@@ -258,7 +258,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
 
         tm = ((BTree) (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), true, 1))).getMutableCopy();
 
-        final Iterator<RandomAccessLoggable> iter = log.getRandomAccessLoggableIterator(oldAddress);
+        final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(oldAddress);
         /* Loggable loggable = iter.next();
         while (loggable.getType() != BTree.DUP_INTERNAL) {
             loggable = iter.next();
@@ -300,7 +300,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
 
         Assert.assertNotNull(savedLeaf);
 
-        final Iterator<RandomAccessLoggable> iter = log.getRandomAccessLoggableIterator(savedLeaf.getAddress());
+        final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(savedLeaf.getAddress());
         Assert.assertTrue(tm.reclaim(iter.next(), iter));
 
         final AddressIterator addressIterator = getTreeAddresses(getTree());
@@ -340,7 +340,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
 
         Assert.assertNotNull(savedLeaf);
 
-        final Iterator<RandomAccessLoggable> iter = log.getRandomAccessLoggableIterator(savedLeaf.getAddress());
+        final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(savedLeaf.getAddress());
         RandomAccessLoggable loggable = iter.next();
         while (loggable.getType() != BTreeBase.DUP_INTERNAL) {
             loggable = iter.next();

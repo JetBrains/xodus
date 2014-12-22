@@ -34,7 +34,7 @@ public class PatriciaReclaimTest extends PatriciaTestBase {
         final long a = tm.save();
         t = openTree(a, false);
         tm = t.getMutableCopy();
-        final Iterator<RandomAccessLoggable> loggables = log.getRandomAccessLoggableIterator(0);
+        final Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(0);
         tm.reclaim(loggables.next(), loggables);
         tm.dump(System.out);
         assertMatches(tm, RM("aa", NM('b', "", "aab", NM('c', "", "aabc")), NM('c', "", "aac", NM('d', "", "aacd"))));
@@ -62,7 +62,7 @@ public class PatriciaReclaimTest extends PatriciaTestBase {
         t.dump(System.out);
         System.out.println("----");
         tm = t.getMutableCopy();
-        final Iterator<RandomAccessLoggable> loggables = log.getRandomAccessLoggableIterator(0);
+        final Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(0);
         tm.reclaim(loggables.next(), loggables);
         tm.dump(System.out);
         assertMatches(tm, RM("a", NM('a', "a", "0"), N('b', "b", N('a', "b", "2"), N('b', "a", "5")), NM('c', "a", "3")));
@@ -88,13 +88,13 @@ public class PatriciaReclaimTest extends PatriciaTestBase {
         a = tm.save();
         t = openTree(a, false);
         tm = t.getMutableCopy();
-        Iterator<RandomAccessLoggable> loggables = log.getRandomAccessLoggableIterator(0);
+        Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(0);
         tm.reclaim(loggables.next(), loggables);
         tm.dump(System.out);
         assertMatches(tm, RM("aa", NM('a', NM('b', "", "aaab"), NM('c', "", "aaac")), N('b', "b", "aabb")));
         System.out.println("----");
         tm = t.getMutableCopy();
-        loggables = log.getRandomAccessLoggableIterator(secondAddress);
+        loggables = log.getLoggableIterator(secondAddress);
         tm.reclaim(loggables.next(), loggables);
         tm.dump(System.out);
         assertMatches(tm, RM("aa", NM('a', N('b', "", "aaab"), N('c', "", "aaac")), NM('b', "b", "aabb")));

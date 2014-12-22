@@ -19,10 +19,12 @@ import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.log.LogConfig;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.log.NullLoggable;
-import jetbrains.exodus.log.RandomAccessLoggableIterator;
+import jetbrains.exodus.log.RandomAccessLoggable;
 import jetbrains.exodus.tree.ITreeCursor;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.Iterator;
 
 public class BTreeReclaimSpecialTest extends BTreeTestBase {
     private static final int COUNT = 145;
@@ -50,11 +52,11 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
         reloadMutableTree(tm.save());
         Assert.assertEquals(4, log.getNumberOfFiles());
         log.removeFile(0); // emulate gc of first file
-        RandomAccessLoggableIterator loggables = log.getRandomAccessLoggableIterator(log.getFileAddress(fileSize * 2));
+        Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(log.getFileAddress(fileSize * 2));
         tm.reclaim(loggables.next(), loggables); // reclaim third file
         reloadMutableTree(tm.save());
         log.removeFile(fileSize * 2); // remove reclaimed file
-        loggables = log.getRandomAccessLoggableIterator(log.getFileAddress(fileSize));
+        loggables = log.getLoggableIterator(log.getFileAddress(fileSize));
         tm.reclaim(loggables.next(), loggables); // reclaim second file
         reloadMutableTree(tm.save());
         Assert.assertTrue(log.getNumberOfFiles() > 2); // make sure that some files were added
@@ -77,9 +79,9 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
         tm.put(key("k"), value("v2"));
         tm.put(key("k"), value("v3"));
         tm.save();
-        RandomAccessLoggableIterator loggables = log.getRandomAccessLoggableIterator(0);
+        Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(0);
         tm.reclaim(loggables.next(), loggables);
-        loggables = log.getRandomAccessLoggableIterator(firstAddress);
+        loggables = log.getLoggableIterator(firstAddress);
         loggables.next();
         tm.reclaim(loggables.next(), loggables);
     }

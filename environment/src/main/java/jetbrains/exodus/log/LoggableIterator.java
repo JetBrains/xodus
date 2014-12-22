@@ -22,18 +22,20 @@ import java.util.Iterator;
 /**
  * Stops at the end of log or on the file hole
  */
-final class LoggableIterator implements Iterator<Loggable> {
+public final class LoggableIterator implements Iterator<RandomAccessLoggable> {
 
     @NotNull
     private final Log log;
     @NotNull
     private final DataIterator it;
-    private int skip;
 
     LoggableIterator(@NotNull final Log log, final long startAddress) {
         this.log = log;
         it = log.readIteratorFrom(startAddress);
-        skip = 0;
+    }
+
+    public long getHighAddress() {
+        return it.getHighAddress();
     }
 
     @Override
@@ -42,24 +44,18 @@ final class LoggableIterator implements Iterator<Loggable> {
             return null;
         }
         final RandomAccessLoggable result = log.read(it);
-        skip = (NullLoggable.isNullLoggable(result)) ? 0 : result.getDataLength();
+        if (!NullLoggable.isNullLoggable(result)) {
+            it.skip(result.getDataLength());
+        }
         return result;
     }
 
     @Override
     public boolean hasNext() {
-        skip();
         return it.hasNext();
     }
 
     @Override
     public void remove() {
-    }
-
-    private void skip() {
-        if (skip > 0) {
-            it.skip(skip);
-            skip = 0;
-        }
     }
 }

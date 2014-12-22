@@ -137,7 +137,7 @@ public final class Log implements Closeable {
             setBufferedWriter(createBufferedWriter(baseWriter, highPageAddress,
                     highPageContent, highAddress == 0 ? 0 : readBytes(highPageContent, highPageAddress)));
             // here we should check whether last loggable is written correctly
-            final LoggableIterator lastFileLoggables = new LoggableIterator(this, lastFileAddress);
+            final Iterator<RandomAccessLoggable> lastFileLoggables = new LoggableIterator(this, lastFileAddress);
             long approvedHighAddress = lastFileAddress;
             try {
                 while (lastFileLoggables.hasNext()) {
@@ -407,12 +407,8 @@ public final class Log implements Closeable {
                 dataLength, structureId);
     }
 
-    public Iterator<Loggable> getLoggablesIterator(final long startAddress) {
+    public LoggableIterator getLoggableIterator(final long startAddress) {
         return new LoggableIterator(this, startAddress);
-    }
-
-    public RandomAccessLoggableIterator getRandomAccessLoggableIterator(final long startAddress) {
-        return new RandomAccessLoggableIterator(this, startAddress);
     }
 
     /**
@@ -467,7 +463,7 @@ public final class Log implements Closeable {
         }
         while (node != null) {
             final long fileAddress = node.getKey();
-            final Iterator<Loggable> it = getLoggablesIterator(fileAddress);
+            final Iterator<RandomAccessLoggable> it = getLoggableIterator(fileAddress);
             while (it.hasNext()) {
                 final Loggable loggable = it.next();
                 if (loggable.getAddress() >= fileAddress + fileLengthBound) {
@@ -502,7 +498,7 @@ public final class Log implements Closeable {
             }
             while (result == null && node != null) {
                 final long fileAddress = node.getKey();
-                final Iterator<Loggable> it = getLoggablesIterator(fileAddress);
+                final Iterator<RandomAccessLoggable> it = getLoggableIterator(fileAddress);
                 while (it.hasNext()) {
                     final Loggable loggable = it.next();
                     if (loggable.getAddress() >= fileAddress + fileLengthBound) {
@@ -531,7 +527,7 @@ public final class Log implements Closeable {
         }
         Loggable result = null;
         while (result == null && node != null) {
-            final Iterator<Loggable> it = getLoggablesIterator(node.getKey());
+            final Iterator<RandomAccessLoggable> it = getLoggableIterator(node.getKey());
             while (it.hasNext()) {
                 final Loggable loggable = it.next();
                 if (loggable.getAddress() >= beforeAddress) {

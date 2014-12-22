@@ -104,7 +104,7 @@ public class LogRecoveryTest extends EnvironmentTestsBase {
         config.setReader(reader);
         config.setWriter(writer);
         // only 'max' first loggables should remain
-        assertLoggableTypes(max, Environments.newLogInstance(config).getLoggablesIterator(0), seq);
+        assertLoggableTypes(max, Environments.newLogInstance(config).getLoggableIterator(0), seq);
     }
 
 }
