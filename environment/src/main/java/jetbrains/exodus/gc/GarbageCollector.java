@@ -26,7 +26,6 @@ import jetbrains.exodus.env.TransactionImpl;
 import jetbrains.exodus.io.RemoveBlockType;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.IExpirationChecker;
-import jetbrains.exodus.tree.LongIterator;
 import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
 
@@ -125,10 +124,6 @@ public final class GarbageCollector {
 
     public void fetchExpiredLoggables(@NotNull final Iterable<Loggable> loggables) {
         utilizationProfile.fetchExpiredLoggables(loggables);
-    }
-
-    public void fetchExpiredLoggables(@NotNull final LongIterator addresses) {
-        fetchExpiredLoggables(new ExpiredLoggableIterable(getLog(), addresses));
     }
 
     public long getFileFreeBytes(final long fileAddress) {
@@ -330,38 +325,5 @@ public final class GarbageCollector {
             return true;
         }
         return false;
-    }
-
-    private static class ExpiredLoggableIterable implements Iterable<Loggable> {
-
-        @NotNull
-        private final Log log;
-        @NotNull
-        private final LongIterator addresses;
-
-        private ExpiredLoggableIterable(@NotNull final Log log, @NotNull final LongIterator addresses) {
-            this.addresses = addresses;
-            this.log = log;
-        }
-
-        @Override
-        public Iterator<Loggable> iterator() {
-            return new Iterator<Loggable>() {
-                @Override
-                public boolean hasNext() {
-                    return addresses.hasNext();
-                }
-
-                @Override
-                public Loggable next() {
-                    return log.read(addresses.next());
-                }
-
-                @Override
-                public void remove() {
-                    throw new UnsupportedOperationException();
-                }
-            };
-        }
     }
 }
