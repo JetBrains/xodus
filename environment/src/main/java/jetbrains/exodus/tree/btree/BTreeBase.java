@@ -34,17 +34,17 @@ import java.io.PrintStream;
  */
 public abstract class BTreeBase implements ITree {
 
-    public static final int BOTTOM_ROOT = 2;
-    public static final int INTERNAL_ROOT = 3;
-    public static final int BOTTOM = 4;
-    public static final int INTERNAL = 5;
-    public static final int LEAF = 6;
+    public static final byte BOTTOM_ROOT = 2;
+    public static final byte INTERNAL_ROOT = 3;
+    public static final byte BOTTOM = 4;
+    public static final byte INTERNAL = 5;
+    public static final byte LEAF = 6;
 
-    public static final int LEAF_DUP_BOTTOM_ROOT = 7;
-    public static final int LEAF_DUP_INTERNAL_ROOT = 8;
-    public static final int DUP_BOTTOM = 9;
-    public static final int DUP_INTERNAL = 10;
-    public static final int DUP_LEAF = 11;
+    public static final byte LEAF_DUP_BOTTOM_ROOT = 7;
+    public static final byte LEAF_DUP_INTERNAL_ROOT = 8;
+    public static final byte DUP_BOTTOM = 9;
+    public static final byte DUP_INTERNAL = 10;
+    public static final byte DUP_LEAF = 11;
 
     @NotNull
     protected final Log log;

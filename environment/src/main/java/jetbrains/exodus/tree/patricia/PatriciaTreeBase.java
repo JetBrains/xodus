@@ -36,13 +36,13 @@ public abstract class PatriciaTreeBase implements ITree {
      * without value, without children and without back reference. All other patricia loggables' types are made
      * using additional 5 bits, giving additional 31 types. So maximum value of a patricia loggable type is 43.
      */
-    public static final int MAX_VALID_LOGGABLE_TYPE = 43;
-    public static final int NODE_WO_KEY_WO_VALUE_WO_CHILDREN = 12;
-    public static final int HAS_KEY_BIT = 1;
-    public static final int HAS_VALUE_BIT = 2;
-    public static final int HAS_CHILDREN_BIT = 4;
-    public static final int ROOT_BIT = 8;
-    public static final int ROOT_BIT_WITH_BACKREF = 16;
+    public static final byte MAX_VALID_LOGGABLE_TYPE = 43;
+    public static final byte NODE_WO_KEY_WO_VALUE_WO_CHILDREN = 12;
+    public static final byte HAS_KEY_BIT = 1;
+    public static final byte HAS_VALUE_BIT = 2;
+    public static final byte HAS_CHILDREN_BIT = 4;
+    public static final byte ROOT_BIT = 8;
+    public static final byte ROOT_BIT_WITH_BACKREF = 16;
 
     @NotNull
     protected final Log log;

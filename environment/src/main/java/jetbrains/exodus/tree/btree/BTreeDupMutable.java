@@ -64,7 +64,7 @@ final class BTreeDupMutable extends BTreeMutable {
             throw new IllegalStateException("Duplicates sub-tree already saved");
         }
         final BasePageMutable rootPage = getRoot();
-        final int type = rootPage.isBottom() ? BTreeBase.LEAF_DUP_BOTTOM_ROOT : BTreeBase.LEAF_DUP_INTERNAL_ROOT;
+        final byte type = rootPage.isBottom() ? BTreeBase.LEAF_DUP_BOTTOM_ROOT : BTreeBase.LEAF_DUP_INTERNAL_ROOT;
         final ByteIterable keyIterable = CompressedUnsignedLongByteIterable.getIterable(key.getLength());
         ByteIterable sizeIterable;
         long startAddress = log.getHighAddress(); // remember high address before saving the data
@@ -112,17 +112,17 @@ final class BTreeDupMutable extends BTreeMutable {
     }
 
     @Override
-    protected int getBottomPageType() {
+    protected byte getBottomPageType() {
         return DUP_BOTTOM;
     }
 
     @Override
-    protected int getInternalPageType() {
+    protected byte getInternalPageType() {
         return DUP_INTERNAL;
     }
 
     @Override
-    protected int getLeafType() {
+    protected byte getLeafType() {
         return DUP_LEAF;
     }
 

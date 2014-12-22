@@ -385,7 +385,7 @@ public final class Log implements Closeable {
 
     @NotNull
     public RandomAccessLoggable read(final DataIterator it, final long address) {
-        final int type = CompressedUnsignedLongByteIterable.getInt(it);
+        final byte type = (byte) (it.next() ^ 0x80);
         if (NullLoggable.isNullLoggable(type)) {
             return new NullLoggable(address);
         }
@@ -750,8 +750,9 @@ public final class Log implements Closeable {
         }
         try {
             bufferedWriter.setMaxBytesToWrite((int) (fileLengthBound - getLastFileLength()));
-            final int type = loggable.getType();
-            int recordLength = writeByteIterable(bufferedWriter, CompressedUnsignedLongByteIterable.getIterable(type));
+            final byte type = loggable.getType();
+            bufferedWriter.write((byte) (type ^ 0x80));
+            int recordLength = 1;
             // NullLoggable doesn't contain data
             if (!NullLoggable.isNullLoggable(type)) {
                 recordLength += writeByteIterable(bufferedWriter, CompressedUnsignedLongByteIterable.getIterable(loggable.getStructureId()));

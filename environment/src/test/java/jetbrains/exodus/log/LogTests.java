@@ -33,7 +33,7 @@ import static java.lang.Integer.valueOf;
 
 public class LogTests extends LogTestsBase {
 
-    private static final Loggable DUMMY_LOGGABLE = createNoDataLoggable(1);
+    private static final Loggable DUMMY_LOGGABLE = createNoDataLoggable((byte) 1);
     private static final Loggable ONE_KB_LOGGABLE = createOneKbLoggable();
 
     @Before
@@ -399,10 +399,10 @@ public class LogTests extends LogTestsBase {
     }
 
     private static LoggableToWrite createDataLoggable(long data) {
-        return new LoggableToWrite(127, CompressedUnsignedLongByteIterable.getIterable(data), Loggable.NO_STRUCTURE_ID);
+        return new LoggableToWrite((byte) 127, CompressedUnsignedLongByteIterable.getIterable(data), Loggable.NO_STRUCTURE_ID);
     }
 
-    private static LoggableToWrite createNoDataLoggable(int type) {
+    private static LoggableToWrite createNoDataLoggable(byte type) {
         return new LoggableToWrite(type, ByteIterable.EMPTY, Loggable.NO_STRUCTURE_ID);
     }
 

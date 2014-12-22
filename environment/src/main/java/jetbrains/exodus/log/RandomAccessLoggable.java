@@ -48,7 +48,7 @@ public class RandomAccessLoggable implements Loggable {
     }
 
     @Override
-    public int getType() {
+    public byte getType() {
         return type;
     }
 
@@ -76,5 +76,4 @@ public class RandomAccessLoggable implements Loggable {
     public long getStructureId() {
         return structureId;
     }
-
 }

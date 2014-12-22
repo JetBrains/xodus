@@ -308,7 +308,7 @@ class MutableNode extends NodeBase {
             }
         }
         // finally, write loggable
-        int type = getLoggableType();
+        byte type = getLoggableType();
         final long structureId = getTree().getStructureId();
         final ByteIterable mainIterable = nodeStream.asArrayByteIterable();
         final long startAddress = context.startAddress;
@@ -379,8 +379,8 @@ class MutableNode extends NodeBase {
         }
     }
 
-    private int getLoggableType() {
-        int result = PatriciaTreeBase.NODE_WO_KEY_WO_VALUE_WO_CHILDREN;
+    private byte getLoggableType() {
+        byte result = PatriciaTreeBase.NODE_WO_KEY_WO_VALUE_WO_CHILDREN;
         if (hasKey()) {
             result += PatriciaTreeBase.HAS_KEY_BIT;
         }

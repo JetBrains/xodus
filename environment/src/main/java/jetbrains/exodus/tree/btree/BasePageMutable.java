@@ -123,7 +123,7 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
         // save leaf nodes
         ReclaimFlag flag = saveChildren();
         // save self. complementary to {@link load()}
-        final int type = getType();
+        final byte type = getType();
         final long structureId = tree.structureId;
         final Log log = tree.log;
         if (flag == ReclaimFlag.PRESERVE) {
@@ -150,7 +150,7 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
         return log.write(new LoggableToWrite(type, new CompoundByteIterable(getByteIterables(flag)), structureId));
     }
 
-    protected abstract int getType();
+    protected abstract byte getType();
 
     @Override
     protected long getKeyAddress(int index) {

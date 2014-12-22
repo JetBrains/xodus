@@ -39,9 +39,9 @@ public interface Loggable {
     /**
      * Type of loggable.
      *
-     * @return integer identifying the loggable.
+     * @return integer int the range [0..127] identifying the loggable.
      */
-    int getType();
+    byte getType();
 
     /**
      * Length of the loggable with header and data.

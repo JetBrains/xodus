@@ -143,7 +143,7 @@ public class LogTestsBase {
     }
 
     public static LoggableToWrite createOneKbLoggable() {
-        return new LoggableToWrite(126, new ArrayByteIterable(new byte[1024], 1024), Loggable.NO_STRUCTURE_ID);
+        return new LoggableToWrite((byte) 126, new ArrayByteIterable(new byte[1024], 1024), Loggable.NO_STRUCTURE_ID);
     }
 
 }

@@ -198,7 +198,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     @Override
     public long save() {
         // dfs, save leafs, then bottoms, then internals, then root
-        final int type = root.isBottom() ? BOTTOM_ROOT : INTERNAL_ROOT;
+        final byte type = root.isBottom() ? BOTTOM_ROOT : INTERNAL_ROOT;
         final Log log = getLog();
 
         final ByteIterable savedData = root.getData();
@@ -252,15 +252,15 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         openCursors.remove(cursor);
     }
 
-    protected int getBottomPageType() {
+    protected byte getBottomPageType() {
         return BOTTOM;
     }
 
-    protected int getInternalPageType() {
+    protected byte getInternalPageType() {
         return INTERNAL;
     }
 
-    protected int getLeafType() {
+    protected byte getLeafType() {
         return LEAF;
     }
 

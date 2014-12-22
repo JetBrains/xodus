@@ -280,7 +280,7 @@ class BottomPageMutable extends BasePageMutable {
     }
 
     @Override
-    protected int getType() {
+    protected byte getType() {
         return tree.getBottomPageType();
     }
 

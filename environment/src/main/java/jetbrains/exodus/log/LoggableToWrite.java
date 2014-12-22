@@ -24,16 +24,16 @@ import org.jetbrains.annotations.NotNull;
  */
 public final class LoggableToWrite implements Loggable {
 
-    private final int type;
+    private final byte type;
     private final long structureId;
     @NotNull
     private final ByteIterable data;
 
-    public LoggableToWrite(final int type, @NotNull final ByteIterable data) {
+    public LoggableToWrite(final byte type, @NotNull final ByteIterable data) {
         this(type, data, NO_STRUCTURE_ID);
     }
 
-    public LoggableToWrite(final int type, @NotNull final ByteIterable data, final long structureId) {
+    public LoggableToWrite(final byte type, @NotNull final ByteIterable data, final long structureId) {
         this.type = type;
         this.data = data;
         this.structureId = structureId;
@@ -45,17 +45,14 @@ public final class LoggableToWrite implements Loggable {
     }
 
     @Override
-    public int getType() {
+    public byte getType() {
         return type;
     }
 
     @Override
     public int length() {
         final int dataLength = getDataLength();
-        return dataLength +
-                CompressedUnsignedLongByteIterable.getCompressedSize(type) +
-                CompressedUnsignedLongByteIterable.getCompressedSize(structureId) +
-                CompressedUnsignedLongByteIterable.getCompressedSize(dataLength);
+        return dataLength + 1 + CompressedUnsignedLongByteIterable.getCompressedSize(structureId) + CompressedUnsignedLongByteIterable.getCompressedSize(dataLength);
     }
 
     @NotNull

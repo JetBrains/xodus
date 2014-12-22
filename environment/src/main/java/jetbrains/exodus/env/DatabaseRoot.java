@@ -23,7 +23,7 @@ import org.jetbrains.annotations.NotNull;
 
 final class DatabaseRoot extends RandomAccessLoggable {
 
-    public static final int DATABASE_ROOT_TYPE = 1;
+    public static final byte DATABASE_ROOT_TYPE = 1;
 
     private static final long MAGIC_DIFF = 199L;
     private static final LoggableFactory ROOT_FACTORY = new LoggableFactory() {
