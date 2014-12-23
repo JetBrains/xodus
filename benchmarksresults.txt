@@ -1,0 +1,21 @@
+# Run complete. Total time: 00:54:38
+
+Benchmark                                                                      Mode   Samples        Score  Score error    Units
+j.e.b.dataStructures.JMHHashContainersBenchmark.hashMapGet                    thrpt        32       58.183        0.288   ops/us
+j.e.b.dataStructures.JMHHashContainersBenchmark.hashMapGetMissingKey          thrpt        32       76.330        1.273   ops/us
+j.e.b.env.JMHEnvTokyoCabinetReadBenchmark.randomRead                             ss        32        3.642        0.079        s
+j.e.b.env.JMHEnvTokyoCabinetReadBenchmark.successiveRead                         ss        32        0.196        0.068        s
+j.e.b.env.JMHEnvTokyoCabinetWriteBenchmark.randomWrite                           ss        32        2.023        0.158        s
+j.e.b.env.JMHEnvTokyoCabinetWriteBenchmark.successiveWrite                       ss        32        0.724        0.082        s
+j.e.b.env.JMHEnvWithPrefixingTokyoCabinetReadBenchmark.randomRead                ss        32        1.862        0.123        s
+j.e.b.env.JMHEnvWithPrefixingTokyoCabinetReadBenchmark.successiveRead            ss        32        0.439        0.112        s
+j.e.b.env.JMHEnvWithPrefixingTokyoCabinetWriteBenchmark.randomWrite              ss        32        1.628        0.103        s
+j.e.b.env.JMHEnvWithPrefixingTokyoCabinetWriteBenchmark.successiveWrite          ss        32        0.798        0.128        s
+j.e.b.je.JMH_JETokyoCabinetLikeReadBenchmark.randomRead                          ss        32        3.681        0.173        s
+j.e.b.je.JMH_JETokyoCabinetLikeReadBenchmark.successiveRead                      ss        32        1.869        0.236        s
+j.e.b.je.JMH_JETokyoCabinetLikeWriteBenchmark.randomWrite                        ss        32        6.622        0.304        s
+j.e.b.je.JMH_JETokyoCabinetLikeWriteBenchmark.successiveWrite                    ss        32        3.792        0.273        s
+j.e.b.je.JMH_JEWithPrefixingTokyoCabinetLikeReadBenchmark.randomRead             ss        32        3.798        0.071        s
+j.e.b.je.JMH_JEWithPrefixingTokyoCabinetLikeReadBenchmark.successiveRead         ss        32        1.315        0.245        s
+j.e.b.je.JMH_JEWithPrefixingTokyoCabinetLikeWriteBenchmark.randomWrite           ss        32        6.525        0.384        s
+j.e.b.je.JMH_JEWithPrefixingTokyoCabinetLikeWriteBenchmark.successiveWrite       ss        32        4.038        0.318        s
