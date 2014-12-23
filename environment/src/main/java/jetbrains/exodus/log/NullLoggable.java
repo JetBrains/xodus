@@ -17,11 +17,11 @@ package jetbrains.exodus.log;
 
 import org.jetbrains.annotations.NotNull;
 
-public final class NullLoggable extends RandomAccessLoggable {
+public final class NullLoggable extends RandomAccessLoggableImpl {
 
-    public static final int TYPE = 0;
+    public static final byte TYPE = 0;
     public static final int LENGTH = 1;
-    @SuppressWarnings({"StaticVariableOfConcreteClass"})
+
     private static final NullLoggable PROTOTYPE = new NullLoggable(TYPE);
 
     NullLoggable(final long address) {

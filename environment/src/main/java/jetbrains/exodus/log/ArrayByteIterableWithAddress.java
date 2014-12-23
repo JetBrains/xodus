@@ -20,7 +20,7 @@ import jetbrains.exodus.ByteIterableBase;
 import jetbrains.exodus.util.ByteIterableUtil;
 import org.jetbrains.annotations.NotNull;
 
-public class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
+class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
 
     @NotNull
     private final byte[] bytes;
@@ -52,7 +52,12 @@ public class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
 
     @Override
     public ByteIterableWithAddress clone(final int offset) {
-        return new ArrayByteIterableWithAddress(getAddress() + offset, bytes, start + offset, end - start - offset);
+        return new ArrayByteIterableWithAddress(getDataAddress() + offset, bytes, start + offset, end - start - offset);
+    }
+
+    @Override
+    public int getLength() {
+        return end - start;
     }
 
     @Override
@@ -70,7 +75,7 @@ public class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
 
         @Override
         public long getAddress() {
-            return ArrayByteIterableWithAddress.this.getAddress() + i - start;
+            return ArrayByteIterableWithAddress.this.getDataAddress() + i - start;
         }
 
         @Override

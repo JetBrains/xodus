@@ -34,20 +34,20 @@ public class RandomAccessByteIterable extends ByteIterableWithAddress {
 
     @Override
     public ByteIteratorWithAddress iterator() {
-        return new CompoundByteIterator(getAddress(), log);
+        return new CompoundByteIterator(getDataAddress(), log);
     }
 
     public ByteIteratorWithAddress iterator(final int offset) {
-        return new CompoundByteIterator(getAddress() + offset, log);
+        return new CompoundByteIterator(getDataAddress() + offset, log);
     }
 
     public int compareTo(final int offset, final int len, @NotNull final ByteIterable right) {
-        return compare(offset, len, right, log, getAddress());
+        return compare(offset, len, right, log, getDataAddress());
     }
 
     @NotNull
     public RandomAccessByteIterable clone(final int offset) {
-        return new RandomAccessByteIterable(getAddress() + offset, log);
+        return new RandomAccessByteIterable(getDataAddress() + offset, log);
     }
 
     @SuppressWarnings({"OverlyLongMethod", "MethodWithTooManyParameters"})

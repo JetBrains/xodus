@@ -21,7 +21,7 @@ import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 
-final class DatabaseRoot extends RandomAccessLoggable {
+final class DatabaseRoot extends RandomAccessLoggableImpl {
 
     public static final byte DATABASE_ROOT_TYPE = 1;
 

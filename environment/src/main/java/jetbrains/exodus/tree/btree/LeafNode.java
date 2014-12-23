@@ -40,7 +40,7 @@ class LeafNode extends BaseLeafNode {
         final ByteIteratorWithAddress iterator = data.iterator();
         keyLength = CompressedUnsignedLongByteIterable.getInt(iterator);
         final long dataAddress = iterator.getAddress();
-        keyRecordSize = (byte) (dataAddress - data.getAddress());  //CompressedUnsignedLongByteIterable.getCompressedSize(keyLength);
+        keyRecordSize = (byte) (dataAddress - data.getDataAddress());  //CompressedUnsignedLongByteIterable.getCompressedSize(keyLength);
         valueLength = loggable.getDataLength() - keyRecordSize - keyLength;
     }
 

@@ -15,7 +15,9 @@
  */
 package jetbrains.exodus.log;
 
+import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import org.jetbrains.annotations.NotNull;
 
 public abstract class LoggableFactory {
@@ -40,20 +42,41 @@ public abstract class LoggableFactory {
         }
     }
 
-    static RandomAccessLoggable create(final long address,
-                                       final int type,
-                                       final int length,
-                                       @NotNull final ByteIterableWithAddress data,
-                                       final int dataLength,
-                                       final long structureId) {
+    static RandomAccessLoggable create(@NotNull final Log log, @NotNull final DataIterator it, final long address) {
+        final byte type = (byte) (it.next() ^ 0x80);
+        if (NullLoggable.isNullLoggable(type)) {
+            return new NullLoggable(address);
+        }
         if (type < 0 || type >= FACTORY.length) {
             throw new ExodusException("Invalid loggable type");
         }
         final LoggableFactory prototype = FACTORY[type];
+        final long structureId = CompressedUnsignedLongByteIterable.getLong(it);
+        final int dataLength = CompressedUnsignedLongByteIterable.getInt(it);
+        final long dataAddress = it.getHighAddress();
+        final int headerLength = (int) (dataAddress - address);
+        final int length = dataLength + headerLength;
+        final ArrayByteIterable.Iterator currentPageIt = it.getCurrent();
+        final byte[] currentPage = currentPageIt.getBytesUnsafe();
+        final int currentOffset = currentPageIt.getOffset();
+        final boolean fitsInSinglePage = currentPageIt.getLength() - currentOffset >= dataLength;
         if (prototype != null) {
+            final ByteIterableWithAddress data;
+            if (dataLength == 0) {
+                data = ByteIterableWithAddress.EMPTY;
+            } else if (fitsInSinglePage) {
+                data = new ArrayByteIterableWithAddress(dataAddress, currentPage, currentOffset, dataLength);
+            } else {
+                data = new RandomAccessByteIterable(dataAddress, log);
+            }
             return prototype.create(address, length, data, dataLength, structureId);
         }
-        return new RandomAccessLoggable(address, type, length, data, dataLength, structureId);
+        if (fitsInSinglePage) {
+            return new RandomAccessLoggableAndArrayByteIterable(
+                    address, type, length, structureId, dataAddress, currentPage, currentOffset, dataLength);
+        }
+        return new RandomAccessLoggableImpl(
+                address, type, length, new RandomAccessByteIterable(dataAddress, log), dataLength, structureId);
     }
 
     /**

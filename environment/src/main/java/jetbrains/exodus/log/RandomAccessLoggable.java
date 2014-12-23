@@ -17,63 +17,11 @@ package jetbrains.exodus.log;
 
 import org.jetbrains.annotations.NotNull;
 
-public class RandomAccessLoggable implements Loggable {
-
-    private final long address;
-    private final byte type;
-    private final byte headerLength;
-    private final int length;
-    @NotNull
-    private final ByteIterableWithAddress data;
-    private final int structureId;
-
-    @SuppressWarnings({"ConstructorWithTooManyParameters"})
-    public RandomAccessLoggable(final long address,
-                                final int type,
-                                final int length,
-                                @NotNull final ByteIterableWithAddress data,
-                                final int dataLength,
-                                final long structureId) {
-        this.address = address;
-        this.type = (byte) type;
-        headerLength = (byte) (length - dataLength);
-        this.length = length;
-        this.data = data;
-        this.structureId = (int) structureId;
-    }
-
-    @Override
-    public long getAddress() {
-        return address;
-    }
-
-    @Override
-    public byte getType() {
-        return type;
-    }
-
-    @Override
-    public int length() {
-        return length;
-    }
+public interface RandomAccessLoggable extends Loggable {
 
     @NotNull
     @Override
-    public ByteIterableWithAddress getData() {
-        return data;
-    }
+    ByteIterableWithAddress getData();
 
-    public byte getHeaderLength() {
-        return headerLength;
-    }
-
-    @Override
-    public int getDataLength() {
-        return length - headerLength;
-    }
-
-    @Override
-    public long getStructureId() {
-        return structureId;
-    }
+    byte getHeaderLength();
 }

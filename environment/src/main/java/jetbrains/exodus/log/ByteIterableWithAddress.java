@@ -28,7 +28,7 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
         this.address = address;
     }
 
-    public final long getAddress() {
+    public final long getDataAddress() {
         return address;
     }
 
@@ -42,17 +42,17 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
     public abstract ByteIterableWithAddress clone(final int offset);
 
     @Override
-    public final byte[] getBytesUnsafe() {
+    public byte[] getBytesUnsafe() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public final int getLength() {
+    public int getLength() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public final int compareTo(@NotNull final ByteIterable right) {
+    public int compareTo(@NotNull final ByteIterable right) {
         // can't compare
         throw new UnsupportedOperationException();
     }
