@@ -385,7 +385,11 @@ public final class Log implements Closeable {
 
     @NotNull
     public RandomAccessLoggable read(final DataIterator it, final long address) {
-        return LoggableFactory.create(this, it, address);
+        final byte type = (byte) (it.next() ^ 0x80);
+        if (NullLoggable.isNullLoggable(type)) {
+            return new NullLoggable(address);
+        }
+        return LoggableFactory.create(this, it, type, address);
     }
 
     public LoggableIterator getLoggableIterator(final long startAddress) {
