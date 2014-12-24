@@ -37,7 +37,7 @@ public class PatriciaTestBase extends TreeBaseTest {
     }
 
     @Override
-    protected ITreeMutable createMutableTree(boolean hasDuplicates, long structureId) {
+    protected ITreeMutable createMutableTree(final boolean hasDuplicates, final int structureId) {
         return doCreateMutableTree(hasDuplicates, structureId);
     }
 
@@ -46,7 +46,7 @@ public class PatriciaTestBase extends TreeBaseTest {
         return doOpenTree(address, hasDuplicates);
     }
 
-    protected static ITreeMutable doCreateMutableTree(boolean hasDuplicates, long structureId) {
+    protected static ITreeMutable doCreateMutableTree(final boolean hasDuplicates, final int structureId) {
         return new PatriciaTreeEmpty(hasDuplicates, log, structureId).getMutableCopy();
     }
 

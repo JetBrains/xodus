@@ -67,7 +67,7 @@ public abstract class TreeBaseTest {
         return tm;
     }
 
-    protected abstract ITreeMutable createMutableTree(boolean hasDuplicates, long structureId);
+    protected abstract ITreeMutable createMutableTree(final boolean hasDuplicates, final int structureId);
 
     protected abstract ITree openTree(long address, boolean hasDuplicates);
 

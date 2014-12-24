@@ -23,12 +23,15 @@ import org.jetbrains.annotations.NotNull;
 
 public class BTreeEmpty extends BTreeBase {
 
-    public BTreeEmpty(@NotNull Log log, @NotNull BTreeBalancePolicy policy, boolean allowsDuplicates, long structureId) {
+    public BTreeEmpty(@NotNull final Log log,
+                      @NotNull final BTreeBalancePolicy policy,
+                      final boolean allowsDuplicates,
+                      final int structureId) {
         super(policy, log, allowsDuplicates, structureId);
         size = 0;
     }
 
-    public BTreeEmpty(@NotNull Log log, boolean allowsDuplicates, long structureId) {
+    public BTreeEmpty(@NotNull final Log log, final boolean allowsDuplicates, final int structureId) {
         this(log, BTreeBalancePolicy.DEFAULT, allowsDuplicates, structureId);
     }
 

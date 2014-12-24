@@ -21,7 +21,7 @@ import org.jetbrains.annotations.NotNull;
 public class PatriciaTreeForReclaim extends PatriciaTree {
     private long backRef;
 
-    public PatriciaTreeForReclaim(@NotNull Log log, long rootAddress, long structureId) {
+    public PatriciaTreeForReclaim(@NotNull final Log log, final long rootAddress, final int structureId) {
         super(log, rootAddress, structureId);
     }
 

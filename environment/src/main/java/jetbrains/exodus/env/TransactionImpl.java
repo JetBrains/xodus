@@ -18,6 +18,7 @@ package jetbrains.exodus.env;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.decorators.HashMapDecorator;
+import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.tree.ITree;
@@ -37,9 +38,9 @@ public class TransactionImpl implements Transaction {
     @NotNull
     private MetaTree metaTree;
     @NotNull
-    private final LongHashMap<ITree> immutableTrees;
+    private final IntHashMap<ITree> immutableTrees;
     @NotNull
-    private final Map<Long, ITreeMutable> mutableTrees;
+    private final Map<Integer, ITreeMutable> mutableTrees;
     @NotNull
     private final LongHashMap<Pair<String, ITree>> removedStores;
     @NotNull
@@ -56,8 +57,8 @@ public class TransactionImpl implements Transaction {
                     @Nullable final Runnable beginHook, final boolean cloneMeta) {
         this.env = env;
         this.creatingThread = creatingThread;
-        immutableTrees = new LongHashMap<ITree>();
-        mutableTrees = new TreeMap<Long, ITreeMutable>();
+        immutableTrees = new IntHashMap<ITree>();
+        mutableTrees = new TreeMap<Integer, ITreeMutable>();
         removedStores = new LongHashMap<Pair<String, ITree>>();
         createdStores = new HashMapDecorator<String, TreeMetaInfo>();
         this.beginHook = new Runnable() {
@@ -84,8 +85,8 @@ public class TransactionImpl implements Transaction {
         metaTree = origin.metaTree;
         commitHook = origin.commitHook;
         creatingThread = origin.creatingThread;
-        immutableTrees = new LongHashMap<ITree>();
-        mutableTrees = new TreeMap<Long, ITreeMutable>();
+        immutableTrees = new IntHashMap<ITree>();
+        mutableTrees = new TreeMap<Integer, ITreeMutable>();
         removedStores = new LongHashMap<Pair<String, ITree>>();
         createdStores = new HashMapDecorator<String, TreeMetaInfo>();
         trace = env.transactionTimeout() > 0 ? new Throwable() : null;
@@ -162,7 +163,7 @@ public class TransactionImpl implements Transaction {
     }
 
     @NotNull
-    public StoreImpl openStoreByStructureId(final long structureId) {
+    public StoreImpl openStoreByStructureId(final int structureId) {
         final String storeName = metaTree.getStoreNameByStructureId(structureId, env);
         return storeName == null ?
                 new StoreEmpty(env, structureId) :
@@ -170,7 +171,7 @@ public class TransactionImpl implements Transaction {
     }
 
     void storeRemoved(@NotNull final StoreImpl store) {
-        final long structureId = store.getStructureId();
+        final int structureId = store.getStructureId();
         final ITree tree = store.openImmutableTree(metaTree);
         removedStores.put(structureId, new Pair<String, ITree>(store.getName(), tree));
         immutableTrees.remove(structureId);
@@ -199,7 +200,7 @@ public class TransactionImpl implements Transaction {
     }
 
     Iterable<Loggable>[] doCommit(@NotNull final MetaTree[] out) {
-        final Set<Map.Entry<Long, ITreeMutable>> entries = mutableTrees.entrySet();
+        final Set<Map.Entry<Integer, ITreeMutable>> entries = mutableTrees.entrySet();
         final Set<Map.Entry<Long, Pair<String, ITree>>> removedEntries = removedStores.entrySet();
         final int size = entries.size() + removedEntries.size();
         //noinspection unchecked
@@ -217,7 +218,7 @@ public class TransactionImpl implements Transaction {
         }
         createdStores.clear();
         final Collection<Loggable> last;
-        for (final Map.Entry<Long, ITreeMutable> entry : entries) {
+        for (final Map.Entry<Integer, ITreeMutable> entry : entries) {
             final ITreeMutable treeMutable = entry.getValue();
             expiredLoggables[i++] = treeMutable.getExpiredLoggables();
             MetaTree.saveTree(metaTreeMutable, treeMutable);
@@ -244,7 +245,7 @@ public class TransactionImpl implements Transaction {
         if (creatingThread != null && !creatingThread.equals(Thread.currentThread())) {
             throw new ExodusException("Can't create mutable tree in a thread different from the one which transaction was created in.");
         }
-        final long structureId = store.getStructureId();
+        final int structureId = store.getStructureId();
         ITreeMutable result = mutableTrees.get(structureId);
         if (result == null) {
             result = getImmutableTree(store).getMutableCopy();
@@ -310,7 +311,7 @@ public class TransactionImpl implements Transaction {
 
     @NotNull
     private ITree getImmutableTree(@NotNull final StoreImpl store) {
-        final long structureId = store.getStructureId();
+        final int structureId = store.getStructureId();
         ITree result = immutableTrees.get(structureId);
         if (result == null) {
             result = store.openImmutableTree(metaTree);

@@ -25,7 +25,7 @@ import org.jetbrains.annotations.NotNull;
 public final class LoggableToWrite implements Loggable {
 
     private final byte type;
-    private final long structureId;
+    private final int structureId;
     @NotNull
     private final ByteIterable data;
 
@@ -33,7 +33,7 @@ public final class LoggableToWrite implements Loggable {
         this(type, data, NO_STRUCTURE_ID);
     }
 
-    public LoggableToWrite(final byte type, @NotNull final ByteIterable data, final long structureId) {
+    public LoggableToWrite(final byte type, @NotNull final ByteIterable data, final int structureId) {
         this.type = type;
         this.data = data;
         this.structureId = structureId;
@@ -67,7 +67,7 @@ public final class LoggableToWrite implements Loggable {
     }
 
     @Override
-    public long getStructureId() {
+    public int getStructureId() {
         return structureId;
     }
 }

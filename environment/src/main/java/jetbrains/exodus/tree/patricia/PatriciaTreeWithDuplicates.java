@@ -33,13 +33,13 @@ import java.util.Arrays;
 
 public class PatriciaTreeWithDuplicates extends PatriciaTreeDecorator {
 
-    public PatriciaTreeWithDuplicates(@NotNull final Log log, final long rootAddress, final long structureId) {
+    public PatriciaTreeWithDuplicates(@NotNull final Log log, final long rootAddress, final int structureId) {
         this(log, rootAddress, structureId, false);
     }
 
     public PatriciaTreeWithDuplicates(@NotNull final Log log,
                                       final long rootAddress,
-                                      final long structureId,
+                                      final int structureId,
                                       final boolean empty) {
         super(empty ? new PatriciaTreeEmpty(false, log, structureId) : new PatriciaTree(log, rootAddress, structureId));
     }

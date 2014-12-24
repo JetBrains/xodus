@@ -30,8 +30,7 @@ import java.util.Iterator;
  */
 class StoreEmpty extends StoreImpl {
 
-    StoreEmpty(@NotNull final EnvironmentImpl env,
-               final long structureId) {
+    StoreEmpty(@NotNull final EnvironmentImpl env, final int structureId) {
         super(env, "fake empty store", TreeMetaInfo.EMPTY.clone(structureId));
     }
 

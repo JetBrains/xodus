@@ -46,10 +46,10 @@ public abstract class PatriciaTreeBase implements ITree {
 
     @NotNull
     protected final Log log;
-    protected final long structureId;
+    protected final int structureId;
     protected long size;
 
-    protected PatriciaTreeBase(@NotNull final Log log, final long structureId) {
+    protected PatriciaTreeBase(@NotNull final Log log, final int structureId) {
         this.log = log;
         this.structureId = structureId;
     }
@@ -61,7 +61,7 @@ public abstract class PatriciaTreeBase implements ITree {
     }
 
     @Override
-    public long getStructureId() {
+    public int getStructureId() {
         return structureId;
     }
 

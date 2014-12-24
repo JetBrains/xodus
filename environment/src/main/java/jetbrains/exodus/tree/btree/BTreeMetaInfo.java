@@ -26,12 +26,15 @@ public class BTreeMetaInfo extends TreeMetaInfo {
 
     final BTreeBalancePolicy balancePolicy;
 
-    private BTreeMetaInfo(@NotNull final Log log, @NotNull final BTreeBalancePolicy balancePolicy, boolean duplicates, long structureId) {
+    private BTreeMetaInfo(@NotNull final Log log,
+                          @NotNull final BTreeBalancePolicy balancePolicy,
+                          final boolean duplicates,
+                          final int structureId) {
         super(log, duplicates, structureId);
         this.balancePolicy = balancePolicy;
     }
 
-    public BTreeMetaInfo(@NotNull final EnvironmentImpl env, boolean duplicates, long structureId) {
+    public BTreeMetaInfo(@NotNull final EnvironmentImpl env, final boolean duplicates, final int structureId) {
         this(env.getLog(), env.getBTreeBalancePolicy(), duplicates, structureId);
     }
 
@@ -41,14 +44,14 @@ public class BTreeMetaInfo extends TreeMetaInfo {
     }
 
     @Override
-    public BTreeMetaInfo clone(final long newStructureId) {
+    public BTreeMetaInfo clone(final int newStructureId) {
         return new BTreeMetaInfo(log, balancePolicy, duplicates, newStructureId);
     }
 
     public static BTreeMetaInfo load(@NotNull final EnvironmentImpl env, byte flagsByte, ByteIterator it) {
         final boolean duplicates = (flagsByte & DUPLICATES_BIT) != 0;
         CompressedUnsignedLongByteIterable.getInt(it); // legacy format
-        final long structureId = CompressedUnsignedLongByteIterable.getLong(it);
+        final int structureId = CompressedUnsignedLongByteIterable.getInt(it);
         return new BTreeMetaInfo(env, duplicates, structureId);
     }
 }

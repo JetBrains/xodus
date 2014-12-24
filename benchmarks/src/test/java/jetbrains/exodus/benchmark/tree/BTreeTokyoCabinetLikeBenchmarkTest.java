@@ -26,7 +26,7 @@ public class BTreeTokyoCabinetLikeBenchmarkTest extends TokyoCabinetLikeBenchmar
     private static final int pageSize = 256;
 
     @Override
-    protected ITreeMutable createMutableTree(boolean hasDuplicates, long structureId) {
+    protected ITreeMutable createMutableTree(final boolean hasDuplicates, final int structureId) {
         return new BTreeEmpty(log, getBTreeBalancePolicy(), false, 1).getMutableCopy();
     }
 

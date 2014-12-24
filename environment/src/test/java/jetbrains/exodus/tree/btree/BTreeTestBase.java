@@ -48,12 +48,12 @@ public class BTreeTestBase extends TreeBaseTest {
         return new BP(size);
     }
 
-    protected BTreeEmpty createEmptyTreeForCursor(long structureId) {
+    protected BTreeEmpty createEmptyTreeForCursor(final int structureId) {
         return new BTreeEmpty(log, new BTreeBalancePolicy(4), true, structureId);
     }
 
     @Override
-    protected BTreeMutable createMutableTree(boolean hasDuplicates, long structureId) {
+    protected BTreeMutable createMutableTree(final boolean hasDuplicates, final int structureId) {
         return doCreateMutableTree(hasDuplicates, structureId);
     }
 
@@ -62,7 +62,7 @@ public class BTreeTestBase extends TreeBaseTest {
         return doOpenTree(address, hasDuplicates);
     }
 
-    protected static BTreeMutable doCreateMutableTree(boolean hasDuplicates, long structureId) {
+    protected static BTreeMutable doCreateMutableTree(final boolean hasDuplicates, final int structureId) {
         return new BTreeEmpty(log, createTestSplittingPolicy(), hasDuplicates, structureId).getMutableCopy();
     }
 

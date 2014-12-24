@@ -32,10 +32,10 @@ final class DatabaseRoot extends RandomAccessLoggableImpl {
                                               final int length,
                                               @NotNull final ByteIterableWithAddress data,
                                               final int dataLength,
-                                              final long structureId) {
+                                              final int structureId) {
             final ByteIterator it = data.iterator();
             final long rootAddress = CompressedUnsignedLongByteIterable.getLong(it);
-            final long lastStructureId = CompressedUnsignedLongByteIterable.getLong(it);
+            final int lastStructureId = CompressedUnsignedLongByteIterable.getInt(it);
             final boolean isValid = rootAddress ==
                     CompressedUnsignedLongByteIterable.getLong(it) - lastStructureId - MAGIC_DIFF;
             return new DatabaseRoot(rootAddress, lastStructureId, isValid, address, length, data, dataLength);
@@ -43,12 +43,12 @@ final class DatabaseRoot extends RandomAccessLoggableImpl {
     };
 
     private final long rootAddress;
-    private final long lastStructureId;
+    private final int lastStructureId;
     private final boolean isValid;
 
     @SuppressWarnings({"ConstructorWithTooManyParameters"})
     private DatabaseRoot(final long rootAddress,
-                         final long lastStructureId,
+                         final int lastStructureId,
                          final boolean isValid,
                          final long address,
                          final int length,
@@ -64,7 +64,7 @@ final class DatabaseRoot extends RandomAccessLoggableImpl {
         return rootAddress;
     }
 
-    public long getLastStructureId() {
+    public int getLastStructureId() {
         return lastStructureId;
     }
 
@@ -76,7 +76,7 @@ final class DatabaseRoot extends RandomAccessLoggableImpl {
         LoggableFactory.registerLoggable(DATABASE_ROOT_TYPE, ROOT_FACTORY);
     }
 
-    static Loggable toLoggable(final long rootAddress, final long lastStructureId) {
+    static Loggable toLoggable(final long rootAddress, final int lastStructureId) {
         final LightOutputStream output = new LightOutputStream(20);
         CompressedUnsignedLongByteIterable.fillBytes(rootAddress, output);
         CompressedUnsignedLongByteIterable.fillBytes(lastStructureId, output);

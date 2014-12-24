@@ -32,7 +32,7 @@ public interface ITree {
 
     long getRootAddress();
 
-    long getStructureId();
+    int getStructureId();
 
     @Nullable
     ByteIterable get(@NotNull final ByteIterable key);

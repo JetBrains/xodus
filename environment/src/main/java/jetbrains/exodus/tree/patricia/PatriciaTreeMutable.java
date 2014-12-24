@@ -38,7 +38,7 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
     private List<ITreeCursorMutable> openCursors = null;
 
     PatriciaTreeMutable(@NotNull final Log log,
-                        final long structureId,
+                        final int structureId,
                         final long treeSize,
                         @NotNull final ImmutableNode immutableRoot) {
         super(log, structureId);

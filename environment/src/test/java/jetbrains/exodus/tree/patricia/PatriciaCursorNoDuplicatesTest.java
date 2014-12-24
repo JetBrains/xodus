@@ -22,7 +22,7 @@ import jetbrains.exodus.tree.TreeCursorNoDuplicatesTest;
 public class PatriciaCursorNoDuplicatesTest extends TreeCursorNoDuplicatesTest {
 
     @Override
-    protected ITreeMutable createMutableTree(boolean hasDuplicates, long structureId) {
+    protected ITreeMutable createMutableTree(final boolean hasDuplicates, final int structureId) {
         return PatriciaTestBase.doCreateMutableTree(hasDuplicates, structureId);
     }
 

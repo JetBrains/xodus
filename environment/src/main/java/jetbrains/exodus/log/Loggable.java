@@ -26,7 +26,7 @@ import org.jetbrains.annotations.NotNull;
 public interface Loggable {
 
     long NULL_ADDRESS = -1;
-    long NO_STRUCTURE_ID = 0;
+    int NO_STRUCTURE_ID = 0;
 
     /**
      * Address of the loggable in log. It's available (has non-negative value) only for loggables
@@ -66,11 +66,10 @@ public interface Loggable {
     int getDataLength();
 
     /**
-     * Returns unique id of structure which the loggable belongs to. Basically, structure id is id of a tree
-     * (BTree or tree of other type). Valid structure id is non-zero. If it is less than zero then loggable
-     * doesn't belong to any structure, and, e.g., can be safely moved by garbage collector.
+     * Returns unique id of structure that the loggable belongs to. Basically, structure id is id of a tree
+     * (BTree or Patricia). Valid structure id is non-zero.
      *
      * @return unique structure id.
      */
-    long getStructureId();
+    int getStructureId();
 }

@@ -37,10 +37,10 @@ public abstract class TreeMetaInfo {
     protected static final int KEY_PREFIXING_BIT = 2;
 
     public final boolean duplicates;
-    public final long structureId;
+    public final int structureId;
     public final Log log;
 
-    protected TreeMetaInfo(final Log log, boolean duplicates, long structureId) {
+    protected TreeMetaInfo(final Log log, final boolean duplicates, final int structureId) {
         this.log = log;
         this.duplicates = duplicates;
         this.structureId = structureId;
@@ -52,7 +52,7 @@ public abstract class TreeMetaInfo {
 
     public abstract boolean isKeyPrefixing();
 
-    public long getStructureId() {
+    public int getStructureId() {
         return structureId;
     }
 
@@ -68,7 +68,7 @@ public abstract class TreeMetaInfo {
         return output.asArrayByteIterable();
     }
 
-    public abstract TreeMetaInfo clone(final long newStructureId);
+    public abstract TreeMetaInfo clone(final int newStructureId);
 
     public static StoreConfig toConfig(@NotNull final TreeMetaInfo metaInfo) {
         final boolean keyPrefixing = metaInfo.isKeyPrefixing();
@@ -80,7 +80,10 @@ public abstract class TreeMetaInfo {
                 StoreConfig.WITHOUT_DUPLICATES;
     }
 
-    public static TreeMetaInfo load(@NotNull final EnvironmentImpl environment, boolean duplicates, boolean keyPrefixing, long structureId) {
+    public static TreeMetaInfo load(@NotNull final EnvironmentImpl environment,
+                                    final boolean duplicates,
+                                    final boolean keyPrefixing,
+                                    final int structureId) {
         if (keyPrefixing) {
             return new PatriciaMetaInfo(environment.getLog(), duplicates, structureId);
         } else {
@@ -104,7 +107,7 @@ public abstract class TreeMetaInfo {
     }
 
     private static final class Empty extends TreeMetaInfo {
-        private Empty(final long structureId) {
+        private Empty(final int structureId) {
             super(null, false, structureId);
         }
 
@@ -114,7 +117,7 @@ public abstract class TreeMetaInfo {
         }
 
         @Override
-        public TreeMetaInfo clone(long newStructureId) {
+        public TreeMetaInfo clone(final int newStructureId) {
             return new Empty(newStructureId);
         }
     }

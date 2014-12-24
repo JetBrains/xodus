@@ -32,7 +32,7 @@ import static org.junit.Assert.assertTrue;
 public class BTreeCursorNoDuplicatesTest extends TreeCursorNoDuplicatesTest {
 
     @Override
-    protected ITreeMutable createMutableTree(boolean hasDuplicates, long structureId) {
+    protected ITreeMutable createMutableTree(final boolean hasDuplicates, final int structureId) {
         return new BTreeEmpty(log, false, structureId).getMutableCopy();
     }
 

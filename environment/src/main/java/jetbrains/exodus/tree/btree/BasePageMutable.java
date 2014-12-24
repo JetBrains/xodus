@@ -124,7 +124,7 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
         ReclaimFlag flag = saveChildren();
         // save self. complementary to {@link load()}
         final byte type = getType();
-        final long structureId = tree.structureId;
+        final int structureId = tree.structureId;
         final Log log = tree.log;
         if (flag == ReclaimFlag.PRESERVE) {
             // there is a chance to update the flag to RECLAIM

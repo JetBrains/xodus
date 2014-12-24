@@ -47,7 +47,7 @@ public abstract class LoggableFactory {
             throw new ExodusException("Invalid loggable type");
         }
         final LoggableFactory prototype = FACTORY[type];
-        final long structureId = CompressedUnsignedLongByteIterable.getLong(it);
+        final int structureId = CompressedUnsignedLongByteIterable.getInt(it);
         final int dataLength = CompressedUnsignedLongByteIterable.getInt(it);
         final long dataAddress = it.getHighAddress();
         final int headerLength = (int) (dataAddress - address);
@@ -88,5 +88,5 @@ public abstract class LoggableFactory {
                                                    final int length,
                                                    @NotNull final ByteIterableWithAddress data,
                                                    final int dataLength,
-                                                   final long structureId);
+                                                   final int structureId);
 }

@@ -25,7 +25,7 @@ public class RandomAccessLoggableImpl implements RandomAccessLoggable {
     private final int length;
     @NotNull
     private final ByteIterableWithAddress data;
-    private final long structureId;
+    private final int structureId;
 
     @SuppressWarnings({"ConstructorWithTooManyParameters"})
     public RandomAccessLoggableImpl(final long address,
@@ -33,7 +33,7 @@ public class RandomAccessLoggableImpl implements RandomAccessLoggable {
                                     final int length,
                                     @NotNull final ByteIterableWithAddress data,
                                     final int dataLength,
-                                    final long structureId) {
+                                    final int structureId) {
         this.address = address;
         this.type = type;
         headerLength = (byte) (length - dataLength);
@@ -74,7 +74,7 @@ public class RandomAccessLoggableImpl implements RandomAccessLoggable {
     }
 
     @Override
-    public long getStructureId() {
+    public int getStructureId() {
         return structureId;
     }
 }

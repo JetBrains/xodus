@@ -52,9 +52,9 @@ public abstract class BTreeBase implements ITree {
     protected final BTreeBalancePolicy balancePolicy;
     protected final boolean allowsDuplicates;
     protected long size = -1;
-    protected final long structureId;
+    protected final int structureId;
 
-    BTreeBase(@NotNull BTreeBalancePolicy policy, @NotNull Log log, boolean allowsDuplicates, long structureId) {
+    BTreeBase(@NotNull final BTreeBalancePolicy policy, @NotNull final Log log, final boolean allowsDuplicates, final int structureId) {
         balancePolicy = policy;
         this.log = log;
         this.allowsDuplicates = allowsDuplicates;
@@ -74,7 +74,7 @@ public abstract class BTreeBase implements ITree {
     protected abstract BasePage getRoot();
 
     @Override
-    public long getStructureId() {
+    public int getStructureId() {
         return structureId;
     }
 
@@ -96,12 +96,7 @@ public abstract class BTreeBase implements ITree {
 
     @Override
     public AddressIterator addressIterator() {
-        final BTreeTraverser traverser;
-        if (allowsDuplicates) {
-            traverser = BTreeMutatingTraverserDup.create(this);
-        } else {
-            traverser = BTreeMutatingTraverser.create(this);
-        }
+        final BTreeTraverser traverser = allowsDuplicates ? BTreeMutatingTraverserDup.create(this) : BTreeMutatingTraverser.create(this);
         return new AddressIterator(isEmpty() ? null : this, traverser.currentPos >= 0 && !isEmpty(), traverser);
     }
 

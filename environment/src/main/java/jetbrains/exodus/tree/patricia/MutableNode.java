@@ -309,7 +309,7 @@ class MutableNode extends NodeBase {
         }
         // finally, write loggable
         byte type = getLoggableType();
-        final long structureId = getTree().getStructureId();
+        final int structureId = getTree().getStructureId();
         final ByteIterable mainIterable = nodeStream.asArrayByteIterable();
         final long startAddress = context.startAddress;
         long result;

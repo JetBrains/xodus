@@ -187,7 +187,7 @@ public final class GarbageCollector {
                 if (nextFileAddress != Loggable.NULL_ADDRESS && loggable.getAddress() >= nextFileAddress) {
                     break;
                 }
-                final long structureId = loggable.getStructureId();
+                final int structureId = loggable.getStructureId();
                 if (structureId != Loggable.NO_STRUCTURE_ID && structureId != EnvironmentImpl.META_TREE_ID) {
                     StoreImpl store = openStoresCache.tryKey(structureId);
                     if (store == null) {

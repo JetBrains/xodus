@@ -24,7 +24,7 @@ public class BTreeDeleteCommonTest extends TreeDeleteTest {
     private final BTreeBalancePolicy policy = new BTreeBalancePolicy(2);
 
     @Override
-    protected ITreeMutable createMutableTree(boolean hasDuplicates, long structureId) {
+    protected ITreeMutable createMutableTree(final boolean hasDuplicates, final int structureId) {
         return new BTreeEmpty(log, policy, hasDuplicates, structureId).getMutableCopy();
     }
 

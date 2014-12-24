@@ -24,7 +24,7 @@ import jetbrains.exodus.tree.patricia.PatriciaTreeWithDuplicates;
 public class PatriciaTokyoCabinetLikeBenchmarkTest extends TokyoCabinetLikeBenchmarkTestBase {
 
     @Override
-    protected ITreeMutable createMutableTree(boolean hasDuplicates, long structureId) {
+    protected ITreeMutable createMutableTree(final boolean hasDuplicates, final int structureId) {
         return new PatriciaTreeEmpty(hasDuplicates, log, 1).getMutableCopy();
     }
 

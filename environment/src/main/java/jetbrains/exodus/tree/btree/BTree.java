@@ -29,11 +29,15 @@ public class BTree extends BTreeBase {
     private final int rootType;
     private final int dataOffset;
 
-    public BTree(@NotNull Log log, long rootAddress, boolean allowsDuplicates, long structureId) {
+    public BTree(@NotNull final Log log, final long rootAddress, final boolean allowsDuplicates, final int structureId) {
         this(log, rootAddress, BTreeBalancePolicy.DEFAULT, allowsDuplicates, structureId);
     }
 
-    public BTree(@NotNull Log log, long rootAddress, @NotNull BTreeBalancePolicy policy, boolean allowsDuplicates, long structureId) {
+    public BTree(@NotNull final Log log,
+                 final long rootAddress,
+                 @NotNull final BTreeBalancePolicy policy,
+                 final boolean allowsDuplicates,
+                 final int structureId) {
         super(policy, log, allowsDuplicates, structureId);
         if (rootAddress == Loggable.NULL_ADDRESS) {
             throw new IllegalArgumentException("Can't instantiate not empty tree with null root address.");

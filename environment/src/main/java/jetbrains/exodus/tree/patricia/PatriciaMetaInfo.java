@@ -24,7 +24,7 @@ import org.jetbrains.annotations.NotNull;
 
 public class PatriciaMetaInfo extends TreeMetaInfo {
 
-    public PatriciaMetaInfo(@NotNull final Log log, boolean duplicates, long structureId) {
+    public PatriciaMetaInfo(@NotNull final Log log, final boolean duplicates, final int structureId) {
         super(log, duplicates, structureId);
     }
 
@@ -34,14 +34,14 @@ public class PatriciaMetaInfo extends TreeMetaInfo {
     }
 
     @Override
-    public TreeMetaInfo clone(long newStructureId) {
+    public TreeMetaInfo clone(final int newStructureId) {
         return new PatriciaMetaInfo(log, duplicates, newStructureId);
     }
 
     public static PatriciaMetaInfo load(@NotNull final EnvironmentImpl env, byte flagsByte, ByteIterator it) {
         final boolean duplicates = (flagsByte & DUPLICATES_BIT) != 0;
         CompressedUnsignedLongByteIterable.getInt(it); // legacy format
-        final long structureId = CompressedUnsignedLongByteIterable.getLong(it);
+        final int structureId = CompressedUnsignedLongByteIterable.getInt(it);
         return new PatriciaMetaInfo(env.getLog(), duplicates, structureId);
     }
 }

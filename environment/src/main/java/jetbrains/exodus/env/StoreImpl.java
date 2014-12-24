@@ -169,7 +169,7 @@ public class StoreImpl implements Store {
     }
 
     public ITree openImmutableTree(@NotNull final MetaTree metaTree) {
-        final long structureId = getStructureId();
+        final int structureId = getStructureId();
         final long upToDateRootAddress = metaTree.getRootAddress(structureId);
         final boolean hasDuplicates = metaInfo.hasDuplicates();
         final boolean treeIsEmpty = upToDateRootAddress == Loggable.NULL_ADDRESS;
@@ -192,7 +192,7 @@ public class StoreImpl implements Store {
         return result;
     }
 
-    long getStructureId() {
+    int getStructureId() {
         return metaInfo.getStructureId();
     }
 }

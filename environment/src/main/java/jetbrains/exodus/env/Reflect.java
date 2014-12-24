@@ -133,8 +133,8 @@ public class Reflect {
         final LongSet traversed = new LongHashSet();
         final BTreeBalancePolicy strategy = env.getBTreeBalancePolicy();
         final MetaTree fallbackMetaTree = env.getMetaTree(null);
-        final AbstractMap<Long, Long> storeRoots = new LongHashMap<Long>();
-        final long[] ids = new long[roots.size()]; // whatever
+        final AbstractMap<Integer, Long> storeRoots = new IntHashMap<Long>();
+        final int[] ids = new int[roots.size()]; // whatever
         int processed = 0;
         long totalLength = 0;
         for (final DatabaseRoot root : roots) {
@@ -158,7 +158,7 @@ public class Reflect {
                         meta.put(metaInfo.getStructureId(), metaInfo);
                     } else {
                         final long address = CompressedUnsignedLongByteIterable.getLong(cursor.getValue());
-                        final long structureId = LongBinding.compressedEntryToLong(key);
+                        final int structureId = (int) LongBinding.compressedEntryToLong(key);
                         final Long currentAddress = storeRoots.get(structureId);
                         if (currentAddress == null || currentAddress != address) {
                             ids[size++] = structureId;
@@ -170,7 +170,7 @@ public class Reflect {
                 cursor.close();
             }
             for (int i = 0; i < size; ++i) {
-                final long id = ids[i];
+                final int id = ids[i];
                 final Long currentRoot = storeRoots.get(id);
                 TreeMetaInfo currentInfo = meta.get(id);
 

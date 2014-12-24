@@ -22,7 +22,7 @@ import jetbrains.exodus.tree.TreeDeleteTest;
 public class PatriciaDeleteCommonTest extends TreeDeleteTest {
 
     @Override
-    protected ITreeMutable createMutableTree(boolean hasDuplicates, long structureId) {
+    protected ITreeMutable createMutableTree(final boolean hasDuplicates, final int structureId) {
         return PatriciaTestBase.doCreateMutableTree(hasDuplicates, structureId);
     }
 

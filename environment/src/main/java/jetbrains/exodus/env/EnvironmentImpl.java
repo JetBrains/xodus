@@ -38,11 +38,11 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class EnvironmentImpl implements Environment {
 
-    public static final long META_TREE_ID = 1;
+    public static final int META_TREE_ID = 1;
 
     private static final org.apache.commons.logging.Log logging = LogFactory.getLog(EnvironmentImpl.class);
 
@@ -54,7 +54,7 @@ public class EnvironmentImpl implements Environment {
     private final EnvironmentConfig ec;
     private BTreeBalancePolicy balancePolicy;
     private MetaTree metaTree;
-    private final AtomicLong structureId;
+    private final AtomicInteger structureId;
     private final TransactionSet txns;
     private final LinkedList<RunnableWithTxnRoot> txnSafeTasks;
     @Nullable
@@ -79,9 +79,9 @@ public class EnvironmentImpl implements Environment {
         this.log = log;
         this.ec = ec;
         applyEnvironmentSettings(log.getLocation(), ec);
-        final Pair<MetaTree, Long> meta = MetaTree.create(this);
+        final Pair<MetaTree, Integer> meta = MetaTree.create(this);
         metaTree = meta.getFirst();
-        structureId = new AtomicLong(meta.getSecond());
+        structureId = new AtomicInteger(meta.getSecond());
         txns = new TransactionSet();
         txnSafeTasks = new LinkedList<RunnableWithTxnRoot>();
         invalidateStoreGetCache();
@@ -248,7 +248,7 @@ public class EnvironmentImpl implements Environment {
                     checkInactive(false);
                     log.clear();
                     runAllTransactionSafeTasks();
-                    Pair<MetaTree, Long> meta = MetaTree.create(this);
+                    final Pair<MetaTree, Integer> meta = MetaTree.create(this);
                     metaTree = meta.getFirst();
                     structureId.set(meta.getSecond());
                 }
@@ -481,7 +481,7 @@ public class EnvironmentImpl implements Environment {
             if (txn == null) {
                 throw new ExodusException("Transaction required to create a new store");
             }
-            final long structureId = allocateStructureId();
+            final int structureId = allocateStructureId();
             metaInfo = TreeMetaInfo.load(this, config.duplicates, config.prefixing, structureId);
             result = createStore(name, metaInfo);
             txn.getMutableTree(result);
@@ -506,7 +506,7 @@ public class EnvironmentImpl implements Environment {
         return result;
     }
 
-    long getLastStructureId() {
+    int getLastStructureId() {
         return structureId.get();
     }
 
@@ -613,7 +613,7 @@ public class EnvironmentImpl implements Environment {
         }
     }
 
-    private long allocateStructureId() {
+    private int allocateStructureId() {
         /**
          * <TRICK>
          * Allocates structure id so that 256 doesn't factor it. This ensures that corresponding byte iterable
@@ -622,7 +622,7 @@ public class EnvironmentImpl implements Environment {
          * </TRICK>
          */
         while (true) {
-            final long result = structureId.incrementAndGet();
+            final int result = structureId.incrementAndGet();
             if ((result & 0xff) != 0) {
                 return result;
             }

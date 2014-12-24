@@ -44,7 +44,7 @@ abstract class PatriciaTreeDecorator implements ITree {
     }
 
     @Override
-    public long getStructureId() {
+    public int getStructureId() {
         return treeNoDuplicates.getStructureId();
     }
 

@@ -29,9 +29,7 @@ public class PatriciaTree extends PatriciaTreeBase {
     private final int rootType;
     private final int dataOffset;
 
-    public PatriciaTree(@NotNull final Log log,
-                        final long rootAddress,
-                        final long structureId) {
+    public PatriciaTree(@NotNull final Log log, final long rootAddress, final int structureId) {
         super(log, structureId);
         if (rootAddress == Loggable.NULL_ADDRESS) {
             throw new IllegalArgumentException("Can't instantiate nonempty tree with null root address");

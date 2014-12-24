@@ -44,15 +44,15 @@ final class MetaTree {
         this.root = root;
     }
 
-    static Pair<MetaTree, Long> create(@NotNull final EnvironmentImpl env) {
+    static Pair<MetaTree, Integer> create(@NotNull final EnvironmentImpl env) {
         final Log log = env.getLog();
         DatabaseRoot dbRoot = (DatabaseRoot) log.getLastLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);
-        long resultId = EnvironmentImpl.META_TREE_ID;
+        int resultId = EnvironmentImpl.META_TREE_ID;
         ITree resultTree = null;
         while (dbRoot != null) {
             if (dbRoot.isValid()) {
                 final long rootAddress = dbRoot.getRootAddress();
-                final long structureId = dbRoot.getLastStructureId();
+                final int structureId = dbRoot.getLastStructureId();
                 final BTree treeCandidate = env.loadMetaTree(rootAddress);
                 if (treeCandidate != null) {
                     resultId = structureId;
@@ -77,7 +77,7 @@ final class MetaTree {
             root = log.write(DatabaseRoot.toLoggable(rootAddress, EnvironmentImpl.META_TREE_ID));
             log.flush();
         }
-        return new Pair<MetaTree, Long>(new MetaTree(resultTree, root), resultId);
+        return new Pair<MetaTree, Integer>(new MetaTree(resultTree, root), resultId);
     }
 
     LongIterator addressIterator() {
@@ -93,7 +93,7 @@ final class MetaTree {
         return TreeMetaInfo.load(env, value);
     }
 
-    long getRootAddress(final long structureId) {
+    long getRootAddress(final int structureId) {
         final ITree rememberedTree = tree;
         final ByteIterable value = rememberedTree.get(LongBinding.longToCompressedEntry(structureId));
         return value == null ? Loggable.NULL_ADDRESS : CompressedUnsignedLongByteIterable.getLong(value);
@@ -111,7 +111,7 @@ final class MetaTree {
     static void saveTree(@NotNull final ITreeMutable out,
                          @NotNull final ITreeMutable treeMutable) {
         final long treeRootAddress = treeMutable.save();
-        final long structureId = treeMutable.getStructureId();
+        final int structureId = treeMutable.getStructureId();
         out.put(LongBinding.longToCompressedEntry(structureId),
                 CompressedUnsignedLongByteIterable.getIterable(treeRootAddress));
     }
@@ -130,7 +130,7 @@ final class MetaTree {
                                  @NotNull final Collection<Loggable> expired) {
         final long newRootAddress = metaTree.save();
         final Log log = env.getLog();
-        final long lastStructureId = env.getLastStructureId();
+        final int lastStructureId = env.getLastStructureId();
         final long dbRootAddress = log.write(DatabaseRoot.toLoggable(newRootAddress, lastStructureId));
         log.flush();
         BTree resultTree = env.loadMetaTree(newRootAddress);
@@ -159,7 +159,7 @@ final class MetaTree {
     }
 
     @Nullable
-    String getStoreNameByStructureId(final long structureId, @NotNull final EnvironmentImpl env) {
+    String getStoreNameByStructureId(final int structureId, @NotNull final EnvironmentImpl env) {
         final ITreeCursor cursor = tree.openCursor();
         try {
             while (cursor.getNext()) {

@@ -23,11 +23,11 @@ public class PatriciaTreeAddressIteratorTest extends TreeAddressIteratorTest {
 
     @Override
     protected ITree createEmpty() {
-        return new PatriciaTreeEmpty(false, log, 0L);
+        return new PatriciaTreeEmpty(false, log, 0);
     }
 
     @Override
-    protected ITreeMutable createMutableTree(boolean hasDuplicates, long structureId) {
+    protected ITreeMutable createMutableTree(final boolean hasDuplicates, final int structureId) {
         return null;
     }
 

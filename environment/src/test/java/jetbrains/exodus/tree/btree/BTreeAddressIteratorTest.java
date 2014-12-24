@@ -23,11 +23,11 @@ public class BTreeAddressIteratorTest extends TreeAddressIteratorTest {
 
     @Override
     protected ITree createEmpty() {
-        return new BTreeEmpty(log, false, 0L);
+        return new BTreeEmpty(log, false, 0);
     }
 
     @Override
-    protected ITreeMutable createMutableTree(boolean hasDuplicates, long structureId) {
+    protected ITreeMutable createMutableTree(final boolean hasDuplicates, final int structureId) {
         return null;
     }
 
