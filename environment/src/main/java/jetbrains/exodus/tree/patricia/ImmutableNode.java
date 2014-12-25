@@ -29,7 +29,7 @@ import org.jetbrains.annotations.Nullable;
 
 final class ImmutableNode extends NodeBase {
 
-    private static final int CHILDREN_COUNT_TO_TRIGGER_BINARY_SEARCH = 32;
+    private static final int CHILDREN_COUNT_TO_TRIGGER_BINARY_SEARCH = 8;
 
     private final long address;
     @NotNull
@@ -158,11 +158,12 @@ final class ImmutableNode extends NodeBase {
             }
         } else {
             // binary search
+            final int childRecordLength = childAddressLength + 1;
             int low = 0;
             int high = childrenCount - 1;
             while (low <= high) {
                 final int mid = (low + high + 1) >>> 1;
-                final ByteIterator it = getDataIterator(mid * (childAddressLength + 1));
+                final ByteIterator it = getDataIterator(mid * childRecordLength);
                 int cmp = (it.next() & 0xff) - key;
                 if (cmp < 0) {
                     low = mid + 1;
@@ -195,13 +196,14 @@ final class ImmutableNode extends NodeBase {
             }
         } else {
             // binary search
+            final int childRecordLength = childAddressLength + 1;
             int low = -1;
             int high = childrenCount;
             ByteIterator result = null;
             byte resultByte = (byte) 0;
             while (high - low > 1) {
                 int mid = (low + high + 1) >>> 1;
-                final ByteIterator it = getDataIterator(mid * (childAddressLength + 1));
+                final ByteIterator it = getDataIterator(mid * childRecordLength);
                 byte actual = it.next();
                 int cmp = (actual & 0xff) - key;
                 if (cmp > 0) {
