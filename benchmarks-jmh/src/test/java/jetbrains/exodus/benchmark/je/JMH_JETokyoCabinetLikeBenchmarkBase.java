@@ -25,10 +25,10 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.TearDown;
 
 import java.io.IOException;
-import java.math.BigInteger;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
-import java.util.Random;
+import java.util.Arrays;
+import java.util.Collections;
 
 public abstract class JMH_JETokyoCabinetLikeBenchmarkBase extends BenchmarkTestBase {
 
@@ -44,11 +44,8 @@ public abstract class JMH_JETokyoCabinetLikeBenchmarkBase extends BenchmarkTestB
             StringBinding.stringToEntry(FORMAT.format(i), key);
             successiveKeys[i] = key;
         }
-        randomKeys = new DatabaseEntry[TOKYO_CABINET_BENCHMARK_SIZE];
-        final int prime = BigInteger.probablePrime(19, new Random()).intValue();
-        for (int i = 0, j = 0; i < TOKYO_CABINET_BENCHMARK_SIZE; ++i, j = (j + prime) % TOKYO_CABINET_BENCHMARK_SIZE) {
-            randomKeys[j] = successiveKeys[i];
-        }
+        randomKeys = Arrays.copyOf(successiveKeys, successiveKeys.length);
+        Collections.shuffle(Arrays.asList(randomKeys));
     }
 
     protected Environment env;

@@ -31,10 +31,10 @@ import org.openjdk.jmh.annotations.TearDown;
 
 import java.io.File;
 import java.io.IOException;
-import java.math.BigInteger;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
-import java.util.Random;
+import java.util.Arrays;
+import java.util.Collections;
 
 abstract class JMHEnvTokyoCabinetBenchmarkBase extends BenchmarkTestBase {
 
@@ -48,11 +48,8 @@ abstract class JMHEnvTokyoCabinetBenchmarkBase extends BenchmarkTestBase {
         for (int i = 0; i < TOKYO_CABINET_BENCHMARK_SIZE; i++) {
             successiveKeys[i] = StringBinding.stringToEntry(FORMAT.format(i));
         }
-        randomKeys = new ByteIterable[TOKYO_CABINET_BENCHMARK_SIZE];
-        final int prime = BigInteger.probablePrime(19, new Random()).intValue();
-        for (int i = 0, j = 0; i < TOKYO_CABINET_BENCHMARK_SIZE; ++i, j = (j + prime) % TOKYO_CABINET_BENCHMARK_SIZE) {
-            randomKeys[j] = successiveKeys[i];
-        }
+        randomKeys = Arrays.copyOf(successiveKeys, successiveKeys.length);
+        Collections.shuffle(Arrays.asList(randomKeys));
     }
 
     private static final String STORE_NAME = "TokyoCabinetBenchmarkStore";

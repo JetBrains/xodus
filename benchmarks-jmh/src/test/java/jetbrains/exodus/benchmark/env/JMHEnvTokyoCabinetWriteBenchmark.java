@@ -30,18 +30,18 @@ public class JMHEnvTokyoCabinetWriteBenchmark extends JMHEnvTokyoCabinetBenchmar
 
     @Benchmark
     @BenchmarkMode(Mode.SingleShotTime)
-    @Warmup(iterations = 4)
-    @Measurement(iterations = 8)
-    @Fork(4)
+    @Warmup(iterations = 2)
+    @Measurement(iterations = 6)
+    @Fork(10)
     public void successiveWrite() {
         writeSuccessiveKeys();
     }
 
     @Benchmark
     @BenchmarkMode(Mode.SingleShotTime)
-    @Warmup(iterations = 4)
-    @Measurement(iterations = 8)
-    @Fork(4)
+    @Warmup(iterations = 2)
+    @Measurement(iterations = 6)
+    @Fork(10)
     public void randomWrite() {
         env.executeInTransaction(new TransactionalExecutable() {
             @Override

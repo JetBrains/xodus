@@ -48,17 +48,17 @@ public class JMHHashContainersBenchmark {
     }
 
     @Benchmark
-    @Warmup(iterations = 4, time = 1)
-    @Measurement(iterations = 8, batchSize = 10000)
-    @Fork(4)
+    @Warmup(iterations = 2, time = 1)
+    @Measurement(iterations = 6, batchSize = 10000)
+    @Fork(10)
     public String hashMapGet() {
         return map.get(existingKey);
     }
 
     @Benchmark
-    @Warmup(iterations = 4, time = 1)
-    @Measurement(iterations = 8, batchSize = 10000)
-    @Fork(4)
+    @Warmup(iterations = 2, time = 1)
+    @Measurement(iterations = 6, batchSize = 10000)
+    @Fork(10)
     public String hashMapGetMissingKey() {
         return map.get(missingKey);
     }

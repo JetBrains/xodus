@@ -36,9 +36,9 @@ public class JMHEnvTokyoCabinetReadBenchmark extends JMHEnvTokyoCabinetBenchmark
 
     @Benchmark
     @BenchmarkMode(Mode.SingleShotTime)
-    @Warmup(iterations = 4)
-    @Measurement(iterations = 8)
-    @Fork(4)
+    @Warmup(iterations = 2)
+    @Measurement(iterations = 6)
+    @Fork(10)
     public int successiveRead() {
         return env.computeInReadonlyTransaction(new TransactionalComputable<Integer>() {
             @Override
@@ -57,9 +57,9 @@ public class JMHEnvTokyoCabinetReadBenchmark extends JMHEnvTokyoCabinetBenchmark
 
     @Benchmark
     @BenchmarkMode(Mode.SingleShotTime)
-    @Warmup(iterations = 4)
-    @Measurement(iterations = 8)
-    @Fork(4)
+    @Warmup(iterations = 2)
+    @Measurement(iterations = 6)
+    @Fork(10)
     public int randomRead() {
         return env.computeInReadonlyTransaction(new TransactionalComputable<Integer>() {
             @Override
