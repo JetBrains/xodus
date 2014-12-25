@@ -48,7 +48,7 @@ public class JMHHashContainersBenchmark {
     }
 
     @Benchmark
-    @Warmup(iterations = 2, time = 1)
+    @Warmup(iterations = 4, time = 1)
     @Measurement(iterations = 6, batchSize = 10000)
     @Fork(10)
     public String hashMapGet() {
@@ -56,7 +56,7 @@ public class JMHHashContainersBenchmark {
     }
 
     @Benchmark
-    @Warmup(iterations = 2, time = 1)
+    @Warmup(iterations = 4, time = 1)
     @Measurement(iterations = 6, batchSize = 10000)
     @Fork(10)
     public String hashMapGetMissingKey() {
