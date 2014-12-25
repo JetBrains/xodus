@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.tree.patricia;
 
-import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
@@ -25,32 +24,29 @@ import org.jetbrains.annotations.NotNull;
 
 public class PatriciaTree extends PatriciaTreeBase {
 
-    private final long rootAddress;
-    private final int rootType;
-    private final int dataOffset;
+    private final RandomAccessLoggable rootLoggable;
+    private final byte rootType;
+    private final byte dataOffset;
 
     public PatriciaTree(@NotNull final Log log, final long rootAddress, final int structureId) {
         super(log, structureId);
         if (rootAddress == Loggable.NULL_ADDRESS) {
             throw new IllegalArgumentException("Can't instantiate nonempty tree with null root address");
         }
-        final RandomAccessLoggable rootLoggable = getLoggable(rootAddress);
-        final int type = rootLoggable.getType();
+        rootLoggable = getLoggable(rootAddress);
+        final byte type = rootLoggable.getType();
         if (!nodeIsRoot(type)) {
             throw new ExodusException("Unexpected root page type: " + type);
         }
         final ByteIterableWithAddress data = rootLoggable.getData();
-        final ByteIterator itr = data.iterator();
-        size = CompressedUnsignedLongByteIterable.getLong(itr);
-        int offset = CompressedUnsignedLongByteIterable.getCompressedSize(size);
+        final ByteIteratorWithAddress it = data.iterator();
+        size = CompressedUnsignedLongByteIterable.getLong(it);
         if (nodeHasBackReference(type)) {
-            long backRef = CompressedUnsignedLongByteIterable.getLong(itr);
+            long backRef = CompressedUnsignedLongByteIterable.getLong(it);
             rememberBackRef(backRef);
-            offset += CompressedUnsignedLongByteIterable.getCompressedSize(backRef);
         }
-        this.rootAddress = rootAddress;
         rootType = type;
-        dataOffset = offset + rootLoggable.getHeaderLength();
+        dataOffset = (byte) (it.getAddress() - data.getDataAddress());
     }
 
     @NotNull
@@ -61,7 +57,7 @@ public class PatriciaTree extends PatriciaTreeBase {
 
     @Override
     public final long getRootAddress() {
-        return rootAddress;
+        return rootLoggable.getAddress();
     }
 
     @Override
@@ -76,6 +72,6 @@ public class PatriciaTree extends PatriciaTreeBase {
 
     @Override
     final ImmutableNode getRoot() {
-        return new ImmutableNode(this, rootAddress, rootType, new RandomAccessByteIterable(rootAddress + dataOffset, log));
+        return new ImmutableNode(this, getRootAddress(), rootType, rootLoggable.getData().clone(dataOffset));
     }
 }

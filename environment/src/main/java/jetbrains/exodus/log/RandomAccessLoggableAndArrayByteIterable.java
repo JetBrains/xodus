@@ -58,11 +58,6 @@ class RandomAccessLoggableAndArrayByteIterable extends ArrayByteIterableWithAddr
     }
 
     @Override
-    public byte getHeaderLength() {
-        return headerLength;
-    }
-
-    @Override
     public int getDataLength() {
         return getLength();
     }

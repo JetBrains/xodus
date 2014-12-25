@@ -22,6 +22,4 @@ public interface RandomAccessLoggable extends Loggable {
     @NotNull
     @Override
     ByteIterableWithAddress getData();
-
-    byte getHeaderLength();
 }

@@ -19,7 +19,7 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterableBase;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.log.RandomAccessByteIterable;
+import jetbrains.exodus.log.ByteIterableWithAddress;
 import org.jetbrains.annotations.NotNull;
 
 public class FixedLengthByteIterable extends ByteIterableBase {
@@ -43,8 +43,8 @@ public class FixedLengthByteIterable extends ByteIterableBase {
     @SuppressWarnings({"CompareToUsesNonFinalVariable"})
     @Override
     public int compareTo(ByteIterable right) {
-        if (source instanceof RandomAccessByteIterable) {
-            final RandomAccessByteIterable src = (RandomAccessByteIterable) source;
+        if (source instanceof ByteIterableWithAddress) {
+            final ByteIterableWithAddress src = (ByteIterableWithAddress) source;
             return src.compareTo(offset, length, right);
         }
         return super.compareTo(right);

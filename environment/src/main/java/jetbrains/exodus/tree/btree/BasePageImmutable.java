@@ -136,7 +136,7 @@ abstract class BasePageImmutable extends BasePage implements IByteIterableCompar
         if (dataAddress == Loggable.NULL_ADDRESS) {
             return SearchRes.NOT_FOUND;
         }
-        final int index = RandomAccessByteIterable.binarySearch(
+        final int index = ByteIterableWithAddress.binarySearch(
                 this, key, low, size - 1, keyAddressLen, tree.log, dataAddress);
         return index >= 0 ? new SearchRes(index, lastComparedKey) : new SearchRes(index);
     }

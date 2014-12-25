@@ -60,12 +60,6 @@ public class RandomAccessLoggableImpl implements RandomAccessLoggable {
         return data;
     }
 
-    @Override
-    public byte getHeaderLength() {
-        return headerLength;
-    }
-
-    @Override
     public int getDataLength() {
         return length - headerLength;
     }
