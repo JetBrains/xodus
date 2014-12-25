@@ -20,12 +20,11 @@ import org.jetbrains.annotations.NotNull;
 public final class NullLoggable extends RandomAccessLoggableImpl {
 
     public static final byte TYPE = 0;
-    public static final int LENGTH = 1;
 
     private static final NullLoggable PROTOTYPE = new NullLoggable(TYPE);
 
     NullLoggable(final long address) {
-        super(address, TYPE, LENGTH, ByteIterableWithAddress.EMPTY, 0, NO_STRUCTURE_ID);
+        super(address, TYPE, ByteIterableWithAddress.getEmpty(address + 1), 0, NO_STRUCTURE_ID);
     }
 
     @NotNull

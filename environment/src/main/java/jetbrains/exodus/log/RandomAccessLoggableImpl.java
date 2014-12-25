@@ -19,7 +19,6 @@ import org.jetbrains.annotations.NotNull;
 
 public class RandomAccessLoggableImpl implements RandomAccessLoggable {
 
-    private final long address;
     private final byte type;
     private final byte headerLength;
     private final int length;
@@ -30,21 +29,19 @@ public class RandomAccessLoggableImpl implements RandomAccessLoggable {
     @SuppressWarnings({"ConstructorWithTooManyParameters"})
     public RandomAccessLoggableImpl(final long address,
                                     final byte type,
-                                    final int length,
                                     @NotNull final ByteIterableWithAddress data,
                                     final int dataLength,
                                     final int structureId) {
-        this.address = address;
         this.type = type;
-        headerLength = (byte) (length - dataLength);
-        this.length = length;
+        this.headerLength = (byte) (data.getDataAddress() - address);
+        this.length = dataLength + headerLength;
         this.data = data;
         this.structureId = structureId;
     }
 
     @Override
     public long getAddress() {
-        return address;
+        return data.getDataAddress() - headerLength;
     }
 
     @Override

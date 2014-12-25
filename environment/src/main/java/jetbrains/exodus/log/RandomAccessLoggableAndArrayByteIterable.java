@@ -19,29 +19,26 @@ import org.jetbrains.annotations.NotNull;
 
 class RandomAccessLoggableAndArrayByteIterable extends ArrayByteIterableWithAddress implements RandomAccessLoggable {
 
-    private final long address;
     private final int structureId;
     private final byte type;
     private final byte headerLength;
 
     public RandomAccessLoggableAndArrayByteIterable(final long address,
                                                     final byte type,
-                                                    final int length,
                                                     final int structureId,
                                                     final long dataAddress,
                                                     @NotNull final byte[] bytes,
                                                     final int start,
                                                     final int dataLength) {
         super(dataAddress, bytes, start, dataLength);
-        this.address = address;
         this.structureId = structureId;
         this.type = type;
-        headerLength = (byte) (length - dataLength);
+        headerLength = (byte) (dataAddress - address);
     }
 
     @Override
     public long getAddress() {
-        return address;
+        return getDataAddress() - headerLength;
     }
 
     @Override

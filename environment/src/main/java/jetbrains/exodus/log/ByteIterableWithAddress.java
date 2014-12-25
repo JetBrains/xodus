@@ -20,8 +20,6 @@ import org.jetbrains.annotations.NotNull;
 
 public abstract class ByteIterableWithAddress implements ByteIterable {
 
-    public static final ByteIterableWithAddress EMPTY = new ArrayByteIterableWithAddress(0, ByteIterable.EMPTY_BYTES, 0, 0);
-
     private final long address;
 
     protected ByteIterableWithAddress(final long address) {
@@ -55,5 +53,9 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
     public int compareTo(@NotNull final ByteIterable right) {
         // can't compare
         throw new UnsupportedOperationException();
+    }
+
+    public static ByteIterableWithAddress getEmpty(final long address) {
+        return new ArrayByteIterableWithAddress(address, ByteIterable.EMPTY_BYTES, 0, 0);
     }
 }

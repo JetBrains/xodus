@@ -29,7 +29,6 @@ final class DatabaseRoot extends RandomAccessLoggableImpl {
     private static final LoggableFactory ROOT_FACTORY = new LoggableFactory() {
         @Override
         protected RandomAccessLoggable create(final long address,
-                                              final int length,
                                               @NotNull final ByteIterableWithAddress data,
                                               final int dataLength,
                                               final int structureId) {
@@ -38,7 +37,7 @@ final class DatabaseRoot extends RandomAccessLoggableImpl {
             final int lastStructureId = CompressedUnsignedLongByteIterable.getInt(it);
             final boolean isValid = rootAddress ==
                     CompressedUnsignedLongByteIterable.getLong(it) - lastStructureId - MAGIC_DIFF;
-            return new DatabaseRoot(rootAddress, lastStructureId, isValid, address, length, data, dataLength);
+            return new DatabaseRoot(rootAddress, lastStructureId, isValid, address, data, dataLength);
         }
     };
 
@@ -51,10 +50,9 @@ final class DatabaseRoot extends RandomAccessLoggableImpl {
                          final int lastStructureId,
                          final boolean isValid,
                          final long address,
-                         final int length,
                          @NotNull final ByteIterableWithAddress data,
                          final int dataLength) {
-        super(address, DATABASE_ROOT_TYPE, length, data, dataLength, NO_STRUCTURE_ID);
+        super(address, DATABASE_ROOT_TYPE, data, dataLength, NO_STRUCTURE_ID);
         this.rootAddress = rootAddress;
         this.lastStructureId = lastStructureId;
         this.isValid = isValid;

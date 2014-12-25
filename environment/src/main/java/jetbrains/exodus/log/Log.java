@@ -389,7 +389,26 @@ public final class Log implements Closeable {
         if (NullLoggable.isNullLoggable(type)) {
             return new NullLoggable(address);
         }
-        return LoggableFactory.create(this, it, type, address);
+        final LoggableFactory prototype = LoggableFactory.getPrototype(type);
+        final int structureId = CompressedUnsignedLongByteIterable.getInt(it);
+        final int dataLength = CompressedUnsignedLongByteIterable.getInt(it);
+        final long dataAddress = it.getHighAddress();
+        if (dataLength > 0) {
+            final ArrayByteIterable.Iterator currentPageIt = it.getCurrent();
+            final byte[] currentPage = currentPageIt.getBytesUnsafe();
+            final int currentOffset = currentPageIt.getOffset();
+            if (currentPageIt.getLength() - currentOffset >= dataLength) {
+                return prototype == null ?
+                        new RandomAccessLoggableAndArrayByteIterable(
+                                address, type, structureId, dataAddress, currentPage, currentOffset, dataLength) :
+                        prototype.create(
+                                address, new ArrayByteIterableWithAddress(dataAddress, currentPage, currentOffset, dataLength), dataLength, structureId);
+            }
+        }
+        final RandomAccessByteIterable data = new RandomAccessByteIterable(dataAddress, this);
+        return prototype == null ?
+                new RandomAccessLoggableImpl(address, type, data, dataLength, structureId) :
+                prototype.create(address, data, dataLength, structureId);
     }
 
     public LoggableIterator getLoggableIterator(final long startAddress) {
