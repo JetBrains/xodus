@@ -19,7 +19,6 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.log.ByteIterableWithAddress;
-import jetbrains.exodus.log.ByteIteratorWithAddress;
 import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -34,8 +33,8 @@ public class InternalPage extends BasePageImmutable {
         super(tree, data);
     }
 
-    protected InternalPage(@NotNull final BTreeBase tree, @NotNull final ByteIteratorWithAddress itr, int size) {
-        super(tree, itr, size);
+    protected InternalPage(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data, int size) {
+        super(tree, data, size);
     }
 
     @Override
@@ -53,8 +52,8 @@ public class InternalPage extends BasePageImmutable {
     }
 
     @Override
-    public long getChildAddress(int index) {
-        final long offset = size * keyAddressLen + index * childAddressLen + 1;
+    public long getChildAddress(final int index) {
+        final int offset = size * keyAddressLen + index * childAddressLen + 1;
         return LongBinding.entryToUnsignedLong(getDataIterator(offset), childAddressLen);
     }
 

@@ -19,7 +19,7 @@ import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ExodusException;
 import org.jetbrains.annotations.NotNull;
 
-public class CompoundByteIterator implements ByteIteratorWithAddress {
+class CompoundByteIterator implements ByteIteratorWithAddress {
 
     @NotNull
     private ArrayByteIterable.Iterator current;

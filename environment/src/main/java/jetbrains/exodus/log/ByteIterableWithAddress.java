@@ -23,6 +23,8 @@ import org.jetbrains.annotations.NotNull;
 
 public abstract class ByteIterableWithAddress implements ByteIterable {
 
+    public static final ByteIterableWithAddress EMPTY = getEmpty(Loggable.NULL_ADDRESS);
+
     private final long address;
 
     protected ByteIterableWithAddress(final long address) {

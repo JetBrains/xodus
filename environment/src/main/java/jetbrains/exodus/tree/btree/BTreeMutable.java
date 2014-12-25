@@ -342,24 +342,24 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
 
     protected void reclaimInternal(RandomAccessLoggable loggable, BTreeReclaimTraverser context) {
         final ByteIterableWithAddress data = loggable.getData();
-        final ByteIteratorWithAddress itr = data.iterator();
-        final int i = CompressedUnsignedLongByteIterable.getInt(itr);
+        final ByteIteratorWithAddress it = data.iterator();
+        final int i = CompressedUnsignedLongByteIterable.getInt(it);
         if ((i & 1) == 1 && i > 1) {
             final LeafNode minKey = loadMinKey(data.iterator(CompressedUnsignedLongByteIterable.getCompressedSize(i)));
             if (minKey != null) {
-                new InternalPage(this, itr, i >> 1).reclaim(minKey.getKey(), context);
+                new InternalPage(this, data.clone((int) (it.getAddress() - data.getDataAddress())), i >> 1).reclaim(minKey.getKey(), context);
             }
         }
     }
 
     protected void reclaimBottom(RandomAccessLoggable loggable, BTreeReclaimTraverser context) {
         final ByteIterableWithAddress data = loggable.getData();
-        final ByteIteratorWithAddress itr = data.iterator();
-        final int i = CompressedUnsignedLongByteIterable.getInt(itr);
+        final ByteIteratorWithAddress it = data.iterator();
+        final int i = CompressedUnsignedLongByteIterable.getInt(it);
         if ((i & 1) == 1 && i > 1) {
             final LeafNode minKey = loadMinKey(data.iterator(CompressedUnsignedLongByteIterable.getCompressedSize(i)));
             if (minKey != null) {
-                new BottomPage(this, itr, i >> 1).reclaim(minKey.getKey(), context);
+                new BottomPage(this, data.clone((int) (it.getAddress() - data.getDataAddress())), i >> 1).reclaim(minKey.getKey(), context);
             }
         }
     }

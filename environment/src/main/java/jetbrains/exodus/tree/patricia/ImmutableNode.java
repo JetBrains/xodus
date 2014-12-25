@@ -22,7 +22,6 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.log.ByteIterableWithAddress;
 import jetbrains.exodus.log.ByteIteratorWithAddress;
-import jetbrains.exodus.log.CompoundByteIterator;
 import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import org.jetbrains.annotations.NotNull;
@@ -33,17 +32,20 @@ final class ImmutableNode extends NodeBase {
     private static final int CHILDREN_COUNT_TO_TRIGGER_BINARY_SEARCH = 32;
 
     private final long address;
+    @NotNull
+    private final ByteIterableWithAddress data;
     private final int dataOffset;
     private final short childrenCount;
     private final byte childAddressLength;
 
     ImmutableNode(@NotNull final PatriciaTreeBase tree, final long address, final int type, @NotNull final ByteIterableWithAddress data) {
-        this(tree, address, type, data.iterator());
+        this(tree, address, type, data, data.iterator());
     }
 
-    ImmutableNode(@NotNull final PatriciaTreeBase tree, final long address, final int type, @NotNull final ByteIteratorWithAddress it) {
+    private ImmutableNode(@NotNull final PatriciaTreeBase tree, final long address, final int type, @NotNull final ByteIterableWithAddress data, @NotNull final ByteIteratorWithAddress it) {
         super(tree, extractKey(type, it), extractValue(type, it));
         this.address = address;
+        this.data = data;
         if (PatriciaTreeBase.nodeHasChildren(type)) {
             final int i = CompressedUnsignedLongByteIterable.getInt(it);
             childrenCount = (short) (i >> 3);
@@ -52,7 +54,7 @@ final class ImmutableNode extends NodeBase {
             childrenCount = (short) 0;
             childAddressLength = (byte) 0;
         }
-        dataOffset = (int) (it.getAddress() - address);
+        dataOffset = (int) (it.getAddress() - data.getDataAddress());
     }
 
     /**
@@ -63,6 +65,7 @@ final class ImmutableNode extends NodeBase {
     ImmutableNode(@NotNull final PatriciaTreeEmpty tree) {
         super(tree, ByteIterable.EMPTY, null);
         address = Loggable.NULL_ADDRESS;
+        data = ByteIterableWithAddress.EMPTY;
         dataOffset = 0;
         childrenCount = (short) 0;
         childAddressLength = (byte) 0;
@@ -228,9 +231,8 @@ final class ImmutableNode extends NodeBase {
         return new ImmutableNodeChildrenIterator(null, childrenCount, null);
     }
 
-    private ByteIterator getDataIterator(long offset) {
-        return address == Loggable.NULL_ADDRESS ? ByteIterable.EMPTY_ITERATOR :
-                new CompoundByteIterator(address + dataOffset + offset, tree.log);
+    private ByteIterator getDataIterator(final int offset) {
+        return address == Loggable.NULL_ADDRESS ? ByteIterable.EMPTY_ITERATOR : data.iterator(dataOffset + offset);
     }
 
     @NotNull

@@ -19,7 +19,10 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.LongBinding;
-import jetbrains.exodus.log.*;
+import jetbrains.exodus.log.ByteIterableWithAddress;
+import jetbrains.exodus.log.ByteIteratorWithAddress;
+import jetbrains.exodus.log.IByteIterableComparator;
+import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import org.jetbrains.annotations.NotNull;
 
@@ -27,6 +30,8 @@ abstract class BasePageImmutable extends BasePage implements IByteIterableCompar
 
     @NotNull
     protected final BTreeBase tree;
+    @NotNull
+    protected final ByteIterableWithAddress data;
     protected long dataAddress;
     protected int keyAddressLen;
     private ILeafNode lastComparedKey;
@@ -40,6 +45,7 @@ abstract class BasePageImmutable extends BasePage implements IByteIterableCompar
      */
     protected BasePageImmutable(@NotNull final BTreeBase tree) {
         this.tree = tree;
+        data = ByteIterableWithAddress.EMPTY;
         size = 0;
         dataAddress = Loggable.NULL_ADDRESS;
     }
@@ -52,22 +58,24 @@ abstract class BasePageImmutable extends BasePage implements IByteIterableCompar
      */
     protected BasePageImmutable(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data) {
         this.tree = tree;
-        final ByteIteratorWithAddress itr = data.iterator();
-        size = CompressedUnsignedLongByteIterable.getInt(itr) >> 1;
-        init(itr);
+        this.data = data;
+        final ByteIteratorWithAddress it = data.iterator();
+        size = CompressedUnsignedLongByteIterable.getInt(it) >> 1;
+        init(it);
     }
 
     /**
      * Create page and load size
      *
      * @param tree source tree
-     * @param itr  source iterator
+     * @param data  source iterator
      * @param size computed size
      */
-    protected BasePageImmutable(@NotNull final BTreeBase tree, @NotNull final ByteIteratorWithAddress itr, int size) {
+    protected BasePageImmutable(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data, int size) {
         this.tree = tree;
+        this.data = data;
         this.size = size;
-        init(itr);
+        init(data.iterator());
     }
 
     private void init(@NotNull final ByteIteratorWithAddress itr) {
@@ -91,9 +99,9 @@ abstract class BasePageImmutable extends BasePage implements IByteIterableCompar
         return dataAddress;
     }
 
-    protected ByteIterator getDataIterator(long offset) {
-        return dataAddress == Loggable.NULL_ADDRESS ? ByteIterable.EMPTY_ITERATOR :
-                new CompoundByteIterator(dataAddress + offset, tree.log);
+    protected ByteIterator getDataIterator(final int offset) {
+        return dataAddress == Loggable.NULL_ADDRESS ?
+                ByteIterable.EMPTY_ITERATOR : data.iterator((int) (dataAddress - data.getDataAddress() + offset));
     }
 
     protected void loadAddressLengths(final int length) {
@@ -107,7 +115,7 @@ abstract class BasePageImmutable extends BasePage implements IByteIterableCompar
     }
 
     @Override
-    protected long getKeyAddress(int index) {
+    protected long getKeyAddress(final int index) {
         return LongBinding.entryToUnsignedLong(getDataIterator(index * keyAddressLen), keyAddressLen);
     }
 
