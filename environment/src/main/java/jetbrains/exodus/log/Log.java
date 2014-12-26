@@ -15,7 +15,10 @@
  */
 package jetbrains.exodus.log;
 
-import jetbrains.exodus.*;
+import jetbrains.exodus.ArrayByteIterable;
+import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.core.dataStructures.skiplists.LongSkipList;
 import jetbrains.exodus.io.*;
@@ -762,7 +765,7 @@ public final class Log implements Closeable {
                 }
                 recordLength += writeByteIterable(bufferedWriter, CompressedUnsignedLongByteIterable.getIterable(length));
                 final ByteIterable data = loggable.getData();
-                final int actualLength = writeByteIterableAsArray(bufferedWriter, data);
+                final int actualLength = writeByteIterable(bufferedWriter, data);
                 if (actualLength != length) {
                     throw new IllegalArgumentException("Loggable contains invalid length descriptor");
                 }
@@ -805,20 +808,7 @@ public final class Log implements Closeable {
      * @return
      */
     private static int writeByteIterable(final TransactionalDataWriter writer, final ByteIterable iterable) {
-        final ByteIterator iterator = iterable.iterator();
-        int length = 0;
-        while (iterator.hasNext()) {
-            if (writer.write(iterator.next())) {
-                ++length;
-            } else {
-                throw new NewFileCreationDeniedException();
-            }
-        }
-        return length;
-    }
-
-    private static int writeByteIterableAsArray(final TransactionalDataWriter writer, final ByteIterable iterable) {
-        int length = iterable.getLength();
+        final int length = iterable.getLength();
         if (!writer.write(iterable.getBytesUnsafe(), 0, length)) {
             throw new NewFileCreationDeniedException();
         }

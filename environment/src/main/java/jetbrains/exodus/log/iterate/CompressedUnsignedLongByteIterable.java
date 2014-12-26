@@ -23,7 +23,7 @@ import jetbrains.exodus.util.LightOutputStream;
  */
 public final class CompressedUnsignedLongByteIterable extends ByteIterableBase {
 
-    private static final int ITERABLES_CACHE_SIZE = 4096;
+    private static final int ITERABLES_CACHE_SIZE = 65536;
     private static final ByteIterable[] ITERABLES_CACHE;
 
     static {
