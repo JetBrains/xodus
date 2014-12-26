@@ -36,7 +36,7 @@ public final class Log implements Closeable {
 
     private static final org.apache.commons.logging.Log logging = LogFactory.getLog(Log.class);
 
-    private static final int LOGGABLE_CACHE_GENERATIONS = 3; // number of generations of loggable cache
+    private static final int LOGGABLE_CACHE_GENERATIONS = 2; // number of generations of loggable cache
     private static final int LOGGABLE_CACHE_SIZE = 1 << 10; // must be a power of 2
 
     private static AtomicInteger identityGenerator = new AtomicInteger();
