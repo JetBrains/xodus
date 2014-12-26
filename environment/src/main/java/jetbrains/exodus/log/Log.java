@@ -39,9 +39,6 @@ public final class Log implements Closeable {
 
     private static final org.apache.commons.logging.Log logging = LogFactory.getLog(Log.class);
 
-    private static final int LOGGABLE_CACHE_GENERATIONS = 2; // number of generations of loggable cache
-    private static final int LOGGABLE_CACHE_SIZE = 1 << 10; // must be a power of 2
-
     private static AtomicInteger identityGenerator = new AtomicInteger();
 
     private static LogCache sharedCache = null;
@@ -52,7 +49,6 @@ public final class Log implements Closeable {
     @NotNull
     private final String location;
     private final LongSkipList blockAddrs;
-    private final RandomAccessLoggable[] loggableCache;
     final LogCache cache;
 
     private int logIdentity;
@@ -84,8 +80,6 @@ public final class Log implements Closeable {
         tryLock();
         created = System.currentTimeMillis();
         blockAddrs = new LongSkipList();
-        loggableCache = new RandomAccessLoggable[LOGGABLE_CACHE_SIZE * LOGGABLE_CACHE_GENERATIONS];
-        clearLoggableCache();
         fileSize = config.getFileSize();
         cachePageSize = config.getCachePageSize();
         final long fileLength = fileSize * 1024;
@@ -362,23 +356,7 @@ public final class Log implements Closeable {
      */
     @NotNull
     public RandomAccessLoggable read(final long address) {
-        int cacheIndex = ((int) (address & (LOGGABLE_CACHE_SIZE - 1))) * LOGGABLE_CACHE_GENERATIONS;
-        // at first check the highest (oldest) generation
-        RandomAccessLoggable result = loggableCache[cacheIndex];
-        if (result.getAddress() == address) {
-            return result;
-        }
-        for (int i = 1; i < LOGGABLE_CACHE_GENERATIONS; ++i) {
-            result = loggableCache[++cacheIndex];
-            if (result.getAddress() == address) {
-                final RandomAccessLoggable temp = loggableCache[cacheIndex - 1];
-                loggableCache[cacheIndex - 1] = result;
-                loggableCache[cacheIndex] = temp;
-                return result;
-            }
-        }
-        // put new loggable to probation generation
-        return loggableCache[cacheIndex] = read(readIteratorFrom(address), address);
+        return read(readIteratorFrom(address), address);
     }
 
     @NotNull
@@ -578,7 +556,6 @@ public final class Log implements Closeable {
         synchronized (blockAddrs) {
             blockAddrs.clear();
         }
-        clearLoggableCache();
         cache.clear();
         reader.clear();
         setBufferedWriter(createEmptyBufferedWriter(bufferedWriter.getChildWriter()));
@@ -692,13 +669,6 @@ public final class Log implements Closeable {
         final long lockTimeout = config.getLockTimeout();
         if (!config.getWriter().lock(lockTimeout)) {
             throw new ExodusException("Can't acquire environment lock after " + lockTimeout + " ms.");
-        }
-    }
-
-    private void clearLoggableCache() {
-        final NullLoggable nullLoggable = new NullLoggable(Loggable.NULL_ADDRESS);
-        for (int i = 0; i < loggableCache.length; i++) {
-            loggableCache[i] = nullLoggable;
         }
     }
 
