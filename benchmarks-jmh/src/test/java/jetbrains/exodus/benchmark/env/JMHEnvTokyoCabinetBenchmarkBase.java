@@ -49,18 +49,19 @@ abstract class JMHEnvTokyoCabinetBenchmarkBase extends BenchmarkTestBase {
             successiveKeys[i] = StringBinding.stringToEntry(FORMAT.format(i));
         }
         randomKeys = Arrays.copyOf(successiveKeys, successiveKeys.length);
-        Collections.shuffle(Arrays.asList(randomKeys));
+        shuffleKeys();
     }
 
     private static final String STORE_NAME = "TokyoCabinetBenchmarkStore";
 
     protected Environment env;
-    protected Store store;
 
+    protected Store store;
     @Setup(Level.Invocation)
     public void setup() throws IOException {
         start();
         Log.invalidateSharedCache();
+        shuffleKeys();
         final TemporaryFolder temporaryFolder = new TemporaryFolder();
         temporaryFolder.create();
         final File testsDirectory = temporaryFolder.newFolder("data");
@@ -91,6 +92,10 @@ abstract class JMHEnvTokyoCabinetBenchmarkBase extends BenchmarkTestBase {
                 }
             }
         });
+    }
+
+    protected static void shuffleKeys() {
+        Collections.shuffle(Arrays.asList(randomKeys));
     }
 
     protected abstract StoreConfig getConfig();

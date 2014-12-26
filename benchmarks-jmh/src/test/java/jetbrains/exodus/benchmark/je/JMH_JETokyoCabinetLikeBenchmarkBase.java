@@ -54,6 +54,7 @@ public abstract class JMH_JETokyoCabinetLikeBenchmarkBase extends BenchmarkTestB
     @Setup(Level.Invocation)
     public void setup() throws IOException {
         start();
+        shuffleKeys();
         final TemporaryFolder temporaryFolder = new TemporaryFolder();
         temporaryFolder.create();
         final EnvironmentConfig environmentConfig = new EnvironmentConfig();
@@ -89,6 +90,10 @@ public abstract class JMH_JETokyoCabinetLikeBenchmarkBase extends BenchmarkTestB
                 return null;
             }
         });
+    }
+
+    protected static void shuffleKeys() {
+        Collections.shuffle(Arrays.asList(randomKeys));
     }
 
     protected interface TransactionalComputable<T> {
