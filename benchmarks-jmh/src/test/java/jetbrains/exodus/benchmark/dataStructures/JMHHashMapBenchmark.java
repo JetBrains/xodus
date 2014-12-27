@@ -24,11 +24,16 @@ import java.util.concurrent.TimeUnit;
 @SuppressWarnings({"MismatchedQueryAndUpdateOfCollection", "UnusedDeclaration"})
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
-public class JMHHashContainersBenchmark {
+public class JMHHashMapBenchmark {
 
     private static final int MAP_SIZE = 100000;
 
-    final Map<Integer, String> map = new HashMap<Integer, String>();
+    final Map<Integer, String> map = createHashMap();
+
+    protected Map<Integer, String> createHashMap() {
+        return new HashMap<Integer, String>();
+    }
+
     int existingKey = 0;
     int missingKey = MAP_SIZE;
 
@@ -50,7 +55,7 @@ public class JMHHashContainersBenchmark {
     @Benchmark
     @Warmup(iterations = 4, time = 1)
     @Measurement(iterations = 6, batchSize = 10000)
-    @Fork(10)
+    @Fork(8)
     public String hashMapGet() {
         return map.get(existingKey);
     }
@@ -58,7 +63,7 @@ public class JMHHashContainersBenchmark {
     @Benchmark
     @Warmup(iterations = 4, time = 1)
     @Measurement(iterations = 6, batchSize = 10000)
-    @Fork(10)
+    @Fork(8)
     public String hashMapGetMissingKey() {
         return map.get(missingKey);
     }
