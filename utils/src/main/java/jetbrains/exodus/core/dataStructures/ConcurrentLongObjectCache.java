@@ -22,7 +22,7 @@ import org.jetbrains.annotations.Nullable;
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class ConcurrentLongObjectCache<V> extends LongObjectCacheBase<V> {
 
-    private static final int DEFAULT_NUMBER_OF_GENERATIONS = 4;
+    private static final int DEFAULT_NUMBER_OF_GENERATIONS = 3;
 
     private final int numberOfGenerations;
     private final int generationSize;
