@@ -29,11 +29,6 @@ public class JMHHashMapBenchmark {
     private static final int MAP_SIZE = 100000;
 
     final Map<Integer, String> map = createHashMap();
-
-    protected Map<Integer, String> createHashMap() {
-        return new HashMap<Integer, String>();
-    }
-
     int existingKey = 0;
     int missingKey = MAP_SIZE;
 
@@ -55,7 +50,7 @@ public class JMHHashMapBenchmark {
     @Benchmark
     @Warmup(iterations = 4, time = 1)
     @Measurement(iterations = 6, batchSize = 10000)
-    @Fork(8)
+    @Fork(5)
     public String hashMapGet() {
         return map.get(existingKey);
     }
@@ -63,8 +58,12 @@ public class JMHHashMapBenchmark {
     @Benchmark
     @Warmup(iterations = 4, time = 1)
     @Measurement(iterations = 6, batchSize = 10000)
-    @Fork(8)
+    @Fork(5)
     public String hashMapGetMissingKey() {
         return map.get(missingKey);
+    }
+
+    protected Map<Integer, String> createHashMap() {
+        return new HashMap<Integer, String>();
     }
 }
