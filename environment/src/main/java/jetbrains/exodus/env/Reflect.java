@@ -319,7 +319,7 @@ public class Reflect {
                         } finally {
                             cursor.close();
                         }
-                        ITree tree = store.getUpToDateTree();
+                        final ITree tree = ((TransactionImpl) txn).getTree(store);
                         fetchUsedSpace(tree.addressIterator(), usedSpace);
                         if (tree.getSize() != storeSize) {
                             logging.error("Stored size (" + tree.getSize() + ") isn't equal to actual size (" + storeSize + ')');

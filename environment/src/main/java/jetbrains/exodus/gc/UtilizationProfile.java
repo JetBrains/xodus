@@ -106,7 +106,7 @@ public final class UtilizationProfile {
             public void execute(@NotNull Transaction txn) {
                 for (final String storeName : env.getAllStoreNames(txn)) {
                     final StoreImpl store = env.openStore(storeName, StoreConfig.USE_EXISTING, txn);
-                    final LongIterator it = store.getUpToDateTree().addressIterator();
+                    final LongIterator it = ((TransactionImpl) txn).getTree(store).addressIterator();
                     while (it.hasNext()) {
                         final long address = it.next();
                         final RandomAccessLoggable loggable = log.read(address);

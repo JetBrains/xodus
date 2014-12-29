@@ -164,10 +164,6 @@ public class StoreImpl implements Store {
         }
     }
 
-    public ITree getUpToDateTree() {
-        return openImmutableTree(environment.getMetaTree(null));
-    }
-
     public ITree openImmutableTree(@NotNull final MetaTree metaTree) {
         final int structureId = getStructureId();
         final long upToDateRootAddress = metaTree.getRootAddress(structureId);

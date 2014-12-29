@@ -51,7 +51,9 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
         log.removeFile(2 * log.getFileSize() * LogUtil.LOG_BLOCK_ALIGNMENT);
         final StoreImpl store = openStoreAutoCommit("store");
         final Iterator<RandomAccessLoggable> itr = log.getLoggableIterator(startAddress);
-        Assert.assertTrue(store.getUpToDateTree().getMutableCopy().reclaim(itr.next(), itr, IExpirationChecker.NONE));
+        final TransactionImpl txn = env.beginTransaction();
+        Assert.assertTrue(txn.getTree(store).getMutableCopy().reclaim(itr.next(), itr, IExpirationChecker.NONE));
+        txn.abort();
     }
 
     @Test

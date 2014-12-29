@@ -72,7 +72,7 @@ public class GarbageCollectorInterleavingTest extends EnvironmentTestsBase {
         }
         txn.commit();
 
-        store.getUpToDateTree();
+        ((TransactionImpl) txn).getTree(store);
     }
 
     private void check(@NotNull final String table) {

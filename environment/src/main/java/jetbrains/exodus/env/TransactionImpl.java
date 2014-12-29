@@ -170,6 +170,15 @@ public class TransactionImpl implements Transaction {
                 env.openStoreImpl(storeName, StoreConfig.USE_EXISTING, this, env.getCurrentMetaInfo(storeName, this));
     }
 
+    @NotNull
+    public ITree getTree(@NotNull final StoreImpl store) {
+        final ITreeMutable result = mutableTrees.get(store.getStructureId());
+        if (result == null) {
+            return getImmutableTree(store);
+        }
+        return result;
+    }
+
     void storeRemoved(@NotNull final StoreImpl store) {
         final int structureId = store.getStructureId();
         final ITree tree = store.openImmutableTree(metaTree);
@@ -289,15 +298,6 @@ public class TransactionImpl implements Transaction {
         }
         result.addAll(createdStores.keySet());
         Collections.sort(result);
-        return result;
-    }
-
-    @NotNull
-    ITree getTree(@NotNull final StoreImpl store) {
-        final ITreeMutable result = mutableTrees.get(store.getStructureId());
-        if (result == null) {
-            return getImmutableTree(store);
-        }
         return result;
     }
 
