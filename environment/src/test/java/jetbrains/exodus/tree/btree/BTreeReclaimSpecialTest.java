@@ -87,6 +87,6 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
     }
 
     private void reloadMutableTree(long address) {
-        tm = new BTree(log, address, getTreeMutable().getBalancePolicy(), true, 1).getMutableCopy();
+        tm = new BTree(log, getTreeMutable().getBalancePolicy(), address, true, 1).getMutableCopy();
     }
 }

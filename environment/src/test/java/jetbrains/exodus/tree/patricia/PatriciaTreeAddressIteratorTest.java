@@ -23,7 +23,7 @@ public class PatriciaTreeAddressIteratorTest extends TreeAddressIteratorTest {
 
     @Override
     protected ITree createEmpty() {
-        return new PatriciaTreeEmpty(false, log, 0);
+        return new PatriciaTreeEmpty(log, 0, false);
     }
 
     @Override

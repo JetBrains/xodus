@@ -24,10 +24,10 @@ import org.jetbrains.annotations.NotNull;
 public class BTreeEmpty extends BTreeBase {
 
     public BTreeEmpty(@NotNull final Log log,
-                      @NotNull final BTreeBalancePolicy policy,
+                      @NotNull final BTreeBalancePolicy balancePolicy,
                       final boolean allowsDuplicates,
                       final int structureId) {
-        super(policy, log, allowsDuplicates, structureId);
+        super(log, balancePolicy, allowsDuplicates, structureId);
         size = 0;
     }
 
@@ -38,7 +38,7 @@ public class BTreeEmpty extends BTreeBase {
     @Override
     @NotNull
     public BTreeMutable getMutableCopy() {
-        return new BTreeMutable(balancePolicy, log, structureId, allowsDuplicates, this);
+        return new BTreeMutable(this);
     }
 
     @Override

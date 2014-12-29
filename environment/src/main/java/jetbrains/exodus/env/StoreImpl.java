@@ -175,10 +175,10 @@ public class StoreImpl implements Store {
             final BTreeBalancePolicy balancePolicy = environment.getBTreeBalancePolicy();
             result = treeIsEmpty ?
                     new BTreeEmpty(log, balancePolicy, hasDuplicates, structureId) :
-                    new BTree(log, upToDateRootAddress, balancePolicy, hasDuplicates, structureId);
+                    new BTree(log, balancePolicy, upToDateRootAddress, hasDuplicates, structureId);
         } else {
             if (treeIsEmpty) {
-                result = new PatriciaTreeEmpty(hasDuplicates, log, structureId);
+                result = new PatriciaTreeEmpty(log, structureId, hasDuplicates);
             } else {
                 result = hasDuplicates ?
                         new PatriciaTreeWithDuplicates(log, upToDateRootAddress, structureId) :

@@ -67,7 +67,7 @@ public class BTreeTestBase extends TreeBaseTest {
     }
 
     protected static BTree doOpenTree(long address, boolean hasDuplicates) {
-        return new BTree(log, address, createTestSplittingPolicy(), hasDuplicates, 1);
+        return new BTree(log, createTestSplittingPolicy(), address, hasDuplicates, 1);
     }
 
     public static class IP {

@@ -32,7 +32,7 @@ public class BTreeTokyoCabinetLikeBenchmarkTest extends TokyoCabinetLikeBenchmar
 
     @Override
     protected ITree openTree(long address, boolean hasDuplicates) {
-        return new BTree(log, address, getBTreeBalancePolicy(), false, 1);
+        return new BTree(log, getBTreeBalancePolicy(), address, false, 1);
     }
 
     private static BTreeBalancePolicy getBTreeBalancePolicy() {

@@ -58,7 +58,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         getTreeMutable().put(kv(0, "nothing"));
 
         long rootAddress = tm.save();
-        t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), false, 1);
+        t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, false, 1);
 
         final ByteIterable key = key(0);
 
@@ -70,7 +70,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
 
         getTreeMutable().put(kv(0, "anything"));
 
-        tm = ((BTree) (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), false, 1))).getMutableCopy();
+        tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, false, 1))).getMutableCopy();
 
         final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(savedLeafAddress);
         Assert.assertTrue(tm.reclaim(iter.next(), iter));
@@ -98,7 +98,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         getTreeMutable().dump(System.out);
 
         long rootAddress = tm.save();
-        t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), false, 1);
+        t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, false, 1);
 
         final ByteIterable key = key(0);
 
@@ -111,7 +111,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         tm.delete(key(1));
         rootAddress = tm.save();
 
-        tm = ((BTree) (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), false, 1))).getMutableCopy();
+        tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, false, 1))).getMutableCopy();
 
         final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(savedLeafAddress);
         Assert.assertTrue(tm.reclaim(iter.next(), iter));
@@ -134,13 +134,13 @@ public class BTreeReclaimTest extends BTreeTestBase {
         getTreeMutable().put(kv(1, "something"));
 
         long rootAddress = tm.save();
-        tm = ((BTree) (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), false, 1))).getMutableCopy();
+        tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, false, 1))).getMutableCopy();
 
         tm.delete(key(0));
         tm.delete(key(1));
 
         rootAddress = tm.save();
-        tm = ((BTree) (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), false, 1))).getMutableCopy();
+        tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, false, 1))).getMutableCopy();
 
         final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(rootAddress);
         Assert.assertTrue(tm.reclaim(iter.next(), iter)); // root should be reclaimed
@@ -151,7 +151,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         int p;
         long rootAddress = init(p = 1000);
 
-        tm = ((BTree) (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), false, 1))).getMutableCopy();
+        tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, false, 1))).getMutableCopy();
 
         final ByteIterable key = key(0);
 
@@ -170,7 +170,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
 
         rootAddress = tm.save();
 
-        checkTree(tm = ((BTree) (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), false, 1))).getMutableCopy(), p).run();
+        checkTree(tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, false, 1))).getMutableCopy(), p).run();
     }
 
     @Test
@@ -178,7 +178,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         int p;
         long rootAddress = init(p = 1000);
 
-        tm = ((BTree) (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), false, 1))).getMutableCopy();
+        tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, false, 1))).getMutableCopy();
 
         final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(0);
         RandomAccessLoggable leaf = iter.next();
@@ -202,7 +202,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
 
         rootAddress = tm.save();
 
-        checkTree(tm = ((BTree) (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), false, 1))).getMutableCopy(), p).run();
+        checkTree(tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, false, 1))).getMutableCopy(), p).run();
     }
 
     @Test
@@ -211,7 +211,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         int u;
         long rootAddress = initDup(p = 10, u = 100);
 
-        tm = ((BTree) (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), true, 1))).getMutableCopy();
+        tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, true, 1))).getMutableCopy();
 
         final ByteIterable key = key(0);
 
@@ -234,7 +234,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
 
         rootAddress = tm.save();
 
-        checkTree(tm = ((BTree) (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), true, 1))).getMutableCopy(), p, u).run();
+        checkTree(tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, true, 1))).getMutableCopy(), p, u).run();
     }
 
     @Test
@@ -243,7 +243,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         int u; */
         long rootAddress = initDup(/* p = */10, /* u = */100);
 
-        tm = ((BTree) (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), true, 1))).getMutableCopy();
+        tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, true, 1))).getMutableCopy();
 
         final ByteIterable key = key(5);
 
@@ -256,7 +256,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         getTreeMutable().put(key(6), value("v6#0"));
         rootAddress = tm.save();
 
-        tm = ((BTree) (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), true, 1))).getMutableCopy();
+        tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, true, 1))).getMutableCopy();
 
         final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(oldAddress);
         /* Loggable loggable = iter.next();
@@ -287,7 +287,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         int u;
         long rootAddress = initDup(p = 10, u = 100);
 
-        tm = ((BTree) (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), true, 1))).getMutableCopy();
+        tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, true, 1))).getMutableCopy();
 
         final ByteIterable key = key(0);
         final ByteIterable value = value("v0#10");
@@ -318,7 +318,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
             }
         }
 
-        checkTree(tm = ((BTree) (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), true, 1))).getMutableCopy(), p, u).run();
+        checkTree(tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, true, 1))).getMutableCopy(), p, u).run();
     }
 
     @Test
@@ -327,7 +327,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         int u;
         long rootAddress = initDup(p = 10, u = 100);
 
-        tm = ((BTree) (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), true, 1))).getMutableCopy();
+        tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, true, 1))).getMutableCopy();
 
         final ByteIterable key = key(0);
         final ByteIterable value = value("v0#10");
@@ -363,7 +363,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
             }
         }
 
-        checkTree(tm = ((BTree) (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), true, 1))).getMutableCopy(), p, u).run();
+        checkTree(tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, true, 1))).getMutableCopy(), p, u).run();
     }
 
     private boolean isAffected(@NotNull final Loggable loggable, @NotNull final ByteIterable key, @NotNull final BTreeTraverser path) {

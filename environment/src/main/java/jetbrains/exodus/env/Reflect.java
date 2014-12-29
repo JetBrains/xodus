@@ -142,7 +142,7 @@ public class Reflect {
             System.out.println(String.format("Processing root: %d, %d addresses traversed", processed, traversed.size()));
             int size = 0;
             final LongHashMap<TreeMetaInfo> meta = new LongHashMap<TreeMetaInfo>();
-            final BTree metaTree = new BTree(log, root.getRootAddress(), strategy, false, EnvironmentImpl.META_TREE_ID);
+            final BTree metaTree = new BTree(log, strategy, root.getRootAddress(), false, EnvironmentImpl.META_TREE_ID);
             final ITreeCursor cursor = metaTree.openCursor();
             try {
                 while (cursor.getNext()) {

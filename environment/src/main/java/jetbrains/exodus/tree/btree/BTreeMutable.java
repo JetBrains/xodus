@@ -41,9 +41,8 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     @NotNull
     private final BTreeBase immutableTree;
 
-    BTreeMutable(@NotNull final BTreeBalancePolicy balancePolicy, @NotNull final Log log, final int structureId,
-                 final boolean isAllowsDuplicates, @NotNull final BTreeBase tree) {
-        super(balancePolicy, log, isAllowsDuplicates, structureId);
+    BTreeMutable(@NotNull final BTreeBase tree) {
+        super(tree.log, tree.balancePolicy, tree.allowsDuplicates, tree.structureId);
         immutableTree = tree;
         root = tree.getRoot().getMutableCopy(this);
         size = tree.getSize();

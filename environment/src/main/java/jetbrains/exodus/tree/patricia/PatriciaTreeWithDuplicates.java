@@ -41,7 +41,7 @@ public class PatriciaTreeWithDuplicates extends PatriciaTreeDecorator {
                                       final long rootAddress,
                                       final int structureId,
                                       final boolean empty) {
-        super(empty ? new PatriciaTreeEmpty(false, log, structureId) : new PatriciaTree(log, rootAddress, structureId));
+        super(empty ? new PatriciaTreeEmpty(log, structureId, false) : new PatriciaTree(log, rootAddress, structureId));
     }
 
     protected PatriciaTreeWithDuplicates(@NotNull final ITree treeNoDuplicates) {

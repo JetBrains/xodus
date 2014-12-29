@@ -37,7 +37,7 @@ public class BTreeStructureTest extends BTreeTestBase {
 
     BTreeMutable refresh() {
         long a = tm.save();
-        t = new BTree(log, a, policy, false, 1);
+        t = new BTree(log, policy, a, false, 1);
         tm = getTree().getMutableCopy();
         return (BTreeMutable) tm;
     }

@@ -204,7 +204,7 @@ public class BTreeTest extends BTreeTestBase {
         }
 
         long rootAddress = tm.save();
-        tm = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), true, 1).getMutableCopy();
+        tm = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, true, 1).getMutableCopy();
 
         checkTree(getTreeMutable(), 100).run();
 

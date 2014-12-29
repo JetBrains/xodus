@@ -152,7 +152,6 @@ class LeafNodeDupMutable extends BaseLeafNodeMutable {
         final BTreeDupMutable dupTree = isLeafNodeDup ?
                 ((LeafNodeDup) ln).getTreeCopyMutable() :
                 new BTreeDupMutable(
-                        mainTree.getBalancePolicy(), mainTree.getLog(), mainTree.getStructureId(),
                         new BTreeEmpty(mainTree.getLog(), mainTree.getBalancePolicy(), false, mainTree.getStructureId()),
                         ln.getKey()
                 );

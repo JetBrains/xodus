@@ -32,7 +32,7 @@ final class BTreeDup extends BTreeBase {
     private final int dataOffset;
 
     BTreeDup(@NotNull BTreeBase mainTree, @NotNull LeafNodeDup leafNodeDup) {
-        super(mainTree.getBalancePolicy(), mainTree.getLog(), false, mainTree.getStructureId());
+        super(mainTree.getLog(), mainTree.getBalancePolicy(), false, mainTree.getStructureId());
         this.leafNodeDup = leafNodeDup;
         leafNodeDupKey = leafNodeDup.getKey();
         final ByteIterator iterator = leafNodeDup.getRawValue().iterator();
@@ -61,7 +61,7 @@ final class BTreeDup extends BTreeBase {
     @Override
     @NotNull
     public BTreeDupMutable getMutableCopy() {
-        return new BTreeDupMutable(balancePolicy, log, getStructureId(), this, leafNodeDupKey);
+        return new BTreeDupMutable(this, leafNodeDupKey);
     }
 
     @Override

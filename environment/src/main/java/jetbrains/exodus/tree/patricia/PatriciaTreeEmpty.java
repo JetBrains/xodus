@@ -27,7 +27,7 @@ public final class PatriciaTreeEmpty extends PatriciaTreeBase {
 
     private final boolean hasDuplicates;
 
-    public PatriciaTreeEmpty(final boolean hasDuplicates, @NotNull final Log log, final int structureId) {
+    public PatriciaTreeEmpty(@NotNull final Log log, final int structureId, final boolean hasDuplicates) {
         super(log, structureId);
         size = 0;
         this.hasDuplicates = hasDuplicates;

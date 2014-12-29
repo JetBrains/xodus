@@ -31,7 +31,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
 
     private BTreeMutable refresh() {
         long a = tm.save();
-        t = new BTree(log, a, policy, false, 1);
+        t = new BTree(log, policy, a, false, 1);
         tm = getTree().getMutableCopy();
         return getTreeMutable();
     }
@@ -57,7 +57,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         }
 
         long a = tm.save();
-        tm = new BTree(log, a, new BTreeBalancePolicy(4), false, 1).getMutableCopy();
+        tm = new BTree(log, new BTreeBalancePolicy(4), a, false, 1).getMutableCopy();
 
         dump(getTreeMutable());
 
@@ -79,7 +79,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         }
 
         long a = tm.save();
-        tm = new BTree(log, a, new BTreeBalancePolicy(4), false, 1).getMutableCopy();
+        tm = new BTree(log, new BTreeBalancePolicy(4), a, false, 1).getMutableCopy();
 
         dump(getTreeMutable());
 
@@ -113,7 +113,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         dump(getTreeMutable());
 
         long a = tm.save();
-        tm = new BTree(log, a, new BTreeBalancePolicy(16), false, 1).getMutableCopy();
+        tm = new BTree(log, new BTreeBalancePolicy(16), a, false, 1).getMutableCopy();
 
         for (int i = 0; i < 64; i++) {
             tm.delete(key(i));

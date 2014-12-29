@@ -47,7 +47,7 @@ public class PatriciaTestBase extends TreeBaseTest {
     }
 
     protected static ITreeMutable doCreateMutableTree(final boolean hasDuplicates, final int structureId) {
-        return new PatriciaTreeEmpty(hasDuplicates, log, structureId).getMutableCopy();
+        return new PatriciaTreeEmpty(log, structureId, hasDuplicates).getMutableCopy();
     }
 
     protected static ITree doOpenTree(long address, boolean hasDuplicates) {

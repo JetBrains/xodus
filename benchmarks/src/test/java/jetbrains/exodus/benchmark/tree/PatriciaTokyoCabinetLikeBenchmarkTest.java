@@ -25,7 +25,7 @@ public class PatriciaTokyoCabinetLikeBenchmarkTest extends TokyoCabinetLikeBench
 
     @Override
     protected ITreeMutable createMutableTree(final boolean hasDuplicates, final int structureId) {
-        return new PatriciaTreeEmpty(hasDuplicates, log, 1).getMutableCopy();
+        return new PatriciaTreeEmpty(log, 1, hasDuplicates).getMutableCopy();
     }
 
     @Override

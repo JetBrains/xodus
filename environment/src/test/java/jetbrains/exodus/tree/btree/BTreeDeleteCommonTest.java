@@ -30,6 +30,6 @@ public class BTreeDeleteCommonTest extends TreeDeleteTest {
 
     @Override
     protected ITree openTree(long address, boolean hasDuplicates) {
-        return new BTree(log, address, policy, hasDuplicates, 1);
+        return new BTree(log, policy, address, hasDuplicates, 1);
     }
 }

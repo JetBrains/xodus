@@ -133,7 +133,7 @@ public class BTreePutSpecificTest extends BTreeTestBase {
         long a = tm.save();
         reopen();
 
-        tm = new BTree(log, a, new BTreeBalancePolicy(4), true, 2).getMutableCopy();
+        tm = new BTree(log, new BTreeBalancePolicy(4), a, true, 2).getMutableCopy();
 
         getTreeMutable().put(kv("1", "11"));
         getTreeMutable().put(kv("2", "22"));
@@ -141,7 +141,7 @@ public class BTreePutSpecificTest extends BTreeTestBase {
         a = tm.save();
         reopen();
 
-        t = new BTree(log, a, new BTreeBalancePolicy(4), true, 2);
+        t = new BTree(log, new BTreeBalancePolicy(4), a, true, 2);
 
         assertEquals(true, t.hasKey(key("1")));
         assertEquals(true, t.hasKey(key("2")));
@@ -164,7 +164,7 @@ public class BTreePutSpecificTest extends BTreeTestBase {
         long a = tm.save();
         reopen();
 
-        tm = new BTree(log, a, new BTreeBalancePolicy(4), true, 1).getMutableCopy();
+        tm = new BTree(log, new BTreeBalancePolicy(4), a, true, 1).getMutableCopy();
 
         getTreeMutable().put(kv("1", "13"));
         getTreeMutable().put(kv("2", "22"));
@@ -172,7 +172,7 @@ public class BTreePutSpecificTest extends BTreeTestBase {
         a = tm.save();
         reopen();
 
-        t = new BTree(log, a, new BTreeBalancePolicy(4), true, 1);
+        t = new BTree(log, new BTreeBalancePolicy(4), a, true, 1);
 
         assertMatchesIterator(t, kv("1", "11"), kv("1", "12"), kv("1", "13"), kv("2", "21"), kv("2", "22"));
     }
@@ -316,7 +316,7 @@ public class BTreePutSpecificTest extends BTreeTestBase {
 
         long a = tm.save();
 
-        tm = new BTree(log, a, new BTreeBalancePolicy(4), false, 1).getMutableCopy();
+        tm = new BTree(log, new BTreeBalancePolicy(4), a, false, 1).getMutableCopy();
 
         getTreeMutable().put(kv(8, "v8"));
 
