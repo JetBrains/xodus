@@ -139,7 +139,7 @@ public final class ObjectCache<K, V> extends ObjectCacheBase<K, V> {
 
     @Override
     public V tryKey(@NotNull final K key) {
-        ++attempts;
+        incAttempts();
         V result = secondGenerationQueue.get(key);
         if (result == null) {
             result = firstGenerationQueue.remove(key);
@@ -148,7 +148,7 @@ public final class ObjectCache<K, V> extends ObjectCacheBase<K, V> {
             }
         }
         if (result != null) {
-            ++hits;
+            incHits();
         }
         return result;
     }

@@ -96,17 +96,17 @@ public class ConcurrentObjectCache<K, V> extends ObjectCacheBase<K, V> {
 
     @Override
     public V tryKey(@NotNull final K key) {
-        ++attempts;
+        incAttempts();
         int cacheIndex = HashUtil.indexFor(key.hashCode(), generationSize, shift, mask) * numberOfGenerations;
         CacheEntry<K, V> entry = cache[cacheIndex];
         if (entry != null && entry.key.equals(key)) {
-            ++hits;
+            incHits();
             return entry.value;
         }
         for (int i = 1; i < numberOfGenerations; ++i) {
             entry = cache[++cacheIndex];
             if (entry != null && entry.key.equals(key)) {
-                ++hits;
+                incHits();
                 final CacheEntry<K, V> temp = cache[cacheIndex - 1];
                 cache[cacheIndex - 1] = entry;
                 cache[cacheIndex] = temp;

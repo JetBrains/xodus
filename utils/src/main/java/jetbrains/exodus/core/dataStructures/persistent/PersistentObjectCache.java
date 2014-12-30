@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.core.dataStructures.persistent;
 
+import jetbrains.exodus.core.dataStructures.CacheHitRateable;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
@@ -25,13 +26,11 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class PersistentObjectCache<K, V> {
+public class PersistentObjectCache<K, V> extends CacheHitRateable {
 
     private final int size;
     private final float secondGenSizeRatio;
     private final AtomicReference<Root<K, V>> root;
-    private long attempts;
-    private long hits;
 
     public PersistentObjectCache() {
         this(ObjectCacheBase.DEFAULT_SIZE);
@@ -50,16 +49,12 @@ public class PersistentObjectCache<K, V> {
         }
         this.secondGenSizeRatio = secondGenSizeRatio;
         root = new AtomicReference<Root<K, V>>();
-        attempts = 1;
-        hits = 0;
     }
 
     private PersistentObjectCache(@NotNull final PersistentObjectCache<K, V> source) {
         size = source.size;
         secondGenSizeRatio = source.secondGenSizeRatio;
         root = new AtomicReference<Root<K, V>>(source.root.get());
-        attempts = source.attempts;
-        hits = source.hits;
     }
 
     public void clear() {
@@ -75,10 +70,6 @@ public class PersistentObjectCache<K, V> {
         return root == null ? 0 : root.getFirstGen().size() + root.getSecondGen().size();
     }
 
-    public double hitRate() {
-        return (double) hits / (double) attempts;
-    }
-
     public V get(@NotNull final K key) {
         return tryKey(key);
     }
@@ -88,7 +79,7 @@ public class PersistentObjectCache<K, V> {
     }
 
     public V tryKey(@NotNull final K key) {
-        ++attempts;
+        incAttempts();
         Root<K, V> current;
         Root<K, V> next;
         V result;
@@ -110,13 +101,12 @@ public class PersistentObjectCache<K, V> {
             secondGen.endWrite(secondGenMutable);
         } while (!root.compareAndSet(current, next));
         if (result != null) {
-            ++hits;
+            incHits();
         }
         return result;
     }
 
     public V getObject(@NotNull final K key) {
-        ++attempts;
         final Root<K, V> current = getCurrent();
         if (current == null) {
             return null;
@@ -124,9 +114,6 @@ public class PersistentObjectCache<K, V> {
         V result = current.getFirstGen().beginWrite().getValue(key);
         if (result == null) {
             result = current.getSecondGen().beginWrite().getValue(key);
-        }
-        if (result != null) {
-            ++hits;
         }
         return result;
     }

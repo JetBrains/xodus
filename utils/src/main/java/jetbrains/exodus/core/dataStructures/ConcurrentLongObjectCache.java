@@ -99,17 +99,17 @@ public class ConcurrentLongObjectCache<V> extends LongObjectCacheBase<V> {
 
     @Override
     public V tryKey(final long key) {
-        ++attempts;
+        incAttempts();
         int cacheIndex = HashUtil.indexFor(key, generationSize, shift, mask) * numberOfGenerations;
         CacheEntry<V> entry = cache[cacheIndex];
         if (entry.key == key) {
-            ++hits;
+            incHits();
             return entry.value;
         }
         for (int i = 1; i < numberOfGenerations; ++i) {
             entry = cache[++cacheIndex];
             if (entry.key == key) {
-                ++hits;
+                incHits();
                 final CacheEntry<V> temp = cache[cacheIndex - 1];
                 cache[cacheIndex - 1] = entry;
                 cache[cacheIndex] = temp;

@@ -17,14 +17,12 @@ package jetbrains.exodus.core.dataStructures;
 
 import org.jetbrains.annotations.NotNull;
 
-public abstract class ObjectCacheBase<K, V> {
+public abstract class ObjectCacheBase<K, V> extends CacheHitRateable {
 
     public static final int DEFAULT_SIZE = 8192;
     public static final int MIN_SIZE = 4;
 
     protected final int size;
-    protected long attempts;
-    protected long hits;
 
     protected ObjectCacheBase(final int size) {
         this.size = Math.max(MIN_SIZE, size);
@@ -69,18 +67,6 @@ public abstract class ObjectCacheBase<K, V> {
         }
     }
 
-    public long getAttempts() {
-        return attempts;
-    }
-
-    public long getHits() {
-        return hits;
-    }
-
-    public double hitRate() {
-        return attempts > 0 ? (double) hits / (double) attempts : 0;
-    }
-
     public void fillWith(@NotNull final ObjectCacheBase<K, V> source, int maxCount) {
         // by default do nothing
     }
@@ -110,5 +96,15 @@ public abstract class ObjectCacheBase<K, V> {
     public static String formatHitRate(final double hitRate) {
         final int result = (int) (hitRate * 1000);
         return String.valueOf((result / 10)) + '.' + (result % 10) + '%';
+    }
+
+    @Override
+    protected void adjustHitRate() {
+        lock();
+        try {
+            super.adjustHitRate();
+        } finally {
+            unlock();
+        }
     }
 }

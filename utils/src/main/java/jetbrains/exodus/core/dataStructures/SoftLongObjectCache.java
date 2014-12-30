@@ -20,15 +20,13 @@ import org.jetbrains.annotations.Nullable;
 
 import java.lang.ref.SoftReference;
 
-public class SoftLongObjectCache<V> {
+public class SoftLongObjectCache<V> extends CacheHitRateable {
 
     public static final int DEFAULT_SIZE = 4096;
     public static final int MIN_SIZE = 16;
 
     private final SoftReference<LongObjectCache<V>>[] chunks;
     private final int chuckSize;
-    private long attempts;
-    private long hits;
 
     public SoftLongObjectCache() {
         this(DEFAULT_SIZE);
@@ -48,20 +46,14 @@ public class SoftLongObjectCache<V> {
         for (int i = 0; i < chunks.length; i++) {
             chunks[i] = null;
         }
-        attempts = 0L;
-        hits = 0L;
-    }
-
-    public double hitRate() {
-        return attempts == 0 ? 0 : ((double) hits) / ((double) attempts);
     }
 
     public V tryKey(final long key) {
-        ++attempts;
+        incAttempts();
         final LongObjectCache<V> chunk = getChunk(key, false);
         final V result = chunk == null ? null : chunk.tryKey(key);
         if (result != null) {
-            ++hits;
+            incHits();
         }
         return result;
     }

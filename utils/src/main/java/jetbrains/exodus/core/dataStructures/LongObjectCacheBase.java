@@ -18,14 +18,14 @@ package jetbrains.exodus.core.dataStructures;
 import org.jetbrains.annotations.NotNull;
 
 @SuppressWarnings({"ProtectedField"})
-public abstract class LongObjectCacheBase<V> {
+public abstract class LongObjectCacheBase<V> extends CacheHitRateable {
 
     public static final int DEFAULT_SIZE = 8192;
     public static final int MIN_SIZE = 4;
 
+    private static final short ADAPTIVE_ATTEMPTS_THRESHOLD = 20000;
+
     protected final int size;
-    protected long attempts;
-    protected long hits;
 
     protected LongObjectCacheBase(final int size) {
         this.size = Math.max(MIN_SIZE, size);
@@ -87,7 +87,13 @@ public abstract class LongObjectCacheBase<V> {
         return size;
     }
 
-    public double hitRate() {
-        return attempts > 0 ? (double) hits / (double) attempts : 0;
+    @Override
+    protected void adjustHitRate() {
+        lock();
+        try {
+            super.adjustHitRate();
+        } finally {
+            unlock();
+        }
     }
 }

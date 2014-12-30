@@ -43,8 +43,6 @@ public abstract class SoftObjectCacheBase<K, V> extends ObjectCacheBase<K, V> {
         for (int i = 0; i < chunks.length; i++) {
             chunks[i] = null;
         }
-        attempts = 0L;
-        hits = 0L;
     }
 
     @Override
@@ -57,11 +55,11 @@ public abstract class SoftObjectCacheBase<K, V> extends ObjectCacheBase<K, V> {
 
     @Override
     public V tryKey(@NotNull final K key) {
-        ++attempts;
+        incAttempts();
         final ObjectCacheBase<K, V> chunk = getChunk(key, false);
         final V result = chunk == null ? null : chunk.tryKeyLocked(key);
         if (result != null) {
-            ++hits;
+            incHits();
         }
         return result;
     }

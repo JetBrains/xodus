@@ -139,7 +139,7 @@ public class LongObjectCache<V> extends LongObjectCacheBase<V> {
 
     @Override
     public V tryKey(final long key) {
-        ++attempts;
+        incAttempts();
         V result = secondGenerationQueue.get(key);
         if (result == null) {
             result = firstGenerationQueue.remove(key);
@@ -148,7 +148,7 @@ public class LongObjectCache<V> extends LongObjectCacheBase<V> {
             }
         }
         if (result != null) {
-            ++hits;
+            incHits();
         }
         return result;
     }
