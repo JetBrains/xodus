@@ -155,7 +155,6 @@ public final class Log implements Closeable {
             } catch (ExodusException e) { // if an exception is thrown then last loggable wasn't read correctly
                 logging.error("Exception on Log recovery. Approved high address = " + approvedHighAddress, e);
             }
-            cache.clearRecentHits();
             setHighAddress(approvedHighAddress);
         }
         flush(true);
