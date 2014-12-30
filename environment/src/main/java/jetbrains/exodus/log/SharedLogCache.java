@@ -24,14 +24,10 @@ import org.jetbrains.annotations.NotNull;
 final class SharedLogCache extends LogCache {
 
     @NotNull
-    private final CacheHit[] recentHits;
-    @NotNull
     private final ObjectCacheBase<CacheKey, ArrayByteIterable> pagesCache;
 
     SharedLogCache(final long memoryUsage, final int pageSize, final boolean nonBlocking) {
         super(memoryUsage, pageSize);
-        recentHits = new CacheHit[RECENT_HITS_COUNT];
-        clearRecentHits();
         final int pagesCount = (int) (memoryUsage / (pageSize +
                 /* each page consumes additionally nearly 104 bytes in the cache */ 104));
         pagesCache = nonBlocking ?
@@ -41,8 +37,6 @@ final class SharedLogCache extends LogCache {
 
     SharedLogCache(final int memoryUsagePercentage, final int pageSize, final boolean nonBlocking) {
         super(memoryUsagePercentage, pageSize);
-        recentHits = new CacheHit[RECENT_HITS_COUNT];
-        clearRecentHits();
         if (memoryUsage == Long.MAX_VALUE) {
             pagesCache = nonBlocking ?
                     new ConcurrentObjectCache<CacheKey, ArrayByteIterable>(ObjectCacheBase.DEFAULT_SIZE, CONCURRENT_CACHE_GENERATION_COUNT) :
@@ -75,53 +69,31 @@ final class SharedLogCache extends LogCache {
     @NotNull
     protected ArrayByteIterable getPage(@NotNull final Log log, final long pageAddress) {
         final long adjustedPageAddress = pageAddress >> pageSizeLogarithm;
-        final int recentHitIndex = ((int) adjustedPageAddress) & (RECENT_HITS_COUNT - 1);
-        final CacheHit recentHit = recentHits[recentHitIndex];
         final int logIdentity = log.getIdentity();
-        if (recentHit.pageAddress == adjustedPageAddress && recentHit.logIdentity == logIdentity) {
-            return recentHit.page;
-        }
         final CacheKey cacheKey = new CacheKey(logIdentity, adjustedPageAddress);
         ArrayByteIterable page = pagesCache.tryKeyLocked(cacheKey);
         if (page != null) {
-            recentHits[recentHitIndex] = new CacheHit(logIdentity, adjustedPageAddress, page);
             return page;
         }
         page = log.getHighPage(pageAddress);
         if (page != null) {
-            if (page.getLength() == pageSize) {
-                recentHits[recentHitIndex] = new CacheHit(logIdentity, adjustedPageAddress, page);
-            }
             return page;
         }
         page = readFullPage(log, pageAddress);
         cachePage(cacheKey, page);
-        recentHits[recentHitIndex] = new CacheHit(logIdentity, adjustedPageAddress, page);
         return page;
     }
 
     @Override
     protected ArrayByteIterable removePageImpl(@NotNull final Log log, final long pageAddress) {
         final long adjustedPageAddress = pageAddress >> pageSizeLogarithm;
-        final int recentHitIndex = ((int) adjustedPageAddress) & (RECENT_HITS_COUNT - 1);
-        final CacheHit recentHit = recentHits[recentHitIndex];
         final int logIdentity = log.getIdentity();
-        if (recentHit.pageAddress == adjustedPageAddress && recentHit.logIdentity == logIdentity) {
-            recentHits[recentHitIndex] = CacheHit.MISS;
-        }
         final CacheKey cacheKey = new CacheKey(logIdentity, adjustedPageAddress);
         pagesCache.lock();
         try {
             return pagesCache.remove(cacheKey);
         } finally {
             pagesCache.unlock();
-        }
-    }
-
-    @Override
-    void clearRecentHits() {
-        for (int i = 0; i < recentHits.length; i++) {
-            recentHits[i] = CacheHit.MISS;
         }
     }
 
@@ -155,29 +127,6 @@ final class SharedLogCache extends LogCache {
 
         public int hashCode() {
             return (logIdentity ^ (int) address) + (logIdentity << 16);
-        }
-    }
-
-    private static class CacheHit {
-
-        private static final CacheHit MISS = new CacheHit();
-
-        private final int logIdentity;
-        private final long pageAddress;
-        private final ArrayByteIterable page;
-
-        private CacheHit() {
-            logIdentity = -1;
-            pageAddress = Loggable.NULL_ADDRESS;
-            page = null;
-        }
-
-        private CacheHit(final int logIdentity,
-                         final long pageAddress,
-                         @NotNull final ArrayByteIterable page) {
-            this.logIdentity = logIdentity;
-            this.pageAddress = pageAddress;
-            this.page = page;
         }
     }
 }

@@ -30,7 +30,6 @@ abstract class LogCache {
     protected static final int MINIMUM_MEM_USAGE_PERCENT = 5;
     protected static final int MAXIMUM_MEM_USAGE_PERCENT = 95;
     protected static final int CONCURRENT_CACHE_GENERATION_COUNT = 2;
-    protected static final int RECENT_HITS_COUNT = 8; // should be a power of 2
 
     protected final long memoryUsage;
     protected final int memoryUsagePercentage;
@@ -97,8 +96,6 @@ abstract class LogCache {
     abstract ArrayByteIterable getPage(@NotNull final Log log, final long pageAddress);
 
     abstract ArrayByteIterable removePageImpl(@NotNull final Log log, final long pageAddress);
-
-    abstract void clearRecentHits();
 
     protected ArrayByteIterable readFullPage(Log log, long pageAddress) {
         final ArrayByteIterable page = allocPage();

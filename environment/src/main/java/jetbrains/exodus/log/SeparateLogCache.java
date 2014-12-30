@@ -24,14 +24,10 @@ import org.jetbrains.annotations.NotNull;
 final class SeparateLogCache extends LogCache {
 
     @NotNull
-    private final CacheHit[] recentHits;
-    @NotNull
     private final LongObjectCacheBase<ArrayByteIterable> pagesCache;
 
     SeparateLogCache(final long memoryUsage, final int pageSize, final boolean nonBlocking) {
         super(memoryUsage, pageSize);
-        recentHits = new CacheHit[RECENT_HITS_COUNT];
-        clearRecentHits();
         final int pagesCount = (int) (memoryUsage / (pageSize +
                 /* each page consumes additionally nearly 80 bytes in the cache */ 80));
         pagesCache = nonBlocking ?
@@ -41,8 +37,6 @@ final class SeparateLogCache extends LogCache {
 
     SeparateLogCache(final int memoryUsagePercentage, final int pageSize, final boolean nonBlocking) {
         super(memoryUsagePercentage, pageSize);
-        recentHits = new CacheHit[RECENT_HITS_COUNT];
-        clearRecentHits();
         if (memoryUsage == Long.MAX_VALUE) {
             pagesCache = nonBlocking ?
                     new ConcurrentLongObjectCache<ArrayByteIterable>(LongObjectCacheBase.DEFAULT_SIZE, CONCURRENT_CACHE_GENERATION_COUNT) :
@@ -80,49 +74,26 @@ final class SeparateLogCache extends LogCache {
     @NotNull
     ArrayByteIterable getPage(@NotNull final Log log, final long pageAddress) {
         final long cacheKey = pageAddress >> pageSizeLogarithm;
-        final int recentHitIndex = ((int) cacheKey) & (RECENT_HITS_COUNT - 1);
-        final CacheHit recentHit = recentHits[recentHitIndex];
-        if (recentHit.cacheKey == cacheKey) {
-            return recentHit.page;
-        }
         ArrayByteIterable page = pagesCache.tryKeyLocked(cacheKey);
         if (page != null) {
-            recentHits[recentHitIndex] = new CacheHit(cacheKey, page);
             return page;
         }
         page = log.getHighPage(pageAddress);
         if (page != null) {
-            if (page.getLength() == pageSize) {
-                recentHits[recentHitIndex] = new CacheHit(cacheKey, page);
-            }
             return page;
         }
         page = readFullPage(log, pageAddress);
         cachePage(cacheKey, page);
-        recentHits[recentHitIndex] = new CacheHit(cacheKey, page);
         return page;
     }
 
     @Override
     protected ArrayByteIterable removePageImpl(@NotNull final Log log, final long pageAddress) {
-        final long cacheKey = pageAddress >> pageSizeLogarithm;
-        final int recentHitIndex = ((int) cacheKey) & (RECENT_HITS_COUNT - 1);
-        if (recentHits[recentHitIndex].cacheKey == cacheKey) {
-            recentHits[recentHitIndex] = new CacheHit();
-        }
         pagesCache.lock();
         try {
-            return pagesCache.remove(cacheKey);
+            return pagesCache.remove(pageAddress >> pageSizeLogarithm);
         } finally {
             pagesCache.unlock();
-        }
-    }
-
-    @Override
-    void clearRecentHits() {
-        final CacheHit miss = new CacheHit();
-        for (int i = 0; i < recentHits.length; i++) {
-            recentHits[i] = miss;
         }
     }
 
@@ -134,22 +105,6 @@ final class SeparateLogCache extends LogCache {
             }
         } finally {
             pagesCache.unlock();
-        }
-    }
-
-    private static class CacheHit {
-
-        final long cacheKey;
-        final ArrayByteIterable page;
-
-        private CacheHit() {
-            cacheKey = Loggable.NULL_ADDRESS;
-            page = null;
-        }
-
-        private CacheHit(final long cacheKey, @NotNull final ArrayByteIterable page) {
-            this.cacheKey = cacheKey;
-            this.page = page;
         }
     }
 }
