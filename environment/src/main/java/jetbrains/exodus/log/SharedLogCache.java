@@ -35,7 +35,7 @@ final class SharedLogCache extends LogCache {
         final int pagesCount = (int) (memoryUsage / (pageSize +
                 /* each page consumes additionally nearly 104 bytes in the cache */ 104));
         pagesCache = nonBlocking ?
-                new ConcurrentObjectCache<CacheKey, ArrayByteIterable>(pagesCount, CONCURRENT_CACHE_GENERATIONS_COUNT) :
+                new ConcurrentObjectCache<CacheKey, ArrayByteIterable>(pagesCount, CONCURRENT_CACHE_GENERATION_COUNT) :
                 new ObjectCache<CacheKey, ArrayByteIterable>(pagesCount);
     }
 
@@ -45,13 +45,13 @@ final class SharedLogCache extends LogCache {
         clearRecentHits();
         if (memoryUsage == Long.MAX_VALUE) {
             pagesCache = nonBlocking ?
-                    new ConcurrentObjectCache<CacheKey, ArrayByteIterable>(ObjectCacheBase.DEFAULT_SIZE, CONCURRENT_CACHE_GENERATIONS_COUNT) :
+                    new ConcurrentObjectCache<CacheKey, ArrayByteIterable>(ObjectCacheBase.DEFAULT_SIZE, CONCURRENT_CACHE_GENERATION_COUNT) :
                     new ObjectCache<CacheKey, ArrayByteIterable>();
         } else {
             final int pagesCount = (int) (memoryUsage / (pageSize +
                     /* each page consumes additionally nearly 104 bytes in the cache */ 104));
             pagesCache = nonBlocking ?
-                    new ConcurrentObjectCache<CacheKey, ArrayByteIterable>(pagesCount, CONCURRENT_CACHE_GENERATIONS_COUNT) :
+                    new ConcurrentObjectCache<CacheKey, ArrayByteIterable>(pagesCount, CONCURRENT_CACHE_GENERATION_COUNT) :
                     new ObjectCache<CacheKey, ArrayByteIterable>(pagesCount);
         }
     }

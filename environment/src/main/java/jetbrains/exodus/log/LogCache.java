@@ -29,7 +29,7 @@ abstract class LogCache {
     protected static final int DEFAULT_OPEN_FILES_COUNT = 16;
     protected static final int MINIMUM_MEM_USAGE_PERCENT = 5;
     protected static final int MAXIMUM_MEM_USAGE_PERCENT = 95;
-    protected static final int CONCURRENT_CACHE_GENERATIONS_COUNT = 3;
+    protected static final int CONCURRENT_CACHE_GENERATION_COUNT = 2;
     protected static final int RECENT_HITS_COUNT = 8; // should be a power of 2
 
     protected final long memoryUsage;

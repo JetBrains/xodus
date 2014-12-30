@@ -35,7 +35,7 @@ final class SeparateLogCache extends LogCache {
         final int pagesCount = (int) (memoryUsage / (pageSize +
                 /* each page consumes additionally nearly 80 bytes in the cache */ 80));
         pagesCache = nonBlocking ?
-                new ConcurrentLongObjectCache<ArrayByteIterable>(pagesCount, CONCURRENT_CACHE_GENERATIONS_COUNT) :
+                new ConcurrentLongObjectCache<ArrayByteIterable>(pagesCount, CONCURRENT_CACHE_GENERATION_COUNT) :
                 new LongObjectCache<ArrayByteIterable>(pagesCount);
     }
 
@@ -45,13 +45,13 @@ final class SeparateLogCache extends LogCache {
         clearRecentHits();
         if (memoryUsage == Long.MAX_VALUE) {
             pagesCache = nonBlocking ?
-                    new ConcurrentLongObjectCache<ArrayByteIterable>(LongObjectCacheBase.DEFAULT_SIZE, CONCURRENT_CACHE_GENERATIONS_COUNT) :
+                    new ConcurrentLongObjectCache<ArrayByteIterable>(LongObjectCacheBase.DEFAULT_SIZE, CONCURRENT_CACHE_GENERATION_COUNT) :
                     new LongObjectCache<ArrayByteIterable>();
         } else {
             final int pagesCount = (int) (memoryUsage / (pageSize +
                     /* each page consumes additionally nearly 80 bytes in the cache */ 80));
             pagesCache = nonBlocking ?
-                    new ConcurrentLongObjectCache<ArrayByteIterable>(pagesCount, CONCURRENT_CACHE_GENERATIONS_COUNT) :
+                    new ConcurrentLongObjectCache<ArrayByteIterable>(pagesCount, CONCURRENT_CACHE_GENERATION_COUNT) :
                     new LongObjectCache<ArrayByteIterable>(pagesCount);
         }
     }
