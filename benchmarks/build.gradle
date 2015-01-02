@@ -3,6 +3,7 @@ dependencies {
     testCompile project(':utils').sourceSets.test.output
     testCompile project(':environment').sourceSets.test.output
     testCompile group: 'com.sleepycat', name: 'je', version: '5.0.73'
+    testCompile group: 'org.mapdb', name: 'mapdb', version: '1.0.6'
 }
 
 jar {
