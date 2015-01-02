@@ -213,6 +213,9 @@ public class EnvTokyoCabinetLikeBenchmarkTest extends BenchmarkTestBase {
     }
 
     protected void createEnvironment() throws IOException {
+        if (env != null) {
+            env.close();
+        }
         final Pair<DataReader, DataWriter> rw = createRW();
         LogConfig config = new LogConfig();
         config.setReader(rw.getFirst());

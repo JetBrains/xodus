@@ -180,6 +180,9 @@ public class JETokyoCabinetLikeBenchmarkTest extends BenchmarkTestBase {
     }
 
     private void createEnvironment() throws IOException {
+        if (env != null) {
+            env.close();
+        }
         final EnvironmentConfig environmentConfig = new EnvironmentConfig();
         environmentConfig.setAllowCreate(true);
         environmentConfig.setTransactional(true);
