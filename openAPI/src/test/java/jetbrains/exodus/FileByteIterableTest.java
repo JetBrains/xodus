@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2014 JetBrains s.r.o.
+ * Copyright 2010 - 2015 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import java.io.IOException;
 
 public class FileByteIterableTest {
 
-    private static final String SAMPLE_CONTENT = "И хорошо бы еще бы убрать всякую сладкую и калорийную гадость, и заменть ее более здоровыми закусками к чаю. Теми же фруктами, орешками";
+    private static final String SAMPLE_CONTENT = "�? хорошо бы еще бы убрать всякую сладкую и калорийную гадость, и заменть ее более здоровыми закусками к чаю. Теми же фруктами, орешками";
 
     File file;
 
