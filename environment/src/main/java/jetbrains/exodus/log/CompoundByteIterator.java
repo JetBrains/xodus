@@ -73,7 +73,7 @@ class CompoundByteIterator implements ByteIteratorWithAddress {
     private boolean hasNextImpl() {
         while (!current.hasNext()) {
             currentAddress += read;
-            final int alignment = (int) (currentAddress % log.getCachePageSize());
+            final int alignment = ((int) currentAddress) & (log.getCachePageSize() - 1);
             final long alignedAddress = currentAddress - alignment;
             final ArrayByteIterable page = log.cache.getPage(log, alignedAddress);
             final int readBytes = page.getLength();

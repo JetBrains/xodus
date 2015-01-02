@@ -36,7 +36,7 @@ final class DataIterator extends CompoundByteIteratorBase {
     @Override
     protected ByteIterator nextIterator() {
         final long prevAddress = getHighAddress();
-        final int alignment = (int) (prevAddress % log.getCachePageSize());
+        final int alignment = ((int) prevAddress) & (log.getCachePageSize() - 1);
         final ArrayByteIterable page;
         final long newAddress = prevAddress - alignment;
         try {

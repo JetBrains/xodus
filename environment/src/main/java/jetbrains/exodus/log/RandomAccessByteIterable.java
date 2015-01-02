@@ -50,10 +50,11 @@ class RandomAccessByteIterable extends ByteIterableWithAddress {
     private static int compare(final int offset, final int len, final ByteIterable right, Log log, final long address) {
         final LogCache cache = log.cache;
         final int pageSize = log.getCachePageSize();
+        final int mask = pageSize - 1;
         long alignedAddress = address + offset;
         long endAddress = alignedAddress + len;
-        endAddress -= endAddress % pageSize;
-        int leftStep = (int) (alignedAddress % pageSize);
+        endAddress -= ((int) endAddress) & mask;
+        int leftStep = ((int) alignedAddress) & mask;
         alignedAddress -= leftStep;
         ArrayByteIterable left = cache.getPage(log, alignedAddress);
 

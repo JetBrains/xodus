@@ -71,6 +71,7 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
                                    Log log, long startAddress) {
         final LogCache cache = log.cache;
         final int pageSize = log.getCachePageSize();
+        final int mask = pageSize - 1; // page size is always a power of 2
         long leftAddress = -1L;
         byte[] leftPage = null;
         long rightAddress = -1L;
@@ -79,8 +80,8 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
 
         while (low <= high) {
             final int mid = (low + high + 1) >>> 1;
-            final long midAddress = startAddress + (long) (mid * bytesPerLong);
-            it.offset = (int) (midAddress % (long) pageSize);
+            final long midAddress = startAddress + (mid * bytesPerLong);
+            it.offset = ((int) midAddress) & mask;
             it.address = midAddress - it.offset;
             boolean loaded = false;
             if (it.address == leftAddress) {
