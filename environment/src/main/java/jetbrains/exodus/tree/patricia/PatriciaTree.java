@@ -25,8 +25,7 @@ import org.jetbrains.annotations.NotNull;
 public class PatriciaTree extends PatriciaTreeBase {
 
     private final RandomAccessLoggable rootLoggable;
-    private final byte rootType;
-    private final byte dataOffset;
+    private final ImmutableNode root;
 
     public PatriciaTree(@NotNull final Log log, final long rootAddress, final int structureId) {
         super(log, structureId);
@@ -45,8 +44,7 @@ public class PatriciaTree extends PatriciaTreeBase {
             long backRef = CompressedUnsignedLongByteIterable.getLong(it);
             rememberBackRef(backRef);
         }
-        rootType = type;
-        dataOffset = (byte) (it.getAddress() - data.getDataAddress());
+        root = new ImmutableNode(this, rootAddress, type, data.clone((int) (it.getAddress() - data.getDataAddress())));
     }
 
     @NotNull
@@ -72,6 +70,6 @@ public class PatriciaTree extends PatriciaTreeBase {
 
     @Override
     final ImmutableNode getRoot() {
-        return new ImmutableNode(this, getRootAddress(), rootType, rootLoggable.getData().clone(dataOffset));
+        return root;
     }
 }
