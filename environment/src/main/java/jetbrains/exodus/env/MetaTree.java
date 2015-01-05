@@ -72,7 +72,7 @@ final class MetaTree {
             }
         } else {
             log.setHighAddress(0);
-            resultTree = new BTreeEmpty(log, env.getBTreeBalancePolicy(), false, EnvironmentImpl.META_TREE_ID);
+            resultTree = getEmptyMetaTree(env);
             final long rootAddress = resultTree.getMutableCopy().save();
             root = log.write(DatabaseRoot.toLoggable(rootAddress, EnvironmentImpl.META_TREE_ID));
             log.flush();
@@ -177,8 +177,9 @@ final class MetaTree {
         return null;
     }
 
-    MetaTree getClone() {
-        return new MetaTree(tree, root);
+    MetaTree getClone(@NotNull final EnvironmentImpl env) {
+        final long metaTreeRoot = tree.getRootAddress();
+        return new MetaTree(metaTreeRoot == Loggable.NULL_ADDRESS ? getEmptyMetaTree(env) : env.loadMetaTree(metaTreeRoot), root);
     }
 
     MetaTree getCloneWithMeta() {
@@ -197,5 +198,9 @@ final class MetaTree {
     static boolean isStringKey(final ArrayByteIterable key) {
         // last byte of string is zero
         return key.getBytesUnsafe()[key.getLength() - 1] == 0;
+    }
+
+    static ITree getEmptyMetaTree(@NotNull final EnvironmentImpl env) {
+        return new BTreeEmpty(env.getLog(), env.getBTreeBalancePolicy(), false, EnvironmentImpl.META_TREE_ID);
     }
 }
