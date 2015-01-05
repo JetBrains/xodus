@@ -20,6 +20,7 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.LongBinding;
+import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.log.ByteIterableWithAddress;
 import jetbrains.exodus.log.ByteIteratorWithAddress;
 import jetbrains.exodus.log.Loggable;
@@ -37,6 +38,8 @@ final class ImmutableNode extends NodeBase {
     private final int dataOffset;
     private final short childrenCount;
     private final byte childAddressLength;
+    @Nullable
+    private LongObjectCacheBase treeNodesCache;
 
     ImmutableNode(@NotNull final PatriciaTreeBase tree, final long address, final int type, @NotNull final ByteIterableWithAddress data) {
         this(tree, address, type, data, data.iterator());
@@ -99,7 +102,7 @@ final class ImmutableNode extends NodeBase {
                     break;
                 }
                 if (cmp == 0) {
-                    return getTree().loadNode(LongBinding.entryToUnsignedLong(it, childAddressLength));
+                    return getTree().loadNode(LongBinding.entryToUnsignedLong(it, childAddressLength), treeNodesCache);
                 }
                 it.skip(childAddressLength);
             }
@@ -117,7 +120,7 @@ final class ImmutableNode extends NodeBase {
                 } else if (cmp > 0) {
                     high = mid - 1;
                 } else {
-                    return getTree().loadNode(LongBinding.entryToUnsignedLong(it, childAddressLength));
+                    return getTree().loadNode(LongBinding.entryToUnsignedLong(it, childAddressLength), treeNodesCache);
                 }
             }
         }
@@ -231,6 +234,10 @@ final class ImmutableNode extends NodeBase {
     @Override
     NodeChildrenIterator getChildrenLast() {
         return new ImmutableNodeChildrenIterator(null, childrenCount, null);
+    }
+
+    protected void setTreeNodesCache(@Nullable final LongObjectCacheBase treeNodesCache) {
+        this.treeNodesCache = treeNodesCache;
     }
 
     private ByteIterator getDataIterator(final int offset) {

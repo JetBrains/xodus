@@ -23,8 +23,7 @@ import org.jetbrains.annotations.NotNull;
 public class BTree extends BTreeBase {
 
     private final RandomAccessLoggable rootLoggable;
-    private final byte rootType;
-    private final byte dataOffset;
+    private final BasePageImmutable root;
 
     public BTree(@NotNull final Log log, final long rootAddress, final boolean allowsDuplicates, final int structureId) {
         this(log, BTreeBalancePolicy.DEFAULT, rootAddress, allowsDuplicates, structureId);
@@ -45,11 +44,10 @@ public class BTree extends BTreeBase {
         if (type != BOTTOM_ROOT && type != INTERNAL_ROOT) {
             throw new ExodusException("Unexpected root page type: " + type);
         }
-        rootType = type;
         final ByteIterableWithAddress data = rootLoggable.getData();
         final ByteIteratorWithAddress it = data.iterator();
         size = CompressedUnsignedLongByteIterable.getLong(it);
-        dataOffset = (byte) (it.getAddress() - data.getDataAddress());
+        root = loadPage(type, data.clone((int) (it.getAddress() - data.getDataAddress())));
     }
 
     @Override
@@ -68,7 +66,6 @@ public class BTree extends BTreeBase {
     @Override
     @NotNull
     protected BasePage getRoot() {
-        return loadPage(rootType, rootLoggable.getData().clone(dataOffset));
+        return root;
     }
-
 }

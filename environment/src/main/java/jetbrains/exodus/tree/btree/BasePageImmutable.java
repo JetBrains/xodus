@@ -19,12 +19,14 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.LongBinding;
+import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.log.ByteIterableWithAddress;
 import jetbrains.exodus.log.ByteIteratorWithAddress;
 import jetbrains.exodus.log.IByteIterableComparator;
 import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 abstract class BasePageImmutable extends BasePage implements IByteIterableComparator {
 
@@ -34,9 +36,9 @@ abstract class BasePageImmutable extends BasePage implements IByteIterableCompar
     protected final ByteIterableWithAddress data;
     protected long dataAddress;
     protected int keyAddressLen;
+    @Nullable
+    protected LongObjectCacheBase treeNodesCache;
     private ILeafNode lastComparedKey;
-    private int lastLoadedKeyIndex = -1;
-    private BaseLeafNode lastLoadedKey;
 
     /**
      * Create empty page
@@ -68,7 +70,7 @@ abstract class BasePageImmutable extends BasePage implements IByteIterableCompar
      * Create page and load size
      *
      * @param tree source tree
-     * @param data  source iterator
+     * @param data source iterator
      * @param size computed size
      */
     protected BasePageImmutable(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data, int size) {
@@ -121,12 +123,8 @@ abstract class BasePageImmutable extends BasePage implements IByteIterableCompar
 
     @Override
     @NotNull
-    public BaseLeafNode getKey(int index) {
-        if (lastLoadedKeyIndex == index) {
-            return lastLoadedKey;
-        }
-        lastLoadedKeyIndex = index;
-        return lastLoadedKey = tree.loadLeaf(getKeyAddress(index));
+    public BaseLeafNode getKey(final int index) {
+        return tree.loadLeaf(getKeyAddress(index), treeNodesCache);
     }
 
     @Override
@@ -151,7 +149,11 @@ abstract class BasePageImmutable extends BasePage implements IByteIterableCompar
 
     @Override
     public int compare(long leftAddress, ByteIterable right) {
-        return (lastComparedKey = tree.loadLeaf(leftAddress)).compareKeyTo(right);
+        return (lastComparedKey = tree.loadLeaf(leftAddress, treeNodesCache)).compareKeyTo(right);
+    }
+
+    protected void setTreeNodesCache(@Nullable final LongObjectCacheBase treeNodesCache) {
+        this.treeNodesCache = treeNodesCache;
     }
 
     protected static void doReclaim(BTreeReclaimTraverser context) {

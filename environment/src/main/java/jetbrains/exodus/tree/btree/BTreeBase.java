@@ -17,6 +17,7 @@ package jetbrains.exodus.tree.btree;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.log.ByteIterableWithAddress;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.RandomAccessLoggable;
@@ -107,20 +108,42 @@ public abstract class BTreeBase implements ITree {
                 new TreeCursor(new BTreeTraverser(getRoot()));
     }
 
+    @Override
+    public void setTreeNodesCache(@Nullable final LongObjectCacheBase cache) {
+        final BasePage root = getRoot();
+        if (!root.isMutable()) {
+            ((BasePageImmutable) root).setTreeNodesCache(cache);
+        }
+    }
+
     protected final RandomAccessLoggable getLoggable(long address) {
         return log.read(address);
     }
 
     @NotNull
-    protected final BasePage loadPage(long address) {
+    protected final BasePage loadPage(final long address, @Nullable final LongObjectCacheBase treeNodesCache) {
+        final Object page = treeNodesCache != null ? treeNodesCache.tryKey(address) : null;
+        if (page != null) {
+            return (BasePage) page;
+        }
+        final RandomAccessLoggable loggable = getLoggable(address);
+        final BasePageImmutable result = loadPage(loggable.getType(), loggable.getData());
+        if (treeNodesCache != null) {
+            //noinspection unchecked
+            treeNodesCache.cacheObject(address, result);
+        }
+        return result;
+    }
+
+    @NotNull
+    protected final BasePage loadPage(final long address) {
         final RandomAccessLoggable loggable = getLoggable(address);
         return loadPage(loggable.getType(), loggable.getData());
     }
 
     @NotNull
-    protected final BasePage loadPage(final int type, @NotNull final ByteIterableWithAddress data) {
+    protected final BasePageImmutable loadPage(final int type, @NotNull final ByteIterableWithAddress data) {
         final BasePageImmutable result;
-
         switch (type) {
             case LEAF_DUP_BOTTOM_ROOT: // TODO: convert to enum
             case BOTTOM_ROOT:
@@ -137,7 +160,20 @@ public abstract class BTreeBase implements ITree {
             default:
                 throw new IllegalArgumentException("Unknown loggable type [" + type + ']');
         }
+        return result;
+    }
 
+    @NotNull
+    protected LeafNode loadLeaf(final long address, @Nullable final LongObjectCacheBase treeNodesCache) {
+        final Object node = treeNodesCache != null ? treeNodesCache.tryKey(address) : null;
+        if (node != null) {
+            return (LeafNode) node;
+        }
+        final LeafNode result = loadLeaf(address);
+        if (treeNodesCache != null) {
+            //noinspection unchecked
+            treeNodesCache.cacheObject(address, result);
+        }
         return result;
     }
 

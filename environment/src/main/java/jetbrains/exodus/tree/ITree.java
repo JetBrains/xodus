@@ -16,6 +16,7 @@
 package jetbrains.exodus.tree;
 
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.log.Log;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -51,6 +52,8 @@ public interface ITree {
     ITreeCursor openCursor();
 
     LongIterator addressIterator();
+
+    void setTreeNodesCache(@Nullable final LongObjectCacheBase cache);
 
     void dump(PrintStream out);
 

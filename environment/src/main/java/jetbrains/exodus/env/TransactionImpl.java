@@ -16,6 +16,8 @@
 package jetbrains.exodus.env;
 
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.core.dataStructures.ConcurrentLongObjectCache;
+import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.decorators.HashMapDecorator;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
@@ -46,6 +48,8 @@ public class TransactionImpl implements Transaction {
     @NotNull
     private final Map<String, TreeMetaInfo> createdStores;
     @Nullable
+    private final LongObjectCacheBase treeNodesCache;
+    @Nullable
     private Runnable beginHook;
     @Nullable
     private Runnable commitHook;
@@ -61,6 +65,7 @@ public class TransactionImpl implements Transaction {
         mutableTrees = new TreeMap<Integer, ITreeMutable>();
         removedStores = new LongHashMap<Pair<String, ITree>>();
         createdStores = new HashMapDecorator<String, TreeMetaInfo>();
+        treeNodesCache = new ConcurrentLongObjectCache(env.getEnvironmentConfig().getTreeNodesCacheSize(), 2);
         this.beginHook = new Runnable() {
             @Override
             public void run() {
@@ -89,6 +94,7 @@ public class TransactionImpl implements Transaction {
         mutableTrees = new TreeMap<Integer, ITreeMutable>();
         removedStores = new LongHashMap<Pair<String, ITree>>();
         createdStores = new HashMapDecorator<String, TreeMetaInfo>();
+        treeNodesCache = origin.treeNodesCache;
         trace = env.transactionTimeout() > 0 ? new Throwable() : null;
         invalidateCreated();
         env.registerTransaction(this);
@@ -315,6 +321,9 @@ public class TransactionImpl implements Transaction {
         ITree result = immutableTrees.get(structureId);
         if (result == null) {
             result = store.openImmutableTree(metaTree);
+            if (result.getSize() > 0) {
+                result.setTreeNodesCache(treeNodesCache);
+            }
             immutableTrees.put(structureId, result);
         }
         return result;

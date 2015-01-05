@@ -59,6 +59,8 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public static final String TREE_MAX_PAGE_SIZE = "exodus.tree.maxPageSize";
 
+    public static final String TREE_NODES_CACHE_SIZE = "exodus.tree.nodesCacheSize";
+
     public static final String GC_ENABLED = "exodus.gc.enabled";
 
     public static final String GC_START_IN = "exodus.gc.startIn"; // in milliseconds
@@ -100,6 +102,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
                 new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
                 new Pair(TREE_MAX_PAGE_SIZE, 128),
+                new Pair(TREE_NODES_CACHE_SIZE, 256),
                 new Pair(GC_ENABLED, true),
                 new Pair(GC_START_IN, 0),
                 new Pair(GC_MIN_UTILIZATION, 50),
@@ -252,11 +255,19 @@ public final class EnvironmentConfig extends AbstractConfig {
         return (Integer) getSetting(TREE_MAX_PAGE_SIZE);
     }
 
-    public void setTreeMaxPageSize(int pageSize) throws InvalidSettingException {
+    public void setTreeMaxPageSize(final int pageSize) throws InvalidSettingException {
         if (pageSize < 16 || pageSize > 1024) {
             throw new InvalidSettingException("Invalid tree page size: " + pageSize);
         }
         setSetting(TREE_MAX_PAGE_SIZE, pageSize);
+    }
+
+    public int getTreeNodesCacheSize() {
+        return (Integer) getSetting(TREE_NODES_CACHE_SIZE);
+    }
+
+    public void setTreeNodesCacheSize(final int cacheSize) {
+        setSetting(TREE_NODES_CACHE_SIZE, cacheSize);
     }
 
     public boolean isGcEnabled() {

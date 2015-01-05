@@ -59,8 +59,8 @@ public class InternalPage extends BasePageImmutable {
 
     @Override
     @NotNull
-    public BasePage getChild(int index) {
-        return tree.loadPage(getChildAddress(index));
+    public BasePage getChild(final int index) {
+        return tree.loadPage(getChildAddress(index), treeNodesCache);
     }
 
     @Override
