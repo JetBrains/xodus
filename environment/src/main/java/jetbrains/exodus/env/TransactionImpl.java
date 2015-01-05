@@ -65,12 +65,13 @@ public class TransactionImpl implements Transaction {
         mutableTrees = new TreeMap<Integer, ITreeMutable>();
         removedStores = new LongHashMap<Pair<String, ITree>>();
         createdStores = new HashMapDecorator<String, TreeMetaInfo>();
-        treeNodesCache = new ConcurrentLongObjectCache(env.getEnvironmentConfig().getTreeNodesCacheSize(), 2);
+        final int treeNodesCacheSize = env.getEnvironmentConfig().getTreeNodesCacheSize();
+        treeNodesCache = treeNodesCacheSize < 1 ? null : new ConcurrentLongObjectCache(treeNodesCacheSize, 2);
         this.beginHook = new Runnable() {
             @Override
             public void run() {
                 final MetaTree initialMetaTree = env.getMetaTreeUnsafe();
-                metaTree = cloneMeta ? initialMetaTree.getCloneWithMeta() : initialMetaTree.getClone();
+                metaTree = cloneMeta ? initialMetaTree.getCloneWithMeta() : initialMetaTree.getClone(env);
                 env.registerTransaction(TransactionImpl.this);
                 if (beginHook != null) {
                     beginHook.run();
@@ -334,5 +335,8 @@ public class TransactionImpl implements Transaction {
         mutableTrees.clear();
         removedStores.clear();
         createdStores.clear();
+        if (treeNodesCache != null) {
+            treeNodesCache.clear();
+        }
     }
 }
