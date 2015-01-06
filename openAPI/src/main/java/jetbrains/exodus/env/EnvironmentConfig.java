@@ -102,7 +102,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
                 new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
                 new Pair(TREE_MAX_PAGE_SIZE, 128),
-                new Pair(TREE_NODES_CACHE_SIZE, 256),
+                new Pair(TREE_NODES_CACHE_SIZE, 4096),
                 new Pair(GC_ENABLED, true),
                 new Pair(GC_START_IN, 0),
                 new Pair(GC_MIN_UTILIZATION, 50),

@@ -18,6 +18,8 @@ package jetbrains.exodus.env;
 import jetbrains.exodus.AbstractConfig;
 import jetbrains.exodus.BackupStrategy;
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.core.dataStructures.ConcurrentLongObjectCache;
+import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.gc.GarbageCollector;
@@ -59,7 +61,9 @@ public class EnvironmentImpl implements Environment {
     private final LinkedList<RunnableWithTxnRoot> txnSafeTasks;
     @Nullable
     private StoreGetCache storeGetCache;
-    private final StoreGetCacheSizeSettingListener cacheSizeSettingListener;
+    @Nullable
+    private LongObjectCacheBase treeNodesCache;
+    private final EnvironmentSettingsListener envSettingsListener;
     private final GarbageCollector gc;
     private final Object commitLock = new Object();
     private final Object metaLock = new Object();
@@ -85,8 +89,9 @@ public class EnvironmentImpl implements Environment {
         txns = new TransactionSet();
         txnSafeTasks = new LinkedList<RunnableWithTxnRoot>();
         invalidateStoreGetCache();
-        cacheSizeSettingListener = new StoreGetCacheSizeSettingListener();
-        ec.addChangedSettingsListener(cacheSizeSettingListener);
+        invalidateTreeNodesCache();
+        envSettingsListener = new EnvironmentSettingsListener();
+        ec.addChangedSettingsListener(envSettingsListener);
 
         gc = new GarbageCollector(this);
 
@@ -266,23 +271,26 @@ public class EnvironmentImpl implements Environment {
         gc.finish();
         final double logCacheHitRate;
         final double storeGetCacheHitRate;
+        final double treeNodesCacheHitRate;
         synchronized (commitLock) {
             if (!isOpen()) {
                 throw new IllegalStateException("Already closed, see cause for previous close stack trace", throwableOnClose);
             }
             checkInactive(ec.getEnvCloseForcedly());
             gc.saveUtilizationProfile();
-            ec.removeChangedSettingsListener(cacheSizeSettingListener);
+            ec.removeChangedSettingsListener(envSettingsListener);
             logCacheHitRate = log.getCacheHitRate();
             log.close();
             storeGetCacheHitRate = storeGetCache == null ? 0 : storeGetCache.hitRate();
+            treeNodesCacheHitRate = treeNodesCache == null ? 0 : treeNodesCache.hitRate();
             throwableOnClose = new Throwable();
             throwableOnCommit = EnvironmentClosedException.INSTANCE;
         }
         runAllTransactionSafeTasks();
         if (logging.isInfoEnabled()) {
-            logging.info("Exodus log cache hit rate: " + ObjectCacheBase.formatHitRate(logCacheHitRate));
             logging.info("Store get cache hit rate: " + ObjectCacheBase.formatHitRate(storeGetCacheHitRate));
+            logging.info("Tree nodes cache hit rate: " + ObjectCacheBase.formatHitRate(treeNodesCacheHitRate));
+            logging.info("Exodus log cache hit rate: " + ObjectCacheBase.formatHitRate(logCacheHitRate));
         }
     }
 
@@ -561,6 +569,11 @@ public class EnvironmentImpl implements Environment {
         return storeGetCache;
     }
 
+    @Nullable
+    LongObjectCacheBase getTreeNodesCache() {
+        return treeNodesCache;
+    }
+
     static boolean isUtilizationProfile(@NotNull final String storeName) {
         return GarbageCollector.isUtilizationProfile(storeName);
     }
@@ -645,6 +658,11 @@ public class EnvironmentImpl implements Environment {
         storeGetCache = storeGetCacheSize == 0 ? null : new StoreGetCache(storeGetCacheSize);
     }
 
+    private void invalidateTreeNodesCache() {
+        final int treeNodesCacheSize = ec.getTreeNodesCacheSize();
+        treeNodesCache = treeNodesCacheSize == 0 ? null : new ConcurrentLongObjectCache(treeNodesCacheSize);
+    }
+
     private static void applyEnvironmentSettings(@NotNull final String location,
                                                  @NotNull final EnvironmentConfig ec) {
         final File propsFile = new File(location, ENVIRONMENT_PROPERTIES_FILE);
@@ -667,12 +685,14 @@ public class EnvironmentImpl implements Environment {
         }
     }
 
-    private class StoreGetCacheSizeSettingListener implements AbstractConfig.ChangedSettingsListener {
+    private class EnvironmentSettingsListener implements AbstractConfig.ChangedSettingsListener {
 
         @Override
         public void settingChanged(@NotNull final String settingName) {
             if (settingName.equals(EnvironmentConfig.ENV_STOREGET_CACHE_SIZE)) {
                 invalidateStoreGetCache();
+            } else if (settingName.equals(EnvironmentConfig.TREE_NODES_CACHE_SIZE)) {
+                invalidateTreeNodesCache();
             }
         }
     }
