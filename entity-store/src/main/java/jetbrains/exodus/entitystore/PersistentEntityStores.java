@@ -29,6 +29,7 @@ public final class PersistentEntityStores {
     @NonNls
     private static final String DEFAULT_NAME = "persistentEntityStore";
     private static final int STORE_GET_CACHE_SIZE = 65536;
+    private static final int TREE_NODES_CACHE_SIZE = 16384;
 
     private PersistentEntityStores() {
     }
@@ -64,8 +65,11 @@ public final class PersistentEntityStores {
     }
 
     private static EnvironmentConfig adjustEnvironmentConfig(@NotNull final EnvironmentConfig ec) {
-        if (ec.getEnvStoreGetCacheSize() == 0) {
+        if (ec.getEnvStoreGetCacheSize() == EnvironmentConfig.DEFAULT.getEnvStoreGetCacheSize()) {
             ec.setEnvStoreGetCacheSize(STORE_GET_CACHE_SIZE);
+        }
+        if (ec.getTreeNodesCacheSize() == EnvironmentConfig.DEFAULT.getTreeNodesCacheSize()) {
+            ec.setTreeNodesCacheSize(TREE_NODES_CACHE_SIZE);
         }
         return ec;
     }
