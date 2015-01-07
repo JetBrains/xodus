@@ -28,38 +28,30 @@ import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-abstract class BasePageImmutable extends BasePage implements IByteIterableComparator {
+abstract class BasePageImmutable extends BasePage {
 
-    @NotNull
-    protected final BTreeBase tree;
     @NotNull
     protected final ByteIterableWithAddress data;
     protected long dataAddress;
     protected int keyAddressLen;
     @Nullable
     protected LongObjectCacheBase treeNodesCache;
-    private ILeafNode lastComparedKey;
 
     /**
      * Create empty page
-     *
-     * @param tree tree containing the page.
      */
-    protected BasePageImmutable(@NotNull final BTreeBase tree) {
-        this.tree = tree;
+    protected BasePageImmutable() {
         data = ByteIterableWithAddress.EMPTY;
         size = 0;
         dataAddress = Loggable.NULL_ADDRESS;
     }
 
     /**
-     * Create page and load size
+     * Create page and load size and key address length
      *
-     * @param tree tree containing the page.
      * @param data binary data to load the page from.
      */
-    protected BasePageImmutable(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data) {
-        this.tree = tree;
+    protected BasePageImmutable(@NotNull final ByteIterableWithAddress data) {
         this.data = data;
         final ByteIteratorWithAddress it = data.iterator();
         size = CompressedUnsignedLongByteIterable.getInt(it) >> 1;
@@ -67,14 +59,12 @@ abstract class BasePageImmutable extends BasePage implements IByteIterableCompar
     }
 
     /**
-     * Create page and load size
+     * Create page of specified size and load key address length
      *
-     * @param tree source tree
      * @param data source iterator
      * @param size computed size
      */
-    protected BasePageImmutable(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data, int size) {
-        this.tree = tree;
+    protected BasePageImmutable(@NotNull final ByteIterableWithAddress data, int size) {
         this.data = data;
         this.size = size;
         init(data.iterator());
@@ -92,9 +82,7 @@ abstract class BasePageImmutable extends BasePage implements IByteIterableCompar
 
     @Override
     @NotNull
-    protected BTreeBase getTree() {
-        return tree;
-    }
+    protected abstract BTreeBase getTree();
 
     @Override
     protected long getDataAddress() {
@@ -124,7 +112,7 @@ abstract class BasePageImmutable extends BasePage implements IByteIterableCompar
     @Override
     @NotNull
     public BaseLeafNode getKey(final int index) {
-        return tree.loadLeaf(getKeyAddress(index), treeNodesCache);
+        return getTree().loadLeaf(getKeyAddress(index), treeNodesCache);
     }
 
     @Override
@@ -142,14 +130,15 @@ abstract class BasePageImmutable extends BasePage implements IByteIterableCompar
         if (dataAddress == Loggable.NULL_ADDRESS) {
             return SearchRes.NOT_FOUND;
         }
+        final ILeafNode[] lastComparedKey = new ILeafNode[1];
         final int index = ByteIterableWithAddress.binarySearch(
-                this, key, low, size - 1, keyAddressLen, tree.log, dataAddress);
-        return index >= 0 ? new SearchRes(index, lastComparedKey) : new SearchRes(index);
-    }
-
-    @Override
-    public int compare(long leftAddress, ByteIterable right) {
-        return (lastComparedKey = tree.loadLeaf(leftAddress, treeNodesCache)).compareKeyTo(right);
+                new IByteIterableComparator() {
+                    @Override
+                    public int compare(final long leftAddress, @NotNull final ByteIterable right) {
+                        return (lastComparedKey[0] = getTree().loadLeaf(leftAddress, treeNodesCache)).compareKeyTo(right);
+                    }
+                }, key, low, size - 1, keyAddressLen, getTree().log, dataAddress);
+        return index >= 0 ? new SearchRes(index, lastComparedKey[0]) : new SearchRes(index);
     }
 
     protected void setTreeNodesCache(@Nullable final LongObjectCacheBase treeNodesCache) {

@@ -23,18 +23,17 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.PrintStream;
 
-class BottomPage extends BasePageImmutable {
+abstract class BottomPage extends BasePageImmutable {
 
-    protected BottomPage(@NotNull BTreeBase tree) {
-        super(tree);
+    BottomPage() {
     }
 
-    protected BottomPage(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data) {
-        super(tree, data);
+    protected BottomPage(@NotNull final ByteIterableWithAddress data) {
+        super(data);
     }
 
-    protected BottomPage(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data, int size) {
-        super(tree, data, size);
+    protected BottomPage(@NotNull final ByteIterableWithAddress data, int size) {
+        super(data, size);
     }
 
     @Override

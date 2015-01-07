@@ -25,16 +25,16 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.PrintStream;
 
-public class InternalPage extends BasePageImmutable {
+abstract class InternalPage extends BasePageImmutable {
 
     private int childAddressLen;
 
-    protected InternalPage(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data) {
-        super(tree, data);
+    protected InternalPage(@NotNull final ByteIterableWithAddress data) {
+        super(data);
     }
 
-    protected InternalPage(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data, int size) {
-        super(tree, data, size);
+    protected InternalPage(@NotNull final ByteIterableWithAddress data, int size) {
+        super(data, size);
     }
 
     @Override
@@ -60,7 +60,7 @@ public class InternalPage extends BasePageImmutable {
     @Override
     @NotNull
     public BasePage getChild(final int index) {
-        return tree.loadPage(getChildAddress(index), treeNodesCache);
+        return getTree().loadPage(getChildAddress(index), treeNodesCache);
     }
 
     @Override

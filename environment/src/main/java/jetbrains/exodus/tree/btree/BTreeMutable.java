@@ -346,7 +346,14 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         if ((i & 1) == 1 && i > 1) {
             final LeafNode minKey = loadMinKey(data.iterator(CompressedUnsignedLongByteIterable.getCompressedSize(i)));
             if (minKey != null) {
-                new InternalPage(this, data.clone((int) (it.getAddress() - data.getDataAddress())), i >> 1).reclaim(minKey.getKey(), context);
+                final InternalPage page = new InternalPage(data.clone((int) (it.getAddress() - data.getDataAddress())), i >> 1) {
+                    @NotNull
+                    @Override
+                    protected BTreeBase getTree() {
+                        return BTreeMutable.this;
+                    }
+                };
+                page.reclaim(minKey.getKey(), context);
             }
         }
     }
@@ -358,7 +365,14 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         if ((i & 1) == 1 && i > 1) {
             final LeafNode minKey = loadMinKey(data.iterator(CompressedUnsignedLongByteIterable.getCompressedSize(i)));
             if (minKey != null) {
-                new BottomPage(this, data.clone((int) (it.getAddress() - data.getDataAddress())), i >> 1).reclaim(minKey.getKey(), context);
+                final BottomPage page = new BottomPage(data.clone((int) (it.getAddress() - data.getDataAddress())), i >> 1) {
+                    @NotNull
+                    @Override
+                    protected BTreeBase getTree() {
+                        return BTreeMutable.this;
+                    }
+                };
+                page.reclaim(minKey.getKey(), context);
             }
         }
     }
