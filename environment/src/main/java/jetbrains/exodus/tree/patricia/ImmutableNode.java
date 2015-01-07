@@ -28,7 +28,7 @@ import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-final class ImmutableNode extends NodeBase {
+abstract class ImmutableNode extends NodeBase {
 
     private static final int CHILDREN_COUNT_TO_TRIGGER_BINARY_SEARCH = 8;
 
@@ -41,12 +41,12 @@ final class ImmutableNode extends NodeBase {
     @Nullable
     private LongObjectCacheBase treeNodesCache;
 
-    ImmutableNode(@NotNull final PatriciaTreeBase tree, final long address, final int type, @NotNull final ByteIterableWithAddress data) {
-        this(tree, address, type, data, data.iterator());
+    ImmutableNode(final long address, final int type, @NotNull final ByteIterableWithAddress data) {
+        this(address, type, data, data.iterator());
     }
 
-    private ImmutableNode(@NotNull final PatriciaTreeBase tree, final long address, final int type, @NotNull final ByteIterableWithAddress data, @NotNull final ByteIteratorWithAddress it) {
-        super(tree, extractKey(type, it), extractValue(type, it));
+    private ImmutableNode(final long address, final int type, @NotNull final ByteIterableWithAddress data, @NotNull final ByteIteratorWithAddress it) {
+        super(extractKey(type, it), extractValue(type, it));
         this.address = address;
         this.data = data;
         if (PatriciaTreeBase.nodeHasChildren(type)) {
@@ -62,11 +62,9 @@ final class ImmutableNode extends NodeBase {
 
     /**
      * Creates empty node for an empty tree.
-     *
-     * @param tree empty tree.
      */
-    ImmutableNode(@NotNull final PatriciaTreeEmpty tree) {
-        super(tree, ByteIterable.EMPTY, null);
+    ImmutableNode() {
+        super(ByteIterable.EMPTY, null);
         address = Loggable.NULL_ADDRESS;
         data = ByteIterableWithAddress.EMPTY;
         dataOffset = 0;

@@ -28,22 +28,17 @@ import java.io.PrintStream;
 abstract class NodeBase implements INode {
 
     @NotNull
-    protected final PatriciaTreeBase tree;
-    @NotNull
     protected ByteIterable keySequence;
     @Nullable
     protected ByteIterable value;
 
-    NodeBase(@NotNull final PatriciaTreeBase tree, @NotNull final ByteIterable keySequence, @Nullable final ByteIterable value) {
-        this.tree = tree;
+    NodeBase(@NotNull final ByteIterable keySequence, @Nullable final ByteIterable value) {
         this.keySequence = keySequence;
         this.value = value;
     }
 
     @NotNull
-    PatriciaTreeBase getTree() {
-        return tree;
-    }
+    abstract PatriciaTreeBase getTree();
 
     /**
      * Does specified iterator match node's key sequence?
@@ -98,6 +93,7 @@ abstract class NodeBase implements INode {
                 getChildrenCount(),
                 renderer == null ? toString() : renderer.toString(this)
         ));
+        final PatriciaTreeBase tree = getTree();
         for (ChildReference child : getChildren()) {
             indent(out, level);
             final long childAddress = child.suffixAddress;

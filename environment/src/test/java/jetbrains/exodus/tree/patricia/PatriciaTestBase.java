@@ -166,7 +166,7 @@ public class PatriciaTestBase extends TreeBaseTest {
             for (ChildReference ref : node.getChildren()) {
                 final N expectedChild = children[i];
                 assertEquals(expectedChild.c, ref.firstByte);
-                NodeBase child = ref.getNode(node.tree);
+                NodeBase child = ref.getNode(node.getTree());
                 expectedChild.matches(child);
                 ++i;
             }

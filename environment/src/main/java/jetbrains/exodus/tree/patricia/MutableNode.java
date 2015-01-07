@@ -34,35 +34,31 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 @SuppressWarnings({"ProtectedField"})
-class MutableNode extends NodeBase {
+abstract class MutableNode extends NodeBase {
 
     @NotNull
     protected final ChildReferenceSet children;
 
-    MutableNode(@NotNull final PatriciaTreeMutable tree, @NotNull final ImmutableNode origin) {
-        super(tree, origin.keySequence, origin.value);
+    MutableNode(@NotNull final ImmutableNode origin) {
+        super(origin.keySequence, origin.value);
         children = new ChildReferenceSet();
         copyChildrenFrom(origin);
     }
 
-    MutableNode(@NotNull final PatriciaTreeMutable tree,
-                @NotNull final ByteIterable keySequence) {
-        this(tree, keySequence, null, new ChildReferenceSet());
+    MutableNode(@NotNull final ByteIterable keySequence) {
+        this(keySequence, null, new ChildReferenceSet());
     }
 
-    protected MutableNode(@NotNull final PatriciaTreeMutable tree,
-                          @NotNull final ByteIterable keySequence,
+    protected MutableNode(@NotNull final ByteIterable keySequence,
                           @Nullable final ByteIterable value,
                           @NotNull final ChildReferenceSet children) {
-        super(tree, keySequence, value);
+        super(keySequence, value);
         this.children = children;
     }
 
     @NotNull
     @Override
-    PatriciaTreeMutable getTree() {
-        return (PatriciaTreeMutable) super.getTree();
-    }
+    abstract PatriciaTreeMutable getTree();
 
     void setKeySequence(@NotNull final ByteIterable keySequence) {
         this.keySequence = keySequence;
@@ -235,7 +231,13 @@ class MutableNode extends NodeBase {
         } else {
             prefixKey = new ArrayByteIterable(keyBytes, prefixLength);
         }
-        final MutableNode prefix = new MutableNode(tree, prefixKey);
+        final MutableNode prefix = new MutableNode(prefixKey) {
+            @NotNull
+            @Override
+            PatriciaTreeMutable getTree() {
+                return tree;
+            }
+        };
         final int suffixLength = keySequence.getLength() - prefixLength - 1;
         final ByteIterable suffixKey;
         if (suffixLength == 0) {
@@ -245,9 +247,15 @@ class MutableNode extends NodeBase {
         } else {
             suffixKey = new FixedLengthByteIterable(keySequence, prefixLength + 1, suffixLength);
         }
-        final MutableNode suffix = new MutableNode(tree, suffixKey, value,
+        final MutableNode suffix = new MutableNode(suffixKey, value,
                 // copy children of this node to the suffix one
-                children);
+                children) {
+            @NotNull
+            @Override
+            PatriciaTreeMutable getTree() {
+                return tree;
+            }
+        };
         prefix.setChild(nextByte, suffix);
         return prefix;
     }
@@ -262,13 +270,25 @@ class MutableNode extends NodeBase {
     }
 
     MutableNode hang(final byte firstByte, @NotNull final ByteIterator tail) {
-        final MutableNode result = new MutableNode(getTree(), new ArrayByteIterable(tail));
+        final MutableNode result = new MutableNode(new ArrayByteIterable(tail)) {
+            @NotNull
+            @Override
+            PatriciaTreeMutable getTree() {
+                return MutableNode.this.getTree();
+            }
+        };
         setChild(firstByte, result);
         return result;
     }
 
     MutableNode hangRight(final byte firstByte, @NotNull final ByteIterator tail) {
-        final MutableNode result = new MutableNode(getTree(), new ArrayByteIterable(tail));
+        final MutableNode result = new MutableNode(new ArrayByteIterable(tail)) {
+            @NotNull
+            @Override
+            PatriciaTreeMutable getTree() {
+                return MutableNode.this.getTree();
+            }
+        };
         addRightChild(firstByte, result);
         return result;
     }

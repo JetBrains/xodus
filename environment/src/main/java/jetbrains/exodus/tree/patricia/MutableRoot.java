@@ -18,17 +18,17 @@ package jetbrains.exodus.tree.patricia;
 import jetbrains.exodus.tree.MutableTreeRoot;
 import org.jetbrains.annotations.NotNull;
 
-final class MutableRoot extends MutableNode implements MutableTreeRoot {
+abstract class MutableRoot extends MutableNode implements MutableTreeRoot {
 
     final long sourceAddress;
 
-    MutableRoot(@NotNull final PatriciaTreeMutable mutableTree, @NotNull final ImmutableNode origin) {
-        super(mutableTree, origin);
+    MutableRoot(@NotNull final ImmutableNode origin) {
+        super(origin);
         sourceAddress = origin.getAddress();
     }
 
     MutableRoot(@NotNull final MutableNode node, long sourceAddress) {
-        super(node.getTree(), node.keySequence, node.value, node.children);
+        super(node.keySequence, node.value, node.children);
         this.sourceAddress = sourceAddress;
     }
 

@@ -43,7 +43,13 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
                         @NotNull final ImmutableNode immutableRoot) {
         super(log, structureId);
         size = treeSize;
-        root = new MutableRoot(this, immutableRoot);
+        root = new MutableRoot(immutableRoot) {
+            @NotNull
+            @Override
+            PatriciaTreeMutable getTree() {
+                return PatriciaTreeMutable.this;
+            }
+        };
         expiredLoggables = null;
         addExpiredLoggable(immutableRoot.getAddress()); //TODO: don't re-read
     }
@@ -77,7 +83,13 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
                     prefix.setValue(value);
                 }
                 if (prev == null) {
-                    root = new MutableRoot(prefix, root.sourceAddress);
+                    root = new MutableRoot(prefix, root.sourceAddress) {
+                        @NotNull
+                        @Override
+                        PatriciaTreeMutable getTree() {
+                            return PatriciaTreeMutable.this;
+                        }
+                    };
                 } else {
                     prev.setChild(prevFirstByte, prefix);
                 }
@@ -135,7 +147,13 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
                 final MutableNode prefix = node.splitKey(-matchingLength - 1, matchResult.keyByte);
                 prefix.hangRight(matchResult.nextByte, it).setValue(value);
                 if (prev == null) {
-                    root = new MutableRoot(prefix, root.sourceAddress);
+                    root = new MutableRoot(prefix, root.sourceAddress) {
+                        @NotNull
+                        @Override
+                        PatriciaTreeMutable getTree() {
+                            return PatriciaTreeMutable.this;
+                        }
+                    };
                 } else {
                     prev.setChild(prevFirstByte, prefix);
                 }
@@ -190,7 +208,13 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
                     prefix.setValue(value);
                 }
                 if (stack.isEmpty()) {
-                    root = new MutableRoot(prefix, root.sourceAddress);
+                    root = new MutableRoot(prefix, root.sourceAddress) {
+                        @NotNull
+                        @Override
+                        PatriciaTreeMutable getTree() {
+                            return PatriciaTreeMutable.this;
+                        }
+                    };
                 } else {
                     final ChildReferenceTransient parent = stack.pop();
                     mutableNode = parent.mutate(this);
@@ -364,7 +388,13 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
 
     MutableNode mutateNode(@NotNull final ImmutableNode node) {
         addExpiredLoggable(node.getAddress()); //TODO: don't re-read
-        return new MutableNode(this, node);
+        return new MutableNode(node) {
+            @NotNull
+            @Override
+            PatriciaTreeMutable getTree() {
+                return PatriciaTreeMutable.this;
+            }
+        };
     }
 
     void addExpiredLoggable(long address) {
@@ -535,7 +565,7 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
                 source.moveDown();
                 //noinspection ConstantConditions
                 final NodeBase node = source.currentNode;
-                final long nextLoggableAddress = suffixAddress + node.tree.getLoggable(source.currentNode.getAddress()).length(); //TODO: don't re-read
+                final long nextLoggableAddress = suffixAddress + node.getTree().getLoggable(source.currentNode.getAddress()).length(); //TODO: don't re-read
                 actual.moveDown();
                 reclaim(source, actual);
                 actual.popAndMutate();

@@ -144,7 +144,13 @@ public abstract class PatriciaTreeBase implements ITree {
         final RandomAccessLoggable loggable = getLoggable(address);
         final int type = loggable.getType();
         if (((type - NODE_WO_KEY_WO_VALUE_WO_CHILDREN) & ROOT_BIT) == 0) {
-            return new ImmutableNode(this, loggable.getAddress(), type, loggable.getData());
+            return new ImmutableNode(loggable.getAddress(), type, loggable.getData()) {
+                @NotNull
+                @Override
+                PatriciaTreeBase getTree() {
+                    return PatriciaTreeBase.this;
+                }
+            };
         }
         throw new ExodusException("Unexpected loggable type: " + type);
     }
