@@ -660,7 +660,7 @@ public class EnvironmentImpl implements Environment {
 
     private void invalidateTreeNodesCache() {
         final int treeNodesCacheSize = ec.getTreeNodesCacheSize();
-        treeNodesCache = treeNodesCacheSize == 0 ? null : new ConcurrentLongObjectCache(treeNodesCacheSize);
+        treeNodesCache = treeNodesCacheSize == 0 ? null : new ConcurrentLongObjectCache(treeNodesCacheSize, 2);
     }
 
     private static void applyEnvironmentSettings(@NotNull final String location,
