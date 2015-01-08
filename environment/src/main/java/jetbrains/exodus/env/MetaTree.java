@@ -177,12 +177,7 @@ final class MetaTree {
         return null;
     }
 
-    MetaTree getClone(@NotNull final EnvironmentImpl env) {
-        final long metaTreeRoot = tree.getRootAddress();
-        return new MetaTree(metaTreeRoot == Loggable.NULL_ADDRESS ? getEmptyMetaTree(env) : env.loadMetaTree(metaTreeRoot), root);
-    }
-
-    MetaTree getCloneWithMeta() {
+    MetaTree getClone() {
         final ITreeCursor cursor = tree.openCursor();
         try {
             final ITreeMutable tree = this.tree.getMutableCopy();
@@ -200,7 +195,7 @@ final class MetaTree {
         return key.getBytesUnsafe()[key.getLength() - 1] == 0;
     }
 
-    static ITree getEmptyMetaTree(@NotNull final EnvironmentImpl env) {
+    private static ITree getEmptyMetaTree(@NotNull final EnvironmentImpl env) {
         return new BTreeEmpty(env.getLog(), env.getBTreeBalancePolicy(), false, EnvironmentImpl.META_TREE_ID);
     }
 }

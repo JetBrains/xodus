@@ -64,8 +64,8 @@ public class TransactionImpl implements Transaction {
         this.beginHook = new Runnable() {
             @Override
             public void run() {
-                final MetaTree initialMetaTree = env.getMetaTreeUnsafe();
-                metaTree = cloneMeta ? initialMetaTree.getCloneWithMeta() : initialMetaTree.getClone(env);
+                final MetaTree currentMetaTree = env.getMetaTreeUnsafe();
+                metaTree = cloneMeta ? currentMetaTree.getClone() : currentMetaTree;
                 env.registerTransaction(TransactionImpl.this);
                 if (beginHook != null) {
                     beginHook.run();
