@@ -18,7 +18,7 @@ package jetbrains.exodus.tree.patricia;
 import jetbrains.exodus.tree.MutableTreeRoot;
 import org.jetbrains.annotations.NotNull;
 
-abstract class MutableRoot extends MutableNode implements MutableTreeRoot {
+final class MutableRoot extends MutableNode implements MutableTreeRoot {
 
     final long sourceAddress;
 

@@ -17,7 +17,6 @@ package jetbrains.exodus.tree.patricia;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
-import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.tree.INode;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -36,9 +35,6 @@ abstract class NodeBase implements INode {
         this.keySequence = keySequence;
         this.value = value;
     }
-
-    @NotNull
-    abstract PatriciaTreeBase getTree();
 
     /**
      * Does specified iterator match node's key sequence?
@@ -88,25 +84,7 @@ abstract class NodeBase implements INode {
 
     @Override
     public void dump(PrintStream out, int level, @Nullable ToString renderer) {
-        out.println(String.format("node %s%s] %s",
-                isMutable() ? "(m) [" : '[',
-                getChildrenCount(),
-                renderer == null ? toString() : renderer.toString(this)
-        ));
-        final PatriciaTreeBase tree = getTree();
-        for (ChildReference child : getChildren()) {
-            indent(out, level);
-            final long childAddress = child.suffixAddress;
-            out.println(child.firstByte + " -> " + childAddress);
-            indent(out, level + 1);
-            out.print("+ ");
-            if (childAddress == Loggable.NULL_ADDRESS || tree.log.hasAddress(childAddress)) {
-                final NodeBase node = child.getNode(tree);
-                node.dump(out, level + 3, renderer);
-            } else {
-                out.println("[not found]");
-            }
-        }
+        throw new UnsupportedOperationException();
     }
 
     abstract long getAddress();
@@ -115,7 +93,7 @@ abstract class NodeBase implements INode {
 
     abstract MutableNode getMutableCopy(@NotNull final PatriciaTreeMutable mutableTree);
 
-    abstract NodeBase getChild(byte b);
+    abstract NodeBase getChild(@NotNull final PatriciaTreeBase tree, final byte b);
 
     @NotNull
     abstract NodeChildrenIterator getChildren(final byte b);

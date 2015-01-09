@@ -56,7 +56,8 @@ public class PatriciaTestBase extends TreeBaseTest {
     }
 
     public void assertMatches(@NotNull final ITree t, @NotNull final N node) {
-        node.matches(((PatriciaTreeBase) t).getRoot());
+        final PatriciaTreeBase tree = (PatriciaTreeBase) t;
+        node.matches(tree, tree.getRoot());
     }
 
     public static N R(N... expectedChildren) {
@@ -157,7 +158,7 @@ public class PatriciaTestBase extends TreeBaseTest {
             value = expectedValue;
         }
 
-        void matches(NodeBase node) {
+        void matches(PatriciaTreeBase tree, NodeBase node) {
             assertEquals(mutable, node.isMutable());
             assertEquals(children.length, node.getChildrenCount());
             assertIterablesMatch(keySequence, node.keySequence);
@@ -166,8 +167,8 @@ public class PatriciaTestBase extends TreeBaseTest {
             for (ChildReference ref : node.getChildren()) {
                 final N expectedChild = children[i];
                 assertEquals(expectedChild.c, ref.firstByte);
-                NodeBase child = ref.getNode(node.getTree());
-                expectedChild.matches(child);
+                NodeBase child = ref.getNode(tree);
+                expectedChild.matches(tree, child);
                 ++i;
             }
         }

@@ -52,13 +52,7 @@ public final class PatriciaTreeEmpty extends PatriciaTreeBase {
 
     @Override
     ImmutableNode getRoot() {
-        return new ImmutableNode() {
-            @NotNull
-            @Override
-            PatriciaTreeBase getTree() {
-                return PatriciaTreeEmpty.this;
-            }
-        };
+        return new ImmutableNode();
     }
 
     @Nullable

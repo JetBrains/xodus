@@ -30,6 +30,8 @@ class PatriciaTraverser implements TreeTraverser {
     private static final int INITIAL_STACK_CAPACITY = 8;
 
     @NotNull
+    private final PatriciaTreeBase tree;
+    @NotNull
     NodeChildrenIterator[] stack;
     int top;
     @NotNull
@@ -40,7 +42,8 @@ class PatriciaTraverser implements TreeTraverser {
     @Nullable
     NodeChildrenIterator currentIterator;
 
-    PatriciaTraverser(@NotNull final NodeBase currentNode) {
+    PatriciaTraverser(@NotNull final PatriciaTreeBase tree, @NotNull final NodeBase currentNode) {
+        this.tree = tree;
         setCurrentNode(currentNode);
         stack = new NodeChildrenIterator[INITIAL_STACK_CAPACITY];
         top = 0;
@@ -65,7 +68,7 @@ class PatriciaTraverser implements TreeTraverser {
     @NotNull
     public INode moveDown() {
         stack = pushIterator(stack, currentIterator, top);
-        setCurrentNode(currentChild.getNode(currentNode.getTree()));
+        setCurrentNode(currentChild.getNode(tree));
         getItr();
         ++top;
         return currentNode;
@@ -75,7 +78,7 @@ class PatriciaTraverser implements TreeTraverser {
     @NotNull
     public INode moveDownToLast() {
         stack = pushIterator(stack, currentIterator, top);
-        setCurrentNode(currentChild.getNode(currentNode.getTree()));
+        setCurrentNode(currentChild.getNode(tree));
         if (currentNode.getChildrenCount() > 0) {
             final NodeChildrenIterator itr = currentNode.getChildrenLast();
             currentIterator = itr;
@@ -206,7 +209,6 @@ class PatriciaTraverser implements TreeTraverser {
     @Override
     public boolean moveTo(@NotNull ByteIterable key, @Nullable ByteIterable value) {
         final ByteIterator it = key.iterator();
-        final PatriciaTreeBase tree = currentNode.getTree();
         NodeBase node = top == 0 ? currentNode : stack[0].getParentNode(); // the most bottom node, ignoring lower bound
         int depth = 0;
         NodeChildrenIterator[] tmp = new NodeChildrenIterator[INITIAL_STACK_CAPACITY];
@@ -240,7 +242,6 @@ class PatriciaTraverser implements TreeTraverser {
     @Override
     public boolean moveToRange(@NotNull ByteIterable key, @Nullable ByteIterable value) {
         final ByteIterator it = key.iterator();
-        final PatriciaTreeBase tree = currentNode.getTree();
         NodeBase node = top == 0 ? currentNode : stack[0].getParentNode(); // the most bottom node, ignoring lower bound
         int depth = 0;
         NodeChildrenIterator[] tmp = new NodeChildrenIterator[INITIAL_STACK_CAPACITY];
@@ -354,7 +355,7 @@ class PatriciaTraverser implements TreeTraverser {
     @NotNull
     @Override
     public PatriciaTreeBase getTree() {
-        return (top == 0 ? currentNode : stack[0].getParentNode()).getTree();
+        return tree;
     }
 
     protected void getItr() {

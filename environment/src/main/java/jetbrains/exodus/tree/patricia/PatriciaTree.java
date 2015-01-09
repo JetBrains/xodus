@@ -45,10 +45,9 @@ public class PatriciaTree extends PatriciaTreeBase {
             rememberBackRef(backRef);
         }
         root = new ImmutableNode(rootAddress, type, data.clone((int) (it.getAddress() - data.getDataAddress()))) {
-            @NotNull
             @Override
-            PatriciaTreeBase getTree() {
-                return PatriciaTree.this;
+            protected boolean isRoot() {
+                return true;
             }
         };
     }
@@ -67,7 +66,7 @@ public class PatriciaTree extends PatriciaTreeBase {
     @Override
     public final ITreeCursor openCursor() {
         final ImmutableNode root = getRoot();
-        return new TreeCursor(new PatriciaTraverser(root), root.hasValue());
+        return new TreeCursor(new PatriciaTraverser(this, root), root.hasValue());
     }
 
     void rememberBackRef(final long backRef) {

@@ -25,10 +25,11 @@ final class PatriciaReclaimSourceTraverser extends PatriciaTraverser {
     final IExpirationChecker expirationChecker;
     private final long minAddress;
 
-    PatriciaReclaimSourceTraverser(@NotNull final NodeBase currentNode,
+    PatriciaReclaimSourceTraverser(@NotNull final PatriciaTreeBase tree,
+                                   @NotNull final NodeBase currentNode,
                                    @NotNull final IExpirationChecker expirationChecker,
                                    final long minAddress) {
-        super(currentNode);
+        super(tree, currentNode);
         this.expirationChecker = expirationChecker;
         this.minAddress = minAddress;
         init(true);

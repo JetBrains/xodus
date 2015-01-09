@@ -24,7 +24,7 @@ final class PatriciaReclaimActualTraverser extends PatriciaTraverser {
     boolean wasReclaim;
 
     PatriciaReclaimActualTraverser(@NotNull final PatriciaTreeMutable mainTree) {
-        super(mainTree.getRoot());
+        super(mainTree, mainTree.getRoot());
         this.mainTree = mainTree;
         init(true);
     }

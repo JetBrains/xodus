@@ -40,6 +40,6 @@ class ChildReference extends ChildReferenceBase {
     @Override
     @NotNull
     NodeBase getNode(@NotNull final PatriciaTreeBase tree) {
-        return tree.loadNode(suffixAddress);
+        return tree.loadNonCachedNode(suffixAddress);
     }
 }

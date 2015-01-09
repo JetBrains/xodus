@@ -20,7 +20,6 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.LongBinding;
-import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.log.ByteIterableWithAddress;
 import jetbrains.exodus.log.ByteIteratorWithAddress;
 import jetbrains.exodus.log.Loggable;
@@ -28,7 +27,7 @@ import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-abstract class ImmutableNode extends NodeBase {
+class ImmutableNode extends NodeBase {
 
     private static final int CHILDREN_COUNT_TO_TRIGGER_BINARY_SEARCH = 8;
 
@@ -38,8 +37,6 @@ abstract class ImmutableNode extends NodeBase {
     private final int dataOffset;
     private final short childrenCount;
     private final byte childAddressLength;
-    @Nullable
-    private LongObjectCacheBase treeNodesCache;
 
     ImmutableNode(final long address, final int type, @NotNull final ByteIterableWithAddress data) {
         this(address, type, data, data.iterator());
@@ -89,7 +86,7 @@ abstract class ImmutableNode extends NodeBase {
 
     @Override
     @Nullable
-    NodeBase getChild(byte b) {
+    NodeBase getChild(@NotNull final PatriciaTreeBase tree, final byte b) {
         final int key = b & 0xff;
         if (childrenCount < CHILDREN_COUNT_TO_TRIGGER_BINARY_SEARCH) {
             // linear search
@@ -100,7 +97,8 @@ abstract class ImmutableNode extends NodeBase {
                     break;
                 }
                 if (cmp == 0) {
-                    return getTree().loadNode(LongBinding.entryToUnsignedLong(it, childAddressLength), treeNodesCache);
+                    final long nodeAddress = LongBinding.entryToUnsignedLong(it, childAddressLength);
+                    return isRoot() ? tree.loadNode(nodeAddress) : tree.loadNonCachedNode(nodeAddress);
                 }
                 it.skip(childAddressLength);
             }
@@ -118,7 +116,8 @@ abstract class ImmutableNode extends NodeBase {
                 } else if (cmp > 0) {
                     high = mid - 1;
                 } else {
-                    return getTree().loadNode(LongBinding.entryToUnsignedLong(it, childAddressLength), treeNodesCache);
+                    final long nodeAddress = LongBinding.entryToUnsignedLong(it, childAddressLength);
+                    return isRoot() ? tree.loadNode(nodeAddress) : tree.loadNonCachedNode(nodeAddress);
                 }
             }
         }
@@ -234,8 +233,8 @@ abstract class ImmutableNode extends NodeBase {
         return new ImmutableNodeChildrenIterator(null, childrenCount, null);
     }
 
-    protected void setTreeNodesCache(@Nullable final LongObjectCacheBase treeNodesCache) {
-        this.treeNodesCache = treeNodesCache;
+    protected boolean isRoot() {
+        return false;
     }
 
     private ByteIterator getDataIterator(final int offset) {

@@ -49,6 +49,8 @@ public abstract class PatriciaTreeBase implements ITree {
     protected final Log log;
     protected final int structureId;
     protected long size;
+    @Nullable
+    protected LongObjectCacheBase treeNodesCache;
 
     protected PatriciaTreeBase(@NotNull final Log log, final int structureId) {
         this.log = log;
@@ -96,12 +98,12 @@ public abstract class PatriciaTreeBase implements ITree {
 
     @Override
     public void dump(PrintStream out) {
-        getRoot().dump(out, 0, null);
+        dump(out, null);
     }
 
     @Override
     public void dump(PrintStream out, INode.ToString renderer) {
-        getRoot().dump(out, 0, renderer);
+        new TreeAwareNodeDecorator(this, getRoot()).dump(out, 0, renderer);
     }
 
     @Override
@@ -109,15 +111,12 @@ public abstract class PatriciaTreeBase implements ITree {
         if (isEmpty()) {
             return LongIterator.EMPTY;
         }
-        return new AddressIterator(new PatriciaTraverser(getRoot()));
+        return new AddressIterator(new PatriciaTraverser(this, getRoot()));
     }
 
     @Override
     public void setTreeNodesCache(@Nullable final LongObjectCacheBase treeNodesCache) {
-        final NodeBase root = getRoot();
-        if (!root.isMutable()) {
-            ((ImmutableNode) root).setTreeNodesCache(treeNodesCache);
-        }
+        this.treeNodesCache = treeNodesCache;
     }
 
     @NotNull
@@ -126,31 +125,25 @@ public abstract class PatriciaTreeBase implements ITree {
     }
 
     @NotNull
-    final ImmutableNode loadNode(final long address, @Nullable final LongObjectCacheBase treeNodesCache) {
+    final ImmutableNode loadNode(final long address) {
         final Object page = treeNodesCache != null ? treeNodesCache.tryKey(address) : null;
         if (page != null) {
             return (ImmutableNode) page;
         }
-        final ImmutableNode result = loadNode(address);
-        if (treeNodesCache != null) {
+        final ImmutableNode result = loadNonCachedNode(address);
+        if (treeNodesCache != null && result.getChildrenCount() > 0) {
             //noinspection unchecked
             treeNodesCache.cacheObject(address, result);
+            treeNodesCache = null;
         }
         return result;
     }
 
-    @NotNull
-    final ImmutableNode loadNode(final long address) {
+    final ImmutableNode loadNonCachedNode(final long address) {
         final RandomAccessLoggable loggable = getLoggable(address);
         final int type = loggable.getType();
         if (((type - NODE_WO_KEY_WO_VALUE_WO_CHILDREN) & ROOT_BIT) == 0) {
-            return new ImmutableNode(loggable.getAddress(), type, loggable.getData()) {
-                @NotNull
-                @Override
-                PatriciaTreeBase getTree() {
-                    return PatriciaTreeBase.this;
-                }
-            };
+            return new ImmutableNode(loggable.getAddress(), type, loggable.getData());
         }
         throw new ExodusException("Unexpected loggable type: " + type);
     }
@@ -188,7 +181,7 @@ public abstract class PatriciaTreeBase implements ITree {
             if (!it.hasNext()) {
                 break;
             }
-            node = node.getChild(it.next());
+            node = node.getChild(this, it.next());
         } while (node != null);
         return node;
     }

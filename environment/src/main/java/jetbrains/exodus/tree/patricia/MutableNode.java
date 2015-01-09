@@ -34,7 +34,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 @SuppressWarnings({"ProtectedField"})
-abstract class MutableNode extends NodeBase {
+class MutableNode extends NodeBase {
 
     @NotNull
     protected final ChildReferenceSet children;
@@ -55,10 +55,6 @@ abstract class MutableNode extends NodeBase {
         super(keySequence, value);
         this.children = children;
     }
-
-    @NotNull
-    @Override
-    abstract PatriciaTreeMutable getTree();
 
     void setKeySequence(@NotNull final ByteIterable keySequence) {
         this.keySequence = keySequence;
@@ -88,9 +84,9 @@ abstract class MutableNode extends NodeBase {
     }
 
     @Override
-    NodeBase getChild(final byte b) {
+    NodeBase getChild(@NotNull final PatriciaTreeBase tree, final byte b) {
         final ChildReference ref = children.get(b);
-        return ref == null ? null : ref.getNode(getTree());
+        return ref == null ? null : ref.getNode(tree);
     }
 
     @NotNull
@@ -168,7 +164,7 @@ abstract class MutableNode extends NodeBase {
         }
     }
 
-    NodeBase getRightChild(final byte b) {
+    NodeBase getRightChild(@NotNull final PatriciaTreeBase tree, final byte b) {
         final ChildReference ref = children.getRight();
         if (ref == null) {
             return null;
@@ -178,7 +174,7 @@ abstract class MutableNode extends NodeBase {
         if (rightByte < firstByte) {
             throw new IllegalArgumentException();
         }
-        return rightByte > firstByte ? null : ref.getNode(getTree());
+        return rightByte > firstByte ? null : ref.getNode(tree);
     }
 
     /**
@@ -221,7 +217,6 @@ abstract class MutableNode extends NodeBase {
      * @return the prefix node.
      */
     MutableNode splitKey(final int prefixLength, final byte nextByte) {
-        final PatriciaTreeMutable tree = getTree();
         final byte[] keyBytes = keySequence.getBytesUnsafe();
         final ByteIterable prefixKey;
         if (prefixLength == 0) {
@@ -231,13 +226,7 @@ abstract class MutableNode extends NodeBase {
         } else {
             prefixKey = new ArrayByteIterable(keyBytes, prefixLength);
         }
-        final MutableNode prefix = new MutableNode(prefixKey) {
-            @NotNull
-            @Override
-            PatriciaTreeMutable getTree() {
-                return tree;
-            }
-        };
+        final MutableNode prefix = new MutableNode(prefixKey);
         final int suffixLength = keySequence.getLength() - prefixLength - 1;
         final ByteIterable suffixKey;
         if (suffixLength == 0) {
@@ -249,13 +238,7 @@ abstract class MutableNode extends NodeBase {
         }
         final MutableNode suffix = new MutableNode(suffixKey, value,
                 // copy children of this node to the suffix one
-                children) {
-            @NotNull
-            @Override
-            PatriciaTreeMutable getTree() {
-                return tree;
-            }
-        };
+                children);
         prefix.setChild(nextByte, suffix);
         return prefix;
     }
@@ -270,36 +253,25 @@ abstract class MutableNode extends NodeBase {
     }
 
     MutableNode hang(final byte firstByte, @NotNull final ByteIterator tail) {
-        final MutableNode result = new MutableNode(new ArrayByteIterable(tail)) {
-            @NotNull
-            @Override
-            PatriciaTreeMutable getTree() {
-                return MutableNode.this.getTree();
-            }
-        };
+        final MutableNode result = new MutableNode(new ArrayByteIterable(tail));
         setChild(firstByte, result);
         return result;
     }
 
     MutableNode hangRight(final byte firstByte, @NotNull final ByteIterator tail) {
-        final MutableNode result = new MutableNode(new ArrayByteIterable(tail)) {
-            @NotNull
-            @Override
-            PatriciaTreeMutable getTree() {
-                return MutableNode.this.getTree();
-            }
-        };
+        final MutableNode result = new MutableNode(new ArrayByteIterable(tail));
         addRightChild(firstByte, result);
         return result;
     }
 
     @SuppressWarnings({"OverlyLongMethod"})
-    long save(@NotNull final Log log, @NotNull final MutableNodeSaveContext context) {
+    long save(@NotNull final PatriciaTreeMutable tree, @NotNull final MutableNodeSaveContext context) {
+        final Log log = tree.getLog();
         // save children and compute number of bytes to represent children's addresses
         int bytesPerAddress = 0;
         for (final ChildReference ref : children) {
             if (ref.isMutable()) {
-                ref.suffixAddress = ((ChildReferenceMutable) ref).child.save(log, context);
+                ref.suffixAddress = ((ChildReferenceMutable) ref).child.save(tree, context);
             }
             final int logarithm = CompressedUnsignedLongArrayByteIterable.logarithm(ref.suffixAddress);
             if (logarithm > bytesPerAddress) {
@@ -329,7 +301,7 @@ abstract class MutableNode extends NodeBase {
         }
         // finally, write loggable
         byte type = getLoggableType();
-        final int structureId = getTree().getStructureId();
+        final int structureId = tree.getStructureId();
         final ByteIterable mainIterable = nodeStream.asArrayByteIterable();
         final long startAddress = context.startAddress;
         long result;
