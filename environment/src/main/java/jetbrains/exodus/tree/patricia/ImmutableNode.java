@@ -27,24 +27,26 @@ import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-class ImmutableNode extends NodeBase {
+final class ImmutableNode extends NodeBase {
 
     private static final int CHILDREN_COUNT_TO_TRIGGER_BINARY_SEARCH = 8;
 
     private final long address;
+    private final byte type;
     @NotNull
     private final ByteIterableWithAddress data;
     private final int dataOffset;
     private final short childrenCount;
     private final byte childAddressLength;
 
-    ImmutableNode(final long address, final int type, @NotNull final ByteIterableWithAddress data) {
+    ImmutableNode(final long address, final byte type, @NotNull final ByteIterableWithAddress data) {
         this(address, type, data, data.iterator());
     }
 
-    private ImmutableNode(final long address, final int type, @NotNull final ByteIterableWithAddress data, @NotNull final ByteIteratorWithAddress it) {
+    private ImmutableNode(final long address, final byte type, @NotNull final ByteIterableWithAddress data, @NotNull final ByteIteratorWithAddress it) {
         super(extractKey(type, it), extractValue(type, it));
         this.address = address;
+        this.type = type;
         this.data = data;
         if (PatriciaTreeBase.nodeHasChildren(type)) {
             final int i = CompressedUnsignedLongByteIterable.getInt(it);
@@ -63,6 +65,7 @@ class ImmutableNode extends NodeBase {
     ImmutableNode() {
         super(ByteIterable.EMPTY, null);
         address = Loggable.NULL_ADDRESS;
+        type = PatriciaTreeBase.NODE_WO_KEY_WO_VALUE_WO_CHILDREN;
         data = ByteIterableWithAddress.EMPTY;
         dataOffset = 0;
         childrenCount = (short) 0;
@@ -98,7 +101,7 @@ class ImmutableNode extends NodeBase {
                 }
                 if (cmp == 0) {
                     final long nodeAddress = LongBinding.entryToUnsignedLong(it, childAddressLength);
-                    return isRoot() ? tree.loadNode(nodeAddress) : tree.loadNonCachedNode(nodeAddress);
+                    return PatriciaTreeBase.nodeIsRoot(type) ? tree.loadNode(nodeAddress) : tree.loadNonCachedNode(nodeAddress);
                 }
                 it.skip(childAddressLength);
             }
@@ -117,7 +120,7 @@ class ImmutableNode extends NodeBase {
                     high = mid - 1;
                 } else {
                     final long nodeAddress = LongBinding.entryToUnsignedLong(it, childAddressLength);
-                    return isRoot() ? tree.loadNode(nodeAddress) : tree.loadNonCachedNode(nodeAddress);
+                    return PatriciaTreeBase.nodeIsRoot(type) ? tree.loadNode(nodeAddress) : tree.loadNonCachedNode(nodeAddress);
                 }
             }
         }
@@ -233,16 +236,12 @@ class ImmutableNode extends NodeBase {
         return new ImmutableNodeChildrenIterator(null, childrenCount, null);
     }
 
-    protected boolean isRoot() {
-        return false;
-    }
-
     private ByteIterator getDataIterator(final int offset) {
         return address == Loggable.NULL_ADDRESS ? ByteIterable.EMPTY_ITERATOR : data.iterator(dataOffset + offset);
     }
 
     @NotNull
-    private static ByteIterable extractKey(final int type, @NotNull final ByteIterator it) {
+    private static ByteIterable extractKey(final byte type, @NotNull final ByteIterator it) {
         if (!PatriciaTreeBase.nodeHasKey(type)) {
             return ByteIterable.EMPTY;
         }
@@ -251,7 +250,7 @@ class ImmutableNode extends NodeBase {
     }
 
     @Nullable
-    private static ByteIterable extractValue(final int type, @NotNull final ByteIterator it) {
+    private static ByteIterable extractValue(final byte type, @NotNull final ByteIterator it) {
         if (!PatriciaTreeBase.nodeHasValue(type)) {
             return null;
         }

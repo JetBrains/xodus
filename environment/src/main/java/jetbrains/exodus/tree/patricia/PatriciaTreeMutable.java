@@ -305,7 +305,7 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
                            @NotNull final IExpirationChecker expirationChecker) {
         long minAddress = loggable.getAddress();
         while (true) {
-            final int type = loggable.getType();
+            final byte type = loggable.getType();
             if (type < NODE_WO_KEY_WO_VALUE_WO_CHILDREN || type > MAX_VALID_LOGGABLE_TYPE) {
                 if (type != NullLoggable.TYPE) { // skip null loggable
                     throw new ExodusException("Unexpected loggable type " + loggable.getType());

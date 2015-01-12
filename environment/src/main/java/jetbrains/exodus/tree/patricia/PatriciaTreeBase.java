@@ -17,7 +17,6 @@ package jetbrains.exodus.tree.patricia;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
-import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.RandomAccessLoggable;
@@ -126,45 +125,42 @@ public abstract class PatriciaTreeBase implements ITree {
 
     @NotNull
     final ImmutableNode loadNode(final long address) {
-        final Object page = treeNodesCache != null ? treeNodesCache.tryKey(address) : null;
-        if (page != null) {
-            return (ImmutableNode) page;
+        final LongObjectCacheBase treeNodesCache = this.treeNodesCache;
+        if (treeNodesCache == null) {
+            return loadNonCachedNode(address);
+        }
+        final Object node = treeNodesCache.tryKey(address);
+        if (node != null) {
+            return (ImmutableNode) node;
         }
         final ImmutableNode result = loadNonCachedNode(address);
-        if (treeNodesCache != null && result.getChildrenCount() > 0) {
-            //noinspection unchecked
-            treeNodesCache.cacheObject(address, result);
-            treeNodesCache = null;
-        }
+        //noinspection unchecked
+        treeNodesCache.cacheObject(address, result);
         return result;
     }
 
     final ImmutableNode loadNonCachedNode(final long address) {
         final RandomAccessLoggable loggable = getLoggable(address);
-        final int type = loggable.getType();
-        if (((type - NODE_WO_KEY_WO_VALUE_WO_CHILDREN) & ROOT_BIT) == 0) {
-            return new ImmutableNode(loggable.getAddress(), type, loggable.getData());
-        }
-        throw new ExodusException("Unexpected loggable type: " + type);
+        return new ImmutableNode(address, loggable.getType(), loggable.getData());
     }
 
-    static boolean nodeHasKey(final int type) {
+    static boolean nodeHasKey(final byte type) {
         return ((type - NODE_WO_KEY_WO_VALUE_WO_CHILDREN) & HAS_KEY_BIT) != 0;
     }
 
-    static boolean nodeHasValue(final int type) {
+    static boolean nodeHasValue(final byte type) {
         return ((type - NODE_WO_KEY_WO_VALUE_WO_CHILDREN) & HAS_VALUE_BIT) != 0;
     }
 
-    static boolean nodeHasChildren(final int type) {
+    static boolean nodeHasChildren(final byte type) {
         return ((type - NODE_WO_KEY_WO_VALUE_WO_CHILDREN) & HAS_CHILDREN_BIT) != 0;
     }
 
-    static boolean nodeIsRoot(final int type) {
+    static boolean nodeIsRoot(final byte type) {
         return ((type - NODE_WO_KEY_WO_VALUE_WO_CHILDREN) & ROOT_BIT) != 0;
     }
 
-    static boolean nodeHasBackReference(final int type) {
+    static boolean nodeHasBackReference(final byte type) {
         return ((type - NODE_WO_KEY_WO_VALUE_WO_CHILDREN) & ROOT_BIT_WITH_BACKREF) != 0;
     }
 

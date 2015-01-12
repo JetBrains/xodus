@@ -44,12 +44,7 @@ public class PatriciaTree extends PatriciaTreeBase {
             long backRef = CompressedUnsignedLongByteIterable.getLong(it);
             rememberBackRef(backRef);
         }
-        root = new ImmutableNode(rootAddress, type, data.clone((int) (it.getAddress() - data.getDataAddress()))) {
-            @Override
-            protected boolean isRoot() {
-                return true;
-            }
-        };
+        root = new ImmutableNode(rootAddress, type, data.clone((int) (it.getAddress() - data.getDataAddress())));
     }
 
     @NotNull
