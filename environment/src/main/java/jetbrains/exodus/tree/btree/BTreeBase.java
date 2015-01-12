@@ -122,16 +122,18 @@ public abstract class BTreeBase implements ITree {
 
     @NotNull
     protected final BasePage loadPage(final long address, @Nullable final LongObjectCacheBase treeNodesCache) {
-        final Object page = treeNodesCache != null ? treeNodesCache.tryKey(address) : null;
+        if (treeNodesCache == null) {
+            final RandomAccessLoggable loggable = getLoggable(address);
+            return loadPage(loggable.getType(), loggable.getData());
+        }
+        final Object page = treeNodesCache.tryKey(address);
         if (page != null) {
             return (BasePage) page;
         }
         final RandomAccessLoggable loggable = getLoggable(address);
         final BasePageImmutable result = loadPage(loggable.getType(), loggable.getData());
-        if (treeNodesCache != null) {
-            //noinspection unchecked
-            treeNodesCache.cacheObject(address, result);
-        }
+        //noinspection unchecked
+        treeNodesCache.cacheObject(address, result);
         return result;
     }
 
@@ -165,15 +167,16 @@ public abstract class BTreeBase implements ITree {
 
     @NotNull
     protected LeafNode loadLeaf(final long address, @Nullable final LongObjectCacheBase treeNodesCache) {
-        final Object node = treeNodesCache != null ? treeNodesCache.tryKey(address) : null;
+        if (treeNodesCache == null) {
+            return loadLeaf(address);
+        }
+        final Object node = treeNodesCache.tryKey(address);
         if (node != null) {
             return (LeafNode) node;
         }
         final LeafNode result = loadLeaf(address);
-        if (treeNodesCache != null) {
-            //noinspection unchecked
-            treeNodesCache.cacheObject(address, result);
-        }
+        //noinspection unchecked
+        treeNodesCache.cacheObject(address, result);
         return result;
     }
 
