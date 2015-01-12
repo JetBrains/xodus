@@ -31,17 +31,15 @@ import org.jetbrains.annotations.Nullable;
 
 abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
 
-    @NotNull
-    protected final BTreeMutable tree;
     protected BaseLeafNodeMutable[] keys;
     protected long[] keysAddresses;
 
     protected BasePageMutable(BTreeMutable tree) {
-        this.tree = tree;
+        super(tree);
     }
 
     protected BasePageMutable(BTreeMutable tree, BasePageImmutable page) {
-        this.tree = tree;
+        super(tree);
         size = page.size;
         createChildren(Math.max(page.size, getBalancePolicy().getPageMaxSize()));
         if (size > 0) {
@@ -52,12 +50,6 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
     protected void load(final ByteIterator it, final int keyAddressLen) {
         // create array with max size for key addresses
         CompressedUnsignedLongArrayByteIterable.loadLongs(keysAddresses, it, size, keyAddressLen);
-    }
-
-    @Override
-    @NotNull
-    protected BTreeMutable getTree() {
-        return tree;
     }
 
     @Override
@@ -80,8 +72,8 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
     /**
      * Deletes key/value pair. If key corresponds to several duplicates, remove all of them.
      *
-     * @param key   key
-     * @param value value
+     * @param key   key to delete
+     * @param value value to delete
      * @return true iff succeeded
      */
     protected abstract boolean delete(@NotNull ByteIterable key, @Nullable ByteIterable value);
@@ -90,11 +82,10 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
      * Insert or update value in tree.
      * If tree supports duplicates and key exists, inserts after existing key
      *
-     * @param key
-     * @param value
-     * @param overwrite
+     * @param key       key to put
+     * @param value     value to put
+     * @param overwrite true if existing value by the key should be overwritten
      * @param result    false if key exists, overwite is false and tree is not support duplicates
-     * @return
      */
     protected abstract BasePageMutable put(@NotNull ByteIterable key, @NotNull ByteIterable value, boolean overwrite, boolean[] result);
 
@@ -124,6 +115,7 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
         ReclaimFlag flag = saveChildren();
         // save self. complementary to {@link load()}
         final byte type = getType();
+        final BTreeBase tree = getTree();
         final int structureId = tree.structureId;
         final Log log = tree.log;
         if (flag == ReclaimFlag.PRESERVE) {
@@ -163,13 +155,13 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
         if (index >= size) {
             throw new ArrayIndexOutOfBoundsException(index + " >= " + size);
         }
-        return keys[index] == null ? tree.loadLeaf(keysAddresses[index]) : keys[index];
+        return keys[index] == null ? getTree().loadLeaf(keysAddresses[index]) : keys[index];
     }
 
     protected abstract void setMutableChild(int index, @NotNull BasePageMutable child);
 
     protected BTreeBalancePolicy getBalancePolicy() {
-        return tree.getBalancePolicy();
+        return getTree().getBalancePolicy();
     }
 
     @Override

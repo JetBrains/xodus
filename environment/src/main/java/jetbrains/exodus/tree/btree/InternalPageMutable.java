@@ -36,7 +36,7 @@ public class InternalPageMutable extends BasePageMutable {
     }
 
     private InternalPageMutable(InternalPageMutable page, int from, int length) {
-        super(page.tree);
+        super((BTreeMutable) page.getTree());
 
         createChildren(Math.max(length, getBalancePolicy().getPageMaxSize()));
 
@@ -84,7 +84,7 @@ public class InternalPageMutable extends BasePageMutable {
     @NotNull
     public BasePage getChild(int index) {
         if (children[index] == null) {
-            return tree.loadPage(childrenAddresses[index]);
+            return getTree().loadPage(childrenAddresses[index]);
         }
 
         return children[index];
@@ -98,7 +98,7 @@ public class InternalPageMutable extends BasePageMutable {
 
     @Override
     protected byte getType() {
-        return tree.getInternalPageType();
+        return ((BTreeMutable) getTree()).getInternalPageType();
     }
 
     @NotNull
@@ -106,6 +106,8 @@ public class InternalPageMutable extends BasePageMutable {
         if (index >= size) {
             throw new ArrayIndexOutOfBoundsException(index + " >= " + size);
         }
+
+        final BTreeMutable tree = (BTreeMutable) getTree();
 
         if (children[index] == null) {
             final long childAddress = childrenAddresses[index];
@@ -125,7 +127,7 @@ public class InternalPageMutable extends BasePageMutable {
             keysAddresses[index] = key.getAddress();
         }
         children[index] = child;
-        tree.addExpiredLoggable(childrenAddresses[index]);
+        ((BTreeMutable) getTree()).addExpiredLoggable(childrenAddresses[index]);
         childrenAddresses[index] = Loggable.NULL_ADDRESS;
     }
 
@@ -146,6 +148,7 @@ public class InternalPageMutable extends BasePageMutable {
             if (pos < 0) pos = 0;
         }
 
+        final BTreeMutable tree = (BTreeMutable) getTree();
         final BasePageMutable child = getChild(pos).getMutableCopy(tree);
         final BasePageMutable newChild = child.put(key, value, overwrite, result);
         // change min key for child
@@ -164,7 +167,7 @@ public class InternalPageMutable extends BasePageMutable {
     @Nullable
     public BasePageMutable putRight(@NotNull ByteIterable key, @NotNull ByteIterable value) {
         int pos = size - 1;
-
+        final BTreeMutable tree = (BTreeMutable) getTree();
         final BasePageMutable child = getChild(pos).getMutableCopy(tree);
         BasePageMutable newChild = child.putRight(key, value);
         // change min key for child

@@ -39,8 +39,11 @@ abstract class BasePageImmutable extends BasePage {
 
     /**
      * Create empty page
+     *
+     * @param tree tree which the page belongs to
      */
-    protected BasePageImmutable() {
+    protected BasePageImmutable(@NotNull BTreeBase tree) {
+        super(tree);
         data = ByteIterableWithAddress.EMPTY;
         size = 0;
         dataAddress = Loggable.NULL_ADDRESS;
@@ -49,9 +52,11 @@ abstract class BasePageImmutable extends BasePage {
     /**
      * Create page and load size and key address length
      *
+     * @param tree tree which the page belongs to
      * @param data binary data to load the page from.
      */
-    protected BasePageImmutable(@NotNull final ByteIterableWithAddress data) {
+    protected BasePageImmutable(@NotNull BTreeBase tree, @NotNull final ByteIterableWithAddress data) {
+        super(tree);
         this.data = data;
         final ByteIteratorWithAddress it = data.iterator();
         size = CompressedUnsignedLongByteIterable.getInt(it) >> 1;
@@ -61,10 +66,12 @@ abstract class BasePageImmutable extends BasePage {
     /**
      * Create page of specified size and load key address length
      *
+     * @param tree tree which the page belongs to
      * @param data source iterator
      * @param size computed size
      */
-    protected BasePageImmutable(@NotNull final ByteIterableWithAddress data, int size) {
+    protected BasePageImmutable(@NotNull BTreeBase tree, @NotNull final ByteIterableWithAddress data, int size) {
+        super(tree);
         this.data = data;
         this.size = size;
         init(data.iterator());
@@ -79,10 +86,6 @@ abstract class BasePageImmutable extends BasePage {
             dataAddress = itr.getAddress();
         }
     }
-
-    @Override
-    @NotNull
-    protected abstract BTreeBase getTree();
 
     @Override
     protected long getDataAddress() {

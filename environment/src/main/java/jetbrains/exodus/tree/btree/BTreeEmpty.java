@@ -69,13 +69,7 @@ public class BTreeEmpty extends BTreeBase {
     @NotNull
     @Override
     protected BasePage getRoot() {
-        return new BottomPage() {
-            @NotNull
-            @Override
-            protected BTreeBase getTree() {
-                return BTreeEmpty.this;
-            }
-        };
+        return new BottomPage(this);
     }
 
 }

@@ -27,10 +27,21 @@ import java.io.PrintStream;
  */
 abstract class BasePage implements Dumpable {
 
+    @NotNull
+    private final BTreeBase tree;
     protected int size;
 
-    protected int getSize() {
+    protected BasePage(@NotNull final BTreeBase tree) {
+        this.tree = tree;
+    }
+
+    protected final int getSize() {
         return size;
+    }
+
+    @NotNull
+    protected final BTreeBase getTree() {
+        return tree;
     }
 
     @NotNull
@@ -58,9 +69,6 @@ abstract class BasePage implements Dumpable {
 
     @NotNull
     protected abstract BaseLeafNode getKey(int index);
-
-    @NotNull
-    protected abstract BTreeBase getTree();
 
     @NotNull
     protected abstract BasePageMutable getMutableCopy(BTreeMutable treeMutable);

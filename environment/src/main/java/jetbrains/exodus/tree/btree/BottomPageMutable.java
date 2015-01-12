@@ -34,7 +34,7 @@ class BottomPageMutable extends BasePageMutable {
     }
 
     private BottomPageMutable(BottomPageMutable page, int from, int length) {
-        super(page.tree);
+        super((BTreeMutable) page.getTree());
 
         final int max = Math.max(length, getBalancePolicy().getPageMaxSize());
         keys = new BaseLeafNodeMutable[max];
@@ -60,6 +60,8 @@ class BottomPageMutable extends BasePageMutable {
     @Nullable
     public BasePageMutable put(@NotNull ByteIterable key, @NotNull ByteIterable value, boolean overwrite, boolean[] result) {
         final SearchRes res = binarySearch(key);
+
+        final BTreeMutable tree = (BTreeMutable) getTree();
 
         int pos = res.index;
         if (pos >= 0) {
@@ -106,6 +108,7 @@ class BottomPageMutable extends BasePageMutable {
     @Override
     @Nullable
     public BasePageMutable putRight(@NotNull ByteIterable key, @NotNull ByteIterable value) {
+        final BTreeMutable tree = (BTreeMutable) getTree();
         if (size > 0) {
             final int pos = size - 1;
             final BaseLeafNode ln = getKey(pos);
@@ -162,6 +165,7 @@ class BottomPageMutable extends BasePageMutable {
     @NotNull
     @Override
     protected ReclaimFlag saveChildren() {
+        final BTreeBase tree = getTree();
         ReclaimFlag result = ReclaimFlag.RECLAIM;
         for (int i = 0; i < size; i++) {
             if (keysAddresses[i] == Loggable.NULL_ADDRESS) {
@@ -195,6 +199,8 @@ class BottomPageMutable extends BasePageMutable {
         final SearchRes sp = binarySearch(key);
         final int pos = sp.index;
         if (pos < 0) return false;
+
+        final BTreeMutable tree = (BTreeMutable) getTree();
 
         if (tree.allowsDuplicates) {
             final ILeafNode ln = sp.key;
@@ -281,7 +287,7 @@ class BottomPageMutable extends BasePageMutable {
 
     @Override
     protected byte getType() {
-        return tree.getBottomPageType();
+        return ((BTreeMutable) getTree()).getBottomPageType();
     }
 
     @Override

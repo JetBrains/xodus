@@ -149,25 +149,13 @@ public abstract class BTreeBase implements ITree {
             case BOTTOM_ROOT:
             case BOTTOM:
             case DUP_BOTTOM:
-                result = new BottomPage(data) {
-                    @NotNull
-                    @Override
-                    protected BTreeBase getTree() {
-                        return BTreeBase.this;
-                    }
-                };
+                result = new BottomPage(this, data);
                 break;
             case LEAF_DUP_INTERNAL_ROOT:
             case INTERNAL_ROOT:
             case INTERNAL:
             case DUP_INTERNAL:
-                result = new InternalPage(data) {
-                    @NotNull
-                    @Override
-                    protected BTreeBase getTree() {
-                        return BTreeBase.this;
-                    }
-                };
+                result = new InternalPage(this, data);
                 break;
             default:
                 throw new IllegalArgumentException("Unknown loggable type [" + type + ']');
