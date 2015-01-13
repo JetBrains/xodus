@@ -18,6 +18,7 @@ package jetbrains.exodus.benchmark.mapdb;
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.benchmark.BenchmarkTestBase;
 import org.jetbrains.annotations.NotNull;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mapdb.DB;
@@ -149,14 +150,14 @@ public class MapDBTokyoCabinetLikeBenchmarkTest extends BenchmarkTestBase {
 
     private void doRead(@NotNull final Map<Object, Object> store) {
         for (Map.Entry entry : store.entrySet()) {
-            assert entry.getKey().equals(entry.getValue());
+            Assert.assertEquals(entry.getKey(), entry.getValue());
         }
     }
 
     private void doReadRandom(@NotNull final Map<Object, Object> store) {
         for (int i = 0; i < TOKYO_CABINET_BENCHMARK_SIZE; i++) {
             final String key = keys[i];
-            assert store.get(key).equals(key);
+            Assert.assertEquals(key, store.get(key));
         }
     }
 
