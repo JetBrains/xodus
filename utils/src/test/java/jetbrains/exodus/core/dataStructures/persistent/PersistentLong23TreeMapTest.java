@@ -23,7 +23,7 @@ import java.util.*;
 
 public class PersistentLong23TreeMapTest {
 
-    private static final int ENTRIES_TO_ADD = 10000;
+    private static final int ENTRIES_TO_ADD = 5000;
 
     @Test
     public void mutableTreeRandomInsertDeleteTest() {
@@ -241,7 +241,7 @@ public class PersistentLong23TreeMapTest {
     @Test
     public void testSize() {
         Random random = new Random(249578);
-        long[] p = genPermutation(random, 10000);
+        long[] p = genPermutation(random, ENTRIES_TO_ADD);
         final PersistentLong23TreeMap<String> source = new PersistentLong23TreeMap<String>();
         PersistentLong23TreeMap<String>.MutableMap tree = null;
         for (int i = 0; i < p.length; i++) {

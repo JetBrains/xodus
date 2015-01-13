@@ -24,7 +24,10 @@ import java.util.concurrent.CyclicBarrier;
 
 public class Persistent23TreeTest {
 
-    static final int ENTRIES_TO_ADD = 10000;
+    private static final int BENCHMARK_SIZE = 2000000;
+    private static final int MAX_KEY = BENCHMARK_SIZE - 1;
+
+    static final int ENTRIES_TO_ADD = 5000;
 
     @Test
     public void mutableTreeRandomInsertDeleteTest() {
@@ -251,7 +254,7 @@ public class Persistent23TreeTest {
     @Test
     public void testAddAll() {
         final Persistent23Tree<Integer> source = new Persistent23Tree<Integer>();
-        ArrayList<Integer> entries = new ArrayList<Integer>(7000000);
+        ArrayList<Integer> entries = new ArrayList<Integer>(BENCHMARK_SIZE);
         for (int i = 0; i < 10000; i++) {
             final Persistent23Tree.MutableTree<Integer> tree = source.beginWrite();
             tree.addAll(entries.iterator(), i);
@@ -270,7 +273,7 @@ public class Persistent23TreeTest {
     public void testGetMinimumMaximum() {
         final Persistent23Tree<Integer> source = new Persistent23Tree<Integer>();
         final Persistent23Tree.MutableTree<Integer> tree = source.beginWrite();
-        for (int i = 0; i < 7000000; i++) {
+        for (int i = 0; i < BENCHMARK_SIZE; i++) {
             tree.add(i);
         }
         Assert.assertTrue(tree.endWrite());
@@ -289,7 +292,7 @@ public class Persistent23TreeTest {
         Integer min = current.getMinimum();
         Assert.assertEquals(0, min.intValue());
         Integer max = tree.getMaximum();
-        Assert.assertEquals(6999999, max.intValue());
+        Assert.assertEquals(MAX_KEY, max.intValue());
     }
 
     @Test
@@ -301,7 +304,7 @@ public class Persistent23TreeTest {
 
             @Override
             public boolean hasNext() {
-                return current + 1 < 7000000;
+                return current + 1 < BENCHMARK_SIZE;
             }
 
             @Override
@@ -312,7 +315,7 @@ public class Persistent23TreeTest {
             @Override
             public void remove() {
             }
-        }, 7000000);
+        }, BENCHMARK_SIZE);
         Assert.assertTrue(tree.endWrite());
         System.gc();
         System.out.print("Memory used: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()));
@@ -320,7 +323,7 @@ public class Persistent23TreeTest {
         Integer min = current.getMinimum();
         Assert.assertEquals(0, min.intValue());
         Integer max = tree.getMaximum();
-        Assert.assertEquals(6999999, max.intValue());
+        Assert.assertEquals(MAX_KEY, max.intValue());
         tree.checkTip();
     }
 
@@ -331,7 +334,7 @@ public class Persistent23TreeTest {
         int min = Integer.MAX_VALUE;
         int max = Integer.MIN_VALUE;
         Random rnd = new Random();
-        for (int i = 0; i < 7000000; i++) {
+        for (int i = 0; i < BENCHMARK_SIZE; i++) {
             final Integer key = rnd.nextInt();
             tree.add(key);
             if (key > max) {
@@ -363,7 +366,7 @@ public class Persistent23TreeTest {
     public void testGetMinimumMaximum3() {
         final Persistent23Tree<Integer> source = new Persistent23Tree<Integer>();
         final Persistent23Tree.MutableTree<Integer> tree = source.beginWrite();
-        for (int i = 6999999; i >= 0; --i) {
+        for (int i = MAX_KEY; i >= 0; --i) {
             tree.add(i);
         }
         Assert.assertTrue(tree.endWrite());
@@ -382,13 +385,13 @@ public class Persistent23TreeTest {
         Integer min = current.getMinimum();
         Assert.assertEquals(0, min.intValue());
         Integer max = tree.getMaximum();
-        Assert.assertEquals(6999999, max.intValue());
+        Assert.assertEquals(MAX_KEY, max.intValue());
     }
 
     @Test
     public void testCache() {
         Random random = new Random(34790);
-        int[] p = genPermutation(random, 7000000);
+        int[] p = genPermutation(random, BENCHMARK_SIZE);
         final Persistent23Tree<Integer> source = new Persistent23Tree<Integer>();
         Persistent23Tree.MutableTree<Integer> tree = null;
         for (int i = 0; i < p.length; i++) {

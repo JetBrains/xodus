@@ -24,6 +24,9 @@ import java.util.TreeSet;
 
 public class LongSkipListTests {
 
+    private static final int BENCHMARK_SIZE = 2000000;
+    private static final long MAX_KEY = BENCHMARK_SIZE - 1;
+
     @Test
     public void testClearList() {
         final LongSkipList list = new LongSkipList();
@@ -40,24 +43,23 @@ public class LongSkipListTests {
     }
 
     @Test
-    public void testGetMinimumMaximum() throws InterruptedException {
+    public void testGetMinimumMaximum() {
         final LongSkipList list = new LongSkipList();
-        for (int i = 0; i < 7000000; i++) {
+        for (int i = 0; i < BENCHMARK_SIZE; i++) {
             list.add(i);
         }
         Assert.assertEquals(0L, list.getMinimum().longValue());
-        Assert.assertEquals(6999999L, list.getMaximum().longValue());
+        Assert.assertEquals(MAX_KEY, list.getMaximum().longValue());
         System.out.print("Memory used: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()));
-        //Thread.sleep(10000);
     }
 
     @Test
-    public void testGetMinimumMaximum2() throws InterruptedException {
+    public void testGetMinimumMaximum2() {
         final LongSkipList list = new LongSkipList();
         long min = Long.MAX_VALUE;
         long max = Long.MIN_VALUE;
         Random rnd = new Random();
-        for (int i = 0; i < 7000000; i++) {
+        for (int i = 0; i < BENCHMARK_SIZE; i++) {
             final long key = rnd.nextLong();
             list.add(key);
             if (key > max) {
@@ -70,16 +72,15 @@ public class LongSkipListTests {
         Assert.assertEquals(min, list.getMinimum().longValue());
         Assert.assertEquals(max, list.getMaximum().longValue());
         System.out.print("Memory used: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()));
-        //Thread.sleep(10000);
     }
 
     @Test
-    public void testGetMinimumMaximumTreeSet() throws InterruptedException {
+    public void testGetMinimumMaximumTreeSet() {
         final SortedSet<Long> set = new TreeSet<Long>();
         long min = Long.MAX_VALUE;
         long max = Long.MIN_VALUE;
         Random rnd = new Random();
-        for (int i = 0; i < 7000000; i++) {
+        for (int i = 0; i < BENCHMARK_SIZE; i++) {
             final long key = rnd.nextLong();
             set.add(key);
             if (key > max) {
@@ -92,23 +93,21 @@ public class LongSkipListTests {
         Assert.assertEquals(min, set.first().longValue());
         Assert.assertEquals(max, set.last().longValue());
         System.out.print("Memory used: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()));
-        //Thread.sleep(10000);
     }
 
     @Test
-    public void testGetMinimumMaximum3() throws InterruptedException {
+    public void testGetMinimumMaximum3() {
         final LongSkipList list = new LongSkipList();
-        for (int i = 6999999; i >= 0; --i) {
+        for (int i = BENCHMARK_SIZE - 1; i >= 0; --i) {
             list.add(i);
         }
         Assert.assertEquals(0L, list.getMinimum().longValue());
-        Assert.assertEquals(6999999L, list.getMaximum().longValue());
+        Assert.assertEquals(MAX_KEY, list.getMaximum().longValue());
         System.out.print("Memory used: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()));
-        //Thread.sleep(10000);
     }
 
     @Test
-    public void testSearch() throws InterruptedException {
+    public void testSearch() {
         final LongSkipList list = new LongSkipList();
         for (int i = 0; i < 1000; i++) {
             list.add(i);

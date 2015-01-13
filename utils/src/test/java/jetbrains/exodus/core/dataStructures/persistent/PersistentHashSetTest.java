@@ -25,7 +25,7 @@ import java.util.concurrent.CountDownLatch;
 
 public class PersistentHashSetTest {
 
-    static final int ENTRIES_TO_ADD = 10000;
+    private static final int ENTRIES_TO_ADD = 5000;
 
     @SuppressWarnings({"OverlyLongMethod"})
     @Test

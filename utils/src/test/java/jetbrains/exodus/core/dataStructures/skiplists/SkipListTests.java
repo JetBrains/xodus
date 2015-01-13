@@ -22,6 +22,9 @@ import org.junit.Test;
 
 public class SkipListTests {
 
+    private static final int BENCHMARK_SIZE = 2000000;
+    private static final int MAX_KEY = BENCHMARK_SIZE - 1;
+
     @Test
     public void testClearList() {
         final SkipList<Integer> list = new SkipList<Integer>();
@@ -42,7 +45,7 @@ public class SkipListTests {
     @Test
     public void testGetMinimumMaximum() throws InterruptedException {
         final SkipList<Integer> list = new SkipList<Integer>();
-        for (int i = 0; i < 7000000; i++) {
+        for (int i = 0; i < BENCHMARK_SIZE; i++) {
             list.add(i);
         }
         System.gc();
@@ -50,7 +53,7 @@ public class SkipListTests {
         Integer min = list.getMinimum();
         Assert.assertEquals(0, min.intValue());
         Integer max = list.getMaximum();
-        Assert.assertEquals(6999999, max.intValue());
+        Assert.assertEquals(MAX_KEY, max.intValue());
     }
 
     @Test
@@ -59,7 +62,7 @@ public class SkipListTests {
         int min = Integer.MAX_VALUE;
         int max = Integer.MIN_VALUE;
         Random rnd = new Random();
-        for (int i = 0; i < 7000000; i++) {
+        for (int i = 0; i < BENCHMARK_SIZE; i++) {
             final int key = rnd.nextInt();
             list.add(key);
             if (key > max) {
@@ -78,7 +81,7 @@ public class SkipListTests {
     @Test
     public void testGetMinimumMaximum3() throws InterruptedException {
         final SkipList<Integer> list = new SkipList<Integer>();
-        for (int i = 6999999; i >= 0; --i) {
+        for (int i = BENCHMARK_SIZE - 1; i >= 0; --i) {
             list.add(i);
         }
         System.gc();
@@ -86,7 +89,7 @@ public class SkipListTests {
         Integer min = list.getMinimum();
         Assert.assertEquals(0, min.intValue());
         Integer max = list.getMaximum();
-        Assert.assertEquals(6999999, max.intValue());
+        Assert.assertEquals(MAX_KEY, max.intValue());
     }
 
     @Test

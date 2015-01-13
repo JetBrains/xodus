@@ -21,7 +21,7 @@ import org.junit.Test;
 
 public class PersistentLinkedHashMapTest {
 
-    private static final int ENTRIES_TO_ADD = 10000;
+    private static final int ENTRIES_TO_ADD = 5000;
 
     @Test
     public void mutableTreeRandomInsertDeleteTest() {

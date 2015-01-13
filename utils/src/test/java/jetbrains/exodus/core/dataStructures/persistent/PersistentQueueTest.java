@@ -59,20 +59,20 @@ public class PersistentQueueTest {
         for (int t = 0; t < 10; t++) {
             long time = -System.currentTimeMillis();
             RealTimePersistentQueue<Integer> queue = RealTimePersistentQueue.EMPTY;
-            for (int i = 0; i < 4048; i++) {
+            for (int i = 0; i < 4096; i++) {
                 queue = queue.add(i);
             }
-            for (int i = 4048; i < 20000000; i++) {
+            for (int i = 4096; i < 10000000; i++) {
                 queue = queue.pop().add(i);
             }
             time += System.currentTimeMillis();
             System.out.println("RealTimePersistentQueue " + time);
             time = -System.currentTimeMillis();
             PersistentQueue<Integer> queue2 = PersistentQueue.EMPTY;
-            for (int i = 0; i < 4048; i++) {
+            for (int i = 0; i < 4096; i++) {
                 queue2 = queue2.add(i);
             }
-            for (int i = 4048; i < 20000000; i++) {
+            for (int i = 4096; i < 10000000; i++) {
                 queue2 = queue2.skip().add(i);
             }
             time += System.currentTimeMillis();
