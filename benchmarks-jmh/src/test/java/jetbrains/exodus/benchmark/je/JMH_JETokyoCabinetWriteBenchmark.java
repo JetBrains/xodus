@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
-public class JMH_JETokyoCabinetLikeWriteBenchmark extends JMH_JETokyoCabinetLikeBenchmarkBase {
+public class JMH_JETokyoCabinetWriteBenchmark extends JMH_JETokyoCabinetBenchmarkBase {
 
     @Benchmark
     @BenchmarkMode(Mode.SingleShotTime)

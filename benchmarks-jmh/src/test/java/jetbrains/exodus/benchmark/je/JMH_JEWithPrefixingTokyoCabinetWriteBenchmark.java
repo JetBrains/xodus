@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.benchmark.je;
 
-public class JMH_JEWithPrefixingTokyoCabinetLikeWriteBenchmark extends JMH_JETokyoCabinetLikeWriteBenchmark {
+public class JMH_JEWithPrefixingTokyoCabinetWriteBenchmark extends JMH_JETokyoCabinetWriteBenchmark {
 
     @Override
     protected boolean isKeyPrefixing() {

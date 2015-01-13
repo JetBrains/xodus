@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
-public class JMH_JETokyoCabinetLikeReadBenchmark extends JMH_JETokyoCabinetLikeBenchmarkBase {
+public class JMH_JETokyoCabinetReadBenchmark extends JMH_JETokyoCabinetBenchmarkBase {
 
     @Setup(Level.Invocation)
     public void beforeBenchmark() {

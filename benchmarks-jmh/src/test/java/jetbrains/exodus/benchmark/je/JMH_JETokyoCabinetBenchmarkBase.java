@@ -30,7 +30,7 @@ import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.Collections;
 
-public abstract class JMH_JETokyoCabinetLikeBenchmarkBase extends BenchmarkTestBase {
+public abstract class JMH_JETokyoCabinetBenchmarkBase extends BenchmarkTestBase {
 
     protected static final DatabaseEntry[] successiveKeys;
     protected static final DatabaseEntry[] randomKeys;
