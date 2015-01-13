@@ -45,7 +45,7 @@ public abstract class JMH_JETokyoCabinetBenchmarkBase extends BenchmarkTestBase 
             successiveKeys[i] = key;
         }
         randomKeys = Arrays.copyOf(successiveKeys, successiveKeys.length);
-        Collections.shuffle(Arrays.asList(randomKeys));
+        shuffleKeys();
     }
 
     protected Environment env;
