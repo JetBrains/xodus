@@ -5,6 +5,7 @@ dependencies {
     testCompile 'org.openjdk.jmh:jmh-core:0.9'
     testCompile 'org.openjdk.jmh:jmh-generator-annprocess:0.9'
     testCompile group: 'com.sleepycat', name: 'je', version: '5.0.73'
+    testCompile group: 'org.mapdb', name: 'mapdb', version: '1.0.6'
 }
 
 task testBenchmarksJMH(type:JavaExec) {
