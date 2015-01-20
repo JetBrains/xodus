@@ -75,6 +75,7 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(REFACTORING_DELETE_REDUNDANT_BLOBS, false),
                 new Pair(MAX_IN_PLACE_BLOB_SIZE, 10000),
                 new Pair(CACHING_DISABLED, false),
+                new Pair(REORDERING_DISABLED, false),
                 new Pair(EXPLAIN_ON, false),
                 new Pair(UNIQUE_INDICES_USE_BTREE, false),
                 new Pair(DEBUG_LINK_DATA_GETTER, false),
@@ -148,6 +149,10 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public void setCachingDisabled(final boolean disabled) {
         setSetting(CACHING_DISABLED, disabled);
+    }
+
+    public void setReorderingDisabled(final boolean disabled) {
+        setSetting(REORDERING_DISABLED, disabled);
     }
 
     public boolean isExplainOn() {
