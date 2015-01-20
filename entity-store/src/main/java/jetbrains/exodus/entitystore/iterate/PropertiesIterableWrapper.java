@@ -100,6 +100,12 @@ public class PropertiesIterableWrapper extends CachedWrapperIterable {
         return false;
     }
 
+    @Override
+    public boolean canBeReordered() {
+        // it always has to be sorted by property
+        return false;
+    }
+
     public PropertiesIterableWrapper beginUpdate() {
         return new PropertiesIterableWrapper(this);
     }
@@ -165,6 +171,11 @@ public class PropertiesIterableWrapper extends CachedWrapperIterable {
     @Override
     protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
         return index.getCurrent().size();
+    }
+
+    @Override
+    protected void orderById() {
+        // do nothing
     }
 
     /**

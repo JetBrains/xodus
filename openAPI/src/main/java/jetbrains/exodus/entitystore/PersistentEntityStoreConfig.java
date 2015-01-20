@@ -37,6 +37,8 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public static final String CACHING_DISABLED = "exodus.entityStore.cachingDisabled";
 
+    public static final String REORDERING_DISABLED = "exodus.entityStore.reorderingDisabled";
+
     public static final String EXPLAIN_ON = "exodus.entityStore.explainOn";
 
     public static final String UNIQUE_INDICES_USE_BTREE = "exodus.entityStore.uniqueIndices.useBtree";
@@ -138,6 +140,10 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public boolean isCachingDisabled() {
         return (Boolean) getSetting(CACHING_DISABLED);
+    }
+
+    public boolean isReorderingDisabled() {
+        return (Boolean) getSetting(REORDERING_DISABLED);
     }
 
     public void setCachingDisabled(final boolean disabled) {

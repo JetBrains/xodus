@@ -48,6 +48,8 @@ public interface PersistentEntityStore extends EntityStore, Backupable {
 
     boolean isCachingEnabled();
 
+    boolean isReorderingEnabled();
+
     void setCachingEnabled(boolean cachingEnabled);
 
     Explainer getExplainer();

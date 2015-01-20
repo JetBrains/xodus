@@ -37,7 +37,7 @@ public class EntityIdArrayIterableWrapper extends CachedWrapperIterable {
     private final int[] typeIds;
     @NotNull
     private final long[] localIds;
-    private final boolean isSortedById;
+    private boolean isSortedById;
     @Nullable
     private EntityIdSet idSet;
 
@@ -283,6 +283,13 @@ public class EntityIdArrayIterableWrapper extends CachedWrapperIterable {
                 return new ReverseEntityIdArrayIteratorPacked();
             }
             return new ReverseEntityIdArrayIteratorUnpacked();
+        }
+    }
+
+    protected void orderById() {
+        if (!isSortedById && singleTypeId && localIds.length > 1) {
+            Arrays.sort(localIds);
+            isSortedById = true;
         }
     }
 

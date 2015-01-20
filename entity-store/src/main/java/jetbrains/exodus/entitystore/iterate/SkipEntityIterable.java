@@ -54,6 +54,12 @@ public class SkipEntityIterable extends EntityIterableDecoratorBase {
     }
 
     @Override
+    public boolean canBeReordered() {
+        // just in case, but actually it cannot be cached
+        return false;
+    }
+
+    @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
         return new NonDisposableEntityIterator(this) {

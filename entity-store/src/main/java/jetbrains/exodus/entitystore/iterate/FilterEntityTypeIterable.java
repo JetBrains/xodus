@@ -101,4 +101,10 @@ class FilterEntityTypeIterable extends EntityIterableDecoratorBase {
     public boolean canBeCached() {
         return false;
     }
+
+    @Override
+    public boolean canBeReordered() {
+        // just in case, but actually it cannot be cached
+        return false;
+    }
 }
