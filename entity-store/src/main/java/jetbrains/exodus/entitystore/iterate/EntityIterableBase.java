@@ -447,7 +447,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         final boolean canBeCached = store != null && store.isCachingEnabled() && canBeCached();
         if (!canBeCached) {
             CachedWrapperIterable cached = createCachedWrapper(txn);
-            if (store.isReorderingEnabled() && canBeReordered()) {
+            if (store != null && store.isReorderingEnabled() && canBeReordered()) {
                 cached.orderById();
             }
             return cached;
