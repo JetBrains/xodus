@@ -197,7 +197,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         txn.commit();
 
         txn = env.beginTransaction();
-        final Store store = env.openStore(name, StoreConfig.USE_EXISTING_READONLY, txn);
+        final Store store = env.openStore(name, StoreConfig.USE_EXISTING, txn);
         Assert.assertEquals(expectedConfig, store.getConfig());
         txn.commit();
     }

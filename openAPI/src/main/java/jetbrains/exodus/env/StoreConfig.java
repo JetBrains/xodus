@@ -21,15 +21,13 @@ public enum StoreConfig {
     WITH_DUPLICATES(1, "00000001"),
     WITHOUT_DUPLICATES_WITH_PREFIXING(2, "00000010"),
     WITH_DUPLICATES_WITH_PREFIXING(3, "00000011"),
-    USE_EXISTING(5, "00000100"),
-    USE_EXISTING_READONLY(5, "00001100");
+    USE_EXISTING(5, "00000100");
 
     public final int id;
 
     public final boolean duplicates;
     public final boolean prefixing;
     public final boolean useExisting;
-    public final boolean readOnly;
 
     private StoreConfig(final int id, final String mask) {
         this.id = id;
@@ -37,12 +35,11 @@ public enum StoreConfig {
         duplicates = (bits & 1) > 0;
         prefixing = ((bits >> 1) & 1) > 0;
         useExisting = ((bits >> 2) & 1) > 0;
-        readOnly = ((bits >> 3) & 1) > 0;
     }
 
 
     @Override
     public String toString() {
-        return "duplicates: " + duplicates + ", prefixing: " + prefixing + ", useExisting: " + useExisting + ", readOnly: " + readOnly;
+        return "duplicates: " + duplicates + ", prefixing: " + prefixing + ", useExisting: " + useExisting;
     }
 }
