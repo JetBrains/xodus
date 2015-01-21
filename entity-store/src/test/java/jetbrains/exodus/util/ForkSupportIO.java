@@ -41,11 +41,9 @@ public class ForkSupportIO implements IStreamer {
     @NotNull
     private final String name;
 
-
     private Process process;
     private Thread err;
     private Thread out;
-
     private int processId;
 
     @NotNull
@@ -91,6 +89,10 @@ public class ForkSupportIO implements IStreamer {
 
         log.info("Ready to start process with arguments: " + trueArgs);
         builder = new ProcessBuilder(trueArgs);
+    }
+
+    public int getPID() {
+        return processId;
     }
 
     @NotNull

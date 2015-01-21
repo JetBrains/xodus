@@ -49,7 +49,7 @@ public class FailoverForkTests extends EntityStoreTestBase {
     private void startAndKillProc() throws Exception {
         log.info("Preparing to start a process...");
         forked = ForkSupportIO.create(getProcessRunner(), new String[]{}, new String[]{}).start();
-        log.info("Process started");
+        log.info("Process started, PID = " + forked.getPID());
         childFolderLocation = forked.readString();
         log.info("Forked process said: " + childFolderLocation);
         forked.kill();
