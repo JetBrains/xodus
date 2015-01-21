@@ -110,10 +110,7 @@ public abstract class BTreeBase implements ITree {
 
     @Override
     public void setTreeNodesCache(@Nullable final LongObjectCacheBase cache) {
-        final BasePage root = getRoot();
-        if (!root.isMutable()) {
-            ((BasePageImmutable) root).setTreeNodesCache(cache);
-        }
+        // by default do nothing
     }
 
     protected final RandomAccessLoggable getLoggable(long address) {
@@ -121,24 +118,22 @@ public abstract class BTreeBase implements ITree {
     }
 
     @NotNull
-    protected final BasePage loadPage(final long address, @Nullable final LongObjectCacheBase treeNodesCache) {
+    protected final BasePageImmutable loadPage(final long address, @Nullable final LongObjectCacheBase treeNodesCache) {
         if (treeNodesCache == null) {
-            final RandomAccessLoggable loggable = getLoggable(address);
-            return loadPage(loggable.getType(), loggable.getData());
+            return loadPage(address);
         }
         final Object page = treeNodesCache.tryKey(address);
         if (page != null) {
-            return (BasePage) page;
+            return (BasePageImmutable) page;
         }
-        final RandomAccessLoggable loggable = getLoggable(address);
-        final BasePageImmutable result = loadPage(loggable.getType(), loggable.getData());
+        final BasePageImmutable result = loadPage(address);
         //noinspection unchecked
         treeNodesCache.cacheObject(address, result);
         return result;
     }
 
     @NotNull
-    protected final BasePage loadPage(final long address) {
+    protected final BasePageImmutable loadPage(final long address) {
         final RandomAccessLoggable loggable = getLoggable(address);
         return loadPage(loggable.getType(), loggable.getData());
     }

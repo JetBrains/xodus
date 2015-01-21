@@ -16,9 +16,11 @@
 package jetbrains.exodus.tree.btree;
 
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class BTree extends BTreeBase {
 
@@ -61,6 +63,13 @@ public class BTree extends BTreeBase {
         final BTreeMutable result = new BTreeMutable(this);
         result.addExpiredLoggable(rootLoggable);
         return result;
+    }
+
+    @Override
+    public void setTreeNodesCache(@Nullable final LongObjectCacheBase cache) {
+        if (size > 0) {
+            root.setTreeNodesCache(cache);
+        }
     }
 
     @Override

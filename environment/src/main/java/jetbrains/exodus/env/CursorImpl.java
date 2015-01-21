@@ -99,24 +99,28 @@ final class CursorImpl implements Cursor {
     @Override
     public ByteIterable getSearchKey(@NotNull final ByteIterable key) {
         checkTreeCursor();
+        setTreeNodesCache();
         return treeCursor.getSearchKey(key);
     }
 
     @Override
     public ByteIterable getSearchKeyRange(@NotNull final ByteIterable key) {
         checkTreeCursor();
+        setTreeNodesCache();
         return treeCursor.getSearchKeyRange(key);
     }
 
     @Override
     public boolean getSearchBoth(@NotNull final ByteIterable key, @NotNull final ByteIterable value) {
         checkTreeCursor();
+        setTreeNodesCache();
         return treeCursor.getSearchBoth(key, value);
     }
 
     @Override
     public ByteIterable getSearchBothRange(@NotNull final ByteIterable key, @NotNull final ByteIterable value) {
         checkTreeCursor();
+        setTreeNodesCache();
         return treeCursor.getSearchBothRange(key, value);
     }
 
@@ -162,4 +166,7 @@ final class CursorImpl implements Cursor {
         }
     }
 
+    private void setTreeNodesCache() {
+        treeCursor.getTree().setTreeNodesCache(store.getEnvironment().getTreeNodesCache());
+    }
 }

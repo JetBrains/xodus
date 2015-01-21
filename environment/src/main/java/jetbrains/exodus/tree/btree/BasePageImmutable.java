@@ -145,7 +145,9 @@ abstract class BasePageImmutable extends BasePage {
     }
 
     protected void setTreeNodesCache(@Nullable final LongObjectCacheBase treeNodesCache) {
-        this.treeNodesCache = treeNodesCache;
+        if (this.treeNodesCache == null) {
+            this.treeNodesCache = treeNodesCache;
+        }
     }
 
     protected static void doReclaim(BTreeReclaimTraverser context) {

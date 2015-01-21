@@ -315,9 +315,6 @@ public class TransactionImpl implements Transaction {
         ITree result = immutableTrees.get(structureId);
         if (result == null) {
             result = store.openImmutableTree(metaTree);
-            if (result.getSize() > 0) {
-                result.setTreeNodesCache(env.getTreeNodesCache());
-            }
             immutableTrees.put(structureId, result);
         }
         return result;
