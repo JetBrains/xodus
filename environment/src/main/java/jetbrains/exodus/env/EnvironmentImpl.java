@@ -397,9 +397,7 @@ public class EnvironmentImpl implements Environment {
     @Nullable
     BTree loadMetaTree(final long rootAddress) {
         if (rootAddress < 0 || rootAddress >= log.getHighAddress()) return null;
-        final BTree result = new BTree(log, getBTreeBalancePolicy(), rootAddress, false, META_TREE_ID);
-        result.setTreeNodesCache(treeNodesCache);
-        return result;
+        return new BTree(log, getBTreeBalancePolicy(), rootAddress, false, META_TREE_ID);
     }
 
     @SuppressWarnings("OverlyNestedMethod")
