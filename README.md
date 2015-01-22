@@ -1,6 +1,6 @@
 #JetBrains Xodus
 
-div>
+<div>
   <a href="http://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build&guest=1">
     <img src="http://teamcity.jetbrains.com/app/rest/builds/buildType:(id:Xodus_Build)/statusIcon"/>
   </a>
