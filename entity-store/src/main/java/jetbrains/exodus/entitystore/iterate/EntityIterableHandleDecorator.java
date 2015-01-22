@@ -71,4 +71,9 @@ public abstract class EntityIterableHandleDecorator extends EntityIterableHandle
                                             @Nullable final Comparable newValue) {
         return decorated.isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue);
     }
+
+    @Override
+    public boolean isExpired() {
+        return decorated.isExpired();
+    }
 }
