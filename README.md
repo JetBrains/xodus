@@ -1,5 +1,12 @@
 #JetBrains Xodus
 
+div>
+  <a href="http://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build&guest=1">
+    <img src="http://teamcity.jetbrains.com/app/rest/builds/buildType:(id:Xodus_Build)/statusIcon"/>
+  </a>
+  <span>Build<span>
+</div>
+
 ##Overview
 JetBrains Xodus is a transactional schema-less embedded database written in pure Java. It was initially developed for [JetBrains YouTrack](http://jetbrains.com/youtrack) (issue tracking and project management tool). At the moment Xodus is also used in some internal JetBrains projects.
 
