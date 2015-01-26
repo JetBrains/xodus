@@ -39,6 +39,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.ref.SoftReference;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -62,7 +63,7 @@ public class EnvironmentImpl implements Environment {
     @Nullable
     private StoreGetCache storeGetCache;
     @Nullable
-    private LongObjectCacheBase treeNodesCache;
+    private SoftReference<LongObjectCacheBase> treeNodesCache;
     private final EnvironmentSettingsListener envSettingsListener;
     private final GarbageCollector gc;
     private final Object commitLock = new Object();
@@ -282,6 +283,7 @@ public class EnvironmentImpl implements Environment {
             logCacheHitRate = log.getCacheHitRate();
             log.close();
             storeGetCacheHitRate = storeGetCache == null ? 0 : storeGetCache.hitRate();
+            final LongObjectCacheBase treeNodesCache = this.treeNodesCache == null ? null : this.treeNodesCache.get();
             treeNodesCacheHitRate = treeNodesCache == null ? 0 : treeNodesCache.hitRate();
             throwableOnClose = new Throwable();
             throwableOnCommit = EnvironmentClosedException.INSTANCE;
@@ -571,7 +573,12 @@ public class EnvironmentImpl implements Environment {
 
     @Nullable
     LongObjectCacheBase getTreeNodesCache() {
-        return treeNodesCache;
+        final SoftReference<LongObjectCacheBase> cacheRef = treeNodesCache;
+        if (cacheRef != null) {
+            final LongObjectCacheBase cache = cacheRef.get();
+            return cache != null ? cache : invalidateTreeNodesCache();
+        }
+        return null;
     }
 
     static boolean isUtilizationProfile(@NotNull final String storeName) {
@@ -658,9 +665,12 @@ public class EnvironmentImpl implements Environment {
         storeGetCache = storeGetCacheSize == 0 ? null : new StoreGetCache(storeGetCacheSize);
     }
 
-    private void invalidateTreeNodesCache() {
+    private LongObjectCacheBase invalidateTreeNodesCache() {
         final int treeNodesCacheSize = ec.getTreeNodesCacheSize();
-        treeNodesCache = treeNodesCacheSize == 0 ? null : new ConcurrentLongObjectCache(treeNodesCacheSize, 2);
+        final LongObjectCacheBase result = treeNodesCacheSize == 0 ? null :
+                new ConcurrentLongObjectCache(treeNodesCacheSize, 2);
+        treeNodesCache = result == null ? null : new SoftReference<LongObjectCacheBase>(result);
+        return result;
     }
 
     private static void applyEnvironmentSettings(@NotNull final String location,
