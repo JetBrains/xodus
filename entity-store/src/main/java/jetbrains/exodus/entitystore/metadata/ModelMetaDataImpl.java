@@ -206,34 +206,52 @@ public class ModelMetaDataImpl implements ModelMetaData {
         AssociationEndMetaDataImpl sourceEnd = new AssociationEndMetaDataImpl(
                 amd, sourceName, target, sourceCardinality, sourceType,
                 sourceCascadeDelete, sourceClearOnDelete, sourceTargetCascadeDelete, sourceTargetClearOnDelete);
-        source.addAssociationEndMetaData(sourceEnd);
+        addAssociationEndMetaDataToEntityTypeSubtree(source, sourceEnd);
 
         if (type != AssociationType.Directed) {
             AssociationEndMetaDataImpl targetEnd = new AssociationEndMetaDataImpl(
                     amd, targetName, source, targetCardinality, targetType,
                     targetCascadeDelete, targetClearOnDelete, targetTargetCascadeDelete, targetTargetClearOnDelete);
-            target.addAssociationEndMetaData(targetEnd);
+            addAssociationEndMetaDataToEntityTypeSubtree(target, targetEnd);
         }
 
         return amd;
     }
 
+    private void addAssociationEndMetaDataToEntityTypeSubtree(EntityMetaDataImpl emdi, AssociationEndMetaData aemd) {
+        emdi.addAssociationEndMetaData(aemd);
+        for (String subType : emdi.getAllSubTypes()) {
+            ((EntityMetaDataImpl) typeToEntityMetaDatas.get(subType)).addAssociationEndMetaData(aemd);
+        }
+    }
+
     @Override
     public AssociationMetaData removeAssociation(String entityName, String associationName) {
-        EntityMetaDataImpl source = (EntityMetaDataImpl) getEntityMetaData(entityName);
 
         // remove from source
-        AssociationEndMetaData aemd = source.removeAssociationEndMetaData(associationName);
+        EntityMetaDataImpl source = (EntityMetaDataImpl) getEntityMetaData(entityName);
+        AssociationEndMetaData aemd = removeAssociationEndMetaDataFromEntityTypeSubtree(source, associationName);
         AssociationMetaData amd = aemd.getAssociationMetaData();
 
-        EntityMetaDataImpl oppositeEntityMetaData = (EntityMetaDataImpl) aemd.getOppositeEntityMetaData();
+
         // remove from target
+        EntityMetaDataImpl target = (EntityMetaDataImpl) aemd.getOppositeEntityMetaData();
         if (amd.getType() != AssociationType.Directed) {
-            oppositeEntityMetaData.removeAssociationEndMetaData(amd.getOppositeEnd(aemd).getName());
+            String oppositeAssociationName = amd.getOppositeEnd(aemd).getName();
+            removeAssociationEndMetaDataFromEntityTypeSubtree(target, oppositeAssociationName);
         }
-        associationMetaDatas.remove(getUniqueAssociationName(entityName, oppositeEntityMetaData.getType(),
+
+        associationMetaDatas.remove(getUniqueAssociationName(entityName, target.getType(),
                 associationName));
         return amd;
+    }
+
+    private AssociationEndMetaData removeAssociationEndMetaDataFromEntityTypeSubtree(EntityMetaDataImpl emdi, String associationName) {
+        AssociationEndMetaData removedEndMetaData = emdi.removeAssociationEndMetaData(associationName);
+        for (String subType : emdi.getAllSubTypes()) {
+            ((EntityMetaDataImpl) typeToEntityMetaDatas.get(subType)).removeAssociationEndMetaData(associationName);
+        }
+        return removedEndMetaData;
     }
 
     private static String getUniqueAssociationName(String sourceEntityName, String targetEntityName, String sourceName) {
