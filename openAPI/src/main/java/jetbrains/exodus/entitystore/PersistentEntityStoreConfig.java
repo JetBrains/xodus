@@ -21,7 +21,7 @@ import jetbrains.exodus.core.dataStructures.Pair;
 @SuppressWarnings("UnusedDeclaration")
 public final class PersistentEntityStoreConfig extends AbstractConfig {
 
-    public static final PersistentEntityStoreConfig DEFAULT = new PersistentEntityStoreConfig();
+    public static final PersistentEntityStoreConfig DEFAULT = new PersistentEntityStoreConfig(true);
 
     public static final String REFACTORING_NULL_INDICES = "exodus.entityStore.refactoring.nullIndices";
 
@@ -64,6 +64,10 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
     private static final int MAX_DEFAULT_ENTITY_ITERABLE_CACHE_SIZE = 4096;
 
     public PersistentEntityStoreConfig() {
+        this(false);
+    }
+
+    private PersistentEntityStoreConfig(final boolean ignoreSystemProperties) {
         //noinspection unchecked
         super(new Pair[]{
                 new Pair(REFACTORING_NULL_INDICES, false),
@@ -85,7 +89,7 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(TRANSACTION_PROPS_CACHE_SIZE, 1024),
                 new Pair(TRANSACTION_LINKS_CACHE_SIZE, 4096),
                 new Pair(TRANSACTION_BLOB_STRINGS_CACHE_SIZE, 128)
-        });
+        }, ignoreSystemProperties);
     }
 
     public boolean getRefactoringNullIndices() {

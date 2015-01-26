@@ -36,7 +36,7 @@ public abstract class AbstractConfig {
     private final Set<ChangedSettingsListener> listeners;
 
 
-    protected AbstractConfig(@NotNull final Pair<String, Object>[] props) {
+    protected AbstractConfig(@NotNull final Pair<String, Object>[] props, final boolean ignoreSystemProperties) {
         settings = new HashMap<String, Object>();
         listeners = new LinkedHashSet<ChangedSettingsListener>();
         for (final Pair<String, Object> prop : props) {
@@ -45,11 +45,11 @@ public abstract class AbstractConfig {
             final Object value;
             final Class<?> clazz = defaultValue.getClass();
             if (clazz == Boolean.class) {
-                value = getBoolean(propName, (Boolean) defaultValue);
+                value = ignoreSystemProperties ? defaultValue : getBoolean(propName, (Boolean) defaultValue);
             } else if (clazz == Integer.class) {
-                value = Integer.getInteger(propName, (Integer) defaultValue);
+                value = ignoreSystemProperties ? defaultValue : Integer.getInteger(propName, (Integer) defaultValue);
             } else if (clazz == Long.class) {
-                value = Long.getLong(propName, (Long) defaultValue);
+                value = ignoreSystemProperties ? defaultValue : Long.getLong(propName, (Long) defaultValue);
             } else {
                 throw new ExodusException(UNSUPPORTED_TYPE_ERROR_MSG);
             }
