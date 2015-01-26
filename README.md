@@ -4,7 +4,6 @@
   <a href="http://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build&guest=1">
     <img src="http://teamcity.jetbrains.com/app/rest/builds/buildType:(id:Xodus_Build)/statusIcon"/>
   </a>
-  <span>Build<span>
 </div>
 
 ##Overview
@@ -15,7 +14,7 @@ Key features:
 - Xodus is transactional and fully ACID-compliant.
 - Xodus is highly concurrent. Reads are completely non-blocking due to [MVCC](https://en.wikipedia.org/wiki/Multiversion_concurrency_control) and
 true [snapshot isolation](https://en.wikipedia.org/wiki/Snapshot_isolation).
-- Xodus is schemaless and agile. It requires no schema migrations or refactorings.
+- Xodus is schema-less and agile. It requires no schema migrations or refactorings.
 - Xodus is embedded. It doesn’t require installation and administration.
 
 Xodus is free and licensed under [Apache 2.0](http://www.apache.org/licenses/LICENSE-2.0.html). Xodus 1.0-SNAPSHOT artifacts are available in [Maven Central](https://oss.sonatype.org/content/repositories/snapshots/org/jetbrains/xodus) repository.
