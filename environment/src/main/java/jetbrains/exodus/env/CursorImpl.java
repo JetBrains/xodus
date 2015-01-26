@@ -17,6 +17,7 @@ package jetbrains.exodus.env;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.ITreeCursor;
 import org.jetbrains.annotations.NotNull;
 
@@ -167,6 +168,9 @@ final class CursorImpl implements Cursor {
     }
 
     private void setTreeNodesCache() {
-        treeCursor.getTree().setTreeNodesCache(store.getEnvironment().getTreeNodesCache());
+        final ITree tree = treeCursor.getTree();
+        if (tree != null) {
+            tree.setTreeNodesCache(store.getEnvironment().getTreeNodesCache());
+        }
     }
 }
