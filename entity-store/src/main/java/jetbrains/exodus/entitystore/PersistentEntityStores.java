@@ -48,6 +48,13 @@ public final class PersistentEntityStores {
         return newInstance(PersistentEntityStoreConfig.DEFAULT, environment, blobVault, name);
     }
 
+    public static PersistentEntityStoreImpl newInstance(@NotNull final PersistentEntityStoreConfig config,
+                                                        @NotNull final Environment environment,
+                                                        @NotNull final String name) {
+        adjustEnvironmentConfig(environment.getEnvironmentConfig());
+        return new PersistentEntityStoreImpl(config, environment, null, name);
+    }
+
     public static PersistentEntityStoreImpl newInstance(@NotNull final Environment environment, @NotNull final String name) {
         return newInstance(environment, null, name);
     }

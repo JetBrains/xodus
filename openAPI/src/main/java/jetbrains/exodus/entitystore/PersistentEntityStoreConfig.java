@@ -23,6 +23,8 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public static final PersistentEntityStoreConfig DEFAULT = new PersistentEntityStoreConfig(true);
 
+    public static final String REFACTORING_SKIP_ALL = "exodus.entityStore.refactoring.skipAll";
+
     public static final String REFACTORING_NULL_INDICES = "exodus.entityStore.refactoring.nullIndices";
 
     public static final String REFACTORING_BLOB_NULL_INDICES = "exodus.entityStore.refactoring.blobNullIndices";
@@ -70,6 +72,7 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
     private PersistentEntityStoreConfig(final boolean ignoreSystemProperties) {
         //noinspection unchecked
         super(new Pair[]{
+                new Pair(REFACTORING_SKIP_ALL, false),
                 new Pair(REFACTORING_NULL_INDICES, false),
                 new Pair(REFACTORING_BLOB_NULL_INDICES, false),
                 new Pair(REFACTORING_HEAVY_LINKS, false),
@@ -90,6 +93,14 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(TRANSACTION_LINKS_CACHE_SIZE, 4096),
                 new Pair(TRANSACTION_BLOB_STRINGS_CACHE_SIZE, 128)
         }, ignoreSystemProperties);
+    }
+
+    public boolean getRefactrongSkipAll() {
+        return (Boolean) getSetting(REFACTORING_SKIP_ALL);
+    }
+
+    public void setRefactoringSkipAll(final boolean skipAll) {
+        setSetting(REFACTORING_SKIP_ALL, skipAll);
     }
 
     public boolean getRefactoringNullIndices() {

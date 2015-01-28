@@ -275,7 +275,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             txn.abort();
         }
 
-        applyRefactorings(fromScratch); // this method includes refactorings that could be clustered into separate txns
+        if (!config.getRefactrongSkipAll()) {
+            applyRefactorings(fromScratch); // this method includes refactorings that could be clustered into separate txns
+        }
 
         final PersistentStoreTransaction preloadTxn = beginTransaction();
         try {
