@@ -95,7 +95,7 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
         }, ignoreSystemProperties);
     }
 
-    public boolean getRefactrongSkipAll() {
+    public boolean getRefactoringSkipAll() {
         return (Boolean) getSetting(REFACTORING_SKIP_ALL);
     }
 
