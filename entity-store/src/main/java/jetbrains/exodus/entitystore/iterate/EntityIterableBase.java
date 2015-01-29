@@ -444,20 +444,11 @@ public abstract class EntityIterableBase implements EntityIterable {
     }
 
     public final CachedWrapperIterable getOrCreateCachedWrapper(@NotNull final PersistentStoreTransaction txn) {
-        final boolean canBeCached = store != null && store.isCachingEnabled() && canBeCached();
-        if (!canBeCached) {
-            CachedWrapperIterable cached = createCachedWrapper(txn);
-            if (store != null && store.isReorderingEnabled() && canBeReordered()) {
-                cached.orderById();
-            }
-            return cached;
+        final CachedWrapperIterable cached = createCachedWrapper(txn);
+        if (store != null && store.isReorderingEnabled() && canBeReordered()) {
+            cached.orderById();
         }
-        CachedWrapperIterable cached = txn.getCachedWrapper(this);
-        if (cached == null) {
-            cached = createCachedWrapper(txn);
-            if (store.isReorderingEnabled() && canBeReordered()) {
-                cached.orderById();
-            }
+        if (store != null && store.isCachingEnabled() && canBeCached()) {
             txn.addCachedWrapper(cached);
         }
         return cached;
