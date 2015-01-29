@@ -138,4 +138,19 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
     public Iterator<E> iterator() {
         return priorities.keySet().iterator();
     }
+
+
+    public boolean remove(@NotNull final E value) {
+        final Pair<E, P> pair = priorities.remove(value);
+        if (pair == null) {
+            return false;
+        }
+        final P priority = pair.getSecond();
+        final LinkedHashSet<E> values = theQueue.get(priority);
+        values.remove(value);
+        if (values.isEmpty()) {
+            theQueue.remove(priority);
+        }
+        return true;
+    }
 }
