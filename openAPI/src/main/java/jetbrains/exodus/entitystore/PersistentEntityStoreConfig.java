@@ -39,6 +39,8 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public static final String CACHING_DISABLED = "exodus.entityStore.cachingDisabled";
 
+    public static final String REORDERING_DISABLED = "exodus.entityStore.reorderingDisabled";
+
     public static final String EXPLAIN_ON = "exodus.entityStore.explainOn";
 
     public static final String UNIQUE_INDICES_USE_BTREE = "exodus.entityStore.uniqueIndices.useBtree";
@@ -80,6 +82,7 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(REFACTORING_DELETE_REDUNDANT_BLOBS, false),
                 new Pair(MAX_IN_PLACE_BLOB_SIZE, 10000),
                 new Pair(CACHING_DISABLED, false),
+                new Pair(REORDERING_DISABLED, false),
                 new Pair(EXPLAIN_ON, false),
                 new Pair(UNIQUE_INDICES_USE_BTREE, false),
                 new Pair(DEBUG_LINK_DATA_GETTER, false),
@@ -155,8 +158,16 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
         return (Boolean) getSetting(CACHING_DISABLED);
     }
 
+    public boolean isReorderingDisabled() {
+        return (Boolean) getSetting(REORDERING_DISABLED);
+    }
+
     public void setCachingDisabled(final boolean disabled) {
         setSetting(CACHING_DISABLED, disabled);
+    }
+
+    public void setReorderingDisabled(final boolean disabled) {
+        setSetting(REORDERING_DISABLED, disabled);
     }
 
     public boolean isExplainOn() {

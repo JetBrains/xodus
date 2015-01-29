@@ -68,4 +68,6 @@ public abstract class CachedWrapperIterable extends EntityIterableBase {
     public boolean isCachedWrapper() {
         return true;
     }
+
+    protected abstract void orderById();
 }

@@ -418,6 +418,10 @@ public abstract class EntityIterableBase implements EntityIterable {
         return txnGetter == TxnGetterStategy.DEFAULT; // !hasCustomTxn
     }
 
+    public boolean canBeReordered() {
+        return true;
+    }
+
     @NotNull
     public final Entity getEntity(@NotNull final EntityId id) {
         return getStore().getEntity(id);
@@ -442,11 +446,18 @@ public abstract class EntityIterableBase implements EntityIterable {
     public final CachedWrapperIterable getOrCreateCachedWrapper(@NotNull final PersistentStoreTransaction txn) {
         final boolean canBeCached = store != null && store.isCachingEnabled() && canBeCached();
         if (!canBeCached) {
-            return createCachedWrapper(txn);
+            CachedWrapperIterable cached = createCachedWrapper(txn);
+            if (store != null && store.isReorderingEnabled() && canBeReordered()) {
+                cached.orderById();
+            }
+            return cached;
         }
         CachedWrapperIterable cached = txn.getCachedWrapper(this);
         if (cached == null) {
             cached = createCachedWrapper(txn);
+            if (store.isReorderingEnabled() && canBeReordered()) {
+                cached.orderById();
+            }
             txn.addCachedWrapper(cached);
         }
         return cached;

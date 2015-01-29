@@ -68,6 +68,11 @@ public final class PropertyRangeIterable extends EntityIterableBase {
     }
 
     @Override
+    public boolean canBeReordered() {
+        return false;
+    }
+
+    @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
         // first, look for cached properties iterable (whole index in-memory)

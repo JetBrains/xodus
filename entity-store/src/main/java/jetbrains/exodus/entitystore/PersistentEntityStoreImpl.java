@@ -128,6 +128,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @NotNull
     private final ConcurrentObjectCache<String, EntityId> entityIdCache; // this cache doesn't need snapshot isolation
     private boolean cachingDisabled;
+    private boolean reorderingDisabled;
     private Explainer explainer;
 
     private final DataGetter propertyDataGetter;
@@ -162,6 +163,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         iterableCache = new EntityIterableCacheImpl(this);
         entityIdCache = new ConcurrentObjectCache<String, EntityId>(ENTITY_ID_CACHE_SIZE);
         cachingDisabled = config.isCachingDisabled();
+        reorderingDisabled = config.isReorderingDisabled();
         explainer = new Explainer(config.isExplainOn());
         propertyDataGetter = new PropertyDataGetter();
         linkDataGetter = config.isDebugLinkDataGetter() ? new DebugLinkDataGetter() : new LinkDataGetter();
@@ -603,6 +605,10 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @Override
     public boolean isCachingEnabled() {
         return !cachingDisabled;
+    }
+
+    public boolean isReorderingEnabled() {
+        return !reorderingDisabled;
     }
 
     @Override
