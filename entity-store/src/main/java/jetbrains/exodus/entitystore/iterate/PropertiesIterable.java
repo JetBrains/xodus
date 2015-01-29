@@ -55,12 +55,6 @@ public final class PropertiesIterable extends EntityIterableBase {
     }
 
     @Override
-    public boolean canBeReordered() {
-        // it always has to be sorted by property
-        return false;
-    }
-
-    @Override
     protected CachedWrapperIterable createCachedWrapper(@NotNull final PersistentStoreTransaction txn) {
         return new PropertiesIterableWrapper(getStore(), getIterator(txn, true), this);
     }

@@ -55,11 +55,6 @@ public final class ConcatenationIterable extends BinaryOperatorEntityIterable {
     }
 
     @Override
-    public boolean canBeReordered() {
-        return false;
-    }
-
-    @Override
     protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
         return iterable1.size() + iterable2.size();
     }

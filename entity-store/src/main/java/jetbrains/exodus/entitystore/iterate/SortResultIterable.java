@@ -53,11 +53,6 @@ public class SortResultIterable extends EntityIterableDecoratorBase {
     }
 
     @Override
-    public boolean canBeReordered() {
-        return false;
-    }
-
-    @Override
     public Entity getFirst() {
         return source.getFirst();
     }

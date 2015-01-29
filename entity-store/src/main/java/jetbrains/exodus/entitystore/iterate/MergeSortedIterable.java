@@ -72,11 +72,6 @@ public class MergeSortedIterable extends EntityIterableBase {
     }
 
     @Override
-    public boolean canBeReordered() {
-        return false;
-    }
-
-    @Override
     public boolean canBeCached() {
         return false;
     }

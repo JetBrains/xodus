@@ -405,6 +405,10 @@ public abstract class EntityIterableBase implements EntityIterable {
         return true;
     }
 
+    public boolean canBeReordered() {
+        return false;
+    }
+
     public int depth() {
         return 1;
     }
@@ -416,10 +420,6 @@ public abstract class EntityIterableBase implements EntityIterable {
      */
     public boolean canBeCached() {
         return txnGetter == TxnGetterStategy.DEFAULT; // !hasCustomTxn
-    }
-
-    public boolean canBeReordered() {
-        return true;
     }
 
     @NotNull

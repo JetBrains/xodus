@@ -44,11 +44,6 @@ public class ExcludeNullIterableDecorator extends EntityIterableDecoratorBase {
         return source.isSortedById();
     }
 
-    @Override
-    public boolean canBeReordered() {
-        return source.canBeReordered();
-    }
-
     @NotNull
     @Override
     public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {

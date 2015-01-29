@@ -100,12 +100,6 @@ public class PropertiesIterableWrapper extends CachedWrapperIterable {
         return false;
     }
 
-    @Override
-    public boolean canBeReordered() {
-        // it always has to be sorted by property
-        return false;
-    }
-
     public PropertiesIterableWrapper beginUpdate() {
         return new PropertiesIterableWrapper(this);
     }
