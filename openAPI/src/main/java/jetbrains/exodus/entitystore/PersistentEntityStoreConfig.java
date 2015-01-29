@@ -158,12 +158,12 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
         return (Boolean) getSetting(CACHING_DISABLED);
     }
 
-    public boolean isReorderingDisabled() {
-        return (Boolean) getSetting(REORDERING_DISABLED);
-    }
-
     public void setCachingDisabled(final boolean disabled) {
         setSetting(CACHING_DISABLED, disabled);
+    }
+
+    public boolean isReorderingDisabled() {
+        return (Boolean) getSetting(REORDERING_DISABLED);
     }
 
     public void setReorderingDisabled(final boolean disabled) {
