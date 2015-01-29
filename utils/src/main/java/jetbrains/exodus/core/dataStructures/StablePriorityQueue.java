@@ -19,10 +19,7 @@ import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.LinkedHashSet;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -136,7 +133,7 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
 
     @Override
     public Iterator<E> iterator() {
-        return priorities.keySet().iterator();
+        return new QueueIterator();
     }
 
 
@@ -152,5 +149,46 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
             theQueue.remove(priority);
         }
         return true;
+    }
+
+    private class QueueIterator implements Iterator<E> {
+
+        @NotNull
+        private final Iterator<Map.Entry<P, LinkedHashSet<E>>> priorityIt;
+        @NotNull
+        private Iterator<E> currentIt;
+
+        private QueueIterator() {
+            priorityIt = theQueue.entrySet().iterator();
+            //noinspection unchecked
+            currentIt = Collections.EMPTY_LIST.iterator();
+            checkCurrentIterator();
+        }
+
+        @Override
+        public boolean hasNext() {
+            return currentIt.hasNext();
+        }
+
+        @Override
+        public E next() {
+            final E result = currentIt.next();
+            checkCurrentIterator();
+            return result;
+        }
+
+        public void remove() {
+            throw new UnsupportedOperationException();
+        }
+
+        private void checkCurrentIterator() {
+            while (!currentIt.hasNext()) {
+                if (!priorityIt.hasNext()) {
+                    break;
+                }
+                final Map.Entry<P, LinkedHashSet<E>> next = priorityIt.next();
+                currentIt = next.getValue().iterator();
+            }
+        }
     }
 }
