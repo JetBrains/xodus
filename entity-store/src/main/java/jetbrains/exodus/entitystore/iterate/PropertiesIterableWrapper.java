@@ -169,7 +169,7 @@ public class PropertiesIterableWrapper extends CachedWrapperIterable {
 
     @Override
     protected void orderById() {
-        // do nothing
+        throw new UnsupportedOperationException();
     }
 
     /**
