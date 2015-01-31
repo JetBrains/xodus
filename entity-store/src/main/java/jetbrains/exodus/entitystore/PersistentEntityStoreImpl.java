@@ -157,6 +157,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         hashCode = System.identityHashCode(this);
         this.config = config;
         this.environment = environment;
+        PersistentEntityStores.adjustEnvironmentConfigForEntityStore(environment.getEnvironmentConfig());
         this.name = name;
         location = environment.getLocation();
         namingRulez = new StoreNamingRules(name);

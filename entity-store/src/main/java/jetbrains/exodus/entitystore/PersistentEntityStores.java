@@ -38,7 +38,6 @@ public final class PersistentEntityStores {
                                                         @NotNull final Environment environment,
                                                         @Nullable final BlobVault blobVault,
                                                         @NotNull final String name) {
-        adjustEnvironmentConfig(environment.getEnvironmentConfig());
         return new PersistentEntityStoreImpl(config, environment, blobVault, name);
     }
 
@@ -51,7 +50,6 @@ public final class PersistentEntityStores {
     public static PersistentEntityStoreImpl newInstance(@NotNull final PersistentEntityStoreConfig config,
                                                         @NotNull final Environment environment,
                                                         @NotNull final String name) {
-        adjustEnvironmentConfig(environment.getEnvironmentConfig());
         return new PersistentEntityStoreImpl(config, environment, null, name);
     }
 
@@ -71,7 +69,7 @@ public final class PersistentEntityStores {
         return newInstance(new File(dir));
     }
 
-    private static EnvironmentConfig adjustEnvironmentConfig(@NotNull final EnvironmentConfig ec) {
+    public static EnvironmentConfig adjustEnvironmentConfigForEntityStore(@NotNull final EnvironmentConfig ec) {
         if (ec.getEnvStoreGetCacheSize() == EnvironmentConfig.DEFAULT.getEnvStoreGetCacheSize()) {
             ec.setEnvStoreGetCacheSize(STORE_GET_CACHE_SIZE);
         }
