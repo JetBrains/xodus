@@ -75,7 +75,7 @@ public class PersistentLinkedHashMap<K, V> {
     }
 
     public boolean endWrite(@NotNull final PersistentLinkedHashMapMutable<K, V> mutableMap) {
-        if (mutableMap.getSourceRoot() != root) {
+        if (!mutableMap.isDirty() || mutableMap.getSourceRoot() != root) {
             return false;
         }
         mutableMap.getMapMutable().endWrite();
@@ -101,6 +101,7 @@ public class PersistentLinkedHashMap<K, V> {
         private final PersistentLong23TreeMap<K> queue;
         @NotNull
         private final PersistentLong23TreeMap<K>.MutableMap queueMutable;
+        private boolean isDirty;
 
         public PersistentLinkedHashMapMutable(PersistentLinkedHashMap<K, V> source) {
             sourceRoot = source.root;
@@ -115,6 +116,7 @@ public class PersistentLinkedHashMap<K, V> {
             }
             mapMutable = map.beginWrite();
             queueMutable = queue.beginWrite();
+            isDirty = false;
         }
 
         @Nullable
@@ -125,7 +127,8 @@ public class PersistentLinkedHashMap<K, V> {
             }
             final V result = internalValue.getValue();
             final long currentOrder = internalValue.getOrder();
-            if (orderCounter.get() > currentOrder) {
+            if (orderCounter.get() > currentOrder + (mapMutable.size() >> 1)) {
+                isDirty = true;
                 final long newOrder = orderCounter.incrementAndGet();
                 mapMutable.put(key, new InternalValue<V>(newOrder, result));
                 if (!key.equals(queueMutable.remove(currentOrder))) {
@@ -153,6 +156,7 @@ public class PersistentLinkedHashMap<K, V> {
                     throw new RuntimeException("PersistentLinkedHashMap is inconsistent");
                 }
             }
+            isDirty = true;
             final long newOrder = orderCounter.incrementAndGet();
             mapMutable.put(key, new InternalValue<V>(newOrder, value));
             queueMutable.put(newOrder, key);
@@ -170,6 +174,7 @@ public class PersistentLinkedHashMap<K, V> {
         public V remove(@NotNull final K key) {
             final InternalValue<V> internalValue = mapMutable.removeKey(key);
             if (internalValue != null) {
+                isDirty = true;
                 if (!key.equals(queueMutable.remove(internalValue.getOrder()))) {
                     throw new RuntimeException("PersistentLinkedHashMap is inconsistent");
                 }
@@ -193,6 +198,10 @@ public class PersistentLinkedHashMap<K, V> {
                     return procedure.execute(object.getKey());
                 }
             });
+        }
+
+        public boolean isDirty() {
+            return isDirty;
         }
 
         @Override

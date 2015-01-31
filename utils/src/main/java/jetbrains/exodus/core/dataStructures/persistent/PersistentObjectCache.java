@@ -89,6 +89,7 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
             final PersistentLinkedHashMap<K, V> secondGen = next.getSecondGen();
             final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> secondGenMutable = secondGen.beginWrite();
             result = secondGenMutable.get(key);
+            boolean wereMutations = secondGenMutable.isDirty();
             if (result == null) {
                 final PersistentLinkedHashMap<K, V> firstGen = next.getFirstGen();
                 final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> firstGenMutable = firstGen.beginWrite();
@@ -96,7 +97,13 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
                 if (result != null) {
                     secondGenMutable.put(key, result);
                 }
-                firstGen.endWrite(firstGenMutable);
+                if (firstGenMutable.isDirty()) {
+                    wereMutations = true;
+                    firstGen.endWrite(firstGenMutable);
+                }
+            }
+            if (!wereMutations) {
+                break;
             }
             secondGen.endWrite(secondGenMutable);
         } while (!root.compareAndSet(current, next));
