@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.entitystore.*;
+import jetbrains.exodus.entitystore.util.EntityIdSet;
 import jetbrains.exodus.env.Cursor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -198,6 +199,11 @@ public abstract class EntityIteratorBase implements EntityIterator {
 
     protected int getIndex() {
         throw new UnsupportedOperationException();
+    }
+
+    @Nullable
+    protected EntityIdSet toSet() {
+        return null;
     }
 
     private void throwNoSuchElementExceptionIfNecessary() {

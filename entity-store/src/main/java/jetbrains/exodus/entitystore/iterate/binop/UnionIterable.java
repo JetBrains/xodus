@@ -136,7 +136,7 @@ public final class UnionIterable extends BinaryOperatorEntityIterable {
     private static final class UnsortedIterator extends NonDisposableEntityIterator {
 
         @NotNull
-        private final EntityIdSet entityIdSet;
+        private final EntityIdSet iterated;
         private EntityIteratorBase iterator1;
         private EntityIteratorBase iterator2;
         private EntityId nextId;
@@ -145,7 +145,7 @@ public final class UnionIterable extends BinaryOperatorEntityIterable {
                                  @NotNull final EntityIterableBase iterable1,
                                  @NotNull final EntityIterableBase iterable2) {
             super(iterable);
-            entityIdSet = new EntityIdSet();
+            iterated = new EntityIdSet();
             iterator1 = (EntityIteratorBase) iterable2.iterator();
             iterator2 = (EntityIteratorBase) iterable1.iterator();
             nextId = null;
@@ -162,7 +162,7 @@ public final class UnionIterable extends BinaryOperatorEntityIterable {
             }
             while (iterator2 != null && iterator2.hasNext()) {
                 final EntityId nextId = iterator2.nextId();
-                if (!entityIdSet.contains(nextId)) {
+                if (!iterated.contains(nextId)) {
                     this.nextId = nextId;
                     return true;
                 }
@@ -175,8 +175,14 @@ public final class UnionIterable extends BinaryOperatorEntityIterable {
         @Nullable
         public EntityId nextIdImpl() {
             final EntityId nextId = this.nextId;
-            entityIdSet.add(nextId);
+            iterated.add(nextId);
             return nextId;
+        }
+
+        @Nullable
+        @Override
+        protected EntityIdSet toSet() {
+            return iterated;
         }
     }
 }

@@ -121,9 +121,8 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
         private final EntityIteratorBase sourceIt;
         @NotNull
         private final IntHashMap<Cursor> usedCursors;
-        private final EntityIdSet usedIds;
+        private final EntityIdSet iterated;
         private EntityId nextId;
-        private boolean nullProcessed;
         @NotNull
         private final PersistentStoreTransaction txn;
 
@@ -131,9 +130,8 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
             super(SelectDistinctIterable.this);
             sourceIt = (EntityIteratorBase) source.iterator();
             usedCursors = new IntHashMap<Cursor>();
-            usedIds = new EntityIdSet();
+            iterated = new EntityIdSet();
             nextId = null;
-            nullProcessed = false;
             this.txn = txn;
         }
 
@@ -141,7 +139,7 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
         @Override
         protected boolean hasNextImpl() {
             if (linkId < 0) {
-                return !nullProcessed && sourceIt.hasNext();
+                return !iterated.contains(null) && sourceIt.hasNext();
             }
             while (sourceIt.hasNext()) {
                 final EntityId nextSourceId = sourceIt.nextId();
@@ -157,14 +155,14 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
                 final ByteIterable keyEntry = PropertyKey.propertyKeyToEntry(new PropertyKey(nextSourceId.getLocalId(), linkId));
                 final ByteIterable value = cursor.getSearchKey(keyEntry);
                 if (value == null) {
-                    if (!nullProcessed) {
+                    if (!iterated.contains(null)) {
                         nextId = null;
                         return true;
                     }
                 } else {
                     final LinkValue linkValue = LinkValue.entryToLinkValue(value);
                     final EntityId nextId = linkValue.getEntityId();
-                    if (!usedIds.contains(nextId)) {
+                    if (!iterated.contains(nextId)) {
                         this.nextId = nextId;
                         return true;
                     }
@@ -177,11 +175,7 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
         @Nullable
         public EntityId nextIdImpl() {
             final EntityId nextId = this.nextId;
-            if (nextId == null) {
-                nullProcessed = true;
-            } else {
-                usedIds.add(nextId);
-            }
+            iterated.add(nextId);
             return nextId;
         }
 
@@ -195,6 +189,12 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
                     return true;
                 }
             });
+        }
+
+        @Nullable
+        @Override
+        protected EntityIdSet toSet() {
+            return iterated;
         }
     }
 }

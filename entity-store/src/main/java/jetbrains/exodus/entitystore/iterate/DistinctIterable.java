@@ -141,5 +141,11 @@ public final class DistinctIterable extends EntityIterableDecoratorBase {
         public EntityId nextIdImpl() {
             return nextId;
         }
+
+        @Nullable
+        @Override
+        protected EntityIdSet toSet() {
+            return iterated;
+        }
     }
 }

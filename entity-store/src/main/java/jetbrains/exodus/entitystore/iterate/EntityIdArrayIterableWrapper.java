@@ -53,6 +53,7 @@ public class EntityIdArrayIterableWrapper extends CachedWrapperIterable {
                 isSortedById = true;
                 typeIds = EMPTY_TYPE_IDS;
                 localIds = EMPTY_LOCAL_IDS;
+                idSet = EntityIdSet.EMPTY_SET;
             } else {
                 final IntArrayList typeIds = IntArrayListSpinAllocator.alloc();
                 final LongArrayList localIds = LongArrayListSpinAllocator.alloc();
@@ -183,11 +184,11 @@ public class EntityIdArrayIterableWrapper extends CachedWrapperIterable {
                     LongArrayListSpinAllocator.dispose(localIds);
                     IntArrayListSpinAllocator.dispose(typeIds);
                 }
+                idSet = it.toSet();
             }
         } finally {
             it.disposeIfShouldBe();
         }
-        idSet = null;
     }
 
     protected EntityId extractNextId(final EntityIterator it) {

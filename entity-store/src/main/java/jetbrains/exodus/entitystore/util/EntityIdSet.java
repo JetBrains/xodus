@@ -25,10 +25,14 @@ public class EntityIdSet {
 
     public static final EntityIdSet EMPTY_SET = new EntityIdSet();
 
-    private final IntHashMap<LongSet> set = new IntHashMap<LongSet>();
+    private final IntHashMap<LongSet> set;
     private int singleTypeId;
-    private LongSet singleTypeLocalIds = null;
-    private boolean holdsNull = false;
+    private LongSet singleTypeLocalIds;
+    private boolean holdsNull;
+
+    public EntityIdSet() {
+        set = new IntHashMap<LongSet>();
+    }
 
     public void add(@Nullable final EntityId id) {
         if (id == null) {
