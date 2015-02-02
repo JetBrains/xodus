@@ -544,10 +544,14 @@ public final class Log implements Closeable {
         flush(true);
         reader.close();
         bufferedWriter.close();
-        bufferedWriter.release();
+        release();
         synchronized (blockAddrs) {
             blockAddrs.clear();
         }
+    }
+
+    public void release() {
+        bufferedWriter.release();
     }
 
     public void clear() {

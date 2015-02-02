@@ -278,10 +278,14 @@ public class EnvironmentImpl implements Environment {
                 throw new IllegalStateException("Already closed, see cause for previous close stack trace", throwableOnClose);
             }
             checkInactive(ec.getEnvCloseForcedly());
-            gc.saveUtilizationProfile();
-            ec.removeChangedSettingsListener(envSettingsListener);
-            logCacheHitRate = log.getCacheHitRate();
-            log.close();
+            try {
+                gc.saveUtilizationProfile();
+                ec.removeChangedSettingsListener(envSettingsListener);
+                logCacheHitRate = log.getCacheHitRate();
+                log.close();
+            } finally {
+                log.release();
+            }
             storeGetCacheHitRate = storeGetCache == null ? 0 : storeGetCache.hitRate();
             final LongObjectCacheBase treeNodesCache = this.treeNodesCache == null ? null : this.treeNodesCache.get();
             treeNodesCacheHitRate = treeNodesCache == null ? 0 : treeNodesCache.hitRate();
