@@ -73,11 +73,6 @@ public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
     }
 
     @Override
-    public boolean canBeReordered() {
-        return true;
-    }
-
-    @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
         return new LinksIterator(openCursor(txn), getFirstKey());
