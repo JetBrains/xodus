@@ -159,6 +159,22 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
                 txn.find("Issue", "name", "Test issue #2", "Test issue #4")).size());
     }
 
+    public void testUnionUnsortedStress() {
+        final StoreTransaction txn = getStoreTransaction();
+        final int count = 100000;
+        for (int i = 0; i < count; ++i) {
+            final Entity issue = txn.newEntity("Issue");
+            issue.setProperty("number", i);
+        }
+        txn.flush();
+        final int threshold = 28;
+        EntityIterable result = EntityIterableBase.EMPTY;
+        for (int i = 0; i < 500; ++i) {
+            result = result.union(txn.find("Issue", "number", i, count - threshold));
+        }
+        Assert.assertEquals(count - threshold + 1, (int) result.size());
+    }
+
     public void testMinus() {
         final StoreTransaction txn = getStoreTransaction();
         txn.flush();
