@@ -166,7 +166,6 @@ public final class UnionIterable extends BinaryOperatorEntityIterable {
         protected boolean hasNextImpl() {
             if (nextId == PersistentEntityId.EMPTY_ID) {
                 iterator1 = iterable1.isSortedById() ? toEntityIdIterator(iterable1.iterator()) : iterable1.toSet(txn).iterator();
-                iterator2 = iterable2.isSortedById() ? toEntityIdIterator(iterable2.iterator()) : iterable2.toSet(txn).iterator();
             }
             if (iterator1 != null) {
                 if (iterator1.hasNext()) {
@@ -174,6 +173,7 @@ public final class UnionIterable extends BinaryOperatorEntityIterable {
                     return true;
                 }
                 iterator1 = null;
+                iterator2 = iterable2.isSortedById() ? toEntityIdIterator(iterable2.iterator()) : iterable2.toSet(txn).iterator();
             }
             while (iterator2 != null && iterator2.hasNext()) {
                 final EntityId nextId = iterator2.next();
