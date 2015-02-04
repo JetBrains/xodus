@@ -169,7 +169,7 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
         txn.flush();
         final int threshold = 28;
         EntityIterable result = EntityIterableBase.EMPTY;
-        for (int i = 0; i < 500; ++i) {
+        for (int i = 0; i < 200; ++i) {
             result = result.union(txn.find("Issue", "number", i, count - threshold));
         }
         Assert.assertEquals(count - threshold + 1, (int) result.size());
