@@ -15,14 +15,13 @@
  */
 package jetbrains.exodus.entitystore.iterate.binop;
 
-import jetbrains.exodus.entitystore.EntityId;
-import jetbrains.exodus.entitystore.EntityIterableType;
-import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
-import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.entitystore.util.EntityIdSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Iterator;
 
 public final class UnionIterable extends BinaryOperatorEntityIterable {
 
@@ -64,7 +63,7 @@ public final class UnionIterable extends BinaryOperatorEntityIterable {
             iterable1 = iterable2;
             iterable2 = temp;
         }
-        return new EntityIteratorFixingDecorator(this, new UnsortedIterator(this, iterable1, iterable2));
+        return new EntityIteratorFixingDecorator(this, new UnsortedIterator(txn, this, iterable1, iterable2));
     }
 
     private static final class SortedIterator extends NonDisposableEntityIterator {
@@ -79,8 +78,8 @@ public final class UnionIterable extends BinaryOperatorEntityIterable {
                                @NotNull final EntityIterableBase iterable1,
                                @NotNull final EntityIterableBase iterable2) {
             super(iterable);
-            iterator1 = (EntityIteratorBase) iterable2.iterator();
-            iterator2 = (EntityIteratorBase) iterable1.iterator();
+            iterator1 = (EntityIteratorBase) iterable1.iterator();
+            iterator2 = (EntityIteratorBase) iterable2.iterator();
             nextId = null;
             e1 = null;
             e2 = null;
@@ -136,32 +135,48 @@ public final class UnionIterable extends BinaryOperatorEntityIterable {
     private static final class UnsortedIterator extends NonDisposableEntityIterator {
 
         @NotNull
+        private final PersistentStoreTransaction txn;
+        @NotNull
+        private final EntityIterableBase iterable1;
+        @NotNull
+        private final EntityIterableBase iterable2;
         private final EntityIdSet iterated;
-        private EntityIteratorBase iterator1;
-        private EntityIteratorBase iterator2;
+        private Iterator<EntityId> iterator1;
+        private Iterator<EntityId> iterator2;
         private EntityId nextId;
 
-        private UnsortedIterator(@NotNull final EntityIterableBase iterable,
+        private UnsortedIterator(@NotNull final PersistentStoreTransaction txn,
+                                 @NotNull final EntityIterableBase iterable,
                                  @NotNull final EntityIterableBase iterable1,
                                  @NotNull final EntityIterableBase iterable2) {
             super(iterable);
+            this.txn = txn;
+            if (iterable1.isSortedById()) {
+                this.iterable1 = iterable1;
+                this.iterable2 = iterable2;
+            } else {
+                this.iterable1 = iterable2;
+                this.iterable2 = iterable1;
+            }
             iterated = new EntityIdSet();
-            iterator1 = (EntityIteratorBase) iterable2.iterator();
-            iterator2 = (EntityIteratorBase) iterable1.iterator();
-            nextId = null;
+            nextId = PersistentEntityId.EMPTY_ID;
         }
 
         @Override
         protected boolean hasNextImpl() {
+            if (nextId == PersistentEntityId.EMPTY_ID) {
+                iterator1 = iterable1.isSortedById() ? toEntityIdIterator(iterable1.iterator()) : iterable1.toSet(txn).iterator();
+                iterator2 = iterable2.isSortedById() ? toEntityIdIterator(iterable2.iterator()) : iterable2.toSet(txn).iterator();
+            }
             if (iterator1 != null) {
                 if (iterator1.hasNext()) {
-                    nextId = iterator1.nextId();
+                    nextId = iterator1.next();
                     return true;
                 }
                 iterator1 = null;
             }
             while (iterator2 != null && iterator2.hasNext()) {
-                final EntityId nextId = iterator2.nextId();
+                final EntityId nextId = iterator2.next();
                 if (!iterated.contains(nextId)) {
                     this.nextId = nextId;
                     return true;
@@ -184,5 +199,20 @@ public final class UnionIterable extends BinaryOperatorEntityIterable {
         protected EntityIdSet toSet() {
             return iterated;
         }
+    }
+
+    private static Iterator<EntityId> toEntityIdIterator(@NotNull final EntityIterator it) {
+        return new Iterator<EntityId>() {
+
+            @Override
+            public boolean hasNext() {
+                return it.hasNext();
+            }
+
+            @Override
+            public EntityId next() {
+                return it.nextId();
+            }
+        };
     }
 }
