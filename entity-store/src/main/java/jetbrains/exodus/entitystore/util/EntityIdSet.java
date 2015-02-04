@@ -17,11 +17,17 @@ package jetbrains.exodus.entitystore.util;
 
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
+import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.entitystore.EntityId;
+import jetbrains.exodus.entitystore.PersistentEntityId;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class EntityIdSet {
+import java.util.Iterator;
+import java.util.Map;
+
+public class EntityIdSet implements Iterable<EntityId> {
 
     public static final EntityIdSet EMPTY_SET = new EntityIdSet();
 
@@ -103,5 +109,42 @@ public class EntityIdSet {
     @Nullable
     public LongSet getTypeSet(int typeId) {
         return set.get(typeId);
+    }
+
+    @Override
+    public Iterator<EntityId> iterator() {
+        final Iterator<Map.Entry<Integer, LongSet>> entries = set.entrySet().iterator();
+        return new Iterator<EntityId>() {
+
+            private int typeId = -1;
+            @NotNull
+            private LongIterator it = LongIterator.EMPTY;
+            private boolean hasNull = holdsNull;
+
+            @Override
+            public boolean hasNext() {
+                while (!it.hasNext()) {
+                    if (!entries.hasNext()) {
+                        return hasNull;
+                    }
+                    final Map.Entry<Integer, LongSet> nextTypeSet = entries.next();
+                    typeId = nextTypeSet.getKey();
+                    it = nextTypeSet.getValue().iterator();
+                }
+                return true;
+            }
+
+            @Override
+            public EntityId next() {
+                if (!it.hasNext()) {
+                    if (!hasNull) {
+                        throw new IllegalStateException();
+                    }
+                    hasNull = false;
+                    return null;
+                }
+                return new PersistentEntityId(typeId, it.next());
+            }
+        };
     }
 }

@@ -18,7 +18,6 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.TestUtil;
-import jetbrains.exodus.entitystore.util.EntityIdSet;
 import jetbrains.exodus.util.ByteArraySizedInputStream;
 import jetbrains.exodus.util.LightByteArrayOutputStream;
 import jetbrains.exodus.util.UTFUtil;
@@ -545,24 +544,6 @@ public class EntityTests extends EntityStoreTestBase {
                 getEntityStore().renameEntityType("Comment", "Issue");
             }
         }, IllegalArgumentException.class);
-    }
-
-    public void testEntityIdSet() {
-        final EntityIdSet set = new EntityIdSet();
-        for (int i = 0; i < 10; ++i) {
-            for (long j = 0; j < 1000; ++j) {
-                set.add(i, j);
-            }
-            for (long j = 0; j < 1000; ++j) {
-                Assert.assertTrue(set.contains(i, j));
-            }
-            for (long j = 0; j < 1000; ++j) {
-                Assert.assertFalse(set.contains(i + 1, j));
-            }
-        }
-        Assert.assertFalse(set.contains(null));
-        set.add(null);
-        Assert.assertTrue(set.contains(null));
     }
 
     public void testConcurrentSerializableChanges() throws InterruptedException {
