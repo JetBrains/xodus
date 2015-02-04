@@ -213,6 +213,11 @@ public final class UnionIterable extends BinaryOperatorEntityIterable {
             public EntityId next() {
                 return it.nextId();
             }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException();
+            }
         };
     }
 }

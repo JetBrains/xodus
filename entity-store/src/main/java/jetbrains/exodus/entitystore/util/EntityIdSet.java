@@ -145,6 +145,11 @@ public class EntityIdSet implements Iterable<EntityId> {
                 }
                 return new PersistentEntityId(typeId, it.next());
             }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException();
+            }
         };
     }
 }
