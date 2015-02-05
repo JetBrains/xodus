@@ -88,15 +88,18 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
             return it;
         }
 
+        txn.localCacheAttempt();
+
         final EntityIterableBase cached = localCache.tryKey(handle);
         if (cached != null) {
             if (!cached.getHandle().isExpired()) {
+                txn.localCacheHit();
                 return cached;
             }
             localCache.remove(handle);
         }
 
-        if (txn.isMutable() || !txn.isCurrent()) {
+        if (txn.isMutable() || !txn.isCurrent() || !txn.isCachingRelevant()) {
             return it;
         }
 

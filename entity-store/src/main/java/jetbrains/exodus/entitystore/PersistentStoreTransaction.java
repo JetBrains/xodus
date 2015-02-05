@@ -62,6 +62,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     private final ObjectCacheBase<PropertyId, String> blobStringsCache;
     @NotNull
     private EntityIterableCacheAdapter localCache;
+    private int localCacheAttempts;
+    private int localCacheHits;
     @Nullable
     private EntityIterableCacheAdapter mutableCache;
     @Nullable
@@ -93,6 +95,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         linksCache.fillWith(source.linksCache, COPY_CACHED_VALUES);
         blobStringsCache.fillWith(source.blobStringsCache, COPY_CACHED_VALUES);
         localCache = source.localCache;
+        localCacheAttempts = localCacheHits = 0;
     }
 
     protected PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store, final boolean readOnly) {
@@ -624,6 +627,21 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     @Override
     public void disableReplayData() {
         replayData = null;
+    }
+
+    void localCacheAttempt() {
+        ++localCacheAttempts;
+    }
+
+    void localCacheHit() {
+        ++localCacheHits;
+    }
+
+    boolean isCachingRelevant() {
+        // HEURISTICS:
+        // caching is irrelevant for the transaction if there are more than a quarter of the EntityIterablesCache's size
+        // attempts to query an EntityIterable with local cache hit rate less than 25%
+        return localCacheAttempts <= localCache.size() >> 2 || localCacheHits >= localCacheAttempts >> 2;
     }
 
     void disposeCreatedIterators() {
