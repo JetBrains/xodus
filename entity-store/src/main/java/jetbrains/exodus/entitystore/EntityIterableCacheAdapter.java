@@ -18,7 +18,6 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
 import jetbrains.exodus.core.dataStructures.persistent.PersistentObjectCache;
 import jetbrains.exodus.entitystore.iterate.CachedWrapperIterable;
-import jetbrains.exodus.entitystore.iterate.PropertiesIterableWrapper;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -122,7 +121,7 @@ final class EntityIterableCacheAdapter {
         private final SoftReference<CachedWrapperIterable> ref;
 
         private CacheItem(@NotNull final CachedWrapperIterable it, final int maxSizeOfDirectValue) {
-            if (!(it instanceof PropertiesIterableWrapper) && it.size() <= maxSizeOfDirectValue) {
+            if (it.size() <= maxSizeOfDirectValue) {
                 cached = it;
                 ref = null;
             } else {

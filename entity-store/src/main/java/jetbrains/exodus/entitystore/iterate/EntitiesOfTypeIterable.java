@@ -50,33 +50,14 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
         return EntityIterableType.ALL_ENTITIES;
     }
 
-    @Override
-    @NotNull
-    public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
-        return new EntitiesOfTypeIterator(this, getStore().getEntitiesIndexCursor(txn, entityTypeId));
+    public int getEntityTypeId() {
+        return entityTypeId;
     }
 
     @Override
     @NotNull
-    protected EntityIterableHandle getHandleImpl() {
-        return new ConstantEntityIterableHandle(getStore(), EntitiesOfTypeIterable.getType()) {
-            @Override
-            public void getStringHandle(@NotNull final StringBuilder builder) {
-                super.getStringHandle(builder);
-                builder.append('-');
-                builder.append(entityTypeId);
-            }
-
-            @Override
-            public boolean isMatchedEntityAdded(@NotNull final EntityId added) {
-                return added.getTypeId() == entityTypeId;
-            }
-
-            @Override
-            public boolean isMatchedEntityDeleted(@NotNull final EntityId deleted) {
-                return deleted.getTypeId() == entityTypeId;
-            }
-        };
+    public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+        return new EntitiesOfTypeIterator(this, getStore().getEntitiesIndexCursor(txn, entityTypeId));
     }
 
     @Override
@@ -85,8 +66,19 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
     }
 
     @Override
+    @NotNull
+    protected EntityIterableHandle getHandleImpl() {
+        return new EntitiesOfTypeIterableHandle();
+    }
+
+    @Override
     protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
         return getStore().getEntitiesTable(txn, entityTypeId).count(txn.getEnvironmentTransaction());
+    }
+
+    @Override
+    protected CachedWrapperIterable createCachedWrapper(@NotNull final PersistentStoreTransaction txn) {
+        return new EntitiesOfTypeIterableWrapper(txn, getStore(), this);
     }
 
     private final class EntitiesOfTypeIterator extends EntityIteratorBase {
@@ -140,4 +132,31 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
         }
     }
 
+    /**
+     * Public access is needed in order to access directly from PersistentStoreTransaction.
+     */
+
+    public final class EntitiesOfTypeIterableHandle extends ConstantEntityIterableHandle {
+
+        public EntitiesOfTypeIterableHandle() {
+            super(EntitiesOfTypeIterable.this.getStore(), EntitiesOfTypeIterable.getType());
+        }
+
+        @Override
+        public void getStringHandle(@NotNull final StringBuilder builder) {
+            super.getStringHandle(builder);
+            builder.append('-');
+            builder.append(entityTypeId);
+        }
+
+        @Override
+        public boolean isMatchedEntityAdded(@NotNull final EntityId added) {
+            return added.getTypeId() == entityTypeId;
+        }
+
+        @Override
+        public boolean isMatchedEntityDeleted(@NotNull final EntityId deleted) {
+            return deleted.getTypeId() == entityTypeId;
+        }
+    }
 }

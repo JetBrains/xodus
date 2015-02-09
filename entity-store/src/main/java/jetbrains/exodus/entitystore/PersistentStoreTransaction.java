@@ -889,12 +889,12 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                 @Override
                 public boolean execute(EntityIterableHandle object) {
                     switch (checker.checkHandle(object, mutableCache)) {
-                        case KEEP_HANDLE:
+                        case KEEP:
                             break; // do nothing, keep handle
-                        case REMOVE_HANDLE:
+                        case REMOVE:
                             mutableCache.remove(object);
                             break;
-                        case UPDATE_HANDLE:
+                        case UPDATE:
                             CachedWrapperIterable it = mutableCache.getObject(object);
                             if (it != null) {
                                 it = checker.update(object, it);
@@ -920,9 +920,9 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     enum HandleCheckResult {
-        KEEP_HANDLE,
-        REMOVE_HANDLE,
-        UPDATE_HANDLE
+        KEEP,
+        REMOVE,
+        UPDATE
     }
 
     abstract static class HandleChecker {
@@ -993,7 +993,20 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         public HandleCheckResult checkHandle(@NotNull final EntityIterableHandle handle,
                                              @NotNull final EntityIterableCacheAdapter mutableCache) {
-            return handle.isMatchedEntityDeleted(id) ? HandleCheckResult.REMOVE_HANDLE : HandleCheckResult.KEEP_HANDLE;
+            final boolean result = handle.isMatchedEntityDeleted(id);
+            if (result && handle instanceof EntitiesOfTypeIterable.EntitiesOfTypeIterableHandle) {
+                return HandleCheckResult.UPDATE;
+            }
+            return result ? HandleCheckResult.REMOVE : HandleCheckResult.KEEP;
+        }
+
+        @Override
+        CachedWrapperIterable update(@NotNull EntityIterableHandle handle, @NotNull CachedWrapperIterable iterable) {
+            EntitiesOfTypeIterableWrapper it = (EntitiesOfTypeIterableWrapper) iterable;
+            it = it.beginUpdate();
+            it.removeEntity(id);
+            it.endUpdate();
+            return it;
         }
     }
 
@@ -1006,7 +1019,20 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         public HandleCheckResult checkHandle(@NotNull final EntityIterableHandle handle,
                                              @NotNull final EntityIterableCacheAdapter mutableCache) {
-            return handle.isMatchedEntityAdded(id) ? HandleCheckResult.REMOVE_HANDLE : HandleCheckResult.KEEP_HANDLE;
+            final boolean result = handle.isMatchedEntityAdded(id);
+            if (result && handle instanceof EntitiesOfTypeIterable.EntitiesOfTypeIterableHandle) {
+                return HandleCheckResult.UPDATE;
+            }
+            return result ? HandleCheckResult.REMOVE : HandleCheckResult.KEEP;
+        }
+
+        @Override
+        CachedWrapperIterable update(@NotNull EntityIterableHandle handle, @NotNull CachedWrapperIterable iterable) {
+            EntitiesOfTypeIterableWrapper it = (EntitiesOfTypeIterableWrapper) iterable;
+            it = it.beginUpdate();
+            it.addEntity(id);
+            it.endUpdate();
+            return it;
         }
     }
 
@@ -1052,7 +1078,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         @Override
         public HandleCheckResult checkHandle(@NotNull EntityIterableHandle handle, @NotNull EntityIterableCacheAdapter mutableCache) {
-            return handle.hasLinkId(linkId) && handle.isMatchedLinkAdded(sourceId, targetId, linkId) ? HandleCheckResult.REMOVE_HANDLE : HandleCheckResult.KEEP_HANDLE;
+            return handle.hasLinkId(linkId) && handle.isMatchedLinkAdded(sourceId, targetId, linkId) ? HandleCheckResult.REMOVE : HandleCheckResult.KEEP;
         }
     }
 
@@ -1064,7 +1090,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         @Override
         public HandleCheckResult checkHandle(@NotNull EntityIterableHandle handle, @NotNull EntityIterableCacheAdapter mutableCache) {
-            return handle.hasLinkId(linkId) && handle.isMatchedLinkDeleted(sourceId, targetId, linkId) ? HandleCheckResult.REMOVE_HANDLE : HandleCheckResult.KEEP_HANDLE;
+            return handle.hasLinkId(linkId) && handle.isMatchedLinkDeleted(sourceId, targetId, linkId) ? HandleCheckResult.REMOVE : HandleCheckResult.KEEP;
         }
     }
 
@@ -1091,9 +1117,9 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         public HandleCheckResult checkHandle(@NotNull EntityIterableHandle handle, @NotNull EntityIterableCacheAdapter mutableCache) {
             final boolean result = handle.isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue);
             if (result && handle instanceof PropertiesIterable.PropertiesIterableHandle) {
-                return HandleCheckResult.UPDATE_HANDLE;
+                return HandleCheckResult.UPDATE;
             }
-            return result ? HandleCheckResult.REMOVE_HANDLE : HandleCheckResult.KEEP_HANDLE;
+            return result ? HandleCheckResult.REMOVE : HandleCheckResult.KEEP;
         }
 
         @Override

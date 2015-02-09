@@ -28,7 +28,7 @@ import java.util.Collection;
 import java.util.Iterator;
 
 @SuppressWarnings({"RawUseOfParameterizedType", "ComparableImplementedButEqualsNotOverridden", "unchecked"})
-public class PropertiesIterableWrapper extends CachedWrapperIterable {
+public class PropertiesIterableWrapper extends UpdatableCachedWrapperIterable {
 
     private static final Log log = LogFactory.getLog(PropertiesIterableWrapper.class);
 
@@ -107,7 +107,7 @@ public class PropertiesIterableWrapper extends CachedWrapperIterable {
     public void endUpdate() {
         Persistent23Tree.MutableTree<IndexEntry> index = mutableIndex;
         if (index == null) {
-            throw new IllegalStateException("Index was not mutated");
+            throw new IllegalStateException("PropertiesIterableWrapper was not mutated");
         }
         index.endWrite();
         mutableIndex = null;
@@ -165,11 +165,6 @@ public class PropertiesIterableWrapper extends CachedWrapperIterable {
     @Override
     protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
         return index.getCurrent().size();
-    }
-
-    @Override
-    protected void orderById() {
-        throw new UnsupportedOperationException();
     }
 
     /**

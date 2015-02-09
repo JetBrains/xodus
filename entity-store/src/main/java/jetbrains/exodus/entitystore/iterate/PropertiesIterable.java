@@ -55,11 +55,6 @@ public final class PropertiesIterable extends EntityIterableBase {
     }
 
     @Override
-    protected CachedWrapperIterable createCachedWrapper(@NotNull final PersistentStoreTransaction txn) {
-        return new PropertiesIterableWrapper(getStore(), getIterator(txn, true), this);
-    }
-
-    @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
         final PropertiesIterator result = getIterator(txn, true);
@@ -83,6 +78,11 @@ public final class PropertiesIterable extends EntityIterableBase {
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
         return new PropertiesIterableHandle();
+    }
+
+    @Override
+    protected CachedWrapperIterable createCachedWrapper(@NotNull final PersistentStoreTransaction txn) {
+        return new PropertiesIterableWrapper(getStore(), getIterator(txn, true), this);
     }
 
     @Override
@@ -120,6 +120,7 @@ public final class PropertiesIterable extends EntityIterableBase {
      */
 
     public final class PropertiesIterableHandle extends ConstantEntityIterableHandle {
+
         public PropertiesIterableHandle() {
             super(PropertiesIterable.this.getStore(), PropertiesIterable.getType());
         }

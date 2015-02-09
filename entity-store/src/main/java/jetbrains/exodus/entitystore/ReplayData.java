@@ -78,13 +78,13 @@ public class ReplayData {
     private void check(EntityIterableHandle handle, PersistentStoreTransaction.HandleChecker checker,
                        EntityIterableCacheAdapter mutableCache) {
         switch (checker.checkHandle(handle, mutableCache)) {
-            case KEEP_HANDLE:
+            case KEEP:
                 break; // do nothing, keep handle
-            case REMOVE_HANDLE:
+            case REMOVE:
                 delete.add(handle);
                 mutableCache.remove(handle);
                 break;
-            case UPDATE_HANDLE:
+            case UPDATE:
                 CachedWrapperIterable it = mutableCache.getObject(handle);
                 if (it != null) {
                     it = checker.update(handle, it);
