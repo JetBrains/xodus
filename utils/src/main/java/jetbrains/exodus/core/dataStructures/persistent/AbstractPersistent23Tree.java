@@ -17,6 +17,7 @@ package jetbrains.exodus.core.dataStructures.persistent;
 
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.Stack;
+import jetbrains.exodus.util.MathUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -70,9 +71,10 @@ abstract class AbstractPersistent23Tree<K extends Comparable<K>> implements Iter
         if (isEmpty()) {
             return Collections.EMPTY_LIST.iterator();
         }
-        final TreePos<K>[] stack = new TreePos[50]; // 50 should be enough
+        final RootNode<K> root = getRoot();
+        final TreePos<K>[] stack = new TreePos[MathUtil.integerLogarithm(root.getSize()) + 1];
         for (int i = 0; i < stack.length; ++i) {
-            stack[i] = new TreePos<K>(getRoot());
+            stack[i] = new TreePos<K>(root);
         }
         return new Iterator<K>() {
 
@@ -235,9 +237,10 @@ abstract class AbstractPersistent23Tree<K extends Comparable<K>> implements Iter
         if (isEmpty()) {
             return Collections.EMPTY_LIST.iterator();
         }
-        final TreePosRev<K>[] stack = new TreePosRev[50]; // 50 should be enough
+        final RootNode<K> root = getRoot();
+        final TreePosRev<K>[] stack = new TreePosRev[MathUtil.integerLogarithm(root.getSize()) + 1];
         for (int i = 0; i < stack.length; ++i) {
-            stack[i] = new TreePosRev<K>(getRoot());
+            stack[i] = new TreePosRev<K>(root);
         }
         return new Iterator<K>() {
 

@@ -18,6 +18,7 @@ package jetbrains.exodus.log;
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.InvalidSettingException;
+import jetbrains.exodus.util.MathUtil;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -123,14 +124,7 @@ abstract class LogCache {
     }
 
     private static int integerLogarithm(int i) {
-        int result = 0;
-        while (i > 1) {
-            if ((i & 1) == 1) {
-                return -1;
-            }
-            ++result;
-            i >>= 1;
-        }
-        return result;
+        final int result = MathUtil.integerLogarithm(i);
+        return 1 << result == i ? result : -1;
     }
 }
