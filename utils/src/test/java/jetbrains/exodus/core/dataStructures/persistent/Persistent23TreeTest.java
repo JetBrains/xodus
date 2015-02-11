@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.core.dataStructures.persistent;
 
+import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.util.Random;
 import org.junit.Assert;
 import org.junit.Test;
@@ -169,6 +170,49 @@ public class Persistent23TreeTest {
             tree.add(p[i]);
             added.add(p[i]);
         }
+    }
+
+    @Test
+    public void iterationBenchmark() {
+        final Persistent23Tree.MutableTree<Integer> tree = new Persistent23Tree<Integer>().beginWrite();
+        final int count = 100000;
+        for (int i = 0; i < count; ++i) {
+            tree.add(i);
+        }
+        TestUtil.time("Persistent23Tree iteration", new Runnable() {
+            @Override
+            public void run() {
+                for (int i = 0; i < 300; ++i) {
+                    int prev = Integer.MIN_VALUE;
+                    Assert.assertFalse(tree.contains(prev));
+                    final Iterator<Integer> it = tree.iterator();
+                    int j = 0;
+                    while (it.hasNext()) {
+                        j = it.next();
+                        Assert.assertTrue(prev < j);
+                        prev = j;
+                    }
+                    Assert.assertEquals(count - 1, j);
+                }
+            }
+        });
+        TestUtil.time("Persistent23Tree reverse iteration", new Runnable() {
+            @Override
+            public void run() {
+                for (int i = 0; i < 300; ++i) {
+                    int prev = Integer.MAX_VALUE;
+                    Assert.assertFalse(tree.contains(prev));
+                    final Iterator<Integer> it = tree.reverseIterator();
+                    int j = 0;
+                    while (it.hasNext()) {
+                        j = it.next();
+                        Assert.assertTrue(prev > j);
+                        prev = j;
+                    }
+                    Assert.assertEquals(0, j);
+                }
+            }
+        });
     }
 
     @Test

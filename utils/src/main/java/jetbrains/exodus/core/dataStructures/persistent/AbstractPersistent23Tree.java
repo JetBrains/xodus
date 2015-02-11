@@ -56,7 +56,7 @@ abstract class AbstractPersistent23Tree<K extends Comparable<K>> implements Iter
 
     private static class TreePos<K extends Comparable<K>> {
 
-        final Node<K> node;
+        Node<K> node;
         int pos;
 
         TreePos(Node<K> node) {
@@ -64,12 +64,19 @@ abstract class AbstractPersistent23Tree<K extends Comparable<K>> implements Iter
         }
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public Iterator<K> iterator() {
-        //noinspection unchecked
-        return isEmpty() ? Collections.EMPTY_LIST.iterator() : new Iterator<K>() {
+        if (isEmpty()) {
+            return Collections.EMPTY_LIST.iterator();
+        }
+        final TreePos<K>[] stack = new TreePos[50]; // 50 should be enough
+        for (int i = 0; i < stack.length; ++i) {
+            stack[i] = new TreePos<K>(getRoot());
+        }
+        return new Iterator<K>() {
 
-            private Stack<TreePos<K>> stack;
+            private int i = 0;
             private boolean hasNext;
             private boolean hasNextValid;
 
@@ -79,42 +86,35 @@ abstract class AbstractPersistent23Tree<K extends Comparable<K>> implements Iter
                     return hasNext;
                 }
                 hasNextValid = true;
-                if (stack == null) {
-                    Node<K> root = getRoot();
-                    if (root == null) {
-                        hasNext = false;
-                        return hasNext;
-                    }
-                    stack = new Stack<TreePos<K>>();
-                    stack.push(new TreePos<K>(root));
-                }
-                TreePos<K> treePos = stack.peek();
+                TreePos<K> treePos = stack[i];
                 if (treePos.node.isLeaf()) {
                     while (treePos.pos >= (treePos.node.isTernary() ? 2 : 1)) {
-                        stack.pop();
-                        if (stack.isEmpty()) {
+                        if (--i < 0) {
                             hasNext = false;
                             return hasNext;
                         }
-                        treePos = stack.peek();
+                        treePos = stack[i];
                     }
                 } else {
+                    TreePos<K> newPos = stack[++i];
+                    newPos.pos = 0;
                     if (treePos.pos == 0) {
-                        treePos = new TreePos<K>(treePos.node.getFirstChild());
+                        newPos.node = treePos.node.getFirstChild();
                     } else if (treePos.pos == 1) {
-                        treePos = new TreePos<K>(treePos.node.getSecondChild());
+                        newPos.node = treePos.node.getSecondChild();
                     } else {
-                        treePos = new TreePos<K>(treePos.node.getThirdChild());
+                        newPos.node = treePos.node.getThirdChild();
                     }
-                    stack.push(treePos);
+                    treePos = newPos;
                     while (!treePos.node.isLeaf()) {
-                        treePos = new TreePos<K>(treePos.node.getFirstChild());
-                        stack.push(treePos);
+                        newPos = stack[++i];
+                        newPos.pos = 0;
+                        newPos.node = treePos.node.getFirstChild();
+                        treePos = newPos;
                     }
                 }
                 treePos.pos++;
-                hasNext = true;
-                return hasNext;
+                return hasNext = true;
             }
 
             @Override
@@ -123,7 +123,7 @@ abstract class AbstractPersistent23Tree<K extends Comparable<K>> implements Iter
                     throw new NoSuchElementException();
                 }
                 hasNextValid = false;
-                TreePos<K> treePos = stack.peek();
+                final TreePos<K> treePos = stack[i];
                 // treePos.pos must be 1 or 2 here
                 return treePos.pos == 1 ? treePos.node.getFirstKey() : treePos.node.getSecondKey();
             }
@@ -212,11 +212,16 @@ abstract class AbstractPersistent23Tree<K extends Comparable<K>> implements Iter
         };
     }
 
-    class TreePosRev<K extends Comparable<K>> {
-        private final Node<K> node;
+    private static class TreePosRev<K extends Comparable<K>> {
+
+        private Node<K> node;
         private int pos;
 
         TreePosRev(Node<K> node) {
+            setNode(node);
+        }
+
+        private void setNode(Node<K> node) {
             this.node = node;
             pos = 2;
             if (node.isTernary()) {
@@ -225,10 +230,18 @@ abstract class AbstractPersistent23Tree<K extends Comparable<K>> implements Iter
         }
     }
 
+    @SuppressWarnings("unchecked")
     public Iterator<K> reverseIterator() {
+        if (isEmpty()) {
+            return Collections.EMPTY_LIST.iterator();
+        }
+        final TreePosRev<K>[] stack = new TreePosRev[50]; // 50 should be enough
+        for (int i = 0; i < stack.length; ++i) {
+            stack[i] = new TreePosRev<K>(getRoot());
+        }
         return new Iterator<K>() {
 
-            private Stack<TreePosRev<K>> stack;
+            private int i = 0;
             private boolean hasNext;
             private boolean hasNextValid;
 
@@ -238,42 +251,33 @@ abstract class AbstractPersistent23Tree<K extends Comparable<K>> implements Iter
                     return hasNext;
                 }
                 hasNextValid = true;
-                if (stack == null) {
-                    Node<K> root = getRoot();
-                    if (root == null) {
-                        hasNext = false;
-                        return hasNext;
-                    }
-                    stack = new Stack<TreePosRev<K>>();
-                    stack.push(new TreePosRev<K>(root));
-                }
-                TreePosRev<K> treePos = stack.peek();
+                TreePosRev<K> treePos = stack[i];
                 if (treePos.node.isLeaf()) {
                     while (treePos.pos <= 1) {
-                        stack.pop();
-                        if (stack.isEmpty()) {
+                        if (--i < 0) {
                             hasNext = false;
                             return hasNext;
                         }
-                        treePos = stack.peek();
+                        treePos = stack[i];
                     }
                 } else {
+                    TreePosRev<K> newPos = stack[++i];
                     if (treePos.pos == 1) {
-                        treePos = new TreePosRev<K>(treePos.node.getFirstChild());
+                        newPos.setNode(treePos.node.getFirstChild());
                     } else if (treePos.pos == 2) {
-                        treePos = new TreePosRev<K>(treePos.node.getSecondChild());
+                        newPos.setNode(treePos.node.getSecondChild());
                     } else {
-                        treePos = new TreePosRev<K>(treePos.node.getThirdChild());
+                        newPos.setNode(treePos.node.getThirdChild());
                     }
-                    stack.push(treePos);
+                    treePos = newPos;
                     while (!treePos.node.isLeaf()) {
-                        treePos = new TreePosRev<K>(treePos.node.isTernary() ? treePos.node.getThirdChild() : treePos.node.getSecondChild());
-                        stack.push(treePos);
+                        newPos = stack[++i];
+                        newPos.setNode(treePos.node.isTernary() ? treePos.node.getThirdChild() : treePos.node.getSecondChild());
+                        treePos = newPos;
                     }
                 }
                 treePos.pos--;
-                hasNext = true;
-                return hasNext;
+                return hasNext = true;
             }
 
             @Override
@@ -282,7 +286,7 @@ abstract class AbstractPersistent23Tree<K extends Comparable<K>> implements Iter
                     throw new NoSuchElementException();
                 }
                 hasNextValid = false;
-                TreePosRev<K> treePos = stack.peek();
+                final TreePosRev<K> treePos = stack[i];
                 // treePos.pos must be 1 or 2 here
                 return treePos.pos == 1 ? treePos.node.getFirstKey() : treePos.node.getSecondKey();
             }
