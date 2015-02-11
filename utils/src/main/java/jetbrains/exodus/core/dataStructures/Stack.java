@@ -43,12 +43,11 @@ public class Stack<T> extends ArrayList<T> {
 
     @Override
     public int size() {
-        //noinspection VariableNotUsedInsideIf
         return last == null ? 0 : super.size() + 1;
     }
 
     @Override
     public boolean isEmpty() {
-        return size() == 0;
+        return last == null;
     }
 }
