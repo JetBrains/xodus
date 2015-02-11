@@ -254,8 +254,9 @@ public class Persistent23TreeTest {
     @Test
     public void testAddAll() {
         final Persistent23Tree<Integer> source = new Persistent23Tree<Integer>();
-        ArrayList<Integer> entries = new ArrayList<Integer>(BENCHMARK_SIZE);
-        for (int i = 0; i < 10000; i++) {
+        final int count = 1000;
+        ArrayList<Integer> entries = new ArrayList<Integer>(count);
+        for (int i = 0; i < count; i++) {
             final Persistent23Tree.MutableTree<Integer> tree = source.beginWrite();
             tree.addAll(entries.iterator(), i);
             Assert.assertEquals(i, tree.size());
@@ -287,8 +288,9 @@ public class Persistent23TreeTest {
         System.gc();
         System.gc();
         System.gc();
-        System.out.print("Memory used: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()));
+        System.out.println("Memory used: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()));
         final Persistent23Tree.ImmutableTree<Integer> current = source.getCurrent();
+        System.out.println("Nodes count: " + nodesCount(current));
         Integer min = current.getMinimum();
         Assert.assertEquals(0, min.intValue());
         Integer max = tree.getMaximum();
@@ -589,5 +591,19 @@ public class Persistent23TreeTest {
 
     private static int[] genPermutation(Random random) {
         return genPermutation(random, ENTRIES_TO_ADD);
+    }
+
+    private static int nodesCount(Persistent23Tree.ImmutableTree<Integer> tree) {
+        return nodesCount(tree.getRoot());
+    }
+
+    private static int nodesCount(AbstractPersistent23Tree.Node<Integer> node) {
+        if (node.isLeaf()) {
+            return 1;
+        }
+        if (node.isTernary()) {
+            return nodesCount(node.getFirstChild()) + nodesCount(node.getSecondChild()) + nodesCount(node.getThirdChild());
+        }
+        return nodesCount(node.getFirstChild()) + nodesCount(node.getSecondChild());
     }
 }
