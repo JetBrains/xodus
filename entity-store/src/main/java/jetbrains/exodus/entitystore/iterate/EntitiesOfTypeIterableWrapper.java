@@ -78,7 +78,7 @@ public class EntitiesOfTypeIterableWrapper extends UpdatableCachedWrapperIterabl
         if (localIds == EMPTY_IDS && mutableLocalIds == null) {
             return EntityIteratorBase.EMPTY;
         }
-        return new EntityIteratorBase(this) {
+        return new NonDisposableEntityIterator(this) {
 
             private final Iterator<PersistentLong23TreeMap.Entry<EntitiesOfTypeIterableWrapper>> it = getCurrentMap().iterator();
 
