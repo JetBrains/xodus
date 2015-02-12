@@ -17,6 +17,7 @@ package jetbrains.exodus.query;
 
 
 import jetbrains.exodus.entitystore.Entity;
+import jetbrains.exodus.entitystore.EntityIterable;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.entitystore.metadata.*;
 
@@ -29,6 +30,8 @@ public class LinkNotNull extends NodeBase {
 
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData) {
+        queryEngine.assertOperational();
+        final PersistentStoreTransaction txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
         if (metaData != null) {
             EntityMetaData emd = metaData.getEntityMetaData(entityType);
             if (emd != null) {
@@ -37,20 +40,20 @@ public class LinkNotNull extends NodeBase {
                     AssociationMetaData amd = aemd.getAssociationMetaData();
                     if (amd.getType() != AssociationType.Directed) {
                         emd = aemd.getOppositeEntityMetaData();
-                        if (!emd.hasSubTypes()) {
-                            String oppositeType = emd.getType();
-                            aemd = amd.getOppositeEnd(aemd);
-                            String oppositeLinkName = aemd.getName();
-                            queryEngine.assertOperational();
-                            final PersistentStoreTransaction txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
-                            return txn.findWithLinks(entityType, name, oppositeType, oppositeLinkName).distinct();
+                        aemd = amd.getOppositeEnd(aemd);
+                        final String oppositeLinkName = aemd.getName();
+                        EntityIterable result = txn.findWithLinks(entityType, name, emd.getType(), oppositeLinkName);
+                        for (final String subType : emd.getAllSubTypes()) {
+                            emd = metaData.getEntityMetaData(subType);
+                            if (emd != null) {
+                                result = result.union(txn.findWithLinks(entityType, name, emd.getType(), oppositeLinkName));
+                            }
                         }
+                        return result.distinct();
                     }
                 }
             }
         }
-        queryEngine.assertOperational();
-        final PersistentStoreTransaction txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
         return txn.findWithLinks(entityType, name).distinct();
     }
 
