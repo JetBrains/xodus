@@ -46,12 +46,12 @@ public class LinkNotNull extends NodeBase {
                         for (final String subType : emd.getAllSubTypes()) {
                             result = result.union(txn.findWithLinks(entityType, name, subType, oppositeLinkName));
                         }
-                        return result.distinct();
+                        return result;
                     }
                 }
             }
         }
-        return txn.findWithLinks(entityType, name).distinct();
+        return txn.findWithLinks(entityType, name);
     }
 
     @Override
