@@ -44,10 +44,7 @@ public class LinkNotNull extends NodeBase {
                         final String oppositeLinkName = aemd.getName();
                         EntityIterable result = txn.findWithLinks(entityType, name, emd.getType(), oppositeLinkName);
                         for (final String subType : emd.getAllSubTypes()) {
-                            emd = metaData.getEntityMetaData(subType);
-                            if (emd != null) {
-                                result = result.union(txn.findWithLinks(entityType, name, emd.getType(), oppositeLinkName));
-                            }
+                            result = result.union(txn.findWithLinks(entityType, name, subType, oppositeLinkName));
                         }
                         return result.distinct();
                     }
