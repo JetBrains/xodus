@@ -23,7 +23,10 @@ import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.core.dataStructures.FakeObjectCache;
 import jetbrains.exodus.core.dataStructures.ObjectCache;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
-import jetbrains.exodus.core.dataStructures.hash.*;
+import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
+import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
+import jetbrains.exodus.core.dataStructures.hash.LongSet;
+import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.entitystore.metadata.Index;
 import jetbrains.exodus.env.Environment;
@@ -40,7 +43,6 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Set;
 
 @SuppressWarnings({"RawUseOfParameterizedType", "rawtypes"})
 public class PersistentStoreTransaction implements StoreTransaction, TxnGetterStategy {
@@ -54,7 +56,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     @NotNull
     protected final Transaction txn;
     @NotNull
-    protected final Set<EntityIterator> createdIterators;
+    protected final List<EntityIterator> createdIterators;
     private final ObjectCacheBase<PropertyId, Comparable> propsCache;
     @NotNull
     private final ObjectCacheBase<PropertyId, PersistentEntityId> linksCache;
@@ -86,7 +88,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                                @NotNull final Transaction txn) {
         this.store = store;
         this.txn = txn;
-        createdIterators = new HashSet<EntityIterator>();
+        createdIterators = new ArrayList<EntityIterator>();
         final PersistentEntityStoreConfig config = store.getConfig();
         propsCache = createObjectCache(config.getTransactionPropsCacheSize());
         linksCache = createObjectCache(config.getTransactionLinksCacheSize());
@@ -100,7 +102,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     protected PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store, final boolean readOnly) {
         this.store = store;
-        createdIterators = new HashSet<EntityIterator>();
+        createdIterators = new ArrayList<EntityIterator>();
         final PersistentEntityStoreConfig config = store.getConfig();
         propsCache = createObjectCache(config.getTransactionPropsCacheSize());
         linksCache = createObjectCache(config.getTransactionLinksCacheSize());
@@ -581,10 +583,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     public void registerEntityIterator(@NotNull final EntityIterator iterator) {
         createdIterators.add(iterator);
-    }
-
-    public void deregisterEntityIterator(@NotNull final EntityIterator iterator) {
-        createdIterators.remove(iterator);
     }
 
     @NotNull
