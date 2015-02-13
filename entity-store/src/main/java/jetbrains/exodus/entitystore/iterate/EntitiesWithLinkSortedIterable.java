@@ -16,10 +16,7 @@
 package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.entitystore.EntityId;
-import jetbrains.exodus.entitystore.PersistentEntityId;
-import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
-import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.tables.LinkValue;
 import jetbrains.exodus.env.Cursor;
 import org.jetbrains.annotations.NotNull;
@@ -49,6 +46,19 @@ public final class EntitiesWithLinkSortedIterable extends EntitiesWithLinkIterab
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
         return new LinksIterator(openCursor(txn));
+    }
+
+    @NotNull
+    @Override
+    protected EntityIterableHandle getHandleImpl() {
+        return new EntitiesWithLinkIterableHandle() {
+            @Override
+            public void getStringHandle(@NotNull StringBuilder builder) {
+                super.getStringHandle(builder);
+                builder.append('-');
+                builder.append(oppositeEntityTypeId);
+            }
+        };
     }
 
     @SuppressWarnings({"MethodOverridesPrivateMethodOfSuperclass"})

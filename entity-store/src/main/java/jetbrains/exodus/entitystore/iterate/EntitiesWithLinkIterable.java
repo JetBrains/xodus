@@ -67,40 +67,7 @@ public class EntitiesWithLinkIterable extends EntityIterableBase {
     @Override
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
-        return new ConstantEntityIterableHandle(getStore(), EntitiesWithLinkIterable.getType()) {
-            @Override
-            public boolean hasLinkId(int id) {
-                return linkId == id;
-            }
-
-            @Override
-            public int[] getLinkIds() {
-                return new int[]{linkId};
-            }
-
-            @Override
-            public void getStringHandle(@NotNull final StringBuilder builder) {
-                super.getStringHandle(builder);
-                builder.append('-');
-                builder.append(entityTypeId);
-                builder.append('-');
-                builder.append(linkId);
-            }
-
-            @Override
-            public boolean isMatchedLinkAdded(@NotNull final EntityId source,
-                                              @NotNull final EntityId target,
-                                              final int linkId) {
-                return entityTypeId == source.getTypeId();
-            }
-
-            @Override
-            public boolean isMatchedLinkDeleted(@NotNull final EntityId source,
-                                                @NotNull final EntityId target,
-                                                final int linkId) {
-                return entityTypeId == source.getTypeId();
-            }
-        };
+        return new EntitiesWithLinkIterableHandle();
     }
 
     protected int getEntityTypeId() {
@@ -148,6 +115,46 @@ public class EntitiesWithLinkIterable extends EntityIterableBase {
                 final LinkValue value = LinkValue.entryToLinkValue(getCursor().getKey());
                 hasNext = value.getLinkId() == linkId;
             }
+        }
+    }
+
+    protected class EntitiesWithLinkIterableHandle extends ConstantEntityIterableHandle {
+
+        public EntitiesWithLinkIterableHandle() {
+            super(EntitiesWithLinkIterable.this.getStore(), EntitiesWithLinkIterable.getType());
+        }
+
+        @Override
+        public boolean hasLinkId(int id) {
+            return linkId == id;
+        }
+
+        @Override
+        public int[] getLinkIds() {
+            return new int[]{linkId};
+        }
+
+        @Override
+        public void getStringHandle(@NotNull final StringBuilder builder) {
+            super.getStringHandle(builder);
+            builder.append('-');
+            builder.append(entityTypeId);
+            builder.append('-');
+            builder.append(linkId);
+        }
+
+        @Override
+        public boolean isMatchedLinkAdded(@NotNull final EntityId source,
+                                          @NotNull final EntityId target,
+                                          final int linkId) {
+            return entityTypeId == source.getTypeId();
+        }
+
+        @Override
+        public boolean isMatchedLinkDeleted(@NotNull final EntityId source,
+                                            @NotNull final EntityId target,
+                                            final int linkId) {
+            return entityTypeId == source.getTypeId();
         }
     }
 }
