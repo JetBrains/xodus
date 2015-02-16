@@ -20,7 +20,10 @@ import org.jetbrains.annotations.NotNull;
 
 public class StringInterner {
 
-    private static final ConcurrentObjectCache<String, String> cache = new ConcurrentObjectCache<String, String>(5000);
+    private static final int NUMBER_OF_GENERATIONS = 2;
+    private static final int INTERNER_SIZE = 3089 * NUMBER_OF_GENERATIONS;
+
+    private static final ConcurrentObjectCache<String, String> cache = new ConcurrentObjectCache<String, String>(INTERNER_SIZE, NUMBER_OF_GENERATIONS);
 
     private StringInterner() {
     }
@@ -39,11 +42,11 @@ public class StringInterner {
 
     public static String intern(@NotNull final StringBuilder builder, final int maxLen) {
         final String result = builder.toString();
-        final String cached = cache.tryKey(result);
-        if (cached != null) {
-            return cached;
-        }
         if (builder.length() <= maxLen) {
+            final String cached = cache.tryKey(result);
+            if (cached != null) {
+                return cached;
+            }
             cache.cacheObject(result, result);
         }
         return result;
