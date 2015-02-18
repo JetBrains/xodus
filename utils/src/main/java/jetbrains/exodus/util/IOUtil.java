@@ -72,11 +72,23 @@ public class IOUtil {
     public static void copyStreams(@NotNull final InputStream source,
                                    @NotNull final OutputStream target,
                                    @NotNull final ByteArraySpinAllocator bufferAllocator) throws IOException {
+        copyStreams(source, Long.MAX_VALUE, target, bufferAllocator);
+    }
+
+    public static void copyStreams(@NotNull final InputStream source,
+                                   final long sourceLen,
+                                   @NotNull final OutputStream target,
+                                   @NotNull final ByteArraySpinAllocator bufferAllocator) throws IOException {
         final byte[] buffer = bufferAllocator.alloc();
         try {
+            long totalRead = 0;
             int read;
-            while ((read = source.read(buffer)) > 0) {
-                target.write(buffer, 0, read);
+            while (totalRead < sourceLen && (read = source.read(buffer)) >= 0) {
+                if (read > 0) {
+                    read = (int) Math.min(sourceLen - totalRead, read);
+                    target.write(buffer, 0, read);
+                    totalRead += read;
+                }
             }
         } finally {
             bufferAllocator.dispose(buffer);

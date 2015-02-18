@@ -63,4 +63,31 @@ public class FileSystemBlobVault extends FileSystemBlobVaultOld {
         }
         return result;
     }
+
+    protected long getBlobHandleByFile(@NotNull final File file) {
+        final String name = file.getName();
+        final String blobExtension = getBlobExtension();
+        final int blobExtensionStart = name.indexOf(blobExtension);
+        if (name.endsWith(blobExtension) && (blobExtensionStart == 2 || blobExtensionStart == 1)) {
+            try {
+                long result = Integer.parseInt(name.substring(0, blobExtensionStart), 16);
+                File f = file;
+                int shift = 0;
+                while (true) {
+                    f = f.getParentFile();
+                    if (f == null) {
+                        break;
+                    }
+                    if (f.equals(getVaultLocation())) {
+                        return result;
+                    }
+                    shift += Byte.SIZE;
+                    result = result + (((long) Integer.parseInt(f.getName(), 16)) << shift);
+                }
+            } catch (NumberFormatException nfe) {
+                throw new EntityStoreException("Not a file of filesystem blob vault: " + file, nfe);
+            }
+        }
+        throw new EntityStoreException("Not a file of filesystem blob vault: " + file);
+    }
 }

@@ -307,7 +307,7 @@ public class EnvironmentImpl implements Environment {
 
     @Override
     public BackupStrategy getBackupStrategy() {
-        return new BackupStrategyImpl(this);
+        return new EnvironmentBackupStrategyImpl(this);
     }
 
     @Override

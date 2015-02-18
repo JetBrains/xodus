@@ -43,8 +43,7 @@ public class PersistentSequence implements Sequence, FlushLog.Member {
         this.store = store;
         this.name = name;
         idKeyEntry = sequenceNameToEntry(name);
-        final ByteIterable value = store.get(txn.getEnvironmentTransaction(), idKeyEntry);
-        val = new AtomicLong(value == null ? -1 : LongBinding.compressedEntryToLong(value));
+        val = new AtomicLong(loadValue(txn));
     }
 
     public String getName() {
@@ -88,6 +87,11 @@ public class PersistentSequence implements Sequence, FlushLog.Member {
                 }
             });
         }
+    }
+
+    long loadValue(@NotNull final PersistentStoreTransaction txn) {
+        final ByteIterable value = store.get(txn.getEnvironmentTransaction(), idKeyEntry);
+        return value == null ? -1 : LongBinding.compressedEntryToLong(value);
     }
 
     private static ArrayByteIterable sequenceNameToEntry(@NotNull final String sequenceName) {

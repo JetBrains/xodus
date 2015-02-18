@@ -15,11 +15,14 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.BackupStrategy;
 import org.junit.Assert;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FilenameFilter;
+import java.util.NavigableMap;
+import java.util.TreeMap;
 
 public class BlobVaultTests extends EntityStoreTestBase {
 
@@ -51,5 +54,31 @@ public class BlobVaultTests extends EntityStoreTestBase {
                 return name.endsWith(PersistentEntityStoreImpl.BLOBS_EXTENSION);
             }
         }).length);
+    }
+
+    public void testHandleToFileAndFileToHandle() {
+        final PersistentEntityStoreImpl store = getEntityStore();
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        store.getConfig().setMaxInPlaceBlobSize(0); // no in-lace blobs
+        final int count = 1000;
+        for (int i = 0; i < count; ++i) {
+            txn.newEntity("E").setBlob("b", new ByteArrayInputStream("content".getBytes()));
+        }
+        Assert.assertTrue(txn.flush());
+        final FileSystemBlobVault blobVault = (FileSystemBlobVault) store.getBlobVault();
+        final NavigableMap<Long, File> handlesToFiles = new TreeMap<Long, File>();
+        for (final BackupStrategy.FileDescriptor fd : blobVault.getBackupStrategy().listFiles()) {
+            final File file = fd.getFile();
+            if (file.isFile() && !file.getName().equals(FileSystemBlobVaultOld.VERSION_FILE)) {
+                final long handle = blobVault.getBlobHandleByFile(file);
+                Assert.assertFalse(handlesToFiles.containsKey(handle));
+                handlesToFiles.put(handle, file);
+                Assert.assertEquals(file, blobVault.getBlobLocation(handle));
+            }
+        }
+        final long min = handlesToFiles.navigableKeySet().iterator().next();
+        Assert.assertEquals(0L, min);
+        final long max = handlesToFiles.descendingKeySet().iterator().next();
+        Assert.assertEquals((long) (count - 1), max);
     }
 }

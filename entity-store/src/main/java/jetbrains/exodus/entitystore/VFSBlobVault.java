@@ -56,7 +56,7 @@ public class VFSBlobVault extends BlobVault {
     }
 
     @Override
-    public long generateNextHandle(@NotNull final Transaction txn) {
+    public long nextHandle(@NotNull final Transaction txn) {
         return fs.createFile(txn, "blob.%d").getDescriptor();
     }
 
@@ -159,13 +159,7 @@ public class VFSBlobVault extends BlobVault {
 
     public void refactorFromFS(@NotNull final PersistentEntityStoreImpl store) throws IOException {
         final BlobVault sourceVault = new FileSystemBlobVaultOld(store.getLocation(),
-                "blobs", ".blob", new BlobHandleGenerator() {
-            @Override
-            public long generateNextHandle(@NotNull final Transaction txn) {
-                throw new UnsupportedOperationException();
-            }
-        }
-        );
+                "blobs", ".blob", BlobHandleGenerator.IMMUTABLE);
 
         final LongSet allBlobs = store.computeInReadonlyTransaction(new StoreTransactionalComputable<LongSet>() {
             @Override

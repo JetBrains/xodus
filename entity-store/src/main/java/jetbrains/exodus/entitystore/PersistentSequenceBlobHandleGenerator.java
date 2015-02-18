@@ -18,15 +18,17 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.env.Transaction;
 import org.jetbrains.annotations.NotNull;
 
-public interface BlobHandleGenerator {
+class PersistentSequenceBlobHandleGenerator implements BlobHandleGenerator {
 
-    long nextHandle(@NotNull final Transaction txn);
+    @NotNull
+    private final PersistentSequence sequence;
 
-    final BlobHandleGenerator IMMUTABLE = new BlobHandleGenerator() {
+    PersistentSequenceBlobHandleGenerator(@NotNull final PersistentSequence sequence) {
+        this.sequence = sequence;
+    }
 
-        @Override
-        public long nextHandle(@NotNull final Transaction txn) {
-            throw new UnsupportedOperationException();
-        }
-    };
+    @Override
+    public long nextHandle(@NotNull final Transaction txn) {
+        return sequence.increment();
+    }
 }

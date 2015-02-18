@@ -17,7 +17,6 @@ package jetbrains.exodus.util;
 
 import jetbrains.exodus.BackupStrategy;
 import jetbrains.exodus.Backupable;
-import jetbrains.exodus.core.dataStructures.Pair;
 import org.apache.commons.compress.archivers.ArchiveOutputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
@@ -64,11 +63,13 @@ public class CompressBackupUtil {
                 archive = new TarArchiveOutputStream(new GZIPOutputStream(
                         new BufferedOutputStream(new FileOutputStream(backupFile)), 0x1000));
             }
-            for (final Pair<File, String> pair : strategy.listFiles()) {
-                final File file = pair.getFirst();
-                final long fileSize = file.length();
-                if (file.isFile() && fileSize != 0L) {
-                    archiveFile(archive, pair.getSecond(), file, fileSize);
+            for (final BackupStrategy.FileDescriptor fd : strategy.listFiles()) {
+                final File file = fd.getFile();
+                if (file.isFile()) {
+                    final long fileSize = Math.min(file.length(), strategy.acceptFile(file));
+                    if (fileSize > 0L) {
+                        archiveFile(archive, fd.getPath(), file, fileSize);
+                    }
                 }
             }
             archive.close();
@@ -178,9 +179,9 @@ public class CompressBackupUtil {
         } else {
             throw new IOException("Unknown archive output stream");
         }
-        final FileInputStream input = new FileInputStream(source);
+        final InputStream input = new FileInputStream(source);
         try {
-            IOUtil.copyStreams(input, out, IOUtil.BUFFER_ALLOCATOR);
+            IOUtil.copyStreams(input, fileSize, out, IOUtil.BUFFER_ALLOCATOR);
         } finally {
             input.close();
         }

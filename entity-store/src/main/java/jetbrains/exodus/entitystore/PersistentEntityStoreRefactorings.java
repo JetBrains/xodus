@@ -59,7 +59,7 @@ final class PersistentEntityStoreRefactorings {
                 @Override
                 public Long compute(@NotNull final StoreTransaction tx) {
                     final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
-                    return fsBlobVault.generateNextHandle(txn.getEnvironmentTransaction());
+                    return fsBlobVault.nextHandle(txn.getEnvironmentTransaction());
                 }
             });
             for (int i = 0; i < 10000; ++i) {
@@ -452,16 +452,8 @@ final class PersistentEntityStoreRefactorings {
                 // create new vault
                 final FileSystemBlobVault newVault;
                 try {
-                    newVault = new FileSystemBlobVault(store.getLocation(),
-                            TEMP_BLOBS_DIR,
-                            PersistentEntityStoreImpl.BLOBS_EXTENSION,
-                            new BlobHandleGenerator() {
-                                @Override
-                                public long generateNextHandle(@NotNull Transaction txn) {
-                                    return sequence.increment();
-                                }
-                            }
-                    );
+                    newVault = new FileSystemBlobVault(store.getLocation(), TEMP_BLOBS_DIR,
+                            PersistentEntityStoreImpl.BLOBS_EXTENSION, new PersistentSequenceBlobHandleGenerator(sequence));
                     store.setBlobVault(newVault);
                 } catch (IOException e) {
                     throw ExodusException.toEntityStoreException(e);
@@ -540,13 +532,7 @@ final class PersistentEntityStoreRefactorings {
                     store.setBlobVault(new FileSystemBlobVault(store.getLocation(),
                             PersistentEntityStoreImpl.BLOBS_DIR,
                             PersistentEntityStoreImpl.BLOBS_EXTENSION,
-                            new BlobHandleGenerator() {
-                                @Override
-                                public long generateNextHandle(@NotNull Transaction txn) {
-                                    return sequence.increment();
-                                }
-                            }
-                    ));
+                            new PersistentSequenceBlobHandleGenerator(sequence)));
                 } catch (IOException e) {
                     throw ExodusException.toEntityStoreException(e);
                 }

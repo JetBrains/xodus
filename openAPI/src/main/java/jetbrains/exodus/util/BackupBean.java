@@ -17,13 +17,11 @@ package jetbrains.exodus.util;
 
 import jetbrains.exodus.BackupStrategy;
 import jetbrains.exodus.Backupable;
-import jetbrains.exodus.core.dataStructures.Pair;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.File;
 import java.util.Iterator;
 import java.util.List;
 
@@ -117,17 +115,17 @@ public class BackupBean implements Backupable {
             }
 
             @Override
-            public Iterable<Pair<File, String>> listFiles() {
-                return new Iterable<Pair<File, String>>() {
+            public Iterable<FileDescriptor> listFiles() {
+                return new Iterable<FileDescriptor>() {
                     @Override
-                    public Iterator<Pair<File, String>> iterator() {
-                        return new Iterator<Pair<File, String>>() {
+                    public Iterator<FileDescriptor> iterator() {
+                        return new Iterator<FileDescriptor>() {
 
                             @Nullable
-                            private Pair<File, String> next = null;
+                            private FileDescriptor next = null;
                             private int i = 0;
                             @NotNull
-                            private Iterator<Pair<File, String>> it = EMPTY.listFiles().iterator();
+                            private Iterator<FileDescriptor> it = EMPTY.listFiles().iterator();
 
                             @Override
                             public boolean hasNext() {
@@ -135,7 +133,7 @@ public class BackupBean implements Backupable {
                             }
 
                             @Override
-                            public Pair<File, String> next() {
+                            public FileDescriptor next() {
                                 try {
                                     return getNext();
                                 } finally {
@@ -148,7 +146,7 @@ public class BackupBean implements Backupable {
                                 throw new UnsupportedOperationException("remove");
                             }
 
-                            private Pair<File, String> getNext() {
+                            private FileDescriptor getNext() {
                                 if (next == null) {
                                     while (!it.hasNext()) {
                                         if (i >= targetsCount) {

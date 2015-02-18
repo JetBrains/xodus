@@ -16,7 +16,6 @@
 package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.BackupStrategy;
-import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.env.Environment;
@@ -38,7 +37,8 @@ public class FileSystemBlobVaultOld extends BlobVault {
     protected static final Log log = LogFactory.getLog("FileSystemBlobVault");
 
     @NonNls
-    private static final String VERSION_FILE = "version";
+    public static final String VERSION_FILE = "version";
+
     private static final int EXPECTED_VERSION = 0;
     private static final long UNKNOWN_SIZE = -1L;
 
@@ -116,8 +116,8 @@ public class FileSystemBlobVaultOld extends BlobVault {
     }
 
     @Override
-    public long generateNextHandle(@NotNull final Transaction txn) {
-        return blobHandleGenerator.generateNextHandle(txn);
+    public long nextHandle(@NotNull final Transaction txn) {
+        return blobHandleGenerator.nextHandle(txn);
     }
 
     public void setContent(final long blobHandle, @NotNull final InputStream content) throws Exception {
@@ -252,64 +252,62 @@ public class FileSystemBlobVaultOld extends BlobVault {
     @Override
     public BackupStrategy getBackupStrategy() {
         return new BackupStrategy() {
-            @Override
-            public void beforeBackup() {
-            }
 
             @Override
-            public Iterable<Pair<File, String>> listFiles() {
-                return new Iterable<Pair<File, String>>() {
+            public Iterable<FileDescriptor> listFiles() {
+                return new Iterable<FileDescriptor>() {
                     @Override
-                    public Iterator<Pair<File, String>> iterator() {
-                        final Deque<Pair<File, String>> queue = new LinkedList<Pair<File, String>>();
-                        queue.add(new Pair<File, String>(location, blobsDirectory + File.separator));
-                        return new Iterator<Pair<File, String>>() {
+                    public Iterator<FileDescriptor> iterator() {
+                        final Deque<FileDescriptor> queue = new LinkedList<FileDescriptor>();
+                        queue.add(new FileDescriptor(location, blobsDirectory + File.separator));
+                        return new Iterator<FileDescriptor>() {
                             int i = 0;
                             int n = 0;
                             File[] files;
-                            Pair<File, String> nextPair;
+                            FileDescriptor next;
                             String currentPrefix;
 
                             @Override
                             public boolean hasNext() {
-                                if (nextPair != null) {
+                                if (next != null) {
                                     return true;
                                 }
                                 while (i < n) {
                                     final File file = files[i++];
                                     final String name = file.getName();
                                     if (file.isDirectory()) {
-                                        queue.push(new Pair<File, String>(file, currentPrefix + file.getName() + File.separator));
+                                        queue.push(new FileDescriptor(file, currentPrefix + file.getName() + File.separator));
                                     } else if (file.isFile()) {
-                                        if (file.length() == 0) continue;
+                                        final long fileSize = file.length();
+                                        if (fileSize == 0) continue;
                                         if (name.endsWith(blobExtension) || name.equalsIgnoreCase(VERSION_FILE)) {
-                                            nextPair = new Pair<File, String>(file, currentPrefix);
+                                            next = new FileDescriptor(file, currentPrefix, fileSize);
                                             return true;
                                         }
                                     } else {
                                         // something strange with filesystem
-                                        throw new RuntimeException("File or directory expected: " + file.toString());
+                                        throw new EntityStoreException("File or directory expected: " + file.toString());
                                     }
                                 }
                                 if (queue.isEmpty()) {
                                     return false;
                                 }
-                                final Pair<File, String> pair = queue.pop();
-                                files = IOUtil.listFiles(pair.getFirst());
-                                currentPrefix = pair.getSecond();
+                                final FileDescriptor fd = queue.pop();
+                                files = IOUtil.listFiles(fd.getFile());
+                                currentPrefix = fd.getPath();
                                 i = 0;
                                 n = files.length;
-                                nextPair = pair;
+                                next = fd;
                                 return true;
                             }
 
                             @Override
-                            public Pair<File, String> next() {
+                            public FileDescriptor next() {
                                 if (!hasNext()) {
                                     throw new NoSuchElementException();
                                 }
-                                final Pair<File, String> result = nextPair;
-                                nextPair = null;
+                                final FileDescriptor result = next;
+                                next = null;
                                 return result;
                             }
 
@@ -320,14 +318,6 @@ public class FileSystemBlobVaultOld extends BlobVault {
                         };
                     }
                 };
-            }
-
-            @Override
-            public void afterBackup() {
-            }
-
-            @Override
-            public void onError(Throwable t) {
             }
         };
     }

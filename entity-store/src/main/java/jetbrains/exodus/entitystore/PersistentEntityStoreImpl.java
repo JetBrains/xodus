@@ -56,9 +56,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @NonNls
     static final String BLOBS_EXTENSION = ".blob";
     @NonNls
-    private static final String SEQUENCES_STORE = "sequences";
+    static final String BLOB_HANDLES_SEQUENCE = "blob.handles.sequence";
     @NonNls
-    private static final String BLOB_HANDLES_SEQUENCE = "blob.handles.sequence";
+    private static final String SEQUENCES_STORE = "sequences";
     private static final long EMPTY_BLOB_HANDLE = Long.MAX_VALUE;
     private static final long IN_PLACE_BLOB_HANDLE = EMPTY_BLOB_HANDLE - 1;
     private static final int ENTITY_ID_CACHE_SIZE = 2047;
@@ -357,31 +357,15 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final PersistentSequence sequence = getSequence(getAndCheckCurrentTransaction(), BLOB_HANDLES_SEQUENCE);
         FileSystemBlobVaultOld blobVault;
         try {
-            blobVault = new FileSystemBlobVault(location, BLOBS_DIR, BLOBS_EXTENSION, new BlobHandleGenerator() {
-                @Override
-                public long generateNextHandle(@NotNull final Transaction txn) {
-                    return sequence.increment();
-                }
-            });
+            blobVault = new FileSystemBlobVault(location, BLOBS_DIR, BLOBS_EXTENSION, new PersistentSequenceBlobHandleGenerator(sequence));
         } catch (UnexpectedBlobVaultVersionException e) {
             blobVault = null;
         }
         if (blobVault == null) {
             if (config.getMaxInPlaceBlobSize() > 0) {
-                blobVault = new FileSystemBlobVaultOld(location, BLOBS_DIR, BLOBS_EXTENSION, new BlobHandleGenerator() {
-                    @Override
-                    public long generateNextHandle(@NotNull final Transaction txn) {
-                        // this makes the vault read-only
-                        throw new UnsupportedOperationException();
-                    }
-                });
+                blobVault = new FileSystemBlobVaultOld(location, BLOBS_DIR, BLOBS_EXTENSION, BlobHandleGenerator.IMMUTABLE);
             } else {
-                blobVault = new FileSystemBlobVaultOld(location, BLOBS_DIR, BLOBS_EXTENSION, new BlobHandleGenerator() {
-                    @Override
-                    public long generateNextHandle(@NotNull final Transaction txn) {
-                        return sequence.increment();
-                    }
-                });
+                blobVault = new FileSystemBlobVaultOld(location, BLOBS_DIR, BLOBS_EXTENSION, new PersistentSequenceBlobHandleGenerator(sequence));
             }
         }
         final long current = sequence.get();
@@ -1085,7 +1069,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     })
             );
         } else {
-            blobHandle = blobVault.generateNextHandle(envTxn);
+            blobHandle = blobVault.nextHandle(envTxn);
             blobs.put(envTxn, entityLocalId, blobId, LongBinding.longToCompressedEntry(blobHandle));
         }
         return blobHandle;
@@ -2192,64 +2176,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     public BackupStrategy getBackupStrategy() {
         final BackupStrategy environmentBackupStrategy = environment.getBackupStrategy();
         final BackupStrategy blobVaultBackupStrategy = blobVault.getBackupStrategy();
-        return new BackupStrategy() {
-            @Override
-            public void beforeBackup() throws Exception {
-                environmentBackupStrategy.beforeBackup();
-                blobVaultBackupStrategy.beforeBackup();
-            }
-
-            @Override
-            public Iterable<Pair<File, String>> listFiles() {
-                final Iterable<Pair<File, String>> blobsItr = blobVaultBackupStrategy.listFiles();
-                final Iterable<Pair<File, String>> envItr = environmentBackupStrategy.listFiles();
-                return new Iterable<Pair<File, String>>() {
-                    @Override
-                    public Iterator<Pair<File, String>> iterator() {
-                        return new Iterator<Pair<File, String>>() {
-                            Iterator<Pair<File, String>> itr = blobsItr.iterator();
-                            boolean inEnv = false;
-
-                            @Override
-                            public boolean hasNext() {
-                                if (itr.hasNext()) {
-                                    return true;
-                                }
-                                if (inEnv) {
-                                    return false;
-                                }
-                                inEnv = true;
-                                itr = envItr.iterator();
-                                return itr.hasNext();
-                            }
-
-                            @Override
-                            public Pair<File, String> next() {
-                                if (!hasNext()) {
-                                    throw new NoSuchElementException();
-                                }
-                                return itr.next();
-                            }
-
-                            @Override
-                            public void remove() {
-                                throw new UnsupportedOperationException();
-                            }
-                        };
-                    }
-                };
-            }
-
-            @Override
-            public void afterBackup() throws Exception {
-                environmentBackupStrategy.afterBackup();
-                blobVaultBackupStrategy.afterBackup();
-            }
-
-            @Override
-            public void onError(Throwable t) {
-            }
-        };
+        return new PersistentEntityStoreBackupStrategy(this);
     }
 
     @Override
