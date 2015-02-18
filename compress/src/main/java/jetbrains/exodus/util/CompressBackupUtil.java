@@ -17,6 +17,7 @@ package jetbrains.exodus.util;
 
 import jetbrains.exodus.BackupStrategy;
 import jetbrains.exodus.Backupable;
+import jetbrains.exodus.ExodusException;
 import org.apache.commons.compress.archivers.ArchiveOutputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
@@ -47,8 +48,8 @@ public class CompressBackupUtil {
             throw new IOException("Failed to create " + backupRoot.getAbsolutePath());
         }
         final File backupFile;
+        strategy.beforeBackup();
         try {
-            strategy.beforeBackup();
             final ArchiveOutputStream archive;
             if (zip) {
                 final String fileName = getTimeStampedZipFileName();
@@ -74,6 +75,9 @@ public class CompressBackupUtil {
             }
             archive.close();
             log.info("Backup file \"" + backupFile.getName() + "\" created.");
+        } catch (Throwable t) {
+            strategy.onError(t);
+            throw ExodusException.toExodusException(t, "Backup failed");
         } finally {
             strategy.afterBackup();
         }
