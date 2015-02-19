@@ -16,7 +16,7 @@
 package jetbrains.exodus.gc;
 
 import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.core.dataStructures.LongObjectCache;
+import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.core.execution.JobProcessorAdapter;
@@ -40,8 +40,6 @@ public final class GarbageCollector {
 
     private static final org.apache.commons.logging.Log logging = LogFactory.getLog(GarbageCollector.class);
 
-    private static final int STORES_CACHE_SIZE = 1024;
-
     @NotNull
     private final EnvironmentImpl env;
     @NotNull
@@ -58,7 +56,7 @@ public final class GarbageCollector {
     @NotNull
     private final IExpirationChecker expirationChecker;
     @NotNull
-    private final LongObjectCache<StoreImpl> openStoresCache;
+    private final IntHashMap<StoreImpl> openStoresCache;
 
     public GarbageCollector(@NotNull final EnvironmentImpl env) {
         this.env = env;
@@ -85,7 +83,7 @@ public final class GarbageCollector {
                 }
             };
         }
-        openStoresCache = new LongObjectCache<StoreImpl>(STORES_CACHE_SIZE);
+        openStoresCache = new IntHashMap<StoreImpl>();
         env.getLog().addNewFileListener(new NewFileListener() {
             @Override
             public void fileCreated(long fileAddress) {
@@ -189,10 +187,11 @@ public final class GarbageCollector {
                 }
                 final int structureId = loggable.getStructureId();
                 if (structureId != Loggable.NO_STRUCTURE_ID && structureId != EnvironmentImpl.META_TREE_ID) {
-                    StoreImpl store = openStoresCache.tryKey(structureId);
+                    StoreImpl store = openStoresCache.get(structureId);
                     if (store == null) {
+                        // TODO: remove openStoresCache when txn.openStoreByStructureId() is fast enough (XD-381)
                         store = txn.openStoreByStructureId(structureId);
-                        openStoresCache.cacheObject(structureId, store);
+                        openStoresCache.put(structureId, store);
                     }
                     store.reclaim(txn, loggable, loggables, expirationChecker);
                 }
