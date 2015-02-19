@@ -24,30 +24,28 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Stack;
 
 public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
 
+    private final Stack<PersistentStoreTransaction> nestedTxns;
     private final long logHighAddress;
-    private final PersistentStoreTransaction txn;
     private final BackupStrategy environmentBackupStrategy;
     private final BackupStrategy blobVaultBackupStrategy;
 
     public PersistentEntityStoreBackupStrategy(@NotNull final PersistentEntityStoreImpl store) {
+        nestedTxns = new Stack<PersistentStoreTransaction>();
         // TODO: rewrite this rather tricky optimistic evaluation of atomic pair: transaction and corresponding log high address
         final EnvironmentImpl env = (EnvironmentImpl) store.getEnvironment();
         final Log log = env.getLog();
-        PersistentStoreTransaction txn1 = store.beginReadonlyTransaction();
+        nestedTxns.push(store.beginReadonlyTransaction());
         while (true) {
             final long highAddress = log.getHighAddress();
-            final PersistentStoreTransaction txn2 = store.beginReadonlyTransaction();
+            nestedTxns.push(store.beginReadonlyTransaction());
             if (log.getHighAddress() == highAddress) {
                 logHighAddress = highAddress;
-                txn1.abort();
-                txn = txn2;
                 break;
             }
-            txn1.abort();
-            txn1 = txn2;
         }
         environmentBackupStrategy = new BackupStrategyDecorator(env.getBackupStrategy()) {
             @Override
@@ -59,6 +57,7 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
         if (!(blobVault instanceof FileSystemBlobVault)) {
             blobVaultBackupStrategy = blobVault.getBackupStrategy();
         } else {
+            final PersistentStoreTransaction txn = nestedTxns.peek();
             final FileSystemBlobVault fsBlobVault = (FileSystemBlobVault) blobVault;
             final long lastUsedHandle = store.getSequence(txn, PersistentEntityStoreImpl.BLOB_HANDLES_SEQUENCE).loadValue(txn);
             blobVaultBackupStrategy = new BackupStrategyDecorator(blobVault.getBackupStrategy()) {
@@ -101,7 +100,9 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
             blobVaultBackupStrategy.afterBackup();
             environmentBackupStrategy.afterBackup();
         } finally {
-            txn.abort();
+            while (!nestedTxns.isEmpty()) {
+                nestedTxns.pop().abort();
+            }
         }
     }
 
