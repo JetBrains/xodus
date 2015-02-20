@@ -147,7 +147,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     public PersistentEntityStoreImpl(@NotNull final Environment environment,
                                      @Nullable final BlobVault blobVault,
                                      @NotNull final String name) {
-        this(PersistentEntityStoreConfig.DEFAULT, environment, blobVault, name);
+        this(new PersistentEntityStoreConfig(), environment, blobVault, name);
     }
 
     public PersistentEntityStoreImpl(@NotNull final PersistentEntityStoreConfig config,

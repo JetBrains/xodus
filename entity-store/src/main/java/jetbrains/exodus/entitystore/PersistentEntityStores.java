@@ -44,7 +44,7 @@ public final class PersistentEntityStores {
     public static PersistentEntityStoreImpl newInstance(@NotNull final Environment environment,
                                                         @Nullable final BlobVault blobVault,
                                                         @NotNull final String name) {
-        return newInstance(PersistentEntityStoreConfig.DEFAULT, environment, blobVault, name);
+        return newInstance(new PersistentEntityStoreConfig(), environment, blobVault, name);
     }
 
     public static PersistentEntityStoreImpl newInstance(@NotNull final PersistentEntityStoreConfig config,
