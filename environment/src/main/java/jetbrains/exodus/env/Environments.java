@@ -34,7 +34,7 @@ public final class Environments {
 
     @NotNull
     public static Environment newInstance(@NotNull final String dir) {
-        return newInstance(dir, EnvironmentConfig.DEFAULT);
+        return newInstance(dir, new EnvironmentConfig());
     }
 
     @NotNull
@@ -44,7 +44,7 @@ public final class Environments {
 
     @NotNull
     public static Environment newInstance(@NotNull final File dir) {
-        return newInstance(dir, EnvironmentConfig.DEFAULT);
+        return newInstance(dir, new EnvironmentConfig());
     }
 
     @NotNull
@@ -64,7 +64,7 @@ public final class Environments {
 
     @NotNull
     public static ContextualEnvironment newContextualInstance(@NotNull final String dir) {
-        return newContextualInstance(dir, EnvironmentConfig.DEFAULT);
+        return newContextualInstance(dir, new EnvironmentConfig());
     }
 
     @NotNull
@@ -74,7 +74,7 @@ public final class Environments {
 
     @NotNull
     public static ContextualEnvironment newContextualInstance(@NotNull final File dir) {
-        return newContextualInstance(dir, EnvironmentConfig.DEFAULT);
+        return newContextualInstance(dir, new EnvironmentConfig());
     }
 
     @NotNull

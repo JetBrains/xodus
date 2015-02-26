@@ -162,7 +162,7 @@ final class PersistentEntityStoreRefactorings {
         });
     }
 
-    void refactorMakeLinkTablesConsistent(final boolean heavy) {
+    void refactorMakeLinkTablesConsistent() {
         store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
             @Override
             public void execute(@NotNull final StoreTransaction tx) {
@@ -180,16 +180,18 @@ final class PersistentEntityStoreRefactorings {
                         final Cursor cursor = linksTable.getFirstIndexCursor(envTxn);
                         final Store entitiesTable = store.getEntitiesTable(txn, entityTypeId);
                         while (cursor.getNext()) {
-                            if (heavy) {
-                                final long localId = LongBinding.compressedEntryToLong(cursor.getKey());
-                                final LinkValue linkValue = LinkValue.entryToLinkValue(cursor.getValue());
-                                if (entitiesTable.get(envTxn, LongBinding.longToCompressedEntry(localId)) == null ||
-                                        store.getLastVersion(txn, linkValue.getEntityId()) < 0) {
-                                    do {
-                                        deleteLinks.add(new Pair<ByteIterable, ByteIterable>(cursor.getKey(), cursor.getValue()));
-                                    } while (cursor.getNextDup());
-                                    continue; // don't add the pair to the table if it is inconsistent
-                                }
+                            final long localId = LongBinding.compressedEntryToLong(cursor.getKey());
+                            if (entitiesTable.get(envTxn, LongBinding.longToCompressedEntry(localId)) == null) {
+                                do {
+                                    deleteLinks.add(new Pair<ByteIterable, ByteIterable>(cursor.getKey(), cursor.getValue()));
+                                } while (cursor.getNextDup());
+                                continue;
+                            }
+                            final LinkValue linkValue = LinkValue.entryToLinkValue(cursor.getValue());
+                            // if target doesn't exist
+                            if (store.getLastVersion(txn, linkValue.getEntityId()) < 0) {
+                                deleteLinks.add(new Pair<ByteIterable, ByteIterable>(cursor.getKey(), cursor.getValue()));
+                                continue;
                             }
                             if (linksTable.get2(envTxn, cursor.getValue()) == null) {
                                 badLinks.add(new Pair<ByteIterable, ByteIterable>(cursor.getKey(), cursor.getValue()));

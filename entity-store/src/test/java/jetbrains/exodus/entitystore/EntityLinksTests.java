@@ -23,18 +23,21 @@ import java.util.Iterator;
         {"HardCodedStringLiteral", "AutoBoxing", "JUnitTestClassNamingConvention", "StringContatenationInLoop", "BusyWait"})
 public class EntityLinksTests extends EntityStoreTestBase {
 
-    private boolean isDebugLinkDataGetter;
+    private String debugLinkDataGetterValue;
 
     @Override
     public void setUp() throws Exception {
-        isDebugLinkDataGetter = PersistentEntityStoreConfig.DEFAULT.isDebugLinkDataGetter();
-        PersistentEntityStoreConfig.DEFAULT.setDebugLinkDataGetter(true);
+        debugLinkDataGetterValue = System.setProperty(PersistentEntityStoreConfig.DEBUG_LINK_DATA_GETTER, "true");
         super.setUp();
     }
 
     @Override
     public void tearDown() throws Exception {
-        PersistentEntityStoreConfig.DEFAULT.setDebugLinkDataGetter(isDebugLinkDataGetter);
+        if (debugLinkDataGetterValue == null) {
+            System.clearProperty(PersistentEntityStoreConfig.DEBUG_LINK_DATA_GETTER);
+        } else {
+            System.setProperty(PersistentEntityStoreConfig.DEBUG_LINK_DATA_GETTER, debugLinkDataGetterValue);
+        }
         super.tearDown();
     }
 

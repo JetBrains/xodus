@@ -147,7 +147,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     public PersistentEntityStoreImpl(@NotNull final Environment environment,
                                      @Nullable final BlobVault blobVault,
                                      @NotNull final String name) {
-        this(PersistentEntityStoreConfig.DEFAULT, environment, blobVault, name);
+        this(new PersistentEntityStoreConfig(), environment, blobVault, name);
     }
 
     public PersistentEntityStoreImpl(@NotNull final PersistentEntityStoreConfig config,
@@ -323,10 +323,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
                 Settings.set(internalSettings, "Blobs' null-indices present", "yes");
             }
-            final boolean heavyLinksMode = config.getRefactoringHeavyLinks();
-            if (fromScratch || Settings.get(internalSettings, "Links consistency fixed") == null || heavyLinksMode) {
+            if (fromScratch || Settings.get(internalSettings, "Links consistency fixed") == null || config.getRefactoringHeavyLinks()) {
                 if (!fromScratch) {
-                    refactorings.refactorMakeLinkTablesConsistent(heavyLinksMode);
+                    refactorings.refactorMakeLinkTablesConsistent();
                 }
                 Settings.set(internalSettings, "Links consistency fixed", "yes");
             }
