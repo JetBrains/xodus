@@ -323,10 +323,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
                 Settings.set(internalSettings, "Blobs' null-indices present", "yes");
             }
-            final boolean heavyLinksMode = config.getRefactoringHeavyLinks();
-            if (fromScratch || Settings.get(internalSettings, "Links consistency fixed") == null || heavyLinksMode) {
+            if (fromScratch || Settings.get(internalSettings, "Links consistency fixed") == null || config.getRefactoringHeavyLinks()) {
                 if (!fromScratch) {
-                    refactorings.refactorMakeLinkTablesConsistent(heavyLinksMode);
+                    refactorings.refactorMakeLinkTablesConsistent();
                 }
                 Settings.set(internalSettings, "Links consistency fixed", "yes");
             }
