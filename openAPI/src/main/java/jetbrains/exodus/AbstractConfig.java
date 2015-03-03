@@ -126,7 +126,7 @@ public abstract class AbstractConfig {
 
     private static boolean getBoolean(@NotNull final ConfigurationStrategy strategy,
                                       @NotNull final String propName, final boolean defaultValue) {
-        final String value = System.getProperty(propName);
+        final String value = strategy.getProperty(propName);
         return value == null ? defaultValue : "true".equalsIgnoreCase(value);
     }
 
@@ -144,7 +144,7 @@ public abstract class AbstractConfig {
 
     private static Long getLong(@NotNull final ConfigurationStrategy strategy,
                                 @NotNull String propName, Long defaultValue) {
-        final String v = System.getProperty(propName);
+        final String v = strategy.getProperty(propName);
         if (v != null) {
             try {
                 return Long.decode(v);
