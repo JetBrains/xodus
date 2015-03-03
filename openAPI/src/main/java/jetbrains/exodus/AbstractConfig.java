@@ -35,8 +35,7 @@ public abstract class AbstractConfig {
     @NotNull
     private final Set<ChangedSettingsListener> listeners;
 
-
-    protected AbstractConfig(@NotNull final Pair<String, Object>[] props, final boolean ignoreSystemProperties) {
+    protected AbstractConfig(@NotNull final Pair<String, Object>[] props, @NotNull final ConfigurationStrategy strategy) {
         settings = new HashMap<String, Object>();
         listeners = new LinkedHashSet<ChangedSettingsListener>();
         for (final Pair<String, Object> prop : props) {
@@ -45,11 +44,11 @@ public abstract class AbstractConfig {
             final Object value;
             final Class<?> clazz = defaultValue.getClass();
             if (clazz == Boolean.class) {
-                value = ignoreSystemProperties ? defaultValue : getBoolean(propName, (Boolean) defaultValue);
+                value = getBoolean(strategy, propName, (Boolean) defaultValue);
             } else if (clazz == Integer.class) {
-                value = ignoreSystemProperties ? defaultValue : Integer.getInteger(propName, (Integer) defaultValue);
+                value = getInteger(strategy, propName, (Integer) defaultValue);
             } else if (clazz == Long.class) {
-                value = ignoreSystemProperties ? defaultValue : Long.getLong(propName, (Long) defaultValue);
+                value = getLong(strategy, propName, (Long) defaultValue);
             } else {
                 throw new ExodusException(UNSUPPORTED_TYPE_ERROR_MSG);
             }
@@ -125,9 +124,34 @@ public abstract class AbstractConfig {
         }
     }
 
-    private static boolean getBoolean(@NotNull final String propName, final boolean defaultValue) {
+    private static boolean getBoolean(@NotNull final ConfigurationStrategy strategy,
+                                      @NotNull final String propName, final boolean defaultValue) {
         final String value = System.getProperty(propName);
         return value == null ? defaultValue : "true".equalsIgnoreCase(value);
+    }
+
+    private static Integer getInteger(@NotNull final ConfigurationStrategy strategy,
+                                      @NotNull String propName, Integer defaultValue) {
+        final String v = strategy.getProperty(propName);
+        if (v != null) {
+            try {
+                return Integer.decode(v);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return defaultValue;
+    }
+
+    private static Long getLong(@NotNull final ConfigurationStrategy strategy,
+                                @NotNull String propName, Long defaultValue) {
+        final String v = System.getProperty(propName);
+        if (v != null) {
+            try {
+                return Long.decode(v);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return defaultValue;
     }
 
     private static void appendLineFeed(@NotNull final StringBuilder builder) {

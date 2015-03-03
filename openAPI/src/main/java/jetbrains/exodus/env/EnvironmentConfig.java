@@ -16,6 +16,7 @@
 package jetbrains.exodus.env;
 
 import jetbrains.exodus.AbstractConfig;
+import jetbrains.exodus.ConfigurationStrategy;
 import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.core.dataStructures.Pair;
 import org.jetbrains.annotations.NotNull;
@@ -23,7 +24,7 @@ import org.jetbrains.annotations.NotNull;
 @SuppressWarnings("UnusedDeclaration")
 public final class EnvironmentConfig extends AbstractConfig {
 
-    public static final EnvironmentConfig DEFAULT = new EnvironmentConfig(true);
+    public static final EnvironmentConfig DEFAULT = new EnvironmentConfig(ConfigurationStrategy.IGNORE);
 
     public static final String MEMORY_USAGE = "exodus.memoryUsage";
 
@@ -84,10 +85,10 @@ public final class EnvironmentConfig extends AbstractConfig {
     public static final String GC_UTILIZATION_FROM_SCRATCH = "exodus.gc.utilization.fromScratch";
 
     public EnvironmentConfig() {
-        this(false);
+        this(ConfigurationStrategy.SYSTEM_PROPERTY);
     }
 
-    private EnvironmentConfig(final boolean ignoreSystemProperties) {
+    public EnvironmentConfig(@NotNull final ConfigurationStrategy strategy) {
         //noinspection unchecked
         super(new Pair[]{
                 new Pair(MEMORY_USAGE_PERCENTAGE, 60),
@@ -115,7 +116,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(GC_MIN_FILE_AGE, 2),
                 new Pair(GC_FILES_INTERVAL, 1),
                 new Pair(GC_UTILIZATION_FROM_SCRATCH, false)
-        }, ignoreSystemProperties);
+        }, strategy);
     }
 
     public Long /* NB! do not change to long */ getMemoryUsage() {

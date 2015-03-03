@@ -16,12 +16,14 @@
 package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.AbstractConfig;
+import jetbrains.exodus.ConfigurationStrategy;
 import jetbrains.exodus.core.dataStructures.Pair;
+import org.jetbrains.annotations.NotNull;
 
 @SuppressWarnings("UnusedDeclaration")
 public final class PersistentEntityStoreConfig extends AbstractConfig {
 
-    public static final PersistentEntityStoreConfig DEFAULT = new PersistentEntityStoreConfig(true);
+    public static final PersistentEntityStoreConfig DEFAULT = new PersistentEntityStoreConfig(ConfigurationStrategy.IGNORE);
 
     public static final String REFACTORING_SKIP_ALL = "exodus.entityStore.refactoring.skipAll";
 
@@ -68,10 +70,10 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
     private static final int MAX_DEFAULT_ENTITY_ITERABLE_CACHE_SIZE = 4096;
 
     public PersistentEntityStoreConfig() {
-        this(false);
+        this(ConfigurationStrategy.SYSTEM_PROPERTY);
     }
 
-    private PersistentEntityStoreConfig(final boolean ignoreSystemProperties) {
+    private PersistentEntityStoreConfig(@NotNull final ConfigurationStrategy strategy) {
         //noinspection unchecked
         super(new Pair[]{
                 new Pair(REFACTORING_SKIP_ALL, false),
@@ -95,7 +97,7 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(TRANSACTION_PROPS_CACHE_SIZE, 1024),
                 new Pair(TRANSACTION_LINKS_CACHE_SIZE, 4096),
                 new Pair(TRANSACTION_BLOB_STRINGS_CACHE_SIZE, 128)
-        }, ignoreSystemProperties);
+        }, strategy);
     }
 
     public boolean getRefactoringSkipAll() {
