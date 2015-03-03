@@ -73,7 +73,7 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
         this(ConfigurationStrategy.SYSTEM_PROPERTY);
     }
 
-    private PersistentEntityStoreConfig(@NotNull final ConfigurationStrategy strategy) {
+    public PersistentEntityStoreConfig(@NotNull final ConfigurationStrategy strategy) {
         //noinspection unchecked
         super(new Pair[]{
                 new Pair(REFACTORING_SKIP_ALL, false),
