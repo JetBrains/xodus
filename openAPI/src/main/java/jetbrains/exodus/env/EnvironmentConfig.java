@@ -84,6 +84,8 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public static final String GC_UTILIZATION_FROM_SCRATCH = "exodus.gc.utilization.fromScratch";
 
+    public static final String MANAGEMENT_ENABLED = "exodus.managementEnabled";
+
     public EnvironmentConfig() {
         this(ConfigurationStrategy.SYSTEM_PROPERTY);
     }
@@ -115,7 +117,8 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(GC_USE_EXPIRATION_CHECKER, true),
                 new Pair(GC_MIN_FILE_AGE, 2),
                 new Pair(GC_FILES_INTERVAL, 1),
-                new Pair(GC_UTILIZATION_FROM_SCRATCH, false)
+                new Pair(GC_UTILIZATION_FROM_SCRATCH, false),
+                new Pair(MANAGEMENT_ENABLED, true)
         }, strategy);
     }
 
@@ -351,8 +354,11 @@ public final class EnvironmentConfig extends AbstractConfig {
         setSetting(GC_UTILIZATION_FROM_SCRATCH, fromScratch);
     }
 
-    private static boolean getBoolean(@NotNull final String propName, final boolean defaultValue) {
-        final String value = System.getProperty(propName);
-        return value == null ? defaultValue : "true".equalsIgnoreCase(value);
+    public boolean isManagementEnabled() {
+        return (Boolean) getSetting(MANAGEMENT_ENABLED);
+    }
+
+    public void setManagementEnabled(final boolean managementEnabled) {
+        setSetting(MANAGEMENT_ENABLED, managementEnabled);
     }
 }

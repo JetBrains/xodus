@@ -68,6 +68,8 @@ public class EnvironmentImpl implements Environment {
     private final GarbageCollector gc;
     private final Object commitLock = new Object();
     private final Object metaLock = new Object();
+    @Nullable
+    private final jetbrains.exodus.env.management.EnvironmentConfig configMBean;
 
     /**
      * Throwable caught during commit after which rollback of highAddress failed.
@@ -102,6 +104,8 @@ public class EnvironmentImpl implements Environment {
         if (transactionTimeout() > 0) {
             new StuckTransactionMonitor(this);
         }
+
+        configMBean = ec.isManagementEnabled() ? new jetbrains.exodus.env.management.EnvironmentConfig(this) : null;
 
         if (logging.isInfoEnabled()) {
             logging.info("Exodus environment created: " + log.getLocation());
@@ -267,6 +271,9 @@ public class EnvironmentImpl implements Environment {
     @SuppressWarnings({"AccessToStaticFieldLockedOnInstance"})
     @Override
     public void close() {
+        if (configMBean != null) {
+            configMBean.unregister();
+        }
         // in order to avoid deadlock, do not finish gc inside lock
         // it is safe to invoke gc.finish() several times
         gc.finish();

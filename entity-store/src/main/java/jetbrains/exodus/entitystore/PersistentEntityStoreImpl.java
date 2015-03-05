@@ -26,6 +26,7 @@ import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LinkedHashMap;
 import jetbrains.exodus.entitystore.iterate.*;
+import jetbrains.exodus.entitystore.management.EntityStoreConfig;
 import jetbrains.exodus.entitystore.metadata.Index;
 import jetbrains.exodus.entitystore.metadata.IndexField;
 import jetbrains.exodus.entitystore.tables.*;
@@ -134,6 +135,10 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private final DataGetter propertyDataGetter;
     private final DataGetter linkDataGetter;
     private final DataGetter blobDataGetter;
+
+    @Nullable
+    private final EntityStoreConfig configMBean;
+
     private final long startedAt;
     private long transactionCount;
 
@@ -288,6 +293,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         } finally {
             preloadTxn.commit();
         }
+
+        configMBean = config.isManagementEnabled() ? new EntityStoreConfig(this) : null;
 
         startedAt = System.currentTimeMillis();
         transactionCount = 0;
@@ -2155,10 +2162,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @Override
     public void close() {
+        log.info("Closing...");
+        if (configMBean != null) {
+            configMBean.unregister();
+        }
         try {
-            log.info("Closing...");
             getAsyncProcessor().finish();
-
             synchronized (this) {
                 blobVault.close();
                 environment.close();
@@ -2167,7 +2176,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             log.info("Closed successfully.");
         } catch (Exception e) {
             log.error("close() failed", e);
-            throw ExodusException.wrap(e);
+            throw ExodusException.toExodusException(e);
         }
     }
 
