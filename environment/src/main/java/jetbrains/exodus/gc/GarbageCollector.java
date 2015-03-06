@@ -20,6 +20,7 @@ import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.core.execution.JobProcessorAdapter;
+import jetbrains.exodus.env.EnvironmentConfig;
 import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.env.StoreImpl;
 import jetbrains.exodus.env.TransactionImpl;
@@ -43,6 +44,8 @@ public final class GarbageCollector {
     @NotNull
     private final EnvironmentImpl env;
     @NotNull
+    private final EnvironmentConfig ec;
+    @NotNull
     private final UtilizationProfile utilizationProfile;
     @NotNull
     private final LongSet pendingFilesToDelete;
@@ -50,8 +53,6 @@ public final class GarbageCollector {
     private final ConcurrentLinkedQueue<Long> deletionQueue;
     @NotNull
     private final BackgroundCleaner cleaner;
-    private final int minFileAge;
-    private final int filesInterval;
     private volatile int newFiles; // number of new files appeared after last cleaning job
     @NotNull
     private final IExpirationChecker expirationChecker;
@@ -60,14 +61,13 @@ public final class GarbageCollector {
 
     public GarbageCollector(@NotNull final EnvironmentImpl env) {
         this.env = env;
-        minFileAge = env.getEnvironmentConfig().getGcFileMinAge();
-        filesInterval = env.getEnvironmentConfig().getGcFilesInterval();
+        ec = env.getEnvironmentConfig();
         pendingFilesToDelete = new LongHashSet();
         deletionQueue = new ConcurrentLinkedQueue<Long>();
         utilizationProfile = new UtilizationProfile(env, this);
         cleaner = new BackgroundCleaner(this);
-        newFiles = filesInterval + 1;
-        if (!env.getEnvironmentConfig().getGcUseExpirationChecker()) {
+        newFiles = ec.getGcFilesInterval() + 1;
+        if (!ec.getGcUseExpirationChecker()) {
             expirationChecker = IExpirationChecker.NONE;
         } else {
             expirationChecker = new IExpirationChecker() {
@@ -88,7 +88,7 @@ public final class GarbageCollector {
             @Override
             public void fileCreated(long fileAddress) {
                 ++newFiles;
-                if (!cleaner.isCleaning() && newFiles > filesInterval && isTooMuchFreeSpace()) {
+                if (!cleaner.isCleaning() && newFiles > ec.getGcFilesInterval() && isTooMuchFreeSpace()) {
                     wake();
                 }
             }
@@ -100,7 +100,7 @@ public final class GarbageCollector {
     }
 
     public void wake() {
-        if (env.getEnvironmentConfig().isGcEnabled()) {
+        if (ec.isGcEnabled()) {
             env.executeTransactionSafeTask(new Runnable() {
                 @Override
                 public void run() {
@@ -111,13 +111,13 @@ public final class GarbageCollector {
     }
 
     public void wakeAt(final long millis) {
-        if (env.getEnvironmentConfig().isGcEnabled()) {
+        if (ec.isGcEnabled()) {
             cleaner.queueCleaningJobAt(millis);
         }
     }
 
     public int getMaximumFreeSpacePercent() {
-        return 100 - env.getEnvironmentConfig().getGcMinUtilization();
+        return 100 - ec.getGcMinUtilization();
     }
 
     public void fetchExpiredLoggables(@NotNull final Iterable<Loggable> loggables) {
@@ -151,7 +151,7 @@ public final class GarbageCollector {
 
     public void saveUtilizationProfile() {
         // this condition is necessary for LogRecoveryTest
-        if (env.getEnvironmentConfig().isGcEnabled()) {
+        if (ec.isGcEnabled()) {
             utilizationProfile.save();
         }
     }
@@ -226,7 +226,7 @@ public final class GarbageCollector {
     }
 
     int getMinFileAge() {
-        return minFileAge;
+        return ec.getGcFileMinAge();
     }
 
     boolean isTooMuchFreeSpace() {
@@ -319,8 +319,7 @@ public final class GarbageCollector {
     private boolean doDeletePendingFile(long fileAddress) {
         if (pendingFilesToDelete.remove(fileAddress)) {
             utilizationProfile.removeFile(fileAddress);
-            getLog().removeFile(fileAddress,
-                    env.getEnvironmentConfig().getGcRenameFiles() ? RemoveBlockType.Rename : RemoveBlockType.Delete);
+            getLog().removeFile(fileAddress, ec.getGcRenameFiles() ? RemoveBlockType.Rename : RemoveBlockType.Delete);
             return true;
         }
         return false;

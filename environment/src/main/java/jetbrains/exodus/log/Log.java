@@ -160,6 +160,11 @@ public final class Log implements Closeable {
         flush(true);
     }
 
+    @NotNull
+    public LogConfig getConfig() {
+        return config;
+    }
+
     public long getCreated() {
         return created;
     }
