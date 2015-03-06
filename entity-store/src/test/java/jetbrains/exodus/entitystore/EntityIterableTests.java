@@ -440,7 +440,7 @@ public class EntityIterableTests extends EntityStoreTestBase {
         EntityIterable users = txn.getSingletonIterable(txn.getAll("User").getFirst());
         users = users.union(users);
         Assert.assertFalse(((EntityIterableBase) users).canBeCached());
-        Assert.assertEquals(1L, users.getRoughCount());
+        Assert.assertEquals(1L, users.getRoughSize());
     }
 
     private static void checkIdRange(EntityIterable issues, int lo, int hi) {

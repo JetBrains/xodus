@@ -39,6 +39,8 @@ public interface EntityIterable extends Iterable<Entity> {
 
     long getRoughCount();
 
+    long getRoughSize();
+
     /**
      * Returns index of an entity in the iterable, or -1 if there is no such entity.
      *

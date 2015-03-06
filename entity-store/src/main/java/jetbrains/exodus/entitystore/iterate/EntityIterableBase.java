@@ -178,6 +178,16 @@ public abstract class EntityIterableBase implements EntityIterable {
         }
         final EntityIterableCacheImpl cache = store.getEntityIterableCache();
         final EntityIterableBase it = cache.putIfNotCached(this);
+        return it.isCachedWrapper() ? it.countImpl(getTransaction()) : cache.getCachedCount(getHandle());
+    }
+
+    @Override
+    public long getRoughSize() {
+        if (store == null) {
+            return 0;
+        }
+        final EntityIterableCacheImpl cache = store.getEntityIterableCache();
+        final EntityIterableBase it = cache.putIfNotCached(this);
         if (it.isCachedWrapper()) {
             return it.countImpl(getTransaction());
         }
