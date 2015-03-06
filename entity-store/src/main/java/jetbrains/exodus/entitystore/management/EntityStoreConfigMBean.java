@@ -53,11 +53,19 @@ public interface EntityStoreConfigMBean {
 
     long getEntityIterableCacheCachingTimeout();
 
+    void setEntityIterableCacheCachingTimeout(long cachingTimeout);
+
     int getEntityIterableCacheDeferredDelay();
+
+    void setEntityIterableCacheDeferredDelay(int deferredDelay);
 
     int getEntityIterableCacheMaxKeySize();
 
+    void setEntityIterableCacheMaxKeySize(int maxKeySize);
+
     int getEntityIterableCacheMaxSizeOfDirectValue();
+
+    void setEntityIterableCacheMaxSizeOfDirectValue(int maxSizeOfDirectValue);
 
     int getTransactionPropsCacheSize();
 

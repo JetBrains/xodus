@@ -26,20 +26,18 @@ import java.lang.ref.SoftReference;
 @SuppressWarnings("unchecked")
 final class EntityIterableCacheAdapter {
 
-    private final int maxKeySize;
-    private final int maxSizeOfDirectValue;
+    @NotNull
+    private final PersistentEntityStoreConfig config;
     @NotNull
     final PersistentObjectCache<EntityIterableHandle, CacheItem> cache;
 
     EntityIterableCacheAdapter(@NotNull final PersistentEntityStoreConfig config, final int cacheSize) {
-        maxKeySize = config.getEntityIterableCacheMaxKeySize();
-        maxSizeOfDirectValue = config.getEntityIterableCacheMaxSizeOfDirectValue();
+        this.config = config;
         cache = new PersistentObjectCache<EntityIterableHandle, CacheItem>(cacheSize);
     }
 
     private EntityIterableCacheAdapter(@NotNull final EntityIterableCacheAdapter source) {
-        maxKeySize = source.maxKeySize;
-        maxSizeOfDirectValue = source.maxSizeOfDirectValue;
+        config = source.config;
         cache = source.cache.getClone();
     }
 
@@ -63,7 +61,7 @@ final class EntityIterableCacheAdapter {
         if (isHandleTooLong(key)) {
             return;
         }
-        cache.cacheObject(key, new CacheItem(it, maxSizeOfDirectValue));
+        cache.cacheObject(key, new CacheItem(it, config.getEntityIterableCacheMaxSizeOfDirectValue()));
     }
 
     void forEachKey(final ObjectProcedure<EntityIterableHandle> procedure) {
@@ -99,7 +97,7 @@ final class EntityIterableCacheAdapter {
     }
 
     boolean isHandleTooLong(@NotNull final EntityIterableHandle handle) {
-        return handle.getStringHandle().length() > maxKeySize;
+        return handle.getStringHandle().length() > config.getEntityIterableCacheMaxKeySize();
     }
 
     private CachedWrapperIterable parseCachedObject(@NotNull final EntityIterableHandle key, @Nullable final CacheItem item) {

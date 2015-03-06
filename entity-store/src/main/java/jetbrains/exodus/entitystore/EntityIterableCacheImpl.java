@@ -35,10 +35,8 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
     private final PersistentEntityStoreConfig config;
     @NotNull
     private EntityIterableCacheAdapter cacheAdapter;
-    private final long cachingTimeout;
     @NotNull
     private final ObjectCacheBase<EntityIterableHandle, Long> deferredIterablesCache;
-    private final int deferredCacheDelay;
     @NotNull
     private final ObjectCacheBase<EntityIterableHandle, Long> iterableCountsCache;
     @NotNull
@@ -49,9 +47,7 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
         config = store.getConfig();
         final int cacheSize = config.getEntityIterableCacheSize();
         cacheAdapter = new EntityIterableCacheAdapter(config, cacheSize);
-        cachingTimeout = config.getEntityIterableCacheCachingTimeout();
         deferredIterablesCache = new ConcurrentObjectCache<EntityIterableHandle, Long>(cacheSize);
-        deferredCacheDelay = config.getEntityIterableCacheDeferredDelay();
         iterableCountsCache = new ConcurrentObjectCache<EntityIterableHandle, Long>(cacheSize * 2);
         processor = new EntityStoreSharedAsyncProcessor(config.getEntityIterableCacheThreadCount());
         processor.start();
@@ -113,7 +109,7 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
                 deferredIterablesCache.cacheObject(handle, currentMillis);
                 return it;
             }
-            if (whenCached + deferredCacheDelay > currentMillis) {
+            if (whenCached + config.getEntityIterableCacheDeferredDelay() > currentMillis) {
                 return it;
             }
         }
@@ -240,7 +236,7 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
         }
 
         private boolean isOverdue(final long currentMillis) {
-            return currentMillis - startTime > cachingTimeout;
+            return currentMillis - startTime > config.getEntityIterableCacheCachingTimeout();
         }
 
         private void setLocalCache(@NotNull final EntityIterableCacheAdapter localCache) {
