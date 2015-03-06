@@ -48,6 +48,11 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
+    public void setLogDurableWrite(boolean durableWrite) {
+        config.setLogDurableWrite(durableWrite);
+    }
+
+    @Override
     public long getLogFileSize() {
         return config.getLogFileSize();
     }

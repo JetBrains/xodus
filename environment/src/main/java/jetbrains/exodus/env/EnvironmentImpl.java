@@ -716,6 +716,8 @@ public class EnvironmentImpl implements Environment {
                 invalidateTreeNodesCache();
             } else if (settingName.equals(EnvironmentConfig.LOG_SYNC_PERIOD)) {
                 log.getConfig().setSyncPeriod(ec.getLogSyncPeriod());
+            } else if (settingName.equals(EnvironmentConfig.LOG_DURABLE_WRITE)) {
+                log.getConfig().setDurableWrite(ec.getLogDurableWrite());
             }
         }
     }

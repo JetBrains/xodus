@@ -23,6 +23,8 @@ public interface EnvironmentConfigMBean {
 
     boolean getLogDurableWrite();
 
+    void setLogDurableWrite(boolean durableWrite);
+
     long getLogFileSize();
 
     long getLogLockTimeout();
