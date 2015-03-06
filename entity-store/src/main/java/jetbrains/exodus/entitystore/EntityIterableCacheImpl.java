@@ -32,6 +32,8 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
     @NotNull
     private final PersistentEntityStoreImpl store;
     @NotNull
+    private final PersistentEntityStoreConfig config;
+    @NotNull
     private EntityIterableCacheAdapter cacheAdapter;
     private final long cachingTimeout;
     @NotNull
@@ -44,7 +46,7 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
 
     public EntityIterableCacheImpl(@NotNull final PersistentEntityStoreImpl store) {
         this.store = store;
-        final PersistentEntityStoreConfig config = store.getConfig();
+        config = store.getConfig();
         final int cacheSize = config.getEntityIterableCacheSize();
         cacheAdapter = new EntityIterableCacheAdapter(config, cacheSize);
         cachingTimeout = config.getEntityIterableCacheCachingTimeout();
@@ -75,7 +77,7 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
      * @return iterable which is cached or "it" itself if it's not cached.
      */
     public EntityIterableBase putIfNotCached(@NotNull final EntityIterableBase it) {
-        if (!store.isCachingEnabled() || !it.canBeCached()) {
+        if (config.isCachingDisabled() || !it.canBeCached()) {
             return it;
         }
 

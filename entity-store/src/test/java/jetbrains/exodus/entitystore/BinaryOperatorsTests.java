@@ -37,8 +37,7 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
     }
 
     public void testIntersectIsCommutative() throws InterruptedException {
-        final PersistentEntityStoreImpl store = getEntityStore();
-        store.setCachingEnabled(true);
+        getEntityStore().getConfig().setCachingDisabled(false);
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 100; ++i) {
             final Entity issue = txn.newEntity("Issue");
@@ -116,8 +115,7 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
     }
 
     public void testUnionIsCommutative() throws InterruptedException {
-        final PersistentEntityStoreImpl store = getEntityStore();
-        store.setCachingEnabled(true);
+        getEntityStore().getConfig().setCachingDisabled(false);
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 100; ++i) {
             final Entity issue = txn.newEntity("Issue");

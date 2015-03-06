@@ -46,12 +46,6 @@ public interface PersistentEntityStore extends EntityStore, Backupable {
 
     <T> T computeInReadonlyTransaction(@NotNull StoreTransactionalComputable<T> computable);
 
-    boolean isCachingEnabled();
-
-    boolean isReorderingEnabled();
-
-    void setCachingEnabled(boolean cachingEnabled);
-
     Explainer getExplainer();
 
     @NotNull

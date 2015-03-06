@@ -39,6 +39,8 @@ public interface EntityStoreConfigMBean {
 
     boolean isReorderingDisabled();
 
+    void setReorderingDisabled(boolean disabled);
+
     boolean isExplainOn();
 
     boolean getUniqueIndicesUseBtree();

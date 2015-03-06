@@ -141,8 +141,7 @@ public class EntityIterableTests extends EntityStoreTestBase {
     }
 
     public void testIdRange() {
-        final PersistentEntityStoreImpl store = getEntityStore();
-        store.setCachingEnabled(true);
+        getEntityStore().getConfig().setCachingDisabled(false);
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 100; ++i) {
             final Entity issue = txn.newEntity("Issue");

@@ -103,9 +103,8 @@ public class EntitySnapshotTests extends EntityStoreTestBase {
     }
 
     public void testConcurrentPutJetPassLike() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        final PersistentEntityStoreImpl store = getEntityStore();
-        store.setCachingEnabled(false);
-        final EnvironmentImpl environment = (EnvironmentImpl) store.getEnvironment();
+        getEntityStore().getConfig().setCachingDisabled(true);
+        final EnvironmentImpl environment = (EnvironmentImpl) getEntityStore().getEnvironment();
         final EnvironmentConfig config = environment.getEnvironmentConfig();
         // disable GC
         config.setGcEnabled(false);
@@ -124,7 +123,7 @@ public class EntitySnapshotTests extends EntityStoreTestBase {
             processor.queue(new Job() {
                 @Override
                 protected void execute() throws Throwable {
-                    store.executeInTransaction(new StoreTransactionalExecutable() {
+                    getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
                         @Override
                         public void execute(@NotNull final StoreTransaction txn) {
                             final Entity ticket = txn.newEntity("CASTicket");
@@ -138,7 +137,7 @@ public class EntitySnapshotTests extends EntityStoreTestBase {
         processor.finish();
         //System.out.println("Sequences count: " + store.getAllSequences().size());
         //executeMethod(store, "refactorMakePropTablesConsistent");
-        store.executeInTransaction(new StoreTransactionalExecutable() {
+        getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
             @Override
             public void execute(@NotNull final StoreTransaction txn) {
                 //System.out.println("Structure id: " + executeMethod(environment, "getLastStructureId"));

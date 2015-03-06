@@ -89,6 +89,11 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
+    public void setReorderingDisabled(boolean disabled) {
+        config.setReorderingDisabled(disabled);
+    }
+
+    @Override
     public boolean isExplainOn() {
         return config.isExplainOn();
     }
