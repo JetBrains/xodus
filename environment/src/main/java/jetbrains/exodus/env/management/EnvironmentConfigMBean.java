@@ -45,6 +45,10 @@ public interface EnvironmentConfigMBean {
 
     void setLogSyncPeriod(long millis);
 
+    boolean getEnvIsReadonly();
+
+    void setEnvIsReadonly(boolean isReadonly);
+
     int getEnvStoreGetCacheSize();
 
     void setEnvStoreGetCacheSize(int storeGetCacheSize);

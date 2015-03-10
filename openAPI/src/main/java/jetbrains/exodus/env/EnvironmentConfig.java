@@ -50,6 +50,8 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public static final String LOG_SYNC_PERIOD = "exodus.log.syncPeriod"; // in milliseconds
 
+    public static final String ENV_IS_READONLY = "exodus.env.isReadonly";
+
     public static final String ENV_STOREGET_CACHE_SIZE = "exodus.env.storeGetCacheSize";
 
     public static final String ENV_CLOSE_FORCEDLY = "exodus.env.closeForcedly";
@@ -104,6 +106,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
                 new Pair(LOG_CLEAR_INVALID, false),
                 new Pair(LOG_SYNC_PERIOD, 1000L),
+                new Pair(ENV_IS_READONLY, false),
                 new Pair(ENV_STOREGET_CACHE_SIZE, 0),
                 new Pair(ENV_CLOSE_FORCEDLY, false),
                 new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
@@ -216,6 +219,14 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public void setLogSyncPeriod(long millis) {
         setSetting(LOG_SYNC_PERIOD, millis);
+    }
+
+    public boolean getEnvIsReadonly() {
+        return (Boolean) getSetting(ENV_IS_READONLY);
+    }
+
+    public void setEnvIsReadonly(final boolean isReadonly) {
+        setSetting(ENV_IS_READONLY, isReadonly);
     }
 
     public int getEnvStoreGetCacheSize() {

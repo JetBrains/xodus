@@ -103,6 +103,16 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
+    public boolean getEnvIsReadonly() {
+        return config.getEnvIsReadonly();
+    }
+
+    @Override
+    public void setEnvIsReadonly(boolean isReadonly) {
+        config.setEnvIsReadonly(isReadonly);
+    }
+
+    @Override
     public int getEnvStoreGetCacheSize() {
         return config.getEnvStoreGetCacheSize();
     }

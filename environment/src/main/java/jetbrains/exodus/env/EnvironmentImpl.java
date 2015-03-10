@@ -387,7 +387,10 @@ public class EnvironmentImpl implements Environment {
     @NotNull
     protected TransactionImpl beginTransaction(boolean cloneMeta, Runnable beginHook) {
         checkIsOperative();
-        return new TransactionImpl(this, getCreatingThread(), beginHook, cloneMeta);
+        final Thread creatingThread = getCreatingThread();
+        return ec.getEnvIsReadonly() ?
+                new ReadonlyTransaction(this, creatingThread, beginHook) :
+                new TransactionImpl(this, creatingThread, beginHook, cloneMeta);
     }
 
     protected Thread getCreatingThread() {
