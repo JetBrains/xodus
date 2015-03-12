@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
+import jetbrains.exodus.core.dataStructures.persistent.AbstractPersistent23Tree;
 import jetbrains.exodus.core.dataStructures.persistent.Persistent23Tree;
 import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.tables.PropertyTypes;
@@ -104,6 +105,11 @@ public class PropertiesIterableWrapper extends UpdatableCachedWrapperIterable {
         return new PropertiesIterableWrapper(this);
     }
 
+    @Override
+    public boolean isMutated() {
+        return mutableIndex != null;
+    }
+
     public void endUpdate() {
         Persistent23Tree.MutableTree<IndexEntry> index = mutableIndex;
         if (index == null) {
@@ -153,18 +159,27 @@ public class PropertiesIterableWrapper extends UpdatableCachedWrapperIterable {
     @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
-        return index.getCurrent().isEmpty() ? EntityIteratorBase.EMPTY : new PropertiesIteratorWrapper();
+        return getCurrentTree().isEmpty() ? EntityIteratorBase.EMPTY : new PropertiesIteratorWrapper();
     }
 
     @Override
     @NotNull
     public EntityIteratorBase getReverseIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
-        return index.getCurrent().isEmpty() ? EntityIteratorBase.EMPTY : new ReversePropertiesIteratorWrapper();
+        return getCurrentTree().isEmpty() ? EntityIteratorBase.EMPTY : new ReversePropertiesIteratorWrapper();
+    }
+
+    @Override
+    public long size() {
+        return getCurrentTree().size();
     }
 
     @Override
     protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
-        return index.getCurrent().size();
+        return size();
+    }
+
+    private AbstractPersistent23Tree<IndexEntry> getCurrentTree() {
+        return mutableIndex == null ? index.getCurrent() : mutableIndex;
     }
 
     /**
@@ -258,14 +273,14 @@ public class PropertiesIterableWrapper extends UpdatableCachedWrapperIterable {
     private class PropertiesIteratorWrapper extends PropertiesIteratorWrapperBase {
 
         private PropertiesIteratorWrapper() {
-            super(index.getCurrent().iterator());
+            super(getCurrentTree().iterator());
         }
     }
 
     private class ReversePropertiesIteratorWrapper extends PropertiesIteratorWrapperBase {
 
         private ReversePropertiesIteratorWrapper() {
-            super(index.getCurrent().reverseIterator());
+            super(getCurrentTree().reverseIterator());
         }
     }
 
@@ -275,7 +290,7 @@ public class PropertiesIterableWrapper extends UpdatableCachedWrapperIterable {
         private final Comparable value;
 
         private PropertyValueIteratorWrapper(@NotNull final Comparable value) {
-            super(index.getCurrent().tailIterator(new IndexEntry(value, 0)));
+            super(getCurrentTree().tailIterator(new IndexEntry(value, 0)));
             this.value = value;
         }
 
@@ -291,7 +306,7 @@ public class PropertiesIterableWrapper extends UpdatableCachedWrapperIterable {
         private final Comparable max;
 
         private PropertyRangeIteratorWrapper(@NotNull final Comparable min, @NotNull final Comparable max) {
-            super(index.getCurrent().tailIterator(new IndexEntry(min, 0)));
+            super(getCurrentTree().tailIterator(new IndexEntry(min, 0)));
             this.max = max;
         }
 

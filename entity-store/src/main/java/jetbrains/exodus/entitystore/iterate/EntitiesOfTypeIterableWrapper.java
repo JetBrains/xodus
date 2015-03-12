@@ -96,6 +96,11 @@ public class EntitiesOfTypeIterableWrapper extends UpdatableCachedWrapperIterabl
     }
 
     @Override
+    public long size() {
+        return getCurrentMap().size();
+    }
+
+    @Override
     public EntityIdSet toSet(@NotNull final PersistentStoreTransaction txn) {
         if (idSet == null) {
             final EntityIdSet result = new EntityIdSet();
@@ -110,12 +115,17 @@ public class EntitiesOfTypeIterableWrapper extends UpdatableCachedWrapperIterabl
 
     @Override
     protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
-        return getCurrentMap().size();
+        return size();
     }
 
     @Override
     public EntitiesOfTypeIterableWrapper beginUpdate() {
         return new EntitiesOfTypeIterableWrapper(this);
+    }
+
+    @Override
+    public boolean isMutated() {
+        return mutableLocalIds != null;
     }
 
     @Override
