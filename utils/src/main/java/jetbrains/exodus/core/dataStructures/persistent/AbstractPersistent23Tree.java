@@ -25,7 +25,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-abstract class AbstractPersistent23Tree<K extends Comparable<K>> implements Iterable<K> {
+public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implements Iterable<K> {
 
     abstract RootNode<K> getRoot();
 

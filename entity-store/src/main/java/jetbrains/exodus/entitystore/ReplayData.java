@@ -19,7 +19,7 @@ import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
 import jetbrains.exodus.core.dataStructures.persistent.PersistentObjectCache;
-import jetbrains.exodus.entitystore.iterate.CachedWrapperIterable;
+import jetbrains.exodus.entitystore.iterate.UpdatableCachedWrapperIterable;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -30,34 +30,35 @@ public class ReplayData {
 
     private EntityIterableCacheAdapter cacheSnapshot;
 
-    @NotNull
-    private final PersistentEntityStoreImpl store;
     private final Map<PersistentStoreTransaction.HandleChecker, List<EntityIterableHandle>> changes = new HashMap<PersistentStoreTransaction.HandleChecker, List<EntityIterableHandle>>();
     private Set<EntityIterableHandle> delete = new HashSet<EntityIterableHandle>();
     private Set<EntityIterableHandle> suspicious;
 
-    public ReplayData(@NotNull final PersistentEntityStoreImpl store) {
-        this.store = store;
+    public ReplayData() {
     }
 
     public void updateMutableCache(@NotNull final EntityIterableCacheAdapter mutableCache,
+                                   @NotNull final List<UpdatableCachedWrapperIterable> mutatedInTxn,
                                    @NotNull final PersistentStoreTransaction.HandleChecker checker) {
         final boolean alreadySeen = changes.containsKey(checker);
         if (suspicious != null && alreadySeen) {
             if (!suspicious.isEmpty()) {
                 for (final EntityIterableHandle handle : suspicious) {
-                    check(handle, checker, mutableCache);
+                    check(handle, checker, mutableCache, mutatedInTxn);
                 }
             }
             final List<EntityIterableHandle> l = changes.get(checker);
             if (l != null) {
                 for (final EntityIterableHandle handle : l) {
-                    CachedWrapperIterable it = mutableCache.getObject(handle);
+                    UpdatableCachedWrapperIterable it = (UpdatableCachedWrapperIterable) mutableCache.getObject(handle);
                     if (it != null) {
-                        it = checker.update(handle, it);
-                        // cache new mutated iterable wrapper
-                        mutableCache.cacheObject(handle, it);
-                        store.getEntityIterableCache().setCachedCount(handle, it.size());
+                        if (!it.isMutated()) {
+                            it = it.beginUpdate();
+                            // cache new mutated iterable wrapper
+                            mutableCache.cacheObject(handle, it);
+                            mutatedInTxn.add(it);
+                        }
+                        checker.update(handle, it);
                     }
                 }
             }
@@ -69,14 +70,16 @@ public class ReplayData {
         mutableCache.forEachKey(new ObjectProcedure<EntityIterableHandle>() {
             @Override
             public boolean execute(EntityIterableHandle object) {
-                check(object, checker, mutableCache);
+                check(object, checker, mutableCache, mutatedInTxn);
                 return true;
             }
         });
     }
 
-    private void check(EntityIterableHandle handle, PersistentStoreTransaction.HandleChecker checker,
-                       EntityIterableCacheAdapter mutableCache) {
+    private void check(@NotNull final EntityIterableHandle handle,
+                       @NotNull final PersistentStoreTransaction.HandleChecker checker,
+                       @NotNull final EntityIterableCacheAdapter mutableCache,
+                       @NotNull final List<UpdatableCachedWrapperIterable> mutatedInTxn) {
         switch (checker.checkHandle(handle, mutableCache)) {
             case KEEP:
                 break; // do nothing, keep handle
@@ -85,12 +88,15 @@ public class ReplayData {
                 mutableCache.remove(handle);
                 break;
             case UPDATE:
-                CachedWrapperIterable it = mutableCache.getObject(handle);
+                UpdatableCachedWrapperIterable it = (UpdatableCachedWrapperIterable) mutableCache.getObject(handle);
                 if (it != null) {
-                    it = checker.update(handle, it);
-                    // cache new mutated iterable wrapper
-                    mutableCache.cacheObject(handle, it);
-                    store.getEntityIterableCache().setCachedCount(handle, it.size());
+                    if (!it.isMutated()) {
+                        it = it.beginUpdate();
+                        // cache new mutated iterable wrapper
+                        mutableCache.cacheObject(handle, it);
+                        mutatedInTxn.add(it);
+                    }
+                    checker.update(handle, it);
                     List<EntityIterableHandle> l = changes.get(checker);
                     if (l == NO_UPDATES) {
                         l = new ArrayList<EntityIterableHandle>(8);
