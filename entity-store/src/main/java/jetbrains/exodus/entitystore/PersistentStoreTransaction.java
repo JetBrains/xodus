@@ -621,7 +621,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     @Override
     public void enableReplayData() {
-        replayData = new ReplayData(store);
+        replayData = new ReplayData();
     }
 
     @Override

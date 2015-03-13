@@ -30,14 +30,11 @@ public class ReplayData {
 
     private EntityIterableCacheAdapter cacheSnapshot;
 
-    @NotNull
-    private final PersistentEntityStoreImpl store;
     private final Map<PersistentStoreTransaction.HandleChecker, List<EntityIterableHandle>> changes = new HashMap<PersistentStoreTransaction.HandleChecker, List<EntityIterableHandle>>();
     private Set<EntityIterableHandle> delete = new HashSet<EntityIterableHandle>();
     private Set<EntityIterableHandle> suspicious;
 
-    public ReplayData(@NotNull final PersistentEntityStoreImpl store) {
-        this.store = store;
+    public ReplayData() {
     }
 
     public void updateMutableCache(@NotNull final EntityIterableCacheAdapter mutableCache,
