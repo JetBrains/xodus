@@ -49,6 +49,8 @@ public abstract class EntityIteratorBase implements EntityIterator {
         };
     }
 
+    private static int nextIdCounter = 0;
+
     @NotNull
     private final EntityIterableBase iterable;
     private boolean finished;
@@ -122,15 +124,14 @@ public abstract class EntityIteratorBase implements EntityIterator {
     public EntityId nextId() {
         throwNoSuchElementExceptionIfNecessary();
         try {
-            final EntityId result = nextIdImpl();
-            if ((System.identityHashCode(result) & 0x1ff) == 314) {
+            if ((++nextIdCounter & 0x1ff) == 0) {
                 // do not check QueryCancellingPolicy too often
                 final QueryCancellingPolicy cancellingPolicy = iterable.getTransaction().getQueryCancellingPolicy();
                 if (cancellingPolicy != null && cancellingPolicy.needToCancel()) {
                     cancellingPolicy.doCancel();
                 }
             }
-            return result;
+            return nextIdImpl();
         } catch (ExodusException e) {
             disposeIfShouldBe();
             throw e;
