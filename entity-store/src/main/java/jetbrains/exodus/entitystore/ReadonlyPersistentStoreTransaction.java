@@ -15,32 +15,12 @@
  */
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.env.ReadonlyTransactionException;
 import org.jetbrains.annotations.NotNull;
-
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
 
 class ReadonlyPersistentStoreTransaction extends PersistentStoreTransaction {
 
     ReadonlyPersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store) {
         super(store, true);
-    }
-
-    @Override
-    void addBlob(long blobHandle, @NotNull InputStream stream) throws IOException {
-        throw new ReadonlyTransactionException();
-    }
-
-    @Override
-    void addBlob(long blobHandle, @NotNull File file) {
-        throw new ReadonlyTransactionException();
-    }
-
-    @Override
-    void deleteBlob(long blobHandle) {
-        throw new ReadonlyTransactionException();
     }
 
     @Override
