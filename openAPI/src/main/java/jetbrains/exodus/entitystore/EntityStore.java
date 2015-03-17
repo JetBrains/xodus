@@ -45,6 +45,14 @@ public interface EntityStore {
     StoreTransaction beginTransaction();
 
     /**
+     * Starts a new readonly transaction on the store.
+     *
+     * @return new store transaction object.
+     */
+    @NotNull
+    StoreTransaction beginReadonlyTransaction();
+
+    /**
      * Gets current started transaction object.
      *
      * @return last started transaction or null if no transaction was started.

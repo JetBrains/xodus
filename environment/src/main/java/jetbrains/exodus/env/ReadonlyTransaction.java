@@ -52,4 +52,12 @@ class ReadonlyTransaction extends TransactionImpl {
     ITreeMutable getMutableTree(@NotNull final StoreImpl store) {
         throw new ReadonlyTransactionException();
     }
+
+    @Override
+    public boolean isIdempotent() {
+        if (!super.isIdempotent()) {
+            throw new IllegalStateException("ReadonlyTransaction should be idempotent");
+        }
+        return true;
+    }
 }
