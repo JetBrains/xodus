@@ -59,11 +59,10 @@ public final class DistinctIterable extends EntityIterableDecoratorBase {
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
         return new EntityIterableHandleDecorator(getStore(), DistinctIterable.getType(), source.getHandle()) {
+
             @Override
-            public void getStringHandle(@NotNull final StringBuilder builder) {
-                super.getStringHandle(builder);
-                builder.append('-');
-                decorated.getStringHandle(builder);
+            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+                applyDecoratedToHash(hash);
             }
         };
     }

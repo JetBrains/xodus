@@ -15,28 +15,38 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
+import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.EntityIterableHandle;
 import jetbrains.exodus.entitystore.EntityIterableType;
 import jetbrains.exodus.entitystore.PersistentEntityStore;
-import jetbrains.exodus.util.StringInterner;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
 
 @SuppressWarnings({"AbstractClassWithoutAbstractMethods", "RawUseOfParameterizedType", "ProtectedField"})
 public abstract class EntityIterableHandleBase implements EntityIterableHandle {
 
+    private static final int HASH_LONGS_COUNT = 4;
+
     @Nullable
     protected final PersistentEntityStore store;
     @NotNull
-    protected final EntityIterableType type;
-    private String cachedStringHandle;
-    private int storeIdLength;
+    private final EntityIterableHandleHash hash;
+    private int hashCode;
+    private boolean hashCodeComputed;
 
     protected EntityIterableHandleBase(@Nullable final PersistentEntityStore store,
                                        @NotNull final EntityIterableType type) {
         this.store = store;
-        this.type = type;
+        hash = new EntityIterableHandleHash();
+        hash.apply(type.getType());
+        if (type != EntityIterableType.EMPTY) {
+            hash.applyDelimiter();
+        }
+        hashCodeComputed = false;
     }
 
     @Override
@@ -68,41 +78,21 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
         return store;
     }
 
-    @Override
-    @NotNull
-    public EntityIterableType getType() {
-        return type;
-    }
-
-    @Override
-    @NotNull
-    public String getStringHandle() {
-        if (cachedStringHandle == null) {
-            final StringBuilder builder = new StringBuilder(20);
-            builder.append(store == null ? 0 : store.hashCode());
-            builder.append('-');
-            storeIdLength = builder.length();
-            getStringHandle(builder);
-            cachedStringHandle = StringInterner.intern(builder, 100);
-        }
-        return cachedStringHandle;
-    }
-
     public boolean equals(Object obj) {
         if (!(obj instanceof EntityIterableHandleBase)) {
             return false;
         }
-        EntityIterableHandle that = (EntityIterableHandle) obj;
-        return getStringHandle().equals(that.getStringHandle());
+        final EntityIterableHandleBase that = (EntityIterableHandleBase) obj;
+        return store == that.store && hashCode() == that.hashCode() && hash.equals(that.hash);
     }
 
-    public int hashCode() {
-        return getStringHandle().hashCode();
-    }
-
-    @Override
-    public void getStringHandle(@NotNull final StringBuilder builder) {
-        builder.append(type.getType());
+    public final int hashCode() {
+        if (!hashCodeComputed) {
+            hashCode(hash);
+            hashCodeComputed = true;
+            hashCode = hash.hashCode();
+        }
+        return hashCode;
     }
 
     @Override
@@ -134,11 +124,19 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
         return false;
     }
 
-    @Nullable
-    public String getCachedStringHandle() {
-        String csh = cachedStringHandle;
-        return csh == null ? null : csh.substring(storeIdLength);
+    @Override
+    public String toString() {
+        return getHash().toString();
     }
+
+    @NotNull
+    public EntityIterableHandleHash getHash() {
+        //noinspection ResultOfMethodCallIgnored
+        hashCode(); // make sure hash is populated
+        return hash;
+    }
+
+    protected abstract void hashCode(@NotNull final EntityIterableHandleHash hash);
 
     public static int[] mergeLinkIds(@Nullable final int[] left, @Nullable final int[] right) {
         if (left == null) return right;
@@ -221,5 +219,102 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
             }
         }
         return result;
+    }
+
+    public static final class EntityIterableHandleHash {
+
+        @NotNull
+        private final long[] hashLongs;
+        private int bytesProcessed;
+
+        EntityIterableHandleHash() {
+            hashLongs = new long[HASH_LONGS_COUNT];
+        }
+
+        @Override
+        public int hashCode() {
+            return Arrays.hashCode(hashLongs);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (!(obj instanceof EntityIterableHandleHash)) {
+                return false;
+            }
+            return Arrays.equals(hashLongs, ((EntityIterableHandleHash) obj).hashLongs);
+        }
+
+        public void apply(final byte b) {
+            final int bytesProcessed = this.bytesProcessed;
+            final int index = (bytesProcessed >> 3) & (HASH_LONGS_COUNT - 1);
+            final long hashValue = hashLongs[index];
+            if (bytesProcessed < HASH_LONGS_COUNT * 8) {
+                hashLongs[index] = hashValue + (((long) (b & 0xff)) << ((bytesProcessed & 7) << 3));
+            } else {
+                hashLongs[index] = (hashValue << 5) - hashValue /* same as hashValue*31 */ + (b & 0xff);
+            }
+            this.bytesProcessed = bytesProcessed + 1;
+        }
+
+        public void apply(final int i) {
+            apply(Integer.toString(i));
+        }
+
+        public void apply(final long l) {
+            apply(Long.toString(l));
+        }
+
+        public void apply(@NotNull final String s) {
+            try {
+                for (final byte b : s.getBytes("UTF-8")) {
+                    apply(b);
+                }
+            } catch (UnsupportedEncodingException e) {
+                throw ExodusException.toExodusException(e);
+            }
+        }
+
+        public void apply(@NotNull final EntityIterableHandle source) {
+            ((EntityIterableHandleBase) source).getHash().forEachByte(new ByteConsumer() {
+                @Override
+                public void accept(final byte b) {
+                    apply(b);
+                }
+            });
+        }
+
+        public void applyDelimiter() {
+            apply((byte) '-');
+        }
+
+        @Override
+        public String toString() {
+            final int hashBytes = Math.min(bytesProcessed, HASH_LONGS_COUNT * 8);
+            final StringBuilder builder = new StringBuilder(hashBytes);
+            forEachByte(new ByteConsumer() {
+                @Override
+                public void accept(final byte b) {
+                    builder.append((char) b);
+                }
+            });
+            return builder.toString();
+        }
+
+        private void forEachByte(@NotNull final ByteConsumer consumer) {
+            final int hashBytes = Math.min(bytesProcessed, HASH_LONGS_COUNT * 8);
+            long hashLong = 0;
+            for (int i = 0; i < hashBytes; i++) {
+                if ((i & 7) == 0) {
+                    hashLong = hashLongs[i >> 3];
+                }
+                consumer.accept((byte) (hashLong & 0xff));
+                hashLong >>= 8;
+            }
+        }
+
+        private static interface ByteConsumer {
+
+            void accept(final byte b);
+        }
     }
 }

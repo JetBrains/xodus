@@ -315,6 +315,10 @@ public class EntityIdArrayIterableWrapperTests extends EntityStoreTestBase {
         @SuppressWarnings("EmptyClass")
         public EntityIterableHandle getHandleImpl() {
             return new ConstantEntityIterableHandle(getEntityStore(), EntityIterableType.DISTINCT) {
+
+                @Override
+                protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+                }
             };
         }
 

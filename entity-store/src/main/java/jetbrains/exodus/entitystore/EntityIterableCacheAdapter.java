@@ -26,43 +26,31 @@ import java.lang.ref.SoftReference;
 @SuppressWarnings("unchecked")
 final class EntityIterableCacheAdapter {
 
-    private final int maxKeySize;
     private final int maxSizeOfDirectValue;
     @NotNull
     final PersistentObjectCache<EntityIterableHandle, CacheItem> cache;
 
     EntityIterableCacheAdapter(@NotNull final PersistentEntityStoreConfig config, final int cacheSize) {
-        maxKeySize = config.getEntityIterableCacheMaxKeySize();
         maxSizeOfDirectValue = config.getEntityIterableCacheMaxSizeOfDirectValue();
         cache = new PersistentObjectCache<EntityIterableHandle, CacheItem>(cacheSize);
     }
 
     private EntityIterableCacheAdapter(@NotNull final EntityIterableCacheAdapter source) {
-        maxKeySize = source.maxKeySize;
         maxSizeOfDirectValue = source.maxSizeOfDirectValue;
         cache = source.cache.getClone();
     }
 
     @Nullable
     CachedWrapperIterable tryKey(@NotNull final EntityIterableHandle key) {
-        if (isHandleTooLong(key)) {
-            return null;
-        }
         return parseCachedObject(key, cache.tryKey(key));
     }
 
     @Nullable
     CachedWrapperIterable getObject(@NotNull final EntityIterableHandle key) {
-        if (isHandleTooLong(key)) {
-            return null;
-        }
         return parseCachedObject(key, cache.getObject(key));
     }
 
     void cacheObject(@NotNull final EntityIterableHandle key, @NotNull final CachedWrapperIterable it) {
-        if (isHandleTooLong(key)) {
-            return;
-        }
         cache.cacheObject(key, new CacheItem(it, maxSizeOfDirectValue));
     }
 
@@ -96,10 +84,6 @@ final class EntityIterableCacheAdapter {
 
     EntityIterableCacheAdapter getClone() {
         return new EntityIterableCacheAdapter(this);
-    }
-
-    boolean isHandleTooLong(@NotNull final EntityIterableHandle handle) {
-        return handle.getStringHandle().length() > maxKeySize;
     }
 
     private CachedWrapperIterable parseCachedObject(@NotNull final EntityIterableHandle key, @Nullable final CacheItem item) {

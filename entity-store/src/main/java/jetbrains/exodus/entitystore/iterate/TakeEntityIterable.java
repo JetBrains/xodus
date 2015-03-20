@@ -79,13 +79,12 @@ public class TakeEntityIterable extends EntityIterableDecoratorBase {
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
         return new EntityIterableHandleDecorator(getStore(), TakeEntityIterable.getType(), source.getHandle()) {
+
             @Override
-            public void getStringHandle(@NotNull final StringBuilder builder) {
-                super.getStringHandle(builder);
-                builder.append('-');
-                builder.append(itemsToTake);
-                builder.append('-');
-                decorated.getStringHandle(builder);
+            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+                hash.apply(itemsToTake);
+                hash.applyDelimiter();
+                applyDecoratedToHash(hash);
             }
         };
     }

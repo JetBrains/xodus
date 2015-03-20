@@ -106,13 +106,11 @@ public class MergeSortedIterable extends EntityIterableBase {
             }
 
             @Override
-            public void getStringHandle(@NotNull final StringBuilder builder) {
-                super.getStringHandle(builder);
-                builder.append('-');
-                builder.append(sorted.size());
+            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+                hash.apply(sorted.size());
                 for (final EntityIterable it : sorted) {
-                    builder.append('-');
-                    builder.append(it.getHandle().getStringHandle());
+                    hash.applyDelimiter();
+                    hash.apply(it.getHandle());
                 }
             }
         };

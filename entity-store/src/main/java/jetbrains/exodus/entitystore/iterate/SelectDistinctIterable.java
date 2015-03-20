@@ -77,12 +77,10 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
             }
 
             @Override
-            public void getStringHandle(@NotNull final StringBuilder builder) {
-                super.getStringHandle(builder);
-                builder.append('-');
-                source.getHandle().getStringHandle(builder);
-                builder.append('-');
-                builder.append(linkId);
+            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+                hash.apply(source.getHandle());
+                hash.applyDelimiter();
+                hash.apply(linkId);
             }
 
             @Override

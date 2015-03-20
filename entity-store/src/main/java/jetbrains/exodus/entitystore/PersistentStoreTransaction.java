@@ -601,7 +601,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     public CachedWrapperIterable getCachedWrapper(@NotNull final EntityIterableBase sample) {
         final EntityIterableHandle handle = sample.getHandle();
         final EntityIterableCacheAdapter localCache = getLocalCache();
-        return localCache.isHandleTooLong(handle) ? null : localCache.tryKey(handle);
+        return localCache.tryKey(handle);
     }
 
     public void addCachedWrapper(@NotNull final CachedWrapperIterable cached) {
@@ -609,7 +609,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (replayData == null || !replayData.hasCacheSnapshot()) {
             final EntityIterableCacheAdapter localCache = getLocalCache();
             final EntityIterableHandle handle = cached.getHandle();
-            if (!localCache.isHandleTooLong(handle) && localCache.getObject(handle) == null) {
+            if (localCache.getObject(handle) == null) {
                 localCache.cacheObject(handle, cached);
                 final EntityIterableCacheImpl entityIterableCache = store.getEntityIterableCache();
                 if (entityIterableCache.getCacheAdapter() == localCache) {

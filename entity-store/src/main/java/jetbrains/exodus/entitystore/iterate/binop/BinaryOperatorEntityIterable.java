@@ -119,19 +119,17 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
             }
 
             @Override
-            public void getStringHandle(@NotNull final StringBuilder builder) {
-                super.getStringHandle(builder);
-                builder.append('-');
-                final EntityIterableHandleBase handle1 = (EntityIterableHandleBase) iterable1.getHandle();
-                final EntityIterableHandleBase handle2 = (EntityIterableHandleBase) iterable2.getHandle();
+            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+                final EntityIterableHandle handle1 = iterable1.getHandle();
+                final EntityIterableHandle handle2 = iterable2.getHandle();
                 if (!isCommutative() || isOrderOk(handle1, handle2)) {
-                    appendStringBuilderWithHandle(builder, handle1);
-                    builder.append('-');
-                    appendStringBuilderWithHandle(builder, handle2);
+                    hash.apply(handle1);
+                    hash.applyDelimiter();
+                    hash.apply(handle2);
                 } else {
-                    appendStringBuilderWithHandle(builder, handle2);
-                    builder.append('-');
-                    appendStringBuilderWithHandle(builder, handle1);
+                    hash.apply(handle2);
+                    hash.applyDelimiter();
+                    hash.apply(handle1);
                 }
             }
 
@@ -204,18 +202,6 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
 
     private static boolean isOrderOk(@NotNull final EntityIterableHandle handle1,
                                      @NotNull final EntityIterableHandle handle2) {
-        final int type1 = handle1.getType().getType();
-        final int type2 = handle2.getType().getType();
-        return type1 < type2 || type1 == type2 && handle1.hashCode() < handle2.hashCode();
-    }
-
-    private static void appendStringBuilderWithHandle(@NotNull final StringBuilder builder,
-                                                      @NotNull final EntityIterableHandleBase handle) {
-        final String cachedStringHandle = handle.getCachedStringHandle();
-        if (cachedStringHandle != null) {
-            builder.append(cachedStringHandle);
-        } else {
-            handle.getStringHandle(builder);
-        }
+        return handle1.hashCode() < handle2.hashCode();
     }
 }

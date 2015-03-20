@@ -145,16 +145,14 @@ public class SortIndirectIterable extends EntityIterableDecoratorBase {
             }
 
             @Override
-            public void getStringHandle(@NotNull final StringBuilder builder) {
-                super.getStringHandle(builder);
-                builder.append('-');
-                builder.append(sourceTypeId);
-                builder.append('-');
-                builder.append(linkId);
-                builder.append('-');
-                decorated.getStringHandle(builder);
-                builder.append('-');
-                sortedLinksHandle.getStringHandle(builder);
+            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+                hash.apply(sourceTypeId);
+                hash.applyDelimiter();
+                hash.apply(linkId);
+                hash.applyDelimiter();
+                applyDecoratedToHash(hash);
+                hash.applyDelimiter();
+                hash.apply(sortedLinksHandle);
             }
 
             @Override

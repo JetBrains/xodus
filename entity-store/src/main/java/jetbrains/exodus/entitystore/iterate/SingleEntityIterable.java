@@ -86,6 +86,7 @@ public class SingleEntityIterable extends EntityIterableBase {
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
         return new EntityIterableHandleBase(getStore(), SingleEntityIterable.getType()) {
+
             @Override
             public boolean hasLinkId(int id) {
                 return false;
@@ -102,14 +103,12 @@ public class SingleEntityIterable extends EntityIterableBase {
             }
 
             @Override
-            public void getStringHandle(@NotNull final StringBuilder builder) {
-                super.getStringHandle(builder);
+            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
                 final EntityId id = SingleEntityIterable.this.id;
                 if (id == null) {
-                    builder.append("-null");
+                    hash.apply("null");
                 } else {
-                    builder.append('-');
-                    ((PersistentEntityId) id).toString(builder);
+                    ((PersistentEntityId) id).toHash(hash);
                 }
             }
         };

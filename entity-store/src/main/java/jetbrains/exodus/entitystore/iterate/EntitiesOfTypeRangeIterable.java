@@ -72,15 +72,14 @@ public class EntitiesOfTypeRangeIterable extends EntityIterableBase {
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
         return new ConstantEntityIterableHandle(getStore(), EntitiesOfTypeRangeIterable.getType()) {
+
             @Override
-            public void getStringHandle(@NotNull final StringBuilder builder) {
-                super.getStringHandle(builder);
-                builder.append('-');
-                builder.append(entityTypeId);
-                builder.append('-');
-                builder.append(min);
-                builder.append('-');
-                builder.append(max);
+            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+                hash.apply(entityTypeId);
+                hash.applyDelimiter();
+                hash.apply(min);
+                hash.applyDelimiter();
+                hash.apply(max);
             }
 
             @Override

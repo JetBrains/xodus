@@ -86,13 +86,12 @@ public class SkipEntityIterable extends EntityIterableDecoratorBase {
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
         return new EntityIterableHandleDecorator(getStore(), SkipEntityIterable.getType(), source.getHandle()) {
+
             @Override
-            public void getStringHandle(@NotNull final StringBuilder builder) {
-                super.getStringHandle(builder);
-                builder.append('-');
-                builder.append(itemsToSkip);
-                builder.append('-');
-                decorated.getStringHandle(builder);
+            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+                hash.apply(itemsToSkip);
+                hash.applyDelimiter();
+                applyDecoratedToHash(hash);
             }
         };
     }

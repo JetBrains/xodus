@@ -122,17 +122,16 @@ public final class SortIterable extends EntityIterableDecoratorBase {
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
         return new EntityIterableHandleDecorator(getStore(), SortIterable.getType(), source.getHandle()) {
+
             @Override
-            public void getStringHandle(@NotNull final StringBuilder builder) {
-                super.getStringHandle(builder);
-                builder.append('-');
-                builder.append(sourceTypeId);
-                builder.append('-');
-                decorated.getStringHandle(builder);
-                builder.append('-');
-                propIndex.getHandle().getStringHandle(builder);
-                builder.append('-');
-                builder.append(ascending ? '0' : '1');
+            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+                hash.apply(sourceTypeId);
+                hash.applyDelimiter();
+                applyDecoratedToHash(hash);
+                hash.applyDelimiter();
+                hash.apply(propIndex.getHandle());
+                hash.applyDelimiter();
+                hash.apply(ascending ? 0 : 1);
             }
 
             @Override

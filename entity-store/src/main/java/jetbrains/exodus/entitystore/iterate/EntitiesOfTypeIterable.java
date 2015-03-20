@@ -143,10 +143,8 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
         }
 
         @Override
-        public void getStringHandle(@NotNull final StringBuilder builder) {
-            super.getStringHandle(builder);
-            builder.append('-');
-            builder.append(entityTypeId);
+        protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+            hash.apply(entityTypeId);
         }
 
         @Override

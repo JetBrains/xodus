@@ -101,15 +101,14 @@ public class FilterLinksIterable extends EntityIterableDecoratorBase {
     @Override
     protected EntityIterableHandle getHandleImpl() {
         return new EntityIterableHandleDecorator(getStore(), getType(), source.getHandle()) {
+
             @Override
-            public void getStringHandle(@NotNull final StringBuilder builder) {
-                super.getStringHandle(builder);
-                builder.append('-');
-                builder.append(linkId);
-                builder.append('-');
-                decorated.getStringHandle(builder);
-                builder.append('-');
-                entities.getHandle().getStringHandle(builder);
+            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+                hash.apply(linkId);
+                hash.applyDelimiter();
+                applyDecoratedToHash(hash);
+                hash.applyDelimiter();
+                hash.apply(entities.getHandle());
             }
         };
     }
