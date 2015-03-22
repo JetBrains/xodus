@@ -29,7 +29,7 @@ import java.util.Arrays;
 @SuppressWarnings({"AbstractClassWithoutAbstractMethods", "RawUseOfParameterizedType", "ProtectedField"})
 public abstract class EntityIterableHandleBase implements EntityIterableHandle {
 
-    private static final int HASH_LONGS_COUNT = 4;
+    private static final int HASH_LONGS_COUNT = 4; // NB: the fact that it is a power of 2 is used
 
     @Nullable
     protected final PersistentEntityStore store;
@@ -246,11 +246,11 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
 
         public void apply(final byte b) {
             final int bytesProcessed = this.bytesProcessed;
-            final int index = (bytesProcessed >> 3) & (HASH_LONGS_COUNT - 1);
-            final long hashValue = hashLongs[index];
             if (bytesProcessed < HASH_LONGS_COUNT * 8) {
-                hashLongs[index] = hashValue + (((long) (b & 0xff)) << ((bytesProcessed & 7) << 3));
+                hashLongs[((bytesProcessed >> 3) & (HASH_LONGS_COUNT - 1))] += (((long) (b & 0xff)) << ((bytesProcessed & 7) << 3));
             } else {
+                final int index = bytesProcessed & (HASH_LONGS_COUNT - 1);
+                final long hashValue = hashLongs[index];
                 hashLongs[index] = (hashValue << 5) - hashValue /* same as hashValue*31 */ + (b & 0xff);
             }
             this.bytesProcessed = bytesProcessed + 1;
