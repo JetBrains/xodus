@@ -223,11 +223,20 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
 
     public static final class EntityIterableHandleHash {
 
+        private static final String[] INTS;
+
+        static {
+            INTS = new String[256];
+            for (int i = 0; i < INTS.length; ++i) {
+                INTS[i] = Integer.toString(i);
+            }
+        }
+
         @NotNull
         private final long[] hashLongs;
         private int bytesProcessed;
 
-        EntityIterableHandleHash() {
+        public EntityIterableHandleHash() {
             hashLongs = new long[HASH_LONGS_COUNT];
         }
 
@@ -257,11 +266,19 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
         }
 
         public void apply(final int i) {
-            apply(Integer.toString(i));
+            if (i >= 0 && i < INTS.length) {
+                apply(INTS[i]);
+            } else {
+                apply(Integer.toString(i));
+            }
         }
 
         public void apply(final long l) {
-            apply(Long.toString(l));
+            if (l >= 0 && l < (long) INTS.length) {
+                apply(INTS[((int) l)]);
+            } else {
+                apply(Long.toString(l));
+            }
         }
 
         public void apply(@NotNull final String s) {
