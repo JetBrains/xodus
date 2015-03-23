@@ -59,10 +59,6 @@ public interface EntityStoreConfigMBean {
 
     void setEntityIterableCacheDeferredDelay(int deferredDelay);
 
-    int getEntityIterableCacheMaxKeySize();
-
-    void setEntityIterableCacheMaxKeySize(int maxKeySize);
-
     int getEntityIterableCacheMaxSizeOfDirectValue();
 
     void setEntityIterableCacheMaxSizeOfDirectValue(int maxSizeOfDirectValue);

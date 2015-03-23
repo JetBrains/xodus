@@ -139,16 +139,6 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
-    public int getEntityIterableCacheMaxKeySize() {
-        return config.getEntityIterableCacheMaxKeySize();
-    }
-
-    @Override
-    public void setEntityIterableCacheMaxKeySize(int maxKeySize) {
-        config.setEntityIterableCacheMaxKeySize(maxKeySize);
-    }
-
-    @Override
     public int getEntityIterableCacheMaxSizeOfDirectValue() {
         return config.getEntityIterableCacheMaxSizeOfDirectValue();
     }
