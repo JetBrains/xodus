@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.entitystore.iterate.EntityIterableHandleBase;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.regex.Pattern;
@@ -113,6 +114,16 @@ public class PersistentEntityId implements EntityId {
         if (version != ACTUAL_VERSION) {
             builder.append('-');
             builder.append(version);
+        }
+    }
+
+    public void toHash(@NotNull final EntityIterableHandleBase.EntityIterableHandleHash hash) {
+        hash.apply(entityTypeId);
+        hash.applyDelimiter();
+        hash.apply(entityLocalId);
+        if (version != ACTUAL_VERSION) {
+            hash.applyDelimiter();
+            hash.apply(version);
         }
     }
 

@@ -20,14 +20,6 @@ import org.jetbrains.annotations.Nullable;
 
 public interface EntityIterableHandle {
 
-    @NotNull
-    EntityIterableType getType();
-
-    @NotNull
-    String getStringHandle();
-
-    void getStringHandle(@NotNull StringBuilder builder);
-
     boolean isMatchedEntityAdded(@NotNull EntityId added);
 
     boolean isMatchedEntityDeleted(@NotNull EntityId deleted);

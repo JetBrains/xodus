@@ -81,11 +81,6 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
         final PersistentStoreTransaction txn = it.getTransaction();
         final EntityIterableCacheAdapter localCache = txn.getLocalCache();
 
-        if (localCache.isHandleTooLong(handle)) {
-            // don't try to find in cache or instantiate something that can't be cached
-            return it;
-        }
-
         txn.localCacheAttempt();
 
         final EntityIterableBase cached = localCache.tryKey(handle);
@@ -176,7 +171,7 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
 
         @Override
         public String getName() {
-            return "Caching job for handle " + it.getHandle().getStringHandle();
+            return "Caching job for handle " + EntityIterableBase.getHumanReadablePresentation(it.getHandle().toString());
         }
 
         @Override
@@ -211,12 +206,12 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
                         it.getOrCreateCachedWrapper(txn);
                         final long cachedIn = System.currentTimeMillis() - started;
                         if (cachedIn > 1000) {
-                            log.info("Cached in " + cachedIn + " ms, handle=" + handle.getStringHandle());
+                            log.info("Cached in " + cachedIn + " ms, handle=" + EntityIterableBase.getHumanReadablePresentation(handle.toString()));
                         }
                     }
                 } catch (TooLongEntityIterableInstantiationException e) {
                     if (log.isInfoEnabled()) {
-                        log.info("Caching forcedly stopped: " + handle.getStringHandle());
+                        log.info("Caching forcedly stopped: " + EntityIterableBase.getHumanReadablePresentation(handle.toString()));
                     }
                 }
             } finally {

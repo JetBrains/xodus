@@ -126,9 +126,9 @@ public class HumanReadablePresentationTests extends EntityStoreTestBase {
         );
     }
 
-    private void checkIterable(EntityIterable iterable, String presentation) {
-        assertEquals(presentation, EntityIterableBase.getHumanReadablePresentation(iterable.getHandle().getStringHandle()));
+    private void checkIterable(EntityIterableBase iterable, String presentation) {
+        assertEquals(presentation, EntityIterableBase.getHumanReadablePresentation(iterable.getHandle().toString()));
         EntityIterableBase instantiated = EntityIterableBase.instantiate(getStoreTransaction(), getEntityStore(), presentation);
-        assertEquals(presentation, EntityIterableBase.getHumanReadablePresentation(instantiated.getHandle().getStringHandle()));
+        assertEquals(presentation, EntityIterableBase.getHumanReadablePresentation(instantiated.getHandle().toString()));
     }
 }

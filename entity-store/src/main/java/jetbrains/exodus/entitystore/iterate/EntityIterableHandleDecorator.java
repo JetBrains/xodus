@@ -76,4 +76,8 @@ public abstract class EntityIterableHandleDecorator extends EntityIterableHandle
     public boolean isExpired() {
         return decorated.isExpired();
     }
+
+    protected void applyDecoratedToHash(@NotNull final EntityIterableHandleHash hash) {
+        hash.apply(decorated);
+    }
 }

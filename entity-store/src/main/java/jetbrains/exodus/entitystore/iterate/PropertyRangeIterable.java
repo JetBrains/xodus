@@ -94,17 +94,16 @@ public final class PropertyRangeIterable extends EntityIterableBase {
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
         return new ConstantEntityIterableHandle(getStore(), getType()) {
+
             @Override
-            public void getStringHandle(@NotNull final StringBuilder builder) {
-                super.getStringHandle(builder);
-                builder.append('-');
-                builder.append(entityTypeId);
-                builder.append('-');
-                builder.append(propertyId);
-                builder.append('-');
-                builder.append(min.toString());
-                builder.append('-');
-                builder.append(max.toString());
+            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+                hash.apply(entityTypeId);
+                hash.applyDelimiter();
+                hash.apply(propertyId);
+                hash.applyDelimiter();
+                hash.apply(min.toString());
+                hash.applyDelimiter();
+                hash.apply(max.toString());
             }
 
             @Override

@@ -43,24 +43,15 @@ final class EntityIterableCacheAdapter {
 
     @Nullable
     CachedWrapperIterable tryKey(@NotNull final EntityIterableHandle key) {
-        if (isHandleTooLong(key)) {
-            return null;
-        }
         return parseCachedObject(key, cache.tryKey(key));
     }
 
     @Nullable
     CachedWrapperIterable getObject(@NotNull final EntityIterableHandle key) {
-        if (isHandleTooLong(key)) {
-            return null;
-        }
         return parseCachedObject(key, cache.getObject(key));
     }
 
     void cacheObject(@NotNull final EntityIterableHandle key, @NotNull final CachedWrapperIterable it) {
-        if (isHandleTooLong(key)) {
-            return;
-        }
         cache.cacheObject(key, new CacheItem(it, config.getEntityIterableCacheMaxSizeOfDirectValue()));
     }
 
@@ -94,10 +85,6 @@ final class EntityIterableCacheAdapter {
 
     EntityIterableCacheAdapter getClone() {
         return new EntityIterableCacheAdapter(this);
-    }
-
-    boolean isHandleTooLong(@NotNull final EntityIterableHandle handle) {
-        return handle.getStringHandle().length() > config.getEntityIterableCacheMaxKeySize();
     }
 
     private CachedWrapperIterable parseCachedObject(@NotNull final EntityIterableHandle key, @Nullable final CacheItem item) {

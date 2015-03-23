@@ -101,15 +101,13 @@ public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
             }
 
             @Override
-            public void getStringHandle(@NotNull final StringBuilder builder) {
-                super.getStringHandle(builder);
-                builder.append('-');
-                ((PersistentEntityId) entityId).toString(builder);
-                builder.append('-');
-                builder.append(linkNames.keySet().size());
+            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+                ((PersistentEntityId) entityId).toHash(hash);
+                hash.applyDelimiter();
+                hash.apply(linkNames.keySet().size());
                 for (final int id : linkNames.keySet()) {
-                    builder.append('-');
-                    builder.append(id);
+                    hash.applyDelimiter();
+                    hash.apply(id);
                 }
             }
 
@@ -219,5 +217,4 @@ public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
             return false;
         }
     }
-
 }

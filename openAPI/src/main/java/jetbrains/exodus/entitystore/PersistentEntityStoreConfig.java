@@ -57,8 +57,6 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public static final String ENTITY_ITERABLE_CACHE_DEFERRED_DELAY = "exodus.entityStore.entityIterableCache.deferredDelay"; // in milliseconds
 
-    public static final String ENTITY_ITERABLE_CACHE_MAX_KEY_SIZE = "exodus.entityStore.entityIterableCache.maxKeySize";
-
     public static final String ENTITY_ITERABLE_CACHE_MAX_SIZE_OF_DIRECT_VALUE = "exodus.entityStore.entityIterableCache.maxSizeOfDirectValue";
 
     public static final String TRANSACTION_PROPS_CACHE_SIZE = "exodus.entityStore.transaction.propsCacheSize";
@@ -94,7 +92,6 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(ENTITY_ITERABLE_CACHE_THREAD_COUNT, Runtime.getRuntime().availableProcessors() > 3 ? 2 : 1),
                 new Pair(ENTITY_ITERABLE_CACHE_CACHING_TIMEOUT, 10000L),
                 new Pair(ENTITY_ITERABLE_CACHE_DEFERRED_DELAY, 2000),
-                new Pair(ENTITY_ITERABLE_CACHE_MAX_KEY_SIZE, 1024),
                 new Pair(ENTITY_ITERABLE_CACHE_MAX_SIZE_OF_DIRECT_VALUE, 512),
                 new Pair(TRANSACTION_PROPS_CACHE_SIZE, 1024),
                 new Pair(TRANSACTION_LINKS_CACHE_SIZE, 4096),
@@ -229,14 +226,6 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public void setEntityIterableCacheDeferredDelay(final int deferredDelay) {
         setSetting(ENTITY_ITERABLE_CACHE_DEFERRED_DELAY, deferredDelay);
-    }
-
-    public int getEntityIterableCacheMaxKeySize() {
-        return (Integer) getSetting(ENTITY_ITERABLE_CACHE_MAX_KEY_SIZE);
-    }
-
-    public void setEntityIterableCacheMaxKeySize(final int maxKeySize) {
-        setSetting(ENTITY_ITERABLE_CACHE_MAX_KEY_SIZE, maxKeySize);
     }
 
     public int getEntityIterableCacheMaxSizeOfDirectValue() {

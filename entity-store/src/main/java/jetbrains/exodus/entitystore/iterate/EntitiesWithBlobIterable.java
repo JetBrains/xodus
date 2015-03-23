@@ -70,12 +70,10 @@ public class EntitiesWithBlobIterable extends EntityIterableBase {
         }
 
         @Override
-        public void getStringHandle(@NotNull final StringBuilder builder) {
-            super.getStringHandle(builder);
-            builder.append('-');
-            builder.append(entityTypeId);
-            builder.append('-');
-            builder.append(blobId);
+        protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+            hash.apply(entityTypeId);
+            hash.applyDelimiter();
+            hash.apply(blobId);
         }
     }
 

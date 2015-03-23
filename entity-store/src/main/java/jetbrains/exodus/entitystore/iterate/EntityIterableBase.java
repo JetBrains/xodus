@@ -53,6 +53,10 @@ public abstract class EntityIterableBase implements EntityIterable {
             protected EntityIterableHandle getHandleImpl() {
                 //noinspection EmptyClass
                 return new ConstantEntityIterableHandle(null, EntityIterableType.EMPTY) {
+                    @Override
+                    protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+                        // do nothing
+                    }
                 };
             }
 
@@ -524,7 +528,7 @@ public abstract class EntityIterableBase implements EntityIterable {
             }
         }
         types = Arrays.copyOf(types, types.length - minus);
-        int[] pos = {1};
+        int[] pos = {0};
         StringBuilder presentation = new StringBuilder();
         getHumanReadablePresentation(presentation, types, pos, "");
         if (pos[0] < types.length - 1) {
@@ -666,7 +670,7 @@ public abstract class EntityIterableBase implements EntityIterable {
             Explainer explainer = getStore().getExplainer();
             explainer.explain(getOrigin(), Explainer.CURSOR_ADVANCES);
             explainer.explain(getOrigin(), Explainer._CURSOR_ADVANCES_BY_TYPE + ' ' + type.name());
-            explainer.explain(getOrigin(), Explainer._CURSOR_ADVANCES_BY_HANDLE + ' ' + getHandle().getStringHandle());
+            explainer.explain(getOrigin(), Explainer._CURSOR_ADVANCES_BY_HANDLE + ' ' + getHandle().toString());
         }
     }
 }

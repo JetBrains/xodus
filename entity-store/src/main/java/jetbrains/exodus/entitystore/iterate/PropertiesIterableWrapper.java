@@ -137,7 +137,7 @@ public class PropertiesIterableWrapper extends UpdatableCachedWrapperIterable {
             if (index.contains(oldEntry)) {
                 index.exclude(oldEntry);
             } else if (newEntry != null && !index.contains(newEntry)) {
-                log.warn("In-memory index doesn't contain the value [" + oldValue + "]. New value [" + newValue + "]. Handle [" + getHandle().getStringHandle() + ']');
+                log.warn("In-memory index doesn't contain the value [" + oldValue + "]. New value [" + newValue + "]. Handle [" + getHandle() + ']');
             }
         }
         if (newEntry != null) {
