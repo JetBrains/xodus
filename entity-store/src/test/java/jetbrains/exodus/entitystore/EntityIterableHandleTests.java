@@ -15,10 +15,16 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.entitystore.iterate.ConstantEntityIterableHandle;
 import jetbrains.exodus.entitystore.iterate.EntityIterableHandleBase;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
+
+import java.security.SecureRandom;
+import java.util.Set;
+import java.util.function.IntConsumer;
+import java.util.stream.IntStream;
 
 public class EntityIterableHandleTests extends EntityStoreTestBase {
 
@@ -32,5 +38,30 @@ public class EntityIterableHandleTests extends EntityStoreTestBase {
             }
         };
         Assert.assertEquals("00000000000000000000000000000000", h.toString());
+    }
+
+    public void testDistribution() {
+        final SecureRandom rnd = new SecureRandom();
+        final Set<EntityIterableHandleBase.EntityIterableHandleHash> set = new HashSet<EntityIterableHandleBase.EntityIterableHandleHash>();
+        for (int i = 0; i < 1000000; ++i) {
+            final EntityIterableHandleBase.EntityIterableHandleHash h = new EntityIterableHandleBase.EntityIterableHandleHash();
+            h.apply("00000000000000000000000000000000");
+            final IntStream ints = rnd.ints(rnd.nextInt(40) + 10);
+            ints.forEach(new IntConsumer() {
+                @Override
+                public void accept(int value) {
+                    h.applyDelimiter();
+                    h.apply(value & 0xff);
+                }
+            });
+            ints.close();
+            // in case of poor distribution, birthday paradox will give assertion quite soon
+            if (!set.add(h)) {
+                Assert.assertTrue(false);
+            }
+            if ((i % 1000000) == 0) {
+                System.out.print(".");
+            }
+        }
     }
 }
