@@ -22,6 +22,7 @@ import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.Loggable;
+import jetbrains.exodus.log.RandomAccessLoggable;
 import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.tree.*;
 import jetbrains.exodus.tree.btree.BTree;
@@ -38,10 +39,12 @@ final class MetaTree {
 
     final ITree tree;
     final long root;
+    final long highAddress;
 
-    MetaTree(final ITree tree, long root) {
+    MetaTree(final ITree tree, long root, long highAddress) {
         this.tree = tree;
         this.root = root;
+        this.highAddress = highAddress;
     }
 
     static Pair<MetaTree, Integer> create(@NotNull final EnvironmentImpl env) {
@@ -64,9 +67,10 @@ final class MetaTree {
             dbRoot = (DatabaseRoot) log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, dbRoot.getAddress());
         }
         final long root;
+        final long validHighAddress;
         if (dbRoot != null) {
             root = dbRoot.getAddress();
-            final long validHighAddress = root + dbRoot.length();
+            validHighAddress = root + dbRoot.length();
             if (log.getHighAddress() != validHighAddress) {
                 log.setHighAddress(validHighAddress);
             }
@@ -75,9 +79,10 @@ final class MetaTree {
             resultTree = getEmptyMetaTree(env);
             final long rootAddress = resultTree.getMutableCopy().save();
             root = log.write(DatabaseRoot.toLoggable(rootAddress, EnvironmentImpl.META_TREE_ID));
+            validHighAddress = root + log.read(root).length();
             log.flush();
         }
-        return new Pair<MetaTree, Integer>(new MetaTree(resultTree, root), resultId);
+        return new Pair<MetaTree, Integer>(new MetaTree(resultTree, root, validHighAddress), resultId);
     }
 
     LongIterator addressIterator() {
@@ -133,9 +138,10 @@ final class MetaTree {
         final int lastStructureId = env.getLastStructureId();
         final long dbRootAddress = log.write(DatabaseRoot.toLoggable(newMetaTreeAddress, lastStructureId));
         log.flush();
-        BTree resultTree = env.loadMetaTree(newMetaTreeAddress);
-        expired.add(log.read(dbRootAddress));
-        return new MetaTree(resultTree, dbRootAddress);
+        final BTree resultTree = env.loadMetaTree(newMetaTreeAddress);
+        final RandomAccessLoggable dbRootLoggable = log.read(dbRootAddress);
+        expired.add(dbRootLoggable);
+        return new MetaTree(resultTree, dbRootAddress, dbRootAddress + dbRootLoggable.length());
     }
 
     @NotNull
@@ -184,7 +190,7 @@ final class MetaTree {
             while (cursor.getNext()) {
                 tree.put(cursor.getKey(), cursor.getValue());
             }
-            return new MetaTree(tree, root);
+            return new MetaTree(tree, root, highAddress);
         } finally {
             cursor.close();
         }

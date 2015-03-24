@@ -37,7 +37,6 @@ public class TransactionImpl implements Transaction {
     private final Thread creatingThread;
     @NotNull
     private MetaTree metaTree;
-    private long highAddress;
     @NotNull
     private final IntHashMap<ITree> immutableTrees;
     @NotNull
@@ -67,7 +66,6 @@ public class TransactionImpl implements Transaction {
             public void run() {
                 final MetaTree currentMetaTree = env.getMetaTreeUnsafe();
                 metaTree = cloneMeta ? currentMetaTree.getClone() : currentMetaTree;
-
                 env.registerTransaction(TransactionImpl.this);
                 if (beginHook != null) {
                     beginHook.run();
@@ -153,6 +151,11 @@ public class TransactionImpl implements Transaction {
     @Override
     public long getCreated() {
         return created;
+    }
+
+    @Override
+    public long getHighAddress() {
+        return metaTree.highAddress;
     }
 
     public boolean forceFlush() {

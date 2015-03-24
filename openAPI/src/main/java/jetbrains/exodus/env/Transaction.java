@@ -43,4 +43,9 @@ public interface Transaction {
      * @return the difference, measured in milliseconds, between the current time and midnight, January 1, 1970 UTC.
      */
     long getCreated();
+
+    /**
+     * @return the value of Log.getHighAddress() that was actual when the transaction was created.
+     */
+    long getHighAddress();
 }

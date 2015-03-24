@@ -16,38 +16,24 @@
 package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.BackupStrategy;
-import jetbrains.exodus.env.EnvironmentImpl;
-import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Stack;
 
 public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
 
-    private final Stack<PersistentStoreTransaction> nestedTxns;
+    private final PersistentStoreTransaction backupTxn;
     private final long logHighAddress;
     private final BackupStrategy environmentBackupStrategy;
     private final BackupStrategy blobVaultBackupStrategy;
 
     public PersistentEntityStoreBackupStrategy(@NotNull final PersistentEntityStoreImpl store) {
-        nestedTxns = new Stack<PersistentStoreTransaction>();
-        // TODO: rewrite this rather tricky optimistic evaluation of atomic pair: transaction and corresponding log high address
-        final EnvironmentImpl env = (EnvironmentImpl) store.getEnvironment();
-        final Log log = env.getLog();
-        nestedTxns.push(store.beginReadonlyTransaction());
-        while (true) {
-            final long highAddress = log.getHighAddress();
-            nestedTxns.push(store.beginReadonlyTransaction());
-            if (log.getHighAddress() == highAddress) {
-                logHighAddress = highAddress;
-                break;
-            }
-        }
-        environmentBackupStrategy = new BackupStrategyDecorator(env.getBackupStrategy()) {
+        backupTxn = store.beginReadonlyTransaction();
+        logHighAddress = backupTxn.getEnvironmentTransaction().getHighAddress();
+        environmentBackupStrategy = new BackupStrategyDecorator(store.getEnvironment().getBackupStrategy()) {
             @Override
             public long acceptFile(@NotNull final File file) {
                 return Math.min(super.acceptFile(file), logHighAddress - LogUtil.getAddress(file.getName()));
@@ -57,9 +43,8 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
         if (!(blobVault instanceof FileSystemBlobVault)) {
             blobVaultBackupStrategy = blobVault.getBackupStrategy();
         } else {
-            final PersistentStoreTransaction txn = nestedTxns.peek();
             final FileSystemBlobVault fsBlobVault = (FileSystemBlobVault) blobVault;
-            final long lastUsedHandle = store.getSequence(txn, PersistentEntityStoreImpl.BLOB_HANDLES_SEQUENCE).loadValue(txn);
+            final long lastUsedHandle = store.getSequence(backupTxn, PersistentEntityStoreImpl.BLOB_HANDLES_SEQUENCE).loadValue(backupTxn);
             blobVaultBackupStrategy = new BackupStrategyDecorator(blobVault.getBackupStrategy()) {
                 @Override
                 public long acceptFile(@NotNull final File file) {
@@ -100,9 +85,7 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
             blobVaultBackupStrategy.afterBackup();
             environmentBackupStrategy.afterBackup();
         } finally {
-            while (!nestedTxns.isEmpty()) {
-                nestedTxns.pop().abort();
-            }
+            backupTxn.abort();
         }
     }
 
