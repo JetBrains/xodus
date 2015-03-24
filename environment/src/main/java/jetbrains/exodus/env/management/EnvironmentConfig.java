@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.env.management;
 
+import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.management.MBeanBase;
 import org.jetbrains.annotations.NotNull;
@@ -110,6 +111,24 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     @Override
     public void setEnvIsReadonly(boolean isReadonly) {
         config.setEnvIsReadonly(isReadonly);
+        if (isReadonly) {
+            final Object event = new Object();
+            env.executeTransactionSafeTask(new Runnable() {
+                @Override
+                public void run() {
+                    synchronized (event) {
+                        event.notify();
+                    }
+                }
+            });
+            try {
+                synchronized (event) {
+                    event.wait();
+                }
+            } catch (InterruptedException e) {
+                throw ExodusException.toExodusException(e);
+            }
+        }
     }
 
     @Override

@@ -721,6 +721,12 @@ public class EnvironmentImpl implements Environment {
                 log.getConfig().setSyncPeriod(ec.getLogSyncPeriod());
             } else if (settingName.equals(EnvironmentConfig.LOG_DURABLE_WRITE)) {
                 log.getConfig().setDurableWrite(ec.getLogDurableWrite());
+            } else if (settingName.equals(EnvironmentConfig.ENV_IS_READONLY)) {
+                if (ec.getEnvIsReadonly()) {
+                    suspendGC();
+                } else {
+                    resumeGC();
+                }
             }
         }
     }
