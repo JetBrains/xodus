@@ -84,17 +84,24 @@ final class BackgroundCleaningJob extends Job {
             gc.resetNewFiles();
             final long file = sparseFiles[i];
             if (i > newFiles) {
-                if (!gc.cleanFile(file)) {
+                if (!cleanFile(gc, file)) {
                     break;
                 }
             } else {
-                for (int j = 0; j < 4 && !gc.cleanFile(file) && canContinue(); ++j) {
+                for (int j = 0; j < 4 && !cleanFile(gc, file) && canContinue(); ++j) {
                     Thread.yield();
                 }
             }
         }
         gc.resetNewFiles();
         GarbageCollector.loggingInfo("Finished background cleaner loop for " + log.getLocation());
+    }
+
+    /**
+     * We need this synchronized method in order to provide correctness of  {@link BackgroundCleaner#suspend()}.
+     */
+    private synchronized boolean cleanFile(@NotNull final GarbageCollector gc, final long file) {
+        return gc.cleanFile(file);
     }
 
     private boolean canContinue() {
