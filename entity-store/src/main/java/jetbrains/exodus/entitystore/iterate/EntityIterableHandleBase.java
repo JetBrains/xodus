@@ -24,7 +24,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.UnsupportedEncodingException;
-import java.util.Arrays;
 
 @SuppressWarnings({"AbstractClassWithoutAbstractMethods", "RawUseOfParameterizedType", "ProtectedField"})
 public abstract class EntityIterableHandleBase implements EntityIterableHandle {
@@ -242,7 +241,11 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
 
         @Override
         public int hashCode() {
-            return Arrays.hashCode(hashLongs);
+            long result = 314159265358L;
+            for (final long hl : hashLongs) {
+                result ^= hl;
+            }
+            return ((int) result) ^ ((int) (result >>> 32));
         }
 
         @Override
@@ -250,7 +253,13 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
             if (!(obj instanceof EntityIterableHandleHash)) {
                 return false;
             }
-            return Arrays.equals(hashLongs, ((EntityIterableHandleHash) obj).hashLongs);
+            long[] rightHashLongs = ((EntityIterableHandleHash) obj).hashLongs;
+            for (int i = 0; i < hashLongs.length; ++i) {
+                if (hashLongs[i] != rightHashLongs[i]) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         public void apply(final byte b) {
