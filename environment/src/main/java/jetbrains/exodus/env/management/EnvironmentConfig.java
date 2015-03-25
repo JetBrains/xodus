@@ -15,10 +15,11 @@
  */
 package jetbrains.exodus.env.management;
 
-import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.management.MBeanBase;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.concurrent.Semaphore;
 
 public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBean {
 
@@ -112,22 +113,14 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     public void setEnvIsReadonly(boolean isReadonly) {
         config.setEnvIsReadonly(isReadonly);
         if (isReadonly) {
-            final Object event = new Object();
+            final Semaphore sm = new Semaphore(0);
             env.executeTransactionSafeTask(new Runnable() {
                 @Override
                 public void run() {
-                    synchronized (event) {
-                        event.notify();
-                    }
+                    sm.release();
                 }
             });
-            try {
-                synchronized (event) {
-                    event.wait();
-                }
-            } catch (InterruptedException e) {
-                throw ExodusException.toExodusException(e);
-            }
+            sm.acquireUninterruptibly();
         }
     }
 
