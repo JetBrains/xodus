@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.entitystore.iterate.ConstantEntityIterableHandle;
+import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.iterate.EntityIterableHandleBase;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
@@ -57,5 +58,18 @@ public class EntityIterableHandleTests extends EntityStoreTestBase {
                 System.out.print(".");
             }
         }
+    }
+
+    public void test_XD_438() {
+        final EntityIterableHandleBase h = new ConstantEntityIterableHandle(getEntityStore(), EntityIterableType.REVERSE) {
+            @Override
+            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+                hash.apply(EntityIterableType.SINGLE_ENTITY.getType());
+                hash.applyDelimiter();
+                new PersistentEntityId(1000000000, 10000000000000000L).toHash(hash);
+            }
+        };
+        Assert.assertEquals("Reversed iterable\n" +
+                "|   Single entity 1000000000 10000000000000000", EntityIterableBase.getHumanReadablePresentation(h.toString()));
     }
 }
