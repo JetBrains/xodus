@@ -70,11 +70,11 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
     @Override
     public Iterable<FileDescriptor> listFiles() {
         final List<FileDescriptor> allFiles = new ArrayList<FileDescriptor>();
-        for (FileDescriptor blob : blobVaultBackupStrategy.listFiles()) {
-            allFiles.add(blob);
-        }
         for (FileDescriptor xdFile : environmentBackupStrategy.listFiles()) {
             allFiles.add(xdFile);
+        }
+        for (FileDescriptor blob : blobVaultBackupStrategy.listFiles()) {
+            allFiles.add(blob);
         }
         return allFiles;
     }
