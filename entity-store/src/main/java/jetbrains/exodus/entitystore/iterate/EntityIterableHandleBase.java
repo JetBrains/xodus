@@ -31,7 +31,9 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
     private static final int HASH_LONGS_COUNT = 4; // NB: the fact that it is a power of 2 is used
 
     @Nullable
-    protected final PersistentEntityStore store;
+    private final PersistentEntityStore store;
+    @NotNull
+    private final EntityIterableType type;
     @NotNull
     private final EntityIterableHandleHash hash;
     private int hashCode;
@@ -40,6 +42,7 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
     protected EntityIterableHandleBase(@Nullable final PersistentEntityStore store,
                                        @NotNull final EntityIterableType type) {
         this.store = store;
+        this.type = type;
         hash = new EntityIterableHandleHash();
         hash.apply(type.getType());
         if (type != EntityIterableType.EMPTY) {
@@ -125,7 +128,13 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
 
     @Override
     public String toString() {
-        return getHash().toString();
+        final EntityIterableHandleHash hash = new EntityIterableHandleHash(new StringBuilder());
+        hash.apply(type.getType());
+        if (type != EntityIterableType.EMPTY) {
+            hash.applyDelimiter();
+        }
+        hashCode(hash);
+        return hash.toString();
     }
 
     @NotNull
@@ -233,10 +242,17 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
 
         @NotNull
         private final long[] hashLongs;
+        @Nullable
+        private final StringBuilder toStringBuilder;
         private int bytesProcessed;
 
         public EntityIterableHandleHash() {
+            this(null);
+        }
+
+        private EntityIterableHandleHash(@Nullable final StringBuilder builder) {
             hashLongs = new long[HASH_LONGS_COUNT];
+            toStringBuilder = builder;
         }
 
         @Override
@@ -272,6 +288,9 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
                 hashLongs[index] = (hashValue << 5) - hashValue /* same as hashValue*31 */ + (b & 0xff);
             }
             this.bytesProcessed = bytesProcessed + 1;
+            if (toStringBuilder != null) {
+                toStringBuilder.append((char) (b & 0xff));
+            }
         }
 
         public void apply(final int i) {
@@ -315,6 +334,9 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
 
         @Override
         public String toString() {
+            if (toStringBuilder != null) {
+                return toStringBuilder.toString();
+            }
             final int hashBytes = Math.min(bytesProcessed, HASH_LONGS_COUNT * 8);
             final StringBuilder builder = new StringBuilder(hashBytes);
             forEachByte(new ByteConsumer() {

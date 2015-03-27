@@ -70,6 +70,6 @@ public class EntityIterableHandleTests extends EntityStoreTestBase {
             }
         };
         Assert.assertEquals("Reversed iterable\n" +
-                "|   Single entity 1000000000 10000000000000000", EntityIterableBase.getHumanReadablePresentation(h.toString()));
+                "|   Single entity 1000000000 10000000000000000", EntityIterableBase.getHumanReadablePresentation(h));
     }
 }
