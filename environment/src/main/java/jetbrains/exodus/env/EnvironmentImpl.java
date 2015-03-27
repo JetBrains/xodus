@@ -491,19 +491,18 @@ public class EnvironmentImpl implements Environment {
      */
     @SuppressWarnings({"AssignmentToMethodParameter"})
     @NotNull
-    StoreImpl openStoreImpl(final String name, StoreConfig config, @Nullable final TransactionImpl txn, @Nullable TreeMetaInfo metaInfo) {
+    StoreImpl openStoreImpl(@NotNull final String name, @NotNull StoreConfig config, @NotNull final TransactionImpl txn, @Nullable TreeMetaInfo metaInfo) {
         if (config.useExisting) { // this parameter requires to recalculate
             if (metaInfo == null) {
                 throw new ExodusException("Can't restore meta information for store " + name);
             } else {
-                // 'readonly' is ignored here
                 config = TreeMetaInfo.toConfig(metaInfo);
             }
         }
         final StoreImpl result;
         if (metaInfo == null) {
-            if (txn == null) {
-                throw new ExodusException("Transaction required to create a new store");
+            if (ec.getEnvIsReadonly() && ec.getEnvReadonlyEmptyStores()) {
+                return new StoreEmpty(this, name);
             }
             final int structureId = allocateStructureId();
             metaInfo = TreeMetaInfo.load(this, config.duplicates, config.prefixing, structureId);

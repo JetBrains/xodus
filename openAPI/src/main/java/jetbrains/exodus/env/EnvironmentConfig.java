@@ -52,6 +52,12 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public static final String ENV_IS_READONLY = "exodus.env.isReadonly";
 
+    /**
+     * If this setting is set to {@code true} and exodus.env.isReadonly is also {@code true},
+     * env.openStore() doesn't try to create a store, but returns an empty immutable instance instead
+     */
+    public static final String ENV_READONLY_EMPTY_STORES = "exodus.env.readonly.emptyStores";
+
     public static final String ENV_STOREGET_CACHE_SIZE = "exodus.env.storeGetCacheSize";
 
     public static final String ENV_CLOSE_FORCEDLY = "exodus.env.closeForcedly";
@@ -107,6 +113,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(LOG_CLEAR_INVALID, false),
                 new Pair(LOG_SYNC_PERIOD, 1000L),
                 new Pair(ENV_IS_READONLY, false),
+                new Pair(ENV_READONLY_EMPTY_STORES, false),
                 new Pair(ENV_STOREGET_CACHE_SIZE, 0),
                 new Pair(ENV_CLOSE_FORCEDLY, false),
                 new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
@@ -227,6 +234,14 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public void setEnvIsReadonly(final boolean isReadonly) {
         setSetting(ENV_IS_READONLY, isReadonly);
+    }
+
+    public boolean getEnvReadonlyEmptyStores() {
+        return (Boolean) getSetting(ENV_READONLY_EMPTY_STORES);
+    }
+
+    public void setEnvReadonlyEmptyStores(final boolean readonlyEmptyStores) {
+        setSetting(ENV_READONLY_EMPTY_STORES, readonlyEmptyStores);
     }
 
     public int getEnvStoreGetCacheSize() {

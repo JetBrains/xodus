@@ -30,6 +30,10 @@ import java.util.Iterator;
  */
 class StoreEmpty extends StoreImpl {
 
+    public StoreEmpty(@NotNull final EnvironmentImpl env, @NotNull final String name) {
+        super(env, name, TreeMetaInfo.EMPTY.clone(-1));
+    }
+
     StoreEmpty(@NotNull final EnvironmentImpl env, final int structureId) {
         super(env, "fake empty store", TreeMetaInfo.EMPTY.clone(structureId));
     }
@@ -92,6 +96,6 @@ class StoreEmpty extends StoreImpl {
     }
 
     private static boolean throwCantModify() {
-        throw new UnsupportedOperationException("Can't modify fake empty store");
+        throw new UnsupportedOperationException("Can't modify empty store");
     }
 }
