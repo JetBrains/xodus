@@ -20,8 +20,7 @@ import jetbrains.exodus.log.LogUtil;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Iterator;
 
 public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
 
@@ -69,14 +68,33 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
 
     @Override
     public Iterable<FileDescriptor> listFiles() {
-        final List<FileDescriptor> allFiles = new ArrayList<FileDescriptor>();
-        for (FileDescriptor xdFile : environmentBackupStrategy.listFiles()) {
-            allFiles.add(xdFile);
-        }
-        for (FileDescriptor blob : blobVaultBackupStrategy.listFiles()) {
-            allFiles.add(blob);
-        }
-        return allFiles;
+        return new Iterable<FileDescriptor>() {
+            @Override
+            public Iterator<FileDescriptor> iterator() {
+                return new Iterator<FileDescriptor>() {
+
+                    private Iterator<FileDescriptor> filesIterator = environmentBackupStrategy.listFiles().iterator();
+                    private boolean environmentListed = false;
+
+                    @Override
+                    public boolean hasNext() {
+                        while (!filesIterator.hasNext()) {
+                            if (environmentListed) {
+                                return false;
+                            }
+                            environmentListed = true;
+                            filesIterator = blobVaultBackupStrategy.listFiles().iterator();
+                        }
+                        return true;
+                    }
+
+                    @Override
+                    public FileDescriptor next() {
+                        return filesIterator.next();
+                    }
+                };
+            }
+        };
     }
 
     @Override
