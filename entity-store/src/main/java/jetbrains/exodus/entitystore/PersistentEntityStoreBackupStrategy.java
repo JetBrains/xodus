@@ -92,6 +92,11 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
                     public FileDescriptor next() {
                         return filesIterator.next();
                     }
+
+                    @Override
+                    public void remove() {
+                        throw new UnsupportedOperationException();
+                    }
                 };
             }
         };
