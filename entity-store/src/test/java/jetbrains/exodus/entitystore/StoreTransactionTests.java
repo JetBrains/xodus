@@ -96,6 +96,38 @@ public class StoreTransactionTests extends EntityStoreTestBase {
         Assert.assertEquals("Happy New Year", UTFUtil.readUTF(s));
     }
 
+    public void testEmptyStoresRelatedTo_XD_439() {
+        final PersistentEntityStoreImpl entityStore = getEntityStore();
+        entityStore.getEnvironment().getEnvironmentConfig().setEnvIsReadonly(true);
+        entityStore.getEnvironment().getEnvironmentConfig().setEnvReadonlyEmptyStores(true);
+        Assert.assertEquals(0L, (long) entityStore.computeInReadonlyTransaction(new StoreTransactionalComputable<Long>() {
+            @Override
+            public Long compute(@NotNull StoreTransaction txn) {
+                return txn.getAll("Issue").size();
+            }
+        }));
+        entityStore.executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final StoreTransaction txn) {
+                entityStore.getLastVersion((PersistentStoreTransaction) txn, new PersistentEntityId(0, 0));
+            }
+        });
+        entityStore.getEnvironment().getEnvironmentConfig().setEnvIsReadonly(false);
+        entityStore.executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final StoreTransaction txn) {
+                final Entity issue = txn.newEntity("Issue");
+                issue.setBlobString("desc", "Happy New Year");
+            }
+        });
+        Assert.assertEquals(1L, (long) entityStore.computeInReadonlyTransaction(new StoreTransactionalComputable<Long>() {
+            @Override
+            public Long compute(@NotNull StoreTransaction txn) {
+                return txn.getAll("Issue").size();
+            }
+        }));
+    }
+
     public void testExecuteInTransaction() {
         final PersistentStoreTransaction txn = getStoreTransactionSafe();
         final Entity issue = txn.newEntity("Issue");
