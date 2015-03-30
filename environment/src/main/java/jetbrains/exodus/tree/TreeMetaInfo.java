@@ -71,7 +71,7 @@ public abstract class TreeMetaInfo {
     public abstract TreeMetaInfo clone(final int newStructureId);
 
     public static StoreConfig toConfig(@NotNull final TreeMetaInfo metaInfo) {
-        if (metaInfo.getStructureId() < 0L) {
+        if (metaInfo.getStructureId() < 0) {
             return StoreConfig.TEMPORARY_EMPTY;
         }
         final boolean keyPrefixing = metaInfo.isKeyPrefixing();

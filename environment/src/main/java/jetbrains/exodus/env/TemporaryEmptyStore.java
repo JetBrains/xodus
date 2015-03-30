@@ -31,6 +31,12 @@ class TemporaryEmptyStore extends StoreImpl {
         super(env, name, TreeMetaInfo.EMPTY.clone(-1));
     }
 
+    @NotNull
+    @Override
+    public StoreConfig getConfig() {
+        return StoreConfig.TEMPORARY_EMPTY;
+    }
+
     TemporaryEmptyStore(@NotNull final EnvironmentImpl env) {
         this(env, "Temporary Empty Store");
     }
