@@ -43,9 +43,11 @@ class OpenTablesCache {
             result = cache.get(entityTypeId);
             if (result == null) {
                 result = creator.createTable(txn, entityTypeId);
-                final IntHashMap<Table> newCache = cloneCache();
-                newCache.put(entityTypeId, result);
-                cache = newCache;
+                if (result.canBeCached()) {
+                    final IntHashMap<Table> newCache = cloneCache();
+                    newCache.put(entityTypeId, result);
+                    cache = newCache;
+                }
             }
         }
         return result;

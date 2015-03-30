@@ -502,7 +502,7 @@ public class EnvironmentImpl implements Environment {
         final StoreImpl result;
         if (metaInfo == null) {
             if (ec.getEnvIsReadonly() && ec.getEnvReadonlyEmptyStores()) {
-                return new StoreEmpty(this, name);
+                return new TemporaryEmptyStore(this, name);
             }
             final int structureId = allocateStructureId();
             metaInfo = TreeMetaInfo.load(this, config.duplicates, config.prefixing, structureId);

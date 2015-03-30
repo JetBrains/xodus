@@ -25,4 +25,6 @@ public abstract class Table {
             throw new EntityStoreException(message + ", operation unsuccessful");
         }
     }
+
+    public abstract boolean canBeCached();
 }

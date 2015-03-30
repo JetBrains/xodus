@@ -21,12 +21,14 @@ public enum StoreConfig {
     WITH_DUPLICATES(1, "00000001"),
     WITHOUT_DUPLICATES_WITH_PREFIXING(2, "00000010"),
     WITH_DUPLICATES_WITH_PREFIXING(3, "00000011"),
-    USE_EXISTING(5, "00000100");
+    TEMPORARY_EMPTY(4, "00000100"),
+    USE_EXISTING(5, "00001000");
 
     public final int id;
 
     public final boolean duplicates;
     public final boolean prefixing;
+    public final boolean temporaryEmpty;
     public final boolean useExisting;
 
     private StoreConfig(final int id, final String mask) {
@@ -34,12 +36,13 @@ public enum StoreConfig {
         final int bits = Integer.parseInt(mask, 2);
         duplicates = (bits & 1) > 0;
         prefixing = ((bits >> 1) & 1) > 0;
-        useExisting = ((bits >> 2) & 1) > 0;
+        temporaryEmpty = ((bits >> 2) & 1) > 0;
+        useExisting = ((bits >> 3) & 1) > 0;
     }
 
 
     @Override
     public String toString() {
-        return "duplicates: " + duplicates + ", prefixing: " + prefixing + ", useExisting: " + useExisting;
+        return "duplicates: " + duplicates + ", prefixing: " + prefixing + ", temporaryEmpty: " + temporaryEmpty + ", useExisting: " + useExisting;
     }
 }

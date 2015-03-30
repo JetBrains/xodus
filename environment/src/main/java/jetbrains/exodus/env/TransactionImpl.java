@@ -171,7 +171,7 @@ public class TransactionImpl implements Transaction {
     public StoreImpl openStoreByStructureId(final int structureId) {
         final String storeName = metaTree.getStoreNameByStructureId(structureId, env);
         return storeName == null ?
-                new StoreEmpty(env, structureId) :
+                new TemporaryEmptyStore(env) :
                 env.openStoreImpl(storeName, StoreConfig.USE_EXISTING, this, env.getCurrentMetaInfo(storeName, this));
     }
 

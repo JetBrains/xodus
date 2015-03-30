@@ -26,10 +26,6 @@ public class SingleColumnTable extends Table {
     @NotNull
     private final Store database;
 
-    public SingleColumnTable(@NotNull Store database) {
-        this.database = database;
-    }
-
     public SingleColumnTable(@NotNull final PersistentStoreTransaction txn,
                              @NotNull final String name,
                              @NotNull final StoreConfig config) {
@@ -43,4 +39,8 @@ public class SingleColumnTable extends Table {
         return database;
     }
 
+    @Override
+    public boolean canBeCached() {
+        return !database.getConfig().temporaryEmpty;
+    }
 }

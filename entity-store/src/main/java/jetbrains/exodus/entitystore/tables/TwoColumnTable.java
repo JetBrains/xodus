@@ -109,4 +109,9 @@ public final class TwoColumnTable extends Table {
     public Cursor getSecondIndexCursor(@NotNull final Transaction txn) {
         return second.openCursor(txn);
     }
+
+    @Override
+    public boolean canBeCached() {
+        return !first.getConfig().temporaryEmpty && !second.getConfig().temporaryEmpty;
+    }
 }

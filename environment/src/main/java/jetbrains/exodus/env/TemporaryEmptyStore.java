@@ -25,17 +25,14 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Iterator;
 
-/**
- * Fake class defining behavior of empty immutable store.
- */
-class StoreEmpty extends StoreImpl {
+class TemporaryEmptyStore extends StoreImpl {
 
-    public StoreEmpty(@NotNull final EnvironmentImpl env, @NotNull final String name) {
+    TemporaryEmptyStore(@NotNull final EnvironmentImpl env, @NotNull final String name) {
         super(env, name, TreeMetaInfo.EMPTY.clone(-1));
     }
 
-    StoreEmpty(@NotNull final EnvironmentImpl env, final int structureId) {
-        super(env, "fake empty store", TreeMetaInfo.EMPTY.clone(structureId));
+    TemporaryEmptyStore(@NotNull final EnvironmentImpl env) {
+        this(env, "Temporary Empty Store");
     }
 
     @Override
@@ -96,6 +93,6 @@ class StoreEmpty extends StoreImpl {
     }
 
     private static boolean throwCantModify() {
-        throw new UnsupportedOperationException("Can't modify empty store");
+        throw new UnsupportedOperationException("Can't modify temporary empty store");
     }
 }

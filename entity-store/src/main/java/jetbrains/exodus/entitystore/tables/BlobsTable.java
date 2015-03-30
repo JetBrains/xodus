@@ -93,4 +93,9 @@ public final class BlobsTable extends Table {
     public Store getAllBlobsIndex() {
         return allBlobsIndex;
     }
+
+    @Override
+    public boolean canBeCached() {
+        return !primaryStore.getConfig().temporaryEmpty && !allBlobsIndex.getConfig().temporaryEmpty;
+    }
 }

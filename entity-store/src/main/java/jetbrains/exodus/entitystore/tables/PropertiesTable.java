@@ -135,7 +135,7 @@ public final class PropertiesTable extends Table {
                 final Transaction envTxn = txn.getEnvironmentTransaction();
                 valueIndex = envTxn.getEnvironment().openStore(
                         valueIndexName(propertyId), StoreConfig.WITH_DUPLICATES, envTxn, creationRequired);
-                if (valueIndex != null) {
+                if (valueIndex != null && !valueIndex.getConfig().temporaryEmpty) {
                     store.trackTableCreation(valueIndex, txn);
                     valueIndexes.put(propertyId, valueIndex);
                 }
@@ -196,5 +196,10 @@ public final class PropertiesTable extends Table {
         } finally {
             cursor.close();
         }
+    }
+
+    @Override
+    public boolean canBeCached() {
+        return !primaryStore.getConfig().temporaryEmpty && !allPropsIndex.getConfig().temporaryEmpty;
     }
 }
