@@ -517,7 +517,11 @@ public abstract class EntityIterableBase implements EntityIterable {
     }
 
     public static String getHumanReadablePresentation(@NotNull final EntityIterableHandle handle) {
-        String[] types = handle.toString().split("-");
+        return getHumanReadablePresentation(handle.toString());
+    }
+
+    public static String getHumanReadablePresentation(@NotNull final String handle) {
+        String[] types = handle.split("-");
         int minus = 0;
         for (int i = 0; i < types.length; i++) {
             if (types[i].isEmpty()) {
