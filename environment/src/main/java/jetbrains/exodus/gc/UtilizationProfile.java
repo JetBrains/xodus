@@ -94,6 +94,9 @@ public final class UtilizationProfile {
             });
         }
         estimateTotalBytes();
+        if (gc.isTooMuchFreeSpace()) {
+            gc.wake();
+        }
     }
 
     /**
