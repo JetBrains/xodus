@@ -106,7 +106,7 @@ public class Reflect {
     }
 
     public List<DatabaseRoot> roots() {
-        final List<DatabaseRoot> roots = new LinkedList<DatabaseRoot>();
+        final List<DatabaseRoot> roots = new LinkedList<>();
         final long[] fileAddresses = log.getAllFileAddresses();
         for (int i = fileAddresses.length - 1; i >= 0; i--) {
             final long address = fileAddresses[i];
@@ -133,7 +133,7 @@ public class Reflect {
         final LongSet traversed = new LongHashSet();
         final BTreeBalancePolicy strategy = env.getBTreeBalancePolicy();
         final MetaTree fallbackMetaTree = env.getMetaTree(null);
-        final AbstractMap<Integer, Long> storeRoots = new IntHashMap<Long>();
+        final AbstractMap<Integer, Long> storeRoots = new IntHashMap<>();
         final int[] ids = new int[roots.size()]; // whatever
         int processed = 0;
         long totalLength = 0;
@@ -141,10 +141,9 @@ public class Reflect {
             processed++;
             System.out.println(String.format("Processing root: %d, %d addresses traversed", processed, traversed.size()));
             int size = 0;
-            final LongHashMap<TreeMetaInfo> meta = new LongHashMap<TreeMetaInfo>();
+            final LongHashMap<TreeMetaInfo> meta = new LongHashMap<>();
             final BTree metaTree = new BTree(log, strategy, root.getRootAddress(), false, EnvironmentImpl.META_TREE_ID);
-            final ITreeCursor cursor = metaTree.openCursor();
-            try {
+            try (ITreeCursor cursor = metaTree.openCursor()) {
                 while (cursor.getNext()) {
                     try {
                         cursor.getNext();
@@ -166,8 +165,6 @@ public class Reflect {
                         }
                     }
                 }
-            } finally {
-                cursor.close();
             }
             for (int i = 0; i < size; ++i) {
                 final int id = ids[i];
@@ -212,9 +209,9 @@ public class Reflect {
 
     public void gatherLogStats() {
         final long[] fileAddresses = log.getAllFileAddresses();
-        final IntHashMap<Integer> dataLengths = new IntHashMap<Integer>();
-        final IntHashMap<Integer> structureIds = new IntHashMap<Integer>();
-        final IntHashMap<Integer> types = new IntHashMap<Integer>();
+        final IntHashMap<Integer> dataLengths = new IntHashMap<>();
+        final IntHashMap<Integer> structureIds = new IntHashMap<>();
+        final IntHashMap<Integer> types = new IntHashMap<>();
         int nullLoggables = 0;
         for (int i = fileAddresses.length - 1; i >= 0; ) {
             echoProgress("Gathering log statistics, reading file", fileAddresses.length, fileAddresses.length - i);
@@ -261,7 +258,7 @@ public class Reflect {
     private static void dumpCounts(@NotNull final String message, @NotNull final IntHashMap<Integer> counts) {
         System.out.println();
         System.out.println(message);
-        final TreeSet<Integer> sortedKeys = new TreeSet<Integer>(new Comparator<Integer>() {
+        final TreeSet<Integer> sortedKeys = new TreeSet<>(new Comparator<Integer>() {
             @Override
             public int compare(Integer o1, Integer o2) {
                 final Integer count1 = counts.get(o1);
@@ -283,7 +280,7 @@ public class Reflect {
     }
 
     public void traverse() {
-        final TreeMap<Long, Long> usedSpace = new TreeMap<Long, Long>();
+        final TreeMap<Long, Long> usedSpace = new TreeMap<>();
         System.out.print("Analysing meta tree loggables... ");
         fetchUsedSpace(env.getMetaTree(null).addressIterator(), usedSpace);
         final List<String> names = env.computeInReadonlyTransaction(new TransactionalComputable<List<String>>() {
@@ -311,13 +308,10 @@ public class Reflect {
                     public void execute(@NotNull final Transaction txn) {
                         final StoreImpl store = env.openStore(name, StoreConfig.USE_EXISTING, txn);
                         int storeSize = 0;
-                        Cursor cursor = store.openCursor(txn);
-                        try {
+                        try (Cursor cursor = store.openCursor(txn)) {
                             while (cursor.getNext()) {
                                 ++storeSize;
                             }
-                        } finally {
-                            cursor.close();
                         }
                         final ITree tree = ((TransactionImpl) txn).getTree(store);
                         fetchUsedSpace(tree.addressIterator(), usedSpace);
@@ -353,7 +347,7 @@ public class Reflect {
                 System.out.print("Copying store " + name + " (" + ++i + " of " + size + ')');
                 final StoreConfig[] config = new StoreConfig[]{null};
                 final long[] storeSize = new long[1];
-                final Map<ByteIterable, Set<ByteIterable>> pairs = new TreeMap<ByteIterable, Set<ByteIterable>>();
+                final Map<ByteIterable, Set<ByteIterable>> pairs = new TreeMap<>();
                 final int[] totalPairs = {0};
                 Throwable storeIsBroken = null;
                 try {
@@ -363,21 +357,18 @@ public class Reflect {
                             final Store store = env.openStore(name, StoreConfig.USE_EXISTING, txn);
                             config[0] = store.getConfig();
                             storeSize[0] = store.count(txn);
-                            final Cursor cursor = store.openCursor(txn);
-                            try {
+                            try (Cursor cursor = store.openCursor(txn)) {
                                 while (cursor.getNext()) {
                                     final ArrayByteIterable key = new ArrayByteIterable(cursor.getKey());
                                     Set<ByteIterable> valuesSet = pairs.get(key);
                                     if (valuesSet == null) {
-                                        valuesSet = new TreeSet<ByteIterable>();
+                                        valuesSet = new TreeSet<>();
                                         pairs.put(key, valuesSet);
                                     }
                                     if (valuesSet.add(new ArrayByteIterable(cursor.getValue()))) {
                                         ++totalPairs[0];
                                     }
                                 }
-                            } finally {
-                                cursor.close();
                             }
                         }
                     });
@@ -392,21 +383,18 @@ public class Reflect {
                                 final Store store = env.openStore(name, StoreConfig.USE_EXISTING, txn);
                                 config[0] = store.getConfig();
                                 storeSize[0] = store.count(txn);
-                                final Cursor cursor = store.openCursor(txn);
-                                try {
+                                try (Cursor cursor = store.openCursor(txn)) {
                                     while (cursor.getPrev()) {
                                         final ArrayByteIterable key = new ArrayByteIterable(cursor.getKey());
                                         Set<ByteIterable> valuesSet = pairs.get(key);
                                         if (valuesSet == null) {
-                                            valuesSet = new TreeSet<ByteIterable>();
+                                            valuesSet = new TreeSet<>();
                                             pairs.put(key, valuesSet);
                                         }
                                         if (valuesSet.add(new ArrayByteIterable(cursor.getValue()))) {
                                             ++totalPairs[0];
                                         }
                                     }
-                                } finally {
-                                    cursor.close();
                                 }
                             }
                         });
@@ -550,7 +538,7 @@ public class Reflect {
         boolean copy = false;
         boolean traverseAll = false;
         boolean utilizationInfo = false;
-        final Set<String> files2Clean = new LinkedHashSet<String>();
+        final Set<String> files2Clean = new LinkedHashSet<>();
         for (final String arg : args) {
             if (arg.startsWith("-")) {
                 hasOptions = true;

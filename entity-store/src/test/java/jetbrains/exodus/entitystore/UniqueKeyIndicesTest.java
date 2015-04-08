@@ -165,7 +165,7 @@ public class UniqueKeyIndicesTest extends EntityStoreTestBase {
 
         @Override
         public List<IndexField> getFields() {
-            final List<IndexField> result = new ArrayList<IndexField>();
+            final List<IndexField> result = new ArrayList<>();
             for (final String column : columns) {
                 result.add(new TestField(column));
             }
@@ -174,7 +174,7 @@ public class UniqueKeyIndicesTest extends EntityStoreTestBase {
 
         @Override
         public Set<String> getEntityTypesToIndex() {
-            return new NanoSet<String>("Issue");
+            return new NanoSet<>("Issue");
         }
 
         @Override

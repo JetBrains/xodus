@@ -30,7 +30,7 @@ class StoreGetCache {
     private final SoftConcurrentObjectCache<KeyEntry, ArrayByteIterable> cache;
 
     StoreGetCache(final int cacheSize) {
-        cache = new SoftConcurrentObjectCache<KeyEntry, ArrayByteIterable>(cacheSize);
+        cache = new SoftConcurrentObjectCache<>(cacheSize);
     }
 
     @Nullable

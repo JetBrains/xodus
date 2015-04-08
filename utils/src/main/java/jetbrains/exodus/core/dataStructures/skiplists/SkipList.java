@@ -102,18 +102,18 @@ public class SkipList<K extends Comparable<? super K>> extends SkipListBase {
         final SkipListNode<K> newNode;
         switch (level) {
             case 1: {
-                newNode = new SkipListBottomNode<K>(key);
+                newNode = new SkipListBottomNode<>(key);
                 break;
             }
             case 2: {
-                newNode = new SkipListLevel2Node<K>(key);
+                newNode = new SkipListLevel2Node<>(key);
                 final SkipListNode<K> prev1 = prevs[1];
                 newNode.setNext(prev1.getNext(1), 1);
                 prev1.setNext(newNode, 1);
                 break;
             }
             case 3: {
-                newNode = new SkipListLevel3Node<K>(key);
+                newNode = new SkipListLevel3Node<>(key);
                 final SkipListNode<K> prev1 = prevs[1];
                 newNode.setNext(prev1.getNext(1), 1);
                 prev1.setNext(newNode, 1);
@@ -123,7 +123,7 @@ public class SkipList<K extends Comparable<? super K>> extends SkipListBase {
                 break;
             }
             default: {
-                final SkipListInternalNode<K> internalNode = new SkipListInternalNode<K>(key);
+                final SkipListInternalNode<K> internalNode = new SkipListInternalNode<>(key);
                 newNode = internalNode;
                 final int rootLevels = root.getLevels();
                 final SkipListNode<K>[] nexts = newNodeArray(level - 1);

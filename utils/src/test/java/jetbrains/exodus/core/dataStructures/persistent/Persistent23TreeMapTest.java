@@ -28,7 +28,7 @@ public class Persistent23TreeMapTest {
     @Test
     public void mutableTreeRandomInsertDeleteTest() {
         Random random = new Random(2343489);
-        Persistent23TreeMap<Integer, String> map = new Persistent23TreeMap<Integer, String>();
+        Persistent23TreeMap<Integer, String> map = new Persistent23TreeMap<>();
         checkInsertRemove(random, map, 100);
         checkInsertRemove(random, map, ENTRIES_TO_ADD);
         for (int i = 0; i < 100; i++) {
@@ -39,7 +39,7 @@ public class Persistent23TreeMapTest {
     @SuppressWarnings({"OverlyLongMethod"})
     @Test
     public void competingWritesTest() {
-        Persistent23TreeMap<Integer, String> tree = new Persistent23TreeMap<Integer, String>();
+        Persistent23TreeMap<Integer, String> tree = new Persistent23TreeMap<>();
         Persistent23TreeMap.MutableMap<Integer, String> write1 = tree.beginWrite();
         Persistent23TreeMap.MutableMap<Integer, String> write2 = tree.beginWrite();
         write1.put(0, "0");
@@ -89,10 +89,10 @@ public class Persistent23TreeMapTest {
     @Test
     public void iterationTest() {
         Random random = new Random(8234890);
-        Persistent23TreeMap<Integer, String> map = new Persistent23TreeMap<Integer, String>();
+        Persistent23TreeMap<Integer, String> map = new Persistent23TreeMap<>();
         Persistent23TreeMap.MutableMap<Integer, String> write = map.beginWrite();
         int[] p = genPermutation(random);
-        TreeSet<Integer> added = new TreeSet<Integer>();
+        TreeSet<Integer> added = new TreeSet<>();
         for (int i = 0; i < ENTRIES_TO_ADD; i++) {
             int size = write.size();
             Assert.assertEquals(i, size);
@@ -137,7 +137,7 @@ public class Persistent23TreeMapTest {
         Random random = new Random(5743);
         Persistent23TreeMap.MutableMap<Integer, String> tree = new Persistent23TreeMap<Integer, String>().beginWrite();
         int[] p = genPermutation(random);
-        TreeSet<Integer> added = new TreeSet<Integer>();
+        TreeSet<Integer> added = new TreeSet<>();
         for (int i = 0; i < ENTRIES_TO_ADD; i++) {
             int size = tree.size();
             Assert.assertEquals(i, size);
@@ -181,10 +181,10 @@ public class Persistent23TreeMapTest {
     @Test
     public void tailIterationTest() {
         Random random = new Random(239786);
-        Persistent23TreeMap<Integer, String> map = new Persistent23TreeMap<Integer, String>();
+        Persistent23TreeMap<Integer, String> map = new Persistent23TreeMap<>();
         Persistent23TreeMap.MutableMap<Integer, String> write = map.beginWrite();
         int[] p = genPermutation(random);
-        TreeSet<Integer> added = new TreeSet<Integer>();
+        TreeSet<Integer> added = new TreeSet<>();
         for (int i = 0; i < ENTRIES_TO_ADD; i++) {
             int size = write.size();
             Assert.assertEquals(i, size);
@@ -211,10 +211,10 @@ public class Persistent23TreeMapTest {
     @Test
     public void tailReverseIterationTest() {
         Random random = new Random(239786);
-        Persistent23TreeMap<Integer, String> map = new Persistent23TreeMap<Integer, String>();
+        Persistent23TreeMap<Integer, String> map = new Persistent23TreeMap<>();
         Persistent23TreeMap.MutableMap<Integer, String> write = map.beginWrite();
         int[] p = genPermutation(random);
-        TreeSet<Integer> added = new TreeSet<Integer>();
+        TreeSet<Integer> added = new TreeSet<>();
         for (int i = 0; i < ENTRIES_TO_ADD; i++) {
             int size = write.size();
             Assert.assertEquals(i, size);
@@ -242,7 +242,7 @@ public class Persistent23TreeMapTest {
     public void testSize() {
         Random random = new Random(249578);
         int[] p = genPermutation(random, 10000);
-        final Persistent23TreeMap<Integer, String> source = new Persistent23TreeMap<Integer, String>();
+        final Persistent23TreeMap<Integer, String> source = new Persistent23TreeMap<>();
         Persistent23TreeMap.MutableMap<Integer, String> tree = null;
         for (int i = 0; i < p.length; i++) {
             if ((i & 15) == 0) {

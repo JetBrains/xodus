@@ -28,7 +28,7 @@ public class PersistentLong23TreeMapTest {
     @Test
     public void mutableTreeRandomInsertDeleteTest() {
         Random random = new Random(2343489);
-        PersistentLong23TreeMap<String> map = new PersistentLong23TreeMap<String>();
+        PersistentLong23TreeMap<String> map = new PersistentLong23TreeMap<>();
         checkInsertRemove(random, map, 100);
         checkInsertRemove(random, map, ENTRIES_TO_ADD);
         for (int i = 0; i < 100; i++) {
@@ -39,7 +39,7 @@ public class PersistentLong23TreeMapTest {
     @SuppressWarnings({"OverlyLongMethod"})
     @Test
     public void competingWritesTest() {
-        PersistentLong23TreeMap<String> tree = new PersistentLong23TreeMap<String>();
+        PersistentLong23TreeMap<String> tree = new PersistentLong23TreeMap<>();
         PersistentLong23TreeMap<String>.MutableMap write1 = tree.beginWrite();
         PersistentLong23TreeMap<String>.MutableMap write2 = tree.beginWrite();
         write1.put(0, "0");
@@ -89,10 +89,10 @@ public class PersistentLong23TreeMapTest {
     @Test
     public void iterationTest() {
         Random random = new Random(8234890);
-        PersistentLong23TreeMap<String> map = new PersistentLong23TreeMap<String>();
+        PersistentLong23TreeMap<String> map = new PersistentLong23TreeMap<>();
         PersistentLong23TreeMap<String>.MutableMap write = map.beginWrite();
         long[] p = genPermutation(random);
-        TreeSet<Long> added = new TreeSet<Long>();
+        TreeSet<Long> added = new TreeSet<>();
         for (int i = 0; i < ENTRIES_TO_ADD; i++) {
             int size = write.size();
             Assert.assertEquals(i, size);
@@ -137,7 +137,7 @@ public class PersistentLong23TreeMapTest {
         Random random = new Random(5743);
         PersistentLong23TreeMap<String>.MutableMap tree = new PersistentLong23TreeMap<String>().beginWrite();
         long[] p = genPermutation(random);
-        TreeSet<Long> added = new TreeSet<Long>();
+        TreeSet<Long> added = new TreeSet<>();
         for (int i = 0; i < ENTRIES_TO_ADD; i++) {
             int size = tree.size();
             Assert.assertEquals(i, size);
@@ -181,10 +181,10 @@ public class PersistentLong23TreeMapTest {
     @Test
     public void tailIterationTest() {
         Random random = new Random(239786);
-        PersistentLong23TreeMap<String> map = new PersistentLong23TreeMap<String>();
+        PersistentLong23TreeMap<String> map = new PersistentLong23TreeMap<>();
         PersistentLong23TreeMap<String>.MutableMap write = map.beginWrite();
         long[] p = genPermutation(random);
-        TreeSet<Long> added = new TreeSet<Long>();
+        TreeSet<Long> added = new TreeSet<>();
         for (int i = 0; i < ENTRIES_TO_ADD; i++) {
             int size = write.size();
             Assert.assertEquals(i, size);
@@ -211,10 +211,10 @@ public class PersistentLong23TreeMapTest {
     @Test
     public void tailReverseIterationTest() {
         Random random = new Random(239786);
-        PersistentLong23TreeMap<String> map = new PersistentLong23TreeMap<String>();
+        PersistentLong23TreeMap<String> map = new PersistentLong23TreeMap<>();
         PersistentLong23TreeMap<String>.MutableMap write = map.beginWrite();
         long[] p = genPermutation(random);
-        TreeSet<Long> added = new TreeSet<Long>();
+        TreeSet<Long> added = new TreeSet<>();
         for (int i = 0; i < ENTRIES_TO_ADD; i++) {
             int size = write.size();
             Assert.assertEquals(i, size);
@@ -242,7 +242,7 @@ public class PersistentLong23TreeMapTest {
     public void testSize() {
         Random random = new Random(249578);
         long[] p = genPermutation(random, ENTRIES_TO_ADD);
-        final PersistentLong23TreeMap<String> source = new PersistentLong23TreeMap<String>();
+        final PersistentLong23TreeMap<String> source = new PersistentLong23TreeMap<>();
         PersistentLong23TreeMap<String>.MutableMap tree = null;
         for (int i = 0; i < p.length; i++) {
             if ((i & 15) == 0) {

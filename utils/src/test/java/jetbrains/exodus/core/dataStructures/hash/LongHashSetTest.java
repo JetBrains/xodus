@@ -58,7 +58,7 @@ public class LongHashSetTest {
     @Test
     public void iterator() {
         final Set<Long> tested = new LongHashSet();
-        final Set<Long> set = new java.util.HashSet<Long>();
+        final Set<Long> set = new java.util.HashSet<>();
 
         for (long i = 0; i < 10000; ++i) {
             tested.add(i);
@@ -73,7 +73,7 @@ public class LongHashSetTest {
     @Test
     public void iterator2() {
         final Set<Long> tested = new LongHashSet();
-        final Set<Long> set = new HashSet<Long>();
+        final Set<Long> set = new HashSet<>();
 
         for (long i = 0; i < 10000; ++i) {
             tested.add(i);

@@ -46,9 +46,9 @@ public class PersistentQueue<T> {
 
     public PersistentQueue<T> add(T element) {
         if (isEmpty()) {
-            return new PersistentQueue<T>(PersistentStack.EMPTY_STACK, PersistentStack.EMPTY_STACK.push(element));
+            return new PersistentQueue<>(PersistentStack.EMPTY_STACK, PersistentStack.EMPTY_STACK.push(element));
         }
-        return new PersistentQueue<T>(incoming.push(element), outgoing);
+        return new PersistentQueue<>(incoming.push(element), outgoing);
     }
 
     public boolean isEmpty() {
@@ -68,9 +68,9 @@ public class PersistentQueue<T> {
         }
         final PersistentStack<T> out = outgoing.skip();
         if (out.isEmpty()) {
-            return new PersistentQueue<T>(PersistentStack.EMPTY_STACK, incoming.reverse());
+            return new PersistentQueue<>(PersistentStack.EMPTY_STACK, incoming.reverse());
         }
-        return new PersistentQueue<T>(incoming, out);
+        return new PersistentQueue<>(incoming, out);
     }
 
     @Override

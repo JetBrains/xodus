@@ -41,7 +41,7 @@ public class EntityIterableHandleTests extends EntityStoreTestBase {
 
     public void testDistribution() {
         final SecureRandom rnd = new SecureRandom();
-        final Set<EntityIterableHandleBase.EntityIterableHandleHash> set = new HashSet<EntityIterableHandleBase.EntityIterableHandleHash>();
+        final Set<EntityIterableHandleBase.EntityIterableHandleHash> set = new HashSet<>();
         for (int i = 0; i < 1000000; ++i) {
             final EntityIterableHandleBase.EntityIterableHandleHash h = new EntityIterableHandleBase.EntityIterableHandleHash();
             h.apply("00000000000000000000000000000000");

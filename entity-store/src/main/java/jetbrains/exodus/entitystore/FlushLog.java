@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class FlushLog {
-    private final List<Operation> operations = new ArrayList<Operation>();
+    private final List<Operation> operations = new ArrayList<>();
 
     public void add(final Operation op) {
         operations.add(op);

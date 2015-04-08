@@ -23,11 +23,11 @@ public class PersistentHashMap<K, V> {
     private final PersistentHashSet<Entry<K, V>> set;
 
     public PersistentHashMap() {
-        set = new PersistentHashSet<Entry<K, V>>();
+        set = new PersistentHashSet<>();
     }
 
     private PersistentHashMap(@NotNull final AbstractPersistentHashSet.RootTableNode<Entry<K, V>> root) {
-        set = new PersistentHashSet<Entry<K, V>>(root);
+        set = new PersistentHashSet<>(root);
     }
 
     public ImmutablePersistentHashMap getCurrent() {
@@ -35,7 +35,7 @@ public class PersistentHashMap<K, V> {
     }
 
     public PersistentHashMap<K, V> getClone() {
-        return new PersistentHashMap<K, V>(set.getRoot());
+        return new PersistentHashMap<>(set.getRoot());
     }
 
     public MutablePersistentHashMap beginWrite() {
@@ -78,7 +78,7 @@ public class PersistentHashMap<K, V> {
         }
 
         public void put(@NotNull final K key, @NotNull final V value) {
-            add(new Entry<K, V>(key, value));
+            add(new Entry<>(key, value));
         }
 
         @SuppressWarnings("MethodOverloadsMethodOfSuperclass")

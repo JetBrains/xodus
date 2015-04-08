@@ -70,7 +70,7 @@ public class InMemoryHeapSortIterable extends SortEngine.InMemorySortIterable {
             }
 
             private void init() {
-                heap = new ArrayList<Entity>();
+                heap = new ArrayList<>();
                 for (final Entity entity : source) {
                     heap.add(entity);
                 }

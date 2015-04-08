@@ -45,7 +45,7 @@ import java.util.TreeSet;
 
 public class EnvironmentTest extends EnvironmentTestsBase {
 
-    private final Map<String, File> subfolders = new HashMap<String, File>();
+    private final Map<String, File> subfolders = new HashMap<>();
 
     @Test
     public void testEmptyEnvironment() {
@@ -138,7 +138,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         txn.commit();
         Assert.assertEquals(count, stores.size());
         // list is sorted by name in lexicographical order
-        final Set<String> names = new TreeSet<String>();
+        final Set<String> names = new TreeSet<>();
         for (int i = 0; i < count; ++i) {
             names.add("new_store" + i);
         }
@@ -236,7 +236,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     public void testSharedCache() throws InterruptedException, IOException {
         env.getEnvironmentConfig().setLogCacheShared(true);
         reopenEnvironment();
-        final Set<Environment> additionalEnvironments = new HashSet<Environment>();
+        final Set<Environment> additionalEnvironments = new HashSet<>();
         try {
             env.getEnvironmentConfig().setGcEnabled(false);
             final int numberOfEnvironments = 200;

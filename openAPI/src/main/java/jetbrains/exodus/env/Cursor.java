@@ -22,7 +22,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Newly created cursor has position prior to first record.
  */
-public interface Cursor {
+public interface Cursor extends AutoCloseable {
 
     /**
      * Move to next record.

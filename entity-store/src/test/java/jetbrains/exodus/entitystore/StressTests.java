@@ -65,7 +65,7 @@ public class StressTests extends EntityStoreTestBase {
         final List<Entity> issues = store.computeInTransaction(new StoreTransactionalComputable<List<Entity>>() {
             @Override
             public List<Entity> compute(@NotNull final StoreTransaction txn) {
-                final List<Entity> result = new ArrayList<Entity>();
+                final List<Entity> result = new ArrayList<>();
                 for (final Entity issue : txn.getAll("Issue")) {
                     result.add(issue);
                 }

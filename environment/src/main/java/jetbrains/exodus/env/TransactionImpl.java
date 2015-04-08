@@ -57,10 +57,10 @@ public class TransactionImpl implements Transaction {
                     @Nullable final Runnable beginHook, final boolean cloneMeta) {
         this.env = env;
         this.creatingThread = creatingThread;
-        immutableTrees = new IntHashMap<ITree>();
-        mutableTrees = new TreeMap<Integer, ITreeMutable>();
-        removedStores = new LongHashMap<Pair<String, ITree>>();
-        createdStores = new HashMapDecorator<String, TreeMetaInfo>();
+        immutableTrees = new IntHashMap<>();
+        mutableTrees = new TreeMap<>();
+        removedStores = new LongHashMap<>();
+        createdStores = new HashMapDecorator<>();
         this.beginHook = new Runnable() {
             @Override
             public void run() {
@@ -85,10 +85,10 @@ public class TransactionImpl implements Transaction {
         metaTree = origin.metaTree;
         commitHook = origin.commitHook;
         creatingThread = origin.creatingThread;
-        immutableTrees = new IntHashMap<ITree>();
-        mutableTrees = new TreeMap<Integer, ITreeMutable>();
-        removedStores = new LongHashMap<Pair<String, ITree>>();
-        createdStores = new HashMapDecorator<String, TreeMetaInfo>();
+        immutableTrees = new IntHashMap<>();
+        mutableTrees = new TreeMap<>();
+        removedStores = new LongHashMap<>();
+        createdStores = new HashMapDecorator<>();
         trace = env.transactionTimeout() > 0 ? new Throwable() : null;
         invalidateCreated();
         env.registerTransaction(this);
@@ -187,7 +187,7 @@ public class TransactionImpl implements Transaction {
     void storeRemoved(@NotNull final StoreImpl store) {
         final int structureId = store.getStructureId();
         final ITree tree = store.openImmutableTree(metaTree);
-        removedStores.put(structureId, new Pair<String, ITree>(store.getName(), tree));
+        removedStores.put(structureId, new Pair<>(store.getName(), tree));
         immutableTrees.remove(structureId);
         mutableTrees.remove(structureId);
     }
@@ -299,7 +299,7 @@ public class TransactionImpl implements Transaction {
         List<String> result = metaTree.getAllStoreNames();
         if (createdStores.isEmpty()) return result;
         if (result.isEmpty()) {
-            result = new ArrayList<String>();
+            result = new ArrayList<>();
         }
         result.addAll(createdStores.keySet());
         Collections.sort(result);

@@ -348,7 +348,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
         rnd = new Random(0);
         final ByteIterable value = value("value");
         tm = createMutableTree(false, 1);
-        final TreeSet<String> keys = new TreeSet<String>();
+        final TreeSet<String> keys = new TreeSet<>();
         for (int i = 0; i < 15; ++i) {
             final String key = rndString();
             tm.put(key(key), value);
@@ -363,7 +363,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     @Test
     public void testOrderedInserts() {
         final ByteIterable value = value("value");
-        final TreeSet<String> keys = new TreeSet<String>();
+        final TreeSet<String> keys = new TreeSet<>();
         for (int i = 0; i < 10000; ++i) {
             keys.add(rndString());
         }
@@ -382,7 +382,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     @Test
     public void testRandomInserts() {
         final ByteIterable value = value("value");
-        final Set<String> keys = new HashSet<String>();
+        final Set<String> keys = new HashSet<>();
         for (int i = 0; i < 10000; ++i) {
             keys.add(rndString());
         }
@@ -390,13 +390,13 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
         for (final String key : keys) {
             Assert.assertTrue(tm.add(key(key), value));
         }
-        testCursorOrder(new TreeSet<String>(keys));
+        testCursorOrder(new TreeSet<>(keys));
     }
 
     @Test
     public void testInsertDeletes() {
         final ByteIterable value = value("value");
-        final TreeSet<String> keys = new TreeSet<String>();
+        final TreeSet<String> keys = new TreeSet<>();
         tm = createMutableTree(false, 1);
         for (int i = 0; i < 10000; ++i) {
             final String key = rndString();
@@ -415,7 +415,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     @Test
     public void testInsertDeletes2() {
         final ByteIterable value = value("value");
-        final Set<String> keys = new HashSet<String>();
+        final Set<String> keys = new HashSet<>();
         tm = createMutableTree(false, 1);
         for (int i = 0; i < 10000; ++i) {
             final String key = rndString();
@@ -428,7 +428,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
                 Assert.assertTrue(tm.delete(key(obsoleteKey)));
             }
         }
-        testCursorOrder(new TreeSet<String>(keys));
+        testCursorOrder(new TreeSet<>(keys));
     }
 
     private void testCursorOrder(final TreeSet<String> keys) {

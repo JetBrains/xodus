@@ -30,8 +30,8 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
     private final Lock lock;
 
     public StablePriorityQueue() {
-        theQueue = new TreeMap<P, LinkedHashSet<E>>();
-        priorities = new HashMap<E, Pair<E, P>>();
+        theQueue = new TreeMap<>();
+        priorities = new HashMap<>();
         lock = new ReentrantLock();
     }
 
@@ -58,7 +58,7 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
     @Override
     public E push(@NotNull final P priority, @NotNull final E value) {
         LinkedHashSet<E> values;
-        Pair<E, P> oldPair = priorities.put(value, new Pair<E, P>(value, priority));
+        Pair<E, P> oldPair = priorities.put(value, new Pair<>(value, priority));
         final P oldPriority = oldPair == null ? null : oldPair.getSecond();
         final E oldValue = oldPair == null ? null : oldPair.getFirst();
         if (oldPriority != null && (values = theQueue.get(oldPriority)) != null) {
@@ -69,7 +69,7 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
         }
         values = theQueue.get(priority);
         if (values == null) {
-            values = new LinkedHashSet<E>();
+            values = new LinkedHashSet<>();
             theQueue.put(priority, values);
         }
         values.add(value);
@@ -84,7 +84,7 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
         final TreeMap<P, LinkedHashSet<E>> queue = theQueue;
         final P priority = queue.lastKey();
         final LinkedHashSet<E> values = queue.get(priority);
-        return new Pair<P, E>(priority, values.getBack());
+        return new Pair<>(priority, values.getBack());
     }
 
     @Override
@@ -95,7 +95,7 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
         final TreeMap<P, LinkedHashSet<E>> queue = theQueue;
         final P priority = queue.firstKey();
         final LinkedHashSet<E> values = queue.get(priority);
-        return new Pair<P, E>(priority, values.getTop());
+        return new Pair<>(priority, values.getTop());
     }
 
     @Override

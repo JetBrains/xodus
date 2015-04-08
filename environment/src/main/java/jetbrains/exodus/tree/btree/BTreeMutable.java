@@ -224,7 +224,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     @NotNull
     public Collection<Loggable> getExpiredLoggables() {
         if (expiredLoggables == null) {
-            expiredLoggables = new ArrayList<Loggable>(16);
+            expiredLoggables = new ArrayList<>(16);
         }
         return expiredLoggables;
     }
@@ -233,7 +233,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     public TreeCursor openCursor() {
         final List<ITreeCursorMutable> cursors;
         if (openCursors == null) {
-            cursors = new ArrayList<ITreeCursorMutable>(4);
+            cursors = new ArrayList<>(4);
             openCursors = cursors;
         } else {
             cursors = openCursors;

@@ -47,7 +47,7 @@ public final class UtilizationProfile {
         this.gc = gc;
         log = env.getLog();
         fileSize = log.getFileSize() * 1024L;
-        filesUtilization = new TreeMap<Long, FileUtilization>();
+        filesUtilization = new TreeMap<>();
         log.addNewFileListener(new NewFileListener() {
             @Override
             @SuppressWarnings({"ConstantConditions"})
@@ -73,17 +73,14 @@ public final class UtilizationProfile {
                     if (!env.storeExists(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, txn)) {
                         computeUtilizationFromScratch();
                     } else {
-                        final Map<Long, FileUtilization> filesUtilization = new TreeMap<Long, FileUtilization>();
+                        final Map<Long, FileUtilization> filesUtilization = new TreeMap<>();
                         final StoreImpl store = env.openStore(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES, txn);
-                        final Cursor cursor = store.openCursor(txn);
-                        try {
+                        try (Cursor cursor = store.openCursor(txn)) {
                             while (cursor.getNext()) {
                                 final long fileAddress = LongBinding.compressedEntryToLong(cursor.getKey());
                                 final long freeBytes = CompressedUnsignedLongByteIterable.getLong(cursor.getValue());
                                 filesUtilization.put(fileAddress, new FileUtilization(freeBytes));
                             }
-                        } finally {
-                            cursor.close();
                         }
                         synchronized (UtilizationProfile.this.filesUtilization) {
                             UtilizationProfile.this.filesUtilization.clear();
@@ -103,7 +100,7 @@ public final class UtilizationProfile {
      * Reloads utilization profile.
      */
     public void computeUtilizationFromScratch() {
-        final TreeMap<Long, Long> usedSpace = new TreeMap<Long, Long>();
+        final TreeMap<Long, Long> usedSpace = new TreeMap<>();
         env.executeInReadonlyTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull Transaction txn) {
@@ -142,8 +139,7 @@ public final class UtilizationProfile {
                 final StoreImpl store = env.openStore(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME,
                         StoreConfig.WITHOUT_DUPLICATES, txn);
                 // clear entries for already deleted files
-                final Cursor cursor = store.openCursor(txn);
-                try {
+                try (Cursor cursor = store.openCursor(txn)) {
                     while (cursor.getNext()) {
                         final long fileAddress = LongBinding.compressedEntryToLong(cursor.getKey());
                         final boolean fileIsDeleted;
@@ -154,13 +150,11 @@ public final class UtilizationProfile {
                             cursor.deleteCurrent();
                         }
                     }
-                } finally {
-                    cursor.close();
                 }
                 // save profile of up-to-date files
                 final List<Map.Entry<Long, FileUtilization>> filesUtilization;
                 synchronized (UtilizationProfile.this.filesUtilization) {
-                    filesUtilization = new ArrayList<Map.Entry<Long, FileUtilization>>(UtilizationProfile.this.filesUtilization.entrySet());
+                    filesUtilization = new ArrayList<>(UtilizationProfile.this.filesUtilization.entrySet());
                 }
                 for (final Map.Entry<Long, FileUtilization> entry : filesUtilization) {
                     store.put(txn,
@@ -180,7 +174,7 @@ public final class UtilizationProfile {
      * @return for given files, map from file address to number of free bytes in it.
      */
     LongHashMap<Long> getFreeBytes(long[] files) {
-        final LongHashMap<Long> result = new LongHashMap<Long>();
+        final LongHashMap<Long> result = new LongHashMap<>();
         synchronized (filesUtilization) {
             for (long file : files) {
                 final FileUtilization fileUtilization = filesUtilization.get(file);
@@ -264,7 +258,7 @@ public final class UtilizationProfile {
     Long[] getFilesSortedByUtilization() {
         final long maxFreeBytes = fileSize * (long) gc.getMaximumFreeSpacePercent() / 100L;
         final long[] fileAddresses = log.getAllFileAddresses();
-        final LongHashMap<Long> sparseFiles = new LongHashMap<Long>();
+        final LongHashMap<Long> sparseFiles = new LongHashMap<>();
         synchronized (filesUtilization) {
             for (int i = gc.getMinFileAge(); i < fileAddresses.length; ++i) {
                 final long file = fileAddresses[i];

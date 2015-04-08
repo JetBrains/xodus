@@ -36,8 +36,8 @@ public abstract class AbstractConfig {
     private final Set<ChangedSettingsListener> listeners;
 
     protected AbstractConfig(@NotNull final Pair<String, Object>[] props, @NotNull final ConfigurationStrategy strategy) {
-        settings = new HashMap<String, Object>();
-        listeners = new LinkedHashSet<ChangedSettingsListener>();
+        settings = new HashMap<>();
+        listeners = new LinkedHashSet<>();
         for (final Pair<String, Object> prop : props) {
             final String propName = prop.getFirst();
             final Object defaultValue = prop.getSecond();

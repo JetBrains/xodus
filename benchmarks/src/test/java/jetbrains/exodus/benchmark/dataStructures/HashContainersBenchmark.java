@@ -29,7 +29,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Map<Integer, String> map = new java.util.HashMap<Integer, String>();
+        final Map<Integer, String> map = new java.util.HashMap<>();
         for (int i = 0; i < 100000; ++i) {
             map.put(i, Integer.toString(i));
         }
@@ -41,7 +41,7 @@ public class HashContainersBenchmark {
         }
         System.out.println("100 000 000 lookups in java.util.HashMap took " + (System.currentTimeMillis() - started));
 
-        final HashMap<Integer, String> tested = new HashMap<Integer, String>();
+        final HashMap<Integer, String> tested = new HashMap<>();
         for (int i = 0; i < 100000; ++i) {
             tested.put(i, Integer.toString(i));
         }
@@ -59,7 +59,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Map<Integer, String> map = new java.util.HashMap<Integer, String>();
+        final Map<Integer, String> map = new java.util.HashMap<>();
         for (int i = 0; i < 100000; ++i) {
             map.put(i, Integer.toString(i));
         }
@@ -71,7 +71,7 @@ public class HashContainersBenchmark {
         }
         System.out.println("100 000 000 lookups in java.util.HashMap took " + (System.currentTimeMillis() - started));
 
-        final Map<Integer, String> tested = new HashMap<Integer, String>();
+        final Map<Integer, String> tested = new HashMap<>();
         for (int i = 0; i < 100000; ++i) {
             tested.put(i, Integer.toString(i));
         }
@@ -89,7 +89,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Set<Integer> set = new java.util.HashSet<Integer>();
+        final Set<Integer> set = new java.util.HashSet<>();
         for (int i = 0; i < 100000; ++i) {
             set.add(i);
         }
@@ -101,7 +101,7 @@ public class HashContainersBenchmark {
         }
         System.out.println("100 000 000 lookups in java.util.HashSet took " + (System.currentTimeMillis() - started));
 
-        final HashSet<Integer> tested = new HashSet<Integer>();
+        final HashSet<Integer> tested = new HashSet<>();
         for (int i = 0; i < 100000; ++i) {
             tested.add(i);
         }
@@ -119,7 +119,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Set<Integer> set = new java.util.HashSet<Integer>();
+        final Set<Integer> set = new java.util.HashSet<>();
         for (int i = 0; i < 100000; ++i) {
             set.add(i);
         }
@@ -131,7 +131,7 @@ public class HashContainersBenchmark {
         }
         System.out.println("100 000 000 lookups in java.util.HashSet took " + (System.currentTimeMillis() - started));
 
-        final HashSet<Integer> tested = new HashSet<Integer>();
+        final HashSet<Integer> tested = new HashSet<>();
         for (int i = 0; i < 100000; ++i) {
             tested.add(i);
         }
@@ -149,7 +149,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Set<Object> set = new java.util.HashSet<Object>();
+        final Set<Object> set = new java.util.HashSet<>();
         for (int i = 0; i < 100000; ++i) {
             set.add(new Object());
         }
@@ -161,7 +161,7 @@ public class HashContainersBenchmark {
         }
         System.out.println("50 000 000 lookups in java.util.HashSet took " + (System.currentTimeMillis() - started));
 
-        final HashSet<Object> tested = new HashSet<Object>();
+        final HashSet<Object> tested = new HashSet<>();
         for (int i = 0; i < 100000; ++i) {
             tested.add(new Object());
         }
@@ -179,7 +179,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Map<Integer, String> map = new java.util.HashMap<Integer, String>();
+        final Map<Integer, String> map = new java.util.HashMap<>();
         for (int i = 0; i < 100000; ++i) {
             map.put(i, Integer.toString(i));
         }
@@ -191,7 +191,7 @@ public class HashContainersBenchmark {
         }
         System.out.println("100 000 000 lookups in java.util.HashMap took " + (System.currentTimeMillis() - started));
 
-        final IntHashMap<String> tested = new IntHashMap<String>();
+        final IntHashMap<String> tested = new IntHashMap<>();
         for (int i = 0; i < 100000; ++i) {
             tested.put(i, Integer.toString(i));
         }
@@ -209,7 +209,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Map<Integer, String> map = new java.util.HashMap<Integer, String>();
+        final Map<Integer, String> map = new java.util.HashMap<>();
         for (int i = 0; i < 100000; ++i) {
             map.put(i, Integer.toString(i));
         }
@@ -221,7 +221,7 @@ public class HashContainersBenchmark {
         }
         System.out.println("100 000 000 lookups in java.util.HashMap took " + (System.currentTimeMillis() - started));
 
-        final IntHashMap<String> tested = new IntHashMap<String>();
+        final IntHashMap<String> tested = new IntHashMap<>();
         for (int i = 0; i < 100000; ++i) {
             tested.put(i, Integer.toString(i));
         }
@@ -239,7 +239,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Set<Integer> set = new java.util.HashSet<Integer>();
+        final Set<Integer> set = new java.util.HashSet<>();
         for (int i = 0; i < 100000; ++i) {
             set.add(i);
         }
@@ -269,7 +269,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Set<Integer> set = new java.util.HashSet<Integer>();
+        final Set<Integer> set = new java.util.HashSet<>();
         for (int i = 0; i < 100000; ++i) {
             set.add(i);
         }
@@ -299,7 +299,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Map<Integer, String> map = new java.util.LinkedHashMap<Integer, String>();
+        final Map<Integer, String> map = new java.util.LinkedHashMap<>();
         for (int i = 0; i < 100000; ++i) {
             map.put(i, Integer.toString(i));
         }
@@ -311,7 +311,7 @@ public class HashContainersBenchmark {
         }
         System.out.println("100 000 000 lookups in java.util.LinkedHashMap took " + (System.currentTimeMillis() - started));
 
-        final IntLinkedHashMap<String> tested = new IntLinkedHashMap<String>();
+        final IntLinkedHashMap<String> tested = new IntLinkedHashMap<>();
         for (int i = 0; i < 100000; ++i) {
             tested.put(i, Integer.toString(i));
         }
@@ -329,7 +329,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Map<Integer, String> map = new java.util.LinkedHashMap<Integer, String>();
+        final Map<Integer, String> map = new java.util.LinkedHashMap<>();
         for (int i = 0; i < 100000; ++i) {
             map.put(i, Integer.toString(i));
         }
@@ -341,7 +341,7 @@ public class HashContainersBenchmark {
         }
         System.out.println("100 000 000 lookups in java.util.LinkedHashMap took " + (System.currentTimeMillis() - started));
 
-        final IntLinkedHashMap<String> tested = new IntLinkedHashMap<String>();
+        final IntLinkedHashMap<String> tested = new IntLinkedHashMap<>();
         for (int i = 0; i < 100000; ++i) {
             tested.put(i, Integer.toString(i));
         }
@@ -359,7 +359,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Map<Integer, String> map = new java.util.LinkedHashMap<Integer, String>();
+        final Map<Integer, String> map = new java.util.LinkedHashMap<>();
         for (int i = 0; i < 100000; ++i) {
             map.put(i, Integer.toString(i));
         }
@@ -372,7 +372,7 @@ public class HashContainersBenchmark {
         }
         System.out.println("20 000 000 LRU lookups in java.util.LinkedHashMap took " + (System.currentTimeMillis() - started));
 
-        final IntLinkedHashMap<String> tested = new IntLinkedHashMap<String>();
+        final IntLinkedHashMap<String> tested = new IntLinkedHashMap<>();
         for (int i = 0; i < 100000; ++i) {
             tested.put(i, Integer.toString(i));
         }
@@ -390,7 +390,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Map<Integer, String> map = new java.util.LinkedHashMap<Integer, String>();
+        final Map<Integer, String> map = new java.util.LinkedHashMap<>();
         for (int i = 0; i < 100000; ++i) {
             map.put(i, Integer.toString(i));
         }
@@ -402,7 +402,7 @@ public class HashContainersBenchmark {
         }
         System.out.println("100 000 000 lookups in java.util.LinkedHashMap took " + (System.currentTimeMillis() - started));
 
-        final LinkedHashMap<Integer, String> tested = new LinkedHashMap<Integer, String>();
+        final LinkedHashMap<Integer, String> tested = new LinkedHashMap<>();
         for (int i = 0; i < 100000; ++i) {
             tested.put(i, Integer.toString(i));
         }
@@ -420,7 +420,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Map<Integer, String> map = new java.util.LinkedHashMap<Integer, String>();
+        final Map<Integer, String> map = new java.util.LinkedHashMap<>();
         for (int i = 0; i < 100000; ++i) {
             map.put(i, Integer.toString(i));
         }
@@ -432,7 +432,7 @@ public class HashContainersBenchmark {
         }
         System.out.println("100 000 000 lookups in java.util.LinkedHashMap took " + (System.currentTimeMillis() - started));
 
-        final LinkedHashMap<Integer, String> tested = new LinkedHashMap<Integer, String>();
+        final LinkedHashMap<Integer, String> tested = new LinkedHashMap<>();
         for (int i = 0; i < 100000; ++i) {
             tested.put(i, Integer.toString(i));
         }
@@ -450,7 +450,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Map<Integer, String> map = new java.util.LinkedHashMap<Integer, String>();
+        final Map<Integer, String> map = new java.util.LinkedHashMap<>();
         for (int i = 0; i < 100000; ++i) {
             map.put(i, Integer.toString(i));
         }
@@ -463,7 +463,7 @@ public class HashContainersBenchmark {
         }
         System.out.println("20 000 000 LRU lookups in java.util.LinkedHashMap took " + (System.currentTimeMillis() - started));
 
-        final LinkedHashMap<Integer, String> tested = new LinkedHashMap<Integer, String>();
+        final LinkedHashMap<Integer, String> tested = new LinkedHashMap<>();
         for (int i = 0; i < 100000; ++i) {
             tested.put(i, Integer.toString(i));
         }
@@ -481,7 +481,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Set<Integer> set = new java.util.LinkedHashSet<Integer>();
+        final Set<Integer> set = new java.util.LinkedHashSet<>();
         for (int i = 0; i < 100000; ++i) {
             set.add(i);
         }
@@ -493,7 +493,7 @@ public class HashContainersBenchmark {
         }
         System.out.println("100 000 000 lookups in java.util.HashSet took " + (System.currentTimeMillis() - started));
 
-        final LinkedHashSet<Integer> tested = new LinkedHashSet<Integer>();
+        final LinkedHashSet<Integer> tested = new LinkedHashSet<>();
         for (int i = 0; i < 100000; ++i) {
             tested.add(i);
         }
@@ -511,7 +511,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Set<Integer> set = new java.util.LinkedHashSet<Integer>();
+        final Set<Integer> set = new java.util.LinkedHashSet<>();
         for (int i = 0; i < 100000; ++i) {
             set.add(i);
         }
@@ -523,7 +523,7 @@ public class HashContainersBenchmark {
         }
         System.out.println("100 000 000 lookups in java.util.HashSet took " + (System.currentTimeMillis() - started));
 
-        final LinkedHashSet<Integer> tested = new LinkedHashSet<Integer>();
+        final LinkedHashSet<Integer> tested = new LinkedHashSet<>();
         for (int i = 0; i < 100000; ++i) {
             tested.add(i);
         }
@@ -541,7 +541,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Map<Long, String> map = new java.util.HashMap<Long, String>();
+        final Map<Long, String> map = new java.util.HashMap<>();
         for (long i = 0; i < 100000; ++i) {
             map.put(i, Long.toString(i));
         }
@@ -553,7 +553,7 @@ public class HashContainersBenchmark {
         }
         System.out.println("100 000 000 lookups in java.util.HashMap took " + (System.currentTimeMillis() - started));
 
-        final LongHashMap<String> tested = new LongHashMap<String>();
+        final LongHashMap<String> tested = new LongHashMap<>();
         for (long i = 0; i < 100000; ++i) {
             tested.put(i, Long.toString(i));
         }
@@ -571,7 +571,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Map<Long, String> map = new java.util.HashMap<Long, String>();
+        final Map<Long, String> map = new java.util.HashMap<>();
         for (long i = 0; i < 100000; ++i) {
             map.put(i, Long.toString(i));
         }
@@ -583,7 +583,7 @@ public class HashContainersBenchmark {
         }
         System.out.println("100 000 000 lookups in java.util.HashMap took " + (System.currentTimeMillis() - started));
 
-        final LongHashMap<String> tested = new LongHashMap<String>();
+        final LongHashMap<String> tested = new LongHashMap<>();
         for (long i = 0; i < 100000; ++i) {
             tested.put(i, Long.toString(i));
         }
@@ -601,7 +601,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Set<Long> set = new java.util.HashSet<Long>();
+        final Set<Long> set = new java.util.HashSet<>();
         for (int i = 0; i < 100000; ++i) {
             set.add(i + 100000000000L);
         }
@@ -631,7 +631,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Set<Long> set = new java.util.HashSet<Long>();
+        final Set<Long> set = new java.util.HashSet<>();
         for (int i = 0; i < 100000; ++i) {
             set.add(i + 100000000000L);
         }
@@ -661,7 +661,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Map<Long, String> map = new java.util.LinkedHashMap<Long, String>();
+        final Map<Long, String> map = new java.util.LinkedHashMap<>();
         for (long i = 0; i < 100000; ++i) {
             map.put(i, Long.toString(i));
         }
@@ -673,7 +673,7 @@ public class HashContainersBenchmark {
         }
         System.out.println("100 000 000 lookups in java.util.LinkedHashMap took " + (System.currentTimeMillis() - started));
 
-        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<String>();
+        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<>();
         for (long i = 0; i < 100000; ++i) {
             tested.put(i, Long.toString(i));
         }
@@ -691,7 +691,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Map<Long, String> map = new java.util.LinkedHashMap<Long, String>();
+        final Map<Long, String> map = new java.util.LinkedHashMap<>();
         for (long i = 0; i < 100000; ++i) {
             map.put(i, Long.toString(i));
         }
@@ -703,7 +703,7 @@ public class HashContainersBenchmark {
         }
         System.out.println("100 000 000 lookups in java.util.LinkedHashMap took " + (System.currentTimeMillis() - started));
 
-        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<String>();
+        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<>();
         for (long i = 0; i < 100000; ++i) {
             tested.put(i, Long.toString(i));
         }
@@ -721,7 +721,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Map<Long, String> map = new java.util.LinkedHashMap<Long, String>();
+        final Map<Long, String> map = new java.util.LinkedHashMap<>();
         for (long i = 0; i < 100000; ++i) {
             map.put(i, Long.toString(i));
         }
@@ -734,7 +734,7 @@ public class HashContainersBenchmark {
         }
         System.out.println("20 000 000 LRU lookups in java.util.LinkedHashMap took " + (System.currentTimeMillis() - started));
 
-        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<String>();
+        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<>();
         for (long i = 0; i < 100000; ++i) {
             tested.put(i, Long.toString(i));
         }
@@ -752,7 +752,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Set<Long> set = new java.util.LinkedHashSet<Long>();
+        final Set<Long> set = new java.util.LinkedHashSet<>();
         for (long i = 0; i < 100000; ++i) {
             set.add(i);
         }
@@ -782,7 +782,7 @@ public class HashContainersBenchmark {
 
         long started;
 
-        final Set<Long> set = new java.util.LinkedHashSet<Long>();
+        final Set<Long> set = new java.util.LinkedHashSet<>();
         for (long i = 0; i < 100000; ++i) {
             set.add(i);
         }

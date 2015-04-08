@@ -134,7 +134,7 @@ public class QueueDecorator<E> implements Queue<E> {
 
     private void checkDecorated() {
         if (decorated == Collections.emptyList()) {
-            decorated = new ArrayList<E>();
+            decorated = new ArrayList<>();
         }
     }
 }

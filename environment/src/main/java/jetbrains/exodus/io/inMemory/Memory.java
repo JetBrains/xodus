@@ -33,10 +33,10 @@ public class Memory {
     @Nullable
     private Block lastBlock;
     @NotNull
-    private final LongHashMap<Block> data = new LongHashMap<Block>();
+    private final LongHashMap<Block> data = new LongHashMap<>();
     @SuppressWarnings({"MismatchedQueryAndUpdateOfCollection"})
     @NotNull
-    private final LongObjectCache<Block> removedBlocks = new LongObjectCache<Block>(100);
+    private final LongObjectCache<Block> removedBlocks = new LongObjectCache<>(100);
 
     protected Collection<Block> getAllBlocks() {
         return data.values();

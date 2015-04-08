@@ -39,11 +39,11 @@ public class PersistentList<T> implements Iterable<T> {
 
     @Override
     public Iterator<T> iterator() {
-        return new SequenceIterable.Iterator<T>(asSequence());
+        return new SequenceIterable.Iterator<>(asSequence());
     }
 
     public SequenceImpl<T> asSequence() {
-        return size == 0 ? null : new SequenceImpl<T>(this, 0, 0);
+        return size == 0 ? null : new SequenceImpl<>(this, 0, 0);
     }
 
     int recentOffset() {
@@ -127,7 +127,7 @@ public class PersistentList<T> implements Iterable<T> {
     }
 
     protected PersistentList<T> mutableCopy(int newSize, int newShift, Object[] newRoot, T[] newRecent) {
-        return new PersistentList<T>(newSize, newShift, newRoot, newRecent);
+        return new PersistentList<>(newSize, newShift, newRoot, newRecent);
     }
 
     public PersistentList<T> pop() {
@@ -161,7 +161,7 @@ public class PersistentList<T> implements Iterable<T> {
     }
 
     public MutablePersistentList<T> toMutable() {
-        return new MutablePersistentList<T>(this);
+        return new MutablePersistentList<>(this);
     }
 
     private Object[] popRecent(int level, Object[] node) {
@@ -214,10 +214,10 @@ public class PersistentList<T> implements Iterable<T> {
         @Override
         public Sequence<T> skip() {
             if (offset + 1 < node.length) {
-                return new SequenceImpl<T>(source, node, i, offset + 1);
+                return new SequenceImpl<>(source, node, i, offset + 1);
             }
             if (i + node.length < source.size) {
-                return new SequenceImpl<T>(source, i + node.length, 0);
+                return new SequenceImpl<>(source, i + node.length, 0);
             }
             return null;
         }

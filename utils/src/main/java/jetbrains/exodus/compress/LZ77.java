@@ -71,7 +71,7 @@ public class LZ77 {
     public Pair<List<Match>, Integer> encode(@NotNull final InputStream stream, final int count) throws IOException {
         final LimitedInputStream limitedInputStream = new LimitedInputStream(stream, count);
         final List<Match> matchesList = encode(limitedInputStream);
-        return new Pair<List<Match>, Integer>(matchesList, limitedInputStream.bytesRead());
+        return new Pair<>(matchesList, limitedInputStream.bytesRead());
     }
 
     /**
@@ -85,7 +85,7 @@ public class LZ77 {
         final int minMatchLength = config.getMinMatchLength();
         final int maxMatchLength = config.getMaxMatchLength();
         final int windowSize = window.length;
-        final List<Match> result = new ArrayList<Match>();
+        final List<Match> result = new ArrayList<>();
         boolean eof = false;
 
         while (!eof) {
@@ -166,7 +166,7 @@ public class LZ77 {
     public Pair<List<Match>, Integer> encodeImmutable(@NotNull final InputStream stream, final int count) throws IOException {
         final LimitedInputStream limitedInputStream = new LimitedInputStream(stream, count);
         final List<Match> matchesList = encodeImmutable(limitedInputStream);
-        return new Pair<List<Match>, Integer>(matchesList, limitedInputStream.bytesRead());
+        return new Pair<>(matchesList, limitedInputStream.bytesRead());
     }
 
     /**
@@ -182,7 +182,7 @@ public class LZ77 {
         final int minMatchLength = config.getMinMatchLength();
         final int maxMatchLength = config.getMaxMatchLength();
         final int windowSize = window.length;
-        final List<Match> result = new ArrayList<Match>();
+        final List<Match> result = new ArrayList<>();
         boolean eof = false;
 
         while (!eof) {
@@ -347,7 +347,7 @@ public class LZ77 {
             window[i] = (byte) f2;
         }
         for (int i = 0; i < searchTrees.length; i++) {
-            searchTrees[i] = new TreeSet<Offset>();
+            searchTrees[i] = new TreeSet<>();
         }
     }
 

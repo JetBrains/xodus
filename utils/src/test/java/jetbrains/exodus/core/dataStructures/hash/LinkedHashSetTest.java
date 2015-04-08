@@ -25,7 +25,7 @@ public class LinkedHashSetTest {
 
     @Test
     public void testAddContains() {
-        final LinkedHashSet<Integer> tested = new LinkedHashSet<Integer>();
+        final LinkedHashSet<Integer> tested = new LinkedHashSet<>();
         for (int i = 0; i < 1000; ++i) {
             tested.add(i);
         }
@@ -37,7 +37,7 @@ public class LinkedHashSetTest {
 
     @Test
     public void testAddContainsRemove() {
-        final LinkedHashSet<Integer> tested = new LinkedHashSet<Integer>();
+        final LinkedHashSet<Integer> tested = new LinkedHashSet<>();
         for (int i = 0; i < 1000; ++i) {
             tested.add(i);
         }
@@ -57,7 +57,7 @@ public class LinkedHashSetTest {
 
     @Test
     public void nulls() {
-        final Set<Integer> tested = new LinkedHashSet<Integer>();
+        final Set<Integer> tested = new LinkedHashSet<>();
         Assert.assertTrue(tested.add(null));
         Assert.assertFalse(tested.add(null));
         Assert.assertTrue(tested.contains(null));
@@ -68,7 +68,7 @@ public class LinkedHashSetTest {
 
     @Test
     public void nulls2() {
-        final Set<Integer> tested = new LinkedHashSet<Integer>();
+        final Set<Integer> tested = new LinkedHashSet<>();
         Assert.assertTrue(tested.add(null));
         Assert.assertFalse(tested.add(null));
         Assert.assertTrue(tested.contains(null));
@@ -90,7 +90,7 @@ public class LinkedHashSetTest {
 
     @Test
     public void iterator() {
-        final LinkedHashSet<Integer> tested = new LinkedHashSet<Integer>();
+        final LinkedHashSet<Integer> tested = new LinkedHashSet<>();
 
         for (int i = 0; i < 10000; ++i) {
             tested.add(i);
@@ -105,7 +105,7 @@ public class LinkedHashSetTest {
 
     @Test
     public void iterator2() {
-        final LinkedHashSet<Integer> tested = new LinkedHashSet<Integer>();
+        final LinkedHashSet<Integer> tested = new LinkedHashSet<>();
         for (int i = 0; i < 10000; ++i) {
             tested.add(i);
         }

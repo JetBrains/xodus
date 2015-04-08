@@ -90,7 +90,7 @@ public class EnvironmentImpl implements Environment {
         metaTree = meta.getFirst();
         structureId = new AtomicInteger(meta.getSecond());
         txns = new TransactionSet();
-        txnSafeTasks = new LinkedList<RunnableWithTxnRoot>();
+        txnSafeTasks = new LinkedList<>();
         invalidateStoreGetCache();
         invalidateTreeNodesCache();
         envSettingsListener = new EnvironmentSettingsListener();
@@ -553,7 +553,7 @@ public class EnvironmentImpl implements Environment {
                     if (r.txnRoot < oldestTxnRoot) {
                         txnSafeTasks.removeFirst();
                         if (tasksToRun == null) {
-                            tasksToRun = new ArrayList<Runnable>(4);
+                            tasksToRun = new ArrayList<>(4);
                         }
                         tasksToRun.add(r.runnable);
                         continue;
@@ -682,7 +682,7 @@ public class EnvironmentImpl implements Environment {
         final int treeNodesCacheSize = ec.getTreeNodesCacheSize();
         final LongObjectCacheBase result = treeNodesCacheSize == 0 ? null :
                 new ConcurrentLongObjectCache(treeNodesCacheSize, 2);
-        treeNodesCache = result == null ? null : new SoftReference<LongObjectCacheBase>(result);
+        treeNodesCache = result == null ? null : new SoftReference<>(result);
         return result;
     }
 
@@ -691,16 +691,13 @@ public class EnvironmentImpl implements Environment {
         final File propsFile = new File(location, ENVIRONMENT_PROPERTIES_FILE);
         if (propsFile.exists() && propsFile.isFile()) {
             try {
-                final InputStream propsStream = new FileInputStream(propsFile);
-                try {
+                try (InputStream propsStream = new FileInputStream(propsFile)) {
                     final Properties envProps = new Properties();
                     envProps.load(propsStream);
                     for (final Map.Entry<Object, Object> entry : envProps.entrySet()) {
                         ec.setSetting(entry.getKey().toString(), entry.getValue());
                     }
 
-                } finally {
-                    propsStream.close();
                 }
             } catch (IOException e) {
                 throw ExodusException.toExodusException(e);

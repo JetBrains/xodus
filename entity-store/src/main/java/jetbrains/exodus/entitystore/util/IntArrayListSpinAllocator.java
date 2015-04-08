@@ -44,7 +44,7 @@ public class IntArrayListSpinAllocator {
     }
 
     private static final SpinAllocator<IntArrayList> allocator =
-            new SpinAllocator<IntArrayList>(new Creator(), new Disposer());
+            new SpinAllocator<>(new Creator(), new Disposer());
 
     public static IntArrayList alloc() {
         return allocator.alloc();

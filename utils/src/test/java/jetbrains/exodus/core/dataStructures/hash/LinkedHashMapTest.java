@@ -25,7 +25,7 @@ public class LinkedHashMapTest {
 
     @Test
     public void testPutGet() {
-        final LinkedHashMap<Integer, String> tested = new LinkedHashMap<Integer, String>();
+        final LinkedHashMap<Integer, String> tested = new LinkedHashMap<>();
         for (int i = 0; i < 1000; ++i) {
             tested.put(i, Integer.toString(i));
         }
@@ -44,7 +44,7 @@ public class LinkedHashMapTest {
 
     @Test
     public void testPutGet2() {
-        final LinkedHashMap<Integer, String> tested = new LinkedHashMap<Integer, String>();
+        final LinkedHashMap<Integer, String> tested = new LinkedHashMap<>();
         for (int i = 0; i < 1000; ++i) {
             tested.put(i - 500, Integer.toString(i));
         }
@@ -63,7 +63,7 @@ public class LinkedHashMapTest {
 
     @Test
     public void testPutGetRemove() {
-        final LinkedHashMap<Integer, String> tested = new LinkedHashMap<Integer, String>();
+        final LinkedHashMap<Integer, String> tested = new LinkedHashMap<>();
         for (int i = 0; i < 1000; ++i) {
             tested.put(i, Integer.toString(i));
         }
@@ -79,7 +79,7 @@ public class LinkedHashMapTest {
 
     @Test
     public void keySet() {
-        final LinkedHashMap<Integer, String> tested = new LinkedHashMap<Integer, String>();
+        final LinkedHashMap<Integer, String> tested = new LinkedHashMap<>();
         for (int i = 0; i < 10000; ++i) {
             tested.put(i, Integer.toString(i));
         }
@@ -91,7 +91,7 @@ public class LinkedHashMapTest {
 
     @Test
     public void keySet2() {
-        final LinkedHashMap<Integer, String> tested = new LinkedHashMap<Integer, String>();
+        final LinkedHashMap<Integer, String> tested = new LinkedHashMap<>();
         for (int i = 0; i < 10000; ++i) {
             tested.put(i, Integer.toString(i));
         }
@@ -178,7 +178,7 @@ public class LinkedHashMapTest {
 
     @Test
     public void forEachProcedure() {
-        final LinkedHashMap<Integer, String> tested = new LinkedHashMap<Integer, String>();
+        final LinkedHashMap<Integer, String> tested = new LinkedHashMap<>();
         for (int i = 0; i < 100000; ++i) {
             tested.put(i, Integer.toString(i));
         }

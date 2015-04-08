@@ -26,7 +26,7 @@ import java.util.Map;
 @SuppressWarnings({"UtilityClassWithoutPrivateConstructor"/* public constructor is necessary for hosted server */})
 public class ThreadJobProcessorPool {
 
-    private static final Map<String, ThreadJobProcessor> PROCESSORS = new HashMap<String, ThreadJobProcessor>();
+    private static final Map<String, ThreadJobProcessor> PROCESSORS = new HashMap<>();
     private static final ThreadJobProcessor SPAWNER = new ThreadJobProcessor("threadJobProcessorPoolSpawner");
 
     public static ThreadJobProcessor getOrCreateJobProcessor(final String processorName) {

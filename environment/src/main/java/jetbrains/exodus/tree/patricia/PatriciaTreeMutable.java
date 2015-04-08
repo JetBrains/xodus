@@ -178,7 +178,7 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
         final ByteIterator it = key.iterator();
         NodeBase node = root;
         MutableNode mutableNode = null;
-        final Deque<ChildReferenceTransient> stack = new ArrayDeque<ChildReferenceTransient>();
+        final Deque<ChildReferenceTransient> stack = new ArrayDeque<>();
         while (true) {
             final NodeBase.MatchResult matchResult = node.matchesKeySequence(it);
             final int matchingLength = matchResult.matchingLength;
@@ -281,7 +281,7 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
     @Override
     public ITreeCursor openCursor() {
         if (openCursors == null) {
-            openCursors = new ArrayList<ITreeCursorMutable>(4);
+            openCursors = new ArrayList<>(4);
         }
         final ITreeCursorMutable result = new TreeCursorMutable(this, new PatriciaTraverser(this, root), root.hasValue());
         openCursors.add(result);
@@ -375,7 +375,7 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
         if (sourceLoggable != null) {
             Collection<Loggable> expiredLoggables = this.expiredLoggables;
             if (expiredLoggables == null) {
-                expiredLoggables = new ArrayList<Loggable>(16);
+                expiredLoggables = new ArrayList<>(16);
                 this.expiredLoggables = expiredLoggables;
             }
             expiredLoggables.add(sourceLoggable);
@@ -393,7 +393,7 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
     private boolean deleteImpl(@NotNull final ByteIterable key) {
         final ByteIterator it = key.iterator();
         NodeBase node = root;
-        final Deque<ChildReferenceTransient> stack = new ArrayDeque<ChildReferenceTransient>();
+        final Deque<ChildReferenceTransient> stack = new ArrayDeque<>();
         for (; ; ) {
             if (node == null || node.matchesKeySequence(it).matchingLength < 0) {
                 return false;

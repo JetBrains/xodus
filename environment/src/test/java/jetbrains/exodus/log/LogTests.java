@@ -388,7 +388,7 @@ public class LogTests extends LogTestsBase {
     private void testWriteRandomRead(int fileSize, int pageSize) {
         initLog(fileSize, pageSize);
         final int count = 50000;
-        final LongHashMap<Integer> addrs = new LongHashMap<Integer>();
+        final LongHashMap<Integer> addrs = new LongHashMap<>();
         for (int i = 0; i < count; ++i) {
             addrs.put(getLog().write(createDataLoggable(i)), valueOf(i));
         }

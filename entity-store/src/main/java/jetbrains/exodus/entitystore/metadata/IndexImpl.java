@@ -44,7 +44,7 @@ public class IndexImpl implements Index {
     @Override
     public Set<String> getEntityTypesToIndex() {
         // me and inheritors
-        Set<String> res = new HashSet<String>();
+        Set<String> res = new HashSet<>();
         final String enityType = ownerEnityType;
         res.add(enityType);
         res.addAll(modelMetaData.getEntityMetaData(enityType).getAllSubTypes());

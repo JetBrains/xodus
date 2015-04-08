@@ -48,7 +48,7 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
         if (key == null) {
             if (nullEntry == null) {
                 size += 1;
-                nullEntry = new Entry<K, V>(null, value);
+                nullEntry = new Entry<>(null, value);
                 return null;
             }
             return nullEntry.setValue(value);
@@ -64,7 +64,7 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
             }
         }
 
-        final Entry<K, V> e = new Entry<K, V>(key, value);
+        final Entry<K, V> e = new Entry<>(key, value);
         e.hashNext = table[index];
         table[index] = e;
         size += 1;

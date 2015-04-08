@@ -23,7 +23,7 @@ public class StringInterner {
     private static final int NUMBER_OF_GENERATIONS = 2;
     private static final int INTERNER_SIZE = 3089 * NUMBER_OF_GENERATIONS;
 
-    private static final ConcurrentObjectCache<String, String> cache = new ConcurrentObjectCache<String, String>(INTERNER_SIZE, NUMBER_OF_GENERATIONS);
+    private static final ConcurrentObjectCache<String, String> cache = new ConcurrentObjectCache<>(INTERNER_SIZE, NUMBER_OF_GENERATIONS);
 
     private StringInterner() {
     }

@@ -84,7 +84,7 @@ public class PersistentHashSetTest {
 
     @Test
     public void competingWritesTest() {
-        PersistentHashSet<Integer> tree = new PersistentHashSet<Integer>();
+        PersistentHashSet<Integer> tree = new PersistentHashSet<>();
         PersistentHashSet.MutablePersistentHashSet<Integer> write1 = tree.beginWrite();
         PersistentHashSet.MutablePersistentHashSet<Integer> write2 = tree.beginWrite();
         write1.add(0);
@@ -121,13 +121,13 @@ public class PersistentHashSetTest {
         Random random = new Random(8234890);
         PersistentHashSet.MutablePersistentHashSet<Integer> tree = new PersistentHashSet<Integer>().beginWrite();
         int[] p = genPermutation(random);
-        HashSet<Integer> added = new HashSet<Integer>();
+        HashSet<Integer> added = new HashSet<>();
         for (int i = 0; i < ENTRIES_TO_ADD; i++) {
             int size = tree.size();
             Assert.assertEquals(i, size);
             if ((size & 1023) == 0 || size < 100) {
                 System.out.println(size + " added");
-                Collection<Integer> actual = new HashSet<Integer>(size);
+                Collection<Integer> actual = new HashSet<>(size);
                 for (Integer key : tree) {
                     Assert.assertFalse(actual.contains(key));
                     actual.add(key);
@@ -162,13 +162,13 @@ public class PersistentHashSetTest {
         Random random = new Random(8234890);
         PersistentHashSet.MutablePersistentHashSet<Integer> tree = new PersistentHashSet<Integer>().beginWrite();
         int[] p = genPermutation(random);
-        HashSet<Integer> added = new HashSet<Integer>();
+        HashSet<Integer> added = new HashSet<>();
         for (int i = 0; i < ENTRIES_TO_ADD; i++) {
             int size = tree.size();
             Assert.assertEquals(i, size);
             if ((size & 1023) == 0 || size < 100) {
                 System.out.println(size + " added");
-                final Collection<Integer> actual = new HashSet<Integer>(size);
+                final Collection<Integer> actual = new HashSet<>(size);
                 ObjectProcedure<Integer> proc = new ObjectProcedure<Integer>() {
                     @Override
                     public boolean execute(Integer object) {
@@ -190,7 +190,7 @@ public class PersistentHashSetTest {
 
     @Test
     public void testRootCollision() {
-        final PersistentHashSet<Object> source = new PersistentHashSet<Object>();
+        final PersistentHashSet<Object> source = new PersistentHashSet<>();
         PersistentHashSet.MutablePersistentHashSet<Object> writeable = source.beginWrite();
         writeable.add(createClashingHashCodeObject());
         writeable.add(createClashingHashCodeObject());
@@ -210,10 +210,10 @@ public class PersistentHashSetTest {
 
     @Test
     public void testSizeAtomicity() throws InterruptedException {
-        final PersistentHashSet<Integer> source = new PersistentHashSet<Integer>();
+        final PersistentHashSet<Integer> source = new PersistentHashSet<>();
         final CountDownLatch latch = new CountDownLatch(2);
         final int itr = 10000;
-        final List<Throwable> errors = new LinkedList<Throwable>();
+        final List<Throwable> errors = new LinkedList<>();
         final Thread writer = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -274,7 +274,7 @@ public class PersistentHashSetTest {
 
     @Test
     public void getSavesObject() {
-        final PersistentHashSet<Integer> set = new PersistentHashSet<Integer>();
+        final PersistentHashSet<Integer> set = new PersistentHashSet<>();
         final PersistentHashSet.MutablePersistentHashSet<Integer> mutableSet = set.beginWrite();
         @SuppressWarnings("UnnecessaryBoxing") final Integer e = new Integer(271828);
         mutableSet.add(e);

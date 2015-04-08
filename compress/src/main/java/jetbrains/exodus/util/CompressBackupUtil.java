@@ -183,11 +183,8 @@ public class CompressBackupUtil {
         } else {
             throw new IOException("Unknown archive output stream");
         }
-        final InputStream input = new FileInputStream(source);
-        try {
+        try (InputStream input = new FileInputStream(source)) {
             IOUtil.copyStreams(input, fileSize, out, IOUtil.BUFFER_ALLOCATOR);
-        } finally {
-            input.close();
         }
         out.closeArchiveEntry();
     }

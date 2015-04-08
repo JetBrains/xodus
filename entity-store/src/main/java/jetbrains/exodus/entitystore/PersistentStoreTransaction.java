@@ -89,7 +89,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                                @NotNull final Transaction txn) {
         this.store = store;
         this.txn = txn;
-        createdIterators = new ArrayList<EntityIterator>();
+        createdIterators = new ArrayList<>();
         final PersistentEntityStoreConfig config = store.getConfig();
         propsCache = createObjectCache(config.getTransactionPropsCacheSize());
         linksCache = createObjectCache(config.getTransactionLinksCacheSize());
@@ -103,7 +103,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     protected PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store, final boolean readOnly) {
         this.store = store;
-        createdIterators = new ArrayList<EntityIterator>();
+        createdIterators = new ArrayList<>();
         final PersistentEntityStoreConfig config = store.getConfig();
         propsCache = createObjectCache(config.getTransactionPropsCacheSize());
         linksCache = createObjectCache(config.getTransactionLinksCacheSize());
@@ -206,7 +206,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (replayData != null) {
             if (mutableCache == null) {
                 mutableCache = localCache.getClone();
-                mutatedInTxn = new ArrayList<UpdatableCachedWrapperIterable>();
+                mutatedInTxn = new ArrayList<>();
             }
             replayData.init(mutableCache.cache);
             replayData.apply(mutableCache);
@@ -404,7 +404,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         List<EntityIterable> links = null;
         for (final Entity entity : entities) {
             if (links == null) {
-                links = new ArrayList<EntityIterable>();
+                links = new ArrayList<>();
             }
             links.add(findLinks(entityType, entity, linkName));
         }
@@ -518,7 +518,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         for (final EntityIterable it : sorted) {
             if (it != EntityIterableBase.EMPTY) {
                 if (filtered == null) {
-                    filtered = new ArrayList<EntityIterable>();
+                    filtered = new ArrayList<>();
                 }
                 filtered.add(it);
             }
@@ -732,7 +732,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     void addBlob(final long blobHandle, @NotNull final InputStream stream) throws IOException {
         LongHashMap<InputStream> blobStreams = this.blobStreams;
         if (blobStreams == null) {
-            blobStreams = new LongHashMap<InputStream>();
+            blobStreams = new LongHashMap<>();
             this.blobStreams = blobStreams;
         }
         if (!stream.markSupported()) {
@@ -745,7 +745,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     void addBlob(final long blobHandle, @NotNull final File file) {
         LongHashMap<File> blobFiles = this.blobFiles;
         if (blobFiles == null) {
-            blobFiles = new LongHashMap<File>();
+            blobFiles = new LongHashMap<>();
             this.blobFiles = blobFiles;
         }
         blobFiles.put(blobHandle, file);
@@ -883,7 +883,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     private void updateMutableCache(@NotNull final HandleChecker checker) {
         if (mutableCache == null) {
             mutableCache = localCache.getClone(); // preemptive version mismatch disabled
-            mutatedInTxn = new ArrayList<UpdatableCachedWrapperIterable>();
+            mutatedInTxn = new ArrayList<>();
             if (replayData != null) {
                 replayData.setCacheSnapshot(mutableCache.getClone());
             }

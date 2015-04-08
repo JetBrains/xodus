@@ -40,7 +40,7 @@ public class MergeSortedIterable extends EntityIterableBase {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
                 int size = Integer.valueOf((String) parameters[0]);
-                ArrayList<EntityIterable> sorted = new ArrayList<EntityIterable>(size);
+                ArrayList<EntityIterable> sorted = new ArrayList<>(size);
                 for (int i = 0; i < size; i++) {
                     sorted.add((EntityIterable) parameters[i + 1]);
                 }
@@ -123,7 +123,7 @@ public class MergeSortedIterable extends EntityIterableBase {
         @SuppressWarnings({"ObjectAllocationInLoop"})
         private MergeSortedIterator() {
             super(MergeSortedIterable.this);
-            queue = new PriorityQueue<EntityWithSource>(sorted.size(), new Comparator<EntityWithSource>() {
+            queue = new PriorityQueue<>(sorted.size(), new Comparator<EntityWithSource>() {
                 @Override
                 public int compare(EntityWithSource o1, EntityWithSource o2) {
                     final Entity e1 = getEntity(o1.id);

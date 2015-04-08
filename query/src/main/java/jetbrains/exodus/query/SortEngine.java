@@ -258,7 +258,7 @@ public class SortEngine {
         if (!(emd.hasSubTypes())) {
             result = sorted.getIterable(emd.getType());
         } else {
-            final List<EntityIterable> iterables = new ArrayList<EntityIterable>(4);
+            final List<EntityIterable> iterables = new ArrayList<>(4);
             EntityIterable source = sorted.getIterable(emd.getType()).getSource();
             if (source != EntityIterableBase.EMPTY) {
                 iterables.add(source);
@@ -306,7 +306,7 @@ public class SortEngine {
 
     private static ComparableGetter toCachingSelector(final ComparableGetter selector) {
         return new ComparableGetter() {
-            private final HashMap<Entity, Comparable> selected = new HashMap<Entity, Comparable>();
+            private final HashMap<Entity, Comparable> selected = new HashMap<>();
 
             @Override
             public Comparable select(Entity entity) {

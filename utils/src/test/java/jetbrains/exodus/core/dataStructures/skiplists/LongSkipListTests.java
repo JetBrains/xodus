@@ -76,7 +76,7 @@ public class LongSkipListTests {
 
     @Test
     public void testGetMinimumMaximumTreeSet() {
-        final SortedSet<Long> set = new TreeSet<Long>();
+        final SortedSet<Long> set = new TreeSet<>();
         long min = Long.MAX_VALUE;
         long max = Long.MIN_VALUE;
         Random rnd = new Random();

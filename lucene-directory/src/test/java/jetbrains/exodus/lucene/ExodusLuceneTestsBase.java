@@ -119,7 +119,7 @@ public abstract class ExodusLuceneTestsBase extends EnvironmentTestsBase {
     }
 
     protected void removeStopWord(final String stopWord) {
-        final HashSet<Object> stopSet = new HashSet<Object>();
+        final HashSet<Object> stopSet = new HashSet<>();
         for (Object word : ((StopwordAnalyzerBase) analyzer).getStopwordSet()) {
             if (!stopWord.equals(new String((char[]) word))) {
                 stopSet.add(word);

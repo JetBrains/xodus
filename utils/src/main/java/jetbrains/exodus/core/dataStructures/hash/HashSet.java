@@ -91,7 +91,7 @@ public class HashSet<E> extends AbstractSet<E> {
             }
         }
 
-        final Entry<E> e = new Entry<E>(key);
+        final Entry<E> e = new Entry<>(key);
         e.hashNext = table[index];
         table[index] = e;
         size += 1;
@@ -255,7 +255,7 @@ public class HashSet<E> extends AbstractSet<E> {
             }
             if (result == null && holdsNull) {
                 holdsNull = false;
-                result = new Entry<E>();
+                result = new Entry<>();
             }
             e = result;
         }

@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ContextualEnvironmentImpl extends EnvironmentImpl implements ContextualEnvironment {
 
-    private final Map<Thread, Deque<TransactionImpl>> threadTxns = new ConcurrentHashMap<Thread, Deque<TransactionImpl>>(4, 0.75f, 4);
+    private final Map<Thread, Deque<TransactionImpl>> threadTxns = new ConcurrentHashMap<>(4, 0.75f, 4);
 
     ContextualEnvironmentImpl(@NotNull Log log, @NotNull EnvironmentConfig ec) {
         super(log, ec);
@@ -142,7 +142,7 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
         }
         Deque<TransactionImpl> stack = threadTxns.get(thread);
         if (stack == null) {
-            stack = new ArrayDeque<TransactionImpl>(4);
+            stack = new ArrayDeque<>(4);
             threadTxns.put(thread, stack);
         }
         stack.push(result);

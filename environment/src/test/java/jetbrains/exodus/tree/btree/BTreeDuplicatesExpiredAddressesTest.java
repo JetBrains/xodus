@@ -251,7 +251,7 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
     @Test
     public void testBulkDeleteByKV() throws IOException {
         tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
-        List<INode> leaves = new ArrayList<INode>();
+        List<INode> leaves = new ArrayList<>();
         for (int i = 0; i < 1000; i++) {
             INode[] nodes = new INode[5];
             nodes[0] = kv(i, "value");

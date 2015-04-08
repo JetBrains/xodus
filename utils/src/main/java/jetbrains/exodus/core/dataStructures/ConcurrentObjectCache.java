@@ -71,12 +71,12 @@ public class ConcurrentObjectCache<K, V> extends ObjectCacheBase<K, V> {
         for (int i = 0; i < numberOfGenerations; ++i, ++cacheIndex) {
             final CacheEntry<K, V> entry = cache[cacheIndex];
             if (entry != null && entry.key.equals(key)) {
-                cache[cacheIndex] = new CacheEntry<K, V>(key, x);
+                cache[cacheIndex] = new CacheEntry<>(key, x);
                 // in concurrent environment we can't definitely know if a value is pushed out from the cache
                 return null;
             }
         }
-        cache[cacheIndex - 1] = new CacheEntry<K, V>(key, x);
+        cache[cacheIndex - 1] = new CacheEntry<>(key, x);
         return null;
     }
 

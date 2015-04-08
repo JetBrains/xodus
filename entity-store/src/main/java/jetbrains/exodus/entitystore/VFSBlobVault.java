@@ -208,25 +208,19 @@ public class VFSBlobVault extends BlobVault {
     private static LongSet loadAllBlobs(@NotNull final PersistentEntityStoreImpl store, @NotNull final PersistentStoreTransaction txn) {
         final LongSet result = new LongHashSet();
         final Transaction envTxn = txn.getEnvironmentTransaction();
-        final Cursor entityTypesCursor = store.getEntityTypesTable().getSecondIndexCursor(envTxn);
-        try {
+        try (Cursor entityTypesCursor = store.getEntityTypesTable().getSecondIndexCursor(envTxn)) {
             while (entityTypesCursor.getNext()) {
                 final int entityTypeId = IntegerBinding.compressedEntryToInt(entityTypesCursor.getKey());
                 final BlobsTable blobs = store.getBlobsTable(txn, entityTypeId);
                 final Store primary = blobs.getPrimaryIndex();
-                final Cursor blobsCursor = primary.openCursor(envTxn);
-                try {
+                try (Cursor blobsCursor = primary.openCursor(envTxn)) {
                     while (blobsCursor.getNext()) {
                         final long blobId = LongBinding.compressedEntryToLong(blobsCursor.getValue());
                         result.add(blobId);
                     }
-                } finally {
-                    blobsCursor.close();
                 }
             }
             return result;
-        } finally {
-            entityTypesCursor.close();
         }
     }
 }

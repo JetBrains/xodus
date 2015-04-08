@@ -99,7 +99,7 @@ public class HashMapDecorator<K, V> implements Map<K, V> {
 
     private void checkDecorated() {
         if (decorated == Collections.emptyMap()) {
-            decorated = new HashMap<K, V>();
+            decorated = new HashMap<>();
         }
     }
 }

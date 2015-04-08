@@ -26,7 +26,7 @@ import java.io.IOException;
 
 public class FileByteIterableTest {
 
-    private static final String SAMPLE_CONTENT = "�? хорошо бы еще бы убрать всякую сладкую и калорийную гадость, и заменть ее более здоровыми закусками к чаю. Теми же фруктами, орешками";
+    private static final String SAMPLE_CONTENT = "�? хорошо бы еще бы убрать всякую сладкую и калорийную гадость, и заменть ее более здоровыми закусками к чаю. Теми же фруктами, орешками";
 
     File file;
 
@@ -53,11 +53,8 @@ public class FileByteIterableTest {
 
     @Test
     public void testSingleIterable() throws IOException {
-        final FileOutputStream output = new FileOutputStream(file);
-        try {
+        try (FileOutputStream output = new FileOutputStream(file)) {
             output.write(SAMPLE_CONTENT.getBytes("UTF-8"));
-        } finally {
-            output.close();
         }
         final FileByteIterable it = new FileByteIterable(file);
         Assert.assertEquals(0, compare(it.iterator(), new ArrayByteIterable(SAMPLE_CONTENT.getBytes("UTF-8")).iterator()));
@@ -66,13 +63,10 @@ public class FileByteIterableTest {
     @Test
     public void testMultipleIterables() throws IOException {
         final int count = 10;
-        final FileOutputStream output = new FileOutputStream(file);
-        try {
+        try (FileOutputStream output = new FileOutputStream(file)) {
             for (int i = 0; i < count; ++i) {
                 output.write(SAMPLE_CONTENT.getBytes("UTF-8"));
             }
-        } finally {
-            output.close();
         }
         final byte[] sampleBytes = SAMPLE_CONTENT.getBytes("UTF-8");
         final int length = sampleBytes.length;

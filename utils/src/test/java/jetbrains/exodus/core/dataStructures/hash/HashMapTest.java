@@ -27,7 +27,7 @@ public class HashMapTest {
 
     @Test
     public void testPutGet() {
-        final Map<Integer, String> tested = new HashMap<Integer, String>();
+        final Map<Integer, String> tested = new HashMap<>();
         for (int i = 0; i < 1000; ++i) {
             tested.put(i, Integer.toString(i));
         }
@@ -50,7 +50,7 @@ public class HashMapTest {
 
     @Test
     public void testPutGet2() {
-        final Map<Integer, String> tested = new HashMap<Integer, String>();
+        final Map<Integer, String> tested = new HashMap<>();
         for (int i = 0; i < 1000; ++i) {
             tested.put(i - 500, Integer.toString(i));
         }
@@ -69,7 +69,7 @@ public class HashMapTest {
 
     @Test
     public void testPutGetRemove() {
-        final Map<Integer, String> tested = new HashMap<Integer, String>();
+        final Map<Integer, String> tested = new HashMap<>();
         for (int i = 0; i < 1000; ++i) {
             tested.put(i, Integer.toString(i));
         }
@@ -89,8 +89,8 @@ public class HashMapTest {
 
     @Test
     public void keySet() {
-        final Map<Integer, String> tested = new HashMap<Integer, String>();
-        final Set<Integer> set = new HashSet<Integer>();
+        final Map<Integer, String> tested = new HashMap<>();
+        final Set<Integer> set = new HashSet<>();
 
         for (int i = 0; i < 10000; ++i) {
             tested.put(i, Integer.toString(i));
@@ -106,8 +106,8 @@ public class HashMapTest {
 
     @Test
     public void keySet2() {
-        final Map<Integer, String> tested = new HashMap<Integer, String>();
-        final Set<Integer> set = new HashSet<Integer>();
+        final Map<Integer, String> tested = new HashMap<>();
+        final Set<Integer> set = new HashSet<>();
 
         for (int i = 0; i < 10000; ++i) {
             tested.put(i, Integer.toString(i));
@@ -138,7 +138,7 @@ public class HashMapTest {
 
     @Test
     public void forEachProcedure() {
-        final HashMap<Integer, String> tested = new HashMap<Integer, String>();
+        final HashMap<Integer, String> tested = new HashMap<>();
         for (int i = 0; i < 100000; ++i) {
             tested.put(i, Integer.toString(i));
         }

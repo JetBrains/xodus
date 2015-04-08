@@ -177,7 +177,7 @@ public class BTreeTest extends BTreeTestBase {
         getTreeMutable().dump(System.out);
 
         // expected nodes
-        List<INode> l = new ArrayList<INode>();
+        List<INode> l = new ArrayList<>();
         for (int i = 0; i < 100; i++) {
             l.add(kv(i, "v" + i));
             l.add(kv(i, "vv" + i));
@@ -259,7 +259,7 @@ public class BTreeTest extends BTreeTestBase {
     public void testPutSortDuplicates() throws IOException {
         tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
 
-        List<INode> expected = new ArrayList<INode>();
+        List<INode> expected = new ArrayList<>();
         expected.add(kv("1", "1"));
         expected.add(kv("2", "2"));
         expected.add(kv("3", "3"));
@@ -285,7 +285,7 @@ public class BTreeTest extends BTreeTestBase {
     public void testPutRightSortDuplicates() throws IOException {
         tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
 
-        List<INode> expected = new ArrayList<INode>();
+        List<INode> expected = new ArrayList<>();
         expected.add(kv("1", "1"));
         expected.add(kv("2", "2"));
         expected.add(kv("3", "3"));
@@ -311,7 +311,7 @@ public class BTreeTest extends BTreeTestBase {
     public void testGetReturnsFirstSortedDuplicate() throws IOException {
         tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
 
-        List<INode> l = new ArrayList<INode>();
+        List<INode> l = new ArrayList<>();
         l.add(kv("1", "1"));
         l.add(kv("2", "2"));
         l.add(kv("3", "3"));

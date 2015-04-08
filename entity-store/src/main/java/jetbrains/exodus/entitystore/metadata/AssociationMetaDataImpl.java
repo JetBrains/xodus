@@ -25,7 +25,7 @@ import java.util.List;
 public class AssociationMetaDataImpl implements AssociationMetaData {
 
     private AssociationType type;
-    private final List<AssociationEndMetaData> ends = new ArrayList<AssociationEndMetaData>(2);
+    private final List<AssociationEndMetaData> ends = new ArrayList<>(2);
     private String fullName;
 
     public AssociationMetaDataImpl() {

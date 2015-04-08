@@ -37,7 +37,7 @@ public class Persistent23Tree<K extends Comparable<K>> {
     }
 
     public ImmutableTree<K> getCurrent() {
-        return new ImmutableTree<K>(root);
+        return new ImmutableTree<>(root);
     }
 
     public int size() {
@@ -47,11 +47,11 @@ public class Persistent23Tree<K extends Comparable<K>> {
     }
 
     public Persistent23Tree<K> getClone() {
-        return new Persistent23Tree<K>(root);
+        return new Persistent23Tree<>(root);
     }
 
     public MutableTree<K> beginWrite() {
-        return new MutableTree<K>(this);
+        return new MutableTree<>(this);
     }
 
     boolean endWrite(MutableTree<K> tree) {
@@ -95,7 +95,7 @@ public class Persistent23Tree<K extends Comparable<K>> {
 
         public void add(@NotNull K key) {
             if (root == null) {
-                root = new RootBinaryNode<K>(key, 1);
+                root = new RootBinaryNode<>(key, 1);
             } else {
                 SplitResult<K> splitResult = root.insert(key);
                 // splitResult.firstNode != null
@@ -103,7 +103,7 @@ public class Persistent23Tree<K extends Comparable<K>> {
                 if (splitResult.getSecondNode() == null) {
                     root = splitResult.getFirstNode().asRoot(size);
                 } else {
-                    root = new RootInternalBinaryNode<K>(splitResult.getFirstNode(), splitResult.getKey(), splitResult.getSecondNode(), size);
+                    root = new RootInternalBinaryNode<>(splitResult.getFirstNode(), splitResult.getKey(), splitResult.getSecondNode(), size);
                 }
             }
         }

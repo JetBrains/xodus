@@ -64,6 +64,6 @@ public class JMHObjectCacheBenchmark {
     }
 
     protected ObjectCacheBase<Integer, String> createCache() {
-        return new ObjectCache<Integer, String>(CACHE_SIZE);
+        return new ObjectCache<>(CACHE_SIZE);
     }
 }

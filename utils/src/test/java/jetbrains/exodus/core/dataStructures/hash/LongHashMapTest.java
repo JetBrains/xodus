@@ -26,7 +26,7 @@ public class LongHashMapTest {
 
     @Test
     public void testPutGet() {
-        final Map<Long, String> tested = new LongHashMap<String>();
+        final Map<Long, String> tested = new LongHashMap<>();
         for (long i = 0; i < 1000; ++i) {
             tested.put(i, Long.toString(i));
         }
@@ -45,7 +45,7 @@ public class LongHashMapTest {
 
     @Test
     public void testPutGet2() {
-        final Map<Long, String> tested = new LongHashMap<String>();
+        final Map<Long, String> tested = new LongHashMap<>();
         for (long i = 0; i < 1000; ++i) {
             tested.put(i - 500, Long.toString(i));
         }
@@ -64,7 +64,7 @@ public class LongHashMapTest {
 
     @Test
     public void testPutGetRemove() {
-        final Map<Long, String> tested = new LongHashMap<String>();
+        final Map<Long, String> tested = new LongHashMap<>();
         for (long i = 0; i < 1000; ++i) {
             tested.put(i, Long.toString(i));
         }
@@ -80,7 +80,7 @@ public class LongHashMapTest {
 
     @Test
     public void keySet() {
-        final Map<Long, String> tested = new LongHashMap<String>();
+        final Map<Long, String> tested = new LongHashMap<>();
         final Set<Long> set = new LongHashSet();
 
         for (long i = 0; i < 10000; ++i) {
@@ -95,7 +95,7 @@ public class LongHashMapTest {
 
     @Test
     public void keySet2() {
-        final Map<Long, String> tested = new LongHashMap<String>();
+        final Map<Long, String> tested = new LongHashMap<>();
         final Set<Long> set = new LongHashSet();
 
         for (long i = 0; i < 10000; ++i) {
@@ -124,7 +124,7 @@ public class LongHashMapTest {
 
     @Test
     public void forEachProcedure() {
-        final IntHashMap<String> tested = new IntHashMap<String>();
+        final IntHashMap<String> tested = new IntHashMap<>();
         for (int i = 0; i < 100000; ++i) {
             tested.put(i, Integer.toString(i));
         }

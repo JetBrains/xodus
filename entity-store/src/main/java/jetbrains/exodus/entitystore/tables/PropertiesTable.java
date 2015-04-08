@@ -60,7 +60,7 @@ public final class PropertiesTable extends Table {
         allPropsIndex = env.openStore(name + ALL_PROPS_IDX, StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, envTxn);
         store.trackTableCreation(primaryStore, txn);
         store.trackTableCreation(allPropsIndex, txn);
-        valueIndexes = new IntHashMap<Store>();
+        valueIndexes = new IntHashMap<>();
     }
 
     @Nullable
@@ -156,7 +156,7 @@ public final class PropertiesTable extends Table {
     @NotNull
     public Collection<Map.Entry<Integer, Store>> getValueIndices() {
         synchronized (valueIndexes) {
-            return new ArrayList<Map.Entry<Integer, Store>>(valueIndexes.entrySet());
+            return new ArrayList<>(valueIndexes.entrySet());
         }
     }
 

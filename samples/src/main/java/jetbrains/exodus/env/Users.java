@@ -77,16 +77,13 @@ public class Users {
         env.executeInReadonlyTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
-                final Cursor cursor = users.openCursor(txn);
-                try {
+                try (Cursor cursor = users.openCursor(txn)) {
                     long count = 0;
                     while (cursor.getNext()) {
                         System.out.println(entryToString(cursor.getKey()) + ' ' + entryToString(cursor.getValue()));
                         ++count;
                     }
                     System.out.println("Total users: " + count);
-                } finally {
-                    cursor.close();
                 }
             }
         });
@@ -97,8 +94,7 @@ public class Users {
             @Override
             public void execute(@NotNull final Transaction txn) {
                 final ArrayByteIterable emailEntry = stringToEntry(key);
-                final Cursor cursor = store.openCursor(txn);
-                try {
+                try (Cursor cursor = store.openCursor(txn)) {
                     if (cursor.getSearchKey(emailEntry) != null) {
                         boolean hasNext = true;
                         int i = 0;
@@ -122,8 +118,6 @@ public class Users {
                     } else {
                         System.out.println("Nothing found");
                     }
-                } finally {
-                    cursor.close();
                 }
             }
         });
@@ -136,24 +130,18 @@ public class Users {
                 final ArrayByteIterable usernameEntry = stringToEntry(username);
                 final ArrayByteIterable emailEntry = stringToEntry(email);
                 final boolean exists;
-                final Cursor usersCursor = users.openCursor(txn);
-                try {
+                try (Cursor usersCursor = users.openCursor(txn)) {
                     exists = usersCursor.getSearchBoth(usernameEntry, emailEntry);
                     if (!exists) {
                         users.put(txn, usernameEntry, emailEntry);
                     }
-                } finally {
-                    usersCursor.close();
                 }
                 if (!exists) {
-                    final Cursor emailsCursor = emails.openCursor(txn);
-                    try {
+                    try (Cursor emailsCursor = emails.openCursor(txn)) {
                         if (emailsCursor.getSearchBoth(emailEntry, usernameEntry)) {
                             throw new ExodusException("It can't be: users & emails are inconsistent!");
                         }
                         emails.put(txn, emailEntry, usernameEntry);
-                    } finally {
-                        emailsCursor.close();
                     }
                 }
                 System.out.println((exists ? "User is already registered: " : "New user registered: ") + username + " " + email);

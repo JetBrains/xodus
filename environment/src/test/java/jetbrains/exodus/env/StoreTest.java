@@ -288,15 +288,12 @@ public class StoreTest extends EnvironmentTestsBase {
                     Assert.assertEquals(getValue(), store.get(txn, LongBinding.longToCompressedEntry(key)));
                 }
                 Arrays.sort(longs);
-                final Cursor cursor = store.openCursor(txn);
-                try {
+                try (Cursor cursor = store.openCursor(txn)) {
                     int i = 0;
                     while (cursor.getNext()) {
                         Assert.assertEquals(longs[i++], LongBinding.compressedEntryToLong(cursor.getKey()));
                     }
                     Assert.assertEquals(count, i);
-                } finally {
-                    cursor.close();
                 }
             }
         });

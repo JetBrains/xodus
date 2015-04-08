@@ -137,7 +137,7 @@ class BufferedDataWriter implements TransactionalDataWriter {
         currentPage.committedCount = currentPage.writtenCount;
         MutablePage previousPage = currentPage.previousPage;
         if (previousPage != null) {
-            final ArrayList<MutablePage> fullPages = new ArrayList<MutablePage>();
+            final ArrayList<MutablePage> fullPages = new ArrayList<>();
             do {
                 fullPages.add(0, previousPage);
                 previousPage = previousPage.previousPage;

@@ -177,7 +177,7 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
     }
 
     protected void doTimedJobs() {
-        final Collection<Job> outdatedJobs = new ArrayList<Job>();
+        final Collection<Job> outdatedJobs = new ArrayList<>();
         final long currentTimePriority = Long.MAX_VALUE - System.currentTimeMillis();
         final int count;
         timeQueue.lock();

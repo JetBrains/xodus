@@ -44,7 +44,7 @@ public class LongArrayListSpinAllocator {
     }
 
     private static final SpinAllocator<LongArrayList> allocator =
-            new SpinAllocator<LongArrayList>(new Creator(), new Disposer());
+            new SpinAllocator<>(new Creator(), new Disposer());
 
     public static LongArrayList alloc() {
         return allocator.alloc();

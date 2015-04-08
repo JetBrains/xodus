@@ -58,7 +58,7 @@ public class IntHashSetTest {
     @Test
     public void iterator() {
         final Set<Integer> tested = new IntHashSet();
-        final Set<Integer> set = new java.util.HashSet<Integer>();
+        final Set<Integer> set = new java.util.HashSet<>();
 
         for (int i = 0; i < 10000; ++i) {
             tested.add(i);
@@ -73,7 +73,7 @@ public class IntHashSetTest {
     @Test
     public void iterator2() {
         final Set<Integer> tested = new IntHashSet();
-        final Set<Integer> set = new HashSet<Integer>();
+        final Set<Integer> set = new HashSet<>();
 
         for (int i = 0; i < 10000; ++i) {
             tested.add(i);

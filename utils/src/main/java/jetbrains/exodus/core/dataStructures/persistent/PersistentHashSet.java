@@ -36,15 +36,15 @@ public class PersistentHashSet<K> {
     }
 
     public ImmutablePersistentHashSet<K> getCurrent() {
-        return new ImmutablePersistentHashSet<K>(root);
+        return new ImmutablePersistentHashSet<>(root);
     }
 
     public PersistentHashSet<K> getClone() {
-        return new PersistentHashSet<K>(root);
+        return new PersistentHashSet<>(root);
     }
 
     public MutablePersistentHashSet<K> beginWrite() {
-        return new MutablePersistentHashSet<K>(this);
+        return new MutablePersistentHashSet<>(this);
     }
 
     boolean endWrite(MutablePersistentHashSet<K> tree) {

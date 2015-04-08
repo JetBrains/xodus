@@ -48,13 +48,13 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
             secondGenSizeRatio = 0.95f;
         }
         this.secondGenSizeRatio = secondGenSizeRatio;
-        root = new AtomicReference<Root<K, V>>();
+        root = new AtomicReference<>();
     }
 
     private PersistentObjectCache(@NotNull final PersistentObjectCache<K, V> source) {
         size = source.size;
         secondGenSizeRatio = source.secondGenSizeRatio;
-        root = new AtomicReference<Root<K, V>>(source.root.get());
+        root = new AtomicReference<>(source.root.get());
     }
 
     public void clear() {
@@ -85,7 +85,7 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
         V result;
         do {
             current = getCurrent();
-            next = new Root<K, V>(current, size, secondGenSizeRatio);
+            next = new Root<>(current, size, secondGenSizeRatio);
             final PersistentLinkedHashMap<K, V> secondGen = next.getSecondGen();
             final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> secondGenMutable = secondGen.beginWrite();
             result = secondGenMutable.get(key);
@@ -131,7 +131,7 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
         Root<K, V> next;
         do {
             current = getCurrent();
-            next = new Root<K, V>(current, size, secondGenSizeRatio);
+            next = new Root<>(current, size, secondGenSizeRatio);
             final PersistentLinkedHashMap<K, V> firstGen = next.getFirstGen();
             final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> firstGenMutable = firstGen.beginWrite();
             if (firstGenMutable.remove(key) == null) {
@@ -151,7 +151,7 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
         V result;
         do {
             current = getCurrent();
-            next = new Root<K, V>(current, size, secondGenSizeRatio);
+            next = new Root<>(current, size, secondGenSizeRatio);
             final PersistentLinkedHashMap<K, V> firstGen = next.getFirstGen();
             final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> firstGenMutable = firstGen.beginWrite();
             result = firstGenMutable.remove(key);
@@ -232,7 +232,7 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
         if (current == null) {
             return new ArrayList<V>(1).iterator();
         }
-        final ArrayList<V> result = new ArrayList<V>();
+        final ArrayList<V> result = new ArrayList<>();
         for (final Pair<K, V> pair : current.getFirstGen().beginWrite()) {
             result.add(pair.getSecond());
         }
@@ -243,7 +243,7 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
     }
 
     public PersistentObjectCache<K, V> getClone() {
-        return new PersistentObjectCache<K, V>(this);
+        return new PersistentObjectCache<>(this);
     }
 
     private Root<K, V> getCurrent() {
@@ -264,14 +264,14 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
             } else {
                 final int secondGenSizeBound = (int) (size * secondGenSizeRatio);
                 final int firstGenSizeBound = size - secondGenSizeBound;
-                firstGen = new PersistentLinkedHashMap<K, V>(new PersistentLinkedHashMap.RemoveEldestFunction<K, V>() {
+                firstGen = new PersistentLinkedHashMap<>(new PersistentLinkedHashMap.RemoveEldestFunction<K, V>() {
                     @Override
                     public boolean removeEldest(@NotNull final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> map,
                                                 @NotNull final K key, @Nullable final V value) {
                         return map.size() > firstGenSizeBound;
                     }
                 });
-                secondGen = new PersistentLinkedHashMap<K, V>(new PersistentLinkedHashMap.RemoveEldestFunction<K, V>() {
+                secondGen = new PersistentLinkedHashMap<>(new PersistentLinkedHashMap.RemoveEldestFunction<K, V>() {
                     @Override
                     public boolean removeEldest(@NotNull final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> map,
                                                 @NotNull final K key, @Nullable final V value) {

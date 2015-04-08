@@ -24,11 +24,11 @@ import java.util.Iterator;
 
 public class ObjectCacheTest {
 
-    private static final HashMap<String, String> removedPairs = new HashMap<String, String>();
+    private static final HashMap<String, String> removedPairs = new HashMap<>();
 
     @Test
     public void cacheFiniteness() {
-        final ObjectCache<String, String> cache = new ObjectCache<String, String>(4);
+        final ObjectCache<String, String> cache = new ObjectCache<>(4);
         cache.put("Eclipse", "An IDE");
         cache.put("IDEA", "good");
         cache.put("IDEA 4.5", "better");
@@ -40,13 +40,13 @@ public class ObjectCacheTest {
 
     @Test
     public void cacheIterator() {
-        final ObjectCache<String, String> cache = new ObjectCache<String, String>(4);
+        final ObjectCache<String, String> cache = new ObjectCache<>(4);
         cache.put("Eclipse", "An IDE");
         cache.put("IDEA", "good IDEA");
         cache.put("IDEA 4.5", "better IDEA");
         cache.put("IDEA 5.0", "perfect IDEA");
         cache.put("IDEA 6.0", "IDEAL");
-        HashSet<String> values = new HashSet<String>();
+        HashSet<String> values = new HashSet<>();
         final Iterator<String> it = cache.values();
         while (it.hasNext()) {
             values.add(it.next());
@@ -69,7 +69,7 @@ public class ObjectCacheTest {
 
     @Test
     public void cacheListeners() {
-        final ObjectCache<String, String> cache = new ObjectCache<String, String>(4);
+        final ObjectCache<String, String> cache = new ObjectCache<>(4);
         cache.addDeletedPairsListener(new CacheDeletedPairsListener());
         removedPairs.clear();
         cache.put("Eclipse", "An IDE");
@@ -84,7 +84,7 @@ public class ObjectCacheTest {
 
     @Test
     public void cacheListeners2() {
-        final ObjectCache<String, String> cache = new ObjectCache<String, String>(4);
+        final ObjectCache<String, String> cache = new ObjectCache<>(4);
         cache.addDeletedPairsListener(new CacheDeletedPairsListener());
         removedPairs.clear();
         cache.put("Eclipse", "An IDE");
@@ -99,12 +99,12 @@ public class ObjectCacheTest {
 
     @Test
     public void fillWith() {
-        final ObjectCache<String, String> cache = new ObjectCache<String, String>(4);
+        final ObjectCache<String, String> cache = new ObjectCache<>(4);
         cache.put("Eclipse", "An IDE");
         cache.put("Eclipses", "IDEs");
         cache.put("IDEA", "good IDEA");
         cache.put("IDEA 4.5", "better IDEA");
-        final ObjectCache<String, String> newCache = new ObjectCache<String, String>(4);
+        final ObjectCache<String, String> newCache = new ObjectCache<>(4);
         newCache.fillWith(cache, 4);
         Assert.assertNotNull(newCache.tryKey("Eclipse"));
         Assert.assertNotNull(newCache.tryKey("Eclipses"));

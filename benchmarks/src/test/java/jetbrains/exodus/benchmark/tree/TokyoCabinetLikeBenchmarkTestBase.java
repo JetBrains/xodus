@@ -53,7 +53,7 @@ public abstract class TokyoCabinetLikeBenchmarkTestBase extends TreeBenchmarkTes
     }
 
     protected void shuffleKeys() {
-        final List<ByteIterable> _keys = new ArrayList<ByteIterable>(Arrays.asList(keys));
+        final List<ByteIterable> _keys = new ArrayList<>(Arrays.asList(keys));
         Collections.shuffle(_keys);
         keys = _keys.toArray(new ByteIterable[TOKYO_CABINET_BENCHMARK_SIZE]);
     }

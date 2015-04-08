@@ -106,7 +106,7 @@ public class HumanReadablePresentationTests extends EntityStoreTestBase {
                 "Exclude null\n" +
                         "|   Empty iterable"
         );
-        IntHashMap<String> map = new IntHashMap<String>();
+        IntHashMap<String> map = new IntHashMap<>();
         map.put(3, "value3");
         map.put(4, "value2");
         checkIterable(new EntityFromLinkSetIterable(txn, getEntityStore(), new PersistentEntityId(0, 1), map),

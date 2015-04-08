@@ -41,7 +41,7 @@ final class BackgroundCleaner {
         this.gc = gc;
         backgroundCleaningJob = new BackgroundCleaningJob(gc);
         if (gc.getEnvironment().getEnvironmentConfig().isLogCacheShared()) {
-            setJobProcessor(new DelegatingJobProcessor<ThreadJobProcessor>(
+            setJobProcessor(new DelegatingJobProcessor<>(
                     ThreadJobProcessorPool.getOrCreateJobProcessor("Exodus shared background cleaner")));
         } else {
             setJobProcessor(new ThreadJobProcessor("Exodus background cleaner for " + gc.getEnvironment().getLocation()));

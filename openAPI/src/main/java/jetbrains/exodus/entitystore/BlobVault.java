@@ -38,7 +38,7 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
     protected final ByteArraySpinAllocator bufferAllocator;
 
     protected BlobVault() {
-        stringContentCache = new SoftLongObjectCache<String>(STRING_CONTENT_CACHE_SIZE);
+        stringContentCache = new SoftLongObjectCache<>(STRING_CONTENT_CACHE_SIZE);
         bufferAllocator = new ByteArraySpinAllocator(READ_BUFFER_SIZE);
     }
 

@@ -46,7 +46,7 @@ public class PropertiesIterableWrapper extends UpdatableCachedWrapperIterable {
                                      @Nullable final PropertyValueIterator it,
                                      @NotNull final EntityIterableBase source) {
         super(store, source);
-        index = new Persistent23Tree<IndexEntry>();
+        index = new Persistent23Tree<>();
         mutableIndex = null;
         if (it == null) {
             entityTypeId = -1;
@@ -57,7 +57,7 @@ public class PropertiesIterableWrapper extends UpdatableCachedWrapperIterable {
                 entityTypeId = -1;
                 valueClass = null;
             } else {
-                final Collection<IndexEntry> tempList = new ArrayList<IndexEntry>();
+                final Collection<IndexEntry> tempList = new ArrayList<>();
                 EntityId id = it.nextId();
                 entityTypeId = id.getTypeId();
                 Comparable propValue = it.currentValue();

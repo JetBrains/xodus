@@ -62,11 +62,8 @@ public class FailoverForkTests extends EntityStoreTestBase {
         Assert.assertEquals("Number of persons does not match after process crash", 1L, persons.size());
         Entity person = persons.iterator().next();
         Assert.assertEquals("Property value does not match", "dummypassword", person.getProperty("password"));
-        final InputStream weight = person.getBlob("weight");
-        try {
+        try (InputStream weight = person.getBlob("weight")) {
             Assert.assertEquals("Blob LENGTH does not match", 1024 * 1024, weight.read(new byte[1024 * 1024]));
-        } finally {
-            weight.close();
         }
         Assert.assertEquals("Some redundant properties are available in the entity", 2, person.getPropertyNames().size());
         Assert.assertEquals("Some redundant blobs are available in the entity", 1, person.getBlobNames().size());

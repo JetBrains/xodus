@@ -32,7 +32,7 @@ public class ConcurrentStablePriorityQueue<P extends Comparable<? super P>, E> e
             Pair<Persistent23Tree<TreeNode<P, E>>, PersistentHashSet<IdentifiedTreeNode<P, E>>>> rootPair;
 
     public ConcurrentStablePriorityQueue() {
-        rootPair = new AtomicReference<Pair<Persistent23Tree<TreeNode<P, E>>, PersistentHashSet<IdentifiedTreeNode<P, E>>>>();
+        rootPair = new AtomicReference<>();
     }
 
     @Override
@@ -62,12 +62,12 @@ public class ConcurrentStablePriorityQueue<P extends Comparable<? super P>, E> e
             final Persistent23Tree.MutableTree<TreeNode<P, E>> mutableQueue;
             final PersistentHashSet.MutablePersistentHashSet<IdentifiedTreeNode<P, E>> mutableValues;
 
-            final TreeNode<P, E> node = new TreeNode<P, E>(priority, value);
-            final IdentifiedTreeNode<P, E> idNode = new IdentifiedTreeNode<P, E>(node);
+            final TreeNode<P, E> node = new TreeNode<>(priority, value);
+            final IdentifiedTreeNode<P, E> idNode = new IdentifiedTreeNode<>(node);
 
             if (currentPair == null) {
-                queue = new Persistent23Tree<TreeNode<P, E>>();
-                values = new PersistentHashSet<IdentifiedTreeNode<P, E>>();
+                queue = new Persistent23Tree<>();
+                values = new PersistentHashSet<>();
                 mutableQueue = queue.beginWrite();
                 mutableValues = values.beginWrite();
             } else {
@@ -89,7 +89,7 @@ public class ConcurrentStablePriorityQueue<P extends Comparable<? super P>, E> e
             // no need to check endWrite() results since they commit cloned trees
             mutableQueue.endWrite();
             mutableValues.endWrite();
-            newPair = new Pair<Persistent23Tree<TreeNode<P, E>>, PersistentHashSet<IdentifiedTreeNode<P, E>>>(queue, values);
+            newPair = new Pair<>(queue, values);
             // commit pair if no other pair was already committed
         } while (!rootPair.compareAndSet(currentPair, newPair));
 
@@ -103,7 +103,7 @@ public class ConcurrentStablePriorityQueue<P extends Comparable<? super P>, E> e
             return null;
         }
         final TreeNode<P, E> max = currentPair.getFirst().getCurrent().getMaximum();
-        return max == null ? null : new Pair<P, E>(max.priority, max.value);
+        return max == null ? null : new Pair<>(max.priority, max.value);
     }
 
     @Nullable
@@ -114,7 +114,7 @@ public class ConcurrentStablePriorityQueue<P extends Comparable<? super P>, E> e
             return null;
         }
         final TreeNode<P, E> min = currentPair.getFirst().getCurrent().getMinimum();
-        return min == null ? null : new Pair<P, E>(min.priority, min.value);
+        return min == null ? null : new Pair<>(min.priority, min.value);
     }
 
     @Override
@@ -139,7 +139,7 @@ public class ConcurrentStablePriorityQueue<P extends Comparable<? super P>, E> e
                 break;
             }
             mutableQueue.exclude(max);
-            mutableValues.remove(new IdentifiedTreeNode<P, E>(max));
+            mutableValues.remove(new IdentifiedTreeNode<>(max));
             result = max.value;
             // commit trees and then try to commit pair of trees
             // no need to check endWrite() results since they commit cloned trees
@@ -147,7 +147,7 @@ public class ConcurrentStablePriorityQueue<P extends Comparable<? super P>, E> e
             mutableValues.endWrite();
             // if the queue becomes empty the newPair reference can be null
             newPair = queue.getCurrent().isEmpty() ? null :
-                    new Pair<Persistent23Tree<TreeNode<P, E>>, PersistentHashSet<IdentifiedTreeNode<P, E>>>(queue, values);
+                    new Pair<>(queue, values);
             // commit pair if no other pair was already committed
         } while (!rootPair.compareAndSet(currentPair, newPair));
 

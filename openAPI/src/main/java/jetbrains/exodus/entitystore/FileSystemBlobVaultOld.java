@@ -78,11 +78,8 @@ public class FileSystemBlobVaultOld extends BlobVault {
         // load version
         final File versionFile = new File(location, VERSION_FILE);
         if (versionFile.exists()) {
-            final DataInputStream input = new DataInputStream(new FileInputStream(versionFile));
-            try {
+            try (DataInputStream input = new DataInputStream(new FileInputStream(versionFile))) {
                 version = input.readInt();
-            } finally {
-                input.close();
             }
             if (expectedVersion != version) {
                 throw new UnexpectedBlobVaultVersionException("Unexpected FileSystemBlobVault version: " + version);
@@ -98,11 +95,8 @@ public class FileSystemBlobVaultOld extends BlobVault {
                     throw new UnexpectedBlobVaultVersionException("Unexpected FileSystemBlobVault version: " + version);
                 }
             }
-            final DataOutputStream output = new DataOutputStream(new FileOutputStream(versionFile));
-            try {
+            try (DataOutputStream output = new DataOutputStream(new FileOutputStream(versionFile))) {
                 output.writeInt(expectedVersion);
-            } finally {
-                output.close();
             }
         }
     }
@@ -131,11 +125,8 @@ public class FileSystemBlobVaultOld extends BlobVault {
     public void setContent(final long blobHandle, @NotNull final File file) throws Exception {
         final File location = getBlobLocation(blobHandle, false);
         if (!file.renameTo(location)) {
-            final FileInputStream content = new FileInputStream(file);
-            try {
+            try (FileInputStream content = new FileInputStream(file)) {
                 setContentImpl(content, location);
-            } finally {
-                content.close();
             }
         }
         if (size.get() != UNKNOWN_SIZE) {
@@ -258,7 +249,7 @@ public class FileSystemBlobVaultOld extends BlobVault {
                 return new Iterable<FileDescriptor>() {
                     @Override
                     public Iterator<FileDescriptor> iterator() {
-                        final Deque<FileDescriptor> queue = new LinkedList<FileDescriptor>();
+                        final Deque<FileDescriptor> queue = new LinkedList<>();
                         queue.add(new FileDescriptor(location, blobsDirectory + File.separator));
                         return new Iterator<FileDescriptor>() {
                             int i = 0;

@@ -37,7 +37,7 @@ public class EntityFromLinkSetTests extends EntityStoreTestBase {
 
         txn.flush();
 
-        final Set<String> names = new HashSet<String>(2);
+        final Set<String> names = new HashSet<>(2);
         names.add("dup");
         names.add("hup");
 
@@ -100,7 +100,7 @@ public class EntityFromLinkSetTests extends EntityStoreTestBase {
         i1.addLink("hup", i5);
         txn.flush();
 
-        final Set<String> names = new HashSet<String>(2);
+        final Set<String> names = new HashSet<>(2);
         names.add("dup");
         names.add("hup");
 

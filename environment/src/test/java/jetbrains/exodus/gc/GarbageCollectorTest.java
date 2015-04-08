@@ -183,14 +183,11 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
         for (int i = 0; i < 32; ++i) {
             final Transaction txn = env.beginTransaction();
             try {
-                final Cursor cursor = store.openCursor(txn);
-                try {
+                try (Cursor cursor = store.openCursor(txn)) {
                     Assert.assertNotNull(cursor.getSearchKeyRange(IntegerBinding.intToEntry(i)));
                     for (int j = 0; j < 32; ++j, cursor.getNext()) {
                         cursor.deleteCurrent();
                     }
-                } finally {
-                    cursor.close();
                 }
                 store.put(txn, IntegerBinding.intToEntry(i), IntegerBinding.intToEntry(100));
             } finally {

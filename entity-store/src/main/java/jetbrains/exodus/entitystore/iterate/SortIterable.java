@@ -153,7 +153,7 @@ public final class SortIterable extends EntityIterableDecoratorBase {
     @SuppressWarnings({"MethodOnlyUsedFromInnerClass"})
     @NotNull
     private Map<EntityId, Integer> getRightOrder() {
-        final Map<EntityId, Integer> result = new HashMap<EntityId, Integer>();
+        final Map<EntityId, Integer> result = new HashMap<>();
         int position = 0;
         final EntityIterator sorted = source.iterator();
         while (sorted.hasNext()) {
@@ -179,7 +179,7 @@ public final class SortIterable extends EntityIterableDecoratorBase {
         private StableSortIterator(@NotNull final PropertyValueIterator propertyValueIterator) {
             super(propIndex);
             this.propertyValueIterator = propertyValueIterator;
-            sameValueQueue = new PriorityQueue<EntityId>(4, new Comparator<EntityId>() {
+            sameValueQueue = new PriorityQueue<>(4, new Comparator<EntityId>() {
                 @Override
                 public int compare(final EntityId o1, final EntityId o2) {
                     return rightOrder.get(o1) - rightOrder.get(o2);

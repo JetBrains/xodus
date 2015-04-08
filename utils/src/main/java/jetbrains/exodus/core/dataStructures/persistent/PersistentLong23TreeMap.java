@@ -28,7 +28,7 @@ public class PersistentLong23TreeMap<V> {
     }
 
     PersistentLong23TreeMap(@Nullable final AbstractPersistent23Tree.RootNode<Entry<V>> root) {
-        set = new Persistent23Tree<Entry<V>>(root);
+        set = new Persistent23Tree<>(root);
     }
 
     public ImmutableMap getCurrent() {
@@ -36,7 +36,7 @@ public class PersistentLong23TreeMap<V> {
     }
 
     public PersistentLong23TreeMap<V> getClone() {
-        return new PersistentLong23TreeMap<V>(set.getRoot());
+        return new PersistentLong23TreeMap<>(set.getRoot());
     }
 
     public MutableMap beginWrite() {
@@ -48,7 +48,7 @@ public class PersistentLong23TreeMap<V> {
     }
 
     public Entry<V> createEntry(long key) {
-        return new Entry<V>(key);
+        return new Entry<>(key);
     }
 
     public class ImmutableMap extends Persistent23Tree.ImmutableTree<Entry<V>> {
@@ -92,7 +92,7 @@ public class PersistentLong23TreeMap<V> {
         }
 
         public void put(long key, @NotNull V value) {
-            add(new Entry<V>(key, value));
+            add(new Entry<>(key, value));
         }
 
         public V remove(long key) {

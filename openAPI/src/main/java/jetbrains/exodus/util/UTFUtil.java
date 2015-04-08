@@ -37,8 +37,7 @@ public class UTFUtil {
      * @throws IOException if something went wrong
      */
     public static void writeUTF(@NotNull final OutputStream stream, @NotNull final String str) throws IOException {
-        final DataOutputStream dataStream = new DataOutputStream(stream);
-        try {
+        try (DataOutputStream dataStream = new DataOutputStream(stream)) {
             int len = str.length();
             if (len < SINGLE_UTF_CHUNK_SIZE) {
                 dataStream.writeUTF(str);
@@ -54,8 +53,6 @@ public class UTFUtil {
                     startIndex += SINGLE_UTF_CHUNK_SIZE;
                 } while (endIndex < len);
             }
-        } finally {
-            dataStream.close();
         }
     }
 

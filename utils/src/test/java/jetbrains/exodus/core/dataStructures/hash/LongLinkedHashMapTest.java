@@ -25,7 +25,7 @@ public class LongLinkedHashMapTest {
 
     @Test
     public void testPutGet() {
-        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<String>();
+        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<>();
         for (long i = 0; i < 1000; ++i) {
             tested.put(i, Long.toString(i));
         }
@@ -44,7 +44,7 @@ public class LongLinkedHashMapTest {
 
     @Test
     public void testPutGet2() {
-        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<String>();
+        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<>();
         for (long i = 0; i < 1000; ++i) {
             tested.put(i - 500, Long.toString(i));
         }
@@ -63,7 +63,7 @@ public class LongLinkedHashMapTest {
 
     @Test
     public void testPutGetRemove() {
-        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<String>();
+        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<>();
         for (long i = 0; i < 1000; ++i) {
             tested.put(i, Long.toString(i));
         }
@@ -79,7 +79,7 @@ public class LongLinkedHashMapTest {
 
     @Test
     public void keySet() {
-        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<String>();
+        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<>();
         for (long i = 0; i < 10000; ++i) {
             tested.put(i, Long.toString(i));
         }
@@ -91,7 +91,7 @@ public class LongLinkedHashMapTest {
 
     @Test
     public void keySet2() {
-        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<String>();
+        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<>();
         for (long i = 0; i < 10000; ++i) {
             tested.put(i, Long.toString(i));
         }
@@ -178,7 +178,7 @@ public class LongLinkedHashMapTest {
 
     @Test
     public void forEachProcedure() {
-        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<String>();
+        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<>();
         for (long i = 0; i < 100000; ++i) {
             tested.put(i, Long.toString(i));
         }

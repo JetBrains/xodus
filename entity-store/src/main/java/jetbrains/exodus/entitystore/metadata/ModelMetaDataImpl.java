@@ -23,8 +23,8 @@ import java.util.*;
 
 public class ModelMetaDataImpl implements ModelMetaData {
 
-    private Set<EntityMetaData> entityMetaDatas = new HashSet<EntityMetaData>();
-    private Map<String, AssociationMetaData> associationMetaDatas = new HashMap<String, AssociationMetaData>();
+    private Set<EntityMetaData> entityMetaDatas = new HashSet<>();
+    private Map<String, AssociationMetaData> associationMetaDatas = new HashMap<>();
     private Map<String, EntityMetaData> typeToEntityMetaDatas = null;
 
     public void init() {
@@ -65,7 +65,7 @@ public class ModelMetaDataImpl implements ModelMetaData {
             if (typeToEntityMetaDatas != null) {
                 return;
             }
-            typeToEntityMetaDatas = new HashMap<String, EntityMetaData>();
+            typeToEntityMetaDatas = new HashMap<>();
 
             for (final EntityMetaData emd : entityMetaDatas) {
                 ((EntityMetaDataImpl) emd).reset();
@@ -97,7 +97,7 @@ public class ModelMetaDataImpl implements ModelMetaData {
                     Set<AssociationEndMetaData> parentEnds = ((EntityMetaDataImpl) parent).getExternalAssociationEnds();
                     if (parentEnds != null) {
                         if (ends == null) {
-                            ends = new HashSet<AssociationEndMetaData>(parentEnds);
+                            ends = new HashSet<>(parentEnds);
                         } else {
                             ends.addAll(parentEnds);
                         }
@@ -122,7 +122,7 @@ public class ModelMetaDataImpl implements ModelMetaData {
                 }
 
                 // set supertypes
-                List<String> thisAndSuperTypes = new ArrayList<String>();
+                List<String> thisAndSuperTypes = new ArrayList<>();
                 EntityMetaData data = emd;
                 String t = data.getType();
                 do {

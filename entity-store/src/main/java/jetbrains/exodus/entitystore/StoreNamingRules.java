@@ -153,7 +153,7 @@ final class StoreNamingRules {
 
     @NotNull
     public String getUniqueKeyIndexName(final String prefix, LinkedHashMap<String, Boolean> fieldNames) {
-        final List<String> params = new ArrayList<String>();
+        final List<String> params = new ArrayList<>();
         for (final Map.Entry<String, Boolean> fieldEntry : fieldNames.entrySet()) {
             final String name = fieldEntry.getKey();
             params.add(fieldEntry.getValue() ? name : name + "@link");

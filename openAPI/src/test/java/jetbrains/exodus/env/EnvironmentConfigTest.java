@@ -28,7 +28,7 @@ public class EnvironmentConfigTest {
     public void testCloneDefaults() {
         final Map<String, Object> defaults = EnvironmentConfig.DEFAULT.getSettings();
         final EnvironmentConfig ec = new EnvironmentConfig();
-        final Map<String, String> stringDefaults = new HashMap<String, String>();
+        final Map<String, String> stringDefaults = new HashMap<>();
         for (final Map.Entry<String, Object> entry : defaults.entrySet()) {
             stringDefaults.put(entry.getKey(), entry.getValue().toString());
         }
@@ -40,7 +40,7 @@ public class EnvironmentConfigTest {
 
     @Test(expected = InvalidSettingException.class)
     public void testUnknownKey() {
-        final Map<String, String> stringDefaults = new HashMap<String, String>();
+        final Map<String, String> stringDefaults = new HashMap<>();
         stringDefaults.put("unknown.setting.key", null);
         new EnvironmentConfig().setSettings(stringDefaults);
     }

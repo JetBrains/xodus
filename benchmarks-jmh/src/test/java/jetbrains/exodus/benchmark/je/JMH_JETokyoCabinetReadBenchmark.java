@@ -43,16 +43,13 @@ public class JMH_JETokyoCabinetReadBenchmark extends JMH_JETokyoCabinetBenchmark
             @Override
             public Integer compute(@NotNull final Transaction txn) {
                 int result = 0;
-                final Cursor c = store.openCursor(txn, null);
-                try {
+                try (Cursor c = store.openCursor(txn, null)) {
                     final DatabaseEntry key = new DatabaseEntry();
                     final DatabaseEntry value = new DatabaseEntry();
                     while (c.getNext(key, value, null) == OperationStatus.SUCCESS) {
                         result += key.getData().length;
                         result += value.getData().length;
                     }
-                } finally {
-                    c.close();
                 }
                 return result;
             }
@@ -69,8 +66,7 @@ public class JMH_JETokyoCabinetReadBenchmark extends JMH_JETokyoCabinetBenchmark
             @Override
             public Integer compute(@NotNull final Transaction txn) {
                 int result = 0;
-                final Cursor c = store.openCursor(txn, null);
-                try {
+                try (Cursor c = store.openCursor(txn, null)) {
                     for (int i = 0; i < TOKYO_CABINET_BENCHMARK_SIZE; i++) {
                         final DatabaseEntry key = new DatabaseEntry(randomKeys[i].getData());
                         final DatabaseEntry value = new DatabaseEntry();
@@ -78,8 +74,6 @@ public class JMH_JETokyoCabinetReadBenchmark extends JMH_JETokyoCabinetBenchmark
                         result += key.getData().length;
                         result += value.getData().length;
                     }
-                } finally {
-                    c.close();
                 }
                 return result;
             }

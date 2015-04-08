@@ -31,7 +31,7 @@ public class PropertyCustomTypeTests extends EntityStoreTestBase {
         final PropertyTypes propertyTypes = store.getPropertyTypes();
         final PersistentStoreTransaction txn = getStoreTransaction();
 
-        final ComparablePair<Integer, String> sample = new ComparablePair<Integer, String>(0, "");
+        final ComparablePair<Integer, String> sample = new ComparablePair<>(0, "");
         final ComparablePairBinding customBinding = new ComparablePairBinding(propertyTypes, sample);
 
         // REGISTER CUSTOM TYPE HERE
@@ -56,7 +56,7 @@ public class PropertyCustomTypeTests extends EntityStoreTestBase {
         final PropertyTypes propertyTypes = store.getPropertyTypes();
         final PersistentStoreTransaction txn = getStoreTransaction();
 
-        final ComparablePair<Integer, String> sample = new ComparablePair<Integer, String>(0, "");
+        final ComparablePair<Integer, String> sample = new ComparablePair<>(0, "");
         final ComparablePairBinding customBinding = new ComparablePairBinding(propertyTypes, sample);
 
         // REGISTER CUSTOM TYPE HERE

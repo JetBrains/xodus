@@ -26,7 +26,7 @@ public class PersistentHashMapTest {
     @Test
     public void mutableTreeRandomInsertDeleteTest() {
         Random random = new Random(2343489);
-        PersistentHashMap<Integer, String> map = new PersistentHashMap<Integer, String>();
+        PersistentHashMap<Integer, String> map = new PersistentHashMap<>();
         checkInsertRemove(random, map, 100);
         checkInsertRemove(random, map, ENTRIES_TO_ADD);
         for (int i = 0; i < 100; i++) {
@@ -37,7 +37,7 @@ public class PersistentHashMapTest {
     @SuppressWarnings({"OverlyLongMethod"})
     @Test
     public void competingWritesTest() {
-        PersistentHashMap<Integer, String> tree = new PersistentHashMap<Integer, String>();
+        PersistentHashMap<Integer, String> tree = new PersistentHashMap<>();
         PersistentHashMap<Integer, String>.MutablePersistentHashMap write1 = tree.beginWrite();
         PersistentHashMap<Integer, String>.MutablePersistentHashMap write2 = tree.beginWrite();
         write1.put(0, "0");
@@ -85,7 +85,7 @@ public class PersistentHashMapTest {
 
     @Test
     public void testOverwrite() {
-        final PersistentHashMap<Integer, String> tree = new PersistentHashMap<Integer, String>();
+        final PersistentHashMap<Integer, String> tree = new PersistentHashMap<>();
         PersistentHashMap<Integer, String>.MutablePersistentHashMap mutable = tree.beginWrite();
         mutable.put(0, "0");
         Assert.assertTrue(mutable.endWrite());

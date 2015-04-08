@@ -27,7 +27,7 @@ public class Sorts {
 
     public void addSort(Sort sort) {
         if (sorts == null) {
-            sorts = new ArrayList<Sort>(Sort.MAX_NESTED_SORTS);
+            sorts = new ArrayList<>(Sort.MAX_NESTED_SORTS);
         }
         if (sorts.size() < Sort.MAX_NESTED_SORTS) {
             sorts.add(0, sort);

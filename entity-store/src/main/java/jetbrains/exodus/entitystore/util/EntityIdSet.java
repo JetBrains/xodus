@@ -37,7 +37,7 @@ public class EntityIdSet implements Iterable<EntityId> {
     private boolean holdsNull;
 
     public EntityIdSet() {
-        set = new IntHashMap<LongSet>();
+        set = new IntHashMap<>();
     }
 
     public void add(@Nullable final EntityId id) {

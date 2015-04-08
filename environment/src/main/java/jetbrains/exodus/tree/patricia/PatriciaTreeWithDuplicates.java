@@ -51,8 +51,7 @@ public class PatriciaTreeWithDuplicates extends PatriciaTreeDecorator {
     @Nullable
     @Override
     public ByteIterable get(@NotNull final ByteIterable key) {
-        final ITreeCursor cursor = treeNoDuplicates.openCursor();
-        try {
+        try (ITreeCursor cursor = treeNoDuplicates.openCursor()) {
             final ByteIterable value = cursor.getSearchKeyRange(getEscapedKeyWithSeparator(key));
             if (value != null && value != ByteIterable.EMPTY) {
                 int keyLength = CompressedUnsignedLongByteIterable.getInt(value);
@@ -67,8 +66,6 @@ public class PatriciaTreeWithDuplicates extends PatriciaTreeDecorator {
                 }
             }
             return null;
-        } finally {
-            cursor.close();
         }
     }
 

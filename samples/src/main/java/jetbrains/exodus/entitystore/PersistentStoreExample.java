@@ -83,15 +83,12 @@ public class PersistentStoreExample {
     private static void printBlogItem(Entity item) throws IOException {
         System.out.println("\tPost title: " + item.getProperty("title"));
         final InputStream content = item.getBlob("content");
-        final BufferedReader contentReader = new BufferedReader(new InputStreamReader(new BufferedInputStream(content)));
         System.out.println("\tPost content: ");
         String line;
-        try {
+        try (BufferedReader contentReader = new BufferedReader(new InputStreamReader(new BufferedInputStream(content)))) {
             while ((line = contentReader.readLine()) != null) {
                 System.out.println("\t" + line);
             }
-        } finally {
-            contentReader.close();
         }
     }
 

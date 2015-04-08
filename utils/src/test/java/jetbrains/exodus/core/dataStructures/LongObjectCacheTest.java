@@ -24,11 +24,11 @@ import java.util.Iterator;
 
 public class LongObjectCacheTest {
 
-    private static final LongHashMap<String> removedPairs = new LongHashMap<String>();
+    private static final LongHashMap<String> removedPairs = new LongHashMap<>();
 
     @Test
     public void cacheFiniteness() {
-        final LongObjectCache<String> cache = new LongObjectCache<String>(4);
+        final LongObjectCache<String> cache = new LongObjectCache<>(4);
         cache.put(5, "An IDE");
         cache.put(0, "good");
         cache.put(1, "better");
@@ -40,13 +40,13 @@ public class LongObjectCacheTest {
 
     @Test
     public void cacheIterator() {
-        LongObjectCache<String> cache = new LongObjectCache<String>(4);
+        LongObjectCache<String> cache = new LongObjectCache<>(4);
         cache.put(0, "An IDE");
         cache.put(1, "good IDEA");
         cache.put(2, "better IDEA");
         cache.put(3, "perfect IDEA");
         cache.put(4, "IDEAL");
-        HashSet<String> values = new HashSet<String>();
+        HashSet<String> values = new HashSet<>();
         final Iterator<String> it = cache.values();
         while (it.hasNext()) {
             values.add(it.next());
@@ -68,7 +68,7 @@ public class LongObjectCacheTest {
 
     @Test
     public void cacheListeners() {
-        LongObjectCache<String> cache = new LongObjectCache<String>(4);
+        LongObjectCache<String> cache = new LongObjectCache<>(4);
         cache.addDeletedPairsListener(new CacheDeletedPairsListener());
         removedPairs.clear();
         cache.put(0, "An IDE");
@@ -83,7 +83,7 @@ public class LongObjectCacheTest {
 
     @Test
     public void cacheListeners2() {
-        LongObjectCache<String> cache = new LongObjectCache<String>(4);
+        LongObjectCache<String> cache = new LongObjectCache<>(4);
         cache.addDeletedPairsListener(new CacheDeletedPairsListener());
         removedPairs.clear();
         cache.put(0, "An IDE");

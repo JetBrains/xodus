@@ -32,8 +32,8 @@ import static org.junit.Assert.*;
 
 public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
 
-    List<INode> values = new ArrayList<INode>();
-    Set<INode> valuesNoDup = new LinkedHashSet<INode>();
+    List<INode> values = new ArrayList<>();
+    Set<INode> valuesNoDup = new LinkedHashSet<>();
 
     @Before
     public void prepareTree() {
@@ -380,15 +380,12 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
         getTreeMutable().put(kv(7, "v7"));
         getTreeMutable().put(kv(8, "v8"));
 
-        ITreeCursor cursor = getTreeMutable().openCursor();
-        try {
+        try (ITreeCursor cursor = getTreeMutable().openCursor()) {
             cursor.getSearchKeyRange(key(6));
             assertEquals(value("v7"), cursor.getValue());
             assertTrue(cursor.getNext());
             assertEquals(value("v8"), cursor.getValue());
             assertFalse(cursor.getNext());
-        } finally {
-            cursor.close();
         }
     }
 
@@ -556,7 +553,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
         tm = createMutableTree(true, 1);
         final int count = 20000;
         long value = 0;
-        final LongHashMap<LongHashSet> values = new LongHashMap<LongHashSet>();
+        final LongHashMap<LongHashSet> values = new LongHashMap<>();
         final Random rnd = new Random();
         for (int i = 0; i < count; ++i, ++value) {
             if (i > count / 2) {
@@ -564,7 +561,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
                 values.forEachEntry(new ObjectProcedure<Map.Entry<Long, LongHashSet>>() {
                     @Override
                     public boolean execute(Map.Entry<Long, LongHashSet> object) {
-                        pair[0] = new Pair<Long, LongHashSet>(object.getKey(), object.getValue());
+                        pair[0] = new Pair<>(object.getKey(), object.getValue());
                         return false;
                     }
                 });
@@ -572,14 +569,11 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
                 final LongHashSet oldSet = p.getSecond();
                 final long oldValue = oldSet.iterator().nextLong();
                 final Long oldKey = p.getFirst();
-                final ITreeCursor cursor = tm.openCursor();
-                try {
+                try (ITreeCursor cursor = tm.openCursor()) {
                     if (!cursor.getSearchBoth(key(oldKey), value(oldValue))) {
                         Assert.assertTrue(cursor.getSearchBoth(key(oldKey), value(oldValue)));
                     }
                     cursor.deleteCurrent();
-                } finally {
-                    cursor.close();
                 }
                 Assert.assertTrue(oldSet.remove(oldValue));
                 if (oldSet.isEmpty()) {

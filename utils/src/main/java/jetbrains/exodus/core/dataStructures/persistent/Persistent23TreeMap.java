@@ -28,19 +28,19 @@ public class Persistent23TreeMap<K extends Comparable<K>, V> {
     }
 
     Persistent23TreeMap(@Nullable final AbstractPersistent23Tree.RootNode<Entry<K, V>> root) {
-        set = new Persistent23Tree<Entry<K, V>>(root);
+        set = new Persistent23Tree<>(root);
     }
 
     public ImmutableMap<K, V> getCurrent() {
-        return new ImmutableMap<K, V>(set);
+        return new ImmutableMap<>(set);
     }
 
     public Persistent23TreeMap<K, V> getClone() {
-        return new Persistent23TreeMap<K, V>(set.getRoot());
+        return new Persistent23TreeMap<>(set.getRoot());
     }
 
     public MutableMap<K, V> beginWrite() {
-        return new MutableMap<K, V>(set);
+        return new MutableMap<>(set);
     }
 
     public boolean endWrite(MutableMap<K, V> tree) {
@@ -48,7 +48,7 @@ public class Persistent23TreeMap<K extends Comparable<K>, V> {
     }
 
     public Entry<K, V> createEntry(K key) {
-        return new Entry<K, V>(key);
+        return new Entry<>(key);
     }
 
     public static class ImmutableMap<K extends Comparable<K>, V> extends Persistent23Tree.ImmutableTree<Entry<K, V>> {
@@ -92,7 +92,7 @@ public class Persistent23TreeMap<K extends Comparable<K>, V> {
         }
 
         public void put(@NotNull K key, @NotNull V value) {
-            add(new Entry<K, V>(key, value));
+            add(new Entry<>(key, value));
         }
 
         public V remove(@NotNull K key) {

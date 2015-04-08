@@ -26,7 +26,7 @@ public class PersistentLinkedHashMapTest {
     @Test
     public void mutableTreeRandomInsertDeleteTest() {
         Random random = new Random(2343489);
-        PersistentLinkedHashMap<Integer, String> map = new PersistentLinkedHashMap<Integer, String>();
+        PersistentLinkedHashMap<Integer, String> map = new PersistentLinkedHashMap<>();
         checkInsertRemove(random, map, 100);
         checkInsertRemove(random, map, ENTRIES_TO_ADD);
         for (int i = 0; i < 100; i++) {
@@ -36,7 +36,7 @@ public class PersistentLinkedHashMapTest {
 
     @Test
     public void testOverwrite() {
-        final PersistentLinkedHashMap<Integer, String> tree = new PersistentLinkedHashMap<Integer, String>();
+        final PersistentLinkedHashMap<Integer, String> tree = new PersistentLinkedHashMap<>();
         PersistentLinkedHashMap.PersistentLinkedHashMapMutable<Integer, String> mutable = tree.beginWrite();
         mutable.put(0, "0");
         Assert.assertTrue(tree.endWrite(mutable));

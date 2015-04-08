@@ -309,7 +309,7 @@ public abstract class TreePutTest extends TreeBaseTest {
     public void testPutRandomWithoutDuplicates() throws Throwable {
         tm = createMutableTree(false, 1);
 
-        final IntHashMap<String> map = new IntHashMap<String>();
+        final IntHashMap<String> map = new IntHashMap<>();
         final int count = 200000;
 
         time("Put took ", new Runnable() {
@@ -341,7 +341,7 @@ public abstract class TreePutTest extends TreeBaseTest {
     public void testPutRandomWithoutDuplicates2() throws Throwable {
         tm = createMutableTree(false, 1);
 
-        final IntHashMap<String> map = new IntHashMap<String>();
+        final IntHashMap<String> map = new IntHashMap<>();
         final int count = 200000;
 
         time("Put took ", new Runnable() {
@@ -378,7 +378,7 @@ public abstract class TreePutTest extends TreeBaseTest {
     public void testPutRightRandomWithoutDuplicates() throws Throwable {
         tm = createMutableTree(false, 1);
 
-        final IntHashMap<String> map = new IntHashMap<String>();
+        final IntHashMap<String> map = new IntHashMap<>();
         final int count = 200000;
 
         time("PutRight took ", new Runnable() {
@@ -414,7 +414,7 @@ public abstract class TreePutTest extends TreeBaseTest {
     public void testAddRandomWithoutDuplicates() throws Throwable {
         tm = createMutableTree(false, 1);
 
-        final IntHashMap<String> map = new IntHashMap<String>();
+        final IntHashMap<String> map = new IntHashMap<>();
         final int count = 200000;
 
         time("Add took ", new Runnable() {

@@ -46,7 +46,7 @@ public final class LogUtil {
     }
 
     static {
-        ALPHA_INDEXES = new IntHashMap<Integer>();
+        ALPHA_INDEXES = new IntHashMap<>();
         final char[] alphabet = LOG_FILE_NAME_ALPHABET;
         for (int i = 0; i < alphabet.length; ++i) {
             ALPHA_INDEXES.put(alphabet[i], i);

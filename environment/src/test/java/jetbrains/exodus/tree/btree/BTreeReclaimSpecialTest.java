@@ -61,11 +61,8 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
         reloadMutableTree(tm.save());
         Assert.assertTrue(log.getNumberOfFiles() > 2); // make sure that some files were added
         log.removeFile(fileSize); // remove reclaimed file
-        final ITreeCursor cursor = tm.openCursor();
-        try {
+        try (ITreeCursor cursor = tm.openCursor()) {
             Assert.assertTrue(cursor.getNext()); // access minimum key
-        } finally {
-            cursor.close();
         }
     }
 

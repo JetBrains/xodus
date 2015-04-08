@@ -115,7 +115,7 @@ public class LinkedHashSetDecorator<E> implements Set<E> {
 
     private void checkDecorated() {
         if (decorated == Collections.emptySet()) {
-            decorated = new LinkedHashSet<E>();
+            decorated = new LinkedHashSet<>();
         }
     }
 }

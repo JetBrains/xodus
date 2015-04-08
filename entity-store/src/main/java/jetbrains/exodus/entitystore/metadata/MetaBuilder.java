@@ -42,7 +42,7 @@ public class MetaBuilder {
     }
 
     public static ModelMetaDataImpl model(final ModelMetaDataImpl modelMetaData, final Enumeration... classes) {
-        final Set<EntityMetaData> emdSet = new HashSet<EntityMetaData>();
+        final Set<EntityMetaData> emdSet = new HashSet<>();
         for (final Enumeration enumeration : classes) {
             emdSet.add(enumeration.build(modelMetaData));
         }
@@ -93,8 +93,8 @@ public class MetaBuilder {
     public static class Enumeration {
 
         protected final String type;
-        protected final Set<MemberMetaData> meta = new HashSet<MemberMetaData>();
-        protected final Set<AssociationMetaData> assoc = new HashSet<AssociationMetaData>();
+        protected final Set<MemberMetaData> meta = new HashSet<>();
+        protected final Set<AssociationMetaData> assoc = new HashSet<>();
 
         public Enumeration(String type) {
             this.type = type;
@@ -118,8 +118,8 @@ public class MetaBuilder {
         public EntityMetaDataImpl build(final ModelMetaDataImpl model) {
             final EntityMetaDataImpl result = new EntityMetaDataImpl();
             result.setType(type);
-            final List<PropertyMetaData> p = new LinkedList<PropertyMetaData>();
-            final List<AssociationEndMetaData> a = new LinkedList<AssociationEndMetaData>();
+            final List<PropertyMetaData> p = new LinkedList<>();
+            final List<AssociationEndMetaData> a = new LinkedList<>();
             for (final MemberMetaData member : meta) {
                 if (member instanceof PropertyMetaData) {
                     p.add((PropertyMetaData) member);

@@ -57,11 +57,11 @@ public class InMemoryMergeSortOnInitIterable extends SortEngine.InMemorySortIter
             }
 
             public void init() {
-                src = new ArrayList[]{new ArrayList<Entity>(), null};
+                src = new ArrayList[]{new ArrayList<>(), null};
                 for (final Entity entity : source) {
                     src[0].add(entity);
                 }
-                src[1] = new ArrayList<Entity>(src[0]);
+                src[1] = new ArrayList<>(src[0]);
                 msort(0, src[0].size() - 1, 0);
             }
 

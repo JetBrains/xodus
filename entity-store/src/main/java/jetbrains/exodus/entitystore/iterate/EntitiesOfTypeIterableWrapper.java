@@ -26,7 +26,7 @@ import java.util.Iterator;
 public class EntitiesOfTypeIterableWrapper extends UpdatableCachedWrapperIterable {
 
     private static final PersistentLong23TreeMap<EntitiesOfTypeIterableWrapper> EMPTY_IDS =
-            new PersistentLong23TreeMap<EntitiesOfTypeIterableWrapper>();
+            new PersistentLong23TreeMap<>();
 
     private final int entityTypeId;
     @NotNull
@@ -46,7 +46,7 @@ public class EntitiesOfTypeIterableWrapper extends UpdatableCachedWrapperIterabl
             if (!it.hasNext()) {
                 localIds = EMPTY_IDS;
             } else {
-                localIds = new PersistentLong23TreeMap<EntitiesOfTypeIterableWrapper>();
+                localIds = new PersistentLong23TreeMap<>();
                 final PersistentLong23TreeMap<EntitiesOfTypeIterableWrapper>.MutableMap mutableLocalIds = localIds.beginWrite();
                 do {
                     final EntityId entityId = it.nextId();

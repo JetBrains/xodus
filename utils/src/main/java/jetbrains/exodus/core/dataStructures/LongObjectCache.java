@@ -172,11 +172,11 @@ public class LongObjectCache<V> extends LongObjectCacheBase<V> {
     }
 
     public Iterator<Long> keys() {
-        return new LongObjectCacheKeysIterator<V>(this);
+        return new LongObjectCacheKeysIterator<>(this);
     }
 
     public Iterator<V> values() {
-        return new LongObjectCacheValuesIterator<V>(this);
+        return new LongObjectCacheValuesIterator<>(this);
     }
 
     public boolean forEachEntry(final ObjectProcedure<Map.Entry<Long, V>> procedure) {

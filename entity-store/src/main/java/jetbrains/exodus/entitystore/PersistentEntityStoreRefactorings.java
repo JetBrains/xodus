@@ -172,8 +172,8 @@ final class PersistentEntityStoreRefactorings {
                         log.info("Refactoring making links' tables consistent for [" + entityType + ']');
                     }
                     try {
-                        final Collection<Pair<ByteIterable, ByteIterable>> badLinks = new ArrayList<Pair<ByteIterable, ByteIterable>>();
-                        final Collection<Pair<ByteIterable, ByteIterable>> deleteLinks = new ArrayList<Pair<ByteIterable, ByteIterable>>();
+                        final Collection<Pair<ByteIterable, ByteIterable>> badLinks = new ArrayList<>();
+                        final Collection<Pair<ByteIterable, ByteIterable>> deleteLinks = new ArrayList<>();
                         final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
                         final TwoColumnTable linksTable = store.getLinksTable(txn, entityTypeId);
                         final Transaction envTxn = txn.getEnvironmentTransaction();
@@ -183,18 +183,18 @@ final class PersistentEntityStoreRefactorings {
                             final long localId = LongBinding.compressedEntryToLong(cursor.getKey());
                             if (entitiesTable.get(envTxn, LongBinding.longToCompressedEntry(localId)) == null) {
                                 do {
-                                    deleteLinks.add(new Pair<ByteIterable, ByteIterable>(cursor.getKey(), cursor.getValue()));
+                                    deleteLinks.add(new Pair<>(cursor.getKey(), cursor.getValue()));
                                 } while (cursor.getNextDup());
                                 continue;
                             }
                             final LinkValue linkValue = LinkValue.entryToLinkValue(cursor.getValue());
                             // if target doesn't exist
                             if (store.getLastVersion(txn, linkValue.getEntityId()) < 0) {
-                                deleteLinks.add(new Pair<ByteIterable, ByteIterable>(cursor.getKey(), cursor.getValue()));
+                                deleteLinks.add(new Pair<>(cursor.getKey(), cursor.getValue()));
                                 continue;
                             }
                             if (linksTable.get2(envTxn, cursor.getValue()) == null) {
-                                badLinks.add(new Pair<ByteIterable, ByteIterable>(cursor.getKey(), cursor.getValue()));
+                                badLinks.add(new Pair<>(cursor.getKey(), cursor.getValue()));
                             }
                         }
                         cursor.close();
@@ -215,7 +215,7 @@ final class PersistentEntityStoreRefactorings {
                         final Cursor cursor2 = linksTable.getSecondIndexCursor(envTxn);
                         while (cursor2.getNext()) {
                             if (linksTable.get(envTxn, cursor2.getValue()) == null) {
-                                badLinks.add(new Pair<ByteIterable, ByteIterable>(cursor2.getKey(), cursor2.getValue()));
+                                badLinks.add(new Pair<>(cursor2.getKey(), cursor2.getValue()));
                             }
                         }
                         cursor2.close();
@@ -266,7 +266,7 @@ final class PersistentEntityStoreRefactorings {
                         final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
                         final PropertiesTable propTable = store.getPropertiesTable(txn, entityTypeId);
                         final Transaction envTxn = txn.getEnvironmentTransaction();
-                        final IntHashMap<LongHashMap<PropertyValue>> props = new IntHashMap<LongHashMap<PropertyValue>>();
+                        final IntHashMap<LongHashMap<PropertyValue>> props = new IntHashMap<>();
                         final Cursor cursor = store.getPrimaryPropertyIndexCursor(txn, propTable);
                         while (cursor.getNext()) {
                             final PropertyKey propKey = PropertyKey.entryToPropertyKey(cursor.getKey());
@@ -274,20 +274,20 @@ final class PersistentEntityStoreRefactorings {
                             final int propId = propKey.getPropertyId();
                             LongHashMap<PropertyValue> entitiesToValues = props.get(propId);
                             if (entitiesToValues == null) {
-                                entitiesToValues = new LongHashMap<PropertyValue>();
+                                entitiesToValues = new LongHashMap<>();
                                 props.put(propId, entitiesToValues);
                             }
                             entitiesToValues.put(propKey.getEntityLocalId(), propValue);
                         }
                         cursor.close();
-                        final List<Pair<Integer, Pair<ByteIterable, ByteIterable>>> missingPairs = new ArrayList<Pair<Integer, Pair<ByteIterable, ByteIterable>>>();
-                        final IntHashMap<Set<Long>> allPropsMap = new IntHashMap<Set<Long>>();
+                        final List<Pair<Integer, Pair<ByteIterable, ByteIterable>>> missingPairs = new ArrayList<>();
+                        final IntHashMap<Set<Long>> allPropsMap = new IntHashMap<>();
                         for (final int propId : props.keySet()) {
                             final Store valueIndex = propTable.getValueIndex(txn, propId, false);
                             final Cursor valueCursor = valueIndex == null ? null : valueIndex.openCursor(envTxn);
                             final LongHashMap<PropertyValue> entitiesToValues = props.get(propId);
                             final Set<Long> localIdSet = entitiesToValues.keySet();
-                            final TreeSet<Long> sortedLocalIdSet = new TreeSet<Long>(localIdSet);
+                            final TreeSet<Long> sortedLocalIdSet = new TreeSet<>(localIdSet);
                             allPropsMap.put(propId, sortedLocalIdSet);
                             final Long[] localIds = sortedLocalIdSet.toArray(new Long[entitiesToValues.size()]);
                             for (final long localId : localIds) {
@@ -295,7 +295,7 @@ final class PersistentEntityStoreRefactorings {
                                 final ByteIterable secondaryKey = PropertiesTable.createSecondaryKey(store.getPropertyTypes(), PropertyTypes.propertyValueToEntry(propValue), propValue.getType());
                                 final ByteIterable secondaryValue = LongBinding.longToCompressedEntry(localId);
                                 if (valueCursor == null || !valueCursor.getSearchBoth(secondaryKey, secondaryValue)) {
-                                    missingPairs.add(new Pair<Integer, Pair<ByteIterable, ByteIterable>>(propId, new Pair<ByteIterable, ByteIterable>(secondaryKey, secondaryValue)));
+                                    missingPairs.add(new Pair<>(propId, new Pair<>(secondaryKey, secondaryValue)));
                                 }
                             }
                             if (valueCursor != null) {
@@ -321,7 +321,7 @@ final class PersistentEntityStoreRefactorings {
                                 log.info(missingPairs.size() + " missing secondary keys found and fixed for [" + entityType + ']');
                             }
                         }
-                        final List<Pair<Integer, Pair<ByteIterable, ByteIterable>>> phantomPairs = new ArrayList<Pair<Integer, Pair<ByteIterable, ByteIterable>>>();
+                        final List<Pair<Integer, Pair<ByteIterable, ByteIterable>>> phantomPairs = new ArrayList<>();
                         for (final Map.Entry<Integer, Store> entry : propTable.getValueIndices()) {
                             final int propId = entry.getKey();
                             final LongHashMap<PropertyValue> entitiesToValues = props.get(propId);
@@ -331,7 +331,7 @@ final class PersistentEntityStoreRefactorings {
                                 final ByteIterable valueEntry = c.getValue();
                                 final PropertyValue propValue = entitiesToValues.get(LongBinding.compressedEntryToLong(valueEntry));
                                 if (propValue == null) {
-                                    phantomPairs.add(new Pair<Integer, Pair<ByteIterable, ByteIterable>>(propId, new Pair<ByteIterable, ByteIterable>(keyEntry, valueEntry)));
+                                    phantomPairs.add(new Pair<>(propId, new Pair<>(keyEntry, valueEntry)));
                                 } else {
                                     final ComparableBinding objectBinding = propValue.getBinding();
                                     final Comparable value;
@@ -339,13 +339,13 @@ final class PersistentEntityStoreRefactorings {
                                         value = objectBinding.entryToObject(keyEntry);
                                     } catch (Throwable t) {
                                         throwJVMError(t);
-                                        phantomPairs.add(new Pair<Integer, Pair<ByteIterable, ByteIterable>>(propId, new Pair<ByteIterable, ByteIterable>(keyEntry, valueEntry)));
+                                        phantomPairs.add(new Pair<>(propId, new Pair<>(keyEntry, valueEntry)));
                                         continue;
                                     }
                                     final Comparable data = propValue.getData();
                                     //noinspection unchecked
                                     if (!data.getClass().equals(value.getClass()) || PropertyTypes.toLowerCase(data).compareTo(value) != 0) {
-                                        phantomPairs.add(new Pair<Integer, Pair<ByteIterable, ByteIterable>>(propId, new Pair<ByteIterable, ByteIterable>(keyEntry, valueEntry)));
+                                        phantomPairs.add(new Pair<>(propId, new Pair<>(keyEntry, valueEntry)));
                                     }
                                 }
                             }
@@ -371,14 +371,14 @@ final class PersistentEntityStoreRefactorings {
                                 log.info(phantomPairs.size() + " phantom secondary keys found and fixed for [" + entityType + ']');
                             }
                         }
-                        final List<Pair<Integer, Long>> phantomIds = new ArrayList<Pair<Integer, Long>>();
+                        final List<Pair<Integer, Long>> phantomIds = new ArrayList<>();
                         final Cursor c = propTable.getAllPropsIndex().openCursor(envTxn);
                         while (c.getNext()) {
                             final int propId = IntegerBinding.compressedEntryToInt(c.getKey());
                             final long localId = LongBinding.compressedEntryToLong(c.getValue());
                             final Set<Long> localIds = allPropsMap.get(propId);
                             if (localIds == null || !localIds.remove(localId)) {
-                                phantomIds.add(new Pair<Integer, Long>(propId, localId));
+                                phantomIds.add(new Pair<>(propId, localId));
                             } else {
                                 if (localIds.isEmpty()) {
                                     allPropsMap.remove(propId);
@@ -462,21 +462,18 @@ final class PersistentEntityStoreRefactorings {
                 }
                 for (final String entityType : store.getEntityTypes(txn)) {
                     try {
-                        final List<Pair<PropertyKey, Long>> blobHandles = new ArrayList<Pair<PropertyKey, Long>>();
+                        final List<Pair<PropertyKey, Long>> blobHandles = new ArrayList<>();
                         final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
                         final BlobsTable blobs = store.getBlobsTable(txn, entityTypeId);
                         final Transaction envTxn = txn.getEnvironmentTransaction();
-                        final Cursor cursor = blobs.getPrimaryIndex().openCursor(envTxn);
-                        try {
+                        try (Cursor cursor = blobs.getPrimaryIndex().openCursor(envTxn)) {
                             while (cursor.getNext()) {
                                 final long blobHandle = LongBinding.compressedEntryToLong(cursor.getValue());
                                 if (!PersistentEntityStoreImpl.isEmptyOrInPlaceBlobHandle(blobHandle)) {
                                     final PropertyKey key = PropertyKey.entryToPropertyKey(cursor.getKey());
-                                    blobHandles.add(new Pair<PropertyKey, Long>(key, blobHandle));
+                                    blobHandles.add(new Pair<>(key, blobHandle));
                                 }
                             }
-                        } finally {
-                            cursor.close();
                         }
                         if (!blobHandles.isEmpty()) {
                             safeExecuteRefactoringForEntityType(entityType,

@@ -126,7 +126,7 @@ public abstract class SoftObjectCacheBase<K, V> extends ObjectCacheBase<K, V> {
         ObjectCacheBase<K, V> result = ref == null ? null : ref.get();
         if (result == null && create) {
             result = newChunk(chunkSize);
-            chunks[chunkIndex] = new SoftReference<ObjectCacheBase<K, V>>(result);
+            chunks[chunkIndex] = new SoftReference<>(result);
         }
         return result;
     }

@@ -58,7 +58,7 @@ public class EnvironmentTestInMemory extends EnvironmentTest {
         final int keysCount = 50000;
         final int valuesCount = 20;
         final long started = System.currentTimeMillis();
-        final Persistent23TreeMap<Integer, Integer> testMap = new Persistent23TreeMap<Integer, Integer>();
+        final Persistent23TreeMap<Integer, Integer> testMap = new Persistent23TreeMap<>();
         final Store primary = openStoreAutoCommit("primary", StoreConfig.WITHOUT_DUPLICATES);
         final Store secondary = openStoreAutoCommit("secondary", StoreConfig.WITH_DUPLICATES);
         while (System.currentTimeMillis() - started < TEST_DURATION) {
@@ -85,16 +85,13 @@ public class EnvironmentTestInMemory extends EnvironmentTest {
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
-                final Cursor cursor = primary.openCursor(txn);
-                try {
+                try (Cursor cursor = primary.openCursor(txn)) {
                     Assert.assertTrue(cursor.getNext());
                     for (Persistent23TreeMap.Entry<Integer, Integer> entry : testMap.getCurrent()) {
                         Assert.assertEquals((int) entry.getKey(), IntegerBinding.readCompressed(cursor.getKey().iterator()));
                         Assert.assertEquals((int) entry.getValue(), IntegerBinding.readCompressed(cursor.getValue().iterator()));
                         cursor.getNext();
                     }
-                } finally {
-                    cursor.close();
                 }
             }
         });
@@ -114,12 +111,9 @@ public class EnvironmentTestInMemory extends EnvironmentTest {
         final ByteIterable oldValue = primary.get(txn, keyEntry);
         primary.put(txn, keyEntry, valueEntry);
         if (oldValue != null) {
-            final Cursor cursor = secondary.openCursor(txn);
-            try {
+            try (Cursor cursor = secondary.openCursor(txn)) {
                 Assert.assertTrue(cursor.getSearchBoth(oldValue, keyEntry));
                 Assert.assertTrue(cursor.deleteCurrent());
-            } finally {
-                cursor.close();
             }
         }
         secondary.put(txn, valueEntry, keyEntry);
@@ -136,12 +130,9 @@ public class EnvironmentTestInMemory extends EnvironmentTest {
         final ByteIterable oldValue = primary.get(txn, keyEntry);
         primary.delete(txn, keyEntry);
         if (oldValue != null) {
-            final Cursor cursor = secondary.openCursor(txn);
-            try {
+            try (Cursor cursor = secondary.openCursor(txn)) {
                 Assert.assertTrue(cursor.getSearchBoth(oldValue, keyEntry));
                 Assert.assertTrue(cursor.deleteCurrent());
-            } finally {
-                cursor.close();
             }
         }
     }

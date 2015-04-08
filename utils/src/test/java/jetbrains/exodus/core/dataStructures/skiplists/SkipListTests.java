@@ -27,7 +27,7 @@ public class SkipListTests {
 
     @Test
     public void testClearList() {
-        final SkipList<Integer> list = new SkipList<Integer>();
+        final SkipList<Integer> list = new SkipList<>();
         for (int i = 0; i < 1000; i++) {
             list.add(i);
         }
@@ -44,7 +44,7 @@ public class SkipListTests {
 
     @Test
     public void testGetMinimumMaximum() throws InterruptedException {
-        final SkipList<Integer> list = new SkipList<Integer>();
+        final SkipList<Integer> list = new SkipList<>();
         for (int i = 0; i < BENCHMARK_SIZE; i++) {
             list.add(i);
         }
@@ -58,7 +58,7 @@ public class SkipListTests {
 
     @Test
     public void testGetMinimumMaximum2() throws InterruptedException {
-        final SkipList<Integer> list = new SkipList<Integer>();
+        final SkipList<Integer> list = new SkipList<>();
         int min = Integer.MAX_VALUE;
         int max = Integer.MIN_VALUE;
         Random rnd = new Random();
@@ -80,7 +80,7 @@ public class SkipListTests {
 
     @Test
     public void testGetMinimumMaximum3() throws InterruptedException {
-        final SkipList<Integer> list = new SkipList<Integer>();
+        final SkipList<Integer> list = new SkipList<>();
         for (int i = BENCHMARK_SIZE - 1; i >= 0; --i) {
             list.add(i);
         }
@@ -94,7 +94,7 @@ public class SkipListTests {
 
     @Test
     public void testSearch() throws InterruptedException {
-        final SkipList<Integer> list = new SkipList<Integer>();
+        final SkipList<Integer> list = new SkipList<>();
         for (int i = 0; i < 1000; i++) {
             list.add(i);
         }
@@ -109,7 +109,7 @@ public class SkipListTests {
 
     @Test
     public void testForwardIteration() {
-        final SkipList<Integer> list = new SkipList<Integer>();
+        final SkipList<Integer> list = new SkipList<>();
         for (int i = 0; i < 10000; ++i) {
             list.add(i);
         }
@@ -131,13 +131,13 @@ public class SkipListTests {
 
     @Test
     public void testFakeRootEmpty() {
-        final SkipList<Integer> list = new SkipList<Integer>();
+        final SkipList<Integer> list = new SkipList<>();
         Assert.assertNull(list.getFakeRoot().getNext());
     }
 
     @Test
     public void testBackwardIteration() {
-        final SkipList<Integer> list = new SkipList<Integer>();
+        final SkipList<Integer> list = new SkipList<>();
         for (int i = 0; i < 10000; ++i) {
             list.add(i);
         }
@@ -159,7 +159,7 @@ public class SkipListTests {
 
     @Test
     public void testDeletingForwardOrder() {
-        final SkipList<Integer> list = new SkipList<Integer>();
+        final SkipList<Integer> list = new SkipList<>();
         for (int i = 0; i < 1000; i++) {
             list.add(i);
         }
@@ -172,7 +172,7 @@ public class SkipListTests {
 
     @Test
     public void testDeletingBackOrder() {
-        final SkipList<Integer> list = new SkipList<Integer>();
+        final SkipList<Integer> list = new SkipList<>();
         for (int i = 0; i < 1000; i++) {
             list.add(i);
         }
@@ -185,7 +185,7 @@ public class SkipListTests {
 
     @Test
     public void testDeleting() {
-        final SkipList<Integer> list = new SkipList<Integer>();
+        final SkipList<Integer> list = new SkipList<>();
         for (int i = 0; i < 1000; i++) {
             list.add(i);
             list.add(i);
@@ -203,7 +203,7 @@ public class SkipListTests {
 
     @Test
     public void testDeletingIteration() {
-        final SkipList<Integer> list = new SkipList<Integer>();
+        final SkipList<Integer> list = new SkipList<>();
         for (int i = 0; i < 1000; i += 2) {
             list.add(i);
             list.add(i);
@@ -253,7 +253,7 @@ public class SkipListTests {
 
     @Test
     public void testCount() {
-        SkipList<Integer> list = new SkipList<Integer>();
+        SkipList<Integer> list = new SkipList<>();
         list.add(3);
         Assert.assertEquals(1, list.size());
         list.remove(3);
@@ -294,7 +294,7 @@ public class SkipListTests {
 
     @Test
     public void testGetEqualOrGreater() {
-        SkipList<String> list = new SkipList<String>();
+        SkipList<String> list = new SkipList<>();
         list.add("charisma0");
         SkipListNode<String> node = list.getGreaterOrEqual("charisma1");
         Assert.assertNull(node);
@@ -320,7 +320,7 @@ public class SkipListTests {
 
     @Test
     public void testGetEqualOrGreater2() {
-        SkipList<String> list = new SkipList<String>();
+        SkipList<String> list = new SkipList<>();
         list.add("charisma0");
         list.add("charisma4");
         list.add("charisma2");
@@ -340,7 +340,7 @@ public class SkipListTests {
 
     @Test
     public void testGetEqualOrGreater3() {
-        SkipList<TestObjectForEqualOrGreater> list = new SkipList<TestObjectForEqualOrGreater>();
+        SkipList<TestObjectForEqualOrGreater> list = new SkipList<>();
         list.add(new TestObjectForEqualOrGreater("charisma0", 0));
         list.add(new TestObjectForEqualOrGreater("charisma4", 4));
         list.add(new TestObjectForEqualOrGreater("charisma2", 2));
@@ -369,7 +369,7 @@ public class SkipListTests {
 
     @Test
     public void testGetEqualOrGreater4() {
-        SkipList<Integer> list = new SkipList<Integer>();
+        SkipList<Integer> list = new SkipList<>();
         for (int i = 0; i < 100000; i++) {
             list.add(i);
         }
@@ -389,7 +389,7 @@ public class SkipListTests {
 
     @Test
     public void testGetNextAndPrevious() {
-        SkipList<TestObjectForEqualOrGreater> list = new SkipList<TestObjectForEqualOrGreater>();
+        SkipList<TestObjectForEqualOrGreater> list = new SkipList<>();
         list.add(new TestObjectForEqualOrGreater("charisma0", 0));
         list.add(new TestObjectForEqualOrGreater("charisma2", 2));
         list.add(new TestObjectForEqualOrGreater("charisma1", 1));
@@ -422,7 +422,7 @@ public class SkipListTests {
 
     @Test
     public void testGetEqualOrLess() {
-        SkipList<TestObjectForEqualOrGreater> list = new SkipList<TestObjectForEqualOrGreater>();
+        SkipList<TestObjectForEqualOrGreater> list = new SkipList<>();
         list.add(new TestObjectForEqualOrGreater("charisma1", 1));
         list.add(new TestObjectForEqualOrGreater("charisma0", 0));
         list.add(new TestObjectForEqualOrGreater("charisma2", 2));
@@ -440,7 +440,7 @@ public class SkipListTests {
 
     @Test
     public void testGetEqualOrLess2() {
-        SkipList<TestObjectForEqualOrGreater> list = new SkipList<TestObjectForEqualOrGreater>();
+        SkipList<TestObjectForEqualOrGreater> list = new SkipList<>();
         list.add(new TestObjectForEqualOrGreater("charisma0", 0));
         list.add(new TestObjectForEqualOrGreater("charisma2", 2));
         list.add(new TestObjectForEqualOrGreater("charisma3", 3));
@@ -457,7 +457,7 @@ public class SkipListTests {
 
     @Test
     public void testGetEqualOrLess3() {
-        SkipList<TestObjectForEqualOrGreater> list = new SkipList<TestObjectForEqualOrGreater>();
+        SkipList<TestObjectForEqualOrGreater> list = new SkipList<>();
         list.add(new TestObjectForEqualOrGreater("charisma0", 0));
         list.add(new TestObjectForEqualOrGreater("charisma0", 0));
         list.add(new TestObjectForEqualOrGreater("charisma0", 0));
@@ -474,7 +474,7 @@ public class SkipListTests {
 
     @Test
     public void testGetEqualOrLess4() {
-        SkipList<TestObjectForEqualOrGreater> list = new SkipList<TestObjectForEqualOrGreater>();
+        SkipList<TestObjectForEqualOrGreater> list = new SkipList<>();
         list.add(new TestObjectForEqualOrGreater("charisma0", 0));
         list.add(new TestObjectForEqualOrGreater("charisma1", 1));
         list.add(new TestObjectForEqualOrGreater("charisma1", 1));
@@ -507,7 +507,7 @@ public class SkipListTests {
 
     @Test
     public void testGetEqualOrLess5() {
-        SkipList<TestObjectForEqualOrGreater> list = new SkipList<TestObjectForEqualOrGreater>();
+        SkipList<TestObjectForEqualOrGreater> list = new SkipList<>();
         list.add(new TestObjectForEqualOrGreater("charisma0", 0));
         list.add(new TestObjectForEqualOrGreater("charisma0", 0));
         list.add(new TestObjectForEqualOrGreater("charisma0", 0));
@@ -527,7 +527,7 @@ public class SkipListTests {
 
     @Test
     public void testStressTestForGetMinimum() {
-        SkipList<TestObject> list = new SkipList<TestObject>();
+        SkipList<TestObject> list = new SkipList<>();
         for (int i = 0; i < 100000; i++) {
             list.add(new TestObject(4));
         }

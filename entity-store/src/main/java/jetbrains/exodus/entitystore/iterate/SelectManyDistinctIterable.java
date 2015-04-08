@@ -124,7 +124,7 @@ public class SelectManyDistinctIterable extends EntityIterableDecoratorBase {
         private SelectManyDistinctIterator(@NotNull final PersistentStoreTransaction txn) {
             super(SelectManyDistinctIterable.this);
             sourceIt = (EntityIteratorBase) source.iterator();
-            usedCursors = new IntHashMap<Cursor>();
+            usedCursors = new IntHashMap<>();
             usedIds = null;
             this.txn = txn;
         }
@@ -139,7 +139,7 @@ public class SelectManyDistinctIterable extends EntityIterableDecoratorBase {
 
         @SuppressWarnings({"ObjectAllocationInLoop"})
         private void collectIds() {
-            final Set<EntityId> usedIds = new LinkedHashSet<EntityId>();
+            final Set<EntityId> usedIds = new LinkedHashSet<>();
             this.usedIds = usedIds;
             final EntityIterator sourceIt = this.sourceIt;
             final int linkId = SelectManyDistinctIterable.this.linkId;

@@ -207,7 +207,7 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
     public void testPutDeleteRandomWithoutDuplicates() throws Throwable {
         tm = createMutableTree(false, 1);
 
-        final IntHashMap<String> map = new IntHashMap<String>();
+        final IntHashMap<String> map = new IntHashMap<>();
         final int count = 100000;
 
         time("Put took ", new Runnable() {

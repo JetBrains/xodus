@@ -82,8 +82,8 @@ public class SoftLongObjectCache<V> extends CacheHitRateable {
         final SoftReference<LongObjectCache<V>> ref = chunks[chunkIndex];
         LongObjectCache<V> result = ref == null ? null : ref.get();
         if (result == null && create) {
-            result = new LongObjectCache<V>(chuckSize);
-            chunks[chunkIndex] = new SoftReference<LongObjectCache<V>>(result);
+            result = new LongObjectCache<>(chuckSize);
+            chunks[chunkIndex] = new SoftReference<>(result);
         }
         return result;
     }

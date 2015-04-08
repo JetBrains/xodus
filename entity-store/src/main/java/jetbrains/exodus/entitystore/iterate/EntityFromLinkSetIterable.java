@@ -35,7 +35,7 @@ public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
                 Integer linkCount = Integer.valueOf((String) parameters[2]);
-                IntHashMap<String> linkNames = new IntHashMap<String>(linkCount);
+                IntHashMap<String> linkNames = new IntHashMap<>(linkCount);
                 for (int i = 0; i < linkCount; i++) {
                     linkNames.put(Integer.valueOf((String) parameters[4 + i]), null);
                 }

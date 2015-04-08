@@ -33,7 +33,7 @@ import java.util.Map;
 public abstract class EntityIterableBase implements EntityIterable {
 
     public static final EntityIterableBase EMPTY;
-    public static final Map<EntityIterableType, EntityIterableInstantiator> INSTANTIATORS = new HashMap<EntityIterableType, EntityIterableInstantiator>();
+    public static final Map<EntityIterableType, EntityIterableInstantiator> INSTANTIATORS = new HashMap<>();
 
     static {
         EMPTY = new EntityIterableBase(null) {
@@ -649,7 +649,7 @@ public abstract class EntityIterableBase implements EntityIterable {
     private static Integer[] getChildren(String[] presentation, int line) {
         int indent = getIndent(presentation[line]);
         int childIndent = indent + INDENT.length();
-        ArrayList<Integer> result = new ArrayList<Integer>();
+        ArrayList<Integer> result = new ArrayList<>();
         while (++line < presentation.length) {
             int lineIndent = getIndent(presentation[line]);
             if (lineIndent == childIndent) {

@@ -37,7 +37,7 @@ public class BTreeLeafNodeTest extends BTreeTestBase {
 
     @Test
     public void testSet() {
-        Set<INode> set = new HashSet<INode>();
+        Set<INode> set = new HashSet<>();
 
         set.add(kv(1, "v11"));
         set.add(kv(1, "v12"));
@@ -47,7 +47,7 @@ public class BTreeLeafNodeTest extends BTreeTestBase {
 
     @Test
     public void testSet2() {
-        Set<INode> set = new LinkedHashSet<INode>();
+        Set<INode> set = new LinkedHashSet<>();
 
         set.add(kv(1, "v11"));
         set.add(kv(1, "v12"));

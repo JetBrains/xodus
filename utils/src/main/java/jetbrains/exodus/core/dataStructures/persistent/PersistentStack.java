@@ -49,7 +49,7 @@ public class PersistentStack<T> {
     }
 
     public PersistentStack<T> push(@NotNull T e) {
-        return new PersistentStack<T>(e, this);
+        return new PersistentStack<>(e, this);
     }
 
     public T peek() {
@@ -67,10 +67,10 @@ public class PersistentStack<T> {
     }
 
     public PersistentStack<T> reverse() {
-        PersistentStack<T> result = new PersistentStack<T>();
+        PersistentStack<T> result = new PersistentStack<>();
         for (PersistentStack<T> stack = this; !stack.isEmpty(); stack = stack.skip()) {
             //noinspection ObjectAllocationInLoop
-            result = new PersistentStack<T>(stack.peek(), result);
+            result = new PersistentStack<>(stack.peek(), result);
         }
         return result;
     }

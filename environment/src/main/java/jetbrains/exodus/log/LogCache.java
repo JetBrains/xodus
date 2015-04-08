@@ -37,7 +37,7 @@ abstract class LogCache {
     protected final int pageSize;
     protected final int pageSizeLogarithm;
 
-    private final ConcurrentLinkedQueue<ArrayByteIterable> freePages = new ConcurrentLinkedQueue<ArrayByteIterable>();
+    private final ConcurrentLinkedQueue<ArrayByteIterable> freePages = new ConcurrentLinkedQueue<>();
 
     /**
      * @param memoryUsage amount of memory which the cache is allowed to occupy (in bytes).

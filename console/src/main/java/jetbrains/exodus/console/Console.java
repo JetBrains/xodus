@@ -34,7 +34,7 @@ public class Console {
         port = port == null ? 2222 : port;
         String password = line.getOptionValue('p', null);
 
-        Map<String, Object> config = new HashMap<String, Object>();
+        Map<String, Object> config = new HashMap<>();
         config.put("location", line.getOptionValue('x', null));
 
         new RhinoServer(port.intValue(), password, config);

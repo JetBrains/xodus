@@ -36,11 +36,11 @@ class PersistentSequentialDictionary implements FlushLog.Member {
     @NotNull
     private final TwoColumnTable table;
     @NotNull
-    private final Map<String, Integer> cache = new ConcurrentHashMap<String, Integer>();
+    private final Map<String, Integer> cache = new ConcurrentHashMap<>();
     @NotNull
-    private final Map<Integer, String> reverseCache = new ConcurrentHashMap<Integer, String>();
+    private final Map<Integer, String> reverseCache = new ConcurrentHashMap<>();
     @NotNull
-    private final Collection<DictionaryOperation> operationsLog = new HashSet<DictionaryOperation>();
+    private final Collection<DictionaryOperation> operationsLog = new HashSet<>();
     private final Object lock = new Object();
 
     public PersistentSequentialDictionary(@NotNull PersistentSequence sequence, @NotNull TwoColumnTable table) {

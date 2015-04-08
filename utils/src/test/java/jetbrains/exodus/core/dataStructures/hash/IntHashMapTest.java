@@ -26,7 +26,7 @@ public class IntHashMapTest {
 
     @Test
     public void testPutGet() {
-        final Map<Integer, String> tested = new IntHashMap<String>();
+        final Map<Integer, String> tested = new IntHashMap<>();
         for (int i = 0; i < 1000; ++i) {
             tested.put(i, Integer.toString(i));
         }
@@ -45,7 +45,7 @@ public class IntHashMapTest {
 
     @Test
     public void testPutGet2() {
-        final Map<Integer, String> tested = new IntHashMap<String>();
+        final Map<Integer, String> tested = new IntHashMap<>();
         for (int i = 0; i < 1000; ++i) {
             tested.put(i - 500, Integer.toString(i));
         }
@@ -64,7 +64,7 @@ public class IntHashMapTest {
 
     @Test
     public void testPutGetRemove() {
-        final Map<Integer, String> tested = new IntHashMap<String>();
+        final Map<Integer, String> tested = new IntHashMap<>();
         for (int i = 0; i < 1000; ++i) {
             tested.put(i, Integer.toString(i));
         }
@@ -80,7 +80,7 @@ public class IntHashMapTest {
 
     @Test
     public void keySet() {
-        final Map<Integer, String> tested = new IntHashMap<String>();
+        final Map<Integer, String> tested = new IntHashMap<>();
         final Set<Integer> set = new IntHashSet();
 
         for (int i = 0; i < 10000; ++i) {
@@ -95,7 +95,7 @@ public class IntHashMapTest {
 
     @Test
     public void keySet2() {
-        final Map<Integer, String> tested = new IntHashMap<String>();
+        final Map<Integer, String> tested = new IntHashMap<>();
         final Set<Integer> set = new IntHashSet();
 
         for (int i = 0; i < 10000; ++i) {
@@ -124,7 +124,7 @@ public class IntHashMapTest {
 
     @Test
     public void forEachProcedure() {
-        final IntHashMap<String> tested = new IntHashMap<String>();
+        final IntHashMap<String> tested = new IntHashMap<>();
         for (int i = 0; i < 100000; ++i) {
             tested.put(i, Integer.toString(i));
         }

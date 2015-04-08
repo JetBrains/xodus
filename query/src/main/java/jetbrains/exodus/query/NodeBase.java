@@ -210,7 +210,7 @@ public abstract class NodeBase {
         return new Iterable<NodeBase>() {
             @Override
             public Iterator<NodeBase> iterator() {
-                final List<NodeBase> stack = new LinkedList<NodeBase>();
+                final List<NodeBase> stack = new LinkedList<>();
                 stack.add(NodeBase.this); // push root
                 return new Iterator<NodeBase>() {
                     @Override
@@ -273,7 +273,7 @@ public abstract class NodeBase {
 
         private void putNode(Wildcard wildcard, NodeBase node) {
             if (nodes == null) {
-                nodes = new HashMap<Wildcard, NodeBase>();
+                nodes = new HashMap<>();
             }
             nodes.put(wildcard, node);
         }
@@ -286,7 +286,7 @@ public abstract class NodeBase {
 
         private void putLeave(ConversionWildcard wildcard, NodeBase node) {
             if (leaves == null) {
-                leaves = new HashMap<ConversionWildcard, NodeBase>();
+                leaves = new HashMap<>();
             }
             leaves.put(wildcard, node);
         }

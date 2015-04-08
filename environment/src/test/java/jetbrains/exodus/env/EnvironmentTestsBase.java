@@ -294,8 +294,7 @@ public class EnvironmentTestsBase {
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull Transaction txn) {
-                final Cursor cursor = store.openCursor(txn);
-                try {
+                try (Cursor cursor = store.openCursor(txn)) {
                     int i = 0;
                     while (cursor.getNext()) {
                         final ByteIterable valueEntry = cursor.getValue();
@@ -303,8 +302,6 @@ public class EnvironmentTestsBase {
                         final String value = values[i++];
                         Assert.assertEquals(value, StringBinding.entryToString(valueEntry));
                     }
-                } finally {
-                    cursor.close();
                 }
             }
         });

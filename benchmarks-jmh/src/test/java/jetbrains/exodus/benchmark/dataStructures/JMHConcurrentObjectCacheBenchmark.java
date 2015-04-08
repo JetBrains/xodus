@@ -22,6 +22,6 @@ public class JMHConcurrentObjectCacheBenchmark extends JMHObjectCacheBenchmark {
 
     @Override
     protected ObjectCacheBase<Integer, String> createCache() {
-        return new ConcurrentObjectCache<Integer, String>();
+        return new ConcurrentObjectCache<>();
     }
 }

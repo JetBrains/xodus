@@ -142,7 +142,7 @@ public class RecoveryClassLoaderTest {
         final String classPath = System.getProperty("java.class.path");
         final StringTokenizer tokenizer = new StringTokenizer(classPath, ":", false);
         try {
-            final ArrayList<URL> tokens = new ArrayList<URL>();
+            final ArrayList<URL> tokens = new ArrayList<>();
             while (tokenizer.hasMoreTokens()) {
                 tokens.add(new File(tokenizer.nextToken()).toURI().toURL());
             }

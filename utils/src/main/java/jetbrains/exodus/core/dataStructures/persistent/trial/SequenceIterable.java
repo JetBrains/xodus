@@ -25,7 +25,7 @@ class SequenceIterable<T> implements Iterable<T> {
 
     @Override
     public Iterator<T> iterator() {
-        return new Iterator<T>(source);
+        return new Iterator<>(source);
     }
 
     /*public static<T> Sequence<T> wrap(final Sequence<T> source)  {
@@ -37,7 +37,7 @@ class SequenceIterable<T> implements Iterable<T> {
     }
 
     public static <T> Sequence<T> singleton(final T item) {
-        return new Singleton<T>(item);
+        return new Singleton<>(item);
     }
 
     @SuppressWarnings("ClassNameSameAsAncestorName")

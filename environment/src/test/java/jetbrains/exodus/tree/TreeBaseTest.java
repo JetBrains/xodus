@@ -199,7 +199,7 @@ public abstract class TreeBaseTest {
 
     public static void assertMatchesIterator(ITree actual, boolean checkExists, INode... expected) {
         final ITreeCursor it1 = actual.openCursor();
-        List<INode> act = new ArrayList<INode>((int) actual.getSize());
+        List<INode> act = new ArrayList<>((int) actual.getSize());
         actual.dump(System.out);
         while (it1.getNext()) {
             act.add(new LeafNodeKV(it1.getKey(), it1.getValue()));
@@ -235,7 +235,7 @@ public abstract class TreeBaseTest {
 
     protected static void checkAddressSet(@NotNull final ITree tree, final int count) {
         final LongIterator addressIterator = tree.addressIterator();
-        final List<Long> list = new ArrayList<Long>(count);
+        final List<Long> list = new ArrayList<>(count);
         while (addressIterator.hasNext()) {
             long l = addressIterator.next();
             list.add(l);
@@ -255,7 +255,7 @@ public abstract class TreeBaseTest {
     }
 
     protected List<INode> createLNs(String valuePrefix, int s) {
-        List<INode> l = new ArrayList<INode>();
+        List<INode> l = new ArrayList<>();
         for (int i = 0; i < s; i++) {
             l.add(kv(i, valuePrefix + i));
         }
@@ -263,7 +263,7 @@ public abstract class TreeBaseTest {
     }
 
     protected List<INode> createLNs(String valuePrefix, int s, int u) {
-        List<INode> l = new ArrayList<INode>();
+        List<INode> l = new ArrayList<>();
         for (int i = 0; i < s; i++) {
             for (int j = 0; j < u; j++) {
                 l.add(kv(i, valuePrefix + i + '#' + j));

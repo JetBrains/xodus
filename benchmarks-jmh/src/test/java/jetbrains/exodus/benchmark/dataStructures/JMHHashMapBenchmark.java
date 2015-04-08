@@ -64,6 +64,6 @@ public class JMHHashMapBenchmark {
     }
 
     protected Map<Integer, String> createHashMap() {
-        return new HashMap<Integer, String>();
+        return new HashMap<>();
     }
 }

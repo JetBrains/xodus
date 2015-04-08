@@ -124,7 +124,7 @@ public class PersistentEntity implements Entity {
     public List<Entity> getHistory() {
         Entity entity = getPreviousVersion();
         if (entity != null) {
-            final List<Entity> result = new ArrayList<Entity>();
+            final List<Entity> result = new ArrayList<>();
             do {
                 result.add(entity);
                 entity = entity.getPreviousVersion();
@@ -311,7 +311,7 @@ public class PersistentEntity implements Entity {
     @Override
     @NotNull
     public EntityIterable getLinks(@NotNull final Collection<String> linkNames) {
-        final IntHashMap<String> linkIds = new IntHashMap<String>(linkNames.size());
+        final IntHashMap<String> linkIds = new IntHashMap<>(linkNames.size());
         final PersistentStoreTransaction txn = getTransaction();
         for (final String linkName : linkNames) {
             final int linkId = store.getLinkId(txn, linkName, false);

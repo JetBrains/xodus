@@ -43,7 +43,7 @@ public class FileDataReader implements DataReader {
 
     public FileDataReader(@NotNull final File dir, final int openFiles) {
         this.dir = dir;
-        fileCache = new LongObjectCache<SharedRandomAccessFile>(openFiles);
+        fileCache = new LongObjectCache<>(openFiles);
     }
 
     @Override

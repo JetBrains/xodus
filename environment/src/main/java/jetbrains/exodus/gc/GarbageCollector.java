@@ -63,7 +63,7 @@ public final class GarbageCollector {
         this.env = env;
         ec = env.getEnvironmentConfig();
         pendingFilesToDelete = new LongHashSet();
-        deletionQueue = new ConcurrentLinkedQueue<Long>();
+        deletionQueue = new ConcurrentLinkedQueue<>();
         utilizationProfile = new UtilizationProfile(env, this);
         cleaner = new BackgroundCleaner(this);
         newFiles = ec.getGcFilesInterval() + 1;
@@ -83,7 +83,7 @@ public final class GarbageCollector {
                 }
             };
         }
-        openStoresCache = new IntHashMap<StoreImpl>();
+        openStoresCache = new IntHashMap<>();
         env.getLog().addNewFileListener(new NewFileListener() {
             @Override
             public void fileCreated(long fileAddress) {

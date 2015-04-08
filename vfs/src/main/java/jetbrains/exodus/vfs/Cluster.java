@@ -79,11 +79,8 @@ class Cluster {
         } else {
             try {
                 final File file = File.createTempFile("~exodus-vfs-output-cluster", ".tmp");
-                final RandomAccessFile out = new RandomAccessFile(file, "rw");
-                try {
+                try (RandomAccessFile out = new RandomAccessFile(file, "rw")) {
                     out.write(cluster, 0, size);
-                } finally {
-                    out.close();
                 }
                 bi = new FileByteIterable(file);
                 file.deleteOnExit();

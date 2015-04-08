@@ -57,7 +57,7 @@ public class ExodusDirectory extends Directory {
     @Override
     public String[] listAll() throws IOException {
         final Transaction txn = env.getAndCheckCurrentTransaction();
-        final ArrayList<String> allFiles = new ArrayList<String>((int) vfs.getNumberOfFiles(txn));
+        final ArrayList<String> allFiles = new ArrayList<>((int) vfs.getNumberOfFiles(txn));
         for (final File file : vfs.getFiles(txn)) {
             allFiles.add(file.getPath());
         }

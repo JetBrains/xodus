@@ -172,11 +172,11 @@ public final class ObjectCache<K, V> extends ObjectCacheBase<K, V> {
     }
 
     public Iterator<K> keys() {
-        return new ObjectCacheKeysIterator<K, V>(this);
+        return new ObjectCacheKeysIterator<>(this);
     }
 
     public Iterator<V> values() {
-        return new ObjectCacheValuesIterator<K, V>(this);
+        return new ObjectCacheValuesIterator<>(this);
     }
 
     public void fillWith(@NotNull final ObjectCacheBase<K, V> source, int maxCount) {

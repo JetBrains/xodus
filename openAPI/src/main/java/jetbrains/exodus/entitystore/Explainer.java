@@ -55,11 +55,11 @@ public class Explainer {
 
     private static final Log log = LogFactory.getLog(Explainer.class);
 
-    private final Map<Object, Map<String, Object>> queries = new ConcurrentHashMap<Object, Map<String, Object>>();
+    private final Map<Object, Map<String, Object>> queries = new ConcurrentHashMap<>();
 
-    private static final Collection<String> PERFORMANCE_PARAMETERS = new ArrayList<String>();
+    private static final Collection<String> PERFORMANCE_PARAMETERS = new ArrayList<>();
 
-    private static final Map<String, Double> WORST_VALUES = new HashMap<String, Double>();
+    private static final Map<String, Double> WORST_VALUES = new HashMap<>();
 
     private static Thread forceExplainThread = null;
 
@@ -102,7 +102,7 @@ public class Explainer {
     public void start(Object origin) {
         if (origin != null) {
             if (queries.get(origin) == null) {
-                Map<String, Object> map = new ConcurrentHashMap<String, Object>();
+                Map<String, Object> map = new ConcurrentHashMap<>();
                 queries.put(origin, map);
                 map.put(INSTANTIATED_FROM, "\nat " + stripStackTrace(new Throwable()));
             } else {
@@ -167,18 +167,18 @@ public class Explainer {
                     ((Integer) cursorAdvances - (Integer) cursorAdvancesForFirst) * 1.0 / (Integer) query.get(ITERABLE_ADVANCES));
         }
 
-        List<Pair<Integer, String>> byType = new ArrayList<Pair<Integer, String>>();
-        List<Pair<Integer, String>> byHandle = new ArrayList<Pair<Integer, String>>();
-        Collection<String> toRemove = new HashSet<String>();
+        List<Pair<Integer, String>> byType = new ArrayList<>();
+        List<Pair<Integer, String>> byHandle = new ArrayList<>();
+        Collection<String> toRemove = new HashSet<>();
         for (String parameter : query.keySet()) {
             if (parameter.startsWith(_CURSOR_ADVANCES_BY_TYPE)) {
                 toRemove.add(parameter);
-                byType.add(new Pair<Integer, String>((Integer) query.get(parameter),
+                byType.add(new Pair<>((Integer) query.get(parameter),
                         EntityIterableType.valueOf(parameter.substring(_CURSOR_ADVANCES_BY_TYPE.length() + 1)).toString()));
             }
             if (parameter.startsWith(_CURSOR_ADVANCES_BY_HANDLE)) {
                 toRemove.add(parameter);
-                byHandle.add(new Pair<Integer, String>((Integer) query.get(parameter),
+                byHandle.add(new Pair<>((Integer) query.get(parameter),
                         parameter.substring(_CURSOR_ADVANCES_BY_HANDLE.length() + 1)));
             }
         }

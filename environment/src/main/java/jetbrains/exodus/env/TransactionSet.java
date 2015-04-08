@@ -27,7 +27,7 @@ final class TransactionSet implements Iterable<TransactionImpl> {
     private final AtomicReference<MinMaxAwareTransactionSet> txns;
 
     TransactionSet() {
-        txns = new AtomicReference<MinMaxAwareTransactionSet>(new MinMaxAwareTransactionSet());
+        txns = new AtomicReference<>(new MinMaxAwareTransactionSet());
     }
 
     @Override

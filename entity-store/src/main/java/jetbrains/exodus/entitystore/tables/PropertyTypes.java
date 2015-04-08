@@ -35,8 +35,8 @@ public final class PropertyTypes {
     private final HashMap<Class<? extends Comparable>, PropertyType> typesByClass;
 
     public PropertyTypes() {
-        typesById = new IntHashMap<PropertyType>();
-        typesByClass = new HashMap<Class<? extends Comparable>, PropertyType>();
+        typesById = new IntHashMap<>();
+        typesByClass = new HashMap<>();
         for (final PropertyType predefinedType : PropertyType.PREDEFINED_TYPES) {
             typesById.put(predefinedType.getTypeId(), predefinedType);
             typesByClass.put(predefinedType.getClazz(), predefinedType);

@@ -23,6 +23,6 @@ public class SoftObjectCache<K, V> extends SoftObjectCacheBase<K, V> {
 
     @Override
     protected ObjectCacheBase<K, V> newChunk(final int chunkSize) {
-        return new ObjectCache<K, V>(chunkSize);
+        return new ObjectCache<>(chunkSize);
     }
 }

@@ -47,7 +47,7 @@ public abstract class UnaryNode extends NodeBase {
     @Override
     public Collection<NodeBase> getChildren() {
         if (children == null) {
-            children = new NanoSet<NodeBase>(child);
+            children = new NanoSet<>(child);
         }
         return children;
     }

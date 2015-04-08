@@ -257,7 +257,7 @@ public class FindTests extends EntityStoreTestBase {
 
     public void testOrderByEntityId() throws Exception {
         final StoreTransaction txn = getStoreTransaction();
-        final List<EntityId> ids = new ArrayList<EntityId>();
+        final List<EntityId> ids = new ArrayList<>();
         for (int i = 0; i < 10; ++i) {
             ids.add(txn.newEntity("Issue").getId());
         }

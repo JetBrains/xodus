@@ -168,21 +168,15 @@ public class VcDiffTest extends BaseCompressTest {
     private static void testFilesDiff(@NotNull final String file1, @NotNull final String file2, final boolean checkRatio) throws IOException {
         final ClassLoader classLoader = VcDiffTest.class.getClassLoader();
         final URL resource1 = classLoader.getResource(file1);
-        final InputStream stream1 = resource1.openStream();
-        try {
+        try (InputStream stream1 = resource1.openStream()) {
             final URL resource2 = classLoader.getResource(file2);
-            final InputStream stream2 = resource2.openStream();
-            try {
+            try (InputStream stream2 = resource2.openStream()) {
                 final byte[] source1 = new byte[(int) new File(resource1.getFile()).length()];
                 Assert.assertEquals(source1.length, IOUtil.readFully(stream1, source1));
                 final byte[] source2 = new byte[(int) new File(resource2.getFile()).length()];
                 Assert.assertEquals(source2.length, IOUtil.readFully(stream2, source2));
                 testDiff(new ByteArraySizedInputStream(source1), new ByteArraySizedInputStream(source2), checkRatio);
-            } finally {
-                stream2.close();
             }
-        } finally {
-            stream1.close();
         }
     }
 

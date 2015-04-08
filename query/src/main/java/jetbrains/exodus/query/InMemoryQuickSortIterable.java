@@ -127,16 +127,16 @@ public class InMemoryQuickSortIterable extends SortEngine.InMemorySortIterable {
             }
 
             public void init() {
-                src = new ArrayList<Entity>();
+                src = new ArrayList<>();
                 for (final Entity it : source) {
                     src.add(it);
                 }
-                left = new ArrayList<Integer>();
-                right = new ArrayList<Integer>();
-                medianStart = new ArrayList<Integer>();
-                medianEnd = new ArrayList<Integer>();
-                medians = new ArrayList<Entity>();
-                toRight = new ArrayList<Entity>();
+                left = new ArrayList<>();
+                right = new ArrayList<>();
+                medianStart = new ArrayList<>();
+                medianEnd = new ArrayList<>();
+                medians = new ArrayList<>();
+                toRight = new ArrayList<>();
                 top = -1;
             }
         };

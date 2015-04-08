@@ -116,7 +116,7 @@ public class HashSetDecorator<E> implements Set<E> {
 
     private void checkDecorated() {
         if (decorated == Collections.emptySet()) {
-            decorated = new HashSet<E>();
+            decorated = new HashSet<>();
         }
     }
 }

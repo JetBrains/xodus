@@ -74,12 +74,12 @@ public class ConcurrentLongObjectCache<V> extends LongObjectCacheBase<V> {
         for (int i = 0; i < numberOfGenerations; ++i, ++cacheIndex) {
             final CacheEntry<V> entry = cache[cacheIndex];
             if (entry.key == key) {
-                cache[cacheIndex] = new CacheEntry<V>(key, x);
+                cache[cacheIndex] = new CacheEntry<>(key, x);
                 // in highly concurrent environment we can't definitely know if a value is pushed out from the cache
                 return null;
             }
         }
-        cache[cacheIndex - 1] = new CacheEntry<V>(key, x);
+        cache[cacheIndex - 1] = new CacheEntry<>(key, x);
         return null;
     }
 

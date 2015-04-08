@@ -121,7 +121,7 @@ class VfsAppendingStream extends OutputStream {
                 currCluster = iterator.getCurrent();
                 iterator.moveToNext();
             }
-            return new Pair<Cluster, Cluster>(prevCluster, currCluster);
+            return new Pair<>(prevCluster, currCluster);
         } finally {
             iterator.close();
         }

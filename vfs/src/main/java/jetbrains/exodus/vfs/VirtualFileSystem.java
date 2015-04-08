@@ -186,8 +186,7 @@ public class VirtualFileSystem {
     @Nullable
     public File deleteFile(@NotNull final Transaction txn, @NotNull final String path) {
         final ArrayByteIterable key = StringBinding.stringToEntry(path);
-        final Cursor cursor = pathnames.openCursor(txn);
-        try {
+        try (Cursor cursor = pathnames.openCursor(txn)) {
             final ByteIterable value = cursor.getSearchKey(key);
             if (value != null) {
                 final File result = new File(path, value);
@@ -204,8 +203,6 @@ public class VirtualFileSystem {
                 cursor.deleteCurrent();
                 return result;
             }
-        } finally {
-            cursor.close();
         }
         return null;
     }
@@ -216,8 +213,7 @@ public class VirtualFileSystem {
 
     @NotNull
     public Iterable<File> getFiles(@NotNull final Transaction txn) {
-        final Cursor cursor = pathnames.openCursor(txn);
-        try {
+        try (Cursor cursor = pathnames.openCursor(txn)) {
             return new Iterable<File>() {
                 @Override
                 public Iterator<File> iterator() {
@@ -239,8 +235,6 @@ public class VirtualFileSystem {
                     };
                 }
             };
-        } finally {
-            cursor.close();
         }
     }
 

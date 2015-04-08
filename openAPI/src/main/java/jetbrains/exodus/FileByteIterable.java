@@ -84,8 +84,7 @@ public class FileByteIterable implements ByteIterable {
             return EMPTY_BYTES;
         }
         try {
-            final SharedRandomAccessFile f = getRandomAccessFile();
-            try {
+            try (SharedRandomAccessFile f = getRandomAccessFile()) {
                 if (length == 1) {
                     return ByteIterableBase.SINGLE_BYTES[f.read() & 0xff];
                 }
@@ -99,8 +98,6 @@ public class FileByteIterable implements ByteIterable {
                     readTotal += read;
                 }
                 return result;
-            } finally {
-                f.close();
             }
         } catch (IOException e) {
             throw ExodusException.toExodusException(e);

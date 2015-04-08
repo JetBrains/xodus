@@ -92,6 +92,7 @@ public class PatriciaCursorDecorator implements ITreeCursor {
         // we must create new cursor 'cause we don't know if next "no dup" pair exists
         final ITreeCursor cursor = patriciaCursor.getTree().openCursor();
         ITreeCursor cursorToClose = cursor;
+        //noinspection TryFinallyCanBeTryWithResources
         try {
             if (cursor.getSearchKeyRange(getEscapedKeyValue(getKey(), getValue())) != null) {
                 while (cursor.getNext()) {
@@ -150,6 +151,7 @@ public class PatriciaCursorDecorator implements ITreeCursor {
         // we must create new cursor 'cause we don't know if prev "no dup" pair exists
         final ITreeCursor cursor = patriciaCursor.getTree().openCursor();
         ITreeCursor cursorToClose = cursor;
+        //noinspection TryFinallyCanBeTryWithResources
         try {
             if (cursor.getSearchKeyRange(getEscapedKeyValue(getKey(), getValue())) != null) {
                 while (cursor.getPrev()) {
@@ -211,6 +213,7 @@ public class PatriciaCursorDecorator implements ITreeCursor {
     public ByteIterable getSearchKey(@NotNull ByteIterable key) {
         final ITreeCursor cursor = patriciaCursor.getTree().openCursor();
         ITreeCursor cursorToClose = cursor;
+        //noinspection TryFinallyCanBeTryWithResources
         try {
             ByteIterable keyLengthIterable = cursor.getSearchKeyRange(new EscapingByteIterable(key));
             if (keyLengthIterable != null) {
@@ -257,6 +260,7 @@ public class PatriciaCursorDecorator implements ITreeCursor {
     public boolean getSearchBoth(@NotNull ByteIterable key, @NotNull ByteIterable value) {
         final ITreeCursor cursor = patriciaCursor.getTree().openCursor();
         ITreeCursor cursorToClose = cursor;
+        //noinspection TryFinallyCanBeTryWithResources
         try {
             ByteIterable keyLengthIterable = cursor.getSearchKey(getEscapedKeyValue(key, value));
             if (keyLengthIterable == null) {
@@ -284,6 +288,7 @@ public class PatriciaCursorDecorator implements ITreeCursor {
     public ByteIterable getSearchBothRange(@NotNull ByteIterable key, @NotNull ByteIterable value) {
         final ITreeCursor cursor = patriciaCursor.getTree().openCursor();
         ITreeCursor cursorToClose = cursor;
+        //noinspection TryFinallyCanBeTryWithResources
         try {
             ByteIterable keyLengthIterable = cursor.getSearchKeyRange(new EscapingByteIterable(key));
             if (keyLengthIterable != null) {
@@ -327,8 +332,7 @@ public class PatriciaCursorDecorator implements ITreeCursor {
     @Override
     public int count() {
         int result = 0;
-        final ITreeCursor cursor = patriciaCursor.getTree().openCursor();
-        try {
+        try (ITreeCursor cursor = patriciaCursor.getTree().openCursor()) {
             @Nullable
             ByteIterable value = cursor.getSearchKeyRange(new EscapingByteIterable(getKey()));
             while (value != null) {
@@ -342,8 +346,6 @@ public class PatriciaCursorDecorator implements ITreeCursor {
                 ++result;
                 value = cursor.getNext() ? cursor.getValue() : null;
             }
-        } finally {
-            cursor.close();
         }
         return result;
     }

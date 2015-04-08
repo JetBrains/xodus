@@ -30,8 +30,8 @@ public class ReplayData {
 
     private EntityIterableCacheAdapter cacheSnapshot;
 
-    private final Map<PersistentStoreTransaction.HandleChecker, List<EntityIterableHandle>> changes = new HashMap<PersistentStoreTransaction.HandleChecker, List<EntityIterableHandle>>();
-    private Set<EntityIterableHandle> delete = new HashSet<EntityIterableHandle>();
+    private final Map<PersistentStoreTransaction.HandleChecker, List<EntityIterableHandle>> changes = new HashMap<>();
+    private Set<EntityIterableHandle> delete = new HashSet<>();
     private Set<EntityIterableHandle> suspicious;
 
     public ReplayData() {
@@ -99,7 +99,7 @@ public class ReplayData {
                     checker.update(handle, it);
                     List<EntityIterableHandle> l = changes.get(checker);
                     if (l == NO_UPDATES) {
-                        l = new ArrayList<EntityIterableHandle>(8);
+                        l = new ArrayList<>(8);
                         changes.put(checker, l);
                     }
                     l.add(handle);
@@ -116,7 +116,7 @@ public class ReplayData {
     }
 
     public void init(@NotNull final PersistentObjectCache<EntityIterableHandle, EntityIterableCacheAdapter.CacheItem> localCache) {
-        suspicious = new HashSet<EntityIterableHandle>();
+        suspicious = new HashSet<>();
         if (hasCacheSnapshot()) {
             final PersistentObjectCache<EntityIterableHandle, EntityIterableCacheAdapter.CacheItem> old = cacheSnapshot.cache;
             localCache.forEachKey(new ObjectProcedure<EntityIterableHandle>() {

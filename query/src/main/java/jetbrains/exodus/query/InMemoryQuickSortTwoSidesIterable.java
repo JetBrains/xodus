@@ -58,7 +58,7 @@ public class InMemoryQuickSortTwoSidesIterable extends SortEngine.InMemorySortIt
             }
 
             public void init() {
-                src = new ArrayList<Entity>();
+                src = new ArrayList<>();
                 for (final Entity entity : source) {
                     src.add(entity);
                 }
@@ -80,8 +80,8 @@ public class InMemoryQuickSortTwoSidesIterable extends SortEngine.InMemorySortIt
                 int j = right;
                 int toRight = 0;
                 int toLeft = 0;
-                List<Entity> leftMedians = new ArrayList<Entity>();
-                List<Entity> rightMedians = new ArrayList<Entity>();
+                List<Entity> leftMedians = new ArrayList<>();
+                List<Entity> rightMedians = new ArrayList<>();
                 do {
                     while (i <= j && comparator.compare(src.get(i), median) < 0) {
                         if (toRight + leftMedians.size() > 0) {

@@ -70,8 +70,8 @@ abstract class AbstractPersistentHashSet<K> implements Iterable<K> {
                 hasNextValid = true;
                 if (stack == null) {
                     Node<K> root = getRoot();
-                    stack = new Stack<TreePos<K>>();
-                    TreePos<K> treePos = new TreePos<K>(root);
+                    stack = new Stack<>();
+                    TreePos<K> treePos = new TreePos<>(root);
                     treePos.index = -1;
                     stack.push(treePos);
                 }
@@ -280,7 +280,7 @@ abstract class AbstractPersistentHashSet<K> implements Iterable<K> {
             System.arraycopy(table, 0, newTable, 0, index);
             System.arraycopy(table, index, newTable, index + 1, tableLength - index);
             newTable[index] = key;
-            return new TableNode<K>(mask + (1 << subhash), newTable);
+            return new TableNode<>(mask + (1 << subhash), newTable);
         }
 
         @NotNull
@@ -337,12 +337,12 @@ abstract class AbstractPersistentHashSet<K> implements Iterable<K> {
             if (subhash2 == subhash1) {
                 //noinspection unchecked
                 table = new Object[]{offset + BITS_PER_TABLE >= BITS_IN_HASH ?
-                        new HashCollisionNode<K>(key1, key2) :
-                        new TableNode<K>(key1, hash1, key2, hash2, offset + BITS_PER_TABLE)};
+                        new HashCollisionNode<>(key1, key2) :
+                        new TableNode<>(key1, hash1, key2, hash2, offset + BITS_PER_TABLE)};
             } else {
                 table = subhash2 < subhash1 ? new Object[]{key2, key1} : new Object[]{key1, key2};
             }
-            return new TableNode<K>((1 << subhash2) | (1 << subhash1), table);
+            return new TableNode<>((1 << subhash2) | (1 << subhash1), table);
         }
 
         @SuppressWarnings("UnnecessaryParentheses")
@@ -379,7 +379,7 @@ abstract class AbstractPersistentHashSet<K> implements Iterable<K> {
 
         @Override
         public RootTableNode<K> asRoot(int size) {
-            return new RootTableNode<K>(mask, table, size);
+            return new RootTableNode<>(mask, table, size);
         }
 
         @Override
@@ -411,14 +411,14 @@ abstract class AbstractPersistentHashSet<K> implements Iterable<K> {
                     K[] newKeys = keys.clone();
                     newKeys[i] = key;
                     //noinspection unchecked
-                    return new HashCollisionNode<K>(newKeys);
+                    return new HashCollisionNode<>(newKeys);
                 }
             }
             K[] newKeys = Arrays.copyOf(keys, keysLength + 1);
             newKeys[keysLength] = key;
             flag.flag();
             //noinspection unchecked
-            return new HashCollisionNode<K>(newKeys);
+            return new HashCollisionNode<>(newKeys);
         }
 
         @SuppressWarnings("unchecked")
@@ -438,7 +438,7 @@ abstract class AbstractPersistentHashSet<K> implements Iterable<K> {
                             newKeys[k++] = keys[j];
                         }
                     }
-                    return new HashCollisionNode<K>(newKeys);
+                    return new HashCollisionNode<>(newKeys);
                 }
             }
             return null;

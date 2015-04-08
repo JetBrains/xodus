@@ -103,7 +103,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
     public void testDeleteNoDuplicatesBottomPage() throws IOException {
         tm = new BTreeEmpty(log, new BTreeBalancePolicy(16), false, 1).getMutableCopy();
 
-        List<INode> res = new ArrayList<INode>();
+        List<INode> res = new ArrayList<>();
 
         for (int i = 0; i < 64; i++) {
             final INode ln = kv(i, "v" + i);

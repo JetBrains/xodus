@@ -32,7 +32,7 @@ public class NanoSet<E> extends AbstractSet<E> {
 
     @Override
     public Iterator<E> iterator() {
-        return new NanoIterator<E>(this);
+        return new NanoIterator<>(this);
     }
 
     @Override

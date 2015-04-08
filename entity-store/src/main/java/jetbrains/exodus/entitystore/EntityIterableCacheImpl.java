@@ -47,8 +47,8 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
         config = store.getConfig();
         final int cacheSize = config.getEntityIterableCacheSize();
         cacheAdapter = new EntityIterableCacheAdapter(config, cacheSize);
-        deferredIterablesCache = new ConcurrentObjectCache<EntityIterableHandle, Long>(cacheSize);
-        iterableCountsCache = new ConcurrentObjectCache<EntityIterableHandle, Long>(cacheSize * 2);
+        deferredIterablesCache = new ConcurrentObjectCache<>(cacheSize);
+        iterableCountsCache = new ConcurrentObjectCache<>(cacheSize * 2);
         processor = new EntityStoreSharedAsyncProcessor(config.getEntityIterableCacheThreadCount());
         processor.start();
     }

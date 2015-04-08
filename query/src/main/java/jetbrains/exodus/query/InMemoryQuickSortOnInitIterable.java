@@ -58,7 +58,7 @@ public class InMemoryQuickSortOnInitIterable extends SortEngine.InMemorySortIter
             }
 
             public void init() {
-                src = new ArrayList<Entity>();
+                src = new ArrayList<>();
                 for (final Entity entity : source) {
                     src.add(entity);
                 }
@@ -78,7 +78,7 @@ public class InMemoryQuickSortOnInitIterable extends SortEngine.InMemorySortIter
                 Entity median = src.get((left + right) / 2);
                 int i = left;
                 int toRight = 0;
-                List<Entity> medians = new ArrayList<Entity>();
+                List<Entity> medians = new ArrayList<>();
                 do {
                     while (i <= right && comparator.compare(src.get(i), median) < 0) {
                         if (toRight + medians.size() > 0) {

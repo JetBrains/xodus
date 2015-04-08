@@ -89,7 +89,7 @@ public class InMemoryMergeSortIterableWithArrayList extends SortEngine.InMemoryS
             }
 
             public void init() {
-                src = new ArrayList<Entity>();
+                src = new ArrayList<>();
                 for (final Entity it : source) {
                     src.add(it);
                 }

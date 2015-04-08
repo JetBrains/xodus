@@ -31,7 +31,7 @@ class OpenTablesCache {
     OpenTablesCache(@NotNull final TableCreator creator) {
         this.creator = creator;
         lock = new Object();
-        cache = new IntHashMap<Table>();
+        cache = new IntHashMap<>();
     }
 
     Table get(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
@@ -65,7 +65,7 @@ class OpenTablesCache {
 
     private IntHashMap<Table> cloneCache() {
         final IntHashMap<Table> currentCache = cache;
-        final IntHashMap<Table> result = new IntHashMap<Table>(currentCache.size());
+        final IntHashMap<Table> result = new IntHashMap<>(currentCache.size());
         currentCache.forEachEntry(new ObjectProcedure<Map.Entry<Integer, Table>>() {
             @Override
             public boolean execute(Map.Entry<Integer, Table> entry) {

@@ -22,6 +22,6 @@ public class JMHJavaUtilHashMapBenchmark extends JMHHashMapBenchmark {
 
     @Override
     protected Map<Integer, String> createHashMap() {
-        return new HashMap<Integer, String>();
+        return new HashMap<>();
     }
 }

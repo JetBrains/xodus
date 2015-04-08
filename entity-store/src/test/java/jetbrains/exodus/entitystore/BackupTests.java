@@ -139,8 +139,7 @@ public class BackupTests extends EntityStoreTestBase {
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     public static void extractEntireZip(@NotNull final File zip, @NotNull final File restoreDir) throws IOException {
-        final ZipFile zipFile = new ZipFile(zip);
-        try {
+        try (ZipFile zipFile = new ZipFile(zip)) {
             final Enumeration<ZipArchiveEntry> zipEntries = zipFile.getEntries();
             while (zipEntries.hasMoreElements()) {
                 final ZipArchiveEntry zipEntry = zipEntries.nextElement();
@@ -149,21 +148,13 @@ public class BackupTests extends EntityStoreTestBase {
                     entryFile.mkdirs();
                 } else {
                     entryFile.getParentFile().mkdirs();
-                    final FileOutputStream target = new FileOutputStream(entryFile);
-                    try {
-                        final InputStream in = zipFile.getInputStream(zipEntry);
-                        try {
+                    try (FileOutputStream target = new FileOutputStream(entryFile)) {
+                        try (InputStream in = zipFile.getInputStream(zipEntry)) {
                             IOUtil.copyStreams(in, target, IOUtil.BUFFER_ALLOCATOR);
-                        } finally {
-                            in.close();
                         }
-                    } finally {
-                        target.close();
                     }
                 }
             }
-        } finally {
-            zipFile.close();
         }
     }
 

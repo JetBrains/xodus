@@ -71,7 +71,7 @@ public class InMemoryTimSortIterable extends SortEngine.InMemorySortIterable {
             }
 
             private void computeMinimum() {
-                ArrayList<Integer> stack = new ArrayList<Integer>();
+                ArrayList<Integer> stack = new ArrayList<>();
                 stack.add(head);
                 while (from[head] < 0) {
                     int node = stack.get(stack.size() - 1);
@@ -114,7 +114,7 @@ public class InMemoryTimSortIterable extends SortEngine.InMemorySortIterable {
             }
 
             public void init() {
-                src = new ArrayList<Entity>();
+                src = new ArrayList<>();
                 for (final Entity entity : source) {
                     src.add(entity);
                 }
@@ -135,7 +135,7 @@ public class InMemoryTimSortIterable extends SortEngine.InMemorySortIterable {
                 left = new int[maxRuns * 2 - 1];
                 Arrays.fill(left, -1);
                 right = new int[maxRuns * 2 - 1];
-                ArrayList<Integer> stack = new ArrayList<Integer>();
+                ArrayList<Integer> stack = new ArrayList<>();
                 runCount = 0;
                 boolean growing = true;
                 for (int i = 1; i < n; i++) {

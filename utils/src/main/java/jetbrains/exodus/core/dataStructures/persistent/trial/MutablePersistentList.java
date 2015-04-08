@@ -18,7 +18,7 @@ package jetbrains.exodus.core.dataStructures.persistent.trial;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 
 class MutablePersistentList<T> extends PersistentList<T> {
-    protected HashSet<Object[]> allocated = new HashSet<Object[]>();
+    protected HashSet<Object[]> allocated = new HashSet<>();
     protected int hits;
     protected int misses;
 

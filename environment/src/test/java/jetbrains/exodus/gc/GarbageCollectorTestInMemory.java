@@ -120,13 +120,10 @@ public class GarbageCollectorTestInMemory extends GarbageCollectorTest {
                                     final int intKey = randomInt & 0x3fff;
                                     final ArrayByteIterable key = IntegerBinding.intToCompressedEntry(intKey);
                                     store.delete(txn, key);
-                                    final Cursor cursor = storeDups.openCursor(txn);
-                                    try {
+                                    try (Cursor cursor = storeDups.openCursor(txn)) {
                                         if (cursor.getSearchBoth(key, IntegerBinding.intToEntry(randomInt % 32))) {
                                             cursor.deleteCurrent();
                                         }
-                                    } finally {
-                                        cursor.close();
                                     }
                                 }
                             }
@@ -231,13 +228,10 @@ public class GarbageCollectorTestInMemory extends GarbageCollectorTest {
                             final int intKey = randomInt & 0x3fff;
                             final ArrayByteIterable key = IntegerBinding.intToCompressedEntry(intKey);
                             store.delete(txn, key);
-                            final Cursor cursor = storeDups.openCursor(txn);
-                            try {
+                            try (Cursor cursor = storeDups.openCursor(txn)) {
                                 if (cursor.getSearchBoth(key, IntegerBinding.intToEntry(randomInt % 32))) {
                                     cursor.deleteCurrent();
                                 }
-                            } finally {
-                                cursor.close();
                             }
                         }
 

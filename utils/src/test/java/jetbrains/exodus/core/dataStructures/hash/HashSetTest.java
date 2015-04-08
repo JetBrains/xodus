@@ -25,7 +25,7 @@ public class HashSetTest {
 
     @Test
     public void testAddContains() {
-        final HashSet<Integer> tested = new HashSet<Integer>();
+        final HashSet<Integer> tested = new HashSet<>();
         for (int i = 0; i < 1000; ++i) {
             tested.add(i);
         }
@@ -37,7 +37,7 @@ public class HashSetTest {
 
     @Test
     public void testAddContainsRemove() {
-        final HashSet<Integer> tested = new HashSet<Integer>();
+        final HashSet<Integer> tested = new HashSet<>();
         for (int i = 0; i < 1000; ++i) {
             tested.add(i);
         }
@@ -57,7 +57,7 @@ public class HashSetTest {
 
     @Test
     public void nulls() {
-        final Set<Integer> tested = new HashSet<Integer>();
+        final Set<Integer> tested = new HashSet<>();
         Assert.assertTrue(tested.add(null));
         Assert.assertFalse(tested.add(null));
         Assert.assertTrue(tested.contains(null));
@@ -68,7 +68,7 @@ public class HashSetTest {
 
     @Test
     public void nulls2() {
-        final Set<Integer> tested = new HashSet<Integer>();
+        final Set<Integer> tested = new HashSet<>();
         Assert.assertTrue(tested.add(null));
         Assert.assertFalse(tested.add(null));
         Assert.assertTrue(tested.contains(null));
@@ -90,8 +90,8 @@ public class HashSetTest {
 
     @Test
     public void iterator() {
-        final HashSet<Integer> tested = new HashSet<Integer>();
-        final Set<Integer> set = new java.util.HashSet<Integer>();
+        final HashSet<Integer> tested = new HashSet<>();
+        final Set<Integer> set = new java.util.HashSet<>();
 
         for (int i = 0; i < 10000; ++i) {
             tested.add(i);
@@ -105,7 +105,7 @@ public class HashSetTest {
 
     @Test
     public void iterator2() {
-        final HashSet<Integer> tested = new HashSet<Integer>();
+        final HashSet<Integer> tested = new HashSet<>();
 
         for (int i = 0; i < 10000; ++i) {
             tested.add(i);

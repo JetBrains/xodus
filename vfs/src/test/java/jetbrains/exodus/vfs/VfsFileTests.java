@@ -185,7 +185,7 @@ public class VfsFileTests extends VfsTestsBase {
     @Test
     public void testNumberOfFiles() {
         final Transaction txn = env.beginTransaction();
-        final HashSet<String> files = new HashSet<String>();
+        final HashSet<String> files = new HashSet<>();
         final int numberOfFiles = (int) (Math.random() * 1000 + 5000);
         for (int i = 0; i < numberOfFiles; ++i) {
             final String file = "file" + Math.random();
@@ -218,7 +218,7 @@ public class VfsFileTests extends VfsTestsBase {
     @Test
     public void testFileEnumeration() {
         final Transaction txn = env.beginTransaction();
-        final TreeSet<String> files = new TreeSet<String>();
+        final TreeSet<String> files = new TreeSet<>();
         final int numberOfFiles = (int) (Math.random() * 1000 + 5000);
         for (int i = 0; i < numberOfFiles; ++i) {
             final String file = "file" + Math.random();

@@ -54,7 +54,7 @@ public class LinkedHashMap<K, V> extends AbstractHashMap<K, V> {
             }
         }
 
-        final Entry<K, V> e = new Entry<K, V>(key, value);
+        final Entry<K, V> e = new Entry<>(key, value);
         e.hashNext = table[index];
         table[index] = e;
         final Entry<K, V> top = this.top;

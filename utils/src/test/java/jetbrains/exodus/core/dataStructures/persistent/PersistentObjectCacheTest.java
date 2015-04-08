@@ -25,7 +25,7 @@ public class PersistentObjectCacheTest {
 
     @Test
     public void cacheFiniteness() {
-        final PersistentObjectCache<String, String> cache = new PersistentObjectCache<String, String>(4);
+        final PersistentObjectCache<String, String> cache = new PersistentObjectCache<>(4);
         cache.put("Eclipse", "An IDE");
         cache.put("IDEA", "good");
         cache.put("IDEA 4.5", "better");
@@ -44,7 +44,7 @@ public class PersistentObjectCacheTest {
 
     @Test
     public void cacheIterator() {
-        final PersistentObjectCache<String, String> cache = new PersistentObjectCache<String, String>(4);
+        final PersistentObjectCache<String, String> cache = new PersistentObjectCache<>(4);
         cache.put("Eclipse", "An IDE");
         cache.put("IDEA", "good IDEA");
         cache.put("IDEA 4.5", "better IDEA");
@@ -53,7 +53,7 @@ public class PersistentObjectCacheTest {
         Assert.assertNotNull(cache.get("IDEA"));
         cache.put("IDEA 5.0", "perfect IDEA");
         cache.put("IDEA 6.0", "IDEAL");
-        HashSet<String> values = new HashSet<String>();
+        HashSet<String> values = new HashSet<>();
         final Iterator<String> it = cache.values();
         while (it.hasNext()) {
             values.add(it.next());
@@ -68,7 +68,7 @@ public class PersistentObjectCacheTest {
 
     @Test
     public void getClone() {
-        final PersistentObjectCache<String, String> cache = new PersistentObjectCache<String, String>(4);
+        final PersistentObjectCache<String, String> cache = new PersistentObjectCache<>(4);
         cache.put("IDEA", "good IDEA");
         cache.put("NetBeans", "bad IDEA");
         final PersistentObjectCache<String, String> copy = cache.getClone();

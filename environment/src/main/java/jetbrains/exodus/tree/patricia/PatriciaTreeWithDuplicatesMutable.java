@@ -97,8 +97,7 @@ final class PatriciaTreeWithDuplicatesMutable extends PatriciaTreeWithDuplicates
     @Override
     public boolean delete(@NotNull final ByteIterable key) {
         boolean wasDeleted = false;
-        final ITreeCursor cursor = treeNoDuplicates.openCursor();
-        try {
+        try (ITreeCursor cursor = treeNoDuplicates.openCursor()) {
             final byte[] keyBytes = key.getBytesUnsafe();
             final int keyLength = key.getLength();
             @Nullable
@@ -115,8 +114,6 @@ final class PatriciaTreeWithDuplicatesMutable extends PatriciaTreeWithDuplicates
                 wasDeleted = true;
                 value = cursor.getNext() ? cursor.getValue() : null;
             }
-        } finally {
-            cursor.close();
         }
         if (wasDeleted) {
             TreeCursorMutable.notifyCursors(getTreeNoDuplicates());

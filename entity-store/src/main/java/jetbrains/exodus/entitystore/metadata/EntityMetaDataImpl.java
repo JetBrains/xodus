@@ -32,13 +32,13 @@ public class EntityMetaDataImpl implements EntityMetaData {
     private ModelMetaData modelMetaData = null;
     private String type = null;
     private String superType = null;
-    private Set<String> interfaces = new HashSetDecorator<String>();
+    private Set<String> interfaces = new HashSetDecorator<>();
     private Runnable initializer = null;
     private boolean removeOrphan = true;
-    private Set<String> subTypes = new HashSetDecorator<String>();
+    private Set<String> subTypes = new HashSetDecorator<>();
     private List<String> thisAndSuperTypes = Collections.emptyList();
     private Set<AssociationEndMetaData> externalAssociationEnds = null;
-    private Map<String, PropertyMetaData> properties = new HashMapDecorator<String, PropertyMetaData>();
+    private Map<String, PropertyMetaData> properties = new HashMapDecorator<>();
     private Set<Index> ownIndexes = Collections.emptySet();
     private Set<String> requiredProperties = Collections.emptySet();
     private Set<String> requiredIfProperties = Collections.emptySet();
@@ -146,7 +146,7 @@ public class EntityMetaDataImpl implements EntityMetaData {
         if (allSubTypes == null) {
             synchronized (this) {
                 if (allSubTypes == null) {
-                    List<String> _allSubTypes = new ArrayList<String>();
+                    List<String> _allSubTypes = new ArrayList<>();
                     collectSubTypes(this, _allSubTypes);
                     allSubTypes = _allSubTypes;
                 }
@@ -190,7 +190,7 @@ public class EntityMetaDataImpl implements EntityMetaData {
     }
 
     public void setAssociationEndsMetaData(@NotNull Collection<AssociationEndMetaData> ends) {
-        externalAssociationEnds = new HashSet<AssociationEndMetaData>();
+        externalAssociationEnds = new HashSet<>();
         externalAssociationEnds.addAll(ends);
     }
 
@@ -200,7 +200,7 @@ public class EntityMetaDataImpl implements EntityMetaData {
      * @param ends
      */
     public void setAssociationEnds(@NotNull Collection<AssociationEndMetaData> ends) {
-        externalAssociationEnds = new HashSet<AssociationEndMetaData>();
+        externalAssociationEnds = new HashSet<>();
         externalAssociationEnds.addAll(ends);
     }
 
@@ -216,7 +216,7 @@ public class EntityMetaDataImpl implements EntityMetaData {
     void addAssociationEndMetaData(AssociationEndMetaData end) {
         synchronized (this) {
             if (externalAssociationEnds == null) {
-                externalAssociationEnds = new HashSet<AssociationEndMetaData>();
+                externalAssociationEnds = new HashSet<>();
             }
             AssociationEndMetaData a = findAssociationEndMetaData(end.getName());
 
@@ -326,7 +326,7 @@ public class EntityMetaDataImpl implements EntityMetaData {
         if (incomingAssociations == null) {
             synchronized (this) {
                 if (incomingAssociations == null) {
-                    incomingAssociations = new HashMapDecorator<String, Set<String>>();
+                    incomingAssociations = new HashMapDecorator<>();
                     for (final EntityMetaData emd : mmd.getEntitiesMetaData()) {
                         for (final AssociationEndMetaData aemd : emd.getAssociationEndsMetaData()) {
                             if (type.equals(aemd.getOppositeEntityMetaData().getType())) {
@@ -357,7 +357,7 @@ public class EntityMetaDataImpl implements EntityMetaData {
     private void addIncomingAssociation(@NotNull final String type, @NotNull final String associationName) {
         Set<String> links = incomingAssociations.get(type);
         if (links == null) {
-            links = new HashSet<String>();
+            links = new HashSet<>();
             incomingAssociations.put(type, links);
         }
         links.add(associationName);
@@ -391,7 +391,7 @@ public class EntityMetaDataImpl implements EntityMetaData {
 
             synchronized (this) {
                 if (indexes == null) {
-                    indexes = new HashSet<Index>();
+                    indexes = new HashSet<>();
 
                     // add indexes of super types
                     for (String t : getThisAndSuperTypes()) {
@@ -409,13 +409,13 @@ public class EntityMetaDataImpl implements EntityMetaData {
         if (fieldToIndexes == null) {
             synchronized (this) {
                 if (fieldToIndexes == null) {
-                    fieldToIndexes = new HashMap<String, Set<Index>>();
+                    fieldToIndexes = new HashMap<>();
                     // build prop to ownIndexes map
                     for (Index index : getIndexes()) {
                         for (IndexField f : index.getFields()) {
                             Set<Index> fieldIndexes = fieldToIndexes.get(f.getName());
                             if (fieldIndexes == null) {
-                                fieldIndexes = new HashSet<Index>();
+                                fieldIndexes = new HashSet<>();
                                 fieldToIndexes.put(f.getName(), fieldIndexes);
                             }
                             fieldIndexes.add(index);
@@ -481,8 +481,8 @@ public class EntityMetaDataImpl implements EntityMetaData {
                         associationEnds = Collections.emptyMap();
                         aggregationChildEnds = Collections.emptySet();
                     } else {
-                        associationEnds = new HashMap<String, AssociationEndMetaData>(externalAssociationEnds.size());
-                        aggregationChildEnds = new HashSetDecorator<String>();
+                        associationEnds = new HashMap<>(externalAssociationEnds.size());
+                        aggregationChildEnds = new HashSetDecorator<>();
                         for (final AssociationEndMetaData aemd : externalAssociationEnds) {
                             associationEnds.put(aemd.getName(), aemd);
                             if (aemd.getAssociationEndType() == AssociationEndType.ChildEnd) {

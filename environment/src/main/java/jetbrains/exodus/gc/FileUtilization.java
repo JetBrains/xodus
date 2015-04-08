@@ -28,7 +28,7 @@ final class FileUtilization {
 
     FileUtilization(long freeBytes) {
         this.freeBytes = freeBytes;
-        freeSpace = new SoftReference<LongIntSkipList>(new LongIntSkipList());
+        freeSpace = new SoftReference<>(new LongIntSkipList());
     }
 
     FileUtilization() {
@@ -84,7 +84,7 @@ final class FileUtilization {
         LongIntSkipList result = freeSpace.get();
         if (result == null) {
             result = new LongIntSkipList();
-            freeSpace = new SoftReference<LongIntSkipList>(result);
+            freeSpace = new SoftReference<>(result);
         }
         return result;
     }

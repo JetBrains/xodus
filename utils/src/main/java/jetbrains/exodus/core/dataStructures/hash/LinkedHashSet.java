@@ -92,7 +92,7 @@ public class LinkedHashSet<E> extends AbstractSet<E> {
             }
         }
 
-        final Entry<E> e = new Entry<E>(key);
+        final Entry<E> e = new Entry<>(key);
         e.hashNext = table[index];
         table[index] = e;
         final Entry<E> top = this.top;
@@ -239,7 +239,7 @@ public class LinkedHashSet<E> extends AbstractSet<E> {
         private LinkedHashIterator() {
             final Entry<E> back = LinkedHashSet.this.back;
             if (holdsNull) {
-                e = new Entry<E>();
+                e = new Entry<>();
                 e.previous = back;
             } else {
                 e = back;

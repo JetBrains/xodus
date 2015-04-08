@@ -106,7 +106,7 @@ public final class Log implements Closeable {
                 }
             }
         }
-        newFileListeners = new ArrayList<NewFileListener>(2);
+        newFileListeners = new ArrayList<>(2);
         final long memoryUsage = config.getMemoryUsage();
         final boolean nonBlockingCache = config.isNonBlockingCache();
         if (memoryUsage != 0) {

@@ -84,7 +84,7 @@ public abstract class BinaryOperator extends NodeBase {
     @Override
     public Collection<NodeBase> getChildren() {
         if (children == null) {
-            final ArrayList<NodeBase> result = new ArrayList<NodeBase>(2);
+            final ArrayList<NodeBase> result = new ArrayList<>(2);
             result.add(left);
             result.add(right);
             children = result;

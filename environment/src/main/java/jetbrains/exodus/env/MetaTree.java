@@ -82,7 +82,7 @@ final class MetaTree {
             validHighAddress = root + log.read(root).length();
             log.flush();
         }
-        return new Pair<MetaTree, Integer>(new MetaTree(resultTree, root, validHighAddress), resultId);
+        return new Pair<>(new MetaTree(resultTree, root, validHighAddress), resultId);
     }
 
     LongIterator addressIterator() {
@@ -150,7 +150,7 @@ final class MetaTree {
         if (tree.getSize() == 0) {
             return Collections.emptyList();
         }
-        final List<String> result = new ArrayList<String>();
+        final List<String> result = new ArrayList<>();
         final ITreeCursor cursor = tree.openCursor();
         while (cursor.getNext()) {
             final ArrayByteIterable key = new ArrayByteIterable(cursor.getKey());
@@ -166,8 +166,7 @@ final class MetaTree {
 
     @Nullable
     String getStoreNameByStructureId(final int structureId, @NotNull final EnvironmentImpl env) {
-        final ITreeCursor cursor = tree.openCursor();
-        try {
+        try (ITreeCursor cursor = tree.openCursor()) {
             while (cursor.getNext()) {
                 final ByteIterable key = cursor.getKey();
                 if (isStringKey(new ArrayByteIterable(key))) {
@@ -176,23 +175,17 @@ final class MetaTree {
                     }
                 }
             }
-
-        } finally {
-            cursor.close();
         }
         return null;
     }
 
     MetaTree getClone() {
-        final ITreeCursor cursor = tree.openCursor();
-        try {
+        try (ITreeCursor cursor = tree.openCursor()) {
             final ITreeMutable tree = this.tree.getMutableCopy();
             while (cursor.getNext()) {
                 tree.put(cursor.getKey(), cursor.getValue());
             }
             return new MetaTree(tree, root, highAddress);
-        } finally {
-            cursor.close();
         }
     }
 

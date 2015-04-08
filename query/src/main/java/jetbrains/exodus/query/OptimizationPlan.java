@@ -44,7 +44,7 @@ public class OptimizationPlan {
         final OptimizationPlan pushNotUpAndGenMinus = new OptimizationPlan(false);
         final OptimizationPlan removeSingleNot = new OptimizationPlan(false);
 
-        final List<OptimizationPlan> plans = new ArrayList<OptimizationPlan>(4);
+        final List<OptimizationPlan> plans = new ArrayList<>(4);
         plans.add(prepare);
         plans.add(optimize);
         plans.add(pushNotUpAndGenMinus);
@@ -121,7 +121,7 @@ public class OptimizationPlan {
     }
 
     public OptimizationPlan(boolean a) {
-        rules = new ArrayList<OptimizationRule>();
+        rules = new ArrayList<>();
         applyOnEnter = a;
     }
 

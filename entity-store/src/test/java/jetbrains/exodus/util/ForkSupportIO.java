@@ -79,7 +79,7 @@ public class ForkSupportIO implements IStreamer {
                 "-cp", classpath
         };
 
-        final List<String> trueArgs = new ArrayList<String>();
+        final List<String> trueArgs = new ArrayList<>();
         trueArgs.addAll(Arrays.asList(commonJvmArgs));
         trueArgs.addAll(Arrays.asList(jvmArgs));
         trueArgs.add(ForkedProcessRunner.class.getName());
@@ -108,7 +108,7 @@ public class ForkSupportIO implements IStreamer {
     }
 
     public static List<String> getClasspath(Class cls) {
-        List<String> classpath = new ArrayList<String>();
+        List<String> classpath = new ArrayList<>();
         URL[] urls = ((URLClassLoader) cls.getClassLoader()).getURLs();
         for (URL url : urls) {
             File f;

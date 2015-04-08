@@ -28,7 +28,7 @@ public class SharedRandomAccessFileCache {
     private final ObjectCache<File, SharedRandomAccessFile> cache;
 
     public SharedRandomAccessFileCache(final int keepFilesOpen) {
-        cache = new ObjectCache<File, SharedRandomAccessFile>(keepFilesOpen);
+        cache = new ObjectCache<>(keepFilesOpen);
     }
 
     public SharedRandomAccessFile getFile(@NotNull final File file) throws IOException {

@@ -33,7 +33,7 @@ final class EntityIterableCacheAdapter {
 
     EntityIterableCacheAdapter(@NotNull final PersistentEntityStoreConfig config, final int cacheSize) {
         this.config = config;
-        cache = new PersistentObjectCache<EntityIterableHandle, CacheItem>(cacheSize);
+        cache = new PersistentObjectCache<>(cacheSize);
     }
 
     private EntityIterableCacheAdapter(@NotNull final EntityIterableCacheAdapter source) {
@@ -111,7 +111,7 @@ final class EntityIterableCacheAdapter {
                 ref = null;
             } else {
                 cached = null;
-                ref = new SoftReference<CachedWrapperIterable>(it);
+                ref = new SoftReference<>(it);
             }
         }
     }

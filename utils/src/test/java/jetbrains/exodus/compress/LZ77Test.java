@@ -235,7 +235,7 @@ public class LZ77Test extends BaseCompressTest {
         final LZ77 lz77 = new LZ77(); // create encoder with default parameters
         final InputStream stream = toStream(SAMPLE_TEXT);
         stream.mark(Integer.MAX_VALUE);
-        final List<LZ77.Match> output = new ArrayList<LZ77.Match>();
+        final List<LZ77.Match> output = new ArrayList<>();
         final long encodingStart = System.currentTimeMillis();
         for (int i = 0; i < 10000; ++i) {
             output.addAll(lz77.encode(stream));
@@ -265,7 +265,7 @@ public class LZ77Test extends BaseCompressTest {
         }
         final InputStream stream = new ByteArrayInputStream(randomBytes);
         stream.mark(Integer.MAX_VALUE);
-        final List<LZ77.Match> output = new ArrayList<LZ77.Match>();
+        final List<LZ77.Match> output = new ArrayList<>();
         final long encodingStart = System.currentTimeMillis();
         for (int i = 0; i < 10; ++i) {
             output.addAll(lz77.encode(stream));

@@ -56,7 +56,7 @@ public class LongLinkedHashMap<V> extends AbstractHashMap<Long, V> {
             }
         }
 
-        final Entry<V> e = new Entry<V>(key, value);
+        final Entry<V> e = new Entry<>(key, value);
         e.hashNext = table[index];
         table[index] = e;
         final Entry<V> top = this.top;

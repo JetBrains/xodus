@@ -151,22 +151,18 @@ public class JETokyoCabinetLikeBenchmarkTest extends BenchmarkTestBase {
     }
 
     private void doRead(@NotNull final Database store, @NotNull final Transaction txn) {
-        final Cursor c = store.openCursor(txn, null);
-        try {
+        try (Cursor c = store.openCursor(txn, null)) {
             final DatabaseEntry key = new DatabaseEntry();
             final DatabaseEntry value = new DatabaseEntry();
             while (c.getNext(key, value, null) == OperationStatus.SUCCESS) {
                 key.getData();
                 value.getData();
             }
-        } finally {
-            c.close();
         }
     }
 
     private void doReadRandom(@NotNull final Database store, @NotNull final Transaction txn) {
-        final Cursor c = store.openCursor(txn, null);
-        try {
+        try (Cursor c = store.openCursor(txn, null)) {
             for (int i = 0; i < TOKYO_CABINET_BENCHMARK_SIZE; i++) {
                 final DatabaseEntry key = new DatabaseEntry(keys[i].getData());
                 final DatabaseEntry value = new DatabaseEntry();
@@ -174,8 +170,6 @@ public class JETokyoCabinetLikeBenchmarkTest extends BenchmarkTestBase {
                 key.getData();
                 value.getData();
             }
-        } finally {
-            c.close();
         }
     }
 

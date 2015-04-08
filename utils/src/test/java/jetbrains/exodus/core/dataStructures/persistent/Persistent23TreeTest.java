@@ -33,7 +33,7 @@ public class Persistent23TreeTest {
     @Test
     public void mutableTreeRandomInsertDeleteTest() {
         Random random = new Random(2343489);
-        Persistent23Tree<Integer> set = new Persistent23Tree<Integer>();
+        Persistent23Tree<Integer> set = new Persistent23Tree<>();
         checkInsertRemove(random, set, 100);
         checkInsertRemove(random, set, ENTRIES_TO_ADD);
         for (int i = 0; i < 100; i++) {
@@ -44,7 +44,7 @@ public class Persistent23TreeTest {
     @SuppressWarnings({"OverlyLongMethod"})
     @Test
     public void competingWritesTest() {
-        Persistent23Tree<Integer> tree = new Persistent23Tree<Integer>();
+        Persistent23Tree<Integer> tree = new Persistent23Tree<>();
         Persistent23Tree.MutableTree<Integer> write1 = tree.beginWrite();
         Persistent23Tree.MutableTree<Integer> write2 = tree.beginWrite();
         write1.add(0);
@@ -94,7 +94,7 @@ public class Persistent23TreeTest {
         Random random = new Random(8234890);
         Persistent23Tree.MutableTree<Integer> tree = new Persistent23Tree<Integer>().beginWrite();
         int[] p = genPermutation(random);
-        TreeSet<Integer> added = new TreeSet<Integer>();
+        TreeSet<Integer> added = new TreeSet<>();
         for (int i = 0; i < ENTRIES_TO_ADD; i++) {
             int size = tree.size();
             Assert.assertEquals(i, size);
@@ -135,7 +135,7 @@ public class Persistent23TreeTest {
         Random random = new Random(5743);
         Persistent23Tree.MutableTree<Integer> tree = new Persistent23Tree<Integer>().beginWrite();
         int[] p = genPermutation(random);
-        TreeSet<Integer> added = new TreeSet<Integer>();
+        TreeSet<Integer> added = new TreeSet<>();
         for (int i = 0; i < ENTRIES_TO_ADD; i++) {
             int size = tree.size();
             Assert.assertEquals(i, size);
@@ -220,7 +220,7 @@ public class Persistent23TreeTest {
         Random random = new Random(239786);
         Persistent23Tree.MutableTree<Integer> tree = new Persistent23Tree<Integer>().beginWrite();
         int[] p = genPermutation(random);
-        TreeSet<Integer> added = new TreeSet<Integer>();
+        TreeSet<Integer> added = new TreeSet<>();
         for (int i = 0; i < ENTRIES_TO_ADD; i++) {
             int size = tree.size();
             Assert.assertEquals(i, size);
@@ -249,7 +249,7 @@ public class Persistent23TreeTest {
         Random random = new Random(239786);
         Persistent23Tree.MutableTree<Integer> tree = new Persistent23Tree<Integer>().beginWrite();
         int[] p = genPermutation(random);
-        TreeSet<Integer> added = new TreeSet<Integer>();
+        TreeSet<Integer> added = new TreeSet<>();
         for (int i = 0; i < ENTRIES_TO_ADD; i++) {
             int size = tree.size();
             Assert.assertEquals(i, size);
@@ -297,9 +297,9 @@ public class Persistent23TreeTest {
 
     @Test
     public void testAddAll() {
-        final Persistent23Tree<Integer> source = new Persistent23Tree<Integer>();
+        final Persistent23Tree<Integer> source = new Persistent23Tree<>();
         final int count = 1000;
-        ArrayList<Integer> entries = new ArrayList<Integer>(count);
+        ArrayList<Integer> entries = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
             final Persistent23Tree.MutableTree<Integer> tree = source.beginWrite();
             tree.addAll(entries.iterator(), i);
@@ -316,7 +316,7 @@ public class Persistent23TreeTest {
 
     @Test
     public void testGetMinimumMaximum() {
-        final Persistent23Tree<Integer> source = new Persistent23Tree<Integer>();
+        final Persistent23Tree<Integer> source = new Persistent23Tree<>();
         final Persistent23Tree.MutableTree<Integer> tree = source.beginWrite();
         for (int i = 0; i < BENCHMARK_SIZE; i++) {
             tree.add(i);
@@ -343,7 +343,7 @@ public class Persistent23TreeTest {
 
     @Test
     public void testGetMinimumMaximumAddAll() {
-        final Persistent23Tree<Integer> source = new Persistent23Tree<Integer>();
+        final Persistent23Tree<Integer> source = new Persistent23Tree<>();
         final Persistent23Tree.MutableTree<Integer> tree = source.beginWrite();
         tree.addAll(new Iterator<Integer>() {
             private int current = -1;
@@ -375,7 +375,7 @@ public class Persistent23TreeTest {
 
     @Test
     public void testGetMinimumMaximum2() {
-        final Persistent23Tree<Integer> source = new Persistent23Tree<Integer>();
+        final Persistent23Tree<Integer> source = new Persistent23Tree<>();
         final Persistent23Tree.MutableTree<Integer> tree = source.beginWrite();
         int min = Integer.MAX_VALUE;
         int max = Integer.MIN_VALUE;
@@ -410,7 +410,7 @@ public class Persistent23TreeTest {
 
     @Test
     public void testGetMinimumMaximum3() {
-        final Persistent23Tree<Integer> source = new Persistent23Tree<Integer>();
+        final Persistent23Tree<Integer> source = new Persistent23Tree<>();
         final Persistent23Tree.MutableTree<Integer> tree = source.beginWrite();
         for (int i = MAX_KEY; i >= 0; --i) {
             tree.add(i);
@@ -438,7 +438,7 @@ public class Persistent23TreeTest {
     public void testCache() {
         Random random = new Random(34790);
         int[] p = genPermutation(random, BENCHMARK_SIZE);
-        final Persistent23Tree<Integer> source = new Persistent23Tree<Integer>();
+        final Persistent23Tree<Integer> source = new Persistent23Tree<>();
         Persistent23Tree.MutableTree<Integer> tree = null;
         for (int i = 0; i < p.length; i++) {
             if ((i & 15) == 0) {
@@ -458,7 +458,7 @@ public class Persistent23TreeTest {
     public void testSize() {
         Random random = new Random(249578);
         int[] p = genPermutation(random, 10000);
-        final Persistent23Tree<Integer> source = new Persistent23Tree<Integer>();
+        final Persistent23Tree<Integer> source = new Persistent23Tree<>();
         Persistent23Tree.MutableTree<Integer> tree = null;
         for (int i = 0; i < p.length; i++) {
             if ((i & 15) == 0) {
@@ -503,10 +503,10 @@ public class Persistent23TreeTest {
 
     @Test
     public void testSizeAtomicity() throws InterruptedException { // for XD-259
-        final Persistent23Tree<Integer> source = new Persistent23Tree<Integer>();
+        final Persistent23Tree<Integer> source = new Persistent23Tree<>();
         final CyclicBarrier barrier = new CyclicBarrier(2);
         final int itr = 10000;
-        final List<Throwable> errors = new LinkedList<Throwable>();
+        final List<Throwable> errors = new LinkedList<>();
         final Thread writer = new Thread(new Runnable() {
             @Override
             public void run() {

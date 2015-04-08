@@ -29,9 +29,9 @@ public class BTreeReclaimTraverser extends BTreeTraverser {
     protected final IExpirationChecker expirationChecker;
     protected boolean wasReclaim;
     @NotNull
-    protected final List<RandomAccessLoggable> dupLeafsLo = new ArrayList<RandomAccessLoggable>();
+    protected final List<RandomAccessLoggable> dupLeafsLo = new ArrayList<>();
     @NotNull
-    protected final List<RandomAccessLoggable> dupLeafsHi = new ArrayList<RandomAccessLoggable>();
+    protected final List<RandomAccessLoggable> dupLeafsHi = new ArrayList<>();
 
     public BTreeReclaimTraverser(@NotNull BTreeMutable mainTree, @NotNull IExpirationChecker expirationChecker) {
         super(mainTree.getRoot());

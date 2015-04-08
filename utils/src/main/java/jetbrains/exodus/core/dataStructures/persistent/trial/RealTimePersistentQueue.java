@@ -33,14 +33,14 @@ public class RealTimePersistentQueue<T> implements Iterable<T> {
 
     @Override
     public Iterator<T> iterator() {
-        return new SequenceIterable.Iterator<T>(asSequence());
+        return new SequenceIterable.Iterator<>(asSequence());
     }
 
     public Sequence<T> asSequence() {
         if (size == 0) {
             return null;
         }
-        return new SequenceImpl<T>(first, second == null ? null : second.asSequence());
+        return new SequenceImpl<>(first, second == null ? null : second.asSequence());
     }
 
     public Object peek() {
@@ -57,14 +57,14 @@ public class RealTimePersistentQueue<T> implements Iterable<T> {
             f1 = second == null ? null : second.asSequence();
             r1 = null;
         }
-        return new RealTimePersistentQueue<T>(size - 1, f1, r1);
+        return new RealTimePersistentQueue<>(size - 1, f1, r1);
     }
 
     public RealTimePersistentQueue<T> add(T item) {
         if (first == null) {
-            return new RealTimePersistentQueue<T>(size + 1, SequenceIterable.singleton(item), null);
+            return new RealTimePersistentQueue<>(size + 1, SequenceIterable.singleton(item), null);
         } else {
-            return new RealTimePersistentQueue<T>(size + 1, first, (second != null ? second : PersistentList.EMPTY).add(item));
+            return new RealTimePersistentQueue<>(size + 1, first, (second != null ? second : PersistentList.EMPTY).add(item));
         }
     }
 
@@ -93,9 +93,9 @@ public class RealTimePersistentQueue<T> implements Iterable<T> {
                 if (second == null) {
                     return null;
                 }
-                return new SequenceImpl<T>(second, null);
+                return new SequenceImpl<>(second, null);
             } else {
-                return new SequenceImpl<T>(first_, second);
+                return new SequenceImpl<>(first_, second);
             }
         }
     }

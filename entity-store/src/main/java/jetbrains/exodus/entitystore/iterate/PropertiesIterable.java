@@ -103,15 +103,12 @@ public final class PropertiesIterable extends EntityIterableBase {
     }
 
     private PropertiesIterator getIterator(@NotNull final PersistentStoreTransaction txn, final boolean ascending) {
-        final Cursor primaryIndex = getStore().getPrimaryPropertyIndexCursor(txn, entityTypeId);
-        try {
+        try (Cursor primaryIndex = getStore().getPrimaryPropertyIndexCursor(txn, entityTypeId)) {
             final Cursor valueIdx = openCursor(txn);
             if (valueIdx == null) {
                 return null;
             }
             return new PropertiesIterator(valueIdx, primaryIndex, ascending);
-        } finally {
-            primaryIndex.close();
         }
     }
 

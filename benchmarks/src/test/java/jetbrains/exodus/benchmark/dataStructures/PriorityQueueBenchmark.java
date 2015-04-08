@@ -30,7 +30,7 @@ public class PriorityQueueBenchmark {
         TestUtil.time("StablePriorityQueue ordered test", new Runnable() {
             @Override
             public void run() {
-                final PriorityQueue<Integer, Integer> queue = new StablePriorityQueue<Integer, Integer>();
+                final PriorityQueue<Integer, Integer> queue = new StablePriorityQueue<>();
                 for (int i = 0; i < COUNT; ++i) {
                     queue.lock();
                     queue.push(i, i);
@@ -41,7 +41,7 @@ public class PriorityQueueBenchmark {
         TestUtil.time("ConcurrentStablePriorityQueue ordered test", new Runnable() {
             @Override
             public void run() {
-                final PriorityQueue<Integer, Integer> queue = new ConcurrentStablePriorityQueue<Integer, Integer>();
+                final PriorityQueue<Integer, Integer> queue = new ConcurrentStablePriorityQueue<>();
                 for (int i = 0; i < COUNT; ++i) {
                     queue.push(i, i);
                 }
@@ -54,7 +54,7 @@ public class PriorityQueueBenchmark {
         TestUtil.time("StablePriorityQueue reverse ordered test", new Runnable() {
             @Override
             public void run() {
-                final PriorityQueue<Integer, Integer> queue = new StablePriorityQueue<Integer, Integer>();
+                final PriorityQueue<Integer, Integer> queue = new StablePriorityQueue<>();
                 for (int i = COUNT; i > 0; --i) {
                     queue.lock();
                     queue.push(i, i);
@@ -65,7 +65,7 @@ public class PriorityQueueBenchmark {
         TestUtil.time("ConcurrentStablePriorityQueue reverse ordered test", new Runnable() {
             @Override
             public void run() {
-                final PriorityQueue<Integer, Integer> queue = new ConcurrentStablePriorityQueue<Integer, Integer>();
+                final PriorityQueue<Integer, Integer> queue = new ConcurrentStablePriorityQueue<>();
                 for (int i = COUNT; i > 0; --i) {
                     queue.push(i, i);
                 }
