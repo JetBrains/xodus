@@ -90,6 +90,15 @@ public final class LogUtil {
         return address * LOG_BLOCK_ALIGNMENT;
     }
 
+    public static boolean isLogFile(@NotNull final File file) {
+        try {
+            getAddress(file.getName());
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
     @NotNull
     public static File[] listFiles(@NotNull final File directory) {
         return IOUtil.listFiles(directory, LOG_FILE_NAME_FILTER);

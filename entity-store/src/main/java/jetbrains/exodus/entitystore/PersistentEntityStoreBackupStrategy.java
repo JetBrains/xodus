@@ -25,13 +25,12 @@ import java.util.Iterator;
 public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
 
     private final PersistentStoreTransaction backupTxn;
-    private final long logHighAddress;
     private final BackupStrategy environmentBackupStrategy;
     private final BackupStrategy blobVaultBackupStrategy;
 
     public PersistentEntityStoreBackupStrategy(@NotNull final PersistentEntityStoreImpl store) {
         backupTxn = store.beginReadonlyTransaction();
-        logHighAddress = backupTxn.getEnvironmentTransaction().getHighAddress();
+        final long logHighAddress = backupTxn.getEnvironmentTransaction().getHighAddress();
         environmentBackupStrategy = new BackupStrategyDecorator(store.getEnvironment().getBackupStrategy()) {
             @Override
             public long acceptFile(@NotNull final File file) {
@@ -110,6 +109,11 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
         } finally {
             backupTxn.abort();
         }
+    }
+
+    @Override
+    public long acceptFile(@NotNull final File file) {
+        return LogUtil.isLogFile(file) ? environmentBackupStrategy.acceptFile(file) : blobVaultBackupStrategy.acceptFile(file);
     }
 
     private static class BackupStrategyDecorator extends BackupStrategy {
