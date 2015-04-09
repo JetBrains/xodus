@@ -16,6 +16,7 @@
 package jetbrains.exodus.io;
 
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.OutOfDiskSpaceException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -114,7 +115,7 @@ public class LockingManager {
             } catch (IOException ex) {
                 //throw only first cause
             }
-            throw new ExodusException("Failed to lock file " + LOCK_FILE_NAME, e);
+            return throwFailedToLock(e);
         } catch (OverlappingFileLockException ofle) {
             try {
                 close();
@@ -126,10 +127,17 @@ public class LockingManager {
             try {
                 close();
             } catch (IOException e) {
-                throw new ExodusException("Failed to lock file " + LOCK_FILE_NAME, e);
+                throwFailedToLock(e);
             }
         }
         return lockFile != null;
+    }
+
+    private boolean throwFailedToLock(@NotNull final IOException e) {
+        if (getUsableSpace() < 4096) {
+            throw new OutOfDiskSpaceException(e);
+        }
+        throw new ExodusException("Failed to lock file " + LOCK_FILE_NAME, e);
     }
 
     /**
