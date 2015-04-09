@@ -81,11 +81,7 @@ public class LockingManager {
     }
 
     public long getUsableSpace() {
-        final File handle = lockFileHandle;
-        if (handle == null) {
-            throw new IllegalStateException("Lock file " + LOCK_FILE_NAME + " should be acquired to know the free space");
-        }
-        return handle.getUsableSpace();
+        return new File(dir, LOCK_FILE_NAME).getUsableSpace();
     }
 
     private boolean lock() {
