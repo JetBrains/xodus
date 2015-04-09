@@ -196,11 +196,6 @@ class BufferedDataWriter implements TransactionalDataWriter {
     }
 
     @Override
-    public boolean lock() {
-        return child.lock();
-    }
-
-    @Override
     public boolean lock(long timeout) {
         return child.lock(timeout);
     }

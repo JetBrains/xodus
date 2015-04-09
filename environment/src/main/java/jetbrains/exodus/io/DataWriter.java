@@ -33,13 +33,6 @@ public interface DataWriter extends Closeable {
     void openOrCreateBlock(long address, long length);
 
     /**
-     * Lock writer to protect running different processes under same db.
-     *
-     * @return true if locked successfully, false otherwise
-     */
-    boolean lock();
-
-    /**
      * Try to lock writer during specified time.
      *
      * @param timeout - if writer is already locked try to lock it during specified timeout.

@@ -36,11 +36,6 @@ public class MemoryDataWriter extends AbstractDataWriter {
     }
 
     @Override
-    public boolean lock() {
-        return true;
-    }
-
-    @Override
     public boolean lock(long timeout) {
         return true;
     }

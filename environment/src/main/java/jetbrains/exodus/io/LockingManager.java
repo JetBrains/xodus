@@ -50,7 +50,44 @@ public class LockingManager {
         this.dir = dir;
     }
 
-    public boolean lock() {
+    public boolean lock(final long timeout) {
+        final long started = System.currentTimeMillis();
+        boolean result;
+        do {
+            if ((result = lock())) break;
+            if (timeout > 0) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+        }
+        while (System.currentTimeMillis() - started < timeout);
+        return result;
+    }
+
+    public boolean release() {
+        if (lockFile != null) {
+            try {
+                close();
+                return true;
+            } catch (IOException e) {
+                throw new ExodusException("Failed to release lock file " + LOCK_FILE_NAME, e);
+            }
+        }
+        return false;
+    }
+
+    public long getUsableSpace() {
+        final File handle = lockFileHandle;
+        if (handle == null) {
+            throw new IllegalStateException("Lock file " + LOCK_FILE_NAME + " should be acquired to know the free space");
+        }
+        return handle.getUsableSpace();
+    }
+
+    private boolean lock() {
         if (lockFile != null) return false; // already locked!
         try {
             final File lockFileHandle = new File(dir, LOCK_FILE_NAME);
@@ -93,43 +130,6 @@ public class LockingManager {
             }
         }
         return lockFile != null;
-    }
-
-    public boolean lock(final long timeout) {
-        final long started = System.currentTimeMillis();
-        boolean result;
-        do {
-            if ((result = lock())) break;
-            if (timeout > 0) {
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    break;
-                }
-            }
-        }
-        while (System.currentTimeMillis() - started < timeout);
-        return result;
-    }
-
-    public boolean release() {
-        if (lockFile != null) {
-            try {
-                close();
-                return true;
-            } catch (IOException e) {
-                throw new ExodusException("Failed to release lock file " + LOCK_FILE_NAME, e);
-            }
-        }
-        return false;
-    }
-
-    public long getUsableSpace() {
-        final File handle = lockFileHandle;
-        if (handle == null) {
-            throw new IllegalStateException("Lock file " + LOCK_FILE_NAME + " should be acquired to know the free space");
-        }
-        return handle.getUsableSpace();
     }
 
     /**

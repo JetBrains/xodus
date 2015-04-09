@@ -56,11 +56,6 @@ public class FileDataWriter extends AbstractDataWriter {
     }
 
     @Override
-    public boolean lock() {
-        return lockingManager.lock();
-    }
-
-    @Override
     public boolean lock(long timeout) {
         return lockingManager.lock(timeout);
     }
