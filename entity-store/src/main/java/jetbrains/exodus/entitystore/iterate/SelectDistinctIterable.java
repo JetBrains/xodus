@@ -66,7 +66,7 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
     @Override
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
-        return new EntityIterableHandleBase(getStore(), SelectDistinctIterable.getType()) {
+        return new EntityIterableHandleDecorator(getStore(), SelectDistinctIterable.getType(), source.getHandle()) {
             @Nullable
             private final int[] linkIds = mergeLinkIds(new int[]{linkId}, getDecorated().getHandle().getLinkIds());
 
@@ -77,30 +77,38 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
             }
 
             @Override
-            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
-                hash.apply(source.getHandle());
+            public void toString(@NotNull final StringBuilder builder) {
+                super.toString(builder);
+                applyDecoratedToBuilder(builder);
+                builder.append('-');
+                builder.append(linkId);
+            }
+
+            @Override
+            public void hashCode(@NotNull final EntityIterableHandleHash hash) {
+                super.hashCode(hash);
                 hash.applyDelimiter();
                 hash.apply(linkId);
             }
 
             @Override
             public boolean isMatchedEntityAdded(@NotNull final EntityId added) {
-                return source.getHandle().isMatchedEntityAdded(added);
+                return decorated.isMatchedEntityAdded(added);
             }
 
             @Override
             public boolean isMatchedEntityDeleted(@NotNull final EntityId deleted) {
-                return source.getHandle().isMatchedEntityDeleted(deleted);
+                return decorated.isMatchedEntityDeleted(deleted);
             }
 
             @Override
             public boolean isMatchedLinkAdded(@NotNull final EntityId source, @NotNull final EntityId target, final int linkId) {
-                return linkId == SelectDistinctIterable.this.linkId || getDecorated().getHandle().isMatchedLinkAdded(source, target, linkId);
+                return linkId == SelectDistinctIterable.this.linkId || decorated.isMatchedLinkAdded(source, target, linkId);
             }
 
             @Override
             public boolean isMatchedLinkDeleted(@NotNull final EntityId source, @NotNull final EntityId target, final int linkId) {
-                return linkId == SelectDistinctIterable.this.linkId || getDecorated().getHandle().isMatchedLinkDeleted(source, target, linkId);
+                return linkId == SelectDistinctIterable.this.linkId || decorated.isMatchedLinkDeleted(source, target, linkId);
             }
 
             @Override
@@ -108,7 +116,7 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
                                                     final int propertyId,
                                                     @Nullable final Comparable oldValue,
                                                     @Nullable final Comparable newValue) {
-                return source.getHandle().isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue);
+                return decorated.isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue);
             }
         };
     }

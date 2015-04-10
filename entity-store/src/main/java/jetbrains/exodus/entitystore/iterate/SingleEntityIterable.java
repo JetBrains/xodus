@@ -103,7 +103,18 @@ public class SingleEntityIterable extends EntityIterableBase {
             }
 
             @Override
-            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+            public void toString(@NotNull final StringBuilder builder) {
+                super.toString(builder);
+                final EntityId id = SingleEntityIterable.this.id;
+                if (id == null) {
+                    builder.append("null");
+                } else {
+                    ((PersistentEntityId) id).toString(builder);
+                }
+            }
+
+            @Override
+            public void hashCode(@NotNull final EntityIterableHandleHash hash) {
                 final EntityId id = SingleEntityIterable.this.id;
                 if (id == null) {
                     hash.apply("null");

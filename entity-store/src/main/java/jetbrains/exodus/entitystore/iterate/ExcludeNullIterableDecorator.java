@@ -77,11 +77,11 @@ public class ExcludeNullIterableDecorator extends EntityIterableDecoratorBase {
     @NotNull
     @Override
     protected EntityIterableHandle getHandleImpl() {
-        return new EntityIterableHandleDecorator(getStore(), ExcludeNullIterableDecorator.getType(), getDecorated().getHandle()) {
-
+        return new EntityIterableHandleDecorator(getStore(), ExcludeNullIterableDecorator.getType(), source.getHandle()) {
             @Override
-            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
-                applyDecoratedToHash(hash);
+            public void toString(@NotNull final StringBuilder builder) {
+                super.toString(builder);
+                applyDecoratedToBuilder(builder);
             }
         };
     }

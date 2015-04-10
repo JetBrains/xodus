@@ -317,7 +317,7 @@ public class EntityIdArrayIterableWrapperTests extends EntityStoreTestBase {
             return new ConstantEntityIterableHandle(getEntityStore(), EntityIterableType.DISTINCT) {
 
                 @Override
-                protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+                public void hashCode(@NotNull final EntityIterableHandleHash hash) {
                 }
             };
         }

@@ -54,7 +54,7 @@ public abstract class EntityIterableBase implements EntityIterable {
                 //noinspection EmptyClass
                 return new ConstantEntityIterableHandle(null, EntityIterableType.EMPTY) {
                     @Override
-                    protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+                    public void hashCode(@NotNull final EntityIterableHandleHash hash) {
                         // do nothing
                     }
                 };

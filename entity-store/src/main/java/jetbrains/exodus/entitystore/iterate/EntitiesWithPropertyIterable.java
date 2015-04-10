@@ -66,7 +66,15 @@ public class EntitiesWithPropertyIterable extends EntityIterableBase {
         }
 
         @Override
-        protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+        public void toString(@NotNull final StringBuilder builder) {
+            super.toString(builder);
+            builder.append(entityTypeId);
+            builder.append('-');
+            builder.append(propertyId);
+        }
+
+        @Override
+        public void hashCode(@NotNull final EntityIterableHandleHash hash) {
             hash.apply(entityTypeId);
             hash.applyDelimiter();
             hash.apply(propertyId);

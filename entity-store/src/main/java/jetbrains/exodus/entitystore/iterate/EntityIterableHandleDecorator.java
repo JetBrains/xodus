@@ -23,16 +23,16 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 @SuppressWarnings({"RawUseOfParameterizedType"})
-public abstract class EntityIterableHandleDecorator extends EntityIterableHandleBase {
+public class EntityIterableHandleDecorator extends EntityIterableHandleBase {
 
     @NotNull
-    protected final EntityIterableHandle decorated;
+    protected final EntityIterableHandleBase decorated;
 
     protected EntityIterableHandleDecorator(@Nullable final PersistentEntityStore store,
                                             @NotNull final EntityIterableType type,
                                             @NotNull final EntityIterableHandle decorated) {
         super(store, type);
-        this.decorated = decorated;
+        this.decorated = (EntityIterableHandleBase) decorated;
     }
 
     @Override
@@ -77,7 +77,12 @@ public abstract class EntityIterableHandleDecorator extends EntityIterableHandle
         return decorated.isExpired();
     }
 
-    protected void applyDecoratedToHash(@NotNull final EntityIterableHandleHash hash) {
+    @Override
+    public void hashCode(@NotNull final EntityIterableHandleHash hash) {
         hash.apply(decorated);
+    }
+
+    protected void applyDecoratedToBuilder(@NotNull final StringBuilder builder) {
+        decorated.toString(builder);
     }
 }

@@ -48,7 +48,7 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
         final int depth1 = iterable1.depth();
         final int depth2 = iterable2.depth();
         // for commutative operations, try to build right-oriented tree
-        if (!isCommutative || depth1 < depth2) {
+        if (!isCommutative || depth1 <= depth2) {
             this.iterable1 = iterable1;
             this.iterable2 = iterable2;
         } else {
@@ -119,7 +119,15 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
             }
 
             @Override
-            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+            public void toString(@NotNull final StringBuilder builder) {
+                super.toString(builder);
+                ((EntityIterableHandleBase) iterable1.getHandle()).toString(builder);
+                builder.append('-');
+                ((EntityIterableHandleBase) iterable2.getHandle()).toString(builder);
+            }
+
+            @Override
+            public void hashCode(@NotNull final EntityIterableHandleHash hash) {
                 final EntityIterableHandle handle1 = iterable1.getHandle();
                 final EntityIterableHandle handle2 = iterable2.getHandle();
                 if (!isCommutative() || isOrderOk(handle1, handle2)) {

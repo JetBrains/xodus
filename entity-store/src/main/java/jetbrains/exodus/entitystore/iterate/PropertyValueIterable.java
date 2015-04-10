@@ -87,7 +87,17 @@ public final class PropertyValueIterable extends EntityIterableBase {
         return new ConstantEntityIterableHandle(getStore(), PropertyValueIterable.getType()) {
 
             @Override
-            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+            public void toString(@NotNull final StringBuilder builder) {
+                super.toString(builder);
+                builder.append(entityTypeId);
+                builder.append('-');
+                builder.append(propertyId);
+                builder.append('-');
+                builder.append(value.toString());
+            }
+
+            @Override
+            public void hashCode(@NotNull final EntityIterableHandleHash hash) {
                 hash.apply(entityTypeId);
                 hash.applyDelimiter();
                 hash.apply(propertyId);

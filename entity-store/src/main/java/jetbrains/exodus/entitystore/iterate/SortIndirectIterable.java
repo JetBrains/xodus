@@ -134,7 +134,7 @@ public class SortIndirectIterable extends EntityIterableDecoratorBase {
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
         return new EntityIterableHandleDecorator(getStore(), getType(), source.getHandle()) {
-            private final EntityIterableHandle sortedLinksHandle = sortedLinks.getHandle();
+            private final EntityIterableHandleBase sortedLinksHandle = (EntityIterableHandleBase) sortedLinks.getHandle();
             @Nullable
             private final int[] linkIds = mergeLinkIds(new int[]{linkId}, mergeLinkIds(decorated.getLinkIds(), sortedLinksHandle.getLinkIds()));
 
@@ -145,12 +145,24 @@ public class SortIndirectIterable extends EntityIterableDecoratorBase {
             }
 
             @Override
-            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+            public void toString(@NotNull final StringBuilder builder) {
+                super.toString(builder);
+                builder.append(sourceTypeId);
+                builder.append('-');
+                builder.append(linkId);
+                builder.append('-');
+                applyDecoratedToBuilder(builder);
+                builder.append('-');
+                sortedLinksHandle.toString(builder);
+            }
+
+            @Override
+            public void hashCode(@NotNull final EntityIterableHandleHash hash) {
                 hash.apply(sourceTypeId);
                 hash.applyDelimiter();
                 hash.apply(linkId);
                 hash.applyDelimiter();
-                applyDecoratedToHash(hash);
+                super.hashCode(hash);
                 hash.applyDelimiter();
                 hash.apply(sortedLinksHandle);
             }

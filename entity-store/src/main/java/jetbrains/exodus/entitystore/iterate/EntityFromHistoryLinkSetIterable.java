@@ -77,7 +77,19 @@ public class EntityFromHistoryLinkSetIterable extends EntityLinksIterableBase {
             }
 
             @Override
-            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+            public void toString(@NotNull final StringBuilder builder) {
+                super.toString(builder);
+                ((PersistentEntityId) entityId).toString(builder);
+                builder.append('-');
+                builder.append(linkNames.size());
+                for (final int id : linkNames.keySet()) {
+                    builder.append('-');
+                    builder.append(id);
+                }
+            }
+
+            @Override
+            public void hashCode(@NotNull final EntityIterableHandleHash hash) {
                 ((PersistentEntityId) entityId).toHash(hash);
                 hash.applyDelimiter();
                 hash.apply(linkNames.size());

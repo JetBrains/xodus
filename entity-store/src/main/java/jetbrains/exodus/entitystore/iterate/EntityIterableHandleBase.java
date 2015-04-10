@@ -126,17 +126,6 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
         return false;
     }
 
-    @Override
-    public String toString() {
-        final EntityIterableHandleHash hash = new EntityIterableHandleHash(new StringBuilder());
-        hash.apply(type.getType());
-        if (type != EntityIterableType.EMPTY) {
-            hash.applyDelimiter();
-        }
-        hashCode(hash);
-        return hash.toString();
-    }
-
     @NotNull
     public EntityIterableHandleHash getHash() {
         //noinspection ResultOfMethodCallIgnored
@@ -144,7 +133,21 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
         return hash;
     }
 
-    protected abstract void hashCode(@NotNull final EntityIterableHandleHash hash);
+    @Override
+    public final String toString() {
+        final StringBuilder builder = new StringBuilder();
+        toString(builder);
+        return builder.toString();
+    }
+
+    public void toString(@NotNull final StringBuilder builder) {
+        builder.append(type.getType());
+        if (type != EntityIterableType.EMPTY) {
+            builder.append('-');
+        }
+    }
+
+    public abstract void hashCode(@NotNull final EntityIterableHandleHash hash);
 
     public static int[] mergeLinkIds(@Nullable final int[] left, @Nullable final int[] right) {
         if (left == null) return right;
@@ -242,8 +245,6 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
 
         @NotNull
         private final long[] hashLongs;
-        @Nullable
-        private final StringBuilder toStringBuilder;
         private int bytesProcessed;
 
         public EntityIterableHandleHash() {
@@ -252,7 +253,6 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
 
         private EntityIterableHandleHash(@Nullable final StringBuilder builder) {
             hashLongs = new long[HASH_LONGS_COUNT];
-            toStringBuilder = builder;
         }
 
         @Override
@@ -288,9 +288,6 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
                 hashLongs[index] = (hashValue << 5) - hashValue /* same as hashValue*31 */ + (b & 0xff);
             }
             this.bytesProcessed = bytesProcessed + 1;
-            if (toStringBuilder != null) {
-                toStringBuilder.append((char) (b & 0xff));
-            }
         }
 
         public void apply(final int i) {
@@ -334,9 +331,6 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
 
         @Override
         public String toString() {
-            if (toStringBuilder != null) {
-                return toStringBuilder.toString();
-            }
             final int hashBytes = Math.min(bytesProcessed, HASH_LONGS_COUNT * 8);
             final StringBuilder builder = new StringBuilder(hashBytes);
             forEachByte(new ByteConsumer() {

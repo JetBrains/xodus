@@ -58,10 +58,10 @@ public final class EntityReverseIterable extends EntityIterableDecoratorBase {
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
         return new EntityIterableHandleDecorator(getStore(), EntityReverseIterable.getType(), source.getHandle()) {
-
             @Override
-            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
-                applyDecoratedToHash(hash);
+            public void toString(@NotNull final StringBuilder builder) {
+                super.toString(builder);
+                applyDecoratedToBuilder(builder);
             }
         };
     }

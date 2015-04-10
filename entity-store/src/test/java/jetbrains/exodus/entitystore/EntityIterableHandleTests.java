@@ -30,7 +30,15 @@ public class EntityIterableHandleTests extends EntityStoreTestBase {
     public void testTrivial() {
         final EntityIterableHandleBase h = new ConstantEntityIterableHandle(getEntityStore(), EntityIterableType.EMPTY) {
             @Override
-            protected void hashCode(@NotNull EntityIterableHandleHash hash) {
+            public void toString(@NotNull final StringBuilder builder) {
+                super.toString(builder);
+                for (int i = 0; i < 31; ++i) {
+                    builder.append('0');
+                }
+            }
+
+            @Override
+            public void hashCode(@NotNull final EntityIterableHandleHash hash) {
                 for (int i = 0; i < 31; ++i) {
                     hash.apply("0");
                 }
@@ -63,7 +71,15 @@ public class EntityIterableHandleTests extends EntityStoreTestBase {
     public void test_XD_438() {
         final EntityIterableHandleBase h = new ConstantEntityIterableHandle(getEntityStore(), EntityIterableType.REVERSE) {
             @Override
-            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+            public void toString(@NotNull final StringBuilder builder) {
+                super.toString(builder);
+                builder.append(EntityIterableType.SINGLE_ENTITY.getType());
+                builder.append('-');
+                new PersistentEntityId(1000000000, 10000000000000000L).toString(builder);
+            }
+
+            @Override
+            public void hashCode(@NotNull final EntityIterableHandleHash hash) {
                 hash.apply(EntityIterableType.SINGLE_ENTITY.getType());
                 hash.applyDelimiter();
                 new PersistentEntityId(1000000000, 10000000000000000L).toHash(hash);

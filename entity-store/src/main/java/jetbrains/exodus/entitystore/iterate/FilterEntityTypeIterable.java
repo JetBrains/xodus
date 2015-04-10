@@ -83,10 +83,18 @@ class FilterEntityTypeIterable extends EntityIterableDecoratorBase {
         return new EntityIterableHandleDecorator(getStore(), getType(), source.getHandle()) {
 
             @Override
-            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+            public void toString(@NotNull final StringBuilder builder) {
+                super.toString(builder);
+                builder.append(entityTypeId);
+                builder.append('-');
+                applyDecoratedToBuilder(builder);
+            }
+
+            @Override
+            public void hashCode(@NotNull final EntityIterableHandleHash hash) {
                 hash.apply(entityTypeId);
                 hash.applyDelimiter();
-                applyDecoratedToHash(hash);
+                super.hashCode(hash);
             }
         };
     }

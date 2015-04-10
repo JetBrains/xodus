@@ -88,10 +88,18 @@ public class SkipEntityIterable extends EntityIterableDecoratorBase {
         return new EntityIterableHandleDecorator(getStore(), SkipEntityIterable.getType(), source.getHandle()) {
 
             @Override
-            protected void hashCode(@NotNull final EntityIterableHandleHash hash) {
+            public void toString(@NotNull final StringBuilder builder) {
+                super.toString(builder);
+                builder.append(itemsToSkip);
+                builder.append('-');
+                applyDecoratedToBuilder(builder);
+            }
+
+            @Override
+            public void hashCode(@NotNull final EntityIterableHandleHash hash) {
                 hash.apply(itemsToSkip);
                 hash.applyDelimiter();
-                applyDecoratedToHash(hash);
+                super.hashCode(hash);
             }
         };
     }
