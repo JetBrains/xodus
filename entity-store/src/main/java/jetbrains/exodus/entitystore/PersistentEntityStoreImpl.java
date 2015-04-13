@@ -2116,8 +2116,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @Override
     public BackupStrategy getBackupStrategy() {
-        final BackupStrategy environmentBackupStrategy = environment.getBackupStrategy();
-        final BackupStrategy blobVaultBackupStrategy = blobVault.getBackupStrategy();
         return new PersistentEntityStoreBackupStrategy(this);
     }
 

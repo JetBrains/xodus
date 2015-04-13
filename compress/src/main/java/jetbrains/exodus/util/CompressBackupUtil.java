@@ -43,11 +43,11 @@ public class CompressBackupUtil {
     @NotNull
     public static File backup(@NotNull final Backupable target, @NotNull final File backupRoot,
                               @Nullable final String backupNamePrefix, final boolean zip) throws Exception {
-        final BackupStrategy strategy = target.getBackupStrategy();
         if (!backupRoot.exists() && !backupRoot.mkdirs()) {
             throw new IOException("Failed to create " + backupRoot.getAbsolutePath());
         }
         final File backupFile;
+        final BackupStrategy strategy = target.getBackupStrategy();
         strategy.beforeBackup();
         try {
             final ArchiveOutputStream archive;
