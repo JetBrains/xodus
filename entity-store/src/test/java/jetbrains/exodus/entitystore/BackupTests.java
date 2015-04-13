@@ -18,8 +18,8 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.BackupStrategy;
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.core.execution.Job;
+import jetbrains.exodus.core.execution.ThreadJobProcessor;
 import jetbrains.exodus.util.CompressBackupUtil;
-import jetbrains.exodus.util.DeferredIO;
 import jetbrains.exodus.util.IOUtil;
 import jetbrains.exodus.util.Random;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
@@ -74,7 +74,7 @@ public class BackupTests extends EntityStoreTestBase {
         final PersistentEntityStoreImpl store = getEntityStore();
         store.getConfig().setMaxInPlaceBlobSize(0); // no in-place blobs
         final PersistentStoreTransaction txn = getStoreTransaction();
-        final int issueCount = 2000;
+        final int issueCount = 1000;
         for (int i = 0; i < issueCount; ++i) {
             final PersistentEntity issue = txn.newEntity("Issue");
             issue.setBlobString("description", Double.toString(Math.random()));
@@ -83,23 +83,29 @@ public class BackupTests extends EntityStoreTestBase {
         final Random rnd = new Random();
         final boolean[] finish = {false};
         final int[] backgroundChanges = {0};
-        DeferredIO.getJobProcessor().queue(new Job() {
-            @Override
-            protected void execute() throws Throwable {
-                while (!finish[0]) {
-                    store.executeInTransaction(new StoreTransactionalExecutable() {
-                        @Override
-                        public void execute(@NotNull final StoreTransaction txn) {
-                            final Entity issue = txn.getAll("Issue").skip(rnd.nextInt(issueCount - 1)).getFirst();
-                            assertNotNull(issue);
-                            issue.setBlobString("description", Double.toString(Math.random()));
-                            System.out.print("\r" + (++backgroundChanges[0]));
-                        }
-                    });
+        final int threadCount = 4;
+        final ThreadJobProcessor[] threads = new ThreadJobProcessor[threadCount];
+        for (int i = 0; i < threads.length; i++) {
+            threads[i] = new ThreadJobProcessor("BackupTest Job Processor " + i);
+            threads[i].start();
+            threads[i].queue(new Job() {
+                @Override
+                protected void execute() throws Throwable {
+                    while (!finish[0]) {
+                        store.executeInTransaction(new StoreTransactionalExecutable() {
+                            @Override
+                            public void execute(@NotNull final StoreTransaction txn) {
+                                final Entity issue = txn.getAll("Issue").skip(rnd.nextInt(issueCount - 1)).getFirst();
+                                assertNotNull(issue);
+                                issue.setBlobString("description", Double.toString(Math.random()));
+                                System.out.print("\r" + (++backgroundChanges[0]));
+                            }
+                        });
+                    }
                 }
-            }
-        });
-        Thread.sleep(200);
+            });
+        }
+        Thread.sleep(1000);
         final File backupDir = TestUtil.createTempDir();
         try {
             final File backup = CompressBackupUtil.backup(store, backupDir, null, true);
@@ -116,6 +122,11 @@ public class BackupTests extends EntityStoreTestBase {
                             final PersistentStoreTransaction txn = (PersistentStoreTransaction) t;
                             assertEquals(issueCount, txn.getAll("Issue").size());
                             lastUsedBlobHandle[0] = newStore.getSequence(txn, PersistentEntityStoreImpl.BLOB_HANDLES_SEQUENCE).loadValue(txn);
+                            for (final Entity issue : txn.getAll("Issue")) {
+                                final String description = issue.getBlobString("description");
+                                assertNotNull(description);
+                                assertFalse(description.isEmpty());
+                            }
                         }
                     });
                     final FileSystemBlobVault blobVault = (FileSystemBlobVault) newStore.getBlobVault();
@@ -134,6 +145,9 @@ public class BackupTests extends EntityStoreTestBase {
             }
         } finally {
             IOUtil.deleteRecursively(backupDir);
+        }
+        for (final ThreadJobProcessor thread : threads) {
+            thread.finish();
         }
     }
 
