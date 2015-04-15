@@ -30,7 +30,9 @@ import org.jetbrains.annotations.Nullable;
 
 @SuppressWarnings({"HardcodedLineSeparator", "AssignmentToMethodParameter", "ConstructorWithTooManyParameters"})
 public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
-    protected static Log log = LogFactory.getLog(TreeKeepingEntityIterable.class);
+
+    private static final Log log = LogFactory.getLog(TreeKeepingEntityIterable.class);
+    private static final boolean unionSubtypesResults = Boolean.getBoolean("jetbrains.exodus.query.unionSubtypesResults");
 
     private final Iterable<Entity> instance;
     private final NodeBase sourceTree;
@@ -165,7 +167,12 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
         Iterable<Entity> result = ast.instantiate(entityType, queryEngine, mmd);
         if (!(emd == null || ast.polymorphic())) {
             for (String subType : emd.getSubTypes()) {
-                result = queryEngine.concatAdjusted(result, instantiateForWholeHierarchy(subType, ast));
+                if (unionSubtypesResults) {
+                    // union returns sorted by id results provided its operands are sorted by id
+                    result = queryEngine.unionAdjusted(result, instantiateForWholeHierarchy(subType, ast));
+                } else {
+                    result = queryEngine.concatAdjusted(result, instantiateForWholeHierarchy(subType, ast));
+                }
             }
         }
         return queryEngine.adjustEntityIterable(result);
