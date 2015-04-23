@@ -17,10 +17,9 @@ package jetbrains.exodus.env.management;
 
 import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.env.EnvironmentImpl;
+import jetbrains.exodus.env.TransactionImpl;
 import jetbrains.exodus.management.MBeanBase;
 import org.jetbrains.annotations.NotNull;
-
-import java.util.concurrent.Semaphore;
 
 public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBean {
 
@@ -112,16 +111,24 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
 
     @Override
     public void setEnvIsReadonly(boolean isReadonly) {
-        config.setEnvIsReadonly(isReadonly);
         if (isReadonly) {
-            final Semaphore sm = new Semaphore(0);
-            env.executeTransactionSafeTask(new Runnable() {
-                @Override
-                public void run() {
-                    sm.release();
-                }
-            });
-            sm.acquireUninterruptibly();
+            env.suspendGC();
+            final TransactionImpl txn = env.beginTransaction();
+            try {
+                txn.setCommitHook(new Runnable() {
+                    @Override
+                    public void run() {
+                        config.setEnvIsReadonly(true);
+                    }
+                });
+                txn.forceFlush();
+            } finally {
+                txn.abort();
+            }
+
+        } else {
+            env.resumeGC();
+            config.setEnvIsReadonly(false);
         }
     }
 

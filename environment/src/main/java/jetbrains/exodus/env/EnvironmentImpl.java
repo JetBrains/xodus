@@ -435,6 +435,9 @@ public class EnvironmentImpl implements Environment {
         }
         final Iterable<Loggable>[] expiredLoggables;
         synchronized (commitLock) {
+            if (ec.getEnvIsReadonly()) {
+                return false;
+            }
             checkIsOperative();
             if (!txn.checkVersion(metaTree.root)) {
                 // meta lock not needed 'cause write can only occur in another commit lock
