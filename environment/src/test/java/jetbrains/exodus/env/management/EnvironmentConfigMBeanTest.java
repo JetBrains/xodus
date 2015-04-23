@@ -49,9 +49,9 @@ public class EnvironmentConfigMBeanTest extends EnvironmentTestsBase {
     @Test
     public void readOnly() throws Exception {
         beanIsAccessible();
-        Assert.assertFalse((Boolean) platformMBeanServer.getAttribute(envConfigName, "EnvIsReadonly"));
+        Assert.assertFalse((Boolean) platformMBeanServer.getAttribute(envConfigName, READ_ONLY_ATTR));
         platformMBeanServer.setAttribute(envConfigName, new Attribute(READ_ONLY_ATTR, true));
-        Assert.assertTrue((Boolean) platformMBeanServer.getAttribute(envConfigName, "EnvIsReadonly"));
+        Assert.assertTrue((Boolean) platformMBeanServer.getAttribute(envConfigName, READ_ONLY_ATTR));
         Assert.assertTrue(env.getEnvironmentConfig().getEnvIsReadonly());
         platformMBeanServer.setAttribute(envConfigName, new Attribute(READ_ONLY_ATTR, false));
     }
