@@ -17,6 +17,8 @@ package jetbrains.exodus.entitystore.management;
 
 public interface EntityStoreConfigMBean {
 
+    String OBJECT_NAME_PREFIX = "jetbrains.exodus.entitystore: type=EntityStoreConfig";
+
     boolean getRefactoringSkipAll();
 
     boolean getRefactoringNullIndices();

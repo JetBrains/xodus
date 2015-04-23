@@ -17,6 +17,8 @@ package jetbrains.exodus.env.management;
 
 public interface EnvironmentConfigMBean {
 
+    String OBJECT_NAME_PREFIX = "jetbrains.exodus.env: type=EnvironmentConfig";
+
     long getMemoryUsage();
 
     int getMemoryUsagePercent();

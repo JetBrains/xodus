@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.env.management;
 
+import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.management.MBeanBase;
 import org.jetbrains.annotations.NotNull;
@@ -29,7 +30,7 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     private final jetbrains.exodus.env.EnvironmentConfig config;
 
     public EnvironmentConfig(@NotNull final EnvironmentImpl env) {
-        super("jetbrains.exodus.env: type=EnvironmentConfig, location=" + escapeLocation(env.getLocation()));
+        super(getObjectName(env));
         this.env = env;
         config = env.getEnvironmentConfig();
     }
@@ -238,5 +239,9 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     public void close() {
         env.close();
         super.close();
+    }
+
+    public static String getObjectName(@NotNull final Environment env) {
+        return OBJECT_NAME_PREFIX + ", location=" + escapeLocation(env.getLocation());
     }
 }

@@ -28,7 +28,7 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     private final PersistentEntityStoreConfig config;
 
     public EntityStoreConfig(@NotNull final PersistentEntityStoreImpl store) {
-        super("jetbrains.exodus.entitystore: type=EntityStoreConfig, location=" + escapeLocation(store.getLocation()));
+        super(getObjectName(store));
         this.store = store;
         config = store.getConfig();
     }
@@ -182,5 +182,9 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     public void close() {
         store.close();
         super.close();
+    }
+
+    public static String getObjectName(@NotNull final PersistentEntityStoreImpl store) {
+        return OBJECT_NAME_PREFIX + ", location=" + escapeLocation(store.getLocation());
     }
 }
