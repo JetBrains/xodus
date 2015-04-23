@@ -16,6 +16,8 @@
 package jetbrains.exodus.env.management;
 
 import jetbrains.exodus.env.EnvironmentTestsBase;
+import jetbrains.exodus.env.StoreConfig;
+import jetbrains.exodus.env.TransactionImpl;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -54,5 +56,16 @@ public class EnvironmentConfigMBeanTest extends EnvironmentTestsBase {
         Assert.assertTrue((Boolean) platformMBeanServer.getAttribute(envConfigName, READ_ONLY_ATTR));
         Assert.assertTrue(env.getEnvironmentConfig().getEnvIsReadonly());
         platformMBeanServer.setAttribute(envConfigName, new Attribute(READ_ONLY_ATTR, false));
+    }
+
+    @Test
+    public void readOnly_XD_444() throws Exception {
+        beanIsAccessible();
+        final TransactionImpl txn = env.beginTransaction();
+        env.openStore("New Store", StoreConfig.WITHOUT_DUPLICATES, txn);
+        Assert.assertFalse(txn.isIdempotent());
+        platformMBeanServer.setAttribute(envConfigName, new Attribute(READ_ONLY_ATTR, true));
+        Assert.assertFalse(txn.flush());
+        txn.abort();
     }
 }
