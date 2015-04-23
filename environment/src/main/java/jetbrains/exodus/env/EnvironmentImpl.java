@@ -286,7 +286,9 @@ public class EnvironmentImpl implements Environment {
             }
             checkInactive(ec.getEnvCloseForcedly());
             try {
-                gc.saveUtilizationProfile();
+                if (!ec.getEnvIsReadonly()) {
+                    gc.saveUtilizationProfile();
+                }
                 ec.removeChangedSettingsListener(envSettingsListener);
                 logCacheHitRate = log.getCacheHitRate();
                 log.close();
