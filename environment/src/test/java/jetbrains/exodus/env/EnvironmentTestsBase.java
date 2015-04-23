@@ -91,12 +91,13 @@ public class EnvironmentTestsBase {
         } catch (final ExodusException e) {
             archiveDB(env.getLocation(), getClass().getName() + '.' + System.currentTimeMillis() + ".tar.gz");
             throw e;
-        }
-        Log.invalidateSharedCache();
-        deleteRW();
-        processor.finish();
-        if (myMessenger != null) {
-            myMessenger.close();
+        } finally {
+            Log.invalidateSharedCache();
+            deleteRW();
+            processor.finish();
+            if (myMessenger != null) {
+                myMessenger.close();
+            }
         }
     }
 
