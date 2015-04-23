@@ -436,7 +436,7 @@ public class EnvironmentImpl implements Environment {
         final Iterable<Loggable>[] expiredLoggables;
         synchronized (commitLock) {
             if (ec.getEnvIsReadonly()) {
-                return false;
+                throw new ReadonlyTransactionException();
             }
             checkIsOperative();
             if (!txn.checkVersion(metaTree.root)) {
