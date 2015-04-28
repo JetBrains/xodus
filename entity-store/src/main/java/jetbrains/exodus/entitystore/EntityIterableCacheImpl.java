@@ -152,6 +152,11 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
         return false;
     }
 
+    private String getStringPresentation(@NotNull final EntityIterableHandle handle) {
+        return config.getEntityIterableCacheUseHumanReadable() ?
+                EntityIterableBase.getHumanReadablePresentation(handle) : handle.toString();
+    }
+
     @SuppressWarnings({"EqualsAndHashcode"})
     private final class EntityIterableAsyncInstantiation extends Job {
 
@@ -171,7 +176,7 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
 
         @Override
         public String getName() {
-            return "Caching job for handle " + EntityIterableBase.getHumanReadablePresentation(it.getHandle());
+            return "Caching job for handle " + it.getHandle();
         }
 
         @Override
@@ -206,12 +211,12 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
                         it.getOrCreateCachedWrapper(txn);
                         final long cachedIn = System.currentTimeMillis() - started;
                         if (cachedIn > 1000) {
-                            log.info("Cached in " + cachedIn + " ms, handle=" + EntityIterableBase.getHumanReadablePresentation(handle));
+                            log.info("Cached in " + cachedIn + " ms, handle=" + getStringPresentation(handle));
                         }
                     }
                 } catch (TooLongEntityIterableInstantiationException e) {
                     if (log.isInfoEnabled()) {
-                        log.info("Caching forcedly stopped: " + EntityIterableBase.getHumanReadablePresentation(handle));
+                        log.info("Caching forcedly stopped: " + getStringPresentation(handle));
                     }
                 }
             } finally {
