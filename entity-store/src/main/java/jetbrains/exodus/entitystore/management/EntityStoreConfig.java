@@ -149,6 +149,16 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
+    public boolean getEntityIterableCacheUseHumanReadable() {
+        return config.getEntityIterableCacheUseHumanReadable();
+    }
+
+    @Override
+    public void setEntityIterableCacheUseHumanReadable(boolean useHumanReadable) {
+        config.setEntityIterableCacheUseHumanReadable(useHumanReadable);
+    }
+
+    @Override
     public int getTransactionPropsCacheSize() {
         return config.getTransactionPropsCacheSize();
     }

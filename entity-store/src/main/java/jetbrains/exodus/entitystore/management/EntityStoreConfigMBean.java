@@ -65,6 +65,10 @@ public interface EntityStoreConfigMBean {
 
     void setEntityIterableCacheMaxSizeOfDirectValue(int maxSizeOfDirectValue);
 
+    boolean getEntityIterableCacheUseHumanReadable();
+
+    void setEntityIterableCacheUseHumanReadable(boolean useHumanReadable);
+
     int getTransactionPropsCacheSize();
 
     void setTransactionPropsCacheSize(int transactionPropsCacheSize);
