@@ -1,6 +1,5 @@
 buildscript {
     repositories {
-        mavenCentral()
         jcenter()      // for license plugin
     }
 
@@ -53,7 +52,7 @@ subprojects {
 
     jar {
         manifest {
-            attributes 'Implementation-Title': 'Gradle', 'Implementation-Version': version
+            attributes 'Implementation-Title': archivesBaseName, 'Implementation-Version': version
         }
     }
 
