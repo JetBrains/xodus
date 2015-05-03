@@ -507,7 +507,7 @@ public class EnvironmentImpl implements Environment {
         final StoreImpl result;
         if (metaInfo == null) {
             if (ec.getEnvIsReadonly() && ec.getEnvReadonlyEmptyStores()) {
-                return new TemporaryEmptyStore(this, name);
+                return createTemporaryEmptyStore(name);
             }
             final int structureId = allocateStructureId();
             metaInfo = TreeMetaInfo.load(this, config.duplicates, config.prefixing, structureId);
@@ -597,6 +597,10 @@ public class EnvironmentImpl implements Environment {
             return cache != null ? cache : invalidateTreeNodesCache();
         }
         return null;
+    }
+
+    protected StoreImpl createTemporaryEmptyStore(String name) {
+        return new TemporaryEmptyStore(this, name);
     }
 
     static boolean isUtilizationProfile(@NotNull final String storeName) {

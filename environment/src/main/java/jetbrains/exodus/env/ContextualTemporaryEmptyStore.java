@@ -25,20 +25,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Iterator;
 
-class TemporaryEmptyStore extends StoreImpl {
+class ContextualTemporaryEmptyStore extends ContextualStoreImpl {
 
-    TemporaryEmptyStore(@NotNull final EnvironmentImpl env, @NotNull final String name) {
+    public ContextualTemporaryEmptyStore(@NotNull final ContextualEnvironmentImpl env,
+                                         @NotNull final String name) {
         super(env, name, TreeMetaInfo.EMPTY.clone(-1));
-    }
-
-    @NotNull
-    @Override
-    public StoreConfig getConfig() {
-        return StoreConfig.TEMPORARY_EMPTY;
-    }
-
-    TemporaryEmptyStore(@NotNull final EnvironmentImpl env) {
-        this(env, "Temporary Empty Store");
     }
 
     @Override

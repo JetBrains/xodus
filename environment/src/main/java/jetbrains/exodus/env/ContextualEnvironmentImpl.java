@@ -171,4 +171,8 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
         }
         super.finishTransaction(txn);
     }
+
+    protected StoreImpl createTemporaryEmptyStore(String name) {
+        return new ContextualTemporaryEmptyStore(this, name);
+    }
 }
