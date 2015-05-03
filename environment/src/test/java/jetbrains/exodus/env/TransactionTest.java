@@ -273,13 +273,44 @@ public class TransactionTest extends EnvironmentTestsBase {
         txn.abort();
     }
 
-    @Test(expected = ExodusException.class)
+    @Test(expected = ReadonlyTransactionException.class)
     public void testExecuteInReadonlyTransaction() {
         final EnvironmentImpl env = getEnvironment();
         env.executeInReadonlyTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull Transaction txn) {
                 env.openStore("WTF", StoreConfig.WITHOUT_DUPLICATES, txn);
+            }
+        });
+    }
+
+    @Test(expected = ReadonlyTransactionException.class)
+    public void test_XD_447() {
+        final EnvironmentImpl env = getEnvironment();
+        final EnvironmentConfig ec = env.getEnvironmentConfig();
+        ec.setEnvIsReadonly(true);
+        ec.setEnvReadonlyEmptyStores(true);
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                final StoreImpl store = env.openStore("WTF", StoreConfig.WITHOUT_DUPLICATES, txn);
+                final ArrayByteIterable wtfEntry = StringBinding.stringToEntry("WTF");
+                store.put(txn, wtfEntry, wtfEntry);
+            }
+        });
+    }
+
+    @Test(expected = ReadonlyTransactionException.class)
+    public void test_XD_447_() {
+        final EnvironmentImpl env = getEnvironment();
+        final EnvironmentConfig ec = env.getEnvironmentConfig();
+        ec.setEnvIsReadonly(true);
+        ec.setEnvReadonlyEmptyStores(true);
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                final StoreImpl store = env.openStore("WTF", StoreConfig.WITHOUT_DUPLICATES, txn);
+                store.delete(txn, StringBinding.stringToEntry("WTF"));
             }
         });
     }
