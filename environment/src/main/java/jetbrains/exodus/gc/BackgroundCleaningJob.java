@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.gc;
 
+import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.log.Log;
@@ -52,7 +53,11 @@ final class BackgroundCleaningJob extends Job {
     @Override
     protected void execute() throws Throwable {
         final GarbageCollector gc = this.gc;
-        if (gc != null && canContinue()) {
+        if (gc == null) {
+            return;
+        }
+        final BackgroundCleaner cleaner = gc.getCleaner();
+        if (canContinue()) {
             final EnvironmentImpl env = gc.getEnvironment();
             final int gcStartIn = env.getEnvironmentConfig().getGcStartIn();
             if (gcStartIn != 0) {
@@ -64,13 +69,17 @@ final class BackgroundCleaningJob extends Job {
             }
             final Log log = env.getLog();
             if (gc.getMinFileAge() < log.getNumberOfFiles()) {
-                gc.getCleaner().setCleaning(true);
+                cleaner.setCleaning(true);
                 try {
                     doCleanLog(log, gc);
                 } finally {
-                    gc.getCleaner().setCleaning(false);
+                    cleaner.setCleaning(false);
                 }
             }
+        }
+        // XD-446: if we stopped cleaning cycle due to background cleaner job processor has changed then re-queue the job to another processor
+        if (!cleaner.isCurrentThread()) {
+            gc.wake();
         }
     }
 
@@ -109,8 +118,15 @@ final class BackgroundCleaningJob extends Job {
         if (gc == null) {
             return false;
         }
-        gc.deletePendingFiles();
         final BackgroundCleaner cleaner = gc.getCleaner();
+        try {
+            gc.deletePendingFiles();
+        } catch (ExodusException e) {
+            if (!cleaner.isCurrentThread()) {
+                return false;
+            }
+            throw e;
+        }
         return !cleaner.isSuspended() && !cleaner.isFinished() &&
                 gc.getEnvironment().getEnvironmentConfig().isGcEnabled() && gc.isTooMuchFreeSpace();
     }
