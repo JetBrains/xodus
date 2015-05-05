@@ -521,24 +521,28 @@ public abstract class EntityIterableBase implements EntityIterable {
     }
 
     public static String getHumanReadablePresentation(@NotNull final String handle) {
-        String[] types = handle.split("-");
-        int minus = 0;
-        for (int i = 0; i < types.length; i++) {
-            if (types[i].isEmpty()) {
-                minus++;
-                types[i + 1] = '-' + types[i + 1];
-            } else {
-                types[i - minus] = types[i];
+        try {
+            String[] types = handle.split("-");
+            int minus = 0;
+            for (int i = 0; i < types.length; i++) {
+                if (types[i].isEmpty()) {
+                    minus++;
+                    types[i + 1] = '-' + types[i + 1];
+                } else {
+                    types[i - minus] = types[i];
+                }
             }
+            types = Arrays.copyOf(types, types.length - minus);
+            int[] pos = {0};
+            StringBuilder presentation = new StringBuilder();
+            getHumanReadablePresentation(presentation, types, pos, "");
+            if (pos[0] < types.length - 1) {
+                throw new RuntimeException("Whole handle not read.\n" + presentation);
+            }
+            return presentation.toString();
+        } catch (Exception ignore) {
         }
-        types = Arrays.copyOf(types, types.length - minus);
-        int[] pos = {0};
-        StringBuilder presentation = new StringBuilder();
-        getHumanReadablePresentation(presentation, types, pos, "");
-        if (pos[0] < types.length - 1) {
-            throw new RuntimeException("Whole handle not read.\n" + presentation);
-        }
-        return presentation.toString();
+        return handle;
     }
 
     private static void getHumanReadablePresentation(StringBuilder presentation, String[] types, int[] pos, String indent) {
