@@ -111,6 +111,9 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
 
     @Override
     public void setEnvIsReadonly(boolean isReadonly) {
+        if (config.getEnvIsReadonly() == isReadonly) {
+            return;
+        }
         if (isReadonly) {
             env.suspendGC();
             final TransactionImpl txn = env.beginTransaction();
