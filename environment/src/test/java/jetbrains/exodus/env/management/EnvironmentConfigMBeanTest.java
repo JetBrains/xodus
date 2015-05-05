@@ -75,4 +75,11 @@ public class EnvironmentConfigMBeanTest extends EnvironmentTestsBase {
         }, ReadonlyTransactionException.class);
         txn.abort();
     }
+
+    @Test
+    public void readOnly_XD_448() throws Exception {
+        beanIsAccessible();
+        platformMBeanServer.setAttribute(envConfigName, new Attribute(READ_ONLY_ATTR, true));
+        platformMBeanServer.setAttribute(envConfigName, new Attribute(READ_ONLY_ATTR, true));
+    }
 }
