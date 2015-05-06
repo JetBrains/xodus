@@ -156,6 +156,10 @@ public class BackupBean implements Backupable {
                                     }
                                     next = it.next();
                                 }
+                                final long acceptedSize = wrapped[i - 1].acceptFile(next.getFile());
+                                if (acceptedSize < next.getFileSize()) {
+                                    return new FileDescriptor(next.getFile(), next.getPath(), acceptedSize);
+                                }
                                 return next;
                             }
                         };

@@ -67,7 +67,7 @@ public class CompressBackupUtil {
             for (final BackupStrategy.FileDescriptor fd : strategy.listFiles()) {
                 final File file = fd.getFile();
                 if (file.isFile()) {
-                    final long fileSize = Math.min(file.length(), strategy.acceptFile(file));
+                    final long fileSize = Math.min(fd.getFileSize(), strategy.acceptFile(file));
                     if (fileSize > 0L) {
                         archiveFile(archive, fd.getPath(), file, fileSize);
                     }
