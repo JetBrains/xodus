@@ -19,6 +19,7 @@ import jetbrains.exodus.BackupStrategy;
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.core.execution.ThreadJobProcessor;
+import jetbrains.exodus.util.BackupBean;
 import jetbrains.exodus.util.CompressBackupUtil;
 import jetbrains.exodus.util.IOUtil;
 import jetbrains.exodus.util.Random;
@@ -71,6 +72,14 @@ public class BackupTests extends EntityStoreTestBase {
     }
 
     public void testStress() throws Exception {
+        doStressTest(false);
+    }
+
+    public void testStressWithBackupBean() throws Exception {
+        doStressTest(true);
+    }
+
+    public void doStressTest(final boolean useBackupBean) throws Exception {
         final PersistentEntityStoreImpl store = getEntityStore();
         store.getConfig().setMaxInPlaceBlobSize(0); // no in-place blobs
         final PersistentStoreTransaction txn = getStoreTransaction();
@@ -108,7 +117,7 @@ public class BackupTests extends EntityStoreTestBase {
         Thread.sleep(1000);
         final File backupDir = TestUtil.createTempDir();
         try {
-            final File backup = CompressBackupUtil.backup(store, backupDir, null, true);
+            final File backup = CompressBackupUtil.backup(useBackupBean ? new BackupBean(store) : store, backupDir, null, true);
             finish[0] = true;
             final File restoreDir = TestUtil.createTempDir();
             try {
