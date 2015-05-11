@@ -32,8 +32,9 @@ import java.util.List;
 
 @SuppressWarnings({"rawtypes", "NestedConditionalExpression"})
 public class SortEngine {
-    private static final int MAX_ENTRIES_TO_SORT_IN_MEMORY = 100000;
-    private static final int MAX_ENUM_COUNT_TO_SORT_LINKS = 2048;
+    private static final int MAX_ENTRIES_TO_SORT_IN_MEMORY = Integer.getInteger("jetbrains.exodus.query.maxEntriesToSortInMemory", 100000);
+    private static final int MAX_ENUM_COUNT_TO_SORT_LINKS = Integer.getInteger("jetbrains.exodus.query.maxEnumCountToSortLinks", 2048);
+    private static final int MIN_ENTRIES_TO_SORT_LINKS = Integer.getInteger("jetbrains.exodus.query.minEntriesToSortLinks", 16);
     private static final Double NULL_VALUE = 0.0;
 
     protected QueryEngine queryEngine;
@@ -95,8 +96,7 @@ public class SortEngine {
                     if (it == EntityIterableBase.EMPTY) {
                         return queryEngine.wrap(EntityIterableBase.EMPTY);
                     }
-                    final long sourceCount = it.count();
-                    if (sourceCount == 0) {
+                    if (it.getRoughCount() == 0 && it.count() == 0) {
                         return queryEngine.wrap(EntityIterableBase.EMPTY.asSortResult());
                     }
                     return mergeSorted(emd, new IterableGetter() {
@@ -159,71 +159,77 @@ public class SortEngine {
                     if (s == EntityIterableBase.EMPTY) {
                         return queryEngine.wrap(EntityIterableBase.EMPTY);
                     }
-                    final EntityIterable it = ((EntityIterableBase) s).getOrCreateCachedWrapper(txn);
-                    final long sourceCount = it.getRoughCount();
-                    if (sourceCount == 0 && it.count() == 0) {
+                    final long sourceCount = s.getRoughCount();
+                    if (sourceCount == 0 && s.count() == 0) {
                         return queryEngine.wrap(EntityIterableBase.EMPTY.asSortResult());
                     }
-                    EntityIterable allLinks = ((EntityIterable) queryEngine.queryGetAll(enumType).instantiate()).getSource();
-                    final EntityIterable distinctLinks;
-                    //TODO: maybe use EntityIterableBase and nonCachedHasFastCount
-                    long enumCount = allLinks instanceof EntitiesOfTypeIterable ? allLinks.size() : allLinks.getRoughCount();
-                    if (enumCount < 0 || enumCount > MAX_ENUM_COUNT_TO_SORT_LINKS) {
-                        distinctLinks = ((EntityIterable) (isMultiple ?
-                                queryEngine.selectManyDistinct(it, linkName) :
-                                queryEngine.selectDistinct(it, linkName)
-                        )).getSource();
-                        enumCount = distinctLinks.getRoughCount();
-                    } else {
-                        distinctLinks = allLinks;
-                    }
-                    if (sourceCount > MAX_ENTRIES_TO_SORT_IN_MEMORY || enumCount <= MAX_ENUM_COUNT_TO_SORT_LINKS) {
-                        Comparator<Entity> linksCmp = new Comparator<Entity>() {
-                            @Override
-                            public int compare(Entity o1, Entity o2) {
-                                return SortEngine.compareNullableComparables(getProperty(o1, propName), getProperty(o2, propName));
-                            }
-                        };
-                        if (!(ascending)) {
-                            linksCmp = new SortEngine.ReverseComparator(linksCmp);
+                    if (sourceCount >= MIN_ENTRIES_TO_SORT_LINKS) {
+                        final EntityIterable it = ((EntityIterableBase) s).getOrCreateCachedWrapper(txn);
+                        EntityIterable allLinks = ((EntityIterable) queryEngine.queryGetAll(enumType).instantiate()).getSource();
+                        final EntityIterable distinctLinks;
+                        //TODO: maybe use EntityIterableBase and nonCachedHasFastCount
+                        long enumCount = allLinks instanceof EntitiesOfTypeIterable ? allLinks.size() : allLinks.getRoughCount();
+                        if (enumCount < 0 || enumCount > MAX_ENUM_COUNT_TO_SORT_LINKS) {
+                            distinctLinks = ((EntityIterable) (isMultiple ?
+                                    queryEngine.selectManyDistinct(it, linkName) :
+                                    queryEngine.selectDistinct(it, linkName)
+                            )).getSource();
+                            enumCount = distinctLinks.getRoughCount();
+                        } else {
+                            distinctLinks = allLinks;
                         }
-                        final EntityIterable distinctSortedLinks = mergeSorted(mmd.getEntityMetaData(enumType), new IterableGetter() {
-                            @Override
-                            public EntityIterable getIterable(String type) {
-                                queryEngine.assertOperational();
-                                return txn.sort(type, propName, distinctLinks, ascending);
+                        if (sourceCount > MAX_ENTRIES_TO_SORT_IN_MEMORY || enumCount <= MAX_ENUM_COUNT_TO_SORT_LINKS) {
+                            Comparator<Entity> linksCmp = new Comparator<Entity>() {
+                                @Override
+                                public int compare(Entity o1, Entity o2) {
+                                    return SortEngine.compareNullableComparables(getProperty(o1, propName), getProperty(o2, propName));
+                                }
+                            };
+                            if (!(ascending)) {
+                                linksCmp = new SortEngine.ReverseComparator(linksCmp);
                             }
-                        }, linksCmp);
-                        final AssociationEndMetaData aemd = emd.getAssociationEndMetaData(linkName);
-                        if (aemd != null) {
-                            AssociationMetaData amd = aemd.getAssociationMetaData();
-                            if (amd.getType() != AssociationType.Directed) {
-                                final EntityMetaData oppositeEmd = aemd.getOppositeEntityMetaData();
-                                if (!(oppositeEmd.hasSubTypes())) {
-                                    final String oppositeType = oppositeEmd.getType();
-                                    final AssociationEndMetaData oppositeAemd = amd.getOppositeEnd(aemd);
-                                    final String oppositeLinkName = oppositeAemd.getName();
-                                    return mergeSorted(emd, new IterableGetter() {
-                                        @Override
-                                        public EntityIterable getIterable(String type) {
-                                            queryEngine.assertOperational();
-                                            return txn.sortLinks(type,
-                                                    distinctSortedLinks.getSource(), isMultiple, linkName, it, oppositeType, oppositeLinkName);
-                                        }
-                                    }, adjustedCmp);
+                            final EntityIterable distinctSortedLinks = mergeSorted(mmd.getEntityMetaData(enumType), new IterableGetter() {
+                                @Override
+                                public EntityIterable getIterable(String type) {
+                                    queryEngine.assertOperational();
+                                    return txn.sort(type, propName, distinctLinks, ascending);
+                                }
+                            }, linksCmp);
+                            final AssociationEndMetaData aemd = emd.getAssociationEndMetaData(linkName);
+                            if (aemd != null) {
+                                AssociationMetaData amd = aemd.getAssociationMetaData();
+                                if (amd.getType() != AssociationType.Directed) {
+                                    final EntityMetaData oppositeEmd = aemd.getOppositeEntityMetaData();
+                                    if (!(oppositeEmd.hasSubTypes())) {
+                                        final String oppositeType = oppositeEmd.getType();
+                                        final AssociationEndMetaData oppositeAemd = amd.getOppositeEnd(aemd);
+                                        final String oppositeLinkName = oppositeAemd.getName();
+                                        return mergeSorted(emd, new IterableGetter() {
+                                            @Override
+                                            public EntityIterable getIterable(String type) {
+                                                queryEngine.assertOperational();
+                                                return txn.sortLinks(type,
+                                                        distinctSortedLinks.getSource(), isMultiple, linkName, it, oppositeType, oppositeLinkName);
+                                            }
+                                        }, adjustedCmp);
+                                    }
                                 }
                             }
+                            return mergeSorted(emd, new IterableGetter() {
+                                @Override
+                                public EntityIterable getIterable(String type) {
+                                    queryEngine.assertOperational();
+                                    return txn.sortLinks(type, distinctSortedLinks.getSource(), isMultiple, linkName, it);
+                                }
+                            }, adjustedCmp);
+                        } else {
+                            // wrap source to avoid PersistentEntity instances to be exposed to transient level by in-memory sort (#JT-10189)
+                            source = queryEngine.wrap(it);
                         }
-                        return mergeSorted(emd, new IterableGetter() {
-                            @Override
-                            public EntityIterable getIterable(String type) {
-                                queryEngine.assertOperational();
-                                return txn.sortLinks(type, distinctSortedLinks.getSource(), isMultiple, linkName, it);
-                            }
-                        }, adjustedCmp);
+                    } else {
+                        // wrap source to avoid PersistentEntity instances to be exposed to transient level by in-memory sort (#JT-10189)
+                        source = queryEngine.wrap(s);
                     }
-                    // wrap source to avoid PersistentEntity instances to be exposed to transient level by in-memory sort (#JT-10189)
-                    source = queryEngine.wrap(it);
                 }
             }
         }
