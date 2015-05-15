@@ -258,6 +258,8 @@ public class EnvironmentImpl implements Environment {
                     checkInactive(false);
                     log.clear();
                     runAllTransactionSafeTasks();
+                    txnSafeTasks.clear();
+                    throwableOnCommit = null;
                     final Pair<MetaTree, Integer> meta = MetaTree.create(this);
                     metaTree = meta.getFirst();
                     structureId.set(meta.getSecond());
@@ -550,27 +552,29 @@ public class EnvironmentImpl implements Environment {
     }
 
     void runTransactionSafeTasks() {
-        List<Runnable> tasksToRun = null;
-        final long oldestTxnRoot = getOldestTxnRootAddress();
-        synchronized (txnSafeTasks) {
-            while (true) {
-                if (!txnSafeTasks.isEmpty()) {
-                    final RunnableWithTxnRoot r = txnSafeTasks.getFirst();
-                    if (r.txnRoot < oldestTxnRoot) {
-                        txnSafeTasks.removeFirst();
-                        if (tasksToRun == null) {
-                            tasksToRun = new ArrayList<>(4);
+        if (throwableOnCommit == null) {
+            List<Runnable> tasksToRun = null;
+            final long oldestTxnRoot = getOldestTxnRootAddress();
+            synchronized (txnSafeTasks) {
+                while (true) {
+                    if (!txnSafeTasks.isEmpty()) {
+                        final RunnableWithTxnRoot r = txnSafeTasks.getFirst();
+                        if (r.txnRoot < oldestTxnRoot) {
+                            txnSafeTasks.removeFirst();
+                            if (tasksToRun == null) {
+                                tasksToRun = new ArrayList<>(4);
+                            }
+                            tasksToRun.add(r.runnable);
+                            continue;
                         }
-                        tasksToRun.add(r.runnable);
-                        continue;
                     }
+                    break;
                 }
-                break;
             }
-        }
-        if (tasksToRun != null) {
-            for (final Runnable task : tasksToRun) {
-                task.run();
+            if (tasksToRun != null) {
+                for (final Runnable task : tasksToRun) {
+                    task.run();
+                }
             }
         }
     }
@@ -619,12 +623,14 @@ public class EnvironmentImpl implements Environment {
     }
 
     private void runAllTransactionSafeTasks() {
-        synchronized (txnSafeTasks) {
-            for (final RunnableWithTxnRoot r : txnSafeTasks) {
-                r.runnable.run();
+        if (throwableOnCommit == null) {
+            synchronized (txnSafeTasks) {
+                for (final RunnableWithTxnRoot r : txnSafeTasks) {
+                    r.runnable.run();
+                }
             }
+            DeferredIO.getJobProcessor().waitForJobs(100);
         }
-        DeferredIO.getJobProcessor().waitForJobs(100);
     }
 
     private void checkInactive(boolean exceptionSafe) {
