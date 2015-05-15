@@ -457,6 +457,7 @@ public class EnvironmentImpl implements Environment {
                     log.setHighAddress(highAddress);
                 } catch (Throwable th) {
                     throwableOnCommit = t; // inoperative on failing to update high address too
+                    logging.error("Failed to rollback high address", th);
                     throw ExodusException.toExodusException(th, "Failed to rollback high address");
                 }
                 throw ExodusException.toExodusException(t, "Failed to flush transaction");
