@@ -17,6 +17,7 @@ package jetbrains.exodus.env;
 
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.StringBinding;
@@ -29,10 +30,12 @@ import jetbrains.exodus.io.FileDataReader;
 import jetbrains.exodus.io.FileDataWriter;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogConfig;
+import jetbrains.exodus.log.LogTestConfig;
 import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.tree.btree.BTreeBalancePolicy;
 import jetbrains.exodus.tree.btree.BTreeBase;
 import jetbrains.exodus.util.IOUtil;
+import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -185,6 +188,83 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         testGetAllStoreNames();
         reopenEnvironment();
         testGetAllStoreNames();
+    }
+
+    @Test
+    public void testBreakSavingMetaTree() {
+        final EnvironmentConfig ec = env.getEnvironmentConfig();
+        if (ec.getLogCachePageSize() > 1024) {
+            ec.setLogCachePageSize(1024);
+        }
+        ec.setTreeMaxPageSize(16);
+        Log.invalidateSharedCache();
+        reopenEnvironment();
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                final StoreImpl store1 = env.openStore("store1", StoreConfig.WITHOUT_DUPLICATES, txn);
+                final StoreImpl store2 = env.openStore("store2", StoreConfig.WITHOUT_DUPLICATES, txn);
+                final StoreImpl store3 = env.openStore("store3", StoreConfig.WITHOUT_DUPLICATES, txn);
+                final StoreImpl store4 = env.openStore("store4", StoreConfig.WITHOUT_DUPLICATES, txn);
+                store4.put(txn, IntegerBinding.intToCompressedEntry(0), IntegerBinding.intToCompressedEntry(0));
+                for (int i = 0; i < 16; ++i) {
+                    store1.put(txn, IntegerBinding.intToCompressedEntry(i), IntegerBinding.intToCompressedEntry(i));
+                    store2.put(txn, IntegerBinding.intToCompressedEntry(i), IntegerBinding.intToCompressedEntry(i));
+                    store3.put(txn, IntegerBinding.intToCompressedEntry(i), IntegerBinding.intToCompressedEntry(i));
+                }
+            }
+        });
+        reopenEnvironment();
+        final LogTestConfig testConfig = new LogTestConfig();
+        testConfig.setMaxHighAddress(1024 * 10 + 3);
+        testConfig.setSettingHighAddressDenied(true);
+        env.getLog().setLogTestConfig(testConfig);
+        try {
+            for (int i = 0; i < 23; ++i) {
+                env.executeInTransaction(new TransactionalExecutable() {
+                    @Override
+                    public void execute(@NotNull final Transaction txn) {
+                        final StoreImpl store1 = env.openStore("store1", StoreConfig.WITHOUT_DUPLICATES, txn);
+                        final StoreImpl store2 = env.openStore("store2", StoreConfig.WITHOUT_DUPLICATES, txn);
+                        final StoreImpl store3 = env.openStore("store3", StoreConfig.WITHOUT_DUPLICATES, txn);
+                        for (int i = 0; i < 13; ++i) {
+                            store1.put(txn, IntegerBinding.intToCompressedEntry(i), IntegerBinding.intToCompressedEntry(i));
+                            store2.put(txn, IntegerBinding.intToCompressedEntry(i), IntegerBinding.intToCompressedEntry(i));
+                            store3.put(txn, IntegerBinding.intToCompressedEntry(i), IntegerBinding.intToCompressedEntry(i));
+                        }
+                    }
+                });
+            }
+            TestUtil.runWithExpectedException(new Runnable() {
+                @Override
+                public void run() {
+                    env.executeInTransaction(new TransactionalExecutable() {
+                        @Override
+                        public void execute(@NotNull final Transaction txn) {
+                            final StoreImpl store1 = env.openStore("store1", StoreConfig.WITHOUT_DUPLICATES, txn);
+                            final StoreImpl store2 = env.openStore("store2", StoreConfig.WITHOUT_DUPLICATES, txn);
+                            final StoreImpl store3 = env.openStore("store3", StoreConfig.WITHOUT_DUPLICATES, txn);
+                            for (int i = 0; i < 13; ++i) {
+                                store1.put(txn, IntegerBinding.intToCompressedEntry(i), IntegerBinding.intToCompressedEntry(i));
+                                store2.put(txn, IntegerBinding.intToCompressedEntry(i), IntegerBinding.intToCompressedEntry(i));
+                                store3.put(txn, IntegerBinding.intToCompressedEntry(i), IntegerBinding.intToCompressedEntry(i));
+                            }
+                        }
+                    });
+                }
+            }, ExodusException.class);
+            env.getLog().setLogTestConfig(null);
+            ec.setEnvIsReadonly(true);
+            reopenEnvironment();
+            env.executeInTransaction(new TransactionalExecutable() {
+                @Override
+                public void execute(@NotNull final Transaction txn) {
+                    env.getAllStoreNames(txn);
+                }
+            });
+        } finally {
+            env.getLog().setLogTestConfig(null);
+        }
     }
 
     @Test
