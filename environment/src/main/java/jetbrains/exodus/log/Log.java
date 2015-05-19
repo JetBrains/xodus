@@ -74,6 +74,9 @@ public final class Log implements Closeable {
     private final long fileLengthBound; // and in bytes
     private long highAddress;
 
+    @Nullable
+    private LogTestConfig testConfig;
+
     @SuppressWarnings({"OverlyLongMethod", "ThisEscapedInObjectConstruction", "OverlyCoupledMethod"})
     public Log(@NotNull final LogConfig config) {
         this.config = config;
@@ -219,6 +222,14 @@ public final class Log implements Closeable {
         if (highAddress == this.highAddress) {
             return;
         }
+
+        // begin of test-only code
+        final LogTestConfig testConfig = this.testConfig;
+        if (testConfig != null && testConfig.isSettingHighAddressDenied()) {
+            throw new ExodusException("Setting high address is denied");
+        }
+        // end of test-only code
+
         // at first, remove all files which are higher than highAddress
         bufferedWriter.close();
         final LongArrayList blocksToDelete = new LongArrayList();
@@ -233,6 +244,7 @@ public final class Log implements Closeable {
                 node = blockAddrs.getPrevious(node);
             }
         }
+
         for (int i = 0; i < blocksToDelete.size(); ++i) {
             removeFile(blocksToDelete.get(i));
         }
@@ -714,6 +726,17 @@ public final class Log implements Closeable {
     @SuppressWarnings({"ThrowCaughtLocally", "OverlyLongMethod"})
     public long writeContinuously(final Loggable loggable) {
         final long result = highAddress;
+
+        // begin of test-only code
+        final LogTestConfig testConfig = this.testConfig;
+        if (testConfig != null) {
+            final long maxHighAddress = testConfig.getMaxHighAddress();
+            if (maxHighAddress >= 0 && result >= maxHighAddress) {
+                throw new ExodusException("Can't write more than " + maxHighAddress);
+            }
+        }
+        // end of test-only code
+
         final TransactionalDataWriter bufferedWriter = this.bufferedWriter;
         if (!bufferedWriter.isOpen()) {
             final long fileAddress = getFileAddress(result);
@@ -766,6 +789,14 @@ public final class Log implements Closeable {
             }
             return -1;
         }
+    }
+
+    /**
+     * Sets LogTestConfig.
+     * Is destined for tests only, please don't set a not-null value in application code.
+     */
+    public void setLogTestConfig(@Nullable final LogTestConfig testConfig) {
+        this.testConfig = testConfig;
     }
 
     private void notifyFileCreated(long fileAddress) {
