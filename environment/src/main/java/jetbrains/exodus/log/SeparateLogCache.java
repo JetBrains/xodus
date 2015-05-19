@@ -88,7 +88,7 @@ final class SeparateLogCache extends LogCache {
     }
 
     @Override
-    protected ArrayByteIterable removePageImpl(@NotNull final Log log, final long pageAddress) {
+    protected ArrayByteIterable removePage(@NotNull final Log log, final long pageAddress) {
         pagesCache.lock();
         try {
             return pagesCache.remove(pageAddress >> pageSizeLogarithm);

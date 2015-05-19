@@ -85,7 +85,7 @@ final class SharedLogCache extends LogCache {
     }
 
     @Override
-    protected ArrayByteIterable removePageImpl(@NotNull final Log log, final long pageAddress) {
+    protected ArrayByteIterable removePage(@NotNull final Log log, final long pageAddress) {
         final long adjustedPageAddress = pageAddress >> pageSizeLogarithm;
         final int logIdentity = log.getIdentity();
         final CacheKey cacheKey = new CacheKey(logIdentity, adjustedPageAddress);

@@ -21,8 +21,6 @@ import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.util.MathUtil;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.concurrent.ConcurrentLinkedQueue;
-
 @SuppressWarnings({"ProtectedField"})
 abstract class LogCache {
 
@@ -36,8 +34,6 @@ abstract class LogCache {
     protected final int memoryUsagePercentage;
     protected final int pageSize;
     protected final int pageSizeLogarithm;
-
-    private final ConcurrentLinkedQueue<ArrayByteIterable> freePages = new ConcurrentLinkedQueue<>();
 
     /**
      * @param memoryUsage amount of memory which the cache is allowed to occupy (in bytes).
@@ -80,13 +76,6 @@ abstract class LogCache {
         this.memoryUsagePercentage = memoryUsagePercentage;
     }
 
-    final void removePage(@NotNull final Log log, final long pageAddress) {
-        final ArrayByteIterable page = removePageImpl(log, pageAddress);
-        if (page != null) {
-            freePages.offer(page);
-        }
-    }
-
     abstract void clear();
 
     abstract double hitRate();
@@ -96,7 +85,7 @@ abstract class LogCache {
     @NotNull
     abstract ArrayByteIterable getPage(@NotNull final Log log, final long pageAddress);
 
-    abstract ArrayByteIterable removePageImpl(@NotNull final Log log, final long pageAddress);
+    abstract ArrayByteIterable removePage(@NotNull final Log log, final long pageAddress);
 
     protected ArrayByteIterable readFullPage(Log log, long pageAddress) {
         final ArrayByteIterable page = allocPage();
@@ -107,11 +96,7 @@ abstract class LogCache {
     }
 
     ArrayByteIterable allocPage() {
-        final ArrayByteIterable page = freePages.poll();
-        if (page == null) {
-            return new ArrayByteIterable(new byte[pageSize]);
-        }
-        return page;
+        return new ArrayByteIterable(new byte[pageSize]);
     }
 
     private static void checkPageSize(int pageSize) throws InvalidSettingException {
