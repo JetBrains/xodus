@@ -17,6 +17,7 @@ package jetbrains.exodus.env;
 
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.core.dataStructures.Pair;
@@ -50,39 +51,34 @@ final class MetaTree {
     static Pair<MetaTree, Integer> create(@NotNull final EnvironmentImpl env) {
         final Log log = env.getLog();
         DatabaseRoot dbRoot = (DatabaseRoot) log.getLastLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);
-        int resultId = EnvironmentImpl.META_TREE_ID;
-        ITree resultTree = null;
         while (dbRoot != null) {
+            final long root = dbRoot.getAddress();
             if (dbRoot.isValid()) {
-                final long rootAddress = dbRoot.getRootAddress();
-                final int structureId = dbRoot.getLastStructureId();
-                final BTree treeCandidate = env.loadMetaTree(rootAddress);
-                if (treeCandidate != null) {
-                    resultId = structureId;
-                    resultTree = treeCandidate;
-                    break;
+                try {
+                    final long validHighAddress = root + dbRoot.length();
+                    if (log.getHighAddress() != validHighAddress) {
+                        log.setHighAddress(validHighAddress);
+                    }
+                    final BTree metaTree = env.loadMetaTree(dbRoot.getRootAddress());
+                    if (metaTree != null) {
+                        cloneTree(metaTree); // try to traverse meta tree
+                        return new Pair<>(new MetaTree(metaTree, root, validHighAddress), dbRoot.getLastStructureId());
+                    }
+                } catch (ExodusException ignore) {
+                    // XD-449: try next database root if we failed to traverse whole MetaTree
+                    // TODO: this check should become obsolete after XD-334 is implemented
                 }
             }
             // continue recovery
-            dbRoot = (DatabaseRoot) log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, dbRoot.getAddress());
+            dbRoot = (DatabaseRoot) log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, root);
         }
-        final long root;
-        final long validHighAddress;
-        if (dbRoot != null) {
-            root = dbRoot.getAddress();
-            validHighAddress = root + dbRoot.length();
-            if (log.getHighAddress() != validHighAddress) {
-                log.setHighAddress(validHighAddress);
-            }
-        } else {
-            log.setHighAddress(0);
-            resultTree = getEmptyMetaTree(env);
-            final long rootAddress = resultTree.getMutableCopy().save();
-            root = log.write(DatabaseRoot.toLoggable(rootAddress, EnvironmentImpl.META_TREE_ID));
-            validHighAddress = root + log.read(root).length();
-            log.flush();
-        }
-        return new Pair<>(new MetaTree(resultTree, root, validHighAddress), resultId);
+        // no roots found: the database is empty
+        log.setHighAddress(0);
+        final ITree resultTree = getEmptyMetaTree(env);
+        final long rootAddress = resultTree.getMutableCopy().save();
+        final long root = log.write(DatabaseRoot.toLoggable(rootAddress, EnvironmentImpl.META_TREE_ID));
+        log.flush();
+        return new Pair<>(new MetaTree(resultTree, root, log.getHighAddress()), EnvironmentImpl.META_TREE_ID);
     }
 
     LongIterator addressIterator() {
@@ -180,18 +176,22 @@ final class MetaTree {
     }
 
     MetaTree getClone() {
-        try (ITreeCursor cursor = tree.openCursor()) {
-            final ITreeMutable tree = this.tree.getMutableCopy();
-            while (cursor.getNext()) {
-                tree.put(cursor.getKey(), cursor.getValue());
-            }
-            return new MetaTree(tree, root, highAddress);
-        }
+        return new MetaTree(cloneTree(tree), root, highAddress);
     }
 
     static boolean isStringKey(final ArrayByteIterable key) {
         // last byte of string is zero
         return key.getBytesUnsafe()[key.getLength() - 1] == 0;
+    }
+
+    private static ITreeMutable cloneTree(@NotNull final ITree tree) {
+        try (ITreeCursor cursor = tree.openCursor()) {
+            final ITreeMutable result = tree.getMutableCopy();
+            while (cursor.getNext()) {
+                result.put(cursor.getKey(), cursor.getValue());
+            }
+            return result;
+        }
     }
 
     private static ITree getEmptyMetaTree(@NotNull final EnvironmentImpl env) {
