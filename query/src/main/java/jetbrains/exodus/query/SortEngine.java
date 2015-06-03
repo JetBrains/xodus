@@ -161,7 +161,7 @@ public class SortEngine {
                     if (sourceCount == 0 && s.count() == 0) {
                         return queryEngine.wrap(EntityIterableBase.EMPTY.asSortResult());
                     }
-                    if (sourceCount >= MIN_ENTRIES_TO_SORT_LINKS) {
+                    if (sourceCount < 0 || sourceCount >= MIN_ENTRIES_TO_SORT_LINKS) {
                         final EntityIterable it = ((EntityIterableBase) s).getOrCreateCachedWrapper(txn);
                         EntityIterable allLinks = ((EntityIterable) queryEngine.queryGetAll(enumType).instantiate()).getSource();
                         final EntityIterable distinctLinks;
