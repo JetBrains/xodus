@@ -16,7 +16,6 @@
 package jetbrains.exodus.query;
 
 
-import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.EntityIterable;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
@@ -35,7 +34,6 @@ public class SortEngine {
     private static final int MAX_ENTRIES_TO_SORT_IN_MEMORY = Integer.getInteger("jetbrains.exodus.query.maxEntriesToSortInMemory", 100000);
     private static final int MAX_ENUM_COUNT_TO_SORT_LINKS = Integer.getInteger("jetbrains.exodus.query.maxEnumCountToSortLinks", 2048);
     private static final int MIN_ENTRIES_TO_SORT_LINKS = Integer.getInteger("jetbrains.exodus.query.minEntriesToSortLinks", 16);
-    private static final Double NULL_VALUE = 0.0;
 
     protected QueryEngine queryEngine;
 
@@ -123,7 +121,7 @@ public class SortEngine {
             final EntityMetaData emd = mmd.getEntityMetaData(entityType);
             if (emd != null) {
                 final boolean isMultiple = emd.getAssociationEndMetaData(linkName).getCardinality().isMultiple();
-                final Comparator<Entity> cmp = toComparator(toCachingSelector(isMultiple ?
+                final Comparator<Entity> cmp = toComparator(isMultiple ?
                         new ComparableGetter() {
                             @Override
                             public Comparable select(final Entity entity) {
@@ -150,7 +148,7 @@ public class SortEngine {
                                 final Entity target = getLink(entity, linkName);
                                 return target == null ? null : getProperty(target, propName);
                             }
-                        }));
+                        });
                 adjustedCmp = ascending ? cmp : new ReverseComparator(cmp);
                 final Iterable<Entity> i = queryEngine.toEntityIterable(source);
                 if (queryEngine.isPersistentIterable(i)) {
@@ -181,7 +179,7 @@ public class SortEngine {
                         if (sourceCount > MAX_ENTRIES_TO_SORT_IN_MEMORY || enumCount <= MAX_ENUM_COUNT_TO_SORT_LINKS) {
                             Comparator<Entity> linksCmp = new Comparator<Entity>() {
                                 @Override
-                                public int compare(Entity o1, Entity o2) {
+                                public int compare(@NotNull final Entity o1, @NotNull final Entity o2) {
                                     return SortEngine.compareNullableComparables(getProperty(o1, propName), getProperty(o2, propName));
                                 }
                             };
@@ -284,7 +282,7 @@ public class SortEngine {
                 queryEngine.assertOperational();
                 result = queryEngine.getPersistentStore().getAndCheckCurrentTransaction().mergeSorted(iterables, new Comparator<Entity>() {
                     @Override
-                    public int compare(Entity left, Entity right) {
+                    public int compare(@NotNull final Entity left, @NotNull final Entity right) {
                         return comparator.compare(attach(left), attach(right));
                     }
                 });
@@ -303,29 +301,12 @@ public class SortEngine {
         if (c2 == null) {
             return -1;
         }
+        //noinspection unchecked
         return c1 instanceof String ? ((String) c1).compareToIgnoreCase((String) c2) : c1.compareTo(c2);
     }
 
     private static Comparator<Entity> toComparator(final ComparableGetter selector) {
         return new SortEngine.EntityComparator(selector);
-    }
-
-    private static ComparableGetter toCachingSelector(final ComparableGetter selector) {
-        return new ComparableGetter() {
-            private final HashMap<Entity, Comparable> selected = new HashMap<>();
-
-            @Override
-            public Comparable select(Entity entity) {
-                Comparable s = selected.get(entity);
-                if (s == null) {
-                    s = selector.select(entity);
-                    selected.put(entity, s == null ? SortEngine.NULL_VALUE : s);
-                } else if (s == SortEngine.NULL_VALUE) {
-                    return null;
-                }
-                return s;
-            }
-        };
     }
 
     private interface IterableGetter {
@@ -345,7 +326,7 @@ public class SortEngine {
         }
 
         @Override
-        public int compare(final Entity o1, final Entity o2) {
+        public int compare(@NotNull final Entity o1, @NotNull final Entity o2) {
             Comparable c1 = selector.select(o1);
             Comparable c2 = selector.select(o2);
             return SortEngine.compareNullableComparables(c1, c2);
@@ -361,7 +342,7 @@ public class SortEngine {
         }
 
         @Override
-        public int compare(final Entity o1, final Entity o2) {
+        public int compare(@NotNull final Entity o1, @NotNull final Entity o2) {
             return source.compare(o2, o1);
         }
     }
@@ -379,7 +360,7 @@ public class SortEngine {
         }
 
         @Override
-        public int compare(final Entity o1, final Entity o2) {
+        public int compare(@NotNull final Entity o1, @NotNull final Entity o2) {
             final int i = second.compare(o1, o2);
             if (i == 0) {
                 return first.compare(o1, o2);
