@@ -39,6 +39,8 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public static final String MAX_IN_PLACE_BLOB_SIZE = "exodus.entityStore.maxInPlaceBlobSize";
 
+    public static final String BLOB_STRINGS_CACHE_SIZE = "exodus.entityStore.blobStringsCacheSize";
+
     public static final String CACHING_DISABLED = "exodus.entityStore.cachingDisabled";
 
     public static final String REORDERING_DISABLED = "exodus.entityStore.reorderingDisabled";
@@ -85,6 +87,7 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(REFACTORING_HEAVY_PROPS, false),
                 new Pair(REFACTORING_DELETE_REDUNDANT_BLOBS, false),
                 new Pair(MAX_IN_PLACE_BLOB_SIZE, 10000),
+                new Pair(BLOB_STRINGS_CACHE_SIZE, 2000),
                 new Pair(CACHING_DISABLED, false),
                 new Pair(REORDERING_DISABLED, false),
                 new Pair(EXPLAIN_ON, false),
@@ -157,6 +160,14 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public void setMaxInPlaceBlobSize(final int blobSize) {
         setSetting(MAX_IN_PLACE_BLOB_SIZE, blobSize);
+    }
+
+    public int getBlobStringsCacheSize() {
+        return (Integer) getSetting(BLOB_STRINGS_CACHE_SIZE);
+    }
+
+    public void setBlobStringsCacheSize(final int blobStringsCacheSize) {
+        setSetting(BLOB_STRINGS_CACHE_SIZE, blobStringsCacheSize);
     }
 
     public boolean isCachingDisabled() {

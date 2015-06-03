@@ -177,6 +177,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final boolean fromScratch;
         try {
             this.blobVault = blobVault == null ? createDefaultFSBlobVault() : blobVault;
+            this.blobVault.setStringContentCacheSize(config.getBlobStringsCacheSize());
 
             entitiesSequences = new IntHashMap<>();
             final TwoColumnTable entityTypesTable = new TwoColumnTable(txn,

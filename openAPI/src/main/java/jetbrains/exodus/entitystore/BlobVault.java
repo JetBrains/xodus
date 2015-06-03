@@ -31,10 +31,11 @@ import java.io.InputStream;
 
 public abstract class BlobVault implements BlobHandleGenerator, Backupable {
 
-    private static final int STRING_CONTENT_CACHE_SIZE = 0x4000;
+    private static final int STRING_CONTENT_CACHE_SIZE = 0x1000;
     private static final int READ_BUFFER_SIZE = 0x4000;
 
-    private final SoftLongObjectCache<String> stringContentCache;
+    private final Object stringContentCacheLock = new Object();
+    private SoftLongObjectCache<String> stringContentCache;
     protected final ByteArraySpinAllocator bufferAllocator;
 
     protected BlobVault() {
@@ -58,17 +59,23 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
 
     public abstract void close();
 
+    public void setStringContentCacheSize(final int cacheSize) {
+        synchronized (stringContentCacheLock) {
+            stringContentCache = new SoftLongObjectCache<>(cacheSize);
+        }
+    }
+
     @Nullable
     public final String getStringContent(final long blobHandle, @NotNull final Transaction txn) throws IOException {
         String result;
-        synchronized (stringContentCache) {
+        synchronized (stringContentCacheLock) {
             result = stringContentCache.tryKey(blobHandle);
         }
         if (result == null) {
             final InputStream content = getContent(blobHandle, txn);
             result = content == null ? null : UTFUtil.readUTF(content);
             if (result != null) {
-                synchronized (stringContentCache) {
+                synchronized (stringContentCacheLock) {
                     if (stringContentCache.getObject(blobHandle) == null) {
                         stringContentCache.cacheObject(blobHandle, result);
                     }
@@ -79,7 +86,9 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
     }
 
     public final double getStringContentCacheHitRate() {
-        return stringContentCache.hitRate();
+        synchronized (stringContentCacheLock) {
+            return stringContentCache.hitRate();
+        }
     }
 
     public final ByteArrayOutputStream copyStream(@NotNull final InputStream source,
