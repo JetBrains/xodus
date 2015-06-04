@@ -17,7 +17,7 @@ true [snapshot isolation](https://en.wikipedia.org/wiki/Snapshot_isolation).
 - Xodus is schema-less and agile. It requires no schema migrations or refactorings.
 - Xodus is embedded. It doesn’t require installation and administration.
 
-Xodus is free and licensed under [Apache 2.0](http://www.apache.org/licenses/LICENSE-2.0.html). Xodus 1.0-SNAPSHOT artifacts are available in [Maven Central](https://oss.sonatype.org/content/repositories/snapshots/org/jetbrains/xodus) repository.
+Xodus is free and licensed under [Apache 2.0](http://www.apache.org/licenses/LICENSE-2.0.html). Xodus 1.0-SNAPSHOT artifacts are available in [Sonartype OSS](https://oss.sonatype.org/content/repositories/snapshots/org/jetbrains/xodus) repository.
 
 ##Building from Source
 [Gradle](http://www.gradle.org) is used to build, test and deploy. To run tests and assemble jars:
@@ -32,3 +32,4 @@ To assemble jars and skip running tests:
 - [Xodus wiki](https://github.com/JetBrains/xodus/wiki)
 - [Check out the latest (nightly) builds](https://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build)
 - [Report an issue](http://xodus.myjetbrains.com/youtrack)
+- <a href="mailto:xodus-feedback@jetbrains.com">Ask questions by e-mail</a>
