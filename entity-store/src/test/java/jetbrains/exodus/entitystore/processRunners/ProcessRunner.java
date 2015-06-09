@@ -20,15 +20,15 @@ import jetbrains.exodus.entitystore.EntityStore;
 import jetbrains.exodus.entitystore.EntityStoreTestBase;
 import jetbrains.exodus.entitystore.StoreTransaction;
 import jetbrains.exodus.util.ForkedLogic;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.util.Arrays;
 
 public class ProcessRunner extends ForkedLogic {
 
-    private static final Log log = LogFactory.getLog(ProcessRunner.class);
+    private static final Logger logger = LoggerFactory.getLogger(ProcessRunner.class);
 
     protected EntityStore store;
 
@@ -36,7 +36,7 @@ public class ProcessRunner extends ForkedLogic {
 
     @Override
     public void forked(String[] args) throws Exception {
-        log.info("Process started");
+        logger.info("Process started");
 
         store = EntityStoreTestBase.createStore(EntityStoreTestBase.randomTempFolder() + "-forked");
         txn = store.beginTransaction();
@@ -45,7 +45,7 @@ public class ProcessRunner extends ForkedLogic {
         oneMoreStep();
 
         getStreamer().writeString(store.getLocation());
-        log.info("Euthanasia requested");
+        logger.info("Euthanasia requested");
         Thread.sleep(180 * 1000);
         close();
     }

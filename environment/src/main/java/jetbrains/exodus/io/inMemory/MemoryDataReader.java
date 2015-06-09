@@ -21,15 +21,15 @@ import jetbrains.exodus.io.DataReader;
 import jetbrains.exodus.io.FileDataReader;
 import jetbrains.exodus.io.RemoveBlockType;
 import jetbrains.exodus.log.LogUtil;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 
 public class MemoryDataReader implements DataReader {
 
-    private static final Log logging = LogFactory.getLog(MemoryDataReader.class);
+    private static final Logger logger = LoggerFactory.getLogger(MemoryDataReader.class);
 
     @NotNull
     private final Memory data;
@@ -55,8 +55,8 @@ public class MemoryDataReader implements DataReader {
         if (!data.removeBlock(blockAddress)) {
             throw new ExodusException("There is no memory block by address " + blockAddress);
         }
-        if (logging.isInfoEnabled()) {
-            logging.info("Deleted file " + LogUtil.getLogFilename(blockAddress));
+        if (logger.isInfoEnabled()) {
+            logger.info("Deleted file " + LogUtil.getLogFilename(blockAddress));
         }
     }
 

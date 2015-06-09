@@ -15,16 +15,17 @@
  */
 package jetbrains.exodus.util;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.Socket;
 
 public class Streamer implements IStreamer {
-    private static final Log log = LogFactory.getLog(ForkSupportIOTest.class);
+
+    private static final Logger logger = LoggerFactory.getLogger(ForkSupportIOTest.class);
 
     private static final int BUFFER_SIZE = 1024;
 
@@ -49,7 +50,7 @@ public class Streamer implements IStreamer {
         try {
             return socketInput.readLine();
         } catch (IOException ioe) {
-            log.warn("Can't read string from input", ioe);
+            logger.warn("Can't read string from input", ioe);
             return null;
         }
     }

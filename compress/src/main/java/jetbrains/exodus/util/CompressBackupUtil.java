@@ -23,10 +23,10 @@ import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.Calendar;
@@ -35,7 +35,7 @@ import java.util.zip.GZIPOutputStream;
 
 public class CompressBackupUtil {
 
-    private static final Log log = LogFactory.getLog(CompressBackupUtil.class);
+    private static final Logger logger = LoggerFactory.getLogger(CompressBackupUtil.class);
 
     private CompressBackupUtil() {
     }
@@ -74,7 +74,7 @@ public class CompressBackupUtil {
                 }
             }
             archive.close();
-            log.info("Backup file \"" + backupFile.getName() + "\" created.");
+            logger.info("Backup file \"" + backupFile.getName() + "\" created.");
         } catch (Throwable t) {
             strategy.onError(t);
             throw ExodusException.toExodusException(t, "Backup failed");

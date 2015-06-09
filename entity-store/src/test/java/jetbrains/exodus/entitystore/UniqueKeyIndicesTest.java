@@ -20,8 +20,6 @@ import jetbrains.exodus.core.dataStructures.NanoSet;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.entitystore.metadata.Index;
 import jetbrains.exodus.entitystore.metadata.IndexField;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 
@@ -31,7 +29,6 @@ import java.util.List;
 import java.util.Set;
 
 public class UniqueKeyIndicesTest extends EntityStoreTestBase {
-    private static final Log log = LogFactory.getLog(UniqueKeyIndicesTest.class);
 
     private Entity entity1;
 
@@ -142,8 +139,8 @@ public class UniqueKeyIndicesTest extends EntityStoreTestBase {
             store.updateUniqueKeyIndices(getIndices(columns));
         } catch (Throwable e) {
             t = e;
-            if (log.isInfoEnabled()) {
-                log.info("Expected throwable found", t);
+            if (logger.isInfoEnabled()) {
+                logger.info("Expected throwable found", t);
             }
         }
         Assert.assertNotNull(t);

@@ -19,13 +19,13 @@ import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.core.execution.JobProcessor;
 import jetbrains.exodus.core.execution.JobProcessorExceptionHandler;
 import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class EntityStoreSharedAsyncProcessor extends MultiThreadDelegatingJobProcessor {
 
     private static final String THREAD_NAME = EntityStoreSharedAsyncProcessor.class.getSimpleName();
-    private static final Log log = LogFactory.getLog(EntityStoreSharedAsyncProcessor.class);
+    private static final Logger logger = LoggerFactory.getLogger(EntityStoreSharedAsyncProcessor.class);
     private static final JobProcessorExceptionHandler EXCEPTION_HANDLER = new EntityStoreSharedAsyncProcessorExceptionHandler();
 
     public EntityStoreSharedAsyncProcessor(final int threadCount) {
@@ -37,7 +37,7 @@ public final class EntityStoreSharedAsyncProcessor extends MultiThreadDelegating
 
         @Override
         public void handle(final JobProcessor processor, final Job job, final Throwable t) {
-            log.error(t, t);
+            logger.error(t.getMessage(), t);
         }
     }
 }

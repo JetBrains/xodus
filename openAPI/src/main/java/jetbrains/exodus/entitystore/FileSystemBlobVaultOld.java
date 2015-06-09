@@ -22,11 +22,11 @@ import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.env.Transaction;
 import jetbrains.exodus.util.DeferredIO;
 import jetbrains.exodus.util.IOUtil;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.*;
@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class FileSystemBlobVaultOld extends BlobVault {
 
-    protected static final Log log = LogFactory.getLog("FileSystemBlobVault");
+    protected static final Logger logger = LoggerFactory.getLogger("FileSystemBlobVault");
 
     @NonNls
     public static final String VERSION_FILE = "version";
@@ -140,7 +140,7 @@ public class FileSystemBlobVaultOld extends BlobVault {
         try {
             return new FileInputStream(getBlobLocation(blobHandle));
         } catch (FileNotFoundException e) {
-            log.error("File not found", e);
+            logger.error("File not found", e);
             return null;
         }
     }

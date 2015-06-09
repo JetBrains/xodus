@@ -31,10 +31,11 @@ import jetbrains.exodus.io.inMemory.Memory;
 import jetbrains.exodus.io.inMemory.MemoryDataReader;
 import jetbrains.exodus.io.inMemory.MemoryDataWriter;
 import jetbrains.exodus.util.Random;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -43,7 +44,7 @@ import java.util.concurrent.CyclicBarrier;
 
 public class GarbageCollectorTestInMemory extends GarbageCollectorTest {
 
-    private static final org.apache.commons.logging.Log logging = LogFactory.getLog(GarbageCollectorTestInMemory.class);
+    private static final Logger logger = LoggerFactory.getLogger(GarbageCollectorTestInMemory.class);
     private static final int TEST_DURATION = 1000 * 30;
 
     private final Random rnd = new Random();
@@ -165,7 +166,7 @@ public class GarbageCollectorTestInMemory extends GarbageCollectorTest {
         final Throwable t = throwable[0];
         if (t != null) {
             memory.dump(new File(System.getProperty("user.home"), "dump"));
-            logging.error("User code exception: ", t);
+            logger.error("User code exception: ", t);
             Assert.assertTrue(false);
         }
     }
@@ -197,7 +198,7 @@ public class GarbageCollectorTestInMemory extends GarbageCollectorTest {
             }
         } catch (Throwable t) {
             memory.dump(new File(System.getProperty("user.home"), "dump"));
-            logging.error("User code exception: ", t);
+            logger.error("User code exception: ", t);
             Assert.assertTrue(false);
         }
     }
@@ -241,7 +242,7 @@ public class GarbageCollectorTestInMemory extends GarbageCollectorTest {
             }
         } catch (Throwable t) {
             memory.dump(new File(System.getProperty("user.home"), "dump"));
-            logging.error("User code exception: ", t);
+            logger.error("User code exception: ", t);
             Assert.assertTrue(false);
         }
     }

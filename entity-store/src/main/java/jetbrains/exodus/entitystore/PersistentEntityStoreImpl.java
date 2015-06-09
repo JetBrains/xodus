@@ -37,11 +37,11 @@ import jetbrains.exodus.log.iterate.FixedLengthByteIterable;
 import jetbrains.exodus.util.ByteArraySizedInputStream;
 import jetbrains.exodus.util.LightByteArrayOutputStream;
 import jetbrains.exodus.util.UTFUtil;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.*;
@@ -50,7 +50,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @SuppressWarnings({"SynchronizationOnLocalVariableOrMethodParameter", "UnusedDeclaration", "ThisEscapedInObjectConstruction", "VolatileLongOrDoubleField", "ObjectAllocationInLoop", "ReuseOfLocalVariable", "rawtypes"})
 public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLog.Member {
 
-    private static final Log log = LogFactory.getLog(PersistentEntityStoreImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(PersistentEntityStoreImpl.class);
 
     @NonNls
     static final String BLOBS_DIR = "blobs";
@@ -296,8 +296,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         startedAt = System.currentTimeMillis();
         transactionCount = 0;
 
-        if (log.isDebugEnabled()) {
-            log.debug("Created successfully.");
+        if (logger.isDebugEnabled()) {
+            logger.debug("Created successfully.");
         }
     }
 
@@ -375,7 +375,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         for (long blobHandle = current + 1; blobHandle < current + 1000; ++blobHandle) {
             final File file = blobVault.getBlobLocation(blobHandle);
             if (file.exists()) {
-                log.error("Redundant blob file: " + file);
+                logger.error("Redundant blob file: " + file);
             }
         }
         return blobVault;
@@ -1877,8 +1877,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                         for (final String indexName : indexNames) {
                             removeObsoleteUniqueKeyIndex(t, indexName);
                         }
-                        if (log.isTraceEnabled()) {
-                            log.trace("Flush index persistent transaction " + t);
+                        if (logger.isTraceEnabled()) {
+                            logger.trace("Flush index persistent transaction " + t);
                         }
                         t.flush();
                     } finally {
@@ -1892,8 +1892,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     private void removeObsoleteUniqueKeyIndex(@NotNull final PersistentStoreTransaction txn, @NotNull final String indexName) {
-        if (log.isDebugEnabled()) {
-            log.debug("Remove obsolete index [" + indexName + ']');
+        if (logger.isDebugEnabled()) {
+            logger.debug("Remove obsolete index [" + indexName + ']');
         }
         environment.removeStore(indexName, txn.getEnvironmentTransaction());
     }
@@ -1902,8 +1902,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private void createUniqueKeyIndex(@NotNull final PersistentStoreTransaction txn,
                                       @NotNull final PersistentStoreTransaction snapshot,
                                       @NotNull final Index index) {
-        if (log.isDebugEnabled()) {
-            log.debug("Create index [" + index + ']');
+        if (logger.isDebugEnabled()) {
+            logger.debug("Create index [" + index + ']');
         }
 
         final List<IndexField> fields = index.getFields();
@@ -2097,7 +2097,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @Override
     public void close() {
-        log.info("Closing...");
+        logger.info("Closing...");
         if (configMBean != null) {
             configMBean.unregister();
         }
@@ -2108,9 +2108,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 environment.close();
             }
 
-            log.info("Closed successfully.");
+            logger.info("Closed successfully.");
         } catch (Exception e) {
-            log.error("close() failed", e);
+            logger.error("close() failed", e);
             throw ExodusException.toExodusException(e);
         }
     }

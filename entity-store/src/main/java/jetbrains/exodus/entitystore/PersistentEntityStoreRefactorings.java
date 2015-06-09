@@ -27,10 +27,10 @@ import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.entitystore.tables.*;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.util.IOUtil;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -38,7 +38,7 @@ import java.util.*;
 
 final class PersistentEntityStoreRefactorings {
 
-    private static final Log log = LogFactory.getLog(PersistentEntityStoreRefactorings.class);
+    private static final Logger logger = LoggerFactory.getLogger(PersistentEntityStoreRefactorings.class);
 
     @NonNls
     private static final String TEMP_BLOBS_DIR = PersistentEntityStoreImpl.BLOBS_DIR + "-refactoring";
@@ -68,7 +68,7 @@ final class PersistentEntityStoreRefactorings {
                     if (blob.delete()) {
                         logInfo("Deleted " + blob);
                     } else {
-                        log.error("Failed to delete " + blob);
+                        logger.error("Failed to delete " + blob);
                     }
                 }
             }
@@ -84,8 +84,8 @@ final class PersistentEntityStoreRefactorings {
                     final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
                     final String sourceName = store.getNamingRules().getEntitiesTableName(entityTypeId);
                     final String targetName = sourceName + "_temp";
-                    if (log.isInfoEnabled()) {
-                        log.info("Refactoring " + sourceName + " to key-prefixed store.");
+                    if (logger.isInfoEnabled()) {
+                        logger.info("Refactoring " + sourceName + " to key-prefixed store.");
                     }
                     transactionalCopyAndRemoveEntitiesStore(sourceName, targetName);
                     transactionalCopyAndRemoveEntitiesStore(targetName, sourceName);
@@ -100,8 +100,8 @@ final class PersistentEntityStoreRefactorings {
             public void execute(@NotNull final StoreTransaction tx) {
                 final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
                 for (final String entityType : store.getEntityTypes(txn)) {
-                    if (log.isInfoEnabled()) {
-                        log.info("Refactoring creating null-value property indices for [" + entityType + ']');
+                    if (logger.isInfoEnabled()) {
+                        logger.info("Refactoring creating null-value property indices for [" + entityType + ']');
                     }
                     safeExecuteRefactoringForEntityType(entityType,
                             new StoreTransactionalExecutable() {
@@ -134,8 +134,8 @@ final class PersistentEntityStoreRefactorings {
             public void execute(@NotNull final StoreTransaction tx) {
                 final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
                 for (final String entityType : store.getEntityTypes(txn)) {
-                    if (log.isInfoEnabled()) {
-                        log.info("Refactoring creating null-value blob indices for [" + entityType + ']');
+                    if (logger.isInfoEnabled()) {
+                        logger.info("Refactoring creating null-value blob indices for [" + entityType + ']');
                     }
                     safeExecuteRefactoringForEntityType(entityType,
                             new StoreTransactionalExecutable() {
@@ -168,8 +168,8 @@ final class PersistentEntityStoreRefactorings {
             public void execute(@NotNull final StoreTransaction tx) {
                 final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
                 for (final String entityType : store.getEntityTypes(txn)) {
-                    if (log.isInfoEnabled()) {
-                        log.info("Refactoring making links' tables consistent for [" + entityType + ']');
+                    if (logger.isInfoEnabled()) {
+                        logger.info("Refactoring making links' tables consistent for [" + entityType + ']');
                     }
                     try {
                         final Collection<Pair<ByteIterable, ByteIterable>> badLinks = new ArrayList<>();
@@ -207,8 +207,8 @@ final class PersistentEntityStoreRefactorings {
                                     }
                                 }
                             });
-                            if (log.isInfoEnabled()) {
-                                log.info(badLinks.size() + " missing links found and fixed for [" + entityType + ']');
+                            if (logger.isInfoEnabled()) {
+                                logger.info(badLinks.size() + " missing links found and fixed for [" + entityType + ']');
                             }
                         }
                         badLinks.clear();
@@ -235,17 +235,17 @@ final class PersistentEntityStoreRefactorings {
 
                                 }
                             });
-                            if (log.isInfoEnabled()) {
+                            if (logger.isInfoEnabled()) {
                                 if (badLinksSize > 0) {
-                                    log.info(badLinksSize + " redundant links found and fixed for [" + entityType + ']');
+                                    logger.info(badLinksSize + " redundant links found and fixed for [" + entityType + ']');
                                 }
                                 if (deleteLinksSize > 0) {
-                                    log.info(deleteLinksSize + " phantom links found and fixed for [" + entityType + ']');
+                                    logger.info(deleteLinksSize + " phantom links found and fixed for [" + entityType + ']');
                                 }
                             }
                         }
                     } catch (Throwable t) {
-                        log.error("Failed to execute refactoring for entity type: " + entityType, t);
+                        logger.error("Failed to execute refactoring for entity type: " + entityType, t);
                         throwJVMError(t);
                     }
                 }
@@ -259,8 +259,8 @@ final class PersistentEntityStoreRefactorings {
             public void execute(@NotNull final StoreTransaction tx) {
                 final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
                 for (final String entityType : store.getEntityTypes(txn)) {
-                    if (log.isInfoEnabled()) {
-                        log.info("Refactoring making props' tables consistent for [" + entityType + ']');
+                    if (logger.isInfoEnabled()) {
+                        logger.info("Refactoring making props' tables consistent for [" + entityType + ']');
                     }
                     try {
                         final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
@@ -317,8 +317,8 @@ final class PersistentEntityStoreRefactorings {
                                     }
                                 }
                             });
-                            if (log.isInfoEnabled()) {
-                                log.info(missingPairs.size() + " missing secondary keys found and fixed for [" + entityType + ']');
+                            if (logger.isInfoEnabled()) {
+                                logger.info(missingPairs.size() + " missing secondary keys found and fixed for [" + entityType + ']');
                             }
                         }
                         final List<Pair<Integer, Pair<ByteIterable, ByteIterable>>> phantomPairs = new ArrayList<>();
@@ -367,8 +367,8 @@ final class PersistentEntityStoreRefactorings {
                                     }
                                 }
                             });
-                            if (log.isInfoEnabled()) {
-                                log.info(phantomPairs.size() + " phantom secondary keys found and fixed for [" + entityType + ']');
+                            if (logger.isInfoEnabled()) {
+                                logger.info(phantomPairs.size() + " phantom secondary keys found and fixed for [" + entityType + ']');
                             }
                         }
                         final List<Pair<Integer, Long>> phantomIds = new ArrayList<>();
@@ -404,8 +404,8 @@ final class PersistentEntityStoreRefactorings {
                                     added[0] = count;
                                 }
                             });
-                            if (log.isInfoEnabled()) {
-                                log.info(added[0] + " missing id pairs found and fixed for [" + entityType + ']');
+                            if (logger.isInfoEnabled()) {
+                                logger.info(added[0] + " missing id pairs found and fixed for [" + entityType + ']');
                             }
                         }
                         if (!phantomIds.isEmpty()) {
@@ -424,12 +424,12 @@ final class PersistentEntityStoreRefactorings {
                                     c.close();
                                 }
                             });
-                            if (log.isInfoEnabled()) {
-                                log.info(phantomIds.size() + " phantom id pairs found and fixed for [" + entityType + ']');
+                            if (logger.isInfoEnabled()) {
+                                logger.info(phantomIds.size() + " phantom id pairs found and fixed for [" + entityType + ']');
                             }
                         }
                     } catch (Throwable t) {
-                        log.error("Failed to execute refactoring for entity type: " + entityType, t);
+                        logger.error("Failed to execute refactoring for entity type: " + entityType, t);
                         throwJVMError(t);
                     }
                 }
@@ -485,8 +485,8 @@ final class PersistentEntityStoreRefactorings {
                                             int i = 0;
                                             for (final Pair<PropertyKey, Long> entry : blobHandles) {
                                                 if ((i++ % 1000) == 0) {
-                                                    if (log.isInfoEnabled()) {
-                                                        log.info("Refactoring moving tiny blobs into database for [" + entityType +
+                                                    if (logger.isInfoEnabled()) {
+                                                        logger.info("Refactoring moving tiny blobs into database for [" + entityType +
                                                                 "]. Blobs processed: " + i + " of " + blobsCount);
                                                     }
                                                 }
@@ -502,14 +502,14 @@ final class PersistentEntityStoreRefactorings {
                                                     txn.preserveBlob(blobHandle);
                                                     store.setBlob(txn, entity, blobName, oldVault.getBlobLocation(blobHandle));
                                                 } catch (IOException e) {
-                                                    log.error("Failed to set blob", e);
+                                                    logger.error("Failed to set blob", e);
                                                 }
                                             }
                                         }
                                     }
                             );
-                            if (log.isInfoEnabled()) {
-                                log.info("Refactoring moving tiny blobs into database for [" + entityType + "] completed.");
+                            if (logger.isInfoEnabled()) {
+                                logger.info("Refactoring moving tiny blobs into database for [" + entityType + "] completed.");
                             }
                         }
                     } catch (ReadonlyTransactionException ignore) {
@@ -545,7 +545,7 @@ final class PersistentEntityStoreRefactorings {
         try {
             store.executeInTransaction(executable);
         } catch (Throwable t) {
-            log.error("Failed to execute refactoring for entity type: " + entityType, t);
+            logger.error("Failed to execute refactoring for entity type: " + entityType, t);
             throwJVMError(t);
         }
     }
@@ -587,8 +587,8 @@ final class PersistentEntityStoreRefactorings {
     }
 
     private static void logInfo(@NotNull final String message) {
-        if (log.isInfoEnabled()) {
-            log.info(message);
+        if (logger.isInfoEnabled()) {
+            logger.info(message);
         }
     }
 }

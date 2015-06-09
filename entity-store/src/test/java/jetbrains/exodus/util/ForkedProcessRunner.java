@@ -15,9 +15,9 @@
  */
 package jetbrains.exodus.util;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -27,7 +27,7 @@ import java.util.Arrays;
 
 public class ForkedProcessRunner {
 
-    private static final Log log = LogFactory.getLog(ForkSupportIO.class);
+    private static final Logger logger = LoggerFactory.getLogger(ForkSupportIO.class);
 
     public static final String FATAL_ERROR_MESSAGE = "This is a last goodbye. And here is some randomness: sdjwijernla";
 
@@ -40,7 +40,7 @@ public class ForkedProcessRunner {
 
     @SuppressWarnings({"HardcodedFileSeparator"})
     public static void main(String[] args) throws Exception {
-        log.info("Process started. Arguments: " + Arrays.toString(args));
+        logger.info("Process started. Arguments: " + Arrays.toString(args));
         if (args.length < 2) {
             exit("Arguments do not contain port number and/or class to be run. Exit.", null);
         }
@@ -68,14 +68,14 @@ public class ForkedProcessRunner {
     @SuppressWarnings({"CallToSystemExit", "finally"})
     private static void exit(String logMessage, @Nullable Exception exc) {
         try {
-            log.fatal(logMessage, exc);
+            logger.error(logMessage, exc);
             if (streamer != null) {
                 streamer.writeString(FATAL_ERROR_MESSAGE);
                 streamer.close();
                 socket.close();
             }
         } catch (IOException e) {
-            log.error("Error while closing streamer", e);
+            logger.error("Error while closing streamer", e);
         } finally {
             System.exit(1);
         }

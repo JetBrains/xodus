@@ -15,8 +15,9 @@
  */
 package jetbrains.exodus.core.execution.locks;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -24,7 +25,7 @@ import java.util.Date;
 
 class DebugLatch extends ReleaseLatch {
 
-    private static final Log log = LogFactory.getLog(Latch.class);
+    private static final Logger log = LoggerFactory.getLogger(Latch.class);
     private static final DateFormat df = new SimpleDateFormat("dd MMM yyyy kk:mm:ss,SSS");
 
     private Date acquireTime = null;
@@ -78,7 +79,7 @@ class DebugLatch extends ReleaseLatch {
             log.debug("DebugLatch is closed at [" + df.format(acquireTime) + "]. Will wait for latch owner [" + owner.getName() + ']');
             log.debug("Owner stack trace:");
             for (StackTraceElement e : acquireTrace) {
-                log.debug(e);
+                log.debug(e.toString());
             }
         } catch (Throwable e) {
             // NPE is expected if we are tring to log owner when owner is about to release the latch

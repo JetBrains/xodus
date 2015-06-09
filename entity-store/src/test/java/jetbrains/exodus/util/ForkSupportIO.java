@@ -15,10 +15,10 @@
  */
 package jetbrains.exodus.util;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.*;
@@ -29,7 +29,8 @@ import java.util.List;
 
 @SuppressWarnings({"HardcodedFileSeparator", "UseOfProcessBuilder", "ObjectToString", "RawUseOfParameterizedType"})
 public class ForkSupportIO implements IStreamer {
-    private static final Log log = LogFactory.getLog(ForkSupportIO.class);
+
+    private static final Logger logger = LoggerFactory.getLogger(ForkSupportIO.class);
 
     private static final int BUFFER_SIZE = 1024;
 
@@ -52,9 +53,9 @@ public class ForkSupportIO implements IStreamer {
     protected ForkSupportIO(@NotNull final String name, @NotNull String[] jvmArgs, @NotNull String[] args) throws IOException {
         try {
             serverSocket = new ServerSocket(0, 10);
-            log.info("Listening on port: " + serverSocket.getLocalPort());
+            logger.info("Listening on port: " + serverSocket.getLocalPort());
         } catch (IOException e) {
-            log.fatal("Failed to open server socket.", e);
+            logger.error("Failed to open server socket.", e);
             throw e;
         }
         this.name = name;
@@ -87,7 +88,7 @@ public class ForkSupportIO implements IStreamer {
         trueArgs.add(name);
         trueArgs.addAll(Arrays.asList(args));
 
-        log.info("Ready to start process with arguments: " + trueArgs);
+        logger.info("Ready to start process with arguments: " + trueArgs);
         builder = new ProcessBuilder(trueArgs);
     }
 
@@ -128,10 +129,10 @@ public class ForkSupportIO implements IStreamer {
     @NotNull
     private Process spawnProcess() throws IOException {
         final Process process = builder.start();
-        log.info("Waiting for connection...");
+        logger.info("Waiting for connection...");
         final Socket connection = serverSocket.accept();
-        log.info("Connection received from " + connection.getInetAddress().getHostName());
-        log.info("Waiting to receive process Id");
+        logger.info("Connection received from " + connection.getInetAddress().getHostName());
+        logger.info("Waiting to receive process Id");
         streamer = new Streamer(connection.getInputStream(), connection.getOutputStream());
         String idString = streamer.readString();
         processId = Integer.parseInt(idString);
@@ -140,9 +141,9 @@ public class ForkSupportIO implements IStreamer {
 
     public ForkSupportIO start() throws IOException, InterruptedException {
         if (process == null) {
-            if (log.isInfoEnabled()) {
-                log.info("starting child process [" + name + ']');
-                log.info("============================================");
+            if (logger.isInfoEnabled()) {
+                logger.info("starting child process [" + name + ']');
+                logger.info("============================================");
             }
             final Process spawned = spawnProcess();
             err = createSpinner(spawned.getErrorStream(), System.err, BUFFER_SIZE, "IO [err] " + name);
@@ -167,8 +168,8 @@ public class ForkSupportIO implements IStreamer {
                         output.write(buf, 0, i);
                     }
                 } catch (IOException ioe) {
-                    if (log.isWarnEnabled()) {
-                        log.warn("IO error in child process for reader: " + input);
+                    if (logger.isWarnEnabled()) {
+                        logger.warn("IO error in child process for reader: " + input);
                     }
                 }
             }
@@ -187,13 +188,13 @@ public class ForkSupportIO implements IStreamer {
                 try {
                     killer.killProcess(processId);
                 } catch (IOException e) {
-                    log.error("Failed to kill the process using dedicated killer. Will use process.destroy()", e);
+                    logger.error("Failed to kill the process using dedicated killer. Will use process.destroy()", e);
                     process.destroy();
                 }
                 return this;
             }
         }
-        log.warn("Can not find dedicated killer for the process. Will use process.destroy()");
+        logger.warn("Can not find dedicated killer for the process. Will use process.destroy()");
         process.destroy();
         return this;
     }
@@ -202,9 +203,9 @@ public class ForkSupportIO implements IStreamer {
         final int status = process.waitFor();
         err.join();
         out.join();
-        if (log.isInfoEnabled()) {
-            log.info("============================================");
-            log.info("child process [" + name + "] finished: " + status);
+        if (logger.isInfoEnabled()) {
+            logger.info("============================================");
+            logger.info("child process [" + name + "] finished: " + status);
         }
         process = null;
         out = err = null;
@@ -227,15 +228,15 @@ public class ForkSupportIO implements IStreamer {
         try {
             streamer.close();
         } catch (IOException e) {
-            if (log.isWarnEnabled()) {
-                log.warn("Can't close streamer, ignoring", e);
+            if (logger.isWarnEnabled()) {
+                logger.warn("Can't close streamer, ignoring", e);
             }
         }
         try {
             serverSocket.close();
         } catch (IOException e) {
-            if (log.isWarnEnabled()) {
-                log.warn("Can't close socket, ignoring", e);
+            if (logger.isWarnEnabled()) {
+                logger.warn("Can't close socket, ignoring", e);
             }
         }
     }

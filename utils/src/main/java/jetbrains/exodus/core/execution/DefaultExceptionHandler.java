@@ -15,15 +15,16 @@
  */
 package jetbrains.exodus.core.execution;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DefaultExceptionHandler implements JobProcessorExceptionHandler {
 
-    private static final Log log = LogFactory.getLog(JobProcessorExceptionHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(JobProcessorExceptionHandler.class);
 
     @Override
     public void handle(JobProcessor processor, Job job, Throwable t) {
-        log.error(t, t);
+        logger.error(t.getMessage(), t);
     }
 }

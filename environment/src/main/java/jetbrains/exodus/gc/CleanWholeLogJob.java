@@ -17,12 +17,13 @@ package jetbrains.exodus.gc;
 
 import jetbrains.exodus.core.execution.LatchJob;
 import jetbrains.exodus.log.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class CleanWholeLogJob extends LatchJob {
 
-    private static final org.apache.commons.logging.Log logging = LogFactory.getLog(CleanWholeLogJob.class);
+    private static final Logger logger = LoggerFactory.getLogger(CleanWholeLogJob.class);
 
     @NotNull
     private final GarbageCollector gc;
@@ -56,8 +57,8 @@ final class CleanWholeLogJob extends LatchJob {
     }
 
     private static void info(@NotNull final String message) {
-        if (logging.isInfoEnabled()) {
-            logging.info(message);
+        if (logger.isInfoEnabled()) {
+            logger.info(message);
         }
     }
 }

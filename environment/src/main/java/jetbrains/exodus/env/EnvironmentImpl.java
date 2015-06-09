@@ -31,9 +31,10 @@ import jetbrains.exodus.tree.btree.BTree;
 import jetbrains.exodus.tree.btree.BTreeBalancePolicy;
 import jetbrains.exodus.util.DeferredIO;
 import jetbrains.exodus.util.IOUtil;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -47,7 +48,7 @@ public class EnvironmentImpl implements Environment {
 
     public static final int META_TREE_ID = 1;
 
-    private static final org.apache.commons.logging.Log logging = LogFactory.getLog(EnvironmentImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(EnvironmentImpl.class);
 
     private static final String ENVIRONMENT_PROPERTIES_FILE = "exodus.properties";
 
@@ -107,8 +108,8 @@ public class EnvironmentImpl implements Environment {
 
         configMBean = ec.isManagementEnabled() ? new jetbrains.exodus.env.management.EnvironmentConfig(this) : null;
 
-        if (logging.isInfoEnabled()) {
-            logging.info("Exodus environment created: " + log.getLocation());
+        if (logger.isInfoEnabled()) {
+            logger.info("Exodus environment created: " + log.getLocation());
         }
     }
 
@@ -304,10 +305,10 @@ public class EnvironmentImpl implements Environment {
             throwableOnCommit = EnvironmentClosedException.INSTANCE;
         }
         runAllTransactionSafeTasks();
-        if (logging.isInfoEnabled()) {
-            logging.info("Store get cache hit rate: " + ObjectCacheBase.formatHitRate(storeGetCacheHitRate));
-            logging.info("Tree nodes cache hit rate: " + ObjectCacheBase.formatHitRate(treeNodesCacheHitRate));
-            logging.info("Exodus log cache hit rate: " + ObjectCacheBase.formatHitRate(logCacheHitRate));
+        if (logger.isInfoEnabled()) {
+            logger.info("Store get cache hit rate: " + ObjectCacheBase.formatHitRate(storeGetCacheHitRate));
+            logger.info("Tree nodes cache hit rate: " + ObjectCacheBase.formatHitRate(treeNodesCacheHitRate));
+            logger.info("Exodus log cache hit rate: " + ObjectCacheBase.formatHitRate(logCacheHitRate));
         }
     }
 
@@ -454,12 +455,12 @@ public class EnvironmentImpl implements Environment {
                     txn.executeCommitHook();
                 }
             } catch (Throwable t) { // pokémon exception handling to decrease try/catch block overhead
-                logging.error("Failed to flush transaction", t);
+                logger.error("Failed to flush transaction", t);
                 try {
                     log.setHighAddress(highAddress);
                 } catch (Throwable th) {
                     throwableOnCommit = t; // inoperative on failing to update high address too
-                    logging.error("Failed to rollback high address", th);
+                    logger.error("Failed to rollback high address", th);
                     throw ExodusException.toExodusException(th, "Failed to rollback high address");
                 }
                 throw ExodusException.toExodusException(t, "Failed to flush transaction");
@@ -638,13 +639,13 @@ public class EnvironmentImpl implements Environment {
         if (txnCount > 0) {
             final String errorString = "Environment[" + getLocation() + "] is active: " + txnCount + " transaction(s) not finished";
             if (!exceptionSafe) {
-                logging.error(errorString);
-            } else if (logging.isInfoEnabled()) {
-                logging.info(errorString);
+                logger.error(errorString);
+            } else if (logger.isInfoEnabled()) {
+                logger.info(errorString);
             }
-            if (logging.isDebugEnabled()) {
+            if (logger.isDebugEnabled()) {
                 for (TransactionImpl transaction : txns) {
-                    logging.debug("Alive transaction: ", transaction.getTrace());
+                    logger.debug("Alive transaction: ", transaction.getTrace());
                 }
             }
         }

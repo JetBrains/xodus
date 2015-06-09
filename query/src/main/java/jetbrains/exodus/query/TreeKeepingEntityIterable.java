@@ -23,15 +23,15 @@ import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.metadata.EntityMetaData;
 import jetbrains.exodus.entitystore.metadata.ModelMetaData;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @SuppressWarnings({"HardcodedLineSeparator", "AssignmentToMethodParameter", "ConstructorWithTooManyParameters"})
 public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
 
-    private static final Log log = LogFactory.getLog(TreeKeepingEntityIterable.class);
+    private static final Logger logger = LoggerFactory.getLogger(TreeKeepingEntityIterable.class);
     private static final boolean unionSubtypesResults = Boolean.getBoolean("jetbrains.exodus.query.unionSubtypesResults");
 
     private final Iterable<Entity> instance;
@@ -198,17 +198,17 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
                 }
                 final long delta = System.currentTimeMillis() - start;
                 if (delta > 1) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Optimize tree in [" + delta + " ms]");
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Optimize tree in [" + delta + " ms]");
                     }
-                    log.trace("---------------------------------------------------");
-                    log.trace("Source tree: ");
-                    log.trace(sourceTree);
-                    log.trace("---------------------------------------------------");
+                    logger.trace("---------------------------------------------------");
+                    logger.trace("Source tree: ");
+                    logger.trace(sourceTree.toString());
+                    logger.trace("---------------------------------------------------");
                 }
-                log.trace("Optimized tree: ");
-                log.trace(optimizedTree);
-                log.trace("---------------------------------------------------");
+                logger.trace("Optimized tree: ");
+                logger.trace(optimizedTree.toString());
+                logger.trace("---------------------------------------------------");
             }
         }
     }

@@ -15,20 +15,21 @@
  */
 package jetbrains.exodus.util;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Assert;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ForkSupportIOTest {
-    private static final Log log = LogFactory.getLog(ForkSupportIOTest.class);
+
+    private static final Logger logger = LoggerFactory.getLogger(ForkSupportIOTest.class);
 
     @Test
     public void testIO() throws Exception {
         final ForkSupportIO forked = ForkSupportIO.create(FL.class, new String[]{}, new String[]{"hello"}).start();
-        log.info("Parent receiving...");
+        logger.info("Parent receiving...");
         Assert.assertEquals("hello", forked.readString());
-        log.info("Parent sending...");
+        logger.info("Parent sending...");
         forked.writeString("buzz off");
         Assert.assertEquals(0, forked.waitFor());
         forked.close();
@@ -37,16 +38,16 @@ public class ForkSupportIOTest {
     public static class FL extends ForkedLogic {
         @Override
         public void forked(String[] args) throws Exception {
-            log.info("I'm up!");
+            logger.info("I'm up!");
 
-            log.info("Child sending...");
+            logger.info("Child sending...");
             getStreamer().writeString(args[0]);
 
-            log.info("Child receiving...");
+            logger.info("Child receiving...");
             Assert.assertEquals("buzz off", getStreamer().readString());
 
             close();
-            log.info("Party over.");
+            logger.info("Party over.");
         }
     }
 }

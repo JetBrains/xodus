@@ -15,14 +15,14 @@
  */
 package jetbrains.exodus.sshd;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.sshd.SshServer;
 import org.apache.sshd.server.PasswordAuthenticator;
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
 import org.apache.sshd.server.session.ServerSession;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,8 +33,9 @@ import java.util.Map;
  */
 public class RhinoServer {
 
+    private static final Logger log = LoggerFactory.getLogger(RhinoServer.class);
+
     private SshServer sshd;
-    private static final Log log = LogFactory.getLog(RhinoServer.class);
 
     public RhinoServer(int port, @Nullable String password, @NotNull Map<String, Object> config) throws IOException {
         if (log.isInfoEnabled()) {

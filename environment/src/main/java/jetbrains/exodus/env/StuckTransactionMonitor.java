@@ -18,14 +18,15 @@ package jetbrains.exodus.env;
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.core.execution.JobProcessor;
 import jetbrains.exodus.core.execution.ThreadJobProcessorPool;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Date;
 
 final class StuckTransactionMonitor extends Job {
 
-    private static final org.apache.commons.logging.Log logging = LogFactory.getLog(StuckTransactionMonitor.class);
+    private static final Logger logger = LoggerFactory.getLogger(StuckTransactionMonitor.class);
 
     @NotNull
     private final EnvironmentImpl env;
@@ -49,7 +50,7 @@ final class StuckTransactionMonitor extends Job {
                 final long created = oldestTxn.getCreated();
                 if (created + env.getEnvironmentConfig().getEnvMonitorTxnsTimeout() < System.currentTimeMillis()) {
                     final Thread creatingThread = oldestTxn.getCreatingThread();
-                    logging.error("Transaction timed out: created at " + new Date(created).toString() + ", thread = " +
+                    logger.error("Transaction timed out: created at " + new Date(created).toString() + ", thread = " +
                             creatingThread + '(' + (creatingThread == null ? "" : creatingThread.getId()) + ')', oldestTxn.getTrace());
                 }
             } finally {

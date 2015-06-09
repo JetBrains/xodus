@@ -83,16 +83,16 @@ public abstract class EntityStoreTestBase extends TestBase {
         if (!tempFolder.mkdirs()) {
             Assert.fail("Can't create directory at " + location);
         }
-        if (log.isInfoEnabled()) {
-            log.info("Temporary data folder created: " + location);
+        if (logger.isInfoEnabled()) {
+            logger.info("Temporary data folder created: " + location);
         }
         return tempFolder.getAbsolutePath();
     }
 
     public static void cleanUp(String location) {
         final File tempFolder = new File(location);
-        if (log.isInfoEnabled()) {
-            log.info("Cleaning data folder: " + location);
+        if (logger.isInfoEnabled()) {
+            logger.info("Cleaning data folder: " + location);
         }
         IOUtil.deleteRecursively(tempFolder);
         IOUtil.deleteFile(tempFolder);

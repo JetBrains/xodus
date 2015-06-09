@@ -19,10 +19,10 @@ import jetbrains.exodus.core.dataStructures.persistent.AbstractPersistent23Tree;
 import jetbrains.exodus.core.dataStructures.persistent.Persistent23Tree;
 import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.tables.PropertyTypes;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -31,7 +31,7 @@ import java.util.Iterator;
 @SuppressWarnings({"RawUseOfParameterizedType", "ComparableImplementedButEqualsNotOverridden", "unchecked"})
 public class PropertiesIterableWrapper extends UpdatableCachedWrapperIterable {
 
-    private static final Log log = LogFactory.getLog(PropertiesIterableWrapper.class);
+    private static final Logger logger = LoggerFactory.getLogger(PropertiesIterableWrapper.class);
 
     private int entityTypeId;
     @NotNull
@@ -137,7 +137,7 @@ public class PropertiesIterableWrapper extends UpdatableCachedWrapperIterable {
             if (index.contains(oldEntry)) {
                 index.exclude(oldEntry);
             } else if (newEntry != null && !index.contains(newEntry)) {
-                log.warn("In-memory index doesn't contain the value [" + oldValue + "]. New value [" + newValue + "]. Handle [" + getHandle() + ']');
+                logger.warn("In-memory index doesn't contain the value [" + oldValue + "]. New value [" + newValue + "]. Handle [" + getHandle() + ']');
             }
         }
         if (newEntry != null) {

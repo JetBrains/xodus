@@ -18,8 +18,6 @@ package jetbrains.exodus.sshd;
 import jetbrains.exodus.entitystore.PersistentEntityStore;
 import jetbrains.exodus.entitystore.StoreTransaction;
 import jetbrains.exodus.entitystore.StoreTransactionalExecutable;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.sshd.server.Command;
 import org.apache.sshd.server.Environment;
 import org.apache.sshd.server.ExitCallback;
@@ -37,8 +35,6 @@ import java.util.Set;
  *
  */
 public class RhinoCommand implements Command, Runnable {
-
-    private static final Log log = LogFactory.getLog(RhinoCommand.class);
 
     private static final String[] INITIAL_SCRIPTS = {"init.js", "functions.js", "opt.js"};
     private InputStreamReader in;

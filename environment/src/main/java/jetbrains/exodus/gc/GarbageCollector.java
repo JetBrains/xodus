@@ -27,8 +27,9 @@ import jetbrains.exodus.env.TransactionImpl;
 import jetbrains.exodus.io.RemoveBlockType;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.IExpirationChecker;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.Iterator;
@@ -39,7 +40,7 @@ public final class GarbageCollector {
 
     public static final String UTILIZATION_PROFILE_STORE_NAME = "exodus.gc.up";
 
-    private static final org.apache.commons.logging.Log logging = LogFactory.getLog(GarbageCollector.class);
+    private static final Logger logger = LoggerFactory.getLogger(GarbageCollector.class);
 
     @NotNull
     private final EnvironmentImpl env;
@@ -170,10 +171,10 @@ public final class GarbageCollector {
         final TransactionImpl txn = env.beginTransactionWithClonedMetaTree();
         try {
             final Log log = getLog();
-            if (logging.isDebugEnabled()) {
+            if (logger.isDebugEnabled()) {
                 final long high = log.getHighAddress();
                 final long highFile = log.getHighFileAddress();
-                logging.debug(String.format(
+                logger.debug(String.format(
                         "Cleaner acquired txn when log high address was: %d (%s@%d) when cleaning file %s",
                         high, LogUtil.getLogFilename(highFile), high - highFile, LogUtil.getLogFilename(fileAddress)
                 ));
@@ -201,7 +202,7 @@ public final class GarbageCollector {
                 return false;
             }
         } catch (Throwable e) {
-            logging.error("cleanFile(" + LogUtil.getLogFilename(fileAddress) + ')', e);
+            logger.error("cleanFile(" + LogUtil.getLogFilename(fileAddress) + ')', e);
             throw ExodusException.toExodusException(e);
         } finally {
             txn.abort();
@@ -311,8 +312,8 @@ public final class GarbageCollector {
     }
 
     static void loggingInfo(@NotNull final String message) {
-        if (logging.isInfoEnabled()) {
-            logging.info(message);
+        if (logger.isInfoEnabled()) {
+            logger.info(message);
         }
     }
 

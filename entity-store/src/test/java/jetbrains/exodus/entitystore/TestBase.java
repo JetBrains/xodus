@@ -17,8 +17,8 @@ package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.util.CompressBackupUtil;
 import junit.framework.TestCase;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,7 +27,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 public abstract class TestBase extends TestCase {
-    protected static Log log = LogFactory.getLog(TestBase.class);
+
+    protected static Logger logger = LoggerFactory.getLogger(TestBase.class);
 
     protected TestBase() {
     }
@@ -78,8 +79,8 @@ public abstract class TestBase extends TestCase {
         File[] files = getFilesToBackup();
         for (File file : files) {
             if (!(file.exists())) {
-                if (log.isWarnEnabled()) {
-                    log.warn("Can not find file while storing test artifacts: " + file.getAbsolutePath());
+                if (logger.isWarnEnabled()) {
+                    logger.warn("Can not find file while storing test artifacts: " + file.getAbsolutePath());
                 }
                 continue;
             }

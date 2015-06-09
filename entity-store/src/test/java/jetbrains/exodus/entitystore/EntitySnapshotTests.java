@@ -21,17 +21,13 @@ import jetbrains.exodus.core.execution.JobProcessorExceptionHandler;
 import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor;
 import jetbrains.exodus.env.EnvironmentConfig;
 import jetbrains.exodus.env.EnvironmentImpl;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 
 public class EntitySnapshotTests extends EntityStoreTestBase {
 
-    private static final Log log = LogFactory.getLog(EntitySnapshotTests.class);
 
     public void testProperty() {
         final PersistentStoreTransaction txn = getStoreTransaction();
@@ -113,7 +109,7 @@ public class EntitySnapshotTests extends EntityStoreTestBase {
         processor.setExceptionHandler(new JobProcessorExceptionHandler() {
             @Override
             public void handle(JobProcessor processor, Job job, Throwable t) {
-                log.error("Background exception", t);
+                logger.error("Background exception", t);
             }
         });
         processor.start();
@@ -152,15 +148,5 @@ public class EntitySnapshotTests extends EntityStoreTestBase {
                 }
             }
         });
-    }
-
-    private static Object executeMethod(Object obj, String methodName) {
-        try {
-            final Method method = obj.getClass().getDeclaredMethod(methodName);
-            method.setAccessible(true);
-            return method.invoke(obj);
-        } catch (Throwable t) {
-            return t;
-        }
     }
 }

@@ -21,13 +21,13 @@ import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Priority;
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class EntityIterableCacheImpl implements EntityIterableCache {
 
-    private static final Log log = LogFactory.getLog(EntityIterableCacheImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(EntityIterableCacheImpl.class);
 
     @NotNull
     private final PersistentEntityStoreImpl store;
@@ -205,18 +205,18 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
                 cancellingPolicy.setLocalCache(txn.getLocalCache());
                 txn.setQueryCancellingPolicy(cancellingPolicy);
                 try {
-                    if (!log.isInfoEnabled()) {
+                    if (!logger.isInfoEnabled()) {
                         it.getOrCreateCachedWrapper(txn);
                     } else {
                         it.getOrCreateCachedWrapper(txn);
                         final long cachedIn = System.currentTimeMillis() - started;
                         if (cachedIn > 1000) {
-                            log.info("Cached in " + cachedIn + " ms, handle=" + getStringPresentation(handle));
+                            logger.info("Cached in " + cachedIn + " ms, handle=" + getStringPresentation(handle));
                         }
                     }
                 } catch (TooLongEntityIterableInstantiationException e) {
-                    if (log.isInfoEnabled()) {
-                        log.info("Caching forcedly stopped: " + getStringPresentation(handle));
+                    if (logger.isInfoEnabled()) {
+                        logger.info("Caching forcedly stopped: " + getStringPresentation(handle));
                     }
                 }
             } finally {

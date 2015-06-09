@@ -24,9 +24,10 @@ import jetbrains.exodus.core.dataStructures.skiplists.LongSkipList;
 import jetbrains.exodus.io.*;
 import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.util.DeferredIO;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.util.ArrayList;
@@ -37,7 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @SuppressWarnings({"JavaDoc"})
 public final class Log implements Closeable {
 
-    private static final org.apache.commons.logging.Log logging = LogFactory.getLog(Log.class);
+    private static final Logger logger = LoggerFactory.getLogger(Log.class);
 
     private static AtomicInteger identityGenerator = new AtomicInteger();
 
@@ -156,7 +157,7 @@ public final class Log implements Closeable {
                     approvedHighAddress = loggable.getAddress() + loggable.length();
                 }
             } catch (ExodusException e) { // if an exception is thrown then last loggable wasn't read correctly
-                logging.error("Exception on Log recovery. Approved high address = " + approvedHighAddress, e);
+                logger.error("Exception on Log recovery. Approved high address = " + approvedHighAddress, e);
             }
             setHighAddress(approvedHighAddress);
         }

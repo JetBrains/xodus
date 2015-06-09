@@ -16,9 +16,9 @@
 package jetbrains.exodus.query;
 
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -26,8 +26,8 @@ import java.util.List;
 
 public abstract class BinaryOperator extends NodeBase {
 
-    private static Log log = LogFactory.getLog(BinaryOperator.class);
-    private static boolean isWarnEnabled = log.isWarnEnabled();
+    private static Logger logger = LoggerFactory.getLogger(BinaryOperator.class);
+    private static boolean isWarnEnabled = logger.isWarnEnabled();
     private static final int MAXIMUM_LEGAL_DEPTH = 200;
     private static final int LARGE_DEPTH_LOGGING_FREQ = 10000;
     private static volatile long lastLoggedMillis = 0;
@@ -55,7 +55,7 @@ public abstract class BinaryOperator extends NodeBase {
             final long millis = System.currentTimeMillis();
             if (millis - lastLoggedMillis > LARGE_DEPTH_LOGGING_FREQ) {
                 lastLoggedMillis = millis;
-                log.warn("Binary operator of too great depth", new Throwable());
+                logger.warn("Binary operator of too great depth", new Throwable());
             }
         }
     }

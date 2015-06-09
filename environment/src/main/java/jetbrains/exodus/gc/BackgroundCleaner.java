@@ -17,13 +17,13 @@ package jetbrains.exodus.gc;
 
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.execution.*;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class BackgroundCleaner {
 
-    private static final Log logging = LogFactory.getLog(BackgroundCleaner.class);
+    private static final Logger logger = LoggerFactory.getLogger(BackgroundCleaner.class);
 
     @NotNull
     private final GarbageCollector gc;
@@ -67,7 +67,7 @@ final class BackgroundCleaner {
             result.setExceptionHandler(new JobProcessorExceptionHandler() {
                 @Override
                 public void handle(JobProcessor processor, Job job, Throwable t) {
-                    logging.error(t, t);
+                    logger.error(t.getMessage(), t);
                 }
             });
         }

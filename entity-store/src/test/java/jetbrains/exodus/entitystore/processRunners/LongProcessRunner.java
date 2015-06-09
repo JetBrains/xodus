@@ -17,35 +17,35 @@ package jetbrains.exodus.entitystore.processRunners;
 
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.EntityIterable;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class LongProcessRunner extends ProcessRunner {
 
-    private static final Log log = LogFactory.getLog(LongProcessRunner.class);
+    private static final Logger logger = LoggerFactory.getLogger(LongProcessRunner.class);
 
     @Override
     protected void oneMoreStep() throws Exception {
-        log.info("One more step...");
+        logger.info("One more step...");
         EntityIterable iterable = txn.find("Person", "name", "Vadim");
         Entity entity = iterable.iterator().next();
 
-        log.info("Starting separate thread...");
+        logger.info("Starting separate thread...");
         new Thread() {
             @Override
             public void run() {
                 try {
                     Thread.sleep(5 * 1000);
-                    log.info("Requesting euthanasia");
+                    logger.info("Requesting euthanasia");
                     getStreamer().writeString(store.getLocation());
                 } catch (Exception e) {
-                    log.error("Something went terribly wrong: ", e);
+                    logger.error("Something went terribly wrong: ", e);
                 }
             }
         }.start();
-        log.info("...separate thread started");
+        logger.info("...separate thread started");
 
-        log.info("Getting ready for a rush...");
+        logger.info("Getting ready for a rush...");
         long l = 0;
         while (true) {
             entity.setProperty("password", "dummypassword" + l++);

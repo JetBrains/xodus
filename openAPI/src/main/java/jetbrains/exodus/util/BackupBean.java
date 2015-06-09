@@ -17,17 +17,17 @@ package jetbrains.exodus.util;
 
 import jetbrains.exodus.BackupStrategy;
 import jetbrains.exodus.Backupable;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
 import java.util.List;
 
 public class BackupBean implements Backupable {
 
-    private static final Log log = LogFactory.getLog(BackupBean.class);
+    private static final Logger logger = LoggerFactory.getLogger(BackupBean.class);
 
     private final Backupable[] targets;
     private volatile long backupStartTicks;
@@ -108,7 +108,7 @@ public class BackupBean implements Backupable {
             @Override
             public void beforeBackup() throws Exception {
                 backupStartTicks = System.currentTimeMillis();
-                log.info("Backing up database...");
+                logger.info("Backing up database...");
                 for (final BackupStrategy strategy : wrapped) {
                     strategy.beforeBackup();
                 }
@@ -177,11 +177,11 @@ public class BackupBean implements Backupable {
                     backupStartTicks = 0;
                 }
                 if (commandAfterBackup != null) {
-                    log.info("Executing \"" + commandAfterBackup + "\"...");
+                    logger.info("Executing \"" + commandAfterBackup + "\"...");
                     //noinspection CallToRuntimeExecWithNonConstantString,CallToRuntimeExec
                     Runtime.getRuntime().exec(commandAfterBackup);
                 }
-                log.info("Backup finished.");
+                logger.info("Backup finished.");
             }
 
             @Override

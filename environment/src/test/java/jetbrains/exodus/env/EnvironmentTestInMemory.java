@@ -26,16 +26,17 @@ import jetbrains.exodus.io.inMemory.Memory;
 import jetbrains.exodus.io.inMemory.MemoryDataReader;
 import jetbrains.exodus.io.inMemory.MemoryDataWriter;
 import jetbrains.exodus.util.Random;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
 public class EnvironmentTestInMemory extends EnvironmentTest {
 
-    private static final org.apache.commons.logging.Log logging = LogFactory.getLog(EnvironmentTestInMemory.class);
+    private static final Logger logger = LoggerFactory.getLogger(EnvironmentTestInMemory.class);
     private static final int TEST_DURATION = 1000 * 30;
 
     private final Random rnd = new Random();
@@ -76,7 +77,7 @@ public class EnvironmentTestInMemory extends EnvironmentTest {
                     mutableMap.endWrite();
                 }
             } catch (Throwable t) {
-                logging.error("Failed to put", t);
+                logger.error("Failed to put", t);
                 break;
             } finally {
                 txn.abort();

@@ -19,9 +19,9 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.LongObjectCache;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.util.SharedRandomAccessFile;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,7 +32,7 @@ import java.util.Iterator;
 @SuppressWarnings({"PackageVisibleField", "ClassEscapesDefinedScope"})
 public class FileDataReader implements DataReader {
 
-    private static final Log logging = LogFactory.getLog(FileDataReader.class);
+    private static final Logger logger = LoggerFactory.getLogger(FileDataReader.class);
 
     private static final String DELETED_FILE_EXTENSION = ".del";
 
@@ -77,8 +77,8 @@ public class FileDataReader implements DataReader {
         final boolean deleted = rbt == RemoveBlockType.Delete ? file.delete() : renameFile(file);
         if (!deleted) {
             throw new ExodusException("Failed to delete " + file.getAbsolutePath());
-        } else if (logging.isInfoEnabled()) {
-            logging.info("Deleted file " + file.getAbsolutePath());
+        } else if (logger.isInfoEnabled()) {
+            logger.info("Deleted file " + file.getAbsolutePath());
         }
     }
 

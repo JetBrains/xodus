@@ -29,12 +29,12 @@ public class FailoverForkTests extends EntityStoreTestBase {
 
     @Override
     protected void setUp() throws Exception {
-        log.info("Starting setup...");
+        logger.info("Starting setup...");
         childFolderLocation = null;
         startAndKillProc();
         assertNotNull(childFolderLocation);
         super.setUp();
-        log.info("...Setup done");
+        logger.info("...Setup done");
     }
 
     @Override
@@ -47,13 +47,13 @@ public class FailoverForkTests extends EntityStoreTestBase {
     }
 
     private void startAndKillProc() throws Exception {
-        log.info("Preparing to start a process...");
+        logger.info("Preparing to start a process...");
         forked = ForkSupportIO.create(getProcessRunner(), new String[]{}, new String[]{}).start();
-        log.info("Process started, PID = " + forked.getPID());
+        logger.info("Process started, PID = " + forked.getPID());
         childFolderLocation = forked.readString();
-        log.info("Forked process said: " + childFolderLocation);
+        logger.info("Forked process said: " + childFolderLocation);
         forked.kill();
-        log.info("Process killed");
+        logger.info("Process killed");
         Assert.assertNotSame("Process ended normally", 0, forked.waitFor());
     }
 

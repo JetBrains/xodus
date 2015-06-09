@@ -17,9 +17,9 @@ package jetbrains.exodus.query;
 
 
 import jetbrains.exodus.entitystore.Entity;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
@@ -28,7 +28,8 @@ import java.util.*;
  * Cannot be used for sorting in memory since is not stable
  */
 public class InMemoryHeapSortIterable extends SortEngine.InMemorySortIterable {
-    protected static Log log = LogFactory.getLog(InMemoryHeapSortIterable.class);
+
+    private static Logger logger = LoggerFactory.getLogger(InMemoryHeapSortIterable.class);
 
     public InMemoryHeapSortIterable(@NotNull final Iterable<Entity> source, @NotNull final Comparator<Entity> comparator) {
         super(source, comparator);
@@ -76,8 +77,8 @@ public class InMemoryHeapSortIterable extends SortEngine.InMemorySortIterable {
                 }
                 size = heap.size();
                 if (size > 16) {
-                    if (log.isTraceEnabled()) {
-                        log.trace("HeapSort called, size = " + size, new Exception());
+                    if (logger.isTraceEnabled()) {
+                        logger.trace("HeapSort called, size = " + size, new Exception());
                     }
                 }
                 for (int i = (size - 2) / 2; i > 0; i -= 1) {

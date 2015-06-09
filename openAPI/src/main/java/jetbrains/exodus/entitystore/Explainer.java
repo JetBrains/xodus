@@ -17,10 +17,9 @@ package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.StringWriter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -53,7 +52,7 @@ public class Explainer {
 
     private static final String PACKAGE_TO_SKIP_IN_STACKTRACE = "jetbrains.teamsys.dnq.runtime.queries";
 
-    private static final Log log = LogFactory.getLog(Explainer.class);
+    private static final Logger logger = LoggerFactory.getLogger(Explainer.class);
 
     private final Map<Object, Map<String, Object>> queries = new ConcurrentHashMap<>();
 
@@ -218,7 +217,7 @@ public class Explainer {
         }
 
         if (show) {
-            StringWriter stringWriter = new StringWriter();
+            final StringBuilder stringWriter = new StringBuilder();
             stringWriter.append("Explain\n");
             for (Map.Entry<String, Object> entry : query.entrySet()) {
                 stringWriter.append(entry.getKey());
@@ -226,7 +225,7 @@ public class Explainer {
                 stringWriter.append(entry.getValue().toString());
                 stringWriter.append('\n');
             }
-            log.info(stringWriter);
+            logger.info(stringWriter.toString());
         }
 
         if (!isExplainForcedForThread()) {

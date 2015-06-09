@@ -36,15 +36,16 @@ import jetbrains.exodus.tree.btree.AddressIterator;
 import jetbrains.exodus.tree.btree.BTree;
 import jetbrains.exodus.tree.btree.BTreeBalancePolicy;
 import jetbrains.exodus.tree.patricia.PatriciaTreeBase;
-import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.*;
 
 public class Reflect {
 
-    private static final org.apache.commons.logging.Log logging = LogFactory.getLog(Reflect.class);
+    private static final Logger logger = LoggerFactory.getLogger(Reflect.class);
     private static final int DEFAULT_PAGE_SIZE = LogUtil.LOG_BLOCK_ALIGNMENT * 16;
     private static final int MAX_VALID_LOGGABLE_TYPE = PatriciaTreeBase.MAX_VALID_LOGGABLE_TYPE;
 
@@ -119,7 +120,7 @@ public class Reflect {
                     if (root.isValid()) {
                         roots.add(root);
                     } else {
-                        logging.error("Invalid root at address: " + loggable.getAddress());
+                        logger.error("Invalid root at address: " + loggable.getAddress());
                     }
                 }
                 if (loggable.getAddress() + loggable.length() >= endAddress) break;
@@ -148,7 +149,7 @@ public class Reflect {
                     try {
                         cursor.getNext();
                     } catch (ExodusException e) {
-                        logging.error("Can't traverse meta tree");
+                        logger.error("Can't traverse meta tree");
                         break;
                     }
                     final ArrayByteIterable key = new ArrayByteIterable(cursor.getKey());
@@ -178,7 +179,7 @@ public class Reflect {
                         currentInfo = fallbackMetaTree.getMetaInfo(name, env);
                     }
                     if (currentInfo == null) {
-                        logging.error("No meta info for id: " + id);
+                        logger.error("No meta info for id: " + id);
                         continue;
                     }
                 }
@@ -316,13 +317,13 @@ public class Reflect {
                         final ITree tree = ((TransactionImpl) txn).getTree(store);
                         fetchUsedSpace(tree.addressIterator(), usedSpace);
                         if (tree.getSize() != storeSize) {
-                            logging.error("Stored size (" + tree.getSize() + ") isn't equal to actual size (" + storeSize + ')');
+                            logger.error("Stored size (" + tree.getSize() + ") isn't equal to actual size (" + storeSize + ')');
                         }
                     }
                 });
             } catch (Throwable t) {
                 System.out.println();
-                logging.error("Can't fetch used space for store " + name, t);
+                logger.error("Can't fetch used space for store " + name, t);
             }
         }
         System.out.println();
@@ -403,7 +404,7 @@ public class Reflect {
                 }
                 if (storeIsBroken != null) {
                     System.out.println();
-                    logging.error("Failed to completely copy store " + name, storeIsBroken);
+                    logger.error("Failed to completely copy store " + name, storeIsBroken);
                 }
                 System.out.println(". Saved store size = " + storeSize[0] + ", actual number of pairs = " + totalPairs[0]);
                 target.executeInTransaction(new TransactionalExecutable() {
@@ -440,10 +441,10 @@ public class Reflect {
 
                 final int type = loggable.getType();
                 if (type > MAX_VALID_LOGGABLE_TYPE) {
-                    logging.error("Wrong loggable type: " + type);
+                    logger.error("Wrong loggable type: " + type);
                 }
             } catch (ExodusException e) {
-                logging.error("Can't enumerate loggable: " + e);
+                logger.error("Can't enumerate loggable: " + e);
             }
         }
     }
@@ -453,7 +454,7 @@ public class Reflect {
             long address = pair.getKey();
             final long size = log.getFileSize(address);
             if (size <= 0) {
-                logging.error("Empty file unexpected");
+                logger.error("Empty file unexpected");
             } else {
                 final String msg;
                 final Long usedBytes = pair.getValue();
