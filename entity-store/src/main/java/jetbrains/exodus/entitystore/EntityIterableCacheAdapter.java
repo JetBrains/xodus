@@ -31,9 +31,9 @@ final class EntityIterableCacheAdapter {
     @NotNull
     final PersistentObjectCache<EntityIterableHandle, CacheItem> cache;
 
-    EntityIterableCacheAdapter(@NotNull final PersistentEntityStoreConfig config, final int cacheSize) {
+    EntityIterableCacheAdapter(@NotNull final PersistentEntityStoreConfig config) {
         this.config = config;
-        cache = new PersistentObjectCache<>(cacheSize);
+        cache = new PersistentObjectCache<>(config.getEntityIterableCacheSize());
     }
 
     private EntityIterableCacheAdapter(@NotNull final EntityIterableCacheAdapter source) {

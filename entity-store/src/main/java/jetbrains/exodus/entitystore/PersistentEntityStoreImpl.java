@@ -136,6 +136,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @Nullable
     private final EntityStoreConfig configMBean;
+    @NotNull
+    private final PersistentEntityStoreSettingsListener entityStoreSettingsListener;
 
     private final long startedAt;
     private long transactionCount;
@@ -292,6 +294,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
 
         configMBean = config.isManagementEnabled() ? new EntityStoreConfig(this) : null;
+        entityStoreSettingsListener = new PersistentEntityStoreSettingsListener(this);
+        config.addChangedSettingsListener(entityStoreSettingsListener);
 
         startedAt = System.currentTimeMillis();
         transactionCount = 0;
@@ -2098,6 +2102,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @Override
     public void close() {
         logger.info("Closing...");
+        config.removeChangedSettingsListener(entityStoreSettingsListener);
         if (configMBean != null) {
             configMBean.unregister();
         }
