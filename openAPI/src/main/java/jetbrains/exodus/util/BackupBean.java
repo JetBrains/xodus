@@ -22,6 +22,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
@@ -35,6 +36,7 @@ public class BackupBean implements Backupable {
     private boolean backupToZip;
     private String backupNamePrefix;
     private String commandAfterBackup;
+    private List<Runnable> runAfterBackup = new ArrayList<>();
     private Throwable backupException;
 
     public BackupBean(final Backupable target) {
@@ -79,6 +81,10 @@ public class BackupBean implements Backupable {
 
     public String getCommandAfterBackup() {
         return commandAfterBackup;
+    }
+
+    public void executeAfterBackup(@NotNull final Runnable runnable) {
+        runAfterBackup.add(runnable);
     }
 
     public void setBackupStartTicks(long backupStartTicks) {
@@ -175,6 +181,9 @@ public class BackupBean implements Backupable {
                     }
                 } finally {
                     backupStartTicks = 0;
+                }
+                for (final Runnable runnable : runAfterBackup) {
+                    runnable.run();
                 }
                 if (commandAfterBackup != null) {
                     logger.info("Executing \"" + commandAfterBackup + "\"...");
