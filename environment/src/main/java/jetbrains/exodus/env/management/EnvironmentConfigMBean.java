@@ -93,6 +93,10 @@ public interface EnvironmentConfigMBean {
 
     void setGcFilesInterval(int files);
 
+    int getGcRunPeriod();
+
+    void setGcRunPeriod(int runPeriod);
+
     boolean getGcUtilizationFromScratch();
 
     void close();

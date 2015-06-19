@@ -90,6 +90,11 @@ public final class EnvironmentConfig extends AbstractConfig {
      */
     public static final String GC_FILES_INTERVAL = "exodus.gc.filesInterval";
 
+    /**
+     * If a single cleaner run didn't reach target utilization then next run will happen in this number of milliseconds
+     */
+    public static final String GC_RUN_PERIOD = "exodus.gc.runPeriod";
+
     public static final String GC_UTILIZATION_FROM_SCRATCH = "exodus.gc.utilization.fromScratch";
 
     public static final String MANAGEMENT_ENABLED = "exodus.managementEnabled";
@@ -127,6 +132,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(GC_USE_EXPIRATION_CHECKER, true),
                 new Pair(GC_MIN_FILE_AGE, 2),
                 new Pair(GC_FILES_INTERVAL, 1),
+                new Pair(GC_RUN_PERIOD, 30000),
                 new Pair(GC_UTILIZATION_FROM_SCRATCH, false),
                 new Pair(MANAGEMENT_ENABLED, true)
         }, strategy);
@@ -370,6 +376,17 @@ public final class EnvironmentConfig extends AbstractConfig {
             throw new InvalidSettingException("Invalid number of files: " + files);
         }
         setSetting(GC_FILES_INTERVAL, files);
+    }
+
+    public int getGcRunPeriod() {
+        return (Integer) getSetting(GC_RUN_PERIOD);
+    }
+
+    public void setGcRunPeriod(final int runPeriod) {
+        if (runPeriod < 0) {
+            throw new InvalidSettingException("Invalid GC run period: " + runPeriod);
+        }
+        setSetting(GC_RUN_PERIOD, runPeriod);
     }
 
     public boolean getGcUtilizationFromScratch() {

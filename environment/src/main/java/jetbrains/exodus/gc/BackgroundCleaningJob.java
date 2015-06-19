@@ -17,6 +17,7 @@ package jetbrains.exodus.gc;
 
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.execution.Job;
+import jetbrains.exodus.env.EnvironmentConfig;
 import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.log.Log;
 import org.jetbrains.annotations.NotNull;
@@ -59,7 +60,8 @@ final class BackgroundCleaningJob extends Job {
         final BackgroundCleaner cleaner = gc.getCleaner();
         if (canContinue()) {
             final EnvironmentImpl env = gc.getEnvironment();
-            final int gcStartIn = env.getEnvironmentConfig().getGcStartIn();
+            final EnvironmentConfig ec = env.getEnvironmentConfig();
+            final int gcStartIn = ec.getGcStartIn();
             if (gcStartIn != 0) {
                 final long minTimeToInvokeCleaner = gcStartIn + env.getCreated();
                 if (minTimeToInvokeCleaner > System.currentTimeMillis()) {
@@ -72,6 +74,12 @@ final class BackgroundCleaningJob extends Job {
                 cleaner.setCleaning(true);
                 try {
                     doCleanLog(log, gc);
+                    if (gc.isTooMuchFreeSpace()) {
+                        final int gcRunPeriod = ec.getGcRunPeriod();
+                        if (gcRunPeriod > 0) {
+                            gc.wakeAt(System.currentTimeMillis() + gcRunPeriod);
+                        }
+                    }
                 } finally {
                     cleaner.setCleaning(false);
                 }

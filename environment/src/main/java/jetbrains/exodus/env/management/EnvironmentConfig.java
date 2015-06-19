@@ -241,6 +241,16 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
+    public int getGcRunPeriod() {
+        return config.getGcRunPeriod();
+    }
+
+    @Override
+    public void setGcRunPeriod(int runPeriod) {
+        config.setGcRunPeriod(runPeriod);
+    }
+
+    @Override
     public boolean getGcUtilizationFromScratch() {
         return config.getGcUtilizationFromScratch();
     }
