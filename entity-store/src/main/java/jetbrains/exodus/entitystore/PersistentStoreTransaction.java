@@ -23,7 +23,11 @@ import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.core.dataStructures.FakeObjectCache;
 import jetbrains.exodus.core.dataStructures.ObjectCache;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
-import jetbrains.exodus.core.dataStructures.hash.*;
+import jetbrains.exodus.core.dataStructures.decorators.HashSetDecorator;
+import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
+import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
+import jetbrains.exodus.core.dataStructures.hash.LongSet;
+import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.entitystore.metadata.Index;
 import jetbrains.exodus.env.Environment;
@@ -87,7 +91,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                                @NotNull final Transaction txn) {
         this.store = store;
         this.txn = txn;
-        createdIterators = new HashSet<>();
+        createdIterators = new HashSetDecorator<>();
         final PersistentEntityStoreConfig config = store.getConfig();
         propsCache = createObjectCache(config.getTransactionPropsCacheSize());
         linksCache = createObjectCache(config.getTransactionLinksCacheSize());
@@ -101,7 +105,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     protected PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store, final boolean readOnly) {
         this.store = store;
-        createdIterators = new HashSet<>();
+        createdIterators = new HashSetDecorator<>();
         final PersistentEntityStoreConfig config = store.getConfig();
         propsCache = createObjectCache(config.getTransactionPropsCacheSize());
         linksCache = createObjectCache(config.getTransactionLinksCacheSize());
