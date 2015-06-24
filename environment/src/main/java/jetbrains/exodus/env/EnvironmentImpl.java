@@ -643,16 +643,38 @@ public class EnvironmentImpl implements Environment {
             } else if (logger.isInfoEnabled()) {
                 logger.info(errorString);
             }
-            if (logger.isDebugEnabled()) {
-                for (TransactionImpl transaction : txns) {
-                    logger.debug("Alive transaction: ", transaction.getTrace());
-                }
+            if (!exceptionSafe) {
+                reportAliveTransactions(false);
+            } else if (logger.isDebugEnabled()) {
+                reportAliveTransactions(true);
             }
         }
         if (!exceptionSafe) {
             if (txnCount > 0) {
                 throw new ExodusException("Finish all transactions before closing database environment");
             }
+        }
+    }
+
+    private void reportAliveTransactions(boolean debug) {
+        for (TransactionImpl transaction : txns) {
+            Throwable trace = transaction.getTrace();
+            if (trace == null) {
+                String stacksUnavailable = "Transactions stack traces are not available, " +
+                        "set \'exodus.env.monitorTxns.timeout > 0\'";
+                if (debug) {
+                    logger.debug(stacksUnavailable);
+                } else {
+                    logger.error(stacksUnavailable);
+                }
+                break;
+            }
+            if (debug) {
+                logger.debug("Alive transaction: ", trace);
+            } else {
+                logger.error("Alive transaction: ", trace);
+            }
+
         }
     }
 
