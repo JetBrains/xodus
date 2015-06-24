@@ -605,6 +605,12 @@ public class EnvironmentImpl implements Environment {
         return null;
     }
 
+    void forEachActiveTransaction(@NotNull final TransactionalExecutable executable) {
+        for (final TransactionImpl txn : txns) {
+            executable.execute(txn);
+        }
+    }
+
     protected StoreImpl createTemporaryEmptyStore(String name) {
         return new TemporaryEmptyStore(this, name);
     }
@@ -614,7 +620,7 @@ public class EnvironmentImpl implements Environment {
     }
 
     private long getOldestTxnRootAddress() {
-        final TransactionImpl oldestTxn = getOldestTransaction();
+        final TransactionImpl oldestTxn = txns.getOldestTransaction();
         return oldestTxn == null ? Long.MAX_VALUE : oldestTxn.getRoot();
     }
 
@@ -656,25 +662,27 @@ public class EnvironmentImpl implements Environment {
         }
     }
 
-    private void reportAliveTransactions(boolean debug) {
-        for (TransactionImpl transaction : txns) {
-            Throwable trace = transaction.getTrace();
-            if (trace == null) {
-                String stacksUnavailable = "Transactions stack traces are not available, " +
-                        "set \'" + EnvironmentConfig.ENV_MONITOR_TXNS_TIMEOUT + " > 0\'";
-                if (debug) {
-                    logger.debug(stacksUnavailable);
-                } else {
-                    logger.error(stacksUnavailable);
-                }
-                break;
-            }
+    private void reportAliveTransactions(final boolean debug) {
+        if (transactionTimeout() == 0) {
+            String stacksUnavailable = "Transactions stack traces are not available, " +
+                    "set \'" + EnvironmentConfig.ENV_MONITOR_TXNS_TIMEOUT + " > 0\'";
             if (debug) {
-                logger.debug("Alive transaction: ", trace);
+                logger.debug(stacksUnavailable);
             } else {
-                logger.error("Alive transaction: ", trace);
+                logger.error(stacksUnavailable);
             }
-
+        } else {
+            forEachActiveTransaction(new TransactionalExecutable() {
+                @Override
+                public void execute(@NotNull final Transaction txn) {
+                    final Throwable trace = ((TransactionImpl) txn).getTrace();
+                    if (debug) {
+                        logger.debug("Alive transaction: ", trace);
+                    } else {
+                        logger.error("Alive transaction: ", trace);
+                    }
+                }
+            });
         }
     }
 
