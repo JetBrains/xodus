@@ -67,6 +67,12 @@ subprojects {
         classifier = 'javadoc'
         from javadoc.destinationDir
     }
+    // work around for Java 8 javadoc which is too strict
+    if (JavaVersion.current().isJava8Compatible()) {
+        tasks.withType(Javadoc) {
+            options.addStringOption('Xdoclint:none', '-quiet')
+        }
+    }
 
     task sourceJar(type: Jar) {
         classifier = 'sources'
