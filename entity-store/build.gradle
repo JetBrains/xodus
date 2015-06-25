@@ -6,13 +6,12 @@ dependencies {
 // do not build tests artifact if there is task 'uploadArchives' (fixes XD-406)
 if (!gradle.startParameter.getTaskNames().contains('uploadArchives')) {
     task jarTests(type: Jar) {
+        if (version.length() == 0) {
+            classifier = 'tests'
+        } else {
+            classifier = 'tests-' + version
+        }
         from project.sourceSets.test.output
-    }
-
-    if (version.length() == 0) {
-        jarTests.archiveName = rootProject.name + '-' + project.name + '-tests.jar'
-    } else {
-        jarTests.archiveName = rootProject.name + '-' + project.name + '-tests-' + version + '.jar'
     }
 
     artifacts {
