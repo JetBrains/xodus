@@ -75,6 +75,11 @@ final class BackgroundCleaner {
         this.processor = result;
     }
 
+    @NotNull
+    JobProcessorAdapter getJobProcessor() {
+        return processor;
+    }
+
     void finish() {
         backgroundCleaningJob.cancel();
         processor.finish();

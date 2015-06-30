@@ -16,7 +16,9 @@
 package jetbrains.exodus.gc;
 
 import jetbrains.exodus.bindings.LongBinding;
+import jetbrains.exodus.core.dataStructures.Priority;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
+import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.Loggable;
@@ -100,33 +102,38 @@ public final class UtilizationProfile {
      * Reloads utilization profile.
      */
     public void computeUtilizationFromScratch() {
-        final TreeMap<Long, Long> usedSpace = new TreeMap<>();
-        env.executeInReadonlyTransaction(new TransactionalExecutable() {
+        gc.getCleaner().getJobProcessor().queue(new Job() {
             @Override
-            public void execute(@NotNull Transaction txn) {
-                for (final String storeName : env.getAllStoreNames(txn)) {
-                    final StoreImpl store = env.openStore(storeName, StoreConfig.USE_EXISTING, txn);
-                    final LongIterator it = ((TransactionImpl) txn).getTree(store).addressIterator();
-                    while (it.hasNext()) {
-                        final long address = it.next();
-                        final RandomAccessLoggable loggable = log.read(address);
-                        final Long fileAddress = log.getFileAddress(address);
-                        Long usedBytes = usedSpace.get(fileAddress);
-                        if (usedBytes == null) {
-                            usedBytes = 0L;
+            protected void execute() throws Throwable {
+                final TreeMap<Long, Long> usedSpace = new TreeMap<>();
+                env.executeInReadonlyTransaction(new TransactionalExecutable() {
+                    @Override
+                    public void execute(@NotNull Transaction txn) {
+                        for (final String storeName : env.getAllStoreNames(txn)) {
+                            final StoreImpl store = env.openStore(storeName, StoreConfig.USE_EXISTING, txn);
+                            final LongIterator it = ((TransactionImpl) txn).getTree(store).addressIterator();
+                            while (it.hasNext()) {
+                                final long address = it.next();
+                                final RandomAccessLoggable loggable = log.read(address);
+                                final Long fileAddress = log.getFileAddress(address);
+                                Long usedBytes = usedSpace.get(fileAddress);
+                                if (usedBytes == null) {
+                                    usedBytes = 0L;
+                                }
+                                usedBytes += loggable.length();
+                                usedSpace.put(fileAddress, usedBytes);
+                            }
                         }
-                        usedBytes += loggable.length();
-                        usedSpace.put(fileAddress, usedBytes);
+                    }
+                });
+                synchronized (filesUtilization) {
+                    filesUtilization.clear();
+                    for (final Map.Entry<Long, Long> entry : usedSpace.entrySet()) {
+                        filesUtilization.put(entry.getKey(), new FileUtilization(fileSize - entry.getValue()));
                     }
                 }
             }
-        });
-        synchronized (filesUtilization) {
-            filesUtilization.clear();
-            for (final Map.Entry<Long, Long> entry : usedSpace.entrySet()) {
-                filesUtilization.put(entry.getKey(), new FileUtilization(fileSize - entry.getValue()));
-            }
-        }
+        }, Priority.highest);
     }
 
     /**
