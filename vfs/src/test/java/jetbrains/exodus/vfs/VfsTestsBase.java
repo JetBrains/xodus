@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.vfs;
 
-import jetbrains.exodus.env.EnvironmentConfig;
 import jetbrains.exodus.env.EnvironmentTestsBase;
 import jetbrains.exodus.log.LogConfig;
 import org.junit.After;
@@ -34,7 +33,7 @@ public class VfsTestsBase extends EnvironmentTestsBase {
 
     @Override
     protected void createEnvironment() {
-        env = newContextualEnvironmentInstance(LogConfig.create(reader, writer), new EnvironmentConfig());
+        env = newContextualEnvironmentInstance(LogConfig.create(reader, writer));
     }
 
     protected VirtualFileSystem createVirtualFileSystem() {

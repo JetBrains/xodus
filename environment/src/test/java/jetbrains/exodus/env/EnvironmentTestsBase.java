@@ -124,8 +124,16 @@ public class EnvironmentTestsBase {
         return env;
     }
 
+    protected EnvironmentImpl newEnvironmentInstance(final LogConfig config) {
+        return (EnvironmentImpl) Environments.newInstance(config);
+    }
+
     protected EnvironmentImpl newEnvironmentInstance(final LogConfig config, final EnvironmentConfig ec) {
         return (EnvironmentImpl) Environments.newInstance(config, ec);
+    }
+
+    protected EnvironmentImpl newContextualEnvironmentInstance(final LogConfig config) {
+        return newContextualEnvironmentInstance(config, new EnvironmentConfig());
     }
 
     protected EnvironmentImpl newContextualEnvironmentInstance(final LogConfig config, final EnvironmentConfig ec) {
@@ -133,7 +141,7 @@ public class EnvironmentTestsBase {
     }
 
     protected void createEnvironment() {
-        env = newEnvironmentInstance(LogConfig.create(reader, writer), new EnvironmentConfig());
+        env = newEnvironmentInstance(LogConfig.create(reader, writer));
     }
 
     protected Log getLog() {

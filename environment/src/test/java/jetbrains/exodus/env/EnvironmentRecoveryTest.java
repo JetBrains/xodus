@@ -132,7 +132,7 @@ public class EnvironmentRecoveryTest extends EnvironmentTestsBase {
         env.close();
         writer.openOrCreateBlock(fileSize, 0);
         writer.close();
-        env = newEnvironmentInstance(LogConfig.create(reader, writer).setFileSize(env.getEnvironmentConfig().getLogFileSize()), new EnvironmentConfig()); // recovery pending
+        env = newEnvironmentInstance(LogConfig.create(reader, writer).setFileSize(env.getEnvironmentConfig().getLogFileSize())); // recovery pending
         assertLoggableTypes(C, env.getLog().getLoggableIterator(0), SEQ);
     }
 
@@ -155,7 +155,7 @@ public class EnvironmentRecoveryTest extends EnvironmentTestsBase {
         writer.openOrCreateBlock(0, cutAt);
         writer.close();
 
-        env = newEnvironmentInstance(LogConfig.create(reader, writer), new EnvironmentConfig()); // recovery pending
+        env = newEnvironmentInstance(LogConfig.create(reader, writer)); // recovery pending
         assertLoggableTypes(max, env.getLog().getLoggableIterator(0), SEQ);
     }
 

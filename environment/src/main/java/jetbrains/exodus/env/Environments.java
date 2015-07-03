@@ -53,6 +53,11 @@ public final class Environments {
     }
 
     @NotNull
+    public static Environment newInstance(@NotNull final LogConfig config) {
+        return newInstance(config, new EnvironmentConfig());
+    }
+
+    @NotNull
     public static Environment newInstance(@NotNull final LogConfig config, @NotNull final EnvironmentConfig ec) {
         return prepare(new EnvironmentImpl(newLogInstance(config, ec), ec));
     }

@@ -16,7 +16,10 @@
 package jetbrains.exodus.lucene;
 
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
-import jetbrains.exodus.env.*;
+import jetbrains.exodus.env.ContextualEnvironment;
+import jetbrains.exodus.env.EnvironmentTestsBase;
+import jetbrains.exodus.env.StoreConfig;
+import jetbrains.exodus.env.Transaction;
 import jetbrains.exodus.log.LogConfig;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.StopwordAnalyzerBase;
@@ -81,7 +84,7 @@ public abstract class ExodusLuceneTestsBase extends EnvironmentTestsBase {
 
     @Override
     protected void createEnvironment() {
-        env = newContextualEnvironmentInstance(LogConfig.create(reader, writer), new EnvironmentConfig());
+        env = newContextualEnvironmentInstance(LogConfig.create(reader, writer));
     }
 
     protected abstract StoreConfig getContentsConfig();

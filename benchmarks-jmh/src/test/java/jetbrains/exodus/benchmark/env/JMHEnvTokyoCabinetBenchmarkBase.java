@@ -66,7 +66,7 @@ abstract class JMHEnvTokyoCabinetBenchmarkBase extends BenchmarkTestBase {
         final TemporaryFolder temporaryFolder = new TemporaryFolder();
         temporaryFolder.create();
         final File testsDirectory = temporaryFolder.newFolder("data");
-        env = Environments.newInstance(LogConfig.create(new FileDataReader(testsDirectory, 16), new FileDataWriter(testsDirectory)), new EnvironmentConfig());
+        env = Environments.newInstance(LogConfig.create(new FileDataReader(testsDirectory, 16), new FileDataWriter(testsDirectory)));
         store = env.computeInTransaction(new TransactionalComputable<Store>() {
             @Override
             public Store compute(@NotNull Transaction txn) {
