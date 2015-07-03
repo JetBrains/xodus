@@ -34,7 +34,7 @@ public class AbortTest extends TestCase {
         super.setUp();
         //noinspection ResultOfMethodCallIgnored
         dbPath.mkdir();
-        env = Environments.newInstance(dbPath.getPath(), new EnvironmentConfig());
+        env = Environments.newInstance(dbPath.getPath());
     }
 
     public void testAbort() {

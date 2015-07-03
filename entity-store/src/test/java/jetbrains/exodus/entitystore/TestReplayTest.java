@@ -34,7 +34,7 @@ public class TestReplayTest extends TestCase {
         super.setUp();
         //noinspection ResultOfMethodCallIgnored
         dbPath.mkdir();
-        final Environment env = Environments.newInstance(dbPath.getPath(), new EnvironmentConfig());
+        final Environment env = Environments.newInstance(dbPath.getPath());
         store = new TestTransactionReplayPersistentEntityStoreImpl(env, "test");
     }
 

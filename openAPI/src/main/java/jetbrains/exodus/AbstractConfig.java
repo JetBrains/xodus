@@ -60,9 +60,10 @@ public abstract class AbstractConfig {
         return settings.get(key);
     }
 
-    public void setSetting(@NotNull final String key, @NotNull final Object value) {
+    public AbstractConfig setSetting(@NotNull final String key, @NotNull final Object value) {
         settings.put(key, value);
         fireChangedSettingsListeners(key);
+        return this;
     }
 
     public Map<String, Object> getSettings() {
@@ -162,6 +163,6 @@ public abstract class AbstractConfig {
 
     public interface ChangedSettingsListener {
 
-        public void settingChanged(@NotNull final String settingName);
+        void settingChanged(@NotNull final String settingName);
     }
 }

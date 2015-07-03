@@ -138,142 +138,147 @@ public final class EnvironmentConfig extends AbstractConfig {
         }, strategy);
     }
 
+    @Override
+    public EnvironmentConfig setSetting(@NotNull final String key, @NotNull final Object value) {
+        return (EnvironmentConfig) super.setSetting(key, value);
+    }
+
     public Long /* NB! do not change to long */ getMemoryUsage() {
         return (Long) getSetting(MEMORY_USAGE);
     }
 
-    public void setMemoryUsage(final long maxMemory) {
-        setSetting(MEMORY_USAGE, maxMemory);
+    public EnvironmentConfig setMemoryUsage(final long maxMemory) {
+        return setSetting(MEMORY_USAGE, maxMemory);
     }
 
     public int getMemoryUsagePercentage() {
         return (Integer) getSetting(MEMORY_USAGE_PERCENTAGE);
     }
 
-    public void setMemoryUsagePercentage(int memoryUsagePercentage) {
-        setSetting(MEMORY_USAGE_PERCENTAGE, memoryUsagePercentage);
+    public EnvironmentConfig setMemoryUsagePercentage(int memoryUsagePercentage) {
+        return setSetting(MEMORY_USAGE_PERCENTAGE, memoryUsagePercentage);
     }
 
     public boolean getLogDurableWrite() {
         return (Boolean) getSetting(LOG_DURABLE_WRITE);
     }
 
-    public void setLogDurableWrite(boolean durableWrite) {
-        setSetting(LOG_DURABLE_WRITE, durableWrite);
+    public EnvironmentConfig setLogDurableWrite(boolean durableWrite) {
+        return setSetting(LOG_DURABLE_WRITE, durableWrite);
     }
 
     public long getLogFileSize() {
         return (Long) getSetting(LOG_FILE_SIZE);
     }
 
-    public void setLogFileSize(long kilobytes) {
-        setSetting(LOG_FILE_SIZE, kilobytes);
+    public EnvironmentConfig setLogFileSize(long kilobytes) {
+        return setSetting(LOG_FILE_SIZE, kilobytes);
     }
 
     public long getLogLockTimeout() {
         return (Long) getSetting(LOG_LOCK_TIMEOUT);
     }
 
-    public void setLogLockTimeout(long millis) {
-        setSetting(LOG_LOCK_TIMEOUT, millis);
+    public EnvironmentConfig setLogLockTimeout(long millis) {
+        return setSetting(LOG_LOCK_TIMEOUT, millis);
     }
 
     public int getLogCachePageSize() {
         return (Integer) getSetting(LOG_CACHE_PAGE_SIZE);
     }
 
-    public void setLogCachePageSize(int bytes) {
-        setSetting(LOG_CACHE_PAGE_SIZE, bytes);
+    public EnvironmentConfig setLogCachePageSize(int bytes) {
+        return setSetting(LOG_CACHE_PAGE_SIZE, bytes);
     }
 
     public int getLogCacheOpenFilesCount() {
         return (Integer) getSetting(LOG_CACHE_OPEN_FILES);
     }
 
-    public void setLogCacheOpenFilesCount(int files) {
-        setSetting(LOG_CACHE_OPEN_FILES, files);
+    public EnvironmentConfig setLogCacheOpenFilesCount(int files) {
+        return setSetting(LOG_CACHE_OPEN_FILES, files);
     }
 
     public boolean isLogCacheShared() {
         return (Boolean) getSetting(LOG_CACHE_SHARED);
     }
 
-    public void setLogCacheShared(boolean shared) {
-        setSetting(LOG_CACHE_SHARED, shared);
+    public EnvironmentConfig setLogCacheShared(boolean shared) {
+        return setSetting(LOG_CACHE_SHARED, shared);
     }
 
     public boolean isLogCacheNonBlocking() {
         return (Boolean) getSetting(LOG_CACHE_NON_BLOCKING);
     }
 
-    public void setLogCacheNonBlocking(boolean nonBlocking) {
-        setSetting(LOG_CACHE_NON_BLOCKING, nonBlocking);
+    public EnvironmentConfig setLogCacheNonBlocking(boolean nonBlocking) {
+        return setSetting(LOG_CACHE_NON_BLOCKING, nonBlocking);
     }
 
     public boolean isLogCleanDirectoryExpected() {
         return (Boolean) getSetting(LOG_CLEAN_DIRECTORY_EXPECTED);
     }
 
-    public void setLogCleanDirectoryExpected(boolean logCleanDirectoryExpected) {
-        setSetting(LOG_CLEAN_DIRECTORY_EXPECTED, logCleanDirectoryExpected);
+    public EnvironmentConfig setLogCleanDirectoryExpected(boolean logCleanDirectoryExpected) {
+        return setSetting(LOG_CLEAN_DIRECTORY_EXPECTED, logCleanDirectoryExpected);
     }
 
     public boolean isLogClearInvalid() {
         return (Boolean) getSetting(LOG_CLEAR_INVALID);
     }
 
-    public void setLogClearInvalid(boolean logClearInvalid) {
-        setSetting(LOG_CLEAR_INVALID, logClearInvalid);
+    public EnvironmentConfig setLogClearInvalid(boolean logClearInvalid) {
+        return setSetting(LOG_CLEAR_INVALID, logClearInvalid);
     }
 
     public long getLogSyncPeriod() {
         return (Long) getSetting(LOG_SYNC_PERIOD);
     }
 
-    public void setLogSyncPeriod(long millis) {
-        setSetting(LOG_SYNC_PERIOD, millis);
+    public EnvironmentConfig setLogSyncPeriod(long millis) {
+        return setSetting(LOG_SYNC_PERIOD, millis);
     }
 
     public boolean getEnvIsReadonly() {
         return (Boolean) getSetting(ENV_IS_READONLY);
     }
 
-    public void setEnvIsReadonly(final boolean isReadonly) {
-        setSetting(ENV_IS_READONLY, isReadonly);
+    public EnvironmentConfig setEnvIsReadonly(final boolean isReadonly) {
+        return setSetting(ENV_IS_READONLY, isReadonly);
     }
 
     public boolean getEnvReadonlyEmptyStores() {
         return (Boolean) getSetting(ENV_READONLY_EMPTY_STORES);
     }
 
-    public void setEnvReadonlyEmptyStores(final boolean readonlyEmptyStores) {
-        setSetting(ENV_READONLY_EMPTY_STORES, readonlyEmptyStores);
+    public EnvironmentConfig setEnvReadonlyEmptyStores(final boolean readonlyEmptyStores) {
+        return setSetting(ENV_READONLY_EMPTY_STORES, readonlyEmptyStores);
     }
 
     public int getEnvStoreGetCacheSize() {
         return (Integer) getSetting(ENV_STOREGET_CACHE_SIZE);
     }
 
-    public void setEnvStoreGetCacheSize(final int storeGetCacheSize) {
+    public EnvironmentConfig setEnvStoreGetCacheSize(final int storeGetCacheSize) {
         if (storeGetCacheSize < 0) {
             throw new InvalidSettingException("Negative StoreGetCache size");
         }
-        setSetting(ENV_STOREGET_CACHE_SIZE, storeGetCacheSize);
+        return setSetting(ENV_STOREGET_CACHE_SIZE, storeGetCacheSize);
     }
 
     public boolean getEnvCloseForcedly() {
         return (Boolean) getSetting(ENV_CLOSE_FORCEDLY);
     }
 
-    public void setEnvCloseForcedly(boolean closeForcedly) {
-        setSetting(ENV_CLOSE_FORCEDLY, closeForcedly);
+    public EnvironmentConfig setEnvCloseForcedly(boolean closeForcedly) {
+        return setSetting(ENV_CLOSE_FORCEDLY, closeForcedly);
     }
 
     public int getEnvMonitorTxnsTimeout() {
         return (Integer) getSetting(ENV_MONITOR_TXNS_TIMEOUT);
     }
 
-    public void setEnvMonitorTxnsTimeout(final int timeout) {
+    public EnvironmentConfig setEnvMonitorTxnsTimeout(final int timeout) {
         if (timeout != 0 && timeout < 1000) {
             throw new InvalidSettingException("Transaction timeout should be greater than a second");
         }
@@ -281,127 +286,128 @@ public final class EnvironmentConfig extends AbstractConfig {
         if (timeout > 0 && timeout < getEnvMonitorTxnsCheckFreq()) {
             setEnvMonitorTxnsCheckFreq(timeout);
         }
+        return this;
     }
 
     public int getEnvMonitorTxnsCheckFreq() {
         return (Integer) getSetting(ENV_MONITOR_TXNS_CHECK_FREQ);
     }
 
-    public void setEnvMonitorTxnsCheckFreq(final int freq) {
-        setSetting(ENV_MONITOR_TXNS_CHECK_FREQ, freq);
+    public EnvironmentConfig setEnvMonitorTxnsCheckFreq(final int freq) {
+        return setSetting(ENV_MONITOR_TXNS_CHECK_FREQ, freq);
     }
 
     public int getTreeMaxPageSize() {
         return (Integer) getSetting(TREE_MAX_PAGE_SIZE);
     }
 
-    public void setTreeMaxPageSize(final int pageSize) throws InvalidSettingException {
+    public EnvironmentConfig setTreeMaxPageSize(final int pageSize) throws InvalidSettingException {
         if (pageSize < 16 || pageSize > 1024) {
             throw new InvalidSettingException("Invalid tree page size: " + pageSize);
         }
-        setSetting(TREE_MAX_PAGE_SIZE, pageSize);
+        return setSetting(TREE_MAX_PAGE_SIZE, pageSize);
     }
 
     public int getTreeNodesCacheSize() {
         return (Integer) getSetting(TREE_NODES_CACHE_SIZE);
     }
 
-    public void setTreeNodesCacheSize(final int cacheSize) {
-        setSetting(TREE_NODES_CACHE_SIZE, cacheSize);
+    public EnvironmentConfig setTreeNodesCacheSize(final int cacheSize) {
+        return setSetting(TREE_NODES_CACHE_SIZE, cacheSize);
     }
 
     public boolean isGcEnabled() {
         return (Boolean) getSetting(GC_ENABLED);
     }
 
-    public void setGcEnabled(boolean enabled) {
-        setSetting(GC_ENABLED, enabled);
+    public EnvironmentConfig setGcEnabled(boolean enabled) {
+        return setSetting(GC_ENABLED, enabled);
     }
 
     public int getGcStartIn() {
         return (Integer) getSetting(GC_START_IN);
     }
 
-    public void setGcStartIn(final int startInMillis) {
+    public EnvironmentConfig setGcStartIn(final int startInMillis) {
         if (startInMillis < 0) {
             throw new InvalidSettingException("GC can't be postponed for that number of milliseconds: " + startInMillis);
         }
-        setSetting(GC_START_IN, startInMillis);
+        return setSetting(GC_START_IN, startInMillis);
     }
 
     public int getGcMinUtilization() {
         return (Integer) getSetting(GC_MIN_UTILIZATION);
     }
 
-    public void setGcMinUtilization(int percent) throws InvalidSettingException {
+    public EnvironmentConfig setGcMinUtilization(int percent) throws InvalidSettingException {
         if (percent < 1 || percent > 90) {
             throw new InvalidSettingException("Invalid minimum log files utilization: " + percent);
         }
-        setSetting(GC_MIN_UTILIZATION, percent);
+        return setSetting(GC_MIN_UTILIZATION, percent);
     }
 
     public boolean getGcRenameFiles() {
         return (Boolean) getSetting(GC_RENAME_FILES);
     }
 
-    public void setGcRenameFiles(boolean rename) {
-        setSetting(GC_RENAME_FILES, rename);
+    public EnvironmentConfig setGcRenameFiles(boolean rename) {
+        return setSetting(GC_RENAME_FILES, rename);
     }
 
     public boolean getGcUseExpirationChecker() {
         return (Boolean) getSetting(GC_USE_EXPIRATION_CHECKER);
     }
 
-    public void setGcUseExpirationChecker(boolean useExpirationChecker) {
-        setSetting(GC_USE_EXPIRATION_CHECKER, useExpirationChecker);
+    public EnvironmentConfig setGcUseExpirationChecker(boolean useExpirationChecker) {
+        return setSetting(GC_USE_EXPIRATION_CHECKER, useExpirationChecker);
     }
 
     public int getGcFileMinAge() {
         return (Integer) getSetting(GC_MIN_FILE_AGE);
     }
 
-    public void setGcFileMinAge(int minAge) throws InvalidSettingException {
+    public EnvironmentConfig setGcFileMinAge(int minAge) throws InvalidSettingException {
         if (minAge < 1) {
             throw new InvalidSettingException("Invalid file minimum age: " + minAge);
         }
-        setSetting(GC_MIN_FILE_AGE, minAge);
+        return setSetting(GC_MIN_FILE_AGE, minAge);
     }
 
     public int getGcFilesInterval() {
         return (Integer) getSetting(GC_FILES_INTERVAL);
     }
 
-    public void setGcFilesInterval(int files) throws InvalidSettingException {
+    public EnvironmentConfig setGcFilesInterval(int files) throws InvalidSettingException {
         if (files < 1) {
             throw new InvalidSettingException("Invalid number of files: " + files);
         }
-        setSetting(GC_FILES_INTERVAL, files);
+        return setSetting(GC_FILES_INTERVAL, files);
     }
 
     public int getGcRunPeriod() {
         return (Integer) getSetting(GC_RUN_PERIOD);
     }
 
-    public void setGcRunPeriod(final int runPeriod) {
+    public EnvironmentConfig setGcRunPeriod(final int runPeriod) {
         if (runPeriod < 0) {
             throw new InvalidSettingException("Invalid GC run period: " + runPeriod);
         }
-        setSetting(GC_RUN_PERIOD, runPeriod);
+        return setSetting(GC_RUN_PERIOD, runPeriod);
     }
 
     public boolean getGcUtilizationFromScratch() {
         return (Boolean) getSetting(GC_UTILIZATION_FROM_SCRATCH);
     }
 
-    public void setGcUtilizationFromScratch(boolean fromScratch) {
-        setSetting(GC_UTILIZATION_FROM_SCRATCH, fromScratch);
+    public EnvironmentConfig setGcUtilizationFromScratch(boolean fromScratch) {
+        return setSetting(GC_UTILIZATION_FROM_SCRATCH, fromScratch);
     }
 
     public boolean isManagementEnabled() {
         return (Boolean) getSetting(MANAGEMENT_ENABLED);
     }
 
-    public void setManagementEnabled(final boolean managementEnabled) {
-        setSetting(MANAGEMENT_ENABLED, managementEnabled);
+    public EnvironmentConfig setManagementEnabled(final boolean managementEnabled) {
+        return setSetting(MANAGEMENT_ENABLED, managementEnabled);
     }
 }

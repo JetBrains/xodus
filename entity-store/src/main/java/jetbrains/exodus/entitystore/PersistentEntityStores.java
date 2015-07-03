@@ -76,7 +76,6 @@ public final class PersistentEntityStores {
         if (ec.getTreeNodesCacheSize() == EnvironmentConfig.DEFAULT.getTreeNodesCacheSize()) {
             ec.setTreeNodesCacheSize(TREE_NODES_CACHE_SIZE);
         }
-        ec.setEnvReadonlyEmptyStores(true);
-        return ec;
+        return ec.setEnvReadonlyEmptyStores(true);
     }
 }

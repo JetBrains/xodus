@@ -89,10 +89,8 @@ public class EnvironmentLockTest extends EnvironmentTestsBase {
                 final LogConfig secondLogConfig = new LogConfig();
                 secondLogConfig.setReader(new FileDataReader(dir, 16));
                 secondLogConfig.setWriter(new FileDataWriter(dir));
-                final EnvironmentConfig environmentConfig = new EnvironmentConfig();
-                environmentConfig.setLogLockTimeout(5000);
                 try {
-                    env = newEnvironmentInstance(secondLogConfig, environmentConfig);
+                    env = newEnvironmentInstance(secondLogConfig, new EnvironmentConfig().setLogLockTimeout(5000));
                     wasOpened[0] = true;
                 } catch (ExodusException e) {
                     wasOpened[0] = false;
