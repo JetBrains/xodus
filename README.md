@@ -7,7 +7,7 @@
 </div>
 
 ##Overview
-JetBrains Xodus is a transactional schema-less embedded database written in pure Java. It was initially developed for [JetBrains YouTrack](http://jetbrains.com/youtrack) (issue tracking and project management tool). At the moment Xodus is also used in some internal JetBrains projects.
+JetBrains Xodus is a transactional schema-less embedded database written in pure Java. It was initially developed for [JetBrains YouTrack](http://jetbrains.com/youtrack) (an issue tracking and project management tool). Currently Xodus is also used in some internal JetBrains projects.
 
 Key features:
 - Xodus is written in pure Java.
@@ -15,7 +15,7 @@ Key features:
 - Xodus is highly concurrent. Reads are completely non-blocking due to [MVCC](https://en.wikipedia.org/wiki/Multiversion_concurrency_control) and
 true [snapshot isolation](https://en.wikipedia.org/wiki/Snapshot_isolation).
 - Xodus is schema-less and agile. It requires no schema migrations or refactorings.
-- Xodus is embedded. It doesn’t require installation and administration.
+- Xodus is embedded. It doesn’t require installation or administration.
 
 Xodus is free and licensed under [Apache 2.0](http://www.apache.org/licenses/LICENSE-2.0.html). Xodus 1.0-SNAPSHOT artifacts are available in [Sonartype OSS](https://oss.sonatype.org/content/repositories/snapshots/org/jetbrains/xodus) repository.
 
