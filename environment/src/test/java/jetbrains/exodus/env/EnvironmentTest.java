@@ -122,10 +122,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             }, IllegalStateException.class);
         } finally {
             // forget old env anyway to prevent tearDown fail
-            LogConfig config = new LogConfig();
-            config.setReader(reader);
-            config.setWriter(writer);
-            env = newEnvironmentInstance(config, envConfig);
+            env = newEnvironmentInstance(LogConfig.create(reader, writer), envConfig);
         }
     }
 
@@ -169,11 +166,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             }
         }
         env.close();
-        LogConfig config = new LogConfig();
-        config.setReader(reader);
-        config.setWriter(writer);
-        envConfig.setTreeMaxPageSize(count / 2);
-        env = newEnvironmentInstance(config, envConfig);
+        env = newEnvironmentInstance(LogConfig.create(reader,writer), envConfig.setTreeMaxPageSize(count / 2));
         final Transaction txn = env.beginTransaction();
         try {
             Store store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn);
@@ -321,11 +314,8 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             env.getEnvironmentConfig().setGcEnabled(false);
             final int numberOfEnvironments = 200;
             for (int i = 0; i < numberOfEnvironments; ++i) {
-                final Pair<DataReader, DataWriter> readerWriterPair = createReaderWriter("sub" + i);
-                final LogConfig logConfig = new LogConfig();
-                logConfig.setReader(readerWriterPair.getFirst());
-                logConfig.setWriter(readerWriterPair.getSecond());
-                additionalEnvironments.add(newEnvironmentInstance(logConfig, EnvironmentConfig.DEFAULT));
+                final Pair<DataReader, DataWriter> rwPair = createReaderWriter("sub" + i);
+                additionalEnvironments.add(newEnvironmentInstance(LogConfig.create(rwPair.getFirst(), rwPair.getSecond()), EnvironmentConfig.DEFAULT));
             }
             final Thread[] threads = new Thread[numberOfEnvironments];
             System.out.println("create data concurrently");

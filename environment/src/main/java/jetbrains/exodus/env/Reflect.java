@@ -22,8 +22,6 @@ import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.core.dataStructures.hash.LinkedHashSet;
 import jetbrains.exodus.gc.GarbageCollector;
-import jetbrains.exodus.io.DataReader;
-import jetbrains.exodus.io.DataWriter;
 import jetbrains.exodus.io.FileDataReader;
 import jetbrains.exodus.io.FileDataWriter;
 import jetbrains.exodus.log.*;
@@ -90,19 +88,9 @@ public class Reflect {
         }
         System.out.println("Computed page size: " + pageSize);
 
-        final DataReader reader = new FileDataReader(directory, 16);
-        final DataWriter writer = new FileDataWriter(directory);
-
-        LogConfig logConfig = new LogConfig();
-        logConfig.setReader(reader);
-        logConfig.setWriter(writer);
-
-        final EnvironmentConfig environmentConfig = new EnvironmentConfig();
-        environmentConfig.setLogFileSize(((fileSize + pageSize - 1) / pageSize) * pageSize / LogUtil.LOG_BLOCK_ALIGNMENT);
-        environmentConfig.setLogCachePageSize(pageSize);
-        environmentConfig.setGcEnabled(false);
-
-        env = (EnvironmentImpl) Environments.newInstance(logConfig, environmentConfig);
+        env = (EnvironmentImpl) Environments.newInstance(
+                LogConfig.create(new FileDataReader(directory, 16), new FileDataWriter(directory)),
+                new EnvironmentConfig().setLogFileSize(((fileSize + pageSize - 1) / pageSize) * pageSize / LogUtil.LOG_BLOCK_ALIGNMENT).setLogCachePageSize(pageSize).setGcEnabled(false));
         log = env.getLog();
     }
 

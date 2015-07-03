@@ -89,30 +89,27 @@ public final class Environments {
 
     @NotNull
     public static Log newLogInstance(@NotNull final File dir, @NotNull final EnvironmentConfig ec) {
-        final LogConfig config = new LogConfig();
-        config.setDir(dir);
-        return newLogInstance(config, ec);
+        return newLogInstance(new LogConfig().setDir(dir), ec);
     }
 
     @NotNull
     public static Log newLogInstance(@NotNull final LogConfig config, @NotNull final EnvironmentConfig ec) {
-        config.setFileSize(ec.getLogFileSize());
-        config.setLockTimeout(ec.getLogLockTimeout());
-        config.setCachePageSize(ec.getLogCachePageSize());
-        config.setCacheOpenFilesCount(ec.getLogCacheOpenFilesCount());
-        config.setDurableWrite(ec.getLogDurableWrite());
-        config.setSharedCache(ec.isLogCacheShared());
-        config.setNonBlockingCache(ec.isLogCacheNonBlocking());
-        config.setCleanDirectoryExpected(ec.isLogCleanDirectoryExpected());
-        config.setClearInvalidLog(ec.isLogClearInvalid());
-        config.setSyncPeriod(ec.getLogSyncPeriod());
         final Long maxMemory = ec.getMemoryUsage();
         if (maxMemory != null) {
             config.setMemoryUsage(maxMemory);
         } else {
             config.setMemoryUsagePercentage(ec.getMemoryUsagePercentage());
         }
-        return newLogInstance(config);
+        return newLogInstance(config.setFileSize(ec.getLogFileSize()).
+                setLockTimeout(ec.getLogLockTimeout()).
+                setCachePageSize(ec.getLogCachePageSize()).
+                setCacheOpenFilesCount(ec.getLogCacheOpenFilesCount()).
+                setDurableWrite(ec.getLogDurableWrite()).
+                setSharedCache(ec.isLogCacheShared()).
+                setNonBlockingCache(ec.isLogCacheNonBlocking()).
+                setCleanDirectoryExpected(ec.isLogCleanDirectoryExpected()).
+                setClearInvalidLog(ec.isLogClearInvalid()).
+                setSyncPeriod(ec.getLogSyncPeriod()));
     }
 
     @NotNull

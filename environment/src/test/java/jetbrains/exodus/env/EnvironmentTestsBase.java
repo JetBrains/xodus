@@ -133,10 +133,7 @@ public class EnvironmentTestsBase {
     }
 
     protected void createEnvironment() {
-        LogConfig config = new LogConfig();
-        config.setReader(reader);
-        config.setWriter(writer);
-        env = newEnvironmentInstance(config, new EnvironmentConfig());
+        env = newEnvironmentInstance(LogConfig.create(reader, writer), new EnvironmentConfig());
     }
 
     protected Log getLog() {
@@ -311,10 +308,7 @@ public class EnvironmentTestsBase {
     protected void reopenEnvironment() {
         final EnvironmentConfig envConfig = env.getEnvironmentConfig();
         env.close();
-        LogConfig config = new LogConfig();
-        config.setReader(reader);
-        config.setWriter(writer);
-        env = newEnvironmentInstance(config, envConfig);
+        env = newEnvironmentInstance(LogConfig.create(reader, writer), envConfig);
     }
 
     protected void setLogFileSize(int kilobytes) {

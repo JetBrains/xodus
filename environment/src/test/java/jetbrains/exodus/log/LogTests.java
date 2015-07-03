@@ -358,10 +358,7 @@ public class LogTests extends LogTestsBase {
             getLog().write(DUMMY_LOGGABLE);
         }
         closeLog();
-        final LogConfig config = new LogConfig();
-        config.setFileSize(1);
-        config.setClearInvalidLog(true);
-        initLog(config);
+        initLog(new LogConfig().setFileSize(1).setClearInvalidLog(true));
     }
 
     private void testWriteImmediateRead(int fileSize, int pageSize) {

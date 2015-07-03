@@ -45,8 +45,12 @@ public class LogConfig {
     private boolean clearInvalidLog;
     private long syncPeriod;
 
-    public void setDir(@NotNull final File dir) {
+    public LogConfig() {
+    }
+
+    public LogConfig setDir(@NotNull final File dir) {
         this.dir = dir;
+        return this;
     }
 
     public long getFileSize() {
@@ -56,24 +60,27 @@ public class LogConfig {
         return fileSize;
     }
 
-    public void setFileSize(final long fileSize) {
+    public LogConfig setFileSize(final long fileSize) {
         this.fileSize = fileSize;
+        return this;
     }
 
     public long getLockTimeout() {
         return lockTimeout;
     }
 
-    public void setLockTimeout(long lockTimeout) {
+    public LogConfig setLockTimeout(long lockTimeout) {
         this.lockTimeout = lockTimeout;
+        return this;
     }
 
     public long getMemoryUsage() {
         return memoryUsage;
     }
 
-    public void setMemoryUsage(final long memUsage) {
+    public LogConfig setMemoryUsage(final long memUsage) {
         memoryUsage = memUsage;
+        return this;
     }
 
     public int getMemoryUsagePercentage() {
@@ -83,8 +90,9 @@ public class LogConfig {
         return memoryUsagePercentage;
     }
 
-    public void setMemoryUsagePercentage(final int memoryUsagePercentage) {
+    public LogConfig setMemoryUsagePercentage(final int memoryUsagePercentage) {
         this.memoryUsagePercentage = memoryUsagePercentage;
+        return this;
     }
 
     public DataReader getReader() {
@@ -94,8 +102,9 @@ public class LogConfig {
         return reader;
     }
 
-    public void setReader(@NotNull final DataReader reader) {
+    public LogConfig setReader(@NotNull final DataReader reader) {
         this.reader = reader;
+        return this;
     }
 
     public DataWriter getWriter() {
@@ -105,32 +114,36 @@ public class LogConfig {
         return writer;
     }
 
-    public void setWriter(@NotNull final DataWriter writer) {
+    public LogConfig setWriter(@NotNull final DataWriter writer) {
         this.writer = writer;
+        return this;
     }
 
     public boolean isDurableWrite() {
         return isDurableWrite;
     }
 
-    public void setDurableWrite(boolean durableWrite) {
+    public LogConfig setDurableWrite(boolean durableWrite) {
         isDurableWrite = durableWrite;
+        return this;
     }
 
     public boolean isSharedCache() {
         return sharedCache;
     }
 
-    public void setSharedCache(boolean sharedCache) {
+    public LogConfig setSharedCache(boolean sharedCache) {
         this.sharedCache = sharedCache;
+        return this;
     }
 
     public boolean isNonBlockingCache() {
         return nonBlockingCache;
     }
 
-    public void setNonBlockingCache(boolean nonBlockingCache) {
+    public LogConfig setNonBlockingCache(boolean nonBlockingCache) {
         this.nonBlockingCache = nonBlockingCache;
+        return this;
     }
 
     public int getCachePageSize() {
@@ -140,8 +153,9 @@ public class LogConfig {
         return cachePageSize;
     }
 
-    public void setCachePageSize(int cachePageSize) {
+    public LogConfig setCachePageSize(int cachePageSize) {
         this.cachePageSize = cachePageSize;
+        return this;
     }
 
     public int getCacheOpenFilesCount() {
@@ -151,20 +165,23 @@ public class LogConfig {
         return cacheOpenFilesCount;
     }
 
-    public void setCacheOpenFilesCount(int cacheOpenFilesCount) {
+    public LogConfig setCacheOpenFilesCount(int cacheOpenFilesCount) {
         this.cacheOpenFilesCount = cacheOpenFilesCount;
+        return this;
     }
 
-    public void setCleanDirectoryExpected(boolean cleanDirectoryExpected) {
+    public LogConfig setCleanDirectoryExpected(boolean cleanDirectoryExpected) {
         this.cleanDirectoryExpected = cleanDirectoryExpected;
+        return this;
     }
 
     public boolean isClearInvalidLog() {
         return clearInvalidLog;
     }
 
-    public void setClearInvalidLog(boolean clearInvalidLog) {
+    public LogConfig setClearInvalidLog(boolean clearInvalidLog) {
         this.clearInvalidLog = clearInvalidLog;
+        return this;
     }
 
     public long getSyncPeriod() {
@@ -174,8 +191,13 @@ public class LogConfig {
         return syncPeriod;
     }
 
-    public void setSyncPeriod(long syncPeriod) {
+    public LogConfig setSyncPeriod(long syncPeriod) {
         this.syncPeriod = syncPeriod;
+        return this;
+    }
+
+    public static LogConfig create(@NotNull final DataReader reader, @NotNull final DataWriter writer) {
+        return new LogConfig().setReader(reader).setWriter(writer);
     }
 
     private File checkDirectory(@NotNull final File directory) {

@@ -82,24 +82,15 @@ public class LogTestsBase {
     }
 
     protected void initLog(final long fileSize) {
-        final LogConfig config = new LogConfig();
-        config.setFileSize(fileSize);
-        initLog(config);
+        initLog(new LogConfig().setFileSize(fileSize));
     }
 
     protected void initLog(final long fileSize, final int cachePageSize) {
-        final LogConfig config = new LogConfig();
-        config.setFileSize(fileSize);
-        config.setCachePageSize(cachePageSize);
-        initLog(config);
+        initLog(new LogConfig().setFileSize(fileSize).setCachePageSize(cachePageSize));
     }
 
     protected void initLog(final long fileSize, final int cachePageSize, final int memoryUsagePercentage) {
-        final LogConfig config = new LogConfig();
-        config.setFileSize(fileSize);
-        config.setCachePageSize(cachePageSize);
-        config.setMemoryUsagePercentage(memoryUsagePercentage);
-        initLog(config);
+        initLog(new LogConfig().setFileSize(fileSize).setCachePageSize(cachePageSize).setMemoryUsagePercentage(memoryUsagePercentage));
     }
 
     protected void initLog(final LogConfig config) {
@@ -118,10 +109,7 @@ public class LogTestsBase {
         if (log == null) {
             synchronized (this) {
                 if (log == null) {
-                    LogConfig config = new LogConfig();
-                    config.setReader(reader);
-                    config.setWriter(writer);
-                    log = new Log(config);
+                    log = new Log(LogConfig.create(reader, writer));
                 }
             }
         }

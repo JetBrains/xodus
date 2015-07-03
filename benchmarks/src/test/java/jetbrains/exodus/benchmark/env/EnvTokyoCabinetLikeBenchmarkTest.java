@@ -217,10 +217,8 @@ public class EnvTokyoCabinetLikeBenchmarkTest extends BenchmarkTestBase {
             env.close();
         }
         final Pair<DataReader, DataWriter> rw = createRW();
-        LogConfig config = new LogConfig();
-        config.setReader(rw.getFirst());
-        config.setWriter(rw.getSecond());
-        env = Environments.newInstance(config, new EnvironmentConfig());
+
+        env = Environments.newInstance(LogConfig.create(rw.getFirst(), rw.getSecond()), new EnvironmentConfig());
     }
 
     protected StoreConfig getStoreConfiguration() {

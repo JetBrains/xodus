@@ -57,6 +57,7 @@ abstract class JMHEnvTokyoCabinetBenchmarkBase extends BenchmarkTestBase {
     protected Environment env;
 
     protected Store store;
+
     @Setup(Level.Invocation)
     public void setup() throws IOException {
         start();
@@ -65,10 +66,7 @@ abstract class JMHEnvTokyoCabinetBenchmarkBase extends BenchmarkTestBase {
         final TemporaryFolder temporaryFolder = new TemporaryFolder();
         temporaryFolder.create();
         final File testsDirectory = temporaryFolder.newFolder("data");
-        LogConfig config = new LogConfig();
-        config.setReader(new FileDataReader(testsDirectory, 16));
-        config.setWriter(new FileDataWriter(testsDirectory));
-        env = Environments.newInstance(config, new EnvironmentConfig());
+        env = Environments.newInstance(LogConfig.create(new FileDataReader(testsDirectory, 16), new FileDataWriter(testsDirectory)), new EnvironmentConfig());
         store = env.computeInTransaction(new TransactionalComputable<Store>() {
             @Override
             public Store compute(@NotNull Transaction txn) {

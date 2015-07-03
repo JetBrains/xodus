@@ -96,9 +96,7 @@ public abstract class TreeBaseTest {
     }
 
     protected LogConfig createLogConfig() {
-        LogConfig result = new LogConfig();
-        result.setNonBlockingCache(true);
-        return result;
+        return new LogConfig().setNonBlockingCache(true);
     }
 
     @After

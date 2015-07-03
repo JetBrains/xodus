@@ -31,10 +31,7 @@ public class GarbageCollectorLowCacheTest extends EnvironmentTestsBase {
 
     @Override
     protected void createEnvironment() {
-        LogConfig config = new LogConfig();
-        config.setReader(reader);
-        config.setWriter(writer);
-        env = newEnvironmentInstance(config, new EnvironmentConfig().setMemoryUsage(1).setMemoryUsagePercentage(0));
+        env = newEnvironmentInstance(LogConfig.create(reader, writer), new EnvironmentConfig().setMemoryUsage(1).setMemoryUsagePercentage(0));
     }
 
     @Test

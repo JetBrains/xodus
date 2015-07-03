@@ -42,7 +42,7 @@ import java.util.StringTokenizer;
 public class RecoveryClassLoaderTest {
 
     private static Object env = null;
-    private static Object cfg = null;
+    private static LogConfig cfg = null;
 
     static {
         runIsolated(new Runnable() {
@@ -85,11 +85,7 @@ public class RecoveryClassLoaderTest {
     private static final Runnable OPEN_ENVIRONMENT = new Runnable() {
         @Override
         public void run() {
-            LogConfig config = new LogConfig();
-            config.setReader(new FileDataReader(testsDirectory[0], 16));
-            config.setWriter(new FileDataWriter(testsDirectory[0]));
-            env = Environments.newInstance(config, new EnvironmentConfig());
-            cfg = config;
+            env = Environments.newInstance(cfg = LogConfig.create(new FileDataReader(testsDirectory[0], 16), new FileDataWriter(testsDirectory[0])), new EnvironmentConfig());
         }
     };
 
@@ -97,7 +93,7 @@ public class RecoveryClassLoaderTest {
         @Override
         public void run() {
             final Environment env = (Environment) RecoveryClassLoaderTest.env;
-            LogConfig cfg = (LogConfig) RecoveryClassLoaderTest.cfg;
+            final LogConfig cfg = RecoveryClassLoaderTest.cfg;
 
             env.executeInTransaction(new TransactionalExecutable() {
                 @Override

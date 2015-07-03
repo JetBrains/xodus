@@ -30,10 +30,7 @@ public class TransactionTest extends EnvironmentTestsBase {
 
     @Override
     protected void createEnvironment() {
-        LogConfig config = new LogConfig();
-        config.setReader(reader);
-        config.setWriter(writer);
-        env = newContextualEnvironmentInstance(config, new EnvironmentConfig());
+        env = newContextualEnvironmentInstance(LogConfig.create(reader, writer), new EnvironmentConfig());
     }
 
     @Test

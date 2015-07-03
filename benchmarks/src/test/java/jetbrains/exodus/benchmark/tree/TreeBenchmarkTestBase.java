@@ -49,9 +49,7 @@ public abstract class TreeBenchmarkTestBase extends BenchmarkTestBase {
 
     protected LogConfig createLogConfig() {
         Log.invalidateSharedCache();
-        LogConfig result = new LogConfig();
-        result.setNonBlockingCache(true);
-        return result;
+        return new LogConfig().setNonBlockingCache(true);
     }
 
     @Before
