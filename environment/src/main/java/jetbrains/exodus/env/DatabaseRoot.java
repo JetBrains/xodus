@@ -17,7 +17,6 @@ package jetbrains.exodus.env;
 
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.log.*;
-import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 

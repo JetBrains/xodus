@@ -17,10 +17,10 @@ package jetbrains.exodus.tree.patricia;
 
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.log.CompoundByteIterable;
+import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.log.Log;
-import jetbrains.exodus.log.iterate.CompoundByteIterable;
-import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
-import jetbrains.exodus.log.iterate.SingleByteIterable;
+import jetbrains.exodus.log.SingleByteIterable;
 import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.ITreeCursor;
 import jetbrains.exodus.tree.ITreeMutable;

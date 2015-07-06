@@ -17,7 +17,7 @@ package jetbrains.exodus.tree.patricia;
 
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
+import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.ITreeCursor;
 import jetbrains.exodus.util.ByteIterableUtil;

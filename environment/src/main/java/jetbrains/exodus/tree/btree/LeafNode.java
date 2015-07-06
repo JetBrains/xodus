@@ -18,8 +18,8 @@ package jetbrains.exodus.tree.btree;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.log.ByteIterableWithAddress;
 import jetbrains.exodus.log.ByteIteratorWithAddress;
+import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.log.RandomAccessLoggable;
-import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import org.jetbrains.annotations.NotNull;
 
 /**

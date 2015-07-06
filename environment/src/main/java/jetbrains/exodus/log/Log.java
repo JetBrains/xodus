@@ -22,7 +22,6 @@ import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.core.dataStructures.skiplists.LongSkipList;
 import jetbrains.exodus.io.*;
-import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.util.DeferredIO;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

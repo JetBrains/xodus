@@ -18,7 +18,6 @@ package jetbrains.exodus.log;
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.log.iterate.CompoundByteIteratorBase;
 import org.jetbrains.annotations.NotNull;
 
 final class DataIterator extends CompoundByteIteratorBase {

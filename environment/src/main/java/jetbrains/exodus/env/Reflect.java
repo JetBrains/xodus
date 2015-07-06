@@ -25,7 +25,6 @@ import jetbrains.exodus.gc.GarbageCollector;
 import jetbrains.exodus.io.FileDataReader;
 import jetbrains.exodus.io.FileDataWriter;
 import jetbrains.exodus.log.*;
-import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.ITreeCursor;
 import jetbrains.exodus.tree.LongIterator;

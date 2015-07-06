@@ -18,7 +18,6 @@ package jetbrains.exodus.log;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.bindings.LongBinding;
-import jetbrains.exodus.log.iterate.CompoundByteIteratorBase;
 import org.jetbrains.annotations.NotNull;
 
 public abstract class ByteIterableWithAddress implements ByteIterable {

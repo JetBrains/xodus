@@ -18,7 +18,6 @@ package jetbrains.exodus.tree.btree;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.log.*;
-import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
