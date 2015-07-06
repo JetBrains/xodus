@@ -33,7 +33,6 @@ import jetbrains.exodus.entitystore.tables.*;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.log.iterate.CompoundByteIterable;
 import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
-import jetbrains.exodus.log.iterate.FixedLengthByteIterable;
 import jetbrains.exodus.util.ByteArraySizedInputStream;
 import jetbrains.exodus.util.LightByteArrayOutputStream;
 import jetbrains.exodus.util.UTFUtil;

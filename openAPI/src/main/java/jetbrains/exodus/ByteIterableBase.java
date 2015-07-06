@@ -38,7 +38,7 @@ public abstract class ByteIterableBase implements ByteIterable {
     protected int length = -1;
 
     @Override
-    public int compareTo(ByteIterable right) {
+    public int compareTo(final ByteIterable right) {
         return ByteIterableUtil.compare(this, right);
     }
 
@@ -90,6 +90,11 @@ public abstract class ByteIterableBase implements ByteIterable {
             fillBytes();
         }
         return length;
+    }
+
+    @NotNull
+    public ByteIterable subIterable(final int offset, final int length) {
+        return length == 0 ? EMPTY : new FixedLengthByteIterable(this, offset, length);
     }
 
     protected abstract ByteIterator getIterator();

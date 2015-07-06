@@ -23,7 +23,6 @@ import jetbrains.exodus.entitystore.EntityStoreException;
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.env.*;
-import jetbrains.exodus.log.iterate.FixedLengthByteIterable;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -170,8 +169,7 @@ public final class PropertiesTable extends Table {
             final PropertyValue propValue = propertyTypes.entryToPropertyValue(value);
             return new PropertyValue(type, ((String) propValue.getData()).toLowerCase()).dataToEntry();
         }
-        // TODO: simplify bindings and replace this hack with CompoundByteIterable in direct value instead
-        return new FixedLengthByteIterable(value, 1, value.getLength() - 1); // skip property type
+        return value.subIterable(1, value.getLength() - 1); // skip property type"
     }
 
     private String valueIndexName(final int propertyId) {

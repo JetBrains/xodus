@@ -18,7 +18,6 @@ package jetbrains.exodus.vfs;
 import jetbrains.exodus.*;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.log.iterate.CompoundByteIterable;
-import jetbrains.exodus.log.iterate.FixedLengthByteIterable;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;

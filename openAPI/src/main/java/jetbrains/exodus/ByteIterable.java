@@ -64,6 +64,11 @@ public interface ByteIterable extends Comparable<ByteIterable> {
         }
 
         @Override
+        public ByteIterable subIterable(int offset, int length) {
+            return this;
+        }
+
+        @Override
         public String toString() {
             return "[ByteIterable.EMPTY]";
         }
@@ -81,4 +86,6 @@ public interface ByteIterable extends Comparable<ByteIterable> {
 
     int getLength();
 
+    @NotNull
+    ByteIterable subIterable(final int offset, final int length);
 }

@@ -13,21 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log.iterate;
+package jetbrains.exodus;
 
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ByteIterableBase;
-import jetbrains.exodus.ByteIterator;
-import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.log.ByteIterableWithAddress;
 import org.jetbrains.annotations.NotNull;
 
 public class FixedLengthByteIterable extends ByteIterableBase {
 
-    private final ByteIterable source;
-    private final int offset;
+    protected final ByteIterable source;
+    protected final int offset;
 
-    public FixedLengthByteIterable(@NotNull final ByteIterable source, final int offset, final int length) {
+    protected FixedLengthByteIterable(@NotNull final ByteIterable source, final int offset, final int length) {
         if (length < 0) {
             throw new ExodusException("ByteIterable length can't be less than zero");
         }
@@ -36,23 +31,16 @@ public class FixedLengthByteIterable extends ByteIterableBase {
         this.length = length;
     }
 
-    public FixedLengthByteIterable(@NotNull final ByteIterable source, final int length) {
-        this(source, 0, length);
-    }
-
-    @SuppressWarnings({"CompareToUsesNonFinalVariable"})
-    @Override
-    public int compareTo(ByteIterable right) {
-        if (source instanceof ByteIterableWithAddress) {
-            final ByteIterableWithAddress src = (ByteIterableWithAddress) source;
-            return src.compareTo(offset, length, right);
-        }
-        return super.compareTo(right);
-    }
-
     @Override
     public int getLength() {
         return length;
+    }
+
+    @NotNull
+    @Override
+    public ByteIterable subIterable(final int offset, final int length) {
+        final int safeLength = Math.min(length, this.length - offset);
+        return safeLength == 0 ? EMPTY : new FixedLengthByteIterable(source, this.offset + offset, safeLength);
     }
 
     public ByteIterable getSource() {

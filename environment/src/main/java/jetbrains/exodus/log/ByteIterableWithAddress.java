@@ -54,6 +54,12 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
         throw new UnsupportedOperationException();
     }
 
+    @NotNull
+    @Override
+    public ByteIterable subIterable(final int offset, final int length) {
+        return new LogAwareFixedLengthByteIterable(this, offset, length);
+    }
+
     @Override
     public int compareTo(@NotNull final ByteIterable right) {
         // can't compare

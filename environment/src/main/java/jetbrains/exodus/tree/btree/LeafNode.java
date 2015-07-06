@@ -20,7 +20,6 @@ import jetbrains.exodus.log.ByteIterableWithAddress;
 import jetbrains.exodus.log.ByteIteratorWithAddress;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
-import jetbrains.exodus.log.iterate.FixedLengthByteIterable;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -66,13 +65,13 @@ class LeafNode extends BaseLeafNode {
     @Override
     @NotNull
     public ByteIterable getKey() {
-        return new FixedLengthByteIterable(loggable.getData(), keyRecordSize, keyLength);
+        return loggable.getData().subIterable(keyRecordSize, keyLength);
     }
 
     @Override
     @NotNull
     public ByteIterable getValue() {
-        return new FixedLengthByteIterable(getRawValue(), valueLength);
+        return getRawValue().subIterable(0, valueLength);
     }
 
     @Override

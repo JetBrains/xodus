@@ -27,7 +27,6 @@ import jetbrains.exodus.log.LoggableToWrite;
 import jetbrains.exodus.log.TooBigLoggableException;
 import jetbrains.exodus.log.iterate.CompoundByteIterable;
 import jetbrains.exodus.log.iterate.CompressedUnsignedLongByteIterable;
-import jetbrains.exodus.log.iterate.FixedLengthByteIterable;
 import jetbrains.exodus.log.iterate.SingleByteIterable;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
@@ -234,7 +233,7 @@ class MutableNode extends NodeBase {
         } else if (suffixLength == 1) {
             suffixKey = SingleByteIterable.getIterable(keyBytes[prefixLength + 1]);
         } else {
-            suffixKey = new FixedLengthByteIterable(keySequence, prefixLength + 1, suffixLength);
+            suffixKey = keySequence.subIterable(prefixLength + 1, suffixLength);
         }
         final MutableNode suffix = new MutableNode(suffixKey, value,
                 // copy children of this node to the suffix one

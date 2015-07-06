@@ -66,6 +66,12 @@ public class FileByteIterable implements ByteIterable {
         return length;
     }
 
+    @NotNull
+    @Override
+    public ByteIterable subIterable(int offset, int length) {
+        throw new UnsupportedOperationException();
+    }
+
     @Override
     public int compareTo(ByteIterable right) {
         throw new UnsupportedOperationException();
