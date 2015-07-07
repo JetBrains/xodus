@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.ArrayByteIterable;
+import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.util.ByteArraySizedInputStream;
@@ -55,7 +55,7 @@ public class EntityTests extends EntityStoreTestBase {
         try {
             txn.getEntity(new PersistentEntityId(0, 1));
             Assert.fail();
-        } catch (EntityRemovedInDatabaseException e) {
+        } catch (EntityRemovedInDatabaseException ignore) {
         }
     }
 
@@ -113,9 +113,7 @@ public class EntityTests extends EntityStoreTestBase {
     public void testRawProperty() throws Exception {
         final StoreTransaction txn = getStoreTransaction();
         final Entity entity = txn.newEntity("Issue");
-        final ArrayByteIterable v0 = new ArrayByteIterable(new byte[]{(byte) 1, (byte) 2});
-        final ArrayByteIterable v1 = new ArrayByteIterable(new byte[]{(byte) 2, (byte) 3});
-        entity.setRawProperty("ready", v0);
+        entity.setProperty("description", "it doesn't work");
         txn.flush();
         Assert.assertEquals("Issue", entity.getType());
         Entity sameEntity = txn.getEntity(entity.getId());
@@ -123,16 +121,19 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertEquals(entity.getType(), sameEntity.getType());
         Assert.assertEquals(entity.getId(), sameEntity.getId());
         Assert.assertEquals(entity.getVersion(), sameEntity.getVersion());
-        Assert.assertEquals(v0, entity.getRawProperty("ready"));
-        entity.setRawProperty("ready", v1);
+        ByteIterable rawValue = entity.getRawProperty("description");
+        Assert.assertNotNull(rawValue);
+        Assert.assertEquals("it doesn't work", getEntityStore().getPropertyTypes().entryToPropertyValue(rawValue).getData());
+        entity.setProperty("description", "it works");
         txn.flush();
         sameEntity = txn.getEntity(entity.getId());
         Assert.assertNotNull(sameEntity);
         Assert.assertEquals(entity.getType(), sameEntity.getType());
         Assert.assertEquals(entity.getId(), sameEntity.getId());
         Assert.assertEquals(entity.getVersion(), sameEntity.getVersion());
-        Assert.assertNotNull(entity.getRawProperty("ready"));
-        Assert.assertEquals(v1, entity.getRawProperty("ready"));
+        rawValue = entity.getRawProperty("description");
+        Assert.assertNotNull(rawValue);
+        Assert.assertEquals("it works", getEntityStore().getPropertyTypes().entryToPropertyValue(rawValue).getData());
     }
 
     public void testIntProperty() throws Exception {

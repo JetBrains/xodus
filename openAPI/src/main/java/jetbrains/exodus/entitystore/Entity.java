@@ -78,8 +78,6 @@ public interface Entity extends Comparable<Entity> {
     @Nullable
     Comparable getProperty(@NotNull final String propertyName);
 
-    boolean setRawProperty(@NotNull final String propertyName, @NotNull final ByteIterable value);
-
     /**
      * Sets specified property of this entity to specified value. The value is indexed, i.e.
      * the entity will be returned amongst results of find() operation by the property value.

@@ -660,26 +660,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return true;
     }
 
-    public boolean setRawProperty(@NotNull final PersistentStoreTransaction txn,
-                                  @NotNull final PersistentEntity entity,
-                                  @NotNull final String propertyName,
-                                  @NotNull final ByteIterable value) {
-        final Transaction envTxn = txn.getEnvironmentTransaction();
-        final ByteIterable oldValue = getRawProperty(txn, entity, getPropertyId(txn, propertyName, true));
-
-        if (oldValue != null && value.compareTo(oldValue) == 0) {
-            return false;
-        }
-
-        final EntityId entityId = entity.getId();
-        final int propertyId = getPropertyId(txn, propertyName, true);
-        getPropertiesTable(txn, entityId.getTypeId()).put(
-                txn, entityId.getLocalId(), value, oldValue, propertyId, null);
-        txn.propertyChanged((PersistentEntityId) entityId, propertyId, oldValue, value);
-
-        return true;
-    }
-
     public boolean deleteProperty(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity entity, @NotNull final String propertyName) {
         final int propertyId = getPropertyId(txn, propertyName, false);
         if (propertyId < 0) {

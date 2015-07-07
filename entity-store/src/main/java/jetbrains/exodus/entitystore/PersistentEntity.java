@@ -167,12 +167,6 @@ public class PersistentEntity implements Entity {
     }
 
     @Override
-    public boolean setRawProperty(@NotNull final String propertyName, @NotNull final ByteIterable value) {
-        assertWritable();
-        return store.setRawProperty(getTransaction(), this, propertyName, value);
-    }
-
-    @Override
     public boolean setProperty(@NotNull final String propertyName, @NotNull final Comparable value) {
         assertWritable();
         return store.setProperty(getTransaction(), this, propertyName, value);

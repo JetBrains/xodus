@@ -81,7 +81,7 @@ public final class PropertiesTable extends Table {
                     @NotNull final ByteIterable value,
                     @Nullable final ByteIterable oldValue,
                     final int propertyId,
-                    @Nullable final PropertyType type) {
+                    @NotNull final PropertyType type) {
         final Store valueIdx = getOrCreateValueIndex(txn, propertyId);
         final ByteIterable key = PropertyKey.propertyKeyToEntry(new PropertyKey(localId, propertyId));
         final Transaction envTxn = txn.getEnvironmentTransaction();
@@ -100,13 +100,19 @@ public final class PropertiesTable extends Table {
         checkStatus(success, "Failed to put");
     }
 
-    public void delete(@NotNull final PersistentStoreTransaction txn, final long localId,
-                       @NotNull final ByteIterable value, final int propertyId, @Nullable final PropertyType type) {
+    public void delete(@NotNull final PersistentStoreTransaction txn,
+                       final long localId,
+                       @NotNull final ByteIterable value,
+                       final int propertyId,
+                       @NotNull final PropertyType type) {
         checkStatus(deleteNoFail(txn, localId, value, propertyId, type), "Failed to delete");
     }
 
-    public boolean deleteNoFail(@NotNull final PersistentStoreTransaction txn, final long localId,
-                                @NotNull final ByteIterable value, int propertyId, @Nullable final PropertyType type) {
+    public boolean deleteNoFail(@NotNull final PersistentStoreTransaction txn,
+                                final long localId,
+                                @NotNull final ByteIterable value,
+                                int propertyId,
+                                @NotNull final PropertyType type) {
         final ByteIterable key = PropertyKey.propertyKeyToEntry(new PropertyKey(localId, propertyId));
         final Transaction envTxn = txn.getEnvironmentTransaction();
         final ByteIterable secondaryValue = LongBinding.longToCompressedEntry(localId);
@@ -161,15 +167,12 @@ public final class PropertiesTable extends Table {
 
     public static ByteIterable createSecondaryKey(@NotNull final PropertyTypes propertyTypes,
                                                   @NotNull final ByteIterable value,
-                                                  @Nullable final PropertyType type) {
-        if (type == null) {
-            return value;
-        }
+                                                  @NotNull final PropertyType type) {
         if (type.getTypeId() == PropertyType.STRING_PROPERTY_TYPE) {
             final PropertyValue propValue = propertyTypes.entryToPropertyValue(value);
             return new PropertyValue(type, ((String) propValue.getData()).toLowerCase()).dataToEntry();
         }
-        return value.subIterable(1, value.getLength() - 1); // skip property type"
+        return value.subIterable(1, value.getLength() - 1); // skip property type
     }
 
     private String valueIndexName(final int propertyId) {
