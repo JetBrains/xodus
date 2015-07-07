@@ -421,6 +421,15 @@ public class EnvironmentImpl implements Environment {
         return new BTree(log, getBTreeBalancePolicy(), rootAddress, false, META_TREE_ID);
     }
 
+    /**
+     * Flushes Log's data writer exclusively in commit lock. This guarantees that the data writer is in committed state.
+     */
+    void safeFlush() {
+        synchronized (commitLock) {
+            getLog().flush(true);
+        }
+    }
+
     @SuppressWarnings("OverlyNestedMethod")
     boolean commitTransaction(@NotNull final TransactionImpl txn, final boolean forceCommit) {
         if (flushTransaction(txn, forceCommit)) {
