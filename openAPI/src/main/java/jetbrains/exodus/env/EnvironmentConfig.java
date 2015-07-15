@@ -106,7 +106,7 @@ public final class EnvironmentConfig extends AbstractConfig {
     public EnvironmentConfig(@NotNull final ConfigurationStrategy strategy) {
         //noinspection unchecked
         super(new Pair[]{
-                new Pair(MEMORY_USAGE_PERCENTAGE, 60),
+                new Pair(MEMORY_USAGE_PERCENTAGE, 50),
                 new Pair(LOG_DURABLE_WRITE, false),
                 new Pair(LOG_FILE_SIZE, 8192L),
                 new Pair(LOG_LOCK_TIMEOUT, 0L),
