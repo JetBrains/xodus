@@ -23,16 +23,16 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Iterator;
 
+@SuppressWarnings("unchecked")
 public class EntitiesOfTypeIterableWrapper extends UpdatableCachedWrapperIterable {
 
-    private static final PersistentLong23TreeMap<EntitiesOfTypeIterableWrapper> EMPTY_IDS =
-            new PersistentLong23TreeMap<>();
+    private static final PersistentLong23TreeMap EMPTY_IDS = new PersistentLong23TreeMap();
 
     private final int entityTypeId;
     @NotNull
-    private final PersistentLong23TreeMap<EntitiesOfTypeIterableWrapper> localIds;
+    private final PersistentLong23TreeMap localIds;
     @Nullable
-    private PersistentLong23TreeMap<EntitiesOfTypeIterableWrapper>.MutableMap mutableLocalIds;
+    private PersistentLong23TreeMap.MutableMap mutableLocalIds;
     @Nullable
     private EntityIdSet idSet;
 
@@ -46,14 +46,14 @@ public class EntitiesOfTypeIterableWrapper extends UpdatableCachedWrapperIterabl
             if (!it.hasNext()) {
                 localIds = EMPTY_IDS;
             } else {
-                localIds = new PersistentLong23TreeMap<>();
-                final PersistentLong23TreeMap<EntitiesOfTypeIterableWrapper>.MutableMap mutableLocalIds = localIds.beginWrite();
+                localIds = new PersistentLong23TreeMap();
+                final PersistentLong23TreeMap.MutableMap mutableLocalIds = localIds.beginWrite();
                 do {
                     final EntityId entityId = it.nextId();
                     if (entityId == null) {
                         throw new NullPointerException("EntitiesOfTypeIterator.nextId() returned null!");
                     }
-                    mutableLocalIds.put(entityId.getLocalId(), this);
+                    mutableLocalIds.put(entityId.getLocalId(), EMPTY_IDS);
                 } while (it.hasNext());
                 mutableLocalIds.endWrite();
             }
@@ -80,7 +80,7 @@ public class EntitiesOfTypeIterableWrapper extends UpdatableCachedWrapperIterabl
         }
         return new NonDisposableEntityIterator(this) {
 
-            private final Iterator<PersistentLong23TreeMap.Entry<EntitiesOfTypeIterableWrapper>> it = getCurrentMap().iterator();
+            private final Iterator<PersistentLong23TreeMap.Entry> it = getCurrentMap().iterator();
 
             @Override
             protected boolean hasNextImpl() {
@@ -131,12 +131,12 @@ public class EntitiesOfTypeIterableWrapper extends UpdatableCachedWrapperIterabl
     @Override
     public void endUpdate() {
         checkMutableIds().endWrite();
-        this.mutableLocalIds = null;
+        mutableLocalIds = null;
     }
 
     public final void addEntity(final EntityId id) {
         checkEntityType(id);
-        checkMutableIds().put(id.getLocalId(), this);
+        checkMutableIds().put(id.getLocalId(), EMPTY_IDS);
     }
 
     public final void removeEntity(final EntityId id) {
@@ -144,12 +144,12 @@ public class EntitiesOfTypeIterableWrapper extends UpdatableCachedWrapperIterabl
         checkMutableIds().remove(id.getLocalId());
     }
 
-    private PersistentLong23TreeMap<EntitiesOfTypeIterableWrapper>.MutableMap getCurrentMap() {
+    private PersistentLong23TreeMap.MutableMap getCurrentMap() {
         return mutableLocalIds == null ? localIds.beginWrite() : mutableLocalIds;
     }
 
-    private PersistentLong23TreeMap<EntitiesOfTypeIterableWrapper>.MutableMap checkMutableIds() {
-        PersistentLong23TreeMap<EntitiesOfTypeIterableWrapper>.MutableMap mutableLocalIds = this.mutableLocalIds;
+    private PersistentLong23TreeMap.MutableMap checkMutableIds() {
+        PersistentLong23TreeMap.MutableMap mutableLocalIds = this.mutableLocalIds;
         if (mutableLocalIds == null) {
             throw new IllegalStateException("EntitiesOfTypeIterableWrapper was not mutated");
         }
