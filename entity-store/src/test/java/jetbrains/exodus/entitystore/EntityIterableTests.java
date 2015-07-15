@@ -442,6 +442,35 @@ public class EntityIterableTests extends EntityStoreTestBase {
         Assert.assertEquals(1L, users.getRoughSize());
     }
 
+    /**
+     * Should fail with OOME being run in JVM with Xmx256m without fix of XD-458
+     */
+    public void test_XD_458() throws InterruptedException {
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        getEntityStore().getConfig().setEntityIterableCacheCachingTimeout(10000000L);
+        getEntityStore().getConfig().setEntityIterableCacheMaxSizeOfDirectValue(Integer.MAX_VALUE);
+        System.out.println("Xmx = " + Runtime.getRuntime().maxMemory());
+        final int startingCount = 2000000;
+        for (int i = 0; i < startingCount; ++i) {
+            txn.newEntity("User");
+            if (i % 10000 == 0) {
+                txn.flush();
+            }
+        }
+        txn.flush();
+        System.out.println(startingCount + " users created.");
+        while (!getEntityStore().getEntityIterableCache().putIfNotCached((EntityIterableBase) txn.getAll("User")).isCachedWrapper()) {
+            Thread.sleep(1000);
+        }
+        System.out.println("getAll(\"User\") cached.");
+        for (int i = 0; i < 80000; ++i) {
+            Assert.assertEquals(i + startingCount, (int) txn.getAll("User").size());
+            txn.newEntity("User");
+            txn.flush();
+            System.out.print(".");
+        }
+    }
+
     private static void checkIdRange(EntityIterable issues, int lo, int hi) {
         int i = lo;
         for (Entity e : issues) {
