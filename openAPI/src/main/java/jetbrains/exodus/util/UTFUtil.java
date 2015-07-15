@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2015 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -68,22 +68,25 @@ public class UTFUtil {
         final DataInputStream dataInput = new DataInputStream(stream);
         if (stream instanceof ByteArraySizedInputStream) {
             final ByteArraySizedInputStream sizedStream = (ByteArraySizedInputStream) stream;
-            sizedStream.mark(Integer.MAX_VALUE);
-            final int utfLen = dataInput.readUnsignedShort();
-            if (utfLen == sizedStream.size() - 2) {
-                boolean isAscii = true;
-                final byte[] bytes = sizedStream.toByteArray();
-                for (int i = 0; i < utfLen; ++i) {
-                    if ((bytes[i + 2] & 0xff) > 127) {
-                        isAscii = false;
-                        break;
+            final int streamSize = sizedStream.size();
+            if (streamSize >= 2) {
+                sizedStream.mark(Integer.MAX_VALUE);
+                final int utfLen = dataInput.readUnsignedShort();
+                if (utfLen == streamSize - 2) {
+                    boolean isAscii = true;
+                    final byte[] bytes = sizedStream.toByteArray();
+                    for (int i = 0; i < utfLen; ++i) {
+                        if ((bytes[i + 2] & 0xff) > 127) {
+                            isAscii = false;
+                            break;
+                        }
+                    }
+                    if (isAscii) {
+                        return fromAsciiByteArray(bytes, 2, utfLen);
                     }
                 }
-                if (isAscii) {
-                    return fromAsciiByteArray(bytes, 2, utfLen);
-                }
+                sizedStream.reset();
             }
-            sizedStream.reset();
         }
         try {
             String result = null;
