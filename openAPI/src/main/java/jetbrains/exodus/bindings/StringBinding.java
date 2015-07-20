@@ -41,12 +41,10 @@ public class StringBinding extends ComparableBinding {
     }
 
     public static String entryToString(@NotNull final ByteIterable entry) {
-        return BINDING.readObject(new ByteArrayInputStream(entry.getBytesUnsafe(), 0, entry.getLength()));
+        return (String) BINDING.entryToObject(entry);
     }
 
-    public static ArrayByteIterable stringToEntry(@NotNull final String key) {
-        final LightOutputStream output = new LightOutputStream(key.length() + 2);
-        output.writeString(key);
-        return output.asArrayByteIterable();
+    public static ArrayByteIterable stringToEntry(@NotNull final String object) {
+        return BINDING.objectToEntry(object);
     }
 }

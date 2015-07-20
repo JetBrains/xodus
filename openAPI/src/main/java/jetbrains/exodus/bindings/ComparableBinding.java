@@ -17,7 +17,6 @@ package jetbrains.exodus.bindings;
 
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ByteIterableBase;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 
@@ -26,8 +25,7 @@ import java.io.ByteArrayInputStream;
 public abstract class ComparableBinding {
 
     public final Comparable entryToObject(@NotNull final ByteIterable entry) {
-        final ByteIterableBase it = (ByteIterableBase) entry;
-        return readObject(new ByteArrayInputStream(it.getBytesUnsafe(), 0, it.getLength()));
+        return readObject(new ByteArrayInputStream(entry.getBytesUnsafe(), 0, entry.getLength()));
     }
 
     public final ArrayByteIterable objectToEntry(@NotNull final Comparable object) {

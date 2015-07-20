@@ -19,6 +19,7 @@ import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterableBase;
 import jetbrains.exodus.bindings.ComparableBinding;
+import jetbrains.exodus.bindings.ComparableValueType;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.entitystore.Entity;
@@ -31,21 +32,21 @@ import java.io.ByteArrayInputStream;
 
 public final class PropertyTypes {
 
-    private final IntHashMap<PropertyType> typesById;
-    private final HashMap<Class<? extends Comparable>, PropertyType> typesByClass;
+    private final IntHashMap<ComparableValueType> typesById;
+    private final HashMap<Class<? extends Comparable>, ComparableValueType> typesByClass;
 
     public PropertyTypes() {
         typesById = new IntHashMap<>();
         typesByClass = new HashMap<>();
-        for (final PropertyType predefinedType : PropertyType.PREDEFINED_TYPES) {
+        for (final ComparableValueType predefinedType : ComparableValueType.PREDEFINED_COMPARABLE_VALUE_TYPES) {
             typesById.put(predefinedType.getTypeId(), predefinedType);
             typesByClass.put(predefinedType.getClazz(), predefinedType);
         }
     }
 
     @NotNull
-    public PropertyType getPropertyType(final int typeId) {
-        final PropertyType result = typesById.get(typeId);
+    public ComparableValueType getPropertyType(final int typeId) {
+        final ComparableValueType result = typesById.get(typeId);
         if (result == null) {
             throw new EntityStoreException("Unsupported property type id " + typeId);
         }
@@ -53,8 +54,8 @@ public final class PropertyTypes {
     }
 
     @NotNull
-    public PropertyType getPropertyType(@NotNull final Class<? extends Comparable> clazz) {
-        final PropertyType result = typesByClass.get(clazz);
+    public ComparableValueType getPropertyType(@NotNull final Class<? extends Comparable> clazz) {
+        final ComparableValueType result = typesByClass.get(clazz);
         if (result == null) {
             throw new EntityStoreException("Unsupported property type " + clazz);
         }
@@ -64,8 +65,8 @@ public final class PropertyTypes {
     public void registerCustomPropertyType(int typeId,
                                            @NotNull final Class<? extends Comparable> clazz,
                                            @NotNull final ComparableBinding binding) {
-        typeId += PropertyType.PREDEFINED_TYPES.length;
-        final PropertyType propType = new PropertyType(typeId, binding, clazz);
+        typeId += ComparableValueType.PREDEFINED_COMPARABLE_VALUE_TYPES.length;
+        final ComparableValueType propType = new ComparableValueType(typeId, binding, clazz);
         if (typesById.put(typeId, propType) != null) {
             throw new EntityStoreException("Already registered property type id " + typeId);
         }
@@ -77,7 +78,7 @@ public final class PropertyTypes {
     public PropertyValue entryToPropertyValue(@NotNull final ByteIterable entry) {
         final ByteIterableBase it = (ByteIterableBase) entry;
         final byte[] bytes = it.getBytesUnsafe();
-        final PropertyType type = getPropertyType((byte) (bytes[0] ^ 0x80));
+        final ComparableValueType type = getPropertyType((byte) (bytes[0] ^ 0x80));
         final Comparable data = type.getBinding().readObject(new ByteArrayInputStream(bytes, 1, it.getLength()));
         return new PropertyValue(type, data);
     }

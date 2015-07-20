@@ -17,22 +17,23 @@ package jetbrains.exodus.entitystore.tables;
 
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.bindings.ComparableBinding;
+import jetbrains.exodus.bindings.ComparableValueType;
 import org.jetbrains.annotations.NotNull;
 
 public class PropertyValue {
 
     @NotNull
-    private final PropertyType type;
+    private final ComparableValueType type;
     @NotNull
     private final Comparable data;
 
-    public PropertyValue(@NotNull final PropertyType type, @NotNull final Comparable data) {
+    public PropertyValue(@NotNull final ComparableValueType type, @NotNull final Comparable data) {
         this.type = type;
         this.data = data;
     }
 
     @NotNull
-    public PropertyType getType() {
+    public ComparableValueType getType() {
         return type;
     }
 

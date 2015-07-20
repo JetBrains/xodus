@@ -16,8 +16,7 @@
 package jetbrains.exodus.entitystore.tables;
 
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.bindings.IntegerBinding;
-import jetbrains.exodus.bindings.LongBinding;
+import jetbrains.exodus.bindings.*;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.entitystore.EntityStoreException;
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
@@ -81,7 +80,7 @@ public final class PropertiesTable extends Table {
                     @NotNull final ByteIterable value,
                     @Nullable final ByteIterable oldValue,
                     final int propertyId,
-                    @NotNull final PropertyType type) {
+                    @NotNull final ComparableValueType type) {
         final Store valueIdx = getOrCreateValueIndex(txn, propertyId);
         final ByteIterable key = PropertyKey.propertyKeyToEntry(new PropertyKey(localId, propertyId));
         final Transaction envTxn = txn.getEnvironmentTransaction();
@@ -92,10 +91,12 @@ public final class PropertiesTable extends Table {
             success = allPropsIndex.put(envTxn, IntegerBinding.intToCompressedEntry(propertyId), secondaryValue);
         } else {
             success = deleteFromCursorAndClose(
-                    valueIdx.openCursor(envTxn), createSecondaryKey(store.getPropertyTypes(), oldValue, type), secondaryValue);
+                    valueIdx.openCursor(envTxn), secondaryValue, createSecondaryKeys(store.getPropertyTypes(), oldValue, type));
         }
         if (success) {
-            valueIdx.put(envTxn, createSecondaryKey(store.getPropertyTypes(), value, type), secondaryValue);
+            for (final ByteIterable secondaryKey : createSecondaryKeys(store.getPropertyTypes(), value, type)) {
+                valueIdx.put(envTxn, secondaryKey, secondaryValue);
+            }
         }
         checkStatus(success, "Failed to put");
     }
@@ -104,7 +105,7 @@ public final class PropertiesTable extends Table {
                        final long localId,
                        @NotNull final ByteIterable value,
                        final int propertyId,
-                       @NotNull final PropertyType type) {
+                       @NotNull final ComparableValueType type) {
         checkStatus(deleteNoFail(txn, localId, value, propertyId, type), "Failed to delete");
     }
 
@@ -112,15 +113,15 @@ public final class PropertiesTable extends Table {
                                 final long localId,
                                 @NotNull final ByteIterable value,
                                 int propertyId,
-                                @NotNull final PropertyType type) {
+                                @NotNull final ComparableValueType type) {
         final ByteIterable key = PropertyKey.propertyKeyToEntry(new PropertyKey(localId, propertyId));
         final Transaction envTxn = txn.getEnvironmentTransaction();
         final ByteIterable secondaryValue = LongBinding.longToCompressedEntry(localId);
         return primaryStore.delete(envTxn, key) &&
                 deleteFromCursorAndClose(getOrCreateValueIndex(txn, propertyId).openCursor(envTxn),
-                        createSecondaryKey(store.getPropertyTypes(), value, type), secondaryValue) &&
+                        secondaryValue, createSecondaryKeys(store.getPropertyTypes(), value, type)) &&
                 deleteFromCursorAndClose(allPropsIndex.openCursor(envTxn),
-                        IntegerBinding.intToCompressedEntry(propertyId), secondaryValue);
+                        secondaryValue, IntegerBinding.intToCompressedEntry(propertyId));
     }
 
     public Store getPrimaryIndex() {
@@ -165,14 +166,30 @@ public final class PropertiesTable extends Table {
         }
     }
 
-    public static ByteIterable createSecondaryKey(@NotNull final PropertyTypes propertyTypes,
-                                                  @NotNull final ByteIterable value,
-                                                  @NotNull final PropertyType type) {
-        if (type.getTypeId() == PropertyType.STRING_PROPERTY_TYPE) {
+    public static ByteIterable[] createSecondaryKeys(@NotNull final PropertyTypes propertyTypes,
+                                                     @NotNull final ByteIterable value,
+                                                     @NotNull final ComparableValueType type) {
+        final int valueTypeId = type.getTypeId();
+        if (valueTypeId == ComparableValueType.STRING_VALUE_TYPE) {
             final PropertyValue propValue = propertyTypes.entryToPropertyValue(value);
-            return new PropertyValue(type, ((String) propValue.getData()).toLowerCase()).dataToEntry();
+            return new ByteIterable[]{new PropertyValue(type, ((String) propValue.getData()).toLowerCase()).dataToEntry()};
         }
-        return value.subIterable(1, value.getLength() - 1); // skip property type
+        if (valueTypeId == ComparableValueType.COMPARABLE_SET_VALUE_TYPE) {
+            final PropertyValue propValue = propertyTypes.entryToPropertyValue(value);
+            final ComparableSet data = (ComparableSet) propValue.getData();
+            final Class itemClass = data.getItemClass();
+            final ComparableBinding itemBinding = propertyTypes.getPropertyType(itemClass).getBinding();
+            final ByteIterable[] result = new ByteIterable[data.size()];
+            //noinspection unchecked
+            data.forEach(new ComparableSet.Consumer() {
+                @Override
+                public void accept(@NotNull final Comparable item, final int index) {
+                    result[index] = itemBinding.objectToEntry(item);
+                }
+            });
+            return result;
+        }
+        return new ByteIterable[]{value.subIterable(1, value.getLength() - 1)}; // skip property type
     }
 
     private String valueIndexName(final int propertyId) {
@@ -180,18 +197,20 @@ public final class PropertiesTable extends Table {
     }
 
     private static boolean deleteFromCursorAndClose(@NotNull final Cursor cursor,
-                                                    @NotNull final ByteIterable key,
-                                                    @NotNull final ByteIterable value) {
+                                                    @NotNull final ByteIterable value,
+                                                    @NotNull final ByteIterable... keys) {
         try {
-            final boolean found = cursor.getSearchBoth(key, value);
-            if (!found) {
-                cursor.getSearchBoth(key, value);
-                return false;
-            }
-            final boolean deleted = cursor.deleteCurrent();
-            if (!deleted) {
-                cursor.deleteCurrent();
-                return false;
+            for (final ByteIterable key : keys) {
+                if (!cursor.getSearchBoth(key, value)) {
+                    // repeat for debugging
+                    cursor.getSearchBoth(key, value);
+                    return false;
+                }
+                if (!cursor.deleteCurrent()) {
+                    // repeat for debugging
+                    cursor.deleteCurrent();
+                    return false;
+                }
             }
             return true;
         } finally {

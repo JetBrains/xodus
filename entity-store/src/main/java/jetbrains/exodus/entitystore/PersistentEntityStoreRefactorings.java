@@ -292,10 +292,12 @@ final class PersistentEntityStoreRefactorings {
                             final Long[] localIds = sortedLocalIdSet.toArray(new Long[entitiesToValues.size()]);
                             for (final long localId : localIds) {
                                 final PropertyValue propValue = entitiesToValues.get(localId);
-                                final ByteIterable secondaryKey = PropertiesTable.createSecondaryKey(store.getPropertyTypes(), PropertyTypes.propertyValueToEntry(propValue), propValue.getType());
-                                final ByteIterable secondaryValue = LongBinding.longToCompressedEntry(localId);
-                                if (valueCursor == null || !valueCursor.getSearchBoth(secondaryKey, secondaryValue)) {
-                                    missingPairs.add(new Pair<>(propId, new Pair<>(secondaryKey, secondaryValue)));
+                                for (final ByteIterable secondaryKey : PropertiesTable.createSecondaryKeys(
+                                        store.getPropertyTypes(), PropertyTypes.propertyValueToEntry(propValue), propValue.getType())) {
+                                    final ByteIterable secondaryValue = LongBinding.longToCompressedEntry(localId);
+                                    if (valueCursor == null || !valueCursor.getSearchBoth(secondaryKey, secondaryValue)) {
+                                        missingPairs.add(new Pair<>(propId, new Pair<>(secondaryKey, secondaryValue)));
+                                    }
                                 }
                             }
                             if (valueCursor != null) {
