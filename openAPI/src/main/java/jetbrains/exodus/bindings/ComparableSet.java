@@ -99,7 +99,7 @@ public class ComparableSet<T extends Comparable<T>> implements Comparable<Compar
     @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
     @Override
     public boolean equals(Object o) {
-        return set.equals(((ComparableSet<?>) o).set);
+        return o != null && set.equals(((ComparableSet<?>) o).set);
     }
 
     @Override
