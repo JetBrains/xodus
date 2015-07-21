@@ -100,7 +100,6 @@ public class ComparableSet<T extends Comparable<T>> implements Comparable<Compar
     @Override
     public boolean equals(Object o) {
         return set.equals(((ComparableSet<?>) o).set);
-
     }
 
     @Override
@@ -108,12 +107,15 @@ public class ComparableSet<T extends Comparable<T>> implements Comparable<Compar
         return set.hashCode();
     }
 
+    @Override
+    public String toString() {
+        return "ComparableSet" + set;
+    }
+
     @Nullable
     public Class<? extends Comparable> getItemClass() {
         final Iterator<T> it = set.iterator();
         return it.hasNext() ? it.next().getClass() : null;
-
-
     }
 
     void setIsDirty(final boolean isDirty) {
