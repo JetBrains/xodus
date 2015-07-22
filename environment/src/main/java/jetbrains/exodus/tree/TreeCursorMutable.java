@@ -16,6 +16,7 @@
 package jetbrains.exodus.tree;
 
 import jetbrains.exodus.ByteIterable;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -156,6 +157,16 @@ public class TreeCursorMutable extends TreeCursor implements ITreeCursorMutable 
     @Override
     public void close() {
         tree.cursorClosed(this);
+    }
+
+    @Nullable
+    @Override
+    protected ByteIterable moveTo(@NotNull ByteIterable key, @Nullable ByteIterable value, boolean rangeSearch) {
+        final ByteIterable result = super.moveTo(key, value, rangeSearch);
+        if (result != null) {
+            wasDelete = false;
+        }
+        return result;
     }
 
     public static void notifyCursors(ITreeMutable tree) {

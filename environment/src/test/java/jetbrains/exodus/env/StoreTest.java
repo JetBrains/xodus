@@ -206,6 +206,8 @@ public class StoreTest extends EnvironmentTestsBase {
                 try (Cursor cursor = store.openCursor(txn)) {
                     Assert.assertTrue(cursor.getSearchBoth(StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0")));
                     Assert.assertTrue(cursor.deleteCurrent());
+                    Assert.assertFalse(cursor.getSearchBoth(StringBinding.stringToEntry("x"), StringBinding.stringToEntry("x")));
+                    Assert.assertFalse(cursor.deleteCurrent());
                     Assert.assertTrue(cursor.getSearchBoth(StringBinding.stringToEntry("1"), StringBinding.stringToEntry("1")));
                     Assert.assertTrue(cursor.deleteCurrent());
                 }
