@@ -185,6 +185,35 @@ public class StoreTest extends EnvironmentTestsBase {
     }
 
     @Test
+    public void test_XD_459() {
+        final Environment env = getEnvironment();
+        final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
+            @Override
+            public Store compute(@NotNull final Transaction txn) {
+                return env.openStore("Store", StoreConfig.WITHOUT_DUPLICATES, txn);
+            }
+        });
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                store.put(txn, StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0"));
+                store.put(txn, StringBinding.stringToEntry("1"), StringBinding.stringToEntry("1"));
+            }
+        });
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                try (Cursor cursor = store.openCursor(txn)) {
+                    Assert.assertTrue(cursor.getSearchBoth(StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0")));
+                    Assert.assertTrue(cursor.deleteCurrent());
+                    Assert.assertTrue(cursor.getSearchBoth(StringBinding.stringToEntry("1"), StringBinding.stringToEntry("1")));
+                    Assert.assertTrue(cursor.deleteCurrent());
+                }
+            }
+        });
+    }
+
+    @Test
     public void testConcurrentPutLikeJetPassBTree() {
         concurrentPutLikeJetPass(StoreConfig.WITHOUT_DUPLICATES);
     }
