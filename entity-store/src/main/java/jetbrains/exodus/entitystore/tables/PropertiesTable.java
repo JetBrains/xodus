@@ -90,8 +90,7 @@ public final class PropertiesTable extends Table {
         if (oldValue == null) {
             success = allPropsIndex.put(envTxn, IntegerBinding.intToCompressedEntry(propertyId), secondaryValue);
         } else {
-            success = deleteFromCursorAndClose(
-                    valueIdx.openCursor(envTxn), secondaryValue, createSecondaryKeys(store.getPropertyTypes(), oldValue, type));
+            success = deleteFromStore(envTxn, valueIdx, secondaryValue, createSecondaryKeys(store.getPropertyTypes(), oldValue, type));
         }
         if (success) {
             for (final ByteIterable secondaryKey : createSecondaryKeys(store.getPropertyTypes(), value, type)) {
@@ -118,10 +117,9 @@ public final class PropertiesTable extends Table {
         final Transaction envTxn = txn.getEnvironmentTransaction();
         final ByteIterable secondaryValue = LongBinding.longToCompressedEntry(localId);
         return primaryStore.delete(envTxn, key) &&
-                deleteFromCursorAndClose(getOrCreateValueIndex(txn, propertyId).openCursor(envTxn),
+                deleteFromStore(envTxn, getOrCreateValueIndex(txn, propertyId),
                         secondaryValue, createSecondaryKeys(store.getPropertyTypes(), value, type)) &&
-                deleteFromCursorAndClose(allPropsIndex.openCursor(envTxn),
-                        secondaryValue, IntegerBinding.intToCompressedEntry(propertyId));
+                deleteFromStore(envTxn, allPropsIndex, secondaryValue, IntegerBinding.intToCompressedEntry(propertyId));
     }
 
     public Store getPrimaryIndex() {
@@ -196,10 +194,11 @@ public final class PropertiesTable extends Table {
         return name + PROP_VALUE_IDX + propertyId;
     }
 
-    private static boolean deleteFromCursorAndClose(@NotNull final Cursor cursor,
-                                                    @NotNull final ByteIterable value,
-                                                    @NotNull final ByteIterable... keys) {
-        try {
+    private static boolean deleteFromStore(@NotNull final Transaction txn,
+                                           @NotNull final Store store,
+                                           @NotNull final ByteIterable value,
+                                           @NotNull final ByteIterable... keys) {
+        try (Cursor cursor = store.openCursor(txn)) {
             for (final ByteIterable key : keys) {
                 if (!cursor.getSearchBoth(key, value)) {
                     // repeat for debugging
@@ -213,8 +212,6 @@ public final class PropertiesTable extends Table {
                 }
             }
             return true;
-        } finally {
-            cursor.close();
         }
     }
 
