@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.*;
 import jetbrains.exodus.bindings.ComparableBinding;
+import jetbrains.exodus.bindings.ComparableValueType;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache;
@@ -625,8 +626,11 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (result == null) {
             final ByteIterable resultEntry = getRawProperty(txn, entity, propertyId);
             if (resultEntry != null) {
-                result = propertyTypes.entryToPropertyValue(resultEntry).getData();
-                txn.cacheProperty(entity.getId(), propertyId, result);
+                final PropertyValue propValue = propertyTypes.entryToPropertyValue(resultEntry);
+                result = propValue.getData();
+                if (propValue.getType().getTypeId() != ComparableValueType.COMPARABLE_SET_VALUE_TYPE) {
+                    txn.cacheProperty(entity.getId(), propertyId, result);
+                }
             }
         }
         return result;
