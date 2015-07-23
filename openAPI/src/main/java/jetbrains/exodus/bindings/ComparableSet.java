@@ -22,7 +22,7 @@ import java.util.Iterator;
 import java.util.NavigableSet;
 import java.util.TreeSet;
 
-public class ComparableSet<T extends Comparable<T>> implements Comparable<ComparableSet<T>> {
+public class ComparableSet<T extends Comparable<T>> implements Comparable<ComparableSet<T>>, Iterable<T> {
 
     @NotNull
     private final NavigableSet<T> set;
@@ -120,6 +120,12 @@ public class ComparableSet<T extends Comparable<T>> implements Comparable<Compar
 
     void setIsDirty(final boolean isDirty) {
         this.isDirty = isDirty;
+    }
+
+    @NotNull
+    @Override
+    public Iterator<T> iterator() {
+        return set.iterator();
     }
 
     public interface Consumer<T extends Comparable<T>> {
