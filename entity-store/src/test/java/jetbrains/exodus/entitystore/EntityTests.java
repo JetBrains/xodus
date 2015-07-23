@@ -18,6 +18,7 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.TestUtil;
+import jetbrains.exodus.bindings.ComparableSet;
 import jetbrains.exodus.util.ByteArraySizedInputStream;
 import jetbrains.exodus.util.LightByteArrayOutputStream;
 import jetbrains.exodus.util.UTFUtil;
@@ -251,6 +252,42 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertEquals("This is a test issue", entity.getProperty("description"));
         Assert.assertEquals(100, entity.getProperty("size"));
         Assert.assertEquals(0.5, entity.getProperty("rank"));
+    }
+
+    @SuppressWarnings("unchecked")
+    public void testComparableSetProperties() {
+        final StoreTransaction txn = getStoreTransaction();
+        final Entity entity = txn.newEntity("Issue");
+        final ComparableSet<String> subsystems = new ComparableSet<>();
+        TestUtil.runWithExpectedException(new Runnable() {
+            @Override
+            public void run() {
+                entity.setProperty("subsystems", subsystems);
+            }
+        }, ExodusException.class);
+        subsystems.addItem("Search Parser");
+        subsystems.addItem("Full Text Index");
+        subsystems.addItem("REST API");
+        subsystems.addItem("Workflow");
+        subsystems.addItem("Agile Board");
+        entity.setProperty("subsystems", subsystems);
+        txn.flush();
+        Comparable propValue = entity.getProperty("subsystems");
+        Assert.assertTrue(propValue instanceof ComparableSet);
+        ComparableSet<String> readSet = (ComparableSet) propValue;
+        Assert.assertFalse(readSet.isEmpty());
+        Assert.assertFalse(readSet.isDirty());
+        Assert.assertEquals(subsystems, propValue);
+        readSet.addItem("Obsolete Subsystem");
+        Assert.assertTrue(readSet.isDirty());
+        entity.setProperty("subsystems", readSet);
+        txn.flush();
+        propValue = entity.getProperty("subsystems");
+        Assert.assertTrue(propValue instanceof ComparableSet);
+        readSet = (ComparableSet) propValue;
+        Assert.assertFalse(readSet.isEmpty());
+        Assert.assertFalse(readSet.isDirty());
+        Assert.assertNotEquals(subsystems, propValue);
     }
 
     public void testBlobs() throws Exception {

@@ -15,6 +15,9 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.bindings.ComparableSet;
+import jetbrains.exodus.util.Random;
+import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 
 import java.util.ArrayList;
@@ -416,5 +419,37 @@ public class FindTests extends EntityStoreTestBase {
         txn.flush();
         Assert.assertEquals(100, txn.findWithBlob("Issue", "description").size());
         Assert.assertEquals(0, txn.findWithBlob("Issue", "no such blob").size());
+    }
+
+    public void testFindComparableSet() {
+        final StoreTransaction txn = getStoreTransaction();
+        final Entity issue = txn.newEntity("Issue");
+        final ComparableSet<Integer> randomSet = new ComparableSet<>();
+        final Random rnd = new Random();
+        final int setSize = 20;
+        for (int i = 0; i < setSize; ++i) {
+            randomSet.addItem(rnd.nextInt());
+        }
+        for (int i = 0; i < 1000; ++i) {
+            Assert.assertEquals(setSize, randomSet.size());
+            issue.setProperty("randomSet", randomSet);
+            randomSet.forEach(new ComparableSet.Consumer<Integer>() {
+                @Override
+                public void accept(@NotNull final Integer item, int index) {
+                    Assert.assertEquals(issue, txn.find("Issue", "randomSet", item).getFirst());
+                }
+            });
+            Assert.assertTrue(randomSet.removeItem(randomSet.iterator().next()));
+            while (true) {
+                final int newItem = rnd.nextInt();
+                if (randomSet.addItem(newItem)) {
+                    Assert.assertTrue(txn.find("Issue", "randomSet", newItem).isEmpty());
+                    break;
+                }
+            }
+            if (i % 20 == 19) {
+                txn.flush();
+            }
+        }
     }
 }
