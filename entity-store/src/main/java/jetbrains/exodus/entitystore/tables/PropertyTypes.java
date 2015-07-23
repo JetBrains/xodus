@@ -79,7 +79,7 @@ public final class PropertyTypes {
         final ByteIterableBase it = (ByteIterableBase) entry;
         final byte[] bytes = it.getBytesUnsafe();
         final ComparableValueType type = getPropertyType((byte) (bytes[0] ^ 0x80));
-        final Comparable data = type.getBinding().readObject(new ByteArrayInputStream(bytes, 1, it.getLength()));
+        final Comparable data = type.getBinding().readObject(new ByteArrayInputStream(bytes, 1, it.getLength() - 1));
         return new PropertyValue(type, data);
     }
 
