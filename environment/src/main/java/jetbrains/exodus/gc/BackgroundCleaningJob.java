@@ -135,7 +135,10 @@ final class BackgroundCleaningJob extends Job {
             }
             throw e;
         }
-        return !cleaner.isSuspended() && !cleaner.isFinished() &&
-                gc.getEnvironment().getEnvironmentConfig().isGcEnabled() && gc.isTooMuchFreeSpace();
+        if (cleaner.isSuspended() || cleaner.isFinished()) {
+            return false;
+        }
+        final EnvironmentConfig ec = gc.getEnvironment().getEnvironmentConfig();
+        return ec.isGcEnabled() && !ec.getEnvIsReadonly() && gc.isTooMuchFreeSpace();
     }
 }
