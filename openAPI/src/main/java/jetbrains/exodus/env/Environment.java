@@ -71,6 +71,17 @@ public interface Environment extends Backupable {
     Transaction beginTransaction(Runnable beginHook);
 
     /**
+     * Starts exclusive transaction. It is guaranteed that no other transaction is started on the environment.
+     *
+     * @return exclusive transaction object
+     */
+    @NotNull
+    Transaction beginExclusiveTransaction();
+
+    @NotNull
+    Transaction beginExclusiveTransaction(Runnable beginHook);
+
+    /**
      * Starts a read-only transaction in which any writing attempt fails.
      *
      * @return read-only transaction object.
@@ -83,9 +94,13 @@ public interface Environment extends Backupable {
 
     void executeInTransaction(@NotNull TransactionalExecutable executable);
 
+    void executeInExclusiveTransaction(@NotNull TransactionalExecutable executable);
+
     void executeInReadonlyTransaction(@NotNull TransactionalExecutable executable);
 
     <T> T computeInTransaction(@NotNull TransactionalComputable<T> computable);
+
+    <T> T computeInExclusiveTransaction(@NotNull TransactionalComputable<T> computable);
 
     <T> T computeInReadonlyTransaction(@NotNull TransactionalComputable<T> computable);
 

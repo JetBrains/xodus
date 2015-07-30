@@ -48,7 +48,7 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
     public Transaction getAndCheckCurrentTransaction() {
         final Transaction txn = getCurrentTransaction();
         if (txn == null) {
-            throw new IllegalStateException("No transaction started in current thread.");
+            throw new IllegalStateException("No transaction started in current thread");
         }
         return txn;
     }
@@ -64,9 +64,34 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
     }
 
     @Override
+    public void executeInExclusiveTransaction(@NotNull TransactionalExecutable executable) {
+        final Transaction current = getCurrentTransaction();
+        if (current == null) {
+            super.executeInExclusiveTransaction(executable);
+        } else {
+            if (!current.isExclusive()) {
+                throw new ExodusException("Current transaction should be exclusive");
+            }
+            executable.execute(current);
+        }
+    }
+
+    @Override
     public <T> T computeInTransaction(@NotNull TransactionalComputable<T> computable) {
         final Transaction current = getCurrentTransaction();
         return current != null ? computable.compute(current) : super.computeInTransaction(computable);
+    }
+
+    @Override
+    public <T> T computeInExclusiveTransaction(@NotNull TransactionalComputable<T> computable) {
+        final Transaction current = getCurrentTransaction();
+        if (current == null) {
+            return super.computeInExclusiveTransaction(computable);
+        }
+        if (!current.isExclusive()) {
+            throw new ExodusException("Current transaction should be exclusive");
+        }
+        return computable.compute(current);
     }
 
     @NotNull
@@ -114,17 +139,17 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
         return new ContextualStoreImpl(this, name, metaInfo);
     }
 
+    @NotNull
+    @Override
+    protected TransactionImpl beginTransaction(boolean cloneMeta, boolean exclusive, Runnable beginHook) {
+        final TransactionImpl result = super.beginTransaction(cloneMeta, exclusive, beginHook);
+        setCurrentTransaction(result);
+        return result;
+    }
+
     @Override
     protected Thread getCreatingThread() {
         return Thread.currentThread();
-    }
-
-    @NotNull
-    @Override
-    protected TransactionImpl beginTransaction(boolean cloneMeta, Runnable beginHook) {
-        final TransactionImpl result = super.beginTransaction(cloneMeta, beginHook);
-        setCurrentTransaction(result);
-        return result;
     }
 
     @NotNull

@@ -38,14 +38,24 @@ public interface Transaction {
     void setCommitHook(@Nullable Runnable hook);
 
     /**
-     * Time when the transaction acquired its database snapshot, i.e. time when it was created, reverted or successfully flushed.
+     * Time when the transaction acquired its database snapshot, i.e. time when it was started, reverted or successfully flushed (committed).
      *
-     * @return the difference, measured in milliseconds, between the current time and midnight, January 1, 1970 UTC.
+     * @return the difference (in milliseconds) between current time and midnight, January 1, 1970 UTC.
      */
-    long getCreated();
+    long getStartTime();
 
     /**
-     * @return the value of Log.getHighAddress() that was actual when the transaction was created.
+     * @return the value of Log.getHighAddress() that was actual when the transaction was started.
      */
     long getHighAddress();
+
+    /**
+     * @return true if the transaction was started as read-only one.
+     */
+    boolean isReadonly();
+
+    /**
+     * @return true if the transaction was started as exclusive one.
+     */
+    boolean isExclusive();
 }

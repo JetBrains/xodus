@@ -50,7 +50,7 @@ final class StuckTransactionMonitor extends Job {
                         @Override
                         public void execute(@NotNull final Transaction txn) {
                             final TransactionImpl transaction = (TransactionImpl) txn;
-                            final long created = transaction.getCreated();
+                            final long created = transaction.getStartTime();
                             if (created < creationTimeBound) {
                                 final Thread creatingThread = transaction.getCreatingThread();
                                 logger.error("Transaction timed out: created at " + new Date(created).toString() + ", thread = " +

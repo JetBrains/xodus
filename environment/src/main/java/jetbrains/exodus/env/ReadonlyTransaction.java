@@ -60,4 +60,14 @@ class ReadonlyTransaction extends TransactionImpl {
         }
         return true;
     }
+
+    @Override
+    public boolean isReadonly() {
+        return true;
+    }
+
+    @Override
+    public boolean isExclusive() {
+        return false;
+    }
 }

@@ -51,7 +51,8 @@ public class TransactionImpl implements Transaction {
     private Runnable commitHook;
     @Nullable
     private final Throwable trace;
-    private long created;
+    private long started;
+    private boolean isExclusive;
 
     TransactionImpl(@NotNull final EnvironmentImpl env, @Nullable final Thread creatingThread,
                     @Nullable final Runnable beginHook, final boolean cloneMeta) {
@@ -73,7 +74,7 @@ public class TransactionImpl implements Transaction {
             }
         };
         trace = env.transactionTimeout() > 0 ? new Throwable() : null;
-        invalidateCreated();
+        invalidateStarted();
         holdNewestSnapshot();
     }
 
@@ -90,7 +91,7 @@ public class TransactionImpl implements Transaction {
         removedStores = new LongHashMap<>();
         createdStores = new HashMapDecorator<>();
         trace = env.transactionTimeout() > 0 ? new Throwable() : null;
-        invalidateCreated();
+        invalidateStarted();
         env.registerTransaction(this);
     }
 
@@ -113,7 +114,7 @@ public class TransactionImpl implements Transaction {
     public boolean flush() {
         final boolean result = env.flushTransaction(this, false);
         if (result) {
-            invalidateCreated();
+            invalidateStarted();
         }
         return result;
     }
@@ -129,7 +130,7 @@ public class TransactionImpl implements Transaction {
         if (!env.isRegistered(this)) {
             throw new ExodusException("Transaction should remain registered after revert");
         }
-        invalidateCreated();
+        invalidateStarted();
     }
 
     @Override
@@ -149,13 +150,23 @@ public class TransactionImpl implements Transaction {
     }
 
     @Override
-    public long getCreated() {
-        return created;
+    public long getStartTime() {
+        return started;
     }
 
     @Override
     public long getHighAddress() {
         return metaTree.highAddress;
+    }
+
+    @Override
+    public boolean isReadonly() {
+        return false;
+    }
+
+    @Override
+    public boolean isExclusive() {
+        return isExclusive;
     }
 
     public boolean forceFlush() {
@@ -306,8 +317,12 @@ public class TransactionImpl implements Transaction {
         return result;
     }
 
-    private void invalidateCreated() {
-        created = System.currentTimeMillis();
+    void setIsExclusive(final boolean isExclusive) {
+        this.isExclusive = isExclusive;
+    }
+
+    private void invalidateStarted() {
+        started = System.currentTimeMillis();
     }
 
     private void holdNewestSnapshot() {

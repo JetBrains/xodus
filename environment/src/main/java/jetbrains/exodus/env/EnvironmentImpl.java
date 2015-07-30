@@ -42,6 +42,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.SoftReference;
 import java.util.*;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class EnvironmentImpl implements Environment {
@@ -69,6 +70,7 @@ public class EnvironmentImpl implements Environment {
     private final GarbageCollector gc;
     private final Object commitLock = new Object();
     private final Object metaLock = new Object();
+    private final Semaphore txnSemaphore;
     @Nullable
     private final jetbrains.exodus.env.management.EnvironmentConfig configMBean;
 
@@ -79,7 +81,6 @@ public class EnvironmentImpl implements Environment {
      * it will remain inoperative forever.
      */
     private volatile Throwable throwableOnCommit;
-
     private Throwable throwableOnClose;
 
     @SuppressWarnings({"ThisEscapedInObjectConstruction"})
@@ -98,6 +99,8 @@ public class EnvironmentImpl implements Environment {
         ec.addChangedSettingsListener(envSettingsListener);
 
         gc = new GarbageCollector(this);
+        txnSemaphore = new Semaphore(Integer.MAX_VALUE, true);
+        configMBean = ec.isManagementEnabled() ? new jetbrains.exodus.env.management.EnvironmentConfig(this) : null;
 
         throwableOnCommit = null;
         throwableOnClose = null;
@@ -106,7 +109,6 @@ public class EnvironmentImpl implements Environment {
             new StuckTransactionMonitor(this);
         }
 
-        configMBean = ec.isManagementEnabled() ? new jetbrains.exodus.env.management.EnvironmentConfig(this) : null;
 
         if (logger.isInfoEnabled()) {
             logger.info("Exodus environment created: " + log.getLocation());
@@ -159,13 +161,25 @@ public class EnvironmentImpl implements Environment {
     @Override
     @NotNull
     public TransactionImpl beginTransaction() {
-        return beginTransaction(false, null);
+        return beginTransaction(false, false, null);
     }
 
     @Override
     @NotNull
     public TransactionImpl beginTransaction(final Runnable beginHook) {
-        return beginTransaction(false, beginHook);
+        return beginTransaction(false, false, beginHook);
+    }
+
+    @NotNull
+    @Override
+    public Transaction beginExclusiveTransaction() {
+        return beginTransaction(false, true, null);
+    }
+
+    @NotNull
+    @Override
+    public Transaction beginExclusiveTransaction(Runnable beginHook) {
+        return beginTransaction(false, true, beginHook);
     }
 
     @NotNull
@@ -182,13 +196,29 @@ public class EnvironmentImpl implements Environment {
     }
 
     @NotNull
-    public TransactionImpl beginTransactionWithClonedMetaTree() {
-        return beginTransaction(true, null);
+    public TransactionImpl beginGCTransaction() {
+        return beginTransaction(true, true, null);
     }
 
     @Override
     public void executeInTransaction(@NotNull final TransactionalExecutable executable) {
         final Transaction txn = beginTransaction();
+        try {
+            while (true) {
+                executable.execute(txn);
+                if (txn.flush()) {
+                    break;
+                }
+                txn.revert();
+            }
+        } finally {
+            txn.abort();
+        }
+    }
+
+    @Override
+    public void executeInExclusiveTransaction(@NotNull final TransactionalExecutable executable) {
+        final Transaction txn = beginExclusiveTransaction();
         try {
             while (true) {
                 executable.execute(txn);
@@ -215,6 +245,22 @@ public class EnvironmentImpl implements Environment {
     @Override
     public <T> T computeInTransaction(@NotNull TransactionalComputable<T> computable) {
         final Transaction txn = beginTransaction();
+        try {
+            while (true) {
+                final T result = computable.compute(txn);
+                if (txn.flush()) {
+                    return result;
+                }
+                txn.revert();
+            }
+        } finally {
+            txn.abort();
+        }
+    }
+
+    @Override
+    public <T> T computeInExclusiveTransaction(@NotNull TransactionalComputable<T> computable) {
+        final Transaction txn = beginExclusiveTransaction();
         try {
             while (true) {
                 final T result = computable.compute(txn);
@@ -385,21 +431,50 @@ public class EnvironmentImpl implements Environment {
     }
 
     protected void finishTransaction(@NotNull final TransactionImpl txn) {
+        if (txn.isExclusive()) {
+            releaseExclusiveTransaction();
+        } else if (!txn.isReadonly()) {
+            releaseConcurrentTransaction();
+        }
         txns.remove(txn);
         runTransactionSafeTasks();
     }
 
     @NotNull
-    protected TransactionImpl beginTransaction(boolean cloneMeta, Runnable beginHook) {
+    protected TransactionImpl beginTransaction(boolean cloneMeta, boolean exclusive, Runnable beginHook) {
         checkIsOperative();
         final Thread creatingThread = getCreatingThread();
-        return ec.getEnvIsReadonly() ?
-                new ReadonlyTransaction(this, creatingThread, beginHook) :
-                new TransactionImpl(this, creatingThread, beginHook, cloneMeta);
+        if (ec.getEnvIsReadonly()) {
+            return new ReadonlyTransaction(this, creatingThread, beginHook);
+        }
+        final TransactionImpl result = new TransactionImpl(this, creatingThread, beginHook, cloneMeta);
+        result.setIsExclusive(exclusive);
+        if (exclusive) {
+            acquireExclusiveTransaction();
+        } else {
+            acquireConcurrentTransaction();
+        }
+        return result;
     }
 
     protected Thread getCreatingThread() {
         return transactionTimeout() > 0 ? Thread.currentThread() : null;
+    }
+
+    void acquireConcurrentTransaction() {
+        txnSemaphore.acquireUninterruptibly(1);
+    }
+
+    void releaseConcurrentTransaction() {
+        txnSemaphore.release(1);
+    }
+
+    void acquireExclusiveTransaction() {
+        txnSemaphore.acquireUninterruptibly(Integer.MAX_VALUE);
+    }
+
+    void releaseExclusiveTransaction() {
+        txnSemaphore.release(Integer.MAX_VALUE);
     }
 
     /**
@@ -433,12 +508,10 @@ public class EnvironmentImpl implements Environment {
     @SuppressWarnings("OverlyNestedMethod")
     boolean commitTransaction(@NotNull final TransactionImpl txn, final boolean forceCommit) {
         if (flushTransaction(txn, forceCommit)) {
-            // don't finish if flushTransaction throws exception
             finishTransaction(txn);
             return true;
-        } else {
-            return false;
         }
+        return false;
     }
 
     boolean flushTransaction(@NotNull final TransactionImpl txn, final boolean forceCommit) {

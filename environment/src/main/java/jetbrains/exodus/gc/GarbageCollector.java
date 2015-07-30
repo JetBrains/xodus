@@ -168,7 +168,7 @@ public final class GarbageCollector {
         // At first, we clone whole meta tree inside of 'begin transaction'
         // in order to save it completely on commit of transaction.
         // Thus we can ignore all loggables belonging to the meta tree.
-        final TransactionImpl txn = env.beginTransactionWithClonedMetaTree();
+        final TransactionImpl txn = env.beginGCTransaction();
         try {
             final Log log = getLog();
             if (logger.isDebugEnabled()) {
