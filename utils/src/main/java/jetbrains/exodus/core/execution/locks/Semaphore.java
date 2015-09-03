@@ -17,6 +17,7 @@ package jetbrains.exodus.core.execution.locks;
 
 public class Semaphore {
 
+    Thread thread;
     private int permits;
     private int maxPermits;
 
@@ -51,6 +52,15 @@ public class Semaphore {
             }
         }
         this.permits -= permits;
+        thread = Thread.currentThread();
+    }
+
+    public void acquireUninterruptibly() {
+        acquire();
+    }
+
+    public void acquireUninterruptibly(final int permits) {
+        acquire(permits);
     }
 
     public void release() {
