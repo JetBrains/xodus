@@ -844,6 +844,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         blobStreams = null;
         blobFiles = null;
         preservedBlobs = null;
+        deferredBlobsToDelete = null;
     }
 
     // exposed only for tests
