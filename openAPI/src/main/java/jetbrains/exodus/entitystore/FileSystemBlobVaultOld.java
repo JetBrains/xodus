@@ -275,7 +275,7 @@ public class FileSystemBlobVaultOld extends BlobVault {
                                             next = new FileDescriptor(file, currentPrefix, fileSize);
                                             return true;
                                         }
-                                    } else {
+                                    } else if (file.exists()) {
                                         // something strange with filesystem
                                         throw new EntityStoreException("File or directory expected: " + file.toString());
                                     }
