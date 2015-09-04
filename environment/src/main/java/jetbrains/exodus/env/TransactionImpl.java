@@ -46,16 +46,21 @@ public class TransactionImpl implements Transaction {
     @NotNull
     private final Map<String, TreeMetaInfo> createdStores;
     @Nullable
-    private Runnable beginHook;
+    private final Runnable beginHook;
     @Nullable
     private Runnable commitHook;
     @Nullable
     private final Throwable trace;
-    private long started;
+    private long started;       // started is the ticks when the txn held its current snapshot
+    private final long created; // created is the ticks when the txn was actually created (constructed)
+    private int replayCount;
     private boolean isExclusive;
 
-    TransactionImpl(@NotNull final EnvironmentImpl env, @Nullable final Thread creatingThread,
-                    @Nullable final Runnable beginHook, final boolean cloneMeta) {
+    TransactionImpl(@NotNull final EnvironmentImpl env,
+                    @Nullable final Thread creatingThread,
+                    @Nullable final Runnable beginHook,
+                    final boolean isExclusive,
+                    final boolean cloneMeta) {
         this.env = env;
         this.creatingThread = creatingThread;
         immutableTrees = new IntHashMap<>();
@@ -65,7 +70,7 @@ public class TransactionImpl implements Transaction {
         this.beginHook = new Runnable() {
             @Override
             public void run() {
-                final MetaTree currentMetaTree = env.getMetaTreeUnsafe();
+                final MetaTree currentMetaTree = env.getMetaTree();
                 metaTree = cloneMeta ? currentMetaTree.getClone() : currentMetaTree;
                 env.registerTransaction(TransactionImpl.this);
                 if (beginHook != null) {
@@ -75,6 +80,9 @@ public class TransactionImpl implements Transaction {
         };
         trace = env.transactionTimeout() > 0 ? new Throwable() : null;
         invalidateStarted();
+        created = started;
+        replayCount = 0;
+        this.isExclusive = isExclusive;
         holdNewestSnapshot();
     }
 
@@ -85,6 +93,7 @@ public class TransactionImpl implements Transaction {
         env = origin.env;
         metaTree = origin.metaTree;
         commitHook = origin.commitHook;
+        beginHook = origin.beginHook;
         creatingThread = origin.creatingThread;
         immutableTrees = new IntHashMap<>();
         mutableTrees = new TreeMap<>();
@@ -92,6 +101,8 @@ public class TransactionImpl implements Transaction {
         createdStores = new HashMapDecorator<>();
         trace = env.transactionTimeout() > 0 ? new Throwable() : null;
         invalidateStarted();
+        created = started;
+        replayCount = 0;
         env.registerTransaction(this);
     }
 
@@ -115,20 +126,32 @@ public class TransactionImpl implements Transaction {
         final boolean result = env.flushTransaction(this, false);
         if (result) {
             invalidateStarted();
+        } else {
+            incReplayCount();
         }
         return result;
     }
 
     @Override
     public void revert() {
+        if (isReadonly()) {
+            throw new ExodusException("Attempt ot revert read-only transaction");
+        }
         doRevert();
+        final boolean wasExclusive = isExclusive;
+        env.releaseTransaction(wasExclusive);
+        isExclusive |= env.shouldTransactionBeExclusive(this);
         final long oldRoot = metaTree.root;
         holdNewestSnapshot();
-        if (!checkVersion(oldRoot)) {
-            env.runTransactionSafeTasks();
-        }
         if (!env.isRegistered(this)) {
             throw new ExodusException("Transaction should remain registered after revert");
+        }
+        if (!checkVersion(oldRoot)) {
+            // GUARD: if txn is exclusive then database version could not be changed
+            if (wasExclusive) {
+                throw new ExodusException("Meta tree modified during exclusive transaction");
+            }
+            env.runTransactionSafeTasks();
         }
         invalidateStarted();
     }
@@ -173,11 +196,6 @@ public class TransactionImpl implements Transaction {
         return env.flushTransaction(this, true);
     }
 
-    @Nullable
-    public Throwable getTrace() {
-        return trace;
-    }
-
     @NotNull
     public StoreImpl openStoreByStructureId(final int structureId) {
         final String storeName = metaTree.getStoreNameByStructureId(structureId, env);
@@ -206,6 +224,23 @@ public class TransactionImpl implements Transaction {
     void storeCreated(@NotNull final StoreImpl store) {
         getMutableTree(store);
         createdStores.put(store.getName(), store.getMetaInfo());
+    }
+
+    @Nullable
+    Throwable getTrace() {
+        return trace;
+    }
+
+    long getCreated() {
+        return created;
+    }
+
+    int getReplayCount() {
+        return replayCount;
+    }
+
+    void incReplayCount() {
+        ++replayCount;
     }
 
     /**
@@ -268,7 +303,7 @@ public class TransactionImpl implements Transaction {
     @NotNull
     ITreeMutable getMutableTree(@NotNull final StoreImpl store) {
         if (creatingThread != null && !creatingThread.equals(Thread.currentThread())) {
-            throw new ExodusException("Can't create mutable tree in a thread different from the one which transaction was created in.");
+            throw new ExodusException("Can't create mutable tree in a thread different from the one which transaction was created in");
         }
         final int structureId = store.getStructureId();
         ITreeMutable result = mutableTrees.get(structureId);
@@ -317,8 +352,9 @@ public class TransactionImpl implements Transaction {
         return result;
     }
 
-    void setIsExclusive(final boolean isExclusive) {
-        this.isExclusive = isExclusive;
+    @Nullable
+    Runnable getBeginHook() {
+        return beginHook;
     }
 
     private void invalidateStarted() {
@@ -326,7 +362,7 @@ public class TransactionImpl implements Transaction {
     }
 
     private void holdNewestSnapshot() {
-        env.getMetaTree(beginHook);
+        env.holdNewestSnapshotBy(this);
     }
 
     @NotNull

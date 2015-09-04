@@ -120,7 +120,7 @@ public class Reflect {
     public void traverseAll(List<DatabaseRoot> roots) {
         final LongSet traversed = new LongHashSet();
         final BTreeBalancePolicy strategy = env.getBTreeBalancePolicy();
-        final MetaTree fallbackMetaTree = env.getMetaTree(null);
+        final MetaTree fallbackMetaTree = env.getMetaTree();
         final AbstractMap<Integer, Long> storeRoots = new IntHashMap<>();
         final int[] ids = new int[roots.size()]; // whatever
         int processed = 0;
@@ -270,7 +270,7 @@ public class Reflect {
     public void traverse() {
         final TreeMap<Long, Long> usedSpace = new TreeMap<>();
         System.out.print("Analysing meta tree loggables... ");
-        fetchUsedSpace(env.getMetaTree(null).addressIterator(), usedSpace);
+        fetchUsedSpace(env.getMetaTree().addressIterator(), usedSpace);
         final List<String> names = env.computeInReadonlyTransaction(new TransactionalComputable<List<String>>() {
             @Override
             public List<String> compute(@NotNull Transaction txn) {

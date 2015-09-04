@@ -59,6 +59,14 @@ public interface EnvironmentConfigMBean {
 
     void setEnvCloseForcedly(boolean closeForcedly);
 
+    long getEnvTxnReplayTimeout();
+
+    void setEnvTxnReplayTimeout(final long txnReplayTimeout);
+
+    int getEnvTxnReplayMaxCount();
+
+    void setEnvTxnReplayMaxCount(final int txnReplayMaxCount);
+
     int getEnvMonitorTxnsTimeout();
 
     int getEnvMonitorTxnsCheckFreq();

@@ -62,6 +62,10 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public static final String ENV_CLOSE_FORCEDLY = "exodus.env.closeForcedly";
 
+    public static final String ENV_TXN_REPLAY_TIMEOUT = "exodus.env.txn.replayTimeout"; // in milliseconds
+
+    public static final String ENV_TXN_REPLAY_MAX_COUNT = "exodus.env.txn.replayMaxCount";
+
     public static final String ENV_MONITOR_TXNS_TIMEOUT = "exodus.env.monitorTxns.timeout"; // in milliseconds
 
     public static final String ENV_MONITOR_TXNS_CHECK_FREQ = "exodus.env.monitorTxns.checkFreq"; // in milliseconds
@@ -121,6 +125,8 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(ENV_READONLY_EMPTY_STORES, false),
                 new Pair(ENV_STOREGET_CACHE_SIZE, 0),
                 new Pair(ENV_CLOSE_FORCEDLY, false),
+                new Pair(ENV_TXN_REPLAY_TIMEOUT, 1000L),
+                new Pair(ENV_TXN_REPLAY_MAX_COUNT, 2),
                 new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
                 new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
                 new Pair(TREE_MAX_PAGE_SIZE, 128),
@@ -272,6 +278,28 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public EnvironmentConfig setEnvCloseForcedly(boolean closeForcedly) {
         return setSetting(ENV_CLOSE_FORCEDLY, closeForcedly);
+    }
+
+    public long getEnvTxnReplayTimeout() {
+        return (Long) getSetting(ENV_TXN_REPLAY_TIMEOUT);
+    }
+
+    public EnvironmentConfig setEnvTxnReplayTimeout(final long timeout) {
+        if (timeout < 0) {
+            throw new InvalidSettingException("Negative transaction replay timeout");
+        }
+        return setSetting(ENV_TXN_REPLAY_TIMEOUT, timeout);
+    }
+
+    public int getEnvTxnReplayMaxCount() {
+        return (Integer) getSetting(ENV_TXN_REPLAY_MAX_COUNT);
+    }
+
+    public EnvironmentConfig setEnvTxnReplayMaxCount(final int count) {
+        if (count < 0) {
+            throw new InvalidSettingException("Negative transaction replay count");
+        }
+        return setSetting(ENV_TXN_REPLAY_MAX_COUNT, count);
     }
 
     public int getEnvMonitorTxnsTimeout() {

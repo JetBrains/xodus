@@ -21,8 +21,10 @@ import org.jetbrains.annotations.Nullable;
 
 class ReadonlyTransaction extends TransactionImpl {
 
-    ReadonlyTransaction(@NotNull final EnvironmentImpl env, @Nullable final Thread creatingThread, @Nullable final Runnable beginHook) {
-        super(env, creatingThread, beginHook, false);
+    ReadonlyTransaction(@NotNull final EnvironmentImpl env,
+                        @Nullable final Thread creatingThread,
+                        @Nullable final Runnable beginHook) {
+        super(env, creatingThread, beginHook, false, false);
     }
 
     /**

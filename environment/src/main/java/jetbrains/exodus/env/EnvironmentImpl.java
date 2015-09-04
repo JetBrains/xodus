@@ -161,25 +161,25 @@ public class EnvironmentImpl implements Environment {
     @Override
     @NotNull
     public TransactionImpl beginTransaction() {
-        return beginTransaction(false, false, null);
+        return beginTransaction(null, false, false);
     }
 
     @Override
     @NotNull
     public TransactionImpl beginTransaction(final Runnable beginHook) {
-        return beginTransaction(false, false, beginHook);
+        return beginTransaction(beginHook, false, false);
     }
 
     @NotNull
     @Override
     public Transaction beginExclusiveTransaction() {
-        return beginTransaction(false, true, null);
+        return beginTransaction(null, true, false);
     }
 
     @NotNull
     @Override
     public Transaction beginExclusiveTransaction(Runnable beginHook) {
-        return beginTransaction(false, true, beginHook);
+        return beginTransaction(beginHook, true, false);
     }
 
     @NotNull
@@ -197,7 +197,7 @@ public class EnvironmentImpl implements Environment {
 
     @NotNull
     public TransactionImpl beginGCTransaction() {
-        return beginTransaction(true, true, null);
+        return beginTransaction(null, true, true);
     }
 
     @Override
@@ -432,49 +432,40 @@ public class EnvironmentImpl implements Environment {
 
     protected void finishTransaction(@NotNull final TransactionImpl txn) {
         if (txn.isExclusive()) {
-            releaseExclusiveTransaction();
+            releaseTransaction(true);
         } else if (!txn.isReadonly()) {
-            releaseConcurrentTransaction();
+            releaseTransaction(false);
         }
         txns.remove(txn);
         runTransactionSafeTasks();
     }
 
     @NotNull
-    protected TransactionImpl beginTransaction(boolean cloneMeta, boolean exclusive, Runnable beginHook) {
+    protected TransactionImpl beginTransaction(Runnable beginHook, boolean exclusive, boolean cloneMeta) {
         checkIsOperative();
         final Thread creatingThread = getCreatingThread();
-        if (ec.getEnvIsReadonly()) {
-            return new ReadonlyTransaction(this, creatingThread, beginHook);
-        }
-        final TransactionImpl result = new TransactionImpl(this, creatingThread, beginHook, cloneMeta);
-        result.setIsExclusive(exclusive);
-        if (exclusive) {
-            acquireExclusiveTransaction();
-        } else {
-            acquireConcurrentTransaction();
-        }
-        return result;
+        return ec.getEnvIsReadonly() ?
+                new ReadonlyTransaction(this, creatingThread, beginHook) :
+                new TransactionImpl(this, creatingThread, beginHook, exclusive, cloneMeta);
     }
 
     protected Thread getCreatingThread() {
         return transactionTimeout() > 0 ? Thread.currentThread() : null;
     }
 
-    void acquireConcurrentTransaction() {
-        txnSemaphore.acquireUninterruptibly(1);
+    void acquireTransaction(final boolean exclusive) {
+        txnSemaphore.acquireUninterruptibly(exclusive ? Integer.MAX_VALUE : 1);
     }
 
-    void releaseConcurrentTransaction() {
-        txnSemaphore.release(1);
+    void releaseTransaction(final boolean exclusive) {
+        txnSemaphore.release(exclusive ? Integer.MAX_VALUE : 1);
     }
 
-    void acquireExclusiveTransaction() {
-        txnSemaphore.acquireUninterruptibly(Integer.MAX_VALUE);
-    }
-
-    void releaseExclusiveTransaction() {
-        txnSemaphore.release(Integer.MAX_VALUE);
+    boolean shouldTransactionBeExclusive(@NotNull final TransactionImpl txn) {
+        final int replayCount = txn.getReplayCount();
+        return replayCount > 0 &&
+                (ec.getEnvTxnReplayMaxCount() == replayCount ||
+                        System.currentTimeMillis() >= txn.getCreated() + ec.getEnvTxnReplayTimeout());
     }
 
     /**
@@ -518,6 +509,9 @@ public class EnvironmentImpl implements Environment {
         if (!forceCommit && txn.isIdempotent()) {
             return true;
         }
+        if (txn.isReadonly()) {
+            throw new ExodusException("Attempt to flush read-only transaction");
+        }
         final Iterable<Loggable>[] expiredLoggables;
         synchronized (commitLock) {
             if (ec.getEnvIsReadonly()) {
@@ -552,7 +546,11 @@ public class EnvironmentImpl implements Environment {
         return true;
     }
 
-    MetaTree getMetaTree(@Nullable final Runnable beginHook) {
+    MetaTree holdNewestSnapshotBy(@NotNull final TransactionImpl txn) {
+        if (!txn.isReadonly()) {
+            acquireTransaction(txn.isExclusive());
+        }
+        final Runnable beginHook = txn.getBeginHook();
         synchronized (metaLock) {
             if (beginHook != null) {
                 beginHook.run();
@@ -561,7 +559,7 @@ public class EnvironmentImpl implements Environment {
         }
     }
 
-    MetaTree getMetaTreeUnsafe() {
+    MetaTree getMetaTree() {
         return metaTree;
     }
 
@@ -702,7 +700,7 @@ public class EnvironmentImpl implements Environment {
     }
 
     private long getOldestTxnRootAddress() {
-        final TransactionImpl oldestTxn = txns.getOldestTransaction();
+        final TransactionImpl oldestTxn = getOldestTransaction();
         return oldestTxn == null ? Long.MAX_VALUE : oldestTxn.getRoot();
     }
 

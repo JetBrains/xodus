@@ -18,6 +18,8 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.BackupStrategy;
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.core.execution.Job;
+import jetbrains.exodus.core.execution.JobProcessor;
+import jetbrains.exodus.core.execution.JobProcessorExceptionHandler;
 import jetbrains.exodus.core.execution.ThreadJobProcessor;
 import jetbrains.exodus.util.BackupBean;
 import jetbrains.exodus.util.CompressBackupUtil;
@@ -35,14 +37,23 @@ import java.util.Enumeration;
 
 public class BackupTests extends EntityStoreTestBase {
 
+    @Override
+    protected boolean needsImplicitTxn() {
+        return false;
+    }
+
     public void testSingular() throws Exception {
         final PersistentEntityStoreImpl store = getEntityStore();
         store.getConfig().setMaxInPlaceBlobSize(0); // no in-place blobs
-        final PersistentStoreTransaction txn = getStoreTransaction();
-        final PersistentEntity issue = txn.newEntity("Issue");
-        final String randomDescription = Double.toString(Math.random());
-        issue.setBlobString("description", randomDescription);
-        txn.flush();
+        final String randomDescription[] = {null};
+        store.executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                final Entity issue = txn.newEntity("Issue");
+                randomDescription[0] = Double.toString(Math.random());
+                issue.setBlobString("description", randomDescription[0]);
+            }
+        });
         final File backupDir = TestUtil.createTempDir();
         try {
             final File backup = CompressBackupUtil.backup(store, backupDir, null, true);
@@ -57,7 +68,7 @@ public class BackupTests extends EntityStoreTestBase {
                             assertEquals(1, txn.getAll("Issue").size());
                             final Entity issue = txn.getAll("Issue").getFirst();
                             assertNotNull(issue);
-                            assertEquals(randomDescription, issue.getBlobString("description"));
+                            assertEquals(randomDescription[0], issue.getBlobString("description"));
                         }
                     });
                 } finally {
@@ -82,13 +93,16 @@ public class BackupTests extends EntityStoreTestBase {
     public void doStressTest(final boolean useBackupBean) throws Exception {
         final PersistentEntityStoreImpl store = getEntityStore();
         store.getConfig().setMaxInPlaceBlobSize(0); // no in-place blobs
-        final PersistentStoreTransaction txn = getStoreTransaction();
         final int issueCount = 1000;
-        for (int i = 0; i < issueCount; ++i) {
-            final PersistentEntity issue = txn.newEntity("Issue");
-            issue.setBlobString("description", Double.toString(Math.random()));
-        }
-        txn.flush();
+        store.executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                for (int i = 0; i < issueCount; ++i) {
+                    final Entity issue = txn.newEntity("Issue");
+                    issue.setBlobString("description", Double.toString(Math.random()));
+                }
+            }
+        });
         final Random rnd = new Random();
         final boolean[] finish = {false};
         final int[] backgroundChanges = {0};
@@ -97,6 +111,12 @@ public class BackupTests extends EntityStoreTestBase {
         for (int i = 0; i < threads.length; i++) {
             threads[i] = new ThreadJobProcessor("BackupTest Job Processor " + i);
             threads[i].start();
+            threads[i].setExceptionHandler(new JobProcessorExceptionHandler() {
+                @Override
+                public void handle(JobProcessor processor, Job job, Throwable t) {
+                    System.out.println(t.toString());
+                }
+            });
             threads[i].queue(new Job() {
                 @Override
                 protected void execute() throws Throwable {

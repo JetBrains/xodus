@@ -156,6 +156,26 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
+    public long getEnvTxnReplayTimeout() {
+        return config.getEnvTxnReplayTimeout();
+    }
+
+    @Override
+    public void setEnvTxnReplayTimeout(final long txnReplayTimeout) {
+        config.setEnvTxnReplayTimeout(txnReplayTimeout);
+    }
+
+    @Override
+    public int getEnvTxnReplayMaxCount() {
+        return config.getEnvTxnReplayMaxCount();
+    }
+
+    @Override
+    public void setEnvTxnReplayMaxCount(final int txnReplayMaxCount) {
+        config.setEnvTxnReplayMaxCount(txnReplayMaxCount);
+    }
+
+    @Override
     public int getEnvMonitorTxnsTimeout() {
         return config.getEnvMonitorTxnsTimeout();
     }
