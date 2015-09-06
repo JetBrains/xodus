@@ -34,7 +34,16 @@ public abstract class EntityStoreTestBase extends TestBase {
     private String databaseFolder;
 
     protected boolean needsImplicitTxn() {
+        for (final String testName : casesThatDontNeedExplicitTxn()) {
+            if (getName().equals(testName)) {
+                return false;
+            }
+        }
         return true;
+    }
+
+    protected String[] casesThatDontNeedExplicitTxn() {
+        return new String[0];
     }
 
     @Override

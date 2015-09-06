@@ -32,6 +32,11 @@ import java.util.Date;
 @SuppressWarnings({"RawUseOfParameterizedType"})
 public class EntityTests extends EntityStoreTestBase {
 
+    @Override
+    protected String[] casesThatDontNeedExplicitTxn() {
+        return new String[]{"testConcurrentCreationTypeIdsAreOk", "testConcurrentSerializableChanges"};
+    }
+
     public void testCreateSingleEntity() throws Exception {
         final StoreTransaction txn = getStoreTransaction();
         final Entity entity = txn.newEntity("Issue");
@@ -585,9 +590,12 @@ public class EntityTests extends EntityStoreTestBase {
     }
 
     public void testConcurrentSerializableChanges() throws InterruptedException {
-        final StoreTransaction txn = getStoreTransaction();
-        final Entity e1 = txn.newEntity("E");
-        txn.flush();
+        final Entity e1 = getEntityStore().computeInTransaction(new StoreTransactionalComputable<Entity>() {
+            @Override
+            public Entity compute(@NotNull final StoreTransaction txn) {
+                return txn.newEntity("E");
+            }
+        });
         final int count = 100;
         final Runnable target = new Runnable() {
             @Override
@@ -611,10 +619,13 @@ public class EntityTests extends EntityStoreTestBase {
         t2.start();
         t1.join();
         t2.join();
-        // make txn up-to-date
-        txn.revert();
-        Assert.assertEquals(count, e1.getProperty("i"));
-        Assert.assertEquals(Integer.toString(count), e1.getProperty("s"));
+        getEntityStore().executeInReadonlyTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final StoreTransaction txn) {
+                Assert.assertEquals(count, e1.getProperty("i"));
+                Assert.assertEquals(Integer.toString(count), e1.getProperty("s"));
+            }
+        });
     }
 
     public void testConcurrentCreationTypeIdsAreOk() throws InterruptedException {

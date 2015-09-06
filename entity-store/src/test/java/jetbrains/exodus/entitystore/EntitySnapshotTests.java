@@ -28,6 +28,10 @@ import java.lang.reflect.InvocationTargetException;
 
 public class EntitySnapshotTests extends EntityStoreTestBase {
 
+    @Override
+    protected String[] casesThatDontNeedExplicitTxn() {
+        return new String[]{"testConcurrentPutJetPassLike"};
+    }
 
     public void testProperty() {
         final PersistentStoreTransaction txn = getStoreTransaction();
@@ -113,7 +117,7 @@ public class EntitySnapshotTests extends EntityStoreTestBase {
             }
         });
         processor.start();
-        final int count = 50000;
+        final int count = 30000;
         for (int i = 0; i < count; ++i) {
             final int id = i;
             processor.queue(new Job() {
@@ -131,8 +135,6 @@ public class EntitySnapshotTests extends EntityStoreTestBase {
         }
         processor.waitForJobs(100);
         processor.finish();
-        //System.out.println("Sequences count: " + store.getAllSequences().size());
-        //executeMethod(store, "refactorMakePropTablesConsistent");
         getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
             @Override
             public void execute(@NotNull final StoreTransaction txn) {
