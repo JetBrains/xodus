@@ -530,7 +530,7 @@ public class EnvironmentImpl implements Environment {
                     txn.setMetaTree(metaTree = tree[0]);
                     txn.executeCommitHook();
                 }
-            } catch (Throwable t) { // pokémon exception handling to decrease try/catch block overhead
+            } catch (Throwable t) { // pokemon exception handling to decrease try/catch block overhead
                 logger.error("Failed to flush transaction", t);
                 try {
                     log.setHighAddress(highAddress);
