@@ -72,6 +72,7 @@ public class EnvironmentImpl implements Environment {
     private final Object commitLock = new Object();
     private final Object metaLock = new Object();
     private final ReadWriteLock txnLock;
+    private final ReadWriteLock roTxnLock;
     @Nullable
     private final jetbrains.exodus.env.management.EnvironmentConfig configMBean;
 
@@ -101,6 +102,7 @@ public class EnvironmentImpl implements Environment {
 
         gc = new GarbageCollector(this);
         txnLock = new ReentrantReadWriteLock(true);
+        roTxnLock = new ReentrantReadWriteLock(true);
         configMBean = ec.isManagementEnabled() ? new jetbrains.exodus.env.management.EnvironmentConfig(this) : null;
 
         throwableOnCommit = null;
@@ -432,11 +434,7 @@ public class EnvironmentImpl implements Environment {
     }
 
     protected void finishTransaction(@NotNull final TransactionImpl txn) {
-        if (txn.isExclusive()) {
-            releaseTransaction(true);
-        } else if (!txn.isReadonly()) {
-            releaseTransaction(false);
-        }
+        releaseTransaction(txn.isExclusive(), txn.isReadonly());
         txns.remove(txn);
         runTransactionSafeTasks();
     }
@@ -454,12 +452,14 @@ public class EnvironmentImpl implements Environment {
         return transactionTimeout() > 0 ? Thread.currentThread() : null;
     }
 
-    void acquireTransaction(final boolean exclusive) {
-        (exclusive ? txnLock.writeLock() : txnLock.readLock()).lock();
+    void acquireTransaction(final boolean exclusive, final boolean readonly) {
+        final ReadWriteLock lock = readonly ? roTxnLock : txnLock;
+        (exclusive ? lock.writeLock() : lock.readLock()).lock();
     }
 
-    void releaseTransaction(final boolean exclusive) {
-        (exclusive ? txnLock.writeLock() : txnLock.readLock()).unlock();
+    void releaseTransaction(final boolean exclusive, final boolean readonly) {
+        final ReadWriteLock lock = readonly ? roTxnLock : txnLock;
+        (exclusive ? lock.writeLock() : lock.readLock()).unlock();
     }
 
     boolean shouldTransactionBeExclusive(@NotNull final TransactionImpl txn) {
@@ -548,9 +548,7 @@ public class EnvironmentImpl implements Environment {
     }
 
     MetaTree holdNewestSnapshotBy(@NotNull final TransactionImpl txn) {
-        if (!txn.isReadonly()) {
-            acquireTransaction(txn.isExclusive());
-        }
+        acquireTransaction(txn.isExclusive(), txn.isReadonly());
         final Runnable beginHook = txn.getBeginHook();
         synchronized (metaLock) {
             if (beginHook != null) {

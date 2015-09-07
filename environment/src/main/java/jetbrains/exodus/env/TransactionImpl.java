@@ -103,6 +103,7 @@ public class TransactionImpl implements Transaction {
         invalidateStarted();
         created = started;
         replayCount = 0;
+        env.acquireTransaction(isExclusive(), isReadonly());
         env.registerTransaction(this);
     }
 
@@ -139,7 +140,7 @@ public class TransactionImpl implements Transaction {
         }
         doRevert();
         final boolean wasExclusive = isExclusive;
-        env.releaseTransaction(wasExclusive);
+        env.releaseTransaction(wasExclusive, false);
         isExclusive |= env.shouldTransactionBeExclusive(this);
         final long oldRoot = metaTree.root;
         holdNewestSnapshot();
@@ -163,7 +164,7 @@ public class TransactionImpl implements Transaction {
 
     @Override
     @NotNull
-    public Environment getEnvironment() {
+    public EnvironmentImpl getEnvironment() {
         return env;
     }
 
