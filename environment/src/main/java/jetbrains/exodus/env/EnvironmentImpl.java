@@ -303,17 +303,26 @@ public class EnvironmentImpl implements Environment {
     public void clear() {
         suspendGC();
         try {
-            synchronized (commitLock) {
-                synchronized (metaLock) {
-                    checkInactive(false);
-                    log.clear();
-                    runAllTransactionSafeTasks();
-                    txnSafeTasks.clear();
-                    throwableOnCommit = null;
-                    final Pair<MetaTree, Integer> meta = MetaTree.create(this);
-                    metaTree = meta.getFirst();
-                    structureId.set(meta.getSecond());
+            acquireTransaction(true, false); // wait for and stop all writing transactions
+            try {
+                acquireTransaction(true, true); // wait for and stop all read-only transactions
+                try {
+                    synchronized (commitLock) {
+                        synchronized (metaLock) {
+                            log.clear();
+                            runAllTransactionSafeTasks();
+                            txnSafeTasks.clear();
+                            throwableOnCommit = null;
+                            final Pair<MetaTree, Integer> meta = MetaTree.create(this);
+                            metaTree = meta.getFirst();
+                            structureId.set(meta.getSecond());
+                        }
+                    }
+                } finally {
+                    releaseTransaction(true, true);
                 }
+            } finally {
+                releaseTransaction(true, false);
             }
         } finally {
             resumeGC();
