@@ -22,6 +22,7 @@ import jetbrains.exodus.env.Cursor;
 import jetbrains.exodus.util.Random;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -316,6 +317,21 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
         ITreeCursor c = tm.openCursor();
         assertTrue(c.getPrev());
         c.close();
+    }
+
+    @Ignore
+    @Test
+    public void testGetLast_XD_466() throws IOException {
+        tm = createMutableTree(true, 1);
+        for (int i = 0; i < 10; ++i) {
+            final StringKVNode kv = (StringKVNode) kv(Integer.toString(i), Integer.toString(i));
+            tm.put(kv);
+            try (ITreeCursor c = tm.openCursor()) {
+                assertTrue(c.getLast());
+                assertEquals(kv.getKey(), c.getKey());
+                assertEquals(kv.getValue(), c.getValue());
+            }
+        }
     }
 
     @Test
