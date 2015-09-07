@@ -194,6 +194,15 @@ public class EnvironmentTestsBase {
         }
     }
 
+    protected void runParallelRunnable(@NotNull final Runnable runnable) {
+        processor.queue(new Job() {
+            @Override
+            protected void execute() throws Throwable {
+                runnable.run();
+            }
+        });
+    }
+
     protected Store openStoreAutoCommit(final String name, final StoreConfig config) {
         return env.computeInTransaction(new TransactionalComputable<Store>() {
             @Override

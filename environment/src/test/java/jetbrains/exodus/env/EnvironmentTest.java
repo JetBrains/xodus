@@ -104,6 +104,44 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     }
 
     @Test
+    public void testClearWithTransaction_XD_457() {
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                final StoreImpl store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn);
+                store.put(txn, StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0"));
+                Assert.assertTrue(store.exists(txn, StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0")));
+                final Throwable[] th = {null};
+                // asynchronously clear the environment
+                runParallelRunnable(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            env.clear();
+                        } catch (Throwable t) {
+                            th[0] = t;
+                        }
+                    }
+                });
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException ignore) {
+                    Assert.assertTrue(false);
+                }
+                Assert.assertNull(th[0]);
+                Assert.assertTrue(store.exists(txn, StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0")));
+            }
+        });
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                final StoreImpl store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn);
+                Assert.assertFalse(store.exists(txn, StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0")));
+            }
+        });
+    }
+
+    @Test
     public void testCloseTwice() {
         final int count = 100;
         final Transaction txn = env.beginTransaction();
@@ -166,7 +204,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             }
         }
         env.close();
-        env = newEnvironmentInstance(LogConfig.create(reader,writer), envConfig.setTreeMaxPageSize(count / 2));
+        env = newEnvironmentInstance(LogConfig.create(reader, writer), envConfig.setTreeMaxPageSize(count / 2));
         final Transaction txn = env.beginTransaction();
         try {
             Store store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn);
