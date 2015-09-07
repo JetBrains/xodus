@@ -42,8 +42,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.SoftReference;
 import java.util.*;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class EnvironmentImpl implements Environment {
 
@@ -70,7 +71,7 @@ public class EnvironmentImpl implements Environment {
     private final GarbageCollector gc;
     private final Object commitLock = new Object();
     private final Object metaLock = new Object();
-    private final Semaphore txnSemaphore;
+    private final ReadWriteLock txnLock;
     @Nullable
     private final jetbrains.exodus.env.management.EnvironmentConfig configMBean;
 
@@ -99,7 +100,7 @@ public class EnvironmentImpl implements Environment {
         ec.addChangedSettingsListener(envSettingsListener);
 
         gc = new GarbageCollector(this);
-        txnSemaphore = new Semaphore(Integer.MAX_VALUE, true);
+        txnLock = new ReentrantReadWriteLock(true);
         configMBean = ec.isManagementEnabled() ? new jetbrains.exodus.env.management.EnvironmentConfig(this) : null;
 
         throwableOnCommit = null;
@@ -454,11 +455,11 @@ public class EnvironmentImpl implements Environment {
     }
 
     void acquireTransaction(final boolean exclusive) {
-        txnSemaphore.acquireUninterruptibly(exclusive ? Integer.MAX_VALUE : 1);
+        (exclusive ? txnLock.writeLock() : txnLock.readLock()).lock();
     }
 
     void releaseTransaction(final boolean exclusive) {
-        txnSemaphore.release(exclusive ? Integer.MAX_VALUE : 1);
+        (exclusive ? txnLock.writeLock() : txnLock.readLock()).unlock();
     }
 
     boolean shouldTransactionBeExclusive(@NotNull final TransactionImpl txn) {
