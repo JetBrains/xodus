@@ -149,11 +149,14 @@ public class TreeCursor implements ITreeCursor {
 
     @Override
     public boolean getLast() {
-        if (traverser.moveToLast()) {
-            inited = true;
-            return true;
+        // move up to root
+        while (traverser.canMoveUp()) {
+            traverser.moveUp();
         }
-        return false;
+        traverser.init(false);
+        inited = true;
+        alreadyIn = !traverser.isNotEmpty() && traverser.hasValue();
+        return getPrev();
     }
 
     @Override

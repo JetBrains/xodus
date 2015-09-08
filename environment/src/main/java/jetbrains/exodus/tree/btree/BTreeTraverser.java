@@ -71,7 +71,16 @@ class BTreeTraverser implements TreeTraverser {
     @Override
     @NotNull
     public ByteIterable getValue() {
-        return node.getValue();
+        final ByteIterable result = node.getValue();
+        if (result == null) {
+            throw new NullPointerException();
+        }
+        return result;
+    }
+
+    @Override
+    public boolean hasValue() {
+        return node.hasValue();
     }
 
     @Override
@@ -225,29 +234,6 @@ class BTreeTraverser implements TreeTraverser {
             return false;
         }
         node = result.isDupLeaf() ? new LeafNodeKV(result.getValue(), result.getKey()) : result;
-        return true;
-    }
-
-    @Override
-    public boolean moveToLast() {
-        final int oldTop = top;
-        BasePage node = oldTop == 0 ? currentNode : stack[0].node; // the most bottom node, ignoring lower bound
-        top = 0;
-        if (currentNode.size == 0) {
-            for (int i = 0; i < oldTop; ++i) {
-                stack[i] = null;
-            }
-            this.node = ILeafNode.EMPTY;
-            return false;
-        }
-        currentNode = node;
-        currentPos = node.size - 1;
-        while (canMoveDown()) {
-            moveDownToLast();
-        }
-        for (int i = top; i < oldTop; ++i) {
-            stack[i] = null;
-        }
         return true;
     }
 

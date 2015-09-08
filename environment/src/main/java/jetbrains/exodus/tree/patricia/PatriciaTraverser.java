@@ -117,6 +117,11 @@ class PatriciaTraverser implements TreeTraverser {
     }
 
     @Override
+    public boolean hasValue() {
+        return currentValue != null;
+    }
+
+    @Override
     public void moveUp() {
         --top;
         final NodeChildrenIterator topItr = stack[top];
@@ -326,29 +331,6 @@ class PatriciaTraverser implements TreeTraverser {
         getItr();
         stack = tmp;
         top = depth;
-        return true;
-    }
-
-    @Override
-    public boolean moveToLast() {
-        final int oldTop = top;
-        NodeBase node = oldTop == 0 ? currentNode : stack[0].getParentNode(); // the most bottom node, ignoring lower bound
-        top = 0;
-        if (currentNode.getChildrenCount() == 0) {
-            for (int i = 0; i < oldTop; ++i) {
-                stack[i] = null;
-            }
-            return false;
-        }
-        setCurrentNode(node);
-        currentIterator = node.getChildrenLast();
-        currentChild = currentIterator.getNode();
-        while (canMoveDown()) {
-            moveDownToLast();
-        }
-        for (int i = top; i < oldTop; ++i) {
-            stack[i] = null;
-        }
         return true;
     }
 

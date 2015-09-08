@@ -20,6 +20,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public interface TreeTraverser {
+
     void init(boolean left);
 
     boolean isNotEmpty();
@@ -29,6 +30,8 @@ public interface TreeTraverser {
 
     @NotNull
     ByteIterable getValue();
+
+    boolean hasValue();
 
     boolean canMoveRight();
 
@@ -63,7 +66,4 @@ public interface TreeTraverser {
     boolean moveTo(ByteIterable key, @Nullable ByteIterable value);
 
     boolean moveToRange(ByteIterable key, @Nullable ByteIterable value);
-
-    boolean moveToLast();
-
 }
