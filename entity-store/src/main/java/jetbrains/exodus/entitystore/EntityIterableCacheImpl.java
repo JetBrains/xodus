@@ -36,9 +36,9 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
     @NotNull
     private EntityIterableCacheAdapter cacheAdapter;
     @NotNull
-    private final ObjectCacheBase<EntityIterableHandle, Long> deferredIterablesCache;
+    private final ObjectCacheBase<Object, Long> deferredIterablesCache;
     @NotNull
-    private final ObjectCacheBase<EntityIterableHandle, Long> iterableCountsCache;
+    private final ObjectCacheBase<Object, Long> iterableCountsCache;
     @NotNull
     final EntityStoreSharedAsyncProcessor processor;
 
@@ -99,9 +99,10 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
         // if cache is enough full, then cache iterables after they live some time in deferred cache
         if (!localCache.isSparse()) {
             final long currentMillis = System.currentTimeMillis();
-            final Long whenCached = deferredIterablesCache.tryKey(handle);
+            final Object handleIdentity = handle.getIdentity();
+            final Long whenCached = deferredIterablesCache.tryKey(handleIdentity);
             if (whenCached == null) {
-                deferredIterablesCache.cacheObject(handle, currentMillis);
+                deferredIterablesCache.cacheObject(handleIdentity, currentMillis);
                 return it;
             }
             if (whenCached + config.getEntityIterableCacheDeferredDelay() > currentMillis) {
@@ -122,12 +123,12 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
     }
 
     public long getCachedCount(@NotNull final EntityIterableHandle handle) {
-        final Long result = iterableCountsCache.tryKey(handle);
+        final Long result = iterableCountsCache.tryKey(handle.getIdentity());
         return result == null ? -1L : result;
     }
 
     public void setCachedCount(@NotNull final EntityIterableHandle handle, final long count) {
-        iterableCountsCache.cacheObject(handle, count);
+        iterableCountsCache.cacheObject(handle.getIdentity(), count);
     }
 
     public boolean isDispatcherThread() {

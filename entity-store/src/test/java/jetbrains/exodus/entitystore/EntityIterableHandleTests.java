@@ -51,18 +51,19 @@ public class EntityIterableHandleTests extends EntityStoreTestBase {
         final SecureRandom rnd = new SecureRandom();
         final Set<EntityIterableHandleBase.EntityIterableHandleHash> set = new HashSet<>();
         for (int i = 0; i < 1000000; ++i) {
-            final EntityIterableHandleBase.EntityIterableHandleHash h = new EntityIterableHandleBase.EntityIterableHandleHash();
+            final EntityIterableHandleBase.EntityIterableHandleHash h = new EntityIterableHandleBase.EntityIterableHandleHash(getEntityStore());
             h.apply("00000000000000000000000000000000");
             final int intsCount = rnd.nextInt(40) + 10;
             for (int j = 0; j < intsCount; ++j) {
                 h.applyDelimiter();
                 h.apply(rnd.nextInt() & 0xff);
             }
+            h.computeHashCode();
             // in case of poor distribution, birthday paradox will give assertion quite soon
             if (!set.add(h)) {
                 Assert.assertTrue(false);
             }
-            if ((i % 1000000) == 0) {
+            if ((i % 100000) == 0) {
                 System.out.print(".");
             }
         }

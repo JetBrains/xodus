@@ -34,21 +34,14 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
     private final PersistentEntityStore store;
     @NotNull
     private final EntityIterableType type;
-    @NotNull
-    private final EntityIterableHandleHash hash;
-    private int hashCode;
-    private boolean hashCodeComputed;
+    @Nullable
+    private EntityIterableHandleHash hash;
 
     protected EntityIterableHandleBase(@Nullable final PersistentEntityStore store,
                                        @NotNull final EntityIterableType type) {
         this.store = store;
         this.type = type;
-        hash = new EntityIterableHandleHash();
-        hash.apply(type.getType());
-        if (type != EntityIterableType.EMPTY) {
-            hash.applyDelimiter();
-        }
-        hashCodeComputed = false;
+        hash = null;
     }
 
     @Override
@@ -80,21 +73,31 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
         return store;
     }
 
+    @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
     public boolean equals(Object obj) {
-        if (!(obj instanceof EntityIterableHandleBase)) {
+        if (!(obj instanceof EntityIterableHandle)) {
             return false;
         }
-        final EntityIterableHandleBase that = (EntityIterableHandleBase) obj;
-        return store == that.store && hashCode() == that.hashCode() && hash.equals(that.hash);
+        final EntityIterableHandle that = (EntityIterableHandle) obj;
+        return getIdentity().equals(that.getIdentity());
     }
 
     public final int hashCode() {
-        if (!hashCodeComputed) {
+        return getIdentity().hashCode();
+    }
+
+    @NotNull
+    public final Object getIdentity() {
+        if (hash == null) {
+            hash = new EntityIterableHandleHash(store);
+            hash.apply(type.getType());
+            if (type != EntityIterableType.EMPTY) {
+                hash.applyDelimiter();
+            }
             hashCode(hash);
-            hashCodeComputed = true;
-            hashCode = hash.hashCode();
+            hash.computeHashCode();
         }
-        return hashCode;
+        return hash;
     }
 
     @Override
@@ -124,13 +127,6 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
     @Override
     public boolean isExpired() {
         return false;
-    }
-
-    @NotNull
-    public EntityIterableHandleHash getHash() {
-        //noinspection ResultOfMethodCallIgnored
-        hashCode(); // make sure hash is populated
-        return hash;
     }
 
     @Override
@@ -246,22 +242,16 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
         @NotNull
         private final long[] hashLongs;
         private int bytesProcessed;
+        private int hashCode;
 
-        public EntityIterableHandleHash() {
-            this(null);
-        }
-
-        private EntityIterableHandleHash(@Nullable final StringBuilder builder) {
+        public EntityIterableHandleHash(@Nullable final PersistentEntityStore store) {
             hashLongs = new long[HASH_LONGS_COUNT];
+            hashCode = store == null ? 0 : System.identityHashCode(store);
         }
 
         @Override
         public int hashCode() {
-            long result = 314159265358L;
-            for (final long hl : hashLongs) {
-                result ^= hl;
-            }
-            return ((int) result) ^ ((int) (result >>> 32));
+            return hashCode;
         }
 
         @Override
@@ -269,7 +259,11 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
             if (!(obj instanceof EntityIterableHandleHash)) {
                 return false;
             }
-            long[] rightHashLongs = ((EntityIterableHandleHash) obj).hashLongs;
+            final EntityIterableHandleHash rightHash = (EntityIterableHandleHash) obj;
+            if (hashCode != rightHash.hashCode) {
+                return false;
+            }
+            final long[] rightHashLongs = rightHash.hashLongs;
             for (int i = 0; i < hashLongs.length; ++i) {
                 if (hashLongs[i] != rightHashLongs[i]) {
                     return false;
@@ -317,7 +311,7 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
         }
 
         public void apply(@NotNull final EntityIterableHandle source) {
-            ((EntityIterableHandleBase) source).getHash().forEachByte(new ByteConsumer() {
+            ((EntityIterableHandleHash) source.getIdentity()).forEachByte(new ByteConsumer() {
                 @Override
                 public void accept(final byte b) {
                     apply(b);
@@ -342,6 +336,15 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
             return builder.toString();
         }
 
+        // method is public for tests only
+        public void computeHashCode() {
+            long result = 314159265358L;
+            for (final long hl : hashLongs) {
+                result ^= hl;
+            }
+            hashCode |= ((int) result) ^ ((int) (result >>> 32));
+        }
+
         private void forEachByte(@NotNull final ByteConsumer consumer) {
             final int hashBytes = Math.min(bytesProcessed, HASH_LONGS_COUNT * 8);
             long hashLong = 0;
@@ -354,7 +357,7 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
             }
         }
 
-        private static interface ByteConsumer {
+        private interface ByteConsumer {
 
             void accept(final byte b);
         }
