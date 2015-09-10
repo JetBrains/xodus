@@ -38,6 +38,10 @@ public abstract class BackupStrategy {
     public void afterBackup() throws Exception {
     }
 
+    public boolean isInterrupted() {
+        return false;
+    }
+
     public void onError(Throwable t) {
     }
 

@@ -62,19 +62,28 @@ public class CompressBackupUtil {
                 final String fileName = getTimeStampedTarGzFileName();
                 backupFile = new File(backupRoot, backupNamePrefix == null ? fileName : backupNamePrefix + fileName);
                 archive = new TarArchiveOutputStream(new GZIPOutputStream(
-                        new BufferedOutputStream(new FileOutputStream(backupFile)), 0x1000));
+                        new BufferedOutputStream(new FileOutputStream(backupFile))));
             }
-            for (final BackupStrategy.FileDescriptor fd : strategy.listFiles()) {
-                final File file = fd.getFile();
-                if (file.isFile()) {
-                    final long fileSize = Math.min(fd.getFileSize(), strategy.acceptFile(file));
-                    if (fileSize > 0L) {
-                        archiveFile(archive, fd.getPath(), file, fileSize);
+            try (ArchiveOutputStream aos = archive) {
+                for (final BackupStrategy.FileDescriptor fd : strategy.listFiles()) {
+                    if (strategy.isInterrupted()) {
+                        break;
+                    }
+                    final File file = fd.getFile();
+                    if (file.isFile()) {
+                        final long fileSize = Math.min(fd.getFileSize(), strategy.acceptFile(file));
+                        if (fileSize > 0L) {
+                            archiveFile(aos, fd.getPath(), file, fileSize);
+                        }
                     }
                 }
             }
-            archive.close();
-            logger.info("Backup file \"" + backupFile.getName() + "\" created.");
+            if (strategy.isInterrupted()) {
+                logger.info("Backup interrupted, deleting \"" + backupFile.getName() + "\"...");
+                IOUtil.deleteFile(backupFile);
+            } else {
+                logger.info("Backup file \"" + backupFile.getName() + "\" created.");
+            }
         } catch (Throwable t) {
             strategy.onError(t);
             throw ExodusException.toExodusException(t, "Backup failed");

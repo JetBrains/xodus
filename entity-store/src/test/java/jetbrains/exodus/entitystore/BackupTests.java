@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.BackupStrategy;
+import jetbrains.exodus.Backupable;
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.core.execution.JobProcessor;
@@ -88,6 +89,48 @@ public class BackupTests extends EntityStoreTestBase {
 
     public void testStressWithBackupBean() throws Exception {
         doStressTest(true);
+    }
+
+    public void testInterruptedIsDeleted() throws Exception {
+        testSingular();
+        final File backupDir = TestUtil.createTempDir();
+        try {
+            final BackupStrategy storeBackupStrategy = getEntityStore().getBackupStrategy();
+            final File backup = CompressBackupUtil.backup(new Backupable() {
+                @Override
+                public BackupStrategy getBackupStrategy() {
+                    return new BackupStrategy() {
+                        @Override
+                        public void beforeBackup() throws Exception {
+                            storeBackupStrategy.beforeBackup();
+                        }
+
+                        @Override
+                        public Iterable<FileDescriptor> listFiles() {
+                            return storeBackupStrategy.listFiles();
+                        }
+
+                        @Override
+                        public void afterBackup() throws Exception {
+                            storeBackupStrategy.afterBackup();
+                        }
+
+                        @Override
+                        public boolean isInterrupted() {
+                            return true;
+                        }
+
+                        @Override
+                        public long acceptFile(@NotNull File file) {
+                            return storeBackupStrategy.acceptFile(file);
+                        }
+                    };
+                }
+            }, backupDir, null, true);
+            assertFalse(backup.exists());
+        } finally {
+            IOUtil.deleteRecursively(backupDir);
+        }
     }
 
     public void doStressTest(final boolean useBackupBean) throws Exception {
