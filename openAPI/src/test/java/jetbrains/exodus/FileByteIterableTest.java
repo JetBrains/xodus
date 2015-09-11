@@ -26,9 +26,15 @@ import java.io.IOException;
 
 public class FileByteIterableTest {
 
-    private static final String SAMPLE_CONTENT = "�? хорошо бы еще бы убрать всякую сладкую и калорийную гадость, и заменть ее более здоровыми закусками к чаю. Теми же фруктами, орешками";
+    private static final String MANDELSTAM =
+            "И не ограблен я, и не надломлен,\n" +
+            "Но только что всего переогромлен.\n" +
+            "Как «Слово о Полку», струна моя туга,\n" +
+            "И в голосе моем после удушья\n" +
+            "Звучит земля — последнее оружье —\n" +
+            "Сухая влажность черноземных га...";
 
-    File file;
+    private File file;
 
     @Before
     public void setUp() throws Exception {
@@ -54,10 +60,10 @@ public class FileByteIterableTest {
     @Test
     public void testSingleIterable() throws IOException {
         try (FileOutputStream output = new FileOutputStream(file)) {
-            output.write(SAMPLE_CONTENT.getBytes("UTF-8"));
+            output.write(MANDELSTAM.getBytes("UTF-8"));
         }
         final FileByteIterable it = new FileByteIterable(file);
-        Assert.assertEquals(0, compare(it.iterator(), new ArrayByteIterable(SAMPLE_CONTENT.getBytes("UTF-8")).iterator()));
+        Assert.assertEquals(0, compare(it.iterator(), new ArrayByteIterable(MANDELSTAM.getBytes("UTF-8")).iterator()));
     }
 
     @Test
@@ -65,10 +71,10 @@ public class FileByteIterableTest {
         final int count = 10;
         try (FileOutputStream output = new FileOutputStream(file)) {
             for (int i = 0; i < count; ++i) {
-                output.write(SAMPLE_CONTENT.getBytes("UTF-8"));
+                output.write(MANDELSTAM.getBytes("UTF-8"));
             }
         }
-        final byte[] sampleBytes = SAMPLE_CONTENT.getBytes("UTF-8");
+        final byte[] sampleBytes = MANDELSTAM.getBytes("UTF-8");
         final int length = sampleBytes.length;
         for (int i = 0, offset = 0; i < count; ++i, offset += length) {
             Assert.assertEquals(0, compare(new FileByteIterable(file, offset, length).iterator(), new ArrayByteIterable(sampleBytes).iterator()));

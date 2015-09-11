@@ -15,10 +15,7 @@
  */
 package jetbrains.exodus.env;
 
-import jetbrains.exodus.ArrayByteIterable;
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.TestUtil;
+import jetbrains.exodus.*;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
@@ -31,6 +28,10 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.security.SecureRandom;
 import java.util.Arrays;
 
@@ -186,7 +187,6 @@ public class StoreTest extends EnvironmentTestsBase {
 
     @Test
     public void test_XD_459() {
-        final Environment env = getEnvironment();
         final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
             @Override
             public Store compute(@NotNull final Transaction txn) {
@@ -213,6 +213,44 @@ public class StoreTest extends EnvironmentTestsBase {
                 }
             }
         });
+    }
+
+    @Test
+    public void testFileByteIterable() throws IOException {
+        final String content = "quod non habet principium, non habet finem";
+        final File file = File.createTempFile("FileByteIterable", null, TestUtil.createTempDir());
+        try (FileOutputStream output = new FileOutputStream(file)) {
+            output.write(content.getBytes("UTF-8"));
+        }
+        final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
+            @Override
+            public Store compute(@NotNull final Transaction txn) {
+                return env.openStore("Store", StoreConfig.WITHOUT_DUPLICATES, txn);
+            }
+        });
+        final FileByteIterable fbi = new FileByteIterable(file);
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                store.put(txn, StringBinding.stringToEntry("winged"), fbi);
+            }
+        });
+        try {
+            Assert.assertEquals(content, env.computeInReadonlyTransaction(new TransactionalComputable<String>() {
+                @Override
+                public String compute(@NotNull Transaction txn) {
+                    final ByteIterable value = store.get(txn, StringBinding.stringToEntry("winged"));
+                    Assert.assertNotNull(value);
+                    try {
+                        return new String(value.getBytesUnsafe(), 0, value.getLength(), "UTF-8");
+                    } catch (UnsupportedEncodingException e) {
+                        return null;
+                    }
+                }
+            }));
+        } finally {
+            file.delete();
+        }
     }
 
     @Test
