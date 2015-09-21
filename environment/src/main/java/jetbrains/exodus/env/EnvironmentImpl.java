@@ -61,6 +61,7 @@ public class EnvironmentImpl implements Environment {
     private BTreeBalancePolicy balancePolicy;
     private MetaTree metaTree;
     private final AtomicInteger structureId;
+    @NotNull
     private final TransactionSet txns;
     private final LinkedList<RunnableWithTxnRoot> txnSafeTasks;
     @Nullable
@@ -75,6 +76,8 @@ public class EnvironmentImpl implements Environment {
     private final ReadWriteLock roTxnLock;
     @Nullable
     private final jetbrains.exodus.env.management.EnvironmentConfig configMBean;
+    @NotNull
+    private final EnvironmentStatistics statistics;
 
     /**
      * Throwable caught during commit after which rollback of highAddress failed.
@@ -104,6 +107,7 @@ public class EnvironmentImpl implements Environment {
         txnLock = new ReentrantReadWriteLock(true);
         roTxnLock = new ReentrantReadWriteLock(true);
         configMBean = ec.isManagementEnabled() ? new jetbrains.exodus.env.management.EnvironmentConfig(this) : null;
+        statistics = new EnvironmentStatistics(this);
 
         throwableOnCommit = null;
         throwableOnClose = null;
@@ -356,9 +360,19 @@ public class EnvironmentImpl implements Environment {
             } finally {
                 log.release();
             }
-            storeGetCacheHitRate = storeGetCache == null ? 0 : storeGetCache.hitRate();
+            if (storeGetCache == null) {
+                storeGetCacheHitRate = 0;
+            } else {
+                storeGetCacheHitRate = storeGetCache.hitRate();
+                storeGetCache.close();
+            }
             final LongObjectCacheBase treeNodesCache = this.treeNodesCache == null ? null : this.treeNodesCache.get();
-            treeNodesCacheHitRate = treeNodesCache == null ? 0 : treeNodesCache.hitRate();
+            if (treeNodesCache == null) {
+                treeNodesCacheHitRate = 0;
+            } else {
+                treeNodesCacheHitRate = treeNodesCache.hitRate();
+                treeNodesCache.close();
+            }
             throwableOnClose = new Throwable();
             throwableOnCommit = EnvironmentClosedException.INSTANCE;
         }
@@ -436,6 +450,11 @@ public class EnvironmentImpl implements Environment {
             balancePolicy = new BTreeBalancePolicy(ec.getTreeMaxPageSize());
         }
         return balancePolicy;
+    }
+
+    @NotNull
+    public EnvironmentStatistics getStatistics() {
+        return statistics;
     }
 
     protected StoreImpl createStore(@NotNull final String name, @NotNull final TreeMetaInfo metaInfo) {
@@ -523,6 +542,8 @@ public class EnvironmentImpl implements Environment {
             throw new ExodusException("Attempt to flush read-only transaction");
         }
         final Iterable<Loggable>[] expiredLoggables;
+        final long initialHighAddress;
+        final long resultingHighAddress;
         synchronized (commitLock) {
             if (ec.getEnvIsReadonly()) {
                 throw new ReadonlyTransactionException();
@@ -532,7 +553,7 @@ public class EnvironmentImpl implements Environment {
                 // meta lock not needed 'cause write can only occur in another commit lock
                 return false;
             }
-            final long highAddress = log.getHighAddress();
+            initialHighAddress = log.getHighAddress();
             try {
                 final MetaTree[] tree = new MetaTree[1];
                 expiredLoggables = txn.doCommit(tree);
@@ -540,10 +561,11 @@ public class EnvironmentImpl implements Environment {
                     txn.setMetaTree(metaTree = tree[0]);
                     txn.executeCommitHook();
                 }
+                resultingHighAddress = log.getHighAddress();
             } catch (Throwable t) { // pokemon exception handling to decrease try/catch block overhead
                 logger.error("Failed to flush transaction", t);
                 try {
-                    log.setHighAddress(highAddress);
+                    log.setHighAddress(initialHighAddress);
                 } catch (Throwable th) {
                     throwableOnCommit = t; // inoperative on failing to update high address too
                     logger.error("Failed to rollback high address", th);
@@ -553,6 +575,14 @@ public class EnvironmentImpl implements Environment {
             }
         }
         gc.fetchExpiredLoggables(new ExpiredLoggableIterable(expiredLoggables));
+
+        // update statistics
+        statistics.getStatisticsItem(EnvironmentStatistics.BYTES_WRITTEN).setTotal(resultingHighAddress);
+        if (gc.isCleanerThread()) {
+            statistics.getStatisticsItem(EnvironmentStatistics.BYTES_MOVED_BY_GC).addTotal(resultingHighAddress - initialHighAddress);
+        }
+        statistics.getStatisticsItem(EnvironmentStatistics.FLUSHED_TRANSACTIONS).incTotal();
+
         return true;
     }
 
@@ -638,6 +668,10 @@ public class EnvironmentImpl implements Environment {
 
     boolean isRegistered(@NotNull final TransactionImpl txn) {
         return txns.contains(txn);
+    }
+
+    int activeTransactions() {
+        return txns.size();
     }
 
     void runTransactionSafeTasks() {

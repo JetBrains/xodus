@@ -436,7 +436,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         stack.push(txn);
     }
 
-    void deregisterTransaction(@NotNull final PersistentStoreTransaction txn) {
+    void unregisterTransaction(@NotNull final PersistentStoreTransaction txn) {
         final Thread thread = Thread.currentThread();
         final Deque<PersistentStoreTransaction> stack = txns.get(thread);
         if (stack == null) {
@@ -449,6 +449,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (stack.isEmpty()) {
             txns.remove(thread);
         }
+        txn.closeCaches();
     }
 
     @Override

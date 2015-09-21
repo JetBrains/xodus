@@ -62,6 +62,7 @@ public final class Log implements Closeable {
     private final DataReader reader;
 
     private final List<NewFileListener> newFileListeners;
+    private final List<ReadBytesListener> readBytesListeners;
 
     /**
      * Size of single page in log cache.
@@ -110,6 +111,7 @@ public final class Log implements Closeable {
             }
         }
         newFileListeners = new ArrayList<>(2);
+        readBytesListeners = new ArrayList<>(2);
         final long memoryUsage = config.getMemoryUsage();
         final boolean nonBlockingCache = config.isNonBlockingCache();
         if (memoryUsage != 0) {
@@ -361,6 +363,12 @@ public final class Log implements Closeable {
     public void addNewFileListener(@NotNull final NewFileListener listener) {
         synchronized (newFileListeners) {
             newFileListeners.add(listener);
+        }
+    }
+
+    public void addReadBytesListener(@NotNull final ReadBytesListener listener) {
+        synchronized (readBytesListeners) {
+            readBytesListeners.add(listener);
         }
     }
 
@@ -650,7 +658,9 @@ public final class Log implements Closeable {
             }
             throw new BlockNotFoundException(address);
         }
-        return block.read(output, address - leftBound, output.length);
+        final int readBytes = block.read(output, address - leftBound, output.length);
+        notifyReadBytes(output, readBytes);
+        return readBytes;
     }
 
     /**
@@ -806,6 +816,16 @@ public final class Log implements Closeable {
         }
         for (final NewFileListener listener : listeners) {
             listener.fileCreated(fileAddress);
+        }
+    }
+
+    private void notifyReadBytes(final byte[] bytes, final int count) {
+        final ReadBytesListener[] listeners;
+        synchronized (readBytesListeners) {
+            listeners = this.readBytesListeners.toArray(new ReadBytesListener[this.readBytesListeners.size()]);
+        }
+        for (final ReadBytesListener listener : listeners) {
+            listener.bytesRead(bytes, count);
         }
     }
 

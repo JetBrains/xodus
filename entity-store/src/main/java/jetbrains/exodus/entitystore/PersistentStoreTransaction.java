@@ -148,7 +148,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         boolean reverted = false;
         try {
             if (txn.commit()) {
-                store.deregisterTransaction(this);
+                store.unregisterTransaction(this);
                 flushNonTransactionalBlobs();
                 return true;
             }
@@ -168,7 +168,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     public void abort() {
         try {
             disposeCreatedIterators();
-            store.deregisterTransaction(this);
+            store.unregisterTransaction(this);
             revertCaches();
         } finally {
             txn.abort();
@@ -826,6 +826,12 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             deferredBlobsToDelete = new LongHashSet();
         }
         deferredBlobsToDelete.add(blobHandle);
+    }
+
+    void closeCaches() {
+        propsCache.close();
+        linksCache.close();
+        blobStringsCache.close();
     }
 
     protected void revertCaches() {

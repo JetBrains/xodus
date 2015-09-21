@@ -33,6 +33,10 @@ class StoreGetCache {
         cache = new SoftConcurrentObjectCache<>(cacheSize);
     }
 
+    void close() {
+        cache.close();
+    }
+
     @Nullable
     ByteIterable tryKey(final long treeRootAddress, @NotNull final ByteIterable key) {
         return cache.tryKey(new KeyEntry(treeRootAddress, key));

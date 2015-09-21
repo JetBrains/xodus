@@ -56,11 +56,25 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     }
 
     @Test
+    public void testStatisticsBytesWritten() {
+        testEmptyEnvironment();
+        Assert.assertTrue(env.getStatistics().getStatisticsItem(EnvironmentStatistics.BYTES_WRITTEN).getTotal() > 0L);
+    }
+
+    @Test
     public void testCreateSingleStore() {
         final Store store = openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES);
         assertLoggableTypes(getLog(), 0, BTreeBase.BOTTOM_ROOT,
                 DatabaseRoot.DATABASE_ROOT_TYPE, BTreeBase.BOTTOM_ROOT, BTreeBase.LEAF, BTreeBase.LEAF,
                 BTreeBase.BOTTOM_ROOT, DatabaseRoot.DATABASE_ROOT_TYPE);
+    }
+
+    @Test
+    public void testStatisticsTransactions() {
+        testCreateSingleStore();
+        final EnvironmentStatistics statistics = env.getStatistics();
+        Assert.assertTrue(statistics.getStatisticsItem(EnvironmentStatistics.TRANSACTIONS).getTotal() > 0L);
+        Assert.assertTrue(statistics.getStatisticsItem(EnvironmentStatistics.FLUSHED_TRANSACTIONS).getTotal() > 0L);
     }
 
     @Test

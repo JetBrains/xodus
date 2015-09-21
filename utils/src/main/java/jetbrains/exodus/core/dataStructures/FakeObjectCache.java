@@ -15,7 +15,9 @@
  */
 package jetbrains.exodus.core.dataStructures;
 
+import jetbrains.exodus.core.execution.SharedTimer;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class FakeObjectCache<K, V> extends ObjectCacheBase<K, V> {
 
@@ -65,5 +67,11 @@ public class FakeObjectCache<K, V> extends ObjectCacheBase<K, V> {
     @Override
     public int count() {
         return 0;
+    }
+
+    @Nullable
+    @Override
+    protected SharedTimer.ExpirablePeriodicTask getCacheAdjuster() {
+        return null;
     }
 }

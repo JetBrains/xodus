@@ -25,6 +25,7 @@ class ReadonlyTransaction extends TransactionImpl {
                         @Nullable final Thread creatingThread,
                         @Nullable final Runnable beginHook) {
         super(env, creatingThread, beginHook, false, false);
+        env.getStatistics().getStatisticsItem(EnvironmentStatistics.READONLY_TRANSACTIONS).incTotal();
     }
 
     /**
@@ -32,6 +33,7 @@ class ReadonlyTransaction extends TransactionImpl {
      */
     ReadonlyTransaction(@NotNull final TransactionImpl origin) {
         super(origin);
+        getEnvironment().getStatistics().getStatisticsItem(EnvironmentStatistics.READONLY_TRANSACTIONS).incTotal();
     }
 
     @Override

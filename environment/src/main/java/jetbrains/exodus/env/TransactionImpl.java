@@ -84,6 +84,7 @@ public class TransactionImpl implements Transaction {
         replayCount = 0;
         this.isExclusive = isExclusive;
         holdNewestSnapshot();
+        env.getStatistics().getStatisticsItem(EnvironmentStatistics.TRANSACTIONS).incTotal();
     }
 
     /**
@@ -105,6 +106,7 @@ public class TransactionImpl implements Transaction {
         replayCount = 0;
         env.acquireTransaction(isExclusive(), isReadonly());
         env.registerTransaction(this);
+        env.getStatistics().getStatisticsItem(EnvironmentStatistics.TRANSACTIONS).incTotal();
     }
 
     public boolean isIdempotent() {

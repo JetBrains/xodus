@@ -15,22 +15,38 @@
  */
 package jetbrains.exodus.core.dataStructures;
 
+import jetbrains.exodus.core.execution.SharedTimer;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.lang.ref.WeakReference;
+
 public abstract class CacheHitRateable {
 
-    private static final short ADAPTIVE_ATTEMPTS_THRESHOLD = 30000;
-
-    private short attempts;
-    private short hits;
+    @Nullable
+    private final SharedTimer.ExpirablePeriodicTask cacheAdjuster;
+    private int attempts;
+    private int hits;
 
     protected CacheHitRateable() {
         attempts = hits = 0;
+        cacheAdjuster = getCacheAdjuster();
+        if (cacheAdjuster != null) {
+            SharedTimer.registerPeriodicTask(cacheAdjuster);
+        }
     }
 
-    public final short getAttempts() {
+    public final void close() {
+        if (cacheAdjuster != null) {
+            SharedTimer.unregisterPeriodicTask(cacheAdjuster);
+        }
+    }
+
+    public final int getAttempts() {
         return attempts;
     }
 
-    public final short getHits() {
+    public final int getHits() {
         return hits;
     }
 
@@ -39,9 +55,7 @@ public abstract class CacheHitRateable {
     }
 
     protected final void incAttempts() {
-        if (++attempts > ADAPTIVE_ATTEMPTS_THRESHOLD) {
-            adjustHitRate();
-        }
+        ++attempts;
     }
 
     protected final void incHits() {
@@ -51,5 +65,32 @@ public abstract class CacheHitRateable {
     protected void adjustHitRate() {
         attempts >>= 1;
         hits >>= 1;
+    }
+
+    @Nullable
+    protected SharedTimer.ExpirablePeriodicTask getCacheAdjuster() {
+        return new CacheAdjuster(this);
+    }
+
+    private static class CacheAdjuster implements SharedTimer.ExpirablePeriodicTask {
+
+        private final WeakReference<CacheHitRateable> cacheRef;
+
+        public CacheAdjuster(@NotNull final CacheHitRateable cache) {
+            cacheRef = new WeakReference<>(cache);
+        }
+
+        @Override
+        public boolean isExpired() {
+            return cacheRef.get() == null;
+        }
+
+        @Override
+        public void run() {
+            final CacheHitRateable cache = cacheRef.get();
+            if (cache != null) {
+                cache.adjustHitRate();
+            }
+        }
     }
 }

@@ -157,7 +157,10 @@ public final class GarbageCollector {
         }
     }
 
-    @SuppressWarnings("OverlyLongMethod")
+    public boolean isCleanerThread() {
+        return cleaner.isCurrentThread();
+    }
+
     public /* public access is necessary to invoke the method from the Reflect class */
     boolean doCleanFile(final long fileAddress) {
         // the file may be already cleaned
