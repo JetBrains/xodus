@@ -16,6 +16,7 @@
 package jetbrains.exodus.env;
 
 import jetbrains.exodus.Backupable;
+import jetbrains.exodus.management.Statistics;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -104,5 +105,9 @@ public interface Environment extends Backupable {
 
     <T> T computeInReadonlyTransaction(@NotNull TransactionalComputable<T> computable);
 
+    @NotNull
     EnvironmentConfig getEnvironmentConfig();
+
+    @NotNull
+    Statistics getStatistics();
 }

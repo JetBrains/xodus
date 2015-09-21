@@ -74,10 +74,12 @@ public class EnvironmentImpl implements Environment {
     private final Object metaLock = new Object();
     private final ReadWriteLock txnLock;
     private final ReadWriteLock roTxnLock;
-    @Nullable
-    private final jetbrains.exodus.env.management.EnvironmentConfig configMBean;
     @NotNull
     private final EnvironmentStatistics statistics;
+    @Nullable
+    private final jetbrains.exodus.env.management.EnvironmentConfig configMBean;
+    @Nullable
+    private final jetbrains.exodus.env.management.EnvironmentStatistics statisticsMBean;
 
     /**
      * Throwable caught during commit after which rollback of highAddress failed.
@@ -106,8 +108,15 @@ public class EnvironmentImpl implements Environment {
         gc = new GarbageCollector(this);
         txnLock = new ReentrantReadWriteLock(true);
         roTxnLock = new ReentrantReadWriteLock(true);
-        configMBean = ec.isManagementEnabled() ? new jetbrains.exodus.env.management.EnvironmentConfig(this) : null;
         statistics = new EnvironmentStatistics(this);
+
+        if (ec.isManagementEnabled()) {
+            configMBean = new jetbrains.exodus.env.management.EnvironmentConfig(this);
+            statisticsMBean = new jetbrains.exodus.env.management.EnvironmentStatistics(this);
+        } else {
+            configMBean = null;
+            statisticsMBean = null;
+        }
 
         throwableOnCommit = null;
         throwableOnClose = null;
@@ -134,8 +143,15 @@ public class EnvironmentImpl implements Environment {
     }
 
     @Override
+    @NotNull
     public EnvironmentConfig getEnvironmentConfig() {
         return ec;
+    }
+
+    @Override
+    @NotNull
+    public EnvironmentStatistics getStatistics() {
+        return statistics;
     }
 
     public GarbageCollector getGC() {
@@ -339,6 +355,9 @@ public class EnvironmentImpl implements Environment {
         if (configMBean != null) {
             configMBean.unregister();
         }
+        if (statisticsMBean != null) {
+            statisticsMBean.unregister();
+        }
         // in order to avoid deadlock, do not finish gc inside lock
         // it is safe to invoke gc.finish() several times
         gc.finish();
@@ -450,11 +469,6 @@ public class EnvironmentImpl implements Environment {
             balancePolicy = new BTreeBalancePolicy(ec.getTreeMaxPageSize());
         }
         return balancePolicy;
-    }
-
-    @NotNull
-    public EnvironmentStatistics getStatistics() {
-        return statistics;
     }
 
     protected StoreImpl createStore(@NotNull final String name, @NotNull final TreeMetaInfo metaInfo) {
