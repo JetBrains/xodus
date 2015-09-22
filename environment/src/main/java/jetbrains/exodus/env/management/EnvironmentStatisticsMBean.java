@@ -44,4 +44,6 @@ public interface EnvironmentStatisticsMBean {
     long getNumberOfFlushedTransactions();
 
     double getNumberOfFlushedTransactionsPerSecond();
+
+    long getDiskUsage();
 }

@@ -57,8 +57,6 @@ public interface Environment extends Backupable {
 
     void removeStore(@NotNull String storeName, @NotNull Transaction transaction);
 
-    long getDiskUsage();
-
     void gc();
 
     void suspendGC();

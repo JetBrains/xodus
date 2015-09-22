@@ -98,4 +98,9 @@ public class EnvironmentStatistics extends MBeanBase implements EnvironmentStati
     public double getNumberOfFlushedTransactionsPerSecond() {
         return statistics.getStatisticsItem(jetbrains.exodus.env.EnvironmentStatistics.FLUSHED_TRANSACTIONS).getMean();
     }
+
+    @Override
+    public long getDiskUsage() {
+        return statistics.getStatisticsItem(jetbrains.exodus.env.EnvironmentStatistics.DISK_USAGE).getTotal();
+    }
 }

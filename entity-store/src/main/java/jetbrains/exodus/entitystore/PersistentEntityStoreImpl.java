@@ -499,11 +499,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     @Override
-    public long getStoreSize() {
-        return environment.getDiskUsage();
-    }
-
-    @Override
     @NotNull
     public BlobVault getBlobVault() {
         return blobVault;

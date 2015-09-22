@@ -17,6 +17,7 @@ package jetbrains.exodus.management;
 
 import jetbrains.exodus.core.execution.SharedTimer;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.lang.ref.WeakReference;
 
@@ -104,6 +105,13 @@ public class StatisticsItem implements SharedTimer.ExpirablePeriodicTask {
         addTotal(1L);
     }
 
+    public long getLastAdjustTime() {
+        synchronized (thisRef) {
+            return lastAdjustTime;
+        }
+    }
+
+    @Nullable
     protected Long getAutoUpdatedTotal() {
         return null;
     }

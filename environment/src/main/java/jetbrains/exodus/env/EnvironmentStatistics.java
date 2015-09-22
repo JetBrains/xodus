@@ -19,6 +19,7 @@ import jetbrains.exodus.log.ReadBytesListener;
 import jetbrains.exodus.management.Statistics;
 import jetbrains.exodus.management.StatisticsItem;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class EnvironmentStatistics extends Statistics {
 
@@ -29,6 +30,9 @@ public class EnvironmentStatistics extends Statistics {
     public static final String READONLY_TRANSACTIONS = "Read-only transactions";
     public static final String ACTIVE_TRANSACTIONS = "Active transactions";
     public static final String FLUSHED_TRANSACTIONS = "Flushed transactions";
+    public static final String DISK_USAGE = "Disk usage";
+
+    private static final int DISK_USAGE_FREQ = 10000; // calculate disk usage not more often than each 10 seconds
 
     @NotNull
     private final EnvironmentImpl env;
@@ -42,6 +46,7 @@ public class EnvironmentStatistics extends Statistics {
         getStatisticsItem(READONLY_TRANSACTIONS);
         getStatisticsItem(ACTIVE_TRANSACTIONS);
         getStatisticsItem(FLUSHED_TRANSACTIONS);
+        getStatisticsItem(DISK_USAGE);
         env.getLog().addReadBytesListener(new ReadBytesListener() {
             @Override
             public void bytesRead(final byte[] bytes, final int count) {
@@ -55,9 +60,19 @@ public class EnvironmentStatistics extends Statistics {
     protected StatisticsItem createNewItem(@NotNull final String statisticsName) {
         if (ACTIVE_TRANSACTIONS.equals(statisticsName)) {
             return new StatisticsItem(statisticsName) {
+                @Nullable
                 @Override
                 protected Long getAutoUpdatedTotal() {
                     return (long) env.activeTransactions();
+                }
+            };
+        }
+        if (DISK_USAGE.equals(statisticsName)) {
+            return new StatisticsItem(statisticsName) {
+                @Nullable
+                @Override
+                protected Long getAutoUpdatedTotal() {
+                    return System.currentTimeMillis() - getLastAdjustTime() > DISK_USAGE_FREQ ? env.getDiskUsage() : null;
                 }
             };
         }

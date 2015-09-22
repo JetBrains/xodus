@@ -83,8 +83,6 @@ public interface PersistentEntityStore extends EntityStore, Backupable {
 
     long getUsableSpace();
 
-    long getStoreSize();
-
     long getBlobsSize();
 
     @NotNull

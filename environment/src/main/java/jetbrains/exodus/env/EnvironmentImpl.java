@@ -429,11 +429,6 @@ public class EnvironmentImpl implements Environment {
     }
 
     @Override
-    public long getDiskUsage() {
-        return IOUtil.getDirectorySize(new File(getLocation()), LogUtil.LOG_FILE_EXTENSION, false);
-    }
-
-    @Override
     @NotNull
     public List<String> getAllStoreNames(@NotNull final Transaction transaction) {
         return ((TransactionImpl) transaction).getAllStoreNames();
@@ -492,6 +487,10 @@ public class EnvironmentImpl implements Environment {
 
     protected Thread getCreatingThread() {
         return transactionTimeout() > 0 ? Thread.currentThread() : null;
+    }
+
+    long getDiskUsage() {
+        return IOUtil.getDirectorySize(new File(getLocation()), LogUtil.LOG_FILE_EXTENSION, false);
     }
 
     void acquireTransaction(final boolean exclusive, final boolean readonly) {
