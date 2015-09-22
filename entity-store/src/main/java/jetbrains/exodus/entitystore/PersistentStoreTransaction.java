@@ -856,7 +856,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     // exposed only for tests
     void apply() {
         disposeCreatedIterators();
-        store.incTransactionCount();
         final FlushLog log = new FlushLog();
         store.logOperations(txn, log);
         final BlobVault blobVault = store.getBlobVault();

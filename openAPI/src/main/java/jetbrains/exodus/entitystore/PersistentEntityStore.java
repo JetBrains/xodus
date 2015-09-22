@@ -19,12 +19,16 @@ import jetbrains.exodus.Backupable;
 import jetbrains.exodus.bindings.ComparableBinding;
 import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor;
 import jetbrains.exodus.entitystore.metadata.Index;
+import jetbrains.exodus.env.Environment;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
 @SuppressWarnings({"JavaDoc"})
 public interface PersistentEntityStore extends EntityStore, Backupable {
+
+    @NotNull
+    Environment getEnvironment();
 
     @NotNull
     PersistentEntityStoreConfig getConfig();
@@ -76,10 +80,6 @@ public interface PersistentEntityStore extends EntityStore, Backupable {
     void renameEntityType(@NotNull String oldEntityTypeName, @NotNull String newEntityTypeName);
 
     void updateUniqueKeyIndices(@NotNull final Iterable<Index> indices);
-
-    long getTransactionCount();
-
-    double getTransactionsPerSecond();
 
     long getUsableSpace();
 

@@ -139,9 +139,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @NotNull
     private final PersistentEntityStoreSettingsListener entityStoreSettingsListener;
 
-    private final long startedAt;
-    private long transactionCount;
-
     @NotNull
     private final Set<TableCreationOperation> tableCreationLog = new HashSet<>();
 
@@ -296,9 +293,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         configMBean = config.isManagementEnabled() ? new EntityStoreConfig(this) : null;
         entityStoreSettingsListener = new PersistentEntityStoreSettingsListener(this);
         config.addChangedSettingsListener(entityStoreSettingsListener);
-
-        startedAt = System.currentTimeMillis();
-        transactionCount = 0;
 
         if (logger.isDebugEnabled()) {
             logger.debug("Created successfully.");
@@ -475,6 +469,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return location;
     }
 
+    @Override
     @NotNull
     public Environment getEnvironment() {
         return environment;
@@ -2107,21 +2102,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @Override
     public BackupStrategy getBackupStrategy() {
         return new PersistentEntityStoreBackupStrategy(this);
-    }
-
-    @Override
-    public long getTransactionCount() {
-        return transactionCount;
-    }
-
-    // this method is synchronized outside
-    void incTransactionCount() {
-        ++transactionCount;
-    }
-
-    @Override
-    public double getTransactionsPerSecond() {
-        return (double) transactionCount * 1000.0f / (double) (System.currentTimeMillis() - startedAt);
     }
 
     @NotNull
