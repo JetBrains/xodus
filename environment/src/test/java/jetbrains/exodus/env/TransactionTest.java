@@ -26,14 +26,20 @@ import jetbrains.exodus.tree.btree.BTreeBase;
 import jetbrains.exodus.util.DeferredIO;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
-import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 
 public class TransactionTest extends EnvironmentTestsBase {
 
+    @Rule
+    public TestName name = new TestName();
+
     @Override
     protected void createEnvironment() {
-        env = newContextualEnvironmentInstance(LogConfig.create(reader, writer));
+        env = name.getMethodName().contains("XD_471") ?
+                newEnvironmentInstance(LogConfig.create(reader, writer)) :
+                newContextualEnvironmentInstance(LogConfig.create(reader, writer));
     }
 
     @Test
@@ -340,7 +346,6 @@ public class TransactionTest extends EnvironmentTestsBase {
         }
     }
 
-    @Ignore
     @Test
     public void test_XD_471() {
         final Environment env = getEnvironment();
@@ -357,7 +362,6 @@ public class TransactionTest extends EnvironmentTestsBase {
         tx.abort();
     }
 
-    @Ignore
     @Test
     public void test_XD_471_() {
         final Environment env = getEnvironment();

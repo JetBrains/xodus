@@ -42,9 +42,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.SoftReference;
 import java.util.*;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class EnvironmentImpl implements Environment {
 
@@ -72,8 +71,8 @@ public class EnvironmentImpl implements Environment {
     private final GarbageCollector gc;
     private final Object commitLock = new Object();
     private final Object metaLock = new Object();
-    private final ReadWriteLock txnLock;
-    private final ReadWriteLock roTxnLock;
+    private final Semaphore txnSemaphore;
+    private final Semaphore roTxnSemaphore;
     @NotNull
     private final EnvironmentStatistics statistics;
     @Nullable
@@ -106,10 +105,11 @@ public class EnvironmentImpl implements Environment {
         ec.addChangedSettingsListener(envSettingsListener);
 
         gc = new GarbageCollector(this);
-        txnLock = new ReentrantReadWriteLock(true);
-        roTxnLock = new ReentrantReadWriteLock(true);
-        statistics = new EnvironmentStatistics(this);
 
+        txnSemaphore = new Semaphore(Integer.MAX_VALUE, true);
+        roTxnSemaphore = new Semaphore(Integer.MAX_VALUE, true);
+
+        statistics = new EnvironmentStatistics(this);
         if (ec.isManagementEnabled()) {
             configMBean = new jetbrains.exodus.env.management.EnvironmentConfig(this);
             statisticsMBean = new jetbrains.exodus.env.management.EnvironmentStatistics(this);
@@ -494,13 +494,13 @@ public class EnvironmentImpl implements Environment {
     }
 
     void acquireTransaction(final boolean exclusive, final boolean readonly) {
-        final ReadWriteLock lock = readonly ? roTxnLock : txnLock;
-        (exclusive ? lock.writeLock() : lock.readLock()).lock();
+        final Semaphore semaphore = readonly ? roTxnSemaphore : txnSemaphore;
+        semaphore.acquireUninterruptibly(exclusive ? Integer.MAX_VALUE : 1);
     }
 
     void releaseTransaction(final boolean exclusive, final boolean readonly) {
-        final ReadWriteLock lock = readonly ? roTxnLock : txnLock;
-        (exclusive ? lock.writeLock() : lock.readLock()).unlock();
+        final Semaphore semaphore = readonly ? roTxnSemaphore : txnSemaphore;
+        semaphore.release(exclusive ? Integer.MAX_VALUE : 1);
     }
 
     boolean shouldTransactionBeExclusive(@NotNull final TransactionImpl txn) {
