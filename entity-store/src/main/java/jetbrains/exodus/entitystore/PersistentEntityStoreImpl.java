@@ -28,12 +28,14 @@ import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LinkedHashMap;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.entitystore.management.EntityStoreConfig;
+import jetbrains.exodus.entitystore.management.EntityStoreStatistics;
 import jetbrains.exodus.entitystore.metadata.Index;
 import jetbrains.exodus.entitystore.metadata.IndexField;
 import jetbrains.exodus.entitystore.tables.*;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.log.CompoundByteIterable;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
+import jetbrains.exodus.management.Statistics;
 import jetbrains.exodus.util.ByteArraySizedInputStream;
 import jetbrains.exodus.util.LightByteArrayOutputStream;
 import jetbrains.exodus.util.UTFUtil;
@@ -134,8 +136,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private final DataGetter linkDataGetter;
     private final DataGetter blobDataGetter;
 
+    @NotNull
+    private final PersistentEntityStoreStatistics statistics;
     @Nullable
     private final EntityStoreConfig configMBean;
+    @Nullable
+    private final EntityStoreStatistics statisticsMBean;
     @NotNull
     private final PersistentEntityStoreSettingsListener entityStoreSettingsListener;
 
@@ -290,7 +296,14 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             preloadTxn.commit();
         }
 
-        configMBean = config.isManagementEnabled() ? new EntityStoreConfig(this) : null;
+        statistics = new PersistentEntityStoreStatistics(this);
+        if (config.isManagementEnabled()) {
+            configMBean = new EntityStoreConfig(this);
+            statisticsMBean = new EntityStoreStatistics(this);
+        } else {
+            configMBean = null;
+            statisticsMBean = null;
+        }
         entityStoreSettingsListener = new PersistentEntityStoreSettingsListener(this);
         config.addChangedSettingsListener(entityStoreSettingsListener);
 
@@ -2057,11 +2070,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return ((SingleColumnTable) blobsHistoryTables.get(txn, entityTypeId)).getDatabase();
     }
 
-    @Override
-    public long getBlobsSize() {
-        return blobVault.size();
-    }
-
     @NotNull
     public synchronized Store getUniqueKeyIndex(@NotNull final PersistentStoreTransaction txn, @NotNull final Index index) {
         return environment.openStore(getUniqueKeyIndexName(index), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn.getEnvironmentTransaction());
@@ -2073,12 +2081,21 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return iterableCache.processor;
     }
 
+    @NotNull
+    @Override
+    public Statistics getStatistics() {
+        return statistics;
+    }
+
     @Override
     public void close() {
         logger.info("Closing...");
         config.removeChangedSettingsListener(entityStoreSettingsListener);
         if (configMBean != null) {
             configMBean.unregister();
+        }
+        if (statisticsMBean != null) {
+            statisticsMBean.unregister();
         }
         try {
             getAsyncProcessor().finish();

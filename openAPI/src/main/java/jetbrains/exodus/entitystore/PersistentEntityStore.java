@@ -20,6 +20,7 @@ import jetbrains.exodus.bindings.ComparableBinding;
 import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor;
 import jetbrains.exodus.entitystore.metadata.Index;
 import jetbrains.exodus.env.Environment;
+import jetbrains.exodus.management.Statistics;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -83,9 +84,9 @@ public interface PersistentEntityStore extends EntityStore, Backupable {
 
     long getUsableSpace();
 
-    long getBlobsSize();
-
     @NotNull
     MultiThreadDelegatingJobProcessor getAsyncProcessor();
 
+    @NotNull
+    Statistics getStatistics();
 }
