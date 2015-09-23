@@ -54,10 +54,10 @@ public class QueryTreeTest extends EntityStoreTestBase {
         SortEngine sortEngine = new SortEngine();
         queryEngine.setSortEngine(sortEngine);
         sortEngine.setQueryEngine(queryEngine);
+        prepare();
     }
 
     public void testAnd() throws Exception {
-        prepare();
         And and = new And(propertyEqual, linkNotNull);
         Assert.assertEquals(1, QueryUtil.getSize(instantiate(and)));
         Assert.assertFalse(and.equals(propertyEqual));
@@ -65,7 +65,6 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testConcat() throws Exception {
-        prepare();
         Assert.assertEquals(3, QueryUtil.getSize(queryEngine.queryGetAll("TstClass")));
         Assert.assertEquals(4, QueryUtil.getSize(instantiate(concat)));
         Assert.assertFalse(concat.equals(propertyEqual));
@@ -86,7 +85,6 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testMinus() throws Exception {
-        prepare();
         Assert.assertEquals(0, QueryUtil.getSize(instantiate(new Minus(propertyEqual, linkNotNull))));
         Minus minus = new Minus(linkNotNull, propertyEqual);
         Assert.assertEquals(2, QueryUtil.getSize(instantiate(minus)));
@@ -95,7 +93,6 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testOr() throws Exception {
-        prepare();
         Or or = new Or(propertyEqual, linkNotNull);
         Assert.assertEquals(3, QueryUtil.getSize(instantiate(or)));
         Assert.assertFalse(or.equals(propertyEqual));
@@ -103,7 +100,6 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testBinaryOperation() throws Exception {
-        prepare();
         Or tree = new Or(new UnaryNot(NodeFactory.all()), new UnaryNot(NodeFactory.all()));
         tree.replaceChild(tree.getLeft(), NodeFactory.all());
         Assert.assertEquals(new Or(NodeFactory.all(), new UnaryNot(NodeFactory.all())), tree);
@@ -112,7 +108,6 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testGenericSort() throws Exception {
-        prepare();
         GenericSort genericSort = new GenericSort(concat, new Comparator<Entity>() {
             @Override
             public int compare(Entity o1, Entity o2) {
@@ -127,7 +122,6 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testSortByLinkProperty() throws Exception {
-        prepare();
         SortByLinkProperty sortByLinkProperty = new SortByLinkProperty(concat, "MyEnum", "number", "myEnum", true);
         Assert.assertEquals(sortByLinkProperty, sortByLinkProperty.getClone());
         Assert.assertEquals(4, QueryUtil.getSize(instantiate(sortByLinkProperty)));
@@ -136,7 +130,6 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testSortByProperty() throws Exception {
-        prepare();
         SortByProperty sortByProperty = new SortByProperty(concat, "i", true);
         Assert.assertEquals(sortByProperty, sortByProperty.getClone());
         Assert.assertEquals(4, QueryUtil.getSize(instantiate(sortByProperty)));
@@ -145,7 +138,6 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testUnaryNot() throws Exception {
-        prepare();
         Assert.assertEquals(new And(propertyNotNull, new Or(propertyEqual, linkNotNull)), getOptimizedTree(new And(propertyNotNull, new UnaryNot(new And(new UnaryNot(propertyEqual), new UnaryNot(linkNotNull))))));
         Assert.assertEquals(new And(propertyNotNull, new Minus(linkNotNull, propertyEqual)), getOptimizedTree(new And(propertyNotNull, new And(new UnaryNot(propertyEqual), linkNotNull))));
         Assert.assertEquals(new And(propertyNotNull, new Minus(propertyEqual, linkNotNull)), getOptimizedTree(new And(propertyNotNull, new And(propertyEqual, new UnaryNot(linkNotNull)))));
@@ -158,7 +150,6 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testPropertyEqual() throws Exception {
-        prepare();
         Assert.assertEquals(propertyNotNull, getOptimizedTree(new UnaryNot(propertyEqualNull)));
         Assert.assertEquals(new Minus(propertyEqual, propertyNotNull), getOptimizedTree(new And(propertyEqualNull, propertyEqual)));
         Assert.assertEquals(new Minus(NodeFactory.all(), new Minus(propertyNotNull, propertyEqual)), getOptimizedTree(new Or(propertyEqualNull, propertyEqual)));
@@ -170,13 +161,11 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testPropertyNotNull() throws Exception {
-        prepare();
         Assert.assertEquals(new Minus(linkEqual, propertyNotNull), getOptimizedTree(new Minus(new Minus(linkEqual, propertyNotNull), propertyNotNull)));
         Assert.assertEquals(new Minus(linkEqual, propertyNotNull), getOptimizedTree(new Minus(new Minus(new Minus(linkEqual, propertyNotNull), propertyNotNull), propertyNotNull)));
     }
 
     public void testGetAll() throws Exception {
-        prepare();
         Assert.assertEquals(propertyEqual, getOptimizedTree(new And(NodeFactory.all(), propertyEqual)));
         Assert.assertEquals(NodeFactory.all(), getOptimizedTree(new Or(NodeFactory.all(), propertyEqual)));
         Assert.assertFalse(NodeFactory.all().equals(propertyEqual));
@@ -184,7 +173,6 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testLinkEqual() throws Exception {
-        prepare();
         Assert.assertEquals(new Minus(NodeFactory.all(), new Or(linkNotNull, new LinkNotNull("self1"))), getOptimizedTree(new And(linkEqualNull, new LinkEqual("self1", null))));
         Assert.assertEquals(linkNotNull, getOptimizedTree(new UnaryNot(linkEqualNull)));
         Assert.assertEquals(new Minus(propertyEqual, linkNotNull), getOptimizedTree(new And(propertyEqual, linkEqualNull)));
@@ -195,14 +183,12 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testLinkNotNull() throws Exception {
-        prepare();
         Assert.assertTrue(QueryUtil.isEmpty(queryEngine, instantiate(new UnaryNot(new LinkNotNull("self1")))));
         Assert.assertFalse(linkNotNull.equals(propertyEqual));
         Assert.assertFalse(propertyEqual.equals(linkNotNull));
     }
 
     public void testPropertyStartsWith() throws Exception {
-        prepare();
         NodeBase node = getOptimizedTree(new PropertyStartsWith("s", ""));
         Assert.assertEquals(NodeFactory.all(), node);
         node = getOptimizedTree(new PropertyStartsWith("s", null));
@@ -212,7 +198,6 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testPropertyRange() throws Exception {
-        prepare();
         NodeBase node = getOptimizedTree(new And(new And(new PropertyRange("string", "aa", "pq"), new PropertyRange("string", "d", "pz")), new PropertyRange("1string", "1d", "1pz")));
         Assert.assertEquals(new And(new PropertyRange("string", "d", "pq"), new PropertyRange("1string", "1d", "1pz")), node);
         Assert.assertFalse(node.equals(propertyEqual));
@@ -220,7 +205,6 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testCloneAndAnalyze() throws Exception {
-        prepare();
         NodeBase tree = new Root(new UnaryNot(new Concat(new Minus(getTree(queryEngine.query(null, "TstClass", new Or(new And(new PropertyEqual("i", 1), new PropertyEqual("i", 2)),
                 new PropertyEqual("i", 3)))), getTree(queryEngine.query(null, "TstClass", new PropertyEqual("i", 4)))), new Concat(getTree(queryEngine.queryGetAll("TstClass")),
                 new Concat(getTree(queryEngine.query(null, "TstClass", new LinkEqual("itself", QueryUtil.getFirst(queryEngine, queryEngine.queryGetAll("TstClass"))))), new Concat(new LinkNotNull("itself"),
@@ -250,7 +234,6 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testSimplify() throws Exception {
-        prepare();
         PropertyEqual a = new PropertyEqual("s", "A");
         PropertyEqual a2 = new PropertyEqual("s", "A");
         PropertyEqual b = new PropertyEqual("s", "B");
@@ -277,7 +260,6 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testQueryOptimizationPeformance1() throws Exception {
-        prepare();
         PropertyEqual a = new PropertyEqual("s", "A");
         PropertyEqual a2 = new PropertyEqual("s", "A");
         PropertyEqual b = new PropertyEqual("s", "B");
@@ -323,7 +305,7 @@ public class QueryTreeTest extends EntityStoreTestBase {
         propertyEqual = new PropertyEqual("s", "value");
         propertyEqualNull = new PropertyEqual("s", null);
         propertyNotNull = new PropertyNotNull("s");
-        linkEqual = new LinkEqual("itself", enumeration);
+        linkEqual = new LinkEqual("myEnum", enumeration);
         linkEqualNull = new LinkEqual("itself", null);
         linkNotNull = new LinkNotNull("itself");
         concat = new Concat(propertyEqual, linkNotNull);
