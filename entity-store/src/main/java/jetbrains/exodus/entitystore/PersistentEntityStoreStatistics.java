@@ -38,23 +38,39 @@ public class PersistentEntityStoreStatistics extends Statistics {
     @Override
     protected StatisticsItem createNewItem(@NotNull final String statisticsName) {
         if (BLOBS_DISK_USAGE.equals(statisticsName)) {
-            return new StatisticsItem(statisticsName) {
-                @Nullable
-                @Override
-                protected Long getAutoUpdatedTotal() {
-                    return store.getBlobVault().size();
-                }
-            };
+            return new BlobsDiskUsageStatisticsItem(this, statisticsName);
         }
         if (CACHING_JOBS.equals(statisticsName)) {
-            return new StatisticsItem(statisticsName) {
-                @Nullable
-                @Override
-                protected Long getAutoUpdatedTotal() {
-                    return (long) store.getAsyncProcessor().pendingJobs();
-                }
-            };
+            return new CachingJobsStatisticsItem(this, statisticsName);
         }
         return super.createNewItem(statisticsName);
+    }
+
+    private static class BlobsDiskUsageStatisticsItem extends StatisticsItem {
+
+        public BlobsDiskUsageStatisticsItem(@NotNull final PersistentEntityStoreStatistics statistics, @NotNull final String name) {
+            super(statistics, name);
+        }
+
+        @Nullable
+        @Override
+        protected Long getAutoUpdatedTotal() {
+            final PersistentEntityStoreStatistics statistics = (PersistentEntityStoreStatistics) getStatistics();
+            return statistics == null ? null : statistics.store.getBlobVault().size();
+        }
+    }
+
+    private static class CachingJobsStatisticsItem extends StatisticsItem {
+
+        public CachingJobsStatisticsItem(@NotNull final PersistentEntityStoreStatistics statistics, @NotNull final String name) {
+            super(statistics, name);
+        }
+
+        @Nullable
+        @Override
+        protected Long getAutoUpdatedTotal() {
+            final PersistentEntityStoreStatistics statistics = (PersistentEntityStoreStatistics) getStatistics();
+            return statistics == null ? null : (long) (statistics.store.getAsyncProcessor().pendingJobs());
+        }
     }
 }

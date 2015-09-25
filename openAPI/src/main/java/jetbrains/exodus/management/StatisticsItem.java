@@ -29,15 +29,15 @@ public class StatisticsItem implements SharedTimer.ExpirablePeriodicTask {
     @NotNull
     private final String name;
     @NotNull
-    private final WeakReference<StatisticsItem> thisRef;
+    private final WeakReference<Statistics> statisticsRef;
     private long total;
     private double mean; // total per second
     private long lastAdjustTime;
     private long lastAdjustedTotal;
 
-    public StatisticsItem(@NotNull final String name) {
+    public StatisticsItem(@NotNull final Statistics statistics, @NotNull final String name) {
         this.name = name;
-        thisRef = new WeakReference<>(this);
+        statisticsRef = new WeakReference<>(statistics);
         total = 0;
         mean = .0;
         lastAdjustTime = System.currentTimeMillis();
@@ -50,38 +50,35 @@ public class StatisticsItem implements SharedTimer.ExpirablePeriodicTask {
     }
 
     public long getTotal() {
-        synchronized (thisRef) {
+        synchronized (statisticsRef) {
             return total;
         }
     }
 
     public void setTotal(final long total) {
-        synchronized (thisRef) {
+        synchronized (statisticsRef) {
             this.total = total;
         }
     }
 
     public double getMean() {
-        synchronized (thisRef) {
+        synchronized (statisticsRef) {
             return mean;
         }
     }
 
     @Override
     public boolean isExpired() {
-        return thisRef.get() == null;
+        return statisticsRef.get() == null;
     }
 
     @Override
     public void run() {
-        final StatisticsItem item = thisRef.get();
-        if (item == this) {
-            final Long autoUpdatedTotal = getAutoUpdatedTotal();
-            if (autoUpdatedTotal != null) {
-                setTotal(autoUpdatedTotal);
-            }
-            adjustMean();
+        final Long autoUpdatedTotal = getAutoUpdatedTotal();
+        if (autoUpdatedTotal != null) {
+            setTotal(autoUpdatedTotal);
         }
+        adjustMean();
     }
 
     @Override
@@ -96,7 +93,7 @@ public class StatisticsItem implements SharedTimer.ExpirablePeriodicTask {
     }
 
     public void addTotal(final long addend) {
-        synchronized (thisRef) {
+        synchronized (statisticsRef) {
             total += addend;
         }
     }
@@ -106,9 +103,14 @@ public class StatisticsItem implements SharedTimer.ExpirablePeriodicTask {
     }
 
     public long getLastAdjustTime() {
-        synchronized (thisRef) {
+        synchronized (statisticsRef) {
             return lastAdjustTime;
         }
+    }
+
+    @Nullable
+    protected Statistics getStatistics() {
+        return statisticsRef.get();
     }
 
     @Nullable
@@ -118,7 +120,7 @@ public class StatisticsItem implements SharedTimer.ExpirablePeriodicTask {
 
     private void adjustMean() {
         final long currentTime = System.currentTimeMillis();
-        synchronized (thisRef) {
+        synchronized (statisticsRef) {
             mean = (mean + (((double) (total - lastAdjustedTotal)) / (currentTime - lastAdjustTime) / 1000)) / 2;
             lastAdjustTime = currentTime;
             lastAdjustedTotal = total;

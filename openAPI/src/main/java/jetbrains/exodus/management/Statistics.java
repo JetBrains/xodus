@@ -61,6 +61,6 @@ public class Statistics {
 
     @NotNull
     protected StatisticsItem createNewItem(@NotNull final String statisticsName) {
-        return new StatisticsItem(statisticsName);
+        return new StatisticsItem(this, statisticsName);
     }
 }

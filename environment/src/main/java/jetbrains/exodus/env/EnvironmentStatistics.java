@@ -59,23 +59,42 @@ public class EnvironmentStatistics extends Statistics {
     @Override
     protected StatisticsItem createNewItem(@NotNull final String statisticsName) {
         if (ACTIVE_TRANSACTIONS.equals(statisticsName)) {
-            return new StatisticsItem(statisticsName) {
-                @Nullable
-                @Override
-                protected Long getAutoUpdatedTotal() {
-                    return (long) env.activeTransactions();
-                }
-            };
+            return new ActiveTransactionsStatisticsItem(this, statisticsName);
         }
         if (DISK_USAGE.equals(statisticsName)) {
-            return new StatisticsItem(statisticsName) {
-                @Nullable
-                @Override
-                protected Long getAutoUpdatedTotal() {
-                    return System.currentTimeMillis() - getLastAdjustTime() > DISK_USAGE_FREQ ? env.getDiskUsage() : null;
-                }
-            };
+            return new DiskUsageStatisticsItem(this, statisticsName);
         }
         return super.createNewItem(statisticsName);
+    }
+
+    private static class ActiveTransactionsStatisticsItem extends StatisticsItem {
+
+        public ActiveTransactionsStatisticsItem(@NotNull final EnvironmentStatistics statistics, @NotNull final String name) {
+            super(statistics, name);
+        }
+
+        @Nullable
+        @Override
+        protected Long getAutoUpdatedTotal() {
+            final EnvironmentStatistics statistics = (EnvironmentStatistics) getStatistics();
+            return statistics == null ? null : (long) (statistics.env.activeTransactions());
+        }
+    }
+
+    private static class DiskUsageStatisticsItem extends StatisticsItem {
+
+        public DiskUsageStatisticsItem(@NotNull final EnvironmentStatistics statistics, @NotNull final String name) {
+            super(statistics, name);
+        }
+
+        @Nullable
+        @Override
+        protected Long getAutoUpdatedTotal() {
+            final EnvironmentStatistics statistics = (EnvironmentStatistics) getStatistics();
+            if (statistics == null) {
+                return null;
+            }
+            return System.currentTimeMillis() - getLastAdjustTime() > DISK_USAGE_FREQ ? statistics.env.getDiskUsage() : null;
+        }
     }
 }
