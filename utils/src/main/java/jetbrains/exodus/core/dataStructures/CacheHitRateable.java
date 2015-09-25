@@ -51,6 +51,12 @@ public abstract class CacheHitRateable {
     }
 
     public final float hitRate() {
+        final int hits = this.hits;
+        int attempts = this.attempts;
+        // due to lack of thread-safety there can appear not that consistent results
+        if (hits > attempts) {
+            attempts = hits;
+        }
         return attempts > 0 ? (float) hits / (float) attempts : 0;
     }
 
@@ -63,8 +69,14 @@ public abstract class CacheHitRateable {
     }
 
     protected void adjustHitRate() {
-        attempts >>= 1;
-        hits >>= 1;
+        final int hits = this.hits;
+        int attempts = this.attempts;
+        // due to lack of thread-safety there can appear not that consistent results
+        if (hits > attempts) {
+            attempts = hits;
+        }
+        this.attempts = attempts >> 1;
+        this.hits = hits >> 1;
     }
 
     @Nullable
