@@ -87,19 +87,15 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         this(store, false);
     }
 
-    PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store,
-                               @NotNull final PersistentStoreTransaction source,
+    PersistentStoreTransaction(@NotNull final PersistentStoreTransaction source,
                                @NotNull final Transaction txn) {
-        this.store = store;
+        this.store = source.store;
         this.txn = txn;
         createdIterators = new HashSetDecorator<>();
         final PersistentEntityStoreConfig config = store.getConfig();
         propsCache = createObjectCache(config.getTransactionPropsCacheSize());
         linksCache = createObjectCache(config.getTransactionLinksCacheSize());
         blobStringsCache = createObjectCache(config.getTransactionBlobStringsCacheSize());
-        propsCache.fillWith(source.propsCache, COPY_CACHED_VALUES);
-        linksCache.fillWith(source.linksCache, COPY_CACHED_VALUES);
-        blobStringsCache.fillWith(source.blobStringsCache, COPY_CACHED_VALUES);
         localCache = source.localCache;
         localCacheAttempts = localCacheHits = 0;
     }
@@ -218,7 +214,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     public PersistentStoreTransaction getSnapshot() {
         // this snapshots should not be registered in store, hence no de-registration
-        return new PersistentStoreTransactionSnapshot(store, this, txn);
+        return new PersistentStoreTransactionSnapshot(this, txn);
     }
 
     @Override

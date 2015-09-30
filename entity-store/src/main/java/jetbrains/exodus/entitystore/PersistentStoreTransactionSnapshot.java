@@ -20,10 +20,9 @@ import org.jetbrains.annotations.NotNull;
 
 final class PersistentStoreTransactionSnapshot extends PersistentStoreTransaction {
 
-    PersistentStoreTransactionSnapshot(@NotNull final PersistentEntityStoreImpl store,
-                                       @NotNull final PersistentStoreTransaction source,
+    PersistentStoreTransactionSnapshot(@NotNull final PersistentStoreTransaction source,
                                        @NotNull final Transaction txn) {
-        super(store, source, txn.getSnapshot());
+        super(source, txn.getSnapshot());
     }
 
     @Override

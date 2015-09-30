@@ -179,23 +179,6 @@ public final class ObjectCache<K, V> extends ObjectCacheBase<K, V> {
         return new ObjectCacheValuesIterator<>(this);
     }
 
-    public void fillWith(@NotNull final ObjectCacheBase<K, V> source, int maxCount) {
-        maxCount = Math.min(maxCount, size);
-        final ObjectCache<K, V> sourceCache = (ObjectCache<K, V>) source;
-        for (final Map.Entry<K, V> entry : sourceCache.secondGenerationQueue.entrySet()) {
-            if (--maxCount < 0) {
-                return;
-            }
-            cacheObject(entry.getKey(), entry.getValue());
-        }
-        for (final Map.Entry<K, V> entry : sourceCache.firstGenerationQueue.entrySet()) {
-            if (--maxCount < 0) {
-                return;
-            }
-            cacheObject(entry.getKey(), entry.getValue());
-        }
-    }
-
     protected static class ObjectCacheKeysIterator<K, V> implements Iterator<K> {
         private final Iterator<K> firstGenIterator;
         private final Iterator<K> secondGenIterator;

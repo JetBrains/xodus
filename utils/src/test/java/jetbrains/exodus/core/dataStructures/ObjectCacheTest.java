@@ -96,22 +96,4 @@ public class ObjectCacheTest {
         Assert.assertTrue(removedPairs.isEmpty());
         Assert.assertEquals(4, cache.count());
     }
-
-    @Test
-    public void fillWith() {
-        final ObjectCache<String, String> cache = new ObjectCache<>(4);
-        cache.put("Eclipse", "An IDE");
-        cache.put("Eclipses", "IDEs");
-        cache.put("IDEA", "good IDEA");
-        cache.put("IDEA 4.5", "better IDEA");
-        final ObjectCache<String, String> newCache = new ObjectCache<>(4);
-        newCache.fillWith(cache, 4);
-        Assert.assertNotNull(newCache.tryKey("Eclipse"));
-        Assert.assertNotNull(newCache.tryKey("Eclipses"));
-        Assert.assertNotNull(newCache.tryKey("IDEA"));
-        Assert.assertNotNull(newCache.tryKey("IDEA 4.5"));
-        newCache.clear();
-        newCache.fillWith(cache, 0);
-        Assert.assertTrue(newCache.isEmpty());
-    }
 }
