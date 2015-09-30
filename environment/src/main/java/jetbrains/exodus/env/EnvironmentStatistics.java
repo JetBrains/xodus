@@ -57,6 +57,16 @@ public class EnvironmentStatistics extends Statistics {
 
     @NotNull
     @Override
+    public StatisticsItem getStatisticsItem(@NotNull final String statisticsName) {
+        // if don't gather statistics just return the new item and don't register it as periodic task in SharedTimer
+        if (!env.getEnvironmentConfig().getEnvGatherStatistics()) {
+            return new StatisticsItem(this, statisticsName);
+        }
+        return super.getStatisticsItem(statisticsName);
+    }
+
+    @NotNull
+    @Override
     protected StatisticsItem createNewItem(@NotNull final String statisticsName) {
         if (ACTIVE_TRANSACTIONS.equals(statisticsName)) {
             return new ActiveTransactionsStatisticsItem(this, statisticsName);

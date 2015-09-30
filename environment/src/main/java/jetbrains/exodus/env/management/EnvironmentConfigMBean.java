@@ -71,6 +71,8 @@ public interface EnvironmentConfigMBean {
 
     int getEnvMonitorTxnsCheckFreq();
 
+    boolean getEnvGatherStatistics();
+
     int getTreeMaxPageSize();
 
     int getTreeNodesCacheSize();

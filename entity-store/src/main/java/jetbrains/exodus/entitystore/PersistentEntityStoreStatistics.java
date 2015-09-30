@@ -36,6 +36,16 @@ public class PersistentEntityStoreStatistics extends Statistics {
 
     @NotNull
     @Override
+    public StatisticsItem getStatisticsItem(@NotNull final String statisticsName) {
+        // if don't gather statistics just return the new item and don't register it as periodic task in SharedTimer
+        if (!store.getConfig().getGatherStatistics()) {
+            return new StatisticsItem(this, statisticsName);
+        }
+        return super.getStatisticsItem(statisticsName);
+    }
+
+    @NotNull
+    @Override
     protected StatisticsItem createNewItem(@NotNull final String statisticsName) {
         if (BLOBS_DISK_USAGE.equals(statisticsName)) {
             return new BlobsDiskUsageStatisticsItem(this, statisticsName);

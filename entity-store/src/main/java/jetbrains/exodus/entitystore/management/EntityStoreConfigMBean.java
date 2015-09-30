@@ -85,5 +85,7 @@ public interface EntityStoreConfigMBean {
 
     void setTransactionBlobStringsCacheSize(int transactionBlobStringsCacheSize);
 
+    boolean getGatherStatistics();
+
     void close();
 }

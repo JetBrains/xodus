@@ -299,7 +299,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         statistics = new PersistentEntityStoreStatistics(this);
         if (config.isManagementEnabled()) {
             configMBean = new EntityStoreConfig(this);
-            statisticsMBean = new EntityStoreStatistics(this);
+            // if we don't gather statistics then we should not expose corresponding managed bean
+            statisticsMBean = config.getGatherStatistics() ? new EntityStoreStatistics(this) : null;
         } else {
             configMBean = null;
             statisticsMBean = null;

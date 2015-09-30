@@ -70,6 +70,8 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public static final String ENV_MONITOR_TXNS_CHECK_FREQ = "exodus.env.monitorTxns.checkFreq"; // in milliseconds
 
+    public static final String ENV_GATHER_STATISTICS = "exodus.env.gatherStatistics";
+
     public static final String TREE_MAX_PAGE_SIZE = "exodus.tree.maxPageSize";
 
     public static final String TREE_NODES_CACHE_SIZE = "exodus.tree.nodesCacheSize";
@@ -128,6 +130,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(ENV_TXN_REPLAY_TIMEOUT, 1000L),
                 new Pair(ENV_TXN_REPLAY_MAX_COUNT, 2),
                 new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
+                new Pair(ENV_GATHER_STATISTICS, true),
                 new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
                 new Pair(TREE_MAX_PAGE_SIZE, 128),
                 new Pair(TREE_NODES_CACHE_SIZE, 4096),
@@ -323,6 +326,14 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public EnvironmentConfig setEnvMonitorTxnsCheckFreq(final int freq) {
         return setSetting(ENV_MONITOR_TXNS_CHECK_FREQ, freq);
+    }
+
+    public boolean getEnvGatherStatistics() {
+        return (Boolean) getSetting(ENV_GATHER_STATISTICS);
+    }
+
+    public EnvironmentConfig setEnvGatherStatistics(final boolean gatherStatistics) {
+        return setSetting(ENV_GATHER_STATISTICS, gatherStatistics);
     }
 
     public int getTreeMaxPageSize() {

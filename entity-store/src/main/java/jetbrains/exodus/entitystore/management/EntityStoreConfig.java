@@ -199,6 +199,11 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
+    public boolean getGatherStatistics() {
+        return config.getGatherStatistics();
+    }
+
+    @Override
     public void close() {
         store.close();
         super.close();

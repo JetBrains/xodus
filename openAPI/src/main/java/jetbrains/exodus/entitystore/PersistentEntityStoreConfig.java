@@ -69,6 +69,8 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public static final String TRANSACTION_BLOB_STRINGS_CACHE_SIZE = "exodus.entityStore.transaction.blobStringsCacheSize";
 
+    public static final String GATHER_STATISTICS = "exodus.entityStore.gatherStatistics";
+
     public static final String MANAGEMENT_ENABLED = "exodus.entityStore.managementEnabled";
 
     private static final int MAX_DEFAULT_ENTITY_ITERABLE_CACHE_SIZE = 4096;
@@ -102,6 +104,7 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(TRANSACTION_PROPS_CACHE_SIZE, 1024),
                 new Pair(TRANSACTION_LINKS_CACHE_SIZE, 4096),
                 new Pair(TRANSACTION_BLOB_STRINGS_CACHE_SIZE, 128),
+                new Pair(GATHER_STATISTICS, true),
                 new Pair(MANAGEMENT_ENABLED, true)
         }, strategy);
     }
@@ -285,6 +288,14 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public PersistentEntityStoreConfig setTransactionBlobStringsCacheSize(final int transactionBlobStringsCacheSize) {
         return setSetting(TRANSACTION_BLOB_STRINGS_CACHE_SIZE, transactionBlobStringsCacheSize);
+    }
+
+    public boolean getGatherStatistics() {
+        return (Boolean) getSetting(GATHER_STATISTICS);
+    }
+
+    public PersistentEntityStoreConfig setGatherStatistics(final boolean gatherStatistics) {
+        return setSetting(GATHER_STATISTICS, gatherStatistics);
     }
 
     public boolean isManagementEnabled() {

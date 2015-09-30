@@ -186,6 +186,11 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
+    public boolean getEnvGatherStatistics() {
+        return config.getEnvGatherStatistics();
+    }
+
+    @Override
     public int getTreeMaxPageSize() {
         return config.getTreeMaxPageSize();
     }

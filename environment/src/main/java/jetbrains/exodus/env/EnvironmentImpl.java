@@ -112,7 +112,8 @@ public class EnvironmentImpl implements Environment {
         statistics = new EnvironmentStatistics(this);
         if (ec.isManagementEnabled()) {
             configMBean = new jetbrains.exodus.env.management.EnvironmentConfig(this);
-            statisticsMBean = new jetbrains.exodus.env.management.EnvironmentStatistics(this);
+            // if we don't gather statistics then we should not expose corresponding managed bean
+            statisticsMBean = ec.getEnvGatherStatistics() ? new jetbrains.exodus.env.management.EnvironmentStatistics(this) : null;
         } else {
             configMBean = null;
             statisticsMBean = null;
@@ -124,7 +125,6 @@ public class EnvironmentImpl implements Environment {
         if (transactionTimeout() > 0) {
             new StuckTransactionMonitor(this);
         }
-
 
         if (logger.isInfoEnabled()) {
             logger.info("Exodus environment created: " + log.getLocation());
