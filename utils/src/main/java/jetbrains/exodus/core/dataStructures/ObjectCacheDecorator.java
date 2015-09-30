@@ -19,84 +19,101 @@ import jetbrains.exodus.core.execution.SharedTimer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class FakeObjectCache<K, V> extends ObjectCacheBase<K, V> {
+/**
+ * Cache decorator for lazy cache creation.
+ */
+public abstract class ObjectCacheDecorator<K, V> extends ObjectCacheBase<K, V> {
 
-    public FakeObjectCache() {
-        this(0);
+    private static final ObjectCacheBase FAKE_CACHE = new FakeObjectCache<>();
+
+    @Nullable
+    private ObjectCacheBase<K, V> decorated;
+
+    public ObjectCacheDecorator() {
+        this(DEFAULT_SIZE);
     }
 
-    private FakeObjectCache(int size) {
+    public ObjectCacheDecorator(final int size) {
         super(size);
     }
 
-    @Override
     public void clear() {
-        // do nothing
+        getCache(false).clear();
     }
 
     @Override
     public void lock() {
-        // do nothing
+        getCache(true).lock();
     }
 
     @Override
     public void unlock() {
-        // do nothing
+        getCache(false).lock();
     }
 
-    @Override
     public V cacheObject(@NotNull K key, @NotNull V x) {
-        return null;
+        return getCache(true).cacheObject(key, x);
     }
 
-    @Override
     public V remove(@NotNull K key) {
-        return null;
+        return getCache(false).remove(key);
     }
 
-    @Override
     public V tryKey(@NotNull K key) {
-        return null;
+        return getCache(false).tryKey(key);
     }
 
-    @Override
     public V getObject(@NotNull K key) {
-        return null;
+        return getCache(false).getObject(key);
     }
 
-    @Override
     public int count() {
-        return 0;
+        return getCache(false).count();
     }
 
     @Override
     public int getAttempts() {
-        return 0;
+        return getCache(false).getAttempts();
     }
 
     @Override
     public int getHits() {
-        return 0;
+        return getCache(false).getHits();
     }
 
     @Override
     public float hitRate() {
-        return 0;
+        return getCache(false).hitRate();
     }
 
     @Override
     protected void incAttempts() {
-        // do nothing
+        getCache(false).incAttempts();
     }
 
     @Override
     protected void incHits() {
-        // do nothing
+        getCache(false).incHits();
     }
 
     @Nullable
     @Override
     protected SharedTimer.ExpirablePeriodicTask getCacheAdjuster() {
         return null;
+    }
+
+    protected abstract ObjectCacheBase<K, V> createdDecorated();
+
+    @NotNull
+    private ObjectCacheBase<K, V> getCache(final boolean create) {
+        if (decorated == null) {
+            if (!create) {
+                //noinspection unchecked
+                return FAKE_CACHE;
+            }
+            decorated = createdDecorated();
+
+        }
+        return decorated;
     }
 }

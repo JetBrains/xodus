@@ -42,15 +42,15 @@ public abstract class CacheHitRateable {
         }
     }
 
-    public final int getAttempts() {
+    public int getAttempts() {
         return attempts;
     }
 
-    public final int getHits() {
+    public int getHits() {
         return hits;
     }
 
-    public final float hitRate() {
+    public float hitRate() {
         final int hits = this.hits;
         int attempts = this.attempts;
         // due to lack of thread-safety there can appear not that consistent results
@@ -60,11 +60,11 @@ public abstract class CacheHitRateable {
         return attempts > 0 ? (float) hits / (float) attempts : 0;
     }
 
-    protected final void incAttempts() {
+    protected void incAttempts() {
         ++attempts;
     }
 
-    protected final void incHits() {
+    protected void incHits() {
         ++hits;
     }
 

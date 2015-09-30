@@ -23,6 +23,7 @@ import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.core.dataStructures.FakeObjectCache;
 import jetbrains.exodus.core.dataStructures.ObjectCache;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
+import jetbrains.exodus.core.dataStructures.ObjectCacheDecorator;
 import jetbrains.exodus.core.dataStructures.decorators.HashSetDecorator;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
@@ -943,7 +944,14 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     private static <V> ObjectCacheBase<PropertyId, V> createObjectCache(final int size) {
-        return size == 0 ? new FakeObjectCache<PropertyId, V>() : new ObjectCache<PropertyId, V>(size);
+        return size == 0 ?
+                new FakeObjectCache<PropertyId, V>() :
+                new ObjectCacheDecorator<PropertyId, V>(size) {
+                    @Override
+                    protected ObjectCacheBase<PropertyId, V> createdDecorated() {
+                        return new ObjectCache<PropertyId, V>(size());
+                    }
+                };
     }
 
     enum HandleCheckResult {
