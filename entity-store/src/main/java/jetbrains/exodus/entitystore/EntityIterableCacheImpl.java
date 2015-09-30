@@ -20,10 +20,13 @@ import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Priority;
 import jetbrains.exodus.core.execution.Job;
+import jetbrains.exodus.core.execution.SharedTimer;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.ref.WeakReference;
 
 public final class EntityIterableCacheImpl implements EntityIterableCache {
 
@@ -51,6 +54,7 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
         iterableCountsCache = new ConcurrentObjectCache<>(cacheSize * 2);
         processor = new EntityStoreSharedAsyncProcessor(config.getEntityIterableCacheThreadCount());
         processor.start();
+        SharedTimer.registerPeriodicTask(new CacheHitRateAdjuster(this));
     }
 
     @Override
@@ -257,5 +261,28 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
 
     @SuppressWarnings({"serial", "SerializableClassInSecureContext", "EmptyClass", "SerializableHasSerializationMethods", "DeserializableClassInSecureContext"})
     private static class TooLongEntityIterableInstantiationException extends ExodusException {
+    }
+
+    private static class CacheHitRateAdjuster implements SharedTimer.ExpirablePeriodicTask {
+
+        @NotNull
+        private final WeakReference<EntityIterableCacheImpl> cacheRef;
+
+        private CacheHitRateAdjuster(@NotNull final EntityIterableCacheImpl cache) {
+            cacheRef = new WeakReference<>(cache);
+        }
+
+        @Override
+        public boolean isExpired() {
+            return cacheRef.get() == null;
+        }
+
+        @Override
+        public void run() {
+            final EntityIterableCacheImpl cache = cacheRef.get();
+            if (cache != null) {
+                cache.cacheAdapter.adjustHitRate();
+            }
+        }
     }
 }

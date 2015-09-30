@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
 import jetbrains.exodus.core.dataStructures.persistent.PersistentObjectCache;
+import jetbrains.exodus.core.execution.SharedTimer;
 import jetbrains.exodus.entitystore.iterate.CachedWrapperIterable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -29,16 +30,21 @@ final class EntityIterableCacheAdapter {
     @NotNull
     private final PersistentEntityStoreConfig config;
     @NotNull
-    final PersistentObjectCache<EntityIterableHandle, CacheItem> cache;
+    private final NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem> cache;
 
     EntityIterableCacheAdapter(@NotNull final PersistentEntityStoreConfig config) {
         this.config = config;
-        cache = new PersistentObjectCache<>(config.getEntityIterableCacheSize());
+        cache = new NonAdjustablePersistentObjectCache<>(config.getEntityIterableCacheSize());
     }
 
     private EntityIterableCacheAdapter(@NotNull final EntityIterableCacheAdapter source) {
         config = source.config;
         cache = source.cache.getClone();
+    }
+
+    @NotNull
+    public PersistentObjectCache<EntityIterableHandle, CacheItem> getCacheInstance() {
+        return cache;
     }
 
     @Nullable
@@ -87,6 +93,10 @@ final class EntityIterableCacheAdapter {
         return new EntityIterableCacheAdapter(this);
     }
 
+    void adjustHitRate() {
+        cache.adjustHitRate();
+    }
+
     private CachedWrapperIterable parseCachedObject(@NotNull final EntityIterableHandle key, @Nullable final CacheItem item) {
         if (item == null) {
             return null;
@@ -113,6 +123,32 @@ final class EntityIterableCacheAdapter {
                 cached = null;
                 ref = new SoftReference<>(it);
             }
+        }
+    }
+
+    /*
+    NonAdjustablePersistentObjectCache doesn't adjust itself in order to avoid as many cache adjusters
+    as many versions of the cache (as a persistent data structure) can be.
+     */
+    private static class NonAdjustablePersistentObjectCache<K, V> extends PersistentObjectCache<K, V> {
+
+        private NonAdjustablePersistentObjectCache(final int size) {
+            super(size);
+        }
+
+        private NonAdjustablePersistentObjectCache(@NotNull final NonAdjustablePersistentObjectCache<K, V> source) {
+            super(source);
+        }
+
+        @Override
+        public NonAdjustablePersistentObjectCache<K, V> getClone() {
+            return new NonAdjustablePersistentObjectCache<>(this);
+        }
+
+        @Nullable
+        @Override
+        protected SharedTimer.ExpirablePeriodicTask getCacheAdjuster() {
+            return null;
         }
     }
 }

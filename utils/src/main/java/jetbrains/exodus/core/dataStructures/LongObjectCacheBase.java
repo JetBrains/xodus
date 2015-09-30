@@ -88,7 +88,7 @@ public abstract class LongObjectCacheBase<V> extends CacheHitRateable {
     }
 
     @Override
-    protected void adjustHitRate() {
+    public void adjustHitRate() {
         lock();
         try {
             super.adjustHitRate();

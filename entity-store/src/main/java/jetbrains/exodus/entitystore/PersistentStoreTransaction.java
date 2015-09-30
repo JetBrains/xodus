@@ -207,7 +207,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                 mutableCache = localCache.getClone();
                 mutatedInTxn = new ArrayList<>();
             }
-            replayData.init(mutableCache.cache);
+            replayData.init(mutableCache.getCacheInstance());
             replayData.apply(mutableCache);
         }
     }

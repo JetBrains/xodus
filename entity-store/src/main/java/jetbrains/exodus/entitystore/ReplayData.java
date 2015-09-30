@@ -118,7 +118,7 @@ public class ReplayData {
     public void init(@NotNull final PersistentObjectCache<EntityIterableHandle, EntityIterableCacheAdapter.CacheItem> localCache) {
         suspicious = new HashSet<>();
         if (hasCacheSnapshot()) {
-            final PersistentObjectCache<EntityIterableHandle, EntityIterableCacheAdapter.CacheItem> old = cacheSnapshot.cache;
+            final PersistentObjectCache<EntityIterableHandle, EntityIterableCacheAdapter.CacheItem> old = cacheSnapshot.getCacheInstance();
             localCache.forEachKey(new ObjectProcedure<EntityIterableHandle>() {
                 @Override
                 public boolean execute(EntityIterableHandle object) {

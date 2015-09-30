@@ -76,7 +76,7 @@ public abstract class CacheHitRateable {
         ++hits;
     }
 
-    protected void adjustHitRate() {
+    public void adjustHitRate() {
         final int hits = this.hits;
         int attempts = this.attempts;
         // due to lack of thread-safety there can appear not that consistent results
