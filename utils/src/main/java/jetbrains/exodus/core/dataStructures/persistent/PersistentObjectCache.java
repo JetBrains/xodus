@@ -55,6 +55,8 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
         size = source.size;
         secondGenSizeRatio = source.secondGenSizeRatio;
         root = new AtomicReference<>(source.root.get());
+        setAttempts(source.getAttempts());
+        setHits(source.getHits());
     }
 
     public void clear() {

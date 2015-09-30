@@ -46,8 +46,16 @@ public abstract class CacheHitRateable {
         return attempts;
     }
 
+    public void setAttempts(final int attempts) {
+        this.attempts = attempts;
+    }
+
     public int getHits() {
         return hits;
+    }
+
+    public void setHits(final int hits) {
+        this.hits = hits;
     }
 
     public float hitRate() {
