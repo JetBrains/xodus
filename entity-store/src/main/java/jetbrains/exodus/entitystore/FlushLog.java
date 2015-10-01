@@ -16,12 +16,19 @@
 package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.env.Transaction;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class FlushLog {
-    private final List<Operation> operations = new ArrayList<>();
+
+    @NotNull
+    private final List<Operation> operations;
+
+    public FlushLog() {
+        operations = new ArrayList<>();
+    }
 
     public void add(final Operation op) {
         operations.add(op);
