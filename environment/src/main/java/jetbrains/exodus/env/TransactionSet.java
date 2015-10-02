@@ -22,7 +22,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicReference;
 
-final class TransactionSet implements Iterable<TransactionImpl> {
+final class TransactionSet implements Iterable<TransactionBase> {
 
     private final AtomicReference<MinMaxAwareTransactionSet> txns;
 
@@ -31,18 +31,18 @@ final class TransactionSet implements Iterable<TransactionImpl> {
     }
 
     @Override
-    public Iterator<TransactionImpl> iterator() {
+    public Iterator<TransactionBase> iterator() {
         return getCurrent().iterator();
     }
 
-    void add(@NotNull final TransactionImpl txn) {
+    void add(@NotNull final TransactionBase txn) {
         final long root = txn.getRoot();
         for (; ; ) {
             final MinMaxAwareTransactionSet prevSet = txns.get();
-            final PersistentHashSet<TransactionImpl> newSet = prevSet.set.getClone();
-            final PersistentHashSet.MutablePersistentHashSet<TransactionImpl> mutableSet = newSet.beginWrite();
-            final TransactionImpl prevMin = prevSet.min;
-            final TransactionImpl newMin;
+            final PersistentHashSet<TransactionBase> newSet = prevSet.set.getClone();
+            final PersistentHashSet.MutablePersistentHashSet<TransactionBase> mutableSet = newSet.beginWrite();
+            final TransactionBase prevMin = prevSet.min;
+            final TransactionBase newMin;
             if (mutableSet.contains(txn)) {
                 newMin = prevMin == txn ? null : prevMin;
             } else {
@@ -50,32 +50,32 @@ final class TransactionSet implements Iterable<TransactionImpl> {
                 mutableSet.endWrite();
                 newMin = prevMin != null && prevMin.getRoot() > root ? txn : prevMin;
             }
-            final TransactionImpl prevMax = prevSet.max;
-            final TransactionImpl newMax = prevMax != null && prevMax.getRoot() < root ? txn : prevMax;
+            final TransactionBase prevMax = prevSet.max;
+            final TransactionBase newMax = prevMax != null && prevMax.getRoot() < root ? txn : prevMax;
             if (this.txns.compareAndSet(prevSet, new MinMaxAwareTransactionSet(newSet, newMin, newMax))) {
                 break;
             }
         }
     }
 
-    boolean contains(@NotNull final TransactionImpl txn) {
+    boolean contains(@NotNull final TransactionBase txn) {
         return getCurrent().contains(txn);
     }
 
-    void remove(@NotNull final TransactionImpl txn) {
+    void remove(@NotNull final TransactionBase txn) {
         for (; ; ) {
             final MinMaxAwareTransactionSet prevSet = txns.get();
-            final PersistentHashSet<TransactionImpl> newSet = prevSet.set.getClone();
-            final PersistentHashSet.MutablePersistentHashSet<TransactionImpl> mutableSet = newSet.beginWrite();
+            final PersistentHashSet<TransactionBase> newSet = prevSet.set.getClone();
+            final PersistentHashSet.MutablePersistentHashSet<TransactionBase> mutableSet = newSet.beginWrite();
             if (!mutableSet.remove(txn)) {
                 break;
             }
             mutableSet.endWrite();
             // update min & max
-            final TransactionImpl prevMin = prevSet.min;
-            final TransactionImpl newMin = prevMin == txn ? null : prevMin;
-            final TransactionImpl prevMax = prevSet.max;
-            final TransactionImpl newMax = prevMax == txn ? null : prevMax;
+            final TransactionBase prevMin = prevSet.min;
+            final TransactionBase newMin = prevMin == txn ? null : prevMin;
+            final TransactionBase prevMax = prevSet.max;
+            final TransactionBase newMax = prevMax == txn ? null : prevMax;
             if (this.txns.compareAndSet(prevSet, new MinMaxAwareTransactionSet(newSet, newMin, newMax))) {
                 break;
             }
@@ -91,45 +91,45 @@ final class TransactionSet implements Iterable<TransactionImpl> {
     }
 
     @Nullable
-    TransactionImpl getOldestTransaction() {
+    TransactionBase getOldestTransaction() {
         return txns.get().getMin();
     }
 
     @Nullable
-    TransactionImpl getNewestTransaction() {
+    TransactionBase getNewestTransaction() {
         return txns.get().getMax();
     }
 
-    private PersistentHashSet.ImmutablePersistentHashSet<TransactionImpl> getCurrent() {
+    private PersistentHashSet.ImmutablePersistentHashSet<TransactionBase> getCurrent() {
         return txns.get().set.getCurrent();
     }
 
     private static class MinMaxAwareTransactionSet {
 
         @NotNull
-        private final PersistentHashSet<TransactionImpl> set;
+        private final PersistentHashSet<TransactionBase> set;
         @Nullable
-        private TransactionImpl min;
+        private TransactionBase min;
         @Nullable
-        private TransactionImpl max;
+        private TransactionBase max;
 
-        private MinMaxAwareTransactionSet(@NotNull final PersistentHashSet<TransactionImpl> set,
-                                          @Nullable final TransactionImpl min, @Nullable final TransactionImpl max) {
+        private MinMaxAwareTransactionSet(@NotNull final PersistentHashSet<TransactionBase> set,
+                                          @Nullable final TransactionBase min, @Nullable final TransactionBase max) {
             this.set = set;
             this.min = min;
             this.max = max;
         }
 
         private MinMaxAwareTransactionSet() {
-            this(new PersistentHashSet<TransactionImpl>(), null, null);
+            this(new PersistentHashSet<TransactionBase>(), null, null);
         }
 
         @Nullable
-        private TransactionImpl getMin() {
+        private TransactionBase getMin() {
             if (min == null) {
-                TransactionImpl min = null;
+                TransactionBase min = null;
                 long minRoot = Long.MIN_VALUE;
-                for (final TransactionImpl txn : set.getCurrent()) {
+                for (final TransactionBase txn : set.getCurrent()) {
                     final long root = txn.getRoot();
                     if (min == null || root < minRoot) {
                         min = txn;
@@ -142,11 +142,11 @@ final class TransactionSet implements Iterable<TransactionImpl> {
         }
 
         @Nullable
-        private TransactionImpl getMax() {
+        private TransactionBase getMax() {
             if (max == null) {
-                TransactionImpl max = null;
+                TransactionBase max = null;
                 long maxRoot = Long.MAX_VALUE;
-                for (final TransactionImpl txn : set.getCurrent()) {
+                for (final TransactionBase txn : set.getCurrent()) {
                     final long root = txn.getRoot();
                     if (max == null || root > maxRoot) {
                         max = txn;

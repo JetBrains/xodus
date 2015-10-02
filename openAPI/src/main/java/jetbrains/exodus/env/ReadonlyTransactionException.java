@@ -16,12 +16,17 @@
 package jetbrains.exodus.env;
 
 import jetbrains.exodus.ExodusException;
+import org.jetbrains.annotations.NotNull;
 
 public class ReadonlyTransactionException extends ExodusException {
 
     private static final String DEFAULT_MESSAGE = "Can't modify data in read-only transaction";
 
     public ReadonlyTransactionException() {
-        super(DEFAULT_MESSAGE);
+        this(DEFAULT_MESSAGE);
+    }
+
+    public ReadonlyTransactionException(@NotNull final String message) {
+        super(message);
     }
 }

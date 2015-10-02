@@ -18,7 +18,6 @@ package jetbrains.exodus.env;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.decorators.HashMapDecorator;
-import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.tree.ITree;
@@ -29,16 +28,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
-public class TransactionImpl implements Transaction {
+public class TransactionImpl extends TransactionBase {
 
-    @NotNull
-    private final EnvironmentImpl env;
-    @Nullable
-    private final Thread creatingThread;
-    @NotNull
-    private MetaTree metaTree;
-    @NotNull
-    private final IntHashMap<ITree> immutableTrees;
     @NotNull
     private final Map<Integer, ITreeMutable> mutableTrees;
     @NotNull
@@ -49,21 +40,14 @@ public class TransactionImpl implements Transaction {
     private final Runnable beginHook;
     @Nullable
     private Runnable commitHook;
-    @Nullable
-    private final Throwable trace;
-    private long started;       // started is the ticks when the txn held its current snapshot
-    private final long created; // created is the ticks when the txn was actually created (constructed)
     private int replayCount;
-    private boolean isExclusive;
 
     TransactionImpl(@NotNull final EnvironmentImpl env,
                     @Nullable final Thread creatingThread,
                     @Nullable final Runnable beginHook,
                     final boolean isExclusive,
                     final boolean cloneMeta) {
-        this.env = env;
-        this.creatingThread = creatingThread;
-        immutableTrees = new IntHashMap<>();
+        super(env, creatingThread, isExclusive);
         mutableTrees = new TreeMap<>();
         removedStores = new LongHashMap<>();
         createdStores = new HashMapDecorator<>();
@@ -71,41 +55,15 @@ public class TransactionImpl implements Transaction {
             @Override
             public void run() {
                 final MetaTree currentMetaTree = env.getMetaTree();
-                metaTree = cloneMeta ? currentMetaTree.getClone() : currentMetaTree;
+                setMetaTree(cloneMeta ? currentMetaTree.getClone() : currentMetaTree);
                 env.registerTransaction(TransactionImpl.this);
                 if (beginHook != null) {
                     beginHook.run();
                 }
             }
         };
-        trace = env.transactionTimeout() > 0 ? new Throwable() : null;
-        invalidateStarted();
-        created = started;
         replayCount = 0;
-        this.isExclusive = isExclusive;
         holdNewestSnapshot();
-        env.getStatistics().getStatisticsItem(EnvironmentStatistics.TRANSACTIONS).incTotal();
-    }
-
-    /**
-     * Constructor for creating new snapshot transaction.
-     */
-    protected TransactionImpl(@NotNull final TransactionImpl origin) {
-        env = origin.env;
-        metaTree = origin.metaTree;
-        commitHook = origin.commitHook;
-        beginHook = origin.beginHook;
-        creatingThread = origin.creatingThread;
-        immutableTrees = new IntHashMap<>();
-        mutableTrees = new TreeMap<>();
-        removedStores = new LongHashMap<>();
-        createdStores = new HashMapDecorator<>();
-        trace = env.transactionTimeout() > 0 ? new Throwable() : null;
-        invalidateStarted();
-        created = started;
-        replayCount = 0;
-        env.acquireTransaction(isExclusive(), isReadonly());
-        env.registerTransaction(this);
         env.getStatistics().getStatisticsItem(EnvironmentStatistics.TRANSACTIONS).incTotal();
     }
 
@@ -116,19 +74,19 @@ public class TransactionImpl implements Transaction {
     @Override
     public void abort() {
         doRevert();
-        env.finishTransaction(this);
+        getEnvironment().finishTransaction(this);
     }
 
     @Override
     public boolean commit() {
-        return env.commitTransaction(this, false);
+        return getEnvironment().commitTransaction(this, false);
     }
 
     @Override
     public boolean flush() {
-        final boolean result = env.flushTransaction(this, false);
+        final boolean result = getEnvironment().flushTransaction(this, false);
         if (result) {
-            invalidateStarted();
+            setStarted(System.currentTimeMillis());
         } else {
             incReplayCount();
         }
@@ -141,10 +99,11 @@ public class TransactionImpl implements Transaction {
             throw new ExodusException("Attempt ot revert read-only transaction");
         }
         doRevert();
-        final boolean wasExclusive = isExclusive;
+        final EnvironmentImpl env = getEnvironment();
+        final boolean wasExclusive = isExclusive();
         env.releaseTransaction(wasExclusive, false);
-        isExclusive |= env.shouldTransactionBeExclusive(this);
-        final long oldRoot = metaTree.root;
+        setExclusive(isExclusive() | env.shouldTransactionBeExclusive(this));
+        final long oldRoot = getMetaTree().root;
         holdNewestSnapshot();
         if (!env.isRegistered(this)) {
             throw new ExodusException("Transaction should remain registered after revert");
@@ -156,7 +115,7 @@ public class TransactionImpl implements Transaction {
             }
             env.runTransactionSafeTasks();
         }
-        invalidateStarted();
+        setStarted(System.currentTimeMillis());
     }
 
     @Override
@@ -165,24 +124,8 @@ public class TransactionImpl implements Transaction {
     }
 
     @Override
-    @NotNull
-    public EnvironmentImpl getEnvironment() {
-        return env;
-    }
-
-    @Override
     public void setCommitHook(@Nullable final Runnable hook) {
         commitHook = hook;
-    }
-
-    @Override
-    public long getStartTime() {
-        return started;
-    }
-
-    @Override
-    public long getHighAddress() {
-        return metaTree.highAddress;
     }
 
     @Override
@@ -190,52 +133,47 @@ public class TransactionImpl implements Transaction {
         return false;
     }
 
-    @Override
-    public boolean isExclusive() {
-        return isExclusive;
-    }
-
     public boolean forceFlush() {
-        return env.flushTransaction(this, true);
+        return getEnvironment().flushTransaction(this, true);
     }
 
     @NotNull
     public StoreImpl openStoreByStructureId(final int structureId) {
-        final String storeName = metaTree.getStoreNameByStructureId(structureId, env);
+        final EnvironmentImpl env = getEnvironment();
+        final String storeName = getMetaTree().getStoreNameByStructureId(structureId, env);
         return storeName == null ?
                 new TemporaryEmptyStore(env) :
-                env.openStoreImpl(storeName, StoreConfig.USE_EXISTING, this, env.getCurrentMetaInfo(storeName, this));
+                env.openStoreImpl(storeName, StoreConfig.USE_EXISTING, this, getTreeMetaInfo(storeName));
     }
 
     @NotNull
+    @Override
     public ITree getTree(@NotNull final StoreImpl store) {
         final ITreeMutable result = mutableTrees.get(store.getStructureId());
         if (result == null) {
-            return getImmutableTree(store);
+            return super.getTree(store);
         }
         return result;
     }
 
+    @Nullable
+    @Override
+    TreeMetaInfo getTreeMetaInfo(@NotNull final String name) {
+        final TreeMetaInfo result = createdStores.get(name);
+        return result == null ? super.getTreeMetaInfo(name) : result;
+    }
+
     void storeRemoved(@NotNull final StoreImpl store) {
+        super.storeRemoved(store);
         final int structureId = store.getStructureId();
-        final ITree tree = store.openImmutableTree(metaTree);
+        final ITree tree = store.openImmutableTree(getMetaTree());
         removedStores.put(structureId, new Pair<>(store.getName(), tree));
-        immutableTrees.remove(structureId);
         mutableTrees.remove(structureId);
     }
 
     void storeCreated(@NotNull final StoreImpl store) {
         getMutableTree(store);
         createdStores.put(store.getName(), store.getMetaInfo());
-    }
-
-    @Nullable
-    Throwable getTrace() {
-        return trace;
-    }
-
-    long getCreated() {
-        return created;
     }
 
     int getReplayCount() {
@@ -246,21 +184,10 @@ public class TransactionImpl implements Transaction {
         ++replayCount;
     }
 
-    /**
-     * Returns tree meta info by name of a newly created (in this transaction) store.
-     */
-    @Nullable
-    TreeMetaInfo getNewStoreMetaInfo(@NotNull final String name) {
-        return createdStores.get(name);
-    }
-
     boolean isStoreNew(@NotNull final String name) {
         return createdStores.containsKey(name);
     }
 
-    boolean checkVersion(final long root) {
-        return metaTree.root == root;
-    }
 
     Iterable<Loggable>[] doCommit(@NotNull final MetaTree[] out) {
         final Set<Map.Entry<Integer, ITreeMutable>> entries = mutableTrees.entrySet();
@@ -269,7 +196,7 @@ public class TransactionImpl implements Transaction {
         //noinspection unchecked
         final Iterable<Loggable>[] expiredLoggables = new Iterable[size + 1];
         int i = 0;
-        final ITreeMutable metaTreeMutable = metaTree.tree.getMutableCopy();
+        final ITreeMutable metaTreeMutable = getMetaTree().tree.getMutableCopy();
         for (final Map.Entry<Long, Pair<String, ITree>> entry : removedEntries) {
             final Pair<String, ITree> value = entry.getValue();
             MetaTree.removeStore(metaTreeMutable, value.getFirst(), entry.getKey());
@@ -286,15 +213,11 @@ public class TransactionImpl implements Transaction {
             expiredLoggables[i++] = treeMutable.getExpiredLoggables();
             MetaTree.saveTree(metaTreeMutable, treeMutable);
         }
-        immutableTrees.clear();
+        clearImmutableTrees();
         mutableTrees.clear();
         expiredLoggables[i] = last = metaTreeMutable.getExpiredLoggables();
-        out[0] = MetaTree.saveMetaTree(metaTreeMutable, env, last);
+        out[0] = MetaTree.saveMetaTree(metaTreeMutable, getEnvironment(), last);
         return expiredLoggables;
-    }
-
-    void setMetaTree(@NotNull final MetaTree metaTree) {
-        this.metaTree = metaTree;
     }
 
     void executeCommitHook() {
@@ -305,13 +228,14 @@ public class TransactionImpl implements Transaction {
 
     @NotNull
     ITreeMutable getMutableTree(@NotNull final StoreImpl store) {
+        final Thread creatingThread = getCreatingThread();
         if (creatingThread != null && !creatingThread.equals(Thread.currentThread())) {
             throw new ExodusException("Can't create mutable tree in a thread different from the one which transaction was created in");
         }
         final int structureId = store.getStructureId();
         ITreeMutable result = mutableTrees.get(structureId);
         if (result == null) {
-            result = getImmutableTree(store).getMutableCopy();
+            result = getTree(store).getMutableCopy();
             mutableTrees.put(structureId, result);
         }
         return result;
@@ -329,23 +253,10 @@ public class TransactionImpl implements Transaction {
         mutableTrees.remove(store.getStructureId());
     }
 
-    @Nullable
-    Thread getCreatingThread() {
-        return creatingThread;
-    }
-
     @NotNull
-    MetaTree getMetaTree() {
-        return metaTree;
-    }
-
-    long getRoot() {
-        return metaTree.root;
-    }
-
+    @Override
     List<String> getAllStoreNames() {
-        // TODO: optimize
-        List<String> result = metaTree.getAllStoreNames();
+        List<String> result = super.getAllStoreNames();
         if (createdStores.isEmpty()) return result;
         if (result.isEmpty()) {
             result = new ArrayList<>();
@@ -356,31 +267,17 @@ public class TransactionImpl implements Transaction {
     }
 
     @Nullable
+    @Override
     Runnable getBeginHook() {
         return beginHook;
     }
 
-    private void invalidateStarted() {
-        started = System.currentTimeMillis();
-    }
-
     private void holdNewestSnapshot() {
-        env.holdNewestSnapshotBy(this);
-    }
-
-    @NotNull
-    private ITree getImmutableTree(@NotNull final StoreImpl store) {
-        final int structureId = store.getStructureId();
-        ITree result = immutableTrees.get(structureId);
-        if (result == null) {
-            result = store.openImmutableTree(metaTree);
-            immutableTrees.put(structureId, result);
-        }
-        return result;
+        getEnvironment().holdNewestSnapshotBy(this);
     }
 
     private void doRevert() {
-        immutableTrees.clear();
+        clearImmutableTrees();
         mutableTrees.clear();
         removedStores.clear();
         createdStores.clear();

@@ -163,8 +163,8 @@ public class EnvironmentImpl implements Environment {
     public StoreImpl openStore(@NotNull final String name,
                                @NotNull final StoreConfig config,
                                @NotNull final Transaction transaction) {
-        final TransactionImpl txn = (TransactionImpl) transaction;
-        return openStoreImpl(name, config, txn, getCurrentMetaInfo(name, txn));
+        final TransactionBase txn = (TransactionBase) transaction;
+        return openStoreImpl(name, config, txn, txn.getTreeMetaInfo(name));
     }
 
     @Override
@@ -173,8 +173,8 @@ public class EnvironmentImpl implements Environment {
                                @NotNull final StoreConfig config,
                                @NotNull final Transaction transaction,
                                final boolean creationRequired) {
-        final TransactionImpl txn = (TransactionImpl) transaction;
-        final TreeMetaInfo metaInfo = getCurrentMetaInfo(name, txn);
+        final TransactionBase txn = (TransactionBase) transaction;
+        final TreeMetaInfo metaInfo = txn.getTreeMetaInfo(name);
         if (metaInfo == null && !creationRequired) {
             return null;
         }
@@ -183,13 +183,13 @@ public class EnvironmentImpl implements Environment {
 
     @Override
     @NotNull
-    public TransactionImpl beginTransaction() {
+    public TransactionBase beginTransaction() {
         return beginTransaction(null, false, false);
     }
 
     @Override
     @NotNull
-    public TransactionImpl beginTransaction(final Runnable beginHook) {
+    public TransactionBase beginTransaction(final Runnable beginHook) {
         return beginTransaction(beginHook, false, false);
     }
 
@@ -213,14 +213,14 @@ public class EnvironmentImpl implements Environment {
 
     @NotNull
     @Override
-    public TransactionImpl beginReadonlyTransaction(final Runnable beginHook) {
+    public TransactionBase beginReadonlyTransaction(final Runnable beginHook) {
         checkIsOperative();
         return new ReadonlyTransaction(this, getCreatingThread(), beginHook);
     }
 
     @NotNull
     public TransactionImpl beginGCTransaction() {
-        return beginTransaction(null, true, true);
+        return throwIfReadonly(beginTransaction(null, true, true), "Can't start GC transaction on read-only Environment");
     }
 
     @Override
@@ -229,7 +229,8 @@ public class EnvironmentImpl implements Environment {
         try {
             while (true) {
                 executable.execute(txn);
-                if (txn.flush()) {
+                // txn can be read-only if Environment is in read-only mode
+                if (txn.isReadonly() || txn.flush()) {
                     break;
                 }
                 txn.revert();
@@ -245,7 +246,8 @@ public class EnvironmentImpl implements Environment {
         try {
             while (true) {
                 executable.execute(txn);
-                if (txn.flush()) {
+                // txn can be read-only if Environment is in read-only mode
+                if (txn.isReadonly() || txn.flush()) {
                     break;
                 }
                 txn.revert();
@@ -271,7 +273,8 @@ public class EnvironmentImpl implements Environment {
         try {
             while (true) {
                 final T result = computable.compute(txn);
-                if (txn.flush()) {
+                // txn can be read-only if Environment is in read-only mode
+                if (txn.isReadonly() || txn.flush()) {
                     return result;
                 }
                 txn.revert();
@@ -287,7 +290,8 @@ public class EnvironmentImpl implements Environment {
         try {
             while (true) {
                 final T result = computable.compute(txn);
-                if (txn.flush()) {
+                // txn can be read-only if Environment is in read-only mode
+                if (txn.isReadonly() || txn.flush()) {
                     return result;
                 }
                 txn.revert();
@@ -415,12 +419,20 @@ public class EnvironmentImpl implements Environment {
 
     @Override
     public void truncateStore(@NotNull final String storeName, @NotNull final Transaction transaction) {
-        truncateStoreImpl(storeName, (TransactionImpl) transaction);
+        final TransactionImpl txn = throwIfReadonly(transaction, "Can't truncate a store in read-only transaction");
+        StoreImpl store = openStore(storeName, StoreConfig.USE_EXISTING, txn, false);
+        if (store == null) {
+            throw new ExodusException("Attempt to truncate unknown store '" + storeName + '\'');
+        }
+        txn.storeRemoved(store);
+        final TreeMetaInfo metaInfoCloned = store.getMetaInfo().clone(allocateStructureId());
+        store = new StoreImpl(this, storeName, metaInfoCloned);
+        txn.storeCreated(store);
     }
 
     @Override
     public void removeStore(@NotNull final String storeName, @NotNull final Transaction transaction) {
-        final TransactionImpl txn = (TransactionImpl) transaction;
+        final TransactionImpl txn = throwIfReadonly(transaction, "Can't remove a store in read-only transaction");
         final StoreImpl store = openStore(storeName, StoreConfig.USE_EXISTING, txn, false);
         if (store == null) {
             throw new ExodusException("Attempt to remove unknown store '" + storeName + '\'');
@@ -431,11 +443,11 @@ public class EnvironmentImpl implements Environment {
     @Override
     @NotNull
     public List<String> getAllStoreNames(@NotNull final Transaction transaction) {
-        return ((TransactionImpl) transaction).getAllStoreNames();
+        return ((TransactionBase) transaction).getAllStoreNames();
     }
 
     public boolean storeExists(@NotNull final String storeName, @NotNull final Transaction transaction) {
-        return getCurrentMetaInfo(storeName, (TransactionImpl) transaction) != null;
+        return ((TransactionBase) transaction).getTreeMetaInfo(storeName) != null;
     }
 
     @NotNull
@@ -470,14 +482,14 @@ public class EnvironmentImpl implements Environment {
         return new StoreImpl(this, name, metaInfo);
     }
 
-    protected void finishTransaction(@NotNull final TransactionImpl txn) {
+    protected void finishTransaction(@NotNull final TransactionBase txn) {
         releaseTransaction(txn.isExclusive(), txn.isReadonly());
         txns.remove(txn);
         runTransactionSafeTasks();
     }
 
     @NotNull
-    protected TransactionImpl beginTransaction(Runnable beginHook, boolean exclusive, boolean cloneMeta) {
+    protected TransactionBase beginTransaction(Runnable beginHook, boolean exclusive, boolean cloneMeta) {
         checkIsOperative();
         final Thread creatingThread = getCreatingThread();
         return ec.getEnvIsReadonly() ?
@@ -551,9 +563,6 @@ public class EnvironmentImpl implements Environment {
         if (!forceCommit && txn.isIdempotent()) {
             return true;
         }
-        if (txn.isReadonly()) {
-            throw new ExodusException("Attempt to flush read-only transaction");
-        }
         final Iterable<Loggable>[] expiredLoggables;
         final long initialHighAddress;
         final long resultingHighAddress;
@@ -599,7 +608,7 @@ public class EnvironmentImpl implements Environment {
         return true;
     }
 
-    MetaTree holdNewestSnapshotBy(@NotNull final TransactionImpl txn) {
+    MetaTree holdNewestSnapshotBy(@NotNull final TransactionBase txn) {
         acquireTransaction(txn.isExclusive(), txn.isReadonly());
         final Runnable beginHook = txn.getBeginHook();
         synchronized (metaLock) {
@@ -614,11 +623,6 @@ public class EnvironmentImpl implements Environment {
         return metaTree;
     }
 
-    TreeMetaInfo getCurrentMetaInfo(final String name, @NotNull final TransactionImpl txn) {
-        final TreeMetaInfo newlyCreated = txn.getNewStoreMetaInfo(name);
-        return newlyCreated != null ? newlyCreated : txn.getMetaTree().getMetaInfo(name, this);
-    }
-
     /**
      * Opens or creates store just like openStore() with the same parameters does, but gets parameters
      * that are not annotated. This allows to pass, e.g., nullable transaction.
@@ -631,7 +635,10 @@ public class EnvironmentImpl implements Environment {
      */
     @SuppressWarnings({"AssignmentToMethodParameter"})
     @NotNull
-    StoreImpl openStoreImpl(@NotNull final String name, @NotNull StoreConfig config, @NotNull final TransactionImpl txn, @Nullable TreeMetaInfo metaInfo) {
+    StoreImpl openStoreImpl(@NotNull final String name,
+                            @NotNull StoreConfig config,
+                            @NotNull final TransactionBase txn,
+                            @Nullable TreeMetaInfo metaInfo) {
         if (config.useExisting) { // this parameter requires to recalculate
             if (metaInfo == null) {
                 throw new ExodusException("Can't restore meta information for store " + name);
@@ -647,8 +654,9 @@ public class EnvironmentImpl implements Environment {
             final int structureId = allocateStructureId();
             metaInfo = TreeMetaInfo.load(this, config.duplicates, config.prefixing, structureId);
             result = createStore(name, metaInfo);
-            txn.getMutableTree(result);
-            txn.storeCreated(result);
+            final TransactionImpl tx = throwIfReadonly(txn, "Can't create a store in read-only transaction");
+            tx.getMutableTree(result);
+            tx.storeCreated(result);
         } else {
             final boolean hasDuplicates = metaInfo.hasDuplicates();
             if (hasDuplicates != config.duplicates) {
@@ -673,7 +681,7 @@ public class EnvironmentImpl implements Environment {
         return structureId.get();
     }
 
-    void registerTransaction(@NotNull final TransactionImpl txn) {
+    void registerTransaction(@NotNull final TransactionBase txn) {
         // N.B! due to TransactionImpl.revert(), there can appear a txn which is already in the transaction set
         // any implementation of transaction set should process this well
         txns.add(txn);
@@ -716,12 +724,12 @@ public class EnvironmentImpl implements Environment {
     }
 
     @Nullable
-    TransactionImpl getOldestTransaction() {
+    TransactionBase getOldestTransaction() {
         return txns.getOldestTransaction();
     }
 
     @Nullable
-    TransactionImpl getNewestTransaction() {
+    TransactionBase getNewestTransaction() {
         return txns.getNewestTransaction();
     }
 
@@ -741,7 +749,7 @@ public class EnvironmentImpl implements Environment {
     }
 
     void forEachActiveTransaction(@NotNull final TransactionalExecutable executable) {
-        for (final TransactionImpl txn : txns) {
+        for (final Transaction txn : txns) {
             executable.execute(txn);
         }
     }
@@ -754,13 +762,20 @@ public class EnvironmentImpl implements Environment {
         return GarbageCollector.isUtilizationProfile(storeName);
     }
 
+    static TransactionImpl throwIfReadonly(@NotNull final Transaction txn, @NotNull final String exceptionMessage) {
+        if (txn.isReadonly()) {
+            throw new ReadonlyTransactionException(exceptionMessage);
+        }
+        return (TransactionImpl) txn;
+    }
+
     private long getOldestTxnRootAddress() {
-        final TransactionImpl oldestTxn = getOldestTransaction();
+        final TransactionBase oldestTxn = getOldestTransaction();
         return oldestTxn == null ? Long.MAX_VALUE : oldestTxn.getRoot();
     }
 
     private long getNewestTxnRootAddress() {
-        final TransactionImpl newestTxn = getNewestTransaction();
+        final TransactionBase newestTxn = getNewestTransaction();
         return newestTxn == null ? Long.MIN_VALUE : newestTxn.getRoot();
     }
 
@@ -810,7 +825,7 @@ public class EnvironmentImpl implements Environment {
             forEachActiveTransaction(new TransactionalExecutable() {
                 @Override
                 public void execute(@NotNull final Transaction txn) {
-                    final Throwable trace = ((TransactionImpl) txn).getTrace();
+                    final Throwable trace = ((TransactionBase) txn).getTrace();
                     if (debug) {
                         logger.debug("Alive transaction: ", trace);
                     } else {
@@ -842,17 +857,6 @@ public class EnvironmentImpl implements Environment {
                 return result;
             }
         }
-    }
-
-    private void truncateStoreImpl(@NotNull final String storeName, @NotNull final TransactionImpl txn) {
-        StoreImpl store = openStore(storeName, StoreConfig.USE_EXISTING, txn, false);
-        if (store == null) {
-            throw new ExodusException("Attempt to truncate unknown store '" + storeName + '\'');
-        }
-        txn.storeRemoved(store);
-        final TreeMetaInfo metaInfoCloned = store.getMetaInfo().clone(allocateStructureId());
-        store = new StoreImpl(this, storeName, metaInfoCloned);
-        txn.storeCreated(store);
     }
 
     private void invalidateStoreGetCache() {

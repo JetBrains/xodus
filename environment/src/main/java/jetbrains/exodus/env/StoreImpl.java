@@ -62,7 +62,7 @@ public class StoreImpl implements Store {
     @Override
     @Nullable
     public ByteIterable get(@NotNull final Transaction txn, @NotNull final ByteIterable key) {
-        final ITree tree = ((TransactionImpl) txn).getTree(this);
+        final ITree tree = ((TransactionBase) txn).getTree(this);
         final long treeRootAddress = tree.getRootAddress();
         final StoreGetCache storeGetCache;
         // if neither tree is empty nor mutable and StoreGetCache is on
@@ -83,44 +83,44 @@ public class StoreImpl implements Store {
     public boolean exists(@NotNull final Transaction txn,
                           @NotNull final ByteIterable key,
                           @NotNull final ByteIterable data) {
-        return ((TransactionImpl) txn).getTree(this).hasPair(key, data);
+        return ((TransactionBase) txn).getTree(this).hasPair(key, data);
     }
 
     @Override
     public boolean put(@NotNull final Transaction txn,
                        @NotNull final ByteIterable key,
                        @NotNull final ByteIterable value) {
-        return ((TransactionImpl) txn).getMutableTree(this).put(key, value);
+        return EnvironmentImpl.throwIfReadonly(txn, "Can't put in read-only transaction").getMutableTree(this).put(key, value);
     }
 
     @Override
     public void putRight(@NotNull final Transaction txn,
                          @NotNull final ByteIterable key,
                          @NotNull final ByteIterable value) {
-        ((TransactionImpl) txn).getMutableTree(this).putRight(key, value);
+        EnvironmentImpl.throwIfReadonly(txn, "Can't put in read-only transaction").getMutableTree(this).putRight(key, value);
     }
 
     @Override
     public boolean add(@NotNull final Transaction txn,
                        @NotNull final ByteIterable key,
                        @NotNull final ByteIterable value) {
-        return ((TransactionImpl) txn).getMutableTree(this).add(key, value);
+        return EnvironmentImpl.throwIfReadonly(txn, "Can't add in read-only transaction").getMutableTree(this).add(key, value);
     }
 
     @Override
     public long count(@NotNull Transaction txn) {
-        return ((TransactionImpl) txn).getTree(this).getSize();
+        return ((TransactionBase) txn).getTree(this).getSize();
     }
 
     @Override
     public Cursor openCursor(@NotNull final Transaction txn) {
-        return new CursorImpl(this, (TransactionImpl) txn);
+        return new CursorImpl(this, (TransactionBase) txn);
     }
 
     @Override
     public boolean delete(@NotNull final Transaction txn,
                           @NotNull final ByteIterable key) {
-        return ((TransactionImpl) txn).getMutableTree(this).delete(key);
+        return EnvironmentImpl.throwIfReadonly(txn, "Can't delete in read-only transaction").getMutableTree(this).delete(key);
     }
 
     @Override
@@ -130,13 +130,13 @@ public class StoreImpl implements Store {
     }
 
     @Override
-    public boolean isNew(@NotNull Transaction txn) {
-        return ((TransactionImpl) txn).isStoreNew(name);
+    public boolean isNew(@NotNull final Transaction txn) {
+        return !txn.isReadonly() && ((TransactionImpl) txn).isStoreNew(name);
     }
 
     @Override
-    public void persistCreation(@NotNull Transaction txn) {
-        ((TransactionImpl) txn).storeCreated(this);
+    public void persistCreation(@NotNull final Transaction txn) {
+        EnvironmentImpl.throwIfReadonly(txn, "Read-only transaction is not enough").storeCreated(this);
     }
 
     @Override
@@ -154,14 +154,14 @@ public class StoreImpl implements Store {
         return metaInfo;
     }
 
-    public void reclaim(@NotNull final Transaction txn,
+    public void reclaim(@NotNull final Transaction transaction,
                         @NotNull final RandomAccessLoggable loggable,
                         @NotNull final Iterator<RandomAccessLoggable> loggables,
                         @NotNull final IExpirationChecker expirationChecker) {
-        final TransactionImpl jt = (TransactionImpl) txn;
-        final boolean wasTreeCreated = jt.hasTreeMutable(this);
-        if (!jt.getMutableTree(this).reclaim(loggable, loggables, expirationChecker) && !wasTreeCreated) {
-            jt.removeTreeMutable(this);
+        final TransactionImpl txn = EnvironmentImpl.throwIfReadonly(transaction, "Can't reclaim in read-only transaction");
+        final boolean wasTreeCreated = txn.hasTreeMutable(this);
+        if (!txn.getMutableTree(this).reclaim(loggable, loggables, expirationChecker) && !wasTreeCreated) {
+            txn.removeTreeMutable(this);
         }
     }
 

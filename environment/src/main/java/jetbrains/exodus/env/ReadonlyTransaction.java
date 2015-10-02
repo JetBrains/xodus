@@ -15,16 +15,29 @@
  */
 package jetbrains.exodus.env;
 
-import jetbrains.exodus.tree.ITreeMutable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-class ReadonlyTransaction extends TransactionImpl {
+class ReadonlyTransaction extends TransactionBase {
+
+    @Nullable
+    private final Runnable beginHook;
 
     ReadonlyTransaction(@NotNull final EnvironmentImpl env,
                         @Nullable final Thread creatingThread,
                         @Nullable final Runnable beginHook) {
-        super(env, creatingThread, beginHook, false, false);
+        super(env, creatingThread, false);
+        this.beginHook = new Runnable() {
+            @Override
+            public void run() {
+                setMetaTree(env.getMetaTree());
+                env.registerTransaction(ReadonlyTransaction.this);
+                if (beginHook != null) {
+                    beginHook.run();
+                }
+            }
+        };
+        env.holdNewestSnapshotBy(this);
         env.getStatistics().getStatisticsItem(EnvironmentStatistics.READONLY_TRANSACTIONS).incTotal();
     }
 
@@ -32,8 +45,13 @@ class ReadonlyTransaction extends TransactionImpl {
      * Constructor for creating new snapshot transaction.
      */
     ReadonlyTransaction(@NotNull final TransactionImpl origin) {
-        super(origin);
-        getEnvironment().getStatistics().getStatisticsItem(EnvironmentStatistics.READONLY_TRANSACTIONS).incTotal();
+        super(origin.getEnvironment(), origin.getCreatingThread(), false);
+        beginHook = null;
+        setMetaTree(origin.getMetaTree());
+        final EnvironmentImpl env = getEnvironment();
+        env.acquireTransaction(false, true);
+        env.registerTransaction(this);
+        env.getStatistics().getStatisticsItem(EnvironmentStatistics.READONLY_TRANSACTIONS).incTotal();
     }
 
     @Override
@@ -42,27 +60,38 @@ class ReadonlyTransaction extends TransactionImpl {
     }
 
     @Override
+    public void setCommitHook(@Nullable final Runnable hook) {
+        throw new ReadonlyTransactionException();
+    }
+
+    @Override
     void storeRemoved(@NotNull final StoreImpl store) {
         throw new ReadonlyTransactionException();
     }
 
     @Override
-    void storeCreated(@NotNull final StoreImpl store) {
-        throw new ReadonlyTransactionException();
-    }
-
-    @NotNull
-    @Override
-    ITreeMutable getMutableTree(@NotNull final StoreImpl store) {
-        throw new ReadonlyTransactionException();
-    }
-
-    @Override
     public boolean isIdempotent() {
-        if (!super.isIdempotent()) {
-            throw new IllegalStateException("ReadonlyTransaction should be idempotent");
-        }
         return true;
+    }
+
+    @Override
+    public void abort() {
+        getEnvironment().finishTransaction(this);
+    }
+
+    @Override
+    public boolean commit() {
+        throw new ReadonlyTransactionException();
+    }
+
+    @Override
+    public boolean flush() {
+        throw new ReadonlyTransactionException();
+    }
+
+    @Override
+    public void revert() {
+        throw new ReadonlyTransactionException();
     }
 
     @Override
@@ -70,8 +99,9 @@ class ReadonlyTransaction extends TransactionImpl {
         return true;
     }
 
+    @Nullable
     @Override
-    public boolean isExclusive() {
-        return false;
+    Runnable getBeginHook() {
+        return beginHook;
     }
 }

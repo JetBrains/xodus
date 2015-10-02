@@ -30,11 +30,11 @@ final class CursorImpl implements Cursor {
     @NotNull
     private final StoreImpl store;
     @NotNull
-    private final TransactionImpl txn;
+    private final TransactionBase txn;
     private ITreeCursor treeCursor;
     private volatile boolean isClosed;
 
-    CursorImpl(@NotNull final StoreImpl store, @NotNull final TransactionImpl txn) {
+    CursorImpl(@NotNull final StoreImpl store, @NotNull final TransactionBase txn) {
         this.store = store;
         this.txn = txn;
         treeCursor = null;
@@ -144,6 +144,8 @@ final class CursorImpl implements Cursor {
 
     @Override
     public boolean deleteCurrent() {
+        final TransactionImpl txn = EnvironmentImpl.throwIfReadonly(this.txn,
+                "Can't delete a key/value pair of cursor in read-only transaction");
         if (treeCursor == null) {
             treeCursor = txn.getMutableTree(store).openCursor();
         } else {

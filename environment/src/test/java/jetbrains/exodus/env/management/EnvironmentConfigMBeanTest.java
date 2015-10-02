@@ -19,7 +19,7 @@ import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.env.EnvironmentTestsBase;
 import jetbrains.exodus.env.ReadonlyTransactionException;
 import jetbrains.exodus.env.StoreConfig;
-import jetbrains.exodus.env.TransactionImpl;
+import jetbrains.exodus.env.Transaction;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -63,17 +63,20 @@ public class EnvironmentConfigMBeanTest extends EnvironmentTestsBase {
     @Test
     public void readOnly_XD_444() throws Exception {
         beanIsAccessible();
-        final TransactionImpl txn = env.beginTransaction();
-        env.openStore("New Store", StoreConfig.WITHOUT_DUPLICATES, txn);
-        Assert.assertFalse(txn.isIdempotent());
-        platformMBeanServer.setAttribute(envConfigName, new Attribute(READ_ONLY_ATTR, true));
-        TestUtil.runWithExpectedException(new Runnable() {
-            @Override
-            public void run() {
-                txn.flush();
-            }
-        }, ReadonlyTransactionException.class);
-        txn.abort();
+        final Transaction txn = env.beginTransaction();
+        try {
+            env.openStore("New Store", StoreConfig.WITHOUT_DUPLICATES, txn);
+            Assert.assertFalse(txn.isIdempotent());
+            platformMBeanServer.setAttribute(envConfigName, new Attribute(READ_ONLY_ATTR, true));
+            TestUtil.runWithExpectedException(new Runnable() {
+                @Override
+                public void run() {
+                    txn.flush();
+                }
+            }, ReadonlyTransactionException.class);
+        } finally {
+            txn.abort();
+        }
     }
 
     @Test

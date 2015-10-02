@@ -17,6 +17,7 @@ package jetbrains.exodus.env.management;
 
 import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.env.EnvironmentImpl;
+import jetbrains.exodus.env.TransactionBase;
 import jetbrains.exodus.env.TransactionImpl;
 import jetbrains.exodus.management.MBeanBase;
 import org.jetbrains.annotations.NotNull;
@@ -116,19 +117,20 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
         }
         if (isReadonly) {
             env.suspendGC();
-            final TransactionImpl txn = env.beginTransaction();
+            final TransactionBase txn = env.beginTransaction();
             try {
-                txn.setCommitHook(new Runnable() {
-                    @Override
-                    public void run() {
-                        config.setEnvIsReadonly(true);
-                    }
-                });
-                txn.forceFlush();
+                if (!txn.isReadonly()) {
+                    txn.setCommitHook(new Runnable() {
+                        @Override
+                        public void run() {
+                            config.setEnvIsReadonly(true);
+                        }
+                    });
+                    ((TransactionImpl) txn).forceFlush();
+                }
             } finally {
                 txn.abort();
             }
-
         } else {
             env.resumeGC();
             config.setEnvIsReadonly(false);

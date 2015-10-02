@@ -49,7 +49,7 @@ final class StuckTransactionMonitor extends Job {
                     env.forEachActiveTransaction(new TransactionalExecutable() {
                         @Override
                         public void execute(@NotNull final Transaction txn) {
-                            final TransactionImpl transaction = (TransactionImpl) txn;
+                            final TransactionBase transaction = (TransactionBase) txn;
                             final long created = transaction.getStartTime();
                             if (created < creationTimeBound) {
                                 final Thread creatingThread = transaction.getCreatingThread();

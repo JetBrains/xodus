@@ -301,7 +301,7 @@ public class Reflect {
                                 ++storeSize;
                             }
                         }
-                        final ITree tree = ((TransactionImpl) txn).getTree(store);
+                        final ITree tree = ((TransactionBase) txn).getTree(store);
                         fetchUsedSpace(tree.addressIterator(), usedSpace);
                         if (tree.getSize() != storeSize) {
                             logger.error("Stored size (" + tree.getSize() + ") isn't equal to actual size (" + storeSize + ')');

@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ContextualEnvironmentImpl extends EnvironmentImpl implements ContextualEnvironment {
 
-    private final Map<Thread, Deque<TransactionImpl>> threadTxns = new ConcurrentHashMap<>(4, 0.75f, 4);
+    private final Map<Thread, Deque<TransactionBase>> threadTxns = new ConcurrentHashMap<>(4, 0.75f, 4);
 
     ContextualEnvironmentImpl(@NotNull Log log, @NotNull EnvironmentConfig ec) {
         super(log, ec);
@@ -37,9 +37,9 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
 
     @Override
     @Nullable
-    public TransactionImpl getCurrentTransaction() {
+    public TransactionBase getCurrentTransaction() {
         final Thread thread = Thread.currentThread();
-        final Deque<TransactionImpl> stack = threadTxns.get(thread);
+        final Deque<TransactionBase> stack = threadTxns.get(thread);
         return stack == null ? null : stack.peek();
     }
 
@@ -103,23 +103,23 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
     @NotNull
     @Override
     public ContextualStoreImpl openStore(@NotNull final String name, @NotNull final StoreConfig config) {
-        final TransactionImpl txn = beginTransaction();
-        try {
-            return openStore(name, config, txn);
-        } finally {
-            txn.commit();
-        }
+        return super.computeInTransaction(new TransactionalComputable<ContextualStoreImpl>() {
+            @Override
+            public ContextualStoreImpl compute(@NotNull final Transaction txn) {
+                return openStore(name, config, txn);
+            }
+        });
     }
 
     @Override
     @Nullable
     public ContextualStoreImpl openStore(@NotNull final String name, @NotNull final StoreConfig config, final boolean creationRequired) {
-        final TransactionImpl txn = beginTransaction();
-        try {
-            return openStore(name, config, txn, creationRequired);
-        } finally {
-            txn.commit();
-        }
+        return super.computeInTransaction(new TransactionalComputable<ContextualStoreImpl>() {
+            @Override
+            public ContextualStoreImpl compute(@NotNull final Transaction txn) {
+                return openStore(name, config, txn, creationRequired);
+            }
+        });
     }
 
     @NotNull
@@ -141,8 +141,8 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
 
     @NotNull
     @Override
-    protected TransactionImpl beginTransaction(Runnable beginHook, boolean exclusive, boolean cloneMeta) {
-        final TransactionImpl result = super.beginTransaction(beginHook, exclusive, cloneMeta);
+    protected TransactionBase beginTransaction(Runnable beginHook, boolean exclusive, boolean cloneMeta) {
+        final TransactionBase result = super.beginTransaction(beginHook, exclusive, cloneMeta);
         setCurrentTransaction(result);
         return result;
     }
@@ -154,18 +154,18 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
 
     @NotNull
     @Override
-    public TransactionImpl beginReadonlyTransaction(final Runnable beginHook) {
-        final TransactionImpl txn = super.beginReadonlyTransaction(beginHook);
+    public TransactionBase beginReadonlyTransaction(final Runnable beginHook) {
+        final TransactionBase txn = super.beginReadonlyTransaction(beginHook);
         setCurrentTransaction(txn);
         return txn;
     }
 
-    private void setCurrentTransaction(@NotNull final TransactionImpl result) {
+    private void setCurrentTransaction(@NotNull final TransactionBase result) {
         final Thread thread = result.getCreatingThread();
         if (thread == null) {
             throw new NullPointerException("Creating thread should be set for transaction");
         }
-        Deque<TransactionImpl> stack = threadTxns.get(thread);
+        Deque<TransactionBase> stack = threadTxns.get(thread);
         if (stack == null) {
             stack = new ArrayDeque<>(4);
             threadTxns.put(thread, stack);
@@ -174,7 +174,7 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
     }
 
     @Override
-    protected void finishTransaction(@NotNull TransactionImpl txn) {
+    protected void finishTransaction(@NotNull final TransactionBase txn) {
         final Thread thread = txn.getCreatingThread();
         if (thread == null) {
             throw new NullPointerException("Creating thread should be set for transaction");
@@ -183,7 +183,7 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
         if (!Thread.currentThread().equals(thread)) {
             throw new ExodusException("Can't finish transaction in a thread different from the one which it was created in");
         }
-        final Deque<TransactionImpl> stack = threadTxns.get(thread);
+        final Deque<TransactionBase> stack = threadTxns.get(thread);
         if (stack == null) {
             throw new ExodusException("Transaction was already finished");
         }
