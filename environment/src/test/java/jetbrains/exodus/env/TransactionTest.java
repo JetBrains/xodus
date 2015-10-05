@@ -19,6 +19,7 @@ import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.TestUtil;
+import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.core.execution.LatchJob;
 import jetbrains.exodus.log.LogConfig;
@@ -37,7 +38,8 @@ public class TransactionTest extends EnvironmentTestsBase {
 
     @Override
     protected void createEnvironment() {
-        env = name.getMethodName().contains("XD_471") ?
+        final String methodName = name.getMethodName();
+        env = methodName.contains("XD_471") || methodName.contains("testAfter") ?
                 newEnvironmentInstance(LogConfig.create(reader, writer)) :
                 newContextualEnvironmentInstance(LogConfig.create(reader, writer));
     }
@@ -376,5 +378,94 @@ public class TransactionTest extends EnvironmentTestsBase {
         final Transaction tx = txn[0];
         Assert.assertNotNull(tx);
         tx.abort();
+    }
+
+    @Test(expected = ExodusException.class)
+    public void testAfterCommit() {
+        final Environment env = getEnvironment();
+        final Transaction txn = env.beginTransaction();
+        env.openStore("new store", StoreConfig.WITHOUT_DUPLICATES, txn).put(txn, IntegerBinding.intToEntry(0), IntegerBinding.intToEntry(0));
+        txn.commit();
+        env.openStore("new store1", StoreConfig.WITHOUT_DUPLICATES, txn);
+        Assert.fail();
+    }
+
+    @Test(expected = ExodusException.class)
+    public void testAfterCommit2() {
+        final Environment env = getEnvironment();
+        final Transaction txn = env.beginTransaction();
+        final Store store = env.openStore("new store", StoreConfig.WITHOUT_DUPLICATES, txn);
+        store.put(txn, IntegerBinding.intToEntry(0), IntegerBinding.intToEntry(0));
+        txn.commit();
+        store.delete(txn, IntegerBinding.intToEntry(0));
+        Assert.fail();
+    }
+
+    @Test(expected = ExodusException.class)
+    public void testAfterCommit3() {
+        final Environment env = getEnvironment();
+        final Transaction txn = env.beginTransaction();
+        final Store store = env.openStore("new store", StoreConfig.WITHOUT_DUPLICATES, txn);
+        store.put(txn, IntegerBinding.intToEntry(0), IntegerBinding.intToEntry(0));
+        txn.commit();
+        txn.commit();
+        Assert.fail();
+    }
+
+    @Test(expected = ExodusException.class)
+    public void testAfterCommit4() {
+        final Environment env = getEnvironment();
+        final Transaction txn = env.beginTransaction();
+        final Store store = env.openStore("new store", StoreConfig.WITHOUT_DUPLICATES, txn);
+        store.put(txn, IntegerBinding.intToEntry(0), IntegerBinding.intToEntry(0));
+        txn.commit();
+        txn.abort();
+        Assert.fail();
+    }
+
+    @Test(expected = ExodusException.class)
+    public void testAfterAbort() {
+        final Environment env = getEnvironment();
+        final Transaction txn = env.beginTransaction();
+        env.openStore("new store", StoreConfig.WITHOUT_DUPLICATES, txn).put(txn, IntegerBinding.intToEntry(0), IntegerBinding.intToEntry(0));
+        txn.abort();
+        env.openStore("new store", StoreConfig.WITHOUT_DUPLICATES, txn);
+        Assert.fail();
+    }
+
+    @Test(expected = ExodusException.class)
+    public void testAfterAbort2() {
+        final Environment env = getEnvironment();
+        final Transaction txn = env.beginTransaction();
+        final Store store = env.openStore("new store", StoreConfig.WITHOUT_DUPLICATES, txn);
+        txn.flush();
+        store.put(txn, IntegerBinding.intToEntry(0), IntegerBinding.intToEntry(0));
+        txn.abort();
+        store.put(txn, IntegerBinding.intToEntry(0), IntegerBinding.intToEntry(0));
+        Assert.fail();
+    }
+
+    @Test(expected = ExodusException.class)
+    public void testAfterAbort3() {
+        final Environment env = getEnvironment();
+        final Transaction txn = env.beginTransaction();
+        final Store store = env.openStore("new store", StoreConfig.WITHOUT_DUPLICATES, txn);
+        txn.flush();
+        store.put(txn, IntegerBinding.intToEntry(0), IntegerBinding.intToEntry(0));
+        txn.abort();
+        txn.abort();
+        Assert.fail();
+    }
+
+    @Test(expected = ExodusException.class)
+    public void testAfterAbort4() {
+        final Environment env = getEnvironment();
+        final Transaction txn = env.beginTransaction();
+        final Store store = env.openStore("new store", StoreConfig.WITHOUT_DUPLICATES, txn);
+        txn.flush();
+        store.put(txn, IntegerBinding.intToEntry(0), IntegerBinding.intToEntry(0));
+        txn.abort();
+        txn.commit();
+        Assert.fail();
     }
 }
