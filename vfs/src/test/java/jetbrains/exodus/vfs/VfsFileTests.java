@@ -18,6 +18,8 @@ package jetbrains.exodus.vfs;
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.env.Transaction;
+import jetbrains.exodus.env.TransactionalExecutable;
+import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -47,31 +49,39 @@ public class VfsFileTests extends VfsTestsBase {
 
     @Test
     public void testCreateExistingFile() {
-        final Transaction txn = env.beginTransaction();
-        final File file0 = vfs.createFile(txn, "file0");
-        txn.commit();
-        Assert.assertEquals(0L, file0.getDescriptor());
-        TestUtil.runWithExpectedException(new Runnable() {
+        env.executeInTransaction(new TransactionalExecutable() {
             @Override
-            public void run() {
-                vfs.createFile(txn, "file0");
+            public void execute(@NotNull Transaction txn) {
+                final File file0 = vfs.createFile(txn, "file0");
+                txn.flush();
+                Assert.assertEquals(0L, file0.getDescriptor());
+                TestUtil.runWithExpectedException(new Runnable() {
+                    @Override
+                    public void run() {
+                        vfs.createFile(txn, "file0");
+                    }
+                }, FileExistsException.class);
             }
-        }, FileExistsException.class);
+        });
     }
 
     @Test
     public void testCreateExistingFile2() {
-        final Transaction txn = env.beginTransaction();
-        final File file0 = vfs.openFile(txn, "file0", true);
-        txn.commit();
-        Assert.assertNotNull(file0);
-        Assert.assertEquals(0L, file0.getDescriptor());
-        TestUtil.runWithExpectedException(new Runnable() {
+        env.executeInTransaction(new TransactionalExecutable() {
             @Override
-            public void run() {
-                vfs.createFile(txn, "file0");
+            public void execute(@NotNull Transaction txn) {
+                final File file0 = vfs.openFile(txn, "file0", true);
+                txn.flush();
+                Assert.assertNotNull(file0);
+                Assert.assertEquals(0L, file0.getDescriptor());
+                TestUtil.runWithExpectedException(new Runnable() {
+                    @Override
+                    public void run() {
+                        vfs.createFile(txn, "file0");
+                    }
+                }, FileExistsException.class);
             }
-        }, FileExistsException.class);
+        });
     }
 
     @Test
