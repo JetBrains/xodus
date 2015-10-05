@@ -73,17 +73,20 @@ public class TransactionImpl extends TransactionBase {
 
     @Override
     public void abort() {
+        checkIsFinished();
         doRevert();
         getEnvironment().finishTransaction(this);
     }
 
     @Override
     public boolean commit() {
+        checkIsFinished();
         return getEnvironment().commitTransaction(this, false);
     }
 
     @Override
     public boolean flush() {
+        checkIsFinished();
         final boolean result = getEnvironment().flushTransaction(this, false);
         if (result) {
             setStarted(System.currentTimeMillis());
@@ -95,6 +98,7 @@ public class TransactionImpl extends TransactionBase {
 
     @Override
     public void revert() {
+        checkIsFinished();
         if (isReadonly()) {
             throw new ExodusException("Attempt ot revert read-only transaction");
         }
@@ -120,6 +124,7 @@ public class TransactionImpl extends TransactionBase {
 
     @Override
     public Transaction getSnapshot() {
+        checkIsFinished();
         return new ReadonlyTransaction(this);
     }
 
@@ -134,11 +139,13 @@ public class TransactionImpl extends TransactionBase {
     }
 
     public boolean forceFlush() {
+        checkIsFinished();
         return getEnvironment().flushTransaction(this, true);
     }
 
     @NotNull
     public StoreImpl openStoreByStructureId(final int structureId) {
+        checkIsFinished();
         final EnvironmentImpl env = getEnvironment();
         final String storeName = getMetaTree().getStoreNameByStructureId(structureId, env);
         return storeName == null ?
@@ -149,6 +156,7 @@ public class TransactionImpl extends TransactionBase {
     @NotNull
     @Override
     public ITree getTree(@NotNull final StoreImpl store) {
+        checkIsFinished();
         final ITreeMutable result = mutableTrees.get(store.getStructureId());
         if (result == null) {
             return super.getTree(store);
@@ -159,11 +167,13 @@ public class TransactionImpl extends TransactionBase {
     @Nullable
     @Override
     TreeMetaInfo getTreeMetaInfo(@NotNull final String name) {
+        checkIsFinished();
         final TreeMetaInfo result = createdStores.get(name);
         return result == null ? super.getTreeMetaInfo(name) : result;
     }
 
     void storeRemoved(@NotNull final StoreImpl store) {
+        checkIsFinished();
         super.storeRemoved(store);
         final int structureId = store.getStructureId();
         final ITree tree = store.openImmutableTree(getMetaTree());
@@ -228,6 +238,7 @@ public class TransactionImpl extends TransactionBase {
 
     @NotNull
     ITreeMutable getMutableTree(@NotNull final StoreImpl store) {
+        checkIsFinished();
         final Thread creatingThread = getCreatingThread();
         if (creatingThread != null && !creatingThread.equals(Thread.currentThread())) {
             throw new ExodusException("Can't create mutable tree in a thread different from the one which transaction was created in");

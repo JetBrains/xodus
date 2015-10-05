@@ -485,6 +485,7 @@ public class EnvironmentImpl implements Environment {
     protected void finishTransaction(@NotNull final TransactionBase txn) {
         releaseTransaction(txn.isExclusive(), txn.isReadonly());
         txns.remove(txn);
+        txn.setIsFinished();
         runTransactionSafeTasks();
     }
 

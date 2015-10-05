@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.env;
 
+import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.TreeMetaInfo;
@@ -40,6 +41,7 @@ public abstract class TransactionBase implements Transaction {
     private final long created; // created is the ticks when the txn was actually created (constructed)
     private long started;       // started is the ticks when the txn held its current snapshot
     private boolean isExclusive;
+    private boolean isFinished;
 
     public TransactionBase(@NotNull final EnvironmentImpl env,
                            @Nullable final Thread creatingThread,
@@ -51,6 +53,7 @@ public abstract class TransactionBase implements Transaction {
         trace = env.transactionTimeout() > 0 ? new Throwable() : null;
         created = System.currentTimeMillis();
         started = created;
+        isFinished = false;
     }
 
     @Override
@@ -76,6 +79,7 @@ public abstract class TransactionBase implements Transaction {
 
     @NotNull
     public ITree getTree(@NotNull final StoreImpl store) {
+        checkIsFinished();
         final int structureId = store.getStructureId();
         ITree result = immutableTrees.get(structureId);
         if (result == null) {
@@ -96,10 +100,12 @@ public abstract class TransactionBase implements Transaction {
     }
 
     void setMetaTree(@NotNull final MetaTree metaTree) {
+        checkIsFinished();
         this.metaTree = metaTree;
     }
 
     long getRoot() {
+        checkIsFinished();
         return getMetaTree().root;
     }
 
@@ -122,15 +128,18 @@ public abstract class TransactionBase implements Transaction {
 
     @Nullable
     TreeMetaInfo getTreeMetaInfo(@NotNull final String name) {
+        checkIsFinished();
         return metaTree.getMetaInfo(name, env);
     }
 
     void storeRemoved(@NotNull final StoreImpl store) {
+        checkIsFinished();
         immutableTrees.remove(store.getStructureId());
     }
 
     @NotNull
     List<String> getAllStoreNames() {
+        checkIsFinished();
         return getMetaTree().getAllStoreNames();
     }
 
@@ -143,5 +152,15 @@ public abstract class TransactionBase implements Transaction {
 
     protected void setExclusive(final boolean isExclusive) {
         this.isExclusive = isExclusive;
+    }
+
+    protected void checkIsFinished() {
+        if (isFinished) {
+            throw new ExodusException("Transaction is already finished");
+        }
+    }
+
+    protected void setIsFinished() {
+        isFinished = true;
     }
 }

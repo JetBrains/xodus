@@ -44,7 +44,7 @@ class ReadonlyTransaction extends TransactionBase {
     /**
      * Constructor for creating new snapshot transaction.
      */
-    ReadonlyTransaction(@NotNull final TransactionImpl origin) {
+    ReadonlyTransaction(@NotNull final TransactionBase origin) {
         super(origin.getEnvironment(), origin.getCreatingThread(), false);
         beginHook = null;
         setMetaTree(origin.getMetaTree());
@@ -56,7 +56,8 @@ class ReadonlyTransaction extends TransactionBase {
 
     @Override
     public Transaction getSnapshot() {
-        return this;
+        checkIsFinished();
+        return new ReadonlyTransaction(this);
     }
 
     @Override
@@ -76,6 +77,7 @@ class ReadonlyTransaction extends TransactionBase {
 
     @Override
     public void abort() {
+        checkIsFinished();
         getEnvironment().finishTransaction(this);
     }
 
