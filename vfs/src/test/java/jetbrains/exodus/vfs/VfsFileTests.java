@@ -51,7 +51,7 @@ public class VfsFileTests extends VfsTestsBase {
     public void testCreateExistingFile() {
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
-            public void execute(@NotNull Transaction txn) {
+            public void execute(@NotNull final Transaction txn) {
                 final File file0 = vfs.createFile(txn, "file0");
                 txn.flush();
                 Assert.assertEquals(0L, file0.getDescriptor());
@@ -69,7 +69,7 @@ public class VfsFileTests extends VfsTestsBase {
     public void testCreateExistingFile2() {
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
-            public void execute(@NotNull Transaction txn) {
+            public void execute(@NotNull final Transaction txn) {
                 final File file0 = vfs.openFile(txn, "file0", true);
                 txn.flush();
                 Assert.assertNotNull(file0);
