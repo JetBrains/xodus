@@ -63,28 +63,30 @@ public class GarbageCollectorInterleavingTest extends EnvironmentTestsBase {
 
     private void fill(@NotNull final String table) {
         final ByteIterable val0 = StringBinding.stringToEntry("val0");
-
-        final Transaction txn = env.beginTransaction();
-        final StoreImpl store = env.openStore(table, getStoreConfig(), txn);
-        for (int i = 0; i < getRecordsNumber(); ++i) {
-            final ArrayByteIterable key = StringBinding.stringToEntry("key " + i);
-            store.put(txn, key, val0);
-        }
-        txn.commit();
-
-        ((TransactionBase) txn).getTree(store);
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                final StoreImpl store = env.openStore(table, getStoreConfig(), txn);
+                for (int i = 0; i < getRecordsNumber(); ++i) {
+                    final ArrayByteIterable key = StringBinding.stringToEntry("key " + i);
+                    store.put(txn, key, val0);
+                }
+            }
+        });
     }
 
     private void check(@NotNull final String table) {
         final ByteIterable val0 = StringBinding.stringToEntry("val0");
-
-        final Transaction txn = env.beginTransaction();
-        final Store store = env.openStore(table, getStoreConfig(), txn);
-        for (int i = 0; i < getRecordsNumber(); ++i) {
-            final ArrayByteIterable key = StringBinding.stringToEntry("key " + i);
-            Assert.assertTrue(store.exists(txn, key, val0));
-        }
-        txn.abort();
+        env.executeInReadonlyTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                final Store store = env.openStore(table, getStoreConfig(), txn);
+                for (int i = 0; i < getRecordsNumber(); ++i) {
+                    final ArrayByteIterable key = StringBinding.stringToEntry("key " + i);
+                    Assert.assertTrue(store.exists(txn, key, val0));
+                }
+            }
+        });
     }
 
     protected StoreConfig getStoreConfig() {
