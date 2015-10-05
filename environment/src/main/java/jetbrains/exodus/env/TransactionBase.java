@@ -105,7 +105,6 @@ public abstract class TransactionBase implements Transaction {
     }
 
     long getRoot() {
-        checkIsFinished();
         return getMetaTree().root;
     }
 
