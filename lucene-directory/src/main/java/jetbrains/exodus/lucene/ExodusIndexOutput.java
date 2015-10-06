@@ -27,21 +27,25 @@ import java.io.OutputStream;
 public class ExodusIndexOutput extends IndexOutput {
 
     @NotNull
-    private final VirtualFileSystem vfs;
-    @NotNull
-    private final File file;
+    private final ExodusDirectory directory;
     @NotNull
     private final Transaction txn;
+    @NotNull
+    private final File file;
     @NotNull
     private OutputStream output;
     private long currentPosition;
 
-    public ExodusIndexOutput(@NotNull final VirtualFileSystem vfs,
-                             @NotNull final Transaction txn,
-                             @NotNull final File file) {
-        this.vfs = vfs;
+    public ExodusIndexOutput(@NotNull final ExodusDirectory directory,
+                             @NotNull final String name) {
+        this.directory = directory;
+        this.txn = directory.getEnvironment().getAndCheckCurrentTransaction();
+        final VirtualFileSystem vfs = directory.getVfs();
+        final File file = vfs.openFile(txn, name, true);
+        if (file == null) {
+            throw new NullPointerException("Can't be");
+        }
         this.file = file;
-        this.txn = txn;
         output = vfs.writeFile(txn, file);
         currentPosition = 0;
     }
@@ -65,14 +69,14 @@ public class ExodusIndexOutput extends IndexOutput {
     public void seek(long pos) throws IOException {
         if (pos != currentPosition) {
             output.close();
-            output = vfs.writeFile(txn, file, pos);
+            output = directory.getVfs().writeFile(txn, file, pos);
             currentPosition = pos;
         }
     }
 
     @Override
     public long length() throws IOException {
-        return vfs.getFileLength(txn, file);
+        return directory.getVfs().getFileLength(txn, file);
     }
 
     @Override

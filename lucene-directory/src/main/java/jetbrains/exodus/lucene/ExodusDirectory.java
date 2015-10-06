@@ -18,14 +18,10 @@ package jetbrains.exodus.lucene;
 import jetbrains.exodus.env.ContextualEnvironment;
 import jetbrains.exodus.env.StoreConfig;
 import jetbrains.exodus.env.Transaction;
-import jetbrains.exodus.vfs.ClusteringStrategy;
-import jetbrains.exodus.vfs.File;
-import jetbrains.exodus.vfs.VfsConfig;
-import jetbrains.exodus.vfs.VirtualFileSystem;
+import jetbrains.exodus.vfs.*;
 import org.apache.lucene.store.*;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 
@@ -52,6 +48,14 @@ public class ExodusDirectory extends Directory {
         this.env = env;
         vfs = new VirtualFileSystem(env, createDefaultVfsConfig(), contentsStoreConfig);
         setLockFactory(lockFactory);
+    }
+
+    public ContextualEnvironment getEnvironment() {
+        return env;
+    }
+
+    public VirtualFileSystem getVfs() {
+        return vfs;
     }
 
     @Override
@@ -92,14 +96,17 @@ public class ExodusDirectory extends Directory {
 
     @Override
     public IndexOutput createOutput(String name) throws IOException {
-        final Transaction txn = env.getAndCheckCurrentTransaction();
-        //noinspection ConstantConditions
-        return new ExodusIndexOutput(vfs, txn, vfs.openFile(txn, name, true));
+        return new ExodusIndexOutput(this, name);
     }
 
     @Override
     public IndexInput openInput(String name) throws IOException {
-        return new ExodusIndexInput(vfs, env.getAndCheckCurrentTransaction(), openExistingFile(name, true));
+        try {
+            return new ExodusIndexInput(this, name);
+        } catch (FileNotFoundException e) {
+            // if index doesn't exist Lucene awaits an IOException
+            throw new java.io.FileNotFoundException(name);
+        }
     }
 
     @Override
@@ -107,7 +114,7 @@ public class ExodusDirectory extends Directory {
         vfs.shutdown();
     }
 
-    private File openExistingFile(@NotNull final String name, final boolean throwFileNotFound) throws FileNotFoundException {
+    File openExistingFile(@NotNull final String name, final boolean throwFileNotFound) {
         final File result = vfs.openFile(env.getAndCheckCurrentTransaction(), name, false);
         if (throwFileNotFound && result == null) {
             throw new FileNotFoundException(name);

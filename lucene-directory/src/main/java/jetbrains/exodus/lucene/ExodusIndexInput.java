@@ -17,35 +17,42 @@ package jetbrains.exodus.lucene;
 
 import jetbrains.exodus.env.Transaction;
 import jetbrains.exodus.vfs.File;
+import jetbrains.exodus.vfs.VfsException;
 import jetbrains.exodus.vfs.VfsInputStream;
-import jetbrains.exodus.vfs.VirtualFileSystem;
 import org.apache.lucene.store.IndexInput;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 
-@SuppressWarnings("CloneableClassInSecureContext")
 public class ExodusIndexInput extends IndexInput {
 
     @NotNull
-    private final VirtualFileSystem vfs;
-    @NotNull
-    private final File file;
+    private final ExodusDirectory directory;
     @NotNull
     private final Transaction txn;
+    @NotNull
+    private final File file;
     @NotNull
     private VfsInputStream input;
     private long currentPosition;
 
-    public ExodusIndexInput(@NotNull final VirtualFileSystem vfs,
-                            @NotNull final Transaction txn,
-                            @NotNull final File file) {
-        super("ExodusDirectory IndexInput for " + file.getPath());
-        this.vfs = vfs;
-        this.file = file;
-        this.txn = txn;
-        input = vfs.readFile(txn, file);
-        currentPosition = 0;
+    public ExodusIndexInput(@NotNull final ExodusDirectory directory,
+                            @NotNull final String name) {
+        this(directory, name, 0L);
+    }
+
+    private ExodusIndexInput(@NotNull final ExodusDirectory directory,
+                             @NotNull final String name,
+                             final long currentPosition) {
+        super("ExodusDirectory IndexInput for " + name);
+        this.directory = directory;
+        txn = directory.getEnvironment().getAndCheckCurrentTransaction();
+        this.file = directory.openExistingFile(name, true);
+        input = directory.getVfs().readFile(txn, file);
+        if (input.skip(currentPosition) < currentPosition) {
+            throw new VfsException("Can't set current position");
+        }
+        this.currentPosition = currentPosition;
     }
 
     @Override
@@ -69,14 +76,14 @@ public class ExodusIndexInput extends IndexInput {
                 }
             }
             input.close();
-            input = vfs.readFile(txn, file, pos);
+            input = directory.getVfs().readFile(txn, file, pos);
             currentPosition = pos;
         }
     }
 
     @Override
     public long length() {
-        return vfs.getFileLength(txn, file);
+        return directory.getVfs().getFileLength(txn, file);
     }
 
     @Override
@@ -90,11 +97,9 @@ public class ExodusIndexInput extends IndexInput {
         currentPosition += input.read(b, offset, len);
     }
 
-    @SuppressWarnings("CloneCallsConstructors")
+    @SuppressWarnings("CloneDoesntCallSuperClone")
     @Override
     public final Object clone() {
-        final ExodusIndexInput clone = (ExodusIndexInput) super.clone();
-        clone.input = vfs.readFile(txn, file, currentPosition);
-        return clone;
+        return new ExodusIndexInput(directory, file.getPath(), currentPosition);
     }
 }
