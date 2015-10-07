@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.lucene;
 
-import jetbrains.exodus.env.Transaction;
 import jetbrains.exodus.vfs.File;
 import jetbrains.exodus.vfs.VirtualFileSystem;
 import org.apache.lucene.store.IndexOutput;
@@ -29,8 +28,6 @@ public class ExodusIndexOutput extends IndexOutput {
     @NotNull
     private final ExodusDirectory directory;
     @NotNull
-    private final Transaction txn;
-    @NotNull
     private final File file;
     @NotNull
     private OutputStream output;
@@ -39,14 +36,13 @@ public class ExodusIndexOutput extends IndexOutput {
     public ExodusIndexOutput(@NotNull final ExodusDirectory directory,
                              @NotNull final String name) {
         this.directory = directory;
-        this.txn = directory.getEnvironment().getAndCheckCurrentTransaction();
         final VirtualFileSystem vfs = directory.getVfs();
-        final File file = vfs.openFile(txn, name, true);
+        final File file = vfs.openFile(directory.getEnvironment().getAndCheckCurrentTransaction(), name, true);
         if (file == null) {
             throw new NullPointerException("Can't be");
         }
         this.file = file;
-        output = vfs.writeFile(txn, file);
+        output = vfs.writeFile(directory.getEnvironment().getAndCheckCurrentTransaction(), file);
         currentPosition = 0;
     }
 
@@ -69,14 +65,14 @@ public class ExodusIndexOutput extends IndexOutput {
     public void seek(long pos) throws IOException {
         if (pos != currentPosition) {
             output.close();
-            output = directory.getVfs().writeFile(txn, file, pos);
+            output = directory.getVfs().writeFile(directory.getEnvironment().getAndCheckCurrentTransaction(), file, pos);
             currentPosition = pos;
         }
     }
 
     @Override
     public long length() throws IOException {
-        return directory.getVfs().getFileLength(txn, file);
+        return directory.getVfs().getFileLength(directory.getEnvironment().getAndCheckCurrentTransaction(), file);
     }
 
     @Override

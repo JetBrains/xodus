@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.lucene;
 
-import jetbrains.exodus.env.Transaction;
 import jetbrains.exodus.vfs.File;
 import jetbrains.exodus.vfs.VfsException;
 import jetbrains.exodus.vfs.VfsInputStream;
@@ -28,8 +27,6 @@ public class ExodusIndexInput extends IndexInput {
 
     @NotNull
     private final ExodusDirectory directory;
-    @NotNull
-    private final Transaction txn;
     @NotNull
     private final File file;
     @NotNull
@@ -46,9 +43,8 @@ public class ExodusIndexInput extends IndexInput {
                              final long currentPosition) {
         super("ExodusDirectory IndexInput for " + name);
         this.directory = directory;
-        txn = directory.getEnvironment().getAndCheckCurrentTransaction();
         this.file = directory.openExistingFile(name, true);
-        input = directory.getVfs().readFile(txn, file);
+        input = directory.getVfs().readFile(directory.getEnvironment().getAndCheckCurrentTransaction(), file);
         if (input.skip(currentPosition) < currentPosition) {
             throw new VfsException("Can't set current position");
         }
@@ -76,14 +72,14 @@ public class ExodusIndexInput extends IndexInput {
                 }
             }
             input.close();
-            input = directory.getVfs().readFile(txn, file, pos);
+            input = directory.getVfs().readFile(directory.getEnvironment().getAndCheckCurrentTransaction(), file, pos);
             currentPosition = pos;
         }
     }
 
     @Override
     public long length() {
-        return directory.getVfs().getFileLength(txn, file);
+        return directory.getVfs().getFileLength(directory.getEnvironment().getAndCheckCurrentTransaction(), file);
     }
 
     @Override
