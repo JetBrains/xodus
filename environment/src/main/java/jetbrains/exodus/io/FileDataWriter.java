@@ -66,6 +66,11 @@ public class FileDataWriter extends AbstractDataWriter {
     }
 
     @Override
+    public String lockInfo() {
+        return lockingManager.lockInfo();
+    }
+
+    @Override
     protected void syncImpl() {
         final RandomAccessFile file = this.file;
         if (file != null) {

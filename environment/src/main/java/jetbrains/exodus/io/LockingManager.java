@@ -20,14 +20,13 @@ import jetbrains.exodus.OutOfDiskSpaceException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
+import java.util.Scanner;
 
 /**
  * Holds reference to lock files. Provides proper locking Exodus lock file & releasing.
@@ -42,10 +41,6 @@ public class LockingManager {
     private RandomAccessFile lockFile;
     @Nullable
     private FileLock lock;
-    @Nullable
-    private FileChannel channel;
-    @Nullable
-    private File lockFileHandle;
 
     LockingManager(@NotNull File dir) {
         this.dir = dir;
@@ -81,28 +76,30 @@ public class LockingManager {
     }
 
     public long getUsableSpace() {
-        return new File(dir, LOCK_FILE_NAME).getUsableSpace();
+        return getLockFile().getUsableSpace();
     }
 
     private boolean lock() {
         if (lockFile != null) return false; // already locked!
         try {
-            final File lockFileHandle = new File(dir, LOCK_FILE_NAME);
+            final File lockFileHandle = getLockFile();
             final RandomAccessFile lockFile = new RandomAccessFile(lockFileHandle, "rw");
-            this.lockFileHandle = lockFileHandle;
             this.lockFile = lockFile;
             final FileChannel channel = lockFile.getChannel();
-            this.channel = channel;
             lock = channel.tryLock();
             if (lock != null) {
                 lockFile.setLength(0);
-                RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
+                lockFile.writeBytes("Private property of Exodus:");
+                final RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
                 if (bean != null) {
                     // Got runtime system bean (try to get PID)
                     // Result of bean.getName() is unknown
-                    lockFile.writeUTF(bean.getName() + ": ");
+                    lockFile.writeBytes(' ' + bean.getName());
                 }
-                lockFile.writeUTF("private property of Exodus");
+                lockFile.writeBytes("\n\n");
+                for (final StackTraceElement element : new Throwable().getStackTrace()) {
+                    lockFile.writeBytes(element.toString() + '\n');
+                }
                 channel.force(false);
             }
         } catch (IOException e) {
@@ -129,6 +126,21 @@ public class LockingManager {
         return lockFile != null;
     }
 
+    public String lockInfo() {
+        try (InputStream lockStream = new FileInputStream(getLockFile())) {
+            // "stupid scanner trick" for reading entire file in a string (https://weblogs.java.net/blog/pat/archive/2004/10/stupid_scanner_1.html)
+            final Scanner scanner = new Scanner(lockStream).useDelimiter("\\A");
+            return scanner.hasNext() ? scanner.next() : null;
+        } catch (IOException e) {
+            throw new ExodusException("Failed to read contents of lock file " + LOCK_FILE_NAME, e);
+        }
+    }
+
+    @NotNull
+    private File getLockFile() {
+        return new File(dir, LOCK_FILE_NAME);
+    }
+
     private boolean throwFailedToLock(@NotNull final IOException e) {
         if (getUsableSpace() < 4096) {
             throw new OutOfDiskSpaceException(e);
@@ -143,13 +155,9 @@ public class LockingManager {
      */
     private void close() throws IOException {
         if (lock != null) lock.release();
-        if (channel != null) channel.close();
         if (lockFile != null) {
             lockFile.close();
             lockFile = null;
-        }
-        if (lockFileHandle != null) {
-            lockFileHandle = null;
         }
     }
 }

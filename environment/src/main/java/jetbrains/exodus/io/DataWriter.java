@@ -46,4 +46,11 @@ public interface DataWriter extends Closeable {
      * @return true if released successfully, false otherwise
      */
     boolean release();
+
+    /**
+     * For debug purposes, returns detailed information about current lock owner. Can be used if lock() failed.
+     *
+     * @return Human-readable information about lock owner.
+     */
+    String lockInfo();
 }

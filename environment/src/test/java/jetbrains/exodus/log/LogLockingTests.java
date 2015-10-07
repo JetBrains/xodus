@@ -16,6 +16,7 @@
 package jetbrains.exodus.log;
 
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.io.DataWriter;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -33,6 +34,14 @@ public class LogLockingTests extends LogTestsBase {
         Assert.assertFalse(canWrite(xdLockFile));
         closeLog();
         Assert.assertTrue(canWrite(xdLockFile));
+    }
+
+    @Test
+    public void testLockContents() throws IOException {
+        initLog(1);
+        final DataWriter writer = log.getConfig().getWriter();
+        closeLog();
+        Assert.assertTrue(writer.lockInfo().contains("org.junit."));
     }
 
     @Test

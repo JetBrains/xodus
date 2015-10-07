@@ -206,6 +206,11 @@ class BufferedDataWriter implements TransactionalDataWriter {
     }
 
     @Override
+    public String lockInfo() {
+        return child.lockInfo();
+    }
+
+    @Override
     public ArrayByteIterable getHighPage(final long alignedAddress) {
         MutablePage currentPage = this.currentPage;
         do {

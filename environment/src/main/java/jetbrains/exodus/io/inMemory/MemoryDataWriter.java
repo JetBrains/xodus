@@ -46,6 +46,11 @@ public class MemoryDataWriter extends AbstractDataWriter {
     }
 
     @Override
+    public String lockInfo() {
+        return null;
+    }
+
+    @Override
     protected void syncImpl() {
     }
 
