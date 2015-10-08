@@ -216,7 +216,7 @@ public class Reflect {
                     ++nullLoggables;
                 } else {
                     inc(dataLengths, loggable.getDataLength());
-                    inc(structureIds, (int) loggable.getStructureId());
+                    inc(structureIds, loggable.getStructureId());
                     inc(types, loggable.getType());
                 }
             }
