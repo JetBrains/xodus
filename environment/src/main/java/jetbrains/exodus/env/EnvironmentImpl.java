@@ -225,36 +225,12 @@ public class EnvironmentImpl implements Environment {
 
     @Override
     public void executeInTransaction(@NotNull final TransactionalExecutable executable) {
-        final Transaction txn = beginTransaction();
-        try {
-            while (true) {
-                executable.execute(txn);
-                // txn can be read-only if Environment is in read-only mode
-                if (txn.isReadonly() || txn.flush()) {
-                    break;
-                }
-                txn.revert();
-            }
-        } finally {
-            txn.abort();
-        }
+        executeInTransaction(executable, beginTransaction());
     }
 
     @Override
     public void executeInExclusiveTransaction(@NotNull final TransactionalExecutable executable) {
-        final Transaction txn = beginExclusiveTransaction();
-        try {
-            while (true) {
-                executable.execute(txn);
-                // txn can be read-only if Environment is in read-only mode
-                if (txn.isReadonly() || txn.flush()) {
-                    break;
-                }
-                txn.revert();
-            }
-        } finally {
-            txn.abort();
-        }
+        executeInTransaction(executable, beginExclusiveTransaction());
     }
 
     @Override
@@ -269,36 +245,12 @@ public class EnvironmentImpl implements Environment {
 
     @Override
     public <T> T computeInTransaction(@NotNull TransactionalComputable<T> computable) {
-        final Transaction txn = beginTransaction();
-        try {
-            while (true) {
-                final T result = computable.compute(txn);
-                // txn can be read-only if Environment is in read-only mode
-                if (txn.isReadonly() || txn.flush()) {
-                    return result;
-                }
-                txn.revert();
-            }
-        } finally {
-            txn.abort();
-        }
+        return computeInTransaction(computable, beginTransaction());
     }
 
     @Override
     public <T> T computeInExclusiveTransaction(@NotNull TransactionalComputable<T> computable) {
-        final Transaction txn = beginExclusiveTransaction();
-        try {
-            while (true) {
-                final T result = computable.compute(txn);
-                // txn can be read-only if Environment is in read-only mode
-                if (txn.isReadonly() || txn.flush()) {
-                    return result;
-                }
-                txn.revert();
-            }
-        } finally {
-            txn.abort();
-        }
+        return computeInTransaction(computable, beginExclusiveTransaction());
     }
 
     @Override
@@ -889,6 +841,38 @@ public class EnvironmentImpl implements Environment {
             } catch (IOException e) {
                 throw ExodusException.toExodusException(e);
             }
+        }
+    }
+
+    private static void executeInTransaction(@NotNull final TransactionalExecutable executable,
+                                             @NotNull final Transaction txn) {
+        try {
+            while (true) {
+                executable.execute(txn);
+                // txn can be read-only if Environment is in read-only mode
+                if (txn.isReadonly() || txn.flush()) {
+                    break;
+                }
+                txn.revert();
+            }
+        } finally {
+            txn.abort();
+        }
+    }
+
+    private static <T> T computeInTransaction(@NotNull final TransactionalComputable<T> computable,
+                                              @NotNull final Transaction txn) {
+        try {
+            while (true) {
+                final T result = computable.compute(txn);
+                // txn can be read-only if Environment is in read-only mode
+                if (txn.isReadonly() || txn.flush()) {
+                    return result;
+                }
+                txn.revert();
+            }
+        } finally {
+            txn.abort();
         }
     }
 
