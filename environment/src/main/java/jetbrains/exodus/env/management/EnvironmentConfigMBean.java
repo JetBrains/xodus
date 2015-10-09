@@ -109,5 +109,9 @@ public interface EnvironmentConfigMBean {
 
     boolean getGcUtilizationFromScratch();
 
+    boolean getGcUseExclusiveTransaction();
+
+    void setGcUseExclusiveTransaction(boolean useExclusiveTransaction);
+
     void close();
 }

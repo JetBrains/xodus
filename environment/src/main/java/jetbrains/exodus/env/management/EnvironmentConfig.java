@@ -283,6 +283,16 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
+    public boolean getGcUseExclusiveTransaction() {
+        return config.getGcUseExclusiveTransaction();
+    }
+
+    @Override
+    public void setGcUseExclusiveTransaction(boolean useExclusiveTransaction) {
+        config.setGcUseExclusiveTransaction(useExclusiveTransaction);
+    }
+
+    @Override
     public void close() {
         env.close();
         super.close();

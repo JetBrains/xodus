@@ -220,7 +220,7 @@ public class EnvironmentImpl implements Environment {
 
     @NotNull
     public TransactionImpl beginGCTransaction() {
-        return throwIfReadonly(beginTransaction(null, true, true), "Can't start GC transaction on read-only Environment");
+        return throwIfReadonly(beginTransaction(null, ec.getGcUseExclusiveTransaction(), true), "Can't start GC transaction on read-only Environment");
     }
 
     @Override
