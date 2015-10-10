@@ -1,3 +1,18 @@
+buildscript {
+    ext.kotlinVersion = '0.13.1516'
+    repositories { mavenCentral() }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
+    }
+}
+
+plugins {
+    id 'com.github.johnrengelman.shadow' version "1.2.2"
+}
+
+apply plugin: 'kotlin'
+
 dependencies {
     compile project(':environment')
+    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
 }
