@@ -16,3 +16,18 @@ dependencies {
     compile project(':environment')
     compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
 }
+
+//Shadow jar is a self-contained archive with all dependencies packed
+jar.finalizedBy shadowJar
+
+shadowJar {
+    mustRunAfter jar
+    archiveName = jar.archiveName
+    manifest {
+        attributes 'Main-Class': 'jetbrains.exodus.env.Reflect'
+    }
+}
+
+artifacts {
+    shadowJar
+}
