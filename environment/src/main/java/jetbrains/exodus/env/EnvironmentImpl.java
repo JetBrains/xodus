@@ -472,7 +472,7 @@ public class EnvironmentImpl implements Environment {
         final int replayCount = txn.getReplayCount();
         return replayCount > 0 &&
                 (ec.getEnvTxnReplayMaxCount() == replayCount ||
-                        System.currentTimeMillis() >= txn.getCreated() + ec.getEnvTxnReplayTimeout());
+                        System.currentTimeMillis() - txn.getCreated() >= ec.getEnvTxnReplayTimeout());
     }
 
     /**
