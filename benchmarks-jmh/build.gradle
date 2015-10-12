@@ -1,5 +1,7 @@
 apply plugin:'application'
 
+mainClassName = 'org.openjdk.jmh.Main'
+
 dependencies {
     testCompile project(':benchmarks')
     testCompile 'org.openjdk.jmh:jmh-core:0.9'
