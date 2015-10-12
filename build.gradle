@@ -59,7 +59,7 @@ subprojects {
     test {
         minHeapSize = '1g'
         maxHeapSize = '1g'
-        jvmArgs = ['-ea', '-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=2808']
+        //jvmArgs = ['-ea', '-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=2808']
         testLogging.showStandardStreams = true
     }
 
