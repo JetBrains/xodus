@@ -215,7 +215,7 @@ public class EnvironmentImpl implements Environment {
     @Override
     public TransactionBase beginReadonlyTransaction(final Runnable beginHook) {
         checkIsOperative();
-        return new ReadonlyTransaction(this, getCreatingThread(), beginHook);
+        return new ReadonlyTransaction(this, beginHook);
     }
 
     @NotNull
@@ -444,14 +444,9 @@ public class EnvironmentImpl implements Environment {
     @NotNull
     protected TransactionBase beginTransaction(Runnable beginHook, boolean exclusive, boolean cloneMeta) {
         checkIsOperative();
-        final Thread creatingThread = getCreatingThread();
         return ec.getEnvIsReadonly() ?
-                new ReadonlyTransaction(this, creatingThread, beginHook) :
-                new TransactionImpl(this, creatingThread, beginHook, exclusive, cloneMeta);
-    }
-
-    protected Thread getCreatingThread() {
-        return transactionTimeout() > 0 ? Thread.currentThread() : null;
+                new ReadonlyTransaction(this, beginHook) :
+                new TransactionImpl(this, beginHook, exclusive, cloneMeta);
     }
 
     long getDiskUsage() {

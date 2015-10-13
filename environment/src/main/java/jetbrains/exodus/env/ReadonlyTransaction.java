@@ -24,9 +24,8 @@ class ReadonlyTransaction extends TransactionBase {
     private final Runnable beginHook;
 
     ReadonlyTransaction(@NotNull final EnvironmentImpl env,
-                        @Nullable final Thread creatingThread,
                         @Nullable final Runnable beginHook) {
-        super(env, creatingThread, false);
+        super(env, false);
         this.beginHook = new Runnable() {
             @Override
             public void run() {
@@ -45,7 +44,7 @@ class ReadonlyTransaction extends TransactionBase {
      * Constructor for creating new snapshot transaction.
      */
     ReadonlyTransaction(@NotNull final TransactionBase origin) {
-        super(origin.getEnvironment(), origin.getCreatingThread(), false);
+        super(origin.getEnvironment(), false);
         beginHook = null;
         setMetaTree(origin.getMetaTree());
         final EnvironmentImpl env = getEnvironment();

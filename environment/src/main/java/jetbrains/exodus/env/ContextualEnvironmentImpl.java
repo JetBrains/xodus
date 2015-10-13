@@ -147,11 +147,6 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
         return result;
     }
 
-    @Override
-    protected Thread getCreatingThread() {
-        return Thread.currentThread();
-    }
-
     @NotNull
     @Override
     public TransactionBase beginReadonlyTransaction(final Runnable beginHook) {
@@ -162,9 +157,6 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
 
     private void setCurrentTransaction(@NotNull final TransactionBase result) {
         final Thread thread = result.getCreatingThread();
-        if (thread == null) {
-            throw new NullPointerException("Creating thread should be set for transaction");
-        }
         Deque<TransactionBase> stack = threadTxns.get(thread);
         if (stack == null) {
             stack = new ArrayDeque<>(4);
@@ -176,9 +168,6 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
     @Override
     protected void finishTransaction(@NotNull final TransactionBase txn) {
         final Thread thread = txn.getCreatingThread();
-        if (thread == null) {
-            throw new NullPointerException("Creating thread should be set for transaction");
-        }
         // logging.info("finished txn " + System.identityHashCode(txn) + " in thread " + thread.getName(), new Throwable());
         if (!Thread.currentThread().equals(thread)) {
             throw new ExodusException("Can't finish transaction in a thread different from the one which it was created in");

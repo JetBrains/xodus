@@ -44,11 +44,10 @@ public class TransactionImpl extends TransactionBase {
     private int replayCount;
 
     TransactionImpl(@NotNull final EnvironmentImpl env,
-                    @Nullable final Thread creatingThread,
                     @Nullable final Runnable beginHook,
                     final boolean isExclusive,
                     final boolean cloneMeta) {
-        super(env, creatingThread, isExclusive);
+        super(env, isExclusive);
         mutableTrees = new TreeMap<>();
         removedStores = new LongHashMap<>();
         createdStores = new HashMapDecorator<>();
@@ -250,7 +249,7 @@ public class TransactionImpl extends TransactionBase {
     ITreeMutable getMutableTree(@NotNull final StoreImpl store) {
         checkIsFinished();
         final Thread creatingThread = getCreatingThread();
-        if (creatingThread != null && !creatingThread.equals(Thread.currentThread())) {
+        if (!creatingThread.equals(Thread.currentThread())) {
             throw new ExodusException("Can't create mutable tree in a thread different from the one which transaction was created in");
         }
         final int structureId = store.getStructureId();
