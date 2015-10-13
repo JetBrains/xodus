@@ -435,7 +435,7 @@ public class EnvironmentImpl implements Environment {
     }
 
     protected void finishTransaction(@NotNull final TransactionBase txn) {
-        releaseTransaction(txn.isExclusive(), txn.isReadonly());
+        releaseTransaction(txn);
         txns.remove(txn);
         txn.setIsFinished();
         runTransactionSafeTasks();
@@ -458,9 +458,17 @@ public class EnvironmentImpl implements Environment {
         return IOUtil.getDirectorySize(new File(getLocation()), LogUtil.LOG_FILE_EXTENSION, false);
     }
 
+    void acquireTransaction(@NotNull final TransactionBase txn) {
+        acquireTransaction(txn.isExclusive(), txn.isReadonly());
+    }
+
     void acquireTransaction(final boolean exclusive, final boolean readonly) {
         final Semaphore semaphore = readonly ? roTxnSemaphore : txnSemaphore;
         semaphore.acquireUninterruptibly(exclusive ? Integer.MAX_VALUE : 1);
+    }
+
+    void releaseTransaction(@NotNull final TransactionBase txn) {
+        releaseTransaction(txn.isExclusive(), txn.isReadonly());
     }
 
     void releaseTransaction(final boolean exclusive, final boolean readonly) {
@@ -562,7 +570,7 @@ public class EnvironmentImpl implements Environment {
     }
 
     MetaTree holdNewestSnapshotBy(@NotNull final TransactionBase txn) {
-        acquireTransaction(txn.isExclusive(), txn.isReadonly());
+        acquireTransaction(txn);
         final Runnable beginHook = txn.getBeginHook();
         synchronized (metaLock) {
             if (beginHook != null) {
