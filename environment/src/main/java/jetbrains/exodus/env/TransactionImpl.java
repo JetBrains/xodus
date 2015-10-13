@@ -94,8 +94,8 @@ public class TransactionImpl extends TransactionBase {
             // if the transaction was upgraded to exclusive during re-playing
             // then it should be downgraded back after successful flush().
             if (!wasCreatedExclusive && isExclusive()) {
-                setExclusive(false);
                 env.releaseTransaction(this);
+                setExclusive(false);
                 env.acquireTransaction(this);
             }
             setStarted(System.currentTimeMillis());
