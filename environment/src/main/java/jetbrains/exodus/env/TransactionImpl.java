@@ -113,8 +113,8 @@ public class TransactionImpl extends TransactionBase {
         }
         doRevert();
         final EnvironmentImpl env = getEnvironment();
+        env.releaseTransaction(this);
         final boolean wasExclusive = isExclusive();
-        env.releaseTransaction(wasExclusive, false);
         setExclusive(isExclusive() | env.shouldTransactionBeExclusive(this));
         final long oldRoot = getMetaTree().root;
         holdNewestSnapshot();

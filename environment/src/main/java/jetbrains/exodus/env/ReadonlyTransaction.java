@@ -23,8 +23,7 @@ class ReadonlyTransaction extends TransactionBase {
     @Nullable
     private final Runnable beginHook;
 
-    ReadonlyTransaction(@NotNull final EnvironmentImpl env,
-                        @Nullable final Runnable beginHook) {
+    ReadonlyTransaction(@NotNull final EnvironmentImpl env, @Nullable final Runnable beginHook) {
         super(env, false);
         this.beginHook = new Runnable() {
             @Override
@@ -48,7 +47,7 @@ class ReadonlyTransaction extends TransactionBase {
         beginHook = null;
         setMetaTree(origin.getMetaTree());
         final EnvironmentImpl env = getEnvironment();
-        env.acquireTransaction(false, true);
+        env.acquireTransaction(this);
         env.registerTransaction(this);
         env.getStatistics().getStatisticsItem(EnvironmentStatistics.READONLY_TRANSACTIONS).incTotal();
     }

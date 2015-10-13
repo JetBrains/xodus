@@ -24,6 +24,7 @@ import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
+import jetbrains.exodus.core.execution.locks.Latch;
 import jetbrains.exodus.io.DataReader;
 import jetbrains.exodus.io.DataWriter;
 import jetbrains.exodus.io.FileDataReader;
@@ -118,27 +119,31 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     }
 
     @Test
-    public void testClearWithTransaction_XD_457() {
+    public void testClearWithTransaction_XD_457() throws InterruptedException {
+        final Latch latch = Latch.create();
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
-            public void execute(@NotNull Transaction txn) {
+            public void execute(@NotNull final Transaction txn) {
                 final StoreImpl store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn);
                 store.put(txn, StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0"));
                 Assert.assertTrue(store.exists(txn, StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0")));
                 final Throwable[] th = {null};
                 // asynchronously clear the environment
-                runParallelRunnable(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            env.clear();
-                        } catch (Throwable t) {
-                            th[0] = t;
-                        }
-                    }
-                });
                 try {
-                    Thread.sleep(2000);
+                    latch.acquire();
+                    runParallelRunnable(new Runnable() {
+                        @Override
+                        public void run() {
+                            latch.release();
+                            try {
+                                env.clear();
+                            } catch (Throwable t) {
+                                th[0] = t;
+                            }
+                            latch.release();
+                        }
+                    });
+                    latch.acquire();
                 } catch (InterruptedException ignore) {
                     Assert.assertTrue(false);
                 }
@@ -146,7 +151,8 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                 Assert.assertTrue(store.exists(txn, StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0")));
             }
         });
-        env.executeInTransaction(new TransactionalExecutable() {
+        latch.acquire();
+        env.executeInExclusiveTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull Transaction txn) {
                 final StoreImpl store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn);

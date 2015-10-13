@@ -42,7 +42,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.SoftReference;
 import java.util.*;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class EnvironmentImpl implements Environment {
@@ -71,8 +70,8 @@ public class EnvironmentImpl implements Environment {
     private final GarbageCollector gc;
     private final Object commitLock = new Object();
     private final Object metaLock = new Object();
-    private final Semaphore txnSemaphore;
-    private final Semaphore roTxnSemaphore;
+    private final ReentrantTransactionDispatcher txnDispatcher;
+    private final ReentrantTransactionDispatcher roTxnDispatcher;
     @NotNull
     private final EnvironmentStatistics statistics;
     @Nullable
@@ -106,8 +105,8 @@ public class EnvironmentImpl implements Environment {
 
         gc = new GarbageCollector(this);
 
-        txnSemaphore = new Semaphore(Integer.MAX_VALUE, true);
-        roTxnSemaphore = new Semaphore(Integer.MAX_VALUE, true);
+        txnDispatcher = new ReentrantTransactionDispatcher(Integer.MAX_VALUE);
+        roTxnDispatcher = new ReentrantTransactionDispatcher(Integer.MAX_VALUE);
 
         statistics = new EnvironmentStatistics(this);
         if (ec.isManagementEnabled()) {
@@ -279,9 +278,10 @@ public class EnvironmentImpl implements Environment {
     public void clear() {
         suspendGC();
         try {
-            acquireTransaction(true, false); // wait for and stop all writing transactions
+            final Thread currentThread = Thread.currentThread();
+            final int permits = txnDispatcher.acquireTransaction(currentThread, true);// wait for and stop all writing transactions
             try {
-                acquireTransaction(true, true); // wait for and stop all read-only transactions
+                final int roPermits = roTxnDispatcher.acquireTransaction(currentThread, true);// wait for and stop all read-only transactions
                 try {
                     synchronized (commitLock) {
                         synchronized (metaLock) {
@@ -295,10 +295,10 @@ public class EnvironmentImpl implements Environment {
                         }
                     }
                 } finally {
-                    releaseTransaction(true, true);
+                    roTxnDispatcher.releaseTransaction(currentThread, roPermits);
                 }
             } finally {
-                releaseTransaction(true, false);
+                txnDispatcher.releaseTransaction(currentThread, permits);
             }
         } finally {
             resumeGC();
@@ -454,21 +454,13 @@ public class EnvironmentImpl implements Environment {
     }
 
     void acquireTransaction(@NotNull final TransactionBase txn) {
-        acquireTransaction(txn.isExclusive(), txn.isReadonly());
-    }
-
-    void acquireTransaction(final boolean exclusive, final boolean readonly) {
-        final Semaphore semaphore = readonly ? roTxnSemaphore : txnSemaphore;
-        semaphore.acquireUninterruptibly(exclusive ? Integer.MAX_VALUE : 1);
+        final ReentrantTransactionDispatcher dispatcher = txn.isReadonly() ? roTxnDispatcher : txnDispatcher;
+        dispatcher.acquireTransaction(txn);
     }
 
     void releaseTransaction(@NotNull final TransactionBase txn) {
-        releaseTransaction(txn.isExclusive(), txn.isReadonly());
-    }
-
-    void releaseTransaction(final boolean exclusive, final boolean readonly) {
-        final Semaphore semaphore = readonly ? roTxnSemaphore : txnSemaphore;
-        semaphore.release(exclusive ? Integer.MAX_VALUE : 1);
+        final ReentrantTransactionDispatcher dispatcher = txn.isReadonly() ? roTxnDispatcher : txnDispatcher;
+        dispatcher.releaseTransaction(txn);
     }
 
     boolean shouldTransactionBeExclusive(@NotNull final TransactionImpl txn) {

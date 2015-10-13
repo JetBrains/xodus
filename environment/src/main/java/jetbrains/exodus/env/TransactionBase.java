@@ -42,9 +42,9 @@ public abstract class TransactionBase implements Transaction {
     private long started;       // started is the ticks when the txn held its current snapshot
     private boolean isExclusive;
     private boolean isFinished;
+    private int acquiredPermits;
 
-    public TransactionBase(@NotNull final EnvironmentImpl env,
-                           final boolean isExclusive) {
+    public TransactionBase(@NotNull final EnvironmentImpl env, final boolean isExclusive) {
         this.env = env;
         this.creatingThread = Thread.currentThread();
         this.isExclusive = isExclusive;
@@ -139,6 +139,14 @@ public abstract class TransactionBase implements Transaction {
     List<String> getAllStoreNames() {
         checkIsFinished();
         return getMetaTree().getAllStoreNames();
+    }
+
+    public int getAcquiredPermits() {
+        return acquiredPermits;
+    }
+
+    public void setAcquiredPermits(final int acquiredPermits) {
+        this.acquiredPermits = acquiredPermits;
     }
 
     @Nullable
