@@ -145,7 +145,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(GC_FILES_INTERVAL, 1),
                 new Pair(GC_RUN_PERIOD, 30000),
                 new Pair(GC_UTILIZATION_FROM_SCRATCH, false),
-                new Pair(GC_USE_EXCLUSIVE_TRANSACTION, false),
+                new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
                 new Pair(MANAGEMENT_ENABLED, true)
         }, strategy);
     }
