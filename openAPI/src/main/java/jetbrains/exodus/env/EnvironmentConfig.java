@@ -66,6 +66,10 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public static final String ENV_TXN_REPLAY_MAX_COUNT = "exodus.env.txn.replayMaxCount";
 
+    public static final String ENV_MAX_PARALLEL_TXNS = "exodus.env.maxParallelTxns";
+
+    public static final String ENV_MAX_PARALLEL_READONLY_TXNS = "exodus.env.maxParallelReadonlyTxns";
+
     public static final String ENV_MONITOR_TXNS_TIMEOUT = "exodus.env.monitorTxns.timeout"; // in milliseconds
 
     public static final String ENV_MONITOR_TXNS_CHECK_FREQ = "exodus.env.monitorTxns.checkFreq"; // in milliseconds
@@ -131,6 +135,8 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(ENV_CLOSE_FORCEDLY, false),
                 new Pair(ENV_TXN_REPLAY_TIMEOUT, 1000L),
                 new Pair(ENV_TXN_REPLAY_MAX_COUNT, 2),
+                new Pair(ENV_MAX_PARALLEL_TXNS, Integer.MAX_VALUE),
+                new Pair(ENV_MAX_PARALLEL_READONLY_TXNS, Integer.MAX_VALUE),
                 new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
                 new Pair(ENV_GATHER_STATISTICS, true),
                 new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
@@ -306,6 +312,22 @@ public final class EnvironmentConfig extends AbstractConfig {
             throw new InvalidSettingException("Negative transaction replay count");
         }
         return setSetting(ENV_TXN_REPLAY_MAX_COUNT, count);
+    }
+
+    public int getEnvMaxParallelTxns() {
+        return (Integer) getSetting(ENV_MAX_PARALLEL_TXNS);
+    }
+
+    public EnvironmentConfig setEnvMaxParallelTxns(final int maxParallelTxns) {
+        return setSetting(ENV_MAX_PARALLEL_TXNS, maxParallelTxns);
+    }
+
+    public int getEnvMaxParallelReadonlyTxns() {
+        return (Integer) getSetting(ENV_MAX_PARALLEL_READONLY_TXNS);
+    }
+
+    public EnvironmentConfig setEnvMaxParallelReadonlyTxns(final int maxParallelReadonlyTxns) {
+        return setSetting(ENV_MAX_PARALLEL_TXNS, maxParallelReadonlyTxns);
     }
 
     public int getEnvMonitorTxnsTimeout() {

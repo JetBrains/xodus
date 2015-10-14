@@ -178,6 +178,16 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
+    public int getEnvMaxParallelTxns() {
+        return config.getEnvMaxParallelTxns();
+    }
+
+    @Override
+    public int getEnvMaxParallelReadonlyTxns() {
+        return config.getEnvMaxParallelReadonlyTxns();
+    }
+
+    @Override
     public int getEnvMonitorTxnsTimeout() {
         return config.getEnvMonitorTxnsTimeout();
     }

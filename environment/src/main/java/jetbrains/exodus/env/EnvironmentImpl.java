@@ -105,8 +105,8 @@ public class EnvironmentImpl implements Environment {
 
         gc = new GarbageCollector(this);
 
-        txnDispatcher = new ReentrantTransactionDispatcher(Integer.MAX_VALUE);
-        roTxnDispatcher = new ReentrantTransactionDispatcher(Integer.MAX_VALUE);
+        txnDispatcher = new ReentrantTransactionDispatcher(ec.getEnvMaxParallelTxns());
+        roTxnDispatcher = new ReentrantTransactionDispatcher(ec.getEnvMaxParallelReadonlyTxns());
 
         statistics = new EnvironmentStatistics(this);
         if (ec.isManagementEnabled()) {

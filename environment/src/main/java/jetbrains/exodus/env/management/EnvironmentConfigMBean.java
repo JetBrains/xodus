@@ -67,6 +67,10 @@ public interface EnvironmentConfigMBean {
 
     void setEnvTxnReplayMaxCount(final int txnReplayMaxCount);
 
+    int getEnvMaxParallelTxns();
+
+    int getEnvMaxParallelReadonlyTxns();
+
     int getEnvMonitorTxnsTimeout();
 
     int getEnvMonitorTxnsCheckFreq();
