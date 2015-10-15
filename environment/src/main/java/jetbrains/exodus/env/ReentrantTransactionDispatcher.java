@@ -49,7 +49,9 @@ final class ReentrantTransactionDispatcher {
     }
 
     int getAvailablePermits() {
-        return availablePermits - acquiredPermits;
+        synchronized (syncObject) {
+            return availablePermits - acquiredPermits;
+        }
     }
 
     /**
