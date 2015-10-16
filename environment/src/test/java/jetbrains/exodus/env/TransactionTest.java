@@ -15,10 +15,7 @@
  */
 package jetbrains.exodus.env;
 
-import jetbrains.exodus.ArrayByteIterable;
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.TestUtil;
+import jetbrains.exodus.*;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.core.execution.LatchJob;
@@ -467,5 +464,34 @@ public class TransactionTest extends EnvironmentTestsBase {
         txn.abort();
         txn.commit();
         Assert.fail();
+    }
+
+    @Test
+    @TestFor(issues = "XD-477")
+    public void testXD_471() {
+        getEnvironment().getEnvironmentConfig().setEnvTxnReplayTimeout(500L);
+        getEnvironment().executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                env.openStore("new store", StoreConfig.WITHOUT_DUPLICATES, txn);
+                getEnvironment().executeInTransaction(new TransactionalExecutable() {
+                    @Override
+                    public void execute(@NotNull Transaction txn) {
+                        env.openStore("new store 2", StoreConfig.WITHOUT_DUPLICATES, txn);
+                    }
+                });
+                txn.flush();
+                Assert.assertFalse(txn.isExclusive());
+                txn.revert();
+                Assert.assertFalse(txn.isExclusive());
+                // here transaction is idempotent and not exclusive
+                try {
+                    Thread.sleep(600);
+                } catch (InterruptedException ignore) {
+                }
+                txn.revert();
+                Assert.assertFalse(txn.isExclusive());
+            }
+        });
     }
 }
