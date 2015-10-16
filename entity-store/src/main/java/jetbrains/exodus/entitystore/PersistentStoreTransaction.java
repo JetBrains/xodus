@@ -50,8 +50,6 @@ import java.util.Set;
 @SuppressWarnings({"RawUseOfParameterizedType", "rawtypes"})
 public class PersistentStoreTransaction implements StoreTransaction, TxnGetterStategy {
 
-    private static final int COPY_CACHED_VALUES = 50;
-
     @NotNull
     public static final ByteIterable ZERO_VERSION_ENTRY = IntegerBinding.intToCompressedEntry(0);
     @NotNull
@@ -950,12 +948,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     private static <V> ObjectCacheBase<PropertyId, V> createObjectCache(final int size) {
         return size == 0 ?
                 new FakeObjectCache<PropertyId, V>() :
-                new ObjectCacheDecorator<PropertyId, V>(size) {
-                    @Override
-                    protected ObjectCacheBase<PropertyId, V> createdDecorated() {
-                        return new ObjectCache<PropertyId, V>(size());
-                    }
-                };
+                new TransactionObjectCache<V>(size);
     }
 
     enum HandleCheckResult {
@@ -1182,6 +1175,18 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             result = 31 * result + (oldValue != null ? oldValue.hashCode() : 0);
             result = 31 * result + (newValue != null ? newValue.hashCode() : 0);
             return result;
+        }
+    }
+
+    private static final class TransactionObjectCache<V> extends ObjectCacheDecorator<PropertyId, V> {
+
+        private TransactionObjectCache(final int size) {
+            super(size);
+        }
+
+        @Override
+        protected ObjectCacheBase<PropertyId, V> createdDecorated() {
+            return new ObjectCache<>(size());
         }
     }
 }

@@ -72,6 +72,11 @@ public abstract class ObjectCacheDecorator<K, V> extends ObjectCacheBase<K, V> {
     }
 
     @Override
+    public void close() {
+        getCache(false).close();
+    }
+
+    @Override
     public int getAttempts() {
         return getCache(false).getAttempts();
     }

@@ -36,7 +36,7 @@ public abstract class CacheHitRateable {
         }
     }
 
-    public final void close() {
+    public void close() {
         if (cacheAdjuster != null) {
             SharedTimer.unregisterPeriodicTask(cacheAdjuster);
         }
