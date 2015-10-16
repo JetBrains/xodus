@@ -64,7 +64,7 @@ public class TransactionImpl extends TransactionBase {
         };
         wasCreatedExclusive = isExclusive;
         replayCount = 0;
-        holdNewestSnapshot();
+        env.holdNewestSnapshotBy(this);
         env.getStatistics().getStatisticsItem(EnvironmentStatistics.TRANSACTIONS).incTotal();
     }
 
@@ -111,13 +111,19 @@ public class TransactionImpl extends TransactionBase {
         if (isReadonly()) {
             throw new ExodusException("Attempt ot revert read-only transaction");
         }
-        doRevert();
+        final long oldRoot = getMetaTree().root;
+        final boolean wasExclusive = isExclusive();
         final EnvironmentImpl env = getEnvironment();
         env.releaseTransaction(this);
-        final boolean wasExclusive = isExclusive();
-        setExclusive(isExclusive() | env.shouldTransactionBeExclusive(this));
-        final long oldRoot = getMetaTree().root;
-        holdNewestSnapshot();
+        if (isIdempotent()) {
+            env.holdNewestSnapshotBy(this);
+        } else {
+            doRevert();
+            if (!wasExclusive && env.shouldTransactionBeExclusive(this)) {
+                setExclusive(true);
+            }
+            env.holdNewestSnapshotBy(this);
+        }
         if (!env.isRegistered(this)) {
             throw new ExodusException("Transaction should remain registered after revert");
         }
@@ -290,10 +296,6 @@ public class TransactionImpl extends TransactionBase {
     @Override
     Runnable getBeginHook() {
         return beginHook;
-    }
-
-    private void holdNewestSnapshot() {
-        getEnvironment().holdNewestSnapshotBy(this);
     }
 
     private void doRevert() {
