@@ -468,7 +468,7 @@ public class TransactionTest extends EnvironmentTestsBase {
 
     @Test
     @TestFor(issues = "XD-477")
-    public void testXD_471() {
+    public void test_XD_477() {
         getEnvironment().getEnvironmentConfig().setEnvTxnReplayTimeout(500L);
         getEnvironment().executeInTransaction(new TransactionalExecutable() {
             @Override
