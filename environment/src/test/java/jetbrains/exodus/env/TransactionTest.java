@@ -36,7 +36,7 @@ public class TransactionTest extends EnvironmentTestsBase {
     @Override
     protected void createEnvironment() {
         final String methodName = name.getMethodName();
-        env = methodName.contains("XD_471") || methodName.contains("testAfter") ?
+        env = methodName.contains("XD_471") || methodName.contains("XD_478") || methodName.contains("testAfter") ?
                 newEnvironmentInstance(LogConfig.create(reader, writer)) :
                 newContextualEnvironmentInstance(LogConfig.create(reader, writer));
     }
@@ -493,5 +493,31 @@ public class TransactionTest extends EnvironmentTestsBase {
                 Assert.assertFalse(txn.isExclusive());
             }
         });
+    }
+
+    @Test
+    @TestFor(issues = "XD-478")
+    public void test_XD_478() {
+        final EnvironmentImpl env = getEnvironment();
+        final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
+            @Override
+            public Store compute(@NotNull Transaction txn) {
+                return env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn);
+            }
+        });
+        final TransactionBase txn = env.beginTransaction();
+        try {
+            Assert.assertFalse(store.exists(txn, StringBinding.stringToEntry("key"), StringBinding.stringToEntry("value")));
+            env.executeInTransaction(new TransactionalExecutable() {
+                @Override
+                public void execute(@NotNull Transaction tx) {
+                    store.put(tx, StringBinding.stringToEntry("key"), StringBinding.stringToEntry("value"));
+                }
+            });
+            txn.revert();
+            Assert.assertTrue(store.exists(txn, StringBinding.stringToEntry("key"), StringBinding.stringToEntry("value")));
+        } finally {
+            txn.abort();
+        }
     }
 }
