@@ -75,6 +75,7 @@ public class TransactionImpl extends TransactionBase {
     @Override
     public void abort() {
         checkIsFinished();
+        clearImmutableTrees();
         doRevert();
         getEnvironment().finishTransaction(this);
     }
@@ -128,6 +129,7 @@ public class TransactionImpl extends TransactionBase {
             throw new ExodusException("Transaction should remain registered after revert");
         }
         if (!checkVersion(oldRoot)) {
+            clearImmutableTrees();
             // GUARD: if txn is exclusive then database version could not be changed
             if (wasExclusive) {
                 throw new ExodusException("Meta tree modified during exclusive transaction");
@@ -299,7 +301,6 @@ public class TransactionImpl extends TransactionBase {
     }
 
     private void doRevert() {
-        clearImmutableTrees();
         mutableTrees.clear();
         removedStores.clear();
         createdStores.clear();
