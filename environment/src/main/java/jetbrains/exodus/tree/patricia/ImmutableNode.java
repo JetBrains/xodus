@@ -43,8 +43,11 @@ final class ImmutableNode extends NodeBase {
         this(address, type, data, data.iterator());
     }
 
-    private ImmutableNode(final long address, final byte type, @NotNull final ByteIterableWithAddress data, @NotNull final ByteIteratorWithAddress it) {
-        super(extractKey(type, it), extractValue(type, it));
+    private ImmutableNode(final long address,
+                          final byte type,
+                          @NotNull final ByteIterableWithAddress data,
+                          @NotNull final ByteIteratorWithAddress it) {
+        super(extractKey(type, it), extractValue(type, data, it));
         this.address = address;
         this.type = type;
         this.data = data;
@@ -241,21 +244,28 @@ final class ImmutableNode extends NodeBase {
     }
 
     @NotNull
-    private static ByteIterable extractKey(final byte type, @NotNull final ByteIterator it) {
+    private static ByteIterable extractKey(final byte type, @NotNull final ByteIteratorWithAddress it) {
         if (!PatriciaTreeBase.nodeHasKey(type)) {
             return ByteIterable.EMPTY;
         }
         final int keyLength = CompressedUnsignedLongByteIterable.getInt(it);
-        return new ArrayByteIterable(it, keyLength);
+        return keyLength == 1 ? ArrayByteIterable.fromByte(it.next()) : new ArrayByteIterable(it, keyLength);
     }
 
     @Nullable
-    private static ByteIterable extractValue(final byte type, @NotNull final ByteIterator it) {
+    private static ByteIterable extractValue(final byte type,
+                                             @NotNull final ByteIterableWithAddress data,
+                                             @NotNull final ByteIteratorWithAddress it) {
         if (!PatriciaTreeBase.nodeHasValue(type)) {
             return null;
         }
         final int valueLength = CompressedUnsignedLongByteIterable.getInt(it);
-        return new ArrayByteIterable(it, valueLength);
+        if (valueLength == 1) {
+            return ArrayByteIterable.fromByte(it.next());
+        }
+        final ByteIterable result = data.subIterable((int) (it.getAddress() - data.getDataAddress()), valueLength);
+        it.skip(valueLength);
+        return result;
     }
 
     private static void checkAddressLength(long addressLen) {

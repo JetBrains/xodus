@@ -23,6 +23,15 @@ public class ArrayByteIterable extends ByteIterableBase {
 
     public static final EmptyIterable EMPTY = new EmptyIterable();
 
+    private static final ArrayByteIterable SINGLE_BYTE_ITERABLES[];
+
+    static {
+        SINGLE_BYTE_ITERABLES = new ArrayByteIterable[256];
+        for (int i = 0; i < SINGLE_BYTE_ITERABLES.length; i++) {
+            SINGLE_BYTE_ITERABLES[i] = new ArrayByteIterable(SINGLE_BYTES[i]);
+        }
+    }
+
     public ArrayByteIterable(@NotNull final ByteIterable bi) {
         final int length = bi.getLength();
         if (length == 0) {
@@ -105,6 +114,10 @@ public class ArrayByteIterable extends ByteIterableBase {
     @Override
     protected void fillBytes() {
         // do nothing
+    }
+
+    public static ArrayByteIterable fromByte(final byte b) {
+        return SINGLE_BYTE_ITERABLES[b & 0xff];
     }
 
     public class Iterator implements ByteIterator {
