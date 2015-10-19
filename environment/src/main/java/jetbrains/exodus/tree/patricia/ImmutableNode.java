@@ -30,6 +30,7 @@ import org.jetbrains.annotations.Nullable;
 final class ImmutableNode extends NodeBase {
 
     private static final int CHILDREN_COUNT_TO_TRIGGER_BINARY_SEARCH = 8;
+    private static final int LAZY_KEY_VALUE_ITERABLE_MIN_LENGTH = 16;
 
     private final long address;
     private final byte type;
@@ -47,7 +48,7 @@ final class ImmutableNode extends NodeBase {
                           final byte type,
                           @NotNull final ByteIterableWithAddress data,
                           @NotNull final ByteIteratorWithAddress it) {
-        super(extractKey(type, it), extractValue(type, data, it));
+        super(extractKey(type, data, it), extractValue(type, data, it));
         this.address = address;
         this.type = type;
         this.data = data;
@@ -244,12 +245,13 @@ final class ImmutableNode extends NodeBase {
     }
 
     @NotNull
-    private static ByteIterable extractKey(final byte type, @NotNull final ByteIteratorWithAddress it) {
+    private static ByteIterable extractKey(final byte type,
+                                           @NotNull final ByteIterableWithAddress data,
+                                           @NotNull final ByteIteratorWithAddress it) {
         if (!PatriciaTreeBase.nodeHasKey(type)) {
             return ByteIterable.EMPTY;
         }
-        final int keyLength = CompressedUnsignedLongByteIterable.getInt(it);
-        return keyLength == 1 ? ArrayByteIterable.fromByte(it.next()) : new ArrayByteIterable(it, keyLength);
+        return extractLazyIterable(data, it);
     }
 
     @Nullable
@@ -259,12 +261,20 @@ final class ImmutableNode extends NodeBase {
         if (!PatriciaTreeBase.nodeHasValue(type)) {
             return null;
         }
-        final int valueLength = CompressedUnsignedLongByteIterable.getInt(it);
-        if (valueLength == 1) {
+        return extractLazyIterable(data, it);
+    }
+
+    private static ByteIterable extractLazyIterable(@NotNull final ByteIterableWithAddress data,
+                                                    @NotNull final ByteIteratorWithAddress it) {
+        final int length = CompressedUnsignedLongByteIterable.getInt(it);
+        if (length == 1) {
             return ArrayByteIterable.fromByte(it.next());
         }
-        final ByteIterable result = data.subIterable((int) (it.getAddress() - data.getDataAddress()), valueLength);
-        it.skip(valueLength);
+        if (length < LAZY_KEY_VALUE_ITERABLE_MIN_LENGTH) {
+            return new ArrayByteIterable(it, length);
+        }
+        final ByteIterable result = data.clone((int) (it.getAddress() - data.getDataAddress())).subIterable(0, length);
+        it.skip(length);
         return result;
     }
 
