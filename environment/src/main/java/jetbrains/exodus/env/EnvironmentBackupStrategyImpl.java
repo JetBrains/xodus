@@ -36,7 +36,7 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
     @Override
     public void beforeBackup() {
         environment.suspendGC();
-        environment.safeFlush();
+        environment.flushAndSync();
     }
 
     @Override

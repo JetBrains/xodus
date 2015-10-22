@@ -99,5 +99,9 @@ public interface EnvironmentConfigMBean {
 
     boolean getGcUtilizationFromScratch();
 
+    int getGcFilesDeletionDelay();
+
+    void setGcFilesDeletionDelay(int delay);
+
     void close();
 }

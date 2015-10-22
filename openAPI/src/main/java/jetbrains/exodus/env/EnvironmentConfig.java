@@ -91,11 +91,16 @@ public final class EnvironmentConfig extends AbstractConfig {
     public static final String GC_FILES_INTERVAL = "exodus.gc.filesInterval";
 
     /**
-     * If a single cleaner run didn't reach target utilization then next run will happen in this number of milliseconds
+     * If a single cleaner run didn't reach target utilization then next run will happen in this number of milliseconds.
      */
-    public static final String GC_RUN_PERIOD = "exodus.gc.runPeriod";
+    public static final String GC_RUN_PERIOD = "exodus.gc.runPeriod"; // in milliseconds
 
     public static final String GC_UTILIZATION_FROM_SCRATCH = "exodus.gc.utilization.fromScratch";
+
+    /**
+     * If a file is successfully cleaned then delete after this number of milliseconds.
+     */
+    public static final String GC_FILES_DELETION_DELAY = "exodus.gc.filesDeletionDelay"; // in milliseconds
 
     public static final String MANAGEMENT_ENABLED = "exodus.managementEnabled";
 
@@ -134,6 +139,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(GC_FILES_INTERVAL, 1),
                 new Pair(GC_RUN_PERIOD, 30000),
                 new Pair(GC_UTILIZATION_FROM_SCRATCH, false),
+                new Pair(GC_FILES_DELETION_DELAY, 0),
                 new Pair(MANAGEMENT_ENABLED, true)
         }, strategy);
     }
@@ -401,6 +407,17 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public EnvironmentConfig setGcUtilizationFromScratch(boolean fromScratch) {
         return setSetting(GC_UTILIZATION_FROM_SCRATCH, fromScratch);
+    }
+
+    public int getGcFilesDeletionDelay() {
+        return (Integer) getSetting(GC_FILES_DELETION_DELAY);
+    }
+
+    public EnvironmentConfig setGcFilesDeletionDelay(final int delay) {
+        if (delay < 0) {
+            throw new InvalidSettingException("Invalid GC files deletion delay: " + delay);
+        }
+        return setSetting(GC_FILES_DELETION_DELAY, delay);
     }
 
     public boolean isManagementEnabled() {
