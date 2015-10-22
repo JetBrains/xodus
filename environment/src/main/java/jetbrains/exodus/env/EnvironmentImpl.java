@@ -720,7 +720,6 @@ public class EnvironmentImpl implements Environment {
 
     private long getOldestTxnRootAddress() {
         final TransactionBase oldestTxn = getOldestTransaction();
-        final TransactionImpl oldestTxn = getOldestTransaction();
         return oldestTxn == null ? Long.MAX_VALUE : oldestTxn.getRoot();
     }
 
