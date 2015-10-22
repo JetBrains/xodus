@@ -430,6 +430,16 @@ public class EnvironmentImpl implements Environment {
         return balancePolicy;
     }
 
+    /**
+     * Flushes Log's data writer exclusively in commit lock. This guarantees that the data writer is in committed state.
+     * Also performs syncing cached by OS data to storage device.
+     */
+    public void flushAndSync() {
+        synchronized (commitLock) {
+            getLog().flush(true);
+        }
+    }
+
     protected StoreImpl createStore(@NotNull final String name, @NotNull final TreeMetaInfo metaInfo) {
         return new StoreImpl(this, name, metaInfo);
     }
@@ -487,15 +497,6 @@ public class EnvironmentImpl implements Environment {
     BTree loadMetaTree(final long rootAddress) {
         if (rootAddress < 0 || rootAddress >= log.getHighAddress()) return null;
         return new BTree(log, getBTreeBalancePolicy(), rootAddress, false, META_TREE_ID);
-    }
-
-    /**
-     * Flushes Log's data writer exclusively in commit lock. This guarantees that the data writer is in committed state.
-     */
-    void safeFlush() {
-        synchronized (commitLock) {
-            getLog().flush(true);
-        }
     }
 
     @SuppressWarnings("OverlyNestedMethod")
@@ -719,6 +720,7 @@ public class EnvironmentImpl implements Environment {
 
     private long getOldestTxnRootAddress() {
         final TransactionBase oldestTxn = getOldestTransaction();
+        final TransactionImpl oldestTxn = getOldestTransaction();
         return oldestTxn == null ? Long.MAX_VALUE : oldestTxn.getRoot();
     }
 

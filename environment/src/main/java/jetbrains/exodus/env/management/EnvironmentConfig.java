@@ -293,6 +293,16 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
+    public int getGcFilesDeletionDelay() {
+        return config.getGcFilesDeletionDelay();
+    }
+
+    @Override
+    public void setGcFilesDeletionDelay(int delay) {
+        config.setGcFilesDeletionDelay(delay);
+    }
+
+    @Override
     public boolean getGcUseExclusiveTransaction() {
         return config.getGcUseExclusiveTransaction();
     }

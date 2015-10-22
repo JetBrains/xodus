@@ -19,6 +19,7 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
+import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.core.execution.JobProcessorAdapter;
 import jetbrains.exodus.env.EnvironmentConfig;
 import jetbrains.exodus.env.EnvironmentImpl;
@@ -27,6 +28,7 @@ import jetbrains.exodus.env.TransactionImpl;
 import jetbrains.exodus.io.RemoveBlockType;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.IExpirationChecker;
+import jetbrains.exodus.util.DeferredIO;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -214,7 +216,17 @@ public final class GarbageCollector {
         env.executeTransactionSafeTask(new Runnable() {
             @Override
             public void run() {
-                deletionQueue.offer(fileAddress);
+                final int filesDeletionDelay = ec.getGcFilesDeletionDelay();
+                if (filesDeletionDelay == 0) {
+                    deletionQueue.offer(fileAddress);
+                } else {
+                    DeferredIO.getJobProcessor().queueIn(new Job() {
+                        @Override
+                        protected void execute() throws Throwable {
+                            deletionQueue.offer(fileAddress);
+                        }
+                    }, filesDeletionDelay);
+                }
             }
         });
         return true;
@@ -242,9 +254,7 @@ public final class GarbageCollector {
         Long fileAddress;
         boolean aFileWasDeleted = false;
         while ((fileAddress = deletionQueue.poll()) != null) {
-            if (doDeletePendingFile(fileAddress)) {
-                aFileWasDeleted = true;
-            }
+            aFileWasDeleted |= doDeletePendingFile(fileAddress);
         }
         if (aFileWasDeleted) {
             utilizationProfile.estimateTotalBytes();
@@ -303,13 +313,11 @@ public final class GarbageCollector {
      */
     void testDeletePendingFiles() {
         final long[] files = pendingFilesToDelete.toLongArray();
-        boolean wasDelete = false;
+        boolean aFileWasDeleted = false;
         for (final long fileAddress : files) {
-            if (doDeletePendingFile(fileAddress)) {
-                wasDelete = true;
-            }
+            aFileWasDeleted |= doDeletePendingFile(fileAddress);
         }
-        if (wasDelete) {
+        if (aFileWasDeleted) {
             utilizationProfile.estimateTotalBytes();
         }
     }
@@ -322,6 +330,7 @@ public final class GarbageCollector {
 
     private boolean doDeletePendingFile(long fileAddress) {
         if (pendingFilesToDelete.remove(fileAddress)) {
+            env.flushAndSync(); // before deletion of any file, flush writer data and sync buffered by OS data to storage device
             utilizationProfile.removeFile(fileAddress);
             getLog().removeFile(fileAddress, ec.getGcRenameFiles() ? RemoveBlockType.Rename : RemoveBlockType.Delete);
             return true;

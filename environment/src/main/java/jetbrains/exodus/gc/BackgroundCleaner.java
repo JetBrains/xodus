@@ -82,6 +82,16 @@ final class BackgroundCleaner {
 
     void finish() {
         backgroundCleaningJob.cancel();
+        processor.waitForLatchJob(new LatchJob() {
+            @Override
+            protected void execute() throws Throwable {
+                try {
+                    gc.deletePendingFiles();
+                } finally {
+                    release();
+                }
+            }
+        }, 100);
         processor.finish();
     }
 
