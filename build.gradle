@@ -48,6 +48,7 @@ subprojects {
 
     dependencies {
         testCompile group: 'junit', name: 'junit', version: '4.11'
+        testCompile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.12'
     }
 
     jar {
