@@ -30,31 +30,31 @@ public class ReentrantTransactionDispatcherTest {
     @Test(expected = ExodusException.class)
     public void cantAcquireMoreTransaction() {
         final ReentrantTransactionDispatcher dispatcher = new ReentrantTransactionDispatcher(10);
-        dispatcher.acquireTransaction(Thread.currentThread(), true);
+        dispatcher.acquireExclusiveTransaction(Thread.currentThread());
         Assert.assertEquals(0, dispatcher.getAvailablePermits());
-        dispatcher.acquireTransaction(Thread.currentThread(), false);
+        dispatcher.acquireTransaction(Thread.currentThread());
     }
 
     @Test(expected = ExodusException.class)
     public void cantReleaseMorePermits() {
         final ReentrantTransactionDispatcher dispatcher = new ReentrantTransactionDispatcher(10);
-        final int permits = dispatcher.acquireTransaction(Thread.currentThread(), false);
-        dispatcher.releaseTransaction(Thread.currentThread(), permits + 1);
+        dispatcher.acquireTransaction(Thread.currentThread());
+        dispatcher.releaseTransaction(Thread.currentThread(), 2);
     }
 
     @Test
     public void exclusiveTransaction() {
         final ReentrantTransactionDispatcher dispatcher = new ReentrantTransactionDispatcher(10);
-        dispatcher.acquireTransaction(Thread.currentThread(), true);
+        dispatcher.acquireExclusiveTransaction(Thread.currentThread());
         Assert.assertEquals(0, dispatcher.getAvailablePermits());
     }
 
     @Test
     public void exclusiveTransaction2() {
         final ReentrantTransactionDispatcher dispatcher = new ReentrantTransactionDispatcher(10);
-        dispatcher.acquireTransaction(Thread.currentThread(), false);
+        dispatcher.acquireTransaction(Thread.currentThread());
         Assert.assertEquals(9, dispatcher.getAvailablePermits());
-        dispatcher.acquireTransaction(Thread.currentThread(), true);
+        dispatcher.acquireExclusiveTransaction(Thread.currentThread());
         Assert.assertEquals(0, dispatcher.getAvailablePermits());
     }
 
@@ -62,8 +62,8 @@ public class ReentrantTransactionDispatcherTest {
     public void fairness() throws InterruptedException {
         final int maxTransactions = 20;
         final ReentrantTransactionDispatcher dispatcher = new ReentrantTransactionDispatcher(maxTransactions);
-        final int permits = dispatcher.acquireTransaction(Thread.currentThread(), true);
-        Assert.assertEquals(0, dispatcher.getAvailablePermits());
+        dispatcher.acquireTransaction(Thread.currentThread());
+        dispatcher.acquireTransaction(Thread.currentThread());
         final Latch latch = Latch.create();
         final int[] count = {0};
         latch.acquire();
@@ -72,7 +72,9 @@ public class ReentrantTransactionDispatcherTest {
             public void run() {
                 latch.release();
                 final Thread thread = Thread.currentThread();
-                dispatcher.acquireTransaction(thread, true);
+                final int permits = dispatcher.acquireExclusiveTransaction(thread);
+                Assert.assertEquals(maxTransactions, permits);
+                Assert.assertEquals(0, dispatcher.getAvailablePermits());
                 Assert.assertEquals(maxTransactions, count[0]);
                 dispatcher.releaseTransaction(thread, maxTransactions);
             }
@@ -87,7 +89,7 @@ public class ReentrantTransactionDispatcherTest {
                 public void run() {
                     latch.release();
                     final Thread thread = Thread.currentThread();
-                    dispatcher.acquireTransaction(thread, false);
+                    dispatcher.acquireTransaction(thread);
                     Assert.assertEquals(count[0]++, ii);
                     dispatcher.releaseTransaction(thread, 1);
                 }
@@ -95,7 +97,9 @@ public class ReentrantTransactionDispatcherTest {
             latch.acquire();
             Thread.sleep(100);
         }
-        dispatcher.releaseTransaction(Thread.currentThread(), permits);
+        dispatcher.releaseTransaction(Thread.currentThread(), 1);
+        Thread.sleep(100);
+        dispatcher.releaseTransaction(Thread.currentThread(), 1);
         anotherExclusiveThread.join();
         Assert.assertEquals(maxTransactions, dispatcher.getAvailablePermits());
     }

@@ -38,7 +38,6 @@ public class TransactionImpl extends TransactionBase {
     private final Map<String, TreeMetaInfo> createdStores;
     @Nullable
     private final Runnable beginHook;
-    private final boolean wasCreatedExclusive;
     @Nullable
     private Runnable commitHook;
     private int replayCount;
@@ -62,7 +61,6 @@ public class TransactionImpl extends TransactionBase {
                 }
             }
         };
-        wasCreatedExclusive = isExclusive;
         replayCount = 0;
         env.holdNewestSnapshotBy(this);
         env.getStatistics().getStatisticsItem(EnvironmentStatistics.TRANSACTIONS).incTotal();
@@ -94,7 +92,7 @@ public class TransactionImpl extends TransactionBase {
         if (result) {
             // if the transaction was upgraded to exclusive during re-playing
             // then it should be downgraded back after successful flush().
-            if (!wasCreatedExclusive && isExclusive()) {
+            if (!wasCreatedExclusive() && isExclusive()) {
                 env.releaseTransaction(this);
                 setExclusive(false);
                 env.acquireTransaction(this);
@@ -115,10 +113,10 @@ public class TransactionImpl extends TransactionBase {
         final long oldRoot = getMetaTree().root;
         final boolean wasExclusive = isExclusive();
         final EnvironmentImpl env = getEnvironment();
-        env.releaseTransaction(this);
         if (isIdempotent()) {
-            env.holdNewestSnapshotBy(this);
+            env.holdNewestSnapshotBy(this, false);
         } else {
+            env.releaseTransaction(this);
             doRevert();
             if (!wasExclusive && env.shouldTransactionBeExclusive(this)) {
                 setExclusive(true);

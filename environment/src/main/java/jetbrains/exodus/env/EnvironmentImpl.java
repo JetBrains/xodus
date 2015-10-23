@@ -279,9 +279,9 @@ public class EnvironmentImpl implements Environment {
         suspendGC();
         try {
             final Thread currentThread = Thread.currentThread();
-            final int permits = txnDispatcher.acquireTransaction(currentThread, true);// wait for and stop all writing transactions
+            final int permits = txnDispatcher.acquireExclusiveTransaction(currentThread);// wait for and stop all writing transactions
             try {
-                final int roPermits = roTxnDispatcher.acquireTransaction(currentThread, true);// wait for and stop all read-only transactions
+                final int roPermits = roTxnDispatcher.acquireExclusiveTransaction(currentThread);// wait for and stop all read-only transactions
                 try {
                     synchronized (commitLock) {
                         synchronized (metaLock) {
@@ -558,7 +558,13 @@ public class EnvironmentImpl implements Environment {
     }
 
     MetaTree holdNewestSnapshotBy(@NotNull final TransactionBase txn) {
-        acquireTransaction(txn);
+        return holdNewestSnapshotBy(txn, true);
+    }
+
+    MetaTree holdNewestSnapshotBy(@NotNull final TransactionBase txn, final boolean acquireTxn) {
+        if (acquireTxn) {
+            acquireTransaction(txn);
+        }
         final Runnable beginHook = txn.getBeginHook();
         synchronized (metaLock) {
             if (beginHook != null) {

@@ -55,42 +55,51 @@ final class ReentrantTransactionDispatcher {
     }
 
     /**
-     * Acquire transaction in a thread, regular or exclusive, returning number of acquired permits.
-     * Transactions are acquired reentrantly, i.e. with respect to transactions already acquired in the thread.
-     * Exclusive transactions acquire all available permits.
-     *
-     * @return number of acquired permits.
+     * Acquire transaction with a single permit in a thread. Transactions are acquired reentrantly, i.e.
+     * with respect to transactions already acquired in the thread.
      */
-    int acquireTransaction(@NotNull final Thread thread, final boolean exclusive) {
+    void acquireTransaction(@NotNull final Thread thread) {
         synchronized (syncObject) {
-            final int currentThreadPermits = getThreadPermits(thread);
-            if (currentThreadPermits == availablePermits) {
-                throw new ExodusException("Can't acquire more transactions");
+            final int currentThreadPermits = getThreadPermitsToAcquire(thread);
+            if (acquiredPermits == availablePermits || !regularThreadQueue.isEmpty()) {
+                regularThreadQueue.offer(thread);
+                while (true) {
+                    waitForSyncObject();
+                    if (acquiredPermits < availablePermits && regularThreadQueue.peek().equals(thread)) {
+                        break;
+                    }
+                }
+                regularThreadQueue.poll();
             }
-            final int permitsToAcquire = exclusive ? availablePermits - currentThreadPermits : 1;
-            if (acquiredPermits > availablePermits - permitsToAcquire) {
+            ++acquiredPermits;
+            threadPermits.put(thread, currentThreadPermits + 1);
+        }
+    }
+
+    /**
+     * Acquire exclusive transaction in a thread. Transactions are acquired reentrantly, i.e. with respect
+     * to transactions already acquired in the thread.
+     *
+     * @return the number of acquired permits.
+     */
+    int acquireExclusiveTransaction(@NotNull final Thread thread) {
+        synchronized (syncObject) {
+            final int currentThreadPermits = getThreadPermitsToAcquire(thread);
+            final int permitsToAcquire = availablePermits - currentThreadPermits;
+            if (acquiredPermits > availablePermits - permitsToAcquire || !regularThreadQueue.isEmpty()) {
                 Queue<Thread> threadQueue = regularThreadQueue;
                 threadQueue.offer(thread);
                 while (true) {
-                    try {
-                        syncObject.wait();
-                    } catch (InterruptedException e) {
-                        throw ExodusException.toExodusException(e);
-                    }
+                    waitForSyncObject();
                     if (!threadQueue.peek().equals(thread)) {
                         continue;
                     }
-                    final boolean canAcquire = acquiredPermits <= availablePermits - permitsToAcquire;
-                    if (!exclusive) {
-                        if (canAcquire) {
-                            break;
-                        }
-                    } else {
-                        if (canAcquire && (threadQueue == exclusiveThreadQueue || regularThreadQueue.size() == 1)) {
-                            break;
-                        }
-                        // if an exclusive transaction cannot be acquired fairly (in its turn)
-                        // try to shuffle it to the queue of exclusive transactions
+                    if (acquiredPermits <= availablePermits - permitsToAcquire) {
+                        break;
+                    }
+                    // if an exclusive transaction cannot be acquired fairly (in its turn)
+                    // try to shuffle it to the queue of exclusive transactions
+                    if (threadQueue == regularThreadQueue) {
                         threadQueue.poll();
                         threadQueue = exclusiveThreadQueue;
                         threadQueue.offer(thread);
@@ -105,8 +114,63 @@ final class ReentrantTransactionDispatcher {
         }
     }
 
+    /**
+     * Acquire exclusive transaction in a thread if no other transaction tries to acquire exclusive permits.
+     *
+     * @return the number of acquired permits or 0 if acquisition failed.
+     */
+    int tryAcquireExclusiveTransaction(@NotNull final Thread thread) {
+        synchronized (syncObject) {
+            final int currentThreadPermits = getThreadPermitsToAcquire(thread);
+            int permitsToAcquire = availablePermits - currentThreadPermits;
+            if (acquiredPermits > availablePermits - permitsToAcquire || !regularThreadQueue.isEmpty()) {
+                Queue<Thread> threadQueue = regularThreadQueue;
+                threadQueue.offer(thread);
+                while (true) {
+                    waitForSyncObject();
+                    if (!threadQueue.peek().equals(thread)) {
+                        continue;
+                    }
+                    if (acquiredPermits <= availablePermits - permitsToAcquire) {
+                        break;
+                    }
+                    // if an exclusive transaction cannot be acquired fairly (in its turn)
+                    // try to shuffle it to the queue of exclusive transactions
+                    if (threadQueue == regularThreadQueue) {
+                        threadQueue.poll();
+                        if (!exclusiveThreadQueue.isEmpty()) {
+                            syncObject.notifyAll();
+                            return 0;
+                        }
+                        threadQueue = exclusiveThreadQueue;
+                        threadQueue.offer(thread);
+                        syncObject.notifyAll();
+                    }
+                }
+                threadQueue.poll();
+            }
+            acquiredPermits += permitsToAcquire;
+            threadPermits.put(thread, currentThreadPermits + permitsToAcquire);
+            return permitsToAcquire;
+        }
+    }
+
     void acquireTransaction(@NotNull final TransactionBase txn) {
-        txn.setAcquiredPermits(acquireTransaction(txn.getCreatingThread(), txn.isExclusive()));
+        final Thread creatingThread = txn.getCreatingThread();
+        if (txn.isExclusive()) {
+            if (txn.wasCreatedExclusive()) {
+                txn.setAcquiredPermits(acquireExclusiveTransaction(creatingThread));
+                return;
+            }
+            final int acquiredPermits = tryAcquireExclusiveTransaction(creatingThread);
+            if (acquiredPermits > 0) {
+                txn.setAcquiredPermits(acquiredPermits);
+                return;
+            }
+            txn.setExclusive(false);
+        }
+        acquireTransaction(creatingThread);
+        txn.setAcquiredPermits(1);
     }
 
     /**
@@ -136,5 +200,21 @@ final class ReentrantTransactionDispatcher {
     private int getThreadPermits(@NotNull final Thread thread) {
         final Integer result = threadPermits.get(thread);
         return result == null ? 0 : result;
+    }
+
+    private int getThreadPermitsToAcquire(@NotNull Thread thread) {
+        final int currentThreadPermits = getThreadPermits(thread);
+        if (currentThreadPermits == availablePermits) {
+            throw new ExodusException("No more permits are available to acquire a transaction");
+        }
+        return currentThreadPermits;
+    }
+
+    private void waitForSyncObject() {
+        try {
+            syncObject.wait();
+        } catch (InterruptedException e) {
+            throw ExodusException.toExodusException(e);
+        }
     }
 }
