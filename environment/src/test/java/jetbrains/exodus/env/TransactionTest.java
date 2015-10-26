@@ -520,4 +520,45 @@ public class TransactionTest extends EnvironmentTestsBase {
             txn.abort();
         }
     }
+
+    @Test
+    @TestFor(issues = "XD-480") // the test will hang if XD-480 is not fixed
+    public void testSuspendGCInTxn() {
+        set1KbFileWithoutGC();
+        final EnvironmentImpl env = getEnvironment();
+        env.getEnvironmentConfig().setGcEnabled(true);
+        env.getEnvironmentConfig().setGcMinUtilization(90);
+        env.getEnvironmentConfig().setGcStartIn(0);
+        final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
+            @Override
+            public Store compute(@NotNull Transaction txn) {
+                return env.openStore("new store", StoreConfig.WITHOUT_DUPLICATES, txn);
+            }
+        });
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction t) {
+                for (int i = 0; i < 30; ++i) {
+                    final int j = i;
+                    env.executeInTransaction(new TransactionalExecutable() {
+                        @Override
+                        public void execute(@NotNull Transaction txn) {
+                            store.put(txn, IntegerBinding.intToEntry(0), IntegerBinding.intToEntry(j));
+                            store.put(txn, IntegerBinding.intToEntry(j / 2), IntegerBinding.intToEntry(j));
+                        }
+                    });
+                }
+            }
+        });
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException ignore) {
+                }
+                env.suspendGC();
+            }
+        });
+    }
 }
