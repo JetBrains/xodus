@@ -163,7 +163,7 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
 
     @Test
     public void reopenDbAfterGcWithBackgroundCleanerCyclic() throws Exception {
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 8; i++) {
             reopenDbAfterGcWithBackgroundCleaner();
             tearDown();
             setUp();
@@ -274,7 +274,8 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
     public void removeStoreCreateStoreGet() {
         set2KbFileWithoutGC(); // patricia root loggable with 250+ children can't fit one kb
         Store store = openStoreAutoCommit("store");
-        for (int i = 0; i < 1000; ++i) {
+        final int count = 500;
+        for (int i = 0; i < count; ++i) {
             putAutoCommit(store, IntegerBinding.intToEntry(i), IntegerBinding.intToEntry(i));
         }
         Assert.assertTrue(env.getLog().getNumberOfFiles() > 1);
@@ -289,13 +290,13 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
         });
 
         store = openStoreAutoCommit("store");
-        for (int i = 0; i < 1000; ++i) {
+        for (int i = 0; i < count; ++i) {
             putAutoCommit(store, IntegerBinding.intToEntry(i), IntegerBinding.intToEntry(i));
         }
 
         env.getGC().cleanWholeLog();
 
-        for (int i = 0; i < 1000; ++i) {
+        for (int i = 0; i < count; ++i) {
             Assert.assertEquals(i, IntegerBinding.entryToInt(getAutoCommit(store, IntegerBinding.intToEntry(i))));
         }
     }
