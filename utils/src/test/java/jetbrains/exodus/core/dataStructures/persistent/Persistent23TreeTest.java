@@ -99,14 +99,12 @@ public class Persistent23TreeTest {
             int size = tree.size();
             Assert.assertEquals(i, size);
             if ((size & 1023) == 0 || size < 100) {
-                System.out.println(size + " added");
                 Iterator<Integer> iterator = added.iterator();
                 for (Integer key : tree) {
                     Assert.assertTrue(iterator.hasNext());
                     Assert.assertEquals(iterator.next(), key);
                 }
                 Assert.assertFalse(iterator.hasNext());
-                System.out.println(size + " iterated");
 
                 iterator = added.iterator();
                 Iterator<Integer> treeItr = tree.iterator();
@@ -122,7 +120,6 @@ public class Persistent23TreeTest {
                 } catch (NoSuchElementException e) {
                 }
                 Assert.assertFalse(treeItr.hasNext());
-                System.out.println(size + " iterated");
             }
             tree.add(p[i]);
             added.add(p[i]);
@@ -140,7 +137,6 @@ public class Persistent23TreeTest {
             int size = tree.size();
             Assert.assertEquals(i, size);
             if ((size & 1023) == 0 || size < 100) {
-                System.out.println(size + " added");
                 Iterator<Integer> iterator = added.descendingIterator();
                 for (Iterator<Integer> treeItr = tree.reverseIterator();
                      treeItr.hasNext(); ) {
@@ -149,7 +145,6 @@ public class Persistent23TreeTest {
                     Assert.assertEquals(iterator.next(), key);
                 }
                 Assert.assertFalse(iterator.hasNext());
-                System.out.println(size + " iterated");
 
                 iterator = added.descendingIterator();
                 Iterator<Integer> treeItr = tree.reverseIterator();
@@ -165,7 +160,6 @@ public class Persistent23TreeTest {
                 } catch (NoSuchElementException e) {
                 }
                 Assert.assertFalse(treeItr.hasNext());
-                System.out.println(size + " iterated");
             }
             tree.add(p[i]);
             added.add(p[i]);
@@ -225,7 +219,6 @@ public class Persistent23TreeTest {
             int size = tree.size();
             Assert.assertEquals(i, size);
             if ((size & 1023) == 0 || size < 100) {
-                System.out.println(size + " added");
                 if (i > 0) {
                     checkTailIteration(tree, added, added.first());
                     checkTailIteration(tree, added, added.first() - 1);
@@ -237,7 +230,6 @@ public class Persistent23TreeTest {
                 for (int j = 0; j < 10; j++) {
                     checkTailIteration(tree, added, p[i * j / 10]);
                 }
-                System.out.println(size + " iterated");
             }
             tree.add(p[i]);
             added.add(p[i]);
@@ -254,7 +246,6 @@ public class Persistent23TreeTest {
             int size = tree.size();
             Assert.assertEquals(i, size);
             if ((size & 1023) == 0 || size < 100) {
-                System.out.println(size + " added");
                 if (i > 0) {
                     checkTailReverseIteration(tree, added, added.first());
                     checkTailReverseIteration(tree, added, added.first() - 1);
@@ -266,7 +257,6 @@ public class Persistent23TreeTest {
                 for (int j = 0; j < 10; j++) {
                     checkTailReverseIteration(tree, added, p[i * j / 10]);
                 }
-                System.out.println(size + " iterated");
             }
             tree.add(p[i]);
             added.add(p[i]);
@@ -580,9 +570,6 @@ public class Persistent23TreeTest {
         for (int i = 0; i < count; i++) {
             int size = tree.size();
             Assert.assertEquals(i, size);
-            if (size > 0 && (size & 1023) == 0) {
-                System.out.println(size + " added");
-            }
             int key = p[i];
             tree.add(key);
             Assert.assertFalse(tree.isEmpty());
@@ -604,9 +591,6 @@ public class Persistent23TreeTest {
         for (int i = 0; i < count; i++) {
             int size = tree.size();
             Assert.assertEquals(count - i, size);
-            if ((size & 1023) == 0) {
-                System.out.println(size + " left");
-            }
             Assert.assertFalse(tree.isEmpty());
             int key = p[i];
             Assert.assertTrue(tree.exclude(key));

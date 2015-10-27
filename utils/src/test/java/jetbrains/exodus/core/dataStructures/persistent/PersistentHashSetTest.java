@@ -37,9 +37,6 @@ public class PersistentHashSetTest {
         for (int i = 0; i < ENTRIES_TO_ADD; i++) {
             int size = tree.size();
             Assert.assertEquals(i, size);
-            if ((size & 1023) == 0) {
-                System.out.println(size + " added");
-            }
             int key = p[i];
             tree.add(key);
             AbstractPersistentHashSet.TableNode<Integer> root = tree.getRoot();
@@ -60,9 +57,6 @@ public class PersistentHashSetTest {
         for (int i = 0; i < ENTRIES_TO_ADD; i++) {
             int size = tree.size();
             Assert.assertEquals(ENTRIES_TO_ADD - i, size);
-            if ((size & 1023) == 0) {
-                System.out.println(size + " left");
-            }
             Assert.assertFalse(tree.isEmpty());
             int key = p[i];
             Assert.assertTrue(tree.remove(key));
@@ -126,7 +120,6 @@ public class PersistentHashSetTest {
             int size = tree.size();
             Assert.assertEquals(i, size);
             if ((size & 1023) == 0 || size < 100) {
-                System.out.println(size + " added");
                 Collection<Integer> actual = new HashSet<>(size);
                 for (Integer key : tree) {
                     Assert.assertFalse(actual.contains(key));
@@ -136,7 +129,6 @@ public class PersistentHashSetTest {
                 for (Integer key : added) {
                     Assert.assertTrue(actual.contains(key));
                 }
-                System.out.println(size + " iterated");
 
                 Iterator<Integer> treeItr = tree.iterator();
                 actual.clear();
@@ -149,7 +141,6 @@ public class PersistentHashSetTest {
                 for (Integer key : added) {
                     Assert.assertTrue(actual.contains(key));
                 }
-                System.out.println(size + " iterated");
             }
             tree.add(p[i]);
             added.add(p[i]);
@@ -167,7 +158,6 @@ public class PersistentHashSetTest {
             int size = tree.size();
             Assert.assertEquals(i, size);
             if ((size & 1023) == 0 || size < 100) {
-                System.out.println(size + " added");
                 final Collection<Integer> actual = new HashSet<>(size);
                 ObjectProcedure<Integer> proc = new ObjectProcedure<Integer>() {
                     @Override

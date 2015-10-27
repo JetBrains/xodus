@@ -62,9 +62,6 @@ public class PersistentLinkedHashMapTest {
         for (int i = 0; i < count; i++) {
             int size = tree.size();
             Assert.assertEquals(i, size);
-            if (size > 0 && (size & 1023) == 0) {
-                System.out.println(size + " added");
-            }
             int key = p[i];
             tree.put(key, key + " ");
             Assert.assertFalse(tree.isEmpty());
@@ -88,9 +85,6 @@ public class PersistentLinkedHashMapTest {
         for (int i = 0; i < count; i++) {
             int size = tree.size();
             Assert.assertEquals(count - i, size);
-            if ((size & 1023) == 0) {
-                System.out.println(size + " left");
-            }
             Assert.assertFalse(tree.isEmpty());
             int key = p[i];
             Assert.assertEquals(String.valueOf(key), tree.remove(key));

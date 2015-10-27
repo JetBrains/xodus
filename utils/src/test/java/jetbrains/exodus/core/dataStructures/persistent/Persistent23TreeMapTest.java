@@ -97,7 +97,6 @@ public class Persistent23TreeMapTest {
             int size = write.size();
             Assert.assertEquals(i, size);
             if ((size & 1023) == 0 || size < 100) {
-                System.out.println(size + " added");
                 Iterator<Integer> iterator = added.iterator();
                 for (Persistent23TreeMap.Entry<Integer, String> key : write) {
                     Assert.assertTrue(iterator.hasNext());
@@ -106,7 +105,6 @@ public class Persistent23TreeMapTest {
                     Assert.assertEquals(String.valueOf(next), key.getValue());
                 }
                 Assert.assertFalse(iterator.hasNext());
-                System.out.println(size + " iterated");
 
                 iterator = added.iterator();
                 Iterator<Persistent23TreeMap.Entry<Integer, String>> treeItr = write.iterator();
@@ -124,7 +122,6 @@ public class Persistent23TreeMapTest {
                 } catch (NoSuchElementException e) {
                 }
                 Assert.assertFalse(treeItr.hasNext());
-                System.out.println(size + " iterated");
             }
             write.put(p[i], String.valueOf(p[i]));
             added.add(p[i]);
@@ -142,7 +139,6 @@ public class Persistent23TreeMapTest {
             int size = tree.size();
             Assert.assertEquals(i, size);
             if ((size & 1023) == 0 || size < 100) {
-                System.out.println(size + " added");
                 Iterator<Integer> iterator = added.descendingIterator();
                 for (Iterator<Persistent23TreeMap.Entry<Integer, String>> treeItr = tree.reverseIterator();
                      treeItr.hasNext(); ) {
@@ -153,7 +149,6 @@ public class Persistent23TreeMapTest {
                     Assert.assertEquals(String.valueOf(next), key.getValue());
                 }
                 Assert.assertFalse(iterator.hasNext());
-                System.out.println(size + " iterated");
 
                 iterator = added.descendingIterator();
                 Iterator<Persistent23TreeMap.Entry<Integer, String>> treeItr = tree.reverseIterator();
@@ -171,7 +166,6 @@ public class Persistent23TreeMapTest {
                 } catch (NoSuchElementException e) {
                 }
                 Assert.assertFalse(treeItr.hasNext());
-                System.out.println(size + " iterated");
             }
             tree.put(p[i], String.valueOf(p[i]));
             added.add(p[i]);
@@ -189,7 +183,6 @@ public class Persistent23TreeMapTest {
             int size = write.size();
             Assert.assertEquals(i, size);
             if ((size & 1023) == 0 || size < 100) {
-                System.out.println(size + " added");
                 if (i > 0) {
                     checkTailIteration(write, added, map.createEntry(added.first()));
                     checkTailIteration(write, added, map.createEntry(added.first() - 1));
@@ -201,7 +194,6 @@ public class Persistent23TreeMapTest {
                 for (int j = 0; j < 10; j++) {
                     checkTailIteration(write, added, map.createEntry(p[i * j / 10]));
                 }
-                System.out.println(size + " iterated");
             }
             write.put(p[i], String.valueOf(p[i]));
             added.add(p[i]);
@@ -219,7 +211,6 @@ public class Persistent23TreeMapTest {
             int size = write.size();
             Assert.assertEquals(i, size);
             if ((size & 1023) == 0 || size < 100) {
-                System.out.println(size + " added");
                 if (i > 0) {
                     checkTailReverseIteration(write, added, map.createEntry(added.first()));
                     checkTailReverseIteration(write, added, map.createEntry(added.first() - 1));
@@ -231,7 +222,6 @@ public class Persistent23TreeMapTest {
                 for (int j = 0; j < 10; j++) {
                     checkTailReverseIteration(write, added, map.createEntry(p[i * j / 10]));
                 }
-                System.out.println(size + " iterated");
             }
             write.put(p[i], String.valueOf(p[i]));
             added.add(p[i]);
@@ -326,9 +316,6 @@ public class Persistent23TreeMapTest {
         for (int i = 0; i < count; i++) {
             int size = tree.size();
             Assert.assertEquals(i, size);
-            if (size > 0 && (size & 1023) == 0) {
-                System.out.println(size + " added");
-            }
             int key = p[i];
             tree.put(key, key + " ");
             Assert.assertFalse(tree.isEmpty());
@@ -352,9 +339,6 @@ public class Persistent23TreeMapTest {
         for (int i = 0; i < count; i++) {
             int size = tree.size();
             Assert.assertEquals(count - i, size);
-            if ((size & 1023) == 0) {
-                System.out.println(size + " left");
-            }
             Assert.assertFalse(tree.isEmpty());
             int key = p[i];
             Assert.assertEquals(String.valueOf(key), tree.remove(key));
