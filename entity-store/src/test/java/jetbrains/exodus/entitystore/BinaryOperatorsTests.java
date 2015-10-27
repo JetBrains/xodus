@@ -159,7 +159,7 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
 
     public void testUnionUnsortedStress() {
         final StoreTransaction txn = getStoreTransaction();
-        final int count = 100000;
+        final int count = 10000;
         for (int i = 0; i < count; ++i) {
             final Entity issue = txn.newEntity("Issue");
             issue.setProperty("number", i);
