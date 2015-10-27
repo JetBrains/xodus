@@ -205,7 +205,7 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
                 return;
             }
             Thread.yield();
-            final PersistentStoreTransaction txn = store.beginTransaction();
+            final PersistentStoreTransaction txn = store.beginReadonlyTransaction();
             try {
                 cancellingPolicy.setLocalCache(txn.getLocalCache());
                 txn.setQueryCancellingPolicy(cancellingPolicy);
