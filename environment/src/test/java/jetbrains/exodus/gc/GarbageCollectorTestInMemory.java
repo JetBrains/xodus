@@ -45,7 +45,7 @@ import java.util.concurrent.CyclicBarrier;
 public class GarbageCollectorTestInMemory extends GarbageCollectorTest {
 
     private static final Logger logger = LoggerFactory.getLogger(GarbageCollectorTestInMemory.class);
-    private static final int TEST_DURATION = 1000 * 30;
+    private static final int TEST_DURATION = 1000 * 15;
 
     private final Random rnd = new Random();
     private Memory memory;
