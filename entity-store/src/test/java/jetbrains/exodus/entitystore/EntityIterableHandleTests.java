@@ -63,9 +63,6 @@ public class EntityIterableHandleTests extends EntityStoreTestBase {
             if (!set.add(h)) {
                 Assert.assertTrue(false);
             }
-            if ((i % 100000) == 0) {
-                System.out.print(".");
-            }
         }
     }
 

@@ -467,7 +467,6 @@ public class EntityIterableTests extends EntityStoreTestBase {
             Assert.assertEquals(i + startingCount, (int) txn.getAll("User").size());
             txn.newEntity("User");
             txn.flush();
-            System.out.print(".");
         }
     }
 
