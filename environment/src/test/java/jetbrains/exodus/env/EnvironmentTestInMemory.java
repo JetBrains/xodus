@@ -37,7 +37,7 @@ import java.io.IOException;
 public class EnvironmentTestInMemory extends EnvironmentTest {
 
     private static final Logger logger = LoggerFactory.getLogger(EnvironmentTestInMemory.class);
-    private static final int TEST_DURATION = 1000 * 30;
+    private static final int TEST_DURATION = 1000 * 15;
 
     private final Random rnd = new Random();
 
