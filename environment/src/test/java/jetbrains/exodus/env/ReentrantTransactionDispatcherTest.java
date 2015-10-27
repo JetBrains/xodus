@@ -18,9 +18,17 @@ package jetbrains.exodus.env;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.execution.locks.Latch;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 public class ReentrantTransactionDispatcherTest {
+
+    private ReentrantTransactionDispatcher dispatcher;
+
+    @Before
+    public void setUp() {
+        dispatcher = new ReentrantTransactionDispatcher(10);
+    }
 
     @Test(expected = IllegalArgumentException.class)
     public void createDispatcher() {
@@ -29,7 +37,6 @@ public class ReentrantTransactionDispatcherTest {
 
     @Test(expected = ExodusException.class)
     public void cantAcquireMoreTransaction() {
-        final ReentrantTransactionDispatcher dispatcher = new ReentrantTransactionDispatcher(10);
         dispatcher.acquireExclusiveTransaction(Thread.currentThread());
         Assert.assertEquals(0, dispatcher.getAvailablePermits());
         dispatcher.acquireTransaction(Thread.currentThread());
@@ -37,25 +44,51 @@ public class ReentrantTransactionDispatcherTest {
 
     @Test(expected = ExodusException.class)
     public void cantReleaseMorePermits() {
-        final ReentrantTransactionDispatcher dispatcher = new ReentrantTransactionDispatcher(10);
         dispatcher.acquireTransaction(Thread.currentThread());
         dispatcher.releaseTransaction(Thread.currentThread(), 2);
     }
 
     @Test
     public void exclusiveTransaction() {
-        final ReentrantTransactionDispatcher dispatcher = new ReentrantTransactionDispatcher(10);
         dispatcher.acquireExclusiveTransaction(Thread.currentThread());
         Assert.assertEquals(0, dispatcher.getAvailablePermits());
     }
 
     @Test
     public void exclusiveTransaction2() {
-        final ReentrantTransactionDispatcher dispatcher = new ReentrantTransactionDispatcher(10);
         dispatcher.acquireTransaction(Thread.currentThread());
         Assert.assertEquals(9, dispatcher.getAvailablePermits());
         dispatcher.acquireExclusiveTransaction(Thread.currentThread());
         Assert.assertEquals(0, dispatcher.getAvailablePermits());
+    }
+
+    @Test
+    public void tryAcquireExclusiveTransaction() throws InterruptedException {
+        exclusiveTransaction2();
+        final Latch latch = Latch.create();
+        latch.acquire();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                latch.release();
+                dispatcher.acquireTransaction(Thread.currentThread());
+                latch.release();
+            }
+        }).start();
+        latch.acquire();
+        Thread.sleep(100);
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Assert.assertEquals(0, dispatcher.tryAcquireExclusiveTransaction(Thread.currentThread(), 100));
+                latch.release();
+            }
+        }).start();
+        latch.acquire();
+        dispatcher.releaseTransaction(Thread.currentThread(), 10);
+        latch.acquire();
+        Assert.assertEquals(0, dispatcher.acquirerCount());
+        Assert.assertEquals(0, dispatcher.exclusiveAcquirerCount());
     }
 
     @Test
