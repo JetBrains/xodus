@@ -95,8 +95,6 @@ public class BTreeReclaimTest extends BTreeTestBase {
         getTreeMutable().put(kv(5, "rambling"));
         getTreeMutable().put(kv(6, "plumbing"));
 
-        getTreeMutable().dump(System.out);
-
         long rootAddress = tm.save();
         t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, false, 1);
 

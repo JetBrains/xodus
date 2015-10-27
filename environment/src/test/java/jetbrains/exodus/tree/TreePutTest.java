@@ -415,7 +415,7 @@ public abstract class TreePutTest extends TreeBaseTest {
         tm = createMutableTree(false, 1);
 
         final IntHashMap<String> map = new IntHashMap<>();
-        final int count = 200000;
+        final int count = 50000;
 
         time("Add took ", new Runnable() {
             @Override

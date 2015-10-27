@@ -37,8 +37,6 @@ public class BTreeTest extends BTreeTestBase {
             getTreeMutable().put(kv(i, "v" + i));
         }
 
-        getTreeMutable().dump(System.out);
-
         checkTree(getTreeMutable(), s).run();
 
         long rootAddress = tm.save();
@@ -60,8 +58,6 @@ public class BTreeTest extends BTreeTestBase {
             getTreeMutable().putRight(kv(i, "v" + i));
         }
 
-        getTreeMutable().dump(System.out);
-
         checkTree(getTreeMutable(), s).run();
 
         long rootAddress = tm.save();
@@ -82,8 +78,6 @@ public class BTreeTest extends BTreeTestBase {
         for (int i = s - 1; i >= 0; i--) {
             getTreeMutable().put(kv(i, "v" + i));
         }
-
-        getTreeMutable().dump(System.out);
 
         checkTree(getTreeMutable(), s).run();
 
@@ -110,8 +104,6 @@ public class BTreeTest extends BTreeTestBase {
             getTreeMutable().put(ln);
             lns.remove(index);
         }
-
-        getTreeMutable().dump(System.out);
 
         checkTree(getTreeMutable(), s).run();
 
@@ -143,8 +135,6 @@ public class BTreeTest extends BTreeTestBase {
             getTreeMutable().put(ln);
         }
 
-        getTreeMutable().dump(System.out);
-
         checkTree(getTreeMutable(), "vv", 100).run();
 
         long rootAddress = tm.save();
@@ -173,8 +163,6 @@ public class BTreeTest extends BTreeTestBase {
             final INode ln = kv(i, "vv" + i);
             getTreeMutable().put(ln);
         }
-
-        getTreeMutable().dump(System.out);
 
         // expected nodes
         List<INode> l = new ArrayList<>();
@@ -216,8 +204,6 @@ public class BTreeTest extends BTreeTestBase {
             final INode ln = kv(i, "v" + i);
             getTreeMutable().delete(ln.getKey(), ln.getValue());
         }
-
-        getTreeMutable().dump(System.out);
 
         Assert.assertEquals(0, tm.getSize());
         assertMatchesIterator(tm, Collections.<INode>emptyList());
@@ -276,8 +262,6 @@ public class BTreeTest extends BTreeTestBase {
             getTreeMutable().put(ln);
         }
 
-        getTreeMutable().dump(System.out);
-
         assertMatchesIterator(tm, expected);
     }
 
@@ -302,8 +286,6 @@ public class BTreeTest extends BTreeTestBase {
             getTreeMutable().putRight(ln);
         }
 
-        getTreeMutable().dump(System.out);
-
         assertMatchesIterator(tm, expected);
     }
 
@@ -327,8 +309,6 @@ public class BTreeTest extends BTreeTestBase {
         for (INode ln : l) {
             getTreeMutable().add(ln);
         }
-
-        getTreeMutable().dump(System.out);
 
         valueEquals("51", tm.get(key("5")));
     }

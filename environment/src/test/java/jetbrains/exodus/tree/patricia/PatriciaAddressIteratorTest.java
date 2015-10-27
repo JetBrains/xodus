@@ -31,8 +31,6 @@ public class PatriciaAddressIteratorTest extends PatriciaTestBase {
         }
 
         t = new PatriciaTree(log, tm.save(), 1);
-        getTree().dump(System.out);
-
         checkAddressSet(getTree(), 23);
     }
 }

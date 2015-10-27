@@ -94,8 +94,6 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
             }
         };
 
-        tm.dump(System.out);
-
         count.run();
         long a = tm.save();
         count.run();
@@ -112,7 +110,6 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
                 Cursor c = _t.openCursor();
 
                 for (INode ln : values) {
-                    System.out.println(ln);
                     assertEquals(true, c.getNext());
                     assertEquals(ln.getValue(), c.getValue());
                     assertEquals(ln.getKey(), c.getKey());
@@ -180,7 +177,6 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
                 Cursor c = _t.openCursor();
 
                 for (INode ln : valuesNoDup) {
-                    System.out.println(ln);
                     assertEquals(true, c.getNextNoDup());
                     assertEquals(ln.getValue(), c.getValue());
                     assertEquals(ln.getKey(), c.getKey());
@@ -221,7 +217,6 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
                 Cursor c = _t.openCursor();
 
                 for (INode ln : valuesNoDup) {
-                    System.out.println(ln);
                     assertEquals(ln.getValue(), c.getSearchKey(ln.getKey()));
                     assertEquals(ln.getValue(), c.getValue());
                     assertEquals(ln.getKey(), c.getKey());
@@ -282,7 +277,6 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
                 Cursor c = _t.openCursor();
 
                 for (INode ln : valuesNoDup) {
-                    System.out.println(ln);
                     assertEquals(ln.getValue(), c.getSearchKeyRange(ln.getKey()));
                     assertEquals(ln.getValue(), c.getValue());
                     assertEquals(ln.getKey(), c.getKey());
@@ -398,7 +392,6 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
                 Cursor c = _t.openCursor();
 
                 for (INode ln : values) {
-                    System.out.println(ln);
                     assertEquals(ln.getValue(), c.getSearchBothRange(ln.getKey(), ln.getValue()));
                     assertEquals(ln.getValue(), c.getValue());
                     assertEquals(ln.getKey(), c.getKey());
@@ -494,7 +487,6 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
                 final ListIterator<INode> itr = values.listIterator(values.size());
                 while (itr.hasPrevious()) {
                     INode ln = itr.previous();
-                    System.out.println(ln);
                     assertEquals(true, c.getPrev());
                     assertEquals(ln.getValue(), c.getValue());
                     assertEquals(ln.getKey(), c.getKey());
@@ -531,7 +523,6 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
                 final ListIterator<INode> itr = values.listIterator(values.size());
                 while (itr.hasPrevious()) {
                     INode ln = itr.previous();
-                    System.out.println(ln);
                     assertEquals(true, c.getPrev());
                     assertEquals(ln.getValue(), c.getValue());
                     assertEquals(ln.getKey(), c.getKey());

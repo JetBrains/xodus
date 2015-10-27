@@ -36,7 +36,6 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
         }
 
         t = new BTree(log, tm.save(), false, 1);
-        getTree().dump(System.out);
 
         checkAddressSet(getTree(), 18);
     }
@@ -48,7 +47,6 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
         //Expired: none
         checkExpiredAddress(tm, 0);
 
-        getTreeMutable().dump(System.out);
         tm.save();
 
         t = new BTree(log, address, true, 1);
@@ -58,8 +56,6 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
         getTreeMutable().put(kv(0, "value"));
         //Expired: still root
         checkExpiredAddress(tm, 1);
-
-        getTreeMutable().dump(System.out);
     }
 
     @Test
@@ -69,8 +65,6 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
         //Expired: none
         checkExpiredAddress(tm, 0);
         long address = tm.save();
-
-        getTreeMutable().dump(System.out);
 
         t = new BTree(log, address, true, 1);
         tm = getTree().getMutableCopy();
@@ -85,8 +79,6 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
         // Expired: root, dupTree
         checkExpiredAddress(tm, 2);
         tm.save();
-
-        getTreeMutable().dump(System.out);
     }
 
     @Test
@@ -99,7 +91,6 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
         //Expired: none
         checkExpiredAddress(tm, 0);
 
-        getTreeMutable().dump(System.out);
         tm.save();
 
         t = new BTree(log, address, true, 1);
@@ -110,23 +101,18 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
         tm.save();
         //Expired: still root
         checkExpiredAddress(tm, 1);
-
-        getTreeMutable().dump(System.out);
     }
 
     @Test
     public void testDeleteAllDups() throws IOException {
         tm = new BTreeEmpty(log, true, 1).getMutableCopy();
         getTreeMutable().put(kv(0, "value"));
-        getTreeMutable().dump(System.out);
         //Expired: none
         checkExpiredAddress(tm, 0);
         INode leafNode = kv(0, "value2");
         getTreeMutable().put(leafNode);
-        getTreeMutable().dump(System.out);
         //Expired: still none (changes in memory)
         checkExpiredAddress(tm, 0);
-        getTreeMutable().dump(System.out);
         long address = tm.save();
 
         t = new BTree(log, address, true, 1);
@@ -135,7 +121,6 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
         //Expired: root, dupTree, value, value2
         checkExpiredAddress(tm, 4);
         tm.save();
-        getTreeMutable().dump(System.out);
     }
 
     @Test
@@ -147,7 +132,6 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
         //Expired: none
         checkExpiredAddress(tm, 0);
         long address = tm.save();
-        getTreeMutable().dump(System.out);
 
         t = new BTree(log, address, true, 1);
         tm = getTree().getMutableCopy();
@@ -155,7 +139,6 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
         System.out.println("Before delete:");
         dumplLoggable(it);
         getTreeMutable().delete(leafNode.getKey(), leafNode.getValue());
-        getTreeMutable().dump(System.out);
         //Expired: root, dupTree, value, value2
         checkExpiredAddress(tm, 4);
         tm.save();
@@ -178,7 +161,6 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
         //Expired: none
         checkExpiredAddress(tm, 0);
         long address = tm.save();
-        getTreeMutable().dump(System.out);
 
         t = new BTree(log, address, true, 1);
         tm = getTree().getMutableCopy();
@@ -186,7 +168,6 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
         //Expired: root, dupTree, value3
         checkExpiredAddress(tm, 3);
         tm.save();
-        getTreeMutable().dump(System.out);
     }
 
     @Test
@@ -195,8 +176,6 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
         long address = tm.save();
 
         checkExpiredAddress(tm, 0);
-
-        getTreeMutable().dump(System.out);
 
         t = new BTree(log, address, true, 1);
         tm = getTree().getMutableCopy();
@@ -209,9 +188,6 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
         }
         checkExpiredAddress(tm, 1);
         tm.save();
-
-
-        getTreeMutable().dump(System.out);
     }
 
     @Test
@@ -234,15 +210,12 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
         checkExpiredAddress(tm, 0);
         long address = tm.save();
 
-        getTreeMutable().dump(System.out);
-
         t = new BTree(log, address, true, 1);
         tm = getTree().getMutableCopy();
         long addresses = countNodes(getTreeMutable());
         for (int i = 0; i < 1000; i++) {
             tm.delete(keys[i]);
         }
-        getTreeMutable().dump(System.out);
         checkExpiredAddress(tm, addresses);
         tm.save();
 
@@ -268,15 +241,12 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
         checkExpiredAddress(tm, 0);
         long address = tm.save();
 
-        getTreeMutable().dump(System.out);
-
         t = new BTree(log, address, true, 1);
         tm = getTree().getMutableCopy();
         long addresses = countNodes(getTreeMutable());
         for (INode leafNode : leaves) {
             getTreeMutable().delete(leafNode.getKey(), leafNode.getValue());
         }
-        getTreeMutable().dump(System.out);
         checkExpiredAddress(tm, addresses);
         tm.save();
 
@@ -287,7 +257,6 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
     }
 
     protected long countNodes(BTreeMutable tree) {
-        System.out.println("---------");
         return countNodes(tree.getRoot());
     }
 
@@ -308,14 +277,12 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
                 }
                 result += r;
             }
-            System.out.println("Bottoms: " + result);
             return result;
         }
         long result = 1;
         for (int i = 0; i < page.getSize(); i++) {
             result += countNodes(page.getChild(i));
         }
-        System.out.println("Internals: " + result);
         return result;
     }
 

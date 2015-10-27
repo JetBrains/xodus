@@ -230,7 +230,6 @@ public class BTreePutSpecificTest extends BTreeTestBase {
             getTreeMutable().put(kv(i, "v" + i));
         }
 
-        getTreeMutable().dump(System.out);
         assertEquals(7, tm.getSize());
 
         TreeAwareRunnable r = new TreeAwareRunnable() {
@@ -270,16 +269,12 @@ public class BTreePutSpecificTest extends BTreeTestBase {
         //
         long rootAddress = tm.save();
 
-        getTreeMutable().dump(System.out);
-
         r.run();
         r2.run();
 
         reopen();
 
         t = new BTree(log, rootAddress, true, 1);
-
-        getTree().dump(System.out);
         assertEquals(7, t.getSize());
 
         r2.setTree(getTree());
@@ -293,8 +288,6 @@ public class BTreePutSpecificTest extends BTreeTestBase {
         for (int i = 0; i < 10; i++) {
             getTreeMutable().put(kv(i, "v" + i));
         }
-
-        getTreeMutable().dump(System.out);
 
         assertMatches(getTreeMutable(), IP(BP(6), BP(4)));
     }
@@ -311,7 +304,6 @@ public class BTreePutSpecificTest extends BTreeTestBase {
         getTreeMutable().put(kv(6, "v6"));
         getTreeMutable().put(kv(7, "v7"));
 
-        getTreeMutable().dump(System.out);
         assertMatches(getTreeMutable(), IP(BP(3), BP(4)));
 
         long a = tm.save();
@@ -319,9 +311,6 @@ public class BTreePutSpecificTest extends BTreeTestBase {
         tm = new BTree(log, new BTreeBalancePolicy(4), a, false, 1).getMutableCopy();
 
         getTreeMutable().put(kv(8, "v8"));
-
-        System.out.println("--------------------");
-        getTreeMutable().dump(System.out);
 
         assertMatches(getTreeMutable(), IP(BP(3), BP(3), BP(2)));
     }

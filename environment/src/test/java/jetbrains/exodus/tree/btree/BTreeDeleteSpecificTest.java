@@ -63,7 +63,6 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
 
         for (int i = 0; i < 8; i++) {
             tm.delete(key(i));
-            System.out.println(i + " after delete ---------------------");
             dump(getTreeMutable());
         }
 
@@ -85,14 +84,12 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
 
         for (int i = -5; i < 8; i++) {
             tm.delete(key(i));
-            System.out.println(i + " after delete ---------------------");
             dump(getTreeMutable());
         }
         assertEquals(12, tm.getSize());
 
         for (int i = 0; i < 20; i++) {
             tm.delete(key(i));
-            System.out.println(i + " after delete ---------------------");
             dump(getTreeMutable());
         }
         assertEquals(0, tm.getSize());
@@ -119,7 +116,6 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
             tm.delete(key(i));
             res.remove(0);
 
-            System.out.println("After remove " + i + " -----------------------------------");
             dump(getTreeMutable());
 
             assertMatchesIterator(tm, res);
@@ -183,42 +179,34 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         assertMatches(getTreeMutable(), IP(BP(6), BP(2)));
 
         tm.delete(key(7));
-        System.out.println("------------------");
         dump(getTreeMutable());
         assertMatches(getTreeMutable(), IP(BP(6), BP(1)));
 
         tm.delete(key(6));
-        System.out.println("------------------");
         dump(getTreeMutable());
         assertMatches(getTreeMutable(), BP(6));
 
         getTreeMutable().put(kv(6, "v6"));
-        System.out.println("------------------");
         dump(getTreeMutable());
         assertMatches(getTreeMutable(), BP(7));
 
         getTreeMutable().put(kv(7, "v7"));
-        System.out.println("------------------");
         dump(getTreeMutable());
         assertMatches(getTreeMutable(), IP(BP(6), BP(2)));
 
         tm.delete(key(1));
-        System.out.println("------------------");
         dump(getTreeMutable());
         assertMatches(getTreeMutable(), IP(BP(5), BP(2)));
 
         tm.delete(key(2));
-        System.out.println("------------------");
         dump(getTreeMutable());
         assertMatches(getTreeMutable(), BP(6));
 
         tm.delete(key(3));
-        System.out.println("------------------");
         dump(getTreeMutable());
         assertMatches(getTreeMutable(), BP(5));
 
         tm.delete(key(4));
-        System.out.println("------------------");
         dump(getTreeMutable());
         assertMatches(getTreeMutable(), BP(4));
     }
@@ -232,7 +220,6 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         }
 
         dump(getTreeMutable());
-        System.out.println("---------------------");
         assertMatches(getTreeMutable(), IP(
                 IP(BP(3), BP(3), BP(3)),
                 IP(BP(3), BP(2))));
@@ -240,7 +227,6 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         // remove first
         assertTrue(tm.delete(key(0)));
         dump(getTreeMutable());
-        System.out.println("---------------------");
         assertMatches(getTreeMutable(), IP(
                 IP(BP(2), BP(3), BP(3)),
                 IP(BP(3), BP(2))));
@@ -253,11 +239,9 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         for (int i = 0; i < 14; i++) {
             getTreeMutable().put(kv(i, "v" + i));
             dump(getTreeMutable());
-            System.out.println("---------------------");
         }
 
         dump(getTreeMutable());
-        System.out.println("---------------------");
         assertMatches(getTreeMutable(), IP(
                 IP(BP(3), BP(3), BP(3)),
                 IP(BP(3), BP(2))));
@@ -266,7 +250,6 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         assertTrue(tm.delete(key(13)));
         assertTrue(tm.delete(key(12)));
         dump(getTreeMutable());
-        System.out.println("---------------------");
         assertMatches(getTreeMutable(), IP(
                 IP(BP(3), BP(3), BP(3)),
                 IP(BP(3))));
@@ -274,7 +257,6 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         getTreeMutable().put(kv(14, "v14"));
         getTreeMutable().put(kv(15, "v15"));
         dump(getTreeMutable());
-        System.out.println("---------------------");
         assertMatches(getTreeMutable(), IP(
                 IP(BP(3), BP(3), BP(3)),
                 IP(BP(3), BP(2))));
@@ -289,28 +271,24 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         }
 
         dump(getTreeMutable());
-        System.out.println("---------------------");
         assertMatches(getTreeMutable(), IP(
                 IP(BP(3), BP(3), BP(3)),
                 IP(BP(3), BP(2))));
 
         assertTrue(tm.delete(key(1)));
         dump(getTreeMutable());
-        System.out.println("---------------------");
         assertMatches(getTreeMutable(), IP(
                 IP(BP(2), BP(3), BP(3)),
                 IP(BP(3), BP(2))));
 
         assertTrue(tm.delete(key(4)));
         dump(getTreeMutable());
-        System.out.println("---------------------");
         assertMatches(getTreeMutable(), IP(
                 IP(BP(2), BP(2), BP(3)),
                 IP(BP(3), BP(2))));
 
         assertTrue(tm.delete(key(5)));
         dump(getTreeMutable());
-        System.out.println("---------------------");
         assertMatches(getTreeMutable(), IP(
                 IP(BP(3), BP(3)),
                 IP(BP(3), BP(2))));
@@ -330,7 +308,6 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         int i = 0;
 
         while (!tm.isEmpty() && i <= 5000) {
-            System.out.println(i);
             //c.getNext();
             //c.deleteCurrent();
 
@@ -347,7 +324,6 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
             }
 */
 
-            System.out.println("Size: " + tm.getSize());
             i++;
         }
 

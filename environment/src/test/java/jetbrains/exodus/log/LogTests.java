@@ -326,7 +326,6 @@ public class LogTests extends LogTestsBase {
         final Iterator<RandomAccessLoggable> it = getLog().getLoggableIterator(0);
         int i = 0;
         while (it.hasNext()) {
-            System.out.println(i);
             Loggable l = it.next();
             Assert.assertEquals((long) (4 * i++), l.getAddress());
             Assert.assertEquals(127, l.getType());

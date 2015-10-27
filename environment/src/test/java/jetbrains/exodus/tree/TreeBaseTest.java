@@ -158,15 +158,6 @@ public abstract class TreeBaseTest {
         return time;
     }
 
-    public static void writeItems(ITree t) {
-        final ITreeCursor cursor = t.openCursor();
-        while (cursor.getNext()) {
-            final ByteIterable key = cursor.getKey();
-            final ByteIterable value = cursor.getValue();
-            System.out.println(new String(key.getBytesUnsafe(), 0, key.getLength()) + ':' + new String(value.getBytesUnsafe(), 0, value.getLength()));
-        }
-    }
-
     public static INode kv(String key) {
         return new StringKVNode(key, "");
     }
@@ -198,7 +189,6 @@ public abstract class TreeBaseTest {
     public static void assertMatchesIterator(ITree actual, boolean checkExists, INode... expected) {
         final ITreeCursor it1 = actual.openCursor();
         List<INode> act = new ArrayList<>((int) actual.getSize());
-        actual.dump(System.out);
         while (it1.getNext()) {
             act.add(new LeafNodeKV(it1.getKey(), it1.getValue()));
         }
@@ -237,7 +227,6 @@ public abstract class TreeBaseTest {
         while (addressIterator.hasNext()) {
             long l = addressIterator.next();
             list.add(l);
-            System.out.println(l);
         }
         Assert.assertEquals(count, list.size());
         Collections.sort(list);
@@ -299,7 +288,7 @@ public abstract class TreeBaseTest {
     }
 
     public void dump(ITree t) {
-        t.dump(System.out, new INode.ToString() {
+        /*t.dump(System.out, new INode.ToString() {
             @Override
             public String toString(INode ln) {
                 final StringBuilder sb = new StringBuilder(16);
@@ -310,7 +299,7 @@ public abstract class TreeBaseTest {
                 }
                 return sb.toString();
             }
-        });
+        });*/
     }
 
     public static void doDeleteViaCursor(@NotNull TreeBaseTest testCase, @NotNull ByteIterable key) {

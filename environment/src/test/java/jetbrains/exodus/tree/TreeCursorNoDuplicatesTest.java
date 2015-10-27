@@ -235,8 +235,6 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
         tm.put(key("aaab"), v);
         tm.put(key("aaba"), v);
 
-        tm.dump(System.out);
-
         Cursor c = tm.openCursor();
 
         c.getSearchKeyRange(key("aaac"));
@@ -250,8 +248,6 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
         final ByteIterable v = value("0");
         tm.put(key("aaba"), v);
         tm.put(key("aabb"), v);
-
-        tm.dump(System.out);
 
         Cursor c = tm.openCursor();
 

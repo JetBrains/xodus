@@ -124,7 +124,6 @@ public class BTreeCursorDeleteTest extends BTreeTestBase {
             final Cursor cursor = getTreeMutable().openCursor();
             Assert.assertNotNull(cursor.getSearchKeyRange(IntegerBinding.intToEntry(i)));
             for (int j = 0; j < 31; ++j) {
-                System.out.println(i + "=" + j);
                 cursor.deleteCurrent();
                 Assert.assertTrue(cursor.getNext());
             }
