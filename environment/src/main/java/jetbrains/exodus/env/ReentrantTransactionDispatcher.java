@@ -119,7 +119,8 @@ final class ReentrantTransactionDispatcher {
      *
      * @return the number of acquired permits or 0 if acquisition failed.
      */
-    int tryAcquireExclusiveTransaction(@NotNull final Thread thread) {
+    int tryAcquireExclusiveTransaction(@NotNull final Thread thread, long timeout) {
+        final long started = System.currentTimeMillis();
         synchronized (syncObject) {
             final int currentThreadPermits = getThreadPermitsToAcquire(thread);
             int permitsToAcquire = availablePermits - currentThreadPermits;
@@ -127,25 +128,31 @@ final class ReentrantTransactionDispatcher {
                 Queue<Thread> threadQueue = regularThreadQueue;
                 threadQueue.offer(thread);
                 while (true) {
-                    waitForSyncObject();
-                    if (!threadQueue.peek().equals(thread)) {
-                        continue;
-                    }
-                    if (acquiredPermits <= availablePermits - permitsToAcquire) {
-                        break;
-                    }
-                    // if an exclusive transaction cannot be acquired fairly (in its turn)
-                    // try to shuffle it to the queue of exclusive transactions
-                    if (threadQueue == regularThreadQueue) {
-                        threadQueue.poll();
-                        if (!exclusiveThreadQueue.isEmpty()) {
-                            syncObject.notifyAll();
-                            return 0;
+                    waitForSyncObject(timeout);
+                    if (threadQueue.peek().equals(thread)) {
+                        if (acquiredPermits <= availablePermits - permitsToAcquire) {
+                            break;
                         }
-                        threadQueue = exclusiveThreadQueue;
-                        threadQueue.offer(thread);
-                        syncObject.notifyAll();
+                        // if an exclusive transaction cannot be acquired fairly (in its turn) try to shuffle
+                        // it to the queue of exclusive transactions if only if the queue is empty
+                        // otherwise return 0 permits, i.e. exclusive transaction cannot be acquired
+                        if (threadQueue == regularThreadQueue) {
+                            threadQueue.poll();
+                            if (!exclusiveThreadQueue.isEmpty()) {
+                                syncObject.notifyAll();
+                                return 0;
+                            }
+                            threadQueue = exclusiveThreadQueue;
+                            threadQueue.offer(thread);
+                            syncObject.notifyAll();
+                        }
                     }
+                    final long currentTime = System.currentTimeMillis();
+                    if (started + timeout <= currentTime) {
+                        syncObject.notifyAll();
+                        return 0;
+                    }
+                    timeout -= (currentTime - started);
                 }
                 threadQueue.poll();
             }
@@ -155,14 +162,17 @@ final class ReentrantTransactionDispatcher {
         }
     }
 
-    void acquireTransaction(@NotNull final TransactionBase txn) {
+    void acquireTransaction(@NotNull final TransactionBase txn, @NotNull final Environment env) {
         final Thread creatingThread = txn.getCreatingThread();
         if (txn.isExclusive()) {
-            if (txn.wasCreatedExclusive()) {
+            final boolean isGCTransaction = txn.isGCTransaction();
+            if (txn.wasCreatedExclusive() && !isGCTransaction) {
                 txn.setAcquiredPermits(acquireExclusiveTransaction(creatingThread));
                 return;
             }
-            final int acquiredPermits = tryAcquireExclusiveTransaction(creatingThread);
+            final EnvironmentConfig ec = env.getEnvironmentConfig();
+            final int acquiredPermits = tryAcquireExclusiveTransaction(creatingThread,
+                    isGCTransaction ? ec.getGcTransactionAcquireTimeout() : ec.getEnvTxnReplayTimeout());
             if (acquiredPermits > 0) {
                 txn.setAcquiredPermits(acquiredPermits);
                 return;
@@ -213,6 +223,14 @@ final class ReentrantTransactionDispatcher {
     private void waitForSyncObject() {
         try {
             syncObject.wait();
+        } catch (InterruptedException e) {
+            throw ExodusException.toExodusException(e);
+        }
+    }
+
+    private void waitForSyncObject(final long timeout) {
+        try {
+            syncObject.wait(timeout);
         } catch (InterruptedException e) {
             throw ExodusException.toExodusException(e);
         }

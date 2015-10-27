@@ -130,6 +130,10 @@ public abstract class TransactionBase implements Transaction {
         return wasCreatedExclusive;
     }
 
+    boolean isGCTransaction() {
+        return false;
+    }
+
     @Nullable
     TreeMetaInfo getTreeMetaInfo(@NotNull final String name) {
         checkIsFinished();

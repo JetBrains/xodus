@@ -170,11 +170,13 @@ public final class GarbageCollector {
             return false;
         }
         loggingInfo("start cleanFile(" + env.getLocation() + File.separatorChar + LogUtil.getLogFilename(fileAddress) + ')');
-        // At first, we clone whole meta tree inside of 'begin transaction'
-        // in order to save it completely on commit of transaction.
-        // Thus we can ignore all loggables belonging to the meta tree.
         final TransactionImpl txn = env.beginGCTransaction();
         try {
+            // if an exclusive transaction was requested and it failed to be acquired (i.e. it is NOT exclusive)
+            // then we should not continue reclaiming data since most likely we won't succeed in flushing transaction
+            if (ec.getGcUseExclusiveTransaction() && !txn.isExclusive()) {
+                return false;
+            }
             final Log log = getLog();
             if (logger.isDebugEnabled()) {
                 final long high = log.getHighAddress();
@@ -203,7 +205,6 @@ public final class GarbageCollector {
                 }
             }
             if (!txn.forceFlush()) {
-                Thread.yield();
                 return false;
             }
         } catch (Throwable e) {

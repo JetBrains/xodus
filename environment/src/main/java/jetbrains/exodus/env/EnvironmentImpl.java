@@ -219,7 +219,16 @@ public class EnvironmentImpl implements Environment {
 
     @NotNull
     public TransactionImpl beginGCTransaction() {
-        return throwIfReadonly(beginTransaction(null, ec.getGcUseExclusiveTransaction(), true), "Can't start GC transaction on read-only Environment");
+        if (ec.getEnvIsReadonly()) {
+            throw new ReadonlyTransactionException("Can't start GC transaction on read-only Environment");
+        }
+        return new TransactionImpl(this, null, ec.getGcUseExclusiveTransaction(), true) {
+
+            @Override
+            boolean isGCTransaction() {
+                return true;
+            }
+        };
     }
 
     @Override
@@ -465,7 +474,7 @@ public class EnvironmentImpl implements Environment {
 
     void acquireTransaction(@NotNull final TransactionBase txn) {
         final ReentrantTransactionDispatcher dispatcher = txn.isReadonly() ? roTxnDispatcher : txnDispatcher;
-        dispatcher.acquireTransaction(txn);
+        dispatcher.acquireTransaction(txn, this);
     }
 
     void releaseTransaction(@NotNull final TransactionBase txn) {

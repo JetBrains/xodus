@@ -113,13 +113,17 @@ public interface EnvironmentConfigMBean {
 
     boolean getGcUtilizationFromScratch();
 
-    int getGcFilesDeletionDelay();
-
-    void setGcFilesDeletionDelay(int delay);
-
     boolean getGcUseExclusiveTransaction();
 
     void setGcUseExclusiveTransaction(boolean useExclusiveTransaction);
+
+    int getGcTransactionAcquireTimeout();
+
+    void setGcTransactionAcquireTimeout(int timeout);
+
+    int getGcFilesDeletionDelay();
+
+    void setGcFilesDeletionDelay(int delay);
 
     void close();
 }

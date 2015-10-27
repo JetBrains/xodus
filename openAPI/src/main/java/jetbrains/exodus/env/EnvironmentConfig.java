@@ -110,6 +110,11 @@ public final class EnvironmentConfig extends AbstractConfig {
     public static final String GC_USE_EXCLUSIVE_TRANSACTION = "exodus.gc.useExclusiveTransaction";
 
     /**
+     * If GC uses exclusive transactions this number of milliseconds is used as timeout acquiring exclusive permit.
+     */
+    public static final String GC_TRANSACTION_ACQUIRE_TIMEOUT = "exodus.gc.transactionAcquireTimeout"; // in milliseconds
+
+    /**
      * If a file is successfully cleaned then delete after this number of milliseconds.
      */
     public static final String GC_FILES_DELETION_DELAY = "exodus.gc.filesDeletionDelay"; // in milliseconds
@@ -158,6 +163,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(GC_UTILIZATION_FROM_SCRATCH, false),
                 new Pair(GC_FILES_DELETION_DELAY, 0),
                 new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
+                new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 200),
                 new Pair(MANAGEMENT_ENABLED, true)
         }, strategy);
     }
@@ -473,6 +479,22 @@ public final class EnvironmentConfig extends AbstractConfig {
         return setSetting(GC_UTILIZATION_FROM_SCRATCH, fromScratch);
     }
 
+    public boolean getGcUseExclusiveTransaction() {
+        return (Boolean) getSetting(GC_USE_EXCLUSIVE_TRANSACTION);
+    }
+
+    public EnvironmentConfig setGcUseExclusiveTransaction(final boolean useExclusiveTransaction) {
+        return setSetting(GC_USE_EXCLUSIVE_TRANSACTION, useExclusiveTransaction);
+    }
+
+    public int getGcTransactionAcquireTimeout() {
+        return (Integer) getSetting(GC_TRANSACTION_ACQUIRE_TIMEOUT);
+    }
+
+    public EnvironmentConfig setGcTransactionAcquireTimeout(final int txnAcquireTimeout) {
+        return setSetting(GC_TRANSACTION_ACQUIRE_TIMEOUT, txnAcquireTimeout);
+    }
+
     public int getGcFilesDeletionDelay() {
         return (Integer) getSetting(GC_FILES_DELETION_DELAY);
     }
@@ -482,14 +504,6 @@ public final class EnvironmentConfig extends AbstractConfig {
             throw new InvalidSettingException("Invalid GC files deletion delay: " + delay);
         }
         return setSetting(GC_FILES_DELETION_DELAY, delay);
-    }
-
-    public boolean getGcUseExclusiveTransaction() {
-        return (Boolean) getSetting(GC_USE_EXCLUSIVE_TRANSACTION);
-    }
-
-    public EnvironmentConfig setGcUseExclusiveTransaction(final boolean useExclusiveTransaction) {
-        return setSetting(GC_USE_EXCLUSIVE_TRANSACTION, useExclusiveTransaction);
     }
 
     public boolean isManagementEnabled() {
