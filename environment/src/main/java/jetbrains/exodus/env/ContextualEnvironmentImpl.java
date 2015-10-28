@@ -53,47 +53,6 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
         return txn;
     }
 
-    @Override
-    public void executeInTransaction(@NotNull TransactionalExecutable executable) {
-        final Transaction current = getCurrentTransaction();
-        if (current != null) {
-            executable.execute(current);
-        } else {
-            super.executeInTransaction(executable);
-        }
-    }
-
-    @Override
-    public void executeInExclusiveTransaction(@NotNull TransactionalExecutable executable) {
-        final Transaction current = getCurrentTransaction();
-        if (current == null) {
-            super.executeInExclusiveTransaction(executable);
-        } else {
-            if (!current.isExclusive()) {
-                throw new ExodusException("Current transaction should be exclusive");
-            }
-            executable.execute(current);
-        }
-    }
-
-    @Override
-    public <T> T computeInTransaction(@NotNull TransactionalComputable<T> computable) {
-        final Transaction current = getCurrentTransaction();
-        return current != null ? computable.compute(current) : super.computeInTransaction(computable);
-    }
-
-    @Override
-    public <T> T computeInExclusiveTransaction(@NotNull TransactionalComputable<T> computable) {
-        final Transaction current = getCurrentTransaction();
-        if (current == null) {
-            return super.computeInExclusiveTransaction(computable);
-        }
-        if (!current.isExclusive()) {
-            throw new ExodusException("Current transaction should be exclusive");
-        }
-        return computable.compute(current);
-    }
-
     @NotNull
     @Override
     public List<String> getAllStoreNames() {
@@ -150,9 +109,58 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
     @NotNull
     @Override
     public TransactionBase beginReadonlyTransaction(final Runnable beginHook) {
-        final TransactionBase txn = super.beginReadonlyTransaction(beginHook);
-        setCurrentTransaction(txn);
-        return txn;
+        final TransactionBase result = super.beginReadonlyTransaction(beginHook);
+        setCurrentTransaction(result);
+        return result;
+    }
+
+    @NotNull
+    @Override
+    public TransactionImpl beginGCTransaction() {
+        final TransactionImpl result = super.beginGCTransaction();
+        setCurrentTransaction(result);
+        return result;
+    }
+
+    @Override
+    public void executeInTransaction(@NotNull TransactionalExecutable executable) {
+        final Transaction current = getCurrentTransaction();
+        if (current != null) {
+            executable.execute(current);
+        } else {
+            super.executeInTransaction(executable);
+        }
+    }
+
+    @Override
+    public void executeInExclusiveTransaction(@NotNull TransactionalExecutable executable) {
+        final Transaction current = getCurrentTransaction();
+        if (current == null) {
+            super.executeInExclusiveTransaction(executable);
+        } else {
+            if (!current.isExclusive()) {
+                throw new ExodusException("Current transaction should be exclusive");
+            }
+            executable.execute(current);
+        }
+    }
+
+    @Override
+    public <T> T computeInTransaction(@NotNull TransactionalComputable<T> computable) {
+        final Transaction current = getCurrentTransaction();
+        return current != null ? computable.compute(current) : super.computeInTransaction(computable);
+    }
+
+    @Override
+    public <T> T computeInExclusiveTransaction(@NotNull TransactionalComputable<T> computable) {
+        final Transaction current = getCurrentTransaction();
+        if (current == null) {
+            return super.computeInExclusiveTransaction(computable);
+        }
+        if (!current.isExclusive()) {
+            throw new ExodusException("Current transaction should be exclusive");
+        }
+        return computable.compute(current);
     }
 
     private void setCurrentTransaction(@NotNull final TransactionBase result) {
