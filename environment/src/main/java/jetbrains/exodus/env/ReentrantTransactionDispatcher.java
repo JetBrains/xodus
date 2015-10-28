@@ -135,26 +135,34 @@ final class ReentrantTransactionDispatcher {
                         if (acquiredPermits <= availablePermits - permitsToAcquire) {
                             break;
                         }
-                        // if an exclusive transaction cannot be acquired fairly (in its turn) try to shuffle
-                        // it to the queue of exclusive transactions if only if the queue is empty
-                        // otherwise return 0 permits, i.e. exclusive transaction cannot be acquired
-                        if (threadQueue == regularQueue) {
-                            syncObject.notifyAll();
-                            threadQueue.pollFirstEntry();
-                            if (!exclusiveQueue.isEmpty()) {
-                                return 0;
+                        if (permitsToAcquire > 1) {
+                            // if an exclusive transaction cannot be acquired fairly (in its turn) try to shuffle
+                            // it to the queue of exclusive transactions if only if the queue is empty
+                            // otherwise try to downgrade to non-exclusive
+                            if (threadQueue == regularQueue) {
+                                if (!exclusiveQueue.isEmpty()) {
+                                    permitsToAcquire = 1;
+                                } else {
+                                    threadQueue.pollFirstEntry();
+                                    threadQueue = exclusiveQueue;
+                                    threadQueue.put(currentOrder, thread);
+                                    syncObject.notifyAll();
+                                }
+                                continue;
                             }
-                            threadQueue = exclusiveQueue;
-                            threadQueue.put(currentOrder, thread);
                         }
                     }
                     final long currentTime = System.currentTimeMillis();
-                    if (started + timeout <= currentTime) {
-                        syncObject.notifyAll();
-                        threadQueue.remove(currentOrder);
-                        return 0;
+                    if (started + timeout > currentTime) {
+                        timeout -= (currentTime - started);
+                    } else {
+                        if (permitsToAcquire == 1) {
+                            threadQueue.remove(currentOrder);
+                            syncObject.notifyAll();
+                            return 0;
+                        }
+                        permitsToAcquire = 1;
                     }
-                    timeout -= (currentTime - started);
                 }
                 threadQueue.pollFirstEntry();
             }
@@ -176,10 +184,12 @@ final class ReentrantTransactionDispatcher {
             final int acquiredPermits = tryAcquireExclusiveTransaction(creatingThread,
                     isGCTransaction ? ec.getGcTransactionAcquireTimeout() : ec.getEnvTxnReplayTimeout());
             if (acquiredPermits > 0) {
+                if (acquiredPermits == 1) {
+                    txn.setExclusive(false);
+                }
                 txn.setAcquiredPermits(acquiredPermits);
                 return;
             }
-            txn.setExclusive(false);
         }
         acquireTransaction(creatingThread);
         txn.setAcquiredPermits(1);
