@@ -131,37 +131,33 @@ final class ReentrantTransactionDispatcher {
                 threadQueue.put(currentOrder, thread);
                 while (true) {
                     waitForSyncObject(timeout);
+                    final long currentTime = System.currentTimeMillis();
+                    timeout = timeout + started > currentTime ? timeout + started - currentTime : 0;
+                    if (timeout == 0 && permitsToAcquire > 1) {
+                        permitsToAcquire = 1;
+                    }
                     if (threadQueue.firstEntry().getKey() == currentOrder) {
                         if (acquiredPermits <= availablePermits - permitsToAcquire) {
                             break;
                         }
-                        if (permitsToAcquire > 1) {
-                            // if an exclusive transaction cannot be acquired fairly (in its turn) try to shuffle
-                            // it to the queue of exclusive transactions if only if the queue is empty
-                            // otherwise try to downgrade to non-exclusive
-                            if (threadQueue == regularQueue) {
-                                if (!exclusiveQueue.isEmpty()) {
-                                    permitsToAcquire = 1;
-                                } else {
-                                    threadQueue.pollFirstEntry();
-                                    threadQueue = exclusiveQueue;
-                                    threadQueue.put(currentOrder, thread);
-                                    syncObject.notifyAll();
+                        if (permitsToAcquire > 1 && threadQueue == regularQueue) {
+                            if (!exclusiveQueue.isEmpty()) {
+                                permitsToAcquire = 1;
+                                if (acquiredPermits < availablePermits) {
+                                    break;
                                 }
-                                continue;
+                            } else {
+                                threadQueue.pollFirstEntry();
+                                threadQueue = exclusiveQueue;
+                                threadQueue.put(currentOrder, thread);
                             }
+                            syncObject.notifyAll();
                         }
                     }
-                    final long currentTime = System.currentTimeMillis();
-                    if (started + timeout > currentTime) {
-                        timeout -= (currentTime - started);
-                    } else {
-                        if (permitsToAcquire == 1) {
-                            threadQueue.remove(currentOrder);
-                            syncObject.notifyAll();
-                            return 0;
-                        }
-                        permitsToAcquire = 1;
+                    if (timeout == 0) {
+                        threadQueue.remove(currentOrder);
+                        syncObject.notifyAll();
+                        return 0;
                     }
                 }
                 threadQueue.pollFirstEntry();
