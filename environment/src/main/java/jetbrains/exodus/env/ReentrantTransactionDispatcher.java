@@ -215,6 +215,29 @@ final class ReentrantTransactionDispatcher {
         releaseTransaction(txn.getCreatingThread(), txn.getAcquiredPermits());
     }
 
+    /**
+     * Downgrade transaction (making it holding only 1 permit) that was acquired in a thread with specified permits.
+     */
+    void downgradeTransaction(@NotNull final Thread thread, final int permits) {
+        if (permits > 1) {
+            synchronized (syncObject) {
+                int currentThreadPermits = getThreadPermits(thread);
+                if (permits > currentThreadPermits) {
+                    throw new ExodusException("Can't release more permits than it was acquired");
+                }
+                acquiredPermits -= (permits - 1);
+                currentThreadPermits -= (permits - 1);
+                threadPermits.put(thread, currentThreadPermits);
+                syncObject.notifyAll();
+            }
+        }
+    }
+
+    void downgradeTransaction(@NotNull final TransactionBase txn) {
+        downgradeTransaction(txn.getCreatingThread(), txn.getAcquiredPermits());
+        txn.setAcquiredPermits(1);
+    }
+
     int acquirerCount() {
         synchronized (syncObject) {
             return regularQueue.size();

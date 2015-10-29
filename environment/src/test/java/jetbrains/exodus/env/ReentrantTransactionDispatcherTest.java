@@ -63,6 +63,17 @@ public class ReentrantTransactionDispatcherTest {
     }
 
     @Test
+    public void downgrade() {
+        exclusiveTransaction();
+        dispatcher.downgradeTransaction(Thread.currentThread(), 9);
+        Assert.assertEquals(8, dispatcher.getAvailablePermits());
+        dispatcher.downgradeTransaction(Thread.currentThread(), 1);
+        Assert.assertEquals(8, dispatcher.getAvailablePermits());
+        dispatcher.downgradeTransaction(Thread.currentThread(), 2);
+        Assert.assertEquals(9, dispatcher.getAvailablePermits());
+    }
+
+    @Test
     public void tryAcquireExclusiveTransaction() throws InterruptedException {
         exclusiveTransaction2();
         final Latch latch = Latch.create();

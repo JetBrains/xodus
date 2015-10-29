@@ -473,13 +473,15 @@ public class EnvironmentImpl implements Environment {
     }
 
     void acquireTransaction(@NotNull final TransactionBase txn) {
-        final ReentrantTransactionDispatcher dispatcher = txn.isReadonly() ? roTxnDispatcher : txnDispatcher;
-        dispatcher.acquireTransaction(txn, this);
+        (txn.isReadonly() ? roTxnDispatcher : txnDispatcher).acquireTransaction(txn, this);
     }
 
     void releaseTransaction(@NotNull final TransactionBase txn) {
-        final ReentrantTransactionDispatcher dispatcher = txn.isReadonly() ? roTxnDispatcher : txnDispatcher;
-        dispatcher.releaseTransaction(txn);
+        (txn.isReadonly() ? roTxnDispatcher : txnDispatcher).releaseTransaction(txn);
+    }
+
+    void downgradeTransaction(@NotNull final TransactionBase txn) {
+        (txn.isReadonly() ? roTxnDispatcher : txnDispatcher).downgradeTransaction(txn);
     }
 
     boolean shouldTransactionBeExclusive(@NotNull final TransactionImpl txn) {
