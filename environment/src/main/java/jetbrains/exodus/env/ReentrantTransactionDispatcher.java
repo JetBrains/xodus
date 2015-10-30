@@ -20,8 +20,8 @@ import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
-import java.util.NavigableMap;
-import java.util.TreeMap;
+import java.util.NavigableSet;
+import java.util.TreeSet;
 
 final class ReentrantTransactionDispatcher {
 
@@ -29,9 +29,9 @@ final class ReentrantTransactionDispatcher {
     @NotNull
     private final Map<Thread, Integer> threadPermits;
     @NotNull
-    private final NavigableMap<Long, Thread> regularQueue;
+    private final NavigableSet<Long> regularQueue;
     @NotNull
-    private final NavigableMap<Long, Thread> exclusiveQueue;
+    private final NavigableSet<Long> exclusiveQueue;
     @NotNull
     private final Object syncObject;
     private long acquireOrder;
@@ -43,8 +43,8 @@ final class ReentrantTransactionDispatcher {
         }
         availablePermits = maxSimultaneousTransactions;
         threadPermits = new HashMap<>();
-        regularQueue = new TreeMap<>();
-        exclusiveQueue = new TreeMap<>();
+        regularQueue = new TreeSet<>();
+        exclusiveQueue = new TreeSet<>();
         syncObject = new Object();
         acquireOrder = 0;
         acquiredPermits = 0;
@@ -63,16 +63,15 @@ final class ReentrantTransactionDispatcher {
     void acquireTransaction(@NotNull final Thread thread) {
         synchronized (syncObject) {
             final int currentThreadPermits = getThreadPermitsToAcquire(thread);
-            if (acquiredPermits == availablePermits || !regularQueue.isEmpty()) {
-                final long currentOrder = acquireOrder++;
-                regularQueue.put(currentOrder, thread);
-                do {
-                    waitForSyncObject();
-                } while (acquiredPermits == availablePermits || regularQueue.firstEntry().getKey() != currentOrder);
-                regularQueue.pollFirstEntry();
+            final long currentOrder = acquireOrder++;
+            regularQueue.add(currentOrder);
+            while (acquiredPermits == availablePermits || regularQueue.first() != currentOrder) {
+                waitForSyncObject();
             }
+            regularQueue.pollFirst();
             ++acquiredPermits;
             threadPermits.put(thread, currentThreadPermits + 1);
+            syncObject.notifyAll();
         }
     }
 
@@ -83,36 +82,36 @@ final class ReentrantTransactionDispatcher {
      * @return the number of acquired permits.
      */
     int acquireExclusiveTransaction(@NotNull final Thread thread) {
+        final int permitsToAcquire;
         synchronized (syncObject) {
             final int currentThreadPermits = getThreadPermitsToAcquire(thread);
-            final int permitsToAcquire = availablePermits - currentThreadPermits;
-            if (acquiredPermits > availablePermits - permitsToAcquire || !regularQueue.isEmpty()) {
-                final long currentOrder = acquireOrder++;
-                NavigableMap<Long, Thread> threadQueue = regularQueue;
-                threadQueue.put(currentOrder, thread);
-                while (true) {
-                    waitForSyncObject();
-                    if (threadQueue.firstEntry().getKey() != currentOrder) {
-                        continue;
-                    }
+            permitsToAcquire = availablePermits - currentThreadPermits;
+            final long currentOrder = acquireOrder++;
+            NavigableSet<Long> threadQueue = regularQueue;
+            threadQueue.add(currentOrder);
+            while (true) {
+                if (threadQueue.first() == currentOrder) {
                     if (acquiredPermits <= availablePermits - permitsToAcquire) {
                         break;
                     }
                     // if an exclusive transaction cannot be acquired fairly (in its turn)
                     // try to shuffle it to the queue of exclusive transactions
                     if (threadQueue == regularQueue) {
-                        syncObject.notifyAll();
-                        threadQueue.pollFirstEntry();
+                        threadQueue.pollFirst();
                         threadQueue = exclusiveQueue;
-                        threadQueue.put(currentOrder, thread);
+                        threadQueue.add(currentOrder);
+                        syncObject.notifyAll();
+                        continue;
                     }
                 }
-                threadQueue.pollFirstEntry();
+                waitForSyncObject();
             }
+            threadQueue.pollFirst();
             acquiredPermits += permitsToAcquire;
             threadPermits.put(thread, currentThreadPermits + permitsToAcquire);
-            return permitsToAcquire;
+            syncObject.notifyAll();
         }
+        return permitsToAcquire;
     }
 
     /**
@@ -122,50 +121,48 @@ final class ReentrantTransactionDispatcher {
      */
     int tryAcquireExclusiveTransaction(@NotNull final Thread thread, long timeout) {
         final long started = System.currentTimeMillis();
+        int permitsToAcquire;
         synchronized (syncObject) {
             final int currentThreadPermits = getThreadPermitsToAcquire(thread);
-            int permitsToAcquire = availablePermits - currentThreadPermits;
-            if (acquiredPermits > availablePermits - permitsToAcquire || !regularQueue.isEmpty()) {
-                final long currentOrder = acquireOrder++;
-                NavigableMap<Long, Thread> threadQueue = regularQueue;
-                threadQueue.put(currentOrder, thread);
-                while (true) {
-                    waitForSyncObject(timeout);
-                    final long currentTime = System.currentTimeMillis();
-                    timeout = timeout + started > currentTime ? timeout + started - currentTime : 0;
-                    if (timeout == 0 && permitsToAcquire > 1) {
-                        permitsToAcquire = 1;
+            permitsToAcquire = availablePermits - currentThreadPermits;
+            final long currentOrder = acquireOrder++;
+            NavigableSet<Long> threadQueue = regularQueue;
+            threadQueue.add(currentOrder);
+            while (true) {
+                if (threadQueue.first() == currentOrder) {
+                    if (acquiredPermits <= availablePermits - permitsToAcquire) {
+                        break;
                     }
-                    if (threadQueue.firstEntry().getKey() == currentOrder) {
-                        if (acquiredPermits <= availablePermits - permitsToAcquire) {
-                            break;
-                        }
-                        if (permitsToAcquire > 1 && threadQueue == regularQueue) {
-                            if (!exclusiveQueue.isEmpty()) {
-                                permitsToAcquire = 1;
-                                if (acquiredPermits < availablePermits) {
-                                    break;
-                                }
-                            } else {
-                                threadQueue.pollFirstEntry();
-                                threadQueue = exclusiveQueue;
-                                threadQueue.put(currentOrder, thread);
-                            }
+                    if (permitsToAcquire > 1 && threadQueue == regularQueue) {
+                        if (!exclusiveQueue.isEmpty()) {
+                            permitsToAcquire = 1;
+                        } else {
+                            threadQueue.pollFirst();
+                            threadQueue = exclusiveQueue;
+                            threadQueue.add(currentOrder);
                             syncObject.notifyAll();
                         }
+                        continue;
                     }
-                    if (timeout == 0) {
+                }
+                waitForSyncObject(timeout);
+                final long currentTime = System.currentTimeMillis();
+                timeout = timeout + started > currentTime ? timeout + started - currentTime : 0;
+                if (timeout == 0) {
+                    if (permitsToAcquire == 1) {
                         threadQueue.remove(currentOrder);
                         syncObject.notifyAll();
                         return 0;
                     }
+                    permitsToAcquire = 1;
                 }
-                threadQueue.pollFirstEntry();
             }
+            threadQueue.pollFirst();
             acquiredPermits += permitsToAcquire;
             threadPermits.put(thread, currentThreadPermits + permitsToAcquire);
-            return permitsToAcquire;
+            syncObject.notifyAll();
         }
+        return permitsToAcquire;
     }
 
     void acquireTransaction(@NotNull final TransactionBase txn, @NotNull final Environment env) {
@@ -273,7 +270,9 @@ final class ReentrantTransactionDispatcher {
 
     private void waitForSyncObject(final long timeout) {
         try {
-            syncObject.wait(timeout);
+            if (timeout > 0) {
+                syncObject.wait(timeout);
+            }
         } catch (InterruptedException e) {
             throw ExodusException.toExodusException(e);
         }
