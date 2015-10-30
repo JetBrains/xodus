@@ -179,10 +179,10 @@ final class ReentrantTransactionDispatcher {
             final EnvironmentConfig ec = env.getEnvironmentConfig();
             final int acquiredPermits = tryAcquireExclusiveTransaction(creatingThread,
                     isGCTransaction ? ec.getGcTransactionAcquireTimeout() : ec.getEnvTxnReplayTimeout());
+            if (acquiredPermits <= 1) {
+                txn.setExclusive(false);
+            }
             if (acquiredPermits > 0) {
-                if (acquiredPermits == 1) {
-                    txn.setExclusive(false);
-                }
                 txn.setAcquiredPermits(acquiredPermits);
                 return;
             }
