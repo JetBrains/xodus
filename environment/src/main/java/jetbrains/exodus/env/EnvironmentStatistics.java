@@ -93,18 +93,25 @@ public class EnvironmentStatistics extends Statistics {
 
     private static class DiskUsageStatisticsItem extends StatisticsItem {
 
+        private long lastAutoUpdateTime;
+
         public DiskUsageStatisticsItem(@NotNull final EnvironmentStatistics statistics, @NotNull final String name) {
             super(statistics, name);
+            lastAutoUpdateTime = 0;
         }
 
         @Nullable
         @Override
         protected Long getAutoUpdatedTotal() {
             final EnvironmentStatistics statistics = (EnvironmentStatistics) getStatistics();
-            if (statistics == null) {
-                return null;
+            if (statistics != null) {
+                final long currentTime = System.currentTimeMillis();
+                if (currentTime - lastAutoUpdateTime > DISK_USAGE_FREQ) {
+                    lastAutoUpdateTime = currentTime;
+                    return statistics.env.getDiskUsage();
+                }
             }
-            return System.currentTimeMillis() - getLastAdjustTime() > DISK_USAGE_FREQ ? statistics.env.getDiskUsage() : null;
+            return null;
         }
     }
 }

@@ -102,12 +102,6 @@ public class StatisticsItem implements SharedTimer.ExpirablePeriodicTask {
         addTotal(1L);
     }
 
-    public long getLastAdjustTime() {
-        synchronized (statisticsRef) {
-            return lastAdjustTime;
-        }
-    }
-
     @Nullable
     protected Statistics getStatistics() {
         return statisticsRef.get();
