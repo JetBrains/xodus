@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.tree;
 
+import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import org.junit.Test;
 
@@ -210,7 +211,7 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
         final IntHashMap<String> map = new IntHashMap<>();
         final int count = 30000;
 
-        time("Put took ", new Runnable() {
+        TestUtil.time("Put took ", new Runnable() {
             @Override
             public void run() {
                 for (int i = 0; i < count; ++i) {
@@ -227,7 +228,7 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
         t = openTree(address, false);
 
         tm = t.getMutableCopy();
-        time("Delete took ", new Runnable() {
+        TestUtil.time("Delete took ", new Runnable() {
             @Override
             public void run() {
                 for (int i = 0; i < count; ++i) {
@@ -243,7 +244,7 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
 
         assertEquals(map.size(), t.getSize());
 
-        time("Get took ", new Runnable() {
+        TestUtil.time("Get took ", new Runnable() {
             @Override
             public void run() {
                 for (final Map.Entry<Integer, String> entry : map.entrySet()) {
@@ -256,7 +257,7 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
 
         tm = t.getMutableCopy();
 
-        time("Missing get took ", new Runnable() {
+        TestUtil.time("Missing get took ", new Runnable() {
             @Override
             public void run() {
                 for (int i = 0; i < count; ++i) {

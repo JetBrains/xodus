@@ -301,10 +301,10 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertNull(entity.getBlob("body"));
         final int length = "body".getBytes().length;
         entity.setBlob("body", string2Stream("body"));
-        Assert.assertTrue(streamsEqual(entity.getBlob("body"), string2Stream("body")));
+        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), string2Stream("body")));
         Assert.assertEquals(length, entity.getBlobSize("body"));
         txn.flush();
-        Assert.assertTrue(streamsEqual(entity.getBlob("body"), string2Stream("body")));
+        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), string2Stream("body")));
         Assert.assertEquals(length, entity.getBlobSize("body"));
     }
 
@@ -316,10 +316,10 @@ public class EntityTests extends EntityStoreTestBase {
 
         entity.setBlob("body", data.openStream());
         Assert.assertTrue(entity.getBlobSize("body") > 0L);
-        Assert.assertTrue(streamsEqual(entity.getBlob("body"), data.openStream(), false));
-        Assert.assertTrue(streamsEqual(entity.getBlob("body"), data.openStream(), false));
+        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), data.openStream(), false));
+        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), data.openStream(), false));
         txn.flush();
-        Assert.assertTrue(streamsEqual(entity.getBlob("body"), data.openStream()));
+        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), data.openStream()));
     }
 
     public void testBlobFiles() throws Exception {
@@ -341,14 +341,14 @@ public class EntityTests extends EntityStoreTestBase {
         final Entity entity = txn.newEntity("Issue");
         Assert.assertNull(entity.getBlob("body"));
         entity.setBlob("body", string2Stream("body"));
-        Assert.assertTrue(streamsEqual(entity.getBlob("body"), string2Stream("body")));
+        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), string2Stream("body")));
         entity.setBlob("body", string2Stream("body1"));
-        Assert.assertTrue(streamsEqual(entity.getBlob("body"), string2Stream("body1")));
+        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), string2Stream("body1")));
         txn.flush();
-        Assert.assertTrue(streamsEqual(entity.getBlob("body"), string2Stream("body1")));
+        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), string2Stream("body1")));
         entity.setBlob("body", string2Stream("body2"));
         txn.flush();
-        Assert.assertTrue(streamsEqual(entity.getBlob("body"), string2Stream("body2")));
+        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), string2Stream("body2")));
     }
 
     public void testSingleNameBlobAndProperty() throws Exception {
@@ -357,9 +357,9 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertNull(entity.getBlob("body"));
         entity.setBlob("body", string2Stream("stream body"));
         entity.setProperty("body", "string body");
-        Assert.assertTrue(streamsEqual(entity.getBlob("body"), string2Stream("stream body")));
+        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), string2Stream("stream body")));
         txn.flush();
-        Assert.assertTrue(streamsEqual(entity.getBlob("body"), string2Stream("stream body")));
+        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), string2Stream("stream body")));
         Assert.assertEquals(entity.getProperty("body"), "string body");
     }
 
@@ -371,7 +371,7 @@ public class EntityTests extends EntityStoreTestBase {
         }
         txn.flush();
         for (int i = 0; i < 2000; ++i) {
-            Assert.assertTrue(streamsEqual(entity.getBlob("body" + i), string2Stream("body" + i)));
+            Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body" + i), string2Stream("body" + i)));
         }
     }
 
@@ -392,7 +392,7 @@ public class EntityTests extends EntityStoreTestBase {
                     final PersistentStoreTransaction txn = getEntityStore().beginTransaction();
                     for (int i = 0; i < 2000; ++i) {
                         try {
-                            if (!streamsEqual(entity.getBlob("body" + i), string2Stream("body" + i))) {
+                            if (!TestUtil.streamsEqual(entity.getBlob("body" + i), string2Stream("body" + i))) {
                                 wereExceptions[0] = true;
                                 break;
                             }
@@ -693,31 +693,6 @@ public class EntityTests extends EntityStoreTestBase {
 
     private static InputStream string2Stream(String s) {
         return new ByteArrayInputStream(s.getBytes());
-    }
-
-    private static boolean streamsEqual(InputStream s1, InputStream s2) throws IOException {
-        return streamsEqual(s1, s2, true);
-    }
-
-    private static boolean streamsEqual(InputStream s1, InputStream s2, boolean closeStreams) throws IOException {
-        try {
-            while (true) {
-                final int b1 = s1.read();
-                final int b2 = s2.read();
-                if (b1 != b2) {
-                    return false;
-                }
-                if (b1 == -1) {
-                    break;
-                }
-            }
-            return true;
-        } finally {
-            if (closeStreams) {
-                s1.close();
-                s2.close();
-            }
-        }
     }
 
     private static File createTempFile(String content) throws IOException {

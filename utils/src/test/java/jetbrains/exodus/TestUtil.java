@@ -19,6 +19,8 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 
 public class TestUtil {
 
@@ -62,5 +64,30 @@ public class TestUtil {
         throw new IllegalStateException("Failed to create directory within "
                 + TEMP_DIR_ATTEMPTS + " attempts (tried "
                 + baseName + "0 to " + baseName + (TEMP_DIR_ATTEMPTS - 1) + ')');
+    }
+
+    public static boolean streamsEqual(InputStream s1, InputStream s2) throws IOException {
+        return streamsEqual(s1, s2, true);
+    }
+
+    public static boolean streamsEqual(InputStream s1, InputStream s2, boolean closeStreams) throws IOException {
+        try {
+            while (true) {
+                final int b1 = s1.read();
+                final int b2 = s2.read();
+                if (b1 != b2) {
+                    return false;
+                }
+                if (b1 == -1) {
+                    break;
+                }
+            }
+            return true;
+        } finally {
+            if (closeStreams) {
+                s1.close();
+                s2.close();
+            }
+        }
     }
 }

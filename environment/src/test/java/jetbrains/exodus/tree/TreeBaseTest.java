@@ -149,15 +149,6 @@ public abstract class TreeBaseTest {
         assertEquals(false, bt.hasPair(key("some key"), value("some value")));
     }
 
-    public static long time(String title, Runnable code) {
-        long t = System.currentTimeMillis();
-        code.run();
-        long t2 = System.currentTimeMillis();
-        long time = t2 - t;
-        System.out.println(title + ((double) time / 1000.0f) + 's');
-        return time;
-    }
-
     public static INode kv(String key) {
         return new StringKVNode(key, "");
     }

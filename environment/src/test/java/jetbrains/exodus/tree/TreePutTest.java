@@ -312,7 +312,7 @@ public abstract class TreePutTest extends TreeBaseTest {
         final IntHashMap<String> map = new IntHashMap<>();
         final int count = 200000;
 
-        time("Put took ", new Runnable() {
+        TestUtil.time("Put took ", new Runnable() {
             @Override
             public void run() {
                 for (int i = 0; i < count; ++i) {
@@ -325,7 +325,7 @@ public abstract class TreePutTest extends TreeBaseTest {
         });
 
         Assert.assertEquals(map.size(), tm.getSize());
-        time("Get took ", new Runnable() {
+        TestUtil.time("Get took ", new Runnable() {
             @Override
             public void run() {
                 for (final Map.Entry<Integer, String> entry : map.entrySet()) {
@@ -344,7 +344,7 @@ public abstract class TreePutTest extends TreeBaseTest {
         final IntHashMap<String> map = new IntHashMap<>();
         final int count = 200000;
 
-        time("Put took ", new Runnable() {
+        TestUtil.time("Put took ", new Runnable() {
             @Override
             public void run() {
                 for (int i = 0; i < count; ++i) {
@@ -362,7 +362,7 @@ public abstract class TreePutTest extends TreeBaseTest {
 
         Assert.assertEquals(map.size(), t.getSize());
 
-        time("Get took ", new Runnable() {
+        TestUtil.time("Get took ", new Runnable() {
             @Override
             public void run() {
                 for (final Map.Entry<Integer, String> entry : map.entrySet()) {
@@ -381,7 +381,7 @@ public abstract class TreePutTest extends TreeBaseTest {
         final IntHashMap<String> map = new IntHashMap<>();
         final int count = 200000;
 
-        time("PutRight took ", new Runnable() {
+        TestUtil.time("PutRight took ", new Runnable() {
             @Override
             public void run() {
                 for (int i = 0; i < count; ++i) {
@@ -398,7 +398,7 @@ public abstract class TreePutTest extends TreeBaseTest {
 
         Assert.assertEquals(map.size(), t.getSize());
 
-        time("Get took ", new Runnable() {
+        TestUtil.time("Get took ", new Runnable() {
             @Override
             public void run() {
                 for (final Map.Entry<Integer, String> entry : map.entrySet()) {
@@ -417,7 +417,7 @@ public abstract class TreePutTest extends TreeBaseTest {
         final IntHashMap<String> map = new IntHashMap<>();
         final int count = 50000;
 
-        time("Add took ", new Runnable() {
+        TestUtil.time("Add took ", new Runnable() {
             @Override
             public void run() {
                 for (int i = 0; i < count; ++i) {
@@ -437,7 +437,7 @@ public abstract class TreePutTest extends TreeBaseTest {
 
         Assert.assertEquals(map.size(), t.getSize());
 
-        time("Get took ", new Runnable() {
+        TestUtil.time("Get took ", new Runnable() {
             @Override
             public void run() {
                 for (final Map.Entry<Integer, String> entry : map.entrySet()) {
@@ -450,7 +450,7 @@ public abstract class TreePutTest extends TreeBaseTest {
 
         tm = t.getMutableCopy();
 
-        time("Failing add took ", new Runnable() {
+        TestUtil.time("Failing add took ", new Runnable() {
             @Override
             public void run() {
                 for (final Map.Entry<Integer, String> entry : map.entrySet()) {

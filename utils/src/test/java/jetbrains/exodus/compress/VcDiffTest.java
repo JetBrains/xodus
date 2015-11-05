@@ -197,7 +197,7 @@ public class VcDiffTest extends BaseCompressTest {
             previousSource.reset();
         }
         source.reset();
-        Assert.assertTrue(streamsAreEqual(source, diff.decode(previousSource, new ByteArrayInputStream(delta.toByteArray()))));
+        Assert.assertTrue(TestUtil.streamsEqual(source, diff.decode(previousSource, new ByteArrayInputStream(delta.toByteArray()))));
         if (previousSource != null) {
             previousSource.reset();
         }
@@ -215,20 +215,6 @@ public class VcDiffTest extends BaseCompressTest {
         }
         source.reset();
         diff.decode(previousSource, new ByteArrayInputStream(delta.toByteArray()), decodedSource);
-        Assert.assertTrue(streamsAreEqual(source, new ByteArrayInputStream(decodedSource.toByteArray(), 0, decodedSource.size())));
-    }
-
-    private static boolean streamsAreEqual(@NotNull final InputStream stream1, @NotNull final InputStream stream2) throws IOException {
-        while (true) {
-            final int c1 = stream1.read();
-            final int c2 = stream2.read();
-            if (c1 != c2) {
-                return false;
-            }
-            if (c1 == -1) {
-                break;
-            }
-        }
-        return true;
+        Assert.assertTrue(TestUtil.streamsEqual(source, new ByteArrayInputStream(decodedSource.toByteArray(), 0, decodedSource.size())));
     }
 }
