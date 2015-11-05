@@ -121,7 +121,7 @@ public class StatisticsItem implements SharedTimer.ExpirablePeriodicTask {
     private void adjustMean() {
         final long currentTime = System.currentTimeMillis();
         synchronized (statisticsRef) {
-            mean = (mean + (((double) (total - lastAdjustedTotal)) / (currentTime - lastAdjustTime) / 1000)) / 2;
+            mean = (mean + (((double) (total - lastAdjustedTotal)) * 1000. / ((double) (currentTime - lastAdjustTime)))) / 2;
             lastAdjustTime = currentTime;
             lastAdjustedTotal = total;
         }
