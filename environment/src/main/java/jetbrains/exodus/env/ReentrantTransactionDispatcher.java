@@ -20,8 +20,11 @@ import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
-import java.util.NavigableSet;
-import java.util.TreeSet;
+import java.util.NavigableMap;
+import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 final class ReentrantTransactionDispatcher {
 
@@ -29,11 +32,11 @@ final class ReentrantTransactionDispatcher {
     @NotNull
     private final Map<Thread, Integer> threadPermits;
     @NotNull
-    private final NavigableSet<Long> regularQueue;
+    private final NavigableMap<Long, Condition> regularQueue;
     @NotNull
-    private final NavigableSet<Long> exclusiveQueue;
+    private final NavigableMap<Long, Condition> exclusiveQueue;
     @NotNull
-    private final Object syncObject;
+    private final ReentrantLock lock;
     private long acquireOrder;
     private int acquiredPermits;
 
@@ -43,15 +46,15 @@ final class ReentrantTransactionDispatcher {
         }
         availablePermits = maxSimultaneousTransactions;
         threadPermits = new HashMap<>();
-        regularQueue = new TreeSet<>();
-        exclusiveQueue = new TreeSet<>();
-        syncObject = new Object();
+        regularQueue = new TreeMap<>();
+        exclusiveQueue = new TreeMap<>();
+        lock = new ReentrantLock(false); // we explicitly don't need fairness here
         acquireOrder = 0;
         acquiredPermits = 0;
     }
 
     int getAvailablePermits() {
-        synchronized (syncObject) {
+        try (CriticalSection ignored = new CriticalSection(lock)) {
             return availablePermits - acquiredPermits;
         }
     }
@@ -61,17 +64,18 @@ final class ReentrantTransactionDispatcher {
      * with respect to transactions already acquired in the thread.
      */
     void acquireTransaction(@NotNull final Thread thread) {
-        synchronized (syncObject) {
+        try (CriticalSection ignored = new CriticalSection(lock)) {
             final int currentThreadPermits = getThreadPermitsToAcquire(thread);
             final long currentOrder = acquireOrder++;
-            regularQueue.add(currentOrder);
-            while (acquiredPermits == availablePermits || regularQueue.first() != currentOrder) {
-                waitForSyncObject();
+            final Condition condition = lock.newCondition();
+            regularQueue.put(currentOrder, condition);
+            while (acquiredPermits == availablePermits || regularQueue.firstKey() != currentOrder) {
+                condition.awaitUninterruptibly();
             }
-            regularQueue.pollFirst();
+            regularQueue.pollFirstEntry();
             ++acquiredPermits;
             threadPermits.put(thread, currentThreadPermits + 1);
-            syncObject.notifyAll();
+            notifyNextWaiter(regularQueue);
         }
     }
 
@@ -82,87 +86,86 @@ final class ReentrantTransactionDispatcher {
      * @return the number of acquired permits.
      */
     int acquireExclusiveTransaction(@NotNull final Thread thread) {
-        final int permitsToAcquire;
-        synchronized (syncObject) {
+        try (CriticalSection ignored = new CriticalSection(lock)) {
             final int currentThreadPermits = getThreadPermitsToAcquire(thread);
-            permitsToAcquire = availablePermits - currentThreadPermits;
+            final int permitsToAcquire = availablePermits - currentThreadPermits;
             final long currentOrder = acquireOrder++;
-            NavigableSet<Long> threadQueue = regularQueue;
-            threadQueue.add(currentOrder);
+            final Condition condition = lock.newCondition();
+            NavigableMap<Long, Condition> threadQueue = regularQueue;
+            threadQueue.put(currentOrder, condition);
             while (true) {
-                if (threadQueue.first() == currentOrder) {
+                if (threadQueue.firstKey() == currentOrder) {
                     if (acquiredPermits <= availablePermits - permitsToAcquire) {
                         break;
                     }
                     // if an exclusive transaction cannot be acquired fairly (in its turn)
                     // try to shuffle it to the queue of exclusive transactions
                     if (threadQueue == regularQueue) {
-                        threadQueue.pollFirst();
+                        threadQueue.pollFirstEntry();
                         threadQueue = exclusiveQueue;
-                        threadQueue.add(currentOrder);
-                        syncObject.notifyAll();
-                        continue;
+                        threadQueue.put(currentOrder, condition);
+                        notifyNextWaiter(regularQueue);
                     }
                 }
-                waitForSyncObject();
+                condition.awaitUninterruptibly();
             }
-            threadQueue.pollFirst();
+            threadQueue.pollFirstEntry();
             acquiredPermits += permitsToAcquire;
             threadPermits.put(thread, currentThreadPermits + permitsToAcquire);
-            syncObject.notifyAll();
+            return permitsToAcquire;
         }
-        return permitsToAcquire;
     }
 
     /**
-     * Acquire exclusive transaction in a thread if no other transaction tries to acquire exclusive permits.
+     * Acquire exclusive transaction in a thread with specified timeout in milliseconds.
      *
      * @return the number of acquired permits or 0 if acquisition failed.
      */
     int tryAcquireExclusiveTransaction(@NotNull final Thread thread, long timeout) {
-        final long started = System.currentTimeMillis();
-        int permitsToAcquire;
-        synchronized (syncObject) {
+        timeout = TimeUnit.MILLISECONDS.toNanos(timeout);
+        try (CriticalSection ignored = new CriticalSection(lock)) {
             final int currentThreadPermits = getThreadPermitsToAcquire(thread);
-            permitsToAcquire = availablePermits - currentThreadPermits;
+            int permitsToAcquire = availablePermits - currentThreadPermits;
             final long currentOrder = acquireOrder++;
-            NavigableSet<Long> threadQueue = regularQueue;
-            threadQueue.add(currentOrder);
+            final Condition condition = lock.newCondition();
+            NavigableMap<Long, Condition> threadQueue = regularQueue;
+            threadQueue.put(currentOrder, condition);
             while (true) {
-                if (threadQueue.first() == currentOrder) {
+                if (threadQueue.firstKey() == currentOrder) {
                     if (acquiredPermits <= availablePermits - permitsToAcquire) {
                         break;
                     }
+                    // if an exclusive transaction cannot be acquired fairly (in its turn)
+                    // try to shuffle it to the queue of exclusive transactions
                     if (permitsToAcquire > 1 && threadQueue == regularQueue) {
-                        if (!exclusiveQueue.isEmpty()) {
-                            permitsToAcquire = 1;
-                        } else {
-                            threadQueue.pollFirst();
-                            threadQueue = exclusiveQueue;
-                            threadQueue.add(currentOrder);
-                            syncObject.notifyAll();
-                        }
-                        continue;
+                        threadQueue.pollFirstEntry();
+                        threadQueue = exclusiveQueue;
+                        threadQueue.put(currentOrder, condition);
+                        notifyNextWaiter(regularQueue);
                     }
                 }
-                waitForSyncObject(timeout);
-                final long currentTime = System.currentTimeMillis();
-                timeout = timeout + started > currentTime ? timeout + started - currentTime : 0;
+                try {
+                    timeout = condition.awaitNanos(timeout);
+                } catch (InterruptedException ignore) {
+                }
+                if (timeout < 0) {
+                    timeout = 0;
+                }
                 if (timeout == 0) {
                     if (permitsToAcquire == 1) {
                         threadQueue.remove(currentOrder);
-                        syncObject.notifyAll();
+                        notifyNextWaiter(threadQueue);
                         return 0;
                     }
                     permitsToAcquire = 1;
                 }
             }
-            threadQueue.pollFirst();
+            threadQueue.pollFirstEntry();
             acquiredPermits += permitsToAcquire;
             threadPermits.put(thread, currentThreadPermits + permitsToAcquire);
-            syncObject.notifyAll();
+            notifyNextWaiter(threadQueue);
+            return permitsToAcquire;
         }
-        return permitsToAcquire;
     }
 
     void acquireTransaction(@NotNull final TransactionBase txn, @NotNull final Environment env) {
@@ -192,7 +195,7 @@ final class ReentrantTransactionDispatcher {
      * Release transaction that was acquired in a thread with specified permits.
      */
     void releaseTransaction(@NotNull final Thread thread, final int permits) {
-        synchronized (syncObject) {
+        try (CriticalSection ignored = new CriticalSection(lock)) {
             int currentThreadPermits = getThreadPermits(thread);
             if (permits > currentThreadPermits) {
                 throw new ExodusException("Can't release more permits than it was acquired");
@@ -204,7 +207,8 @@ final class ReentrantTransactionDispatcher {
             } else {
                 threadPermits.put(thread, currentThreadPermits);
             }
-            syncObject.notifyAll();
+            notifyNextWaiter(exclusiveQueue);
+            notifyNextWaiter(regularQueue);
         }
     }
 
@@ -217,7 +221,7 @@ final class ReentrantTransactionDispatcher {
      */
     void downgradeTransaction(@NotNull final Thread thread, final int permits) {
         if (permits > 1) {
-            synchronized (syncObject) {
+            try (CriticalSection ignored = new CriticalSection(lock)) {
                 int currentThreadPermits = getThreadPermits(thread);
                 if (permits > currentThreadPermits) {
                     throw new ExodusException("Can't release more permits than it was acquired");
@@ -225,7 +229,8 @@ final class ReentrantTransactionDispatcher {
                 acquiredPermits -= (permits - 1);
                 currentThreadPermits -= (permits - 1);
                 threadPermits.put(thread, currentThreadPermits);
-                syncObject.notifyAll();
+                notifyNextWaiter(exclusiveQueue);
+                notifyNextWaiter(regularQueue);
             }
         }
     }
@@ -236,13 +241,13 @@ final class ReentrantTransactionDispatcher {
     }
 
     int acquirerCount() {
-        synchronized (syncObject) {
+        try (CriticalSection ignored = new CriticalSection(lock)) {
             return regularQueue.size();
         }
     }
 
     int exclusiveAcquirerCount() {
-        synchronized (syncObject) {
+        try (CriticalSection ignored = new CriticalSection(lock)) {
             return exclusiveQueue.size();
         }
     }
@@ -260,21 +265,25 @@ final class ReentrantTransactionDispatcher {
         return currentThreadPermits;
     }
 
-    private void waitForSyncObject() {
-        try {
-            syncObject.wait();
-        } catch (InterruptedException e) {
-            throw ExodusException.toExodusException(e);
+    private static void notifyNextWaiter(@NotNull final NavigableMap<Long, Condition> queue) {
+        if (!queue.isEmpty()) {
+            queue.firstEntry().getValue().signal();
         }
     }
 
-    private void waitForSyncObject(final long timeout) {
-        try {
-            if (timeout > 0) {
-                syncObject.wait(timeout);
-            }
-        } catch (InterruptedException e) {
-            throw ExodusException.toExodusException(e);
+    private static final class CriticalSection implements AutoCloseable {
+
+        @NotNull
+        private final ReentrantLock lock;
+
+        private CriticalSection(@NotNull final ReentrantLock lock) {
+            this.lock = lock;
+            lock.lock();
+        }
+
+        @Override
+        public void close() {
+            lock.unlock();
         }
     }
 }
