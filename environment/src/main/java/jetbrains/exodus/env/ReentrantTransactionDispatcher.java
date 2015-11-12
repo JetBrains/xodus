@@ -146,7 +146,8 @@ final class ReentrantTransactionDispatcher {
                 }
                 try {
                     timeout = condition.awaitNanos(timeout);
-                } catch (InterruptedException ignore) {
+                } catch (InterruptedException e) {
+                    timeout = 0;
                 }
                 if (timeout < 0) {
                     timeout = 0;
@@ -157,6 +158,7 @@ final class ReentrantTransactionDispatcher {
                         notifyNextWaiter(threadQueue);
                         return 0;
                     }
+                    // if failed to acquire transaction within timeout then downgrade it
                     permitsToAcquire = 1;
                 }
             }
@@ -207,8 +209,16 @@ final class ReentrantTransactionDispatcher {
             } else {
                 threadPermits.put(thread, currentThreadPermits);
             }
-            notifyNextWaiter(exclusiveQueue);
-            notifyNextWaiter(regularQueue);
+            if (acquiredPermits == 0) {
+                if (exclusiveQueue.isEmpty()) {
+                    notifyNextWaiter(regularQueue);
+                } else {
+                    exclusiveQueue.firstEntry().getValue().signal();
+                }
+            } else {
+                notifyNextWaiter(exclusiveQueue);
+                notifyNextWaiter(regularQueue);
+            }
         }
     }
 
@@ -229,7 +239,6 @@ final class ReentrantTransactionDispatcher {
                 acquiredPermits -= (permits - 1);
                 currentThreadPermits -= (permits - 1);
                 threadPermits.put(thread, currentThreadPermits);
-                notifyNextWaiter(exclusiveQueue);
                 notifyNextWaiter(regularQueue);
             }
         }
