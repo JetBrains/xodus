@@ -52,7 +52,7 @@ public interface Transaction {
     long getHighAddress();
 
     /**
-     * @return true if the transaction was started as read-only one.
+     * @return true if the transaction is read-only.
      */
     boolean isReadonly();
 

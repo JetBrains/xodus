@@ -32,10 +32,15 @@ public interface StoreTransaction {
     EntityStore getStore();
 
     /**
-     * Answers on the question does the transaction actually contains any changes that can be flushed or committed.
+     * Answers on the question: does the transaction actually contain any changes that can be flushed or committed.
      * @return true if there are no changes that will be saved on {@link #flush() flush} or {@link #commit() commit}.
      */
     boolean isIdempotent();
+
+    /**
+     * @return true if the transaction is read-only.
+     */
+    boolean isReadonly();
 
     /**
      * Commits all changes and finishes this transaction. Use {@link #abort() abort} to finish transaction ignoring changes.

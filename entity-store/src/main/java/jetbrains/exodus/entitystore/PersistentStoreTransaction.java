@@ -129,9 +129,14 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     @Override
+    public boolean isReadonly() {
+        return txn.isReadonly();
+    }
+
+    @Override
     public boolean commit() {
         // txn can be read-only if Environment is in read-only mode
-        if (!txn.isReadonly()) {
+        if (!isReadonly()) {
             apply();
             return doCommit();
         }
@@ -177,7 +182,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     @Override
     public boolean flush() {
         // txn can be read-only if Environment is in read-only mode
-        if (!txn.isReadonly()) {
+        if (!isReadonly()) {
             apply();
             return doFlush();
         }
