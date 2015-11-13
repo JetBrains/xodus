@@ -17,7 +17,7 @@ package jetbrains.exodus.entitystore;
 
 import org.jetbrains.annotations.NotNull;
 
-class ReadonlyPersistentStoreTransaction extends PersistentStoreTransaction {
+public class ReadonlyPersistentStoreTransaction extends PersistentStoreTransaction {
 
     ReadonlyPersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store) {
         super(store, true);
@@ -29,5 +29,9 @@ class ReadonlyPersistentStoreTransaction extends PersistentStoreTransaction {
             throw new IllegalStateException("ReadonlyPersistentStoreTransaction should be idempotent");
         }
         return true;
+    }
+
+    public PersistentStoreTransaction getUpgradedTransaction() {
+        return new PersistentStoreTransaction(this, txn.getSnapshot());
     }
 }
