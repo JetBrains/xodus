@@ -22,7 +22,7 @@ final class PersistentStoreTransactionSnapshot extends PersistentStoreTransactio
 
     PersistentStoreTransactionSnapshot(@NotNull final PersistentStoreTransaction source,
                                        @NotNull final Transaction txn) {
-        super(source, txn.getSnapshot());
+        super(source, txn.getReadonlySnapshot());
     }
 
     @Override

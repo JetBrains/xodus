@@ -32,6 +32,8 @@ public interface Transaction {
 
     Transaction getSnapshot();
 
+    Transaction getReadonlySnapshot();
+
     @NotNull
     Environment getEnvironment();
 

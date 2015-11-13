@@ -58,6 +58,18 @@ public abstract class TransactionBase implements Transaction {
     }
 
     @Override
+    public Transaction getSnapshot() {
+        checkIsFinished();
+        return new TransactionImpl(this);
+    }
+
+    @Override
+    public Transaction getReadonlySnapshot() {
+        checkIsFinished();
+        return new ReadonlyTransaction(this);
+    }
+
+    @Override
     @NotNull
     public EnvironmentImpl getEnvironment() {
         return env;

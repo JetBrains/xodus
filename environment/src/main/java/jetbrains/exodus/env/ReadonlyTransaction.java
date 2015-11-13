@@ -53,12 +53,6 @@ class ReadonlyTransaction extends TransactionBase {
     }
 
     @Override
-    public Transaction getSnapshot() {
-        checkIsFinished();
-        return new ReadonlyTransaction(this);
-    }
-
-    @Override
     public void setCommitHook(@Nullable final Runnable hook) {
         throw new ReadonlyTransactionException();
     }

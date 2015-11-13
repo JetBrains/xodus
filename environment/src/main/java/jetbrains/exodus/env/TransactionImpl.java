@@ -66,6 +66,20 @@ public class TransactionImpl extends TransactionBase {
         env.getStatistics().getStatisticsItem(EnvironmentStatistics.TRANSACTIONS).incTotal();
     }
 
+    public TransactionImpl(@NotNull final TransactionBase origin) {
+        super(origin.getEnvironment(), false);
+        mutableTrees = new TreeMap<>();
+        removedStores = new LongHashMap<>();
+        createdStores = new HashMapDecorator<>();
+        beginHook = null;
+        replayCount = 0;
+        setMetaTree(origin.getMetaTree());
+        final EnvironmentImpl env = getEnvironment();
+        env.acquireTransaction(this);
+        env.registerTransaction(this);
+        env.getStatistics().getStatisticsItem(EnvironmentStatistics.TRANSACTIONS).incTotal();
+    }
+
     public boolean isIdempotent() {
         return mutableTrees.isEmpty() && removedStores.isEmpty() && createdStores.isEmpty();
     }
@@ -134,12 +148,6 @@ public class TransactionImpl extends TransactionBase {
             env.runTransactionSafeTasks();
         }
         setStarted(System.currentTimeMillis());
-    }
-
-    @Override
-    public Transaction getSnapshot() {
-        checkIsFinished();
-        return new ReadonlyTransaction(this);
     }
 
     @Override
