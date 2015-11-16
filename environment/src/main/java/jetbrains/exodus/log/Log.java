@@ -587,10 +587,6 @@ public final class Log implements Closeable {
     }
 
     public void removeFile(final long address, @NotNull final RemoveBlockType rbt) {
-        // force fsync in order to fix XD-249
-        // in order to avoid data loss , it's necessary to make sure that any GC transaction is flushed
-        // to underlying physical storage before any file is deleted
-        bufferedWriter.sync();
         //remove physical file
         reader.removeBlock(address, rbt);
         // remove address of file of the list

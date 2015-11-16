@@ -327,7 +327,10 @@ public final class GarbageCollector {
 
     private boolean doDeletePendingFile(long fileAddress) {
         if (pendingFilesToDelete.remove(fileAddress)) {
-            env.flushAndSync(); // before deletion of any file, flush writer data and sync buffered by OS data to storage device
+            // force flush and fsync in order to fix XD-249
+            // in order to avoid data loss, it's necessary to make sure that any GC transaction is flushed
+            // to underlying storage device before any file is deleted
+            env.flushAndSync();
             utilizationProfile.removeFile(fileAddress);
             getLog().removeFile(fileAddress, ec.getGcRenameFiles() ? RemoveBlockType.Rename : RemoveBlockType.Delete);
             return true;
