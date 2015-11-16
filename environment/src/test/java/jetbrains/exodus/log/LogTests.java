@@ -238,6 +238,13 @@ public class LogTests extends LogTestsBase {
     }
 
     @Test
+    public void testSetHighAddress_XD_484() throws IOException {
+        testSetHighAddress2();
+        closeLog();
+        Assert.assertEquals(0L, getLog().getHighAddress());
+    }
+
+    @Test
     public void testWriteImmediateRead() throws IOException {
         testWriteImmediateRead(1, 1024);
     }

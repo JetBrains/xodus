@@ -59,26 +59,26 @@ public class FileDataReader implements DataReader {
 
     @Override
     public void removeBlock(long blockAddress, @NotNull final RemoveBlockType rbt) {
-        fileCache.lock();
-        final SharedRandomAccessFile f;
-        try {
-            f = fileCache.remove(blockAddress);
-        } finally {
-            fileCache.unlock();
-        }
-        try {
-            if (f != null) {
-                f.close();
-            }
-        } catch (IOException e) {
-            throw new ExodusException(e);
-        }
+        removeFileFromFileCache(blockAddress);
         final File file = new File(dir, LogUtil.getLogFilename(blockAddress));
         final boolean deleted = rbt == RemoveBlockType.Delete ? file.delete() : renameFile(file);
         if (!deleted) {
             throw new ExodusException("Failed to delete " + file.getAbsolutePath());
         } else if (logger.isInfoEnabled()) {
             logger.info("Deleted file " + file.getAbsolutePath());
+        }
+    }
+
+    @Override
+    public void truncateBlock(long blockAddress, long length) {
+        removeFileFromFileCache(blockAddress);
+        final FileBlock block = getBlock(blockAddress);
+        try {
+            try (SharedRandomAccessFile f = block.getSharedRandomAccessFile("rw")) {
+                f.setLength(length);
+            }
+        } catch (IOException e) {
+            throw new ExodusException("Can't truncate file " + block.getAbsolutePath(), e);
         }
     }
 
@@ -131,6 +131,23 @@ public class FileDataReader implements DataReader {
         });
     }
 
+    private void removeFileFromFileCache(long blockAddress) {
+        fileCache.lock();
+        final SharedRandomAccessFile f;
+        try {
+            f = fileCache.remove(blockAddress);
+        } finally {
+            fileCache.unlock();
+        }
+        try {
+            if (f != null) {
+                f.close();
+            }
+        } catch (IOException e) {
+            throw new ExodusException(e);
+        }
+    }
+
     private static boolean renameFile(@NotNull final File file) {
         final String name = file.getName();
         return file.renameTo(new File(file.getParent(),
@@ -154,42 +171,45 @@ public class FileDataReader implements DataReader {
         @Override
         public int read(final byte[] output, long position, int count) {
             try {
-                fileCache.lock();
-                SharedRandomAccessFile f;
-                try {
-                    f = fileCache.tryKey(address);
-                    if (f != null && f.employ() > 1) {
-                        f.close();
-                        f = null;
-                    }
-                } finally {
-                    fileCache.unlock();
-                }
-                if (f == null) {
-                    f = new SharedRandomAccessFile(this, "r");
-                    SharedRandomAccessFile obsolete = null;
-                    fileCache.lock();
-                    try {
-                        if (fileCache.getObject(address) == null) {
-                            f.employ();
-                            obsolete = fileCache.cacheObject(address, f);
-                        }
-                    } finally {
-                        fileCache.unlock();
-                        if (obsolete != null) {
-                            obsolete.close();
-                        }
-                    }
-                }
-                try {
+                try (SharedRandomAccessFile f = getSharedRandomAccessFile("r")) {
                     f.seek(position);
                     return f.read(output, 0, count);
-                } finally {
-                    f.close();
                 }
             } catch (IOException e) {
                 throw new ExodusException("Can't read file " + getAbsolutePath(), e);
             }
+        }
+
+        @NotNull
+        private SharedRandomAccessFile getSharedRandomAccessFile(@NotNull final String mode) throws IOException {
+            fileCache.lock();
+            SharedRandomAccessFile f;
+            try {
+                f = fileCache.tryKey(address);
+                if (f != null && f.employ() > 1) {
+                    f.close();
+                    f = null;
+                }
+            } finally {
+                fileCache.unlock();
+            }
+            if (f == null) {
+                f = new SharedRandomAccessFile(this, mode);
+                SharedRandomAccessFile obsolete = null;
+                fileCache.lock();
+                try {
+                    if (fileCache.getObject(address) == null) {
+                        f.employ();
+                        obsolete = fileCache.cacheObject(address, f);
+                    }
+                } finally {
+                    fileCache.unlock();
+                    if (obsolete != null) {
+                        obsolete.close();
+                    }
+                }
+            }
+            return f;
         }
     }
 }

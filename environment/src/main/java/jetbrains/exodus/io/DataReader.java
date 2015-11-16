@@ -30,6 +30,8 @@ public interface DataReader {
 
     void removeBlock(long blockAddress, @NotNull RemoveBlockType rbt);
 
+    void truncateBlock(long blockAddress, long length);
+
     void clear();
 
     void close();

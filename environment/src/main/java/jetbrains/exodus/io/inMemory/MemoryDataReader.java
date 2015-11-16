@@ -61,6 +61,14 @@ public class MemoryDataReader implements DataReader {
     }
 
     @Override
+    public void truncateBlock(long blockAddress, long length) {
+        data.getOrCreateBlockData(blockAddress, length);
+        if (logger.isInfoEnabled()) {
+            logger.info("Truncated file " + LogUtil.getLogFilename(blockAddress));
+        }
+    }
+
+    @Override
     public void clear() {
         data.clear();
     }
