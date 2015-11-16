@@ -233,11 +233,13 @@ public final class Log implements Closeable {
         // at first, remove all files which are higher than highAddress
         bufferedWriter.close();
         final LongArrayList blocksToDelete = new LongArrayList();
+        long blockToTruncate = -1L;
         synchronized (blockAddrs) {
             LongSkipList.SkipListNode node = blockAddrs.getMaximumNode();
             while (node != null) {
                 long blockAddress = node.getKey();
                 if (blockAddress <= highAddress) {
+                    blockToTruncate = blockAddress;
                     break;
                 }
                 blocksToDelete.add(blockAddress);
@@ -245,8 +247,12 @@ public final class Log implements Closeable {
             }
         }
 
+        // truncate log
         for (int i = 0; i < blocksToDelete.size(); ++i) {
             removeFile(blocksToDelete.get(i));
+        }
+        if (blockToTruncate >= 0) {
+            truncateFile(blockToTruncate, highAddress - blockToTruncate);
         }
 
         // update buffered writer
@@ -263,9 +269,6 @@ public final class Log implements Closeable {
                 final byte[] highPageContent = new byte[cachePageSize];
                 if (highPageSize > 0 && readBytes(highPageContent, highPageAddress) < highPageSize) {
                     throw new ExodusException("Can't read expected high page bytes");
-                }
-                for (long pageAddress = highPageAddress; pageAddress < oldHighPageAddress; pageAddress += cachePageSize) {
-                    cache.removePage(this, pageAddress);
                 }
                 setBufferedWriter(createBufferedWriter(baseWriter, highPageAddress, highPageContent, highPageSize));
             }
@@ -587,7 +590,7 @@ public final class Log implements Closeable {
     }
 
     public void removeFile(final long address, @NotNull final RemoveBlockType rbt) {
-        //remove physical file
+        // remove physical file
         reader.removeBlock(address, rbt);
         // remove address of file of the list
         synchronized (blockAddrs) {
@@ -597,6 +600,15 @@ public final class Log implements Closeable {
         }
         // clear cache
         for (long offset = 0; offset < fileLengthBound; offset += cachePageSize) {
+            cache.removePage(this, address + offset);
+        }
+    }
+
+    public void truncateFile(final long address, final long length) {
+        // truncate physical file
+        reader.truncateBlock(address, length);
+        // clear cache
+        for (long offset = length - (length % cachePageSize); offset < fileLengthBound; offset += cachePageSize) {
             cache.removePage(this, address + offset);
         }
     }
