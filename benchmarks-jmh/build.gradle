@@ -25,3 +25,7 @@ jar {
 sourceJar {
     from project.sourceSets.test.java
 }
+
+uploadArchives {
+    enabled = false
+}

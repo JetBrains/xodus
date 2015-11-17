@@ -9,3 +9,7 @@ dependencies {
     compile 'org.mozilla:rhino:1.7R4'
     compile project(':openAPI')
 }
+
+uploadArchives {
+    enabled = false
+}

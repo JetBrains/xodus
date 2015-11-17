@@ -24,3 +24,7 @@ task testBenchmarks(type: Test) {
     maxHeapSize = '1g'
     forkEvery = 1L
 }
+
+uploadArchives {
+    enabled = false
+}

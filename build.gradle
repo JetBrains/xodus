@@ -18,10 +18,6 @@ def signingKeyId = hasProperty('signingKeyId') ? project.signingKeyId : ''
 def signingPassword = hasProperty('signingPassword') ? project.signingPassword : ''
 def signingSecretKeyRingFile = hasProperty('signingSecretKeyRingFile') ? project.signingSecretKeyRingFile : ''
 
-def shouldDeploy(project) {
-    return project.version.length() > 0 && !(project.name in ['benchmarks', 'benchmarks-jmh', 'console', 'samples', 'sshd'])
-}
-
 subprojects {
     apply plugin: 'license'
     apply plugin: 'java'
@@ -91,53 +87,51 @@ subprojects {
     }
 
     afterEvaluate { project ->
-        if (shouldDeploy(project)) {
-            uploadArchives {
-                repositories {
-                    mavenDeployer {
+        uploadArchives {
+            repositories {
+                mavenDeployer {
 
-                        beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+                    beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
 
-                        repository(url: mavenPublishUrl) {
-                            authentication(userName: mavenPublishUsername, password: mavenPublishPassword)
+                    repository(url: mavenPublishUrl) {
+                        authentication(userName: mavenPublishUsername, password: mavenPublishPassword)
+                    }
+
+                    pom.project {
+                        name 'Xodus'
+                        description 'Xodus is pure Java transactional schema-less embedded database'
+                        packaging 'jar'
+                        url 'http://jetbrains.github.io/xodus'
+
+                        scm {
+                            url 'https://github.com/JetBrains/xodus'
+                            connection 'scm:git:https://github.com/JetBrains/xodus.git'
+                            developerConnection 'scm:git:https://github.com/JetBrains/xodus.git'
                         }
 
-                        pom.project {
-                            name 'Xodus'
-                            description 'Xodus is pure Java transactional schema-less embedded database'
-                            packaging 'jar'
-                            url 'http://jetbrains.github.io/xodus'
-
-                            scm {
-                                url 'https://github.com/JetBrains/xodus'
-                                connection 'scm:git:https://github.com/JetBrains/xodus.git'
-                                developerConnection 'scm:git:https://github.com/JetBrains/xodus.git'
+                        licenses {
+                            license {
+                                name 'The Apache Software License, Version 2.0'
+                                url 'http://www.apache.org/license/LICENSE-2.0.txt'
+                                distribution 'repo'
                             }
+                        }
 
-                            licenses {
-                                license {
-                                    name 'The Apache Software License, Version 2.0'
-                                    url 'http://www.apache.org/license/LICENSE-2.0.txt'
-                                    distribution 'repo'
-                                }
-                            }
-
-                            developers {
-                                developer {
-                                    id 'JetBrains'
-                                    name 'JetBrains Team'
-                                    organization 'JetBrains s.r.o'
-                                    organizationUrl 'http://www.jetbrains.com'
-                                }
+                        developers {
+                            developer {
+                                id 'JetBrains'
+                                name 'JetBrains Team'
+                                organization 'JetBrains s.r.o'
+                                organizationUrl 'http://www.jetbrains.com'
                             }
                         }
                     }
                 }
             }
-            signing {
-                required { !isSnapshot && gradle.taskGraph.hasTask('uploadArchives') }
-                sign configurations.archives
-            }
+        }
+        signing {
+            required { !isSnapshot && gradle.taskGraph.hasTask('uploadArchives') }
+            sign configurations.archives
         }
     }
 }

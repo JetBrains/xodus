@@ -11,3 +11,7 @@ dependencies {
     compile project(':entity-store')
     compile project(':sshd')
 }
+
+uploadArchives {
+    enabled = false
+}
