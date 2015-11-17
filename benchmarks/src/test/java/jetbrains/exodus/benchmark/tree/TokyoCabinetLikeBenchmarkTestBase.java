@@ -17,6 +17,7 @@ package jetbrains.exodus.benchmark.tree;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
+import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.env.Cursor;
 import jetbrains.exodus.env.EnvironmentConfig;
@@ -60,7 +61,7 @@ public abstract class TokyoCabinetLikeBenchmarkTestBase extends TreeBenchmarkTes
 
     @Test
     public void testWrite() {
-        long time = time("Write:", new Runnable() {
+        long time = TestUtil.time("Write:", new Runnable() {
             @Override
             public void run() {
                 fillTree();
@@ -77,7 +78,7 @@ public abstract class TokyoCabinetLikeBenchmarkTestBase extends TreeBenchmarkTes
     public void testWriteRandom() {
         shuffleKeys();
 
-        long time = time("Write random: ", new Runnable() {
+        long time = TestUtil.time("Write random: ", new Runnable() {
             @Override
             public void run() {
                 fillTree();
@@ -109,11 +110,11 @@ public abstract class TokyoCabinetLikeBenchmarkTestBase extends TreeBenchmarkTes
             }
         };
 
-        long time = time("Read: ", read);
+        long time = TestUtil.time("Read: ", read);
         if (myMessenger != null) {
             myMessenger.putValue("ReadTokyoTest", time);
         }
-        time = time("Read2: ", read);
+        time = TestUtil.time("Read2: ", read);
         if (myMessenger != null) {
             myMessenger.putValue("ReadTokyoTest2", time);
         }
@@ -141,11 +142,11 @@ public abstract class TokyoCabinetLikeBenchmarkTestBase extends TreeBenchmarkTes
             }
         };
 
-        long time = time("Random read: ", read);
+        long time = TestUtil.time("Random read: ", read);
         if (myMessenger != null) {
             myMessenger.putValue("RandomReadTokyoTest", time);
         }
-        time = time("Random read2: ", read);
+        time = TestUtil.time("Random read2: ", read);
         if (myMessenger != null) {
             myMessenger.putValue("RandomReadTokyoTest2", time);
         }
@@ -173,11 +174,11 @@ public abstract class TokyoCabinetLikeBenchmarkTestBase extends TreeBenchmarkTes
             }
         };
 
-        long time = time("Random read: ", read);
+        long time = TestUtil.time("Random read: ", read);
         if (myMessenger != null) {
             myMessenger.putValue("RandomReadTokyoTest", time);
         }
-        time = time("Random read2: ", read);
+        time = TestUtil.time("Random read2: ", read);
         if (myMessenger != null) {
             myMessenger.putValue("RandomReadTokyoTest2", time);
         }
