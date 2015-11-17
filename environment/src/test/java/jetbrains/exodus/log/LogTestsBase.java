@@ -17,6 +17,7 @@ package jetbrains.exodus.log;
 
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.TestUtil;
+import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.io.DataReader;
 import jetbrains.exodus.io.DataWriter;
 import jetbrains.exodus.io.FileDataReader;
@@ -50,8 +51,9 @@ public class LogTestsBase {
         }
 
         synchronized (this) {
-            reader = new FileDataReader(testsDirectory, 16);
-            writer = new FileDataWriter(testsDirectory);
+            final Pair<DataReader, DataWriter> logRW = createLogRW();
+            reader = logRW.getFirst();
+            writer = logRW.getSecond();
         }
 
         LoggableFactory.clear();
@@ -79,6 +81,10 @@ public class LogTestsBase {
             myMessenger.close();
         }
 
+    }
+
+    protected Pair<DataReader, DataWriter> createLogRW() {
+        return new Pair<DataReader, DataWriter>(new FileDataReader(logDirectory, 16), new FileDataWriter(logDirectory));
     }
 
     protected void initLog(final long fileSize) {
