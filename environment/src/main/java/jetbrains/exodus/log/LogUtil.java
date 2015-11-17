@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.log;
 
+import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.util.IOUtil;
 import org.jetbrains.annotations.NotNull;
@@ -55,10 +56,10 @@ public final class LogUtil {
 
     public static String getLogFilename(long address) {
         if (address < 0) {
-            throw new IllegalArgumentException("Starting address of a log file is negative: " + address);
+            throw new ExodusException("Starting address of a log file is negative: " + address);
         }
         if (address % LOG_BLOCK_ALIGNMENT != 0) {
-            throw new IllegalArgumentException("Starting address of a log file is badly aligned: " + address);
+            throw new ExodusException("Starting address of a log file is badly aligned: " + address);
         }
         address /= LOG_BLOCK_ALIGNMENT;
         final char[] alphabet = LOG_FILE_NAME_ALPHABET;
@@ -75,7 +76,7 @@ public final class LogUtil {
     public static long getAddress(final String logFilename) {
         final int length = logFilename.length();
         if (length != LOG_FILE_NAME_WITH_EXT_LENGTH || !logFilename.endsWith(LOG_FILE_EXTENSION)) {
-            throw new IllegalArgumentException("Invalid log file name: " + logFilename);
+            throw new ExodusException("Invalid log file name: " + logFilename);
         }
         final IntHashMap<Integer> idx = ALPHA_INDEXES;
         long address = 0;
@@ -83,7 +84,7 @@ public final class LogUtil {
             final char c = logFilename.charAt(i);
             final Integer integer = idx.get(c);
             if (integer == null) {
-                throw new IllegalArgumentException("Invalid log file name: " + logFilename);
+                throw new ExodusException("Invalid log file name: " + logFilename);
             }
             address = (address << 5) + integer;
         }
@@ -94,7 +95,7 @@ public final class LogUtil {
         try {
             getAddress(file.getName());
             return true;
-        } catch (IllegalArgumentException e) {
+        } catch (ExodusException e) {
             return false;
         }
     }

@@ -106,7 +106,7 @@ public class LogTests extends LogTestsBase {
             public void run() {
                 getLog().removeFile(1111);
             }
-        }, IllegalArgumentException.class);
+        }, ExodusException.class);
     }
 
     @Test
