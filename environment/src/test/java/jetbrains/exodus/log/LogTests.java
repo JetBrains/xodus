@@ -17,6 +17,7 @@ package jetbrains.exodus.log;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.TestFor;
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
@@ -225,6 +226,7 @@ public class LogTests extends LogTestsBase {
     }
 
     @Test
+    @TestFor(issues = "XD-317")
     public void testSetHighAddress_XD_317() {
         getLog().write(DUMMY_LOGGABLE);
         getLog().setHighAddress(0);
@@ -238,6 +240,7 @@ public class LogTests extends LogTestsBase {
     }
 
     @Test
+    @TestFor(issues = "XD-484")
     public void testSetHighAddress_XD_484() throws IOException {
         testSetHighAddress2();
         closeLog();
