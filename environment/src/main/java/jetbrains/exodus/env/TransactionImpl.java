@@ -66,12 +66,17 @@ public class TransactionImpl extends TransactionBase {
         env.getStatistics().getStatisticsItem(EnvironmentStatistics.TRANSACTIONS).incTotal();
     }
 
-    public TransactionImpl(@NotNull final TransactionBase origin) {
+    TransactionImpl(@NotNull final TransactionBase origin) {
         super(origin.getEnvironment(), false);
         mutableTrees = new TreeMap<>();
         removedStores = new LongHashMap<>();
         createdStores = new HashMapDecorator<>();
-        beginHook = null;
+        beginHook = new Runnable() {
+            @Override
+            public void run() {
+                setMetaTree(origin.getEnvironment().getMetaTree());
+            }
+        };
         replayCount = 0;
         setMetaTree(origin.getMetaTree());
         final EnvironmentImpl env = getEnvironment();
