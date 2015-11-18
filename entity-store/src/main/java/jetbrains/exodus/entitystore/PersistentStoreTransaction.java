@@ -85,10 +85,14 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         this(store, false);
     }
 
-    PersistentStoreTransaction(@NotNull final PersistentStoreTransaction source,
-                               @NotNull final Transaction txn) {
+    /**
+     * Ctor for creating snapshot transactions.
+     *
+     * @param source   source txn which snapshot should be created of.
+     * @param readOnly true if read-only snapshot
+     */
+    PersistentStoreTransaction(@NotNull final PersistentStoreTransaction source, final boolean readOnly) {
         this.store = source.store;
-        this.txn = txn;
         createdIterators = new HashSetDecorator<>();
         final PersistentEntityStoreConfig config = store.getConfig();
         propsCache = createObjectCache(config.getTransactionPropsCacheSize());
@@ -96,6 +100,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         blobStringsCache = createObjectCache(config.getTransactionBlobStringsCacheSize());
         localCache = source.localCache;
         localCacheAttempts = localCacheHits = 0;
+        txn = readOnly ? source.txn.getReadonlySnapshot() : source.txn.getSnapshot(getRevertCachesBeginHook());
     }
 
     protected PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store, final boolean readOnly) {
@@ -105,12 +110,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         propsCache = createObjectCache(config.getTransactionPropsCacheSize());
         linksCache = createObjectCache(config.getTransactionLinksCacheSize());
         blobStringsCache = createObjectCache(config.getTransactionBlobStringsCacheSize());
-        final Runnable beginHook = new Runnable() {
-            @Override
-            public void run() {
-                revertCaches();
-            }
-        };
+        localCacheAttempts = localCacheHits = 0;
+        final Runnable beginHook = getRevertCachesBeginHook();
         final Environment env = store.getEnvironment();
         txn = readOnly ? env.beginReadonlyTransaction(beginHook) : env.beginTransaction(beginHook);
     }
@@ -891,6 +892,15 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                 }
             }
         });
+    }
+
+    protected Runnable getRevertCachesBeginHook() {
+        return new Runnable() {
+            @Override
+            public void run() {
+                revertCaches();
+            }
+        };
     }
 
     private void flushNonTransactionalBlobs() {

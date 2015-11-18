@@ -32,6 +32,6 @@ public class ReadonlyPersistentStoreTransaction extends PersistentStoreTransacti
     }
 
     public PersistentStoreTransaction getUpgradedTransaction() {
-        return new PersistentStoreTransaction(this, txn.getSnapshot());
+        return new PersistentStoreTransaction(this, false);
     }
 }

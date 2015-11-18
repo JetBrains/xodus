@@ -32,6 +32,8 @@ public interface Transaction {
 
     Transaction getSnapshot();
 
+    Transaction getSnapshot(@Nullable Runnable beginHook);
+
     Transaction getReadonlySnapshot();
 
     @NotNull

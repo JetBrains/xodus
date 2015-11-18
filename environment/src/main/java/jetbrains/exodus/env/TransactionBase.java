@@ -59,8 +59,13 @@ public abstract class TransactionBase implements Transaction {
 
     @Override
     public Transaction getSnapshot() {
+        return getSnapshot(null);
+    }
+
+    @Override
+    public Transaction getSnapshot(@Nullable final Runnable beginHook) {
         checkIsFinished();
-        return new TransactionImpl(this);
+        return new TransactionImpl(this, beginHook);
     }
 
     @Override
@@ -190,5 +195,20 @@ public abstract class TransactionBase implements Transaction {
 
     protected void setIsFinished() {
         isFinished = true;
+    }
+
+    protected Runnable wrapBeginHookWithInternalOne(@Nullable final Runnable beginHook) {
+        return new Runnable() {
+            @Override
+            public void run() {
+                final EnvironmentImpl env = getEnvironment();
+                setMetaTree(env.getMetaTree());
+                env.registerTransaction(TransactionBase.this);
+                if (beginHook != null) {
+                    beginHook.run();
+                }
+
+            }
+        };
     }
 }
