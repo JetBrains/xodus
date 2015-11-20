@@ -545,12 +545,12 @@ public class EnvironmentImpl implements Environment {
                 }
                 resultingHighAddress = log.getHighAddress();
             } catch (Throwable t) { // pokemon exception handling to decrease try/catch block overhead
-                logger.error("Failed to flush transaction", t);
+                loggerError("Failed to flush transaction", t);
                 try {
                     log.setHighAddress(initialHighAddress);
                 } catch (Throwable th) {
                     throwableOnCommit = t; // inoperative on failing to update high address too
-                    logger.error("Failed to rollback high address", th);
+                    loggerError("Failed to rollback high address", th);
                     throw ExodusException.toExodusException(th, "Failed to rollback high address");
                 }
                 throw ExodusException.toExodusException(t, "Failed to flush transaction");
@@ -735,6 +735,18 @@ public class EnvironmentImpl implements Environment {
         return (TransactionImpl) txn;
     }
 
+    static void loggerError(@NotNull final String errorMessage) {
+        loggerError(errorMessage, null);
+    }
+
+    static void loggerError(@NotNull final String errorMessage, @Nullable final Throwable t) {
+        if (t == null) {
+            logger.error(errorMessage);
+        } else {
+            logger.error(errorMessage, t);
+        }
+    }
+
     private long getOldestTxnRootAddress() {
         final TransactionBase oldestTxn = getOldestTransaction();
         return oldestTxn == null ? Long.MAX_VALUE : oldestTxn.getRoot();
@@ -761,7 +773,7 @@ public class EnvironmentImpl implements Environment {
         if (txnCount > 0) {
             final String errorString = "Environment[" + getLocation() + "] is active: " + txnCount + " transaction(s) not finished";
             if (!exceptionSafe) {
-                logger.error(errorString);
+                loggerError(errorString);
             } else if (logger.isInfoEnabled()) {
                 logger.info(errorString);
             }
@@ -785,7 +797,7 @@ public class EnvironmentImpl implements Environment {
             if (debug) {
                 logger.debug(stacksUnavailable);
             } else {
-                logger.error(stacksUnavailable);
+                loggerError(stacksUnavailable);
             }
         } else {
             forEachActiveTransaction(new TransactionalExecutable() {
@@ -795,7 +807,7 @@ public class EnvironmentImpl implements Environment {
                     if (debug) {
                         logger.debug("Alive transaction: ", trace);
                     } else {
-                        logger.error("Alive transaction: ", trace);
+                        loggerError("Alive transaction: ", trace);
                     }
                 }
             });

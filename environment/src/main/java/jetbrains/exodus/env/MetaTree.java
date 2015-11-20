@@ -65,7 +65,8 @@ final class MetaTree {
                             cloneTree(metaTree); // try to traverse meta tree
                             return new Pair<>(new MetaTree(metaTree, root, validHighAddress), dbRoot.getLastStructureId());
                         }
-                    } catch (ExodusException ignore) {
+                    } catch (ExodusException e) {
+                        EnvironmentImpl.loggerError("Failed to recover to valid root, address = " + dbRoot.getAddress(), e);
                         // XD-449: try next database root if we failed to traverse whole MetaTree
                         // TODO: this check should become obsolete after XD-334 is implemented
                     }
