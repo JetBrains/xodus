@@ -23,5 +23,5 @@ public interface Block {
 
     int read(byte[] output, long position, int count);
 
-    boolean setReadOnly();
+    boolean setWritable(boolean writable);
 }

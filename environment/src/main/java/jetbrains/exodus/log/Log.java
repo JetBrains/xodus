@@ -804,7 +804,7 @@ public final class Log implements Closeable {
                             lastFile = blockAddrs.getMaximum();
                         }
                         if (lastFile != null) {
-                            reader.getBlock(lastFile).setReadOnly();
+                            reader.getBlock(lastFile).setWritable(false);
                         }
                     }
                 }

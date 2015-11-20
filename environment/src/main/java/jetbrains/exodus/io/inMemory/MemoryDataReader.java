@@ -112,7 +112,7 @@ public class MemoryDataReader implements DataReader {
         }
 
         @Override
-        public boolean setReadOnly() {
+        public boolean setWritable(boolean writable) {
             return false;
         }
     }

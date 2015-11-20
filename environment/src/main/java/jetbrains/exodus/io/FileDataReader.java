@@ -61,6 +61,7 @@ public class FileDataReader implements DataReader {
     public void removeBlock(long blockAddress, @NotNull final RemoveBlockType rbt) {
         removeFileFromFileCache(blockAddress);
         final File file = new File(dir, LogUtil.getLogFilename(blockAddress));
+        setWritable(file);
         final boolean deleted = rbt == RemoveBlockType.Delete ? file.delete() : renameFile(file);
         if (!deleted) {
             throw new ExodusException("Failed to delete " + file.getAbsolutePath());
@@ -73,12 +74,16 @@ public class FileDataReader implements DataReader {
     public void truncateBlock(long blockAddress, long length) {
         removeFileFromFileCache(blockAddress);
         final FileBlock block = getBlock(blockAddress);
+        setWritable(block);
         try {
             try (SharedRandomAccessFile f = block.getSharedRandomAccessFile("rw")) {
                 f.setLength(length);
             }
+            if (logger.isInfoEnabled()) {
+                logger.info("Truncated file " + block.getAbsolutePath() + " to length = " + length);
+            }
         } catch (IOException e) {
-            throw new ExodusException("Can't truncate file " + block.getAbsolutePath(), e);
+            throw new ExodusException("Failed to truncate file " + block.getAbsolutePath(), e);
         }
     }
 
@@ -152,6 +157,12 @@ public class FileDataReader implements DataReader {
         final String name = file.getName();
         return file.renameTo(new File(file.getParent(),
                 name.substring(0, name.indexOf(LogUtil.LOG_FILE_EXTENSION)) + DELETED_FILE_EXTENSION));
+    }
+
+    private static void setWritable(@NotNull final File file) {
+        if (!file.setWritable(true)) {
+            throw new ExodusException("Failed to set writable " + file.getAbsolutePath());
+        }
     }
 
     private final class FileBlock extends File implements Block {
