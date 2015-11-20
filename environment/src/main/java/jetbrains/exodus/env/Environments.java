@@ -114,7 +114,8 @@ public final class Environments {
                 setNonBlockingCache(ec.isLogCacheNonBlocking()).
                 setCleanDirectoryExpected(ec.isLogCleanDirectoryExpected()).
                 setClearInvalidLog(ec.isLogClearInvalid()).
-                setSyncPeriod(ec.getLogSyncPeriod()));
+                setSyncPeriod(ec.getLogSyncPeriod()).
+                setFullFileReadonly(ec.isLogFullFileReadonly()));
     }
 
     @NotNull

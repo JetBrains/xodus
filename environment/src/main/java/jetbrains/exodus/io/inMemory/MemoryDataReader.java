@@ -110,5 +110,10 @@ public class MemoryDataReader implements DataReader {
         public int read(final byte[] output, long position, int count) {
             return data.read(output, position, count);
         }
+
+        @Override
+        public boolean setReadOnly() {
+            return false;
+        }
     }
 }

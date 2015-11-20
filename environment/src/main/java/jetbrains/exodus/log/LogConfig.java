@@ -44,6 +44,7 @@ public class LogConfig {
     private boolean cleanDirectoryExpected;
     private boolean clearInvalidLog;
     private long syncPeriod;
+    private boolean fullFileReadonly;
 
     public LogConfig() {
     }
@@ -193,6 +194,15 @@ public class LogConfig {
 
     public LogConfig setSyncPeriod(long syncPeriod) {
         this.syncPeriod = syncPeriod;
+        return this;
+    }
+
+    public boolean isFullFileReadonly() {
+        return fullFileReadonly;
+    }
+
+    public LogConfig setFullFileReadonly(boolean fullFileReadonly) {
+        this.fullFileReadonly = fullFileReadonly;
         return this;
     }
 

@@ -47,6 +47,8 @@ public interface EnvironmentConfigMBean {
 
     void setLogSyncPeriod(long millis);
 
+    boolean isLogFullFileReadonly();
+
     boolean getEnvIsReadonly();
 
     void setEnvIsReadonly(boolean isReadonly);

@@ -50,6 +50,8 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public static final String LOG_SYNC_PERIOD = "exodus.log.syncPeriod"; // in milliseconds
 
+    public static final String LOG_FULL_FILE_READ_ONLY = "exodus.log.fullFileReadonly";
+
     public static final String ENV_IS_READONLY = "exodus.env.isReadonly";
 
     /**
@@ -139,6 +141,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
                 new Pair(LOG_CLEAR_INVALID, false),
                 new Pair(LOG_SYNC_PERIOD, 1000L),
+                new Pair(LOG_FULL_FILE_READ_ONLY, true),
                 new Pair(ENV_IS_READONLY, false),
                 new Pair(ENV_READONLY_EMPTY_STORES, false),
                 new Pair(ENV_STOREGET_CACHE_SIZE, 0),
@@ -267,6 +270,14 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public EnvironmentConfig setLogSyncPeriod(final long millis) {
         return setSetting(LOG_SYNC_PERIOD, millis);
+    }
+
+    public boolean isLogFullFileReadonly() {
+        return (Boolean) getSetting(LOG_FULL_FILE_READ_ONLY);
+    }
+
+    public EnvironmentConfig setFullFileReadonly(final boolean readonly) {
+        return setSetting(LOG_FULL_FILE_READ_ONLY, readonly);
     }
 
     public boolean getEnvIsReadonly() {

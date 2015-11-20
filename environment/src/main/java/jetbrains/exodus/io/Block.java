@@ -22,4 +22,6 @@ public interface Block {
     long length();
 
     int read(byte[] output, long position, int count);
+
+    boolean setReadOnly();
 }

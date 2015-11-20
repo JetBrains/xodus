@@ -106,6 +106,11 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
+    public boolean isLogFullFileReadonly() {
+        return config.isLogFullFileReadonly();
+    }
+
+    @Override
     public boolean getEnvIsReadonly() {
         return config.getEnvIsReadonly();
     }

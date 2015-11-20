@@ -798,6 +798,15 @@ public final class Log implements Closeable {
                 flush(true);
                 if (getLastFileLength() == 0) {
                     bufferedWriter.close();
+                    if (config.isFullFileReadonly()) {
+                        final Long lastFile;
+                        synchronized (blockAddrs) {
+                            lastFile = blockAddrs.getMaximum();
+                        }
+                        if (lastFile != null) {
+                            reader.getBlock(lastFile).setReadOnly();
+                        }
+                    }
                 }
             }
             return result;
