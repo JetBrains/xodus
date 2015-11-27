@@ -691,6 +691,51 @@ public class EntityTests extends EntityStoreTestBase {
         });
     }
 
+    public void testTxnCachesIsolation() {
+        final Entity issue = getEntityStore().computeInTransaction(new StoreTransactionalComputable<Entity>() {
+            @Override
+            public Entity compute(@NotNull StoreTransaction txn) {
+                final Entity issue = txn.newEntity("Issue");
+                issue.setProperty("description", "1");
+                return issue;
+            }
+        });
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        txn.revert();
+        Assert.assertEquals("1", issue.getProperty("description"));
+        getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                issue.setProperty("description", "2");
+            }
+        });
+        txn.revert();
+        Assert.assertEquals("2", issue.getProperty("description"));
+    }
+
+    public void testTxnCachesIsolation2() {
+        final Entity issue = getEntityStore().computeInTransaction(new StoreTransactionalComputable<Entity>() {
+            @Override
+            public Entity compute(@NotNull StoreTransaction txn) {
+                final Entity issue = txn.newEntity("Issue");
+                issue.setProperty("description", "1");
+                return issue;
+            }
+        });
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        txn.revert();
+        Assert.assertEquals("1", issue.getProperty("description"));
+        issue.setProperty("description", "2");
+        getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                issue.setProperty("description", "3");
+            }
+        });
+        Assert.assertFalse(txn.flush());
+        Assert.assertEquals("3", issue.getProperty("description"));
+    }
+
     private static InputStream string2Stream(String s) {
         return new ByteArrayInputStream(s.getBytes());
     }
