@@ -150,23 +150,14 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     // exposed only for tests
     boolean doCommit() {
-        boolean reverted = false;
-        try {
-            if (txn.commit()) {
-                store.unregisterTransaction(this);
-                flushNonTransactionalBlobs();
-                return true;
-            }
-            revert();
-            reverted = true;
-            return false;
-        } catch (Exception e) {
-            throw ExodusException.toEntityStoreException(e);
-        } finally {
-            if (!reverted) {
-                revertCaches();
-            }
+        if (txn.commit()) {
+            store.unregisterTransaction(this);
+            flushNonTransactionalBlobs();
+            revertCaches();
+            return true;
         }
+        revert();
+        return false;
     }
 
     @Override
@@ -192,22 +183,13 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     // exposed only for tests
     boolean doFlush() {
-        boolean reverted = false;
-        try {
-            if (txn.flush()) {
-                flushNonTransactionalBlobs();
-                return true;
-            }
-            revert();
-            reverted = true;
-            return false;
-        } catch (Exception e) {
-            throw ExodusException.toEntityStoreException(e);
-        } finally {
-            if (!reverted) {
-                revertCaches(false); // do not clear props & links caches
-            }
+        if (txn.flush()) {
+            flushNonTransactionalBlobs();
+            revertCaches(false); // do not clear props & links caches
+            return true;
         }
+        revert();
+        return false;
     }
 
     @Override
