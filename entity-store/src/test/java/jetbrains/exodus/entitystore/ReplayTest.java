@@ -57,7 +57,6 @@ public class ReplayTest extends EntityStoreTestBase {
             assertNotNull(issue);
             change[i] = issue;
         }
-        txn.enableReplayData();
         System.out.println(System.currentTimeMillis());
         changeStuff(change);
         System.out.println(System.currentTimeMillis());
@@ -72,7 +71,6 @@ public class ReplayTest extends EntityStoreTestBase {
         assertNotNull(txn);
         final Entity entity = txn.newEntity("Issue");
         txn.flush();
-        txn.enableReplayData();
         entity.setProperty("prop", "wat");
         Assert.assertEquals(1, txn.findWithPropSortedByValue("Issue", "prop").size());
         final PersistentStoreTransaction txn2 = getEntityStore().beginTransaction();

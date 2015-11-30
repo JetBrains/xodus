@@ -361,8 +361,4 @@ public interface StoreTransaction {
 
     void deleteUniqueKey(@NotNull final Index index,
                          @NotNull final List<Comparable> propValues);
-
-    void enableReplayData();
-
-    void disableReplayData();
 }

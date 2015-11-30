@@ -28,7 +28,6 @@ import jetbrains.exodus.core.dataStructures.decorators.HashSetDecorator;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
-import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.entitystore.metadata.Index;
 import jetbrains.exodus.env.Environment;
@@ -71,6 +70,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     private EntityIterableCacheAdapter mutableCache;
     private List<UpdatableCachedWrapperIterable> mutatedInTxn;
     @Nullable
+    private ReplayData replayData;
+    @Nullable
     private LongHashMap<InputStream> blobStreams;
     @Nullable
     private LongHashMap<File> blobFiles;
@@ -78,8 +79,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     private LongSet preservedBlobs;
     private LongSet deferredBlobsToDelete;
     private QueryCancellingPolicy queryCancellingPolicy;
-    @Nullable
-    ReplayData replayData;
 
     PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store) {
         this(store, false);
@@ -154,6 +153,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             store.unregisterTransaction(this);
             flushNonTransactionalBlobs();
             revertCaches();
+            replayData = null;
             return true;
         }
         revert();
@@ -186,6 +186,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (txn.flush()) {
             flushNonTransactionalBlobs();
             revertCaches(false); // do not clear props & links caches
+            replayData = null;
             return true;
         }
         revert();
@@ -620,16 +621,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
     }
 
-    @Override
-    public void enableReplayData() {
-        replayData = new ReplayData();
-    }
-
-    @Override
-    public void disableReplayData() {
-        replayData = null;
-    }
-
     void localCacheAttempt() {
         ++localCacheAttempts;
     }
@@ -898,42 +889,15 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     private void updateMutableCache(@NotNull final HandleChecker checker) {
+        if (replayData == null) {
+            replayData = new ReplayData();
+        }
         if (mutableCache == null) {
             mutableCache = localCache.getClone(); // preemptive version mismatch disabled
             mutatedInTxn = new ArrayList<>();
-            if (replayData != null) {
-                replayData.setCacheSnapshot(mutableCache.getClone());
-            }
+            replayData.setCacheSnapshot(mutableCache.getClone());
         }
-        final EntityIterableCacheAdapter mutableCache = this.mutableCache;
-        if (replayData != null) {
-            replayData.updateMutableCache(mutableCache, mutatedInTxn, checker);
-        } else {
-            mutableCache.forEachKey(new ObjectProcedure<EntityIterableHandle>() {
-                @Override
-                public boolean execute(EntityIterableHandle object) {
-                    switch (checker.checkHandle(object, mutableCache)) {
-                        case KEEP:
-                            break; // do nothing, keep handle
-                        case REMOVE:
-                            mutableCache.remove(object);
-                            break;
-                        case UPDATE:
-                            UpdatableCachedWrapperIterable it = (UpdatableCachedWrapperIterable) mutableCache.getObject(object);
-                            if (it != null) {
-                                if (!it.isMutated()) {
-                                    it = it.beginUpdate();
-                                    // cache new mutated iterable wrapper
-                                    mutableCache.cacheObject(object, it);
-                                    mutatedInTxn.add(it);
-                                }
-                                checker.update(object, it);
-                            }
-                    }
-                    return true;
-                }
-            });
-        }
+        replayData.updateMutableCache(mutableCache, mutatedInTxn, checker);
     }
 
     private void handleOutOfDiskSpace(final Exception e) {
