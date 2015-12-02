@@ -487,7 +487,7 @@ public class EnvironmentImpl implements Environment {
     boolean shouldTransactionBeExclusive(@NotNull final TransactionImpl txn) {
         final int replayCount = txn.getReplayCount();
         return replayCount > 0 &&
-                (ec.getEnvTxnReplayMaxCount() == replayCount ||
+                (replayCount >= ec.getEnvTxnReplayMaxCount() ||
                         System.currentTimeMillis() - txn.getCreated() >= ec.getEnvTxnReplayTimeout());
     }
 
