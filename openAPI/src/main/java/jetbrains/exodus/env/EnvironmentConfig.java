@@ -146,7 +146,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(ENV_READONLY_EMPTY_STORES, false),
                 new Pair(ENV_STOREGET_CACHE_SIZE, 0),
                 new Pair(ENV_CLOSE_FORCEDLY, false),
-                new Pair(ENV_TXN_REPLAY_TIMEOUT, 1000L),
+                new Pair(ENV_TXN_REPLAY_TIMEOUT, 2000L),
                 new Pair(ENV_TXN_REPLAY_MAX_COUNT, 2),
                 new Pair(ENV_MAX_PARALLEL_TXNS, Integer.MAX_VALUE),
                 new Pair(ENV_MAX_PARALLEL_READONLY_TXNS, Integer.MAX_VALUE),
@@ -166,7 +166,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(GC_UTILIZATION_FROM_SCRATCH, false),
                 new Pair(GC_FILES_DELETION_DELAY, 0),
                 new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
-                new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 200),
+                new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 300),
                 new Pair(MANAGEMENT_ENABLED, true)
         }, strategy);
     }
