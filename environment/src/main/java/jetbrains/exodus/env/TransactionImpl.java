@@ -62,6 +62,7 @@ public class TransactionImpl extends TransactionBase {
             }
         };
         replayCount = 0;
+        setExclusive(isExclusive() | env.shouldTransactionBeExclusive(this));
         env.holdNewestSnapshotBy(this);
         env.getStatistics().getStatisticsItem(EnvironmentStatistics.TRANSACTIONS).incTotal();
     }
@@ -75,6 +76,7 @@ public class TransactionImpl extends TransactionBase {
         this.beginHook = wrapBeginHookWithInternalOne(beginHook);
         replayCount = 0;
         setMetaTree(origin.getMetaTree());
+        setExclusive(env.shouldTransactionBeExclusive(this));
         env.acquireTransaction(this);
         env.registerTransaction(this);
         env.getStatistics().getStatisticsItem(EnvironmentStatistics.TRANSACTIONS).incTotal();
