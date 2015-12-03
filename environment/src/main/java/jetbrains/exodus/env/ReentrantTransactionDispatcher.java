@@ -138,10 +138,6 @@ final class ReentrantTransactionDispatcher {
                     // if an exclusive transaction cannot be acquired fairly (in its turn)
                     // try to shuffle it to the queue of exclusive transactions
                     if (permitsToAcquire > 1 && threadQueue == regularQueue) {
-                        if (!exclusiveQueue.isEmpty()) {
-                            permitsToAcquire = 1;
-                            continue;
-                        }
                         threadQueue.pollFirstEntry();
                         threadQueue = exclusiveQueue;
                         threadQueue.put(currentOrder, condition);
