@@ -143,10 +143,6 @@ public class TransactionImpl extends TransactionBase {
         }
         if (!checkVersion(oldRoot)) {
             clearImmutableTrees();
-            // GUARD: if txn is exclusive then database version could not be changed
-            if (wasExclusive) {
-                throw new ExodusException("Meta tree modified during exclusive transaction");
-            }
             env.runTransactionSafeTasks();
         }
         setStarted(System.currentTimeMillis());
