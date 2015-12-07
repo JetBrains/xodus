@@ -183,6 +183,16 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
+    public boolean getEnvTxnDowngradeAfterFlush() {
+        return config.getEnvTxnDowngradeAfterFlush();
+    }
+
+    @Override
+    public void setEnvTxnDowngradeAfterFlush(final boolean downgrade) {
+        config.setEnvTxnDowngradeAfterFlush(downgrade);
+    }
+
+    @Override
     public int getEnvMaxParallelTxns() {
         return config.getEnvMaxParallelTxns();
     }

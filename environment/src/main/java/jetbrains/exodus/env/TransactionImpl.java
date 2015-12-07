@@ -108,7 +108,7 @@ public class TransactionImpl extends TransactionBase {
         if (result) {
             // if the transaction was upgraded to exclusive during re-playing
             // then it should be downgraded back after successful flush().
-            if (!wasCreatedExclusive() && isExclusive()) {
+            if (!wasCreatedExclusive() && isExclusive() && env.getEnvironmentConfig().getEnvTxnDowngradeAfterFlush()) {
                 env.downgradeTransaction(this);
                 setExclusive(false);
             }
@@ -131,12 +131,14 @@ public class TransactionImpl extends TransactionBase {
         if (isIdempotent()) {
             env.holdNewestSnapshotBy(this, false);
         } else {
-            env.releaseTransaction(this);
             doRevert();
-            if (!wasExclusive && env.shouldTransactionBeExclusive(this)) {
+            if (wasExclusive || !env.shouldTransactionBeExclusive(this)) {
+                env.holdNewestSnapshotBy(this, false);
+            } else {
+                env.releaseTransaction(this);
                 setExclusive(true);
+                env.holdNewestSnapshotBy(this);
             }
-            env.holdNewestSnapshotBy(this);
         }
         if (!env.isRegistered(this)) {
             throw new ExodusException("Transaction should remain registered after revert");

@@ -69,6 +69,10 @@ public interface EnvironmentConfigMBean {
 
     void setEnvTxnReplayMaxCount(final int txnReplayMaxCount);
 
+    boolean getEnvTxnDowngradeAfterFlush();
+
+    void setEnvTxnDowngradeAfterFlush(final boolean downgrade);
+
     int getEnvMaxParallelTxns();
 
     int getEnvMaxParallelReadonlyTxns();

@@ -68,6 +68,8 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public static final String ENV_TXN_REPLAY_MAX_COUNT = "exodus.env.txn.replayMaxCount";
 
+    public static final String ENV_TXN_DOWNGRADE_AFTER_FLUSH = "exodus.env.txn.downgradeAfterFlush";
+
     public static final String ENV_MAX_PARALLEL_TXNS = "exodus.env.maxParallelTxns";
 
     public static final String ENV_MAX_PARALLEL_READONLY_TXNS = "exodus.env.maxParallelReadonlyTxns";
@@ -117,7 +119,7 @@ public final class EnvironmentConfig extends AbstractConfig {
     public static final String GC_TRANSACTION_ACQUIRE_TIMEOUT = "exodus.gc.transactionAcquireTimeout"; // in milliseconds
 
     /**
-     * If a file is successfully cleaned then delete after this number of milliseconds.
+     * If a file is successfully cleaned then delete it after this number of milliseconds.
      */
     public static final String GC_FILES_DELETION_DELAY = "exodus.gc.filesDeletionDelay"; // in milliseconds
 
@@ -148,6 +150,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(ENV_CLOSE_FORCEDLY, false),
                 new Pair(ENV_TXN_REPLAY_TIMEOUT, 2000L),
                 new Pair(ENV_TXN_REPLAY_MAX_COUNT, 2),
+                new Pair(ENV_TXN_DOWNGRADE_AFTER_FLUSH, true),
                 new Pair(ENV_MAX_PARALLEL_TXNS, Integer.MAX_VALUE),
                 new Pair(ENV_MAX_PARALLEL_READONLY_TXNS, Integer.MAX_VALUE),
                 new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
@@ -335,6 +338,14 @@ public final class EnvironmentConfig extends AbstractConfig {
             throw new InvalidSettingException("Negative transaction replay count");
         }
         return setSetting(ENV_TXN_REPLAY_MAX_COUNT, count);
+    }
+
+    public boolean getEnvTxnDowngradeAfterFlush() {
+        return (Boolean) getSetting(ENV_TXN_DOWNGRADE_AFTER_FLUSH);
+    }
+
+    public EnvironmentConfig setEnvTxnDowngradeAfterFlush(final boolean downgrade) {
+        return setSetting(ENV_TXN_DOWNGRADE_AFTER_FLUSH, downgrade);
     }
 
     public int getEnvMaxParallelTxns() {
