@@ -146,7 +146,8 @@ public abstract class MultiThreadDelegatingJobProcessor extends JobProcessorAdap
         if (job.getProcessor() == null) {
             job.setProcessor(this);
         }
-        final int processorNumber = (job.hashCode() & 0x7fffffff) % jobProcessors.length;
+        final int hc = job.hashCode();
+        final int processorNumber = ((hc & 0xffff) + ((hc & 0xffff0000) >> 16)) % jobProcessors.length;
         return jobProcessors[processorNumber].queue(job, priority);
     }
 
