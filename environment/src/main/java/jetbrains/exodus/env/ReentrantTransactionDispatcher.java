@@ -249,12 +249,14 @@ final class ReentrantTransactionDispatcher {
         txn.setAcquiredPermits(1);
     }
 
+    // for tests only
     int acquirerCount() {
         try (CriticalSection ignored = new CriticalSection(lock)) {
             return regularQueue.size();
         }
     }
 
+    // for tests only
     int exclusiveAcquirerCount() {
         try (CriticalSection ignored = new CriticalSection(lock)) {
             return exclusiveQueue.size();

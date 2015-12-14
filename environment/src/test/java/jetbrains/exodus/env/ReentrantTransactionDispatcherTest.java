@@ -16,6 +16,10 @@
 package jetbrains.exodus.env;
 
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.TestFor;
+import jetbrains.exodus.core.execution.Job;
+import jetbrains.exodus.core.execution.JobProcessor;
+import jetbrains.exodus.core.execution.ThreadJobProcessor;
 import jetbrains.exodus.core.execution.locks.Latch;
 import org.junit.Assert;
 import org.junit.Before;
@@ -146,5 +150,45 @@ public class ReentrantTransactionDispatcherTest {
         dispatcher.releaseTransaction(Thread.currentThread(), 1);
         anotherExclusiveThread.join();
         Assert.assertEquals(maxTransactions, dispatcher.getAvailablePermits());
+    }
+
+    @Test
+    @TestFor(issues = "XD-489")
+    public void xd_489() throws InterruptedException {
+        final int count = 50;
+        final JobProcessor[] processors = new JobProcessor[count];
+        for (int i = 0; i < processors.length; i++) {
+            processors[i] = new ThreadJobProcessor("xd-489: " + i);
+        }
+        final long timeout = 1000;
+        final int permits = dispatcher.acquireExclusiveTransaction(Thread.currentThread());
+        try {
+            for (int i = 0; i < count - 1; ++i) {
+                processors[i].start();
+                processors[i].queue(new Job() {
+                    @Override
+                    protected void execute() throws Throwable {
+                        dispatcher.tryAcquireExclusiveTransaction(Thread.currentThread(), timeout);
+                    }
+                });
+            }
+            Thread.sleep(timeout / 2);
+            processors[count - 1].start();
+            processors[count - 1].queue(new Job() {
+                @Override
+                protected void execute() throws Throwable {
+                    dispatcher.acquireTransaction(Thread.currentThread());
+
+                }
+            });
+            Thread.sleep(timeout / 2);
+        } finally {
+            dispatcher.releaseTransaction(Thread.currentThread(), permits);
+        }
+        for (int i = 0; i < count - 1; ++i) {
+            processors[i].finish();
+        }
+        Thread.sleep(timeout / 2);
+        Assert.assertEquals(0, dispatcher.acquirerCount());
     }
 }
