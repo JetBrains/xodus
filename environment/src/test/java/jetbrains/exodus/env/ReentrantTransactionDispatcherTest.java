@@ -160,7 +160,7 @@ public class ReentrantTransactionDispatcherTest {
         for (int i = 0; i < processors.length; i++) {
             processors[i] = new ThreadJobProcessor("xd-489: " + i);
         }
-        final long timeout = 1000;
+        final long timeout = 2000;
         final int permits = dispatcher.acquireExclusiveTransaction(Thread.currentThread());
         try {
             for (int i = 0; i < count - 1; ++i) {
@@ -188,7 +188,7 @@ public class ReentrantTransactionDispatcherTest {
         for (int i = 0; i < count - 1; ++i) {
             processors[i].finish();
         }
-        Thread.sleep(timeout / 2);
+        Thread.sleep(timeout);
         Assert.assertEquals(0, dispatcher.acquirerCount());
     }
 }
