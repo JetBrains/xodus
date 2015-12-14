@@ -155,7 +155,7 @@ final class ReentrantTransactionDispatcher {
                 if (timeout == 0) {
                     if (permitsToAcquire == 1) {
                         threadQueue.remove(currentOrder);
-                        notifyNextWaiter(threadQueue);
+                        notifyNextWaiters();
                         return 0;
                     }
                     // if failed to acquire transaction within timeout then downgrade it
@@ -165,7 +165,7 @@ final class ReentrantTransactionDispatcher {
             threadQueue.pollFirstEntry();
             acquiredPermits += permitsToAcquire;
             threadPermits.put(thread, currentThreadPermits + permitsToAcquire);
-            notifyNextWaiter(threadQueue);
+            notifyNextWaiter(regularQueue);
             return permitsToAcquire;
         }
     }
@@ -209,16 +209,7 @@ final class ReentrantTransactionDispatcher {
             } else {
                 threadPermits.put(thread, currentThreadPermits);
             }
-            if (acquiredPermits == 0) {
-                if (exclusiveQueue.isEmpty()) {
-                    notifyNextWaiter(regularQueue);
-                } else {
-                    exclusiveQueue.firstEntry().getValue().signal();
-                }
-            } else {
-                notifyNextWaiter(exclusiveQueue);
-                notifyNextWaiter(regularQueue);
-            }
+            notifyNextWaiters();
         }
     }
 
@@ -261,6 +252,15 @@ final class ReentrantTransactionDispatcher {
         try (CriticalSection ignored = new CriticalSection(lock)) {
             return exclusiveQueue.size();
         }
+    }
+
+    private void notifyNextWaiters() {
+        if (acquiredPermits == 0) {
+            if (!exclusiveQueue.isEmpty()) {
+                exclusiveQueue.firstEntry().getValue().signal();
+            }
+        }
+        notifyNextWaiter(regularQueue);
     }
 
     private int getThreadPermits(@NotNull final Thread thread) {
