@@ -21,10 +21,7 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.core.dataStructures.Pair;
-import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
-import jetbrains.exodus.log.Log;
-import jetbrains.exodus.log.Loggable;
-import jetbrains.exodus.log.RandomAccessLoggable;
+import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.*;
 import jetbrains.exodus.tree.btree.BTree;
 import jetbrains.exodus.tree.btree.BTreeEmpty;
@@ -66,7 +63,8 @@ final class MetaTree {
                             return new Pair<>(new MetaTree(metaTree, root, validHighAddress), dbRoot.getLastStructureId());
                         }
                     } catch (ExodusException e) {
-                        EnvironmentImpl.loggerError("Failed to recover to valid root, address = " + dbRoot.getAddress(), e);
+                        EnvironmentImpl.loggerError("Failed to recover to valid root" +
+                                LogUtil.getWrongAddressErrorMessage(dbRoot.getAddress(), env.getEnvironmentConfig().getLogFileSize()), e);
                         // XD-449: try next database root if we failed to traverse whole MetaTree
                         // TODO: this check should become obsolete after XD-334 is implemented
                     }

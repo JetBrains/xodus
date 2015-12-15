@@ -106,7 +106,7 @@ public final class Log implements Closeable {
                     reader.clear();
                     break;
                 } else {
-                    throw new ExodusException("Unexpected file length, address = " + address);
+                    throw new ExodusException("Unexpected file length" + LogUtil.getWrongAddressErrorMessage(address, fileSize));
                 }
             }
         }
@@ -150,7 +150,7 @@ public final class Log implements Closeable {
                         final ByteIteratorWithAddress data = loggable.getData().iterator();
                         for (int i = 0; i < dataLength; ++i) {
                             if (!data.hasNext()) {
-                                throw new ExodusException("Can't read loggable fully, address = " + data.getAddress());
+                                throw new ExodusException("Can't read loggable fully" + LogUtil.getWrongAddressErrorMessage(data.getAddress(), fileSize));
                             }
                             data.next();
                         }

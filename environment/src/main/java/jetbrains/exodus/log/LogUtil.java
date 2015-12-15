@@ -104,4 +104,9 @@ public final class LogUtil {
     public static File[] listFiles(@NotNull final File directory) {
         return IOUtil.listFiles(directory, LOG_FILE_NAME_FILTER);
     }
+
+    public static String getWrongAddressErrorMessage(final long address, final long fileSize /* in Kb */) {
+        final long fileAddress = address - (address % (fileSize * 1024L));
+        return ", address = " + address + ", file = " + getLogFilename(fileAddress);
+    }
 }

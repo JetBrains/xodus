@@ -63,6 +63,6 @@ final class DataIterator extends CompoundByteIteratorBase {
 
     @Override
     protected void onFail(@NotNull String message) throws ExodusException {
-        super.onFail(message + ", address = " + getHighAddress());
+        super.onFail(message + LogUtil.getWrongAddressErrorMessage(getHighAddress(), log.getFileSize()));
     }
 }
