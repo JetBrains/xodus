@@ -340,9 +340,10 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
         public void computeHashCode() {
             long result = 314159265358L;
             for (final long hl : hashLongs) {
-                result ^= hl;
+                result += hl;
             }
-            hashCode |= ((int) result) ^ ((int) (result >>> 32));
+            hashCode += (int) result;
+            hashCode += (int) (result >>> 32);
         }
 
         private void forEachByte(@NotNull final ByteConsumer consumer) {
