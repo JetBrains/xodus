@@ -614,7 +614,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             if (localCache.getObject(handle) == null) {
                 localCache.cacheObject(handle, cached);
                 final EntityIterableCacheImpl entityIterableCache = store.getEntityIterableCache();
-                if (entityIterableCache.getCacheAdapter() == localCache) {
+                if (entityIterableCache.getCachedCount(handle) == null) {
                     entityIterableCache.setCachedCount(handle, cached.size());
                 }
             }

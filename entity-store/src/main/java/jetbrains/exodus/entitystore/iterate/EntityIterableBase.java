@@ -180,9 +180,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             return 0;
         }
-        final EntityIterableCacheImpl cache = store.getEntityIterableCache();
-        final EntityIterableBase it = cache.putIfNotCached(this);
-        return it.isCachedWrapper() ? it.countImpl(getTransaction()) : cache.getCachedCount(getHandle());
+        return store.getEntityIterableCache().getCachedCount(this);
     }
 
     @Override
@@ -191,15 +189,10 @@ public abstract class EntityIterableBase implements EntityIterable {
             return 0;
         }
         final EntityIterableCacheImpl cache = store.getEntityIterableCache();
-        final EntityIterableBase it = cache.putIfNotCached(this);
-        if (it.isCachedWrapper()) {
-            return it.countImpl(getTransaction());
-        }
-        final EntityIterableHandle handle = getHandle();
-        long result = cache.getCachedCount(handle);
+        long result = cache.getCachedCount(this);
         if (result < 0) {
             result = size();
-            cache.setCachedCount(handle, result);
+            cache.setCachedCount(getHandle(), result);
         }
         return result;
     }

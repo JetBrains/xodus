@@ -23,6 +23,7 @@ import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.core.execution.SharedTimer;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -120,15 +121,32 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
             return it.getOrCreateCachedWrapper(txn);
         }
         if (!isCachingQueueFull()) {
-            new EntityIterableAsyncInstantiation(handle, it).queue(Priority.below_normal);
+            new EntityIterableAsyncInstantiation(handle, it, false).queue(Priority.below_normal);
         }
 
         return it;
     }
 
-    public long getCachedCount(@NotNull final EntityIterableHandle handle) {
-        final Long result = iterableCountsCache.tryKey(handle.getIdentity());
-        return result == null ? -1L : result;
+    @Nullable
+    public Long getCachedCount(@NotNull final EntityIterableHandle handle) {
+        return iterableCountsCache.tryKey(handle.getIdentity());
+    }
+
+    public long getCachedCount(@NotNull final EntityIterableBase it) {
+        final EntityIterableHandle handle = it.getHandle();
+        final PersistentStoreTransaction txn = it.getTransaction();
+        @Nullable
+        final Long result = getCachedCount(handle);
+        if (result == null) {
+            if (isDispatcherThread()) {
+                return it.getOrCreateCachedWrapper(txn).size();
+            }
+            if (!isCachingQueueFull()) {
+                new EntityIterableAsyncInstantiation(handle, it, true).queue(Priority.normal);
+            }
+            return -1;
+        }
+        return result;
     }
 
     public void setCachedCount(@NotNull final EntityIterableHandle handle, final long count) {
@@ -172,10 +190,12 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
         @NotNull
         private final CachingCancellingPolicy cancellingPolicy;
 
-        private EntityIterableAsyncInstantiation(@NotNull final EntityIterableHandle handle, @NotNull final EntityIterableBase it) {
+        private EntityIterableAsyncInstantiation(@NotNull final EntityIterableHandle handle,
+                                                 @NotNull final EntityIterableBase it,
+                                                 final boolean cachingRoughCount) {
             this.it = it;
             this.handle = handle;
-            cancellingPolicy = new CachingCancellingPolicy();
+            cancellingPolicy = new CachingCancellingPolicy(cachingRoughCount);
             setProcessor(processor);
         }
 
@@ -232,11 +252,12 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
 
     private final class CachingCancellingPolicy implements QueryCancellingPolicy {
 
+        private final boolean cachingRoughCount;
         private final long startTime;
-        @NotNull
         private EntityIterableCacheAdapter localCache;
 
-        private CachingCancellingPolicy() {
+        private CachingCancellingPolicy(final boolean cachingRoughCount) {
+            this.cachingRoughCount = cachingRoughCount;
             startTime = System.currentTimeMillis();
         }
 
@@ -250,7 +271,7 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
 
         @Override
         public boolean needToCancel() {
-            return cacheAdapter != localCache || isOverdue(System.currentTimeMillis());
+            return (!cachingRoughCount && cacheAdapter != localCache) || isOverdue(System.currentTimeMillis());
         }
 
         @Override
