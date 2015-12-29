@@ -67,8 +67,8 @@ public final class PropertyValueIterable extends EntityIterableBase {
         final EntityIterableCacheImpl iterableCache = getStore().getEntityIterableCache();
         final PropertiesIterable propertiesIterable = new PropertiesIterable(getStore(), entityTypeId, propertyId);
         final EntityIterableBase it = iterableCache.putIfNotCached(propertiesIterable);
-        if (it.isCachedWrapper()) {
-            final PropertiesIterableWrapper wrapper = (PropertiesIterableWrapper) it;
+        if (it.isCachedInstance()) {
+            final PropertiesCachedInstanceIterable wrapper = (PropertiesCachedInstanceIterable) it;
             if (value.getClass() != wrapper.getPropertyValueClass()) {
                 return EntityIteratorBase.EMPTY;
             }

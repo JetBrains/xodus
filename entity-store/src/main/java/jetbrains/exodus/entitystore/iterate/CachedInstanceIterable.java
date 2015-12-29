@@ -21,13 +21,13 @@ import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public abstract class CachedWrapperIterable extends EntityIterableBase {
+public abstract class CachedInstanceIterable extends EntityIterableBase {
 
     @NotNull
     private final EntityIterableHandle sourceHandle;
 
-    protected CachedWrapperIterable(@Nullable final PersistentEntityStoreImpl store,
-                                    @NotNull final EntityIterableBase source) {
+    protected CachedInstanceIterable(@Nullable final PersistentEntityStoreImpl store,
+                                     @NotNull final EntityIterableBase source) {
         super(store);
         sourceHandle = source.getHandle();
         txnGetter = source.txnGetter;
@@ -65,7 +65,7 @@ public abstract class CachedWrapperIterable extends EntityIterableBase {
     }
 
     @Override
-    public boolean isCachedWrapper() {
+    public boolean isCachedInstance() {
         return true;
     }
 

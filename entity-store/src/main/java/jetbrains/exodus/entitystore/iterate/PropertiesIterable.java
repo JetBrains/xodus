@@ -81,8 +81,8 @@ public final class PropertiesIterable extends EntityIterableBase {
     }
 
     @Override
-    protected CachedWrapperIterable createCachedWrapper(@NotNull final PersistentStoreTransaction txn) {
-        return new PropertiesIterableWrapper(getStore(), getIterator(txn, true), this);
+    protected CachedInstanceIterable createCachedWrapper(@NotNull final PersistentStoreTransaction txn) {
+        return new PropertiesCachedInstanceIterable(getStore(), getIterator(txn, true), this);
     }
 
     @Override

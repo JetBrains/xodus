@@ -18,7 +18,7 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
 import jetbrains.exodus.core.dataStructures.persistent.PersistentObjectCache;
 import jetbrains.exodus.core.execution.SharedTimer;
-import jetbrains.exodus.entitystore.iterate.CachedWrapperIterable;
+import jetbrains.exodus.entitystore.iterate.CachedInstanceIterable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -48,16 +48,16 @@ final class EntityIterableCacheAdapter {
     }
 
     @Nullable
-    CachedWrapperIterable tryKey(@NotNull final EntityIterableHandle key) {
+    CachedInstanceIterable tryKey(@NotNull final EntityIterableHandle key) {
         return parseCachedObject(key, cache.tryKey(key));
     }
 
     @Nullable
-    CachedWrapperIterable getObject(@NotNull final EntityIterableHandle key) {
+    CachedInstanceIterable getObject(@NotNull final EntityIterableHandle key) {
         return parseCachedObject(key, cache.getObject(key));
     }
 
-    void cacheObject(@NotNull final EntityIterableHandle key, @NotNull final CachedWrapperIterable it) {
+    void cacheObject(@NotNull final EntityIterableHandle key, @NotNull final CachedInstanceIterable it) {
         cache.cacheObject(key, new CacheItem(it, config.getEntityIterableCacheMaxSizeOfDirectValue()));
     }
 
@@ -97,11 +97,11 @@ final class EntityIterableCacheAdapter {
         cache.adjustHitRate();
     }
 
-    private CachedWrapperIterable parseCachedObject(@NotNull final EntityIterableHandle key, @Nullable final CacheItem item) {
+    private CachedInstanceIterable parseCachedObject(@NotNull final EntityIterableHandle key, @Nullable final CacheItem item) {
         if (item == null) {
             return null;
         }
-        CachedWrapperIterable cached = item.cached;
+        CachedInstanceIterable cached = item.cached;
         if (cached == null) {
             cached = item.ref.get();
             if (cached == null) {
@@ -112,10 +112,10 @@ final class EntityIterableCacheAdapter {
     }
 
     static final class CacheItem {
-        private final CachedWrapperIterable cached;
-        private final SoftReference<CachedWrapperIterable> ref;
+        private final CachedInstanceIterable cached;
+        private final SoftReference<CachedInstanceIterable> ref;
 
-        private CacheItem(@NotNull final CachedWrapperIterable it, final int maxSizeOfDirectValue) {
+        private CacheItem(@NotNull final CachedInstanceIterable it, final int maxSizeOfDirectValue) {
             if (it.size() <= maxSizeOfDirectValue) {
                 cached = it;
                 ref = null;

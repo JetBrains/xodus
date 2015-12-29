@@ -74,10 +74,10 @@ public final class PropertyRangeIterable extends EntityIterableBase {
         final EntityIterableCacheImpl iterableCache = getStore().getEntityIterableCache();
         final PropertiesIterable propertiesIterable = new PropertiesIterable(getStore(), entityTypeId, propertyId);
         final EntityIterableBase it = iterableCache.putIfNotCached(propertiesIterable);
-        if (it.isCachedWrapper()) {
+        if (it.isCachedInstance()) {
             final Class<? extends Comparable> minClass = min.getClass();
             final Class<? extends Comparable> maxClass = max.getClass();
-            final PropertiesIterableWrapper wrapper = (PropertiesIterableWrapper) it;
+            final PropertiesCachedInstanceIterable wrapper = (PropertiesCachedInstanceIterable) it;
             if (minClass != maxClass || minClass != wrapper.getPropertyValueClass()) {
                 return EntityIteratorBase.EMPTY;
             }

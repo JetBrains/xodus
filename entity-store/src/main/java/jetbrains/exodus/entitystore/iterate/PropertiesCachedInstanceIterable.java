@@ -29,9 +29,9 @@ import java.util.Collection;
 import java.util.Iterator;
 
 @SuppressWarnings({"RawUseOfParameterizedType", "ComparableImplementedButEqualsNotOverridden", "unchecked"})
-public class PropertiesIterableWrapper extends UpdatableCachedWrapperIterable {
+public class PropertiesCachedInstanceIterable extends UpdatableCachedInstanceIterable {
 
-    private static final Logger logger = LoggerFactory.getLogger(PropertiesIterableWrapper.class);
+    private static final Logger logger = LoggerFactory.getLogger(PropertiesCachedInstanceIterable.class);
 
     private int entityTypeId;
     @NotNull
@@ -42,9 +42,9 @@ public class PropertiesIterableWrapper extends UpdatableCachedWrapperIterable {
     private Class<? extends Comparable> valueClass;
 
     @SuppressWarnings({"ConstantConditions", "ObjectAllocationInLoop"})
-    public PropertiesIterableWrapper(@Nullable final PersistentEntityStoreImpl store,
-                                     @Nullable final PropertyValueIterator it,
-                                     @NotNull final EntityIterableBase source) {
+    public PropertiesCachedInstanceIterable(@Nullable final PersistentEntityStoreImpl store,
+                                            @Nullable final PropertyValueIterator it,
+                                            @NotNull final EntityIterableBase source) {
         super(store, source);
         index = new Persistent23Tree<>();
         mutableIndex = null;
@@ -83,7 +83,7 @@ public class PropertiesIterableWrapper extends UpdatableCachedWrapperIterable {
     }
 
     // constructor for mutating source index
-    private PropertiesIterableWrapper(@NotNull final PropertiesIterableWrapper source) {
+    private PropertiesCachedInstanceIterable(@NotNull final PropertiesCachedInstanceIterable source) {
         super(source.getStore(), source);
         entityTypeId = source.entityTypeId;
         index = source.index.getClone();
@@ -101,8 +101,8 @@ public class PropertiesIterableWrapper extends UpdatableCachedWrapperIterable {
         return false;
     }
 
-    public PropertiesIterableWrapper beginUpdate() {
-        return new PropertiesIterableWrapper(this);
+    public PropertiesCachedInstanceIterable beginUpdate() {
+        return new PropertiesCachedInstanceIterable(this);
     }
 
     @Override
@@ -149,23 +149,23 @@ public class PropertiesIterableWrapper extends UpdatableCachedWrapperIterable {
     }
 
     EntityIteratorBase getPropertyValueIterator(@NotNull final Comparable value) {
-        return new PropertyValueIteratorWrapper(value);
+        return new PropertyValueCachedInstanceIterator(value);
     }
 
     EntityIteratorBase getPropertyRangeIterator(@NotNull final Comparable min, @NotNull final Comparable max) {
-        return new PropertyRangeIteratorWrapper(min, max);
+        return new PropertyRangeCachedInstanceIterator(min, max);
     }
 
     @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
-        return getCurrentTree().isEmpty() ? EntityIteratorBase.EMPTY : new PropertiesIteratorWrapper();
+        return getCurrentTree().isEmpty() ? EntityIteratorBase.EMPTY : new PropertiesCachedInstanceIterator();
     }
 
     @Override
     @NotNull
     public EntityIteratorBase getReverseIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
-        return getCurrentTree().isEmpty() ? EntityIteratorBase.EMPTY : new ReversePropertiesIteratorWrapper();
+        return getCurrentTree().isEmpty() ? EntityIteratorBase.EMPTY : new ReversePropertiesCachedInstanceIterator();
     }
 
     @Override
@@ -216,7 +216,7 @@ public class PropertiesIterableWrapper extends UpdatableCachedWrapperIterable {
      */
 
     @SuppressWarnings({"PackageVisibleField", "ProtectedField"})
-    private abstract class PropertiesIteratorWrapperBase extends NonDisposableEntityIterator implements PropertyValueIterator {
+    private abstract class PropertiesCachedInstanceIteratorBase extends NonDisposableEntityIterator implements PropertyValueIterator {
 
         @NotNull
         private final Iterator<IndexEntry> it;
@@ -224,8 +224,8 @@ public class PropertiesIterableWrapper extends UpdatableCachedWrapperIterable {
         protected IndexEntry next;
         protected boolean hasNextValid;
 
-        protected PropertiesIteratorWrapperBase(@NotNull final Iterator<IndexEntry> it) {
-            super(PropertiesIterableWrapper.this);
+        protected PropertiesCachedInstanceIteratorBase(@NotNull final Iterator<IndexEntry> it) {
+            super(PropertiesCachedInstanceIterable.this);
             this.it = it;
         }
 
@@ -270,26 +270,26 @@ public class PropertiesIterableWrapper extends UpdatableCachedWrapperIterable {
         }
     }
 
-    private class PropertiesIteratorWrapper extends PropertiesIteratorWrapperBase {
+    private class PropertiesCachedInstanceIterator extends PropertiesCachedInstanceIteratorBase {
 
-        private PropertiesIteratorWrapper() {
+        private PropertiesCachedInstanceIterator() {
             super(getCurrentTree().iterator());
         }
     }
 
-    private class ReversePropertiesIteratorWrapper extends PropertiesIteratorWrapperBase {
+    private class ReversePropertiesCachedInstanceIterator extends PropertiesCachedInstanceIteratorBase {
 
-        private ReversePropertiesIteratorWrapper() {
+        private ReversePropertiesCachedInstanceIterator() {
             super(getCurrentTree().reverseIterator());
         }
     }
 
-    private class PropertyValueIteratorWrapper extends PropertiesIteratorWrapperBase {
+    private class PropertyValueCachedInstanceIterator extends PropertiesCachedInstanceIteratorBase {
 
         @NotNull
         private final Comparable value;
 
-        private PropertyValueIteratorWrapper(@NotNull final Comparable value) {
+        private PropertyValueCachedInstanceIterator(@NotNull final Comparable value) {
             super(getCurrentTree().tailIterator(new IndexEntry(value, 0)));
             this.value = value;
         }
@@ -300,12 +300,12 @@ public class PropertiesIterableWrapper extends UpdatableCachedWrapperIterable {
         }
     }
 
-    private class PropertyRangeIteratorWrapper extends PropertiesIteratorWrapperBase {
+    private class PropertyRangeCachedInstanceIterator extends PropertiesCachedInstanceIteratorBase {
 
         @NotNull
         private final Comparable max;
 
-        private PropertyRangeIteratorWrapper(@NotNull final Comparable min, @NotNull final Comparable max) {
+        private PropertyRangeCachedInstanceIterator(@NotNull final Comparable min, @NotNull final Comparable max) {
             super(getCurrentTree().tailIterator(new IndexEntry(min, 0)));
             this.max = max;
         }

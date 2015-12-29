@@ -68,7 +68,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     private int localCacheHits;
     @Nullable
     private EntityIterableCacheAdapter mutableCache;
-    private List<UpdatableCachedWrapperIterable> mutatedInTxn;
+    private List<UpdatableCachedInstanceIterable> mutatedInTxn;
     @Nullable
     private ReplayData replayData;
     @Nullable
@@ -600,13 +600,13 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     @Nullable
-    public CachedWrapperIterable getCachedWrapper(@NotNull final EntityIterableBase sample) {
+    public CachedInstanceIterable getCachedWrapper(@NotNull final EntityIterableBase sample) {
         final EntityIterableHandle handle = sample.getHandle();
         final EntityIterableCacheAdapter localCache = getLocalCache();
         return localCache.tryKey(handle);
     }
 
-    public void addCachedWrapper(@NotNull final CachedWrapperIterable cached) {
+    public void addCachedWrapper(@NotNull final CachedInstanceIterable cached) {
         // don't remember wrappers on txn replay. this looks innocent by now.
         if (replayData == null || !replayData.hasCacheSnapshot()) {
             final EntityIterableCacheAdapter localCache = getLocalCache();
@@ -852,7 +852,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                 log.flushed();
                 if (mutableCache != null) { // mutableCache can be null if only blobs are modified
                     final EntityIterableCacheImpl entityIterableCache = store.getEntityIterableCache();
-                    for (final UpdatableCachedWrapperIterable it : mutatedInTxn) {
+                    for (final UpdatableCachedInstanceIterable it : mutatedInTxn) {
                         it.endUpdate();
                         entityIterableCache.setCachedCount(it.getHandle(), it.size());
                     }
@@ -921,7 +921,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                                                @NotNull final EntityIterableCacheAdapter mutableCache);
 
         void update(@NotNull final EntityIterableHandle handle,
-                    @NotNull final UpdatableCachedWrapperIterable iterable) {
+                    @NotNull final UpdatableCachedInstanceIterable iterable) {
             // do nothing
         }
     }
@@ -993,8 +993,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         @Override
         void update(@NotNull final EntityIterableHandle handle,
-                    @NotNull final UpdatableCachedWrapperIterable iterable) {
-            ((EntitiesOfTypeIterableWrapper) iterable).removeEntity(id);
+                    @NotNull final UpdatableCachedInstanceIterable iterable) {
+            ((EntitiesOfTypeCachedInstanceIterable) iterable).removeEntity(id);
         }
     }
 
@@ -1016,8 +1016,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         @Override
         void update(@NotNull final EntityIterableHandle handle,
-                    @NotNull final UpdatableCachedWrapperIterable iterable) {
-            ((EntitiesOfTypeIterableWrapper) iterable).addEntity(id);
+                    @NotNull final UpdatableCachedInstanceIterable iterable) {
+            ((EntitiesOfTypeCachedInstanceIterable) iterable).addEntity(id);
         }
     }
 
@@ -1109,8 +1109,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         @Override
         void update(@NotNull final EntityIterableHandle handle,
-                    @NotNull final UpdatableCachedWrapperIterable iterable) {
-            ((PropertiesIterableWrapper) iterable).update(typeId, localId, oldValue, newValue);
+                    @NotNull final UpdatableCachedInstanceIterable iterable) {
+            ((PropertiesCachedInstanceIterable) iterable).update(typeId, localId, oldValue, newValue);
         }
 
         @Override

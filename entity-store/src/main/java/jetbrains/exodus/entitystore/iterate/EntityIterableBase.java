@@ -172,7 +172,7 @@ public abstract class EntityIterableBase implements EntityIterable {
             return 0;
         }
         final EntityIterableBase it = store.getEntityIterableCache().putIfNotCached(this);
-        return it.isCachedWrapper() ? it.countImpl(getTransaction()) : -1;
+        return it.isCachedInstance() ? it.countImpl(getTransaction()) : -1;
     }
 
     @Override
@@ -182,7 +182,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         }
         final EntityIterableCacheImpl cache = store.getEntityIterableCache();
         final EntityIterableBase cached = cache.putIfNotCached(this);
-        if (cached.isCachedWrapper()) {
+        if (cached.isCachedInstance()) {
             return cached.size();
         }
         return cache.getCachedCount(this);
@@ -209,7 +209,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         }
         final EntityId entityId = entity.getId();
         final EntityIterableBase it = store.getEntityIterableCache().putIfNotCached(this);
-        final EntityIterableBase cached = it.isCachedWrapper() ? it : this.getOrCreateCachedWrapper(getTransaction());
+        final EntityIterableBase cached = it.isCachedInstance() ? it : this.getOrCreateCachedWrapper(getTransaction());
         return cached.indexOfImpl(entityId);
     }
 
@@ -451,15 +451,15 @@ public abstract class EntityIterableBase implements EntityIterable {
         return ((EntityIterableBase) entities).store == null ? EMPTY : new FilterLinksIterable(store, linkId, this, entities);
     }
 
-    public boolean isCachedWrapper() {
+    public boolean isCachedInstance() {
         return false;
     }
 
-    public final CachedWrapperIterable getOrCreateCachedWrapper(@NotNull final PersistentStoreTransaction txn) {
+    public final CachedInstanceIterable getOrCreateCachedWrapper(@NotNull final PersistentStoreTransaction txn) {
         if (store == null) {
             throw new NullPointerException("Can't create cached wrapper for EMPTY iterable");
         }
-        CachedWrapperIterable cached = null;
+        CachedInstanceIterable cached = null;
         final PersistentEntityStoreConfig config = store.getConfig();
         final boolean canBeCached = !config.isCachingDisabled() && canBeCached();
         if (canBeCached) {
@@ -510,8 +510,8 @@ public abstract class EntityIterableBase implements EntityIterable {
         return -1;
     }
 
-    protected CachedWrapperIterable createCachedWrapper(@NotNull final PersistentStoreTransaction txn) {
-        return new EntityIdArrayIterableWrapper(txn, getStore(), this);
+    protected CachedInstanceIterable createCachedWrapper(@NotNull final PersistentStoreTransaction txn) {
+        return new EntityIdArrayCachedInstanceIterable(txn, getStore(), this);
     }
 
     public static String getHumanReadablePresentation(@NotNull final EntityIterableHandle handle) {

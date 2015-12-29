@@ -19,9 +19,9 @@ import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public abstract class UpdatableCachedWrapperIterable extends CachedWrapperIterable {
+public abstract class UpdatableCachedInstanceIterable extends CachedInstanceIterable {
 
-    protected UpdatableCachedWrapperIterable(@Nullable final PersistentEntityStoreImpl store, @NotNull final EntityIterableBase source) {
+    protected UpdatableCachedInstanceIterable(@Nullable final PersistentEntityStoreImpl store, @NotNull final EntityIterableBase source) {
         super(store, source);
     }
 
@@ -30,7 +30,7 @@ public abstract class UpdatableCachedWrapperIterable extends CachedWrapperIterab
         throw new UnsupportedOperationException();
     }
 
-    public abstract UpdatableCachedWrapperIterable beginUpdate();
+    public abstract UpdatableCachedInstanceIterable beginUpdate();
 
     public abstract boolean isMutated();
 

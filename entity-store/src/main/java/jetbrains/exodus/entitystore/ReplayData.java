@@ -19,7 +19,7 @@ import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
 import jetbrains.exodus.core.dataStructures.persistent.PersistentObjectCache;
-import jetbrains.exodus.entitystore.iterate.UpdatableCachedWrapperIterable;
+import jetbrains.exodus.entitystore.iterate.UpdatableCachedInstanceIterable;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -38,7 +38,7 @@ public class ReplayData {
     }
 
     public void updateMutableCache(@NotNull final EntityIterableCacheAdapter mutableCache,
-                                   @NotNull final List<UpdatableCachedWrapperIterable> mutatedInTxn,
+                                   @NotNull final List<UpdatableCachedInstanceIterable> mutatedInTxn,
                                    @NotNull final PersistentStoreTransaction.HandleChecker checker) {
         final boolean alreadySeen = changes.containsKey(checker);
         if (suspicious != null && alreadySeen) {
@@ -50,7 +50,7 @@ public class ReplayData {
             final List<EntityIterableHandle> l = changes.get(checker);
             if (l != null) {
                 for (final EntityIterableHandle handle : l) {
-                    UpdatableCachedWrapperIterable it = (UpdatableCachedWrapperIterable) mutableCache.getObject(handle);
+                    UpdatableCachedInstanceIterable it = (UpdatableCachedInstanceIterable) mutableCache.getObject(handle);
                     if (it != null) {
                         if (!it.isMutated()) {
                             it = it.beginUpdate();
@@ -79,7 +79,7 @@ public class ReplayData {
     private void check(@NotNull final EntityIterableHandle handle,
                        @NotNull final PersistentStoreTransaction.HandleChecker checker,
                        @NotNull final EntityIterableCacheAdapter mutableCache,
-                       @NotNull final List<UpdatableCachedWrapperIterable> mutatedInTxn) {
+                       @NotNull final List<UpdatableCachedInstanceIterable> mutatedInTxn) {
         switch (checker.checkHandle(handle, mutableCache)) {
             case KEEP:
                 break; // do nothing, keep handle
@@ -88,7 +88,7 @@ public class ReplayData {
                 mutableCache.remove(handle);
                 break;
             case UPDATE:
-                UpdatableCachedWrapperIterable it = (UpdatableCachedWrapperIterable) mutableCache.getObject(handle);
+                UpdatableCachedInstanceIterable it = (UpdatableCachedInstanceIterable) mutableCache.getObject(handle);
                 if (it != null) {
                     if (!it.isMutated()) {
                         it = it.beginUpdate();

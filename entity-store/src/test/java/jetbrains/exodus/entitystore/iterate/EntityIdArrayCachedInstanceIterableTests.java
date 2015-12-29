@@ -20,7 +20,7 @@ import jetbrains.exodus.entitystore.util.EntityIdSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class EntityIdArrayIterableWrapperTests extends EntityStoreTestBase {
+public class EntityIdArrayCachedInstanceIterableTests extends EntityStoreTestBase {
 
     public void testEmpty() {
         examine();
@@ -56,7 +56,7 @@ public class EntityIdArrayIterableWrapperTests extends EntityStoreTestBase {
 
     public void testSkipCompact() {
         TestEntityIterableImpl t = t(0, 6, 0, 7, 0, 8, 0, 9, 1, 6, 1, 7, 1, 8, 1, 9);
-        EntityIdArrayIterableWrapper w = w(t);
+        EntityIdArrayCachedInstanceIterable w = w(t);
         assertEquals(true, w.isSortedById());
         examineSkip(t, w, 1, 3);
         examineSkip(t, w, 2, 4);
@@ -66,7 +66,7 @@ public class EntityIdArrayIterableWrapperTests extends EntityStoreTestBase {
 
     public void testSkipCompact2() {
         TestEntityIterableImpl t = t(0, 6, 0, 7, 0, 8, 0, 9, 1, 6, 1, 7, 1, 8, 1, 9, 2, 1);
-        EntityIdArrayIterableWrapper w = w(t);
+        EntityIdArrayCachedInstanceIterable w = w(t);
         assertEquals(true, w.isSortedById());
         examineSkip(t, w, 1, 3);
         examineSkip(t, w, 2, 4);
@@ -88,7 +88,7 @@ public class EntityIdArrayIterableWrapperTests extends EntityStoreTestBase {
 
     void examine(final long... ids) {
         TestEntityIterableImpl t = t(ids);
-        EntityIdArrayIterableWrapper w = w(t);
+        EntityIdArrayCachedInstanceIterable w = w(t);
         assertTrue(w.isSortedById());
         assertIterablesMatch(t, w);
         t.isSortedById = false;
@@ -99,12 +99,12 @@ public class EntityIdArrayIterableWrapperTests extends EntityStoreTestBase {
 
     void examineUnsorted(final long... ids) {
         TestEntityIterableImpl t = t(false, ids);
-        EntityIdArrayIterableWrapper w = w(t);
+        EntityIdArrayCachedInstanceIterable w = w(t);
         assertEquals(false, w.isSortedById());
         assertIterablesMatch(t, w);
     }
 
-    void assertIterablesMatch(EntityIterableBase expected, EntityIdArrayIterableWrapper actual) {
+    void assertIterablesMatch(EntityIterableBase expected, EntityIdArrayCachedInstanceIterable actual) {
         assertEquals(expected.count(), actual.count());
         assertIteratorsMatch(expected.iterator(), actual.iterator());
         final PersistentStoreTransaction txn = getStoreTransaction();
@@ -132,7 +132,7 @@ public class EntityIdArrayIterableWrapperTests extends EntityStoreTestBase {
         }
     }
 
-    void examineSkip(TestEntityIterableImpl t, EntityIdArrayIterableWrapper w, int from, int to) {
+    void examineSkip(TestEntityIterableImpl t, EntityIdArrayCachedInstanceIterable w, int from, int to) {
         assertIteratorsMatch(t.iterator(), w.iterator(), from, to);
         final PersistentStoreTransaction txn = getStoreTransaction();
         assertIteratorsMatch(t.getReverseIteratorImpl(txn), w.getReverseIteratorImpl(txn), from, to);
@@ -159,8 +159,8 @@ public class EntityIdArrayIterableWrapperTests extends EntityStoreTestBase {
         assertFalse(actual.hasNext());
     }
 
-    EntityIdArrayIterableWrapper w(TestEntityIterableImpl t) {
-        return new EntityIdArrayIterableWrapper(getStoreTransaction(), getEntityStore(), t);
+    EntityIdArrayCachedInstanceIterable w(TestEntityIterableImpl t) {
+        return new EntityIdArrayCachedInstanceIterable(getStoreTransaction(), getEntityStore(), t);
     }
 
     TestEntityIterableImpl t(final boolean isSortedById, final long... ids) {
@@ -333,8 +333,8 @@ public class EntityIdArrayIterableWrapperTests extends EntityStoreTestBase {
         }
 
         @Override
-        protected CachedWrapperIterable createCachedWrapper(@NotNull final PersistentStoreTransaction txn) {
-            return new EntityIdArrayIterableWrapper(txn, getStore(), this);
+        protected CachedInstanceIterable createCachedWrapper(@NotNull final PersistentStoreTransaction txn) {
+            return new EntityIdArrayCachedInstanceIterable(txn, getStore(), this);
         }
 
         // all following unsupported

@@ -24,7 +24,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Iterator;
 
 @SuppressWarnings("unchecked")
-public class EntitiesOfTypeIterableWrapper extends UpdatableCachedWrapperIterable {
+public class EntitiesOfTypeCachedInstanceIterable extends UpdatableCachedInstanceIterable {
 
     private static final PersistentLong23TreeMap EMPTY_IDS = new PersistentLong23TreeMap();
 
@@ -36,9 +36,9 @@ public class EntitiesOfTypeIterableWrapper extends UpdatableCachedWrapperIterabl
     @Nullable
     private EntityIdSet idSet;
 
-    public EntitiesOfTypeIterableWrapper(@NotNull final PersistentStoreTransaction txn,
-                                         @Nullable final PersistentEntityStoreImpl store,
-                                         @NotNull final EntitiesOfTypeIterable source) {
+    public EntitiesOfTypeCachedInstanceIterable(@NotNull final PersistentStoreTransaction txn,
+                                                @Nullable final PersistentEntityStoreImpl store,
+                                                @NotNull final EntitiesOfTypeIterable source) {
         super(store, source);
         entityTypeId = source.getEntityTypeId();
         final EntityIteratorBase it = source.getIteratorImpl(txn);
@@ -65,7 +65,7 @@ public class EntitiesOfTypeIterableWrapper extends UpdatableCachedWrapperIterabl
     }
 
     // constructor for mutating
-    private EntitiesOfTypeIterableWrapper(@NotNull final EntitiesOfTypeIterableWrapper source) {
+    private EntitiesOfTypeCachedInstanceIterable(@NotNull final EntitiesOfTypeCachedInstanceIterable source) {
         super(source.getStore(), source);
         entityTypeId = source.entityTypeId;
         localIds = source.localIds.getClone();
@@ -119,8 +119,8 @@ public class EntitiesOfTypeIterableWrapper extends UpdatableCachedWrapperIterabl
     }
 
     @Override
-    public EntitiesOfTypeIterableWrapper beginUpdate() {
-        return new EntitiesOfTypeIterableWrapper(this);
+    public EntitiesOfTypeCachedInstanceIterable beginUpdate() {
+        return new EntitiesOfTypeCachedInstanceIterable(this);
     }
 
     @Override

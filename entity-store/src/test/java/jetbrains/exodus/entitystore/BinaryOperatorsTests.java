@@ -49,10 +49,10 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
         txn.flush();
         Assert.assertEquals(100, (int) txn.getAll("Issue").intersect(txn.find("Issue", "ready", Boolean.TRUE)).size());
         Assert.assertTrue(((EntityIteratorBase) txn.getAll("Issue").intersect(
-                txn.find("Issue", "ready", Boolean.TRUE)).iterator()).getIterable().isCachedWrapper());
+                txn.find("Issue", "ready", Boolean.TRUE)).iterator()).getIterable().isCachedInstance());
         // commutative intersect will be cached as well
         Assert.assertTrue(((EntityIteratorBase) txn.find("Issue", "ready", Boolean.TRUE).intersect(
-                txn.getAll("Issue")).iterator()).getIterable().isCachedWrapper());
+                txn.getAll("Issue")).iterator()).getIterable().isCachedInstance());
     }
 
     public void testSingularIntersect() {
@@ -127,10 +127,10 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
         txn.flush();
         Assert.assertEquals(200, (int) txn.getAll("Issue").union(txn.find("Issue", "ready", Boolean.TRUE)).size());
         Assert.assertTrue(((EntityIteratorBase) txn.getAll("Issue").union(
-                txn.find("Issue", "ready", Boolean.TRUE)).iterator()).getIterable().isCachedWrapper());
+                txn.find("Issue", "ready", Boolean.TRUE)).iterator()).getIterable().isCachedInstance());
         // commutative union will be cached as well
         Assert.assertTrue(((EntityIteratorBase) txn.find("Issue", "ready", Boolean.TRUE).union(
-                txn.getAll("Issue")).iterator()).getIterable().isCachedWrapper());
+                txn.getAll("Issue")).iterator()).getIterable().isCachedInstance());
     }
 
     public void testSingularUnion() {

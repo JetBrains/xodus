@@ -26,7 +26,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 
-public class EntityIdArrayIterableWrapper extends CachedWrapperIterable {
+public class EntityIdArrayCachedInstanceIterable extends CachedInstanceIterable {
 
     private static final int[] EMPTY_TYPE_IDS = new int[0];
     private static final long[] EMPTY_LOCAL_IDS = new long[0];
@@ -42,9 +42,9 @@ public class EntityIdArrayIterableWrapper extends CachedWrapperIterable {
     private EntityIdSet idSet;
 
     @SuppressWarnings({"ConstantConditions", "OverlyNestedMethod", "OverlyLongMethod", "OverriddenMethodCallDuringObjectConstruction"})
-    public EntityIdArrayIterableWrapper(@NotNull final PersistentStoreTransaction txn,
-                                        @NotNull final PersistentEntityStoreImpl store,
-                                        @NotNull final EntityIterableBase source) {
+    public EntityIdArrayCachedInstanceIterable(@NotNull final PersistentStoreTransaction txn,
+                                               @NotNull final PersistentEntityStoreImpl store,
+                                               @NotNull final EntityIterableBase source) {
         super(store, source);
         final EntityIteratorBase it = (EntityIteratorBase) source.getIteratorImpl(txn);
         try {
@@ -358,7 +358,7 @@ public class EntityIdArrayIterableWrapper extends CachedWrapperIterable {
         private int index;
 
         private EntityIdArrayIteratorNullTypeId() {
-            super(EntityIdArrayIterableWrapper.this);
+            super(EntityIdArrayCachedInstanceIterable.this);
             index = 0;
         }
 
@@ -405,7 +405,7 @@ public class EntityIdArrayIterableWrapper extends CachedWrapperIterable {
         private final int typeId;
 
         private EntityIdArrayIteratorSingleTypeId(final int typeId) {
-            super(EntityIdArrayIterableWrapper.this);
+            super(EntityIdArrayCachedInstanceIterable.this);
             index = 0;
             this.typeId = typeId;
         }
@@ -452,7 +452,7 @@ public class EntityIdArrayIterableWrapper extends CachedWrapperIterable {
         private int index;
 
         private EntityIdArrayIteratorUnpacked() {
-            super(EntityIdArrayIterableWrapper.this);
+            super(EntityIdArrayCachedInstanceIterable.this);
             index = 0;
         }
 
@@ -510,7 +510,7 @@ public class EntityIdArrayIterableWrapper extends CachedWrapperIterable {
         private int currentBound;
 
         private EntityIdArrayIteratorPacked() {
-            super(EntityIdArrayIterableWrapper.this);
+            super(EntityIdArrayCachedInstanceIterable.this);
             index = 0;
             typeIndex = 0;
             currentBound = 0;
@@ -587,7 +587,7 @@ public class EntityIdArrayIterableWrapper extends CachedWrapperIterable {
         private int index;
 
         private ReverseEntityIdArrayIteratorNullTypeId() {
-            super(EntityIdArrayIterableWrapper.this);
+            super(EntityIdArrayCachedInstanceIterable.this);
             index = localIds.length;
         }
 
@@ -634,7 +634,7 @@ public class EntityIdArrayIterableWrapper extends CachedWrapperIterable {
         private final int typeId;
 
         private ReverseEntityIdArrayIteratorSingleTypeId(final int typeId) {
-            super(EntityIdArrayIterableWrapper.this);
+            super(EntityIdArrayCachedInstanceIterable.this);
             index = localIds.length;
             this.typeId = typeId;
         }
@@ -684,7 +684,7 @@ public class EntityIdArrayIterableWrapper extends CachedWrapperIterable {
         private int currentBound;
 
         private ReverseEntityIdArrayIteratorPacked() {
-            super(EntityIdArrayIterableWrapper.this);
+            super(EntityIdArrayCachedInstanceIterable.this);
             index = localIds.length;
             typeIndex = typeIds.length - 1;
             currentBound = localIds.length; // typeIds[typeIndex]
@@ -772,7 +772,7 @@ public class EntityIdArrayIterableWrapper extends CachedWrapperIterable {
         private int index;
 
         private ReverseEntityIdArrayIteratorUnpacked() {
-            super(EntityIdArrayIterableWrapper.this);
+            super(EntityIdArrayCachedInstanceIterable.this);
             index = localIds.length;
         }
 

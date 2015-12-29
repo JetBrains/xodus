@@ -156,8 +156,8 @@ public class EntityIterableTests extends EntityStoreTestBase {
         checkIdRange(issues2, 16, 73);
         issues = txn.findIds("Issue", 10, 20);
         issues2 = txn.findIds("Issue", 16, 73);
-        assertTrue(((EntityIteratorBase) issues.iterator()).getIterable().isCachedWrapper());
-        assertTrue(((EntityIteratorBase) issues2.iterator()).getIterable().isCachedWrapper());
+        assertTrue(((EntityIteratorBase) issues.iterator()).getIterable().isCachedInstance());
+        assertTrue(((EntityIteratorBase) issues2.iterator()).getIterable().isCachedInstance());
         checkIdRange(issues, 10, 20);
         checkIdRange(issues2, 16, 73);
     }
@@ -459,7 +459,7 @@ public class EntityIterableTests extends EntityStoreTestBase {
         }
         txn.flush();
         System.out.println(startingCount + " users created.");
-        while (!getEntityStore().getEntityIterableCache().putIfNotCached((EntityIterableBase) txn.getAll("User")).isCachedWrapper()) {
+        while (!getEntityStore().getEntityIterableCache().putIfNotCached((EntityIterableBase) txn.getAll("User")).isCachedInstance()) {
             Thread.sleep(1000);
         }
         System.out.println("getAll(\"User\") cached.");
