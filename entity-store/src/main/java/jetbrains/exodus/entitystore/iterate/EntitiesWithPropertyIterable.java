@@ -63,7 +63,12 @@ public class EntitiesWithPropertyIterable extends EntityIterableBase {
         return new EntitiesWithPropertyIterableHandle();
     }
 
-    private final class EntitiesWithPropertyIterableHandle extends ConstantEntityIterableHandle {
+    @Override
+    protected CachedInstanceIterable createCachedInstance(@NotNull PersistentStoreTransaction txn) {
+        return new UpdatableEntityIdSortedSetCachedInstanceIterable(txn, getStore(), this);
+    }
+
+    public final class EntitiesWithPropertyIterableHandle extends ConstantEntityIterableHandle {
 
         private EntitiesWithPropertyIterableHandle() {
             super(EntitiesWithPropertyIterable.this.getStore(), EntitiesWithPropertyIterable.getType());

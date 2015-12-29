@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.bindings.ComparableSet;
+import jetbrains.exodus.entitystore.iterate.EntityIteratorBase;
 import jetbrains.exodus.util.Random;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
@@ -407,6 +408,13 @@ public class FindTests extends EntityStoreTestBase {
         Assert.assertEquals(100, txn.findWithProp("Issue", "size").size());
         Assert.assertEquals(0, txn.findWithProp("Issue", "no such property").size());
         Assert.assertEquals(0, txn.findWithProp("No such type", "size").size());
+    }
+
+    public void testFindWithPropIsCached() throws Exception {
+        getEntityStore().getConfig().setCachingDisabled(false);
+        testFindWithProp();
+        final StoreTransaction txn = getStoreTransaction();
+        Assert.assertTrue(((EntityIteratorBase) txn.findWithProp("Issue", "description").iterator()).getIterable().isCachedInstance());
     }
 
     public void testFindWithBlob() throws Exception {

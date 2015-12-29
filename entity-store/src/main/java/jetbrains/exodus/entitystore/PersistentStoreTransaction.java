@@ -1091,6 +1091,9 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         private PropertyChangedHandleChecker(int typeId, long localId, int propertyId,
                                              @Nullable Comparable oldValue, @Nullable Comparable newValue) {
+            if (oldValue == null && newValue == null) {
+                throw new IllegalArgumentException("Either oldValue or newValue should be not null");
+            }
             this.typeId = typeId;
             this.localId = localId;
             this.propertyId = propertyId;
@@ -1100,17 +1103,31 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         @Override
         public HandleCheckResult checkHandle(@NotNull EntityIterableHandle handle, @NotNull EntityIterableCacheAdapter mutableCache) {
-            final boolean result = handle.isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue);
-            if (result && handle instanceof PropertiesIterable.PropertiesIterableHandle) {
-                return HandleCheckResult.UPDATE;
+            if (handle.isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue)) {
+                if (handle instanceof PropertiesIterable.PropertiesIterableHandle) {
+                    return HandleCheckResult.UPDATE;
+                }
+                if (handle instanceof EntitiesWithPropertyIterable.EntitiesWithPropertyIterableHandle) {
+                    return oldValue == null || newValue == null ? HandleCheckResult.UPDATE : HandleCheckResult.KEEP;
+                }
+                return HandleCheckResult.REMOVE;
             }
-            return result ? HandleCheckResult.REMOVE : HandleCheckResult.KEEP;
+            return HandleCheckResult.KEEP;
         }
 
         @Override
         void update(@NotNull final EntityIterableHandle handle,
                     @NotNull final UpdatableCachedInstanceIterable iterable) {
-            ((UpdatablePropertiesCachedInstanceIterable) iterable).update(typeId, localId, oldValue, newValue);
+            if (handle instanceof PropertiesIterable.PropertiesIterableHandle) {
+                ((UpdatablePropertiesCachedInstanceIterable) iterable).update(typeId, localId, oldValue, newValue);
+            } else {
+                final UpdatableEntityIdSortedSetCachedInstanceIterable cachedInstance = (UpdatableEntityIdSortedSetCachedInstanceIterable) iterable;
+                if (oldValue == null) {
+                    cachedInstance.addEntity(new PersistentEntityId(typeId, localId));
+                } else {
+                    cachedInstance.removeEntity(new PersistentEntityId(typeId, localId));
+                }
+            }
         }
 
         @Override
