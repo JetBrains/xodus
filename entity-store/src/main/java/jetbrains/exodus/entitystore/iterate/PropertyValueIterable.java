@@ -72,11 +72,11 @@ public final class PropertyValueIterable extends EntityIterableBase {
         final PropertiesIterable propertiesIterable = new PropertiesIterable(getStore(), entityTypeId, propertyId);
         final EntityIterableBase it = iterableCache.putIfNotCached(propertiesIterable);
         if (it.isCachedInstance()) {
-            final UpdatablePropertiesCachedInstanceIterable wrapper = (UpdatablePropertiesCachedInstanceIterable) it;
-            if (value.getClass() != wrapper.getPropertyValueClass()) {
+            final UpdatablePropertiesCachedInstanceIterable cached = (UpdatablePropertiesCachedInstanceIterable) it;
+            if (value.getClass() != cached.getPropertyValueClass()) {
                 return EntityIteratorBase.EMPTY;
             }
-            return wrapper.getPropertyValueIterator(value);
+            return cached.getPropertyValueIterator(value);
         }
         final Cursor valueIdx = openCursor(txn);
         if (valueIdx == null) {

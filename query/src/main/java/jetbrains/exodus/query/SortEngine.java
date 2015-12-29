@@ -162,7 +162,7 @@ public class SortEngine {
                         return queryEngine.wrap(EntityIterableBase.EMPTY.asSortResult());
                     }
                     if (sourceCount < 0 || sourceCount >= MIN_ENTRIES_TO_SORT_LINKS) {
-                        final EntityIterable it = ((EntityIterableBase) s).getOrCreateCachedWrapper(txn);
+                        final EntityIterable it = ((EntityIterableBase) s).getOrCreateCachedInstance(txn);
                         EntityIterable allLinks = ((EntityIterable) queryEngine.queryGetAll(enumType).instantiate()).getSource();
                         final EntityIterable distinctLinks;
                         //TODO: maybe use EntityIterableBase and nonCachedHasFastCount

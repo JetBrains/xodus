@@ -118,7 +118,7 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
         // if we are already within an EntityStoreSharedAsyncProcessor's dispatcher,
         // then instantiate iterable without queueing a job.
         if (isDispatcherThread()) {
-            return it.getOrCreateCachedWrapper(txn);
+            return it.getOrCreateCachedInstance(txn);
         }
         if (!isCachingQueueFull()) {
             new EntityIterableAsyncInstantiation(handle, it, false).queue(Priority.below_normal);
@@ -139,7 +139,7 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
         final Long result = getCachedCount(handle);
         if (result == null) {
             if (isDispatcherThread()) {
-                return it.getOrCreateCachedWrapper(txn).size();
+                return it.getOrCreateCachedInstance(txn).size();
             }
             if (!isCachingQueueFull()) {
                 new EntityIterableAsyncInstantiation(handle, it, true).queue(Priority.normal);
@@ -231,9 +231,9 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
                 txn.setQueryCancellingPolicy(cancellingPolicy);
                 try {
                     if (!logger.isInfoEnabled()) {
-                        it.getOrCreateCachedWrapper(txn);
+                        it.getOrCreateCachedInstance(txn);
                     } else {
-                        it.getOrCreateCachedWrapper(txn);
+                        it.getOrCreateCachedInstance(txn);
                         final long cachedIn = System.currentTimeMillis() - started;
                         if (cachedIn > 1000) {
                             logger.info("Cached in " + cachedIn + " ms, handle=" + getStringPresentation(handle));

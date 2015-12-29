@@ -113,7 +113,7 @@ public class UpdatablePropertiesCachedInstanceIterable extends UpdatableCachedIn
     public void endUpdate() {
         Persistent23Tree.MutableTree<IndexEntry> index = mutableIndex;
         if (index == null) {
-            throw new IllegalStateException("PropertiesIterableWrapper was not mutated");
+            throw new IllegalStateException("UpdatablePropertiesCachedInstanceIterable was not mutated");
         }
         index.endWrite();
         mutableIndex = null;

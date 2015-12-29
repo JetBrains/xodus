@@ -600,14 +600,14 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     @Nullable
-    public CachedInstanceIterable getCachedWrapper(@NotNull final EntityIterableBase sample) {
+    public CachedInstanceIterable getCachedInstance(@NotNull final EntityIterableBase sample) {
         final EntityIterableHandle handle = sample.getHandle();
         final EntityIterableCacheAdapter localCache = getLocalCache();
         return localCache.tryKey(handle);
     }
 
-    public void addCachedWrapper(@NotNull final CachedInstanceIterable cached) {
-        // don't remember wrappers on txn replay. this looks innocent by now.
+    public void addCachedInstance(@NotNull final CachedInstanceIterable cached) {
+        // don't remember cached instances on txn replay. this looks innocent by now.
         if (replayData == null || !replayData.hasCacheSnapshot()) {
             final EntityIterableCacheAdapter localCache = getLocalCache();
             final EntityIterableHandle handle = cached.getHandle();

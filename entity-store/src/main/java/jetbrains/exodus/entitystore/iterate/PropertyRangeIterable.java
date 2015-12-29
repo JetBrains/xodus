@@ -81,11 +81,11 @@ public final class PropertyRangeIterable extends EntityIterableBase {
         if (it.isCachedInstance()) {
             final Class<? extends Comparable> minClass = min.getClass();
             final Class<? extends Comparable> maxClass = max.getClass();
-            final UpdatablePropertiesCachedInstanceIterable wrapper = (UpdatablePropertiesCachedInstanceIterable) it;
-            if (minClass != maxClass || minClass != wrapper.getPropertyValueClass()) {
+            final UpdatablePropertiesCachedInstanceIterable cached = (UpdatablePropertiesCachedInstanceIterable) it;
+            if (minClass != maxClass || minClass != cached.getPropertyValueClass()) {
                 return EntityIteratorBase.EMPTY;
             }
-            return wrapper.getPropertyRangeIterator(min, max);
+            return cached.getPropertyRangeIterator(min, max);
         }
         final Cursor valueIdx = openCursor(txn);
         if (valueIdx == null) {

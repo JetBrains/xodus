@@ -166,7 +166,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         }
         final PersistentStoreTransaction txn = getTransaction();
         final EntityIterableBase it = store.getEntityIterableCache().putIfNotCached(this);
-        final EntityIterableBase cached = it.nonCachedHasFastCount() ? it : getOrCreateCachedWrapper(txn);
+        final EntityIterableBase cached = it.nonCachedHasFastCount() ? it : getOrCreateCachedInstance(txn);
         return cached.countImpl(txn);
     }
 
@@ -213,7 +213,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         }
         final EntityId entityId = entity.getId();
         final EntityIterableBase it = store.getEntityIterableCache().putIfNotCached(this);
-        final EntityIterableBase cached = it.isCachedInstance() ? it : this.getOrCreateCachedWrapper(getTransaction());
+        final EntityIterableBase cached = it.isCachedInstance() ? it : this.getOrCreateCachedInstance(getTransaction());
         return cached.indexOfImpl(entityId);
     }
 
@@ -459,15 +459,15 @@ public abstract class EntityIterableBase implements EntityIterable {
         return false;
     }
 
-    public final CachedInstanceIterable getOrCreateCachedWrapper(@NotNull final PersistentStoreTransaction txn) {
+    public final CachedInstanceIterable getOrCreateCachedInstance(@NotNull final PersistentStoreTransaction txn) {
         if (store == null) {
-            throw new NullPointerException("Can't create cached wrapper for EMPTY iterable");
+            throw new NullPointerException("Can't create cached instance for EMPTY iterable");
         }
         CachedInstanceIterable cached = null;
         final PersistentEntityStoreConfig config = store.getConfig();
         final boolean canBeCached = !config.isCachingDisabled() && canBeCached();
         if (canBeCached) {
-            cached = txn.getCachedWrapper(this);
+            cached = txn.getCachedInstance(this);
         }
         if (cached == null) {
             cached = createCachedInstance(txn);
@@ -475,14 +475,14 @@ public abstract class EntityIterableBase implements EntityIterable {
                 cached.orderById();
             }
             if (canBeCached) {
-                txn.addCachedWrapper(cached);
+                txn.addCachedInstance(cached);
             }
         }
         return cached;
     }
 
     public EntityIdSet toSet(@NotNull final PersistentStoreTransaction txn) {
-        return getOrCreateCachedWrapper(txn).toSet(txn);
+        return getOrCreateCachedInstance(txn).toSet(txn);
     }
 
     @NotNull

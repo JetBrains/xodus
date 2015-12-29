@@ -49,7 +49,7 @@ public class ReplayTest extends EntityStoreTestBase {
         txn.flush();
         for (int i = 0; i < CACHE_SIZE; ++i) {
             final EntityIterableBase issues = findSome(txn, i);
-            issues.getOrCreateCachedWrapper(txn); // fill cache
+            issues.getOrCreateCachedInstance(txn); // fill cache
         }
         final Entity[] change = new Entity[CHANGES_SIZE];
         for (int i = 0; i < CHANGES_SIZE; i++) {

@@ -54,7 +54,7 @@ public class ReplayData {
                     if (it != null) {
                         if (!it.isMutated()) {
                             it = it.beginUpdate();
-                            // cache new mutated iterable wrapper
+                            // cache new mutated iterable instance
                             mutableCache.cacheObject(handle, it);
                             mutatedInTxn.add(it);
                         }
@@ -92,7 +92,7 @@ public class ReplayData {
                 if (it != null) {
                     if (!it.isMutated()) {
                         it = it.beginUpdate();
-                        // cache new mutated iterable wrapper
+                        // cache new mutated iterable instance
                         mutableCache.cacheObject(handle, it);
                         mutatedInTxn.add(it);
                     }
@@ -118,12 +118,12 @@ public class ReplayData {
     public void init(@NotNull final PersistentObjectCache<EntityIterableHandle, EntityIterableCacheAdapter.CacheItem> localCache) {
         suspicious = new HashSet<>();
         if (hasCacheSnapshot()) {
-            final PersistentObjectCache<EntityIterableHandle, EntityIterableCacheAdapter.CacheItem> old = cacheSnapshot.getCacheInstance();
+            final PersistentObjectCache<EntityIterableHandle, EntityIterableCacheAdapter.CacheItem> oldCache = cacheSnapshot.getCacheInstance();
             localCache.forEachKey(new ObjectProcedure<EntityIterableHandle>() {
                 @Override
                 public boolean execute(EntityIterableHandle object) {
-                    EntityIterableCacheAdapter.CacheItem oldWrapper = old.getObject(object);
-                    if (oldWrapper == null || oldWrapper != localCache.getObject(object)) {
+                    EntityIterableCacheAdapter.CacheItem oldItem = oldCache.getObject(object);
+                    if (oldItem == null || oldItem != localCache.getObject(object)) {
                         suspicious.add(object);
                     }
                     return true;

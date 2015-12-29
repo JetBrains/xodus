@@ -254,7 +254,7 @@ public class SortTests extends EntityStoreTestBase {
         foo.setProperty("size", 1); // to allocate propId
         txn.flush();
         final EntityIterable sorted = txn.findWithPropSortedByValue("Issue", "size");
-        ((EntityIterableBase) sorted).getOrCreateCachedWrapper(txn);
+        ((EntityIterableBase) sorted).getOrCreateCachedInstance(txn);
     }
 
     public void testSortByTwoColumnsAscendingStable() {

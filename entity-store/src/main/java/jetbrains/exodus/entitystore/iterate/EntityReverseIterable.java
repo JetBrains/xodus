@@ -51,7 +51,7 @@ public final class EntityReverseIterable extends EntityIterableDecoratorBase {
     @Override
     @NotNull
     public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
-        return source.getOrCreateCachedWrapper(txn).getReverseIteratorImpl(txn);
+        return source.getOrCreateCachedInstance(txn).getReverseIteratorImpl(txn);
     }
 
     @Override

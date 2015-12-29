@@ -155,7 +155,7 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
     private PersistentLong23TreeMap.MutableMap checkMutableIds() {
         PersistentLong23TreeMap.MutableMap mutableLocalIds = this.mutableLocalIds;
         if (mutableLocalIds == null) {
-            throw new IllegalStateException("EntitiesOfTypeIterableWrapper was not mutated");
+            throw new IllegalStateException("UpdatableEntityIdSortedSetCachedInstanceIterable was not mutated");
         }
         return mutableLocalIds;
     }
