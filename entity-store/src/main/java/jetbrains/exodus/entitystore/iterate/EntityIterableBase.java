@@ -180,7 +180,12 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             return 0;
         }
-        return store.getEntityIterableCache().getCachedCount(this);
+        final EntityIterableCacheImpl cache = store.getEntityIterableCache();
+        final EntityIterableBase cached = cache.putIfNotCached(this);
+        if (cached.isCachedWrapper()) {
+            return cached.size();
+        }
+        return cache.getCachedCount(this);
     }
 
     @Override
