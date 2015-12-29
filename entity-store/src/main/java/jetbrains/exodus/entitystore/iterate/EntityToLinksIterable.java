@@ -55,6 +55,10 @@ public final class EntityToLinksIterable extends EntityLinksIterableBase {
         return EntityIterableType.ENTITY_TO_LINKS;
     }
 
+    public int getEntityTypeId() {
+        return entityTypeId;
+    }
+
     @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {

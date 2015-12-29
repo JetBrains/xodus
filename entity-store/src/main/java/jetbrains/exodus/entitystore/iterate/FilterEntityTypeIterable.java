@@ -44,6 +44,10 @@ class FilterEntityTypeIterable extends EntityIterableDecoratorBase {
         return EntityIterableType.FILTER_ENTITY_TYPE;
     }
 
+    public int getEntityTypeId() {
+        return entityTypeId;
+    }
+
     @NotNull
     @Override
     public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {

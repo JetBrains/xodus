@@ -47,6 +47,10 @@ public class EntitiesWithPropertyIterable extends EntityIterableBase {
         return EntityIterableType.ENTITIES_WITH_PROPERTY;
     }
 
+    public int getEntityTypeId() {
+        return entityTypeId;
+    }
+
     @NotNull
     @Override
     public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {

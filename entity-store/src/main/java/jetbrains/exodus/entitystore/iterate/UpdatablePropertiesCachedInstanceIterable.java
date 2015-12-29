@@ -29,9 +29,9 @@ import java.util.Collection;
 import java.util.Iterator;
 
 @SuppressWarnings({"RawUseOfParameterizedType", "ComparableImplementedButEqualsNotOverridden", "unchecked"})
-public class PropertiesCachedInstanceIterable extends UpdatableCachedInstanceIterable {
+public class UpdatablePropertiesCachedInstanceIterable extends UpdatableCachedInstanceIterable {
 
-    private static final Logger logger = LoggerFactory.getLogger(PropertiesCachedInstanceIterable.class);
+    private static final Logger logger = LoggerFactory.getLogger(UpdatablePropertiesCachedInstanceIterable.class);
 
     private int entityTypeId;
     @NotNull
@@ -42,9 +42,9 @@ public class PropertiesCachedInstanceIterable extends UpdatableCachedInstanceIte
     private Class<? extends Comparable> valueClass;
 
     @SuppressWarnings({"ConstantConditions", "ObjectAllocationInLoop"})
-    public PropertiesCachedInstanceIterable(@Nullable final PersistentEntityStoreImpl store,
-                                            @Nullable final PropertyValueIterator it,
-                                            @NotNull final EntityIterableBase source) {
+    public UpdatablePropertiesCachedInstanceIterable(@Nullable final PersistentEntityStoreImpl store,
+                                                     @Nullable final PropertyValueIterator it,
+                                                     @NotNull final EntityIterableBase source) {
         super(store, source);
         index = new Persistent23Tree<>();
         mutableIndex = null;
@@ -83,7 +83,7 @@ public class PropertiesCachedInstanceIterable extends UpdatableCachedInstanceIte
     }
 
     // constructor for mutating source index
-    private PropertiesCachedInstanceIterable(@NotNull final PropertiesCachedInstanceIterable source) {
+    private UpdatablePropertiesCachedInstanceIterable(@NotNull final UpdatablePropertiesCachedInstanceIterable source) {
         super(source.getStore(), source);
         entityTypeId = source.entityTypeId;
         index = source.index.getClone();
@@ -101,8 +101,8 @@ public class PropertiesCachedInstanceIterable extends UpdatableCachedInstanceIte
         return false;
     }
 
-    public PropertiesCachedInstanceIterable beginUpdate() {
-        return new PropertiesCachedInstanceIterable(this);
+    public UpdatablePropertiesCachedInstanceIterable beginUpdate() {
+        return new UpdatablePropertiesCachedInstanceIterable(this);
     }
 
     @Override
@@ -225,7 +225,7 @@ public class PropertiesCachedInstanceIterable extends UpdatableCachedInstanceIte
         protected boolean hasNextValid;
 
         protected PropertiesCachedInstanceIteratorBase(@NotNull final Iterator<IndexEntry> it) {
-            super(PropertiesCachedInstanceIterable.this);
+            super(UpdatablePropertiesCachedInstanceIterable.this);
             this.it = it;
         }
 

@@ -333,7 +333,7 @@ public class EntityIdArrayCachedInstanceIterableTests extends EntityStoreTestBas
         }
 
         @Override
-        protected CachedInstanceIterable createCachedWrapper(@NotNull final PersistentStoreTransaction txn) {
+        protected CachedInstanceIterable createCachedInstance(@NotNull final PersistentStoreTransaction txn) {
             return new EntityIdArrayCachedInstanceIterable(txn, getStore(), this);
         }
 

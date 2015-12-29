@@ -24,7 +24,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Iterator;
 
 @SuppressWarnings("unchecked")
-public class EntitiesOfTypeCachedInstanceIterable extends UpdatableCachedInstanceIterable {
+public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableCachedInstanceIterable {
 
     private static final PersistentLong23TreeMap EMPTY_IDS = new PersistentLong23TreeMap();
 
@@ -36,12 +36,12 @@ public class EntitiesOfTypeCachedInstanceIterable extends UpdatableCachedInstanc
     @Nullable
     private EntityIdSet idSet;
 
-    public EntitiesOfTypeCachedInstanceIterable(@NotNull final PersistentStoreTransaction txn,
-                                                @Nullable final PersistentEntityStoreImpl store,
-                                                @NotNull final EntitiesOfTypeIterable source) {
+    public UpdatableEntityIdSortedSetCachedInstanceIterable(@NotNull final PersistentStoreTransaction txn,
+                                                            @Nullable final PersistentEntityStoreImpl store,
+                                                            @NotNull final EntityIterableBase source) {
         super(store, source);
         entityTypeId = source.getEntityTypeId();
-        final EntityIteratorBase it = source.getIteratorImpl(txn);
+        final EntityIteratorBase it = (EntityIteratorBase) source.getIteratorImpl(txn);
         try {
             if (!it.hasNext()) {
                 localIds = EMPTY_IDS;
@@ -51,7 +51,7 @@ public class EntitiesOfTypeCachedInstanceIterable extends UpdatableCachedInstanc
                 do {
                     final EntityId entityId = it.nextId();
                     if (entityId == null) {
-                        throw new NullPointerException("EntitiesOfTypeIterator.nextId() returned null!");
+                        throw new NullPointerException("EntityIteratorBase.nextId() returned null!");
                     }
                     mutableLocalIds.put(entityId.getLocalId(), EMPTY_IDS);
                 } while (it.hasNext());
@@ -65,11 +65,15 @@ public class EntitiesOfTypeCachedInstanceIterable extends UpdatableCachedInstanc
     }
 
     // constructor for mutating
-    private EntitiesOfTypeCachedInstanceIterable(@NotNull final EntitiesOfTypeCachedInstanceIterable source) {
+    private UpdatableEntityIdSortedSetCachedInstanceIterable(@NotNull final UpdatableEntityIdSortedSetCachedInstanceIterable source) {
         super(source.getStore(), source);
         entityTypeId = source.entityTypeId;
         localIds = source.localIds.getClone();
         mutableLocalIds = localIds.beginWrite();
+    }
+
+    public int getEntityTypeId() {
+        return entityTypeId;
     }
 
     @NotNull
@@ -119,8 +123,8 @@ public class EntitiesOfTypeCachedInstanceIterable extends UpdatableCachedInstanc
     }
 
     @Override
-    public EntitiesOfTypeCachedInstanceIterable beginUpdate() {
-        return new EntitiesOfTypeCachedInstanceIterable(this);
+    public UpdatableEntityIdSortedSetCachedInstanceIterable beginUpdate() {
+        return new UpdatableEntityIdSortedSetCachedInstanceIterable(this);
     }
 
     @Override

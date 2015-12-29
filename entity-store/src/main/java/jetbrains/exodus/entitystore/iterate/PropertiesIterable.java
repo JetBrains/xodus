@@ -43,6 +43,10 @@ public final class PropertiesIterable extends EntityIterableBase {
         return EntityIterableType.ENTITIES_WITH_PROPERTY_SORTED_BY_VALUE;
     }
 
+    public int getEntityTypeId() {
+        return entityTypeId;
+    }
+
     public PropertiesIterable(@NotNull final PersistentEntityStoreImpl store, final int entityTypeId, final int propertyId) {
         super(store);
         this.entityTypeId = entityTypeId;
@@ -81,8 +85,8 @@ public final class PropertiesIterable extends EntityIterableBase {
     }
 
     @Override
-    protected CachedInstanceIterable createCachedWrapper(@NotNull final PersistentStoreTransaction txn) {
-        return new PropertiesCachedInstanceIterable(getStore(), getIterator(txn, true), this);
+    protected CachedInstanceIterable createCachedInstance(@NotNull final PersistentStoreTransaction txn) {
+        return new UpdatablePropertiesCachedInstanceIterable(getStore(), getIterator(txn, true), this);
     }
 
     @Override

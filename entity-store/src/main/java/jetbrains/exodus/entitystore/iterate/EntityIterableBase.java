@@ -110,6 +110,10 @@ public abstract class EntityIterableBase implements EntityIterable {
         return store;
     }
 
+    public int getEntityTypeId() {
+        throw new UnsupportedOperationException("getEntityTypeId not implemented");
+    }
+
     @Override
     public EntityIterator iterator() {
         // EMPTY iterable
@@ -466,7 +470,7 @@ public abstract class EntityIterableBase implements EntityIterable {
             cached = txn.getCachedWrapper(this);
         }
         if (cached == null) {
-            cached = createCachedWrapper(txn);
+            cached = createCachedInstance(txn);
             if (!config.isReorderingDisabled() && canBeReordered()) {
                 cached.orderById();
             }
@@ -510,7 +514,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         return -1;
     }
 
-    protected CachedInstanceIterable createCachedWrapper(@NotNull final PersistentStoreTransaction txn) {
+    protected CachedInstanceIterable createCachedInstance(@NotNull final PersistentStoreTransaction txn) {
         return new EntityIdArrayCachedInstanceIterable(txn, getStore(), this);
     }
 

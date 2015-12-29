@@ -60,6 +60,10 @@ public final class PropertyValueIterable extends EntityIterableBase {
         this.value = PropertyTypes.toLowerCase(value);
     }
 
+    public int getEntityTypeId() {
+        return entityTypeId;
+    }
+
     @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
@@ -68,7 +72,7 @@ public final class PropertyValueIterable extends EntityIterableBase {
         final PropertiesIterable propertiesIterable = new PropertiesIterable(getStore(), entityTypeId, propertyId);
         final EntityIterableBase it = iterableCache.putIfNotCached(propertiesIterable);
         if (it.isCachedInstance()) {
-            final PropertiesCachedInstanceIterable wrapper = (PropertiesCachedInstanceIterable) it;
+            final UpdatablePropertiesCachedInstanceIterable wrapper = (UpdatablePropertiesCachedInstanceIterable) it;
             if (value.getClass() != wrapper.getPropertyValueClass()) {
                 return EntityIteratorBase.EMPTY;
             }

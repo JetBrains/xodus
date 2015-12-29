@@ -140,7 +140,7 @@ public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
     }
 
     @Override
-    protected CachedInstanceIterable createCachedWrapper(@NotNull final PersistentStoreTransaction txn) {
+    protected CachedInstanceIterable createCachedInstance(@NotNull final PersistentStoreTransaction txn) {
         final IntArrayList propIds = new IntArrayList();
         return new EntityIdArrayCachedInstanceIterable(txn, EntityFromLinkSetIterable.this.getStore(), EntityFromLinkSetIterable.this) {
             @Override

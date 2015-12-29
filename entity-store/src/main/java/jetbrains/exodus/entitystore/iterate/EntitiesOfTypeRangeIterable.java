@@ -58,6 +58,10 @@ public class EntitiesOfTypeRangeIterable extends EntityIterableBase {
         return EntityIterableType.ALL_ENTITIES_RANGE;
     }
 
+    public int getEntityTypeId() {
+        return entityTypeId;
+    }
+
     @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {

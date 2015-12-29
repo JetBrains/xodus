@@ -77,8 +77,8 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
     }
 
     @Override
-    protected CachedInstanceIterable createCachedWrapper(@NotNull final PersistentStoreTransaction txn) {
-        return new EntitiesOfTypeCachedInstanceIterable(txn, getStore(), this);
+    protected CachedInstanceIterable createCachedInstance(@NotNull final PersistentStoreTransaction txn) {
+        return new UpdatableEntityIdSortedSetCachedInstanceIterable(txn, getStore(), this);
     }
 
     private final class EntitiesOfTypeIterator extends EntityIteratorBase {

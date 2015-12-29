@@ -62,6 +62,10 @@ public final class PropertyRangeIterable extends EntityIterableBase {
         max = PropertyTypes.toLowerCase(maxValue);
     }
 
+    public int getEntityTypeId() {
+        return entityTypeId;
+    }
+
     @Override
     public boolean isSortedById() {
         return false;
@@ -77,7 +81,7 @@ public final class PropertyRangeIterable extends EntityIterableBase {
         if (it.isCachedInstance()) {
             final Class<? extends Comparable> minClass = min.getClass();
             final Class<? extends Comparable> maxClass = max.getClass();
-            final PropertiesCachedInstanceIterable wrapper = (PropertiesCachedInstanceIterable) it;
+            final UpdatablePropertiesCachedInstanceIterable wrapper = (UpdatablePropertiesCachedInstanceIterable) it;
             if (minClass != maxClass || minClass != wrapper.getPropertyValueClass()) {
                 return EntityIteratorBase.EMPTY;
             }

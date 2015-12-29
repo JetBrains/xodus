@@ -46,6 +46,10 @@ public class EntitiesWithBlobIterable extends EntityIterableBase {
         return EntityIterableType.ENTITIES_WITH_BLOB;
     }
 
+    public int getEntityTypeId() {
+        return entityTypeId;
+    }
+
     @Override
     public boolean canBeCached() {
         return false;

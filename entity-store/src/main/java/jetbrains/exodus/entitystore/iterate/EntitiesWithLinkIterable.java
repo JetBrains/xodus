@@ -48,6 +48,10 @@ public class EntitiesWithLinkIterable extends EntityIterableBase {
         return EntityIterableType.ENTITIES_WITH_LINK;
     }
 
+    public int getEntityTypeId() {
+        return entityTypeId;
+    }
+
     @Override
     public boolean isSortedById() {
         return false;
@@ -68,10 +72,6 @@ public class EntitiesWithLinkIterable extends EntityIterableBase {
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
         return new EntitiesWithLinkIterableHandle();
-    }
-
-    protected int getEntityTypeId() {
-        return entityTypeId;
     }
 
     private Cursor openCursor(@NotNull final PersistentStoreTransaction txn) {
