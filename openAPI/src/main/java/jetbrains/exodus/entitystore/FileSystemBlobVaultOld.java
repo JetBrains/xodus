@@ -202,7 +202,7 @@ public class FileSystemBlobVaultOld extends BlobVault {
             environment.executeTransactionSafeTask(new Runnable() {
                 @Override
                 public void run() {
-                    DeferredIO.getJobProcessor().queue(new Job() {
+                    DeferredIO.getJobProcessor().queueIn(new Job() {
                         @Override
                         protected void execute() throws Throwable {
                             final LongIterator it = copy.iterator();
@@ -220,7 +220,7 @@ public class FileSystemBlobVaultOld extends BlobVault {
                         public String getGroup() {
                             return environment.getLocation();
                         }
-                    });
+                    }, environment.getEnvironmentConfig().getGcFilesDeletionDelay());
                 }
             });
         }
