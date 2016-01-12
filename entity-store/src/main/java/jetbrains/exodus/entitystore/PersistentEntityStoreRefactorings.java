@@ -171,83 +171,83 @@ final class PersistentEntityStoreRefactorings {
                     if (logger.isInfoEnabled()) {
                         logger.info("Refactoring making links' tables consistent for [" + entityType + ']');
                     }
-                    try {
-                        final Collection<Pair<ByteIterable, ByteIterable>> badLinks = new ArrayList<>();
-                        final Collection<Pair<ByteIterable, ByteIterable>> deleteLinks = new ArrayList<>();
-                        final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
-                        final TwoColumnTable linksTable = store.getLinksTable(txn, entityTypeId);
-                        final Transaction envTxn = txn.getEnvironmentTransaction();
-                        final Cursor cursor = linksTable.getFirstIndexCursor(envTxn);
-                        final Store entitiesTable = store.getEntitiesTable(txn, entityTypeId);
-                        while (cursor.getNext()) {
-                            final long localId = LongBinding.compressedEntryToLong(cursor.getKey());
-                            if (entitiesTable.get(envTxn, LongBinding.longToCompressedEntry(localId)) == null) {
-                                do {
+                    runReadonlyTransactionSafeForEntityType(entityType, new Runnable() {
+                        @Override
+                        public void run() {
+                            final Collection<Pair<ByteIterable, ByteIterable>> badLinks = new ArrayList<>();
+                            final Collection<Pair<ByteIterable, ByteIterable>> deleteLinks = new ArrayList<>();
+                            final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
+                            final TwoColumnTable linksTable = store.getLinksTable(txn, entityTypeId);
+                            final Transaction envTxn = txn.getEnvironmentTransaction();
+                            final Cursor cursor = linksTable.getFirstIndexCursor(envTxn);
+                            final Store entitiesTable = store.getEntitiesTable(txn, entityTypeId);
+                            while (cursor.getNext()) {
+                                final long localId = LongBinding.compressedEntryToLong(cursor.getKey());
+                                if (entitiesTable.get(envTxn, LongBinding.longToCompressedEntry(localId)) == null) {
+                                    do {
+                                        deleteLinks.add(new Pair<>(cursor.getKey(), cursor.getValue()));
+                                    } while (cursor.getNextDup());
+                                    continue;
+                                }
+                                final LinkValue linkValue = LinkValue.entryToLinkValue(cursor.getValue());
+                                // if target doesn't exist
+                                if (store.getLastVersion(txn, linkValue.getEntityId()) < 0) {
                                     deleteLinks.add(new Pair<>(cursor.getKey(), cursor.getValue()));
-                                } while (cursor.getNextDup());
-                                continue;
-                            }
-                            final LinkValue linkValue = LinkValue.entryToLinkValue(cursor.getValue());
-                            // if target doesn't exist
-                            if (store.getLastVersion(txn, linkValue.getEntityId()) < 0) {
-                                deleteLinks.add(new Pair<>(cursor.getKey(), cursor.getValue()));
-                                continue;
-                            }
-                            if (linksTable.get2(envTxn, cursor.getValue()) == null) {
-                                badLinks.add(new Pair<>(cursor.getKey(), cursor.getValue()));
-                            }
-                        }
-                        cursor.close();
-                        if (!badLinks.isEmpty()) {
-                            store.getEnvironment().executeInTransaction(new TransactionalExecutable() {
-                                @Override
-                                public void execute(@NotNull final Transaction txn) {
-                                    for (final Pair<ByteIterable, ByteIterable> badLink : badLinks) {
-                                        linksTable.put(txn, badLink.getFirst(), badLink.getSecond());
-                                    }
+                                    continue;
                                 }
-                            });
-                            if (logger.isInfoEnabled()) {
-                                logger.info(badLinks.size() + " missing links found and fixed for [" + entityType + ']');
+                                if (linksTable.get2(envTxn, cursor.getValue()) == null) {
+                                    badLinks.add(new Pair<>(cursor.getKey(), cursor.getValue()));
+                                }
                             }
-                        }
-                        badLinks.clear();
-                        final Cursor cursor2 = linksTable.getSecondIndexCursor(envTxn);
-                        while (cursor2.getNext()) {
-                            if (linksTable.get(envTxn, cursor2.getValue()) == null) {
-                                badLinks.add(new Pair<>(cursor2.getKey(), cursor2.getValue()));
+                            cursor.close();
+                            if (!badLinks.isEmpty()) {
+                                store.getEnvironment().executeInTransaction(new TransactionalExecutable() {
+                                    @Override
+                                    public void execute(@NotNull final Transaction txn) {
+                                        for (final Pair<ByteIterable, ByteIterable> badLink : badLinks) {
+                                            linksTable.put(txn, badLink.getFirst(), badLink.getSecond());
+                                        }
+                                    }
+                                });
+                                if (logger.isInfoEnabled()) {
+                                    logger.info(badLinks.size() + " missing links found and fixed for [" + entityType + ']');
+                                }
                             }
-                        }
-                        cursor2.close();
-                        final int badLinksSize = badLinks.size();
-                        final int deleteLinksSize = deleteLinks.size();
-                        if (badLinksSize > 0 || deleteLinksSize > 0) {
-                            store.getEnvironment().executeInTransaction(new TransactionalExecutable() {
-                                @Override
-                                public void execute(@NotNull final Transaction txn) {
-                                    for (final Pair<ByteIterable, ByteIterable> badLink : badLinks) {
-                                        deletePair(linksTable.getSecondIndexCursor(txn), badLink.getFirst(), badLink.getSecond());
-                                    }
-                                    for (final Pair<ByteIterable, ByteIterable> deleteLink : deleteLinks) {
-                                        deletePair(linksTable.getFirstIndexCursor(txn), deleteLink.getFirst(), deleteLink.getSecond());
-                                        deletePair(linksTable.getSecondIndexCursor(txn), deleteLink.getSecond(), deleteLink.getFirst());
-                                    }
+                            badLinks.clear();
+                            final Cursor cursor2 = linksTable.getSecondIndexCursor(envTxn);
+                            while (cursor2.getNext()) {
+                                if (linksTable.get(envTxn, cursor2.getValue()) == null) {
+                                    badLinks.add(new Pair<>(cursor2.getKey(), cursor2.getValue()));
+                                }
+                            }
+                            cursor2.close();
+                            final int badLinksSize = badLinks.size();
+                            final int deleteLinksSize = deleteLinks.size();
+                            if (badLinksSize > 0 || deleteLinksSize > 0) {
+                                store.getEnvironment().executeInTransaction(new TransactionalExecutable() {
+                                    @Override
+                                    public void execute(@NotNull final Transaction txn) {
+                                        for (final Pair<ByteIterable, ByteIterable> badLink : badLinks) {
+                                            deletePair(linksTable.getSecondIndexCursor(txn), badLink.getFirst(), badLink.getSecond());
+                                        }
+                                        for (final Pair<ByteIterable, ByteIterable> deleteLink : deleteLinks) {
+                                            deletePair(linksTable.getFirstIndexCursor(txn), deleteLink.getFirst(), deleteLink.getSecond());
+                                            deletePair(linksTable.getSecondIndexCursor(txn), deleteLink.getSecond(), deleteLink.getFirst());
+                                        }
 
-                                }
-                            });
-                            if (logger.isInfoEnabled()) {
-                                if (badLinksSize > 0) {
-                                    logger.info(badLinksSize + " redundant links found and fixed for [" + entityType + ']');
-                                }
-                                if (deleteLinksSize > 0) {
-                                    logger.info(deleteLinksSize + " phantom links found and fixed for [" + entityType + ']');
+                                    }
+                                });
+                                if (logger.isInfoEnabled()) {
+                                    if (badLinksSize > 0) {
+                                        logger.info(badLinksSize + " redundant links found and fixed for [" + entityType + ']');
+                                    }
+                                    if (deleteLinksSize > 0) {
+                                        logger.info(deleteLinksSize + " phantom links found and fixed for [" + entityType + ']');
+                                    }
                                 }
                             }
                         }
-                    } catch (Throwable t) {
-                        logger.error("Failed to execute refactoring for entity type: " + entityType, t);
-                        throwJVMError(t);
-                    }
+                    });
                 }
             }
         });
@@ -262,178 +262,178 @@ final class PersistentEntityStoreRefactorings {
                     if (logger.isInfoEnabled()) {
                         logger.info("Refactoring making props' tables consistent for [" + entityType + ']');
                     }
-                    try {
-                        final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
-                        final PropertiesTable propTable = store.getPropertiesTable(txn, entityTypeId);
-                        final Transaction envTxn = txn.getEnvironmentTransaction();
-                        final IntHashMap<LongHashMap<PropertyValue>> props = new IntHashMap<>();
-                        final Cursor cursor = store.getPrimaryPropertyIndexCursor(txn, propTable);
-                        while (cursor.getNext()) {
-                            final PropertyKey propKey = PropertyKey.entryToPropertyKey(cursor.getKey());
-                            final PropertyValue propValue = store.getPropertyTypes().entryToPropertyValue(cursor.getValue());
-                            final int propId = propKey.getPropertyId();
-                            LongHashMap<PropertyValue> entitiesToValues = props.get(propId);
-                            if (entitiesToValues == null) {
-                                entitiesToValues = new LongHashMap<>();
-                                props.put(propId, entitiesToValues);
-                            }
-                            entitiesToValues.put(propKey.getEntityLocalId(), propValue);
-                        }
-                        cursor.close();
-                        final List<Pair<Integer, Pair<ByteIterable, ByteIterable>>> missingPairs = new ArrayList<>();
-                        final IntHashMap<Set<Long>> allPropsMap = new IntHashMap<>();
-                        for (final int propId : props.keySet()) {
-                            final Store valueIndex = propTable.getValueIndex(txn, propId, false);
-                            final Cursor valueCursor = valueIndex == null ? null : valueIndex.openCursor(envTxn);
-                            final LongHashMap<PropertyValue> entitiesToValues = props.get(propId);
-                            final Set<Long> localIdSet = entitiesToValues.keySet();
-                            final TreeSet<Long> sortedLocalIdSet = new TreeSet<>(localIdSet);
-                            allPropsMap.put(propId, sortedLocalIdSet);
-                            final Long[] localIds = sortedLocalIdSet.toArray(new Long[entitiesToValues.size()]);
-                            for (final long localId : localIds) {
-                                final PropertyValue propValue = entitiesToValues.get(localId);
-                                for (final ByteIterable secondaryKey : PropertiesTable.createSecondaryKeys(
-                                        store.getPropertyTypes(), PropertyTypes.propertyValueToEntry(propValue), propValue.getType())) {
-                                    final ByteIterable secondaryValue = LongBinding.longToCompressedEntry(localId);
-                                    if (valueCursor == null || !valueCursor.getSearchBoth(secondaryKey, secondaryValue)) {
-                                        missingPairs.add(new Pair<>(propId, new Pair<>(secondaryKey, secondaryValue)));
-                                    }
+                    runReadonlyTransactionSafeForEntityType(entityType, new Runnable() {
+                        @Override
+                        public void run() {
+                            final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
+                            final PropertiesTable propTable = store.getPropertiesTable(txn, entityTypeId);
+                            final Transaction envTxn = txn.getEnvironmentTransaction();
+                            final IntHashMap<LongHashMap<PropertyValue>> props = new IntHashMap<>();
+                            final Cursor cursor = store.getPrimaryPropertyIndexCursor(txn, propTable);
+                            while (cursor.getNext()) {
+                                final PropertyKey propKey = PropertyKey.entryToPropertyKey(cursor.getKey());
+                                final PropertyValue propValue = store.getPropertyTypes().entryToPropertyValue(cursor.getValue());
+                                final int propId = propKey.getPropertyId();
+                                LongHashMap<PropertyValue> entitiesToValues = props.get(propId);
+                                if (entitiesToValues == null) {
+                                    entitiesToValues = new LongHashMap<>();
+                                    props.put(propId, entitiesToValues);
                                 }
+                                entitiesToValues.put(propKey.getEntityLocalId(), propValue);
                             }
-                            if (valueCursor != null) {
-                                valueCursor.close();
-                            }
-                        }
-                        if (!missingPairs.isEmpty()) {
-                            store.executeInTransaction(new StoreTransactionalExecutable() {
-                                @Override
-                                public void execute(@NotNull final StoreTransaction tx) {
-                                    final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
-                                    for (final Pair<Integer, Pair<ByteIterable, ByteIterable>> pair : missingPairs) {
-                                        final Store valueIndex = propTable.getValueIndex(txn, pair.getFirst(), true);
-                                        final Pair<ByteIterable, ByteIterable> missing = pair.getSecond();
-                                        if (valueIndex == null) {
-                                            throw new NullPointerException("Can't be");
+                            cursor.close();
+                            final List<Pair<Integer, Pair<ByteIterable, ByteIterable>>> missingPairs = new ArrayList<>();
+                            final IntHashMap<Set<Long>> allPropsMap = new IntHashMap<>();
+                            for (final int propId : props.keySet()) {
+                                final Store valueIndex = propTable.getValueIndex(txn, propId, false);
+                                final Cursor valueCursor = valueIndex == null ? null : valueIndex.openCursor(envTxn);
+                                final LongHashMap<PropertyValue> entitiesToValues = props.get(propId);
+                                final Set<Long> localIdSet = entitiesToValues.keySet();
+                                final TreeSet<Long> sortedLocalIdSet = new TreeSet<>(localIdSet);
+                                allPropsMap.put(propId, sortedLocalIdSet);
+                                final Long[] localIds = sortedLocalIdSet.toArray(new Long[entitiesToValues.size()]);
+                                for (final long localId : localIds) {
+                                    final PropertyValue propValue = entitiesToValues.get(localId);
+                                    for (final ByteIterable secondaryKey : PropertiesTable.createSecondaryKeys(
+                                            store.getPropertyTypes(), PropertyTypes.propertyValueToEntry(propValue), propValue.getType())) {
+                                        final ByteIterable secondaryValue = LongBinding.longToCompressedEntry(localId);
+                                        if (valueCursor == null || !valueCursor.getSearchBoth(secondaryKey, secondaryValue)) {
+                                            missingPairs.add(new Pair<>(propId, new Pair<>(secondaryKey, secondaryValue)));
                                         }
-                                        valueIndex.put(txn.getEnvironmentTransaction(), missing.getFirst(), missing.getSecond());
                                     }
                                 }
-                            });
-                            if (logger.isInfoEnabled()) {
-                                logger.info(missingPairs.size() + " missing secondary keys found and fixed for [" + entityType + ']');
+                                if (valueCursor != null) {
+                                    valueCursor.close();
+                                }
                             }
-                        }
-                        final List<Pair<Integer, Pair<ByteIterable, ByteIterable>>> phantomPairs = new ArrayList<>();
-                        for (final Map.Entry<Integer, Store> entry : propTable.getValueIndices()) {
-                            final int propId = entry.getKey();
-                            final LongHashMap<PropertyValue> entitiesToValues = props.get(propId);
-                            final Cursor c = entry.getValue().openCursor(envTxn);
-                            while (c.getNext()) {
-                                final ByteIterable keyEntry = c.getKey();
-                                final ByteIterable valueEntry = c.getValue();
-                                final PropertyValue propValue = entitiesToValues.get(LongBinding.compressedEntryToLong(valueEntry));
-                                if (propValue == null) {
-                                    phantomPairs.add(new Pair<>(propId, new Pair<>(keyEntry, valueEntry)));
-                                } else {
-                                    final ComparableBinding objectBinding = propValue.getBinding();
-                                    final Comparable value;
-                                    try {
-                                        value = objectBinding.entryToObject(keyEntry);
-                                    } catch (Throwable t) {
-                                        throwJVMError(t);
-                                        phantomPairs.add(new Pair<>(propId, new Pair<>(keyEntry, valueEntry)));
-                                        continue;
+                            if (!missingPairs.isEmpty()) {
+                                store.executeInTransaction(new StoreTransactionalExecutable() {
+                                    @Override
+                                    public void execute(@NotNull final StoreTransaction tx) {
+                                        final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
+                                        for (final Pair<Integer, Pair<ByteIterable, ByteIterable>> pair : missingPairs) {
+                                            final Store valueIndex = propTable.getValueIndex(txn, pair.getFirst(), true);
+                                            final Pair<ByteIterable, ByteIterable> missing = pair.getSecond();
+                                            if (valueIndex == null) {
+                                                throw new NullPointerException("Can't be");
+                                            }
+                                            valueIndex.put(txn.getEnvironmentTransaction(), missing.getFirst(), missing.getSecond());
+                                        }
                                     }
-                                    final Comparable data = propValue.getData();
-                                    //noinspection unchecked
-                                    if (!data.getClass().equals(value.getClass()) || PropertyTypes.toLowerCase(data).compareTo(value) != 0) {
+                                });
+                                if (logger.isInfoEnabled()) {
+                                    logger.info(missingPairs.size() + " missing secondary keys found and fixed for [" + entityType + ']');
+                                }
+                            }
+                            final List<Pair<Integer, Pair<ByteIterable, ByteIterable>>> phantomPairs = new ArrayList<>();
+                            for (final Map.Entry<Integer, Store> entry : propTable.getValueIndices()) {
+                                final int propId = entry.getKey();
+                                final LongHashMap<PropertyValue> entitiesToValues = props.get(propId);
+                                final Cursor c = entry.getValue().openCursor(envTxn);
+                                while (c.getNext()) {
+                                    final ByteIterable keyEntry = c.getKey();
+                                    final ByteIterable valueEntry = c.getValue();
+                                    final PropertyValue propValue = entitiesToValues.get(LongBinding.compressedEntryToLong(valueEntry));
+                                    if (propValue == null) {
                                         phantomPairs.add(new Pair<>(propId, new Pair<>(keyEntry, valueEntry)));
+                                    } else {
+                                        final ComparableBinding objectBinding = propValue.getBinding();
+                                        final Comparable value;
+                                        try {
+                                            value = objectBinding.entryToObject(keyEntry);
+                                        } catch (Throwable t) {
+                                            throwJVMError(t);
+                                            phantomPairs.add(new Pair<>(propId, new Pair<>(keyEntry, valueEntry)));
+                                            continue;
+                                        }
+                                        final Comparable data = propValue.getData();
+                                        //noinspection unchecked
+                                        if (!data.getClass().equals(value.getClass()) || PropertyTypes.toLowerCase(data).compareTo(value) != 0) {
+                                            phantomPairs.add(new Pair<>(propId, new Pair<>(keyEntry, valueEntry)));
+                                        }
+                                    }
+                                }
+                                c.close();
+                            }
+                            if (!phantomPairs.isEmpty()) {
+                                store.executeInTransaction(new StoreTransactionalExecutable() {
+                                    @Override
+                                    public void execute(@NotNull final StoreTransaction tx) {
+                                        final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
+                                        final Transaction envTxn = txn.getEnvironmentTransaction();
+                                        for (final Pair<Integer, Pair<ByteIterable, ByteIterable>> pair : phantomPairs) {
+                                            final Store valueIndex = propTable.getValueIndex(txn, pair.getFirst(), true);
+                                            final Pair<ByteIterable, ByteIterable> phantom = pair.getSecond();
+                                            if (valueIndex == null) {
+                                                throw new NullPointerException("Can't be");
+                                            }
+                                            deletePair(valueIndex.openCursor(envTxn), phantom.getFirst(), phantom.getSecond());
+                                        }
+                                    }
+                                });
+                                if (logger.isInfoEnabled()) {
+                                    logger.info(phantomPairs.size() + " phantom secondary keys found and fixed for [" + entityType + ']');
+                                }
+                            }
+                            final List<Pair<Integer, Long>> phantomIds = new ArrayList<>();
+                            final Cursor c = propTable.getAllPropsIndex().openCursor(envTxn);
+                            while (c.getNext()) {
+                                final int propId = IntegerBinding.compressedEntryToInt(c.getKey());
+                                final long localId = LongBinding.compressedEntryToLong(c.getValue());
+                                final Set<Long> localIds = allPropsMap.get(propId);
+                                if (localIds == null || !localIds.remove(localId)) {
+                                    phantomIds.add(new Pair<>(propId, localId));
+                                } else {
+                                    if (localIds.isEmpty()) {
+                                        allPropsMap.remove(propId);
                                     }
                                 }
                             }
                             c.close();
-                        }
-                        if (!phantomPairs.isEmpty()) {
-                            store.executeInTransaction(new StoreTransactionalExecutable() {
-                                @Override
-                                public void execute(@NotNull final StoreTransaction tx) {
-                                    final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
-                                    final Transaction envTxn = txn.getEnvironmentTransaction();
-                                    for (final Pair<Integer, Pair<ByteIterable, ByteIterable>> pair : phantomPairs) {
-                                        final Store valueIndex = propTable.getValueIndex(txn, pair.getFirst(), true);
-                                        final Pair<ByteIterable, ByteIterable> phantom = pair.getSecond();
-                                        if (valueIndex == null) {
-                                            throw new NullPointerException("Can't be");
+                            if (!allPropsMap.isEmpty()) {
+                                final int[] added = {0};
+                                store.executeInTransaction(new StoreTransactionalExecutable() {
+                                    @Override
+                                    public void execute(@NotNull final StoreTransaction txn) {
+                                        int count = 0;
+                                        final Store allPropsIndex = propTable.getAllPropsIndex();
+                                        final Transaction envTxn = ((PersistentStoreTransaction) txn).getEnvironmentTransaction();
+                                        for (Map.Entry<Integer, Set<Long>> entry : allPropsMap.entrySet()) {
+                                            final ArrayByteIterable keyEntry = IntegerBinding.intToCompressedEntry(entry.getKey());
+                                            for (long localId : entry.getValue()) {
+                                                allPropsIndex.put(envTxn, keyEntry, LongBinding.longToCompressedEntry(localId));
+                                                ++count;
+                                            }
                                         }
-                                        deletePair(valueIndex.openCursor(envTxn), phantom.getFirst(), phantom.getSecond());
+                                        added[0] = count;
                                     }
-                                }
-                            });
-                            if (logger.isInfoEnabled()) {
-                                logger.info(phantomPairs.size() + " phantom secondary keys found and fixed for [" + entityType + ']');
-                            }
-                        }
-                        final List<Pair<Integer, Long>> phantomIds = new ArrayList<>();
-                        final Cursor c = propTable.getAllPropsIndex().openCursor(envTxn);
-                        while (c.getNext()) {
-                            final int propId = IntegerBinding.compressedEntryToInt(c.getKey());
-                            final long localId = LongBinding.compressedEntryToLong(c.getValue());
-                            final Set<Long> localIds = allPropsMap.get(propId);
-                            if (localIds == null || !localIds.remove(localId)) {
-                                phantomIds.add(new Pair<>(propId, localId));
-                            } else {
-                                if (localIds.isEmpty()) {
-                                    allPropsMap.remove(propId);
+                                });
+                                if (logger.isInfoEnabled()) {
+                                    logger.info(added[0] + " missing id pairs found and fixed for [" + entityType + ']');
                                 }
                             }
-                        }
-                        c.close();
-                        if (!allPropsMap.isEmpty()) {
-                            final int[] added = {0};
-                            store.executeInTransaction(new StoreTransactionalExecutable() {
-                                @Override
-                                public void execute(@NotNull final StoreTransaction txn) {
-                                    int count = 0;
-                                    final Store allPropsIndex = propTable.getAllPropsIndex();
-                                    final Transaction envTxn = ((PersistentStoreTransaction) txn).getEnvironmentTransaction();
-                                    for (Map.Entry<Integer, Set<Long>> entry : allPropsMap.entrySet()) {
-                                        final ArrayByteIterable keyEntry = IntegerBinding.intToCompressedEntry(entry.getKey());
-                                        for (long localId : entry.getValue()) {
-                                            allPropsIndex.put(envTxn, keyEntry, LongBinding.longToCompressedEntry(localId));
-                                            ++count;
+                            if (!phantomIds.isEmpty()) {
+                                store.executeInTransaction(new StoreTransactionalExecutable() {
+                                    @Override
+                                    public void execute(@NotNull final StoreTransaction txn) {
+                                        final Store allPropsIndex = propTable.getAllPropsIndex();
+                                        final Transaction envTxn = ((PersistentStoreTransaction) txn).getEnvironmentTransaction();
+                                        final Cursor c = allPropsIndex.openCursor(envTxn);
+                                        for (final Pair<Integer, Long> phantom : phantomIds) {
+                                            if (!c.getSearchBoth(IntegerBinding.intToCompressedEntry(phantom.getFirst()), LongBinding.longToCompressedEntry(phantom.getSecond()))) {
+                                                throw new EntityStoreException("Can't be");
+                                            }
+                                            c.deleteCurrent();
                                         }
+                                        c.close();
                                     }
-                                    added[0] = count;
+                                });
+                                if (logger.isInfoEnabled()) {
+                                    logger.info(phantomIds.size() + " phantom id pairs found and fixed for [" + entityType + ']');
                                 }
-                            });
-                            if (logger.isInfoEnabled()) {
-                                logger.info(added[0] + " missing id pairs found and fixed for [" + entityType + ']');
                             }
                         }
-                        if (!phantomIds.isEmpty()) {
-                            store.executeInTransaction(new StoreTransactionalExecutable() {
-                                @Override
-                                public void execute(@NotNull final StoreTransaction txn) {
-                                    final Store allPropsIndex = propTable.getAllPropsIndex();
-                                    final Transaction envTxn = ((PersistentStoreTransaction) txn).getEnvironmentTransaction();
-                                    final Cursor c = allPropsIndex.openCursor(envTxn);
-                                    for (final Pair<Integer, Long> phantom : phantomIds) {
-                                        if (!c.getSearchBoth(IntegerBinding.intToCompressedEntry(phantom.getFirst()), LongBinding.longToCompressedEntry(phantom.getSecond()))) {
-                                            throw new EntityStoreException("Can't be");
-                                        }
-                                        c.deleteCurrent();
-                                    }
-                                    c.close();
-                                }
-                            });
-                            if (logger.isInfoEnabled()) {
-                                logger.info(phantomIds.size() + " phantom id pairs found and fixed for [" + entityType + ']');
-                            }
-                        }
-                    } catch (Throwable t) {
-                        logger.error("Failed to execute refactoring for entity type: " + entityType, t);
-                        throwJVMError(t);
-                    }
+                    });
                 }
             }
         });
@@ -463,60 +463,61 @@ final class PersistentEntityStoreRefactorings {
                     throw ExodusException.toEntityStoreException(e);
                 }
                 for (final String entityType : store.getEntityTypes(txn)) {
-                    try {
-                        final List<Pair<PropertyKey, Long>> blobHandles = new ArrayList<>();
-                        final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
-                        final BlobsTable blobs = store.getBlobsTable(txn, entityTypeId);
-                        final Transaction envTxn = txn.getEnvironmentTransaction();
-                        try (Cursor cursor = blobs.getPrimaryIndex().openCursor(envTxn)) {
-                            while (cursor.getNext()) {
-                                final long blobHandle = LongBinding.compressedEntryToLong(cursor.getValue());
-                                if (!PersistentEntityStoreImpl.isEmptyOrInPlaceBlobHandle(blobHandle)) {
-                                    final PropertyKey key = PropertyKey.entryToPropertyKey(cursor.getKey());
-                                    blobHandles.add(new Pair<>(key, blobHandle));
+                    runReadonlyTransactionSafeForEntityType(entityType, new Runnable() {
+                        @Override
+                        public void run() {
+                            final List<Pair<PropertyKey, Long>> blobHandles = new ArrayList<>();
+                            final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
+                            final BlobsTable blobs = store.getBlobsTable(txn, entityTypeId);
+                            final Transaction envTxn = txn.getEnvironmentTransaction();
+                            try (Cursor cursor = blobs.getPrimaryIndex().openCursor(envTxn)) {
+                                while (cursor.getNext()) {
+                                    final long blobHandle = LongBinding.compressedEntryToLong(cursor.getValue());
+                                    if (!PersistentEntityStoreImpl.isEmptyOrInPlaceBlobHandle(blobHandle)) {
+                                        final PropertyKey key = PropertyKey.entryToPropertyKey(cursor.getKey());
+                                        blobHandles.add(new Pair<>(key, blobHandle));
+                                    }
                                 }
                             }
-                        }
-                        if (!blobHandles.isEmpty()) {
-                            safeExecuteRefactoringForEntityType(entityType,
-                                    new StoreTransactionalExecutable() {
-                                        @Override
-                                        public void execute(@NotNull final StoreTransaction tx) {
-                                            final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
-                                            final int blobsCount = blobHandles.size();
-                                            int i = 0;
-                                            for (final Pair<PropertyKey, Long> entry : blobHandles) {
-                                                if ((i++ % 1000) == 0) {
-                                                    if (logger.isInfoEnabled()) {
-                                                        logger.info("Refactoring moving tiny blobs into database for [" + entityType +
-                                                                "]. Blobs processed: " + i + " of " + blobsCount);
+                            if (!blobHandles.isEmpty()) {
+                                safeExecuteRefactoringForEntityType(entityType,
+                                        new StoreTransactionalExecutable() {
+                                            @Override
+                                            public void execute(@NotNull final StoreTransaction tx) {
+                                                final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
+                                                final int blobsCount = blobHandles.size();
+                                                int i = 0;
+                                                for (final Pair<PropertyKey, Long> entry : blobHandles) {
+                                                    if ((i++ % 1000) == 0) {
+                                                        if (logger.isInfoEnabled()) {
+                                                            logger.info("Refactoring moving tiny blobs into database for [" + entityType +
+                                                                    "]. Blobs processed: " + i + " of " + blobsCount);
+                                                        }
                                                     }
-                                                }
-                                                final PropertyKey key = entry.getFirst();
-                                                final PersistentEntity entity = new PersistentEntity(
-                                                        store, new PersistentEntityId(entityTypeId, key.getEntityLocalId()));
-                                                final String blobName = store.getPropertyName(txn, key.getPropertyId());
-                                                if (blobName == null) {
-                                                    throw new NullPointerException("Blob name is expected");
-                                                }
-                                                try {
-                                                    final long blobHandle = entry.getSecond();
-                                                    txn.preserveBlob(blobHandle);
-                                                    store.setBlob(txn, entity, blobName, oldVault.getBlobLocation(blobHandle));
-                                                } catch (IOException e) {
-                                                    logger.error("Failed to set blob", e);
+                                                    final PropertyKey key = entry.getFirst();
+                                                    final PersistentEntity entity = new PersistentEntity(
+                                                            store, new PersistentEntityId(entityTypeId, key.getEntityLocalId()));
+                                                    final String blobName = store.getPropertyName(txn, key.getPropertyId());
+                                                    if (blobName == null) {
+                                                        throw new NullPointerException("Blob name is expected");
+                                                    }
+                                                    try {
+                                                        final long blobHandle = entry.getSecond();
+                                                        txn.preserveBlob(blobHandle);
+                                                        store.setBlob(txn, entity, blobName, oldVault.getBlobLocation(blobHandle));
+                                                    } catch (IOException e) {
+                                                        logger.error("Failed to set blob", e);
+                                                    }
                                                 }
                                             }
                                         }
-                                    }
-                            );
-                            if (logger.isInfoEnabled()) {
-                                logger.info("Refactoring moving tiny blobs into database for [" + entityType + "] completed.");
+                                );
+                                if (logger.isInfoEnabled()) {
+                                    logger.info("Refactoring moving tiny blobs into database for [" + entityType + "] completed.");
+                                }
                             }
                         }
-                    } catch (ReadonlyTransactionException ignore) {
-                        // that fixes XD-377
-                    }
+                    });
                 }
                 oldVault.close();
                 newVault.close();
@@ -573,6 +574,18 @@ final class PersistentEntityStoreRefactorings {
                 env.removeStore(sourceName, txn);
             }
         });
+    }
+
+    private static void runReadonlyTransactionSafeForEntityType(@NotNull final String entityType,
+                                                                @NotNull final Runnable runnable) {
+        try {
+            runnable.run();
+        } catch (ReadonlyTransactionException ignore) {
+            // that fixes XD-377, XD-492 and similar not reported issues
+        } catch (Throwable t) {
+            logger.error("Failed to execute refactoring for entity type: " + entityType, t);
+            throwJVMError(t);
+        }
     }
 
     private static void deletePair(@NotNull final Cursor c, @NotNull final ByteIterable key, @NotNull final ByteIterable value) {
