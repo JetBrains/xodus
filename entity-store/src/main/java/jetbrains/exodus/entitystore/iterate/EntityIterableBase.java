@@ -471,7 +471,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         }
         if (cached == null) {
             cached = createCachedInstance(txn);
-            if (!config.isReorderingDisabled() && canBeReordered()) {
+            if (!config.isReorderingDisabled() && !cached.isSortedById() && canBeReordered()) {
                 cached.orderById();
             }
             if (canBeCached) {
