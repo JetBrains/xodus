@@ -102,7 +102,9 @@ public abstract class TransactionBase implements Transaction {
         ITree result = immutableTrees.get(structureId);
         if (result == null) {
             result = store.openImmutableTree(getMetaTree());
-            immutableTrees.put(structureId, result);
+            synchronized (immutableTrees) {
+                immutableTrees.put(structureId, result);
+            }
         }
         return result;
     }
@@ -159,7 +161,9 @@ public abstract class TransactionBase implements Transaction {
 
     void storeRemoved(@NotNull final StoreImpl store) {
         checkIsFinished();
-        immutableTrees.remove(store.getStructureId());
+        synchronized (immutableTrees) {
+            immutableTrees.remove(store.getStructureId());
+        }
     }
 
     @NotNull
@@ -180,7 +184,9 @@ public abstract class TransactionBase implements Transaction {
     abstract Runnable getBeginHook();
 
     protected void clearImmutableTrees() {
-        immutableTrees.clear();
+        synchronized (immutableTrees) {
+            immutableTrees.clear();
+        }
     }
 
     protected void setExclusive(final boolean isExclusive) {
