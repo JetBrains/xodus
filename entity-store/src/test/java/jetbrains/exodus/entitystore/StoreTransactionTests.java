@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.TestFor;
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.env.ReadonlyTransactionException;
 import jetbrains.exodus.util.UTFUtil;
@@ -167,5 +168,47 @@ public class StoreTransactionTests extends EntityStoreTestBase {
                 return issue.getProperty("summary");
             }
         }));
+    }
+
+    @TestFor(issues = "XD-495")
+    public void testNewEntityInReadonlyTransaction() {
+        setReadonly();
+        TestUtil.runWithExpectedException(new Runnable() {
+            @Override
+            public void run() {
+                getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
+                    @Override
+                    public void execute(@NotNull StoreTransaction txn) {
+                        txn.newEntity("Issue");
+                    }
+                });
+            }
+        }, ReadonlyTransactionException.class);
+    }
+
+    @TestFor(issues = "XD-495")
+    public void testNewEntityInReadonlyTransaction2() {
+        getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                txn.newEntity("Issue");
+            }
+        });
+        setReadonly();
+        TestUtil.runWithExpectedException(new Runnable() {
+            @Override
+            public void run() {
+                getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
+                    @Override
+                    public void execute(@NotNull StoreTransaction txn) {
+                        txn.newEntity("Issue");
+                    }
+                });
+            }
+        }, ReadonlyTransactionException.class);
+    }
+
+    private void setReadonly() {
+        getEntityStore().getEnvironment().getEnvironmentConfig().setEnvIsReadonly(true);
     }
 }
