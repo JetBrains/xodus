@@ -60,7 +60,7 @@ public class EnvironmentStatistics extends Statistics {
     public StatisticsItem getStatisticsItem(@NotNull final String statisticsName) {
         // if don't gather statistics just return the new item and don't register it as periodic task in SharedTimer
         if (!env.getEnvironmentConfig().getEnvGatherStatistics()) {
-            return new StatisticsItem(this, statisticsName);
+            return new StatisticsItem(this);
         }
         return super.getStatisticsItem(statisticsName);
     }
@@ -69,18 +69,18 @@ public class EnvironmentStatistics extends Statistics {
     @Override
     protected StatisticsItem createNewItem(@NotNull final String statisticsName) {
         if (ACTIVE_TRANSACTIONS.equals(statisticsName)) {
-            return new ActiveTransactionsStatisticsItem(this, statisticsName);
+            return new ActiveTransactionsStatisticsItem(this);
         }
         if (DISK_USAGE.equals(statisticsName)) {
-            return new DiskUsageStatisticsItem(this, statisticsName);
+            return new DiskUsageStatisticsItem(this);
         }
         return super.createNewItem(statisticsName);
     }
 
     private static class ActiveTransactionsStatisticsItem extends StatisticsItem {
 
-        public ActiveTransactionsStatisticsItem(@NotNull final EnvironmentStatistics statistics, @NotNull final String name) {
-            super(statistics, name);
+        public ActiveTransactionsStatisticsItem(@NotNull final EnvironmentStatistics statistics) {
+            super(statistics);
         }
 
         @Nullable
@@ -95,8 +95,8 @@ public class EnvironmentStatistics extends Statistics {
 
         private long lastAutoUpdateTime;
 
-        public DiskUsageStatisticsItem(@NotNull final EnvironmentStatistics statistics, @NotNull final String name) {
-            super(statistics, name);
+        public DiskUsageStatisticsItem(@NotNull final EnvironmentStatistics statistics) {
+            super(statistics);
             lastAutoUpdateTime = 0;
         }
 

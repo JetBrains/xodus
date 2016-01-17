@@ -39,7 +39,7 @@ public class PersistentEntityStoreStatistics extends Statistics {
     public StatisticsItem getStatisticsItem(@NotNull final String statisticsName) {
         // if don't gather statistics just return the new item and don't register it as periodic task in SharedTimer
         if (!store.getConfig().getGatherStatistics()) {
-            return new StatisticsItem(this, statisticsName);
+            return new StatisticsItem(this);
         }
         return super.getStatisticsItem(statisticsName);
     }
@@ -48,18 +48,18 @@ public class PersistentEntityStoreStatistics extends Statistics {
     @Override
     protected StatisticsItem createNewItem(@NotNull final String statisticsName) {
         if (BLOBS_DISK_USAGE.equals(statisticsName)) {
-            return new BlobsDiskUsageStatisticsItem(this, statisticsName);
+            return new BlobsDiskUsageStatisticsItem(this);
         }
         if (CACHING_JOBS.equals(statisticsName)) {
-            return new CachingJobsStatisticsItem(this, statisticsName);
+            return new CachingJobsStatisticsItem(this);
         }
         return super.createNewItem(statisticsName);
     }
 
     private static class BlobsDiskUsageStatisticsItem extends StatisticsItem {
 
-        public BlobsDiskUsageStatisticsItem(@NotNull final PersistentEntityStoreStatistics statistics, @NotNull final String name) {
-            super(statistics, name);
+        public BlobsDiskUsageStatisticsItem(@NotNull final PersistentEntityStoreStatistics statistics) {
+            super(statistics);
         }
 
         @Nullable
@@ -72,8 +72,8 @@ public class PersistentEntityStoreStatistics extends Statistics {
 
     private static class CachingJobsStatisticsItem extends StatisticsItem {
 
-        public CachingJobsStatisticsItem(@NotNull final PersistentEntityStoreStatistics statistics, @NotNull final String name) {
-            super(statistics, name);
+        public CachingJobsStatisticsItem(@NotNull final PersistentEntityStoreStatistics statistics) {
+            super(statistics);
         }
 
         @Nullable

@@ -41,26 +41,23 @@ public class Statistics {
         }
         if (result == null) {
             result = createNewItem(statisticsName);
-            SharedTimer.registerPeriodicTask(result);
+            boolean wasPut = false;
             synchronized (items) {
                 // TODO: replace with putIfAbsent() after moving on java 1.8
                 if (!items.containsKey(statisticsName)) {
                     items.put(statisticsName, result);
+                    wasPut = true;
                 }
+            }
+            if (wasPut) {
+                SharedTimer.registerPeriodicTask(result);
             }
         }
         return result;
     }
 
-    public void registerStatisticsItem(@NotNull final StatisticsItem item) {
-        SharedTimer.registerPeriodicTask(item);
-        synchronized (items) {
-            items.put(item.getName(), item);
-        }
-    }
-
     @NotNull
     protected StatisticsItem createNewItem(@NotNull final String statisticsName) {
-        return new StatisticsItem(this, statisticsName);
+        return new StatisticsItem(this);
     }
 }

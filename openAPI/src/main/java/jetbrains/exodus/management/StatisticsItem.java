@@ -27,26 +27,18 @@ import java.lang.ref.WeakReference;
 public class StatisticsItem implements SharedTimer.ExpirablePeriodicTask {
 
     @NotNull
-    private final String name;
-    @NotNull
     private final WeakReference<Statistics> statisticsRef;
     private long total;
     private double mean; // total per second
     private long lastAdjustTime;
     private long lastAdjustedTotal;
 
-    public StatisticsItem(@NotNull final Statistics statistics, @NotNull final String name) {
-        this.name = name;
+    public StatisticsItem(@NotNull final Statistics statistics) {
         statisticsRef = new WeakReference<>(statistics);
         total = 0;
         mean = .0;
         lastAdjustTime = System.currentTimeMillis();
         lastAdjustedTotal = 0;
-    }
-
-    @NotNull
-    public String getName() {
-        return name;
     }
 
     public long getTotal() {
@@ -79,17 +71,6 @@ public class StatisticsItem implements SharedTimer.ExpirablePeriodicTask {
             setTotal(autoUpdatedTotal);
         }
         adjustMean();
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        return this == o || !(o == null || getClass() != o.getClass()) && name.equals(((StatisticsItem) o).name);
-
-    }
-
-    @Override
-    public int hashCode() {
-        return name.hashCode();
     }
 
     public void addTotal(final long addend) {
