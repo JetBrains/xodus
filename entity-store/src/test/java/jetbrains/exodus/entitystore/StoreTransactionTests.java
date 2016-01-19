@@ -208,6 +208,28 @@ public class StoreTransactionTests extends EntityStoreTestBase {
         }, ReadonlyTransactionException.class);
     }
 
+    @TestFor(issues = "XD-495")
+    public void testNewEntityInReadonlyTransaction3() {
+        getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                txn.newEntity("Issue");
+            }
+        });
+        setReadonly();
+        getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final StoreTransaction txn) {
+                TestUtil.runWithExpectedException(new Runnable() {
+                    @Override
+                    public void run() {
+                        txn.newEntity("Issue");
+                    }
+                }, ReadonlyTransactionException.class);
+            }
+        });
+    }
+
     private void setReadonly() {
         getEntityStore().getEnvironment().getEnvironmentConfig().setEnvIsReadonly(true);
     }
