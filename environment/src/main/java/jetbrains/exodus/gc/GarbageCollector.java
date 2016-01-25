@@ -186,11 +186,11 @@ public final class GarbageCollector {
                         high, LogUtil.getLogFilename(highFile), high - highFile, LogUtil.getLogFilename(fileAddress)
                 ));
             }
-            final long nextFileAddress = log.getNextFileAddress(fileAddress);
+            final long nextFileAddress = fileAddress + log.getFileLengthBound();
             final Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(fileAddress);
             while (loggables.hasNext()) {
                 final RandomAccessLoggable loggable = loggables.next();
-                if (nextFileAddress != Loggable.NULL_ADDRESS && loggable.getAddress() >= nextFileAddress) {
+                if (loggable.getAddress() >= nextFileAddress) {
                     break;
                 }
                 final int structureId = loggable.getStructureId();
