@@ -62,4 +62,9 @@ public interface Transaction {
      * @return true if the transaction was started as exclusive one.
      */
     boolean isExclusive();
+
+    /**
+     * @return true if the transaction is already finished, committed or aborted.
+     */
+    boolean isFinished();
 }

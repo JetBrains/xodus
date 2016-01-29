@@ -247,7 +247,7 @@ public class EnvironmentImpl implements Environment {
         try {
             executable.execute(txn);
         } finally {
-            txn.abort();
+            abortIfNotFinished(txn);
         }
     }
 
@@ -267,7 +267,7 @@ public class EnvironmentImpl implements Environment {
         try {
             return computable.compute(txn);
         } finally {
-            txn.abort();
+            abortIfNotFinished(txn);
         }
     }
 
@@ -860,7 +860,6 @@ public class EnvironmentImpl implements Environment {
                     for (final Map.Entry<Object, Object> entry : envProps.entrySet()) {
                         ec.setSetting(entry.getKey().toString(), entry.getValue());
                     }
-
                 }
             } catch (IOException e) {
                 throw ExodusException.toExodusException(e);
@@ -873,14 +872,15 @@ public class EnvironmentImpl implements Environment {
         try {
             while (true) {
                 executable.execute(txn);
-                // txn can be read-only if Environment is in read-only mode
-                if (txn.isReadonly() || txn.flush()) {
+                if (txn.isReadonly() || // txn can be read-only if Environment is in read-only mode
+                        txn.isFinished() || // txn can be finished if, e.g., it was aborted within executable
+                        txn.flush()) {
                     break;
                 }
                 txn.revert();
             }
         } finally {
-            txn.abort();
+            abortIfNotFinished(txn);
         }
     }
 
@@ -889,13 +889,20 @@ public class EnvironmentImpl implements Environment {
         try {
             while (true) {
                 final T result = computable.compute(txn);
-                // txn can be read-only if Environment is in read-only mode
-                if (txn.isReadonly() || txn.flush()) {
+                if (txn.isReadonly() || // txn can be read-only if Environment is in read-only mode
+                        txn.isFinished() || // txn can be finished if, e.g., it was aborted within computable
+                        txn.flush()) {
                     return result;
                 }
                 txn.revert();
             }
         } finally {
+            abortIfNotFinished(txn);
+        }
+    }
+
+    private static void abortIfNotFinished(@NotNull final Transaction txn) {
+        if (!txn.isFinished()) {
             txn.abort();
         }
     }

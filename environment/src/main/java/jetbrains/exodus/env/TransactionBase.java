@@ -95,6 +95,11 @@ public abstract class TransactionBase implements Transaction {
         return isExclusive;
     }
 
+    @Override
+    public boolean isFinished() {
+        return isFinished;
+    }
+
     @NotNull
     public ITree getTree(@NotNull final StoreImpl store) {
         checkIsFinished();
