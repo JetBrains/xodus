@@ -179,27 +179,29 @@ final class PersistentEntityStoreRefactorings {
                             final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
                             final TwoColumnTable linksTable = store.getLinksTable(txn, entityTypeId);
                             final Transaction envTxn = txn.getEnvironmentTransaction();
-                            final Cursor cursor = linksTable.getFirstIndexCursor(envTxn);
                             final Store entitiesTable = store.getEntitiesTable(txn, entityTypeId);
-                            while (cursor.getNext()) {
-                                final long localId = LongBinding.compressedEntryToLong(cursor.getKey());
-                                if (entitiesTable.get(envTxn, LongBinding.longToCompressedEntry(localId)) == null) {
-                                    do {
-                                        deleteLinks.add(new Pair<>(cursor.getKey(), cursor.getValue()));
-                                    } while (cursor.getNextDup());
-                                    continue;
-                                }
-                                final LinkValue linkValue = LinkValue.entryToLinkValue(cursor.getValue());
-                                // if target doesn't exist
-                                if (store.getLastVersion(txn, linkValue.getEntityId()) < 0) {
-                                    deleteLinks.add(new Pair<>(cursor.getKey(), cursor.getValue()));
-                                    continue;
-                                }
-                                if (linksTable.get2(envTxn, cursor.getValue()) == null) {
-                                    badLinks.add(new Pair<>(cursor.getKey(), cursor.getValue()));
+                            try (Cursor cursor = linksTable.getFirstIndexCursor(envTxn)) {
+                                while (cursor.getNext()) {
+                                    final ByteIterable first = cursor.getKey();
+                                    final ByteIterable second = cursor.getValue();
+                                    final long localId = LongBinding.compressedEntryToLong(first);
+                                    if (entitiesTable.get(envTxn, LongBinding.longToCompressedEntry(localId)) == null) {
+                                        do {
+                                            deleteLinks.add(new Pair<>(first, second));
+                                        } while (cursor.getNextDup());
+                                        continue;
+                                    }
+                                    final LinkValue linkValue = LinkValue.entryToLinkValue(second);
+                                    // if target doesn't exist
+                                    if (store.getLastVersion(txn, linkValue.getEntityId()) < 0) {
+                                        deleteLinks.add(new Pair<>(first, second));
+                                        continue;
+                                    }
+                                    if (!linksTable.contains2(envTxn, first, second)) {
+                                        badLinks.add(new Pair<>(first, second));
+                                    }
                                 }
                             }
-                            cursor.close();
                             if (!badLinks.isEmpty()) {
                                 store.getEnvironment().executeInTransaction(new TransactionalExecutable() {
                                     @Override
@@ -212,15 +214,17 @@ final class PersistentEntityStoreRefactorings {
                                 if (logger.isInfoEnabled()) {
                                     logger.info(badLinks.size() + " missing links found and fixed for [" + entityType + ']');
                                 }
+                                badLinks.clear();
                             }
-                            badLinks.clear();
-                            final Cursor cursor2 = linksTable.getSecondIndexCursor(envTxn);
-                            while (cursor2.getNext()) {
-                                if (linksTable.get(envTxn, cursor2.getValue()) == null) {
-                                    badLinks.add(new Pair<>(cursor2.getKey(), cursor2.getValue()));
+                            try (Cursor cursor = linksTable.getSecondIndexCursor(envTxn)) {
+                                while ((cursor.getNext())) {
+                                    final ByteIterable second = cursor.getKey();
+                                    final ByteIterable first = cursor.getValue();
+                                    if (!linksTable.contains(envTxn, first, second)) {
+                                        badLinks.add(new Pair<>(first, second));
+                                    }
                                 }
                             }
-                            cursor2.close();
                             final int badLinksSize = badLinks.size();
                             final int deleteLinksSize = deleteLinks.size();
                             if (badLinksSize > 0 || deleteLinksSize > 0) {

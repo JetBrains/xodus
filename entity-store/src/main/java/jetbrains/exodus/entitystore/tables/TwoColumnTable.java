@@ -67,35 +67,47 @@ public final class TwoColumnTable extends Table {
         return this.second.get(txn, second);
     }
 
+    public boolean contains(@NotNull final Transaction txn,
+                            @NotNull final ByteIterable first,
+                            @NotNull final ByteIterable second) {
+        try (Cursor cursor = getFirstIndexCursor(txn)) {
+            return cursor.getSearchBoth(first, second);
+        }
+    }
+
+    public boolean contains2(@NotNull final Transaction txn,
+                             @NotNull final ByteIterable first,
+                             @NotNull final ByteIterable second) {
+        try (Cursor cursor = getSecondIndexCursor(txn)) {
+            return cursor.getSearchBoth(second, first);
+        }
+    }
+
     public boolean put(@NotNull final Transaction txn,
-                       @NotNull final ByteIterable first, @NotNull final ByteIterable second) {
+                       @NotNull final ByteIterable first,
+                       @NotNull final ByteIterable second) {
         final boolean result = this.first.put(txn, first, second);
         this.second.put(txn, second, first);
         return result;
     }
 
     public boolean delete(@NotNull final Transaction txn,
-                          @NotNull final ByteIterable first, @NotNull final ByteIterable second) {
-        Cursor cursor = this.first.openCursor(txn);
+                          @NotNull final ByteIterable first,
+                          @NotNull final ByteIterable second) {
         boolean success;
-        try {
+        try (Cursor cursor = getFirstIndexCursor(txn)) {
             success = cursor.getSearchBoth(first, second);
             if (!success) {
                 return false;
             }
             success = cursor.deleteCurrent();
             checkStatus(success, "Failed to delete");
-        } finally {
-            cursor.close();
         }
-        cursor = this.second.openCursor(txn);
-        try {
+        try (Cursor cursor = getSecondIndexCursor(txn)) {
             success = cursor.getSearchBoth(second, first);
             checkStatus(success, "Failed to delete: data mismatch in TwoColumnTable's stores");
             success = cursor.deleteCurrent();
             checkStatus(success, "Failed to delete");
-        } finally {
-            cursor.close();
         }
         return true;
     }
