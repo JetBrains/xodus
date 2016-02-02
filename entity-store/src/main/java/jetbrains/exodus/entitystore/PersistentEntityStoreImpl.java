@@ -339,11 +339,11 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
                 Settings.set(internalSettings, "Blobs' null-indices present", "yes");
             }
-            if (fromScratch || Settings.get(internalSettings, "Links consistency fixed") == null || config.getRefactoringHeavyLinks()) {
+            if (fromScratch || Settings.get(internalSettings, "refactorMakeLinkTablesConsistent() applied") == null || config.getRefactoringHeavyLinks()) {
                 if (!fromScratch) {
                     refactorings.refactorMakeLinkTablesConsistent();
                 }
-                Settings.set(internalSettings, "Links consistency fixed", "yes");
+                Settings.set(internalSettings, "refactorMakeLinkTablesConsistent() applied", "y");
             }
             if (fromScratch || Settings.get(internalSettings, "Props consistency fixed") == null || config.getRefactoringHeavyProps()) {
                 if (!fromScratch) {
