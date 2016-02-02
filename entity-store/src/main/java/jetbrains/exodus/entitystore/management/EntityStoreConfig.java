@@ -119,6 +119,16 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
+    public boolean isDebugSearchForIncomingLinksOnDelete() {
+        return config.isDebugSearchForIncomingLinksOnDelete();
+    }
+
+    @Override
+    public void setDebugSearchForIncomingLinksOnDelete(boolean debug) {
+        config.setDebugSearchForIncomingLinksOnDelete(debug);
+    }
+
+    @Override
     public int getEntityIterableCacheSize() {
         return config.getEntityIterableCacheSize();
     }

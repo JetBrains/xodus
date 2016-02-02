@@ -1567,6 +1567,19 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final long entityLocalId = id.getLocalId();
         final ByteIterable key = LongBinding.longToCompressedEntry(entityLocalId);
         if (entity.isUpToDate()) { // up-to-date entity
+            if (config.isDebugSearchForIncomingLinksOnDelete()) {
+                // search for incoming links
+                final List<String> allLinkNames = getAllLinkNames(txn);
+                for (final String entityType : txn.getEntityTypes()) {
+                    for (final String linkName : allLinkNames) {
+                        //noinspection LoopStatementThatDoesntLoop
+                        for (final Entity referrer : txn.findLinks(entityType, entity, linkName)) {
+                            throw new EntityStoreException(entity +
+                                    " is about to be deleted, but it is referenced by " + referrer + ", link name: " + linkName);
+                        }
+                    }
+                }
+            }
             if (getEntitiesTable(txn, entityTypeId).delete(envTxn, key)) {
                 txn.entityDeleted(id);
                 return true;

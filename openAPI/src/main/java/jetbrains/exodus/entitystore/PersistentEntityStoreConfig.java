@@ -49,7 +49,9 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public static final String UNIQUE_INDICES_USE_BTREE = "exodus.entityStore.uniqueIndices.useBtree";
 
-    public static final String DEBUG_LINK_DATA_GETTER = "exodus.entityStore.debugLinkDataGetter";
+    public static final String DEBUG_LINK_DATA_GETTER = "exodus.entityStore.debug.linkDataGetter";
+
+    public static final String DEBUG_SEARCH_FOR_INCOMING_LINKS_ON_DELETE = "exodus.entityStore.debug.searchForIncomingLinksOnDelete";
 
     public static final String ENTITY_ITERABLE_CACHE_SIZE = "exodus.entityStore.entityIterableCache.size";
 
@@ -95,6 +97,7 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(EXPLAIN_ON, false),
                 new Pair(UNIQUE_INDICES_USE_BTREE, false),
                 new Pair(DEBUG_LINK_DATA_GETTER, false),
+                new Pair(DEBUG_SEARCH_FOR_INCOMING_LINKS_ON_DELETE, false),
                 new Pair(ENTITY_ITERABLE_CACHE_SIZE, defaultEntityIterableCacheSize()),
                 new Pair(ENTITY_ITERABLE_CACHE_THREAD_COUNT, Runtime.getRuntime().availableProcessors() > 3 ? 2 : 1),
                 new Pair(ENTITY_ITERABLE_CACHE_CACHING_TIMEOUT, 10000L),
@@ -216,6 +219,14 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public PersistentEntityStoreConfig setDebugLinkDataGetter(final boolean debug) {
         return setSetting(DEBUG_LINK_DATA_GETTER, debug);
+    }
+
+    public boolean isDebugSearchForIncomingLinksOnDelete() {
+        return (Boolean) getSetting(DEBUG_SEARCH_FOR_INCOMING_LINKS_ON_DELETE);
+    }
+
+    public PersistentEntityStoreConfig setDebugSearchForIncomingLinksOnDelete(final boolean debug) {
+        return setSetting(DEBUG_SEARCH_FOR_INCOMING_LINKS_ON_DELETE, debug);
     }
 
     public int getEntityIterableCacheSize() {
