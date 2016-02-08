@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.core.dataStructures.persistent;
 
-public interface Flag {
+interface Flag {
 
     boolean flag();
 }

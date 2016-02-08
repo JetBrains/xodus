@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class PersistentLinkedHashMap<K, V> {
 
     @Nullable
-    private Pair<PersistentHashMap<K, InternalValue<V>>, PersistentLong23TreeMap<K>> root;
+    private volatile Pair<PersistentHashMap<K, InternalValue<V>>, PersistentLong23TreeMap<K>> root;
     @NotNull
     private final AtomicLong orderCounter;
     @Nullable

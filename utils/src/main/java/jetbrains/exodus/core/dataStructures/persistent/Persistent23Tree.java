@@ -26,7 +26,7 @@ public class Persistent23Tree<K extends Comparable<K>> {
     /**
      * The root of the last version of the tree.
      */
-    private AbstractPersistent23Tree.RootNode<K> root;
+    private volatile AbstractPersistent23Tree.RootNode<K> root;
 
     public Persistent23Tree() {
         this(null);

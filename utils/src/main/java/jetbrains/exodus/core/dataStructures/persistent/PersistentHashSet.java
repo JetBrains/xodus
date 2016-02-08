@@ -24,7 +24,7 @@ public class PersistentHashSet<K> {
      * The root of the last version of the tree.
      */
     @NotNull
-    private AbstractPersistentHashSet.RootTableNode<K> root;
+    private volatile AbstractPersistentHashSet.RootTableNode<K> root;
 
     @SuppressWarnings("unchecked")
     public PersistentHashSet() {
