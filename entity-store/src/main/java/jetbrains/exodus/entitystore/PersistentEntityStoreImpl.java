@@ -345,11 +345,11 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
                 Settings.set(internalSettings, "refactorMakeLinkTablesConsistent() applied", "y");
             }
-            if (fromScratch || Settings.get(internalSettings, "Props consistency fixed") == null || config.getRefactoringHeavyProps()) {
+            if (fromScratch || Settings.get(internalSettings, "refactorMakePropTablesConsistent() applied") == null || config.getRefactoringHeavyProps()) {
                 if (!fromScratch) {
                     refactorings.refactorMakePropTablesConsistent();
                 }
-                Settings.set(internalSettings, "Props consistency fixed", "yes");
+                Settings.set(internalSettings, "refactorMakePropTablesConsistent() applied", "y");
             }
             if (blobVault instanceof VFSBlobVault && new File(location, BLOBS_DIR).exists()) {
                 try {
