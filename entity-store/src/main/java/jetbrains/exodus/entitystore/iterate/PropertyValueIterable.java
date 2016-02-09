@@ -28,10 +28,8 @@ import org.jetbrains.annotations.Nullable;
  * Iterates all entities of specified entity type having specified property equal to a value.
  */
 @SuppressWarnings({"unchecked"})
-public final class PropertyValueIterable extends EntityIterableBase {
+public final class PropertyValueIterable extends PropertyRangeOrValueIterableBase {
 
-    private final int entityTypeId;
-    private final int propertyId;
     @NotNull
     private final Comparable value;
 
@@ -54,23 +52,14 @@ public final class PropertyValueIterable extends EntityIterableBase {
 
     public PropertyValueIterable(@NotNull final PersistentEntityStoreImpl store, final int entityTypeId,
                                  final int propertyId, @NotNull final Comparable value) {
-        super(store);
-        this.entityTypeId = entityTypeId;
-        this.propertyId = propertyId;
+        super(store, entityTypeId, propertyId);
         this.value = PropertyTypes.toLowerCase(value);
-    }
-
-    public int getEntityTypeId() {
-        return entityTypeId;
     }
 
     @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
-        // first, look for cached properties iterable (whole index in-memory)
-        final EntityIterableCacheImpl iterableCache = getStore().getEntityIterableCache();
-        final PropertiesIterable propertiesIterable = new PropertiesIterable(getStore(), entityTypeId, propertyId);
-        final EntityIterableBase it = iterableCache.putIfNotCached(propertiesIterable);
+        final EntityIterableBase it = getPropertyValueIndex();
         if (it.isCachedInstance()) {
             final UpdatablePropertiesCachedInstanceIterable cached = (UpdatablePropertiesCachedInstanceIterable) it;
             if (value.getClass() != cached.getPropertyValueClass()) {
@@ -88,6 +77,8 @@ public final class PropertyValueIterable extends EntityIterableBase {
     @Override
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
+        final int entityTypeId = getEntityTypeId();
+        final int propertyId = getPropertyId();
         return new ConstantEntityIterableHandle(getStore(), PropertyValueIterable.getType()) {
 
             @Override
@@ -111,12 +102,11 @@ public final class PropertyValueIterable extends EntityIterableBase {
 
             @Override
             public boolean isMatchedPropertyChanged(final int typeId,
-                                                    final int propertyId,
+                                                    final int propId,
                                                     @Nullable final Comparable oldValue,
                                                     @Nullable final Comparable newValue) {
                 //noinspection OverlyComplexBooleanExpression
-                return PropertyValueIterable.this.propertyId == propertyId && entityTypeId == typeId &&
-                        (isValueMatched(oldValue) || isValueMatched(newValue));
+                return propertyId == propId && entityTypeId == typeId && (isValueMatched(oldValue) || isValueMatched(newValue));
             }
 
             private boolean isValueMatched(Comparable value) {
@@ -129,10 +119,6 @@ public final class PropertyValueIterable extends EntityIterableBase {
         };
     }
 
-    private static EntityIterableType getType() {
-        return EntityIterableType.ENTITIES_BY_PROP_VALUE;
-    }
-
     @Override
     protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
         final ByteIterable key = getStore().getPropertyTypes().dataToPropertyValue(value).dataToEntry();
@@ -143,8 +129,9 @@ public final class PropertyValueIterable extends EntityIterableBase {
         return new SingleKeyCursorCounter(valueIdx, key).getCount();
     }
 
-    private Cursor openCursor(@NotNull final PersistentStoreTransaction txn) {
-        return getStore().getPropertyValuesIndexCursor(txn, entityTypeId, propertyId);
+
+    private static EntityIterableType getType() {
+        return EntityIterableType.ENTITIES_BY_PROP_VALUE;
     }
 
     private final class PropertyValueIterator extends EntityIteratorBase {
@@ -172,7 +159,7 @@ public final class PropertyValueIterable extends EntityIterableBase {
             if (hasNextImpl()) {
                 explain(getType());
                 final Cursor cursor = getCursor();
-                final EntityId result = new PersistentEntityId(entityTypeId, LongBinding.compressedEntryToLong(cursor.getValue()));
+                final EntityId result = new PersistentEntityId(getEntityTypeId(), LongBinding.compressedEntryToLong(cursor.getValue()));
                 checkHasNext(cursor.getNextDup());
                 return result;
             }

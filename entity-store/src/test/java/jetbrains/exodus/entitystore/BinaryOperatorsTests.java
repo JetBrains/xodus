@@ -39,19 +39,20 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
     public void testIntersectIsCommutative() throws InterruptedException {
         getEntityStore().getConfig().setCachingDisabled(false);
         final StoreTransaction txn = getStoreTransaction();
+        final Entity comment = txn.newEntity("Comment");
         for (int i = 0; i < 100; ++i) {
             final Entity issue = txn.newEntity("Issue");
-            issue.setProperty("ready", true);
+            issue.setLink("comment", comment);
         }
         for (int i = 0; i < 100; ++i) {
             txn.newEntity("Issue");
         }
         txn.flush();
-        Assert.assertEquals(100, (int) txn.getAll("Issue").intersect(txn.find("Issue", "ready", Boolean.TRUE)).size());
+        Assert.assertEquals(100, (int) txn.getAll("Issue").intersect(txn.findWithLinks("Issue", "comment")).size());
         Assert.assertTrue(((EntityIteratorBase) txn.getAll("Issue").intersect(
-                txn.find("Issue", "ready", Boolean.TRUE)).iterator()).getIterable().isCachedInstance());
+                txn.findWithLinks("Issue", "comment")).iterator()).getIterable().isCachedInstance());
         // commutative intersect will be cached as well
-        Assert.assertTrue(((EntityIteratorBase) txn.find("Issue", "ready", Boolean.TRUE).intersect(
+        Assert.assertTrue(((EntityIteratorBase) txn.findWithLinks("Issue", "comment").intersect(
                 txn.getAll("Issue")).iterator()).getIterable().isCachedInstance());
     }
 
@@ -117,19 +118,20 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
     public void testUnionIsCommutative() throws InterruptedException {
         getEntityStore().getConfig().setCachingDisabled(false);
         final StoreTransaction txn = getStoreTransaction();
+        final Entity comment = txn.newEntity("Comment");
         for (int i = 0; i < 100; ++i) {
             final Entity issue = txn.newEntity("Issue");
-            issue.setProperty("ready", true);
+            issue.setLink("comment", comment);
         }
         for (int i = 0; i < 100; ++i) {
             txn.newEntity("Issue");
         }
         txn.flush();
-        Assert.assertEquals(200, (int) txn.getAll("Issue").union(txn.find("Issue", "ready", Boolean.TRUE)).size());
+        Assert.assertEquals(200, (int) txn.getAll("Issue").union(txn.findWithLinks("Issue", "comment")).size());
         Assert.assertTrue(((EntityIteratorBase) txn.getAll("Issue").union(
-                txn.find("Issue", "ready", Boolean.TRUE)).iterator()).getIterable().isCachedInstance());
+                txn.findWithLinks("Issue", "comment")).iterator()).getIterable().isCachedInstance());
         // commutative union will be cached as well
-        Assert.assertTrue(((EntityIteratorBase) txn.find("Issue", "ready", Boolean.TRUE).union(
+        Assert.assertTrue(((EntityIteratorBase) txn.findWithLinks("Issue", "comment").union(
                 txn.getAll("Issue")).iterator()).getIterable().isCachedInstance());
     }
 

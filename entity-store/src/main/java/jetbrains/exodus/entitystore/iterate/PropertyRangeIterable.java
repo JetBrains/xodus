@@ -26,10 +26,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 @SuppressWarnings({"unchecked"})
-public final class PropertyRangeIterable extends EntityIterableBase {
+public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBase {
 
-    private final int entityTypeId;
-    private final int propertyId;
     @NotNull
     private final Comparable min;
     @NotNull
@@ -55,15 +53,9 @@ public final class PropertyRangeIterable extends EntityIterableBase {
 
     public PropertyRangeIterable(@NotNull final PersistentEntityStoreImpl store, final int entityTypeId, final int propertyId,
                                  @NotNull final Comparable minValue, @NotNull final Comparable maxValue) {
-        super(store);
-        this.entityTypeId = entityTypeId;
-        this.propertyId = propertyId;
+        super(store, entityTypeId, propertyId);
         min = PropertyTypes.toLowerCase(minValue);
         max = PropertyTypes.toLowerCase(maxValue);
-    }
-
-    public int getEntityTypeId() {
-        return entityTypeId;
     }
 
     @Override
@@ -74,10 +66,7 @@ public final class PropertyRangeIterable extends EntityIterableBase {
     @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
-        // first, look for cached properties iterable (whole index in-memory)
-        final EntityIterableCacheImpl iterableCache = getStore().getEntityIterableCache();
-        final PropertiesIterable propertiesIterable = new PropertiesIterable(getStore(), entityTypeId, propertyId);
-        final EntityIterableBase it = iterableCache.putIfNotCached(propertiesIterable);
+        final EntityIterableBase it = getPropertyValueIndex();
         if (it.isCachedInstance()) {
             final Class<? extends Comparable> minClass = min.getClass();
             final Class<? extends Comparable> maxClass = max.getClass();
@@ -97,6 +86,8 @@ public final class PropertyRangeIterable extends EntityIterableBase {
     @Override
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
+        final int entityTypeId = getEntityTypeId();
+        final int propertyId = getPropertyId();
         return new ConstantEntityIterableHandle(getStore(), getType()) {
 
             @Override
@@ -124,12 +115,10 @@ public final class PropertyRangeIterable extends EntityIterableBase {
 
             @Override
             public boolean isMatchedPropertyChanged(final int typeId,
-                                                    final int propertyId,
+                                                    final int propId,
                                                     @Nullable final Comparable oldValue,
                                                     @Nullable final Comparable newValue) {
-                //noinspection OverlyComplexBooleanExpression
-                return PropertyRangeIterable.this.propertyId == propertyId && entityTypeId == typeId &&
-                        (isRangeAffected(oldValue) || isRangeAffected(newValue));
+                return propertyId == propId && entityTypeId == typeId && (isRangeAffected(oldValue) || isRangeAffected(newValue));
             }
 
             private boolean isRangeAffected(Comparable value) {
@@ -170,10 +159,6 @@ public final class PropertyRangeIterable extends EntityIterableBase {
         }
     }
 
-    private Cursor openCursor(@NotNull final PersistentStoreTransaction txn) {
-        return getStore().getPropertyValuesIndexCursor(txn, entityTypeId, propertyId);
-    }
-
     private final class PropertyRangeIterator extends EntityIteratorBase {
 
         private boolean hasNext;
@@ -200,7 +185,7 @@ public final class PropertyRangeIterable extends EntityIterableBase {
             if (hasNextImpl()) {
                 explain(getType());
                 final Cursor cursor = getCursor();
-                final EntityId result = new PersistentEntityId(entityTypeId, LongBinding.compressedEntryToLong(cursor.getValue()));
+                final EntityId result = new PersistentEntityId(getEntityTypeId(), LongBinding.compressedEntryToLong(cursor.getValue()));
                 checkHasNext(cursor.getNext());
                 return result;
             }
