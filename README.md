@@ -34,14 +34,15 @@ Xodus is free and licensed under [Apache 2.0](http://www.apache.org/licenses/LIC
 ##Building from Source
 [Gradle](http://www.gradle.org) is used to build, test and deploy. To run tests and assemble jars:
 
-    >gradle build
+    >gradlew build
 
 To assemble jars and skip running tests:
 
-    >gradle assemble   
+    >gradlew assemble   
 
 ## Find out More
 - [Xodus wiki](https://github.com/JetBrains/xodus/wiki)
 - [Check out the latest (nightly) builds](https://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build)
 - [Report an issue](http://xodus.myjetbrains.com/youtrack)
+- [EntityStore browser](https://github.com/lehvolk/xodus-entity-browser)
 - <a href="mailto:xodus-feedback@jetbrains.com">Ask questions by e-mail</a>
