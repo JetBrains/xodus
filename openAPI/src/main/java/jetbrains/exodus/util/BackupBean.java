@@ -87,12 +87,21 @@ public class BackupBean implements Backupable {
         runAfterBackup.add(runnable);
     }
 
+    /**
+     * Sets time when backup started.
+     *
+     * @param backupStartTicks time when backup started, 0 if backup is finished
+     */
     public void setBackupStartTicks(long backupStartTicks) {
         this.backupStartTicks = backupStartTicks;
     }
 
     public long getBackupStartTicks() {
         return backupStartTicks;
+    }
+
+    public boolean isBackupInProgress() {
+        return backupStartTicks > 0L;
     }
 
     public void setBackupException(Throwable backupException) {
