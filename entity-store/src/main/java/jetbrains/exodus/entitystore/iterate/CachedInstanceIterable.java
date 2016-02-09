@@ -69,5 +69,9 @@ public abstract class CachedInstanceIterable extends EntityIterableBase {
         return true;
     }
 
+    public boolean isUpdatable() {
+        return false;
+    }
+
     protected abstract void orderById();
 }

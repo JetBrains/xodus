@@ -30,6 +30,10 @@ public abstract class UpdatableCachedInstanceIterable extends CachedInstanceIter
         throw new UnsupportedOperationException();
     }
 
+    public boolean isUpdatable() {
+        return true;
+    }
+
     public abstract UpdatableCachedInstanceIterable beginUpdate();
 
     public abstract boolean isMutated();

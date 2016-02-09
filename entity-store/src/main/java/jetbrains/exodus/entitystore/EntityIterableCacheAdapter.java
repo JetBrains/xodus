@@ -116,7 +116,7 @@ final class EntityIterableCacheAdapter {
         private final SoftReference<CachedInstanceIterable> ref;
 
         private CacheItem(@NotNull final CachedInstanceIterable it, final int maxSizeOfDirectValue) {
-            if (it.size() <= maxSizeOfDirectValue) {
+            if (it.isUpdatable() || it.size() <= maxSizeOfDirectValue) {
                 cached = it;
                 ref = null;
             } else {
