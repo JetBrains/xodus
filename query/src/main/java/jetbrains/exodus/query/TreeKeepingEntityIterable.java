@@ -201,14 +201,18 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
                     if (logger.isDebugEnabled()) {
                         logger.debug("Optimize tree in [" + delta + " ms]");
                     }
-                    logger.trace("---------------------------------------------------");
-                    logger.trace("Source tree: ");
-                    logger.trace(sourceTree.toString());
+                    if (logger.isTraceEnabled()) {
+                        logger.trace("---------------------------------------------------");
+                        logger.trace("Source tree: ");
+                        logger.trace(sourceTree.toString());
+                        logger.trace("---------------------------------------------------");
+                    }
+                }
+                if (logger.isTraceEnabled()) {
+                    logger.trace("Optimized tree: ");
+                    logger.trace(optimizedTree.toString());
                     logger.trace("---------------------------------------------------");
                 }
-                logger.trace("Optimized tree: ");
-                logger.trace(optimizedTree.toString());
-                logger.trace("---------------------------------------------------");
             }
         }
     }
