@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore;
+package jetbrains.exodus.entitystore.iterate;
 
-import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
-import jetbrains.exodus.entitystore.iterate.EntityIteratorBase;
+import jetbrains.exodus.TestFor;
+import jetbrains.exodus.entitystore.*;
 import org.junit.Assert;
 
 import java.util.Iterator;
@@ -440,6 +440,15 @@ public class EntityIterableTests extends EntityStoreTestBase {
         users = users.union(users);
         Assert.assertFalse(((EntityIterableBase) users).canBeCached());
         Assert.assertEquals(1L, users.getRoughSize());
+    }
+
+    @TestFor
+    public void testFindWithPropSortedCount() {
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        final int count = 10;
+        createNUsers(txn, count);
+        txn.flush();
+        Assert.assertEquals(count, txn.findWithPropSortedByValue("User", "login").countImpl(txn));
     }
 
     /**

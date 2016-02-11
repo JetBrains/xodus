@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore;
+package jetbrains.exodus.entitystore.iterate;
 
+import jetbrains.exodus.entitystore.*;
 import org.junit.Assert;
 
 import java.util.Iterator;

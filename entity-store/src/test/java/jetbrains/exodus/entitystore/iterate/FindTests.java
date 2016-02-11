@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore;
+package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.bindings.ComparableSet;
-import jetbrains.exodus.entitystore.iterate.EntityIteratorBase;
+import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.util.Random;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
