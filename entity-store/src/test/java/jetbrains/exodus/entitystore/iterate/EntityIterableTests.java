@@ -442,9 +442,10 @@ public class EntityIterableTests extends EntityStoreTestBase {
         Assert.assertEquals(1L, users.getRoughSize());
     }
 
-    @TestFor
+    @TestFor(issues = "XD-502")
     public void testFindWithPropSortedCount() {
         final PersistentStoreTransaction txn = getStoreTransaction();
+        Assert.assertEquals(0, txn.findWithPropSortedByValue("User", "login").countImpl(txn));
         final int count = 10;
         createNUsers(txn, count);
         txn.flush();

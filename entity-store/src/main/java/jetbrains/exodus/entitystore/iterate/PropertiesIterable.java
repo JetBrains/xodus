@@ -21,6 +21,7 @@ import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.tables.PropertyKey;
 import jetbrains.exodus.env.Cursor;
+import jetbrains.exodus.env.Store;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -91,15 +92,8 @@ public final class PropertiesIterable extends EntityIterableBase {
 
     @Override
     protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
-        final Cursor cursor = openCursor(txn);
-        if (cursor == null) {
-            return 0;
-        }
-        try {
-            return cursor.count();
-        } finally {
-            cursor.close();
-        }
+        final Store valueIndex = getStore().getPropertiesTable(txn, entityTypeId).getValueIndex(txn, propertyId, false);
+        return valueIndex == null ? 0 : valueIndex.count(txn.getEnvironmentTransaction());
     }
 
     private Cursor openCursor(@NotNull final PersistentStoreTransaction txn) {
