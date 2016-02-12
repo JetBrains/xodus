@@ -29,9 +29,10 @@ public class PersistentObjectCacheTest {
         cache.put("Eclipse", "An IDE");
         cache.put("IDEA", "good");
         cache.put("IDEA 4.5", "better");
+        Assert.assertNotNull(cache.get("IDEA"));
+        Assert.assertNotNull(cache.get("IDEA 4.5"));
         // "Eclipse" should already leave the cache
         Assert.assertNull(cache.get("Eclipse"));
-        // emulate moving of two elements to the cache's second generation
         Assert.assertNotNull(cache.get("IDEA 4.5"));
         Assert.assertNotNull(cache.get("IDEA"));
         cache.put("IDEA 5.0", "perfect");
@@ -48,9 +49,8 @@ public class PersistentObjectCacheTest {
         cache.put("Eclipse", "An IDE");
         cache.put("IDEA", "good IDEA");
         cache.put("IDEA 4.5", "better IDEA");
-        // emulate moving of two elements to the cache's second generation
-        Assert.assertNotNull(cache.get("IDEA 4.5"));
         Assert.assertNotNull(cache.get("IDEA"));
+        Assert.assertNotNull(cache.get("IDEA 4.5"));
         cache.put("IDEA 5.0", "perfect IDEA");
         cache.put("IDEA 6.0", "IDEAL");
         HashSet<String> values = new HashSet<>();
