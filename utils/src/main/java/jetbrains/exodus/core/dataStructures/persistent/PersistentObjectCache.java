@@ -157,13 +157,17 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
             final PersistentLinkedHashMap<K, V> firstGen = next.getFirstGen();
             final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> firstGenMutable = firstGen.beginWrite();
             result = firstGenMutable.remove(key);
-            if (result == null) {
+            if (result != null) {
+                firstGen.endWrite(firstGenMutable);
+            } else {
                 final PersistentLinkedHashMap<K, V> secondGen = next.getSecondGen();
                 final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> secondGenMutable = secondGen.beginWrite();
                 result = secondGenMutable.remove(key);
+                if (result == null) {
+                    break;
+                }
                 secondGen.endWrite(secondGenMutable);
             }
-            firstGen.endWrite(firstGenMutable);
         } while (!root.compareAndSet(current, next));
         return result;
     }
