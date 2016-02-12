@@ -29,7 +29,8 @@ import java.util.concurrent.atomic.AtomicReference;
 public class PersistentObjectCache<K, V> extends CacheHitRateable {
 
     private final int size;
-    private final float secondGenSizeRatio;
+    private final int firstGenSizeBound;
+    private final int secondGenSizeBound;
     private final AtomicReference<Root<K, V>> root;
 
     public PersistentObjectCache() {
@@ -47,13 +48,15 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
         } else if (secondGenSizeRatio > 0.95f) {
             secondGenSizeRatio = 0.95f;
         }
-        this.secondGenSizeRatio = secondGenSizeRatio;
+        secondGenSizeBound = (int) (size * secondGenSizeRatio);
+        firstGenSizeBound = size - secondGenSizeBound;
         root = new AtomicReference<>();
     }
 
     protected PersistentObjectCache(@NotNull final PersistentObjectCache<K, V> source) {
         size = source.size;
-        secondGenSizeRatio = source.secondGenSizeRatio;
+        firstGenSizeBound = source.firstGenSizeBound;
+        secondGenSizeBound = source.secondGenSizeBound;
         root = new AtomicReference<>(source.root.get());
         setAttempts(source.getAttempts());
         setHits(source.getHits());
@@ -87,7 +90,7 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
         V result;
         do {
             current = getCurrent();
-            next = new Root<>(current, size, secondGenSizeRatio);
+            next = new Root<>(current, firstGenSizeBound, secondGenSizeBound);
             final PersistentLinkedHashMap<K, V> secondGen = next.getSecondGen();
             final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> secondGenMutable = secondGen.beginWrite();
             result = secondGenMutable.get(key);
@@ -133,17 +136,21 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
         Root<K, V> next;
         do {
             current = getCurrent();
-            next = new Root<>(current, size, secondGenSizeRatio);
+            next = new Root<>(current, firstGenSizeBound, secondGenSizeBound);
             final PersistentLinkedHashMap<K, V> firstGen = next.getFirstGen();
             final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> firstGenMutable = firstGen.beginWrite();
+            final PersistentLinkedHashMap<K, V> secondGen = next.getSecondGen();
+            final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> secondGenMutable = secondGen.beginWrite();
             if (firstGenMutable.remove(key) == null) {
-                final PersistentLinkedHashMap<K, V> secondGen = next.getSecondGen();
-                final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> secondGenMutable = secondGen.beginWrite();
                 secondGenMutable.remove(key);
-                secondGen.endWrite(secondGenMutable);
             }
-            firstGenMutable.put(key, x);
+            if (secondGenMutable.size() < (secondGenSizeBound >> 1)) {
+                secondGenMutable.put(key, x);
+            } else {
+                firstGenMutable.put(key, x);
+            }
             firstGen.endWrite(firstGenMutable);
+            secondGen.endWrite(secondGenMutable);
         } while (!root.compareAndSet(current, next));
     }
 
@@ -153,7 +160,7 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
         V result;
         do {
             current = getCurrent();
-            next = new Root<>(current, size, secondGenSizeRatio);
+            next = new Root<>(current, firstGenSizeBound, secondGenSizeBound);
             final PersistentLinkedHashMap<K, V> firstGen = next.getFirstGen();
             final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> firstGenMutable = firstGen.beginWrite();
             result = firstGenMutable.remove(key);
@@ -263,13 +270,11 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
         @NotNull
         private final PersistentLinkedHashMap<K, V> secondGen;
 
-        private Root(@Nullable final Root<K, V> sourceRoot, final int size, final float secondGenSizeRatio) {
+        private Root(@Nullable final Root<K, V> sourceRoot, final int firstGenSizeBound, final int secondGenSizeBound) {
             if (sourceRoot != null) {
                 firstGen = sourceRoot.firstGen.getClone();
                 secondGen = sourceRoot.secondGen.getClone();
             } else {
-                final int secondGenSizeBound = (int) (size * secondGenSizeRatio);
-                final int firstGenSizeBound = size - secondGenSizeBound;
                 firstGen = new PersistentLinkedHashMap<>(new PersistentLinkedHashMap.RemoveEldestFunction<K, V>() {
                     @Override
                     public boolean removeEldest(@NotNull final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> map,
