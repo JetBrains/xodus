@@ -69,6 +69,11 @@ public final class PropertiesIterable extends EntityIterableBase {
         return result;
     }
 
+    @Override
+    public boolean nonCachedHasFastCount() {
+        return true;
+    }
+
     @NotNull
     @Override
     public EntityIterator getReverseIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
