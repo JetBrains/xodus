@@ -476,6 +476,8 @@ public abstract class EntityIterableBase implements EntityIterable {
             }
             if (canBeCached) {
                 txn.addCachedInstance(cached);
+            } else {
+                store.getEntityIterableCache().setCachedCount(getHandle(), cached.size());
             }
         }
         return cached;
