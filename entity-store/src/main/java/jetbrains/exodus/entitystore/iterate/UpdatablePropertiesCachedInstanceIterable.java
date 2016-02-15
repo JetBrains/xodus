@@ -17,7 +17,10 @@ package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.core.dataStructures.persistent.AbstractPersistent23Tree;
 import jetbrains.exodus.core.dataStructures.persistent.Persistent23Tree;
-import jetbrains.exodus.entitystore.*;
+import jetbrains.exodus.entitystore.EntityId;
+import jetbrains.exodus.entitystore.EntityStoreException;
+import jetbrains.exodus.entitystore.PersistentEntityId;
+import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.entitystore.tables.PropertyTypes;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -42,10 +45,10 @@ public class UpdatablePropertiesCachedInstanceIterable extends UpdatableCachedIn
     private Class<? extends Comparable> valueClass;
 
     @SuppressWarnings({"ConstantConditions", "ObjectAllocationInLoop"})
-    public UpdatablePropertiesCachedInstanceIterable(@Nullable final PersistentEntityStoreImpl store,
+    public UpdatablePropertiesCachedInstanceIterable(@Nullable final PersistentStoreTransaction txn,
                                                      @Nullable final PropertyValueIterator it,
                                                      @NotNull final EntityIterableBase source) {
-        super(store, source);
+        super(txn, source);
         index = new Persistent23Tree<>();
         mutableIndex = null;
         if (it == null) {
@@ -84,7 +87,7 @@ public class UpdatablePropertiesCachedInstanceIterable extends UpdatableCachedIn
 
     // constructor for mutating source index
     private UpdatablePropertiesCachedInstanceIterable(@NotNull final UpdatablePropertiesCachedInstanceIterable source) {
-        super(source.getStore(), source);
+        super(source.getTransaction(), source);
         entityTypeId = source.entityTypeId;
         index = source.index.getClone();
         mutableIndex = index.beginWrite();

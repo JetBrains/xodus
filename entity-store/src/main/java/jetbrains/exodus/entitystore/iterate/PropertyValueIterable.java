@@ -38,11 +38,11 @@ public final class PropertyValueIterable extends PropertyRangeOrValueIterableBas
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
                 try {
-                    return new PropertyValueIterable(store,
+                    return new PropertyValueIterable(txn,
                             Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]),
                             Long.parseLong((String) parameters[2]));
                 } catch (NumberFormatException e) {
-                    return new PropertyValueIterable(store,
+                    return new PropertyValueIterable(txn,
                             Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]),
                             (Comparable) parameters[2]);
                 }
@@ -50,9 +50,11 @@ public final class PropertyValueIterable extends PropertyRangeOrValueIterableBas
         });
     }
 
-    public PropertyValueIterable(@NotNull final PersistentEntityStoreImpl store, final int entityTypeId,
-                                 final int propertyId, @NotNull final Comparable value) {
-        super(store, entityTypeId, propertyId);
+    public PropertyValueIterable(@NotNull final PersistentStoreTransaction txn,
+                                 final int entityTypeId,
+                                 final int propertyId,
+                                 @NotNull final Comparable value) {
+        super(txn, entityTypeId, propertyId);
         this.value = PropertyTypes.toLowerCase(value);
     }
 

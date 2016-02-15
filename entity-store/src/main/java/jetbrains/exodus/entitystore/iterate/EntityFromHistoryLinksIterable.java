@@ -28,11 +28,11 @@ public final class EntityFromHistoryLinksIterable extends EntityLinksIterableBas
     private final int version;
     private final int linkId;
 
-    public EntityFromHistoryLinksIterable(@NotNull final PersistentEntityStoreImpl store,
+    public EntityFromHistoryLinksIterable(@NotNull final PersistentStoreTransaction txn,
                                           @NotNull final EntityId entityId,
                                           final int version,
                                           final int linkId) {
-        super(store, entityId);
+        super(txn, entityId);
         this.version = version;
         this.linkId = linkId;
     }

@@ -48,19 +48,17 @@ public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
                         linkNames.put(linkId, linkName);
                     }
                 }
-                return new EntityFromLinkSetIterable(txn, store, entityId, linkNames);
+                return new EntityFromLinkSetIterable(txn, entityId, linkNames);
             }
         });
     }
 
     @SuppressWarnings({"AssignmentToCollectionOrArrayFieldFromParameter"})
-    public EntityFromLinkSetIterable(@NotNull final PersistentStoreTransaction txn, @NotNull PersistentEntityStoreImpl store,
-                                     @NotNull EntityId entityId, @NotNull final IntHashMap<String> linkNames) {
-        super(store, entityId);
+    public EntityFromLinkSetIterable(@NotNull final PersistentStoreTransaction txn,
+                                     @NotNull final EntityId entityId,
+                                     @NotNull final IntHashMap<String> linkNames) {
+        super(txn, entityId);
         this.linkNames = linkNames;
-        if (!txn.isCurrent()) {
-            txnGetter = txn;
-        }
     }
 
     public static EntityIterableType getType() {
@@ -142,7 +140,7 @@ public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
     @Override
     protected CachedInstanceIterable createCachedInstance(@NotNull final PersistentStoreTransaction txn) {
         final IntArrayList propIds = new IntArrayList();
-        return new EntityIdArrayCachedInstanceIterable(txn, EntityFromLinkSetIterable.this.getStore(), EntityFromLinkSetIterable.this) {
+        return new EntityIdArrayCachedInstanceIterable(txn, EntityFromLinkSetIterable.this) {
             @Override
             protected EntityId extractNextId(final EntityIterator it) {
                 final EntityId result = super.extractNextId(it);

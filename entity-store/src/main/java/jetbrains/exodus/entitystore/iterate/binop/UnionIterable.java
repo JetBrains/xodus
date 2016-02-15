@@ -29,16 +29,16 @@ public final class UnionIterable extends BinaryOperatorEntityIterable {
         registerType(EntityIterableType.UNION, new EntityIterableInstantiator() {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new UnionIterable(store,
+                return new UnionIterable(txn,
                         (EntityIterableBase) parameters[0], (EntityIterableBase) parameters[1]);
             }
         });
     }
 
-    public UnionIterable(@Nullable final PersistentEntityStoreImpl store,
+    public UnionIterable(@Nullable final PersistentStoreTransaction txn,
                          @NotNull final EntityIterableBase iterable1,
                          @NotNull final EntityIterableBase iterable2) {
-        super(store, iterable1, iterable2, true);
+        super(txn, iterable1, iterable2, true);
         if (iterable1.isSortedById() && iterable2.isSortedById()) {
             depth += SORTED_BY_ID_FLAG;
         }

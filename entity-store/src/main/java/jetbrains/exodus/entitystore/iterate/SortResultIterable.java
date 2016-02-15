@@ -21,10 +21,9 @@ import org.jetbrains.annotations.NotNull;
 
 public class SortResultIterable extends EntityIterableDecoratorBase {
 
-
-    protected SortResultIterable(@NotNull final PersistentEntityStoreImpl store,
+    protected SortResultIterable(@NotNull final PersistentStoreTransaction txn,
                                  @NotNull final EntityIterableBase source) {
-        super(store, source);
+        super(txn, source);
     }
 
     @Override

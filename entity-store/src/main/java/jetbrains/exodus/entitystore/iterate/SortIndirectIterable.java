@@ -53,25 +53,25 @@ public class SortIndirectIterable extends EntityIterableDecoratorBase {
                         linkName = name;
                     }
                 }
-                return new SortIndirectIterable(store, typeName,
+                return new SortIndirectIterable(txn, store, typeName,
                         (EntityIterableBase) parameters[3], linkName, (EntityIterableBase) parameters[2],
                         null, null);
             }
         });
     }
 
-    public SortIndirectIterable(@NotNull final PersistentEntityStoreImpl store,
+    public SortIndirectIterable(@NotNull final PersistentStoreTransaction txn,
+                                @NotNull final PersistentEntityStoreImpl store,
                                 @NotNull final String entityType,
                                 @NotNull final EntityIterableBase sortedLinks,
                                 @NotNull final String linkName,
                                 @NotNull final EntityIterableBase source,
                                 @Nullable final String oppositeEntityType,
                                 @Nullable final String oppositeLinkName) {
-        super(store, source);
+        super(txn, source);
         this.entityType = entityType;
         this.sortedLinks = sortedLinks;
         this.linkName = linkName;
-        final PersistentStoreTransaction txn = getTransaction();
         sourceTypeId = store.getEntityTypeId(txn, entityType, false);
         linkId = store.getLinkId(txn, linkName, false);
         this.oppositeEntityType = oppositeEntityType;
@@ -264,10 +264,10 @@ public class SortIndirectIterable extends EntityIterableDecoratorBase {
                         nullIterated = true;
                         //noinspection ConstantConditions
                         foundLinksIterator = //txn.getAll(entityType).intersectSavingOrder(source).
-                                new FilterEntityTypeIterable(getStore(), sourceTypeId, source).
+                                new FilterEntityTypeIterable(txn, sourceTypeId, source).
                                         minus(oppositeEntityType == null ?
-                                                        txn.findWithLinks(entityType, linkName) :
-                                                        txn.findWithLinks(entityType, linkName, oppositeEntityType, oppositeLinkName)
+                                                txn.findWithLinks(entityType, linkName) :
+                                                txn.findWithLinks(entityType, linkName, oppositeEntityType, oppositeLinkName)
                                         ).iterator();
                     } else {
                         final EntityId linkId = linksIterator.nextId();
@@ -276,10 +276,10 @@ public class SortIndirectIterable extends EntityIterableDecoratorBase {
                             nullIterated = true;
                             //noinspection ConstantConditions
                             foundLinksIterator = //txn.getAll(entityType).intersectSavingOrder(source).
-                                    new FilterEntityTypeIterable(getStore(), sourceTypeId, source).
+                                    new FilterEntityTypeIterable(txn, sourceTypeId, source).
                                             minus(oppositeEntityType == null ?
-                                                            txn.findWithLinks(entityType, linkName) :
-                                                            txn.findWithLinks(entityType, linkName, oppositeEntityType, oppositeLinkName)
+                                                    txn.findWithLinks(entityType, linkName) :
+                                                    txn.findWithLinks(entityType, linkName, oppositeEntityType, oppositeLinkName)
                                             ).iterator();
                         } else {
                             foundLinksIterator = txn.findLinks(entityType, link, linkName).intersectSavingOrder(source).iterator();

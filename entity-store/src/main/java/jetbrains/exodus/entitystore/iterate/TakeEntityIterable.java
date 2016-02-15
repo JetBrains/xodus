@@ -26,16 +26,16 @@ public class TakeEntityIterable extends EntityIterableDecoratorBase {
         registerType(getType(), new EntityIterableInstantiator() {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new TakeEntityIterable(store,
+                return new TakeEntityIterable(txn,
                         (EntityIterableBase) parameters[1], Integer.valueOf((String) parameters[0]));
             }
         });
     }
 
-    protected TakeEntityIterable(@NotNull final PersistentEntityStoreImpl store,
+    protected TakeEntityIterable(@NotNull final PersistentStoreTransaction txn,
                                  @NotNull final EntityIterableBase source,
                                  final int itemsToTake) {
-        super(store, source);
+        super(txn, source);
         this.itemsToTake = itemsToTake;
     }
 

@@ -27,7 +27,7 @@ public class SortIndirectIterableTest extends EntityStoreTestBase {
     private static final String LINK_NAME = "fixedInBuild";
 
     public void testIterateWithNullLinks() {
-        final StoreTransaction txn = getStoreTransaction();
+        final PersistentStoreTransaction txn = getStoreTransaction();
 
         // Create single Issue entity with no links.
         final Entity issue = txn.newEntity(ENTITY_TYPE);
@@ -37,7 +37,7 @@ public class SortIndirectIterableTest extends EntityStoreTestBase {
         checkSortedCount(txn, EntityIterableBase.EMPTY, 1);
 
         // The same, but the sorted list of links contains single null.
-        SingleEntityIterable singleNullIterable = new SingleEntityIterable(getEntityStore(), null);
+        SingleEntityIterable singleNullIterable = new SingleEntityIterable(txn, null);
         checkSortedCount(txn, singleNullIterable, 1);
 
         // Set fixedInBuild link to our issue
@@ -46,7 +46,7 @@ public class SortIndirectIterableTest extends EntityStoreTestBase {
 
         // Sort one issue with link by the link.
         SingleEntityIterable singleNotNullIterable =
-                new SingleEntityIterable(getEntityStore(), issue.getLink(LINK_NAME).getId());
+                new SingleEntityIterable(txn, issue.getLink(LINK_NAME).getId());
         checkSortedCount(txn, singleNotNullIterable, 1);
 
         // Create another Issue entity with no links.
@@ -72,10 +72,9 @@ public class SortIndirectIterableTest extends EntityStoreTestBase {
     }
 
     @SuppressWarnings({"UnusedDeclaration"})
-    private void checkSortedCount(StoreTransaction txn, EntityIterableBase sortedLinks, int count) {
+    private void checkSortedCount(PersistentStoreTransaction txn, EntityIterableBase sortedLinks, int count) {
         int cnt = 0;
-        for (Entity e : new SortIndirectIterable(getEntityStore(), ENTITY_TYPE,
-                sortedLinks, LINK_NAME,
+        for (Entity e : new SortIndirectIterable(txn, getEntityStore(), ENTITY_TYPE, sortedLinks, LINK_NAME,
                 (EntityIterableBase) txn.getAll(ENTITY_TYPE), null, null)) {
             cnt++;
         }

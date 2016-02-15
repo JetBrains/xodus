@@ -31,14 +31,16 @@ public class EntitiesWithPropertyIterable extends EntityIterableBase {
         registerType(getType(), new EntityIterableInstantiator() {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new EntitiesWithPropertyIterable(store,
+                return new EntitiesWithPropertyIterable(txn,
                         Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]));
             }
         });
     }
 
-    public EntitiesWithPropertyIterable(@NotNull final PersistentEntityStoreImpl store, final int entityTypeId, final int propertyId) {
-        super(store);
+    public EntitiesWithPropertyIterable(@NotNull final PersistentStoreTransaction txn,
+                                        final int entityTypeId,
+                                        final int propertyId) {
+        super(txn);
         this.entityTypeId = entityTypeId;
         this.propertyId = propertyId;
     }
@@ -65,7 +67,7 @@ public class EntitiesWithPropertyIterable extends EntityIterableBase {
 
     @Override
     protected CachedInstanceIterable createCachedInstance(@NotNull PersistentStoreTransaction txn) {
-        return new UpdatableEntityIdSortedSetCachedInstanceIterable(txn, getStore(), this);
+        return new UpdatableEntityIdSortedSetCachedInstanceIterable(txn, this);
     }
 
     public final class EntitiesWithPropertyIterableHandle extends ConstantEntityIterableHandle {

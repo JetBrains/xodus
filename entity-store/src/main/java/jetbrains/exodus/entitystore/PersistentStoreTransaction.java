@@ -264,13 +264,13 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (entityTypeId < 0) {
             return EntityIterableBase.EMPTY;
         }
-        return new EntitiesOfTypeIterable(this, store, entityTypeId);
+        return new EntitiesOfTypeIterable(this, entityTypeId);
     }
 
     @Override
     @NotNull
     public EntityIterable getSingletonIterable(@NotNull final Entity entity) {
-        return new SingleEntityIterable(store, entity.getId());
+        return new SingleEntityIterable(this, entity.getId());
     }
 
     @Override
@@ -286,7 +286,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (propertyId < 0) {
             return EntityIterableBase.EMPTY;
         }
-        return new PropertyValueIterable(store, entityTypeId, propertyId, value);
+        return new PropertyValueIterable(this, entityTypeId, propertyId, value);
     }
 
     @Override
@@ -301,7 +301,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (propertyId < 0) {
             return EntityIterableBase.EMPTY;
         }
-        return new PropertyRangeIterable(store, entityTypeId, propertyId, minValue, maxValue);
+        return new PropertyRangeIterable(this, entityTypeId, propertyId, minValue, maxValue);
     }
 
     @Override
@@ -311,7 +311,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (entityTypeId < 0) {
             return EntityIterableBase.EMPTY;
         }
-        return new EntitiesOfTypeRangeIterable(this, store, entityTypeId, minValue, maxValue);
+        return new EntitiesOfTypeRangeIterable(this, entityTypeId, minValue, maxValue);
     }
 
     @NotNull
@@ -325,7 +325,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (propertyId < 0) {
             return EntityIterableBase.EMPTY;
         }
-        return new EntitiesWithPropertyIterable(store, entityTypeId, propertyId);
+        return new EntitiesWithPropertyIterable(this, entityTypeId, propertyId);
     }
 
     public EntityIterableBase findWithPropSortedByValue(@NotNull final String entityType, @NotNull final String propertyName) {
@@ -337,7 +337,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (propertyId < 0) {
             return EntityIterableBase.EMPTY;
         }
-        return new PropertiesIterable(store, entityTypeId, propertyId);
+        return new PropertiesIterable(this, entityTypeId, propertyId);
     }
 
     @Override
@@ -363,7 +363,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (blobId < 0) {
             return EntityIterableBase.EMPTY;
         }
-        return new EntitiesWithBlobIterable(store, entityTypeId, blobId);
+        return new EntitiesWithBlobIterable(this, entityTypeId, blobId);
     }
 
     @Override
@@ -380,11 +380,11 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             return EntityIterableBase.EMPTY;
         }
         if (entity instanceof PersistentEntity) {
-            return new EntityToLinksIterable(store, ((PersistentEntity) entity).getId(), entityTypeId, linkId);
+            return new EntityToLinksIterable(this, ((PersistentEntity) entity).getId(), entityTypeId, linkId);
         }
         EntityId id = entity.getId();
         if (id instanceof PersistentEntityId) {
-            return new EntityToLinksIterable(store, id, entityTypeId, linkId);
+            return new EntityToLinksIterable(this, id, entityTypeId, linkId);
         }
         return EntityIterableBase.EMPTY;
     }
@@ -424,7 +424,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (linkId < 0) {
             return EntityIterableBase.EMPTY;
         }
-        return new EntitiesWithLinkIterable(store, entityTypeId, linkId);
+        return new EntitiesWithLinkIterable(this, entityTypeId, linkId);
     }
 
     @Override
@@ -449,7 +449,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (oppositeLinkId < 0) {
             return EntityIterableBase.EMPTY;
         }
-        return new EntitiesWithLinkSortedIterable(store, entityTypeId, linkId, oppositeEntityId, oppositeLinkId);
+        return new EntitiesWithLinkSortedIterable(this, entityTypeId, linkId, oppositeEntityId, oppositeLinkId);
     }
 
     @Override
@@ -474,8 +474,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (propertyId < 0 || rightOrder == EntityIterableBase.EMPTY) {
             return rightOrder;
         }
-        return new SortIterable(
-                store, findWithPropSortedByValue(entityType, propertyName), (EntityIterableBase) rightOrder, entityTypeId, ascending);
+        return new SortIterable(this,
+                findWithPropSortedByValue(entityType, propertyName), (EntityIterableBase) rightOrder, entityTypeId, ascending);
     }
 
     @Override
@@ -485,7 +485,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                                     final boolean isMultiple,
                                     @NotNull final String linkName,
                                     @NotNull final EntityIterable rightOrder) {
-        final EntityIterable result = new SortIndirectIterable(store, entityType,
+        final EntityIterable result = new SortIndirectIterable(this, store, entityType,
                 (EntityIterableBase) sortedLinks.getSource(), linkName, (EntityIterableBase) rightOrder, null, null);
         return isMultiple ? result.distinct() : result;
     }
@@ -499,7 +499,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                                     @NotNull final EntityIterable rightOrder,
                                     @NotNull final String oppositeEntityType,
                                     @NotNull final String oppositeLinkName) {
-        final EntityIterable result = new SortIndirectIterable(store, entityType,
+        final EntityIterable result = new SortIndirectIterable(this, store, entityType,
                 (EntityIterableBase) sortedLinks.getSource(), linkName, (EntityIterableBase) rightOrder, oppositeEntityType, oppositeLinkName);
         return isMultiple ? result.distinct() : result;
     }
@@ -517,7 +517,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                 filtered.add(it);
             }
         }
-        return filtered == null ? EntityIterableBase.EMPTY : new MergeSortedIterable(store, filtered, comparator);
+        return filtered == null ? EntityIterableBase.EMPTY : new MergeSortedIterable(this, filtered, comparator);
     }
 
     @Override

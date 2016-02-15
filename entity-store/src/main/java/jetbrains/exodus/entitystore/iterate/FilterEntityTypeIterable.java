@@ -25,18 +25,18 @@ class FilterEntityTypeIterable extends EntityIterableDecoratorBase {
         registerType(getType(), new EntityIterableInstantiator() {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new FilterEntityTypeIterable(
-                        store, Integer.valueOf((String) parameters[0]), (EntityIterableBase) parameters[1]);
+                return new FilterEntityTypeIterable(txn,
+                        Integer.valueOf((String) parameters[0]), (EntityIterableBase) parameters[1]);
             }
         });
     }
 
     private final int entityTypeId;
 
-    protected FilterEntityTypeIterable(@NotNull final PersistentEntityStoreImpl store,
+    protected FilterEntityTypeIterable(@NotNull final PersistentStoreTransaction txn,
                                        final int entityTypeId,
                                        @NotNull final EntityIterableBase source) {
-        super(store, source);
+        super(txn, source);
         this.entityTypeId = entityTypeId;
     }
 

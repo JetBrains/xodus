@@ -27,23 +27,16 @@ public final class MinusIterable extends BinaryOperatorEntityIterable {
         EntityIterableBase.registerType(EntityIterableType.MINUS, new EntityIterableInstantiator() {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new MinusIterable(store,
+                return new MinusIterable(txn,
                         (EntityIterableBase) parameters[0], (EntityIterableBase) parameters[1]);
             }
         });
     }
 
-    /**
-     * Constructs minus operator, which results in (minuend - subtrahend).
-     *
-     * @param store      entity store.
-     * @param minuend    entity set subtracted from.
-     * @param subtrahend entity set which is subtracted.
-     */
-    public MinusIterable(@Nullable final PersistentEntityStoreImpl store,
+    public MinusIterable(@Nullable final PersistentStoreTransaction txn,
                          @NotNull final EntityIterableBase minuend,
                          @NotNull final EntityIterableBase subtrahend) {
-        super(store, minuend, subtrahend, false);
+        super(txn, minuend, subtrahend, false);
         // minuend is always equal to iterable1, 'cause we are not commutative
         if (minuend.isSortedById()) {
             depth += SORTED_BY_ID_FLAG;

@@ -29,11 +29,11 @@ public class EntityFromHistoryLinkSetIterable extends EntityLinksIterableBase {
     private final IntHashMap<String> linkNames;
 
     @SuppressWarnings({"AssignmentToCollectionOrArrayFieldFromParameter"})
-    public EntityFromHistoryLinkSetIterable(@NotNull PersistentEntityStoreImpl store,
+    public EntityFromHistoryLinkSetIterable(@NotNull PersistentStoreTransaction txn,
                                             @NotNull EntityId entityId,
                                             final int version,
                                             @NotNull final IntHashMap<String> linkNames) {
-        super(store, entityId);
+        super(txn, entityId);
         this.version = version;
         this.linkNames = linkNames;
     }

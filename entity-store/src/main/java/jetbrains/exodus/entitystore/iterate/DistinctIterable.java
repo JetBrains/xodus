@@ -26,14 +26,14 @@ public final class DistinctIterable extends EntityIterableDecoratorBase {
         registerType(getType(), new EntityIterableInstantiator() {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new DistinctIterable(store, (EntityIterableBase) parameters[0]);
+                return new DistinctIterable(txn, (EntityIterableBase) parameters[0]);
             }
         });
     }
 
-    public DistinctIterable(@NotNull final PersistentEntityStoreImpl store,
+    public DistinctIterable(@NotNull final PersistentStoreTransaction txn,
                             @NotNull final EntityIterableBase source) {
-        super(store, source);
+        super(txn, source);
     }
 
     public static EntityIterableType getType() {

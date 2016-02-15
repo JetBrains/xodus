@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
-import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.env.Cursor;
 import org.jetbrains.annotations.NotNull;
@@ -26,10 +25,10 @@ abstract class PropertyRangeOrValueIterableBase extends EntityIterableBase {
     private final int entityTypeId;
     private final int propertyId;
 
-    public PropertyRangeOrValueIterableBase(@Nullable final PersistentEntityStoreImpl store,
+    public PropertyRangeOrValueIterableBase(@Nullable final PersistentStoreTransaction txn,
                                             final int entityTypeId,
                                             final int propertyId) {
-        super(store);
+        super(txn);
         this.entityTypeId = entityTypeId;
         this.propertyId = propertyId;
     }
@@ -52,6 +51,7 @@ abstract class PropertyRangeOrValueIterableBase extends EntityIterableBase {
     }
 
     protected EntityIterableBase getPropertyValueIndex() {
-        return getStore().getEntityIterableCache().putIfNotCached(new PropertiesIterable(getStore(), entityTypeId, propertyId));
+        return getStore().getEntityIterableCache().putIfNotCached(
+                new PropertiesIterable(getTransaction(), entityTypeId, propertyId));
     }
 }

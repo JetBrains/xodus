@@ -27,23 +27,23 @@ public final class IntersectionIterable extends BinaryOperatorEntityIterable {
         registerType(EntityIterableType.INTERSECT, new EntityIterableInstantiator() {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new IntersectionIterable(store,
+                return new IntersectionIterable(txn,
                         (EntityIterableBase) parameters[0], (EntityIterableBase) parameters[1]);
             }
         });
     }
 
-    public IntersectionIterable(@Nullable final PersistentEntityStoreImpl store,
+    public IntersectionIterable(@Nullable final PersistentStoreTransaction txn,
                                 @NotNull final EntityIterableBase iterable1,
                                 @NotNull final EntityIterableBase iterable2) {
-        this(store, iterable1, iterable2, false);
+        this(txn, iterable1, iterable2, false);
     }
 
-    public IntersectionIterable(@Nullable final PersistentEntityStoreImpl store,
+    public IntersectionIterable(@Nullable final PersistentStoreTransaction txn,
                                 @NotNull final EntityIterableBase iterable1,
                                 @NotNull final EntityIterableBase iterable2,
                                 final boolean preserveRightOrder) {
-        super(store, iterable1, iterable2, !preserveRightOrder);
+        super(txn, iterable1, iterable2, !preserveRightOrder);
         if (preserveRightOrder) {
             if (this.iterable2.isSortedById()) {
                 depth += SORTED_BY_ID_FLAG;

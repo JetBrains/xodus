@@ -38,18 +38,15 @@ public class EntitiesOfTypeRangeIterable extends EntityIterableBase {
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
                 long min = Long.parseLong((String) parameters[1]);
                 long max = Long.parseLong((String) parameters[2]);
-                return new EntitiesOfTypeRangeIterable(txn, store, Integer.valueOf((String) parameters[0]), min, max);
+                return new EntitiesOfTypeRangeIterable(txn, Integer.valueOf((String) parameters[0]), min, max);
             }
         });
     }
 
-    public EntitiesOfTypeRangeIterable(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntityStoreImpl store,
+    public EntitiesOfTypeRangeIterable(@NotNull final PersistentStoreTransaction txn,
                                        final int entityTypeId, final long min, final long max) {
-        super(store);
+        super(txn);
         this.entityTypeId = entityTypeId;
-        if (!txn.isCurrent()) {
-            txnGetter = txn;
-        }
         this.min = min;
         this.max = max;
     }

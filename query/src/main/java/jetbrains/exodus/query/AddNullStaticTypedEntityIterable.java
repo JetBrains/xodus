@@ -47,8 +47,8 @@ public class AddNullStaticTypedEntityIterable extends StaticTypedEntityIterable 
         if (queryEngine.isPersistentIterable(instantiatedDecorated) && queryEngine.isPersistentIterable(instantiatedNullContainer)) {
             EntityIterableBase entityIterableBaseDecorated = (EntityIterableBase) ((EntityIterable) instantiatedDecorated).getSource();
             EntityIterableBase entityIterableBaseNullContainer = (EntityIterableBase) ((EntityIterable) instantiatedNullContainer).getSource();
-            return queryEngine.wrap(new AddNullDecoratorIterable(queryEngine.getPersistentStore(),
-                    entityIterableBaseDecorated, entityIterableBaseNullContainer));
+            return queryEngine.wrap(new AddNullDecoratorIterable(
+                    queryEngine.getPersistentStore().getAndCheckCurrentTransaction(), entityIterableBaseDecorated, entityIterableBaseNullContainer));
         }
         return new Iterable<Entity>() {
             @Override

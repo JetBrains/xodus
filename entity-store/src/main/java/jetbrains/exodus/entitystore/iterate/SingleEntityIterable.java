@@ -28,7 +28,7 @@ public class SingleEntityIterable extends EntityIterableBase {
         registerType(getType(), new EntityIterableInstantiator() {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new SingleEntityIterable(store,
+                return new SingleEntityIterable(txn,
                         new PersistentEntityId(Integer.valueOf((String) parameters[0]),
                                 Integer.valueOf((String) parameters[1]))
                 );
@@ -36,8 +36,8 @@ public class SingleEntityIterable extends EntityIterableBase {
         });
     }
 
-    public SingleEntityIterable(@Nullable final PersistentEntityStoreImpl store, @Nullable final EntityId id) {
-        super(store);
+    public SingleEntityIterable(@Nullable final PersistentStoreTransaction txn, @Nullable final EntityId id) {
+        super(txn);
         this.id = id;
     }
 

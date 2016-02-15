@@ -26,16 +26,16 @@ public class SkipEntityIterable extends EntityIterableDecoratorBase {
         registerType(getType(), new EntityIterableInstantiator() {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new SkipEntityIterable(store,
+                return new SkipEntityIterable(txn,
                         (EntityIterableBase) parameters[1], Integer.valueOf((String) parameters[0]));
             }
         });
     }
 
-    protected SkipEntityIterable(@NotNull final PersistentEntityStoreImpl store,
+    protected SkipEntityIterable(@NotNull final PersistentStoreTransaction txn,
                                  @NotNull final EntityIterableBase source,
                                  final int itemsToSkip) {
-        super(store, source);
+        super(txn, source);
         this.itemsToSkip = itemsToSkip;
     }
 

@@ -35,7 +35,7 @@ public final class PropertiesIterable extends EntityIterableBase {
         registerType(getType(), new EntityIterableInstantiator() {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new PropertiesIterable(store, Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]));
+                return new PropertiesIterable(txn, Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]));
             }
         });
     }
@@ -48,8 +48,8 @@ public final class PropertiesIterable extends EntityIterableBase {
         return entityTypeId;
     }
 
-    public PropertiesIterable(@NotNull final PersistentEntityStoreImpl store, final int entityTypeId, final int propertyId) {
-        super(store);
+    public PropertiesIterable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId, final int propertyId) {
+        super(txn);
         this.entityTypeId = entityTypeId;
         this.propertyId = propertyId;
     }
@@ -92,7 +92,7 @@ public final class PropertiesIterable extends EntityIterableBase {
 
     @Override
     protected CachedInstanceIterable createCachedInstance(@NotNull final PersistentStoreTransaction txn) {
-        return new UpdatablePropertiesCachedInstanceIterable(getStore(), getIterator(txn, true), this);
+        return new UpdatablePropertiesCachedInstanceIterable(txn, getIterator(txn, true), this);
     }
 
     @Override

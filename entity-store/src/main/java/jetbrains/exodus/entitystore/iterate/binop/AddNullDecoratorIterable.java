@@ -30,15 +30,16 @@ public class AddNullDecoratorIterable extends BinaryOperatorEntityIterable {
         registerType(EntityIterableType.ADD_NULL, new EntityIterableInstantiator() {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new AddNullDecoratorIterable(store,
+                return new AddNullDecoratorIterable(txn, 
                         (EntityIterableBase) parameters[0], (EntityIterableBase) parameters[1]);
             }
         });
     }
 
-    public AddNullDecoratorIterable(PersistentEntityStoreImpl store, EntityIterableBase decorated,
-                                    EntityIterableBase nullContainer) {
-        super(store, decorated, nullContainer, false);
+    public AddNullDecoratorIterable(@NotNull final PersistentStoreTransaction txn,
+                                    @NotNull final EntityIterableBase decorated,
+                                    @NotNull final EntityIterableBase nullContainer) {
+        super(txn, decorated, nullContainer, false);
         if (decorated.isSortedById()) {
             depth += SORTED_BY_ID_FLAG;
         }

@@ -26,13 +26,14 @@ public class ExcludeNullIterableDecorator extends EntityIterableDecoratorBase {
         registerType(getType(), new EntityIterableInstantiator() {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new ExcludeNullIterableDecorator(store, (EntityIterableBase) parameters[0]);
+                return new ExcludeNullIterableDecorator(txn, (EntityIterableBase) parameters[0]);
             }
         });
     }
 
-    public ExcludeNullIterableDecorator(@NotNull final PersistentEntityStoreImpl store, @NotNull final EntityIterableBase source) {
-        super(store, source);
+    public ExcludeNullIterableDecorator(@NotNull final PersistentStoreTransaction txn,
+                                        @NotNull final EntityIterableBase source) {
+        super(txn, source);
     }
 
     public static EntityIterableType getType() {

@@ -40,10 +40,10 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
                 try {
                     long min = Long.parseLong((String) parameters[2]);
                     long max = Long.parseLong((String) parameters[3]);
-                    return new PropertyRangeIterable(store,
+                    return new PropertyRangeIterable(txn,
                             Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]), min, max);
                 } catch (NumberFormatException e) {
-                    return new PropertyRangeIterable(store,
+                    return new PropertyRangeIterable(txn,
                             Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]),
                             (Comparable) parameters[2], (Comparable) parameters[3]);
                 }
@@ -51,9 +51,12 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
         });
     }
 
-    public PropertyRangeIterable(@NotNull final PersistentEntityStoreImpl store, final int entityTypeId, final int propertyId,
-                                 @NotNull final Comparable minValue, @NotNull final Comparable maxValue) {
-        super(store, entityTypeId, propertyId);
+    public PropertyRangeIterable(@NotNull final PersistentStoreTransaction txn,
+                                 final int entityTypeId,
+                                 final int propertyId,
+                                 @NotNull final Comparable minValue,
+                                 @NotNull final Comparable maxValue) {
+        super(txn, entityTypeId, propertyId);
         min = PropertyTypes.toLowerCase(minValue);
         max = PropertyTypes.toLowerCase(maxValue);
     }

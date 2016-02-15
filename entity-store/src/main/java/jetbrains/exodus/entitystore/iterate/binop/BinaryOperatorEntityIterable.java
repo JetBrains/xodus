@@ -18,7 +18,7 @@ package jetbrains.exodus.entitystore.iterate.binop;
 import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.EntityIterableHandle;
 import jetbrains.exodus.entitystore.EntityIterableType;
-import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
+import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.iterate.EntityIterableHandleBase;
 import org.jetbrains.annotations.NotNull;
@@ -40,11 +40,11 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
     protected int depth;
 
     @SuppressWarnings({"ThrowableInstanceNeverThrown"})
-    protected BinaryOperatorEntityIterable(@Nullable final PersistentEntityStoreImpl store,
+    protected BinaryOperatorEntityIterable(@Nullable final PersistentStoreTransaction txn,
                                            @NotNull final EntityIterableBase iterable1,
                                            @NotNull final EntityIterableBase iterable2,
                                            final boolean isCommutative) {
-        super(store);
+        super(txn);
         final int depth1 = iterable1.depth();
         final int depth2 = iterable2.depth();
         // for commutative operations, try to build right-oriented tree

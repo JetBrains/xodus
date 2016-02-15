@@ -34,7 +34,7 @@ public class EntityFromLinksIterable extends EntityLinksIterableBase {
         registerType(getType(), new EntityIterableInstantiator() {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new EntityFromLinksIterable(txn, store,
+                return new EntityFromLinksIterable(txn,
                         new PersistentEntityId(Integer.valueOf((String) parameters[0]),
                                 Integer.valueOf((String) parameters[1])), Integer.valueOf((String) parameters[2])
                 );
@@ -42,13 +42,11 @@ public class EntityFromLinksIterable extends EntityLinksIterableBase {
         });
     }
 
-    public EntityFromLinksIterable(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntityStoreImpl store,
-                                   @NotNull final EntityId entityId, final int linkId) {
-        super(store, entityId);
+    public EntityFromLinksIterable(@NotNull final PersistentStoreTransaction txn,
+                                   @NotNull final EntityId entityId,
+                                   final int linkId) {
+        super(txn, entityId);
         this.linkId = linkId;
-        if (!txn.isCurrent()) {
-            txnGetter = txn;
-        }
     }
 
     public static EntityIterableType getType() {

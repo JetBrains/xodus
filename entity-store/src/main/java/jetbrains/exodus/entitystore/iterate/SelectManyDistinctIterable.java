@@ -38,16 +38,16 @@ public class SelectManyDistinctIterable extends EntityIterableDecoratorBase {
         registerType(getType(), new EntityIterableInstantiator() {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new SelectManyDistinctIterable(store,
+                return new SelectManyDistinctIterable(txn,
                         (EntityIterableBase) parameters[1], Integer.valueOf((String) parameters[0]));
             }
         });
     }
 
-    public SelectManyDistinctIterable(@NotNull final PersistentEntityStoreImpl store,
+    public SelectManyDistinctIterable(@NotNull final PersistentStoreTransaction txn,
                                       @NotNull final EntityIterableBase source,
                                       final int linkId) {
-        super(store, source);
+        super(txn, source);
         this.linkId = linkId;
     }
 

@@ -29,16 +29,16 @@ public final class ConcatenationIterable extends BinaryOperatorEntityIterable {
         registerType(EntityIterableType.CONCAT, new EntityIterableInstantiator() {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new ConcatenationIterable(store,
+                return new ConcatenationIterable(txn,
                         (EntityIterableBase) parameters[0], (EntityIterableBase) parameters[1]);
             }
         });
     }
 
-    public ConcatenationIterable(@Nullable final PersistentEntityStoreImpl store,
+    public ConcatenationIterable(@Nullable final PersistentStoreTransaction txn,
                                  @NotNull final EntityIterableBase iterable1,
                                  @NotNull final EntityIterableBase iterable2) {
-        super(store, iterable1, iterable2, false);
+        super(txn, iterable1, iterable2, false);
         if (iterable1.isSortedById() && iterable2.isSortedById()) {
             depth += SORTED_BY_ID_FLAG;
         }

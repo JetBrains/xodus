@@ -97,8 +97,15 @@ public abstract class EntityIterableBase implements EntityIterable {
     @NotNull
     protected TxnGetterStategy txnGetter = TxnGetterStategy.DEFAULT;
 
-    protected EntityIterableBase(@Nullable final PersistentEntityStoreImpl store) {
-        this.store = store;
+    protected EntityIterableBase(@Nullable final PersistentStoreTransaction txn) {
+        if (txn == null) {
+            store = null;
+        } else {
+            store = txn.getStore();
+            if (!txn.isCurrent()) {
+                txnGetter = txn;
+            }
+        }
     }
 
     @SuppressWarnings({"NullableProblems"})
@@ -252,7 +259,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (this == EMPTY || right == EMPTY) {
             return EMPTY;
         }
-        return new IntersectionIterable(store, this, (EntityIterableBase) right);
+        return new IntersectionIterable(getTransaction(), this, (EntityIterableBase) right);
     }
 
     @Override
@@ -261,7 +268,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (this == EMPTY || right == EMPTY) {
             return EMPTY;
         }
-        return new IntersectionIterable(store, this, (EntityIterableBase) right, true);
+        return new IntersectionIterable(getTransaction(), this, (EntityIterableBase) right, true);
     }
 
     @Override
@@ -273,7 +280,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (right == EMPTY) {
             return this;
         }
-        return new UnionIterable(store, this, (EntityIterableBase) right);
+        return new UnionIterable(getTransaction(), this, (EntityIterableBase) right);
     }
 
     @Override
@@ -285,7 +292,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (right == EMPTY) {
             return this;
         }
-        return new MinusIterable(store, this, (EntityIterableBase) right);
+        return new MinusIterable(getTransaction(), this, (EntityIterableBase) right);
     }
 
     @Override
@@ -297,13 +304,14 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (right == EMPTY) {
             return this;
         }
+        final PersistentStoreTransaction txn = getTransaction();
         // try to build right-oriented trees
         if (this instanceof ConcatenationIterable) {
             final ConcatenationIterable thisConcat = (ConcatenationIterable) this;
-            return new ConcatenationIterable(store, thisConcat.getLeft(),
-                    new ConcatenationIterable(store, thisConcat.getRight(), (EntityIterableBase) right));
+            return new ConcatenationIterable(txn, thisConcat.getLeft(),
+                    new ConcatenationIterable(txn, thisConcat.getRight(), (EntityIterableBase) right));
         }
-        return new ConcatenationIterable(store, this, (EntityIterableBase) right);
+        return new ConcatenationIterable(txn, this, (EntityIterableBase) right);
     }
 
     @NotNull
@@ -312,7 +320,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (number <= 0 || store == null) {
             return this;
         }
-        return new SkipEntityIterable(store, this, number);
+        return new SkipEntityIterable(getTransaction(), this, number);
     }
 
     @NotNull
@@ -321,7 +329,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (number <= 0 || store == null) {
             return EMPTY;
         }
-        return new TakeEntityIterable(store, this, number);
+        return new TakeEntityIterable(getTransaction(), this, number);
     }
 
     @NotNull
@@ -330,7 +338,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             return EMPTY;
         }
-        return new DistinctIterable(store, this);
+        return new DistinctIterable(getTransaction(), this);
     }
 
     @NotNull
@@ -343,7 +351,8 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             return EMPTY;
         }
-        return new SelectDistinctIterable(store, this, store.getLinkId(getTransaction(), linkName, false));
+        final PersistentStoreTransaction txn = getTransaction();
+        return new SelectDistinctIterable(txn, this, store.getLinkId(txn, linkName, false));
     }
 
     @NotNull
@@ -356,7 +365,8 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             return EMPTY;
         }
-        return new SelectManyDistinctIterable(store, this, store.getLinkId(getTransaction(), linkName, false));
+        final PersistentStoreTransaction txn = getTransaction();
+        return new SelectManyDistinctIterable(txn, this, store.getLinkId(txn, linkName, false));
     }
 
     @Nullable
@@ -396,7 +406,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             return EMPTY;
         }
-        return new EntityReverseIterable(store, this);
+        return new EntityReverseIterable(getTransaction(), this);
     }
 
     @Override
@@ -408,7 +418,7 @@ public abstract class EntityIterableBase implements EntityIterable {
     @NotNull
     @Override
     public EntityIterable asSortResult() {
-        return store == null ? this : new SortResultIterable(store, this);
+        return store == null ? this : new SortResultIterable(getTransaction(), this);
     }
 
     @Override
@@ -435,7 +445,11 @@ public abstract class EntityIterableBase implements EntityIterable {
      * @return true if should.
      */
     public boolean canBeCached() {
-        return txnGetter == TxnGetterStategy.DEFAULT; // !hasCustomTxn
+        return !hasCustomTxn();
+    }
+
+    public boolean hasCustomTxn() {
+        return txnGetter != TxnGetterStategy.DEFAULT;
     }
 
     @NotNull
@@ -448,11 +462,12 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             return EMPTY;
         }
-        final int linkId = store.getLinkId(getTransaction(), linkName, false);
+        final PersistentStoreTransaction txn = getTransaction();
+        final int linkId = store.getLinkId(txn, linkName, false);
         if (linkId < 0) {
             return EMPTY;
         }
-        return ((EntityIterableBase) entities).store == null ? EMPTY : new FilterLinksIterable(store, linkId, this, entities);
+        return ((EntityIterableBase) entities).store == null ? EMPTY : new FilterLinksIterable(txn, linkId, this, entities);
     }
 
     public boolean isCachedInstance() {
@@ -517,7 +532,7 @@ public abstract class EntityIterableBase implements EntityIterable {
     }
 
     protected CachedInstanceIterable createCachedInstance(@NotNull final PersistentStoreTransaction txn) {
-        return new EntityIdArrayCachedInstanceIterable(txn, getStore(), this);
+        return new EntityIdArrayCachedInstanceIterable(txn, this);
     }
 
     public static String getHumanReadablePresentation(@NotNull final EntityIterableHandle handle) {

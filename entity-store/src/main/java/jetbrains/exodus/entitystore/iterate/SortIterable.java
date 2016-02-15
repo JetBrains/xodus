@@ -40,18 +40,18 @@ public final class SortIterable extends EntityIterableDecoratorBase {
         registerType(getType(), new EntityIterableInstantiator() {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new SortIterable(store, (EntityIterableBase) parameters[2],
+                return new SortIterable(txn, (EntityIterableBase) parameters[2],
                         (EntityIterableBase) parameters[3], Integer.valueOf((String) parameters[0]), "0".equals(parameters[1]));
             }
         });
     }
 
-    public SortIterable(@NotNull final PersistentEntityStoreImpl store,
+    public SortIterable(@NotNull final PersistentStoreTransaction txn,
                         @NotNull final EntityIterableBase propIndex,
                         @NotNull final EntityIterableBase source,
                         final int sourceTypeId,
                         final boolean ascending) {
-        super(store, source);
+        super(txn, source);
         this.propIndex = propIndex;
         this.sourceTypeId = sourceTypeId;
         this.ascending = ascending;

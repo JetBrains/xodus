@@ -1284,7 +1284,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     EntityIterableBase getLinks(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity from, final int linkId) {
         final EntityId fromId = from.getId();
         if (from.isUpToDate()) { // up-to-date entity
-            return new EntityFromLinksIterable(txn, this, fromId, linkId);
+            return new EntityFromLinksIterable(txn, fromId, linkId);
         } else { // historical entity
             final int entityTypeId = fromId.getTypeId();
             final long entityLocalId = fromId.getLocalId();
@@ -1294,11 +1294,11 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 final ByteIterable keyEntry = LongBinding.longToCompressedEntry(entityLocalId);
                 final ByteIterable valueEntry = IntegerBinding.intToCompressedEntry(version);
                 if (cursor.getSearchBothRange(keyEntry, valueEntry) == null) {
-                    return new EntityFromLinksIterable(txn, this, fromId, linkId);
+                    return new EntityFromLinksIterable(txn, fromId, linkId);
                 }
                 nextVersion = IntegerBinding.compressedEntryToInt(valueEntry);
             }
-            return new EntityFromHistoryLinksIterable(this, fromId, nextVersion, linkId);
+            return new EntityFromHistoryLinksIterable(txn, fromId, nextVersion, linkId);
         }
     }
 
@@ -1306,7 +1306,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     EntityIterable getLinks(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity from, final IntHashMap<String> linkNames) {
         final EntityId fromId = from.getId();
         if (from.isUpToDate()) { // up-to-date entity
-            return new EntityFromLinkSetIterable(txn, this, fromId, linkNames);
+            return new EntityFromLinkSetIterable(txn, fromId, linkNames);
         } else { // historical entity
             final int entityTypeId = fromId.getTypeId();
             final long entityLocalId = fromId.getLocalId();
@@ -1316,11 +1316,11 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 final ByteIterable keyEntry = LongBinding.longToCompressedEntry(entityLocalId);
                 final ByteIterable valueEntry = IntegerBinding.intToCompressedEntry(version);
                 if (cursor.getSearchBothRange(keyEntry, valueEntry) == null) {
-                    return new EntityFromLinkSetIterable(txn, this, fromId, linkNames);
+                    return new EntityFromLinkSetIterable(txn, fromId, linkNames);
                 }
                 nextVersion = IntegerBinding.compressedEntryToInt(valueEntry);
             }
-            return new EntityFromHistoryLinkSetIterable(this, fromId, nextVersion, linkNames);
+            return new EntityFromHistoryLinkSetIterable(txn, fromId, nextVersion, linkNames);
         }
     }
 

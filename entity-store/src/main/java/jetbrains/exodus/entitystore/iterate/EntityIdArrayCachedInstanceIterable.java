@@ -17,7 +17,10 @@ package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.core.dataStructures.IntArrayList;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
-import jetbrains.exodus.entitystore.*;
+import jetbrains.exodus.entitystore.EntityId;
+import jetbrains.exodus.entitystore.EntityIterator;
+import jetbrains.exodus.entitystore.PersistentEntityId;
+import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.entitystore.util.EntityIdSet;
 import jetbrains.exodus.entitystore.util.IntArrayListSpinAllocator;
 import jetbrains.exodus.entitystore.util.LongArrayListSpinAllocator;
@@ -43,9 +46,8 @@ public class EntityIdArrayCachedInstanceIterable extends CachedInstanceIterable 
 
     @SuppressWarnings({"ConstantConditions", "OverlyNestedMethod", "OverlyLongMethod", "OverriddenMethodCallDuringObjectConstruction"})
     public EntityIdArrayCachedInstanceIterable(@NotNull final PersistentStoreTransaction txn,
-                                               @NotNull final PersistentEntityStoreImpl store,
                                                @NotNull final EntityIterableBase source) {
-        super(store, source);
+        super(txn, source);
         final EntityIteratorBase it = (EntityIteratorBase) source.getIteratorImpl(txn);
         try {
             if (!it.hasNext()) {

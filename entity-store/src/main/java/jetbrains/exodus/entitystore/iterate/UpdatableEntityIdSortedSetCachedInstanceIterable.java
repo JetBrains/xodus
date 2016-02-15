@@ -16,7 +16,10 @@
 package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLong23TreeMap;
-import jetbrains.exodus.entitystore.*;
+import jetbrains.exodus.entitystore.EntityId;
+import jetbrains.exodus.entitystore.EntityIterator;
+import jetbrains.exodus.entitystore.PersistentEntityId;
+import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.entitystore.util.EntityIdSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -37,9 +40,8 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
     private EntityIdSet idSet;
 
     public UpdatableEntityIdSortedSetCachedInstanceIterable(@NotNull final PersistentStoreTransaction txn,
-                                                            @Nullable final PersistentEntityStoreImpl store,
                                                             @NotNull final EntityIterableBase source) {
-        super(store, source);
+        super(txn, source);
         entityTypeId = source.getEntityTypeId();
         final EntityIteratorBase it = (EntityIteratorBase) source.getIteratorImpl(txn);
         try {
@@ -66,7 +68,7 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
 
     // constructor for mutating
     private UpdatableEntityIdSortedSetCachedInstanceIterable(@NotNull final UpdatableEntityIdSortedSetCachedInstanceIterable source) {
-        super(source.getStore(), source);
+        super(source.getTransaction(), source);
         entityTypeId = source.entityTypeId;
         localIds = source.localIds.getClone();
         mutableLocalIds = localIds.beginWrite();

@@ -24,14 +24,14 @@ public final class EntityReverseIterable extends EntityIterableDecoratorBase {
         registerType(getType(), new EntityIterableInstantiator() {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new EntityReverseIterable(store, (EntityIterableBase) parameters[0]);
+                return new EntityReverseIterable(txn, (EntityIterableBase) parameters[0]);
             }
         });
     }
 
-    public EntityReverseIterable(@NotNull final PersistentEntityStoreImpl store,
+    public EntityReverseIterable(@NotNull final PersistentStoreTransaction txn,
                                  @NotNull final EntityIterableBase source) {
-        super(store, source);
+        super(txn, source);
     }
 
     public static EntityIterableType getType() {

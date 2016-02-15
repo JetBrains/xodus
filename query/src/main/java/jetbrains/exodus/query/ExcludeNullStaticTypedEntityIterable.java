@@ -43,7 +43,7 @@ public class ExcludeNullStaticTypedEntityIterable extends StaticTypedEntityItera
             if (entityIterableBaseDecorated == EntityIterableBase.EMPTY) {
                 return EntityIterableBase.EMPTY;
             }
-            return queryEngine.wrap(new ExcludeNullIterableDecorator(entityIterableBaseDecorated.getStore(), entityIterableBaseDecorated));
+            return queryEngine.wrap(new ExcludeNullIterableDecorator(entityIterableBaseDecorated.getTransaction(), entityIterableBaseDecorated));
         }
         return new Iterable<Entity>() {
             @Override

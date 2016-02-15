@@ -33,17 +33,14 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
         registerType(getType(), new EntityIterableInstantiator() {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new EntitiesOfTypeIterable(txn, store, Integer.valueOf((String) parameters[0]));
+                return new EntitiesOfTypeIterable(txn, Integer.valueOf((String) parameters[0]));
             }
         });
     }
 
-    public EntitiesOfTypeIterable(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntityStoreImpl store, final int entityTypeId) {
-        super(store);
+    public EntitiesOfTypeIterable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
+        super(txn);
         this.entityTypeId = entityTypeId;
-        if (!txn.isCurrent()) {
-            txnGetter = txn;
-        }
     }
 
     public static EntityIterableType getType() {
@@ -78,7 +75,7 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
 
     @Override
     protected CachedInstanceIterable createCachedInstance(@NotNull final PersistentStoreTransaction txn) {
-        return new UpdatableEntityIdSortedSetCachedInstanceIterable(txn, getStore(), this);
+        return new UpdatableEntityIdSortedSetCachedInstanceIterable(txn, this);
     }
 
     private final class EntitiesOfTypeIterator extends EntityIteratorBase {

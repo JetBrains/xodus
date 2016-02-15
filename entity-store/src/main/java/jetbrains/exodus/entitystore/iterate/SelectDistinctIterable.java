@@ -35,16 +35,16 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
         registerType(getType(), new EntityIterableInstantiator() {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new SelectDistinctIterable(store,
+                return new SelectDistinctIterable(txn,
                         (EntityIterableBase) parameters[1], Integer.valueOf((String) parameters[0]));
             }
         });
     }
 
-    public SelectDistinctIterable(@NotNull final PersistentEntityStoreImpl store,
+    public SelectDistinctIterable(@NotNull final PersistentStoreTransaction txn,
                                   @NotNull final EntityIterableBase source,
                                   final int linkId) {
-        super(store, source);
+        super(txn, source);
         this.linkId = linkId;
     }
 

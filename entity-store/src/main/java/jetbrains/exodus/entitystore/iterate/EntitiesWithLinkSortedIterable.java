@@ -16,7 +16,10 @@
 package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.entitystore.*;
+import jetbrains.exodus.entitystore.EntityId;
+import jetbrains.exodus.entitystore.EntityIterableHandle;
+import jetbrains.exodus.entitystore.PersistentEntityId;
+import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.entitystore.tables.LinkValue;
 import jetbrains.exodus.env.Cursor;
 import org.jetbrains.annotations.NotNull;
@@ -27,12 +30,12 @@ public final class EntitiesWithLinkSortedIterable extends EntitiesWithLinkIterab
     private final int oppositeEntityTypeId;
     private final int oppositeLinkId;
 
-    public EntitiesWithLinkSortedIterable(@NotNull final PersistentEntityStoreImpl store,
+    public EntitiesWithLinkSortedIterable(@NotNull final PersistentStoreTransaction txn,
                                           final int entityTypeId,
                                           final int linkId,
                                           final int oppositeEntityTypeId,
                                           final int oppositeLinkId) {
-        super(store, entityTypeId, linkId);
+        super(txn, entityTypeId, linkId);
         this.oppositeEntityTypeId = oppositeEntityTypeId;
         this.oppositeLinkId = oppositeLinkId;
     }

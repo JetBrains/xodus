@@ -96,7 +96,7 @@ public class QueryEngine {
 
     @Nullable
     protected Iterable<Entity> wrap(@NotNull Entity entity) {
-        return new SingleEntityIterable(pesistentStore, entity.getId());
+        return new SingleEntityIterable(pesistentStore.getAndCheckCurrentTransaction(), entity.getId());
     }
 
     public boolean isPersistentIterable(Iterable<Entity> it) {

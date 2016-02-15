@@ -160,7 +160,7 @@ public class EntityIdArrayCachedInstanceIterableTests extends EntityStoreTestBas
     }
 
     EntityIdArrayCachedInstanceIterable w(TestEntityIterableImpl t) {
-        return new EntityIdArrayCachedInstanceIterable(getStoreTransaction(), getEntityStore(), t);
+        return new EntityIdArrayCachedInstanceIterable(getStoreTransaction(), t);
     }
 
     TestEntityIterableImpl t(final boolean isSortedById, final long... ids) {
@@ -334,7 +334,7 @@ public class EntityIdArrayCachedInstanceIterableTests extends EntityStoreTestBas
 
         @Override
         protected CachedInstanceIterable createCachedInstance(@NotNull final PersistentStoreTransaction txn) {
-            return new EntityIdArrayCachedInstanceIterable(txn, getStore(), this);
+            return new EntityIdArrayCachedInstanceIterable(txn, this);
         }
 
         // all following unsupported

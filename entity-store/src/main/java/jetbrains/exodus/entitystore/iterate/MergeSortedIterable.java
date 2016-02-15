@@ -44,7 +44,7 @@ public class MergeSortedIterable extends EntityIterableBase {
                 for (int i = 0; i < size; i++) {
                     sorted.add((EntityIterable) parameters[i + 1]);
                 }
-                return new MergeSortedIterable(store, sorted, new Comparator<Entity>() {
+                return new MergeSortedIterable(txn, sorted, new Comparator<Entity>() {
                     @Override
                     public int compare(Entity o1, Entity o2) {
                         return o1.getId().compareTo(o2.getId());
@@ -54,10 +54,10 @@ public class MergeSortedIterable extends EntityIterableBase {
         });
     }
 
-    public MergeSortedIterable(@Nullable final PersistentEntityStoreImpl store,
+    public MergeSortedIterable(@Nullable final PersistentStoreTransaction txn,
                                @NotNull final List<EntityIterable> sorted,
                                @NotNull final Comparator<Entity> comparator) {
-        super(store);
+        super(txn);
         this.sorted = sorted;
         this.comparator = comparator;
     }

@@ -17,7 +17,7 @@ package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.entitystore.EntityIterableHandle;
 import jetbrains.exodus.entitystore.EntityIterator;
-import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
+import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -26,9 +26,9 @@ public abstract class CachedInstanceIterable extends EntityIterableBase {
     @NotNull
     private final EntityIterableHandle sourceHandle;
 
-    protected CachedInstanceIterable(@Nullable final PersistentEntityStoreImpl store,
+    protected CachedInstanceIterable(@Nullable final PersistentStoreTransaction txn,
                                      @NotNull final EntityIterableBase source) {
-        super(store);
+        super(txn);
         sourceHandle = source.getHandle();
         txnGetter = source.txnGetter;
     }
