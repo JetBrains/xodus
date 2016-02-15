@@ -38,6 +38,8 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
     private PersistentLong23TreeMap.MutableMap mutableLocalIds;
     @Nullable
     private EntityIdSet idSet;
+    @Nullable
+    private long[] idArray;
 
     public UpdatableEntityIdSortedSetCachedInstanceIterable(@NotNull final PersistentStoreTransaction txn,
                                                             @NotNull final EntityIterableBase source) {
@@ -64,6 +66,7 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
         }
         mutableLocalIds = null;
         idSet = null;
+        idArray = null;
     }
 
     // constructor for mutating
@@ -72,6 +75,8 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
         entityTypeId = source.entityTypeId;
         localIds = source.localIds.getClone();
         mutableLocalIds = localIds.beginWrite();
+        idSet = null;
+        idArray = null;
     }
 
     public int getEntityTypeId() {
@@ -80,13 +85,40 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
 
     @NotNull
     @Override
-    public EntityIterator getIteratorImpl(@NotNull PersistentStoreTransaction txn) {
+    public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
         if (localIds == EMPTY_IDS && mutableLocalIds == null) {
             return EntityIteratorBase.EMPTY;
         }
+        final PersistentLong23TreeMap.MutableMap currentMap = getCurrentMap();
+        if (mutableLocalIds == null) {
+            if (idArray == null) {
+                final long[] result = new long[currentMap.size()];
+                final Iterator<PersistentLong23TreeMap.Entry> it = currentMap.iterator();
+                int i = 0;
+                while (it.hasNext()) {
+                    result[i++] = it.next().getKey();
+                }
+                idArray = result;
+            }
+            return new NonDisposableEntityIterator(this) {
+
+                private int i = 0;
+
+                @Override
+                protected boolean hasNextImpl() {
+                    return i < idArray.length;
+                }
+
+                @Nullable
+                @Override
+                protected EntityId nextIdImpl() {
+                    return new PersistentEntityId(entityTypeId, idArray[i++]);
+                }
+            };
+        }
         return new NonDisposableEntityIterator(this) {
 
-            private final Iterator<PersistentLong23TreeMap.Entry> it = getCurrentMap().iterator();
+            private final Iterator<PersistentLong23TreeMap.Entry> it = currentMap.iterator();
 
             @Override
             protected boolean hasNextImpl() {
@@ -113,6 +145,9 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
             final EntityIterator it = getIteratorImpl(txn);
             while (it.hasNext()) {
                 result.add(it.nextId());
+            }
+            if (mutableLocalIds != null) {
+                return result;
             }
             idSet = result;
         }
