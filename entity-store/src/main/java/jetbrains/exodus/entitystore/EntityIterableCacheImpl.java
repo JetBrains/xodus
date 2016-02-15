@@ -134,19 +134,18 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
 
     public long getCachedCount(@NotNull final EntityIterableBase it) {
         final EntityIterableHandle handle = it.getHandle();
-        final PersistentStoreTransaction txn = it.getTransaction();
         @Nullable
         final Long result = getCachedCount(handle);
-        if (result == null) {
-            if (isDispatcherThread()) {
-                return it.getOrCreateCachedInstance(txn).size();
-            }
-            if (!isCachingQueueFull()) {
-                new EntityIterableAsyncInstantiation(handle, it, true).queue(Priority.normal);
-            }
-            return -1;
+        if (result != null) {
+            return result;
         }
-        return result;
+        if (isDispatcherThread()) {
+            return it.getOrCreateCachedInstance(it.getTransaction()).size();
+        }
+        if (!it.hasCustomTxn() && !isCachingQueueFull()) {
+            new EntityIterableAsyncInstantiation(handle, it, true).queue(Priority.normal);
+        }
+        return -1;
     }
 
     public void setCachedCount(@NotNull final EntityIterableHandle handle, final long count) {
