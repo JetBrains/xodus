@@ -18,7 +18,6 @@ package jetbrains.exodus.bindings;
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.util.LightOutputStream;
-import jetbrains.exodus.util.StringInterner;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.ByteArrayInputStream;
@@ -32,7 +31,7 @@ public class StringBinding extends ComparableBinding {
 
     @Override
     public String readObject(@NotNull final ByteArrayInputStream stream) {
-        return StringInterner.intern(BindingUtils.readString(stream));
+        return BindingUtils.readString(stream);
     }
 
     @Override
