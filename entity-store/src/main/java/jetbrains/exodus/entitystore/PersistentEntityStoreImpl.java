@@ -1420,7 +1420,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return getLastVersion(getAndCheckCurrentTransaction(), id);
     }
 
-    int getLastVersion(@NotNull final PersistentStoreTransaction txn, @NotNull final EntityId id) {
+    public int getLastVersion(@NotNull final PersistentStoreTransaction txn, @NotNull final EntityId id) {
         final Store entities = getEntitiesTable(txn, id.getTypeId());
         final ByteIterable versionEntry = entities.get(txn.getEnvironmentTransaction(), LongBinding.longToCompressedEntry(id.getLocalId()));
         if (versionEntry == null) {
