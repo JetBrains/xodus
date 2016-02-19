@@ -18,13 +18,25 @@ package jetbrains.exodus.bindings;
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.util.LightOutputStream;
+import jetbrains.exodus.util.StringInterner;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.ByteArrayInputStream;
 
 public class StringBinding extends ComparableBinding {
 
-    public static final StringBinding BINDING = new StringBinding();
+    public static final StringBinding BINDING;
+
+    static {
+        final String interner = System.getProperty("exodus.bindings.interner");
+        if ("java".equalsIgnoreCase(interner)) {
+            BINDING = new StringBindingWithJavaInterner();
+        } else if ("xodus".equalsIgnoreCase(interner)) {
+            BINDING = new StringBindingWithXodusInterner();
+        } else {
+            BINDING = new StringBinding();
+        }
+    }
 
     private StringBinding() {
     }
@@ -45,5 +57,21 @@ public class StringBinding extends ComparableBinding {
 
     public static ArrayByteIterable stringToEntry(@NotNull final String object) {
         return BINDING.objectToEntry(object);
+    }
+
+    private static class StringBindingWithXodusInterner extends StringBinding {
+
+        @Override
+        public String readObject(@NotNull ByteArrayInputStream stream) {
+            return StringInterner.intern(super.readObject(stream));
+        }
+    }
+
+    private static class StringBindingWithJavaInterner extends StringBinding {
+
+        @Override
+        public String readObject(@NotNull ByteArrayInputStream stream) {
+            return super.readObject(stream).intern();
+        }
     }
 }
