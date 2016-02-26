@@ -543,7 +543,7 @@ public class Reflect {
                 } else if ("-u".equalsIgnoreCase(arg)) {
                     utilizationInfo = true;
                 } else if (arg.toLowerCase().startsWith("-cl")) {
-                    files2Clean.add(arg.substring(2));
+                    files2Clean.add(arg.substring(3));
                 } else {
                     printUsage();
                     return;
