@@ -20,7 +20,11 @@ import jetbrains.exodus.core.dataStructures.hash.HashMap;
 public class StringHashMap<T> extends HashMap<String, T> {
 
     public StringHashMap() {
-        super(6, 2);
+        this(9, 3);
+    }
+
+    public StringHashMap(int capacity, float loadFactor) {
+        super(capacity, loadFactor);
     }
 
     @Override
