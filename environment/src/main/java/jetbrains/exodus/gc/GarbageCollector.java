@@ -163,6 +163,10 @@ public final class GarbageCollector {
         return cleaner.isCurrentThread();
     }
 
+    public boolean isTooMuchFreeSpace() {
+        return utilizationProfile.totalFreeSpacePercent() > getMaximumFreeSpacePercent();
+    }
+
     public /* public access is necessary to invoke the method from the Reflect class */
     boolean doCleanFile(final long fileAddress) {
         // the file may be already cleaned
@@ -244,10 +248,6 @@ public final class GarbageCollector {
 
     int getMinFileAge() {
         return ec.getGcFileMinAge();
-    }
-
-    boolean isTooMuchFreeSpace() {
-        return utilizationProfile.totalFreeSpacePercent() > getMaximumFreeSpacePercent();
     }
 
     void deletePendingFiles() {
