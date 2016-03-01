@@ -60,7 +60,7 @@ public class EntityIdSet implements Iterable<EntityId> {
             localIds = set.get(typeId);
         }
         if (localIds == null) {
-            localIds = new LongHashSet(100);
+            localIds = new LongHashSet(100, 3);
             set.put(typeId, localIds);
             if (set.size() > 1) {
                 singleTypeLocalIds = null;
