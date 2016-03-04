@@ -56,6 +56,11 @@ public final class IntersectionIterable extends BinaryOperatorEntityIterable {
     }
 
     @Override
+    public boolean isEmpty() {
+        return isEmptyFast() || super.isEmpty();
+    }
+
+    @Override
     protected EntityIterableType getIterableType() {
         return EntityIterableType.INTERSECT;
     }
@@ -80,6 +85,16 @@ public final class IntersectionIterable extends BinaryOperatorEntityIterable {
             iterator = new UnsortedIterator(this, txn, iterable1, iterable2);
         }
         return new EntityIteratorFixingDecorator(this, iterator);
+    }
+
+    @Override
+    protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
+        return isEmptyFast() ? 0 : super.countImpl(txn);
+    }
+
+    private boolean isEmptyFast() {
+        return (iterable1.nonCachedHasFastCount() && iterable1.isEmpty()) ||
+                (iterable2.nonCachedHasFastCount() && iterable2.isEmpty());
     }
 
     private static final class SortedIterator extends NonDisposableEntityIterator {

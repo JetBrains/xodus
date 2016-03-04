@@ -154,11 +154,15 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             return true;
         }
-        final EntityIteratorBase it = (EntityIteratorBase) store.getEntityIterableCache().putIfNotCached(this).getIteratorImpl();
+        final EntityIterableBase it = store.getEntityIterableCache().putIfNotCached(this);
+        if (it.nonCachedHasFastCount()) {
+            return countImpl(getTransaction()) == 0;
+        }
+        final EntityIteratorBase iterator = (EntityIteratorBase) it.getIteratorImpl();
         try {
-            return !it.hasNext();
+            return !iterator.hasNext();
         } finally {
-            it.disposeIfShouldBe();
+            iterator.disposeIfShouldBe();
         }
     }
 
