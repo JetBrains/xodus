@@ -77,6 +77,11 @@ public final class PropertyValueIterable extends PropertyRangeOrValueIterableBas
     }
 
     @Override
+    public boolean nonCachedHasFastCount() {
+        return true;
+    }
+
+    @Override
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
         final int entityTypeId = getEntityTypeId();

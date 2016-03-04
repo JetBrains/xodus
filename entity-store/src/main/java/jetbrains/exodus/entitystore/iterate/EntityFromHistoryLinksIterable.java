@@ -38,6 +38,11 @@ public final class EntityFromHistoryLinksIterable extends EntityLinksIterableBas
     }
 
     @Override
+    public boolean nonCachedHasFastCount() {
+        return true;
+    }
+
+    @Override
     public boolean canBeCached() {
         return false;
     }

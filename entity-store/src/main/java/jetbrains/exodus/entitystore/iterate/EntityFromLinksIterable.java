@@ -60,6 +60,11 @@ public class EntityFromLinksIterable extends EntityLinksIterableBase {
     }
 
     @Override
+    public boolean nonCachedHasFastCount() {
+        return true;
+    }
+
+    @Override
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
         return new ConstantEntityIterableHandle(getStore(), EntityFromLinksIterable.getType()) {
