@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.core.dataStructures.hash;
 
+import jetbrains.exodus.util.MathUtil;
+
 import java.util.AbstractSet;
 import java.util.Collection;
 import java.util.Iterator;
@@ -25,7 +27,6 @@ public class HashSet<E> extends AbstractSet<E> {
     private int capacity;
     private int size;
     private final float loadFactor;
-    private int shift;
     private int mask;
     private boolean holdsNull;
 
@@ -57,11 +58,11 @@ public class HashSet<E> extends AbstractSet<E> {
 
         final Entry<E>[] table = this.table;
         final int hash = key.hashCode();
-        final int index = HashUtil.indexFor(hash, table.length, shift, mask);
+        final int index = HashUtil.indexFor(hash, table.length, mask);
 
         for (Entry<E> e = table[index]; e != null; e = e.hashNext) {
             final E entryKey;
-            if (e.keyHash == hash && ((entryKey = e.key) == key || entryKey.equals(key))) {
+            if ((entryKey = e.key) == key || entryKey.equals(key)) {
                 return true;
             }
         }
@@ -82,11 +83,11 @@ public class HashSet<E> extends AbstractSet<E> {
 
         final Entry<E>[] table = this.table;
         final int hash = key.hashCode();
-        final int index = HashUtil.indexFor(hash, table.length, shift, mask);
+        final int index = HashUtil.indexFor(hash, table.length, mask);
 
         for (Entry<E> e = table[index]; e != null; e = e.hashNext) {
             final E entryKey;
-            if (e.keyHash == hash && ((entryKey = e.key) == key || entryKey.equals(key))) {
+            if ((entryKey = e.key) == key || entryKey.equals(key)) {
                 return false;
             }
         }
@@ -115,20 +116,20 @@ public class HashSet<E> extends AbstractSet<E> {
 
         final Entry<E>[] table = this.table;
         final int hash = key.hashCode();
-        final int index = HashUtil.indexFor(hash, table.length, shift, mask);
+        final int index = HashUtil.indexFor(hash, table.length, mask);
         Entry<E> e = table[index];
 
         if (e == null) return false;
 
         E entryKey;
-        if (e.keyHash == hash && ((entryKey = e.key) == key || entryKey.equals(key))) {
+        if ((entryKey = e.key) == key || entryKey.equals(key)) {
             table[index] = e.hashNext;
         } else {
             for (; ; ) {
                 final Entry<E> last = e;
                 e = e.hashNext;
                 if (e == null) return false;
-                if (e.keyHash == hash && ((entryKey = e.key) == key || entryKey.equals(key))) {
+                if ((entryKey = e.key) == key || entryKey.equals(key)) {
                     last.hashNext = e.hashNext;
                     break;
                 }
@@ -155,8 +156,7 @@ public class HashSet<E> extends AbstractSet<E> {
 
     private void allocateTable(int length) {
         table = new Entry[length];
-        shift = HashUtil.shift(table.length);
-        mask = (1 << shift) - 1;
+        mask = (1 << MathUtil.integerLogarithm(table.length)) - 1;
     }
 
     private void init(int capacity) {
@@ -176,11 +176,10 @@ public class HashSet<E> extends AbstractSet<E> {
             final Iterator<Entry<E>> entries = new RehashIterator();
             allocateTable(length);
             final Entry<E>[] table = this.table;
-            final int shift = this.shift;
             final int mask = this.mask;
             while (entries.hasNext()) {
                 final Entry<E> e = entries.next();
-                final int index = HashUtil.indexFor(e.keyHash, length, shift, mask);
+                final int index = HashUtil.indexFor(e.key.hashCode(), length, mask);
                 e.hashNext = table[index];
                 table[index] = e;
             }
@@ -197,17 +196,16 @@ public class HashSet<E> extends AbstractSet<E> {
     private static class Entry<E> {
 
         private final E key;
-        private final int keyHash;
         private Entry<E> hashNext;
 
         private Entry() {
             key = null;
-            keyHash = 0;
+            hashNext = null;
         }
 
         private Entry(final E key) {
             this.key = key;
-            keyHash = key.hashCode();
+            hashNext = null;
         }
     }
 

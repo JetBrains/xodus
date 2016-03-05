@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.core.dataStructures.hash;
 
+import jetbrains.exodus.util.MathUtil;
+
 import java.util.Map;
 
 public class IntLinkedHashMap<V> extends AbstractHashMap<Integer, V> {
@@ -24,7 +26,6 @@ public class IntLinkedHashMap<V> extends AbstractHashMap<Integer, V> {
     private Entry<V> back;
     private int capacity;
     private final float loadFactor;
-    private int shift;
     private int mask;
 
     public IntLinkedHashMap() {
@@ -47,7 +48,7 @@ public class IntLinkedHashMap<V> extends AbstractHashMap<Integer, V> {
 
     public V put(final int key, final V value) {
         final Entry<V>[] table = this.table;
-        final int index = HashUtil.indexFor(key, table.length, shift, mask);
+        final int index = HashUtil.indexFor(key, table.length, mask);
 
         for (Entry<V> e = table[index]; e != null; e = e.hashNext) {
             if (e.key == key) {
@@ -88,7 +89,7 @@ public class IntLinkedHashMap<V> extends AbstractHashMap<Integer, V> {
 
     public V remove(final int key) {
         final Entry<V>[] table = this.table;
-        final int index = HashUtil.indexFor(key, table.length, shift, mask);
+        final int index = HashUtil.indexFor(key, table.length, mask);
         Entry<V> e = table[index];
 
         if (e == null) return null;
@@ -144,7 +145,7 @@ public class IntLinkedHashMap<V> extends AbstractHashMap<Integer, V> {
 
     private Entry<V> getEntry(final int key) {
         final Entry<V>[] table = this.table;
-        final int index = HashUtil.indexFor(key, table.length, shift, mask);
+        final int index = HashUtil.indexFor(key, table.length, mask);
 
         for (Entry<V> e = table[index]; e != null; e = e.hashNext) {
             if (e.key == key) {
@@ -158,8 +159,7 @@ public class IntLinkedHashMap<V> extends AbstractHashMap<Integer, V> {
 
     private void allocateTable(int length) {
         table = new Entry[length];
-        shift = HashUtil.shift(table.length);
-        mask = (1 << shift) - 1;
+        mask = (1 << MathUtil.integerLogarithm(table.length)) - 1;
     }
 
     private void moveToTop(final Entry<V> e) {
@@ -201,10 +201,9 @@ public class IntLinkedHashMap<V> extends AbstractHashMap<Integer, V> {
         if (length != table.length) {
             allocateTable(length);
             final Entry<V>[] table = this.table;
-            final int shift = this.shift;
             final int mask = this.mask;
             for (Entry<V> e = back; e != null; e = e.previous) {
-                final int index = HashUtil.indexFor(e.key, length, shift, mask);
+                final int index = HashUtil.indexFor(e.key, length, mask);
                 e.hashNext = table[index];
                 table[index] = e;
             }

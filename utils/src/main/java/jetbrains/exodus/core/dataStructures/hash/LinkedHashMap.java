@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.core.dataStructures.hash;
 
+import jetbrains.exodus.util.MathUtil;
+
 import java.util.Map;
 
 public class LinkedHashMap<K, V> extends AbstractHashMap<K, V> {
@@ -24,7 +26,6 @@ public class LinkedHashMap<K, V> extends AbstractHashMap<K, V> {
     private Entry<K, V> back;
     private int capacity;
     private final float loadFactor;
-    private int shift;
     private int mask;
 
     public LinkedHashMap() {
@@ -44,7 +45,7 @@ public class LinkedHashMap<K, V> extends AbstractHashMap<K, V> {
     public V put(final K key, final V value) {
         final Entry<K, V>[] table = this.table;
         final int hash = key.hashCode();
-        final int index = HashUtil.indexFor(hash, table.length, shift, mask);
+        final int index = HashUtil.indexFor(hash, table.length, mask);
 
         for (Entry<K, V> e = table[index]; e != null; e = e.hashNext) {
             final K entryKey;
@@ -79,7 +80,7 @@ public class LinkedHashMap<K, V> extends AbstractHashMap<K, V> {
     public V remove(final Object key) {
         final Entry<K, V>[] table = this.table;
         final int hash = key.hashCode();
-        final int index = HashUtil.indexFor(hash, table.length, shift, mask);
+        final int index = HashUtil.indexFor(hash, table.length, mask);
         Entry<K, V> e = table[index];
 
         if (e == null) return null;
@@ -111,7 +112,7 @@ public class LinkedHashMap<K, V> extends AbstractHashMap<K, V> {
     protected Map.Entry<K, V> getEntry(Object key) {
         final Entry<K, V>[] table = this.table;
         final int hash = key.hashCode();
-        final int index = HashUtil.indexFor(hash, table.length, shift, mask);
+        final int index = HashUtil.indexFor(hash, table.length, mask);
 
         for (Entry<K, V> e = table[index]; e != null; e = e.hashNext) {
             final K entryKey;
@@ -142,8 +143,7 @@ public class LinkedHashMap<K, V> extends AbstractHashMap<K, V> {
 
     private void allocateTable(int length) {
         table = new Entry[length];
-        shift = HashUtil.shift(table.length);
-        mask = (1 << shift) - 1;
+        mask = (1 << MathUtil.integerLogarithm(table.length)) - 1;
     }
 
     private void moveToTop(final Entry<K, V> e) {
@@ -185,10 +185,9 @@ public class LinkedHashMap<K, V> extends AbstractHashMap<K, V> {
         if (length != table.length) {
             allocateTable(length);
             final Entry<K, V>[] table = this.table;
-            final int shift = this.shift;
             final int mask = this.mask;
             for (Entry<K, V> e = back; e != null; e = e.previous) {
-                final int index = HashUtil.indexFor(e.keyHash, length, shift, mask);
+                final int index = HashUtil.indexFor(e.keyHash, length, mask);
                 e.hashNext = table[index];
                 table[index] = e;
             }

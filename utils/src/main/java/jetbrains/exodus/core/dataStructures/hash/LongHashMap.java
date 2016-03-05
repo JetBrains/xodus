@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.core.dataStructures.hash;
 
+import jetbrains.exodus.util.MathUtil;
+
 import java.util.Iterator;
 import java.util.Map;
 
@@ -23,7 +25,6 @@ public class LongHashMap<V> extends AbstractHashMap<Long, V> {
     private Entry<V>[] table;
     private int capacity;
     private final float loadFactor;
-    private int shift;
     private int mask;
 
     public LongHashMap() {
@@ -46,7 +47,7 @@ public class LongHashMap<V> extends AbstractHashMap<Long, V> {
 
     public V put(final long key, final V value) {
         final Entry<V>[] table = this.table;
-        final int index = HashUtil.indexFor(key, table.length, shift, mask);
+        final int index = HashUtil.indexFor(key, table.length, mask);
 
         for (Entry<V> e = table[index]; e != null; e = e.hashNext) {
             if (e.key == key) {
@@ -76,7 +77,7 @@ public class LongHashMap<V> extends AbstractHashMap<Long, V> {
 
     public V remove(final long key) {
         final Entry<V>[] table = this.table;
-        final int index = HashUtil.indexFor(key, table.length, shift, mask);
+        final int index = HashUtil.indexFor(key, table.length, mask);
         Entry<V> e = table[index];
 
         if (e == null) return null;
@@ -125,7 +126,7 @@ public class LongHashMap<V> extends AbstractHashMap<Long, V> {
 
     private Entry<V> getEntry(final long key) {
         final Entry<V>[] table = this.table;
-        final int index = HashUtil.indexFor(key, table.length, shift, mask);
+        final int index = HashUtil.indexFor(key, table.length, mask);
 
         for (Entry<V> e = table[index]; e != null; e = e.hashNext) {
             if (e.key == key) {
@@ -138,8 +139,7 @@ public class LongHashMap<V> extends AbstractHashMap<Long, V> {
 
     private void allocateTable(int length) {
         table = new Entry[length];
-        shift = HashUtil.shift(table.length);
-        mask = (1 << shift) - 1;
+        mask = (1 << MathUtil.integerLogarithm(table.length)) - 1;
     }
 
     private void rehash(int capacity) {
@@ -149,11 +149,10 @@ public class LongHashMap<V> extends AbstractHashMap<Long, V> {
             final Iterator<Map.Entry<Long, V>> entries = entrySet().iterator();
             allocateTable(length);
             final Entry<V>[] table = this.table;
-            final int shift = this.shift;
             final int mask = this.mask;
             while (entries.hasNext()) {
                 final Entry<V> e = (Entry<V>) entries.next();
-                final int index = HashUtil.indexFor(e.key, length, shift, mask);
+                final int index = HashUtil.indexFor(e.key, length, mask);
                 e.hashNext = table[index];
                 table[index] = e;
             }

@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.core.dataStructures.hash;
 
+import jetbrains.exodus.util.MathUtil;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.Serializable;
@@ -26,7 +27,6 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
     private Entry<K, V>[] table;
     private int capacity;
     private final float loadFactor;
-    private int shift;
     private int mask;
     private Entry<K, V> nullEntry;
 
@@ -55,11 +55,11 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
         }
         final Entry<K, V>[] table = this.table;
         final int hash = key.hashCode();
-        final int index = HashUtil.indexFor(hash, table.length, shift, mask);
+        final int index = HashUtil.indexFor(hash, table.length, mask);
 
         for (Entry<K, V> e = table[index]; e != null; e = e.hashNext) {
             final K entryKey;
-            if (e.keyHash == hash && ((entryKey = e.key) == key || entryKey.equals(key))) {
+            if ((entryKey = e.key) == key || entryKey.equals(key)) {
                 return e.setValue(value);
             }
         }
@@ -88,20 +88,20 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
         }
         final Entry<K, V>[] table = this.table;
         final int hash = key.hashCode();
-        final int index = HashUtil.indexFor(hash, table.length, shift, mask);
+        final int index = HashUtil.indexFor(hash, table.length, mask);
         Entry<K, V> e = table[index];
 
         if (e == null) return null;
 
         K entryKey;
-        if (e.keyHash == hash && ((entryKey = e.key) == key || entryKey.equals(key))) {
+        if ((entryKey = e.key) == key || entryKey.equals(key)) {
             table[index] = e.hashNext;
         } else {
             for (; ; ) {
                 final Entry<K, V> last = e;
                 e = e.hashNext;
                 if (e == null) return null;
-                if (e.keyHash == hash && ((entryKey = e.key) == key || entryKey.equals(key))) {
+                if ((entryKey = e.key) == key || entryKey.equals(key)) {
                     last.hashNext = e.hashNext;
                     break;
                 }
@@ -118,11 +118,11 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
         }
         final Entry<K, V>[] table = this.table;
         final int hash = key.hashCode();
-        final int index = HashUtil.indexFor(hash, table.length, shift, mask);
+        final int index = HashUtil.indexFor(hash, table.length, mask);
 
         for (Entry<K, V> e = table[index]; e != null; e = e.hashNext) {
             final K entryKey;
-            if (e.keyHash == hash && ((entryKey = e.key) == key || entryKey.equals(key))) {
+            if ((entryKey = e.key) == key || entryKey.equals(key)) {
                 return e;
             }
         }
@@ -147,8 +147,7 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
 
     private void allocateTable(int length) {
         table = new Entry[length];
-        shift = HashUtil.shift(table.length);
-        mask = (1 << shift) - 1;
+        mask = (1 << MathUtil.integerLogarithm(table.length)) - 1;
     }
 
     private void rehash(int capacity) {
@@ -158,12 +157,11 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
             final Iterator<Map.Entry<K, V>> entries = entrySet().iterator();
             allocateTable(length);
             final Entry<K, V>[] table = this.table;
-            final int shift = this.shift;
             final int mask = this.mask;
             while (entries.hasNext()) {
                 final Entry<K, V> e = (Entry<K, V>) entries.next();
                 if (e.key != null) {
-                    final int index = HashUtil.indexFor(e.keyHash, length, shift, mask);
+                    final int index = HashUtil.indexFor(e.key.hashCode(), length, mask);
                     e.hashNext = table[index];
                     table[index] = e;
                 }
@@ -175,13 +173,11 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
     private static class Entry<K, V> implements Map.Entry<K, V>, Serializable {
 
         private final K key;
-        private final int keyHash;
         private V value;
         private Entry<K, V> hashNext;
 
         private Entry(final K key, final V value) {
             this.key = key;
-            keyHash = key == null ? 0 : key.hashCode();
             this.value = value;
         }
 

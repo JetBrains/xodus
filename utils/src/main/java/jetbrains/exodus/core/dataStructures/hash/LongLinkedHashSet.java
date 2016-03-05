@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.core.dataStructures.hash;
 
+import jetbrains.exodus.util.MathUtil;
+
 import java.util.AbstractSet;
 
 public class LongLinkedHashSet extends AbstractSet<Long> implements LongSet {
@@ -25,7 +27,6 @@ public class LongLinkedHashSet extends AbstractSet<Long> implements LongSet {
     private int capacity;
     private int size;
     private final float loadFactor;
-    private int shift;
     private int mask;
 
     public LongLinkedHashSet() {
@@ -61,7 +62,7 @@ public class LongLinkedHashSet extends AbstractSet<Long> implements LongSet {
     @Override
     public boolean contains(final long key) {
         final Entry[] table = this.table;
-        final int index = HashUtil.indexFor(key, table.length, shift, mask);
+        final int index = HashUtil.indexFor(key, table.length, mask);
 
         for (Entry e = table[index]; e != null; e = e.hashNext) {
             if (e.key == key) {
@@ -80,7 +81,7 @@ public class LongLinkedHashSet extends AbstractSet<Long> implements LongSet {
     @Override
     public boolean add(final long key) {
         final Entry[] table = this.table;
-        final int index = HashUtil.indexFor(key, table.length, shift, mask);
+        final int index = HashUtil.indexFor(key, table.length, mask);
 
         for (Entry e = table[index]; e != null; e = e.hashNext) {
             if (e.key == key) {
@@ -115,7 +116,7 @@ public class LongLinkedHashSet extends AbstractSet<Long> implements LongSet {
     @Override
     public boolean remove(final long key) {
         final Entry[] table = this.table;
-        final int index = HashUtil.indexFor(key, table.length, shift, mask);
+        final int index = HashUtil.indexFor(key, table.length, mask);
         Entry e = table[index];
 
         if (e == null) return false;
@@ -150,8 +151,7 @@ public class LongLinkedHashSet extends AbstractSet<Long> implements LongSet {
 
     private void allocateTable(int length) {
         table = new Entry[length];
-        shift = HashUtil.shift(table.length);
-        mask = (1 << shift) - 1;
+        mask = (1 << MathUtil.integerLogarithm(table.length)) - 1;
     }
 
     private void init(int capacity) {
@@ -185,10 +185,9 @@ public class LongLinkedHashSet extends AbstractSet<Long> implements LongSet {
         if (length != table.length) {
             allocateTable(length);
             final Entry[] table = this.table;
-            final int shift = this.shift;
             final int mask = this.mask;
             for (Entry e = back; e != null; e = e.previous) {
-                final int index = HashUtil.indexFor(e.key, length, shift, mask);
+                final int index = HashUtil.indexFor(e.key, length, mask);
                 e.hashNext = table[index];
                 table[index] = e;
             }

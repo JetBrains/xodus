@@ -27,20 +27,20 @@ public class HashUtil {
     private HashUtil() {
     }
 
-    public static int indexFor(int hash, final int length, final int shift, final int mask) {
-        hash = (hash + ((++hash) >> shift)) & mask;
+    public static int indexFor(int hash, final int length, final int mask) {
+        hash = (hash + (hash >>> 16)) & mask;
         if (hash >= length) {
             hash -= length;
         }
         return hash;
     }
 
-    public static int indexFor(long hash, final int length, final int shift, final int mask) {
-        hash = (hash + ((++hash) >> shift)) & mask;
-        if (hash >= length) {
-            hash -= length;
+    public static int indexFor(final long hash, final int length, final int mask) {
+        int result = (int) ((hash + (hash >>> 16)) & mask);
+        if (result >= length) {
+            result -= length;
         }
-        return (int) hash;
+        return result;
     }
 
     public static int nextCapacity(final int capacity) {

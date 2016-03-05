@@ -16,6 +16,7 @@
 package jetbrains.exodus.core.dataStructures;
 
 import jetbrains.exodus.core.dataStructures.hash.HashUtil;
+import jetbrains.exodus.util.MathUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -26,7 +27,6 @@ public class ConcurrentObjectCache<K, V> extends ObjectCacheBase<K, V> {
 
     private final int numberOfGenerations;
     private final int generationSize;
-    private final int shift;
     private final int mask;
     private final CacheEntry<K, V>[] cache;
 
@@ -42,8 +42,7 @@ public class ConcurrentObjectCache<K, V> extends ObjectCacheBase<K, V> {
         super(size);
         this.numberOfGenerations = numberOfGenerations;
         generationSize = HashUtil.getFloorPrime(size / numberOfGenerations);
-        shift = HashUtil.shift(generationSize);
-        mask = (1 << shift) - 1;
+        mask = (1 << MathUtil.integerLogarithm(generationSize)) - 1;
         cache = new CacheEntry[numberOfGenerations * generationSize];
     }
 
@@ -67,7 +66,7 @@ public class ConcurrentObjectCache<K, V> extends ObjectCacheBase<K, V> {
 
     @Override
     public V cacheObject(@NotNull final K key, @NotNull final V x) {
-        int cacheIndex = HashUtil.indexFor(key.hashCode(), generationSize, shift, mask) * numberOfGenerations;
+        int cacheIndex = HashUtil.indexFor(key.hashCode(), generationSize, mask) * numberOfGenerations;
         for (int i = 0; i < numberOfGenerations; ++i, ++cacheIndex) {
             final CacheEntry<K, V> entry = cache[cacheIndex];
             if (entry != null && entry.key.equals(key)) {
@@ -82,7 +81,7 @@ public class ConcurrentObjectCache<K, V> extends ObjectCacheBase<K, V> {
 
     @Override
     public V remove(@NotNull final K key) {
-        int cacheIndex = HashUtil.indexFor(key.hashCode(), generationSize, shift, mask) * numberOfGenerations;
+        int cacheIndex = HashUtil.indexFor(key.hashCode(), generationSize, mask) * numberOfGenerations;
         for (int i = 0; i < numberOfGenerations; ++i, ++cacheIndex) {
             final CacheEntry<K, V> entry = cache[cacheIndex];
             if (entry != null && entry.key.equals(key)) {
@@ -97,7 +96,7 @@ public class ConcurrentObjectCache<K, V> extends ObjectCacheBase<K, V> {
     @Override
     public V tryKey(@NotNull final K key) {
         incAttempts();
-        int cacheIndex = HashUtil.indexFor(key.hashCode(), generationSize, shift, mask) * numberOfGenerations;
+        int cacheIndex = HashUtil.indexFor(key.hashCode(), generationSize, mask) * numberOfGenerations;
         CacheEntry<K, V> entry = cache[cacheIndex];
         if (entry != null && entry.key.equals(key)) {
             incHits();
@@ -118,7 +117,7 @@ public class ConcurrentObjectCache<K, V> extends ObjectCacheBase<K, V> {
 
     @Override
     public V getObject(@NotNull final K key) {
-        int cacheIndex = HashUtil.indexFor(key.hashCode(), generationSize, shift, mask) * numberOfGenerations;
+        int cacheIndex = HashUtil.indexFor(key.hashCode(), generationSize, mask) * numberOfGenerations;
         for (int i = 0; i < numberOfGenerations; ++i, ++cacheIndex) {
             final CacheEntry<K, V> entry = cache[cacheIndex];
             if (entry != null && entry.key.equals(key)) {

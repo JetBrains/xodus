@@ -16,6 +16,7 @@
 package jetbrains.exodus.core.dataStructures;
 
 import jetbrains.exodus.core.dataStructures.hash.HashUtil;
+import jetbrains.exodus.util.MathUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -26,7 +27,6 @@ public class ConcurrentLongObjectCache<V> extends LongObjectCacheBase<V> {
 
     private final int numberOfGenerations;
     private final int generationSize;
-    private final int shift;
     private final int mask;
     private final CacheEntry<V>[] cache;
 
@@ -42,8 +42,7 @@ public class ConcurrentLongObjectCache<V> extends LongObjectCacheBase<V> {
         super(size);
         this.numberOfGenerations = numberOfGenerations;
         generationSize = HashUtil.getFloorPrime(size / numberOfGenerations);
-        shift = HashUtil.shift(generationSize);
-        mask = (1 << shift) - 1;
+        mask = (1 << MathUtil.integerLogarithm(generationSize)) - 1;
         cache = new CacheEntry[numberOfGenerations * generationSize];
         clear();
     }
@@ -70,7 +69,7 @@ public class ConcurrentLongObjectCache<V> extends LongObjectCacheBase<V> {
 
     @Override
     public V cacheObject(final long key, @NotNull final V x) {
-        int cacheIndex = HashUtil.indexFor(key, generationSize, shift, mask) * numberOfGenerations;
+        int cacheIndex = HashUtil.indexFor(key, generationSize, mask) * numberOfGenerations;
         for (int i = 0; i < numberOfGenerations; ++i, ++cacheIndex) {
             final CacheEntry<V> entry = cache[cacheIndex];
             if (entry.key == key) {
@@ -85,7 +84,7 @@ public class ConcurrentLongObjectCache<V> extends LongObjectCacheBase<V> {
 
     @Override
     public V remove(final long key) {
-        int cacheIndex = HashUtil.indexFor(key, generationSize, shift, mask) * numberOfGenerations;
+        int cacheIndex = HashUtil.indexFor(key, generationSize, mask) * numberOfGenerations;
         for (int i = 0; i < numberOfGenerations; ++i, ++cacheIndex) {
             final CacheEntry<V> entry = cache[cacheIndex];
             if (entry.key == key) {
@@ -100,7 +99,7 @@ public class ConcurrentLongObjectCache<V> extends LongObjectCacheBase<V> {
     @Override
     public V tryKey(final long key) {
         incAttempts();
-        int cacheIndex = HashUtil.indexFor(key, generationSize, shift, mask) * numberOfGenerations;
+        int cacheIndex = HashUtil.indexFor(key, generationSize, mask) * numberOfGenerations;
         CacheEntry<V> entry = cache[cacheIndex];
         if (entry.key == key) {
             incHits();
@@ -121,7 +120,7 @@ public class ConcurrentLongObjectCache<V> extends LongObjectCacheBase<V> {
 
     @Override
     public V getObject(final long key) {
-        int cacheIndex = HashUtil.indexFor(key, generationSize, shift, mask) * numberOfGenerations;
+        int cacheIndex = HashUtil.indexFor(key, generationSize, mask) * numberOfGenerations;
         for (int i = 0; i < numberOfGenerations; ++i, ++cacheIndex) {
             final CacheEntry<V> entry = cache[cacheIndex];
             if (entry.key == key) {
