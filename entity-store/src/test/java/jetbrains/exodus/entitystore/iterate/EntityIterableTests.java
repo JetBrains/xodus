@@ -452,6 +452,18 @@ public class EntityIterableTests extends EntityStoreTestBase {
         Assert.assertEquals(count, txn.findWithPropSortedByValue("User", "login").countImpl(txn));
     }
 
+    public void testCachedInstanceIsEmpty() {
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        final int count = 10;
+        createNUsers(txn, count);
+        txn.flush();
+        final PersistentEntityStoreImpl store = getEntityStore();
+        Assert.assertEquals(0, txn.getAll("User").indexOf(new PersistentEntity(store, new PersistentEntityId(0, 0))));
+        final EntityIterableBase cachedInstance =
+                store.getEntityIterableCache().putIfNotCached((EntityIterableBase) txn.getAll("User"));
+        Assert.assertFalse(cachedInstance.isEmpty());
+    }
+
     /**
      * Should fail with OOME being run in JVM with Xmx256m without fix of XD-458
      */
