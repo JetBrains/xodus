@@ -39,12 +39,22 @@ public abstract class CachedInstanceIterable extends EntityIterableBase {
     }
 
     @Override
-    public long count() {
-        return countImpl(getTransaction());
+    public boolean isEmpty() {
+        return countImpl(getTransaction()) == 0;
+    }
+
+    @Override
+    public boolean nonCachedHasFastCountAndIsEmpty() {
+        return true;
     }
 
     @Override
     public long size() {
+        return countImpl(getTransaction());
+    }
+
+    @Override
+    public long count() {
         return countImpl(getTransaction());
     }
 
@@ -57,11 +67,6 @@ public abstract class CachedInstanceIterable extends EntityIterableBase {
     @Override
     public boolean canBeCached() {
         return false;
-    }
-
-    @Override
-    public boolean nonCachedHasFastCountAndIsEmpty() {
-        return true;
     }
 
     @Override
