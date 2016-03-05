@@ -62,13 +62,19 @@ public final class EntityToLinksIterable extends EntityLinksIterableBase {
     }
 
     @Override
+    public boolean isEmpty() {
+        return new SingleKeyCursorIsEmptyChecker(openCursor(getTransaction()), LinkValue.linkValueToEntry(
+                new LinkValue(entityId, linkId))).isEmpty();
+    }
+
+    @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
         return new LinksIterator(openCursor(txn), new LinkValue(entityId, linkId));
     }
 
     @Override
-    public boolean nonCachedHasFastCount() {
+    public boolean nonCachedHasFastCountAndIsEmpty() {
         return true;
     }
 

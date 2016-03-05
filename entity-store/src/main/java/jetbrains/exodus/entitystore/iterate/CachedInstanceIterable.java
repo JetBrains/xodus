@@ -60,7 +60,7 @@ public abstract class CachedInstanceIterable extends EntityIterableBase {
     }
 
     @Override
-    public boolean nonCachedHasFastCount() {
+    public boolean nonCachedHasFastCountAndIsEmpty() {
         return true;
     }
 

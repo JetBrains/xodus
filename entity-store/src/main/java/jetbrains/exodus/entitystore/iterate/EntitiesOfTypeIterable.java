@@ -52,13 +52,18 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
     }
 
     @Override
+    public boolean isEmpty() {
+        return countImpl(getTransaction()) == 0;
+    }
+
+    @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
         return new EntitiesOfTypeIterator(this, getStore().getEntitiesIndexCursor(txn, entityTypeId));
     }
 
     @Override
-    public boolean nonCachedHasFastCount() {
+    public boolean nonCachedHasFastCountAndIsEmpty() {
         return true;
     }
 

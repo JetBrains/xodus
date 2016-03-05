@@ -38,7 +38,12 @@ public final class EntityFromHistoryLinksIterable extends EntityLinksIterableBas
     }
 
     @Override
-    public boolean nonCachedHasFastCount() {
+    public boolean isEmpty() {
+        return new SingleKeyCursorIsEmptyChecker(openCursor(getTransaction()), getFirstKey()).isEmpty();
+    }
+
+    @Override
+    public boolean nonCachedHasFastCountAndIsEmpty() {
         return true;
     }
 

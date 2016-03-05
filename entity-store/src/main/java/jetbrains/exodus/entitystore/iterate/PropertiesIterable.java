@@ -55,6 +55,11 @@ public final class PropertiesIterable extends EntityIterableBase {
     }
 
     @Override
+    public boolean isEmpty() {
+        return countImpl(getTransaction()) == 0;
+    }
+
+    @Override
     public boolean isSortedById() {
         return false;
     }
@@ -70,7 +75,7 @@ public final class PropertiesIterable extends EntityIterableBase {
     }
 
     @Override
-    public boolean nonCachedHasFastCount() {
+    public boolean nonCachedHasFastCountAndIsEmpty() {
         return true;
     }
 

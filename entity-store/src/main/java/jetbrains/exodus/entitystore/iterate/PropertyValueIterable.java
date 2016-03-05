@@ -59,6 +59,13 @@ public final class PropertyValueIterable extends PropertyRangeOrValueIterableBas
     }
 
     @Override
+    public boolean isEmpty() {
+        final ByteIterable key = getStore().getPropertyTypes().dataToPropertyValue(value).dataToEntry();
+        final Cursor valueIdx = openCursor(getTransaction());
+        return valueIdx == null || new SingleKeyCursorIsEmptyChecker(valueIdx, key).isEmpty();
+    }
+
+    @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
         final EntityIterableBase it = getPropertyValueIndex();
@@ -77,7 +84,7 @@ public final class PropertyValueIterable extends PropertyRangeOrValueIterableBas
     }
 
     @Override
-    public boolean nonCachedHasFastCount() {
+    public boolean nonCachedHasFastCountAndIsEmpty() {
         return true;
     }
 
@@ -130,10 +137,7 @@ public final class PropertyValueIterable extends PropertyRangeOrValueIterableBas
     protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
         final ByteIterable key = getStore().getPropertyTypes().dataToPropertyValue(value).dataToEntry();
         final Cursor valueIdx = openCursor(txn);
-        if (valueIdx == null) {
-            return 0;
-        }
-        return new SingleKeyCursorCounter(valueIdx, key).getCount();
+        return valueIdx == null ? 0 : new SingleKeyCursorCounter(valueIdx, key).getCount();
     }
 
 
