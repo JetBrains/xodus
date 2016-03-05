@@ -61,11 +61,6 @@ public final class IntersectionIterable extends BinaryOperatorEntityIterable {
     }
 
     @Override
-    public boolean nonCachedHasFastCount() {
-        return isEmptyFast();
-    }
-
-    @Override
     protected EntityIterableType getIterableType() {
         return EntityIterableType.INTERSECT;
     }
