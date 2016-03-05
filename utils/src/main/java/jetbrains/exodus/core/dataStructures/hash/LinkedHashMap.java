@@ -49,7 +49,7 @@ public class LinkedHashMap<K, V> extends AbstractHashMap<K, V> {
 
         for (Entry<K, V> e = table[index]; e != null; e = e.hashNext) {
             final K entryKey;
-            if (e.keyHash == hash && ((entryKey = e.key) == key || entryKey.equals(key))) {
+            if ((entryKey = e.key) == key || entryKey.equals(key)) {
                 moveToTop(e);
                 return e.setValue(value);
             }
@@ -86,14 +86,14 @@ public class LinkedHashMap<K, V> extends AbstractHashMap<K, V> {
         if (e == null) return null;
 
         K entryKey;
-        if (e.keyHash == hash && ((entryKey = e.key) == key || entryKey.equals(key))) {
+        if ((entryKey = e.key) == key || entryKey.equals(key)) {
             table[index] = e.hashNext;
         } else {
             for (; ; ) {
                 final Entry<K, V> last = e;
                 e = e.hashNext;
                 if (e == null) return null;
-                if (e.keyHash == hash && ((entryKey = e.key) == key || entryKey.equals(key))) {
+                if ((entryKey = e.key) == key || entryKey.equals(key)) {
                     last.hashNext = e.hashNext;
                     break;
                 }
@@ -116,7 +116,7 @@ public class LinkedHashMap<K, V> extends AbstractHashMap<K, V> {
 
         for (Entry<K, V> e = table[index]; e != null; e = e.hashNext) {
             final K entryKey;
-            if (e.keyHash == hash && ((entryKey = e.key) == key || entryKey.equals(key))) {
+            if ((entryKey = e.key) == key || entryKey.equals(key)) {
                 moveToTop(e);
                 return e;
             }
@@ -187,7 +187,7 @@ public class LinkedHashMap<K, V> extends AbstractHashMap<K, V> {
             final Entry<K, V>[] table = this.table;
             final int mask = this.mask;
             for (Entry<K, V> e = back; e != null; e = e.previous) {
-                final int index = HashUtil.indexFor(e.keyHash, length, mask);
+                final int index = HashUtil.indexFor(e.key.hashCode(), length, mask);
                 e.hashNext = table[index];
                 table[index] = e;
             }
@@ -198,7 +198,6 @@ public class LinkedHashMap<K, V> extends AbstractHashMap<K, V> {
     private static class Entry<K, V> implements Map.Entry<K, V> {
 
         private final K key;
-        private final int keyHash;
         private V value;
         private Entry<K, V> next;
         private Entry<K, V> previous;
@@ -206,7 +205,6 @@ public class LinkedHashMap<K, V> extends AbstractHashMap<K, V> {
 
         private Entry(final K key, final V value) {
             this.key = key;
-            keyHash = key.hashCode();
             this.value = value;
         }
 

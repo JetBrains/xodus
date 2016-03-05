@@ -62,7 +62,7 @@ public class LinkedHashSet<E> extends AbstractSet<E> {
 
         for (Entry<E> e = table[index]; e != null; e = e.hashNext) {
             final E entryKey;
-            if (e.keyHash == hash && ((entryKey = e.key) == key || entryKey.equals(key))) {
+            if ((entryKey = e.key) == key || entryKey.equals(key)) {
                 return true;
             }
         }
@@ -87,7 +87,7 @@ public class LinkedHashSet<E> extends AbstractSet<E> {
 
         for (Entry<E> e = table[index]; e != null; e = e.hashNext) {
             final E entryKey;
-            if (e.keyHash == hash && ((entryKey = e.key) == key || entryKey.equals(key))) {
+            if ((entryKey = e.key) == key || entryKey.equals(key)) {
                 return false;
             }
         }
@@ -130,14 +130,14 @@ public class LinkedHashSet<E> extends AbstractSet<E> {
         if (e == null) return false;
 
         E entryKey;
-        if (e.keyHash == hash && ((entryKey = e.key) == key || entryKey.equals(key))) {
+        if ((entryKey = e.key) == key || entryKey.equals(key)) {
             table[index] = e.hashNext;
         } else {
             for (; ; ) {
                 final Entry<E> last = e;
                 e = e.hashNext;
                 if (e == null) return false;
-                if (e.keyHash == hash && ((entryKey = e.key) == key || entryKey.equals(key))) {
+                if ((entryKey = e.key) == key || entryKey.equals(key)) {
                     last.hashNext = e.hashNext;
                     break;
                 }
@@ -202,7 +202,7 @@ public class LinkedHashSet<E> extends AbstractSet<E> {
             final Entry<E>[] table = this.table;
             final int mask = this.mask;
             for (Entry<E> e = back; e != null; e = e.previous) {
-                final int index = HashUtil.indexFor(e.keyHash, length, mask);
+                final int index = HashUtil.indexFor(e.key.hashCode(), length, mask);
                 e.hashNext = table[index];
                 table[index] = e;
             }
@@ -213,19 +213,16 @@ public class LinkedHashSet<E> extends AbstractSet<E> {
     private static class Entry<E> {
 
         private final E key;
-        private final int keyHash;
         private Entry<E> next;
         private Entry<E> previous;
         private Entry<E> hashNext;
 
         private Entry() {
             key = null;
-            keyHash = 0;
         }
 
         private Entry(final E key) {
             this.key = key;
-            keyHash = key.hashCode();
         }
     }
 
