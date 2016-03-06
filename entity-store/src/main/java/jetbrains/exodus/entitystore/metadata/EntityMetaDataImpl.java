@@ -16,7 +16,7 @@
 package jetbrains.exodus.entitystore.metadata;
 
 import jetbrains.exodus.core.dataStructures.decorators.HashMapDecorator;
-import jetbrains.exodus.core.dataStructures.decorators.HashSetDecorator;
+import jetbrains.exodus.core.dataStructures.decorators.LinkedHashSetDecorator;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.entitystore.Entity;
@@ -32,10 +32,10 @@ public class EntityMetaDataImpl implements EntityMetaData {
     private ModelMetaData modelMetaData = null;
     private String type = null;
     private String superType = null;
-    private Set<String> interfaces = new HashSetDecorator<>();
+    private Set<String> interfaces = new LinkedHashSetDecorator<>();
     private Runnable initializer = null;
     private boolean removeOrphan = true;
-    private Set<String> subTypes = new HashSetDecorator<>();
+    private Set<String> subTypes = new LinkedHashSetDecorator<>();
     private List<String> thisAndSuperTypes = Collections.emptyList();
     private Set<AssociationEndMetaData> externalAssociationEnds = null;
     private Map<String, PropertyMetaData> properties = new HashMapDecorator<>();
@@ -482,7 +482,7 @@ public class EntityMetaDataImpl implements EntityMetaData {
                         aggregationChildEnds = Collections.emptySet();
                     } else {
                         associationEnds = new HashMap<>(externalAssociationEnds.size());
-                        aggregationChildEnds = new HashSetDecorator<>();
+                        aggregationChildEnds = new LinkedHashSetDecorator<>();
                         for (final AssociationEndMetaData aemd : externalAssociationEnds) {
                             associationEnds.put(aemd.getName(), aemd);
                             if (aemd.getAssociationEndType() == AssociationEndType.ChildEnd) {
