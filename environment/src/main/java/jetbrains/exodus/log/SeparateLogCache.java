@@ -101,7 +101,7 @@ final class SeparateLogCache extends LogCache {
         pagesCache.lock();
         try {
             if (pagesCache.getObject(cacheKey) == null) {
-                pagesCache.cacheObject(cacheKey, page);
+                pagesCache.cacheObject(cacheKey, postProcessTailPage(page));
             }
         } finally {
             pagesCache.unlock();

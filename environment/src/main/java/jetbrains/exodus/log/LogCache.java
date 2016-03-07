@@ -18,6 +18,7 @@ package jetbrains.exodus.log;
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.InvalidSettingException;
+import jetbrains.exodus.core.dataStructures.ConcurrentLongObjectCache;
 import jetbrains.exodus.util.MathUtil;
 import org.jetbrains.annotations.NotNull;
 
@@ -29,6 +30,8 @@ abstract class LogCache {
     protected static final int MINIMUM_MEM_USAGE_PERCENT = 5;
     protected static final int MAXIMUM_MEM_USAGE_PERCENT = 95;
     protected static final int CONCURRENT_CACHE_GENERATION_COUNT = 2;
+
+    private static final ConcurrentLongObjectCache<ArrayByteIterable> TAIL_PAGES_CACHE = new ConcurrentLongObjectCache<>(10);
 
     protected final long memoryUsage;
     protected final int memoryUsagePercentage;
@@ -111,5 +114,28 @@ abstract class LogCache {
     private static int integerLogarithm(int i) {
         final int result = MathUtil.integerLogarithm(i);
         return 1 << result == i ? result : -1;
+    }
+
+    protected static ArrayByteIterable postProcessTailPage(@NotNull final ArrayByteIterable page) {
+        if (isTailPage(page)) {
+            final int length = page.getLength();
+            final ArrayByteIterable cachedPage = TAIL_PAGES_CACHE.tryKey(length);
+            if (cachedPage != null) {
+                return cachedPage;
+            }
+            TAIL_PAGES_CACHE.cacheObject(length, page);
+        }
+        return page;
+    }
+
+    private static boolean isTailPage(@NotNull final ArrayByteIterable page) {
+        final int length = page.getLength();
+        final byte[] bytes = page.getBytesUnsafe();
+        for (int i = 0; i < length; ++i) {
+            if (bytes[i] != 0x80) {
+                return false;
+            }
+        }
+        return true;
     }
 }
