@@ -132,7 +132,7 @@ abstract class LogCache {
         final int length = page.getLength();
         final byte[] bytes = page.getBytesUnsafe();
         for (int i = 0; i < length; ++i) {
-            if (bytes[i] != 0x80) {
+            if (bytes[i] != (byte) 0x80) {
                 return false;
             }
         }
