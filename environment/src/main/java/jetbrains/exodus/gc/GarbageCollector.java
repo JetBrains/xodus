@@ -159,10 +159,6 @@ public final class GarbageCollector {
         }
     }
 
-    public boolean isCleanerThread() {
-        return cleaner.isCurrentThread();
-    }
-
     public boolean isTooMuchFreeSpace() {
         return utilizationProfile.totalFreeSpacePercent() > getMaximumFreeSpacePercent();
     }

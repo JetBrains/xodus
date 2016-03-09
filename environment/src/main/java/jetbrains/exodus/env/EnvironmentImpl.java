@@ -559,7 +559,7 @@ public class EnvironmentImpl implements Environment {
 
         // update statistics
         statistics.getStatisticsItem(EnvironmentStatistics.BYTES_WRITTEN).setTotal(resultingHighAddress);
-        if (gc.isCleanerThread()) {
+        if (txn.isGCTransaction()) {
             statistics.getStatisticsItem(EnvironmentStatistics.BYTES_MOVED_BY_GC).addTotal(resultingHighAddress - initialHighAddress);
         }
         statistics.getStatisticsItem(EnvironmentStatistics.FLUSHED_TRANSACTIONS).incTotal();
