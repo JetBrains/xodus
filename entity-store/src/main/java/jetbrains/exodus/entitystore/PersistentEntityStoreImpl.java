@@ -16,10 +16,7 @@
 package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.*;
-import jetbrains.exodus.bindings.ComparableBinding;
-import jetbrains.exodus.bindings.ComparableValueType;
-import jetbrains.exodus.bindings.IntegerBinding;
-import jetbrains.exodus.bindings.LongBinding;
+import jetbrains.exodus.bindings.*;
 import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
@@ -652,21 +649,23 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                                @NotNull final PersistentEntity entity,
                                @NotNull final String propertyName,
                                @NotNull final Comparable value) {
+        final PropertyValue propValue = propertyTypes.dataToPropertyValue(value);
+        final ComparableValueType valueType = propValue.getType();
+        if (valueType.getBinding() == ComparableSetBinding.BINDING && ((ComparableSet) value).isEmpty()) {
+            return deleteProperty(txn, entity, propertyName);
+        }
         final int propertyId = getPropertyId(txn, propertyName, true);
         final ByteIterable oldValueEntry = getRawProperty(txn, entity, propertyId);
         final Comparable oldValue = oldValueEntry == null ? null : propertyTypes.entryToPropertyValue(oldValueEntry).getData();
-
         if (value.equals(oldValue)) { // value is not null by contract
             return false;
         }
-
         final PersistentEntityId entityId = entity.getId();
-        final PropertyValue propValue = propertyTypes.dataToPropertyValue(value);
         getPropertiesTable(txn, entityId.getTypeId()).put(
-                txn, entityId.getLocalId(), PropertyTypes.propertyValueToEntry(propValue), oldValueEntry, propertyId, propValue.getType());
+                txn, entityId.getLocalId(), PropertyTypes.propertyValueToEntry(propValue), oldValueEntry, propertyId, valueType);
         txn.propertyChanged(entityId, propertyId, oldValue, value);
-
         return true;
+
     }
 
     public boolean deleteProperty(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity entity, @NotNull final String propertyName) {
