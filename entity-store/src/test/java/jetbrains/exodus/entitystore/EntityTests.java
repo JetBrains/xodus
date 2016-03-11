@@ -260,39 +260,122 @@ public class EntityTests extends EntityStoreTestBase {
     }
 
     @SuppressWarnings("unchecked")
-    public void testComparableSetProperties() {
+    public void testComparableSetNewEmpty() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity entity = txn.newEntity("Issue");
-        final ComparableSet<String> subsystems = new ComparableSet<>();
         TestUtil.runWithExpectedException(new Runnable() {
             @Override
             public void run() {
-                entity.setProperty("subsystems", subsystems);
+                entity.setProperty("subsystems", new ComparableSet<String>());
             }
         }, ExodusException.class);
-        subsystems.addItem("Search Parser");
-        subsystems.addItem("Full Text Index");
-        subsystems.addItem("REST API");
-        subsystems.addItem("Workflow");
-        subsystems.addItem("Agile Board");
+    }
+
+    @SuppressWarnings("unchecked")
+    public void testComparableSetNew() {
+        final StoreTransaction txn = getStoreTransaction();
+        final Entity entity = txn.newEntity("Issue");
+        final ComparableSet<String> subsystems = newSet("Search Parser", "Agile Board", "Full Text Index", "REST API", "Workflow", "Agile Board");
+
         entity.setProperty("subsystems", subsystems);
         txn.flush();
+
         Comparable propValue = entity.getProperty("subsystems");
         Assert.assertTrue(propValue instanceof ComparableSet);
         ComparableSet<String> readSet = (ComparableSet) propValue;
         Assert.assertFalse(readSet.isEmpty());
         Assert.assertFalse(readSet.isDirty());
         Assert.assertEquals(subsystems, propValue);
-        readSet.addItem("Obsolete Subsystem");
-        Assert.assertTrue(readSet.isDirty());
-        entity.setProperty("subsystems", readSet);
+    }
+
+    @SuppressWarnings("unchecked")
+    public void testComparableSetAdd() {
+        final StoreTransaction txn = getStoreTransaction();
+        final Entity entity = txn.newEntity("Issue");
+
+        final ComparableSet<String> subsystems = newSet("Search Parser", "Agile Board");
+        entity.setProperty("subsystems", subsystems);
         txn.flush();
+
+        Comparable propValue = entity.getProperty("subsystems");
+        Assert.assertTrue(propValue instanceof ComparableSet);
+        ComparableSet<String> updateSet = (ComparableSet) propValue;
+        updateSet.addItem("Obsolete Subsystem");
+        Assert.assertTrue(updateSet.isDirty());
+        entity.setProperty("subsystems", updateSet);
+        txn.flush();
+
         propValue = entity.getProperty("subsystems");
         Assert.assertTrue(propValue instanceof ComparableSet);
-        readSet = (ComparableSet) propValue;
-        Assert.assertFalse(readSet.isEmpty());
-        Assert.assertFalse(readSet.isDirty());
-        Assert.assertNotEquals(subsystems, propValue);
+        updateSet = (ComparableSet) propValue;
+        Assert.assertFalse(updateSet.isEmpty());
+        Assert.assertFalse(updateSet.isDirty());
+        Assert.assertEquals(newSet("Search Parser", "Agile Board", "Obsolete Subsystem"), propValue);
+    }
+
+
+    @SuppressWarnings("unchecked")
+    public void testComparableSetAddAll() {
+        final StoreTransaction txn = getStoreTransaction();
+        final Entity entity = txn.newEntity("Issue");
+
+        entity.setProperty("subsystems", newSet("Search Parser", "Agile Board"));
+        txn.flush();
+
+        entity.setProperty("subsystems", newSet("Search Parser", "Agile Board", "Obsolete Subsystem"));
+        txn.flush();
+
+        Comparable propValue = entity.getProperty("subsystems");
+        Assert.assertTrue(propValue instanceof ComparableSet);
+        Assert.assertEquals(newSet("Search Parser", "Agile Board", "Obsolete Subsystem"), propValue);
+    }
+
+    @SuppressWarnings("unchecked")
+    public void testComparableSetRemove() {
+        final StoreTransaction txn = getStoreTransaction();
+        final Entity entity = txn.newEntity("Issue");
+
+        final ComparableSet<String> subsystems = newSet("Search Parser", "Agile Board");
+        entity.setProperty("subsystems", subsystems);
+        txn.flush();
+
+        Comparable propValue = entity.getProperty("subsystems");
+        Assert.assertTrue(propValue instanceof ComparableSet);
+        ComparableSet<String> updateSet = (ComparableSet) propValue;
+        updateSet.removeItem("Agile Board");
+        Assert.assertTrue(updateSet.isDirty());
+        entity.setProperty("subsystems", updateSet);
+        txn.flush();
+
+        propValue = entity.getProperty("subsystems");
+        Assert.assertTrue(propValue instanceof ComparableSet);
+        updateSet = (ComparableSet) propValue;
+        Assert.assertFalse(updateSet.isEmpty());
+        Assert.assertFalse(updateSet.isDirty());
+        Assert.assertEquals(newSet("Search Parser"), propValue);
+    }
+
+    @SuppressWarnings("unchecked")
+    public void testComparableSetClear() {
+        final StoreTransaction txn = getStoreTransaction();
+        final Entity entity = txn.newEntity("Issue");
+
+        final ComparableSet<String> subsystems = newSet("Search Parser", "Agile Board");
+        entity.setProperty("subsystems", subsystems);
+        txn.flush();
+
+        entity.setProperty("subsystems", newSet());
+        txn.flush();
+
+        Assert.assertNull(entity.getProperty("subsystems"));
+    }
+
+    private ComparableSet<String> newSet(String ... values) {
+        ComparableSet<String> set = new ComparableSet<>();
+        for (String value : values) {
+            set.addItem(value);
+        }
+        return set;
     }
 
     public void testBlobs() throws Exception {
