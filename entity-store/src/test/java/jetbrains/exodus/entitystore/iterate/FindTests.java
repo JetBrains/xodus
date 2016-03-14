@@ -460,4 +460,24 @@ public class FindTests extends EntityStoreTestBase {
             }
         }
     }
+
+    public void testFindComparableSetCaseInsensitive() {
+        final StoreTransaction txn = getStoreTransaction();
+        final Entity issue = txn.newEntity("Issue");
+        final ComparableSet<String> set = new ComparableSet<>();
+        set.addItem("Eugene");
+        set.addItem("MAX");
+        set.addItem("SlaVa");
+        set.addItem("Pavel");
+        set.addItem("AnnA");
+
+        issue.setProperty("commenters", set);
+        txn.flush();
+
+        Assert.assertEquals(issue, txn.find("Issue", "commenters", "eugene").getFirst());
+        Assert.assertEquals(issue, txn.find("Issue", "commenters", "Max").getFirst());
+        Assert.assertEquals(issue, txn.find("Issue", "commenters", "slaVa").getFirst());
+        Assert.assertEquals(issue, txn.findStartingWith("Issue", "commenters", "Pav").getFirst());
+        Assert.assertEquals(issue, txn.findStartingWith("Issue", "commenters", "ann").getFirst());
+    }
 }
