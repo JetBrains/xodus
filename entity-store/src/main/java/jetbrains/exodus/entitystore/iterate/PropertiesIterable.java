@@ -17,9 +17,12 @@ package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.bindings.ComparableBinding;
+import jetbrains.exodus.bindings.ComparableSet;
+import jetbrains.exodus.bindings.ComparableValueType;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.tables.PropertyKey;
+import jetbrains.exodus.entitystore.tables.PropertyValue;
 import jetbrains.exodus.env.Cursor;
 import jetbrains.exodus.env.Store;
 import org.jetbrains.annotations.NotNull;
@@ -176,7 +179,21 @@ public final class PropertiesIterable extends EntityIterableBase {
                 final long entityLocalId = LongBinding.compressedEntryToLong(secondaryIndex.getValue());
                 final ByteIterable value = primaryIndex.getSearchKey(
                         PropertyKey.propertyKeyToEntry(new PropertyKey(entityLocalId, propertyId)));
-                binding = (hasNext = value != null) ? getStore().getPropertyTypes().entryToPropertyValue(value).getBinding() : null;
+                if ((hasNext = value != null)) {
+                    final PropertyValue propertyValue = getStore().getPropertyTypes().entryToPropertyValue(value);
+                    if (propertyValue.getType().getTypeId() != ComparableValueType.COMPARABLE_SET_VALUE_TYPE) {
+                        binding = propertyValue.getBinding();
+                    } else {
+                        final Class itemClass = ((ComparableSet) propertyValue.getData()).getItemClass();
+                        if (itemClass == null) {
+                            throw new NullPointerException("Can't be: null item class for a non-empty ComparableSet");
+                        }
+                        //noinspection unchecked
+                        binding = getStore().getPropertyTypes().getPropertyType(itemClass).getBinding();
+                    }
+                } else {
+                    binding = null;
+                }
             } else {
                 binding = null;
             }
