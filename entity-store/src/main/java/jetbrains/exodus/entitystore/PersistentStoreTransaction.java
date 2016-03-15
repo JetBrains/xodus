@@ -18,6 +18,7 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.OutOfDiskSpaceException;
+import jetbrains.exodus.bindings.ComparableSet;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.core.dataStructures.FakeObjectCache;
@@ -1119,7 +1120,26 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         void update(@NotNull final EntityIterableHandle handle,
                     @NotNull final UpdatableCachedInstanceIterable iterable) {
             if (handle instanceof PropertiesIterable.PropertiesIterableHandle) {
-                ((UpdatablePropertiesCachedInstanceIterable) iterable).update(typeId, localId, oldValue, newValue);
+                final UpdatablePropertiesCachedInstanceIterable propertyIndex = (UpdatablePropertiesCachedInstanceIterable) iterable;
+                if (oldValue instanceof ComparableSet || newValue instanceof ComparableSet) {
+                    //noinspection ConstantConditions
+                    final ComparableSet oldSet = (ComparableSet) oldValue;
+                    final ComparableSet newSet = (ComparableSet) newValue;
+                    if (oldSet != null) {
+                        //noinspection unchecked
+                        for (final Comparable item : (Iterable<? extends Comparable>) oldSet.diff(newSet)) {
+                            propertyIndex.update(typeId, localId, item, null);
+                        }
+                    }
+                    if (newSet != null) {
+                        //noinspection unchecked
+                        for (final Comparable item : (Iterable<? extends Comparable>) newSet.diff(oldSet)) {
+                            propertyIndex.update(typeId, localId, null, item);
+                        }
+                    }
+                } else {
+                    propertyIndex.update(typeId, localId, oldValue, newValue);
+                }
             } else {
                 final UpdatableEntityIdSortedSetCachedInstanceIterable cachedInstance = (UpdatableEntityIdSortedSetCachedInstanceIterable) iterable;
                 if (oldValue == null) {

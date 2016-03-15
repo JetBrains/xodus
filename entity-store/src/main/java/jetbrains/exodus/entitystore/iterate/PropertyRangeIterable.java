@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.bindings.ComparableBinding;
+import jetbrains.exodus.bindings.ComparableSet;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.tables.PropertyTypes;
@@ -124,12 +125,22 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
                 return propertyId == propId && entityTypeId == typeId && (isRangeAffected(oldValue) || isRangeAffected(newValue));
             }
 
-            private boolean isRangeAffected(Comparable value) {
+            private boolean isRangeAffected(@Nullable final Comparable value) {
                 if (value == null) {
                     return false;
                 }
-                value = PropertyTypes.toLowerCase(value);
-                return min.compareTo(value) <= 0 && max.compareTo(value) >= 0;
+                if (value instanceof ComparableSet) {
+                    final ComparableSet set = (ComparableSet) value;
+                    // not null set should be non-empty
+                    return isRangeAffectedByPrimitiveValue(set.getMinimum()) ||
+                            isRangeAffectedByPrimitiveValue(set.getMaximum());
+                }
+                return isRangeAffectedByPrimitiveValue(value);
+            }
+
+            private boolean isRangeAffectedByPrimitiveValue(@NotNull final Comparable value) {
+                final Comparable lowercaseValue = PropertyTypes.toLowerCase(value);
+                return min.compareTo(lowercaseValue) <= 0 && max.compareTo(lowercaseValue) >= 0;
             }
         };
     }

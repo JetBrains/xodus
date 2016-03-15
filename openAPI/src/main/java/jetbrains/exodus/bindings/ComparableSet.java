@@ -50,6 +50,30 @@ public class ComparableSet<T extends Comparable<T>> implements Comparable<Compar
         return caseInsensitiveCompareTo(right);
     }
 
+    public T getMinimum() {
+        return set.first();
+    }
+
+    public T getMaximum() {
+        return set.last();
+    }
+
+    /**
+     * @return difference between this set and subtrahend.
+     */
+    public ComparableSet<T> diff(@Nullable final ComparableSet<T> subtrahend) {
+        if (subtrahend == null) {
+            return this;
+        }
+        final ComparableSet<T> result = new ComparableSet<>();
+        for (final T item : set) {
+            if (!subtrahend.set.contains(item)) {
+                result.addItem(item);
+            }
+        }
+        return result;
+    }
+
     public boolean addItem(@NotNull final T item) {
         final boolean result = set.add(item);
         isDirty |= result;
