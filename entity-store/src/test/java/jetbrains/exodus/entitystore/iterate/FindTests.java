@@ -482,4 +482,12 @@ public class FindTests extends EntityStoreTestBase {
         Assert.assertEquals(issue, txn.findStartingWith("Issue", "commenters", "Pav").getFirst());
         Assert.assertEquals(issue, txn.findStartingWith("Issue", "commenters", "ann").getFirst());
     }
+
+    @TestFor(issues = "XD-512")
+    public void testComparableSetPropertiesIterable() {
+        getEntityStore().getConfig().setCachingDisabled(true); // disable caching to avoid background exceptions
+        testFindComparableSetCaseInsensitive();
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        Assert.assertTrue(txn.findWithPropSortedByValue("Issue", "commenters").iterator().hasNext());
+    }
 }
