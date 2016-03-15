@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
+import jetbrains.exodus.TestFor;
 import jetbrains.exodus.bindings.ComparableSet;
 import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.util.Random;
@@ -461,6 +462,7 @@ public class FindTests extends EntityStoreTestBase {
         }
     }
 
+    @TestFor(issues = "XD-511")
     public void testFindComparableSetCaseInsensitive() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity issue = txn.newEntity("Issue");

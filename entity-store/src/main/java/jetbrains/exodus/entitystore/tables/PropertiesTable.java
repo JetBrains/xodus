@@ -182,7 +182,7 @@ public final class PropertiesTable extends Table {
             data.forEach(new ComparableSet.Consumer() {
                 @Override
                 public void accept(@NotNull final Comparable item, final int index) {
-                    result[index] = itemBinding.objectToEntry(item);
+                    result[index] = itemBinding.objectToEntry(PropertyTypes.toLowerCase(item));
                 }
             });
             return result;
