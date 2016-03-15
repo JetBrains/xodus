@@ -43,21 +43,11 @@ public class ComparableSet<T extends Comparable<T>> implements Comparable<Compar
 
     @Override
     public int compareTo(@NotNull final ComparableSet<T> right) {
-        final Iterator<T> thisIt = set.iterator();
-        final Iterator<T> rightIt = right.set.iterator();
-        while (thisIt.hasNext() && rightIt.hasNext()) {
-            final int cmp = thisIt.next().compareTo(rightIt.next());
-            if (cmp != 0) {
-                return cmp;
-            }
+        //noinspection ConstantConditions
+        if (isEmpty() || !getItemClass().equals(String.class)) {
+            return caseSensitiveCompareTo(right);
         }
-        if (thisIt.hasNext()) {
-            return 1;
-        }
-        if (rightIt.hasNext()) {
-            return -1;
-        }
-        return 0;
+        return caseInsensitiveCompareTo(right);
     }
 
     public boolean addItem(@NotNull final T item) {
@@ -126,6 +116,43 @@ public class ComparableSet<T extends Comparable<T>> implements Comparable<Compar
     @Override
     public Iterator<T> iterator() {
         return set.iterator();
+    }
+
+    private int caseSensitiveCompareTo(@NotNull ComparableSet<T> right) {
+        final Iterator<T> thisIt = set.iterator();
+        final Iterator<T> rightIt = right.set.iterator();
+        while (thisIt.hasNext() && rightIt.hasNext()) {
+            final int cmp = thisIt.next().compareTo(rightIt.next());
+            if (cmp != 0) {
+                return cmp;
+            }
+        }
+        if (thisIt.hasNext()) {
+            return 1;
+        }
+        if (rightIt.hasNext()) {
+            return -1;
+        }
+        return 0;
+    }
+
+    @SuppressWarnings("unchecked")
+    private int caseInsensitiveCompareTo(@NotNull ComparableSet<T> right) {
+        final Iterator<String> thisIt = (Iterator<String>) set.iterator();
+        final Iterator<String> rightIt = (Iterator<String>) right.set.iterator();
+        while (thisIt.hasNext() && rightIt.hasNext()) {
+            final int cmp = thisIt.next().compareToIgnoreCase(rightIt.next());
+            if (cmp != 0) {
+                return cmp;
+            }
+        }
+        if (thisIt.hasNext()) {
+            return 1;
+        }
+        if (rightIt.hasNext()) {
+            return -1;
+        }
+        return 0;
     }
 
     public interface Consumer<T extends Comparable<T>> {
