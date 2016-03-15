@@ -462,6 +462,25 @@ public class FindTests extends EntityStoreTestBase {
         }
     }
 
+    @TestFor(issues = "XD-510")
+    public void testFindComparableSetRange() throws InterruptedException {
+        final StoreTransaction txn = getStoreTransaction();
+        final Entity issue = txn.newEntity("Issue");
+        final ComparableSet<String> set = new ComparableSet<>();
+        set.addItem("Eugene");
+
+        issue.setProperty("commenters", set);
+        txn.flush();
+
+        for (int i = 0; i < 20; ++i) {
+            Assert.assertEquals(issue, txn.findStartingWith("Issue", "commenters", "eug").getFirst());
+            set.addItem("" + i);
+            issue.setProperty("commenters", set);
+            txn.flush();
+            Thread.sleep(20);
+        }
+    }
+
     @TestFor(issues = "XD-511")
     public void testFindComparableSetCaseInsensitive() {
         final StoreTransaction txn = getStoreTransaction();
