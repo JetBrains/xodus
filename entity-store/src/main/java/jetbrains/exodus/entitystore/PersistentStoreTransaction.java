@@ -1127,13 +1127,13 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                     final ComparableSet newSet = (ComparableSet) newValue;
                     if (oldSet != null) {
                         //noinspection unchecked
-                        for (final Comparable item : (Iterable<? extends Comparable>) oldSet.diff(newSet)) {
+                        for (final Comparable item : (Iterable<? extends Comparable>) oldSet.minus(newSet)) {
                             propertyIndex.update(typeId, localId, item, null);
                         }
                     }
                     if (newSet != null) {
                         //noinspection unchecked
-                        for (final Comparable item : (Iterable<? extends Comparable>) newSet.diff(oldSet)) {
+                        for (final Comparable item : (Iterable<? extends Comparable>) newSet.minus(oldSet)) {
                             propertyIndex.update(typeId, localId, null, item);
                         }
                     }

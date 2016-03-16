@@ -61,7 +61,7 @@ public class ComparableSet<T extends Comparable<T>> implements Comparable<Compar
     /**
      * @return difference between this set and subtrahend.
      */
-    public ComparableSet<T> diff(@Nullable final ComparableSet<T> subtrahend) {
+    public ComparableSet<T> minus(@Nullable final ComparableSet<T> subtrahend) {
         if (subtrahend == null) {
             return this;
         }
