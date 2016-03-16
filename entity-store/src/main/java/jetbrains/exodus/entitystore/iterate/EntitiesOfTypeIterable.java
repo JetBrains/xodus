@@ -138,7 +138,7 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
      * Public access is needed in order to access directly from PersistentStoreTransaction.
      */
 
-    public final class EntitiesOfTypeIterableHandle extends ConstantEntityIterableHandle {
+    private final class EntitiesOfTypeIterableHandle extends ConstantEntityIterableHandle {
 
         public EntitiesOfTypeIterableHandle() {
             super(EntitiesOfTypeIterable.this.getStore(), EntitiesOfTypeIterable.getType());

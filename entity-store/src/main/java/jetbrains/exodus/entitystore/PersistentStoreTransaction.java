@@ -986,7 +986,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         public HandleCheckResult checkHandle(@NotNull final EntityIterableHandle handle,
                                              @NotNull final EntityIterableCacheAdapter mutableCache) {
             final boolean result = handle.isMatchedEntityDeleted(id);
-            if (result && handle instanceof EntitiesOfTypeIterable.EntitiesOfTypeIterableHandle) {
+            if (result && handle.getType() == EntityIterableType.ALL_ENTITIES) {
                 return HandleCheckResult.UPDATE;
             }
             return result ? HandleCheckResult.REMOVE : HandleCheckResult.KEEP;
@@ -1009,7 +1009,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         public HandleCheckResult checkHandle(@NotNull final EntityIterableHandle handle,
                                              @NotNull final EntityIterableCacheAdapter mutableCache) {
             final boolean result = handle.isMatchedEntityAdded(id);
-            if (result && handle instanceof EntitiesOfTypeIterable.EntitiesOfTypeIterableHandle) {
+            if (result && handle.getType() == EntityIterableType.ALL_ENTITIES) {
                 return HandleCheckResult.UPDATE;
             }
             return result ? HandleCheckResult.REMOVE : HandleCheckResult.KEEP;
@@ -1105,10 +1105,11 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         public HandleCheckResult checkHandle(@NotNull EntityIterableHandle handle, @NotNull EntityIterableCacheAdapter mutableCache) {
             if (handle.isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue)) {
-                if (handle instanceof PropertiesIterable.PropertiesIterableHandle) {
+                final EntityIterableType handleType = handle.getType();
+                if (handleType == EntityIterableType.ENTITIES_WITH_PROPERTY_SORTED_BY_VALUE) {
                     return HandleCheckResult.UPDATE;
                 }
-                if (handle instanceof EntitiesWithPropertyIterable.EntitiesWithPropertyIterableHandle) {
+                if (handleType == EntityIterableType.ENTITIES_WITH_PROPERTY) {
                     return oldValue == null || newValue == null ? HandleCheckResult.UPDATE : HandleCheckResult.KEEP;
                 }
                 return HandleCheckResult.REMOVE;
@@ -1119,7 +1120,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         void update(@NotNull final EntityIterableHandle handle,
                     @NotNull final UpdatableCachedInstanceIterable iterable) {
-            if (handle instanceof PropertiesIterable.PropertiesIterableHandle) {
+            if (handle.getType() == EntityIterableType.ENTITIES_WITH_PROPERTY_SORTED_BY_VALUE) {
                 final UpdatablePropertiesCachedInstanceIterable propertyIndex = (UpdatablePropertiesCachedInstanceIterable) iterable;
                 if (oldValue instanceof ComparableSet || newValue instanceof ComparableSet) {
                     //noinspection ConstantConditions

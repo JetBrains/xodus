@@ -70,7 +70,7 @@ public class EntitiesWithPropertyIterable extends EntityIterableBase {
         return new UpdatableEntityIdSortedSetCachedInstanceIterable(txn, this);
     }
 
-    public final class EntitiesWithPropertyIterableHandle extends ConstantEntityIterableHandle {
+    private final class EntitiesWithPropertyIterableHandle extends ConstantEntityIterableHandle {
 
         private EntitiesWithPropertyIterableHandle() {
             super(EntitiesWithPropertyIterable.this.getStore(), EntitiesWithPropertyIterable.getType());

@@ -127,7 +127,7 @@ public final class PropertiesIterable extends EntityIterableBase {
      * Public access is needed in order to access directly from PersistentStoreTransaction.
      */
 
-    public final class PropertiesIterableHandle extends ConstantEntityIterableHandle {
+    private final class PropertiesIterableHandle extends ConstantEntityIterableHandle {
 
         public PropertiesIterableHandle() {
             super(PropertiesIterable.this.getStore(), PropertiesIterable.getType());

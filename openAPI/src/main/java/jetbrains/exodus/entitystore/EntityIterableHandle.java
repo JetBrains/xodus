@@ -20,6 +20,8 @@ import org.jetbrains.annotations.Nullable;
 
 public interface EntityIterableHandle {
 
+    EntityIterableType getType();
+
     Object getIdentity();
 
     boolean isMatchedEntityAdded(@NotNull EntityId added);

@@ -45,6 +45,11 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
     }
 
     @Override
+    public EntityIterableType getType() {
+        return type;
+    }
+
+    @Override
     public boolean hasLinkId(int id) {
         final int[] linkIds = getLinkIds();
         if (linkIds == null)
