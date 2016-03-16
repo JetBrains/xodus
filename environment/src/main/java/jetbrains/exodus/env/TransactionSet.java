@@ -40,12 +40,12 @@ final class TransactionSet implements Iterable<TransactionBase> {
         for (; ; ) {
             final MinMaxAwareTransactionSet prevSet = txns.get();
             final PersistentHashSet<TransactionBase> newSet = prevSet.set.getClone();
-            final PersistentHashSet.MutablePersistentHashSet<TransactionBase> mutableSet = newSet.beginWrite();
             final TransactionBase prevMin = prevSet.min;
             final TransactionBase newMin;
-            if (mutableSet.contains(txn)) {
+            if (newSet.getCurrent().contains(txn)) {
                 newMin = prevMin == txn ? null : prevMin;
             } else {
+                final PersistentHashSet.MutablePersistentHashSet<TransactionBase> mutableSet = newSet.beginWrite();
                 mutableSet.add(txn);
                 mutableSet.endWrite();
                 newMin = prevMin != null && prevMin.getRoot() > root ? txn : prevMin;
