@@ -25,7 +25,7 @@ class ReadonlyTransaction extends TransactionBase {
 
     ReadonlyTransaction(@NotNull final EnvironmentImpl env, @Nullable final Runnable beginHook) {
         super(env, false);
-        this.beginHook = wrapBeginHookWithInternalOne(beginHook);
+        this.beginHook = getWrappedBeginHook(beginHook);
         env.holdNewestSnapshotBy(this);
         env.getStatistics().getStatisticsItem(EnvironmentStatistics.READONLY_TRANSACTIONS).incTotal();
     }

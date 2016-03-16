@@ -73,7 +73,7 @@ public class TransactionImpl extends TransactionBase {
         removedStores = new LongHashMap<>();
         createdStores = new HashMapDecorator<>();
         final EnvironmentImpl env = getEnvironment();
-        this.beginHook = wrapBeginHookWithInternalOne(beginHook);
+        this.beginHook = getWrappedBeginHook(beginHook);
         replayCount = 0;
         setMetaTree(origin.getMetaTree());
         setExclusive(env.shouldTransactionBeExclusive(this));

@@ -208,7 +208,7 @@ public abstract class TransactionBase implements Transaction {
         isFinished = true;
     }
 
-    protected Runnable wrapBeginHookWithInternalOne(@Nullable final Runnable beginHook) {
+    protected Runnable getWrappedBeginHook(@Nullable final Runnable beginHook) {
         return new Runnable() {
             @Override
             public void run() {
