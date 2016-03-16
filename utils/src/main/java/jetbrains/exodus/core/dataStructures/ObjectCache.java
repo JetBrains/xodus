@@ -25,7 +25,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 @SuppressWarnings("unchecked")
-public final class ObjectCache<K, V> extends ObjectCacheBase<K, V> {
+public class ObjectCache<K, V> extends ObjectCacheBase<K, V> {
 
     public static final float DEFAULT_SECOND_GENERATION_QUEUE_SIZE_RATIO = 0.4f;
 

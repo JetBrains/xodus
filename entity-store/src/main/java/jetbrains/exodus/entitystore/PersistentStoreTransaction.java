@@ -29,6 +29,7 @@ import jetbrains.exodus.core.dataStructures.decorators.HashSetDecorator;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
+import jetbrains.exodus.core.execution.SharedTimer;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.entitystore.metadata.Index;
 import jetbrains.exodus.env.Environment;
@@ -1182,7 +1183,13 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         @Override
         protected ObjectCacheBase<PropertyId, V> createdDecorated() {
-            return new ObjectCache<>(size());
+            return new ObjectCache<PropertyId, V>(size()) {
+                @Nullable
+                @Override
+                protected SharedTimer.ExpirablePeriodicTask getCacheAdjuster() {
+                    return null;
+                }
+            };
         }
     }
 }
