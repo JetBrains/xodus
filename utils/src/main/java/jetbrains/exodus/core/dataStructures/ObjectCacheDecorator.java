@@ -38,7 +38,10 @@ public abstract class ObjectCacheDecorator<K, V> extends ObjectCacheBase<K, V> {
     }
 
     public void clear() {
-        getCache(false).clear();
+        if (decorated != null) {
+            decorated.close();
+            decorated = null;
+        }
     }
 
     @Override

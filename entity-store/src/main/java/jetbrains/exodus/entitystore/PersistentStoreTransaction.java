@@ -21,8 +21,8 @@ import jetbrains.exodus.OutOfDiskSpaceException;
 import jetbrains.exodus.bindings.ComparableSet;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.LongBinding;
+import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache;
 import jetbrains.exodus.core.dataStructures.FakeObjectCache;
-import jetbrains.exodus.core.dataStructures.ObjectCache;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.ObjectCacheDecorator;
 import jetbrains.exodus.core.dataStructures.decorators.HashSetDecorator;
@@ -1183,7 +1183,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         @Override
         protected ObjectCacheBase<PropertyId, V> createdDecorated() {
-            return new ObjectCache<PropertyId, V>(size()) {
+            return new ConcurrentObjectCache<PropertyId, V>(size()) {
                 @Nullable
                 @Override
                 protected SharedTimer.ExpirablePeriodicTask getCacheAdjuster() {

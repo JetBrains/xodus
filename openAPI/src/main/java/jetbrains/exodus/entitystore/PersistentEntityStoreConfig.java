@@ -105,8 +105,8 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(ENTITY_ITERABLE_CACHE_MAX_SIZE_OF_DIRECT_VALUE, 512),
                 new Pair(ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE, false),
                 new Pair(TRANSACTION_PROPS_CACHE_SIZE, 1024),
-                new Pair(TRANSACTION_LINKS_CACHE_SIZE, 4096),
-                new Pair(TRANSACTION_BLOB_STRINGS_CACHE_SIZE, 128),
+                new Pair(TRANSACTION_LINKS_CACHE_SIZE, 1024),
+                new Pair(TRANSACTION_BLOB_STRINGS_CACHE_SIZE, 256),
                 new Pair(GATHER_STATISTICS, true),
                 new Pair(MANAGEMENT_ENABLED, true)
         }, strategy);
