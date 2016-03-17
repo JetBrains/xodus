@@ -19,6 +19,7 @@ import jetbrains.exodus.ArrayByteIterable;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.OutputStream;
+import java.util.Arrays;
 
 public class LightOutputStream extends OutputStream {
 
@@ -130,13 +131,7 @@ public class LightOutputStream extends OutputStream {
     public void ensureCapacity(int requiredCapacity) {
         final int bufLen = buf.length;
         if (bufLen < requiredCapacity) {
-            final int nextAllowedCapacity = bufLen < 1000 ? (bufLen << 3) / 5 : bufLen << 1;
-            if (nextAllowedCapacity > requiredCapacity) {
-                requiredCapacity = nextAllowedCapacity;
-            }
-            byte[] newBuf = new byte[requiredCapacity];
-            System.arraycopy(buf, 0, newBuf, 0, len);
-            buf = newBuf;
+            buf = Arrays.copyOf(buf, bufLen < 50 ? bufLen << 2 : (bufLen < 1000 ? bufLen << 1 : (bufLen << 3) / 5));
         }
     }
 }
