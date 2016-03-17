@@ -131,7 +131,8 @@ public class LightOutputStream extends OutputStream {
     public void ensureCapacity(int requiredCapacity) {
         final int bufLen = buf.length;
         if (bufLen < requiredCapacity) {
-            buf = Arrays.copyOf(buf, bufLen < 50 ? bufLen << 2 : (bufLen < 1000 ? bufLen << 1 : (bufLen << 3) / 5));
+            buf = Arrays.copyOf(buf, Math.max(requiredCapacity,
+                    bufLen < 50 ? bufLen << 2 : (bufLen < 1000 ? bufLen << 1 : (bufLen << 3) / 5)));
         }
     }
 }
