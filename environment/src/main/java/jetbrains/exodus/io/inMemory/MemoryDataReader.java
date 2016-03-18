@@ -115,5 +115,10 @@ public class MemoryDataReader implements DataReader {
         public boolean setWritable(boolean writable) {
             return false;
         }
+
+        @Override
+        public boolean exists() {
+            return true;
+        }
     }
 }

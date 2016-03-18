@@ -169,6 +169,10 @@ public final class GarbageCollector {
         if (isFileToBeDeleted(fileAddress)) {
             return false;
         }
+        // fix of XD-505:
+        if (!getLog().fileExists(fileAddress)) {
+            return false;
+        }
         loggingInfo("start cleanFile(" + env.getLocation() + File.separatorChar + LogUtil.getLogFilename(fileAddress) + ')');
         final TransactionImpl txn = env.beginGCTransaction();
         try {

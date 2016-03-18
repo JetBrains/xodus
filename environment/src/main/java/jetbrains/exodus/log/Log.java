@@ -593,6 +593,10 @@ public final class Log implements Closeable {
         highAddress = 0;
     }
 
+    public boolean fileExists(final long fileAddress) {
+        return reader.getBlock(fileAddress).exists();
+    }
+
     public void removeFile(final long address) {
         removeFile(address, RemoveBlockType.Delete);
     }
