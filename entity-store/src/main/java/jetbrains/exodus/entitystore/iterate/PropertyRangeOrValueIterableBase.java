@@ -43,7 +43,9 @@ abstract class PropertyRangeOrValueIterableBase extends EntityIterableBase {
 
     @Override
     public boolean canBeCached() {
-        return !getPropertyValueIndex().isCachedInstance();
+        final PersistentStoreTransaction txn = getTransaction();
+        return !getStore().getEntityIterableCache().isCached(
+                new PropertiesIterable(txn, entityTypeId, propertyId), txn);
     }
 
     protected Cursor openCursor(@NotNull final PersistentStoreTransaction txn) {

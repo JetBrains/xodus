@@ -127,6 +127,14 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
         return it;
     }
 
+    public boolean isCached(@NotNull final EntityIterableBase it) {
+        return isCached(it, it.getTransaction());
+    }
+
+    public boolean isCached(@NotNull final EntityIterableBase it, @NotNull final PersistentStoreTransaction txn) {
+        return txn.getLocalCache().getObject(it.getHandle()) != null;
+    }
+
     @Nullable
     public Long getCachedCount(@NotNull final EntityIterableHandle handle) {
         return iterableCountsCache.tryKey(handle.getIdentity());
