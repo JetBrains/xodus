@@ -31,6 +31,8 @@ import java.util.List;
 
 public class BTreeMutable extends BTreeBase implements ITreeMutable {
 
+    private static final int MAX_EXPIRED_LOGGABLES_TO_CONTINUE_RECLAIM_ON_A_NEW_FILE = 100000;
+
     @NotNull
     private BasePageMutable root;
     private Collection<Loggable> expiredLoggables = null;
@@ -279,7 +281,8 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
 
         loop:
         while (true) {
-            switch (loggable.getType()) {
+            final byte type = loggable.getType();
+            switch (type) {
                 case NullLoggable.TYPE:
                     break;
                 case LEAF_DUP_BOTTOM_ROOT:
@@ -321,9 +324,15 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
                     new LeafNodeDup(this, leaf).reclaim(context);
                     break;
                 default:
-                    throw new ExodusException("Unexpected loggable type " + loggable.getType());
+                    throw new ExodusException("Unexpected loggable type " + type);
             }
             if (!loggables.hasNext()) {
+                break;
+            }
+            // if we have finished the end of file and the tree seems to be heavyweight than look like
+            // it was a huge transaction that saved the tree, and it's reasonable to stop here, without
+            // reaching the tree's root, in order to avoid possible OOME
+            if (type == NullLoggable.TYPE && expiredLoggables.size() > MAX_EXPIRED_LOGGABLES_TO_CONTINUE_RECLAIM_ON_A_NEW_FILE) {
                 break;
             }
             loggable = loggables.next();
