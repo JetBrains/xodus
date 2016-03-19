@@ -191,6 +191,11 @@ public class FileDataReader implements DataReader {
             }
         }
 
+        @Override
+        public boolean setWritable(boolean writable) {
+            return exists() && super.setWritable(writable);
+        }
+
         @NotNull
         private SharedRandomAccessFile getSharedRandomAccessFile(@NotNull final String mode) throws IOException {
             fileCache.lock();
