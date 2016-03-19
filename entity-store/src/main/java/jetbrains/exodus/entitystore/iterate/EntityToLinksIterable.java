@@ -63,7 +63,10 @@ public final class EntityToLinksIterable extends EntityLinksIterableBase {
 
     @Override
     public boolean isEmpty() {
-        return isEmptyFast() || new SingleKeyCursorIsEmptyChecker(openCursor(getTransaction()), LinkValue.linkValueToEntry(
+        if (isCached()) {
+            return super.isEmpty();
+        }
+        return new SingleKeyCursorIsEmptyChecker(openCursor(getTransaction()), LinkValue.linkValueToEntry(
                 new LinkValue(entityId, linkId))).isEmpty();
     }
 

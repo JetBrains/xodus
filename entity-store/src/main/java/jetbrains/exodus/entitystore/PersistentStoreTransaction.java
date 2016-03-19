@@ -608,6 +608,13 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         return localCache.tryKey(handle);
     }
 
+    @Nullable
+    public CachedInstanceIterable getCachedInstanceFast(@NotNull final EntityIterableBase sample) {
+        final EntityIterableHandle handle = sample.getHandle();
+        final EntityIterableCacheAdapter localCache = getLocalCache();
+        return localCache.getObject(handle);
+    }
+
     public void addCachedInstance(@NotNull final CachedInstanceIterable cached) {
         // don't remember cached instances on txn replay. this looks innocent by now.
         if (replayData == null || !replayData.hasCacheSnapshot()) {

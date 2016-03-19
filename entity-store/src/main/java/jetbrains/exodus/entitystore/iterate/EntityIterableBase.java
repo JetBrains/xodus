@@ -461,7 +461,7 @@ public abstract class EntityIterableBase implements EntityIterable {
     }
 
     public boolean isCached() {
-        return getTransaction().getLocalCache().getObject(getHandle()) != null;
+        return canBeCached() && getTransaction().getCachedInstanceFast(this) != null;
     }
 
     @NotNull
@@ -526,7 +526,7 @@ public abstract class EntityIterableBase implements EntityIterable {
     }
 
     protected boolean isEmptyFast() {
-        final CachedInstanceIterable cached = getTransaction().getLocalCache().getObject(getHandle());
+        final CachedInstanceIterable cached = getTransaction().getCachedInstanceFast(this);
         return cached != null && cached.isEmpty();
     }
 
