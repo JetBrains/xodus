@@ -160,7 +160,7 @@ public class FileDataReader implements DataReader {
     }
 
     private static void setWritable(@NotNull final File file) {
-        if (!file.setWritable(true)) {
+        if (file.exists() && !file.setWritable(true)) {
             throw new ExodusException("Failed to set writable " + file.getAbsolutePath());
         }
     }
@@ -189,11 +189,6 @@ public class FileDataReader implements DataReader {
             } catch (IOException e) {
                 throw new ExodusException("Can't read file " + getAbsolutePath(), e);
             }
-        }
-
-        @Override
-        public boolean setWritable(boolean writable) {
-            return exists() && super.setWritable(writable);
         }
 
         @NotNull
