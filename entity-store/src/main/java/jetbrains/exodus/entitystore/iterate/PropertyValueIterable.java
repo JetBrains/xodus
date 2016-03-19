@@ -60,6 +60,9 @@ public final class PropertyValueIterable extends PropertyRangeOrValueIterableBas
 
     @Override
     public boolean isEmpty() {
+        if (isEmptyFast()) {
+            return true;
+        }
         final ByteIterable key = getStore().getPropertyTypes().dataToPropertyValue(value).dataToEntry();
         final Cursor valueIdx = openCursor(getTransaction());
         return valueIdx == null || new SingleKeyCursorIsEmptyChecker(valueIdx, key).isEmpty();

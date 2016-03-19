@@ -24,6 +24,7 @@ abstract class PropertyRangeOrValueIterableBase extends EntityIterableBase {
 
     private final int entityTypeId;
     private final int propertyId;
+    private PropertiesIterable propertiesIterable;
 
     public PropertyRangeOrValueIterableBase(@Nullable final PersistentStoreTransaction txn,
                                             final int entityTypeId,
@@ -43,9 +44,7 @@ abstract class PropertyRangeOrValueIterableBase extends EntityIterableBase {
 
     @Override
     public boolean canBeCached() {
-        final PersistentStoreTransaction txn = getTransaction();
-        return !getStore().getEntityIterableCache().isCached(
-                new PropertiesIterable(txn, entityTypeId, propertyId), txn);
+        return !getPropertiesIterable().isCached();
     }
 
     protected Cursor openCursor(@NotNull final PersistentStoreTransaction txn) {
@@ -53,7 +52,13 @@ abstract class PropertyRangeOrValueIterableBase extends EntityIterableBase {
     }
 
     protected EntityIterableBase getPropertyValueIndex() {
-        return getStore().getEntityIterableCache().putIfNotCached(
-                new PropertiesIterable(getTransaction(), entityTypeId, propertyId));
+        return getStore().getEntityIterableCache().putIfNotCached(getPropertiesIterable());
+    }
+
+    private PropertiesIterable getPropertiesIterable() {
+        if (propertiesIterable == null) {
+            propertiesIterable = new PropertiesIterable(getTransaction(), entityTypeId, propertyId);
+        }
+        return propertiesIterable;
     }
 }

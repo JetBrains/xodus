@@ -456,6 +456,14 @@ public abstract class EntityIterableBase implements EntityIterable {
         return txnGetter != TxnGetterStategy.DEFAULT;
     }
 
+    public boolean isCachedInstance() {
+        return false;
+    }
+
+    public boolean isCached() {
+        return getTransaction().getLocalCache().getObject(getHandle()) != null;
+    }
+
     @NotNull
     public final Entity getEntity(@NotNull final EntityId id) {
         return getStore().getEntity(id);
@@ -472,10 +480,6 @@ public abstract class EntityIterableBase implements EntityIterable {
             return EMPTY;
         }
         return ((EntityIterableBase) entities).store == null ? EMPTY : new FilterLinksIterable(txn, linkId, this, entities);
-    }
-
-    public boolean isCachedInstance() {
-        return false;
     }
 
     public final CachedInstanceIterable getOrCreateCachedInstance(@NotNull final PersistentStoreTransaction txn) {
@@ -519,6 +523,11 @@ public abstract class EntityIterableBase implements EntityIterable {
             it.nextId();
         }
         return result;
+    }
+
+    protected boolean isEmptyFast() {
+        final CachedInstanceIterable cached = getTransaction().getLocalCache().getObject(getHandle());
+        return cached != null && cached.isEmpty();
     }
 
     protected int indexOfImpl(@NotNull final EntityId entityId) {

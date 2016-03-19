@@ -620,6 +620,11 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
     }
 
+    @NotNull
+    public EntityIterableCacheAdapter getLocalCache() {
+        return mutableCache != null ? mutableCache : localCache;
+    }
+
     void localCacheAttempt() {
         ++localCacheAttempts;
     }
@@ -681,11 +686,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     void invalidateCachedBlobString(@NotNull final PersistentEntity from, final int blobId) {
         blobStringsCache.remove(new PropertyId(from.getId(), blobId));
-    }
-
-    @NotNull
-    EntityIterableCacheAdapter getLocalCache() {
-        return mutableCache != null ? mutableCache : localCache;
     }
 
     boolean isMutable() {

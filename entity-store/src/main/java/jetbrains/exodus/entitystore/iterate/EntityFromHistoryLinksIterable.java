@@ -39,7 +39,7 @@ public final class EntityFromHistoryLinksIterable extends EntityLinksIterableBas
 
     @Override
     public boolean isEmpty() {
-        return new SingleKeyCursorIsEmptyChecker(openCursor(getTransaction()), getFirstKey()).isEmpty();
+        return isEmptyFast() || new SingleKeyCursorIsEmptyChecker(openCursor(getTransaction()), getFirstKey()).isEmpty();
     }
 
     @Override

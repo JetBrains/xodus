@@ -25,7 +25,7 @@ import org.jetbrains.annotations.Nullable;
 import java.lang.ref.SoftReference;
 
 @SuppressWarnings("unchecked")
-final class EntityIterableCacheAdapter {
+public final class EntityIterableCacheAdapter {
 
     @NotNull
     private final PersistentEntityStoreConfig config;
@@ -48,12 +48,12 @@ final class EntityIterableCacheAdapter {
     }
 
     @Nullable
-    CachedInstanceIterable tryKey(@NotNull final EntityIterableHandle key) {
+    public CachedInstanceIterable tryKey(@NotNull final EntityIterableHandle key) {
         return parseCachedObject(key, cache.tryKey(key));
     }
 
     @Nullable
-    CachedInstanceIterable getObject(@NotNull final EntityIterableHandle key) {
+    public CachedInstanceIterable getObject(@NotNull final EntityIterableHandle key) {
         return parseCachedObject(key, cache.getObject(key));
     }
 

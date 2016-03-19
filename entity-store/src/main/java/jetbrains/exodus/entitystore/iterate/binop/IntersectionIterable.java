@@ -92,9 +92,10 @@ public final class IntersectionIterable extends BinaryOperatorEntityIterable {
         return isEmptyFast() ? 0 : super.countImpl(txn);
     }
 
-    private boolean isEmptyFast() {
-        return (iterable1.nonCachedHasFastCountAndIsEmpty() && iterable1.isEmpty()) ||
-                (iterable2.nonCachedHasFastCountAndIsEmpty() && iterable2.isEmpty());
+    protected boolean isEmptyFast() {
+        return super.isEmptyFast() ||
+                ((iterable1.isCached() || iterable1.nonCachedHasFastCountAndIsEmpty()) && iterable1.isEmpty()) ||
+                ((iterable2.isCached() || iterable2.nonCachedHasFastCountAndIsEmpty()) && iterable2.isEmpty());
     }
 
     private static final class SortedIterator extends NonDisposableEntityIterator {
