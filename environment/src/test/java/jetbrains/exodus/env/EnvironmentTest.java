@@ -15,10 +15,7 @@
  */
 package jetbrains.exodus.env;
 
-import jetbrains.exodus.ArrayByteIterable;
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.TestUtil;
+import jetbrains.exodus.*;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.core.dataStructures.Pair;
@@ -103,7 +100,6 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         Assert.assertNotNull(l);
         l = log.getFirstLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);
         Assert.assertNotNull(l);
-        Assert.assertEquals(l.getAddress(), l.getAddress());
     }
 
     @Test
@@ -119,6 +115,16 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     }
 
     @Test
+    public void testClearMoreThanOneFile() {
+        setLogFileSize(1);
+        env.getEnvironmentConfig().setGcEnabled(false);
+        testGetAllStoreNames();
+        getEnvironment().clear();
+        testEmptyEnvironment();
+    }
+
+    @Test
+    @TestFor(issues = "XD-457")
     public void testClearWithTransaction_XD_457() throws InterruptedException {
         final Latch latch = Latch.create();
         env.executeInTransaction(new TransactionalExecutable() {

@@ -91,7 +91,10 @@ public class FileDataReader implements DataReader {
     public void clear() {
         close();
         for (final File file : LogUtil.listFiles(dir)) {
-            if (!file.delete()) {
+            if (!file.canWrite()) {
+                setWritable(file);
+            }
+            if (file.exists() && !file.delete()) {
                 throw new ExodusException("Failed to delete " + file);
             }
         }
