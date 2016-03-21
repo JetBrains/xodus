@@ -101,9 +101,7 @@ final class BackgroundCleaningJob extends Job {
             gc.resetNewFiles();
             final long file = sparseFiles[i];
             if (i > newFiles) {
-                if (!cleanFile(gc, file)) {
-                    break;
-                }
+                cleanFile(gc, file);
             } else {
                 for (int j = 0; j < 4 && !cleanFile(gc, file) && canContinue(); ++j) {
                     Thread.yield();

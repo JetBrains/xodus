@@ -265,13 +265,15 @@ public final class UtilizationProfile {
         synchronized (filesUtilization) {
             for (int i = gc.getMinFileAge(); i < fileAddresses.length; ++i) {
                 final long file = fileAddresses[i];
-                final FileUtilization fileUtilization = filesUtilization.get(file);
-                if (fileUtilization == null) {
-                    sparseFiles.put(file, (Long) Long.MAX_VALUE);
-                } else {
-                    final long freeBytes = fileUtilization.getFreeBytes();
-                    if (freeBytes > maxFreeBytes) {
-                        sparseFiles.put(file, (Long) freeBytes);
+                if (log.fileExists(file)) {
+                    final FileUtilization fileUtilization = filesUtilization.get(file);
+                    if (fileUtilization == null) {
+                        sparseFiles.put(file, (Long) Long.MAX_VALUE);
+                    } else {
+                        final long freeBytes = fileUtilization.getFreeBytes();
+                        if (freeBytes > maxFreeBytes) {
+                            sparseFiles.put(file, (Long) freeBytes);
+                        }
                     }
                 }
             }
