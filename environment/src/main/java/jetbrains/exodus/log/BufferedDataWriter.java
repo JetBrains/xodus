@@ -161,6 +161,7 @@ class BufferedDataWriter implements TransactionalDataWriter {
             previousPage = previousPage.previousPage;
         }
         currentPage.writtenCount = currentPage.committedCount;
+        this.currentPage = currentPage;
     }
 
     @Override
