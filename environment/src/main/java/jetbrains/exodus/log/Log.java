@@ -635,7 +635,18 @@ public final class Log implements Closeable {
      * if we started reading by address it definitely should finish within current file.
      */
     public void padWithNulls() {
-        while (getLastFileLength() != 0) {
+        long bytesToWrite = fileLengthBound - getLastFileLength();
+        if (bytesToWrite >= cachePageSize) {
+            final ArrayByteIterable cachedTailPage = LogCache.getCachedTailPage(cachePageSize);
+            if (cachedTailPage != null) {
+                final byte[] bytes = cachedTailPage.getBytesUnsafe();
+                do {
+                    bufferedWriter.write(bytes, 0, cachePageSize);
+                    bytesToWrite -= cachePageSize;
+                } while (bytesToWrite >= cachePageSize);
+            }
+        }
+        while (bytesToWrite-- > 0) {
             write(NullLoggable.create());
         }
     }

@@ -119,13 +119,17 @@ abstract class LogCache {
     protected static ArrayByteIterable postProcessTailPage(@NotNull final ArrayByteIterable page) {
         if (isTailPage(page)) {
             final int length = page.getLength();
-            final ArrayByteIterable cachedPage = TAIL_PAGES_CACHE.tryKey(length);
+            final ArrayByteIterable cachedPage = getCachedTailPage(length);
             if (cachedPage != null) {
                 return cachedPage;
             }
             TAIL_PAGES_CACHE.cacheObject(length, page);
         }
         return page;
+    }
+
+    static ArrayByteIterable getCachedTailPage(final int cachePageSize) {
+        return TAIL_PAGES_CACHE.tryKey(cachePageSize);
     }
 
     private static boolean isTailPage(@NotNull final ArrayByteIterable page) {
