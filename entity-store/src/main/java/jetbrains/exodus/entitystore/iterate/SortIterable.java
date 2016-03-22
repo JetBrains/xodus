@@ -159,7 +159,7 @@ public final class SortIterable extends EntityIterableDecoratorBase {
 
     @Override
     public boolean canBeCached() {
-        return super.canBeCached() && propIndex.canBeCached();
+        return true;
     }
 
     @SuppressWarnings({"MethodOnlyUsedFromInnerClass"})
