@@ -643,11 +643,12 @@ public final class Log implements Closeable {
                 do {
                     bufferedWriter.write(bytes, 0, cachePageSize);
                     bytesToWrite -= cachePageSize;
+                    highAddress += cachePageSize;
                 } while (bytesToWrite >= cachePageSize);
             }
         }
         while (bytesToWrite-- > 0) {
-            write(NullLoggable.create());
+            writeContinuously(NullLoggable.create());
         }
     }
 
