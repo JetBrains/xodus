@@ -20,6 +20,7 @@ import org.jetbrains.annotations.Nullable;
 
 public interface EntityIterableHandle {
 
+    @NotNull
     EntityIterableType getType();
 
     Object getIdentity();

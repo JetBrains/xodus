@@ -45,6 +45,7 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
     }
 
     @Override
+    @NotNull
     public EntityIterableType getType() {
         return type;
     }
@@ -235,12 +236,17 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
 
     public static final class EntityIterableHandleHash {
 
-        private static final String[] INTS;
+        private static final String UTF_8 = "UTF-8";
+        private static final byte[][] INTS;
 
         static {
-            INTS = new String[256];
-            for (int i = 0; i < INTS.length; ++i) {
-                INTS[i] = Integer.toString(i);
+            INTS = new byte[1024][];
+            try {
+                for (int i = 0; i < INTS.length; ++i) {
+                    INTS[i] = Integer.toString(i).getBytes(UTF_8);
+                }
+            } catch (UnsupportedEncodingException e) {
+                throw ExodusException.toExodusException(e);
             }
         }
 
@@ -289,6 +295,12 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
             this.bytesProcessed = bytesProcessed + 1;
         }
 
+        public void apply(final byte[] bytes) {
+            for (byte b : bytes) {
+                apply(b);
+            }
+        }
+
         public void apply(final int i) {
             if (i >= 0 && i < INTS.length) {
                 apply(INTS[i]);
@@ -307,7 +319,7 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
 
         public void apply(@NotNull final String s) {
             try {
-                for (final byte b : s.getBytes("UTF-8")) {
+                for (final byte b : s.getBytes(UTF_8)) {
                     apply(b);
                 }
             } catch (UnsupportedEncodingException e) {
