@@ -94,7 +94,13 @@ public class PersistentEntity implements Entity {
     @Override
     @NotNull
     public String getType() {
-        return store.getEntityType(getTransaction(), id.getTypeId());
+        return store.getEntityType(new TxnProvider() {
+            @NotNull
+            @Override
+            public PersistentStoreTransaction getTransaction() {
+                return PersistentEntity.this.getTransaction();
+            }
+        }, id.getTypeId());
     }
 
     @Override

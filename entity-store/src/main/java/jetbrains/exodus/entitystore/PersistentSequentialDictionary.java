@@ -58,6 +58,16 @@ class PersistentSequentialDictionary implements FlushLog.Member {
     }
 
     public int getId(@NotNull final PersistentStoreTransaction txn, @NotNull final String name) {
+        return getId(new TxnProvider() {
+            @NotNull
+            @Override
+            public PersistentStoreTransaction getTransaction() {
+                return txn;
+            }
+        }, name);
+    }
+
+    public int getId(@NotNull final TxnProvider txnProvider, @NotNull final String name) {
         Integer result = cache.get(name);
         if (result != null) {
             return result;
@@ -67,7 +77,7 @@ class PersistentSequentialDictionary implements FlushLog.Member {
             if (result != null) {
                 return result;
             }
-            final ByteIterable idEntry = table.get(txn.getEnvironmentTransaction(), StringBinding.stringToEntry(name));
+            final ByteIterable idEntry = table.get(txnProvider.getTransaction().getEnvironmentTransaction(), StringBinding.stringToEntry(name));
             if (idEntry != null) {
                 final int id = IntegerBinding.compressedEntryToInt(idEntry);
                 putIdUnsafe(name, id);
@@ -79,6 +89,16 @@ class PersistentSequentialDictionary implements FlushLog.Member {
     }
 
     public int getOrAllocateId(@NotNull final PersistentStoreTransaction txn, @NotNull final String name) {
+        return getOrAllocateId(new TxnProvider() {
+            @NotNull
+            @Override
+            public PersistentStoreTransaction getTransaction() {
+                return txn;
+            }
+        }, name);
+    }
+
+    public int getOrAllocateId(@NotNull final TxnProvider txnProvider, @NotNull final String name) {
         Integer result = cache.get(name);
         if (result != null && result >= 0) {
             return result;
@@ -89,6 +109,7 @@ class PersistentSequentialDictionary implements FlushLog.Member {
                 return result;
             }
             final ByteIterable nameEntry = StringBinding.stringToEntry(name);
+            final PersistentStoreTransaction txn = txnProvider.getTransaction();
             final ByteIterable idEntry = table.get(txn.getEnvironmentTransaction(), nameEntry);
             final int id = idEntry == null ? (int) sequence.increment() : IntegerBinding.compressedEntryToInt(idEntry);
             putIdUnsafe(name, id);
@@ -107,11 +128,22 @@ class PersistentSequentialDictionary implements FlushLog.Member {
 
     @Nullable
     public String getName(@NotNull final PersistentStoreTransaction txn, final int id) {
+        return getName(new TxnProvider() {
+            @NotNull
+            @Override
+            public PersistentStoreTransaction getTransaction() {
+                return txn;
+            }
+        }, id);
+    }
+
+    @Nullable
+    public String getName(@NotNull final TxnProvider txnProvider, final int id) {
         String result = reverseCache.get(id);
         if (result == null) {
             synchronized (lock) {
                 final ByteIterable idEntry = IntegerBinding.intToCompressedEntry(id);
-                final ByteIterable typeEntry = table.get2(txn.getEnvironmentTransaction(), idEntry);
+                final ByteIterable typeEntry = table.get2(txnProvider.getTransaction().getEnvironmentTransaction(), idEntry);
                 if (typeEntry != null) {
                     result = StringBinding.entryToString(typeEntry);
                     if (result != null) {

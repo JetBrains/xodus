@@ -1646,11 +1646,21 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @Override
     @Deprecated
     public int getEntityTypeId(@NotNull final String entityType, final boolean allowCreate) {
-        return getEntityTypeId(getAndCheckCurrentTransaction(), entityType, allowCreate);
+        return getEntityTypeId(new TxnProvider() {
+            @NotNull
+            @Override
+            public PersistentStoreTransaction getTransaction() {
+                return getAndCheckCurrentTransaction();
+            }
+        }, entityType, allowCreate);
     }
 
     public int getEntityTypeId(@NotNull final PersistentStoreTransaction txn, @NotNull final String entityType, final boolean allowCreate) {
         return allowCreate ? entityTypes.getOrAllocateId(txn, entityType) : entityTypes.getId(txn, entityType);
+    }
+
+    public int getEntityTypeId(@NotNull final TxnProvider txnProvider, @NotNull final String entityType, final boolean allowCreate) {
+        return allowCreate ? entityTypes.getOrAllocateId(txnProvider, entityType) : entityTypes.getId(txnProvider, entityType);
     }
 
     /**
@@ -1663,12 +1673,27 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @NotNull
     @Deprecated
     public String getEntityType(final int entityTypeId) {
-        return getEntityType(getAndCheckCurrentTransaction(), entityTypeId);
+        return getEntityType(new TxnProvider() {
+            @NotNull
+            @Override
+            public PersistentStoreTransaction getTransaction() {
+                return getAndCheckCurrentTransaction();
+            }
+        }, entityTypeId);
     }
 
     @NotNull
     public String getEntityType(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
         final String result = entityTypes.getName(txn, entityTypeId);
+        if (result == null) {
+            throw new EntityStoreException("Invalid type id: " + entityTypeId);
+        }
+        return result;
+    }
+
+    @NotNull
+    public String getEntityType(@NotNull final TxnProvider txnProvider, final int entityTypeId) {
+        final String result = entityTypes.getName(txnProvider, entityTypeId);
         if (result == null) {
             throw new EntityStoreException("Invalid type id: " + entityTypeId);
         }
@@ -1772,7 +1797,13 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @Deprecated
     public int getPropertyId(@NotNull final String propertyName, final boolean allowCreate) {
-        return getPropertyId(getAndCheckCurrentTransaction(), propertyName, allowCreate);
+        return getPropertyId(new TxnProvider() {
+            @NotNull
+            @Override
+            public PersistentStoreTransaction getTransaction() {
+                return getAndCheckCurrentTransaction();
+            }
+        }, propertyName, allowCreate);
     }
 
     /**
@@ -1788,6 +1819,10 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return allowCreate ? propertyIds.getOrAllocateId(txn, propertyName) : propertyIds.getId(txn, propertyName);
     }
 
+    public int getPropertyId(@NotNull final TxnProvider txnProvider, @NotNull final String propertyName, final boolean allowCreate) {
+        return allowCreate ? propertyIds.getOrAllocateId(txnProvider, propertyName) : propertyIds.getId(txnProvider, propertyName);
+    }
+
     @Nullable
     public String getPropertyName(@NotNull final PersistentStoreTransaction txn, final int propertyId) {
         return propertyIds.getName(txn, propertyId);
@@ -1795,7 +1830,13 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @Deprecated
     public int getLinkId(@NotNull final String linkName, final boolean allowCreate) {
-        return getLinkId(getAndCheckCurrentTransaction(), linkName, allowCreate);
+        return getLinkId(new TxnProvider() {
+            @NotNull
+            @Override
+            public PersistentStoreTransaction getTransaction() {
+                return getAndCheckCurrentTransaction();
+            }
+        }, linkName, allowCreate);
     }
 
     /**
@@ -1808,6 +1849,10 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
      */
     public int getLinkId(@NotNull final PersistentStoreTransaction txn, @NotNull final String linkName, final boolean allowCreate) {
         return allowCreate ? linkIds.getOrAllocateId(txn, linkName) : linkIds.getId(txn, linkName);
+    }
+
+    public int getLinkId(@NotNull final TxnProvider txnProvider, @NotNull final String linkName, final boolean allowCreate) {
+        return allowCreate ? linkIds.getOrAllocateId(txnProvider, linkName) : linkIds.getId(txnProvider, linkName);
     }
 
     @Nullable
