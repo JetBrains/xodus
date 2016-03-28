@@ -285,6 +285,10 @@ public class EnvironmentImpl implements Environment {
 
     @Override
     public void clear() {
+        runAllTransactionSafeTasks();
+        synchronized (txnSafeTasks) {
+            txnSafeTasks.clear();
+        }
         suspendGC();
         try {
             final Thread currentThread = Thread.currentThread();
@@ -294,9 +298,8 @@ public class EnvironmentImpl implements Environment {
                 try {
                     synchronized (commitLock) {
                         synchronized (metaLock) {
+                            gc.clear();
                             log.clear();
-                            runAllTransactionSafeTasks();
-                            txnSafeTasks.clear();
                             throwableOnCommit = null;
                             final Pair<MetaTree, Integer> meta = MetaTree.create(this);
                             metaTree = meta.getFirst();

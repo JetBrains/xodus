@@ -98,6 +98,13 @@ public final class GarbageCollector {
         });
     }
 
+    public void clear() {
+        utilizationProfile.clear();
+        pendingFilesToDelete.clear();
+        deletionQueue.clear();
+        openStoresCache.clear();
+    }
+
     public void setCleanerJobProcessor(@NotNull final JobProcessorAdapter processor) {
         cleaner.setJobProcessor(processor);
     }

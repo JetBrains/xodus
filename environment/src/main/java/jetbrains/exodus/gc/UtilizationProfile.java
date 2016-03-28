@@ -58,6 +58,13 @@ public final class UtilizationProfile {
         });
     }
 
+    void clear() {
+        synchronized (filesUtilization) {
+            filesUtilization.clear();
+        }
+        estimateTotalBytes();
+    }
+
     /**
      * Loads utilization profile.
      */
