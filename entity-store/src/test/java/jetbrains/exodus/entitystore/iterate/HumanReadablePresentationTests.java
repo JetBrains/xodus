@@ -80,9 +80,8 @@ public class HumanReadablePresentationTests extends EntityStoreTestBase {
                 "Reversed iterable\n" +
                         "|   Empty iterable"
         );
-        checkIterable(new SortIterable(txn, EntityIterableBase.EMPTY, EntityIterableBase.EMPTY, 0, false),
-                "Sorting iterable 0 1\n" +
-                        "|   Empty iterable\n" +
+        checkIterable(new SortIterable(txn, EntityIterableBase.EMPTY, EntityIterableBase.EMPTY, 0, 2, false),
+                "Sorting iterable 0 2 1\n" +
                         "|   Empty iterable"
         );
         checkIterable(new DistinctIterable(txn, EntityIterableBase.EMPTY),

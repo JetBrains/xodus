@@ -34,14 +34,16 @@ public final class SortIterable extends EntityIterableDecoratorBase {
     @NotNull
     private final EntityIterableBase propIndex;
     private final int sourceTypeId;
+    private final int propertyId;
     private final boolean ascending;
 
     static {
         registerType(getType(), new EntityIterableInstantiator() {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new SortIterable(txn, (EntityIterableBase) parameters[2],
-                        (EntityIterableBase) parameters[3], Integer.valueOf((String) parameters[0]), "0".equals(parameters[1]));
+                return new SortIterable(txn, (EntityIterableBase) parameters[3],
+                        (EntityIterableBase) parameters[3], Integer.valueOf((String) parameters[0]),
+                        Integer.valueOf((String) parameters[1]), "0".equals(parameters[2]));
             }
         });
     }
@@ -50,10 +52,12 @@ public final class SortIterable extends EntityIterableDecoratorBase {
                         @NotNull final EntityIterableBase propIndex,
                         @NotNull final EntityIterableBase source,
                         final int sourceTypeId,
+                        final int propertyId,
                         final boolean ascending) {
         super(txn, source);
         this.propIndex = propIndex;
         this.sourceTypeId = sourceTypeId;
+        this.propertyId = propertyId;
         this.ascending = ascending;
     }
 
@@ -128,9 +132,9 @@ public final class SortIterable extends EntityIterableDecoratorBase {
                 super.toString(builder);
                 builder.append(sourceTypeId);
                 builder.append('-');
-                applyDecoratedToBuilder(builder);
+                builder.append(propertyId);
                 builder.append('-');
-                ((EntityIterableHandleBase) propIndex.getHandle()).toString(builder);
+                applyDecoratedToBuilder(builder);
                 builder.append('-');
                 builder.append(ascending ? 0 : 1);
             }
@@ -139,9 +143,9 @@ public final class SortIterable extends EntityIterableDecoratorBase {
             public void hashCode(@NotNull final EntityIterableHandleHash hash) {
                 hash.apply(sourceTypeId);
                 hash.applyDelimiter();
-                super.hashCode(hash);
+                hash.apply(propertyId);
                 hash.applyDelimiter();
-                hash.apply(propIndex.getHandle());
+                super.hashCode(hash);
                 hash.applyDelimiter();
                 hash.apply(ascending ? 0 : 1);
             }
@@ -151,8 +155,9 @@ public final class SortIterable extends EntityIterableDecoratorBase {
                                                     final int propertyId,
                                                     @Nullable final Comparable oldValue,
                                                     @Nullable final Comparable newValue) {
-                return decorated.isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue) ||
-                        propIndex.getHandle().isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue);
+                return sourceTypeId == typeId && SortIterable.this.propertyId == propertyId &&
+                        (decorated.isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue) ||
+                                propIndex.getHandle().isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue));
             }
         };
     }

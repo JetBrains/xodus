@@ -476,8 +476,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (propertyId < 0 || rightOrder == EntityIterableBase.EMPTY) {
             return rightOrder;
         }
-        return new SortIterable(this,
-                findWithPropSortedByValue(entityType, propertyName), (EntityIterableBase) rightOrder, entityTypeId, ascending);
+        return new SortIterable(this, findWithPropSortedByValue(
+                entityType, propertyName), (EntityIterableBase) rightOrder, entityTypeId, propertyId, ascending);
     }
 
     @Override
