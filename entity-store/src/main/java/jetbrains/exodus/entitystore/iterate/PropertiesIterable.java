@@ -59,6 +59,9 @@ public final class PropertiesIterable extends EntityIterableBase {
 
     @Override
     public boolean isEmpty() {
+        if (isCached()) {
+            return super.isEmpty();
+        }
         return countImpl(getTransaction()) == 0;
     }
 
