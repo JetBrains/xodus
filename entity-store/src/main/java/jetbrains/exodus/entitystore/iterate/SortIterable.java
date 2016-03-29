@@ -52,6 +52,14 @@ public final class SortIterable extends EntityIterableDecoratorBase {
                         @NotNull final EntityIterableBase propIndex,
                         @NotNull final EntityIterableBase source,
                         final int sourceTypeId,
+                        final boolean ascending) {
+        this(txn, propIndex, source, sourceTypeId, -1, ascending);
+    }
+
+    public SortIterable(@NotNull final PersistentStoreTransaction txn,
+                        @NotNull final EntityIterableBase propIndex,
+                        @NotNull final EntityIterableBase source,
+                        final int sourceTypeId,
                         final int propertyId,
                         final boolean ascending) {
         super(txn, source);
@@ -155,7 +163,8 @@ public final class SortIterable extends EntityIterableDecoratorBase {
                                                     final int propertyId,
                                                     @Nullable final Comparable oldValue,
                                                     @Nullable final Comparable newValue) {
-                return sourceTypeId == typeId && SortIterable.this.propertyId == propertyId &&
+                return sourceTypeId == typeId &&
+                        (SortIterable.this.propertyId < 0 || SortIterable.this.propertyId == propertyId) &&
                         (decorated.isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue) ||
                                 propIndex.getHandle().isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue));
             }
