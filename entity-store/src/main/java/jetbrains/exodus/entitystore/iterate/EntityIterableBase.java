@@ -154,16 +154,9 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             return true;
         }
+        final PersistentStoreTransaction txn = getTransaction();
         final EntityIterableBase it = store.getEntityIterableCache().putIfNotCached(this);
-        if (it.nonCachedHasFastCountAndIsEmpty()) {
-            return it.isEmpty();
-        }
-        final EntityIteratorBase iterator = (EntityIteratorBase) it.getIteratorImpl();
-        try {
-            return !iterator.hasNext();
-        } finally {
-            iterator.disposeIfShouldBe();
-        }
+        return it.isEmptyImpl(txn);
     }
 
     public boolean nonCachedHasFastCountAndIsEmpty() {
@@ -525,8 +518,17 @@ public abstract class EntityIterableBase implements EntityIterable {
         return result;
     }
 
-    protected boolean isEmptyFast() {
-        final CachedInstanceIterable cached = getTransaction().getCachedInstanceFast(this);
+    public boolean isEmptyImpl(@NotNull final PersistentStoreTransaction txn) {
+        final EntityIteratorBase it = (EntityIteratorBase) getIteratorImpl();
+        try {
+            return !it.hasNext();
+        } finally {
+            it.disposeIfShouldBe();
+        }
+    }
+
+    protected boolean isEmptyFast(@NotNull final PersistentStoreTransaction txn) {
+        final CachedInstanceIterable cached = txn.getCachedInstanceFast(this);
         return cached != null && cached.isEmpty();
     }
 

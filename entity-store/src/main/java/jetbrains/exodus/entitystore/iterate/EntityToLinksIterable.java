@@ -62,15 +62,6 @@ public final class EntityToLinksIterable extends EntityLinksIterableBase {
     }
 
     @Override
-    public boolean isEmpty() {
-        if (isCached()) {
-            return super.isEmpty();
-        }
-        return new SingleKeyCursorIsEmptyChecker(openCursor(getTransaction()), LinkValue.linkValueToEntry(
-                new LinkValue(entityId, linkId))).isEmpty();
-    }
-
-    @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
         return new LinksIterator(openCursor(txn), new LinkValue(entityId, linkId));
@@ -135,6 +126,12 @@ public final class EntityToLinksIterable extends EntityLinksIterableBase {
     protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
         return new SingleKeyCursorCounter(openCursor(txn), LinkValue.linkValueToEntry(
                 new LinkValue(entityId, linkId))).getCount();
+    }
+
+    @Override
+    public boolean isEmptyImpl(@NotNull final PersistentStoreTransaction txn) {
+        return new SingleKeyCursorIsEmptyChecker(openCursor(txn), LinkValue.linkValueToEntry(
+                new LinkValue(entityId, linkId))).isEmpty();
     }
 
     private Cursor openCursor(@NotNull final PersistentStoreTransaction txn) {

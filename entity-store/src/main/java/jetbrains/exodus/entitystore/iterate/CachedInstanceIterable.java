@@ -39,11 +39,6 @@ public abstract class CachedInstanceIterable extends EntityIterableBase {
     }
 
     @Override
-    public boolean isEmpty() {
-        return countImpl(getTransaction()) == 0;
-    }
-
-    @Override
     public boolean nonCachedHasFastCountAndIsEmpty() {
         return true;
     }
@@ -76,6 +71,11 @@ public abstract class CachedInstanceIterable extends EntityIterableBase {
 
     public boolean isUpdatable() {
         return false;
+    }
+
+    @Override
+    public boolean isEmptyImpl(@NotNull final PersistentStoreTransaction txn) {
+        return countImpl(txn) == 0;
     }
 
     protected abstract void orderById();

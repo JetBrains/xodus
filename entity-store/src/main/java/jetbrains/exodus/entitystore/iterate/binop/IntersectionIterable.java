@@ -56,11 +56,6 @@ public final class IntersectionIterable extends BinaryOperatorEntityIterable {
     }
 
     @Override
-    public boolean isEmpty() {
-        return isEmptyFast() || super.isEmpty();
-    }
-
-    @Override
     protected EntityIterableType getIterableType() {
         return EntityIterableType.INTERSECT;
     }
@@ -89,13 +84,19 @@ public final class IntersectionIterable extends BinaryOperatorEntityIterable {
 
     @Override
     protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
-        return isEmptyFast() ? 0 : super.countImpl(txn);
+        return isEmptyFast(txn) ? 0 : super.countImpl(txn);
     }
 
-    protected boolean isEmptyFast() {
-        return super.isEmptyFast() ||
-                ((iterable1.isCached() || iterable1.nonCachedHasFastCountAndIsEmpty()) && iterable1.isEmpty()) ||
-                ((iterable2.isCached() || iterable2.nonCachedHasFastCountAndIsEmpty()) && iterable2.isEmpty());
+    @Override
+    public boolean isEmptyImpl(@NotNull final PersistentStoreTransaction txn) {
+        return isEmptyFast(txn) || super.isEmptyImpl(txn);
+    }
+
+    @Override
+    protected boolean isEmptyFast(@NotNull final PersistentStoreTransaction txn) {
+        return super.isEmptyFast(txn) ||
+                ((iterable1.isCached() || iterable1.nonCachedHasFastCountAndIsEmpty()) && iterable1.isEmptyImpl(txn)) ||
+                ((iterable2.isCached() || iterable2.nonCachedHasFastCountAndIsEmpty()) && iterable2.isEmptyImpl(txn));
     }
 
     private static final class SortedIterator extends NonDisposableEntityIterator {

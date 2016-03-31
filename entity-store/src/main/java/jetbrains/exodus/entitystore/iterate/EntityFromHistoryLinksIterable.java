@@ -38,14 +38,6 @@ public final class EntityFromHistoryLinksIterable extends EntityLinksIterableBas
     }
 
     @Override
-    public boolean isEmpty() {
-        if (isCached()) {
-            return super.isEmpty();
-        }
-        return new SingleKeyCursorIsEmptyChecker(openCursor(getTransaction()), getFirstKey()).isEmpty();
-    }
-
-    @Override
     public boolean nonCachedHasFastCountAndIsEmpty() {
         return true;
     }
@@ -86,6 +78,11 @@ public final class EntityFromHistoryLinksIterable extends EntityLinksIterableBas
     @Override
     protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
         return new SingleKeyCursorCounter(openCursor(txn), getFirstKey()).getCount();
+    }
+
+    @Override
+    public boolean isEmptyImpl(@NotNull final PersistentStoreTransaction txn) {
+        return new SingleKeyCursorIsEmptyChecker(openCursor(txn), getFirstKey()).isEmpty();
     }
 
     private Cursor openCursor(@NotNull final PersistentStoreTransaction txn) {

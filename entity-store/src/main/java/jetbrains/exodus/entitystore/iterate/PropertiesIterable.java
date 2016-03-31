@@ -58,14 +58,6 @@ public final class PropertiesIterable extends EntityIterableBase {
     }
 
     @Override
-    public boolean isEmpty() {
-        if (isCached()) {
-            return super.isEmpty();
-        }
-        return countImpl(getTransaction()) == 0;
-    }
-
-    @Override
     public boolean isSortedById() {
         return false;
     }
@@ -110,6 +102,11 @@ public final class PropertiesIterable extends EntityIterableBase {
     protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
         final Store valueIndex = getStore().getPropertiesTable(txn, entityTypeId).getValueIndex(txn, propertyId, false);
         return valueIndex == null ? 0 : valueIndex.count(txn.getEnvironmentTransaction());
+    }
+
+    @Override
+    public boolean isEmptyImpl(@NotNull final PersistentStoreTransaction txn) {
+        return countImpl(txn) == 0;
     }
 
     private Cursor openCursor(@NotNull final PersistentStoreTransaction txn) {

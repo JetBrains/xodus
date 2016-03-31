@@ -52,14 +52,6 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
     }
 
     @Override
-    public boolean isEmpty() {
-        if (isCached()) {
-            return super.isEmpty();
-        }
-        return countImpl(getTransaction()) == 0;
-    }
-
-    @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
         return new EntitiesOfTypeIterator(this, getStore().getEntitiesIndexCursor(txn, entityTypeId));
@@ -79,6 +71,11 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
     @Override
     protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
         return getStore().getEntitiesTable(txn, entityTypeId).count(txn.getEnvironmentTransaction());
+    }
+
+    @Override
+    public boolean isEmptyImpl(@NotNull final PersistentStoreTransaction txn) {
+        return countImpl(txn) == 0;
     }
 
     @Override
