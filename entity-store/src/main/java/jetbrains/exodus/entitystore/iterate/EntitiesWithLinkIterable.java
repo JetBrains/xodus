@@ -126,11 +126,6 @@ public class EntitiesWithLinkIterable extends EntityIterableBase {
             super(EntitiesWithLinkIterable.this.getStore(), EntitiesWithLinkIterable.getType());
         }
 
-        @Override
-        public boolean hasLinkId(int id) {
-            return linkId == id;
-        }
-
         @NotNull
         @Override
         public int[] getLinkIds() {

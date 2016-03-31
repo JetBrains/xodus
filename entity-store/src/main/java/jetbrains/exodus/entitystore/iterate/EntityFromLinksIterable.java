@@ -69,11 +69,6 @@ public class EntityFromLinksIterable extends EntityLinksIterableBase {
     protected EntityIterableHandle getHandleImpl() {
         return new ConstantEntityIterableHandle(getStore(), EntityFromLinksIterable.getType()) {
 
-            @Override
-            public boolean hasLinkId(int id) {
-                return linkId == id;
-            }
-
             @NotNull
             @Override
             public int[] getLinkIds() {

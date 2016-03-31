@@ -54,7 +54,7 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
     }
 
     @Override
-    public boolean hasLinkId(int id) {
+    public final boolean hasLinkId(int id) {
         return linksFilter.hasLinkId(id);
     }
 
