@@ -131,6 +131,7 @@ public class EntitiesWithLinkIterable extends EntityIterableBase {
             return linkId == id;
         }
 
+        @NotNull
         @Override
         public int[] getLinkIds() {
             return new int[]{linkId};

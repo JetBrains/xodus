@@ -36,12 +36,15 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
     private final EntityIterableType type;
     @Nullable
     private EntityIterableHandleHash hash;
+    @NotNull
+    private LinksFilter linksFilter;
 
     protected EntityIterableHandleBase(@Nullable final PersistentEntityStore store,
                                        @NotNull final EntityIterableType type) {
         this.store = store;
         this.type = type;
         hash = null;
+        linksFilter = new InitialLinksFilter();
     }
 
     @Override
@@ -52,26 +55,7 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
 
     @Override
     public boolean hasLinkId(int id) {
-        final int[] linkIds = getLinkIds();
-        if (linkIds == null)
-            return false;
-        int high = linkIds.length - 1;
-        if (high == 0)
-            return linkIds[0] == id;
-        // copy-pasted Arrays.binarySearch
-        int low = 0;
-        while (low <= high) {
-            int mid = (low + high) >>> 1;
-            int midVal = linkIds[mid];
-
-            if (midVal < id)
-                low = mid + 1;
-            else if (midVal > id)
-                high = mid - 1;
-            else
-                return true;
-        }
-        return false;
+        return linksFilter.hasLinkId(id);
     }
 
     @Nullable
@@ -124,10 +108,10 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
         return true;
     }
 
-    @Nullable
+    @NotNull
     @Override
     public int[] getLinkIds() {
-        return null;
+        return LinksFilter.EMPTY_LINKS_ARRAY;
     }
 
     @Override
@@ -151,11 +135,12 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
 
     public abstract void hashCode(@NotNull final EntityIterableHandleHash hash);
 
-    public static int[] mergeLinkIds(@Nullable final int[] left, @Nullable final int[] right) {
-        if (left == null) return right;
-        if (right == null) return left;
+    @NotNull
+    public static int[] mergeLinkIds(@NotNull final int[] left, @NotNull final int[] right) {
         final int l = left.length;
+        if (l == 0) return right;
         final int r = right.length;
+        if (r == 0) return left;
         final int mergedLength = getMergedLength(left, right, l, r);
         if (mergedLength == l) return left;
         if (mergedLength == r) return right;
@@ -378,6 +363,126 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
         private interface ByteConsumer {
 
             void accept(final byte b);
+        }
+    }
+
+    interface LinksFilter {
+
+        int[] EMPTY_LINKS_ARRAY = new int[0];
+
+        boolean hasLinkId(int linkId);
+    }
+
+    private static class TrivialLinksFilter implements LinksFilter {
+
+        public static final LinksFilter INSTANCE = new TrivialLinksFilter();
+
+        @Override
+        public boolean hasLinkId(int linkId) {
+            return false;
+        }
+    }
+
+    private class InitialLinksFilter implements LinksFilter {
+
+        @Override
+        public boolean hasLinkId(int linkId) {
+            final int[] linkIds = getLinkIds();
+            final int linksCount = linkIds.length;
+            if (linksCount == 0) {
+                linksFilter = TrivialLinksFilter.INSTANCE;
+                return false;
+            }
+            if (linksCount == 1) {
+                linksFilter = new SingleLinkFilter(linkId);
+                return linkIds[0] == linkId;
+            }
+            linksFilter = linksCount < 4 ? new LinearSearchLinksFilter(linkIds) : new BinarySearchLinksFilter(linkIds);
+            return linksFilter.hasLinkId(linkId);
+        }
+    }
+
+    private static class SingleLinkFilter implements LinksFilter {
+
+        private final int linkId;
+
+        private SingleLinkFilter(final int linkId) {
+            this.linkId = linkId;
+        }
+
+        @Override
+        public boolean hasLinkId(int linkId) {
+            return linkId == this.linkId;
+        }
+    }
+
+    private static abstract class BloomLinksFilter implements LinksFilter {
+
+        protected final int[] ids;
+        private final int bloomFilter;
+
+        private BloomLinksFilter(@NotNull final int[] ids) {
+            this.ids = ids;
+            int bloomFilter = 0;
+            for (int id : ids) {
+                bloomFilter |= (1 << (id & 0x1f));
+            }
+            this.bloomFilter = bloomFilter;
+        }
+
+        @Override
+        public boolean hasLinkId(int linkId) {
+            return (bloomFilter & (1 << (linkId & 0x1f))) != 0;
+        }
+    }
+
+    private static class LinearSearchLinksFilter extends BloomLinksFilter {
+
+        private LinearSearchLinksFilter(@NotNull final int[] ids) {
+            super(ids);
+        }
+
+        @Override
+        public boolean hasLinkId(int linkId) {
+            if (super.hasLinkId(linkId)) {
+                for (int id : ids) {
+                    if (id == linkId) {
+                        return true;
+                    }
+                    if (id > linkId) {
+                        break;
+                    }
+                }
+            }
+            return false;
+        }
+    }
+
+    private static class BinarySearchLinksFilter extends BloomLinksFilter {
+
+        private BinarySearchLinksFilter(@NotNull final int[] ids) {
+            super(ids);
+        }
+
+        @Override
+        public boolean hasLinkId(int linkId) {
+            if (super.hasLinkId(linkId)) {
+                // copy-pasted Arrays.binarySearch
+                int high = ids.length - 1;
+                int low = 0;
+                while (low <= high) {
+                    final int mid = (low + high) >>> 1;
+                    final int midVal = ids[mid];
+                    if (midVal < linkId) {
+                        low = mid + 1;
+                    } else if (midVal > linkId) {
+                        high = mid - 1;
+                    } else {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
     }
 }

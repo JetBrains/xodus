@@ -35,6 +35,7 @@ public class EntityIterableHandleDecorator extends EntityIterableHandleBase {
         this.decorated = (EntityIterableHandleBase) decorated;
     }
 
+    @NotNull
     @Override
     public int[] getLinkIds() {
         return decorated.getLinkIds();

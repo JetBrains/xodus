@@ -109,10 +109,11 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
         return new EntityIterableHandleBase(getStore(), getIterableType()) {
-            @Nullable
+
+            @NotNull
             private final int[] linkIds = mergeLinkIds(iterable1.getHandle().getLinkIds(), iterable2.getHandle().getLinkIds());
 
-            @Nullable
+            @NotNull
             @Override
             public int[] getLinkIds() {
                 return linkIds;

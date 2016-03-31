@@ -80,20 +80,18 @@ public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
         return new ConstantEntityIterableHandle(getStore(), EntityFromLinkSetIterable.getType()) {
-            @Override
-            public boolean hasLinkId(int id) {
-                return linkNames.containsKey(id);
-            }
 
+            @NotNull
             @Override
             public int[] getLinkIds() {
-                final int[] result = new int[linkNames.size()];
+                final int linksCount = linkNames.size();
+                if (linksCount == 0) {
+                    return LinksFilter.EMPTY_LINKS_ARRAY;
+                }
+                final int[] result = new int[linksCount];
                 int i = 0;
                 for (final int id : linkNames.keySet()) {
                     result[i++] = id;
-                }
-                if (i == 0) {
-                    return null;
                 }
                 return result;
             }

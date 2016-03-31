@@ -17,51 +17,50 @@ package jetbrains.exodus.entitystore.iterate;
 
 import junit.framework.TestCase;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import static jetbrains.exodus.entitystore.iterate.EntityIterableHandleBase.mergeLinkIds;
 import static org.junit.Assert.assertArrayEquals;
 
 public class EntityIterableHandleMergeIdsTest extends TestCase {
 
-    public void testNull() {
-        assertNull(mergeLinkIds(null, null));
+    public void testEmpty() {
+        assertNotNull(mergeLinkIds(new int[0], new int[0]));
         int[] ids = {1};
-        _(ids, null, ids);
+        checkArrays(ids, new int[0], ids);
     }
 
     public void testMono() {
         final int[] data = {4, 5, 7, 8};
-        _(new int[]{1}, data, new int[]{1, 4, 5, 7, 8});
-        _(new int[]{4}, data, data);
-        _(new int[]{6}, data, new int[]{4, 5, 6, 7, 8});
-        _(new int[]{8}, data, data);
-        _(new int[]{9}, data, new int[]{4, 5, 7, 8, 9});
+        checkArrays(new int[]{1}, data, new int[]{1, 4, 5, 7, 8});
+        checkArrays(new int[]{4}, data, data);
+        checkArrays(new int[]{6}, data, new int[]{4, 5, 6, 7, 8});
+        checkArrays(new int[]{8}, data, data);
+        checkArrays(new int[]{9}, data, new int[]{4, 5, 7, 8, 9});
     }
 
     public void testDuo() {
         final int[] data = {4, 5, 7, 8};
-        _(new int[]{1, 4}, data, new int[]{1, 4, 5, 7, 8});
-        _(new int[]{4, 5}, data, data);
-        _(new int[]{4, 7}, data, data);
-        _(new int[]{4, 8}, data, data);
-        _(new int[]{6, 7}, data, new int[]{4, 5, 6, 7, 8});
-        _(new int[]{6, 8}, data, new int[]{4, 5, 6, 7, 8});
-        _(new int[]{7, 9}, data, new int[]{4, 5, 7, 8, 9});
-        _(new int[]{8, 9}, data, new int[]{4, 5, 7, 8, 9});
+        checkArrays(new int[]{1, 4}, data, new int[]{1, 4, 5, 7, 8});
+        checkArrays(new int[]{4, 5}, data, data);
+        checkArrays(new int[]{4, 7}, data, data);
+        checkArrays(new int[]{4, 8}, data, data);
+        checkArrays(new int[]{6, 7}, data, new int[]{4, 5, 6, 7, 8});
+        checkArrays(new int[]{6, 8}, data, new int[]{4, 5, 6, 7, 8});
+        checkArrays(new int[]{7, 9}, data, new int[]{4, 5, 7, 8, 9});
+        checkArrays(new int[]{8, 9}, data, new int[]{4, 5, 7, 8, 9});
     }
 
     public void testTri() {
         final int[] data = {4, 5, 7, 8};
-        _(new int[]{1, 5, 8}, data, new int[]{1, 4, 5, 7, 8});
-        _(new int[]{4, 7, 8}, data, data);
-        _(new int[]{6, 7, 8}, data, new int[]{4, 5, 6, 7, 8});
-        _(new int[]{4, 6, 8}, data, new int[]{4, 5, 6, 7, 8});
-        _(new int[]{5, 7, 9}, data, new int[]{4, 5, 7, 8, 9});
-        _(new int[]{4, 8, 9}, data, new int[]{4, 5, 7, 8, 9});
+        checkArrays(new int[]{1, 5, 8}, data, new int[]{1, 4, 5, 7, 8});
+        checkArrays(new int[]{4, 7, 8}, data, data);
+        checkArrays(new int[]{6, 7, 8}, data, new int[]{4, 5, 6, 7, 8});
+        checkArrays(new int[]{4, 6, 8}, data, new int[]{4, 5, 6, 7, 8});
+        checkArrays(new int[]{5, 7, 9}, data, new int[]{4, 5, 7, 8, 9});
+        checkArrays(new int[]{4, 8, 9}, data, new int[]{4, 5, 7, 8, 9});
     }
 
-    private static void _(@Nullable int[] left, @Nullable int[] right, @NotNull int[] expected) {
+    private static void checkArrays(@NotNull int[] left, @NotNull int[] right, @NotNull int[] expected) {
         assertArrayEquals(expected, mergeLinkIds(left, right));
         assertArrayEquals(expected, mergeLinkIds(right, left));
     }

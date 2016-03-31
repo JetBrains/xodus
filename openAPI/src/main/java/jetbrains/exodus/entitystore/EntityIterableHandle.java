@@ -36,7 +36,7 @@ public interface EntityIterableHandle {
     boolean isMatchedPropertyChanged(int entityType, int propertyId,
                                      @Nullable Comparable oldValue, @Nullable Comparable newValue);
 
-    @Nullable
+    @NotNull
     int[] getLinkIds();
 
     boolean hasLinkId(int id);

@@ -87,9 +87,10 @@ public class SingleEntityIterable extends EntityIterableBase {
     protected EntityIterableHandle getHandleImpl() {
         return new EntityIterableHandleBase(getStore(), SingleEntityIterable.getType()) {
 
+            @NotNull
             @Override
-            public boolean hasLinkId(int id) {
-                return false;
+            public int[] getLinkIds() {
+                return LinksFilter.EMPTY_LINKS_ARRAY;
             }
 
             @Override
