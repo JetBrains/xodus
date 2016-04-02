@@ -310,6 +310,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
                 Settings.set(internalSettings, "refactorMakePropTablesConsistent() applied", "y");
             }
+            if (fromScratch || Settings.get(internalSettings, "Entities history deleted") == null) {
+                if (!fromScratch) {
+                    refactorings.refactorRemoveHistoryStores();
+                }
+                Settings.set(internalSettings, "Entities history deleted", "y");
+            }
             if (blobVault instanceof VFSBlobVault && new File(location, BLOBS_DIR).exists()) {
                 try {
                     ((VFSBlobVault) blobVault).refactorFromFS(this);
