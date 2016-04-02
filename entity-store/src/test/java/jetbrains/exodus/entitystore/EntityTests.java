@@ -47,7 +47,6 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertNotNull(entity);
         Assert.assertTrue(entity.getId().getTypeId() >= 0);
         Assert.assertTrue(entity.getId().getLocalId() >= 0);
-        Assert.assertEquals(0, entity.getVersion());
     }
 
     public void testCreateSingleEntity2() throws Exception {
@@ -57,7 +56,6 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertNotNull(entity);
         Assert.assertTrue(entity.getId().getTypeId() >= 0);
         Assert.assertTrue(entity.getId().getLocalId() >= 0);
-        Assert.assertEquals(0, entity.getVersion());
         Assert.assertTrue(entity.getId().equals(new PersistentEntityId(0, 0)));
         try {
             txn.getEntity(new PersistentEntityId(0, 1));
@@ -82,9 +80,7 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertNotNull(entity1);
         Assert.assertTrue(entity1.getId().getTypeId() >= 0);
         Assert.assertTrue(entity1.getId().getLocalId() >= 0);
-        Assert.assertEquals(0, entity1.getVersion());
         Assert.assertNotNull(entity2);
-        Assert.assertEquals(0, entity2.getVersion());
         Assert.assertTrue(entity2.getId().getLocalId() > 0);
         Assert.assertTrue(entity2.getId().getLocalId() > entity1.getId().getLocalId());
     }
@@ -98,9 +94,7 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertNotNull(entity1);
         Assert.assertTrue(entity1.getId().getTypeId() >= 0);
         Assert.assertTrue(entity1.getId().getLocalId() >= 0);
-        Assert.assertEquals(0, entity1.getVersion());
         Assert.assertNotNull(entity2);
-        Assert.assertEquals(0, entity2.getVersion());
         Assert.assertTrue(entity2.getId().getLocalId() > 0);
         Assert.assertTrue(entity2.getId().getLocalId() > entity1.getId().getLocalId());
     }
@@ -114,7 +108,6 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertNotNull(sameEntity);
         Assert.assertEquals(entity.getType(), sameEntity.getType());
         Assert.assertEquals(entity.getId(), sameEntity.getId());
-        Assert.assertEquals(entity.getVersion(), sameEntity.getVersion());
     }
 
     public void testRawProperty() throws Exception {
@@ -127,7 +120,6 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertNotNull(sameEntity);
         Assert.assertEquals(entity.getType(), sameEntity.getType());
         Assert.assertEquals(entity.getId(), sameEntity.getId());
-        Assert.assertEquals(entity.getVersion(), sameEntity.getVersion());
         ByteIterable rawValue = entity.getRawProperty("description");
         Assert.assertNotNull(rawValue);
         Assert.assertEquals("it doesn't work", getEntityStore().getPropertyTypes().entryToPropertyValue(rawValue).getData());
@@ -137,7 +129,6 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertNotNull(sameEntity);
         Assert.assertEquals(entity.getType(), sameEntity.getType());
         Assert.assertEquals(entity.getId(), sameEntity.getId());
-        Assert.assertEquals(entity.getVersion(), sameEntity.getVersion());
         rawValue = entity.getRawProperty("description");
         Assert.assertNotNull(rawValue);
         Assert.assertEquals("it works", getEntityStore().getPropertyTypes().entryToPropertyValue(rawValue).getData());
@@ -154,7 +145,6 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertNotNull(sameEntity);
         Assert.assertEquals(entity.getType(), sameEntity.getType());
         Assert.assertEquals(entity.getId(), sameEntity.getId());
-        Assert.assertEquals(entity.getVersion(), sameEntity.getVersion());
         Assert.assertEquals(100, entity.getProperty("size"));
         Assert.assertEquals(-100, entity.getProperty("minus_size"));
     }
@@ -169,7 +159,6 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertNotNull(sameEntity);
         Assert.assertEquals(entity.getType(), sameEntity.getType());
         Assert.assertEquals(entity.getId(), sameEntity.getId());
-        Assert.assertEquals(entity.getVersion(), sameEntity.getVersion());
         Assert.assertEquals(0x10000ffffL, entity.getProperty("length"));
     }
 
@@ -183,7 +172,6 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertNotNull(sameEntity);
         Assert.assertEquals(entity.getType(), sameEntity.getType());
         Assert.assertEquals(entity.getId(), sameEntity.getId());
-        Assert.assertEquals(entity.getVersion(), sameEntity.getVersion());
         Assert.assertEquals("This is a test issue", entity.getProperty("description"));
     }
 
@@ -197,7 +185,6 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertNotNull(sameEntity);
         Assert.assertEquals(entity.getType(), sameEntity.getType());
         Assert.assertEquals(entity.getId(), sameEntity.getId());
-        Assert.assertEquals(entity.getVersion(), sameEntity.getVersion());
         Assert.assertEquals(0.123456789, entity.getProperty("hitRate"));
     }
 
@@ -212,7 +199,6 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertNotNull(sameEntity);
         Assert.assertEquals(entity.getType(), sameEntity.getType());
         Assert.assertEquals(entity.getId(), sameEntity.getId());
-        Assert.assertEquals(entity.getVersion(), sameEntity.getVersion());
         final Comparable dateProp = entity.getProperty("date");
         Assert.assertNotNull(dateProp);
         Assert.assertEquals(date.getTime(), dateProp);
@@ -229,7 +215,6 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertNotNull(sameEntity);
         Assert.assertEquals(entity.getType(), sameEntity.getType());
         Assert.assertEquals(entity.getId(), sameEntity.getId());
-        Assert.assertEquals(entity.getVersion(), sameEntity.getVersion());
         Assert.assertTrue((Boolean) entity.getProperty("ready"));
         entity.setProperty("ready", false);
         txn.flush();
@@ -237,7 +222,6 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertNotNull(sameEntity);
         Assert.assertEquals(entity.getType(), sameEntity.getType());
         Assert.assertEquals(entity.getId(), sameEntity.getId());
-        Assert.assertEquals(entity.getVersion(), sameEntity.getVersion());
         Assert.assertNotNull(entity.getProperty("ready"));
         Assert.assertEquals(false, entity.getProperty("ready"));
     }
@@ -254,7 +238,6 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertNotNull(sameEntity);
         Assert.assertEquals(entity.getType(), sameEntity.getType());
         Assert.assertEquals(entity.getId(), sameEntity.getId());
-        Assert.assertEquals(entity.getVersion(), sameEntity.getVersion());
         Assert.assertEquals("This is a test issue", entity.getProperty("description"));
         Assert.assertEquals(100, entity.getProperty("size"));
         Assert.assertEquals(0.5, entity.getProperty("rank"));
@@ -610,7 +593,7 @@ public class EntityTests extends EntityStoreTestBase {
 
     public void testClearingProperties() {
         final PersistentStoreTransaction txn = getStoreTransaction();
-        final PersistentEntity issue = (PersistentEntity) txn.newEntity("Issue");
+        final PersistentEntity issue = txn.newEntity("Issue");
         issue.setProperty("description", "This is a test issue");
         issue.setProperty("size", 0);
         issue.setProperty("rank", 0.5);

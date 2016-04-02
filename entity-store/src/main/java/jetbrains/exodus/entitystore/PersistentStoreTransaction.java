@@ -539,11 +539,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     @Override
-    public void clearHistory(@NotNull final String entityType) {
-        store.clearHistory(this, entityType);
-    }
-
-    @Override
     public void setQueryCancellingPolicy(QueryCancellingPolicy policy) {
         queryCancellingPolicy = policy;
     }

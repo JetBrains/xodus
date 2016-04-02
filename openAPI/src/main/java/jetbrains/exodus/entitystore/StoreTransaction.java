@@ -335,13 +335,6 @@ public interface StoreTransaction {
     Sequence getSequence(@NotNull final String sequenceName);
 
     /**
-     * Clears history of all entities of specified type.
-     *
-     * @param entityType type of entities.
-     */
-    void clearHistory(@NotNull final String entityType);
-
-    /**
      * Sets a query cancelling policy for the transaction.
      *
      * @param policy query cancelling policy.

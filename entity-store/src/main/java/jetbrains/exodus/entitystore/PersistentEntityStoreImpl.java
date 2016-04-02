@@ -23,7 +23,9 @@ import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LinkedHashMap;
-import jetbrains.exodus.entitystore.iterate.*;
+import jetbrains.exodus.entitystore.iterate.EntityFromLinkSetIterable;
+import jetbrains.exodus.entitystore.iterate.EntityFromLinksIterable;
+import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.management.EntityStoreConfig;
 import jetbrains.exodus.entitystore.management.EntityStoreStatistics;
 import jetbrains.exodus.entitystore.metadata.Index;
@@ -110,14 +112,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private final OpenTablesCache linksTables;
     @NotNull
     private final OpenTablesCache blobsTables;
-    @NotNull
-    private final OpenTablesCache entitiesHistoryTables;
-    @NotNull
-    private final OpenTablesCache propertiesHistoryTables;
-    @NotNull
-    private final OpenTablesCache linksHistoryTables;
-    @NotNull
-    private final OpenTablesCache blobsHistoryTables;
     @NotNull
     private final Store internalSettings;
     @NotNull
@@ -208,28 +202,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                             namingRulez.getEntitiesTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING);
                 }
             });
-            entitiesHistoryTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
-                @NotNull
-                @Override
-                public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-                    return new SingleColumnTable(txn,
-                            namingRulez.getEntitiesHistoryTableName(entityTypeId), StoreConfig.WITH_DUPLICATES);
-                }
-            });
             propertiesTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
                 @NotNull
                 @Override
                 public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
                     return new PropertiesTable(txn,
                             namingRulez.getPropertiesTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES);
-                }
-            });
-            propertiesHistoryTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
-                @NotNull
-                @Override
-                public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-                    return new SingleColumnTable(txn,
-                            namingRulez.getPropertiesHistoryTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES);
                 }
             });
             linksTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
@@ -240,28 +218,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                             namingRulez.getLinksTableName(entityTypeId), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING);
                 }
             });
-            linksHistoryTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
-                @NotNull
-                @Override
-                public Table createTable(@NotNull final PersistentStoreTransaction txn, int entityTypeId) {
-                    return new SingleColumnTable(txn,
-                            namingRulez.getLinksHistoryTableName(entityTypeId), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING);
-                }
-            });
             blobsTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
                 @NotNull
                 @Override
                 public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
                     return new BlobsTable(PersistentEntityStoreImpl.this, txn,
                             namingRulez.getBlobsTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES);
-                }
-            });
-            blobsHistoryTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
-                @NotNull
-                @Override
-                public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-                    return new SingleColumnTable(txn,
-                            namingRulez.getBlobsHistoryTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES);
                 }
             });
 
@@ -714,43 +676,19 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final EntityId fromId = entity.getId();
         final int entityTypeId = fromId.getTypeId();
         final long entityLocalId = fromId.getLocalId();
-        Cursor cursor = null;
-        try {
-            if (entity.isUpToDate()) {
-                PropertyKey propertyKey = new PropertyKey(entityLocalId, 0);
-                cursor = getPrimaryPropertyIndexCursor(txn, entityTypeId);
-                for (boolean success = cursor.getSearchKeyRange(PropertyKey.propertyKeyToEntry(propertyKey)) != null;
-                     success; success = cursor.getNext()) {
-                    propertyKey = PropertyKey.entryToPropertyKey(cursor.getKey());
-                    if (propertyKey.getEntityLocalId() != entityLocalId) {
-                        break;
-                    }
-                    final String propertyName = getPropertyName(txn, propertyKey.getPropertyId());
-                    if (propertyName != null) {
-                        result.add(new Pair<>(
-                                propertyName, propertyTypes.entryToPropertyValue(cursor.getValue()).getData()));
-                    }
+        PropertyKey propertyKey = new PropertyKey(entityLocalId, 0);
+        try (Cursor cursor = getPrimaryPropertyIndexCursor(txn, entityTypeId)) {
+            for (boolean success = cursor.getSearchKeyRange(PropertyKey.propertyKeyToEntry(propertyKey)) != null;
+                 success; success = cursor.getNext()) {
+                propertyKey = PropertyKey.entryToPropertyKey(cursor.getKey());
+                if (propertyKey.getEntityLocalId() != entityLocalId) {
+                    break;
                 }
-            } else {
-                final int version = entity.getVersion();
-                PropertyHistoryKey propertyHistoryKey = new PropertyHistoryKey(entityLocalId, version, 0);
-                cursor = getPropertiesHistoryTable(txn, entityTypeId).openCursor(txn.getEnvironmentTransaction());
-                for (boolean success = cursor.getSearchKeyRange(PropertyHistoryKey.propertyHistoryKeyToEntry(propertyHistoryKey)) != null;
-                     success; success = cursor.getNext()) {
-                    propertyHistoryKey = PropertyHistoryKey.entryToPropertyHistoryKey(cursor.getKey());
-                    if (propertyHistoryKey.getVersion() != version || propertyHistoryKey.getEntityLocalId() != entityLocalId) {
-                        break;
-                    }
-                    final String propertyName = getPropertyName(txn, propertyHistoryKey.getPropertyId());
-                    if (propertyName != null) {
-                        result.add(new Pair<>(
-                                propertyName, propertyTypes.entryToPropertyValue(cursor.getValue()).getData()));
-                    }
+                final String propertyName = getPropertyName(txn, propertyKey.getPropertyId());
+                if (propertyName != null) {
+                    result.add(new Pair<>(
+                            propertyName, propertyTypes.entryToPropertyValue(cursor.getValue()).getData()));
                 }
-            }
-        } finally {
-            if (cursor != null) {
-                cursor.close();
             }
         }
         return result;
@@ -791,11 +729,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     @NotNull
-    public Cursor getLinksHistoryIndexCursor(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-        return getLinksHistoryTable(txn, entityTypeId).openCursor(txn.getEnvironmentTransaction());
-    }
-
-    @NotNull
     public Cursor getLinksFirstIndexCursor(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
         return getLinksTable(txn, entityTypeId).getFirstIndexCursor(txn.getEnvironmentTransaction());
     }
@@ -816,38 +749,21 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final PersistentEntityId id = (PersistentEntityId) entity.getId();
         final int entityTypeId = id.getTypeId();
         final long entityLocalId = id.getLocalId();
-        if (entity.isUpToDate()) { // up-to-date entity
-            final PropertiesTable properties = getPropertiesTable(txn, entityTypeId);
-            final PropertyKey propertyKey = new PropertyKey(entityLocalId, 0);
-            try (Cursor cursor = getPrimaryPropertyIndexCursor(txn, properties)) {
-                for (boolean success = cursor.getSearchKeyRange(PropertyKey.propertyKeyToEntry(propertyKey)) != null;
-                     success; success = cursor.getNext()) {
-                    ByteIterable keyEntry = cursor.getKey();
-                    final PropertyKey key = PropertyKey.entryToPropertyKey(keyEntry);
-                    if (key.getEntityLocalId() != entityLocalId) {
-                        break;
-                    }
-                    final int propertyId = key.getPropertyId();
-                    final ByteIterable value = cursor.getValue();
-                    final PropertyValue propValue = propertyTypes.entryToPropertyValue(value);
-                    txn.propertyChanged(id, propertyId, propValue.getData(), null);
-                    properties.deleteNoFail(txn, entityLocalId, value, propertyId, propValue.getType());
+        final PropertiesTable properties = getPropertiesTable(txn, entityTypeId);
+        final PropertyKey propertyKey = new PropertyKey(entityLocalId, 0);
+        try (Cursor cursor = getPrimaryPropertyIndexCursor(txn, properties)) {
+            for (boolean success = cursor.getSearchKeyRange(PropertyKey.propertyKeyToEntry(propertyKey)) != null;
+                 success; success = cursor.getNext()) {
+                ByteIterable keyEntry = cursor.getKey();
+                final PropertyKey key = PropertyKey.entryToPropertyKey(keyEntry);
+                if (key.getEntityLocalId() != entityLocalId) {
+                    break;
                 }
-            }
-        } else { // historical entity
-            final int version = entity.getVersion();
-            final Store properties = getPropertiesHistoryTable(txn, entityTypeId);
-            final PropertyHistoryKey propertyKey = new PropertyHistoryKey(entityLocalId, version, 0);
-            ByteIterable keyEntry = PropertyHistoryKey.propertyHistoryKeyToEntry(propertyKey);
-            try (Cursor cursor = properties.openCursor(envTxn)) {
-                for (boolean success = cursor.getSearchKeyRange(keyEntry) != null; success; success = cursor.getNext()) {
-                    keyEntry = cursor.getKey();
-                    final PropertyHistoryKey key = PropertyHistoryKey.entryToPropertyHistoryKey(keyEntry);
-                    if (key.getEntityLocalId() != entityLocalId || key.getVersion() != version) {
-                        break;
-                    }
-                    properties.delete(envTxn, keyEntry);
-                }
+                final int propertyId = key.getPropertyId();
+                final ByteIterable value = cursor.getValue();
+                final PropertyValue propValue = propertyTypes.entryToPropertyValue(value);
+                txn.propertyChanged(id, propertyId, propValue.getData(), null);
+                properties.deleteNoFail(txn, entityLocalId, value, propertyId, propValue.getType());
             }
         }
     }
@@ -1072,40 +988,21 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final int entityTypeId = id.getTypeId();
         final long entityLocalId = id.getLocalId();
         final Transaction envTxn = txn.getEnvironmentTransaction();
-        if (entity.isUpToDate()) {
-            final BlobsTable blobs = getBlobsTable(txn, entityTypeId);
-            final PropertyKey propertyKey = new PropertyKey(entityLocalId, 0);
-            ByteIterable keyEntry = PropertyKey.propertyKeyToEntry(propertyKey);
-            try (Cursor cursor = blobs.getPrimaryIndex().openCursor(envTxn)) {
-                for (boolean success = cursor.getSearchKeyRange(keyEntry) != null; success; success = cursor.getNext()) {
-                    keyEntry = cursor.getKey();
-                    final PropertyKey key = PropertyKey.entryToPropertyKey(keyEntry);
-                    if (key.getEntityLocalId() != entityLocalId) {
-                        break;
-                    }
-                    final ByteIterable value = cursor.getValue();
-                    final int blobId = key.getPropertyId();
-                    blobs.delete(envTxn, entityLocalId, blobId);
-                    txn.invalidateCachedBlobString(entity, blobId);
-                    deleteObsoleteBlobHandle(LongBinding.compressedEntryToLong(value), txn);
+        final BlobsTable blobs = getBlobsTable(txn, entityTypeId);
+        final PropertyKey propertyKey = new PropertyKey(entityLocalId, 0);
+        ByteIterable keyEntry = PropertyKey.propertyKeyToEntry(propertyKey);
+        try (Cursor cursor = blobs.getPrimaryIndex().openCursor(envTxn)) {
+            for (boolean success = cursor.getSearchKeyRange(keyEntry) != null; success; success = cursor.getNext()) {
+                keyEntry = cursor.getKey();
+                final PropertyKey key = PropertyKey.entryToPropertyKey(keyEntry);
+                if (key.getEntityLocalId() != entityLocalId) {
+                    break;
                 }
-            }
-        } else {
-            final Store blobs = getBlobsHistoryTable(txn, entityTypeId);
-            final int version = entity.getVersion();
-            final PropertyHistoryKey propertyKey = new PropertyHistoryKey(entityLocalId, version, 0);
-            ByteIterable keyEntry = PropertyHistoryKey.propertyHistoryKeyToEntry(propertyKey);
-            try (Cursor cursor = blobs.openCursor(envTxn)) {
-                for (boolean success = cursor.getSearchKeyRange(keyEntry) != null; success; success = cursor.getNext()) {
-                    keyEntry = cursor.getKey();
-                    final PropertyHistoryKey key = PropertyHistoryKey.entryToPropertyHistoryKey(keyEntry);
-                    if (key.getEntityLocalId() != entityLocalId || key.getVersion() != version) {
-                        break;
-                    }
-                    final ByteIterable value = cursor.getValue();
-                    blobs.delete(envTxn, keyEntry);
-                    deleteObsoleteBlobHandle(LongBinding.compressedEntryToLong(value), txn);
-                }
+                final ByteIterable value = cursor.getValue();
+                final int blobId = key.getPropertyId();
+                blobs.delete(envTxn, entityLocalId, blobId);
+                txn.invalidateCachedBlobString(entity, blobId);
+                deleteObsoleteBlobHandle(LongBinding.compressedEntryToLong(value), txn);
             }
         }
     }
@@ -1137,43 +1034,19 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final EntityId fromId = entity.getId();
         final int entityTypeId = fromId.getTypeId();
         final long entityLocalId = fromId.getLocalId();
-        Cursor cursor = null;
-        try {
-            if (entity.isUpToDate()) {
-                PropertyKey blobKey = new PropertyKey(entityLocalId, 0);
-                cursor = getBlobsTable(txn, entityTypeId).getPrimaryIndex().openCursor(txn.getEnvironmentTransaction());
-                for (boolean success = cursor.getSearchKeyRange(PropertyKey.propertyKeyToEntry(blobKey)) != null;
-                     success; success = cursor.getNext()) {
-                    blobKey = PropertyKey.entryToPropertyKey(cursor.getKey());
-                    if (blobKey.getEntityLocalId() != entityLocalId) {
-                        break;
-                    }
-                    final String blobName = getPropertyName(txn, blobKey.getPropertyId());
-                    if (blobName != null) {
-                        result.add(new Pair<>(
-                                blobName, LongBinding.compressedEntryToLong(cursor.getValue())));
-                    }
+        PropertyKey blobKey = new PropertyKey(entityLocalId, 0);
+        try (Cursor cursor = getBlobsTable(txn, entityTypeId).getPrimaryIndex().openCursor(txn.getEnvironmentTransaction())) {
+            for (boolean success = cursor.getSearchKeyRange(PropertyKey.propertyKeyToEntry(blobKey)) != null;
+                 success; success = cursor.getNext()) {
+                blobKey = PropertyKey.entryToPropertyKey(cursor.getKey());
+                if (blobKey.getEntityLocalId() != entityLocalId) {
+                    break;
                 }
-            } else {
-                final int version = entity.getVersion();
-                PropertyHistoryKey blobHistoryKey = new PropertyHistoryKey(entityLocalId, version, 0);
-                cursor = getBlobsHistoryTable(txn, entityTypeId).openCursor(txn.getEnvironmentTransaction());
-                for (boolean success = cursor.getSearchKeyRange(PropertyHistoryKey.propertyHistoryKeyToEntry(blobHistoryKey)) != null;
-                     success; success = cursor.getNext()) {
-                    blobHistoryKey = PropertyHistoryKey.entryToPropertyHistoryKey(cursor.getKey());
-                    if (blobHistoryKey.getVersion() != version || blobHistoryKey.getEntityLocalId() != entityLocalId) {
-                        break;
-                    }
-                    final String blobName = getPropertyName(txn, blobHistoryKey.getPropertyId());
-                    if (blobName != null) {
-                        result.add(new Pair<>(
-                                blobName, LongBinding.compressedEntryToLong(cursor.getValue())));
-                    }
+                final String blobName = getPropertyName(txn, blobKey.getPropertyId());
+                if (blobName != null) {
+                    result.add(new Pair<>(
+                            blobName, LongBinding.compressedEntryToLong(cursor.getValue())));
                 }
-            }
-        } finally {
-            if (cursor != null) {
-                cursor.close();
             }
         }
         return result;
@@ -1258,69 +1131,17 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                                      final int propertyId,
                                      @NotNull final DataGetter dataGetter) {
         final EntityId fromId = entity.getId();
-        final int entityTypeId = fromId.getTypeId();
-        final long entityLocalId = fromId.getLocalId();
-        if (entity.isUpToDate()) {
-            return dataGetter.getUpToDateEntry(txn, entityTypeId, new PropertyKey(entityLocalId, propertyId));
-        } else {
-            final int version = entity.getVersion();
-            final int nextVersion;
-            ByteIterable keyEntry;
-            try (Cursor cursor = getEntitiesHistoryTable(txn, entityTypeId).openCursor(txn.getEnvironmentTransaction())) {
-                keyEntry = LongBinding.longToCompressedEntry(entityLocalId);
-                final ByteIterable valueEntry = IntegerBinding.intToCompressedEntry(version);
-                if (cursor.getSearchBothRange(keyEntry, valueEntry) == null) { // key and value entries unchanged
-                    return dataGetter.getUpToDateEntry(txn, entityTypeId, new PropertyKey(entityLocalId, propertyId));
-                }
-                nextVersion = IntegerBinding.compressedEntryToInt(cursor.getValue());
-            }
-            keyEntry = PropertyHistoryKey.propertyHistoryKeyToEntry(new PropertyHistoryKey(entityLocalId, nextVersion, propertyId));
-            return dataGetter.getHistory(txn, entityTypeId).get(txn.getEnvironmentTransaction(), keyEntry);
-        }
+        return dataGetter.getUpToDateEntry(txn, fromId.getTypeId(), new PropertyKey(fromId.getLocalId(), propertyId));
     }
 
     @NotNull
     EntityIterableBase getLinks(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity from, final int linkId) {
-        final EntityId fromId = from.getId();
-        if (from.isUpToDate()) { // up-to-date entity
-            return new EntityFromLinksIterable(txn, fromId, linkId);
-        } else { // historical entity
-            final int entityTypeId = fromId.getTypeId();
-            final long entityLocalId = fromId.getLocalId();
-            final int version = from.getVersion();
-            final int nextVersion;
-            try (final Cursor cursor = getEntitiesHistoryTable(txn, entityTypeId).openCursor(txn.getEnvironmentTransaction())) {
-                final ByteIterable keyEntry = LongBinding.longToCompressedEntry(entityLocalId);
-                final ByteIterable valueEntry = IntegerBinding.intToCompressedEntry(version);
-                if (cursor.getSearchBothRange(keyEntry, valueEntry) == null) {
-                    return new EntityFromLinksIterable(txn, fromId, linkId);
-                }
-                nextVersion = IntegerBinding.compressedEntryToInt(valueEntry);
-            }
-            return new EntityFromHistoryLinksIterable(txn, fromId, nextVersion, linkId);
-        }
+        return new EntityFromLinksIterable(txn, from.getId(), linkId);
     }
 
     @NotNull
     EntityIterable getLinks(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity from, final IntHashMap<String> linkNames) {
-        final EntityId fromId = from.getId();
-        if (from.isUpToDate()) { // up-to-date entity
-            return new EntityFromLinkSetIterable(txn, fromId, linkNames);
-        } else { // historical entity
-            final int entityTypeId = fromId.getTypeId();
-            final long entityLocalId = fromId.getLocalId();
-            final int version = from.getVersion();
-            final int nextVersion;
-            try (Cursor cursor = getEntitiesHistoryTable(txn, entityTypeId).openCursor(txn.getEnvironmentTransaction())) {
-                final ByteIterable keyEntry = LongBinding.longToCompressedEntry(entityLocalId);
-                final ByteIterable valueEntry = IntegerBinding.intToCompressedEntry(version);
-                if (cursor.getSearchBothRange(keyEntry, valueEntry) == null) {
-                    return new EntityFromLinkSetIterable(txn, fromId, linkNames);
-                }
-                nextVersion = IntegerBinding.compressedEntryToInt(valueEntry);
-            }
-            return new EntityFromHistoryLinkSetIterable(txn, fromId, nextVersion, linkNames);
-        }
+        return new EntityFromLinkSetIterable(txn, from.getId(), linkNames);
     }
 
     boolean deleteLink(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity from, final int linkId, @NotNull final PersistentEntity to) {
@@ -1371,43 +1192,19 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final EntityId fromId = entity.getId();
         final int entityTypeId = fromId.getTypeId();
         final long entityLocalId = fromId.getLocalId();
-        Cursor cursor = null;
-        try {
-            if (entity.isUpToDate()) {
-                PropertyKey linkKey = new PropertyKey(entityLocalId, 0);
-                cursor = getLinksTable(txn, entityTypeId).getFirstIndexCursor(txn.getEnvironmentTransaction());
-                for (boolean success = cursor.getSearchKeyRange(PropertyKey.propertyKeyToEntry(linkKey)) != null;
-                     success; success = cursor.getNext()) {
-                    linkKey = PropertyKey.entryToPropertyKey(cursor.getKey());
-                    if (linkKey.getEntityLocalId() != entityLocalId) {
-                        break;
-                    }
-                    final String linkName = getLinkName(txn, linkKey.getPropertyId());
-                    if (linkName != null) {
-                        result.add(new Pair<>(
-                                linkName, LinkValue.entryToLinkValue(cursor.getValue()).getEntityId()));
-                    }
+        PropertyKey linkKey = new PropertyKey(entityLocalId, 0);
+        try (Cursor cursor = getLinksTable(txn, entityTypeId).getFirstIndexCursor(txn.getEnvironmentTransaction())) {
+            for (boolean success = cursor.getSearchKeyRange(PropertyKey.propertyKeyToEntry(linkKey)) != null;
+                 success; success = cursor.getNext()) {
+                linkKey = PropertyKey.entryToPropertyKey(cursor.getKey());
+                if (linkKey.getEntityLocalId() != entityLocalId) {
+                    break;
                 }
-            } else {
-                final int version = entity.getVersion();
-                PropertyHistoryKey linkHistoryKey = new PropertyHistoryKey(entityLocalId, version, 0);
-                cursor = getLinksHistoryIndexCursor(txn, entityTypeId);
-                for (boolean success = cursor.getSearchKeyRange(PropertyHistoryKey.propertyHistoryKeyToEntry(linkHistoryKey)) != null;
-                     success; success = cursor.getNext()) {
-                    linkHistoryKey = PropertyHistoryKey.entryToPropertyHistoryKey(cursor.getKey());
-                    if (linkHistoryKey.getVersion() != version || linkHistoryKey.getEntityLocalId() != entityLocalId) {
-                        break;
-                    }
-                    final String linkName = getLinkName(txn, linkHistoryKey.getPropertyId());
-                    if (linkName != null) {
-                        result.add(new Pair<>(
-                                linkName, LinkValue.entryToLinkValue(cursor.getValue()).getEntityId()));
-                    }
+                final String linkName = getLinkName(txn, linkKey.getPropertyId());
+                if (linkName != null) {
+                    result.add(new Pair<>(
+                            linkName, LinkValue.entryToLinkValue(cursor.getValue()).getEntityId()));
                 }
-            }
-        } finally {
-            if (cursor != null) {
-                cursor.close();
             }
         }
         return result;
@@ -1434,130 +1231,11 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     /**
-     * Creates new version of the specified entity copying all its properties,
-     * blobs and links to the history.
-     *
-     * @param entity specified entity.
-     */
-    public void newVersion(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentStoreTransaction snapshot, @NotNull final PersistentEntity entity) {
-        final Transaction envTxn = txn.getEnvironmentTransaction();
-        final EntityId id = entity.getId();
-        final int entityTypeId = id.getTypeId();
-        final long localId = id.getLocalId();
-
-        final Store entitiesTable = getEntitiesTable(snapshot, entityTypeId);
-        final ByteIterable key = LongBinding.longToCompressedEntry(localId);
-        final ByteIterable versionEntry = entitiesTable.get(snapshot.getEnvironmentTransaction(), key);
-        if (versionEntry == null) {
-            throw new IllegalStateException("Entity wasn't saved to database yet, can't create history snapshot");
-        }
-        final int version = IntegerBinding.compressedEntryToInt(versionEntry);
-        entitiesTable.put(envTxn, key, IntegerBinding.intToCompressedEntry(version + 1));
-
-        final Store entitiesHistory = getEntitiesHistoryTable(txn, entityTypeId);
-        entitiesHistory.put(envTxn, LongBinding.longToCompressedEntry(localId), IntegerBinding.intToCompressedEntry(version));
-        //copy properties
-        final Store propertiesHistory = getPropertiesHistoryTable(txn, entityTypeId);
-        for (final String propName : getPropertyNames(snapshot, entity)) {
-            final int propertyId = getPropertyId(txn, propName, false);
-            if (propertyId < 0) continue;
-            final ByteIterable entry = getRawProperty(snapshot, entity, propertyId);
-            if (entry != null) {
-                propertiesHistory.put(envTxn, PropertyHistoryKey.propertyHistoryKeyToEntry(
-                        new PropertyHistoryKey(localId, version, getPropertyId(txn, propName, false))), entry);
-            }
-        }
-        //copy blobs
-        final Store blobsHistory = getBlobsHistoryTable(txn, entityTypeId);
-        for (final String blobName : getBlobNames(snapshot, entity)) {
-            final int blobId = getPropertyId(txn, blobName, false);
-            if (blobId < 0) {
-                continue;
-            }
-            final ByteIterable valueEntry = getRawValue(txn, entity, blobId, blobDataGetter);
-            if (valueEntry == null) {
-                continue;
-            }
-            final long blobHandle = LongBinding.compressedEntryToLong(valueEntry);
-            txn.preserveBlob(blobHandle);
-            blobsHistory.put(envTxn, PropertyHistoryKey.propertyHistoryKeyToEntry(
-                    new PropertyHistoryKey(localId, version, getPropertyId(txn, blobName, false))), valueEntry);
-        }
-        //copy links
-        final Store linksHistory = getLinksHistoryTable(txn, entityTypeId);
-        for (final String linkName : getLinkNames(snapshot, entity)) {
-            final int linkId = getLinkId(snapshot, linkName, false);
-            if (linkId < 0) {
-                continue;
-            }
-            final ByteIterable linkHistoryKey = PropertyHistoryKey.propertyHistoryKeyToEntry(
-                    new PropertyHistoryKey(localId, version, linkId));
-            final EntityIterator itr = getLinks(snapshot, entity, linkId).getIteratorImpl(snapshot);
-            while (itr.hasNext()) {
-                linksHistory.put(envTxn, linkHistoryKey, LinkValue.linkValueToEntry(new LinkValue(itr.nextId(), linkId)));
-            }
-        }
-    }
-
-    @Nullable
-    public Entity getNextVersion(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity entity) {
-        final EntityId id = entity.getId();
-        final int version = entity.getVersion();
-        final int lastVersion = getLastVersion(txn, id);
-        if (lastVersion >= 0) {
-            // if specified entity is up-to-date
-            if (version == lastVersion) {
-                return null;
-            }
-            try (Cursor cursor = getEntitiesHistoryTable(txn, id.getTypeId()).openCursor(txn.getEnvironmentTransaction())) {
-                boolean success = cursor.getSearchBothRange(
-                        LongBinding.longToCompressedEntry(id.getLocalId()), IntegerBinding.intToCompressedEntry(version)) != null;
-                if (success) {
-                    if (version == IntegerBinding.compressedEntryToInt(cursor.getValue())) {
-                        success = cursor.getNext();
-                    }
-                    if (success) {
-                        final long localId = LongBinding.compressedEntryToLong(cursor.getKey());
-                        if (localId == id.getLocalId()) {
-                            return new PersistentEntity(
-                                    this, new PersistentEntityId(id, IntegerBinding.compressedEntryToInt(cursor.getValue())));
-                        }
-                    }
-                }
-                // return up-to-date version if there is no more historic version newer than specified one
-                return getEntity(new PersistentEntityId(id));
-            }
-        }
-        throw new EntityStoreException("getNextVersion(): could not find history version = " + version + ", id = " + id);
-    }
-
-    @Nullable
-    public Entity getPreviousVersion(@NotNull final PersistentStoreTransaction txn, @NotNull final Entity entity) {
-        int version = entity.getVersion();
-        final EntityId id = entity.getId();
-        try (Cursor cursor = getEntitiesHistoryTable(txn, id.getTypeId()).openCursor(txn.getEnvironmentTransaction())) {
-            final ByteIterable keyEntry = LongBinding.longToCompressedEntry(id.getLocalId());
-            while (version > 0) {
-                final ByteIterable valueEntry = IntegerBinding.intToCompressedEntry(--version);
-                if (cursor.getSearchBoth(keyEntry, valueEntry)) {
-                    return new PersistentEntity(this, new PersistentEntityId(id, version));
-                }
-            }
-            return null;
-        }
-    }
-
-    /**
      * Deletes specified entity clearing all its properties and deleting all its outgoing links.
      *
      * @param entity to delete.
      */
     boolean deleteEntity(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity entity) {
-        final Transaction envTxn = txn.getEnvironmentTransaction();
-        final Entity prev = getPreviousVersion(txn, entity);
-        if (prev != null) {
-            deleteEntity(txn, (PersistentEntity) prev);
-        }
         clearProperties(txn, entity);
         clearBlobs(txn, entity);
         deleteLinks(txn, entity);
@@ -1565,28 +1243,24 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final int entityTypeId = id.getTypeId();
         final long entityLocalId = id.getLocalId();
         final ByteIterable key = LongBinding.longToCompressedEntry(entityLocalId);
-        if (entity.isUpToDate()) { // up-to-date entity
-            if (config.isDebugSearchForIncomingLinksOnDelete()) {
-                // search for incoming links
-                final List<String> allLinkNames = getAllLinkNames(txn);
-                for (final String entityType : txn.getEntityTypes()) {
-                    for (final String linkName : allLinkNames) {
-                        //noinspection LoopStatementThatDoesntLoop
-                        for (final Entity referrer : txn.findLinks(entityType, entity, linkName)) {
-                            throw new EntityStoreException(entity +
-                                    " is about to be deleted, but it is referenced by " + referrer + ", link name: " + linkName);
-                        }
+        if (config.isDebugSearchForIncomingLinksOnDelete()) {
+            // search for incoming links
+            final List<String> allLinkNames = getAllLinkNames(txn);
+            for (final String entityType : txn.getEntityTypes()) {
+                for (final String linkName : allLinkNames) {
+                    //noinspection LoopStatementThatDoesntLoop
+                    for (final Entity referrer : txn.findLinks(entityType, entity, linkName)) {
+                        throw new EntityStoreException(entity +
+                                " is about to be deleted, but it is referenced by " + referrer + ", link name: " + linkName);
                     }
                 }
             }
-            if (getEntitiesTable(txn, entityTypeId).delete(envTxn, key)) {
-                txn.entityDeleted(id);
-                return true;
-            }
-            return false;
-        } else { // historical entity
-            return getEntitiesHistoryTable(txn, entityTypeId).delete(envTxn, key);
         }
+        if (getEntitiesTable(txn, entityTypeId).delete(txn.getEnvironmentTransaction(), key)) {
+            txn.entityDeleted(id);
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -1599,37 +1273,21 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final int entityTypeId = id.getTypeId();
         final long entityLocalId = id.getLocalId();
         final Transaction envTxn = txn.getEnvironmentTransaction();
-        if (entity.isUpToDate()) { // up-to-date entity
-            final TwoColumnTable links = getLinksTable(txn, entityTypeId);
-            try (Cursor cursor = links.getFirstIndexCursor(envTxn)) {
-                for (boolean success = cursor.getSearchKeyRange(PropertyKey.propertyKeyToEntry(new PropertyKey(entityLocalId, 0))) != null;
-                     success; success = cursor.getNext()) {
-                    final ByteIterable keyEntry = cursor.getKey();
-                    final PropertyKey key = PropertyKey.entryToPropertyKey(keyEntry);
-                    if (key.getEntityLocalId() != entityLocalId) {
-                        break;
-                    }
-                    final ByteIterable valueEntry = cursor.getValue();
-                    if (links.delete(envTxn, keyEntry, valueEntry)) {
-                        if (getLinkName(txn, key.getPropertyId()) != null) {
-                            final LinkValue linkValue = LinkValue.entryToLinkValue(valueEntry);
-                            txn.linkDeleted(entity.getId(), (PersistentEntityId) linkValue.getEntityId(), linkValue.getLinkId());
-                        }
-                    }
+        final TwoColumnTable links = getLinksTable(txn, entityTypeId);
+        try (Cursor cursor = links.getFirstIndexCursor(envTxn)) {
+            for (boolean success = cursor.getSearchKeyRange(PropertyKey.propertyKeyToEntry(new PropertyKey(entityLocalId, 0))) != null;
+                 success; success = cursor.getNext()) {
+                final ByteIterable keyEntry = cursor.getKey();
+                final PropertyKey key = PropertyKey.entryToPropertyKey(keyEntry);
+                if (key.getEntityLocalId() != entityLocalId) {
+                    break;
                 }
-            }
-        } else { // historical entity
-            final int version = entity.getVersion();
-            final Store links = getLinksHistoryTable(txn, entityTypeId);
-            try (Cursor cursor = links.openCursor(envTxn)) {
-                for (boolean success = cursor.getSearchKeyRange(PropertyHistoryKey.propertyHistoryKeyToEntry(new PropertyHistoryKey(entityLocalId, version, 0))) != null;
-                     success; success = cursor.getNext()) {
-                    final ByteIterable keyEntry = cursor.getKey();
-                    final PropertyHistoryKey key = PropertyHistoryKey.entryToPropertyHistoryKey(keyEntry);
-                    if (key.getEntityLocalId() != entityLocalId || key.getVersion() != version) {
-                        break;
+                final ByteIterable valueEntry = cursor.getValue();
+                if (links.delete(envTxn, keyEntry, valueEntry)) {
+                    if (getLinkName(txn, key.getPropertyId()) != null) {
+                        final LinkValue linkValue = LinkValue.entryToLinkValue(valueEntry);
+                        txn.linkDeleted(entity.getId(), (PersistentEntityId) linkValue.getEntityId(), linkValue.getLinkId());
                     }
-                    links.delete(txn.getEnvironmentTransaction(), keyEntry);
                 }
             }
         }
@@ -1739,13 +1397,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
 
         entitiesTables.remove(entityTypeId);
-        entitiesHistoryTables.remove(entityTypeId);
         propertiesTables.remove(entityTypeId);
-        propertiesHistoryTables.remove(entityTypeId);
         linksTables.remove(entityTypeId);
-        linksHistoryTables.remove(entityTypeId);
         blobsTables.remove(entityTypeId);
-        blobsHistoryTables.remove(entityTypeId);
 
         final String entityTableName = namingRulez.getEntitiesTableName(entityTypeId);
         final String propertiesTableName = namingRulez.getPropertiesTableName(entityTypeId);
@@ -1870,29 +1524,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             }
         }
         return result;
-    }
-
-    void clearHistory(@NotNull final PersistentStoreTransaction txn, @NotNull final String entityType) {
-        final int entityTypeId = getEntityTypeId(txn, entityType, false);
-        if (entityTypeId < 0) {
-            return;
-        }
-        try {
-            // set versions of all entities to zero
-            final Store entitiesTable = getEntitiesTable(txn, entityTypeId);
-            final Transaction envTxn = txn.getEnvironmentTransaction();
-            try (Cursor entities = entitiesTable.openCursor(envTxn)) {
-                while (entities.getNext()) {
-                    entitiesTable.put(envTxn, entities.getKey(), PersistentStoreTransaction.ZERO_VERSION_ENTRY);
-                }
-            }
-            safeTruncateStore(txn, namingRulez.getEntitiesHistoryTableName(entityTypeId));
-            safeTruncateStore(txn, namingRulez.getPropertiesHistoryTableName(entityTypeId));
-            safeTruncateStore(txn, namingRulez.getBlobsHistoryTableName(entityTypeId));
-            safeTruncateStore(txn, namingRulez.getLinksHistoryTableName(entityTypeId));
-        } catch (Throwable t) {
-            throw ExodusException.toEntityStoreException(t);
-        }
     }
 
     @Override
@@ -2042,10 +1673,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         getPropertiesTable(txn, entityTypeId);
         getLinksTable(txn, entityTypeId);
         getBlobsTable(txn, entityTypeId);
-        getEntitiesHistoryTable(txn, entityTypeId);
-        getPropertiesHistoryTable(txn, entityTypeId);
-        getLinksHistoryTable(txn, entityTypeId);
-        getBlobsHistoryTable(txn, entityTypeId);
     }
 
     public void trackTableCreation(@NotNull final Store table, @NotNull final PersistentStoreTransaction txn) {
@@ -2091,18 +1718,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     @NotNull
-    public Store getEntitiesHistoryTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-        return ((SingleColumnTable) entitiesHistoryTables.get(txn, entityTypeId)).getDatabase();
-    }
-
-    @NotNull
     public PropertiesTable getPropertiesTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
         return (PropertiesTable) propertiesTables.get(txn, entityTypeId);
-    }
-
-    @NotNull
-    public Store getPropertiesHistoryTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-        return ((SingleColumnTable) propertiesHistoryTables.get(txn, entityTypeId)).getDatabase();
     }
 
     @NotNull
@@ -2111,18 +1728,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     @NotNull
-    public Store getLinksHistoryTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-        return ((SingleColumnTable) linksHistoryTables.get(txn, entityTypeId)).getDatabase();
-    }
-
-    @NotNull
     public BlobsTable getBlobsTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
         return (BlobsTable) blobsTables.get(txn, entityTypeId);
-    }
-
-    @NotNull
-    public Store getBlobsHistoryTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-        return ((SingleColumnTable) blobsHistoryTables.get(txn, entityTypeId)).getDatabase();
     }
 
     @NotNull
@@ -2214,17 +1821,10 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     private interface DataGetter {
 
-        Store getHistory(@NotNull PersistentStoreTransaction txn, int typeId);
-
         ByteIterable getUpToDateEntry(@NotNull PersistentStoreTransaction txn, int typeId, PropertyKey key);
     }
 
     private class PropertyDataGetter implements DataGetter {
-
-        @Override
-        public Store getHistory(@NotNull final PersistentStoreTransaction txn, int typeId) {
-            return getPropertiesHistoryTable(txn, typeId);
-        }
 
         @Override
         public ByteIterable getUpToDateEntry(@NotNull final PersistentStoreTransaction txn, int typeId, PropertyKey key) {
@@ -2235,22 +1835,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private class LinkDataGetter implements DataGetter {
 
         @Override
-        public Store getHistory(@NotNull final PersistentStoreTransaction txn, int typeId) {
-            return getLinksHistoryTable(txn, typeId);
-        }
-
-        @Override
         public ByteIterable getUpToDateEntry(@NotNull final PersistentStoreTransaction txn, int typeId, PropertyKey key) {
             return getLinksTable(txn, typeId).get(txn.getEnvironmentTransaction(), PropertyKey.propertyKeyToEntry(key));
         }
     }
 
     private class DebugLinkDataGetter implements DataGetter {
-
-        @Override
-        public Store getHistory(@NotNull final PersistentStoreTransaction txn, int typeId) {
-            return getLinksHistoryTable(txn, typeId);
-        }
 
         @Override
         public ByteIterable getUpToDateEntry(@NotNull final PersistentStoreTransaction txn, int typeId, PropertyKey key) {
@@ -2270,11 +1860,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     private class BlobDataGetter implements DataGetter {
-
-        @Override
-        public Store getHistory(@NotNull final PersistentStoreTransaction txn, int typeId) {
-            return getBlobsHistoryTable(txn, typeId);
-        }
 
         @Override
         public ByteIterable getUpToDateEntry(@NotNull final PersistentStoreTransaction txn, int typeId, PropertyKey key) {

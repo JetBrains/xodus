@@ -55,8 +55,6 @@ final class StoreNamingRules {
     @NonNls
     private static final String UNIQUEKEY_INDEX = "uniquekey.index";
     @NonNls
-    private static final String HISTORY_SUFFIX = "history";
-    @NonNls
     private static final String INTERNAL_SETTINGS = "----internal.settings----";
 
     @NotNull
@@ -117,18 +115,8 @@ final class StoreNamingRules {
     }
 
     @NotNull
-    String getEntitiesHistoryTableName(final int entityTypeId) {
-        return getFQName(ENTITIES_TABLE_PREFIX, entityTypeId, HISTORY_SUFFIX);
-    }
-
-    @NotNull
     String getPropertiesTableName(final int entityTypeId) {
         return getFQName(PROPERTIES_TABLE_PREFIX, entityTypeId);
-    }
-
-    @NotNull
-    String getPropertiesHistoryTableName(final int entityTypeId) {
-        return getFQName(PROPERTIES_TABLE_PREFIX, entityTypeId, HISTORY_SUFFIX);
     }
 
     @NotNull
@@ -137,18 +125,8 @@ final class StoreNamingRules {
     }
 
     @NotNull
-    String getLinksHistoryTableName(final int entityTypeId) {
-        return getFQName(LINKS_TABLE_PREFIX, entityTypeId, HISTORY_SUFFIX);
-    }
-
-    @NotNull
     public String getBlobsTableName(final int entityTypeId) {
         return getFQName(BLOBS_TABLE_PREFIX, entityTypeId);
-    }
-
-    @NotNull
-    public String getBlobsHistoryTableName(final int entityTypeId) {
-        return getFQName(BLOBS_TABLE_PREFIX, entityTypeId, HISTORY_SUFFIX);
     }
 
     @NotNull

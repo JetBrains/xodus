@@ -32,12 +32,12 @@ final class PersistentStoreTransactionSnapshot extends PersistentStoreTransactio
 
     @Override
     public boolean flush() {
-        throw new IllegalStateException("Can't flush historical snapshot!");
+        throw new IllegalStateException("Can't flush snapshot transaction!");
     }
 
     @Override
     public boolean commit() {
-        throw new IllegalStateException("Can't commit historical snapshot!");
+        throw new IllegalStateException("Can't commit snapshot transaction!");
     }
 
     @Override
@@ -52,6 +52,6 @@ final class PersistentStoreTransactionSnapshot extends PersistentStoreTransactio
 
     @Override
     public void revert() {
-        throw new IllegalStateException("Can't revert historical snapshot!");
+        throw new IllegalStateException("Can't revert snapshot transaction!");
     }
 }

@@ -42,7 +42,6 @@ public class EntityMetaDataImpl implements EntityMetaData {
     private Set<Index> ownIndexes = Collections.emptySet();
     private Set<String> requiredProperties = Collections.emptySet();
     private Set<String> requiredIfProperties = Collections.emptySet();
-    private Set<String> historyIgnoredFields = Collections.emptySet();
     private Set<String> versionMismatchIgnored = Collections.emptySet();
     private boolean versionMismatchIgnoredForWholeClass = false;
 
@@ -174,15 +173,6 @@ public class EntityMetaDataImpl implements EntityMetaData {
     @Override
     public Runnable getInitializer() {
         return initializer;
-    }
-
-    public void setHistoryIgnoredFields(Set<String> historyIgnoredFields) {
-        this.historyIgnoredFields = historyIgnoredFields;
-    }
-
-    @Override
-    public boolean isHistoryIgnored(String propertyName) {
-        return historyIgnoredFields.contains(propertyName);
     }
 
     public void setRemoveOrphan(boolean removeOrphan) {

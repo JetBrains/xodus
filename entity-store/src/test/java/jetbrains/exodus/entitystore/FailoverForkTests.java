@@ -79,7 +79,6 @@ public class FailoverForkTests extends EntityStoreTestBase {
         Assert.assertNotNull(entity);
         Assert.assertTrue(entity.getId().getTypeId() >= 0);
         Assert.assertTrue(entity.getId().getLocalId() >= 0);
-        Assert.assertEquals(0, entity.getVersion());
     }
 
     @Override
