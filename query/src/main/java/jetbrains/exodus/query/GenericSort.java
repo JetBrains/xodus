@@ -21,6 +21,8 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Comparator;
 
+import static jetbrains.exodus.query.Utils.safe_equals;
+
 public class GenericSort extends Sort {
     private final Comparator<Entity> cmp;
 
@@ -49,7 +51,7 @@ public class GenericSort extends Sort {
             return false;
         }
         GenericSort sort = (GenericSort) o;
-        return eq_mvtm2i_a0a2a4(cmp, sort.cmp) && getAscending() == sort.getAscending();
+        return safe_equals(cmp, sort.cmp) && getAscending() == sort.getAscending();
     }
 
     @Override
@@ -67,9 +69,5 @@ public class GenericSort extends Sort {
     @Override
     public String getSimpleName() {
         return "gs";
-    }
-
-    private static boolean eq_mvtm2i_a0a2a4(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
     }
 }

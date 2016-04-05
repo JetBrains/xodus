@@ -21,6 +21,8 @@ import jetbrains.exodus.entitystore.EntityIterable;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.entitystore.metadata.*;
 
+import static jetbrains.exodus.query.Utils.safe_equals;
+
 public class LinkNotNull extends NodeBase {
     private final String name;
 
@@ -74,7 +76,7 @@ public class LinkNotNull extends NodeBase {
             return false;
         }
         LinkNotNull linkNotNull = (LinkNotNull) obj;
-        return eq_eiki4g_a0e0c(name, linkNotNull.name);
+        return safe_equals(name, linkNotNull.name);
     }
 
     @Override
@@ -90,9 +92,5 @@ public class LinkNotNull extends NodeBase {
     @Override
     public String getSimpleName() {
         return "lnn";
-    }
-
-    private static boolean eq_eiki4g_a0e0c(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
     }
 }

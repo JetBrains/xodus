@@ -19,6 +19,8 @@ package jetbrains.exodus.query;
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.metadata.ModelMetaData;
 
+import static jetbrains.exodus.query.Utils.safe_equals;
+
 public class PropertyEqual extends NodeBase {
     private final String name;
     private final Comparable value;
@@ -60,7 +62,7 @@ public class PropertyEqual extends NodeBase {
             return false;
         }
         PropertyEqual propertyEqual = (PropertyEqual) obj;
-        return eq_xhrqcf_a0a4a4_0(name, propertyEqual.name) && eq_xhrqcf_a0a4a4(value, propertyEqual.value);
+        return safe_equals(name, propertyEqual.name) && safe_equals(value, propertyEqual.value);
     }
 
     @Override
@@ -76,13 +78,5 @@ public class PropertyEqual extends NodeBase {
     @Override
     public String getSimpleName() {
         return "pe";
-    }
-
-    private static boolean eq_xhrqcf_a0a4a4(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
-    }
-
-    private static boolean eq_xhrqcf_a0a4a4_0(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
     }
 }

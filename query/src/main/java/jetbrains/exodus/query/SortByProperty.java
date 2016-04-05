@@ -19,6 +19,8 @@ package jetbrains.exodus.query;
 import jetbrains.exodus.entitystore.Entity;
 import org.jetbrains.annotations.NotNull;
 
+import static jetbrains.exodus.query.Utils.safe_equals;
+
 public class SortByProperty extends Sort {
     private final String propertyName;
 
@@ -43,7 +45,7 @@ public class SortByProperty extends Sort {
             return false;
         }
         SortByProperty sort = (SortByProperty) o;
-        return getAscending() == sort.getAscending() && eq_dneuad_a0a2a3(propertyName, sort.propertyName);
+        return getAscending() == sort.getAscending() && safe_equals(propertyName, sort.propertyName);
     }
 
     @Override
@@ -61,9 +63,5 @@ public class SortByProperty extends Sort {
     @Override
     public String getSimpleName() {
         return "sp";
-    }
-
-    private static boolean eq_dneuad_a0a2a3(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
     }
 }

@@ -21,6 +21,8 @@ import jetbrains.exodus.entitystore.EntityIterable;
 import jetbrains.exodus.entitystore.metadata.EntityMetaData;
 import jetbrains.exodus.entitystore.metadata.ModelMetaData;
 
+import static jetbrains.exodus.query.Utils.safe_equals;
+
 public class LinksEqualDecorator extends NodeBase {
     private final String name;
     private NodeBase decorated;
@@ -91,10 +93,10 @@ public class LinksEqualDecorator extends NodeBase {
             return false;
         }
         LinksEqualDecorator decorator = (LinksEqualDecorator) obj;
-        if (neq_puggxc_a0a4a6_0(name, decorator.name) || neq_puggxc_a0a4a6(decoratedEntityType, decorator.decoratedEntityType)) {
+        if (safe_equals(name, decorator.name) || safe_equals(decoratedEntityType, decorator.decoratedEntityType)) {
             return false;
         }
-        return eq_puggxc_a0f0g(decorated, decorator.decorated);
+        return safe_equals(decorated, decorator.decorated);
     }
 
     @Override
@@ -119,19 +121,5 @@ public class LinksEqualDecorator extends NodeBase {
 
     public String getLinkEntityType() {
         return decoratedEntityType;
-    }
-
-    private static boolean neq_puggxc_a0a4a6(Object a, Object b) {
-        return !(a != null ? a.equals(b) : a == b
-        );
-    }
-
-    private static boolean neq_puggxc_a0a4a6_0(Object a, Object b) {
-        return !(a != null ? a.equals(b) : a == b
-        );
-    }
-
-    private static boolean eq_puggxc_a0f0g(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
     }
 }

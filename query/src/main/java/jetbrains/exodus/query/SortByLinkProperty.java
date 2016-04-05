@@ -19,6 +19,8 @@ package jetbrains.exodus.query;
 import jetbrains.exodus.entitystore.Entity;
 import org.jetbrains.annotations.NotNull;
 
+import static jetbrains.exodus.query.Utils.safe_equals;
+
 public class SortByLinkProperty extends Sort {
     private final String enumType;
     private final String propName;
@@ -47,7 +49,7 @@ public class SortByLinkProperty extends Sort {
             return false;
         }
         SortByLinkProperty sort = (SortByLinkProperty) o;
-        return getAscending() == sort.getAscending() && eq_wfo59e_a0a0a2a3(enumType, sort.enumType) && eq_wfo59e_a0a0c0d(propName, sort.propName) && eq_wfo59e_a0a2a3(linkName, sort.linkName);
+        return getAscending() == sort.getAscending() && safe_equals(enumType, sort.enumType) && safe_equals(propName, sort.propName) && safe_equals(linkName, sort.linkName);
     }
 
     @Override
@@ -65,21 +67,5 @@ public class SortByLinkProperty extends Sort {
     @Override
     public String getSimpleName() {
         return "slp";
-    }
-
-    private static boolean eq_wfo59e_a0e0c(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
-    }
-
-    private static boolean eq_wfo59e_a0a0a2a3(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
-    }
-
-    private static boolean eq_wfo59e_a0a0c0d(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
-    }
-
-    private static boolean eq_wfo59e_a0a2a3(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
     }
 }

@@ -18,25 +18,16 @@ package jetbrains.exodus.query;
 import jetbrains.exodus.entitystore.metadata.EntityMetaData;
 import jetbrains.exodus.entitystore.metadata.ModelMetaData;
 
-public class Utils {
+class Utils {
 
     private Utils() {
     }
 
-    public static <T> int size(final Iterable<T> iterable) {
-        int result = 0;
-        //noinspection UnusedDeclaration
-        for (final T item : iterable) {
-            result++;
-        }
-        return result;
+    static boolean safe_equals(Object left, Object right) {
+        return left != null ? left.equals(right) : right == null;
     }
 
-    public static <T> boolean isEmpty(final Iterable<T> iterable) {
-        return iterable.iterator().hasNext();
-    }
-
-    public static boolean isTypeOf(String type, final String ofType, final ModelMetaData mmd) {
+    static boolean isTypeOf(String type, final String ofType, final ModelMetaData mmd) {
         if (type == null) {
             return false;
         }

@@ -20,6 +20,8 @@ import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.metadata.ModelMetaData;
 
+import static jetbrains.exodus.query.Utils.safe_equals;
+
 public class LinkEqual extends NodeBase {
     private final String name;
     private final EntityId id;
@@ -69,7 +71,7 @@ public class LinkEqual extends NodeBase {
             return false;
         }
         LinkEqual linkEqual = (LinkEqual) obj;
-        return eq_2xuqal_a0a5a4_0(name, linkEqual.name) && eq_2xuqal_a0a5a4(id, linkEqual.id);
+        return safe_equals(name, linkEqual.name) && safe_equals(id, linkEqual.id);
     }
 
     @Override
@@ -93,13 +95,5 @@ public class LinkEqual extends NodeBase {
     @Override
     public String getSimpleName() {
         return "le";
-    }
-
-    private static boolean eq_2xuqal_a0a5a4(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
-    }
-
-    private static boolean eq_2xuqal_a0a5a4_0(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
     }
 }

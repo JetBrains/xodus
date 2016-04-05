@@ -20,6 +20,8 @@ import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.metadata.ModelMetaData;
 import org.jetbrains.annotations.NotNull;
 
+import static jetbrains.exodus.query.Utils.safe_equals;
+
 public class Concat extends BinaryOperator {
     private Sorts leftSorts;
     private Sorts rightSorts;
@@ -103,7 +105,7 @@ public class Concat extends BinaryOperator {
         Concat s = (Concat) obj;
         boolean leftEmpty = (leftSorts == null || leftSorts.sortCount() == 0) && (s.leftSorts == null || s.leftSorts.sortCount() == 0);
         boolean rightEmpty = (rightSorts == null || rightSorts.sortCount() == 0) && (s.rightSorts == null || s.rightSorts.sortCount() == 0);
-        return (leftEmpty || eq_gqj3bu_a0a0a4a3_0(leftSorts, s.leftSorts)) && (rightEmpty || eq_gqj3bu_a0a0a4a3(rightSorts, s.rightSorts));
+        return (leftEmpty || safe_equals(leftSorts, s.leftSorts)) && (rightEmpty || safe_equals(rightSorts, s.rightSorts));
     }
 
     @Override
@@ -114,13 +116,5 @@ public class Concat extends BinaryOperator {
     @Override
     public String getSimpleName() {
         return "cnct";
-    }
-
-    private static boolean eq_gqj3bu_a0a0a4a3(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
-    }
-
-    private static boolean eq_gqj3bu_a0a0a4a3_0(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
     }
 }
