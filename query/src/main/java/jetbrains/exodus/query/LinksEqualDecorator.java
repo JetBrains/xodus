@@ -93,7 +93,7 @@ public class LinksEqualDecorator extends NodeBase {
             return false;
         }
         LinksEqualDecorator decorator = (LinksEqualDecorator) obj;
-        if (safe_equals(name, decorator.name) || safe_equals(decoratedEntityType, decorator.decoratedEntityType)) {
+        if (!safe_equals(name, decorator.name) || !safe_equals(decoratedEntityType, decorator.decoratedEntityType)) {
             return false;
         }
         return safe_equals(decorated, decorator.decorated);
