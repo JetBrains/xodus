@@ -19,6 +19,8 @@ package jetbrains.exodus.query;
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.metadata.ModelMetaData;
 
+import static jetbrains.exodus.query.Utils.safe_equals;
+
 public class PropertyStartsWith extends NodeBase {
     private final String name;
     private final String starts;
@@ -64,7 +66,7 @@ public class PropertyStartsWith extends NodeBase {
             return false;
         }
         PropertyStartsWith propertyStartsWith = (PropertyStartsWith) obj;
-        return eq_qrzu4m_a0a4a4(name, propertyStartsWith.name) && eq_qrzu4m_a0a4a4_0(starts, propertyStartsWith.starts);
+        return safe_equals(name, propertyStartsWith.name) && safe_equals(starts, propertyStartsWith.starts);
     }
 
     @Override
@@ -80,13 +82,5 @@ public class PropertyStartsWith extends NodeBase {
     @Override
     public String getSimpleName() {
         return "psw";
-    }
-
-    private static boolean eq_qrzu4m_a0a4a4(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
-    }
-
-    private static boolean eq_qrzu4m_a0a4a4_0(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
     }
 }

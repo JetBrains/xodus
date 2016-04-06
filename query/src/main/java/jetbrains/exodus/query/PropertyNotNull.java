@@ -23,6 +23,8 @@ import jetbrains.exodus.entitystore.metadata.ModelMetaData;
 import jetbrains.exodus.entitystore.metadata.PropertyMetaData;
 import jetbrains.exodus.entitystore.metadata.PropertyType;
 
+import static jetbrains.exodus.query.Utils.safe_equals;
+
 public class PropertyNotNull extends NodeBase {
     private final String name;
 
@@ -58,7 +60,7 @@ public class PropertyNotNull extends NodeBase {
             return false;
         }
         PropertyNotNull propertyNotNull = (PropertyNotNull) obj;
-        return eq_4wg6n6_a0e0c(name, propertyNotNull.name);
+        return safe_equals(name, propertyNotNull.name);
     }
 
     @Override
@@ -74,9 +76,5 @@ public class PropertyNotNull extends NodeBase {
     @Override
     public String getSimpleName() {
         return "pnn";
-    }
-
-    private static boolean eq_4wg6n6_a0e0c(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
     }
 }

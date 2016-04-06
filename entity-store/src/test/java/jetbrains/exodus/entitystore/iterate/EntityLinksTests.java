@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
+import jetbrains.exodus.TestFor;
 import jetbrains.exodus.entitystore.*;
 import org.junit.Assert;
 
@@ -277,6 +278,29 @@ public class EntityLinksTests extends EntityStoreTestBase {
             if (it.indexOf(e) < 0) {
                 throw new RuntimeException("0: Iteration " + i + ", it " + it.toString());
             }
+        }
+    }
+
+    @TestFor(issues = "XD-517")
+    public void testInvalidationOfToLinks() throws InterruptedException {
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        PersistentEntity issue = txn.newEntity("Issue");
+        PersistentEntity user = txn.newEntity("User");
+        for (int i = 0; i < 10; ++i) {
+            PersistentEntity event = txn.newEntity("Event");
+            event.addLink("author", user);
+            event.addLink("issue", issue);
+        }
+        txn.flush();
+        Assert.assertEquals(10, txn.findLinks("Event", issue, "issue").size());
+        Thread.sleep(1000);
+        Assert.assertTrue(((EntityIteratorBase) txn.findLinks("Event", issue, "issue").iterator()).getIterable().isCachedInstance());
+        for (int i = 0; i < 10; ++i) {
+            PersistentEntity event = txn.newEntity("Event");
+            event.addLink("author", user);
+            event.addLink("issue", issue);
+            txn.flush();
+            Assert.assertEquals((11 + i), txn.findLinks("Event", issue, "issue").size());
         }
     }
 

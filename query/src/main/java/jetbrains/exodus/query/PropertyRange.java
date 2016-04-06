@@ -19,6 +19,8 @@ package jetbrains.exodus.query;
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.metadata.ModelMetaData;
 
+import static jetbrains.exodus.query.Utils.safe_equals;
+
 public class PropertyRange extends NodeBase {
     private final String name;
     private final Comparable min;
@@ -64,7 +66,7 @@ public class PropertyRange extends NodeBase {
             return false;
         }
         PropertyRange propertyRange = (PropertyRange) obj;
-        return eq_xl77s4_a0a0e0e(name, propertyRange.name) && eq_xl77s4_a0a0e0e_0(min, propertyRange.min) && eq_xl77s4_a0a4a4(max, propertyRange.max);
+        return safe_equals(name, propertyRange.name) && safe_equals(min, propertyRange.min) && safe_equals(max, propertyRange.max);
     }
 
     @Override
@@ -80,17 +82,5 @@ public class PropertyRange extends NodeBase {
     @Override
     public String getSimpleName() {
         return "pr";
-    }
-
-    private static boolean eq_xl77s4_a0a0e0e(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
-    }
-
-    private static boolean eq_xl77s4_a0a0e0e_0(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
-    }
-
-    private static boolean eq_xl77s4_a0a4a4(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
     }
 }

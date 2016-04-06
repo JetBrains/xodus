@@ -394,8 +394,9 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
                 return false;
             }
             if (linksCount == 1) {
-                linksFilter = new SingleLinkFilter(linkId);
-                return linkIds[0] == linkId;
+                final int singleId = linkIds[0];
+                linksFilter = new SingleLinkFilter(singleId);
+                return singleId == linkId;
             }
             linksFilter = linksCount < 4 ? new LinearSearchLinksFilter(linkIds) : new BinarySearchLinksFilter(linkIds);
             return linksFilter.hasLinkId(linkId);

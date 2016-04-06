@@ -23,6 +23,8 @@ import jetbrains.exodus.entitystore.PersistentEntityId;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.metadata.ModelMetaData;
 
+import static jetbrains.exodus.query.Utils.safe_equals;
+
 public class GetLinks extends NodeBase {
     private final EntityId id;
     private final String linkName;
@@ -64,7 +66,7 @@ public class GetLinks extends NodeBase {
             return false;
         }
         GetLinks getLinks = (GetLinks) obj;
-        return eq_gqcqvl_a0a3a3_0(linkName, getLinks.linkName) && eq_gqcqvl_a0a3a3(id, getLinks.id);
+        return safe_equals(linkName, getLinks.linkName) && safe_equals(id, getLinks.id);
     }
 
     @Override
@@ -84,13 +86,5 @@ public class GetLinks extends NodeBase {
     @Override
     public String getSimpleName() {
         return "gl";
-    }
-
-    private static boolean eq_gqcqvl_a0a3a3(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
-    }
-
-    private static boolean eq_gqcqvl_a0a3a3_0(Object a, Object b) {
-        return a != null ? a.equals(b) : a == b;
     }
 }
