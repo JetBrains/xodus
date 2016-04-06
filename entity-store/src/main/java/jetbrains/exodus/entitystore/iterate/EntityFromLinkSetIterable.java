@@ -24,6 +24,7 @@ import jetbrains.exodus.entitystore.tables.PropertyKey;
 import jetbrains.exodus.env.Cursor;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Arrays;
 import java.util.List;
 
 public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
@@ -93,6 +94,7 @@ public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
                 for (final int id : linkNames.keySet()) {
                     result[i++] = id;
                 }
+                Arrays.sort(result);
                 return result;
             }
 
