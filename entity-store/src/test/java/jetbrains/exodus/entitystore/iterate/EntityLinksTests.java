@@ -19,6 +19,7 @@ import jetbrains.exodus.TestFor;
 import jetbrains.exodus.entitystore.*;
 import org.junit.Assert;
 
+import java.util.Arrays;
 import java.util.Iterator;
 
 @SuppressWarnings(
@@ -301,6 +302,33 @@ public class EntityLinksTests extends EntityStoreTestBase {
             event.addLink("issue", issue);
             txn.flush();
             Assert.assertEquals((11 + i), txn.findLinks("Event", issue, "issue").size());
+        }
+    }
+
+    @TestFor(issues = "XD-518")
+    public void testInvalidationFromSetLinks() throws InterruptedException {
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        PersistentEntity issue = txn.newEntity("Issue");
+        for (int i = 0; i < 10; ++i) {
+            issue.addLink("related", txn.newEntity("Issue"));
+            issue.addLink("subtask", txn.newEntity("Issue"));
+            issue.addLink("link0", txn.newEntity("Issue"));
+            issue.addLink("required for", txn.newEntity("Issue"));
+            issue.addLink("duplicate", txn.newEntity("Issue"));
+            issue.addLink("link1", txn.newEntity("Issue"));
+            issue.addLink("is parent for", txn.newEntity("Issue"));
+        }
+        txn.flush();
+        Assert.assertEquals(30, issue.getLinks(
+                Arrays.asList("related", "duplicate", "is parent for")).size());
+        Thread.sleep(1000);
+        Assert.assertTrue(((EntityIteratorBase) issue.getLinks(
+                Arrays.asList("related", "duplicate", "is parent for")).iterator()).getIterable().isCachedInstance());
+        for (int i = 0; i < 10; ++i) {
+            issue.addLink("duplicate", txn.newEntity("Issue"));
+            txn.flush();
+            Assert.assertEquals(31 + i, issue.getLinks(
+                    Arrays.asList("related", "duplicate", "is parent for")).size());
         }
     }
 
