@@ -51,7 +51,7 @@ public class Persistent23TreeTest {
         write2.exclude(1);
         Assert.assertTrue(write2.endWrite());
         Assert.assertTrue(write1.endWrite());
-        Persistent23Tree.ImmutableTree<Integer> read = tree.getCurrent();
+        Persistent23Tree.ImmutableTree<Integer> read = tree.beginRead();
         Assert.assertTrue(read.contains(0));
         Assert.assertFalse(read.contains(1));
         Assert.assertFalse(read.contains(2));
@@ -67,7 +67,7 @@ public class Persistent23TreeTest {
         Assert.assertFalse(read.contains(2));
         Assert.assertFalse(read.contains(3));
         Assert.assertEquals(1, read.size());
-        read = tree.getCurrent();
+        read = tree.beginRead();
         Assert.assertTrue(read.contains(0));
         Assert.assertFalse(read.contains(1));
         Assert.assertTrue(read.contains(2));
@@ -80,7 +80,7 @@ public class Persistent23TreeTest {
         write2.add(3);
         Assert.assertTrue(write1.endWrite());
         Assert.assertFalse(write2.endWrite());
-        read = tree.getCurrent();
+        read = tree.beginRead();
         Assert.assertTrue(read.contains(0));
         Assert.assertFalse(read.contains(1));
         Assert.assertTrue(read.contains(2));
@@ -323,7 +323,7 @@ public class Persistent23TreeTest {
         System.gc();
         System.gc();
         System.out.println("Memory used: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()));
-        final Persistent23Tree.ImmutableTree<Integer> current = source.getCurrent();
+        final Persistent23Tree.ImmutableTree<Integer> current = source.beginRead();
         System.out.println("Nodes count: " + nodesCount(current));
         Integer min = current.getMinimum();
         Assert.assertEquals(0, min.intValue());
@@ -355,7 +355,7 @@ public class Persistent23TreeTest {
         Assert.assertTrue(tree.endWrite());
         System.gc();
         System.out.print("Memory used: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()));
-        final Persistent23Tree.ImmutableTree<Integer> current = source.getCurrent();
+        final Persistent23Tree.ImmutableTree<Integer> current = source.beginRead();
         Integer min = current.getMinimum();
         Assert.assertEquals(0, min.intValue());
         Integer max = tree.getMaximum();
@@ -392,7 +392,7 @@ public class Persistent23TreeTest {
         System.gc();
         System.gc();
         System.out.print("Memory used: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()));
-        final Persistent23Tree.ImmutableTree<Integer> current = source.getCurrent();
+        final Persistent23Tree.ImmutableTree<Integer> current = source.beginRead();
         Assert.assertEquals(min, current.getMinimum().intValue());
         Assert.assertEquals(max, tree.getMaximum().intValue());
         tree.checkTip();
@@ -417,7 +417,7 @@ public class Persistent23TreeTest {
         System.gc();
         System.gc();
         System.out.print("Memory used: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()));
-        final Persistent23Tree.ImmutableTree<Integer> current = source.getCurrent();
+        final Persistent23Tree.ImmutableTree<Integer> current = source.beginRead();
         Integer min = current.getMinimum();
         Assert.assertEquals(0, min.intValue());
         Integer max = tree.getMaximum();
@@ -527,7 +527,7 @@ public class Persistent23TreeTest {
                 try {
                     barrier.await();
                     for (int i = 0; i < itr; i++) {
-                        final Persistent23Tree.ImmutableTree<Integer> tree = source.getCurrent();
+                        final Persistent23Tree.ImmutableTree<Integer> tree = source.beginRead();
                         int size = 0;
                         for (final Integer ignored : tree) {
                             size++;

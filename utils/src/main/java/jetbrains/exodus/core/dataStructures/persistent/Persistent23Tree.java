@@ -36,12 +36,12 @@ public class Persistent23Tree<K extends Comparable<K>> {
         this.root = root;
     }
 
-    public ImmutableTree<K> getCurrent() {
+    public ImmutableTree<K> beginRead() {
         return new ImmutableTree<>(root);
     }
 
     public int size() {
-        // may be replaced with getCurrent().size()
+        // may be replaced with beginRead().size()
         AbstractPersistent23Tree.RootNode<K> currentRoot = root;
         return currentRoot == null ? 0 : currentRoot.getSize();
     }
