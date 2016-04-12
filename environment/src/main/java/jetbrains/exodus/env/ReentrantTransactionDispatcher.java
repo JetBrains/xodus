@@ -68,7 +68,7 @@ final class ReentrantTransactionDispatcher {
     int acquireTransaction(@NotNull final Thread thread) {
         try (CriticalSection ignored = new CriticalSection(lock)) {
             final int currentThreadPermits = getThreadPermitsToAcquire(thread);
-            watForPermits(thread, currentThreadPermits > 0 ? nestedQueue : regularQueue, 1, currentThreadPermits);
+            waitForPermits(thread, currentThreadPermits > 0 ? nestedQueue : regularQueue, 1, currentThreadPermits);
         }
         return 1;
     }
@@ -85,10 +85,10 @@ final class ReentrantTransactionDispatcher {
             final int currentThreadPermits = getThreadPermitsToAcquire(thread);
             // if there are no permits acquired in the thread then we can acquire exclusive txn, i.e. all available permits
             if (currentThreadPermits == 0) {
-                watForPermits(thread, regularQueue, availablePermits, 0);
+                waitForPermits(thread, regularQueue, availablePermits, 0);
                 return availablePermits;
             }
-            watForPermits(thread, nestedQueue, 1, currentThreadPermits);
+            waitForPermits(thread, nestedQueue, 1, currentThreadPermits);
         }
         return 1;
     }
@@ -163,10 +163,10 @@ final class ReentrantTransactionDispatcher {
         txn.setAcquiredPermits(1);
     }
 
-    private void watForPermits(@NotNull final Thread thread,
-                               @NotNull final NavigableMap<Long, Condition> queue,
-                               final int permits,
-                               final int currentThreadPermits) {
+    private void waitForPermits(@NotNull final Thread thread,
+                                @NotNull final NavigableMap<Long, Condition> queue,
+                                final int permits,
+                                final int currentThreadPermits) {
         final Condition condition = lock.newCondition();
         final long currentOrder = acquireOrder++;
         queue.put(currentOrder, condition);
@@ -205,12 +205,13 @@ final class ReentrantTransactionDispatcher {
                     break;
                 }
             }
-            regularQueue.pollFirstEntry();
-            if (acquiredPermits == 0) {
+            if (acquiredPermits == 0 && regularQueue.firstKey() == currentOrder) {
+                regularQueue.pollFirstEntry();
                 acquiredPermits = availablePermits;
                 threadPermits.put(thread, availablePermits);
                 return availablePermits;
             }
+            regularQueue.remove(currentOrder);
             notifyNextWaiters();
         }
         return 0;
