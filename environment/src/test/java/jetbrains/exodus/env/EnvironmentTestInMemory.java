@@ -88,7 +88,7 @@ public class EnvironmentTestInMemory extends EnvironmentTest {
             public void execute(@NotNull final Transaction txn) {
                 try (Cursor cursor = primary.openCursor(txn)) {
                     Assert.assertTrue(cursor.getNext());
-                    for (Persistent23TreeMap.Entry<Integer, Integer> entry : testMap.getCurrent()) {
+                    for (Persistent23TreeMap.Entry<Integer, Integer> entry : testMap.beginRead()) {
                         Assert.assertEquals((int) entry.getKey(), IntegerBinding.readCompressed(cursor.getKey().iterator()));
                         Assert.assertEquals((int) entry.getValue(), IntegerBinding.readCompressed(cursor.getValue().iterator()));
                         cursor.getNext();

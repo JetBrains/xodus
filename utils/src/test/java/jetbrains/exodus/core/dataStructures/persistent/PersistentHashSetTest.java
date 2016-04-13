@@ -85,7 +85,7 @@ public class PersistentHashSetTest {
         write2.remove(1);
         Assert.assertTrue(write2.endWrite());
         Assert.assertTrue(write1.endWrite());
-        PersistentHashSet.ImmutablePersistentHashSet<Integer> read = tree.getCurrent();
+        PersistentHashSet.ImmutablePersistentHashSet<Integer> read = tree.beginRead();
         Assert.assertTrue(read.contains(0));
         Assert.assertFalse(read.contains(1));
         Assert.assertFalse(read.contains(2));
@@ -101,7 +101,7 @@ public class PersistentHashSetTest {
         Assert.assertFalse(read.contains(2));
         Assert.assertFalse(read.contains(3));
         Assert.assertEquals(1, read.size());
-        read = tree.getCurrent();
+        read = tree.beginRead();
         Assert.assertTrue(read.contains(0));
         Assert.assertFalse(read.contains(1));
         Assert.assertTrue(read.contains(2));
@@ -234,7 +234,7 @@ public class PersistentHashSetTest {
                 try {
                     latch.countDown();
                     for (int i = 0; i < itr; i++) {
-                        final PersistentHashSet.ImmutablePersistentHashSet<Integer> tree = source.getCurrent();
+                        final PersistentHashSet.ImmutablePersistentHashSet<Integer> tree = source.beginRead();
                         int size = 0;
                         for (final Integer ignored : tree) {
                             size++;
@@ -270,7 +270,7 @@ public class PersistentHashSetTest {
         mutableSet.add(e);
         mutableSet.endWrite();
         //noinspection NumberEquality
-        Assert.assertTrue(e == set.getCurrent().getKey(new Integer(271828)));
+        Assert.assertTrue(e == set.beginRead().getKey(new Integer(271828)));
     }
 
     private static int[] genPermutation(Random random) {

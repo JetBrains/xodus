@@ -35,7 +35,7 @@ public class PersistentHashSet<K> {
         this.root = root;
     }
 
-    public ImmutablePersistentHashSet<K> getCurrent() {
+    public ImmutablePersistentHashSet<K> beginRead() {
         return new ImmutablePersistentHashSet<>(root);
     }
 
