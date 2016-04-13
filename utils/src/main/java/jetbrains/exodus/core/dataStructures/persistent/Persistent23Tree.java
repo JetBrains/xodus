@@ -21,7 +21,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Iterator;
 
-public class Persistent23Tree<K extends Comparable<K>> {
+public class Persistent23Tree<K extends Comparable<K>> extends AbstractPersistent23Tree<K> {
 
     /**
      * The root of the last version of the tree.
@@ -36,14 +36,8 @@ public class Persistent23Tree<K extends Comparable<K>> {
         this.root = root;
     }
 
-    public ImmutableTree<K> getCurrent() {
+    public ImmutableTree<K> beginRead() {
         return new ImmutableTree<>(root);
-    }
-
-    public int size() {
-        // may be replaced with getCurrent().size()
-        AbstractPersistent23Tree.RootNode<K> currentRoot = root;
-        return currentRoot == null ? 0 : currentRoot.getSize();
     }
 
     public Persistent23Tree<K> getClone() {

@@ -88,7 +88,7 @@ public class SharedTimer {
             final long nextTick = System.currentTimeMillis() + PERIOD;
             final Collection<ExpirablePeriodicTask> expiredTasks = new QueueDecorator<>();
             try {
-                for (final ExpirablePeriodicTask task : registeredTasks.get().getCurrent()) {
+                for (final ExpirablePeriodicTask task : registeredTasks.get()) {
                     if (task.isExpired()) {
                         expiredTasks.add(task);
                     } else {

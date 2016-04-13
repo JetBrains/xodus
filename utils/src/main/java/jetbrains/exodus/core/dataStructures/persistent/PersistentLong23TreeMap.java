@@ -31,7 +31,7 @@ public class PersistentLong23TreeMap<V> {
         set = new Persistent23Tree<>(root);
     }
 
-    public ImmutableMap getCurrent() {
+    public ImmutableMap beginRead() {
         return new ImmutableMap();
     }
 
