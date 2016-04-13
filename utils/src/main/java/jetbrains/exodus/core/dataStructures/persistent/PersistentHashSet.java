@@ -18,7 +18,7 @@ package jetbrains.exodus.core.dataStructures.persistent;
 import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
 import org.jetbrains.annotations.NotNull;
 
-public class PersistentHashSet<K> {
+public class PersistentHashSet<K> extends AbstractPersistentHashSet<K> {
 
     /**
      * The root of the last version of the tree.

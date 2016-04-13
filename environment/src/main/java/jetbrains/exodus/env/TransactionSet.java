@@ -32,7 +32,7 @@ final class TransactionSet implements Iterable<TransactionBase> {
 
     @Override
     public Iterator<TransactionBase> iterator() {
-        return beginRead().iterator();
+        return getCurrent().iterator();
     }
 
     void add(@NotNull final TransactionBase txn) {
@@ -42,7 +42,7 @@ final class TransactionSet implements Iterable<TransactionBase> {
             final PersistentHashSet<TransactionBase> newSet = prevSet.set.getClone();
             final TransactionBase prevMin = prevSet.min;
             final TransactionBase newMin;
-            if (newSet.beginRead().contains(txn)) {
+            if (newSet.contains(txn)) {
                 newMin = prevMin == txn ? null : prevMin;
             } else {
                 final PersistentHashSet.MutablePersistentHashSet<TransactionBase> mutableSet = newSet.beginWrite();
@@ -59,7 +59,7 @@ final class TransactionSet implements Iterable<TransactionBase> {
     }
 
     boolean contains(@NotNull final TransactionBase txn) {
-        return beginRead().contains(txn);
+        return getCurrent().contains(txn);
     }
 
     void remove(@NotNull final TransactionBase txn) {
@@ -83,11 +83,11 @@ final class TransactionSet implements Iterable<TransactionBase> {
     }
 
     boolean isEmpty() {
-        return beginRead().isEmpty();
+        return getCurrent().isEmpty();
     }
 
     int size() {
-        return beginRead().size();
+        return getCurrent().size();
     }
 
     @Nullable
@@ -100,8 +100,9 @@ final class TransactionSet implements Iterable<TransactionBase> {
         return txns.get().getMax();
     }
 
-    private PersistentHashSet.ImmutablePersistentHashSet<TransactionBase> beginRead() {
-        return txns.get().set.beginRead();
+    @NotNull
+    private PersistentHashSet<TransactionBase> getCurrent() {
+        return txns.get().set;
     }
 
     private static class MinMaxAwareTransactionSet {
@@ -129,7 +130,7 @@ final class TransactionSet implements Iterable<TransactionBase> {
             if (min == null) {
                 TransactionBase min = null;
                 long minRoot = Long.MIN_VALUE;
-                for (final TransactionBase txn : set.beginRead()) {
+                for (final TransactionBase txn : set) {
                     final long root = txn.getRoot();
                     if (min == null || root < minRoot) {
                         min = txn;
@@ -146,7 +147,7 @@ final class TransactionSet implements Iterable<TransactionBase> {
             if (max == null) {
                 TransactionBase max = null;
                 long maxRoot = Long.MAX_VALUE;
-                for (final TransactionBase txn : set.beginRead()) {
+                for (final TransactionBase txn : set) {
                     final long root = txn.getRoot();
                     if (max == null || root > maxRoot) {
                         max = txn;
