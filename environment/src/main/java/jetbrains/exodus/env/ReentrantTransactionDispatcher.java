@@ -98,11 +98,10 @@ final class ReentrantTransactionDispatcher {
         int acquiredPermits;
         if (txn.isExclusive()) {
             if (txn.isGCTransaction()) {
-                acquiredPermits = tryAcquireExclusiveTransaction(
-                        creatingThread, env.getEnvironmentConfig().getGcTransactionAcquireTimeout());
+                final int gcTransactionAcquireTimeout = env.getEnvironmentConfig().getGcTransactionAcquireTimeout();
+                acquiredPermits = tryAcquireExclusiveTransaction(creatingThread, gcTransactionAcquireTimeout);
                 if (acquiredPermits == 0) {
-                    // timeout
-                    acquiredPermits = acquireTransaction(creatingThread);
+                    throw new TransactionAcquireTimeoutException(gcTransactionAcquireTimeout);
                 }
             } else {
                 acquiredPermits = acquireExclusiveTransaction(creatingThread);
