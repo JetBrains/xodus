@@ -160,7 +160,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(TREE_NODES_CACHE_SIZE, 4096),
                 new Pair(GC_ENABLED, true),
                 new Pair(GC_START_IN, 60000),
-                new Pair(GC_MIN_UTILIZATION, 75),
+                new Pair(GC_MIN_UTILIZATION, 70),
                 new Pair(GC_RENAME_FILES, false),
                 new Pair(GC_USE_EXPIRATION_CHECKER, true),
                 new Pair(GC_MIN_FILE_AGE, 2),
@@ -169,7 +169,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(GC_UTILIZATION_FROM_SCRATCH, false),
                 new Pair(GC_FILES_DELETION_DELAY, 5000),
                 new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
-                new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 300),
+                new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 10),
                 new Pair(MANAGEMENT_ENABLED, true)
         }, strategy);
     }
