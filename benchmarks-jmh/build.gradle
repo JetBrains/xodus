@@ -6,8 +6,8 @@ sourceCompatibility = 1.8
 
 dependencies {
     testCompile project(':benchmarks')
-    testCompile 'org.openjdk.jmh:jmh-core:0.9'
-    testCompile 'org.openjdk.jmh:jmh-generator-annprocess:0.9'
+    testCompile 'org.openjdk.jmh:jmh-core:1.12'
+    testCompile 'org.openjdk.jmh:jmh-generator-annprocess:1.12'
     testCompile group: 'com.sleepycat', name: 'je', version: '5.0.73'
     testCompile group: 'org.mapdb', name: 'mapdb', version: '1.0.6'
     testCompile group: 'net.openhft', name: 'chronicle-map', version: '3.8.0'

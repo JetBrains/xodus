@@ -49,7 +49,7 @@ public class JMHObjectCacheBenchmark {
 
     @Benchmark
     @Warmup(iterations = 4, time = 1)
-    @Measurement(iterations = 6, batchSize = 10000)
+    @Measurement(iterations = 6, time = 1)
     @Fork(5)
     public String cacheTryKey() {
         return cache.tryKey(existingKey);
@@ -57,7 +57,7 @@ public class JMHObjectCacheBenchmark {
 
     @Benchmark
     @Warmup(iterations = 4, time = 1)
-    @Measurement(iterations = 6, batchSize = 10000)
+    @Measurement(iterations = 6, time = 1)
     @Fork(5)
     public String cacheTryMissingKey() {
         return cache.tryKey(missingKey);

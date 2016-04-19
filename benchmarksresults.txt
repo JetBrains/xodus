@@ -1,31 +1,35 @@
-# Run complete. Total time: 02:21:08
+# Run complete. Total time: 02:13:06
 
-Benchmark                                                                     Mode   Samples        Score  Score error    Units
-j.e.b.dataStructures.JMHConcurrentObjectCacheBenchmark.cacheTryKey           thrpt        30       41.406        0.135   ops/us
-j.e.b.dataStructures.JMHConcurrentObjectCacheBenchmark.cacheTryMissingKey    thrpt        30       51.122        0.165   ops/us
-j.e.b.dataStructures.JMHHashMapBenchmark.hashMapGet                          thrpt        30       57.725        0.491   ops/us
-j.e.b.dataStructures.JMHHashMapBenchmark.hashMapGetMissingKey                thrpt        30       76.686        0.231   ops/us
-j.e.b.dataStructures.JMHJavaUtilHashMapBenchmark.hashMapGet                  thrpt        30       57.346        0.561   ops/us
-j.e.b.dataStructures.JMHJavaUtilHashMapBenchmark.hashMapGetMissingKey        thrpt        30       68.611        0.644   ops/us
-j.e.b.dataStructures.JMHObjectCacheBenchmark.cacheTryKey                     thrpt        30       11.339        0.086   ops/us
-j.e.b.dataStructures.JMHObjectCacheBenchmark.cacheTryMissingKey              thrpt        30       59.088        0.510   ops/us
-j.e.b.env.JMHEnvTokyoCabinetReadBenchmark.randomRead                            ss        60        2.625        0.019        s
-j.e.b.env.JMHEnvTokyoCabinetReadBenchmark.successiveRead                        ss        60        0.128        0.030        s
-j.e.b.env.JMHEnvTokyoCabinetWriteBenchmark.randomWrite                          ss        60        2.275        0.057        s
-j.e.b.env.JMHEnvTokyoCabinetWriteBenchmark.successiveWrite                      ss        60        0.797        0.064        s
-j.e.b.env.JMHEnvWithPrefixingTokyoCabinetReadBenchmark.randomRead               ss        60        1.319        0.031        s
-j.e.b.env.JMHEnvWithPrefixingTokyoCabinetReadBenchmark.successiveRead           ss        60        0.307        0.043        s
-j.e.b.env.JMHEnvWithPrefixingTokyoCabinetWriteBenchmark.randomWrite             ss        60        1.666        0.081        s
-j.e.b.env.JMHEnvWithPrefixingTokyoCabinetWriteBenchmark.successiveWrite         ss        60        0.801        0.071        s
-j.e.b.je.JMH_JETokyoCabinetReadBenchmark.randomRead                             ss        60        3.411        0.027        s
-j.e.b.je.JMH_JETokyoCabinetReadBenchmark.successiveRead                         ss        60        1.728        0.196        s
-j.e.b.je.JMH_JETokyoCabinetWriteBenchmark.randomWrite                           ss        60        6.544        0.156        s
-j.e.b.je.JMH_JETokyoCabinetWriteBenchmark.successiveWrite                       ss        60        3.942        0.213        s
-j.e.b.je.JMH_JEWithPrefixingTokyoCabinetReadBenchmark.randomRead                ss        60        3.735        0.048        s
-j.e.b.je.JMH_JEWithPrefixingTokyoCabinetReadBenchmark.successiveRead            ss        60        1.199        0.141        s
-j.e.b.je.JMH_JEWithPrefixingTokyoCabinetWriteBenchmark.randomWrite              ss        60        6.671        0.237        s
-j.e.b.je.JMH_JEWithPrefixingTokyoCabinetWriteBenchmark.successiveWrite          ss        60        4.006        0.230        s
-j.e.b.mapdb.JMHMapDbTokyoCabinetReadBenchmark.randomRead                        ss        16        6.897        0.226        s
-j.e.b.mapdb.JMHMapDbTokyoCabinetReadBenchmark.successiveRead                    ss        16        0.293        0.095        s
-j.e.b.mapdb.JMHMapDbTokyoCabinetWriteBenchmark.randomWrite                      ss        16       22.159        0.298        s
-j.e.b.mapdb.JMHMapDbTokyoCabinetWriteBenchmark.successiveWrite                  ss        16       27.019        0.605        s
+Benchmark                                                             Mode  Cnt   Score   Error   Units
+dataStructures.JMHConcurrentObjectCacheBenchmark.cacheTryKey         thrpt   30  51.136 - 0.102  ops/us
+dataStructures.JMHConcurrentObjectCacheBenchmark.cacheTryMissingKey  thrpt   30  52.889 - 0.794  ops/us
+dataStructures.JMHHashMapBenchmark.hashMapGet                        thrpt   30  65.503 - 0.441  ops/us
+dataStructures.JMHHashMapBenchmark.hashMapGetMissingKey              thrpt   30  65.518 - 0.933  ops/us
+dataStructures.JMHJavaUtilHashMapBenchmark.hashMapGet                thrpt   30  66.298 - 0.090  ops/us
+dataStructures.JMHJavaUtilHashMapBenchmark.hashMapGetMissingKey      thrpt   30  71.121 - 0.607  ops/us
+dataStructures.JMHObjectCacheBenchmark.cacheTryKey                   thrpt   30  16.654 - 0.136  ops/us
+dataStructures.JMHObjectCacheBenchmark.cacheTryMissingKey            thrpt   30  54.736 - 1.013  ops/us
+chronicle.JMHChronicleMapTokyoCabinetReadBenchmark.randomRead           ss   16   0.829 - 0.075    s/op
+chronicle.JMHChronicleMapTokyoCabinetReadBenchmark.successiveRead       ss   16   0.098 - 0.005    s/op
+chronicle.JMHChronicleMapTokyoCabinetWriteBenchmark.randomWrite         ss   16   1.238 - 0.133    s/op
+chronicle.JMHChronicleMapTokyoCabinetWriteBenchmark.successiveWrite     ss   16   1.184 - 0.099    s/op
+env.JMHEnvTokyoCabinetReadBenchmark.randomRead                          ss   60   2.692 - 0.045    s/op
+env.JMHEnvTokyoCabinetReadBenchmark.successiveRead                      ss   60   0.117 - 0.005    s/op
+env.JMHEnvTokyoCabinetWriteBenchmark.randomWrite                        ss   60   2.208 - 0.046    s/op
+env.JMHEnvTokyoCabinetWriteBenchmark.successiveWrite                    ss   60   0.699 - 0.018    s/op
+env.JMHEnvWithPrefixingTokyoCabinetReadBenchmark.randomRead             ss   60   1.289 - 0.020    s/op
+env.JMHEnvWithPrefixingTokyoCabinetReadBenchmark.successiveRead         ss   60   0.292 - 0.048    s/op
+env.JMHEnvWithPrefixingTokyoCabinetWriteBenchmark.randomWrite           ss   60   1.661 - 0.074    s/op
+env.JMHEnvWithPrefixingTokyoCabinetWriteBenchmark.successiveWrite       ss   60   0.777 - 0.064    s/op
+je.JMH_JETokyoCabinetReadBenchmark.randomRead                           ss   60   3.208 - 0.027    s/op
+je.JMH_JETokyoCabinetReadBenchmark.successiveRead                       ss   60   1.252 - 0.189    s/op
+je.JMH_JETokyoCabinetWriteBenchmark.randomWrite                         ss   60   5.844 - 0.145    s/op
+je.JMH_JETokyoCabinetWriteBenchmark.successiveWrite                     ss   60   3.441 - 0.187    s/op
+je.JMH_JEWithPrefixingTokyoCabinetReadBenchmark.randomRead              ss   60   3.504 - 0.070    s/op
+je.JMH_JEWithPrefixingTokyoCabinetReadBenchmark.successiveRead          ss   60   1.302 - 0.200    s/op
+je.JMH_JEWithPrefixingTokyoCabinetWriteBenchmark.randomWrite            ss   60   5.905 - 0.205    s/op
+je.JMH_JEWithPrefixingTokyoCabinetWriteBenchmark.successiveWrite        ss   60   3.411 - 0.209    s/op
+mapdb.JMHMapDbTokyoCabinetReadBenchmark.randomRead                      ss   16   6.705 - 0.196    s/op
+mapdb.JMHMapDbTokyoCabinetReadBenchmark.successiveRead                  ss   16   0.274 - 0.091    s/op
+mapdb.JMHMapDbTokyoCabinetWriteBenchmark.randomWrite                    ss   16  21.822 - 0.380    s/op
+mapdb.JMHMapDbTokyoCabinetWriteBenchmark.successiveWrite                ss   16  26.588 - 0.517    s/op
