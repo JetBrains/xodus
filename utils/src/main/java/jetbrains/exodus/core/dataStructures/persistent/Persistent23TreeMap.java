@@ -31,7 +31,7 @@ public class Persistent23TreeMap<K extends Comparable<K>, V> {
         set = new Persistent23Tree<>(root);
     }
 
-    public ImmutableMap<K, V> getCurrent() {
+    public ImmutableMap<K, V> beginRead() {
         return new ImmutableMap<>(set);
     }
 

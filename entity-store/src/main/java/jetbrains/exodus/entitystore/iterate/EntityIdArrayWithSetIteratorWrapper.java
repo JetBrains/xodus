@@ -21,7 +21,7 @@ import jetbrains.exodus.entitystore.EntityId;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 
-public class EntityIdArrayWithSetIteratorWrapper extends EntityFromLinkSetIteratorBase {
+class EntityIdArrayWithSetIteratorWrapper extends EntityFromLinkSetIteratorBase {
 
     @NonNls
     private final EntityIteratorBase wrappedIterator;
@@ -29,10 +29,10 @@ public class EntityIdArrayWithSetIteratorWrapper extends EntityFromLinkSetIterat
     private final IntHashMap<String> linkNames;
 
     @SuppressWarnings({"AssignmentToCollectionOrArrayFieldFromParameter"})
-    public EntityIdArrayWithSetIteratorWrapper(@NotNull EntityIterableBase iterable,
-                                               @NotNull final EntityIteratorBase wrappedIterator,
-                                               @NotNull IntArrayList propIds,
-                                               @NotNull IntHashMap<String> linkNames) {
+    EntityIdArrayWithSetIteratorWrapper(@NotNull EntityIterableBase iterable,
+                                        @NotNull final EntityIteratorBase wrappedIterator,
+                                        @NotNull IntArrayList propIds,
+                                        @NotNull IntHashMap<String> linkNames) {
         super(iterable);
         this.wrappedIterator = wrappedIterator;
         this.propIds = propIds;

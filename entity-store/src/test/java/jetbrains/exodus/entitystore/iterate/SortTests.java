@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
+import jetbrains.exodus.TestFor;
 import jetbrains.exodus.entitystore.*;
 import org.junit.Assert;
 
@@ -254,6 +255,27 @@ public class SortTests extends EntityStoreTestBase {
         txn.flush();
         final EntityIterable sorted = txn.findWithPropSortedByValue("Issue", "size");
         ((EntityIterableBase) sorted).getOrCreateCachedInstance(txn);
+    }
+
+    @TestFor(issues = "XD-520")
+    public void testInvalidationOfSortResults() {
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        final PersistentEntity issue = txn.newEntity("Issue");
+        issue.setProperty("description", "description");
+        issue.setProperty("created", System.currentTimeMillis());
+        txn.flush();
+        final EntityIterableBase sortedByCreated =
+                (EntityIterableBase) txn.sort("Issue", "created", txn.find("Issue", "description", "description"), true);
+        for (; ; ) {
+            Assert.assertTrue(sortedByCreated.iterator().hasNext());
+            Thread.yield();
+            if (sortedByCreated.isCached()) {
+                break;
+            }
+        }
+        issue.setProperty("description", "new description");
+        txn.flush();
+        Assert.assertFalse(sortedByCreated.iterator().hasNext());
     }
 
     public void testSortByTwoColumnsAscendingStable() {

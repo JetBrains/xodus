@@ -36,84 +36,91 @@ abstract class AbstractPersistentHashSet<K> implements Iterable<K> {
     @NotNull
     abstract RootTableNode<K> getRoot();
 
-    public boolean contains(K key) {
+    public final boolean contains(K key) {
         return getKey(key) != null;
     }
 
     @Nullable
-    public K getKey(K key) {
+    public final K getKey(K key) {
         return getRoot().getKey(key, key.hashCode(), 0);
     }
 
-    public boolean isEmpty() {
+    public final boolean isEmpty() {
         return getRoot().getMask() == 0;
     }
 
-    public int size() {
+    public final int size() {
         return getRoot().getSize();
     }
 
     @Override
-    public Iterator<K> iterator() {
+    public final Iterator<K> iterator() {
+        final RootTableNode<K> root = getRoot();
         //noinspection unchecked
-        return isEmpty() ? Collections.EMPTY_LIST.iterator() : new Iterator<K>() {
+        return root.getMask() == 0 ? Collections.EMPTY_LIST.iterator() : new Itr<>(root);
+    }
 
-            private Stack<TreePos<K>> stack;
-            private boolean hasNext;
-            private boolean hasNextValid;
+    static class Itr<K> implements Iterator<K> {
 
-            @Override
-            public boolean hasNext() {
-                if (hasNextValid) {
+        private final Node<K> startingRoot;
+        private Stack<TreePos<K>> stack;
+        private boolean hasNext;
+        private boolean hasNextValid;
+
+        public Itr(Node<K> startingRoot) {
+            this.startingRoot = startingRoot;
+        }
+
+        @Override
+        public boolean hasNext() {
+            if (hasNextValid) {
+                return hasNext;
+            }
+            hasNextValid = true;
+            if (stack == null) {
+                stack = new Stack<>();
+                TreePos<K> treePos = new TreePos<>(startingRoot);
+                treePos.index = -1;
+                stack.push(treePos);
+            }
+            TreePos<K> treePos = stack.peek();
+            treePos.index++;
+            while (treePos.node.isOut(treePos.index)) {
+                stack.pop();
+                if (stack.isEmpty()) {
+                    hasNext = false;
                     return hasNext;
                 }
-                hasNextValid = true;
-                if (stack == null) {
-                    Node<K> root = getRoot();
-                    stack = new Stack<>();
-                    TreePos<K> treePos = new TreePos<>(root);
-                    treePos.index = -1;
-                    stack.push(treePos);
-                }
-                TreePos<K> treePos = stack.peek();
+                treePos = stack.peek();
                 treePos.index++;
-                while (treePos.node.isOut(treePos.index)) {
-                    stack.pop();
-                    if (stack.isEmpty()) {
-                        hasNext = false;
-                        return hasNext;
-                    }
-                    treePos = stack.peek();
-                    treePos.index++;
-                }
-                while (true) {
-                    Object o = treePos.node.get(treePos.index);
-                    if (!(o instanceof Node)) {
-                        hasNext = true;
-                        return hasNext;
-                    }
-                    //noinspection unchecked
-                    treePos = new TreePos((Node<K>) o);
-                    stack.push(treePos);
-                }
             }
-
-            @Override
-            public K next() {
-                if (!hasNext()) {
-                    throw new NoSuchElementException();
+            while (true) {
+                Object o = treePos.node.get(treePos.index);
+                if (!(o instanceof Node)) {
+                    hasNext = true;
+                    return hasNext;
                 }
-                hasNextValid = false;
-                TreePos<K> treePos = stack.peek();
                 //noinspection unchecked
-                return (K) treePos.node.get(treePos.index);
+                treePos = new TreePos((Node<K>) o);
+                stack.push(treePos);
             }
+        }
 
-            @Override
-            public void remove() {
-                throw new UnsupportedOperationException();
+        @Override
+        public K next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException();
             }
-        };
+            hasNextValid = false;
+            TreePos<K> treePos = stack.peek();
+            //noinspection unchecked
+            return (K) treePos.node.get(treePos.index);
+        }
+
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException();
+        }
     }
 
     interface Node<K> {

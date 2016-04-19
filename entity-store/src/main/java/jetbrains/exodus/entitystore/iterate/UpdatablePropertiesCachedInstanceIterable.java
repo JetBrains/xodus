@@ -182,7 +182,7 @@ public class UpdatablePropertiesCachedInstanceIterable extends UpdatableCachedIn
     }
 
     private AbstractPersistent23Tree<IndexEntry> getCurrentTree() {
-        return mutableIndex == null ? index.getCurrent() : mutableIndex;
+        return mutableIndex == null ? index.beginRead() : mutableIndex;
     }
 
     /**

@@ -34,11 +34,11 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
         return root != null && root.get(key) != null;
     }
 
-    public boolean isEmpty() {
+    public final boolean isEmpty() {
         return getRoot() == null;
     }
 
-    public int size() {
+    public final int size() {
         final RootNode<K> root = getRoot();
         return root == null ? 0 : root.getSize();
     }
@@ -67,11 +67,11 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
 
     @SuppressWarnings("unchecked")
     @Override
-    public Iterator<K> iterator() {
-        if (isEmpty()) {
+    public final Iterator<K> iterator() {
+        final RootNode<K> root = getRoot();
+        if (root == null) {
             return Collections.EMPTY_LIST.iterator();
         }
-        final RootNode<K> root = getRoot();
         final TreePos<K>[] stack = new TreePos[MathUtil.integerLogarithm(root.getSize()) + 1];
         for (int i = 0; i < stack.length; ++i) {
             stack[i] = new TreePos<>(root);

@@ -21,10 +21,7 @@ import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.core.execution.JobProcessorAdapter;
-import jetbrains.exodus.env.EnvironmentConfig;
-import jetbrains.exodus.env.EnvironmentImpl;
-import jetbrains.exodus.env.StoreImpl;
-import jetbrains.exodus.env.TransactionImpl;
+import jetbrains.exodus.env.*;
 import jetbrains.exodus.io.RemoveBlockType;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.IExpirationChecker;
@@ -181,13 +178,13 @@ public final class GarbageCollector {
             return false;
         }
         loggingInfo("start cleanFile(" + env.getLocation() + File.separatorChar + LogUtil.getLogFilename(fileAddress) + ')');
-        final TransactionImpl txn = env.beginGCTransaction();
+        final TransactionImpl txn;
         try {
-            // if an exclusive transaction was requested and it failed to be acquired (i.e. it is NOT exclusive)
-            // then we should not continue reclaiming data since most likely we won't succeed in flushing transaction
-            if (ec.getGcUseExclusiveTransaction() && !txn.isExclusive()) {
-                return false;
-            }
+            txn = env.beginGCTransaction();
+        } catch (TransactionAcquireTimeoutException ignore) {
+            return false;
+        }
+        try {
             final Log log = getLog();
             if (logger.isDebugEnabled()) {
                 final long high = log.getHighAddress();

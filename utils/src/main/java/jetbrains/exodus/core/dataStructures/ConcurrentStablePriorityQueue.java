@@ -38,13 +38,13 @@ public class ConcurrentStablePriorityQueue<P extends Comparable<? super P>, E> e
     @Override
     public boolean isEmpty() {
         final Pair<Persistent23Tree<TreeNode<P, E>>, PersistentHashSet<IdentifiedTreeNode<P, E>>> currentPair = getCurrent();
-        return currentPair == null || currentPair.getFirst().getCurrent().isEmpty();
+        return currentPair == null || currentPair.getFirst().isEmpty();
     }
 
     @Override
     public int size() {
         final Pair<Persistent23Tree<TreeNode<P, E>>, PersistentHashSet<IdentifiedTreeNode<P, E>>> currentPair = getCurrent();
-        return currentPair == null ? 0 : currentPair.getFirst().getCurrent().size();
+        return currentPair == null ? 0 : currentPair.getFirst().size();
     }
 
     @Override
@@ -102,7 +102,7 @@ public class ConcurrentStablePriorityQueue<P extends Comparable<? super P>, E> e
         if (currentPair == null) {
             return null;
         }
-        final TreeNode<P, E> max = currentPair.getFirst().getCurrent().getMaximum();
+        final TreeNode<P, E> max = currentPair.getFirst().getMaximum();
         return max == null ? null : new Pair<>(max.priority, max.value);
     }
 
@@ -113,7 +113,7 @@ public class ConcurrentStablePriorityQueue<P extends Comparable<? super P>, E> e
         if (currentPair == null) {
             return null;
         }
-        final TreeNode<P, E> min = currentPair.getFirst().getCurrent().getMinimum();
+        final TreeNode<P, E> min = currentPair.getFirst().getMinimum();
         return min == null ? null : new Pair<>(min.priority, min.value);
     }
 
@@ -146,7 +146,7 @@ public class ConcurrentStablePriorityQueue<P extends Comparable<? super P>, E> e
             mutableQueue.endWrite();
             mutableValues.endWrite();
             // if the queue becomes empty the newPair reference can be null
-            newPair = queue.getCurrent().isEmpty() ? null :
+            newPair = queue.isEmpty() ? null :
                     new Pair<>(queue, values);
             // commit pair if no other pair was already committed
         } while (!rootPair.compareAndSet(currentPair, newPair));
@@ -166,7 +166,7 @@ public class ConcurrentStablePriorityQueue<P extends Comparable<? super P>, E> e
             final List<E> objects = Collections.emptyList();
             return objects.iterator();
         }
-        final Iterator<TreeNode<P, E>> iterator = currentPair.getFirst().getCurrent().iterator();
+        final Iterator<TreeNode<P, E>> iterator = currentPair.getFirst().iterator();
         return new Iterator<E>() {
             @Override
             public boolean hasNext() {

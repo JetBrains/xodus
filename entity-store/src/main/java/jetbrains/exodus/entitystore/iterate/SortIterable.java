@@ -164,7 +164,6 @@ public final class SortIterable extends EntityIterableDecoratorBase {
                                                     @Nullable final Comparable oldValue,
                                                     @Nullable final Comparable newValue) {
                 return sourceTypeId == typeId &&
-                        (SortIterable.this.propertyId < 0 || SortIterable.this.propertyId == propertyId) &&
                         (decorated.isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue) ||
                                 propIndex.getHandle().isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue));
             }

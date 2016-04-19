@@ -16,14 +16,9 @@
 package jetbrains.exodus.env;
 
 import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.TestFor;
-import jetbrains.exodus.core.execution.Job;
-import jetbrains.exodus.core.execution.JobProcessor;
-import jetbrains.exodus.core.execution.ThreadJobProcessor;
 import jetbrains.exodus.core.execution.locks.Latch;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class ReentrantTransactionDispatcherTest {
@@ -64,7 +59,8 @@ public class ReentrantTransactionDispatcherTest {
         dispatcher.acquireTransaction(Thread.currentThread());
         Assert.assertEquals(9, dispatcher.getAvailablePermits());
         dispatcher.acquireExclusiveTransaction(Thread.currentThread());
-        Assert.assertEquals(0, dispatcher.getAvailablePermits());
+        // nested transaction always gets 1 permit
+        Assert.assertEquals(8, dispatcher.getAvailablePermits());
     }
 
     @Test
@@ -78,34 +74,6 @@ public class ReentrantTransactionDispatcherTest {
         Assert.assertEquals(9, dispatcher.getAvailablePermits());
     }
 
-    @Test
-    public void tryAcquireExclusiveTransaction() throws InterruptedException {
-        exclusiveTransaction2();
-        final Latch latch = Latch.create();
-        latch.acquire();
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                latch.release();
-                dispatcher.acquireTransaction(Thread.currentThread());
-                latch.release();
-            }
-        }).start();
-        latch.acquire();
-        Thread.sleep(100);
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Assert.assertEquals(0, dispatcher.tryAcquireExclusiveTransaction(Thread.currentThread(), 100));
-                latch.release();
-            }
-        }).start();
-        latch.acquire();
-        dispatcher.releaseTransaction(Thread.currentThread(), 10);
-        latch.acquire();
-        Assert.assertEquals(0, dispatcher.acquirerCount());
-        Assert.assertEquals(0, dispatcher.exclusiveAcquirerCount());
-    }
 
     @Test
     public void fairness() throws InterruptedException {
@@ -124,13 +92,12 @@ public class ReentrantTransactionDispatcherTest {
                 final int permits = dispatcher.acquireExclusiveTransaction(thread);
                 Assert.assertEquals(maxTransactions, permits);
                 Assert.assertEquals(0, dispatcher.getAvailablePermits());
-                Assert.assertEquals(maxTransactions, count[0]);
+                Assert.assertEquals(0, count[0]);
                 dispatcher.releaseTransaction(thread, maxTransactions);
             }
         });
         anotherExclusiveThread.start();
         latch.acquire();
-        Thread.sleep(100);
         for (int i = 0; i < maxTransactions; ++i) {
             final int ii = i;
             new Thread(new Runnable() {
@@ -144,53 +111,11 @@ public class ReentrantTransactionDispatcherTest {
                 }
             }).start();
             latch.acquire();
-            Thread.sleep(100);
         }
         dispatcher.releaseTransaction(Thread.currentThread(), 1);
-        Thread.sleep(100);
         dispatcher.releaseTransaction(Thread.currentThread(), 1);
         anotherExclusiveThread.join();
+        Thread.sleep(1000);
         Assert.assertEquals(maxTransactions, dispatcher.getAvailablePermits());
-    }
-
-    @Test
-    @TestFor(issues = "XD-489")
-    @Ignore("Test blinks under Windows")
-    public void xd_489() throws InterruptedException {
-        final int count = 50;
-        final JobProcessor[] processors = new JobProcessor[count];
-        for (int i = 0; i < processors.length; i++) {
-            processors[i] = new ThreadJobProcessor("xd-489: " + i);
-        }
-        final long timeout = 2000;
-        final int permits = dispatcher.acquireExclusiveTransaction(Thread.currentThread());
-        try {
-            for (int i = 0; i < count - 1; ++i) {
-                processors[i].start();
-                processors[i].queue(new Job() {
-                    @Override
-                    protected void execute() throws Throwable {
-                        dispatcher.tryAcquireExclusiveTransaction(Thread.currentThread(), timeout);
-                    }
-                });
-            }
-            Thread.sleep(timeout / 2);
-            processors[count - 1].start();
-            processors[count - 1].queue(new Job() {
-                @Override
-                protected void execute() throws Throwable {
-                    dispatcher.acquireTransaction(Thread.currentThread());
-
-                }
-            });
-            Thread.sleep(timeout / 2);
-        } finally {
-            dispatcher.releaseTransaction(Thread.currentThread(), permits);
-        }
-        for (int i = 0; i < count - 1; ++i) {
-            processors[i].finish();
-        }
-        Thread.sleep(timeout);
-        Assert.assertEquals(0, dispatcher.acquirerCount());
     }
 }

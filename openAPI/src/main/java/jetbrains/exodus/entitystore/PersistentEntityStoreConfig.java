@@ -20,12 +20,14 @@ import jetbrains.exodus.ConfigurationStrategy;
 import jetbrains.exodus.core.dataStructures.Pair;
 import org.jetbrains.annotations.NotNull;
 
-@SuppressWarnings("UnusedDeclaration")
+@SuppressWarnings({"UnusedDeclaration", "WeakerAccess"})
 public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public static final PersistentEntityStoreConfig DEFAULT = new PersistentEntityStoreConfig(ConfigurationStrategy.IGNORE);
 
     public static final String REFACTORING_SKIP_ALL = "exodus.entityStore.refactoring.skipAll";
+
+    public static final String REFACTORING_FORCE_ALL = "exodus.entityStore.refactoring.forceAll";
 
     public static final String REFACTORING_NULL_INDICES = "exodus.entityStore.refactoring.nullIndices";
 
@@ -85,6 +87,7 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
         //noinspection unchecked
         super(new Pair[]{
                 new Pair(REFACTORING_SKIP_ALL, false),
+                new Pair(REFACTORING_FORCE_ALL, false),
                 new Pair(REFACTORING_NULL_INDICES, false),
                 new Pair(REFACTORING_BLOB_NULL_INDICES, false),
                 new Pair(REFACTORING_HEAVY_LINKS, false),
@@ -125,8 +128,16 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
         return setSetting(REFACTORING_SKIP_ALL, skipAll);
     }
 
+    public boolean getRefactoringForceAll() {
+        return (Boolean) getSetting(REFACTORING_FORCE_ALL);
+    }
+
+    public PersistentEntityStoreConfig setRefactoringForceAll(final boolean forceAll) {
+        return setSetting(REFACTORING_FORCE_ALL, forceAll);
+    }
+
     public boolean getRefactoringNullIndices() {
-        return (Boolean) getSetting(REFACTORING_NULL_INDICES);
+        return getRefactoringForceAll() || (Boolean) getSetting(REFACTORING_NULL_INDICES);
     }
 
     public PersistentEntityStoreConfig setRefactoringNullIndices(final boolean nullIndices) {
@@ -134,7 +145,7 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
     }
 
     public boolean getRefactoringBlobNullIndices() {
-        return (Boolean) getSetting(REFACTORING_BLOB_NULL_INDICES);
+        return getRefactoringForceAll() || (Boolean) getSetting(REFACTORING_BLOB_NULL_INDICES);
     }
 
     public PersistentEntityStoreConfig setRefactoringBlobNullIndices(final boolean nullIndices) {
@@ -142,7 +153,7 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
     }
 
     public boolean getRefactoringHeavyLinks() {
-        return (Boolean) getSetting(REFACTORING_HEAVY_LINKS);
+        return getRefactoringForceAll() || (Boolean) getSetting(REFACTORING_HEAVY_LINKS);
     }
 
     public PersistentEntityStoreConfig setRefactoringHeavyLinks(final boolean heavyLinks) {
@@ -150,7 +161,7 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
     }
 
     public boolean getRefactoringHeavyProps() {
-        return (Boolean) getSetting(REFACTORING_HEAVY_PROPS);
+        return getRefactoringForceAll() || (Boolean) getSetting(REFACTORING_HEAVY_PROPS);
     }
 
     public PersistentEntityStoreConfig setRefactoringHeavyProps(final boolean heavyProps) {
@@ -158,7 +169,7 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
     }
 
     public boolean getRefactoringDeleteRedundantBlobs() {
-        return (Boolean) getSetting(REFACTORING_DELETE_REDUNDANT_BLOBS);
+        return getRefactoringForceAll() || (Boolean) getSetting(REFACTORING_DELETE_REDUNDANT_BLOBS);
     }
 
     public PersistentEntityStoreConfig setRefactoringDeleteRedundantBlobs(final boolean fixRedundantBlobs) {

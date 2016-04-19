@@ -44,5 +44,6 @@ To assemble jars and skip running tests:
 - [Xodus wiki](https://github.com/JetBrains/xodus/wiki)
 - [Check out the latest (nightly) builds](https://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build)
 - [Report an issue](http://xodus.myjetbrains.com/youtrack)
+- [Observe development in Upsource](https://upsource.jetbrains.com/Xodus/view)
 - [EntityStore browser](https://github.com/lehvolk/xodus-entity-browser)
 - <a href="mailto:xodus-feedback@jetbrains.com">Ask questions by e-mail</a>
