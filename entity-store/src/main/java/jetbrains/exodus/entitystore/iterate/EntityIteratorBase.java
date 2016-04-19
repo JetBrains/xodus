@@ -154,7 +154,7 @@ public abstract class EntityIteratorBase implements EntityIterator {
 
     @Override
     public int getCurrentVersion() {
-        return PersistentEntityId.ACTUAL_VERSION;
+        return -1;
     }
 
     @Override
