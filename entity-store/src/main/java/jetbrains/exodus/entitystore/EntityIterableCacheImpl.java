@@ -221,28 +221,29 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
                 return;
             }
             Thread.yield();
-            final PersistentStoreTransaction txn = store.beginReadonlyTransaction();
-            try {
-                cancellingPolicy.setLocalCache(txn.getLocalCache());
-                txn.setQueryCancellingPolicy(cancellingPolicy);
-                try {
-                    if (!logger.isInfoEnabled()) {
-                        it.getOrCreateCachedInstance(txn);
-                    } else {
-                        it.getOrCreateCachedInstance(txn);
-                        final long cachedIn = System.currentTimeMillis() - started;
-                        if (cachedIn > 1000) {
-                            logger.info("Cached in " + cachedIn + " ms, handle=" + getStringPresentation(handle));
+            store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
+                @Override
+                public void execute(@NotNull final StoreTransaction tx) {
+                    final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
+                    cancellingPolicy.setLocalCache(txn.getLocalCache());
+                    txn.setQueryCancellingPolicy(cancellingPolicy);
+                    try {
+                        if (!logger.isInfoEnabled()) {
+                            it.getOrCreateCachedInstance(txn);
+                        } else {
+                            it.getOrCreateCachedInstance(txn);
+                            final long cachedIn = System.currentTimeMillis() - started;
+                            if (cachedIn > 1000) {
+                                logger.info("Cached in " + cachedIn + " ms, handle=" + getStringPresentation(handle));
+                            }
+                        }
+                    } catch (TooLongEntityIterableInstantiationException e) {
+                        if (logger.isInfoEnabled()) {
+                            logger.info("Caching forcedly stopped: " + getStringPresentation(handle));
                         }
                     }
-                } catch (TooLongEntityIterableInstantiationException e) {
-                    if (logger.isInfoEnabled()) {
-                        logger.info("Caching forcedly stopped: " + getStringPresentation(handle));
-                    }
                 }
-            } finally {
-                txn.abort();
-            }
+            });
         }
     }
 
