@@ -133,19 +133,16 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
     }
 
     public long getCachedCount(@NotNull final EntityIterableBase it) {
-        final EntityIterableHandle handle = it.getHandle();
-        @Nullable
-        final Long result = getCachedCount(handle);
-        if (result != null) {
-            return result;
-        }
         if (isDispatcherThread()) {
             return it.getOrCreateCachedInstance(it.getTransaction()).size();
         }
+        final EntityIterableHandle handle = it.getHandle();
+        @Nullable
+        final Long result = getCachedCount(handle);
         if (!it.hasCustomTxn() && !isCachingQueueFull()) {
             new EntityIterableAsyncInstantiation(handle, it, true).queue(Priority.normal);
         }
-        return -1;
+        return result == null ? -1 : result;
     }
 
     public void setCachedCount(@NotNull final EntityIterableHandle handle, final long count) {
