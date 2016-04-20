@@ -464,6 +464,23 @@ public class EntityIterableTests extends EntityStoreTestBase {
         Assert.assertFalse(cachedInstance.isEmpty());
     }
 
+    @TestFor(issues = "XD-522")
+    public void testRoughSize() throws InterruptedException {
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        final int count = 10;
+        createNUsers(txn, count);
+        txn.flush();
+        final EntityIterable allUsers = txn.findStartingWith("User", "login", "u");
+        Assert.assertEquals(10L, allUsers.getRoughSize());
+        Thread.sleep(1000);
+        for (int i = 0; i < 3; ++i) {
+            createNUsers(txn, 1);
+            txn.flush();
+            Assert.assertEquals(10L + i, allUsers.getRoughSize());
+            Thread.sleep(1000);
+        }
+    }
+
     /**
      * Should fail with OOME being run in JVM with Xmx256m without fix of XD-458
      */
