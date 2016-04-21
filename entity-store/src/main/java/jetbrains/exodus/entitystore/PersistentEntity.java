@@ -26,9 +26,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 @SuppressWarnings({"unchecked"})
@@ -66,7 +64,6 @@ public class PersistentEntity implements Entity {
             builder.append(getType());
             builder.append(": id = ");
             id.toString(builder);
-            builder.append(isUpToDate() ? "[up-to-date]" : "[history item]");
             return builder.toString();
         } finally {
             StringBuilderSpinAllocator.dispose(builder);
@@ -101,55 +98,6 @@ public class PersistentEntity implements Entity {
                 return PersistentEntity.this.getTransaction();
             }
         }, id.getTypeId());
-    }
-
-    @Override
-    public int getVersion() {
-        final PersistentEntityId id = this.id;
-        int version = id.getVersion();
-        if (version < 0) {
-            version = store.getLastVersion(getTransaction(), id);
-        }
-        return version;
-    }
-
-    @Override
-    public boolean isUpToDate() {
-        final PersistentEntityId id = this.id;
-        int version = id.getVersion();
-        return version < 0 || version == store.getLastVersion(getTransaction(), id);
-    }
-
-    public void newVersion(@NotNull final PersistentStoreTransaction snapshot) {
-        store.newVersion(getTransaction(), snapshot, this);
-    }
-
-    @Override
-    @NotNull
-    @Deprecated
-    public List<Entity> getHistory() {
-        Entity entity = getPreviousVersion();
-        if (entity != null) {
-            final List<Entity> result = new ArrayList<>();
-            do {
-                result.add(entity);
-                entity = entity.getPreviousVersion();
-            } while (entity != null);
-            return result;
-        }
-        return Collections.emptyList();
-    }
-
-    @Override
-    @Nullable
-    public Entity getNextVersion() {
-        return store.getNextVersion(getTransaction(), this);
-    }
-
-    @Override
-    @Nullable
-    public Entity getPreviousVersion() {
-        return store.getPreviousVersion(getTransaction(), this);
     }
 
     @Override

@@ -25,12 +25,10 @@ public class PersistentEntityId implements EntityId {
     @NotNull
     public static final PersistentEntityId EMPTY_ID = new PersistentEntityId(0, 0);
 
-    public static final int ACTUAL_VERSION = -1;
     private static final Pattern ID_SPLIT_PATTERN = Pattern.compile("-");
 
     private final int entityTypeId;
     private final long entityLocalId;
-    private final int version;
 
     /**
      * Generic entity id constructor.
@@ -42,7 +40,6 @@ public class PersistentEntityId implements EntityId {
     public PersistentEntityId(final int entityTypeId, final long entityLocalId, final int version) {
         this.entityTypeId = entityTypeId;
         this.entityLocalId = entityLocalId;
-        this.version = version;
     }
 
     /**
@@ -52,17 +49,8 @@ public class PersistentEntityId implements EntityId {
      * @param entityLocalId local entity id within entity type.
      */
     public PersistentEntityId(final int entityTypeId, final long entityLocalId) {
-        this(entityTypeId, entityLocalId, ACTUAL_VERSION);
-    }
-
-    /**
-     * Constructs id for another version of specified id.
-     *
-     * @param id      source entity id.
-     * @param version entity version.
-     */
-    public PersistentEntityId(@NotNull final EntityId id, final int version) {
-        this(id.getTypeId(), id.getLocalId(), version);
+        this.entityTypeId = entityTypeId;
+        this.entityLocalId = entityLocalId;
     }
 
     /**
@@ -83,11 +71,11 @@ public class PersistentEntityId implements EntityId {
         }
         final PersistentEntityId that = (PersistentEntityId) obj;
         return entityLocalId == that.entityLocalId &&
-                entityTypeId == that.entityTypeId && version == that.version;
+                entityTypeId == that.entityTypeId;
     }
 
     public int hashCode() {
-        return (int) (entityTypeId + version + 1 << 20 ^ entityLocalId);
+        return (int) (entityTypeId << 20 ^ entityLocalId);
     }
 
     @Override
@@ -111,33 +99,23 @@ public class PersistentEntityId implements EntityId {
         builder.append(entityTypeId);
         builder.append('-');
         builder.append(entityLocalId);
-        if (version != ACTUAL_VERSION) {
-            builder.append('-');
-            builder.append(version);
-        }
     }
 
     public void toHash(@NotNull final EntityIterableHandleBase.EntityIterableHandleHash hash) {
         hash.apply(entityTypeId);
         hash.applyDelimiter();
         hash.apply(entityLocalId);
-        if (version != ACTUAL_VERSION) {
-            hash.applyDelimiter();
-            hash.apply(version);
-        }
     }
 
     public static EntityId toEntityId(@NotNull final CharSequence representation) {
         final String[] idParts = ID_SPLIT_PATTERN.split(representation);
         final int partsCount = idParts.length;
-        if (partsCount < 2 || partsCount > 3) {
+        if (partsCount != 2) {
             throw new IllegalArgumentException("Invalid structure of entity id");
         }
         final int entityTypeId = Integer.parseInt(idParts[0]);
         final long entityLocalId = Long.parseLong(idParts[1]);
-        return partsCount == 2 ?
-                new PersistentEntityId(entityTypeId, entityLocalId) :
-                new PersistentEntityId(entityTypeId, entityLocalId, Integer.parseInt(idParts[2]));
+        return new PersistentEntityId(entityTypeId, entityLocalId);
     }
 
     public static EntityId toEntityId(@NotNull final String representation, @NotNull final PersistentEntityStoreImpl store) {
@@ -170,17 +148,11 @@ public class PersistentEntityId implements EntityId {
         if (entityLocalId > rightLocalId) {
             return 2;
         }
-        final int rightVersion = bid.version;
-        if (version < rightVersion) {
-            return -1;
-        }
-        if (version > rightVersion) {
-            return 1;
-        }
         return 0;
     }
 
+    @Deprecated
     public int getVersion() {
-        return version;
+        return -1;
     }
 }

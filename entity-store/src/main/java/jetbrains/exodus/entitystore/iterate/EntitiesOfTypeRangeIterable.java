@@ -16,7 +16,6 @@
 package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.env.Cursor;
@@ -147,11 +146,6 @@ public class EntitiesOfTypeRangeIterable extends EntityIterableBase {
         @Override
         public boolean hasNextImpl() {
             return hasNext;
-        }
-
-        @Override
-        public int getCurrentVersion() {
-            return IntegerBinding.compressedEntryToInt(getCursor().getValue());
         }
 
         @Override

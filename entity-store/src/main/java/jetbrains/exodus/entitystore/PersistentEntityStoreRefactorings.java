@@ -547,6 +547,26 @@ final class PersistentEntityStoreRefactorings {
         });
     }
 
+    void refactorRemoveHistoryStores() {
+        final Environment environment = store.getEnvironment();
+        environment.executeInReadonlyTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                final String persistentStoreName = store.getName();
+                for (final String storeName : environment.getAllStoreNames(txn)) {
+                    if (storeName.startsWith(persistentStoreName) && storeName.endsWith("#history")) {
+                        environment.executeInTransaction(new TransactionalExecutable() {
+                            @Override
+                            public void execute(@NotNull final Transaction txn) {
+                                environment.removeStore(storeName, txn);
+                            }
+                        });
+                    }
+                }
+            }
+        });
+    }
+
     private void safeExecuteRefactoringForEntityType(@NotNull final String entityType,
                                                      @NotNull final StoreTransactionalExecutable executable) {
         try {

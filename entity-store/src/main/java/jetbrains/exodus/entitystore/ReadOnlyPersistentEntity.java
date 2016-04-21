@@ -36,6 +36,6 @@ public class ReadOnlyPersistentEntity extends PersistentEntity {
     @Override
     protected void assertWritable() {
         super.assertWritable();
-        throw new IllegalArgumentException("Can't write to entity from historical transaction snapshot!");
+        throw new IllegalArgumentException("Can't update entity in snapshot transaction!");
     }
 }

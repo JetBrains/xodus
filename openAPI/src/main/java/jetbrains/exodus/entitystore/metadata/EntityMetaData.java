@@ -99,8 +99,6 @@ public interface EntityMetaData {
     @Deprecated
     boolean isVersionMismatchIgnored(String propertyName);
 
-    boolean isHistoryIgnored(String propertyName);
-
     @Nullable
     Runnable getInitializer();
 

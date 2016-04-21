@@ -38,27 +38,6 @@ public interface Entity extends Comparable<Entity> {
     @NotNull
     String getType();
 
-    int getVersion();
-
-    boolean isUpToDate();
-
-    /**
-     * Returns old versions of the entity starting from the newest one.
-     *
-     * @return history items.
-     */
-    @Deprecated
-    @NotNull
-    List<Entity> getHistory();
-
-    @Deprecated
-    @Nullable
-    Entity getNextVersion();
-
-    @Deprecated
-    @Nullable
-    Entity getPreviousVersion();
-
     /**
      * Deletes the entity unconditionally.
      *
