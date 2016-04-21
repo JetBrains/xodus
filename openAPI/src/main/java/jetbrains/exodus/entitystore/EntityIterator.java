@@ -44,7 +44,4 @@ public interface EntityIterator extends Iterator<Entity> {
     boolean dispose();
 
     boolean shouldBeDisposed();
-
-    @Deprecated
-    int getCurrentVersion();
 }

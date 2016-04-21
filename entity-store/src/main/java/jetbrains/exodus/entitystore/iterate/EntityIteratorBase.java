@@ -153,11 +153,6 @@ public abstract class EntityIteratorBase implements EntityIterator {
     }
 
     @Override
-    public int getCurrentVersion() {
-        return -1;
-    }
-
-    @Override
     public boolean dispose() {
         if (!disposed) {
             disposed = true;
