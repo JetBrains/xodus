@@ -150,9 +150,4 @@ public class PersistentEntityId implements EntityId {
         }
         return 0;
     }
-
-    @Deprecated
-    public int getVersion() {
-        return -1;
-    }
 }

@@ -23,8 +23,6 @@ import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.management.Statistics;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.List;
-
 @SuppressWarnings({"JavaDoc"})
 public interface PersistentEntityStore extends EntityStore, Backupable {
 
@@ -62,21 +60,12 @@ public interface PersistentEntityStore extends EntityStore, Backupable {
     @NotNull
     EntityIterableCache getEntityIterableCache();
 
-    @Deprecated
-    int getLastVersion(@NotNull EntityId id);
-
     Entity getEntity(@NotNull EntityId id);
 
-    @Deprecated
-    int getEntityTypeId(@NotNull String entityType, boolean allowCreate);
+    int getEntityTypeId(@NotNull final String entityType);
 
     @NotNull
-    @Deprecated
     String getEntityType(int entityTypeId);
-
-    @Deprecated // use txn instead
-    @NotNull
-    List<String> getEntityTypes();
 
     void renameEntityType(@NotNull String oldEntityTypeName, @NotNull String newEntityTypeName);
 

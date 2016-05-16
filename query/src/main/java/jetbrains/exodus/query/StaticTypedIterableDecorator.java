@@ -22,12 +22,6 @@ import org.jetbrains.annotations.NotNull;
 public class StaticTypedIterableDecorator extends StaticTypedEntityIterable {
     private final Iterable<Entity> decorated;
 
-    @Deprecated
-    public StaticTypedIterableDecorator(String entityType, Iterable<Entity> decorated) {
-        super(null);
-        throw new UnsupportedOperationException("This is an invalid constructor, rebuild your models");
-    }
-
     public StaticTypedIterableDecorator(String entityType, Iterable<Entity> decorated, @NotNull final QueryEngine queryEngine) {
         super(queryEngine);
         this.entityType = entityType;

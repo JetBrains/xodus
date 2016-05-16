@@ -111,6 +111,11 @@ public interface StoreTransaction {
     void revert();
 
     /**
+     * Gets read-only transaction that holds snapshot of this transaction.
+     */
+    StoreTransaction getSnapshot();
+
+    /**
      * Creates new entity of specified type. Created entity gets its unique id and version equal to 0.
      * No properties are set and links are added to the entity.
      *

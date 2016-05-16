@@ -1216,7 +1216,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return result;
     }
 
-    @Override
     @Deprecated
     public int getLastVersion(@NotNull final EntityId id) {
         return getLastVersion(getAndCheckCurrentTransaction(), id);
@@ -1299,6 +1298,11 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
     }
 
+    @Override
+    public int getEntityTypeId(@NotNull final String entityType) {
+        return getEntityTypeId(entityType, false);
+    }
+
     /**
      * Gets or creates id of the entity type.
      *
@@ -1307,7 +1311,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
      *                    create the new id for the entityType.
      * @return entity type id.
      */
-    @Override
     @Deprecated
     public int getEntityTypeId(@NotNull final String entityType, final boolean allowCreate) {
         return getEntityTypeId(new TxnProvider() {
@@ -1335,7 +1338,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
      */
     @Override
     @NotNull
-    @Deprecated
     public String getEntityType(final int entityTypeId) {
         return getEntityType(new TxnProvider() {
             @NotNull
@@ -1362,16 +1364,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             throw new EntityStoreException("Invalid type id: " + entityTypeId);
         }
         return result;
-    }
-
-    /**
-     * @return all entity types available.
-     */
-    @Deprecated
-    @Override
-    @NotNull
-    public List<String> getEntityTypes() {
-        return getEntityTypes(getAndCheckCurrentTransaction());
     }
 
     /**

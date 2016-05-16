@@ -83,22 +83,6 @@ public interface EntityMetaData {
     @NotNull
     Set<String> getRequiredIfProperties(Entity e);
 
-    /**
-     * VersionMismatch resolution for whole class
-     *
-     * @return
-     */
-    boolean isVersionMismatchIgnoredForWholeClass();
-
-    /**
-     * VersionMismatch resolution for concrete property
-     *
-     * @param propertyName
-     * @return
-     */
-    @Deprecated
-    boolean isVersionMismatchIgnored(String propertyName);
-
     @Nullable
     Runnable getInitializer();
 

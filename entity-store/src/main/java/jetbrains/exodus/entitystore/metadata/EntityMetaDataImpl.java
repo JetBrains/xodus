@@ -27,8 +27,6 @@ import java.util.*;
 
 public class EntityMetaDataImpl implements EntityMetaData {
 
-    // original fields
-
     private ModelMetaData modelMetaData = null;
     private String type = null;
     private String superType = null;
@@ -42,10 +40,7 @@ public class EntityMetaDataImpl implements EntityMetaData {
     private Set<Index> ownIndexes = Collections.emptySet();
     private Set<String> requiredProperties = Collections.emptySet();
     private Set<String> requiredIfProperties = Collections.emptySet();
-    private Set<String> versionMismatchIgnored = Collections.emptySet();
-    private boolean versionMismatchIgnoredForWholeClass = false;
 
-    // calculated
     private Map<String, Set<Index>> fieldToIndexes = null;
     private Set<Index> indexes = null;
     private Set<String> aggregationChildEnds = null;
@@ -436,31 +431,12 @@ public class EntityMetaDataImpl implements EntityMetaData {
         return requiredIfProperties;
     }
 
-    @Override
-    public boolean isVersionMismatchIgnoredForWholeClass() {
-        return versionMismatchIgnoredForWholeClass;
-    }
-
-    public void setVersionMismatchIgnoredForWholeClass(boolean versionMismatchIgnoredForWholeClass) {
-        this.versionMismatchIgnoredForWholeClass = versionMismatchIgnoredForWholeClass;
-    }
-
     public void setRequiredProperties(@NotNull Set<String> requiredProperties) {
         this.requiredProperties = requiredProperties;
     }
 
     public void setRequiredIfProperties(@NotNull Set<String> requiredIfProperties) {
         this.requiredIfProperties = requiredIfProperties;
-    }
-
-    @Override
-    @Deprecated
-    public boolean isVersionMismatchIgnored(@NotNull String propertyName) {
-        return versionMismatchIgnored.contains(propertyName);
-    }
-
-    public void setVersionMismatchIgnored(@NotNull Set<String> versionMismatchIgnored) {
-        this.versionMismatchIgnored = versionMismatchIgnored;
     }
 
     private void updateAssociationEnds() {
