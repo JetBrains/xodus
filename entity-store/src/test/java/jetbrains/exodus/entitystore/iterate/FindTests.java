@@ -411,11 +411,70 @@ public class FindTests extends EntityStoreTestBase {
         Assert.assertEquals(0, txn.findWithProp("No such type", "size").size());
     }
 
+    public void testFindWithPropSorted() throws Exception {
+        testFindSingleEntityByPropertyValue();
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        Assert.assertEquals(100, txn.findWithPropSortedByValue("Issue", "description").size());
+        final PersistentEntity nonExistent = new PersistentEntity(getEntityStore(), new PersistentEntityId(111, 0));
+        Assert.assertEquals(-1, txn.findWithPropSortedByValue("Issue", "description").indexOf(nonExistent));
+        Assert.assertEquals(100, txn.findWithPropSortedByValue("Issue", "size").size());
+        Assert.assertEquals(0, txn.findWithPropSortedByValue("Issue", "no such property").size());
+        Assert.assertEquals(0, txn.findWithPropSortedByValue("No such type", "size").size());
+    }
+
     public void testFindWithPropIsCached() throws Exception {
         getEntityStore().getConfig().setCachingDisabled(false);
         testFindWithProp();
         final StoreTransaction txn = getStoreTransaction();
         Assert.assertTrue(((EntityIteratorBase) txn.findWithProp("Issue", "description").iterator()).getIterable().isCachedInstance());
+    }
+
+    public void testFindWithPropSortedIsCached() throws Exception {
+        getEntityStore().getConfig().setCachingDisabled(false);
+        testFindWithPropSorted();
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        Assert.assertTrue(((EntityIteratorBase) txn.findWithPropSortedByValue("Issue", "description").iterator()).getIterable().isCachedInstance());
+    }
+
+    @TestFor(issues = "XD-524")
+    public void testFindWithPropAndIntersectIsCached() throws Exception {
+        testFindWithPropSortedIsCached();
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        EntityIterableBase withDescription = txn.findWithPropSortedByValue("Issue", "description");
+        withDescription = getEntityStore().getEntityIterableCache().putIfNotCached(withDescription);
+        Assert.assertTrue(((EntityIteratorBase) withDescription.iterator()).getIterable().isCachedInstance());
+        final EntityIterableBase intersect = (EntityIterableBase) withDescription.intersect(txn.findWithProp("Issue", "size"));
+        Assert.assertTrue(intersect.canBeCached());
+        Assert.assertEquals(100, intersect.size());
+        Assert.assertTrue(((EntityIteratorBase) intersect.iterator()).getIterable().isCachedInstance());
+    }
+
+    @TestFor(issues = "XD-524")
+    public void testFindWithPropAndUnionIsCached() throws Exception {
+        testFindWithPropSortedIsCached();
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        EntityIterableBase withDescription = txn.findWithPropSortedByValue("Issue", "description");
+        withDescription = getEntityStore().getEntityIterableCache().putIfNotCached(withDescription);
+        Assert.assertTrue(((EntityIteratorBase) withDescription.iterator()).getIterable().isCachedInstance());
+        final EntityIterableBase union = (EntityIterableBase) withDescription.union(txn.findWithProp("Issue", "size"));
+        Assert.assertTrue(union.canBeCached());
+        Assert.assertEquals(100, union.size());
+        Assert.assertTrue(((EntityIteratorBase) union.iterator()).getIterable().isCachedInstance());
+    }
+
+    @TestFor(issues = "XD-524")
+    public void testFindWithPropAndMinusIsCached() throws Exception {
+        testFindWithPropSortedIsCached();
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        EntityIterableBase withDescription = txn.findWithPropSortedByValue("Issue", "description");
+        withDescription = getEntityStore().getEntityIterableCache().putIfNotCached(withDescription);
+        Assert.assertTrue(((EntityIteratorBase) withDescription.iterator()).getIterable().isCachedInstance());
+        txn.getAll("Issue").getFirst().setProperty("created", System.currentTimeMillis());
+        txn.flush();
+        final EntityIterableBase minus = (EntityIterableBase) withDescription.minus(txn.findWithProp("Issue", "created"));
+        Assert.assertTrue(minus.canBeCached());
+        Assert.assertEquals(99, minus.size());
+        Assert.assertTrue(((EntityIteratorBase) minus.iterator()).getIterable().isCachedInstance());
     }
 
     public void testFindWithBlob() throws Exception {
