@@ -59,7 +59,7 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
         if (isCommutative) {
             depth += COMMUTATIVE_FLAG;
         }
-        if (depth() < MAXIMUM_DEPTH_TO_ALLOW_CACHING && iterable1.canBeCached() && iterable2.canBeCached()) {
+        if (depth() < MAXIMUM_DEPTH_TO_ALLOW_CACHING && shouldBinaryOperationBeCached(iterable1, iterable2)) {
             depth += CAN_BE_CACHED_FLAG;
         }
     }
@@ -207,6 +207,11 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
                 return iterable1.getHandle().isExpired() || iterable2.getHandle().isExpired();
             }
         };
+    }
+
+    private static boolean shouldBinaryOperationBeCached(@NotNull EntityIterableBase iterable1, @NotNull EntityIterableBase iterable2) {
+        return (iterable1.canBeCached() || iterable1.getHandle().getType() == EntityIterableType.ENTITIES_WITH_PROPERTY_SORTED_BY_VALUE) &&
+                (iterable2.canBeCached() || iterable2.getHandle().getType() == EntityIterableType.ENTITIES_WITH_PROPERTY_SORTED_BY_VALUE);
     }
 
     private static boolean isOrderOk(@NotNull final EntityIterableHandle handle1,
