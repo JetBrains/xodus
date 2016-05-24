@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2016 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -29,11 +29,17 @@ public abstract class AbstractConfig {
 
     @NonNls
     private static final String UNSUPPORTED_TYPE_ERROR_MSG = "Unsupported value type";
-
+    @NonNls
+    private final static ThreadLocal<Boolean> listenersSuppressed = new ThreadLocal<Boolean>(){
+        @Override
+        protected Boolean initialValue() {
+            return false;
+        }
+    };
     @NotNull
     private final Map<String, Object> settings;
     @NotNull
-    private final Set<ChangedSettingsListener> listeners;
+    private final Set<ConfigSettingChangeListener> listeners;
 
     protected AbstractConfig(@NotNull final Pair<String, Object>[] props, @NotNull final ConfigurationStrategy strategy) {
         settings = new HashMap<>();
@@ -61,8 +67,23 @@ public abstract class AbstractConfig {
     }
 
     public AbstractConfig setSetting(@NotNull final String key, @NotNull final Object value) {
-        settings.put(key, value);
-        fireChangedSettingsListeners(key);
+        if (!value.equals(settings.get(key))) {
+            Map<ConfigSettingChangeListener, Map<String, Object>> listenerToContext = null;
+            if (!listenersSuppressed.get()) {
+                listenerToContext = new HashMap<>();
+                for (final ConfigSettingChangeListener listener : listeners) {
+                    Map<String, Object> context = new HashMap<>();
+                    listener.beforeSettingChanged(key, value, context);
+                    listenerToContext.put(listener, context);
+                }
+            }
+            settings.put(key, value);
+            if (!listenersSuppressed.get()) {
+                for (final ConfigSettingChangeListener listener : listeners) {
+                    listener.afterSettingChanged(key, value, listenerToContext.get(listener));
+                }
+            }
+        }
         return this;
     }
 
@@ -70,11 +91,11 @@ public abstract class AbstractConfig {
         return Collections.unmodifiableMap(settings);
     }
 
-    public void addChangedSettingsListener(@NotNull final ChangedSettingsListener listener) {
+    public void addChangedSettingsListener(@NotNull final ConfigSettingChangeListener listener) {
         listeners.add(listener);
     }
 
-    public void removeChangedSettingsListener(@NotNull final ChangedSettingsListener listener) {
+    public void removeChangedSettingsListener(@NotNull final ConfigSettingChangeListener listener) {
         listeners.remove(listener);
     }
 
@@ -119,10 +140,12 @@ public abstract class AbstractConfig {
         }
     }
 
-    private void fireChangedSettingsListeners(@NotNull final String settingName) {
-        for (final ChangedSettingsListener listener : listeners) {
-            listener.settingChanged(settingName);
-        }
+    public static void suppressConfigChangeListenersForThread(){
+        listenersSuppressed.set(true);
+    }
+
+    public static void resumeConfigChangeListenersForThread(){
+        listenersSuppressed.set(false);
     }
 
     private static boolean getBoolean(@NotNull final ConfigurationStrategy strategy,
@@ -159,10 +182,5 @@ public abstract class AbstractConfig {
         if (builder.length() > 0) {
             builder.append('\n');
         }
-    }
-
-    public interface ChangedSettingsListener {
-
-        void settingChanged(@NotNull final String settingName);
     }
 }

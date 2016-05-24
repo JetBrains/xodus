@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2016 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,13 +15,14 @@
  */
 package jetbrains.exodus.env;
 
-import jetbrains.exodus.AbstractConfig;
 import jetbrains.exodus.BackupStrategy;
+import jetbrains.exodus.ConfigSettingChangeListener;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.ConcurrentLongObjectCache;
 import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Pair;
+import jetbrains.exodus.core.execution.locks.Semaphore;
 import jetbrains.exodus.gc.GarbageCollector;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
@@ -43,6 +44,8 @@ import java.io.InputStream;
 import java.lang.ref.SoftReference;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class EnvironmentImpl implements Environment {
 
@@ -910,24 +913,45 @@ public class EnvironmentImpl implements Environment {
         }
     }
 
-    private class EnvironmentSettingsListener implements AbstractConfig.ChangedSettingsListener {
+    private class EnvironmentSettingsListener implements ConfigSettingChangeListener {
+
+        private final Semaphore envIsReadonlyLock = new Semaphore();
 
         @Override
-        public void settingChanged(@NotNull final String settingName) {
-            if (settingName.equals(EnvironmentConfig.ENV_STOREGET_CACHE_SIZE)) {
-                invalidateStoreGetCache();
-            } else if (settingName.equals(EnvironmentConfig.TREE_NODES_CACHE_SIZE)) {
-                invalidateTreeNodesCache();
-            } else if (settingName.equals(EnvironmentConfig.LOG_SYNC_PERIOD)) {
-                log.getConfig().setSyncPeriod(ec.getLogSyncPeriod());
-            } else if (settingName.equals(EnvironmentConfig.LOG_DURABLE_WRITE)) {
-                log.getConfig().setDurableWrite(ec.getLogDurableWrite());
-            } else if (settingName.equals(EnvironmentConfig.ENV_IS_READONLY)) {
-                if (ec.getEnvIsReadonly()) {
-                    suspendGC();
-                } else {
-                    resumeGC();
+        public void beforeSettingChanged(@NotNull String key, @NotNull Object value, @NotNull Map<String, Object> context) {
+            if (key.equals(EnvironmentConfig.ENV_IS_READONLY) && Boolean.TRUE.equals(value)) {
+                suspendGC();
+                final TransactionBase txn = beginTransaction();
+                try {
+                    if (!txn.isReadonly()) {
+                        txn.setCommitHook(new Runnable() {
+                            @Override
+                            public void run() {
+                                EnvironmentConfig.suppressConfigChangeListenersForThread();
+                                ec.setEnvIsReadonly(true);
+                                EnvironmentConfig.resumeConfigChangeListenersForThread();
+                            }
+                        });
+                        ((TransactionImpl) txn).forceFlush();
+                    }
+                } finally {
+                    txn.abort();
                 }
+            }
+        }
+
+        @Override
+        public void afterSettingChanged(@NotNull String key, @NotNull Object value, @NotNull Map<String, Object> context) {
+            if (key.equals(EnvironmentConfig.ENV_STOREGET_CACHE_SIZE)) {
+                invalidateStoreGetCache();
+            } else if (key.equals(EnvironmentConfig.TREE_NODES_CACHE_SIZE)) {
+                invalidateTreeNodesCache();
+            } else if (key.equals(EnvironmentConfig.LOG_SYNC_PERIOD)) {
+                log.getConfig().setSyncPeriod(ec.getLogSyncPeriod());
+            } else if (key.equals(EnvironmentConfig.LOG_DURABLE_WRITE)) {
+                log.getConfig().setDurableWrite(ec.getLogDurableWrite());
+            } else if (key.equals(EnvironmentConfig.ENV_IS_READONLY) && !ec.getEnvIsReadonly()) {
+                resumeGC();
             }
         }
     }
