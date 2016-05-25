@@ -15,8 +15,8 @@
  */
 package jetbrains.exodus.env;
 
-import jetbrains.exodus.AbstractConfig;
 import jetbrains.exodus.BackupStrategy;
+import jetbrains.exodus.ConfigSettingChangeListener;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.ConcurrentLongObjectCache;
 import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
@@ -910,24 +910,43 @@ public class EnvironmentImpl implements Environment {
         }
     }
 
-    private class EnvironmentSettingsListener implements AbstractConfig.ChangedSettingsListener {
+    private class EnvironmentSettingsListener implements ConfigSettingChangeListener {
 
         @Override
-        public void settingChanged(@NotNull final String settingName) {
-            if (settingName.equals(EnvironmentConfig.ENV_STOREGET_CACHE_SIZE)) {
-                invalidateStoreGetCache();
-            } else if (settingName.equals(EnvironmentConfig.TREE_NODES_CACHE_SIZE)) {
-                invalidateTreeNodesCache();
-            } else if (settingName.equals(EnvironmentConfig.LOG_SYNC_PERIOD)) {
-                log.getConfig().setSyncPeriod(ec.getLogSyncPeriod());
-            } else if (settingName.equals(EnvironmentConfig.LOG_DURABLE_WRITE)) {
-                log.getConfig().setDurableWrite(ec.getLogDurableWrite());
-            } else if (settingName.equals(EnvironmentConfig.ENV_IS_READONLY)) {
-                if (ec.getEnvIsReadonly()) {
-                    suspendGC();
-                } else {
-                    resumeGC();
+        public void beforeSettingChanged(@NotNull String key, @NotNull Object value, @NotNull Map<String, Object> context) {
+            if (key.equals(EnvironmentConfig.ENV_IS_READONLY) && Boolean.TRUE.equals(value)) {
+                suspendGC();
+                final TransactionBase txn = beginTransaction();
+                try {
+                    if (!txn.isReadonly()) {
+                        txn.setCommitHook(new Runnable() {
+                            @Override
+                            public void run() {
+                                EnvironmentConfig.suppressConfigChangeListenersForThread();
+                                ec.setEnvIsReadonly(true);
+                                EnvironmentConfig.resumeConfigChangeListenersForThread();
+                            }
+                        });
+                        ((TransactionImpl) txn).forceFlush();
+                    }
+                } finally {
+                    txn.abort();
                 }
+            }
+        }
+
+        @Override
+        public void afterSettingChanged(@NotNull String key, @NotNull Object value, @NotNull Map<String, Object> context) {
+            if (key.equals(EnvironmentConfig.ENV_STOREGET_CACHE_SIZE)) {
+                invalidateStoreGetCache();
+            } else if (key.equals(EnvironmentConfig.TREE_NODES_CACHE_SIZE)) {
+                invalidateTreeNodesCache();
+            } else if (key.equals(EnvironmentConfig.LOG_SYNC_PERIOD)) {
+                log.getConfig().setSyncPeriod(ec.getLogSyncPeriod());
+            } else if (key.equals(EnvironmentConfig.LOG_DURABLE_WRITE)) {
+                log.getConfig().setDurableWrite(ec.getLogDurableWrite());
+            } else if (key.equals(EnvironmentConfig.ENV_IS_READONLY) && !ec.getEnvIsReadonly()) {
+                resumeGC();
             }
         }
     }

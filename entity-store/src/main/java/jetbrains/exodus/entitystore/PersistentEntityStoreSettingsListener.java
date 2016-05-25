@@ -15,10 +15,12 @@
  */
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.AbstractConfig;
+import jetbrains.exodus.ConfigSettingChangeListener;
 import org.jetbrains.annotations.NotNull;
 
-class PersistentEntityStoreSettingsListener implements AbstractConfig.ChangedSettingsListener {
+import java.util.Map;
+
+class PersistentEntityStoreSettingsListener extends ConfigSettingChangeListener.Adapter {
 
     @NotNull
     private final PersistentEntityStoreImpl store;
@@ -27,9 +29,10 @@ class PersistentEntityStoreSettingsListener implements AbstractConfig.ChangedSet
         this.store = store;
     }
 
+
     @Override
-    public void settingChanged(@NotNull final String settingName) {
-        if (PersistentEntityStoreConfig.CACHING_DISABLED.equals(settingName)) {
+    public void afterSettingChanged(@NotNull String key, @NotNull Object value, @NotNull Map<String, Object> context) {
+        if (PersistentEntityStoreConfig.CACHING_DISABLED.equals(key)) {
             // if caching is switched on/off then clear EntityIterableCache
             store.getEntityIterableCache().clear();
         }
