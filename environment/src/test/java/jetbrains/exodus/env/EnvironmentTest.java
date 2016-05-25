@@ -311,8 +311,13 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                 }
             }, ExodusException.class);
             env.getLog().setLogTestConfig(null);
-            ec.setEnvIsReadonly(true);
-            reopenEnvironment();
+            AbstractConfig.suppressConfigChangeListenersForThread();
+            try {
+                ec.setEnvIsReadonly(true);
+                reopenEnvironment();
+            } finally {
+                AbstractConfig.resumeConfigChangeListenersForThread();
+            }
             env.executeInTransaction(new TransactionalExecutable() {
                 @Override
                 public void execute(@NotNull final Transaction txn) {

@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2016 JetBrains s.r.o.
- * <p>
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * <p>
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,7 +22,6 @@ import jetbrains.exodus.core.dataStructures.ConcurrentLongObjectCache;
 import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Pair;
-import jetbrains.exodus.core.execution.locks.Semaphore;
 import jetbrains.exodus.gc.GarbageCollector;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
@@ -44,8 +43,6 @@ import java.io.InputStream;
 import java.lang.ref.SoftReference;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class EnvironmentImpl implements Environment {
 
@@ -914,8 +911,6 @@ public class EnvironmentImpl implements Environment {
     }
 
     private class EnvironmentSettingsListener implements ConfigSettingChangeListener {
-
-        private final Semaphore envIsReadonlyLock = new Semaphore();
 
         @Override
         public void beforeSettingChanged(@NotNull String key, @NotNull Object value, @NotNull Map<String, Object> context) {

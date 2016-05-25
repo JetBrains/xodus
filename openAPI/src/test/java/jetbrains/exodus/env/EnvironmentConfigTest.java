@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.env;
 
+import jetbrains.exodus.AbstractConfig;
 import jetbrains.exodus.ConfigSettingChangeListener;
 import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
@@ -23,7 +24,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class EnvironmentConfigTest {
 
@@ -42,7 +42,7 @@ public class EnvironmentConfigTest {
     }
 
     @Test
-    public void testListenerInvoked(){
+    public void testListenerInvoked() {
         final Long oldValue = 1L;
         final Long newValue = 2L;
         final EnvironmentConfig ec = new EnvironmentConfig();
@@ -70,7 +70,7 @@ public class EnvironmentConfigTest {
     }
 
     @Test
-    public void testListenerMethodsOrdering(){
+    public void testListenerMethodsOrdering() {
         final Long oldValue = 1L;
         final Long newValue = 2L;
         final EnvironmentConfig ec = new EnvironmentConfig();
@@ -92,7 +92,7 @@ public class EnvironmentConfigTest {
     }
 
     @Test
-    public void testListenerNotInvokedIfValueHasNotChanged(){
+    public void testListenerNotInvokedIfValueHasNotChanged() {
         final Long value = 1L;
         final EnvironmentConfig ec = new EnvironmentConfig();
         final Boolean[] callBackMethodsCalled = new Boolean[2];
@@ -115,7 +115,7 @@ public class EnvironmentConfigTest {
     }
 
     @Test
-    public void testListenerInvokedWithContext(){
+    public void testListenerInvokedWithContext() {
         final Long oldValue = 1L;
         final Long newValue = 2L;
         final EnvironmentConfig ec = new EnvironmentConfig();
@@ -143,7 +143,7 @@ public class EnvironmentConfigTest {
     }
 
     @Test
-    public void testListenerCanBeSuppressed(){
+    public void testListenerCanBeSuppressed() {
         final Long oldValue = 1L;
         final Long newValue = 2L;
         final EnvironmentConfig ec = new EnvironmentConfig();
@@ -173,5 +173,27 @@ public class EnvironmentConfigTest {
         final Map<String, String> stringDefaults = new HashMap<>();
         stringDefaults.put("unknown.setting.key", null);
         new EnvironmentConfig().setSettings(stringDefaults);
+    }
+
+    @Test
+    public void suppressListenersInListener() {
+        final Boolean[] settingFinished = {null};
+        final EnvironmentConfig ec = new EnvironmentConfig();
+        ec.addChangedSettingsListener(new ConfigSettingChangeListener() {
+            @Override
+            public void beforeSettingChanged(@NotNull String key, @NotNull Object value, @NotNull Map<String, Object> context) {
+                settingFinished[0] = false;
+                AbstractConfig.suppressConfigChangeListenersForThread();
+            }
+
+            @Override
+            public void afterSettingChanged(@NotNull String key, @NotNull Object value, @NotNull Map<String, Object> context) {
+                settingFinished[0] = true;
+                AbstractConfig.resumeConfigChangeListenersForThread();
+            }
+        });
+        ec.setGcEnabled(false);
+        Assert.assertNotNull(settingFinished[0]);
+        Assert.assertTrue(settingFinished[0]);
     }
 }

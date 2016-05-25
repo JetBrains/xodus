@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2016 JetBrains s.r.o.
- * <p>
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * <p>
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -30,7 +30,7 @@ public abstract class AbstractConfig {
     @NonNls
     private static final String UNSUPPORTED_TYPE_ERROR_MSG = "Unsupported value type";
     @NonNls
-    private final static ThreadLocal<Boolean> listenersSuppressed = new ThreadLocal<Boolean>(){
+    private final static ThreadLocal<Boolean> listenersSuppressed = new ThreadLocal<Boolean>() {
         @Override
         protected Boolean initialValue() {
             return false;
@@ -69,7 +69,8 @@ public abstract class AbstractConfig {
     public AbstractConfig setSetting(@NotNull final String key, @NotNull final Object value) {
         if (!value.equals(settings.get(key))) {
             Map<ConfigSettingChangeListener, Map<String, Object>> listenerToContext = null;
-            if (!listenersSuppressed.get()) {
+            final boolean listenersSuppressed = AbstractConfig.listenersSuppressed.get();
+            if (!listenersSuppressed) {
                 listenerToContext = new HashMap<>();
                 for (final ConfigSettingChangeListener listener : listeners) {
                     Map<String, Object> context = new HashMap<>();
@@ -78,7 +79,7 @@ public abstract class AbstractConfig {
                 }
             }
             settings.put(key, value);
-            if (!listenersSuppressed.get()) {
+            if (!listenersSuppressed) {
                 for (final ConfigSettingChangeListener listener : listeners) {
                     listener.afterSettingChanged(key, value, listenerToContext.get(listener));
                 }
@@ -140,11 +141,11 @@ public abstract class AbstractConfig {
         }
     }
 
-    public static void suppressConfigChangeListenersForThread(){
+    public static void suppressConfigChangeListenersForThread() {
         listenersSuppressed.set(true);
     }
 
-    public static void resumeConfigChangeListenersForThread(){
+    public static void resumeConfigChangeListenersForThread() {
         listenersSuppressed.set(false);
     }
 
