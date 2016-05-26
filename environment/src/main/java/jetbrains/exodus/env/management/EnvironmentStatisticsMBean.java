@@ -39,11 +39,13 @@ public interface EnvironmentStatisticsMBean {
 
     double getNumberOfReadonlyTransactionsPerSecond();
 
-    int getActiveTransaction();
+    int getActiveTransactions();
 
     long getNumberOfFlushedTransactions();
 
     double getNumberOfFlushedTransactionsPerSecond();
 
     long getDiskUsage();
+
+    int getUtilizationPercent();
 }

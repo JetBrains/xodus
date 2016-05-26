@@ -85,7 +85,7 @@ public class EnvironmentStatistics extends MBeanBase implements EnvironmentStati
     }
 
     @Override
-    public int getActiveTransaction() {
+    public int getActiveTransactions() {
         return (int) statistics.getStatisticsItem(jetbrains.exodus.env.EnvironmentStatistics.ACTIVE_TRANSACTIONS).getTotal();
     }
 
@@ -102,5 +102,10 @@ public class EnvironmentStatistics extends MBeanBase implements EnvironmentStati
     @Override
     public long getDiskUsage() {
         return statistics.getStatisticsItem(jetbrains.exodus.env.EnvironmentStatistics.DISK_USAGE).getTotal();
+    }
+
+    @Override
+    public int getUtilizationPercent() {
+        return (int) statistics.getStatisticsItem(jetbrains.exodus.env.EnvironmentStatistics.UTILIZATION_PERCENT).getTotal();
     }
 }
