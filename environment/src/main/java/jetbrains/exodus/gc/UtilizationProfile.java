@@ -175,23 +175,13 @@ public final class UtilizationProfile {
         });
     }
 
-    int totalFreeSpacePercent() {
+    public int totalFreeSpacePercent() {
         final long totalBytes = this.totalBytes;
         return (int) (totalBytes == 0 ? 0 : ((totalFreeBytes * 100L) / totalBytes));
     }
 
-    /**
-     * @return for given files, map from file address to number of free bytes in it.
-     */
-    LongHashMap<Long> getFreeBytes(long[] files) {
-        final LongHashMap<Long> result = new LongHashMap<>();
-        synchronized (filesUtilization) {
-            for (long file : files) {
-                final FileUtilization fileUtilization = filesUtilization.get(file);
-                result.put(file, (Long) (fileUtilization == null ? Long.MAX_VALUE : fileUtilization.getFreeBytes()));
-            }
-        }
-        return result;
+    public int totalUtilizationPercent() {
+        return 100 - totalFreeSpacePercent();
     }
 
     long getFileFreeBytes(final long fileAddress) {

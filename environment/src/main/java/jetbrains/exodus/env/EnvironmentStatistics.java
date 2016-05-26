@@ -31,6 +31,7 @@ public class EnvironmentStatistics extends Statistics {
     public static final String ACTIVE_TRANSACTIONS = "Active transactions";
     public static final String FLUSHED_TRANSACTIONS = "Flushed transactions";
     public static final String DISK_USAGE = "Disk usage";
+    public static final String UTILIZATION_PERCENT = "Utilization percent";
 
     private static final int DISK_USAGE_FREQ = 10000; // calculate disk usage not more often than each 10 seconds
 
@@ -47,6 +48,7 @@ public class EnvironmentStatistics extends Statistics {
         getStatisticsItem(ACTIVE_TRANSACTIONS);
         getStatisticsItem(FLUSHED_TRANSACTIONS);
         getStatisticsItem(DISK_USAGE);
+        getStatisticsItem(UTILIZATION_PERCENT);
         env.getLog().addReadBytesListener(new ReadBytesListener() {
             @Override
             public void bytesRead(final byte[] bytes, final int count) {
@@ -74,12 +76,15 @@ public class EnvironmentStatistics extends Statistics {
         if (DISK_USAGE.equals(statisticsName)) {
             return new DiskUsageStatisticsItem(this);
         }
+        if (UTILIZATION_PERCENT.equals(statisticsName)) {
+            return new UtilizationPercentStatisticsItem(this);
+        }
         return super.createNewItem(statisticsName);
     }
 
     private static class ActiveTransactionsStatisticsItem extends StatisticsItem {
 
-        public ActiveTransactionsStatisticsItem(@NotNull final EnvironmentStatistics statistics) {
+        ActiveTransactionsStatisticsItem(@NotNull final EnvironmentStatistics statistics) {
             super(statistics);
         }
 
@@ -95,7 +100,7 @@ public class EnvironmentStatistics extends Statistics {
 
         private long lastAutoUpdateTime;
 
-        public DiskUsageStatisticsItem(@NotNull final EnvironmentStatistics statistics) {
+        DiskUsageStatisticsItem(@NotNull final EnvironmentStatistics statistics) {
             super(statistics);
             lastAutoUpdateTime = 0;
         }
@@ -112,6 +117,20 @@ public class EnvironmentStatistics extends Statistics {
                 }
             }
             return null;
+        }
+    }
+
+    private static class UtilizationPercentStatisticsItem extends StatisticsItem {
+
+        UtilizationPercentStatisticsItem(@NotNull final EnvironmentStatistics statistics) {
+            super(statistics);
+        }
+
+        @Nullable
+        @Override
+        protected Long getAutoUpdatedTotal() {
+            final EnvironmentStatistics statistics = (EnvironmentStatistics) getStatistics();
+            return statistics == null ? null : (long) (statistics.env.getGC().getUtilizationProfile().totalUtilizationPercent());
         }
     }
 }
