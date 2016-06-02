@@ -1673,12 +1673,13 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     public void trackTableCreation(@NotNull final Store table, @NotNull final PersistentStoreTransaction txn) {
-        if (table.isNew(txn.getEnvironmentTransaction())) {
+        final StoreImpl tableImpl = (StoreImpl) table;
+        if (tableImpl.isNew(txn.getEnvironmentTransaction())) {
             synchronized (tableCreationLog) {
                 tableCreationLog.add(new TableCreationOperation() {
                     @Override
                     void persist(final Transaction txn) {
-                        table.persistCreation(txn);
+                        tableImpl.persistCreation(txn);
                     }
                 });
             }

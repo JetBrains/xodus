@@ -130,16 +130,6 @@ public class StoreImpl implements Store {
     }
 
     @Override
-    public boolean isNew(@NotNull final Transaction txn) {
-        return !txn.isReadonly() && ((TransactionImpl) txn).isStoreNew(name);
-    }
-
-    @Override
-    public void persistCreation(@NotNull final Transaction txn) {
-        EnvironmentImpl.throwIfReadonly(txn, "Read-only transaction is not enough").storeCreated(this);
-    }
-
-    @Override
     public void close() {
     }
 
@@ -147,6 +137,14 @@ public class StoreImpl implements Store {
     @NotNull
     public StoreConfig getConfig() {
         return TreeMetaInfo.toConfig(metaInfo);
+    }
+
+    public boolean isNew(@NotNull final Transaction txn) {
+        return !txn.isReadonly() && ((TransactionImpl) txn).isStoreNew(name);
+    }
+
+    public void persistCreation(@NotNull final Transaction txn) {
+        EnvironmentImpl.throwIfReadonly(txn, "Read-only transaction is not enough").storeCreated(this);
     }
 
     @NotNull
@@ -165,7 +163,7 @@ public class StoreImpl implements Store {
         }
     }
 
-    public ITree openImmutableTree(@NotNull final MetaTree metaTree) {
+    ITree openImmutableTree(@NotNull final MetaTree metaTree) {
         final int structureId = getStructureId();
         final long upToDateRootAddress = metaTree.getRootAddress(structureId);
         final boolean hasDuplicates = metaInfo.hasDuplicates();

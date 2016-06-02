@@ -86,10 +86,6 @@ public interface Store {
     @Deprecated
     void close();
 
-    boolean isNew(@NotNull Transaction txn);
-
-    void persistCreation(@NotNull Transaction txn);
-
     @NotNull
     String getName();
 
