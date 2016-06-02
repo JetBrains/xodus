@@ -17,6 +17,7 @@ package jetbrains.exodus.log;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
+import jetbrains.exodus.CompoundByteIteratorBase;
 import jetbrains.exodus.bindings.LongBinding;
 import org.jetbrains.annotations.NotNull;
 

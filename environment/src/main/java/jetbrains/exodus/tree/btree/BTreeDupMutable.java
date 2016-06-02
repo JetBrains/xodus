@@ -16,6 +16,7 @@
 package jetbrains.exodus.tree.btree;
 
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.CompoundByteIterable;
 import jetbrains.exodus.log.*;
 import org.jetbrains.annotations.NotNull;
 

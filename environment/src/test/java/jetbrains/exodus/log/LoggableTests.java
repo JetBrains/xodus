@@ -15,10 +15,7 @@
  */
 package jetbrains.exodus.log;
 
-import jetbrains.exodus.ArrayByteIterable;
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ByteIterableBase;
-import jetbrains.exodus.ByteIterator;
+import jetbrains.exodus.*;
 import jetbrains.exodus.util.Random;
 import org.junit.Assert;
 import org.junit.Test;

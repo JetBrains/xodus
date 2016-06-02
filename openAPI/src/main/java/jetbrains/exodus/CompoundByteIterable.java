@@ -13,12 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
-
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ByteIterableBase;
-import jetbrains.exodus.ByteIterator;
-import jetbrains.exodus.ExodusException;
+package jetbrains.exodus;
 
 public class CompoundByteIterable extends ByteIterableBase {
 

@@ -13,14 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus;
 
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ByteIterator;
-import jetbrains.exodus.ExodusException;
 import org.jetbrains.annotations.NotNull;
 
-abstract class CompoundByteIteratorBase implements ByteIterator {
+public abstract class CompoundByteIteratorBase implements ByteIterator {
 
     @NotNull
     private ByteIterator current;

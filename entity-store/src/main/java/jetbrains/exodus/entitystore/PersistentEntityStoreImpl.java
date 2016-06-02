@@ -32,7 +32,6 @@ import jetbrains.exodus.entitystore.metadata.Index;
 import jetbrains.exodus.entitystore.metadata.IndexField;
 import jetbrains.exodus.entitystore.tables.*;
 import jetbrains.exodus.env.*;
-import jetbrains.exodus.log.CompoundByteIterable;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.management.Statistics;
 import jetbrains.exodus.util.ByteArraySizedInputStream;

@@ -17,6 +17,7 @@ package jetbrains.exodus.tree.btree;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
+import jetbrains.exodus.CompoundByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.CompressedUnsignedLongArrayByteIterable;
 import jetbrains.exodus.log.*;
