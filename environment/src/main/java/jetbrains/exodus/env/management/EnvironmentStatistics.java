@@ -16,6 +16,7 @@
 package jetbrains.exodus.env.management;
 
 import jetbrains.exodus.env.Environment;
+import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.management.MBeanBase;
 import jetbrains.exodus.management.Statistics;
 import org.jetbrains.annotations.NotNull;
@@ -23,10 +24,13 @@ import org.jetbrains.annotations.NotNull;
 public class EnvironmentStatistics extends MBeanBase implements EnvironmentStatisticsMBean {
 
     @NotNull
+    private final Environment env;
+    @NotNull
     private final Statistics statistics;
 
     public EnvironmentStatistics(@NotNull final Environment env) {
         super(getObjectName(env));
+        this.env = env;
         statistics = env.getStatistics();
     }
 
@@ -62,6 +66,11 @@ public class EnvironmentStatistics extends MBeanBase implements EnvironmentStati
     @Override
     public double getBytesMovedByGCPerSecond() {
         return statistics.getStatisticsItem(jetbrains.exodus.env.EnvironmentStatistics.BYTES_MOVED_BY_GC).getMean();
+    }
+
+    @Override
+    public double getLogCacheHitRate() {
+        return ((EnvironmentImpl) env).getLog().getCacheHitRate();
     }
 
     @Override

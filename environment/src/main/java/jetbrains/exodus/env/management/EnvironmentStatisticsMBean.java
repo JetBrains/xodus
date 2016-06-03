@@ -31,6 +31,8 @@ public interface EnvironmentStatisticsMBean {
 
     double getBytesMovedByGCPerSecond();
 
+    double getLogCacheHitRate();
+
     long getNumberOfTransactions();
 
     double getNumberOfTransactionsPerSecond();
