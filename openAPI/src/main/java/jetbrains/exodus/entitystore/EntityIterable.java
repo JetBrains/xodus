@@ -52,9 +52,6 @@ public interface EntityIterable extends Iterable<Entity> {
     boolean contains(@NotNull final Entity entity);
 
     @NotNull
-    EntityIterableHandle getHandle();
-
-    @NotNull
     EntityIterable intersect(@NotNull final EntityIterable right);
 
     /**

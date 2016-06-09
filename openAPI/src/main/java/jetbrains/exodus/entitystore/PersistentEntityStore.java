@@ -49,16 +49,11 @@ public interface PersistentEntityStore extends EntityStore, Backupable {
 
     <T> T computeInReadonlyTransaction(@NotNull StoreTransactionalComputable<T> computable);
 
-    Explainer getExplainer();
-
     @NotNull
     BlobVault getBlobVault();
 
     void registerCustomPropertyType(@NotNull final StoreTransaction txn,
                                     @NotNull final Class<? extends Comparable> clazz, @NotNull final ComparableBinding binding);
-
-    @NotNull
-    EntityIterableCache getEntityIterableCache();
 
     Entity getEntity(@NotNull EntityId id);
 

@@ -111,7 +111,7 @@ public class MergeSortedIterable extends EntityIterableBase {
                 builder.append(sorted.size());
                 for (final EntityIterable it : sorted) {
                     builder.append('-');
-                    ((EntityIterableHandleBase) it.getHandle()).toString(builder);
+                    ((EntityIterableHandleBase) ((EntityIterableBase) it.getSource()).getHandle()).toString(builder);
                 }
             }
 
@@ -120,7 +120,7 @@ public class MergeSortedIterable extends EntityIterableBase {
                 hash.apply(sorted.size());
                 for (final EntityIterable it : sorted) {
                     hash.applyDelimiter();
-                    hash.apply(it.getHandle());
+                    hash.apply(((EntityIterableBase) it.getSource()).getHandle());
                 }
             }
         };

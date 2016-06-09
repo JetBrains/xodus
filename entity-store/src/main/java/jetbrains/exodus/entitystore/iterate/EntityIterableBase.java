@@ -221,7 +221,6 @@ public abstract class EntityIterableBase implements EntityIterable {
         return indexOf(entity) >= 0;
     }
 
-    @Override
     @NotNull
     public final EntityIterableHandle getHandle() {
         if (cachedHandle == null) {

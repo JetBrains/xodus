@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.ref.WeakReference;
 
-public final class EntityIterableCacheImpl implements EntityIterableCache {
+public final class EntityIterableCacheImpl {
 
     private static final Logger logger = LoggerFactory.getLogger(EntityIterableCacheImpl.class);
 
@@ -58,17 +58,14 @@ public final class EntityIterableCacheImpl implements EntityIterableCache {
         SharedTimer.registerPeriodicTask(new CacheHitRateAdjuster(this));
     }
 
-    @Override
     public double hitRate() {
         return cacheAdapter.hitRate();
     }
 
-    @Override
     public int count() {
         return cacheAdapter.count();
     }
 
-    @Override
     public void clear() {
         cacheAdapter.clear();
     }
