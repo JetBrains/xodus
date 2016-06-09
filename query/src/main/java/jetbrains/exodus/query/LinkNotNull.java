@@ -19,7 +19,7 @@ package jetbrains.exodus.query;
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.EntityIterable;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
-import jetbrains.exodus.entitystore.metadata.*;
+import jetbrains.exodus.query.metadata.*;
 
 import static jetbrains.exodus.query.Utils.safe_equals;
 

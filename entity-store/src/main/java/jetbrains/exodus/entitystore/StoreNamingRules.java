@@ -15,13 +15,8 @@
  */
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.core.dataStructures.hash.LinkedHashMap;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
 @SuppressWarnings({"unchecked"})
 final class StoreNamingRules {
@@ -52,8 +47,6 @@ final class StoreNamingRules {
     private static final String LINKS_TABLE_PREFIX = "links";
     @NonNls
     private static final String BLOBS_TABLE_PREFIX = "blobs";
-    @NonNls
-    private static final String UNIQUEKEY_INDEX = "uniquekey.index";
     @NonNls
     private static final String INTERNAL_SETTINGS = "----internal.settings----";
 
@@ -127,21 +120,6 @@ final class StoreNamingRules {
     @NotNull
     public String getBlobsTableName(final int entityTypeId) {
         return getFQName(BLOBS_TABLE_PREFIX, entityTypeId);
-    }
-
-    @NotNull
-    public String getUniqueKeyIndexName(final String prefix, LinkedHashMap<String, Boolean> fieldNames) {
-        final List<String> params = new ArrayList<>();
-        for (final Map.Entry<String, Boolean> fieldEntry : fieldNames.entrySet()) {
-            final String name = fieldEntry.getKey();
-            params.add(fieldEntry.getValue() ? name : name + "@link");
-        }
-        return getFQName(UNIQUEKEY_INDEX + prefix, params.toArray());
-    }
-
-    public boolean isUniqueKeyIndexName(final String indexName) {
-        final int prefixLen = storeName.length() + 1;
-        return indexName.length() > prefixLen && indexName.substring(prefixLen).startsWith(UNIQUEKEY_INDEX);
     }
 
     @NotNull

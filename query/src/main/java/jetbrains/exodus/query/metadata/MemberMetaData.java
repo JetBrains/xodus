@@ -13,13 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.metadata;
+package jetbrains.exodus.query.metadata;
 
 import org.jetbrains.annotations.NotNull;
 
-public interface PropertyMetaData extends MemberMetaData {
+public interface MemberMetaData {
 
     @NotNull
-    PropertyType getType();
-
+    String getName();
 }

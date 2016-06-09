@@ -18,8 +18,8 @@ package jetbrains.exodus.query;
 
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.EntityIterable;
-import jetbrains.exodus.entitystore.metadata.EntityMetaData;
-import jetbrains.exodus.entitystore.metadata.ModelMetaData;
+import jetbrains.exodus.query.metadata.EntityMetaData;
+import jetbrains.exodus.query.metadata.ModelMetaData;
 
 import static jetbrains.exodus.query.Utils.safe_equals;
 

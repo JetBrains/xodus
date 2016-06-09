@@ -21,7 +21,7 @@ import jetbrains.exodus.entitystore.EntityIterable;
 import jetbrains.exodus.entitystore.EntityIterator;
 import jetbrains.exodus.entitystore.EntityStoreException;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
-import jetbrains.exodus.entitystore.metadata.ModelMetaData;
+import jetbrains.exodus.query.metadata.ModelMetaData;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Iterator;

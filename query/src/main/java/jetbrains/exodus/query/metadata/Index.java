@@ -13,31 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.metadata;
+package jetbrains.exodus.query.metadata;
 
-import org.jetbrains.annotations.NotNull;
+import java.util.List;
+import java.util.Set;
 
-@SuppressWarnings("EnumeratedConstantNamingConvention")
-public enum AssociationEndCardinality {
+public interface Index {
 
-    _0_1("0..1"),
-    _1("1"),
-    _0_n("0..n"),
-    _1_n("1..n");
+    String getOwnerEntityType();
 
-    private final String name;
+    List<IndexField> getFields();
 
-    AssociationEndCardinality(String name) {
-        this.name = name;
-    }
-
-    @NotNull
-    public String getName() {
-        return name;
-    }
-
-    public boolean isMultiple() {
-        return this == _0_n || this == _1_n;
-    }
+    /**
+     * Returns entity types that must be indexed.
+     *
+     * @return
+     */
+    Set<String> getEntityTypesToIndex();
 
 }

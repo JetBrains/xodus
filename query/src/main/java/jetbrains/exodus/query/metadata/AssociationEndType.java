@@ -13,22 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.metadata;
+package jetbrains.exodus.query.metadata;
 
-import java.util.List;
-import java.util.Set;
+import org.jetbrains.annotations.NotNull;
 
-public interface Index {
+public enum AssociationEndType {
 
-    String getOwnerEntityType();
+    UndirectedAssociationEnd("UndirectedAssociationEnd"),
+    DirectedAssociationEnd("DirectedAssociationEnd"),
+    ParentEnd("ParentEnd"),
+    ChildEnd("ChildEnd");
 
-    List<IndexField> getFields();
+    private final String name;
 
-    /**
-     * Returns entity types that must be indexed.
-     *
-     * @return
-     */
-    Set<String> getEntityTypesToIndex();
+    AssociationEndType(String name) {
+        this.name = name;
+    }
+
+    @NotNull
+    public String getName() {
+        return name;
+    }
 
 }

@@ -13,13 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore;
+package jetbrains.exodus.query;
 
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.core.dataStructures.NanoSet;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
-import jetbrains.exodus.entitystore.metadata.Index;
-import jetbrains.exodus.entitystore.metadata.IndexField;
+import jetbrains.exodus.entitystore.*;
+import jetbrains.exodus.query.metadata.Index;
+import jetbrains.exodus.query.metadata.IndexField;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 
@@ -31,6 +32,13 @@ import java.util.Set;
 public class UniqueKeyIndicesTest extends EntityStoreTestBase {
 
     private Entity entity1;
+    private UniqueKeyIndicesEngine ukiEngine;
+
+    @Override
+    protected void setUp() throws Exception {
+        super.setUp();
+        ukiEngine = new UniqueKeyIndicesEngine(getEntityStore());
+    }
 
     @Override
     protected boolean needsImplicitTxn() {
@@ -39,7 +47,7 @@ public class UniqueKeyIndicesTest extends EntityStoreTestBase {
 
     public void test2ValidColumns() throws Exception {
         createData();
-        testValidColumns(getEntityStore(), "column1", "column2");
+        testValidColumns(ukiEngine, "column1", "column2");
         // test proper updating
         getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
             @Override
@@ -48,57 +56,59 @@ public class UniqueKeyIndicesTest extends EntityStoreTestBase {
                 entity1.setProperty("column1", "o");
             }
         });
-        testValidColumns(getEntityStore(), "column0"); // index for (column1, column2) should become obsolete
-        testInvalidColumns(getEntityStore(), "column1", "column2"); // new index creates and checks constraint
+        testValidColumns(ukiEngine, "column0"); // index for (column1, column2) should become obsolete
+        testInvalidColumns(ukiEngine, "column1", "column2"); // new index creates and checks constraint
     }
 
     public void test3ValidColumns() throws Exception {
         createData();
-        testValidColumns(getEntityStore(), "column2", "column1", "column3");
+        testValidColumns(ukiEngine, "column2", "column1", "column3");
     }
 
     public void test2InvalidColumns() throws Exception {
         createData();
-        testInvalidColumns(getEntityStore(), "column0", "column2");
+        testInvalidColumns(ukiEngine, "column0", "column2");
     }
 
     public void testNonExistingColumns() throws Exception {
         createData();
-        testInvalidColumns(getEntityStore(), "column0", "column2", "column");
+        testInvalidColumns(ukiEngine, "column0", "column2", "column");
     }
 
     public void testRepeatingColumns() throws Exception {
         createData();
-        testInvalidColumns(getEntityStore(), "column0", "column2", "column0");
+        testInvalidColumns(ukiEngine, "column0", "column2", "column0");
     }
 
     public void testUpdatingIndices() throws Exception {
         createData();
-        testValidColumns(getEntityStore(), "column2", "column1", "column3");
-        testValidColumns(getEntityStore(), "column1", "column2", "column3");
+        testValidColumns(ukiEngine, "column2", "column1", "column3");
+        testValidColumns(ukiEngine, "column1", "column2", "column3");
     }
 
     public void testRecreateIndices_XD_393() {
         createData();
-        testValidColumns(getEntityStore(), "column0", "column1"); // create index
+        testValidColumns(ukiEngine, "column0", "column1"); // create index
         getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
             @Override
             public void execute(@NotNull StoreTransaction txn) {
+                final PersistentStoreTransaction t = (PersistentStoreTransaction) txn;
                 entity1.setProperty("column0", 1);
                 entity1.setProperty("column1", "o");
-                txn.deleteUniqueKey(new TestIndex("column0", "column1"), Arrays.asList((Comparable) Integer.valueOf(0), "oo"));
-                txn.insertUniqueKey(new TestIndex("column0", "column1"), Arrays.asList((Comparable) Integer.valueOf(1), "o"), entity1);
+                ukiEngine.deleteUniqueKey(t, new TestIndex("column0", "column1"), Arrays.asList((Comparable) Integer.valueOf(0), "oo"));
+                ukiEngine.insertUniqueKey(t, new TestIndex("column0", "column1"), Arrays.asList((Comparable) Integer.valueOf(1), "o"), entity1);
             }
         });
-        testValidColumns(getEntityStore()); // remove index
-        testValidColumns(getEntityStore(), "column0", "column1"); // recreate index
+        testValidColumns(ukiEngine); // remove index
+        testValidColumns(ukiEngine, "column0", "column1"); // recreate index
         TestUtil.runWithExpectedException(new Runnable() {
             @Override
             public void run() {
                 getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
                     @Override
                     public void execute(@NotNull StoreTransaction txn) {
-                        txn.insertUniqueKey(new TestIndex("column0", "column1"), Arrays.asList((Comparable) Integer.valueOf(1), "o"), entity1);
+                        final PersistentStoreTransaction t = (PersistentStoreTransaction) txn;
+                        ukiEngine.insertUniqueKey(t, new TestIndex("column0", "column1"), Arrays.asList((Comparable) Integer.valueOf(1), "o"), entity1);
                     }
                 });
             }
@@ -123,20 +133,20 @@ public class UniqueKeyIndicesTest extends EntityStoreTestBase {
         });
     }
 
-    private static void testValidColumns(final PersistentEntityStore store, String... columns) {
+    private static void testValidColumns(final UniqueKeyIndicesEngine engine, String... columns) {
         Throwable t = null;
         try {
-            store.updateUniqueKeyIndices(columns.length == 0 ? new HashSet<Index>() : getIndices(columns));
+            engine.updateUniqueKeyIndices(columns.length == 0 ? new HashSet<Index>() : getIndices(columns));
         } catch (Throwable e) {
             t = e;
         }
         Assert.assertNull(t);
     }
 
-    private static void testInvalidColumns(final PersistentEntityStore store, String... columns) {
+    private static void testInvalidColumns(final UniqueKeyIndicesEngine engine, String... columns) {
         Throwable t = null;
         try {
-            store.updateUniqueKeyIndices(getIndices(columns));
+            engine.updateUniqueKeyIndices(getIndices(columns));
         } catch (Throwable e) {
             t = e;
             if (logger.isInfoEnabled()) {

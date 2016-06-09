@@ -21,7 +21,7 @@ import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.PersistentEntity;
 import jetbrains.exodus.entitystore.PersistentEntityId;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
-import jetbrains.exodus.entitystore.metadata.ModelMetaData;
+import jetbrains.exodus.query.metadata.ModelMetaData;
 
 import static jetbrains.exodus.query.Utils.safe_equals;
 

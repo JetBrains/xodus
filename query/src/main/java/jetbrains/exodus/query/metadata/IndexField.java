@@ -13,26 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.metadata;
+package jetbrains.exodus.query.metadata;
 
-import org.jetbrains.annotations.NotNull;
+public interface IndexField {
 
-public enum AssociationEndType {
+    /**
+     * True for property, false for link
+     *
+     * @return
+     */
+    boolean isProperty();
 
-    UndirectedAssociationEnd("UndirectedAssociationEnd"),
-    DirectedAssociationEnd("DirectedAssociationEnd"),
-    ParentEnd("ParentEnd"),
-    ChildEnd("ChildEnd");
-
-    private final String name;
-
-    AssociationEndType(String name) {
-        this.name = name;
-    }
-
-    @NotNull
-    public String getName() {
-        return name;
-    }
+    String getName();
 
 }

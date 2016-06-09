@@ -13,31 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.metadata;
+package jetbrains.exodus.query.metadata;
 
 import org.jetbrains.annotations.NotNull;
 
-/**
- */
-public class PropertyMetaDataImpl implements PropertyMetaData {
+@SuppressWarnings("EnumeratedConstantNamingConvention")
+public enum AssociationEndCardinality {
 
-    private String name;
-    private PropertyType type;
+    _0_1("0..1"),
+    _1("1"),
+    _0_n("0..n"),
+    _1_n("1..n");
 
-    public PropertyMetaDataImpl() {
-    }
+    private final String name;
 
-    public PropertyMetaDataImpl(final String name, final PropertyType type) {
+    AssociationEndCardinality(String name) {
         this.name = name;
-        this.type = type;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public void setType(PropertyType type) {
-        this.type = type;
     }
 
     @NotNull
@@ -45,8 +36,8 @@ public class PropertyMetaDataImpl implements PropertyMetaData {
         return name;
     }
 
-    @NotNull
-    public PropertyType getType() {
-        return type;
+    public boolean isMultiple() {
+        return this == _0_n || this == _1_n;
     }
+
 }

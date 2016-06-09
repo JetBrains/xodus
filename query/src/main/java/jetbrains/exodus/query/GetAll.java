@@ -18,7 +18,7 @@ package jetbrains.exodus.query;
 
 import jetbrains.exodus.core.dataStructures.NanoSet;
 import jetbrains.exodus.entitystore.Entity;
-import jetbrains.exodus.entitystore.metadata.ModelMetaData;
+import jetbrains.exodus.query.metadata.ModelMetaData;
 
 import java.util.Collection;
 

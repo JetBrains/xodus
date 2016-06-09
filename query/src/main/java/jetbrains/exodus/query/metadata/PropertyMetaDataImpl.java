@@ -13,16 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.metadata;
+package jetbrains.exodus.query.metadata;
 
 import org.jetbrains.annotations.NotNull;
 
-public interface AssociationMetaData {
+public class PropertyMetaDataImpl implements PropertyMetaData {
+
+    private String name;
+    private PropertyType type;
+
+    public PropertyMetaDataImpl() {
+    }
+
+    public PropertyMetaDataImpl(final String name, final PropertyType type) {
+        this.name = name;
+        this.type = type;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setType(PropertyType type) {
+        this.type = type;
+    }
 
     @NotNull
-    AssociationType getType();
+    public String getName() {
+        return name;
+    }
 
     @NotNull
-    AssociationEndMetaData getOppositeEnd(@NotNull AssociationEndMetaData end);
-
+    public PropertyType getType() {
+        return type;
+    }
 }

@@ -13,12 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.metadata;
+package jetbrains.exodus.query.metadata;
 
 import org.jetbrains.annotations.NotNull;
 
-public interface MemberMetaData {
+public enum AssociationType {
+
+    Directed("Directed"),
+    Undirected("Undirected"),
+    Aggregation("Aggregation");
+
+    private final String name;
+
+    AssociationType(String name) {
+        this.name = name;
+    }
 
     @NotNull
-    String getName();
+    public String getName() {
+        return name;
+    }
 }

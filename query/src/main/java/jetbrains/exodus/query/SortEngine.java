@@ -21,7 +21,7 @@ import jetbrains.exodus.entitystore.EntityIterable;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.entitystore.iterate.EntitiesOfTypeIterable;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
-import jetbrains.exodus.entitystore.metadata.*;
+import jetbrains.exodus.query.metadata.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -31,6 +31,7 @@ import java.util.List;
 
 @SuppressWarnings({"rawtypes", "NestedConditionalExpression"})
 public class SortEngine {
+
     private static final int MAX_ENTRIES_TO_SORT_IN_MEMORY = Integer.getInteger("jetbrains.exodus.query.maxEntriesToSortInMemory", 100000);
     private static final int MAX_ENUM_COUNT_TO_SORT_LINKS = Integer.getInteger("jetbrains.exodus.query.maxEnumCountToSortLinks", 2048);
     private static final int MIN_ENTRIES_TO_SORT_LINKS = Integer.getInteger("jetbrains.exodus.query.minEntriesToSortLinks", 16);

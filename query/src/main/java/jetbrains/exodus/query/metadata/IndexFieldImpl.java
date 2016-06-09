@@ -13,11 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.metadata;
+package jetbrains.exodus.query.metadata;
 
-public enum PropertyType {
+public class IndexFieldImpl implements IndexField {
 
-    PRIMITIVE,
-    TEXT,
-    BLOB
+    private boolean property;
+    private String name;
+
+    @Override
+    public boolean isProperty() {
+        return property;
+    }
+
+    public void setProperty(boolean property) {
+        this.property = property;
+    }
+
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    @Override
+    public String toString() {
+        return name;
+    }
 }

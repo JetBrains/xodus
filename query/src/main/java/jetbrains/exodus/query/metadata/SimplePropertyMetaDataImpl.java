@@ -13,36 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.metadata;
+package jetbrains.exodus.query.metadata;
+
+import org.jetbrains.annotations.Nullable;
 
 /**
- * Date: Nov 19, 2009
  */
-public class IndexFieldImpl implements IndexField {
+public class SimplePropertyMetaDataImpl extends PropertyMetaDataImpl {
 
-    private boolean property;
-    private String name;
+    private String primitiveTypeName;
 
-    @Override
-    public boolean isProperty() {
-        return property;
+    public SimplePropertyMetaDataImpl() {
     }
 
-    public void setProperty(boolean property) {
-        this.property = property;
+    public SimplePropertyMetaDataImpl(final String name, final String primitiveTypeName) {
+        super(name, PropertyType.PRIMITIVE);
+        this.primitiveTypeName = primitiveTypeName;
     }
 
-    @Override
-    public String getName() {
-        return name;
+    @Nullable
+    public String getPrimitiveTypeName() {
+        return primitiveTypeName;
     }
 
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    @Override
-    public String toString() {
-        return name;
+    public void setPrimitiveTypeName(String primitiveTypeName) {
+        this.primitiveTypeName = primitiveTypeName;
     }
 }

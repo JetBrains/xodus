@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.metadata;
+package jetbrains.exodus.query.metadata;
 
 import jetbrains.exodus.entitystore.EntityStoreTestBase;
 import org.junit.Assert;
 
-import static jetbrains.exodus.entitystore.metadata.MetaBuilder.clazz;
-import static jetbrains.exodus.entitystore.metadata.MetaBuilder.model;
+import static jetbrains.exodus.query.metadata.MetaBuilder.clazz;
+import static jetbrains.exodus.query.metadata.MetaBuilder.model;
 
 public class ModelMetaDataTests extends EntityStoreTestBase {
 

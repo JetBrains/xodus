@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.entitystore.metadata.Index;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Comparator;
@@ -33,6 +32,7 @@ public interface StoreTransaction {
 
     /**
      * Answers on the question: does the transaction actually contain any changes that can be flushed or committed.
+     *
      * @return true if there are no changes that will be saved on {@link #flush() flush} or {@link #commit() commit}.
      */
     boolean isIdempotent();
@@ -352,11 +352,4 @@ public interface StoreTransaction {
      * @return query cancelling policy.
      */
     QueryCancellingPolicy getQueryCancellingPolicy();
-
-    void insertUniqueKey(@NotNull final Index index,
-                         @NotNull final List<Comparable> propValues,
-                         @NotNull final Entity entity);
-
-    void deleteUniqueKey(@NotNull final Index index,
-                         @NotNull final List<Comparable> propValues);
 }

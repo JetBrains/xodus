@@ -22,8 +22,8 @@ import org.junit.Assert;
 
 import java.util.Comparator;
 
-import static jetbrains.exodus.entitystore.metadata.AssociationEndCardinality._0_1;
-import static jetbrains.exodus.entitystore.metadata.MetaBuilder.*;
+import static jetbrains.exodus.query.metadata.AssociationEndCardinality._0_1;
+import static jetbrains.exodus.query.metadata.MetaBuilder.*;
 
 @SuppressWarnings({"HardcodedLineSeparator", "EqualsBetweenInconvertibleTypes", "OverlyCoupledMethod"})
 public class QueryTreeTest extends EntityStoreTestBase {

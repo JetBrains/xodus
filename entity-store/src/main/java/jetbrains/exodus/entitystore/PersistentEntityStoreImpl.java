@@ -22,14 +22,11 @@ import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
-import jetbrains.exodus.core.dataStructures.hash.LinkedHashMap;
 import jetbrains.exodus.entitystore.iterate.EntityFromLinkSetIterable;
 import jetbrains.exodus.entitystore.iterate.EntityFromLinksIterable;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.management.EntityStoreConfig;
 import jetbrains.exodus.entitystore.management.EntityStoreStatistics;
-import jetbrains.exodus.entitystore.metadata.Index;
-import jetbrains.exodus.entitystore.metadata.IndexField;
 import jetbrains.exodus.entitystore.tables.*;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
@@ -582,9 +579,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     @Nullable
-    Comparable getProperty(@NotNull final PersistentStoreTransaction txn,
-                           @NotNull final PersistentEntity entity,
-                           @NotNull final String propertyName) {
+    public Comparable getProperty(@NotNull final PersistentStoreTransaction txn,
+                                  @NotNull final PersistentEntity entity,
+                                  @NotNull final String propertyName) {
         final int propertyId = getPropertyId(txn, propertyName, false);
         if (propertyId < 0) {
             return null;
@@ -1521,125 +1518,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return result;
     }
 
-    @Override
-    public void updateUniqueKeyIndices(@NotNull final Iterable<Index> indices) {
-        environment.suspendGC();
-        try {
-            executeInTransaction(new StoreTransactionalExecutable() {
-                @Override
-                public void execute(@NotNull StoreTransaction txn) {
-                    final PersistentStoreTransaction t = (PersistentStoreTransaction) txn;
-                    final PersistentStoreTransaction snapshot = t.getSnapshot();
-                    try {
-                        final Collection<String> indexNames = new HashSet<>();
-                        for (final String dbName : environment.getAllStoreNames(t.getEnvironmentTransaction())) {
-                            if (namingRulez.isUniqueKeyIndexName(dbName)) {
-                                indexNames.add(dbName);
-                            }
-                        }
-                        for (final Index index : indices) {
-                            final String indexName = getUniqueKeyIndexName(index);
-                            if (indexNames.contains(indexName)) {
-                                indexNames.remove(indexName);
-                            } else {
-                                createUniqueKeyIndex(t, snapshot, index);
-                            }
-                        }
-                        // remove obsolete indices
-                        for (final String indexName : indexNames) {
-                            removeObsoleteUniqueKeyIndex(t, indexName);
-                        }
-                        if (logger.isTraceEnabled()) {
-                            logger.trace("Flush index persistent transaction " + t);
-                        }
-                        t.flush();
-                    } finally {
-                        snapshot.abort(); // reading snapshot is obsolete now
-                    }
-                }
-            });
-        } finally {
-            environment.resumeGC();
-        }
-    }
-
-    private void removeObsoleteUniqueKeyIndex(@NotNull final PersistentStoreTransaction txn, @NotNull final String indexName) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Remove obsolete index [" + indexName + ']');
-        }
-        environment.removeStore(indexName, txn.getEnvironmentTransaction());
-    }
-
-    @SuppressWarnings({"OverlyLongMethod", "ThrowCaughtLocally", "OverlyNestedMethod", "ConstantConditions"})
-    private void createUniqueKeyIndex(@NotNull final PersistentStoreTransaction txn,
-                                      @NotNull final PersistentStoreTransaction snapshot,
-                                      @NotNull final Index index) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Create index [" + index + ']');
-        }
-
-        final List<IndexField> fields = index.getFields();
-        final int propCount = fields.size();
-        if (propCount == 0) {
-            throw new EntityStoreException("Can't create unique key index on empty list of keys.");
-        }
-        SingleColumnTable indexTable = null;
-        Comparable[] props = new Comparable[propCount];
-        for (final String entityType : index.getEntityTypesToIndex()) {
-            int i = 0;
-            for (final Entity entity : snapshot.getAll(entityType)) {
-                for (int j = 0; j < propCount; ++j) {
-                    final IndexField field = fields.get(j);
-                    if (field.isProperty()) {
-                        if ((props[j] = getProperty(txn, (PersistentEntity) entity, field.getName())) == null) {
-                            throw new EntityStoreException("Can't create unique key index with null property value: " + entityType + '.' + field.getName());
-                        }
-                    } else {
-                        if ((props[j] = entity.getLink(field.getName())) == null) {
-                            throw new EntityStoreException("Can't create unique key index with null link: " + entityType + '.' + field.getName());
-                        }
-                    }
-                }
-                if (indexTable == null) {
-                    final String uniqueKeyIndexName = getUniqueKeyIndexName(index);
-                    indexTable = new SingleColumnTable(txn, uniqueKeyIndexName,
-                            environment.storeExists(uniqueKeyIndexName, txn.getEnvironmentTransaction()) ?
-                                    StoreConfig.USE_EXISTING :
-                                    config.getUniqueIndicesUseBtree() ? StoreConfig.WITHOUT_DUPLICATES : StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING);
-                }
-                if (!indexTable.getDatabase().add(txn.getEnvironmentTransaction(), propertyTypes.dataArrayToEntry(props), LongBinding.longToCompressedEntry(entity.getId().getLocalId()))) {
-                    throw new EntityStoreException("Failed to insert unique key (already exists), index: " + index + ", values = " + Arrays.toString(props));
-                }
-                if (++i % 100 == 0) {
-                    txn.flush();
-                }
-            }
-            txn.flush();
-        }
-    }
-
-    void insertUniqueKey(@NotNull final PersistentStoreTransaction txn, @NotNull final Index index,
-                         @NotNull final List<Comparable> propValues, @NotNull final Entity entity) {
-        final int propCount = index.getFields().size();
-        if (propCount != propValues.size()) {
-            throw new IllegalArgumentException("Number of fields differs from the number of property values");
-        }
-        final Store indexTable = getUniqueKeyIndex(txn, index);
-        if (!indexTable.add(txn.getEnvironmentTransaction(), propertyTypes.dataArrayToEntry(propValues.toArray(new Comparable[propCount])),
-                LongBinding.longToCompressedEntry(entity.getId().getLocalId()))) {
-            throw new InsertConstraintException("Failed to insert unique key (already exists). Index: " + index);
-        }
-    }
-
-    void deleteUniqueKey(@NotNull final PersistentStoreTransaction txn, @NotNull final Index index,
-                         @NotNull final List<Comparable> propValues) {
-        final int propCount = index.getFields().size();
-        if (propCount != propValues.size()) {
-            throw new IllegalArgumentException("Number of fields differs from the number of property values");
-        }
-        getUniqueKeyIndex(txn, index).delete(txn.getEnvironmentTransaction(), propertyTypes.dataArrayToEntry(propValues.toArray(new Comparable[propCount])));
-    }
-
     @NotNull
     PersistentSequence getEntitiesSequence(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
         synchronized (entitiesSequences) {
@@ -1728,11 +1606,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return (BlobsTable) blobsTables.get(txn, entityTypeId);
     }
 
-    @NotNull
-    public synchronized Store getUniqueKeyIndex(@NotNull final PersistentStoreTransaction txn, @NotNull final Index index) {
-        return environment.openStore(getUniqueKeyIndexName(index), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn.getEnvironmentTransaction());
-    }
-
     @Override
     @NotNull
     public EntityStoreSharedAsyncProcessor getAsyncProcessor() {
@@ -1781,24 +1654,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     static boolean isEmptyOrInPlaceBlobHandle(final long blobHandle) {
         return EMPTY_BLOB_HANDLE == blobHandle || IN_PLACE_BLOB_HANDLE == blobHandle;
-    }
-
-    private String getUniqueKeyIndexName(@NotNull final Index index) {
-        final List<IndexField> fields = index.getFields();
-        final int fieldCount = fields.size();
-        if (fieldCount < 1) {
-            throw new EntityStoreException("Can't define unique key on empty set of fields");
-        }
-        final LinkedHashMap<String, Boolean> names = new LinkedHashMap<>();
-        for (final IndexField field : fields) {
-            final String name = field.getName();
-            final Boolean b = names.get(name);
-            if (b != null && b == field.isProperty()) {
-                throw new EntityStoreException("Can't define unique key, field is used twice: " + name);
-            }
-            names.put(name, field.isProperty());
-        }
-        return namingRulez.getUniqueKeyIndexName(index.getOwnerEntityType(), names);
     }
 
     private void safeTruncateStore(@NotNull final PersistentStoreTransaction txn, @NotNull final String dbName) {

@@ -31,7 +31,6 @@ import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.core.execution.SharedTimer;
 import jetbrains.exodus.entitystore.iterate.*;
-import jetbrains.exodus.entitystore.metadata.Index;
 import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.env.Store;
 import jetbrains.exodus.env.Transaction;
@@ -546,19 +545,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     @Override
     public QueryCancellingPolicy getQueryCancellingPolicy() {
         return queryCancellingPolicy;
-    }
-
-    @Override
-    public void insertUniqueKey(@NotNull final Index index,
-                                @NotNull final List<Comparable> propValues,
-                                @NotNull final Entity entity) {
-        store.insertUniqueKey(this, index, propValues, entity);
-    }
-
-    @Override
-    public void deleteUniqueKey(@NotNull final Index index,
-                                @NotNull final List<Comparable> propValues) {
-        store.deleteUniqueKey(this, index, propValues);
     }
 
     @SuppressWarnings({"HardCodedStringLiteral"})

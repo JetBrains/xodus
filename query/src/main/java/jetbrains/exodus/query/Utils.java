@@ -15,8 +15,8 @@
  */
 package jetbrains.exodus.query;
 
-import jetbrains.exodus.entitystore.metadata.EntityMetaData;
-import jetbrains.exodus.entitystore.metadata.ModelMetaData;
+import jetbrains.exodus.query.metadata.EntityMetaData;
+import jetbrains.exodus.query.metadata.ModelMetaData;
 
 class Utils {
 

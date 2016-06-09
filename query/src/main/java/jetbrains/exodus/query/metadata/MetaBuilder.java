@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.metadata;
+package jetbrains.exodus.query.metadata;
 
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 
@@ -21,11 +21,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
-import static jetbrains.exodus.entitystore.metadata.AssociationEndCardinality._0_1;
-import static jetbrains.exodus.entitystore.metadata.AssociationEndType.DirectedAssociationEnd;
-import static jetbrains.exodus.entitystore.metadata.AssociationEndType.UndirectedAssociationEnd;
-import static jetbrains.exodus.entitystore.metadata.AssociationType.Directed;
-import static jetbrains.exodus.entitystore.metadata.AssociationType.Undirected;
+import static jetbrains.exodus.query.metadata.AssociationEndCardinality._0_1;
+import static jetbrains.exodus.query.metadata.AssociationEndType.DirectedAssociationEnd;
+import static jetbrains.exodus.query.metadata.AssociationEndType.UndirectedAssociationEnd;
+import static jetbrains.exodus.query.metadata.AssociationType.Directed;
+import static jetbrains.exodus.query.metadata.AssociationType.Undirected;
 
 @SuppressWarnings("rawtypes")
 public class MetaBuilder {

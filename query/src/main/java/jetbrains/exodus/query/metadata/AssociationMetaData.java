@@ -13,17 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.metadata;
+package jetbrains.exodus.query.metadata;
 
-public interface IndexField {
+import org.jetbrains.annotations.NotNull;
 
-    /**
-     * True for property, false for link
-     *
-     * @return
-     */
-    boolean isProperty();
+public interface AssociationMetaData {
 
-    String getName();
+    @NotNull
+    AssociationType getType();
+
+    @NotNull
+    AssociationEndMetaData getOppositeEnd(@NotNull AssociationEndMetaData end);
 
 }

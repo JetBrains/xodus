@@ -18,10 +18,10 @@ package jetbrains.exodus.query;
 
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
-import jetbrains.exodus.entitystore.metadata.EntityMetaData;
-import jetbrains.exodus.entitystore.metadata.ModelMetaData;
-import jetbrains.exodus.entitystore.metadata.PropertyMetaData;
-import jetbrains.exodus.entitystore.metadata.PropertyType;
+import jetbrains.exodus.query.metadata.EntityMetaData;
+import jetbrains.exodus.query.metadata.ModelMetaData;
+import jetbrains.exodus.query.metadata.PropertyMetaData;
+import jetbrains.exodus.query.metadata.PropertyType;
 
 import static jetbrains.exodus.query.Utils.safe_equals;
 

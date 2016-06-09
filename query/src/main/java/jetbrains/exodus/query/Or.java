@@ -17,7 +17,7 @@ package jetbrains.exodus.query;
 
 
 import jetbrains.exodus.entitystore.Entity;
-import jetbrains.exodus.entitystore.metadata.ModelMetaData;
+import jetbrains.exodus.query.metadata.ModelMetaData;
 
 public class Or extends CommutativeOperator {
     public Or(final NodeBase left, final NodeBase right) {

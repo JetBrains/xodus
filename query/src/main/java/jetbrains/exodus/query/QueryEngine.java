@@ -22,9 +22,9 @@ import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.iterate.EntityIteratorBase;
 import jetbrains.exodus.entitystore.iterate.SingleEntityIterable;
-import jetbrains.exodus.entitystore.metadata.AssociationEndMetaData;
-import jetbrains.exodus.entitystore.metadata.EntityMetaData;
-import jetbrains.exodus.entitystore.metadata.ModelMetaData;
+import jetbrains.exodus.query.metadata.AssociationEndMetaData;
+import jetbrains.exodus.query.metadata.EntityMetaData;
+import jetbrains.exodus.query.metadata.ModelMetaData;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -33,13 +33,16 @@ import java.util.Iterator;
 
 @SuppressWarnings("UnusedParameters")
 public class QueryEngine {
-    private final ModelMetaData mmd;
-    protected final PersistentEntityStoreImpl pesistentStore;
-    protected SortEngine sortEngine;
 
-    public QueryEngine(final ModelMetaData mmd, final PersistentEntityStoreImpl pesistentStore) {
+    private final ModelMetaData mmd;
+    private final PersistentEntityStoreImpl persistentStore;
+    private final UniqueKeyIndicesEngine ukiEngine;
+    private SortEngine sortEngine;
+
+    public QueryEngine(final ModelMetaData mmd, final PersistentEntityStoreImpl persistentStore) {
         this.mmd = mmd;
-        this.pesistentStore = pesistentStore;
+        this.persistentStore = persistentStore;
+        ukiEngine = new UniqueKeyIndicesEngine(persistentStore);
     }
 
     protected Iterable<Entity> inMemorySelectDistinct(Iterable<Entity> it, final String linkName) {
@@ -71,7 +74,11 @@ public class QueryEngine {
     }
 
     public PersistentEntityStoreImpl getPersistentStore() {
-        return pesistentStore;
+        return persistentStore;
+    }
+
+    public UniqueKeyIndicesEngine getUniqueKeyIndicesEngine() {
+        return ukiEngine;
     }
 
     public SortEngine getSortEngine() {
@@ -96,7 +103,7 @@ public class QueryEngine {
 
     @Nullable
     protected Iterable<Entity> wrap(@NotNull Entity entity) {
-        return new SingleEntityIterable(pesistentStore.getAndCheckCurrentTransaction(), entity.getId());
+        return new SingleEntityIterable(persistentStore.getAndCheckCurrentTransaction(), entity.getId());
     }
 
     public boolean isPersistentIterable(Iterable<Entity> it) {
