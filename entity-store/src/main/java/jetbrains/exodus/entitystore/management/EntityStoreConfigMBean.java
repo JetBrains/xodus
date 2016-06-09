@@ -49,8 +49,6 @@ public interface EntityStoreConfigMBean {
 
     boolean isExplainOn();
 
-    boolean getUniqueIndicesUseBtree();
-
     boolean isDebugLinkDataGetter();
 
     boolean isDebugSearchForIncomingLinksOnDelete();

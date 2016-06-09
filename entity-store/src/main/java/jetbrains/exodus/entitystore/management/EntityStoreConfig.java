@@ -109,11 +109,6 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
-    public boolean getUniqueIndicesUseBtree() {
-        return config.getUniqueIndicesUseBtree();
-    }
-
-    @Override
     public boolean isDebugLinkDataGetter() {
         return config.isDebugLinkDataGetter();
     }

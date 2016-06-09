@@ -159,8 +159,7 @@ public class UniqueKeyIndicesEngine {
                     final String uniqueKeyIndexName = getUniqueKeyIndexName(index);
                     indexTable = new SingleColumnTable(txn, uniqueKeyIndexName,
                             environment.storeExists(uniqueKeyIndexName, txn.getEnvironmentTransaction()) ?
-                                    StoreConfig.USE_EXISTING :
-                                    config.getUniqueIndicesUseBtree() ? StoreConfig.WITHOUT_DUPLICATES : StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING);
+                                    StoreConfig.USE_EXISTING : StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING);
                 }
                 if (!indexTable.getDatabase().add(txn.getEnvironmentTransaction(), propertyTypes.dataArrayToEntry(props), LongBinding.longToCompressedEntry(entity.getId().getLocalId()))) {
                     throw new EntityStoreException("Failed to insert unique key (already exists), index: " + index + ", values = " + Arrays.toString(props));

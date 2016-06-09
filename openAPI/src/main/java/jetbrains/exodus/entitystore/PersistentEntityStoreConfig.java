@@ -49,8 +49,6 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public static final String EXPLAIN_ON = "exodus.entityStore.explainOn";
 
-    public static final String UNIQUE_INDICES_USE_BTREE = "exodus.entityStore.uniqueIndices.useBtree";
-
     public static final String DEBUG_LINK_DATA_GETTER = "exodus.entityStore.debug.linkDataGetter";
 
     public static final String DEBUG_SEARCH_FOR_INCOMING_LINKS_ON_DELETE = "exodus.entityStore.debug.searchForIncomingLinksOnDelete";
@@ -98,7 +96,6 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(CACHING_DISABLED, false),
                 new Pair(REORDERING_DISABLED, false),
                 new Pair(EXPLAIN_ON, false),
-                new Pair(UNIQUE_INDICES_USE_BTREE, false),
                 new Pair(DEBUG_LINK_DATA_GETTER, false),
                 new Pair(DEBUG_SEARCH_FOR_INCOMING_LINKS_ON_DELETE, false),
                 new Pair(ENTITY_ITERABLE_CACHE_SIZE, defaultEntityIterableCacheSize()),
@@ -214,14 +211,6 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public PersistentEntityStoreConfig setExplainOn(final boolean explainOn) {
         return setSetting(EXPLAIN_ON, explainOn);
-    }
-
-    public boolean getUniqueIndicesUseBtree() {
-        return (Boolean) getSetting(UNIQUE_INDICES_USE_BTREE);
-    }
-
-    public PersistentEntityStoreConfig setUniqueIndicesUseBtree(final boolean useBtree) {
-        return setSetting(UNIQUE_INDICES_USE_BTREE, useBtree);
     }
 
     public boolean isDebugLinkDataGetter() {
