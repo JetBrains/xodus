@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.BackupStrategy;
+import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.log.LogUtil;
 import org.jetbrains.annotations.NotNull;
 

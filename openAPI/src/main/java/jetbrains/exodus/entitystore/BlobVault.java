@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.Backupable;
+import jetbrains.exodus.backup.Backupable;
 import jetbrains.exodus.core.dataStructures.SoftLongObjectCache;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;

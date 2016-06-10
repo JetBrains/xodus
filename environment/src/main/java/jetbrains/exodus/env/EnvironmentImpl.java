@@ -15,9 +15,9 @@
  */
 package jetbrains.exodus.env;
 
-import jetbrains.exodus.BackupStrategy;
 import jetbrains.exodus.ConfigSettingChangeListener;
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.core.dataStructures.ConcurrentLongObjectCache;
 import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;

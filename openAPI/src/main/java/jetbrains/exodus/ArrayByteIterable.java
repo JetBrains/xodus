@@ -165,7 +165,7 @@ public class ArrayByteIterable extends ByteIterableBase {
     }
 
     @SuppressWarnings({"NonConstantFieldWithUpperCaseName"})
-    private static final class EmptyIterable extends ArrayByteIterable {
+    public static final class EmptyIterable extends ArrayByteIterable {
 
         public final Iterator ITERATOR = new Iterator(0);
 

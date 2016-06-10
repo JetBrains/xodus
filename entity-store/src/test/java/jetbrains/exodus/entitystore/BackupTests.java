@@ -15,14 +15,14 @@
  */
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.BackupStrategy;
-import jetbrains.exodus.Backupable;
 import jetbrains.exodus.TestUtil;
+import jetbrains.exodus.backup.BackupBean;
+import jetbrains.exodus.backup.BackupStrategy;
+import jetbrains.exodus.backup.Backupable;
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.core.execution.JobProcessor;
 import jetbrains.exodus.core.execution.JobProcessorExceptionHandler;
 import jetbrains.exodus.core.execution.ThreadJobProcessor;
-import jetbrains.exodus.util.BackupBean;
 import jetbrains.exodus.util.CompressBackupUtil;
 import jetbrains.exodus.util.IOUtil;
 import jetbrains.exodus.util.Random;

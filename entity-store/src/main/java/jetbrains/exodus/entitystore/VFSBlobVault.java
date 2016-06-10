@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.BackupStrategy;
+import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.core.dataStructures.hash.*;

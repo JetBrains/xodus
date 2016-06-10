@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.env;
 
-import jetbrains.exodus.BackupStrategy;
+import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.util.IOUtil;
 import org.jetbrains.annotations.NotNull;

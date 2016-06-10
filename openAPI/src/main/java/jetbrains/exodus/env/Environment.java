@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.env;
 
-import jetbrains.exodus.Backupable;
+import jetbrains.exodus.backup.Backupable;
 import jetbrains.exodus.management.Statistics;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

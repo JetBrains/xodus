@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus;
+package jetbrains.exodus.backup;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -21,7 +21,7 @@ import java.io.File;
 import java.util.Collections;
 
 /**
- * Describes how a backup file should be cooked by {@link jetbrains.exodus.util.BackupBean}. Only listed by
+ * Describes how a backup file should be cooked by {@link BackupBean}. Only listed by
  * {@link #listFiles()} and accepted by {@link #acceptFile(File)} files are put into backup file with defined
  * pre- ({@link #beforeBackup()}) and postprocessing ({@link #afterBackup()}).
  */
@@ -54,7 +54,7 @@ public abstract class BackupStrategy {
     }
 
     /**
-     * Can be used to interrupt backup process. After each processed file, {@link jetbrains.exodus.util.BackupBean}
+     * Can be used to interrupt backup process. After each processed file, {@link BackupBean}
      * checks if backup procedure should be interrupted.
      *
      * @return true if backup should be interrupted.

@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.BackupStrategy;
+import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.env.Environment;

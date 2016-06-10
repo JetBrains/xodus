@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus;
+package jetbrains.exodus.backup;
 
 /**
  * Something that can be backed up. {@link jetbrains.exodus.env.Environment},

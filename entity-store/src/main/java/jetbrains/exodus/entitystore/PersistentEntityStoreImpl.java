@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.*;
+import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.bindings.*;
 import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache;
 import jetbrains.exodus.core.dataStructures.Pair;

@@ -13,10 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.util;
+package jetbrains.exodus.backup;
 
-import jetbrains.exodus.BackupStrategy;
-import jetbrains.exodus.Backupable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;

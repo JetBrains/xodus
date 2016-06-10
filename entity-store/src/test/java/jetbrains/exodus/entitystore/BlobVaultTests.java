@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.BackupStrategy;
+import jetbrains.exodus.backup.BackupStrategy;
 import org.junit.Assert;
 
 import java.io.ByteArrayInputStream;

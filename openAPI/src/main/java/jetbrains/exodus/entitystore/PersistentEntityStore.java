@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.Backupable;
+import jetbrains.exodus.backup.Backupable;
 import jetbrains.exodus.bindings.ComparableBinding;
 import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor;
 import jetbrains.exodus.env.Environment;

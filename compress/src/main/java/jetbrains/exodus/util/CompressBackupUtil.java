@@ -15,9 +15,9 @@
  */
 package jetbrains.exodus.util;
 
-import jetbrains.exodus.BackupStrategy;
-import jetbrains.exodus.Backupable;
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.backup.BackupStrategy;
+import jetbrains.exodus.backup.Backupable;
 import org.apache.commons.compress.archivers.ArchiveOutputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
