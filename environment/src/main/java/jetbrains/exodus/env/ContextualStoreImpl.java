@@ -41,8 +41,8 @@ public class ContextualStoreImpl extends StoreImpl implements ContextualStore {
         return get(environment.getAndCheckCurrentTransaction(), key);
     }
 
-    public boolean exists(@NotNull final ByteIterable key, @NotNull final ByteIterable data) {
-        return exists(environment.getAndCheckCurrentTransaction(), key, data);
+    public boolean exists(@NotNull final ByteIterable key, @NotNull final ByteIterable value) {
+        return exists(environment.getAndCheckCurrentTransaction(), key, value);
     }
 
     public boolean put(@NotNull final ByteIterable key, @NotNull final ByteIterable value) {

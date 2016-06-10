@@ -82,8 +82,8 @@ public class StoreImpl implements Store {
     @Override
     public boolean exists(@NotNull final Transaction txn,
                           @NotNull final ByteIterable key,
-                          @NotNull final ByteIterable data) {
-        return ((TransactionBase) txn).getTree(this).hasPair(key, data);
+                          @NotNull final ByteIterable value) {
+        return ((TransactionBase) txn).getTree(this).hasPair(key, value);
     }
 
     @Override

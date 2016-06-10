@@ -31,7 +31,7 @@ public enum StoreConfig {
     public final boolean temporaryEmpty;
     public final boolean useExisting;
 
-    private StoreConfig(final int id, final String mask) {
+    StoreConfig(final int id, final String mask) {
         this.id = id;
         final int bits = Integer.parseInt(mask, 2);
         duplicates = (bits & 1) > 0;

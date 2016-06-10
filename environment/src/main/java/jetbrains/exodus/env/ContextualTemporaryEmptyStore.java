@@ -27,8 +27,8 @@ import java.util.Iterator;
 
 class ContextualTemporaryEmptyStore extends ContextualStoreImpl {
 
-    public ContextualTemporaryEmptyStore(@NotNull final ContextualEnvironmentImpl env,
-                                         @NotNull final String name) {
+    ContextualTemporaryEmptyStore(@NotNull final ContextualEnvironmentImpl env,
+                                  @NotNull final String name) {
         super(env, name, TreeMetaInfo.EMPTY.clone(-1));
     }
 
@@ -41,7 +41,7 @@ class ContextualTemporaryEmptyStore extends ContextualStoreImpl {
     @Override
     public boolean exists(@NotNull final Transaction txn,
                           @NotNull final ByteIterable key,
-                          @NotNull final ByteIterable data) {
+                          @NotNull final ByteIterable value) {
         return false;
     }
 

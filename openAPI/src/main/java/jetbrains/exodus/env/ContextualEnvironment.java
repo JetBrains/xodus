@@ -20,6 +20,10 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
+/**
+ * {@code ContextualEnvironment} is always aware of transaction started in current thread. Its {@code openStore()}
+ * methods return {@link ContextualStore} instances.
+ */
 public interface ContextualEnvironment extends Environment {
 
     @NotNull
@@ -37,17 +41,14 @@ public interface ContextualEnvironment extends Environment {
     ContextualStore openStore(@NotNull String name, @NotNull StoreConfig config, @NotNull Transaction transaction, boolean creationRequired);
 
     /**
-     * Returns transaction started in current thread if any.
-     *
-     * @return TransactionDescriptor object.
+     * @return {@linkplain Transaction transaction} instance or null if no transaction is started in current thread.
      */
     @Nullable
     Transaction getCurrentTransaction();
 
     /**
-     * Returns transaction started in current thread or throws an ExodusException if no transaction was started.
-     *
-     * @return TransactionDescriptor object.
+     * @return {@linkplain Transaction transaction} instance
+     * @throws jetbrains.exodus.ExodusException if there is no transaction started in current thread
      */
     @NotNull
     Transaction getAndCheckCurrentTransaction();

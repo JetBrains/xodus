@@ -19,76 +19,141 @@ import jetbrains.exodus.ByteIterable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * Store is a named collection of key/value pairs. {@code Store} can be opened using any of {@link Environment
+ * Environment.openStore()} methods. If a Store is opened using {@link StoreConfig StoreConfig.WITHOUT_DUPLICATES}
+ * or {@link StoreConfig StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING} then it is map, otherwise it is a multi-map.
+ * Also {@code Store} can be thought as a table with two columns, one for keys and another for values.
+ * Both keys and values are managed using instances of {@link ByteIterable}. You can use
+ * {@link Cursor cursors} to iterate over a {@code Store}, to find nearest key or key/value pair, etc.
+ * All operations can only be performed within a {@link Transaction transaction}.
+ *
+ * <p>Stores with and without key prefixing are implemented by different types of search trees.
+ * If {@code Store} is opened using {@link StoreConfig StoreConfig.WITH_DUPLICATES} or
+ * {@link StoreConfig StoreConfig.WITHOUT_DUPLICATES} then <a href="https://en.wikipedia.org/wiki/B%2B_tree">B+ tree</a>
+ * is used, otherwise <a href="https://en.wikipedia.org/wiki/Radix_tree">Patricia trie</a> is used. Search tree types
+ * differ in performance characteristics: stores with key prefixing has better random key access, whereas stores without
+ * key prefixing are preferable for sequential access in order of keys.
+ *
+ * <p>Stores are rather stateless objects, so they can be used without any limitations in multi-threaded environments.
+ * The only exceptions are {@link Environment Environment.truncateStore()} and {@link Environment Environment.removeStore()}
+ * methods. After truncating, any {@code Store} should be re-opened, after removing it just cannot be used.
+ * Opening {@code Store} for each database operation is also ok, but it will result in some performance overhead.
+ */
 public interface Store {
+
+    /**
+     * @return {@linkplain Environment environment} which the store was opened for
+     */
     @NotNull
     Environment getEnvironment();
 
+    /**
+     * For stores without key duplicates, it returns not-null value or null if the key doesn't exist. For stores
+     * with key duplicates, it returns the smallest not-null value associated with the key or null if no one exists.
+     *
+     * @param txn {@linkplain Transaction transaction} instance
+     * @param key requested key
+     * @return not-null value if key.value pair with the specified key exists, otherwise null
+     */
     @Nullable
     ByteIterable get(@NotNull Transaction txn, @NotNull ByteIterable key);
 
-    boolean exists(@NotNull Transaction txn, @NotNull ByteIterable key, @NotNull ByteIterable data);
+    /**
+     * Checks if specified key/value pair exists in the {@code Store}.
+     *
+     * @param txn   {@linkplain Transaction transaction} instance
+     * @param key   key
+     * @param value value
+     * @return {@code true} if the key/value pair exists in the {@code Store}
+     */
+    boolean exists(@NotNull Transaction txn, @NotNull ByteIterable key, @NotNull ByteIterable value);
 
     /**
-     * <p>If tree supports duplicates, then add key/value pair, return true iff pair not existed.</p>
-     * <p>If tree doesn't support duplicates and key already exists, then overwrite value, return true iff value differs.</p>
-     * <p>If tree doesn't support duplicates and key doesn't exists, then add key/value pair, return true.</p>
+     * Puts specified key/value pair into the {@code Store} and returns the result. For stores with key duplicates,
+     * it returns {@code true} if the pair didn't exist in the {@code Store}. For stores without key duplicates,
+     * it returns {@code true} if the key didn't exist or the new value differs from the existing one.
      * <table border=1>
-     * <tr><td/><th>Dup</th><th>No Dup</th></tr>
-     * <tr><th>Exists</th><td>add</td><td>overwrite</td></tr>
-     * <tr><th>Not Exists</th><td>add</td><td>add</td></tr>
+     * <tr><td/><th>With duplicates</th><th>Without duplicates</th></tr>
+     * <tr><th>The key exists</th><td>Adds pair, if the value didn't exist</td><td>Overwrites value</td></tr>
+     * <tr><th>The key doesn't exist</th><td>Adds pair</td><td>Adds pair</td></tr>
      * </table>
      *
-     * @param txn   a transaction required
-     * @param key   not null store key
-     * @param value not null store value
+     * @param txn   {@linkplain Transaction transaction} instance
+     * @param key   not null key
+     * @param value not null value
+     * @return {@code true} if specified pair was added or value by the key was overwritten.
      */
     boolean put(@NotNull Transaction txn, @NotNull ByteIterable key, @NotNull ByteIterable value);
 
+
+    /**
+     * Can be used if it is a priori known that the key is definitely greater than any other key in the {@code Store}.
+     * In that case, no search is been done before insertion, so {@code putRight()} can perform several times faster
+     * than {@link #put(Transaction, ByteIterable, ByteIterable)}. It can be useful for auto-generated keys.
+     *
+     * @param txn   {@linkplain Transaction transaction} instance
+     * @param key   key
+     * @param value value
+     */
     void putRight(@NotNull Transaction txn, @NotNull ByteIterable key, @NotNull ByteIterable value);
 
     /**
-     * <p>If tree support duplicates and key already exists, then return false.</p>
-     * <p>If tree support duplicates and key doesn't exists, then add key/value pair, return true.</p>
-     * <p>If tree doesn't support duplicates and key already exists, then return false.</p>
-     * <p>If tree doesn't support duplicates and key doesn't exists, then add key/value pair, return true.</p>
+     * Adds key/value pair to the {@code Store} if the key doesn't exist. For stores with and without key duplicates,
+     * it returns {@code true} if and only if the key doesn't exists. So it never overwrites value of existing key.
      * <table border=1>
-     * <tr><td/><th>Dup</th><th>No Dup</th></tr>
-     * <tr><th>Exists</th><td>ret false</td><td>ret false</td></tr>
-     * <tr><th>Not Exists</th><td>add, ret true</td><td>add, ret true</td></tr>
+     * <tr><td/><th>With duplicates</th><th>Without duplicates</th></tr>
+     * <tr><th>The key exists</th><td>Returns {@code false}</td><td>Returns {@code false}</td></tr>
+     * <tr><th>The key doesn't exist</th><td>Adds pair, returns {@code true}</td><td>Adds pair, returns {@code true}</td></tr>
      * </table>
      *
-     * @param txn   a transaction required
-     * @param key   not null store key
-     * @param value not null store value
-     * @return true if key/value pair was added
+     * @param txn   {@linkplain Transaction transaction} instance
+     * @param key   key
+     * @param value value
+     * @return {@code true} if key/value pair was added
      */
     boolean add(@NotNull Transaction txn, @NotNull ByteIterable key, @NotNull ByteIterable value);
 
     /**
-     * Delete key/value pair for given key. If duplicate values exists for given key, all them will be removed.
+     * For stores without key duplicates, deletes single key/value pair and returns {@code true} if a pair was deleted.
+     * For stores with key duplicates, it deletes all pairs with the given key and returns {@code true} if any was deleted.
+     * To delete particular key/value pair, use {@link Cursor cursors}.
      *
-     * @param txn a transaction required
-     * @param key a key to delete pairs with.
-     * @return false if key wasn't found
+     * @param txn {@linkplain Transaction transaction} instance
+     * @param key key
+     * @return {@code true} if a key/value pair was deleted.
      */
     boolean delete(@NotNull Transaction txn, @NotNull ByteIterable key);
 
+    /**
+     * @param txn {@linkplain Transaction transaction} instance
+     * @return the number of key/value pairs in the {@code Store}
+     */
     long count(@NotNull Transaction txn);
 
     /**
-     * Opens cursor over the store associated with a transaction.
+     * Opens cursor over the @{code Store} associated with a transaction.
      *
-     * @param txn a transaction required
-     * @return Cursor object
+     * @param txn {@linkplain Transaction transaction} instance
+     * @return {@linkplain Cursor cursor}
      */
     Cursor openCursor(@NotNull Transaction txn);
 
+    /**
+     * Deprecated method left only for compatibility with Oracle Berkeley DB JE {@code Database.close()} method.
+     */
     @Deprecated
     void close();
 
+    /**
+     * @return name of the {@code Store}
+     */
     @NotNull
     String getName();
 
+    /**
+     * @return {@link StoreConfig} using which the {@code Store} was opened.
+     */
     @NotNull
     StoreConfig getConfig();
 }

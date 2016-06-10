@@ -50,7 +50,7 @@ class TemporaryEmptyStore extends StoreImpl {
     @Override
     public boolean exists(@NotNull final Transaction txn,
                           @NotNull final ByteIterable key,
-                          @NotNull final ByteIterable data) {
+                          @NotNull final ByteIterable value) {
         return false;
     }
 
