@@ -20,6 +20,11 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.util.Collections;
 
+/**
+ * Describes how a backup file should be cooked by {@link jetbrains.exodus.util.BackupBean}. Only listed by
+ * {@link #listFiles()} and accepted by {@link #acceptFile(File)} files are put into backup file with defined
+ * pre- ({@link #beforeBackup()}) and postprocessing ({@link #afterBackup()}).
+ */
 public abstract class BackupStrategy {
 
     public static final BackupStrategy EMPTY = new BackupStrategy() {
@@ -30,18 +35,39 @@ public abstract class BackupStrategy {
         }
     };
 
+    /**
+     * Backup pre-processing procedure. E.g., {@link jetbrains.exodus.env.Environment} turns database GC off before backup.
+     *
+     * @throws Exception
+     */
     public void beforeBackup() throws Exception {
     }
 
     public abstract Iterable<FileDescriptor> listFiles();
 
+    /**
+     * Backup postprocessing procedure. E.g., {@link jetbrains.exodus.env.Environment} turns database GC on after backup.
+     *
+     * @throws Exception
+     */
     public void afterBackup() throws Exception {
     }
 
+    /**
+     * Can be used to interrupt backup process. After each processed file, {@link jetbrains.exodus.util.BackupBean}
+     * checks if backup procedure should be interrupted.
+     *
+     * @return true if backup should be interrupted.
+     */
     public boolean isInterrupted() {
         return false;
     }
 
+    /**
+     * Override this method to define custom exception handling.
+     *
+     * @param t throwable thrown during backup.
+     */
     public void onError(Throwable t) {
     }
 
@@ -54,6 +80,9 @@ public abstract class BackupStrategy {
         return Long.MAX_VALUE;
     }
 
+    /**
+     * Descriptor of a file to be put into backup file.
+     */
     public static class FileDescriptor {
 
         @NotNull

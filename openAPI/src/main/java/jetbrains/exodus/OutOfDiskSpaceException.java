@@ -15,6 +15,9 @@
  */
 package jetbrains.exodus;
 
+/**
+ * An a exception thrown on commit or flush of a transaction or during opening existing database if no space left on device.
+ */
 public class OutOfDiskSpaceException extends ExodusException {
 
     private static final String DEFAULT_MESSAGE = "No space left on device to complete current transaction";

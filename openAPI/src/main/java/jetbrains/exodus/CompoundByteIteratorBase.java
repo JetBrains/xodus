@@ -17,6 +17,9 @@ package jetbrains.exodus;
 
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * Base iterator for {@link CompoundByteIterable}.
+ */
 public abstract class CompoundByteIteratorBase implements ByteIterator {
 
     @NotNull

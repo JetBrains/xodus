@@ -20,7 +20,9 @@ import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-@SuppressWarnings({"ProtectedField"})
+/**
+ * Base class for most of {@link ByteIterable} implementations.
+ */
 public abstract class ByteIterableBase implements ByteIterable {
 
     protected static final byte[][] SINGLE_BYTES;

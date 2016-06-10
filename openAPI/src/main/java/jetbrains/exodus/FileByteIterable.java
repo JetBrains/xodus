@@ -26,6 +26,10 @@ import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
 
+/**
+ * An adapter to the contents of a region of a file. Doesn't support {@link #getBytesUnsafe()} as it
+ * unconditionally throws {@link UnsupportedOperationException}.
+ */
 public class FileByteIterable implements ByteIterable {
 
     private final File file;
@@ -54,6 +58,10 @@ public class FileByteIterable implements ByteIterable {
         }
     }
 
+    /**
+     * @return nothing since unconditionally throws {@link UnsupportedOperationException}.
+     * @throws UnsupportedOperationException
+     */
     @Override
     public byte[] getBytesUnsafe() {
         throw new UnsupportedOperationException();

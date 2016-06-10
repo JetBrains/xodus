@@ -17,10 +17,41 @@ package jetbrains.exodus;
 
 import org.jetbrains.annotations.NotNull;
 
-@SuppressWarnings({"CovariantCompareTo"})
+/**
+ * If working with {@link jetbrains.exodus.env.Environment}, any key and value should be a ByteIterable.
+ * ByteIterable is a mix of iterable and array. It allows to lazily enumerate bytes without boxing.
+ * On the other hand, you can get its length using method getLength(). Generally, iterating over bytes
+ * of ByteIterable is performed by means of getting {@link ByteIterator}.
+ *
+ * @see jetbrains.exodus.ArrayByteIterable
+ * @see jetbrains.exodus.ByteBufferByteIterable
+ * @see jetbrains.exodus.FileByteIterable
+ * @see jetbrains.exodus.FixedLengthByteIterable
+ * @see jetbrains.exodus.CompoundByteIterable
+ */
 public interface ByteIterable extends Comparable<ByteIterable> {
 
     byte[] EMPTY_BYTES = {};
+
+    ByteIterator iterator();
+
+    /**
+     * @return raw content of the {@code ByteIterable}. May return array with length greater than {@link #getLength()}.
+     */
+    byte[] getBytesUnsafe();
+
+    /**
+     * @return length of the {@code ByteIterable}.
+     */
+    int getLength();
+
+    /**
+     * @param offset start offset, inclusive
+     * @param length length of the sub-iterable
+     * @return a fixed-length sub-iterable of the {@code ByteIterable} starting from {@code offset}.
+     */
+    @NotNull
+    ByteIterable subIterable(final int offset, final int length);
 
     ByteIterator EMPTY_ITERATOR = new ByteIterator() {
 
@@ -52,7 +83,6 @@ public interface ByteIterable extends Comparable<ByteIterable> {
             return right.iterator().hasNext() ? -1 : 0;
         }
 
-        @SuppressWarnings({"ReturnOfCollectionOrArrayField"})
         @Override
         public byte[] getBytesUnsafe() {
             return EMPTY_BYTES;
@@ -63,6 +93,7 @@ public interface ByteIterable extends Comparable<ByteIterable> {
             return 0;
         }
 
+        @NotNull
         @Override
         public ByteIterable subIterable(int offset, int length) {
             return this;
@@ -73,19 +104,4 @@ public interface ByteIterable extends Comparable<ByteIterable> {
             return "[ByteIterable.EMPTY]";
         }
     };
-
-    ByteIterator iterator();
-
-    /**
-     * Returns content of byte iterable.
-     * May return array with len > getLength(), but client may use only first getLength() bytes.
-     *
-     * @return bytes array
-     */
-    byte[] getBytesUnsafe();
-
-    int getLength();
-
-    @NotNull
-    ByteIterable subIterable(final int offset, final int length);
 }

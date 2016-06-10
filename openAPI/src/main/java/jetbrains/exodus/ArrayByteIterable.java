@@ -18,7 +18,9 @@ package jetbrains.exodus;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 
-@SuppressWarnings({"ClassWithTooManyConstructors", "AssignmentToCollectionOrArrayFieldFromParameter"})
+/**
+ * An adapter of byte array to {@link ByteIterable}.
+ */
 public class ArrayByteIterable extends ByteIterableBase {
 
     public static final EmptyIterable EMPTY = new EmptyIterable();
@@ -163,7 +165,7 @@ public class ArrayByteIterable extends ByteIterableBase {
     }
 
     @SuppressWarnings({"NonConstantFieldWithUpperCaseName"})
-    public static final class EmptyIterable extends ArrayByteIterable {
+    private static final class EmptyIterable extends ArrayByteIterable {
 
         public final Iterator ITERATOR = new Iterator(0);
 

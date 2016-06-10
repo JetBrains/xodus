@@ -15,6 +15,9 @@
  */
 package jetbrains.exodus;
 
+/**
+ * An exception thrown on setting an invalid configuration value.
+ */
 public class InvalidSettingException extends ExodusException {
 
     public InvalidSettingException(String message) {

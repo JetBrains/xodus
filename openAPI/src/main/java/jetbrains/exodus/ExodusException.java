@@ -19,7 +19,7 @@ import jetbrains.exodus.entitystore.EntityStoreException;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Base class for all exodus exceptions.
+ * Any exodus exception is {@code ExodusException}.
  */
 public class ExodusException extends RuntimeException {
 

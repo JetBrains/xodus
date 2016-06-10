@@ -25,6 +25,9 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Base class for {@link jetbrains.exodus.env.EnvironmentConfig} and {@link jetbrains.exodus.entitystore.PersistentEntityStoreConfig}.
+ */
 public abstract class AbstractConfig {
 
     @NonNls

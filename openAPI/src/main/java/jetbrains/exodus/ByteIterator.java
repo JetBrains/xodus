@@ -15,6 +15,9 @@
  */
 package jetbrains.exodus;
 
+/**
+ * Iterator of {@link ByteIterable}. Enumerates bytes without boxing.
+ */
 public interface ByteIterator {
 
     boolean hasNext();
@@ -24,8 +27,7 @@ public interface ByteIterator {
     /**
      * @param length items to skip
      *               result is undefined for non-positive length
-     * @return how many items were skipped
-     * zero if no elements left
+     * @return how many items were skipped, zero if no elements left
      */
     long skip(long length);
 

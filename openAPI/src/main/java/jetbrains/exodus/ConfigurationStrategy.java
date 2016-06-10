@@ -15,16 +15,20 @@
  */
 package jetbrains.exodus;
 
+/**
+ * Defines a way how {@link AbstractConfig} should be initially set. E.g., {@link #IGNORE} creates
+ * default config, {@link #SYSTEM_PROPERTY} creates config filled up with values of system properties.
+ */
 public interface ConfigurationStrategy {
 
-    public static final ConfigurationStrategy IGNORE = new ConfigurationStrategy() {
+    ConfigurationStrategy IGNORE = new ConfigurationStrategy() {
         @Override
         public String getProperty(String key) {
             return null;
         }
     };
 
-    public static final ConfigurationStrategy SYSTEM_PROPERTY = new ConfigurationStrategy() {
+    ConfigurationStrategy SYSTEM_PROPERTY = new ConfigurationStrategy() {
         @Override
         public String getProperty(String key) {
             return System.getProperty(key);

@@ -19,13 +19,18 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
 
+/**
+ * Listener of configuration changes. Implementations define custom reactions on changes of particular settings.
+ * E.g., {@link jetbrains.exodus.env.Environment} implementation suspends/resumes database GC on switching
+ * readonly mode on/off.
+ */
 public interface ConfigSettingChangeListener {
 
     void beforeSettingChanged(@NotNull String key, @NotNull Object value, @NotNull Map<String, Object> context);
 
     void afterSettingChanged(@NotNull String key, @NotNull Object value, @NotNull Map<String, Object> context);
 
-    class Adapter implements  ConfigSettingChangeListener {
+    class Adapter implements ConfigSettingChangeListener {
 
         @Override
         public void beforeSettingChanged(@NotNull String key, @NotNull Object value, @NotNull Map<String, Object> context) {

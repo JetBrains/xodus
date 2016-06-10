@@ -20,6 +20,11 @@ import org.jetbrains.annotations.NotNull;
 
 import java.nio.ByteBuffer;
 
+/**
+ * An adapter of {@link ByteBuffer} to {@link ByteIterable}. Doesn't support {@link #getBytesUnsafe()} as
+ * it unconditionally throws {@link UnsupportedOperationException}.
+ */
+
 public class ByteBufferByteIterable implements ByteIterable {
 
     @NotNull
@@ -61,6 +66,10 @@ public class ByteBufferByteIterable implements ByteIterable {
         };
     }
 
+    /**
+     * @return nothing since unconditionally throws {@link UnsupportedOperationException}.
+     * @throws UnsupportedOperationException
+     */
     @Override
     public byte[] getBytesUnsafe() {
         throw new UnsupportedOperationException();

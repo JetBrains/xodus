@@ -15,6 +15,9 @@
  */
 package jetbrains.exodus;
 
+/**
+ * A compound {@link ByteIterable} that can be composed of several sub-iterables.
+ */
 public class CompoundByteIterable extends ByteIterableBase {
 
     private final ByteIterable[] iterables;
