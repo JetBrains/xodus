@@ -24,6 +24,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class AbstractConfig {
 
@@ -43,7 +44,7 @@ public abstract class AbstractConfig {
 
     protected AbstractConfig(@NotNull final Pair<String, Object>[] props, @NotNull final ConfigurationStrategy strategy) {
         settings = new HashMap<>();
-        listeners = new LinkedHashSet<>();
+        listeners = Collections.newSetFromMap(new ConcurrentHashMap<ConfigSettingChangeListener, Boolean>());
         for (final Pair<String, Object> prop : props) {
             final String propName = prop.getFirst();
             final Object defaultValue = prop.getSecond();
