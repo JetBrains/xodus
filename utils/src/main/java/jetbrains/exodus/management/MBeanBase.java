@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.management;
 
-import jetbrains.exodus.ExodusException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -36,7 +35,7 @@ public abstract class MBeanBase {
             this.name = new ObjectName(objectName);
             ManagementFactory.getPlatformMBeanServer().registerMBean(this, name);
         } catch (Exception e) {
-            throw ExodusException.toExodusException(e);
+            throw e instanceof RuntimeException ? (RuntimeException) e : new RuntimeException(e);
         }
     }
 
@@ -57,7 +56,7 @@ public abstract class MBeanBase {
             ManagementFactory.getPlatformMBeanServer().unregisterMBean(name);
         } catch (InstanceNotFoundException ignore) {
         } catch (Exception e) {
-            throw ExodusException.toExodusException(e);
+            throw e instanceof RuntimeException ? (RuntimeException) e : new RuntimeException(e);
         }
     }
 
@@ -65,7 +64,7 @@ public abstract class MBeanBase {
         this.runOnClose = runnable;
     }
 
-    public static String escapeLocation(@NotNull final String location) {
+    protected static String escapeLocation(@NotNull final String location) {
         return location.indexOf(':') >= 0 ? location.replace(':', '@') : location;
     }
 }
