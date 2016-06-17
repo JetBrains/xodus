@@ -19,6 +19,9 @@ import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.execution.SharedTimer;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -31,6 +34,14 @@ public class Statistics {
 
     public Statistics() {
         items = new HashMap<>();
+    }
+
+    public Collection<String> getItemNames() {
+        final List<String> result;
+        synchronized (items) {
+            result = new ArrayList<>(items.keySet());
+        }
+        return result;
     }
 
     @NotNull
