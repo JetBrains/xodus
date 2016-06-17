@@ -12,12 +12,10 @@
                       /_/|_| \____/\__,_/  \__,_/ /____/    
 ```
 
-<div>
-  <a href="http://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build&guest=1">
+<a href="http://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build&guest=1">
     <img src="http://teamcity.jetbrains.com/app/rest/builds/buildType:(id:Xodus_Build)/statusIcon"/>
-  </a>
-  [![GitHub license](https://img.shields.io/badge/license-Apache%20License%202.0-blue.svg?style=flat)](http://www.apache.org/licenses/LICENSE-2.0.html)
-</div>
+</a>
+[![GitHub license](https://img.shields.io/badge/license-Apache%20License%202.0-blue.svg?style=flat)](http://www.apache.org/licenses/LICENSE-2.0.html)
 
 ##Overview
 JetBrains Xodus is a transactional schema-less embedded database written in pure Java. It was initially developed for [JetBrains YouTrack](http://jetbrains.com/youtrack) (an issue tracking and project management tool). Currently Xodus is also used in [JetBrains Hub](https://jetbrains.com/hub) (JetBrains' team tools connector) and in some internal JetBrains projects.
