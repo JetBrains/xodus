@@ -76,6 +76,21 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     }
 
     @Test
+    public void testStatisticsItemNames() {
+        testStatisticsTransactions();
+        final EnvironmentStatistics statistics = env.getStatistics();
+        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.BYTES_WRITTEN));
+        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.BYTES_READ));
+        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.BYTES_MOVED_BY_GC));
+        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.TRANSACTIONS));
+        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.READONLY_TRANSACTIONS));
+        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.ACTIVE_TRANSACTIONS));
+        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.FLUSHED_TRANSACTIONS));
+        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.DISK_USAGE));
+        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.UTILIZATION_PERCENT));
+    }
+
+    @Test
     public void testFirstLastLoggables() {
         final Store store = openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES);
         final Log log = getLog();
