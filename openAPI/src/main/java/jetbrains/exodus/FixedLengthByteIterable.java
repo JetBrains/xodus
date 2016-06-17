@@ -73,8 +73,8 @@ public class FixedLengthByteIterable extends ByteIterableBase {
             }
 
             @Override
-            public long skip(long length) {
-                long result = bi.skip(Math.min(length, i));
+            public long skip(long bytes) {
+                long result = bi.skip(Math.min(bytes, i));
                 i -= (int) result;
                 return result;
             }

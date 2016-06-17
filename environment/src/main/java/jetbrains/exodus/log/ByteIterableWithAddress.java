@@ -175,7 +175,7 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
         }
 
         @Override
-        public long skip(long length) {
+        public long skip(long bytes) {
             throw new UnsupportedOperationException();
         }
     }

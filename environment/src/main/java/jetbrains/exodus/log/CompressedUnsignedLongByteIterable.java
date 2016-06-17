@@ -132,8 +132,8 @@ public final class CompressedUnsignedLongByteIterable extends ByteIterableBase {
             }
 
             @Override
-            public long skip(final long length) {
-                for (long i = 0; i < length; i++) {
+            public long skip(final long bytes) {
+                for (long i = 0; i < bytes; i++) {
                     if (goon) {
                         l >>= 7;
                         goon = l > 0;
@@ -141,7 +141,7 @@ public final class CompressedUnsignedLongByteIterable extends ByteIterableBase {
                         return i;
                     }
                 }
-                return length;
+                return bytes;
             }
         };
     }

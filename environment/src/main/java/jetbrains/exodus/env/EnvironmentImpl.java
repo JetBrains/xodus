@@ -86,7 +86,7 @@ public class EnvironmentImpl implements Environment {
      * it will remain inoperative forever.
      */
     private volatile Throwable throwableOnCommit;
-    private Throwable throwableOnClose;
+    private EnvironmentClosedException throwableOnClose;
 
     @SuppressWarnings({"ThisEscapedInObjectConstruction"})
     EnvironmentImpl(@NotNull final Log log, @NotNull final EnvironmentConfig ec) {
@@ -334,7 +334,7 @@ public class EnvironmentImpl implements Environment {
         final double treeNodesCacheHitRate;
         synchronized (commitLock) {
             if (!isOpen()) {
-                throw new IllegalStateException("Already closed, see cause for previous close stack trace", throwableOnClose);
+                throw throwableOnClose;
             }
             checkInactive(ec.getEnvCloseForcedly());
             try {
@@ -360,8 +360,8 @@ public class EnvironmentImpl implements Environment {
                 treeNodesCacheHitRate = treeNodesCache.hitRate();
                 treeNodesCache.close();
             }
-            throwableOnClose = new Throwable();
-            throwableOnCommit = EnvironmentClosedException.INSTANCE;
+            throwableOnClose = new EnvironmentClosedException();
+            throwableOnCommit = throwableOnClose;
         }
         runAllTransactionSafeTasks();
         if (logger.isInfoEnabled()) {
@@ -382,36 +382,36 @@ public class EnvironmentImpl implements Environment {
     }
 
     @Override
-    public void truncateStore(@NotNull final String storeName, @NotNull final Transaction transaction) {
-        final TransactionImpl txn = throwIfReadonly(transaction, "Can't truncate a store in read-only transaction");
-        StoreImpl store = openStore(storeName, StoreConfig.USE_EXISTING, txn, false);
+    public void truncateStore(@NotNull final String storeName, @NotNull final Transaction txn) {
+        final TransactionImpl t = throwIfReadonly(txn, "Can't truncate a store in read-only transaction");
+        StoreImpl store = openStore(storeName, StoreConfig.USE_EXISTING, t, false);
         if (store == null) {
             throw new ExodusException("Attempt to truncate unknown store '" + storeName + '\'');
         }
-        txn.storeRemoved(store);
+        t.storeRemoved(store);
         final TreeMetaInfo metaInfoCloned = store.getMetaInfo().clone(allocateStructureId());
         store = new StoreImpl(this, storeName, metaInfoCloned);
-        txn.storeCreated(store);
+        t.storeCreated(store);
     }
 
     @Override
-    public void removeStore(@NotNull final String storeName, @NotNull final Transaction transaction) {
-        final TransactionImpl txn = throwIfReadonly(transaction, "Can't remove a store in read-only transaction");
-        final StoreImpl store = openStore(storeName, StoreConfig.USE_EXISTING, txn, false);
+    public void removeStore(@NotNull final String storeName, @NotNull final Transaction txn) {
+        final TransactionImpl t = throwIfReadonly(txn, "Can't remove a store in read-only transaction");
+        final StoreImpl store = openStore(storeName, StoreConfig.USE_EXISTING, t, false);
         if (store == null) {
             throw new ExodusException("Attempt to remove unknown store '" + storeName + '\'');
         }
-        txn.storeRemoved(store);
+        t.storeRemoved(store);
     }
 
     @Override
     @NotNull
-    public List<String> getAllStoreNames(@NotNull final Transaction transaction) {
-        return ((TransactionBase) transaction).getAllStoreNames();
+    public List<String> getAllStoreNames(@NotNull final Transaction txn) {
+        return ((TransactionBase) txn).getAllStoreNames();
     }
 
-    public boolean storeExists(@NotNull final String storeName, @NotNull final Transaction transaction) {
-        return ((TransactionBase) transaction).getTreeMetaInfo(storeName) != null;
+    public boolean storeExists(@NotNull final String storeName, @NotNull final Transaction txn) {
+        return ((TransactionBase) txn).getTreeMetaInfo(storeName) != null;
     }
 
     @NotNull

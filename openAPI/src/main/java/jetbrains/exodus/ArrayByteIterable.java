@@ -145,8 +145,8 @@ public class ArrayByteIterable extends ByteIterableBase {
         }
 
         @Override
-        public long skip(long length) {
-            final long result = Math.min(length, ArrayByteIterable.this.length - offset);
+        public long skip(long bytes) {
+            final long result = Math.min(bytes, ArrayByteIterable.this.length - offset);
             offset += (int) result;
             return result;
         }

@@ -17,6 +17,18 @@ package jetbrains.exodus.env;
 
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * A function that can pe passed to the {@linkplain Environment#computeInTransaction(TransactionalComputable)},
+ * {@linkplain Environment#computeInReadonlyTransaction(TransactionalComputable)} or
+ * {@linkplain Environment#computeInExclusiveTransaction(TransactionalComputable)} to be executed and return result
+ * within a {@linkplain Transaction transaction}.
+ *
+ * @param <T> type of returned result
+ * @see Transaction
+ * @see Environment#computeInTransaction(TransactionalComputable)
+ * @see Environment#computeInReadonlyTransaction(TransactionalComputable)
+ * @see Environment#computeInExclusiveTransaction(TransactionalComputable)
+ */
 public interface TransactionalComputable<T> {
 
     T compute(@NotNull final Transaction txn);

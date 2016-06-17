@@ -130,7 +130,7 @@ public final class CompressedUnsignedLongArrayByteIterable extends ByteIterableB
 
                     //TODO: implement
                     @Override
-                    public long skip(final long length) {
+                    public long skip(final long bytes) {
                         throw new UnsupportedOperationException();
                     }
                 };

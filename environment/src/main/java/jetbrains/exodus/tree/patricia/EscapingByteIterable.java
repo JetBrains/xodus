@@ -64,7 +64,7 @@ final class EscapingByteIterable extends ByteIterableBase {
             }
 
             @Override
-            public long skip(long length) {
+            public long skip(long bytes) {
                 throw new UnsupportedOperationException();
             }
         };
@@ -105,7 +105,7 @@ final class UnEscapingByteIterable extends ByteIterableBase {
             }
 
             @Override
-            public long skip(long length) {
+            public long skip(long bytes) {
                 throw new UnsupportedOperationException();
             }
         };

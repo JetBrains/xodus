@@ -20,15 +20,20 @@ package jetbrains.exodus;
  */
 public interface ByteIterator {
 
+    /**
+     * @return {@code true} if the iterator has more bytes
+     */
     boolean hasNext();
 
+    /**
+     * @return next byte
+     */
     byte next();
 
     /**
-     * @param length items to skip
-     *               result is undefined for non-positive length
-     * @return how many items were skipped, zero if no elements left
+     * Skips {@code bytes} bytes. Result is undefined for negative {@code bytes}/
+     * @param bytes bytes to skip.
+     * @return number of skipped bytes, zero if no bytes left ({@linkplain #hasNext()} returns {@code false}).
      */
-    long skip(long length);
-
+    long skip(long bytes);
 }

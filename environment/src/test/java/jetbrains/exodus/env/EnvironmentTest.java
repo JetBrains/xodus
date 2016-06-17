@@ -198,7 +198,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                 public void run() {
                     env.close();
                 }
-            }, IllegalStateException.class);
+            }, EnvironmentClosedException.class);
         } finally {
             // forget old env anyway to prevent tearDown fail
             env = newEnvironmentInstance(LogConfig.create(reader, writer), envConfig);

@@ -48,14 +48,14 @@ class CompoundByteIterator implements ByteIteratorWithAddress {
     }
 
     @Override
-    public long skip(final long length) {
-        long skipped = current.skip(length);
+    public long skip(final long bytes) {
+        long skipped = current.skip(bytes);
         while (true) {
             hasNextValid = false;
-            if (skipped >= length || !hasNext()) {
+            if (skipped >= bytes || !hasNext()) {
                 break;
             }
-            skipped += current.skip(length - skipped);
+            skipped += current.skip(bytes - skipped);
         }
         return skipped;
     }

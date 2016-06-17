@@ -20,9 +20,14 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * {@code ContextualStore} (just like {@link ContextualEnvironment}) is aware of {@linkplain Transaction transaction}
+ * {@code ContextualStore} is a {@link Store} created by {@link ContextualEnvironment}.
+ * Just like {@link ContextualEnvironment}, it is aware of {@linkplain Transaction transaction}
  * started in current thread. {@code ContextualStore} overloads all {@link Store}'s methods with the ones that don't
  * accept {@linkplain Transaction transaction} instance.
+ *
+ * @see ContextualEnvironment
+ * @see Transaction
+ * @see Store
  */
 public interface ContextualStore extends Store {
 

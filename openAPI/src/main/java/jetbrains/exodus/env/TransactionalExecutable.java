@@ -17,6 +17,17 @@ package jetbrains.exodus.env;
 
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * A function that can pe passed to the {@linkplain Environment#executeInTransaction(TransactionalExecutable)},
+ * {@linkplain Environment#executeInReadonlyTransaction(TransactionalExecutable)} or
+ * {@linkplain Environment#executeInExclusiveTransaction(TransactionalExecutable)} to be executed
+ * within a {@linkplain Transaction transaction}.
+ *
+ * @see Transaction
+ * @see Environment#executeInTransaction(TransactionalExecutable)
+ * @see Environment#executeInReadonlyTransaction(TransactionalExecutable)
+ * @see Environment#executeInExclusiveTransaction(TransactionalExecutable)
+ */
 public interface TransactionalExecutable {
 
     void execute(@NotNull final Transaction txn);

@@ -58,8 +58,8 @@ public class ByteBufferByteIterable implements ByteIterable {
             }
 
             @Override
-            public long skip(long length) {
-                final int result = (int) Math.min(length, ByteBufferByteIterable.this.length - index);
+            public long skip(long bytes) {
+                final int result = (int) Math.min(bytes, ByteBufferByteIterable.this.length - index);
                 index += result;
                 return result;
             }

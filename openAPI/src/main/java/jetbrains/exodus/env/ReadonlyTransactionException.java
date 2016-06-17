@@ -18,6 +18,16 @@ package jetbrains.exodus.env;
 import jetbrains.exodus.ExodusException;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * Is thrown on attempt to commit or flush read-only {@linkplain Transaction transaction} or if
+ * {@linkplain Environment} is read-only, i.e. {@linkplain EnvironmentConfig#getEnvIsReadonly()} return {@code true}.
+ *
+ * @see Environment
+ * @see Transaction
+ * @see Transaction#isReadonly()
+ * @see EnvironmentConfig#getEnvIsReadonly()
+ * @see EnvironmentConfig#setEnvIsReadonly(boolean)
+ */
 public class ReadonlyTransactionException extends ExodusException {
 
     private static final String DEFAULT_MESSAGE = "Can't modify data in read-only transaction";

@@ -89,8 +89,8 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
         }
 
         @Override
-        public long skip(final long length) {
-            final int skipped = Math.min(end - i, (int) length);
+        public long skip(final long bytes) {
+            final int skipped = Math.min(end - i, (int) bytes);
             i += skipped;
             return skipped;
         }

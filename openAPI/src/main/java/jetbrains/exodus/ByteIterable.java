@@ -66,7 +66,7 @@ public interface ByteIterable extends Comparable<ByteIterable> {
         }
 
         @Override
-        public long skip(long length) {
+        public long skip(long bytes) {
             return 0;
         }
     };

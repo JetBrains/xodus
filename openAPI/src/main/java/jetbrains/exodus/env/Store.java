@@ -39,6 +39,10 @@ import org.jetbrains.annotations.Nullable;
  * The only exceptions are {@link Environment Environment.truncateStore()} and {@link Environment Environment.removeStore()}
  * methods. After truncating, any {@code Store} should be re-opened, after removing it just cannot be used.
  * Opening {@code Store} for each database operation is also ok, but it will result in some performance overhead.
+ *
+ * @see Environment
+ * @see Transaction
+ * @see ContextualStore
  */
 public interface Store {
 

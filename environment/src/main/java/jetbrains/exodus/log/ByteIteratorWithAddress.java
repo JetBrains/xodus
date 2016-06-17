@@ -37,7 +37,7 @@ public interface ByteIteratorWithAddress extends ByteIterator {
         }
 
         @Override
-        public long skip(long length) {
+        public long skip(long bytes) {
             return 0;
         }
     };

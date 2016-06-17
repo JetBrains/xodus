@@ -17,6 +17,9 @@ package jetbrains.exodus.env;
 
 public enum StoreConfig {
 
+    /**
+     *
+     */
     WITHOUT_DUPLICATES(0, "00000000"),
     WITH_DUPLICATES(1, "00000001"),
     WITHOUT_DUPLICATES_WITH_PREFIXING(2, "00000010"),

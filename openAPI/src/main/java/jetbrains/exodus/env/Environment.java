@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.env;
 
+import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.backup.Backupable;
 import jetbrains.exodus.management.Statistics;
 import org.jetbrains.annotations.NotNull;
@@ -22,90 +23,297 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
+/**
+ * Environment encapsulates one or more {@linkplain Store stores} that contain data.
+ * It allows to perform read/modify operations against multiple {@linkplain Store stores} within a single
+ * {@linkplain Transaction transaction}. In short, Environment is a transactional key-value storage.
+ * <br><br>Instance of {@code Environment} can be created with the help of the {@code Environments} utility class:
+ * <pre>
+ *     Environment env = Environments.newInstance("/home/me/.myAppData");
+ * </pre>
+ * Environment will be created if specified database directory doesn't contain database files. It's impossible to share
+ * single database directory amongst different {@linkplain Environment} instances. An attempt to do this (from within
+ * any process, current or not) will fail.
+ * <br><br>To open Environment with custom settings, use {@linkplain EnvironmentConfig} class. E.g., opening environment
+ * with disabled garbage collector looks as follows:
+ * <pre>
+ *     Environment env = Environments.newInstance("/home/me/.myAppData", new EnvironmentConfig().setGcEnabled(false));
+ * </pre>
+ * After finishing working with the Environment you should {@linkplain #close()} it.
+ */
 public interface Environment extends Backupable {
 
+    /**
+     * Returns the value of {@linkplain System#currentTimeMillis()} when this environment was created. If your
+     * application works constantly with a single environment and closes it on exit, the environment's creation
+     * time can be used to get the applications' up-time.
+     *
+     * @return the time when this {@code Environment} instance was created.
+     */
     long getCreated();
 
+    /**
+     * Returns location of database files on storage device. Can be used as unique key for environment instance.
+     *
+     * @return location of database files.
+     */
     @NotNull
     String getLocation();
 
+    /**
+     * Opens existing or creates new {@linkplain Store store} with specified {@code name} and
+     * {@linkplain StoreConfig config} inside a {@code transaction}. {@linkplain StoreConfig} provides meta-information
+     * used to create store. If it is known that the store with specified name exists, then
+     * {@linkplain StoreConfig#USE_EXISTING} can be used.
+     *
+     * @param name        name of store
+     * @param config      {@linkplain StoreConfig} used to create store
+     * @param transaction {@linkplain Transaction} used to create store
+     * @return {@linkplain Store} instance
+     */
     @NotNull
     Store openStore(@NotNull String name, @NotNull StoreConfig config, @NotNull Transaction transaction);
 
+    /**
+     * Opens existing or creates new {@linkplain Store store} with specified {@code name} and
+     * {@linkplain StoreConfig config} inside a {@code transaction}. {@linkplain StoreConfig} provides meta-information
+     * used to create the store. If it is known that the store with specified name exists, then
+     * {@linkplain StoreConfig#USE_EXISTING} can be used.
+     * <br><br>Pass {@code true} as {@code creationRequired} if creating new store is required or allowed. In that case,
+     * the method will do the same as {@linkplain #openStore(String, StoreConfig, Transaction)}. If you pass
+     * {@code false} the method will return {@code null} for non-existing store.
+     *
+     * @param name             name of store
+     * @param config           {@linkplain StoreConfig} used to create store
+     * @param transaction      {@linkplain Transaction} used to create store
+     * @param creationRequired pass {@code false} if you wish to get {@code null} for non-existing store
+     *                         rather than create it.
+     * @return {@linkplain Store} instance
+     */
     @Nullable
     Store openStore(@NotNull String name, @NotNull StoreConfig config, @NotNull Transaction transaction, boolean creationRequired);
 
     /**
-     * Executes a task after all currently started transactions are finished.
+     * Executes a task after all currently started transactions finish.
      *
      * @param task task to execute
      */
     void executeTransactionSafeTask(@NotNull Runnable task);
 
+    /**
+     * Clears all the data in the environment. It is safe to clear environment with lots of transactions in parallel.
+     */
     void clear();
 
+    /**
+     * Closes environment instance. Make sure there are no unfinished transactions, otherwise the method fails with
+     * {@linkplain ExodusException}. This behaviour can be changed by calling
+     * {@linkplain EnvironmentConfig#setEnvCloseForcedly(boolean)} with {@code true}. After environment is closed
+     * another instance of {@code Environment} by the same location can be created.
+     *
+     * @throws ExodusException            if there are unfinished transactions
+     * @throws EnvironmentClosedException if environment is already closed
+     */
     void close();
 
+    /**
+     * @return {@code false} is the instance is closed
+     */
     boolean isOpen();
 
+    /**
+     * @param txn {@linkplain Transaction transaction} instance
+     * @return the list of names of all {@linkplain Store stores} created in the environment.
+     */
     @NotNull
-    List<String> getAllStoreNames(@NotNull Transaction transaction);
+    List<String> getAllStoreNames(@NotNull Transaction txn);
 
-    boolean storeExists(@NotNull String storeName, @NotNull Transaction transaction);
+    /**
+     * @param storeName name of store
+     * @param txn       {@linkplain Transaction transaction} instance
+     * @return {@code true} if {@linkplain Store store} with specified name exists
+     */
+    boolean storeExists(@NotNull String storeName, @NotNull Transaction txn);
 
-    void truncateStore(@NotNull String storeName, @NotNull Transaction transaction);
+    /**
+     * Truncates {@linkplain Store store} with specified name. The store becomes empty. All earlier opened
+     * {@linkplain Store} instances should be invalidated and re-opened.
+     *
+     * @param storeName name of store
+     * @param txn       {@linkplain Transaction transaction} instance
+     */
+    void truncateStore(@NotNull String storeName, @NotNull Transaction txn);
 
-    void removeStore(@NotNull String storeName, @NotNull Transaction transaction);
+    /**
+     * Removes {@linkplain Store store} with specified name. All earlier opened
+     * {@linkplain Store} instances become unusable.
+     *
+     * @param storeName name of store
+     * @param txn       {@linkplain Transaction transaction} instance
+     */
+    void removeStore(@NotNull String storeName, @NotNull Transaction txn);
 
+    /**
+     * Says environment to quicken background database garbage collector activity. Invocation of this method
+     * doesn't have immediate consequences like freeing disk space, deleting particular files, etc.
+     */
     void gc();
 
+    /**
+     * Suspends database garbage collector activity unless {@linkplain #resumeGC()} is called. Has no effect if it is
+     * already suspended. Environment instance can created with disabled GC.
+     *
+     * @see {@link EnvironmentConfig#setGcEnabled(boolean)}
+     */
     void suspendGC();
 
+    /**
+     * Resumes earlier suspended database garbage collector activity. Has no effect if it si not suspended.
+     */
     void resumeGC();
 
+    /**
+     * Starts new transaction which can be used to read and write data.
+     *
+     * @return new {@linkplain Transaction transaction} instance
+     * @see Transaction
+     */
     @NotNull
     Transaction beginTransaction();
 
+    /**
+     * Starts new transaction which can be used to read and write data. Specified {@code beginHook} is called each time
+     * when the transaction holds the new database snapshot. First time it is called during {@code beginTransaction()}
+     * execution, then during each call to {@linkplain Transaction#flush()} or {@linkplain Transaction#revert()}.
+     *
+     * @param beginHook begin hook
+     * @return new {@linkplain Transaction transaction} instance
+     * @see Transaction
+     */
     @NotNull
     Transaction beginTransaction(Runnable beginHook);
 
     /**
-     * Starts exclusive transaction. It is guaranteed that no other transaction is started on the environment.
+     * Starts new exclusive transaction which can be used to read and write data. For given exclusive transaction,
+     * it is guaranteed that no other transaction(except read-only ones) can started on the environment before the
+     * given one finishes.
      *
-     * @return exclusive transaction object
+     * @return new {@linkplain Transaction transaction} instance
+     * @see Transaction
+     * @see Transaction#isExclusive()
      */
     @NotNull
     Transaction beginExclusiveTransaction();
 
+    /**
+     * Starts new exclusive transaction which can be used to read and write data. For given exclusive transaction,
+     * it is guaranteed that no other transaction(except read-only ones) can started on the environment before the
+     * given one finishes. Specified {@code beginHook} is called each time when the transaction holds the new database
+     * snapshot. First time it is called during {@code beginTransaction()} execution, then during each call to
+     * {@linkplain Transaction#flush()} or {@linkplain Transaction#revert()}.
+     *
+     * @param beginHook begin hook
+     * @return new {@linkplain Transaction transaction} instance
+     * @see Transaction
+     */
     @NotNull
     Transaction beginExclusiveTransaction(Runnable beginHook);
 
     /**
-     * Starts a read-only transaction in which any writing attempt fails.
+     * Starts new transaction which can be used to only read data.
      *
-     * @return read-only transaction object.
+     * @return new {@linkplain Transaction transaction} instance
+     * @see Transaction
+     * @see Transaction#isReadonly()
      */
     @NotNull
     Transaction beginReadonlyTransaction();
 
+    /**
+     * Starts new transaction which can be used to only read data. Specified {@code beginHook} is called each time
+     * when the transaction holds the new database snapshot. First time it is called during {@code beginTransaction()}
+     * execution, then during each call to {@linkplain Transaction#revert()}.
+     *
+     * @param beginHook begin hook
+     * @return new {@linkplain Transaction transaction} instance
+     * @see Transaction
+     * @see Transaction#isReadonly()
+     */
     @NotNull
     Transaction beginReadonlyTransaction(Runnable beginHook);
 
+    /**
+     * Executes specified executable in a new transaction. If transaction cannot be flushed after
+     * {@linkplain TransactionalExecutable#execute(Transaction)} is called, the executable is executed once more until
+     * the transaction is finally flushed.
+     *
+     * @param executable transactional executable
+     * @see TransactionalExecutable
+     */
     void executeInTransaction(@NotNull TransactionalExecutable executable);
 
+    /**
+     * Executes specified executable in a new exclusive transaction.
+     * {@linkplain TransactionalExecutable#execute(Transaction)} is called once since the transaction is exclusive,
+     * and its flush should always succeed.
+     *
+     * @param executable transactional executable
+     * @see TransactionalExecutable
+     */
     void executeInExclusiveTransaction(@NotNull TransactionalExecutable executable);
 
+    /**
+     * Executes specified executable in a new read-only transaction.
+     * {@linkplain TransactionalExecutable#execute(Transaction)} is called once since the transaction is read-only,
+     * and it is never flushed.
+     *
+     * @param executable transactional executable
+     * @see TransactionalExecutable
+     */
     void executeInReadonlyTransaction(@NotNull TransactionalExecutable executable);
 
+    /**
+     * Computes a value by calling specified computable in a new transaction. If transaction cannot be flushed after
+     * {@linkplain TransactionalComputable#compute(Transaction)} is called, the computable is computed once more until
+     * the transaction is finally flushed.
+     *
+     * @param computable transactional computable
+     * @see TransactionalComputable
+     */
     <T> T computeInTransaction(@NotNull TransactionalComputable<T> computable);
 
+    /**
+     * Computes a value by calling specified computable in a new exclusive transaction.
+     * {@linkplain TransactionalComputable#compute(Transaction)} is called once since the transaction is exclusive,
+     * and its flush should always succeed.
+     *
+     * @param computable transactional computable
+     * @see TransactionalComputable
+     */
     <T> T computeInExclusiveTransaction(@NotNull TransactionalComputable<T> computable);
 
+    /**
+     * Computes a value by calling specified computable in a new read-only transaction.
+     * {@linkplain TransactionalComputable#compute(Transaction)} is called once since the transaction is read-only,
+     * and it is never flushed.
+     *
+     * @param computable transactional computable
+     * @see TransactionalComputable
+     */
     <T> T computeInReadonlyTransaction(@NotNull TransactionalComputable<T> computable);
 
+    /**
+     * Returns {@linkplain EnvironmentConfig} instance used during creation of the environment. If no config
+     * was specified then return value is directly {@linkplain EnvironmentConfig#DEFAULT}.
+     *
+     * @return {@linkplain EnvironmentConfig} instance
+     */
     @NotNull
     EnvironmentConfig getEnvironmentConfig();
 
+    /**
+     * @return statistics of this {@code Environment} instance
+     */
     @NotNull
     Statistics getStatistics();
 }

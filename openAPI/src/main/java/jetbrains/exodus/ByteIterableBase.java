@@ -70,8 +70,8 @@ public abstract class ByteIterableBase implements ByteIterable {
             }
 
             @Override
-            public long skip(long length) {
-                final int result = Math.min(len - i, (int) length);
+            public long skip(long bytes) {
+                final int result = Math.min(len - i, (int) bytes);
                 i += result;
                 return result;
             }

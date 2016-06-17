@@ -17,13 +17,16 @@ package jetbrains.exodus.env;
 
 import jetbrains.exodus.ExodusException;
 
+/**
+ * Is thrown on attempt to close already closed {@linkplain Environment}.
+ *
+ * @see Environment#close()
+ */
 public class EnvironmentClosedException extends ExodusException {
-
-    public static final EnvironmentClosedException INSTANCE = new EnvironmentClosedException();
 
     private static final String DEFAULT_MESSAGE = "Environment is already closed";
 
-    private EnvironmentClosedException() {
+    public EnvironmentClosedException() {
         super(DEFAULT_MESSAGE);
     }
 }
