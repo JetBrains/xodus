@@ -16,6 +16,7 @@
   <a href="http://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build&guest=1">
     <img src="http://teamcity.jetbrains.com/app/rest/builds/buildType:(id:Xodus_Build)/statusIcon"/>
   </a>
+  [![GitHub license](https://img.shields.io/badge/license-Apache%20License%202.0-blue.svg?style=flat)](http://www.apache.org/licenses/LICENSE-2.0.html)
 </div>
 
 ##Overview
@@ -32,13 +33,13 @@ true [snapshot isolation](https://en.wikipedia.org/wiki/Snapshot_isolation).
 Xodus is free and licensed under [Apache 2.0](http://www.apache.org/licenses/LICENSE-2.0.html). Xodus 1.0-SNAPSHOT artifacts are available in [Sonartype OSS](https://oss.sonatype.org/content/repositories/snapshots/org/jetbrains/xodus) repository.
 
 ##Building from Source
-[Gradle](http://www.gradle.org) is used to build, test and deploy. To run tests and assemble jars:
+[Gradle](http://www.gradle.org) is used to build, test and publish. To run tests and assemble jars:
 
-    >gradlew build
+    gradlew build
 
 To assemble jars and skip running tests:
 
-    >gradlew assemble   
+    gradlew assemble   
 
 ## Find out More
 - [Xodus wiki](https://github.com/JetBrains/xodus/wiki)
