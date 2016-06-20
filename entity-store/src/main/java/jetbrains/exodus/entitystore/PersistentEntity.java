@@ -271,14 +271,14 @@ public class PersistentEntity implements Entity {
     }
 
     @Override
-    public boolean deleteLink(@NotNull final String linkName, @NotNull final Entity entity) {
+    public boolean deleteLink(@NotNull final String linkName, @NotNull final Entity target) {
         assertWritable();
         final PersistentStoreTransaction txn = getTransaction();
         final int linkId = store.getLinkId(txn, linkName, false);
         if (linkId < 0) {
             return false;
         }
-        return store.deleteLink(txn, this, linkId, (PersistentEntity) entity);
+        return store.deleteLink(txn, this, linkId, (PersistentEntity) target);
     }
 
     @Override
