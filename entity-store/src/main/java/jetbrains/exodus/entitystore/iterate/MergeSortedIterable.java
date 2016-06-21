@@ -80,7 +80,7 @@ public class MergeSortedIterable extends EntityIterableBase {
     protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
         long result = 0;
         for (final EntityIterable it : sorted) {
-            result += ((EntityIterableBase) it.getSource()).countImpl(txn);
+            result += ((EntityIterableBase) it).getSource().countImpl(txn);
         }
         return result;
     }
@@ -111,7 +111,7 @@ public class MergeSortedIterable extends EntityIterableBase {
                 builder.append(sorted.size());
                 for (final EntityIterable it : sorted) {
                     builder.append('-');
-                    ((EntityIterableHandleBase) ((EntityIterableBase) it.getSource()).getHandle()).toString(builder);
+                    ((EntityIterableHandleBase) ((EntityIterableBase) it).getSource().getHandle()).toString(builder);
                 }
             }
 
@@ -120,7 +120,7 @@ public class MergeSortedIterable extends EntityIterableBase {
                 hash.apply(sorted.size());
                 for (final EntityIterable it : sorted) {
                     hash.applyDelimiter();
-                    hash.apply(((EntityIterableBase) it.getSource()).getHandle());
+                    hash.apply(((EntityIterableBase) it).getSource().getHandle());
                 }
             }
         };

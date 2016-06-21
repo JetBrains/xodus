@@ -299,12 +299,12 @@ public class QueryEngine {
                         if (aemd != null) {
                             final String resultType = aemd.getOppositeEntityMetaData().getType();
                             return new StaticTypedIterableDecorator(resultType,
-                                    selectDistinctImpl((EntityIterable) it, linkName), this);
+                                    selectDistinctImpl((EntityIterableBase) it, linkName), this);
                         }
                     }
                 }
             } else if (isPersistentIterable(it)) {
-                final EntityIterable eit = (EntityIterable) it;
+                final EntityIterableBase eit = (EntityIterableBase) it;
                 final EntityIteratorBase iterator = (EntityIteratorBase) eit.getSource().iterator();
                 try {
                     if (!(iterator.hasNext())) {
@@ -343,12 +343,12 @@ public class QueryEngine {
                         if (aemd != null) {
                             final String resultType = aemd.getOppositeEntityMetaData().getType();
                             return new StaticTypedIterableDecorator(resultType,
-                                    selectManyDistinctImpl((EntityIterable) it, linkName), this);
+                                    selectManyDistinctImpl((EntityIterableBase) it, linkName), this);
                         }
                     }
                 }
             } else if (isPersistentIterable(it)) {
-                final EntityIterable eit = (EntityIterable) it;
+                final EntityIterableBase eit = (EntityIterableBase) it;
                 final EntityIteratorBase iterator = (EntityIteratorBase) eit.getSource().iterator();
                 try {
                     if (!(iterator.hasNext())) {
@@ -380,28 +380,28 @@ public class QueryEngine {
 
     public Iterable<Entity> intersectNonTrees(Iterable<Entity> left, Iterable<Entity> right) {
         if (isPersistentIterable(left) && isPersistentIterable(right)) {
-            return wrap(((EntityIterable) left).getSource().intersect(((EntityIterable) right).getSource()));
+            return wrap(((EntityIterableBase) left).getSource().intersect(((EntityIterableBase) right).getSource()));
         }
         return inMemoryIntersect(left, right);
     }
 
     public Iterable<Entity> unionNonTrees(Iterable<Entity> left, Iterable<Entity> right) {
         if (isPersistentIterable(left) && isPersistentIterable(right)) {
-            return wrap(((EntityIterable) left).getSource().union(((EntityIterable) right).getSource()));
+            return wrap(((EntityIterableBase) left).getSource().union(((EntityIterableBase) right).getSource()));
         }
         return inMemoryUnion(left, right);
     }
 
     public Iterable<Entity> concatNonTrees(Iterable<Entity> left, Iterable<Entity> right) {
         if (isPersistentIterable(left) && isPersistentIterable(right)) {
-            return wrap(((EntityIterable) left).getSource().concat(((EntityIterable) right).getSource()));
+            return wrap(((EntityIterableBase) left).getSource().concat(((EntityIterableBase) right).getSource()));
         }
         return inMemoryConcat(left, right);
     }
 
     public Iterable<Entity> excludeNonTrees(Iterable<Entity> left, Iterable<Entity> right) {
         if (isPersistentIterable(left) && isPersistentIterable(right)) {
-            return wrap(((EntityIterable) left).getSource().minus(((EntityIterable) right).getSource()));
+            return wrap(((EntityIterableBase) left).getSource().minus(((EntityIterableBase) right).getSource()));
         }
         // subtract
         return inMemoryExclude(left, right);
@@ -411,12 +411,12 @@ public class QueryEngine {
         return adjustEntityIterable(StaticTypedEntityIterable.instantiate(it));
     }
 
-    private Iterable<Entity> selectDistinctImpl(final EntityIterable it, String linkName) {
+    private Iterable<Entity> selectDistinctImpl(final EntityIterableBase it, String linkName) {
         assertOperational();
         return wrap(it.getSource().selectDistinct(linkName));
     }
 
-    private Iterable<Entity> selectManyDistinctImpl(final EntityIterable it, String linkName) {
+    private Iterable<Entity> selectManyDistinctImpl(final EntityIterableBase it, String linkName) {
         assertOperational();
         return wrap(it.getSource().selectManyDistinct(linkName));
     }
@@ -442,7 +442,7 @@ public class QueryEngine {
             }
         }
         // wrap with transient iterable
-        return isPersistentIterable(it) && !isWrapped(it) ? wrap(((EntityIterable) it).getSource()) : it;
+        return isPersistentIterable(it) && !isWrapped(it) ? wrap(((EntityIterableBase) it).getSource()) : it;
     }
 
     public Iterable<Entity> unionAdjusted(final Iterable<Entity> left, final Iterable<Entity> right) {

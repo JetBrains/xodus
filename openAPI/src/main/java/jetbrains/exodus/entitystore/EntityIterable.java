@@ -300,18 +300,4 @@ public interface EntityIterable extends Iterable<Entity> {
      */
     @NotNull
     EntityIterable asSortResult();
-
-    /**
-     * For iterables on higher layers (various wrappers, etc.), returns the source type
-     * iterable which this one was constructed from. The common case is if PersistentEntityIterableWrapper
-     * is asked to return a database iterable in order to effectively calculate a query. Moreover,
-     * PersistentEntityIterableWrapper cannot perform intersect, union or minus by itself. A database
-     * iterable (which is actually the source one) return itself.
-     *
-     * @return source EntityIterable
-     */
-    // TODO: clean up API from this method
-    @NotNull
-    EntityIterable getSource();
-
 }

@@ -83,15 +83,15 @@ public class SortEngine {
                 if (source == null) {
                     return mergeSorted(emd, new IterableGetter() {
                         @Override
-                        public EntityIterable getIterable(String type) {
+                        public EntityIterableBase getIterable(String type) {
                             queryEngine.assertOperational();
-                            return queryEngine.getPersistentStore().getAndCheckCurrentTransaction().sort(type, propertyName, ascending);
+                            return (EntityIterableBase) queryEngine.getPersistentStore().getAndCheckCurrentTransaction().sort(type, propertyName, ascending);
                         }
                     }, adjustedCmp);
                 }
                 final Iterable<Entity> i = queryEngine.toEntityIterable(source);
                 if (queryEngine.isPersistentIterable(i)) {
-                    final EntityIterable it = ((EntityIterable) i).getSource();
+                    final EntityIterable it = ((EntityIterableBase) i).getSource();
                     if (it == EntityIterableBase.EMPTY) {
                         return queryEngine.wrap(EntityIterableBase.EMPTY);
                     }
@@ -100,9 +100,9 @@ public class SortEngine {
                     }
                     return mergeSorted(emd, new IterableGetter() {
                         @Override
-                        public EntityIterable getIterable(String type) {
+                        public EntityIterableBase getIterable(String type) {
                             queryEngine.assertOperational();
-                            return queryEngine.getPersistentStore().getAndCheckCurrentTransaction().sort(type, propertyName, it, ascending);
+                            return (EntityIterableBase) queryEngine.getPersistentStore().getAndCheckCurrentTransaction().sort(type, propertyName, it, ascending);
                         }
                     }, adjustedCmp);
                 }
@@ -154,7 +154,7 @@ public class SortEngine {
                 final Iterable<Entity> i = queryEngine.toEntityIterable(source);
                 if (queryEngine.isPersistentIterable(i)) {
                     final PersistentStoreTransaction txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
-                    final EntityIterable s = ((EntityIterable) i).getSource();
+                    final EntityIterable s = ((EntityIterableBase) i).getSource();
                     if (s == EntityIterableBase.EMPTY) {
                         return queryEngine.wrap(EntityIterableBase.EMPTY);
                     }
@@ -164,12 +164,12 @@ public class SortEngine {
                     }
                     if (sourceCount < 0 || sourceCount >= MIN_ENTRIES_TO_SORT_LINKS) {
                         final EntityIterable it = ((EntityIterableBase) s).getOrCreateCachedInstance(txn);
-                        EntityIterable allLinks = ((EntityIterable) queryEngine.queryGetAll(enumType).instantiate()).getSource();
+                        EntityIterable allLinks = ((EntityIterableBase) queryEngine.queryGetAll(enumType).instantiate()).getSource();
                         final EntityIterable distinctLinks;
                         //TODO: maybe use EntityIterableBase and nonCachedHasFastCount
                         long enumCount = allLinks instanceof EntitiesOfTypeIterable ? allLinks.size() : allLinks.getRoughCount();
                         if (enumCount < 0 || enumCount > MAX_ENUM_COUNT_TO_SORT_LINKS) {
-                            distinctLinks = ((EntityIterable) (isMultiple ?
+                            distinctLinks = ((EntityIterableBase) (isMultiple ?
                                     queryEngine.selectManyDistinct(it, linkName) :
                                     queryEngine.selectDistinct(it, linkName)
                             )).getSource();
@@ -187,11 +187,11 @@ public class SortEngine {
                             if (!(ascending)) {
                                 linksCmp = new SortEngine.ReverseComparator(linksCmp);
                             }
-                            final EntityIterable distinctSortedLinks = mergeSorted(mmd.getEntityMetaData(enumType), new IterableGetter() {
+                            final EntityIterableBase distinctSortedLinks = mergeSorted(mmd.getEntityMetaData(enumType), new IterableGetter() {
                                 @Override
-                                public EntityIterable getIterable(String type) {
+                                public EntityIterableBase getIterable(String type) {
                                     queryEngine.assertOperational();
-                                    return txn.sort(type, propName, distinctLinks, ascending);
+                                    return (EntityIterableBase) txn.sort(type, propName, distinctLinks, ascending);
                                 }
                             }, linksCmp);
                             final AssociationEndMetaData aemd = emd.getAssociationEndMetaData(linkName);
@@ -205,9 +205,9 @@ public class SortEngine {
                                         final String oppositeLinkName = oppositeAemd.getName();
                                         return mergeSorted(emd, new IterableGetter() {
                                             @Override
-                                            public EntityIterable getIterable(String type) {
+                                            public EntityIterableBase getIterable(String type) {
                                                 queryEngine.assertOperational();
-                                                return txn.sortLinks(type,
+                                                return (EntityIterableBase) txn.sortLinks(type,
                                                         distinctSortedLinks.getSource(), isMultiple, linkName, it, oppositeType, oppositeLinkName);
                                             }
                                         }, adjustedCmp);
@@ -216,9 +216,9 @@ public class SortEngine {
                             }
                             return mergeSorted(emd, new IterableGetter() {
                                 @Override
-                                public EntityIterable getIterable(String type) {
+                                public EntityIterableBase getIterable(String type) {
                                     queryEngine.assertOperational();
-                                    return txn.sortLinks(type, distinctSortedLinks.getSource(), isMultiple, linkName, it);
+                                    return (EntityIterableBase) txn.sortLinks(type, distinctSortedLinks.getSource(), isMultiple, linkName, it);
                                 }
                             }, adjustedCmp);
                         } else {
@@ -248,7 +248,7 @@ public class SortEngine {
 
     private Iterable<Entity> getAllEntities(final String entityType, final ModelMetaData mmd) {
         queryEngine.assertOperational();
-        EntityIterable it = queryEngine.getPersistentStore().getAndCheckCurrentTransaction().getAll(entityType).getSource();
+        EntityIterable it = queryEngine.getPersistentStore().getAndCheckCurrentTransaction().getAll(entityType);
         final EntityMetaData emd = mmd.getEntityMetaData(entityType);
         if (emd != null) {
             for (String subType : emd.getSubTypes()) {
@@ -258,13 +258,13 @@ public class SortEngine {
         return queryEngine.wrap(it);
     }
 
-    private EntityIterable mergeSorted(EntityMetaData emd, IterableGetter sorted, final Comparator<Entity> comparator) {
-        EntityIterable result;
+    private EntityIterableBase mergeSorted(EntityMetaData emd, IterableGetter sorted, final Comparator<Entity> comparator) {
+        EntityIterableBase result;
         if (!(emd.hasSubTypes())) {
             result = sorted.getIterable(emd.getType());
         } else {
             final List<EntityIterable> iterables = new ArrayList<>(4);
-            EntityIterable source = sorted.getIterable(emd.getType()).getSource();
+            EntityIterableBase source = sorted.getIterable(emd.getType()).getSource();
             if (source != EntityIterableBase.EMPTY) {
                 iterables.add(source);
             }
@@ -278,10 +278,10 @@ public class SortEngine {
             if (iterablesCount == 0) {
                 result = EntityIterableBase.EMPTY;
             } else if (iterablesCount == 1) {
-                result = iterables.get(0);
+                result = (EntityIterableBase) iterables.get(0);
             } else {
                 queryEngine.assertOperational();
-                result = queryEngine.getPersistentStore().getAndCheckCurrentTransaction().mergeSorted(iterables, new Comparator<Entity>() {
+                result = (EntityIterableBase) queryEngine.getPersistentStore().getAndCheckCurrentTransaction().mergeSorted(iterables, new Comparator<Entity>() {
                     @Override
                     public int compare(@NotNull final Entity left, @NotNull final Entity right) {
                         return comparator.compare(attach(left), attach(right));
@@ -289,7 +289,7 @@ public class SortEngine {
                 });
             }
         }
-        return queryEngine.wrap(result.getSource().asSortResult());
+        return (EntityIterableBase) queryEngine.wrap(result.getSource().asSortResult());
     }
 
     public static int compareNullableComparables(Comparable c1, Comparable c2) {
@@ -311,7 +311,7 @@ public class SortEngine {
     }
 
     private interface IterableGetter {
-        EntityIterable getIterable(final String type);
+        EntityIterableBase getIterable(final String type);
     }
 
     private interface ComparableGetter {

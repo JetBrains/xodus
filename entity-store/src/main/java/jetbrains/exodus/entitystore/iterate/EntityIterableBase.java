@@ -412,9 +412,8 @@ public abstract class EntityIterableBase implements EntityIterable {
         return store == null ? this : new SortResultIterable(getTransaction(), this);
     }
 
-    @Override
     @NotNull
-    public EntityIterable getSource() {
+    public EntityIterableBase getSource() {
         return this;
     }
 

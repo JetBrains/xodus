@@ -17,7 +17,6 @@ package jetbrains.exodus.query;
 
 
 import jetbrains.exodus.entitystore.Entity;
-import jetbrains.exodus.entitystore.EntityIterable;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.iterate.ExcludeNullIterableDecorator;
 import org.jetbrains.annotations.NotNull;
@@ -39,7 +38,7 @@ public class ExcludeNullStaticTypedEntityIterable extends StaticTypedEntityItera
     public Iterable<Entity> instantiate() {
         Iterable<Entity> instantiatedDecorated = decorated.instantiate();
         if (queryEngine.isPersistentIterable(instantiatedDecorated)) {
-            EntityIterableBase entityIterableBaseDecorated = (EntityIterableBase) ((EntityIterable) instantiatedDecorated).getSource();
+            EntityIterableBase entityIterableBaseDecorated = ((EntityIterableBase) instantiatedDecorated).getSource();
             if (entityIterableBaseDecorated == EntityIterableBase.EMPTY) {
                 return EntityIterableBase.EMPTY;
             }

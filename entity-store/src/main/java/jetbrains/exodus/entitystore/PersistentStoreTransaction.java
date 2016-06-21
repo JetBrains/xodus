@@ -487,7 +487,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                                     @NotNull final String linkName,
                                     @NotNull final EntityIterable rightOrder) {
         final EntityIterable result = new SortIndirectIterable(this, store, entityType,
-                (EntityIterableBase) sortedLinks.getSource(), linkName, (EntityIterableBase) rightOrder, null, null);
+                ((EntityIterableBase) sortedLinks).getSource(), linkName, (EntityIterableBase) rightOrder, null, null);
         return isMultiple ? result.distinct() : result;
     }
 
@@ -501,7 +501,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                                     @NotNull final String oppositeEntityType,
                                     @NotNull final String oppositeLinkName) {
         final EntityIterable result = new SortIndirectIterable(this, store, entityType,
-                (EntityIterableBase) sortedLinks.getSource(), linkName, (EntityIterableBase) rightOrder, oppositeEntityType, oppositeLinkName);
+                ((EntityIterableBase) sortedLinks).getSource(), linkName, (EntityIterableBase) rightOrder, oppositeEntityType, oppositeLinkName);
         return isMultiple ? result.distinct() : result;
     }
 

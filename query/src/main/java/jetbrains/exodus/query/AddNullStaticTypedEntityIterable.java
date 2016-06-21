@@ -17,7 +17,6 @@ package jetbrains.exodus.query;
 
 
 import jetbrains.exodus.entitystore.Entity;
-import jetbrains.exodus.entitystore.EntityIterable;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.iterate.binop.AddNullDecoratorIterable;
 
@@ -45,8 +44,8 @@ public class AddNullStaticTypedEntityIterable extends StaticTypedEntityIterable 
         Iterable<Entity> instantiatedDecorated = decorated.instantiate();
         Iterable<Entity> instantiatedNullContainer = nullContainer.instantiate();
         if (queryEngine.isPersistentIterable(instantiatedDecorated) && queryEngine.isPersistentIterable(instantiatedNullContainer)) {
-            EntityIterableBase entityIterableBaseDecorated = (EntityIterableBase) ((EntityIterable) instantiatedDecorated).getSource();
-            EntityIterableBase entityIterableBaseNullContainer = (EntityIterableBase) ((EntityIterable) instantiatedNullContainer).getSource();
+            EntityIterableBase entityIterableBaseDecorated = ((EntityIterableBase) instantiatedDecorated).getSource();
+            EntityIterableBase entityIterableBaseNullContainer = ((EntityIterableBase) instantiatedNullContainer).getSource();
             return queryEngine.wrap(new AddNullDecoratorIterable(
                     queryEngine.getPersistentStore().getAndCheckCurrentTransaction(), entityIterableBaseDecorated, entityIterableBaseNullContainer));
         }

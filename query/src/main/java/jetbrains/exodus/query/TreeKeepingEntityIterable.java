@@ -133,8 +133,8 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
             while (explained instanceof SortEngine.InMemorySortIterable) {
                 explained = ((SortEngine.InMemorySortIterable) explained).source;
             }
-            if (explained instanceof EntityIterable) {
-                EntityIterable entityIterable = ((EntityIterable) explained).getSource();
+            if (explained instanceof EntityIterableBase) {
+                EntityIterable entityIterable = ((EntityIterableBase) explained).getSource();
                 if (entityIterable instanceof EntityIterableBase && entityIterable != EntityIterableBase.EMPTY) {
                     EntityIterableBase entityIterableBase = ((EntityIterableBase) entityIterable);
                     final PersistentEntityStoreImpl store = queryEngine.getPersistentStore();

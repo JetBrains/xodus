@@ -42,7 +42,7 @@ public class FilterLinksIterable extends EntityIterableDecoratorBase {
                                @NotNull final EntityIterable entities) {
         super(txn, source);
         this.linkId = linkId;
-        this.entities = (EntityIterableBase) entities.getSource();
+        this.entities = ((EntityIterableBase) entities).getSource();
     }
 
     public static EntityIterableType getType() {

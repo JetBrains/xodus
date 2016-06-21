@@ -85,7 +85,7 @@ public class And extends CommutativeOperator {
         final Iterable<Entity> selfInstance = self.instantiate(entityType, queryEngine, metaData);
         if (selfInstance instanceof EntityIterableBase) {
             final EntityIterable result = ((EntityIterableBase) selfInstance).findLinks(
-                    ((EntityIterable) decorator.instantiateDecorated(decorator.getLinkEntityType(), queryEngine, metaData)).getSource(),
+                    ((EntityIterableBase) decorator.instantiateDecorated(decorator.getLinkEntityType(), queryEngine, metaData)).getSource(),
                     decorator.getLinkName());
             if (traceFindLinks) {
                 final Iterator<Entity> directIt = directClosure.instantiate().iterator();
