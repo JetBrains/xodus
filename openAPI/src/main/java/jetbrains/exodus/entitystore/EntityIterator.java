@@ -19,29 +19,51 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Iterator;
 
+/**
+ * {@code EntityIterator} is an iterator of {@linkplain EntityIterable}. It is an {@code Iterator<Entity>}, but it
+ * also allows to enumerate {@linkplain EntityId entity ids} instead of {@linkplain Entity entities} using method
+ * {@linkplain #nextId()}. Getting only ids provides better iteration performance.
+ *
+ * <p>Method {@linkplain #dispose()} releases all resources which the iterator possibly consumes. Method
+ * {@linkplain #shouldBeDisposed()} definitely says if it does. Method {@linkplain #dispose()} can be called implicitly
+ * in two cases: if iteration finishes and {@linkplain #hasNext()} returns {@code false} and if the transaction
+ * finishes or moves to the latest snapshot (any of {@linkplain StoreTransaction#commit()},
+ * {@linkplain StoreTransaction#abort()}, {@linkplain StoreTransaction#flush()} or
+ * {@linkplain StoreTransaction#revert()} is called).
+ *
+ * @see EntityIterable
+ * @see EntityId
+ * @see Entity
+ * @see StoreTransaction
+ */
 public interface EntityIterator extends Iterator<Entity> {
 
     /**
-     * Skips a number of entities from the iterable.
+     * Skips specified number of entities and returns the value of {@linkplain #hasNext()}.
      *
-     * @param number number of entities to skip.
-     * @return true if there are more entities available.
+     * @param number number of entities to skip
+     * @return {@code true} if there are more entities available
      */
     boolean skip(final int number);
 
     /**
-     * Returns entity id the next element in the iteration.
+     * Returns next entity id.
      *
-     * @return entity id of the next element in the iteration
-     * @throws java.util.NoSuchElementException if the iteration has no more elements
+     * @return next entity id
+     * @throws java.util.NoSuchElementException if the {@code EntityIterator} has no more elements
      */
     @Nullable
     EntityId nextId();
 
     /**
-     * @return true if the iterator was actually disposed
+     * Disposes the {@code EntityIterator} and frees all resources possibly consumed by it.
+     *
+     * @return {@code true} if the {@code EntityIterator} was actually disposed
      */
     boolean dispose();
 
+    /**
+     * @return {@code true} if method {@linkplain #dispose()} should be called in order to avoid leaks.
+     */
     boolean shouldBeDisposed();
 }

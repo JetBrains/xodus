@@ -20,16 +20,31 @@ import org.jetbrains.annotations.NotNull;
 import java.io.Serializable;
 
 /**
- * Each entity id consists of two parts: id of the entity type and local id within entity type.
- * So the number of entity types is bounded by the value of 2^31, and the number of entities of
- * arbitrary entity type is bounded by the value of 2^63.
+ * Each entity id consists of two parts: {@linkplain #getTypeId() id of the entity type} and
+ * {@linkplain #getLocalId() local id} within entity type. So the number of entity types is bounded by
+ * {@code Integer.MAX_VALUE}, and the number of entities of arbitrary entity type is bounded by {@code Long.MAX_VALUE}.
+ *
+ * @see Entity#getId()
+ * @see Entity#toIdString()
+ * @see StoreTransaction#toEntityId(String)
  */
 public interface EntityId extends Comparable<EntityId>, Serializable {
 
+    /**
+     * @return id of entity type
+     */
     int getTypeId();
 
+    /**
+     * @return id of entity inside of entity type
+     */
     long getLocalId();
 
+    /**
+     * @return string representation
+     * @see Entity#toIdString()
+     * @see StoreTransaction#toEntityId(String)
+     */
     @NotNull
     String toString();
 }

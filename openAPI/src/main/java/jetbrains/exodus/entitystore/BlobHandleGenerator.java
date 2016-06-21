@@ -18,11 +18,28 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.env.Transaction;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * Implementation of {@linkplain PersistentEntityStore} identifies each blob by a unique <i>blob handle</i> of type
+ * {@code long}. {@code BlobHandleGenerator} defines a sequences of blob handles for newly created blobs.
+ * Any inheritor of {@linkplain BlobVault} should implement {@linkplain #nextHandle(Transaction)}.
+ *
+ * @see BlobVault
+ * @see PersistentEntityStore
+ */
 public interface BlobHandleGenerator {
 
+    /**
+     * Generates next unique blob handle.
+     *
+     * @param txn current transaction
+     * @return next unique blob handle
+     */
     long nextHandle(@NotNull final Transaction txn);
 
-    final BlobHandleGenerator IMMUTABLE = new BlobHandleGenerator() {
+    /**
+     * BlobHandleGenerator for immutable {@linkplain BlobVault}s.
+     */
+    BlobHandleGenerator IMMUTABLE = new BlobHandleGenerator() {
 
         @Override
         public long nextHandle(@NotNull final Transaction txn) {
