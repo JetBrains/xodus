@@ -24,6 +24,9 @@ import java.util.Collections;
  * Describes how a backup file should be cooked by {@link BackupBean}. Only listed by
  * {@link #listFiles()} and accepted by {@link #acceptFile(File)} files are put into backup file with defined
  * pre- ({@link #beforeBackup()}) and postprocessing ({@link #afterBackup()}).
+ *
+ * @see Backupable
+ * @see BackupBean
  */
 public abstract class BackupStrategy {
 

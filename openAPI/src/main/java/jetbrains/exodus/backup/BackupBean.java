@@ -24,6 +24,27 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+/**
+ * {@code BackupBean} is a {@linkplain Backupable} decorator of one or several {@code Backupables}.
+ * In an application working with an {@linkplain jetbrains.exodus.env.Environment}, using {@code BackupBean} can look
+ * as the following:
+ * <pre>
+ *     final BackupBean backupBean = new BackupBean(environment);
+ *     backupBean.setBackupToZip(true);
+ *     backupBean.setBackupPath(new File(environment.getLocation(), "backups").getAbsolutePath());
+ *     backupBean.setBackupNamePrefix(new Date().toString());
+ *     // ...
+ *     // ...
+ *     // and further
+ *     backupBean.setBackupStartTicks(System.currentTimeMillis());
+ *     final File backup = CompressBackupUtil.backup(backupBean,
+ *                                                   new File(backupBean.getBackupPath()),
+ *                                                   backupBean.getBackupNamePrefix(),
+ *                                                   backupBean.getBackupToZip());
+ * </pre>
+ *
+ * @see Backupable
+ */
 public class BackupBean implements Backupable {
 
     private static final Logger logger = LoggerFactory.getLogger(BackupBean.class);

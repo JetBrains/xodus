@@ -19,6 +19,10 @@ package jetbrains.exodus.backup;
  * Something that can be backed up. {@link jetbrains.exodus.env.Environment},
  * {@link jetbrains.exodus.entitystore.PersistentEntityStore} and {@link jetbrains.exodus.entitystore.BlobVault} are
  * {@code Backupable}.
+ *
+ * @see jetbrains.exodus.env.Environment
+ * @see jetbrains.exodus.entitystore.PersistentEntityStore
+ * @see jetbrains.exodus.entitystore.BlobVault
  */
 public interface Backupable {
 
