@@ -31,12 +31,9 @@ import java.io.InputStream;
 
 /**
  * {@code BlobVault} is base class describing interface to <a href="https://en.wikipedia.org/wiki/Binary_large_object">
- * binary large objects (BLOBs)</a> used internally by implementation of {@linkplain PersistentEntityStore}. If you
- * don't specify {@code BlobVault} on creation of {@linkplain PersistentEntityStore},
- * instance of the {@linkplain FileSystemBlobVault} class is used.
+ * binary large objects (BLOBs)</a> used internally by implementation of {@linkplain PersistentEntityStore}.
  *
  * @see PersistentEntityStore
- * @see FileSystemBlobVault
  */
 public abstract class BlobVault implements BlobHandleGenerator, Backupable {
 
