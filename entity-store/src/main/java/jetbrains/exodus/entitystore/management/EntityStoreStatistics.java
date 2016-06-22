@@ -41,12 +41,12 @@ public class EntityStoreStatistics extends MBeanBase implements EntityStoreStati
     }
 
     @Override
-    public double getEntityIterableCacheHitRate() {
+    public float getEntityIterableCacheHitRate() {
         return store.getEntityIterableCache().hitRate();
     }
 
     @Override
-    public double getBlobStringsCacheHitRate() {
+    public float getBlobStringsCacheHitRate() {
         return store.getBlobVault().getStringContentCacheHitRate();
     }
 

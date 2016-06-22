@@ -61,7 +61,7 @@ final class SeparateLogCache extends LogCache {
     }
 
     @Override
-    public double hitRate() {
+    public float hitRate() {
         return pagesCache.hitRate();
     }
 

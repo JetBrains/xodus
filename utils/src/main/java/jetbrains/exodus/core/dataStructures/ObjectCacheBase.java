@@ -89,7 +89,7 @@ public abstract class ObjectCacheBase<K, V> extends CacheHitRateable {
      *
      * @param hitRate hit rate value in the interval [0..1]
      */
-    public static String formatHitRate(final double hitRate) {
+    public static String formatHitRate(final float hitRate) {
         final int result = (int) (hitRate * 1000);
         return String.valueOf((result / 10)) + '.' + (result % 10) + '%';
     }

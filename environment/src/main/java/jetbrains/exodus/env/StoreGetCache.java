@@ -46,7 +46,7 @@ class StoreGetCache {
         cache.cacheObject(new KeyEntry(treeRootAddress, key), value);
     }
 
-    double hitRate() {
+    float hitRate() {
         return cache.hitRate();
     }
 

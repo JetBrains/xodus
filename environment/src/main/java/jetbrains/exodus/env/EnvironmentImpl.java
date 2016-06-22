@@ -329,9 +329,9 @@ public class EnvironmentImpl implements Environment {
         // in order to avoid deadlock, do not finish gc inside lock
         // it is safe to invoke gc.finish() several times
         gc.finish();
-        final double logCacheHitRate;
-        final double storeGetCacheHitRate;
-        final double treeNodesCacheHitRate;
+        final float logCacheHitRate;
+        final float storeGetCacheHitRate;
+        final float treeNodesCacheHitRate;
         synchronized (commitLock) {
             if (!isOpen()) {
                 throw throwableOnClose;

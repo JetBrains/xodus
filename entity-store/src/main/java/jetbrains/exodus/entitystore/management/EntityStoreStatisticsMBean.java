@@ -23,7 +23,7 @@ public interface EntityStoreStatisticsMBean {
 
     long getNumberOfCachingJobs();
 
-    double getEntityIterableCacheHitRate();
+    float getEntityIterableCacheHitRate();
 
-    double getBlobStringsCacheHitRate();
+    float getBlobStringsCacheHitRate();
 }

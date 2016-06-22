@@ -359,7 +359,7 @@ public final class Log implements Closeable {
         return cachePageSize;
     }
 
-    public double getCacheHitRate() {
+    public float getCacheHitRate() {
         return cache == null ? 0 : cache.hitRate();
     }
 

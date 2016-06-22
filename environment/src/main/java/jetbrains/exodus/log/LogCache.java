@@ -81,7 +81,7 @@ abstract class LogCache {
 
     abstract void clear();
 
-    abstract double hitRate();
+    abstract float hitRate();
 
     abstract void cachePage(@NotNull final Log log, final long pageAddress, @NotNull final ArrayByteIterable page);
 

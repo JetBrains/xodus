@@ -56,7 +56,7 @@ final class SharedLogCache extends LogCache {
     }
 
     @Override
-    double hitRate() {
+    float hitRate() {
         return pagesCache.hitRate();
     }
 

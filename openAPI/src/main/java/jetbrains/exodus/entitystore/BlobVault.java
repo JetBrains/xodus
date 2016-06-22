@@ -174,7 +174,7 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
      * @return {@linkplain jetbrains.exodus.core.dataStructures.CacheHitRateable#hitRate() hit rate} of string
      * contents cache
      */
-    public final double getStringContentCacheHitRate() {
+    public final float getStringContentCacheHitRate() {
         synchronized (stringContentCacheLock) {
             return stringContentCache.hitRate();
         }

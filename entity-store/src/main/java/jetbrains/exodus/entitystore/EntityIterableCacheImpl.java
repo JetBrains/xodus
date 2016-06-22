@@ -58,7 +58,7 @@ public final class EntityIterableCacheImpl {
         SharedTimer.registerPeriodicTask(new CacheHitRateAdjuster(this));
     }
 
-    public double hitRate() {
+    public float hitRate() {
         return cacheAdapter.hitRate();
     }
 

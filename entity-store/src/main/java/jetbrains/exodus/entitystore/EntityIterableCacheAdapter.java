@@ -69,7 +69,7 @@ final class EntityIterableCacheAdapter {
         cache.remove(key);
     }
 
-    double hitRate() {
+    float hitRate() {
         return cache.hitRate();
     }
 
