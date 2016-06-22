@@ -39,6 +39,8 @@ public interface ContextualEnvironment extends Environment {
      * @param name   name of store
      * @param config {@linkplain StoreConfig} used to create store
      * @return {@linkplain ContextualStore} instance
+     * @see ContextualStore
+     * @see StoreConfig
      */
     @NotNull
     ContextualStore openStore(@NotNull String name, @NotNull StoreConfig config);
@@ -58,6 +60,8 @@ public interface ContextualEnvironment extends Environment {
      * @param creationRequired pass {@code false} if you wish to get {@code null} for non-existing store
      *                         rather than create it.
      * @return {@linkplain ContextualStore} instance
+     * @see ContextualStore
+     * @see StoreConfig
      */
     @Nullable
     ContextualStore openStore(@NotNull String name, @NotNull StoreConfig config, final boolean creationRequired);
@@ -71,7 +75,8 @@ public interface ContextualEnvironment extends Environment {
     ContextualStore openStore(@NotNull String name, @NotNull StoreConfig config, @NotNull Transaction transaction, boolean creationRequired);
 
     /**
-     * @return {@linkplain Transaction transaction} instance or null if no transaction is started in current thread
+     * @return {@linkplain Transaction transaction} instance or {@code null} if no transaction is started in current thread
+     * @see Transaction
      */
     @Nullable
     Transaction getCurrentTransaction();
@@ -79,6 +84,7 @@ public interface ContextualEnvironment extends Environment {
     /**
      * @return {@linkplain Transaction transaction} instance started in current thread
      * @throws jetbrains.exodus.ExodusException if there is no transaction started in current thread
+     * @see Transaction
      */
     @NotNull
     Transaction getAndCheckCurrentTransaction();
@@ -90,6 +96,7 @@ public interface ContextualEnvironment extends Environment {
      * </pre>
      *
      * @return the list of names of all {@linkplain ContextualStore stores} created in the environment.
+     * @see Environment#getAllStoreNames(Transaction)
      */
     @NotNull
     List<String> getAllStoreNames();

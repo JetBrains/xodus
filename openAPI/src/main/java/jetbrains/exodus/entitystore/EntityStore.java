@@ -18,50 +18,59 @@ package jetbrains.exodus.entitystore;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * {@code EntityStore} describes abstract named transactional Entity Store.
+ *
+ * @see StoreTransaction
+ * @see PersistentEntityStore
+ */
 public interface EntityStore {
 
     /**
-     * User-friendly name of the EntityStore.
+     * Returns unique human readable name of the (@code EntityStore}.
      *
-     * @return name of the EntityStore.
+     * @return name of the (@code EntityStore}
      */
     @NotNull
     String getName();
 
     /**
-     * Absolute location (path) of the EntityStore.
+     * Returns location (path) of the {@code EntityStore}'s database files on storage device. This location as well as
+     * {@linkplain #getName()} value is unique.
      *
-     * @return where the EntityStore's files exist.
+     * @return location of the {@code EntityStore}'s database files
      */
     @NotNull
     String getLocation();
 
     /**
-     * Starts a new transaction on the store.
+     * Starts new transaction which can be used to read and write data.
      *
-     * @return new store transaction object.
+     * @return new {@linkplain StoreTransaction} instance
+     * @see StoreTransaction
      */
     @NotNull
     StoreTransaction beginTransaction();
 
     /**
-     * Starts a new readonly transaction on the store.
+     * Starts new transaction which can be used to only read data.
      *
-     * @return new store transaction object.
+     * @return new {@linkplain StoreTransaction} instance
+     * @see StoreTransaction
+     * @see StoreTransaction#isReadonly()
      */
     @NotNull
     StoreTransaction beginReadonlyTransaction();
 
     /**
-     * Gets current started transaction object.
-     *
-     * @return last started transaction or null if no transaction was started.
+     * @return {@linkplain StoreTransaction transaction} instance or {@code null} if no transaction is started in current thread
+     * @see StoreTransaction
      */
     @Nullable
     StoreTransaction getCurrentTransaction();
 
     /**
-     * Closes the EntityStore.
+     * Closes the {@code EntityStore}.
      */
     void close();
 }

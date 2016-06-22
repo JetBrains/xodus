@@ -15,6 +15,12 @@
  */
 package jetbrains.exodus.entitystore;
 
+/**
+ * {@code EntityRemovedInDatabaseException} is thrown by {@linkplain StoreTransaction#getEntity(EntityId)} on
+ * attempt to get {@linkplain Entity} by an {@linkplain EntityId} which wss removed from the database.
+ *
+ * @see StoreTransaction#getEntity(EntityId)
+ */
 public class EntityRemovedInDatabaseException extends EntityStoreException {
 
     /**

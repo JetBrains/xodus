@@ -17,6 +17,11 @@ package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.ExodusException;
 
+/**
+ * Any EntityStore exception is {@code EntityStoreException}.
+ *
+ * @see EntityRemovedInDatabaseException
+ */
 public class EntityStoreException extends ExodusException {
 
     public EntityStoreException() {

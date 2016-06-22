@@ -40,8 +40,8 @@ public interface PersistentEntityStore extends EntityStore, Backupable {
     /**
      * Compute a computable in transaction.
      *
-     * @param computable
-     * @param <T>
+     * @param computable function to compute
+     * @param <T>        type of return value
      * @return computed result regardless of was transaction aborted or not
      */
     <T> T computeInTransaction(@NotNull StoreTransactionalComputable<T> computable);

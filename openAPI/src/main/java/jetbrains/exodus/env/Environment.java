@@ -55,7 +55,7 @@ public interface Environment extends Backupable {
     /**
      * Returns location of database files on storage device. Can be used as unique key for environment instance.
      *
-     * @return location of database files.
+     * @return location of database files
      */
     @NotNull
     String getLocation();
@@ -87,7 +87,7 @@ public interface Environment extends Backupable {
      * @param config           {@linkplain StoreConfig} used to create store
      * @param transaction      {@linkplain Transaction} used to create store
      * @param creationRequired pass {@code false} if you wish to get {@code null} for non-existing store
-     *                         rather than create it.
+     *                         rather than create it
      * @return {@linkplain Store} instance
      */
     @Nullable
