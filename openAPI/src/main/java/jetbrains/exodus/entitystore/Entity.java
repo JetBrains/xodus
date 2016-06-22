@@ -150,7 +150,7 @@ public interface Entity extends Comparable<Entity> {
     List<String> getPropertyNames();
 
     /**
-     * Gets value of blob with specified name as {@linkplain InputStream}.
+     * Gets value of blob with specified name as {@linkplain InputStream}. The {@code InputStream} should be closed.
      *
      * @param blobName name of the blob
      * @return blob stream, or {@code null} if the blob is not set
@@ -196,7 +196,7 @@ public interface Entity extends Comparable<Entity> {
     String getBlobString(@NotNull final String blobName);
 
     /**
-     * Sets value (as {@linkplain InputStream}) of blob with specified name. For large blobs (having size larger
+     * Sets value (as {@linkplain InputStream}) of blob with specified name. For large blobs (having size greater
      * than {@linkplain PersistentEntityStoreConfig#getMaxInPlaceBlobSize()} which is by default 10000), it is
      * preferable to use {@linkplain #setBlob(String, File)} instead.
      *

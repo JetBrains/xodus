@@ -19,7 +19,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * {@code EntityStore} describes abstract named transactional Entity Store.
+ * {@code EntityStore} describes abstract named transactional
+ * <a href="https://github.com/JetBrains/xodus/wiki/Entity-Stores">Entity Store</a>.
  *
  * @see StoreTransaction
  * @see PersistentEntityStore

@@ -101,7 +101,7 @@ public interface Environment extends Backupable {
     void executeTransactionSafeTask(@NotNull Runnable task);
 
     /**
-     * Clears all the data in the environment. It is safe to clear environment with lots of transactions in parallel.
+     * Clears all the data in the environment. It is safe to clear environment with lots of parallel transactions.
      */
     void clear();
 
@@ -269,13 +269,14 @@ public interface Environment extends Backupable {
      *
      * @param executable transactional executable
      * @see TransactionalExecutable
+     * @see Transaction#isReadonly()
      */
     void executeInReadonlyTransaction(@NotNull TransactionalExecutable executable);
 
     /**
-     * Computes a value by calling specified computable in a new transaction. If transaction cannot be flushed after
-     * {@linkplain TransactionalComputable#compute(Transaction)} is called, the computable is computed once more until
-     * the transaction is finally flushed.
+     * Computes and returns a value by calling specified computable in a new transaction. If transaction cannot be
+     * flushed after{@linkplain TransactionalComputable#compute(Transaction)} is called, the computable is computed
+     * once more until the transaction is finally flushed.
      *
      * @param computable transactional computable
      * @see TransactionalComputable
@@ -283,7 +284,7 @@ public interface Environment extends Backupable {
     <T> T computeInTransaction(@NotNull TransactionalComputable<T> computable);
 
     /**
-     * Computes a value by calling specified computable in a new exclusive transaction.
+     * Computes and returns a value by calling specified computable in a new exclusive transaction.
      * {@linkplain TransactionalComputable#compute(Transaction)} is called once since the transaction is exclusive,
      * and its flush should always succeed.
      *
@@ -293,18 +294,20 @@ public interface Environment extends Backupable {
     <T> T computeInExclusiveTransaction(@NotNull TransactionalComputable<T> computable);
 
     /**
-     * Computes a value by calling specified computable in a new read-only transaction.
+     * Computes and returns a value by calling specified computable in a new read-only transaction.
      * {@linkplain TransactionalComputable#compute(Transaction)} is called once since the transaction is read-only,
      * and it is never flushed.
      *
      * @param computable transactional computable
      * @see TransactionalComputable
+     * @see Transaction#isReadonly()
      */
     <T> T computeInReadonlyTransaction(@NotNull TransactionalComputable<T> computable);
 
     /**
      * Returns {@linkplain EnvironmentConfig} instance used during creation of the environment. If no config
-     * was specified then return value is directly {@linkplain EnvironmentConfig#DEFAULT}.
+     * was specified and no setting was mutated, then returned config has the same settings as
+     * {@linkplain EnvironmentConfig#DEFAULT}.
      *
      * @return {@linkplain EnvironmentConfig} instance
      */
