@@ -15,24 +15,37 @@
  */
 package jetbrains.exodus.entitystore;
 
+/**
+ * {@code Sequence} allows to get unique successive non-negative long numbers. Sequences are named, you can request a
+ * sequence by name using method {@linkplain StoreTransaction#getSequence(String)}. Sequences are persistent, any
+ * flushed or committed {@linkplain StoreTransaction transaction} saves all dirty (mutated) sequences which were
+ * requested by transactions created against current {@linkplain PersistentEntityStore}.
+ *
+ * <p>{@linkplain PersistentEntityStore} implementation uses {@code Sequences} to generate {@linkplain EntityId} instances.
+ *
+ * @see StoreTransaction#getSequence(String)
+ */
 public interface Sequence {
 
     /**
-     * Starts a sequence from 0, persisting last used value when commiting a transaction.
+     * Returns next non-negative number. For a new {@code Sequence}, it starts from {@code 0}.
      *
-     * @return next unused number.
+     * @return next number
      */
     long increment();
 
     /**
-     * @return current (last incremented) value
+     * Returns current number obtained by last call to {@linkplain #increment()}. If {@linkplain #increment()} was
+     * never called it returns {@code -1}.
+     *
+     * @return current number obtained by last call to {@linkplain #increment()} or {@code -1}
      */
     long get();
 
     /**
-     * Sets current value.
+     * Sets current number. Next call to {@linkplain #increment()} will return {@code l + 1}.
      *
-     * @param l current value.
+     * @param l current number
      */
     void set(final long l);
 }

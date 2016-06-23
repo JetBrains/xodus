@@ -15,8 +15,20 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.env.TransactionalExecutable;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * A function that can pe passed to the {@linkplain PersistentEntityStore#executeInTransaction(StoreTransactionalExecutable)}
+ * or {@linkplain PersistentEntityStore#executeInReadonlyTransaction(StoreTransactionalExecutable)}to be executed
+ * within a {@linkplain StoreTransaction transaction}.
+ *
+ * @see StoreTransaction
+ * @see PersistentEntityStore#executeInTransaction(StoreTransactionalExecutable)
+ * @see PersistentEntityStore#executeInReadonlyTransaction(StoreTransactionalExecutable)
+ * @see StoreTransactionalComputable
+ * @see TransactionalExecutable
+ */
 public interface StoreTransactionalExecutable {
 
     void execute(@NotNull final StoreTransaction txn);

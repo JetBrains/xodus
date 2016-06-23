@@ -18,6 +18,9 @@ package jetbrains.exodus.entitystore;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Comparator;
+import java.util.List;
+
 /**
  * {@code EntityIterable} allows to lazily iterate over {@linkplain Entity entities}. It's a result of all
  * {@linkplain StoreTransaction} methods that query, sort and filter entities.
@@ -277,6 +280,7 @@ public interface EntityIterable extends Iterable<Entity> {
      * @see #asSortResult()
      * @see StoreTransaction#sort(String, String, EntityIterable, boolean)
      * @see StoreTransaction#sortLinks(String, EntityIterable, boolean, String, EntityIterable)
+     * @see StoreTransaction#mergeSorted(List, Comparator)
      */
     boolean isSortResult();
 
@@ -297,6 +301,7 @@ public interface EntityIterable extends Iterable<Entity> {
      * @see #isSortResult()
      * @see StoreTransaction#sort(String, String, EntityIterable, boolean)
      * @see StoreTransaction#sortLinks(String, EntityIterable, boolean, String, EntityIterable)
+     * @see StoreTransaction#mergeSorted(List, Comparator)
      */
     @NotNull
     EntityIterable asSortResult();

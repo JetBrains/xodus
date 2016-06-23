@@ -28,6 +28,7 @@ import org.jetbrains.annotations.NotNull;
  * @see Environment#computeInTransaction(TransactionalComputable)
  * @see Environment#computeInReadonlyTransaction(TransactionalComputable)
  * @see Environment#computeInExclusiveTransaction(TransactionalComputable)
+ * @see TransactionalExecutable
  */
 public interface TransactionalComputable<T> {
 

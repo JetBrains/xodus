@@ -355,12 +355,12 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     @NotNull
     @Override
-    public EntityIterable findWithBlob(@NotNull final String entityType, @NotNull final String propertyName) {
+    public EntityIterable findWithBlob(@NotNull final String entityType, @NotNull final String blobName) {
         final int entityTypeId = store.getEntityTypeId(this, entityType, false);
         if (entityTypeId < 0) {
             return EntityIterableBase.EMPTY;
         }
-        final int blobId = store.getPropertyId(this, propertyName, false);
+        final int blobId = store.getPropertyId(this, blobName, false);
         if (blobId < 0) {
             return EntityIterableBase.EMPTY;
         }
@@ -543,6 +543,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     @Override
+    @Nullable
     public QueryCancellingPolicy getQueryCancellingPolicy() {
         return queryCancellingPolicy;
     }

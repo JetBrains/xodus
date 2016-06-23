@@ -15,9 +15,32 @@
  */
 package jetbrains.exodus.entitystore;
 
+/**
+ * Use {@linkplain StoreTransaction#setQueryCancellingPolicy(QueryCancellingPolicy)} to set an instance of
+ * {@code QueryCancellingPolicy} to be able to interrupt iteration over {@linkplain EntityIterable} instances
+ * associated with the {@code StoreTransaction}. The most common use case is setting timeout for the
+ * {@code StoreTransaction} instance.
+ *
+ * <p>{@linkplain PersistentEntityStore} implementation tries to to check {@code QueryCancellingPolicy} in a most
+ * smart way in order to affect execution performance as little as possible.
+ *
+ * @see StoreTransaction
+ * @see StoreTransaction#setQueryCancellingPolicy(QueryCancellingPolicy)
+ * @see EntityIterable
+ * @see EntityIterable#getTransaction()
+ */
 public interface QueryCancellingPolicy {
 
+    /**
+     * @return {@code true} when it's time to cancel iteration over {@linkplain EntityIterable} instances which were
+     * created in the {@linkplain StoreTransaction} supplied with the {@code QueryCancellingPolicy} instance
+     */
     boolean needToCancel();
 
+    /**
+     * Cancels iteration over {@linkplain EntityIterable} instances which were created in the
+     * {@linkplain StoreTransaction} supplied with the {@code QueryCancellingPolicy} instance. Usually it throws an
+     * exception which application code can handle.
+     */
     void doCancel();
 }

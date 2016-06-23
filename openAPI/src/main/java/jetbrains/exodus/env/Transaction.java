@@ -57,7 +57,7 @@ public interface Transaction {
      * transaction is trivial, {@linkplain #flush()} just does nothing and returns {@code true}. Each newly created
      * transaction is idempotent.
      *
-     * @return {@code true} if transaction is idempotent.
+     * @return {@code true} if transaction is idempotent
      * @see #flush()
      * @see #commit()
      */
@@ -66,6 +66,9 @@ public interface Transaction {
     /**
      * Drops all changes and finishes the transaction.
      *
+     * @see #commit()
+     * @see #flush()
+     * @see #revert()
      * @see #isFinished()
      */
     void abort();
@@ -77,6 +80,8 @@ public interface Transaction {
      *
      * @return {@code true} if transaction is committed
      * @see #flush()
+     * @see #abort()
+     * @see #revert()
      * @see #isFinished()
      */
     boolean commit();
@@ -86,11 +91,20 @@ public interface Transaction {
      * In that case, transaction remains unfinished and holds the newest database snapshot.
      *
      * @return {@code true} if transaction is flushed
+     * @see #commit()
+     * @see #abort()
+     * @see #revert()
+     * @see #isFinished()
      */
     boolean flush();
 
     /**
      * Drops all changes without finishing the transaction and holds the newest database snapshot.
+     *
+     * @see #commit()
+     * @see #abort()
+     * @see #flush()
+     * @see #isFinished()
      */
     void revert();
 
