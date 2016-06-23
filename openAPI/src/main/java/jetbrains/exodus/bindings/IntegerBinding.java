@@ -23,6 +23,17 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.ByteArrayInputStream;
 
+/**
+ * {@linkplain ComparableBinding} for {@linkplain Integer} values.
+ *
+ * In addition to typical {@linkplain #intToEntry(int)} and {@linkplain #entryToInt(ByteIterable)} methods operating
+ * with {@code ByteIterables} of length {@code 4}, {@code IntegerBinding} has a pair of methods for
+ * serialization/deserialization of non-negative values to/from compressed entries:
+ * {@linkplain #intToCompressedEntry(int)} and {@linkplain #compressedEntryToInt(ByteIterable)}. The less is a value
+ * the shorter is its compressed entry. Sometimes compressed entries allow to significantly decrease database size.
+ *
+ * @see ComparableBinding
+ */
 public class IntegerBinding extends ComparableBinding {
 
     public static final IntegerBinding BINDING = new IntegerBinding();
@@ -40,10 +51,22 @@ public class IntegerBinding extends ComparableBinding {
         output.writeUnsignedInt((Integer) object ^ 0x80000000);
     }
 
+    /**
+     * De-serializes {@linkplain ByteIterable} entry to an {@code int} value.
+     *
+     * @param entry {@linkplain ByteIterable} instance
+     * @return de-serialized value
+     */
     public static int entryToInt(@NotNull final ByteIterable entry) {
         return (Integer) BINDING.entryToObject(entry);
     }
 
+    /**
+     * Serializes {@code int} value to the {@linkplain ArrayByteIterable} entry.
+     *
+     * @param object value to serialize
+     * @return {@linkplain ArrayByteIterable} entry
+     */
     public static ArrayByteIterable intToEntry(final int object) {
         return BINDING.objectToEntry(object);
     }

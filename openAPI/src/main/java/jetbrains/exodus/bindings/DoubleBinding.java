@@ -22,6 +22,11 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.ByteArrayInputStream;
 
+/**
+ * {@linkplain ComparableBinding} for {@linkplain Double} values.
+ *
+ * @see ComparableBinding
+ */
 public final class DoubleBinding extends ComparableBinding {
 
     public static final DoubleBinding BINDING = new DoubleBinding();
@@ -39,10 +44,22 @@ public final class DoubleBinding extends ComparableBinding {
         output.writeUnsignedLong(Double.doubleToLongBits((Double) object));
     }
 
+    /**
+     * De-serializes {@linkplain ByteIterable} entry to a {@code double} value.
+     *
+     * @param entry {@linkplain ByteIterable} instance
+     * @return de-serialized value
+     */
     public static double entryToDouble(@NotNull final ByteIterable entry) {
         return (Double) BINDING.entryToObject(entry);
     }
 
+    /**
+     * Serializes {@code double} value to the {@linkplain ArrayByteIterable} entry.
+     *
+     * @param object value to serialize
+     * @return {@linkplain ArrayByteIterable} entry
+     */
     public static ArrayByteIterable doubleToEntry(final double object) {
         return BINDING.objectToEntry(object);
     }

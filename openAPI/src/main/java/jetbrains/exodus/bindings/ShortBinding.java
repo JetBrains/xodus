@@ -22,6 +22,11 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.ByteArrayInputStream;
 
+/**
+ * {@linkplain ComparableBinding} for {@linkplain Short} values.
+ *
+ * @see ComparableBinding
+ */
 public class ShortBinding extends ComparableBinding {
 
     public static final ShortBinding BINDING = new ShortBinding();
@@ -39,10 +44,22 @@ public class ShortBinding extends ComparableBinding {
         output.writeUnsignedShort((int) (Short) object ^ 0x8000);
     }
 
+    /**
+     * De-serializes {@linkplain ByteIterable} entry to a {@code short} value.
+     *
+     * @param entry {@linkplain ByteIterable} instance
+     * @return de-serialized value
+     */
     public static short entryToShort(@NotNull final ByteIterable entry) {
         return (Short) BINDING.entryToObject(entry);
     }
 
+    /**
+     * Serializes {@code short} value to the {@linkplain ArrayByteIterable} entry.
+     *
+     * @param object value to serialize
+     * @return {@linkplain ArrayByteIterable} entry
+     */
     public static ArrayByteIterable shortToEntry(final short object) {
         return BINDING.objectToEntry(object);
     }

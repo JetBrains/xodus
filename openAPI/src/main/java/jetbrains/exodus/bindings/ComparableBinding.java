@@ -22,6 +22,25 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.ByteArrayInputStream;
 
+/**
+ * Bindings are used to represent comparable {@code Java} objects as {@linkplain ByteIterable}. There are several
+ * inheritors of the {@code ComparableBinding} class, they allow to serialize a value of any Java primitive type or
+ * {@linkplain String} to {@linkplain ArrayByteIterable}, as well as to deserialize {@linkplain ByteIterable} to a value.
+ * All the inheritors contain two static methods: one for getting {@linkplain ByteIterable} entry from a value,
+ * and another for getting value from a {@linkplain ByteIterable} entry.
+ *
+ * @see BooleanBinding
+ * @see ByteBinding
+ * @see ComparableSetBinding
+ * @see DoubleBinding
+ * @see FloatBinding
+ * @see IntegerBinding
+ * @see LongBinding
+ * @see ShortBinding
+ * @see StringBinding
+ * @see ByteIterable
+ * @see ArrayByteIterable
+ */
 public abstract class ComparableBinding {
 
     public final Comparable entryToObject(@NotNull final ByteIterable entry) {

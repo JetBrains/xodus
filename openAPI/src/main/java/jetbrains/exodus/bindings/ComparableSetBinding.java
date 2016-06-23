@@ -23,6 +23,12 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.ByteArrayInputStream;
 
+/**
+ * {@linkplain ComparableBinding} for {@linkplain ComparableSet} values.
+ *
+ * @see ComparableBinding
+ * @see ComparableSet
+ */
 @SuppressWarnings("unchecked")
 public class ComparableSetBinding extends ComparableBinding {
 
@@ -62,10 +68,22 @@ public class ComparableSetBinding extends ComparableBinding {
         });
     }
 
+    /**
+     * De-serializes {@linkplain ByteIterable} entry to a {@code ComparableSet} value.
+     *
+     * @param entry {@linkplain ByteIterable} instance
+     * @return de-serialized value
+     */
     public static ComparableSet entryToComparableSet(@NotNull final ByteIterable entry) {
         return (ComparableSet) BINDING.entryToObject(entry);
     }
 
+    /**
+     * Serializes {@code ComparableSet} value to the {@linkplain ArrayByteIterable} entry.
+     *
+     * @param object value to serialize
+     * @return {@linkplain ArrayByteIterable} entry
+     */
     public static ArrayByteIterable comparableSetToEntry(@NotNull final ComparableSet object) {
         return BINDING.objectToEntry(object);
     }

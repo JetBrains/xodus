@@ -23,6 +23,12 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.ByteArrayInputStream;
 
+/**
+ * {@linkplain ComparableBinding} for {@linkplain String} values. Serializes {@linkplain String} objects to
+ * (@code UTF-8} zero-terminated entries.
+ *
+ * @see ComparableBinding
+ */
 public class StringBinding extends ComparableBinding {
 
     public static final StringBinding BINDING;
@@ -51,10 +57,22 @@ public class StringBinding extends ComparableBinding {
         output.writeString((String) object);
     }
 
+    /**
+     * De-serializes {@linkplain ByteIterable} entry to a {@code String} value.
+     *
+     * @param entry {@linkplain ByteIterable} instance
+     * @return de-serialized value
+     */
     public static String entryToString(@NotNull final ByteIterable entry) {
         return (String) BINDING.entryToObject(entry);
     }
 
+    /**
+     * Serializes {@code String} value to the {@linkplain ArrayByteIterable} entry.
+     *
+     * @param object value to serialize
+     * @return {@linkplain ArrayByteIterable} entry
+     */
     public static ArrayByteIterable stringToEntry(@NotNull final String object) {
         return BINDING.objectToEntry(object);
     }

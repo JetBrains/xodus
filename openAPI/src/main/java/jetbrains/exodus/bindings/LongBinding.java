@@ -23,6 +23,17 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.ByteArrayInputStream;
 
+/**
+ * {@linkplain ComparableBinding} for {@linkplain Long} values.
+ *
+ * In addition to typical {@linkplain #longToEntry(long)} and {@linkplain #entryToLong(ByteIterable)} methods operating
+ * with {@code ByteIterables} of length {@code 8}, {@code LongBinding} has a pair of methods for
+ * serialization/deserialization of non-negative values to/from compressed entries:
+ * {@linkplain #longToCompressedEntry(long)} and {@linkplain #compressedEntryToLong(ByteIterable)}. The less is a value
+ * the shorter is its compressed entry. Sometimes compressed entries allow to significantly decrease database size.
+ *
+ * @see ComparableBinding
+ */
 public class LongBinding extends ComparableBinding {
 
     public static final LongBinding BINDING = new LongBinding();
@@ -40,10 +51,22 @@ public class LongBinding extends ComparableBinding {
         output.writeUnsignedLong((Long) object ^ 0x8000000000000000L);
     }
 
+    /**
+     * De-serializes {@linkplain ByteIterable} entry to a {@code long} value.
+     *
+     * @param entry {@linkplain ByteIterable} instance
+     * @return de-serialized value
+     */
     public static long entryToLong(@NotNull final ByteIterable entry) {
         return (Long) BINDING.entryToObject(entry);
     }
 
+    /**
+     * Serializes {@code long} value to the {@linkplain ArrayByteIterable} entry.
+     *
+     * @param object value to serialize
+     * @return {@linkplain ArrayByteIterable} entry
+     */
     public static ArrayByteIterable longToEntry(final long object) {
         return BINDING.objectToEntry(object);
     }
