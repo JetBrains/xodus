@@ -38,6 +38,12 @@ public final class PropertyTypes {
     public PropertyTypes() {
         typesById = new IntHashMap<>();
         typesByClass = new HashMap<>();
+        clear();
+    }
+
+    public void clear() {
+        typesById.clear();
+        typesByClass.clear();
         for (final ComparableValueType predefinedType : ComparableValueType.PREDEFINED_COMPARABLE_VALUE_TYPES) {
             typesById.put(predefinedType.getTypeId(), predefinedType);
             typesByClass.put(predefinedType.getClazz(), predefinedType);

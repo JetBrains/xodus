@@ -45,7 +45,7 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-@SuppressWarnings({"SynchronizationOnLocalVariableOrMethodParameter", "UnusedDeclaration", "ThisEscapedInObjectConstruction", "VolatileLongOrDoubleField", "ObjectAllocationInLoop", "ReuseOfLocalVariable", "rawtypes"})
+@SuppressWarnings({"SynchronizationOnLocalVariableOrMethodParameter", "UnusedDeclaration", "ThisEscapedInObjectConstruction", "VolatileLongOrDoubleField", "ObjectAllocationInLoop", "ReuseOfLocalVariable", "rawtypes", "NullableProblems"})
 public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLog.Member {
 
     private static final Logger logger = LoggerFactory.getLogger(PersistentEntityStoreImpl.class);
@@ -81,7 +81,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @NotNull
     private final StoreNamingRules namingRulez;
-    @NotNull
+    @Nullable
     private BlobVault blobVault;
 
     @NotNull
@@ -90,27 +90,27 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private final IntHashMap<PersistentSequence> entitiesSequences;
 
     @NotNull
-    private final PersistentSequentialDictionary entityTypes;
+    private PersistentSequentialDictionary entityTypes;
     @NotNull
-    private final PersistentSequentialDictionary propertyIds;
+    private PersistentSequentialDictionary propertyIds;
     @NotNull
-    private final PersistentSequentialDictionary linkIds;
+    private PersistentSequentialDictionary linkIds;
 
     @NotNull
     private final PropertyTypes propertyTypes;
     @NotNull
-    private final PersistentSequentialDictionary propertyCustomTypeIds;
+    private PersistentSequentialDictionary propertyCustomTypeIds;
 
     @NotNull
-    private final OpenTablesCache entitiesTables;
+    private OpenTablesCache entitiesTables;
     @NotNull
-    private final OpenTablesCache propertiesTables;
+    private OpenTablesCache propertiesTables;
     @NotNull
-    private final OpenTablesCache linksTables;
+    private OpenTablesCache linksTables;
     @NotNull
-    private final OpenTablesCache blobsTables;
+    private OpenTablesCache blobsTables;
     @NotNull
-    private final Store internalSettings;
+    private Store internalSettings;
     @NotNull
     private Store sequences;
 
@@ -153,6 +153,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         hashCode = System.identityHashCode(this);
         this.config = config;
         this.environment = environment;
+        this.blobVault = blobVault;
         PersistentEntityStores.adjustEnvironmentConfigForEntityStore(environment.getEnvironmentConfig());
         this.name = name;
         location = environment.getLocation();
@@ -164,93 +165,10 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         linkDataGetter = config.isDebugLinkDataGetter() ? new DebugLinkDataGetter() : new LinkDataGetter();
         blobDataGetter = new BlobDataGetter();
         allSequences = new HashMap<>();
+        entitiesSequences = new IntHashMap<>();
+        propertyTypes = new PropertyTypes();
 
-        final PersistentStoreTransaction txn = beginTransaction();
-        sequences = environment.openStore(SEQUENCES_STORE, StoreConfig.WITHOUT_DUPLICATES, txn.getEnvironmentTransaction());
-        final boolean fromScratch;
-        try {
-            this.blobVault = blobVault == null ? createDefaultFSBlobVault() : blobVault;
-            this.blobVault.setStringContentCacheSize(config.getBlobStringsCacheSize());
-
-            entitiesSequences = new IntHashMap<>();
-            final TwoColumnTable entityTypesTable = new TwoColumnTable(txn,
-                    namingRulez.getEntityTypesTableName(), StoreConfig.WITHOUT_DUPLICATES);
-            final PersistentSequence entityTypesSequence = getSequence(txn, namingRulez.getEntityTypesSequenceName());
-            entityTypes = new PersistentSequentialDictionary(entityTypesSequence, entityTypesTable) {
-                @Override
-                protected void created(final PersistentStoreTransaction txn, final int id) {
-                    preloadTables(txn, id);
-                }
-            };
-            propertyIds = new PersistentSequentialDictionary(getSequence(txn, namingRulez.getPropertyIdsSequenceName()),
-                    new TwoColumnTable(txn, namingRulez.getPropertyIdsTableName(), StoreConfig.WITHOUT_DUPLICATES));
-            linkIds = new PersistentSequentialDictionary(getSequence(txn, namingRulez.getLinkIdsSequenceName()),
-                    new TwoColumnTable(txn, namingRulez.getLinkIdsTableName(), StoreConfig.WITHOUT_DUPLICATES));
-
-            propertyTypes = new PropertyTypes();
-            propertyCustomTypeIds = new PersistentSequentialDictionary(getSequence(txn, namingRulez.getPropertyCustomTypesSequence()),
-                    new TwoColumnTable(txn, namingRulez.getPropertyCustomTypesTable(), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING));
-
-            entitiesTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
-                @NotNull
-                @Override
-                public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-                    return new SingleColumnTable(txn,
-                            namingRulez.getEntitiesTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING);
-                }
-            });
-            propertiesTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
-                @NotNull
-                @Override
-                public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-                    return new PropertiesTable(txn,
-                            namingRulez.getPropertiesTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES);
-                }
-            });
-            linksTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
-                @NotNull
-                @Override
-                public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-                    return new TwoColumnTable(txn,
-                            namingRulez.getLinksTableName(entityTypeId), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING);
-                }
-            });
-            blobsTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
-                @NotNull
-                @Override
-                public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-                    return new BlobsTable(PersistentEntityStoreImpl.this, txn,
-                            namingRulez.getBlobsTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES);
-                }
-            });
-
-            final String internalSettingsName = namingRulez.getInternalSettingsName();
-            final Store settings = environment.openStore(internalSettingsName,
-                    StoreConfig.WITHOUT_DUPLICATES, txn.getEnvironmentTransaction(), false);
-            fromScratch = settings == null;
-            if (fromScratch) {
-                internalSettings = environment.openStore(internalSettingsName,
-                        StoreConfig.WITHOUT_DUPLICATES, txn.getEnvironmentTransaction(), true);
-            } else {
-                internalSettings = settings;
-            }
-            txn.flush();
-        } catch (IOException e) {
-            throw ExodusException.toEntityStoreException(e);
-        } finally {
-            txn.abort();
-        }
-
-        if (!config.getRefactoringSkipAll()) {
-            applyRefactorings(fromScratch); // this method includes refactorings that could be clustered into separate txns
-        }
-
-        final PersistentStoreTransaction preloadTxn = beginTransaction();
-        try {
-            preloadTables(preloadTxn); // this is called to pre-load tables for all entity types to prevent them from being lazy loaded
-        } finally {
-            preloadTxn.commit();
-        }
+        init();
 
         statistics = new PersistentEntityStoreStatistics(this);
         if (config.isManagementEnabled()) {
@@ -267,6 +185,90 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (logger.isDebugEnabled()) {
             logger.debug("Created successfully.");
         }
+    }
+
+    private void init() {
+        final boolean fromScratch = computeInTransaction(new StoreTransactionalComputable<Boolean>() {
+            @Override
+            public Boolean compute(@NotNull StoreTransaction tx) {
+                final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
+                sequences = environment.openStore(SEQUENCES_STORE, StoreConfig.WITHOUT_DUPLICATES, txn.getEnvironmentTransaction());
+                if (blobVault == null) {
+                    setBlobVault(createDefaultFSBlobVault());
+                }
+                PersistentEntityStoreImpl.this.blobVault.setStringContentCacheSize(config.getBlobStringsCacheSize());
+
+                final TwoColumnTable entityTypesTable = new TwoColumnTable(txn,
+                        namingRulez.getEntityTypesTableName(), StoreConfig.WITHOUT_DUPLICATES);
+                final PersistentSequence entityTypesSequence = getSequence(txn, namingRulez.getEntityTypesSequenceName());
+                entityTypes = new PersistentSequentialDictionary(entityTypesSequence, entityTypesTable) {
+                    @Override
+                    protected void created(final PersistentStoreTransaction txn, final int id) {
+                        preloadTables(txn, id);
+                    }
+                };
+                propertyIds = new PersistentSequentialDictionary(getSequence(txn, namingRulez.getPropertyIdsSequenceName()),
+                        new TwoColumnTable(txn, namingRulez.getPropertyIdsTableName(), StoreConfig.WITHOUT_DUPLICATES));
+                linkIds = new PersistentSequentialDictionary(getSequence(txn, namingRulez.getLinkIdsSequenceName()),
+                        new TwoColumnTable(txn, namingRulez.getLinkIdsTableName(), StoreConfig.WITHOUT_DUPLICATES));
+
+                propertyCustomTypeIds = new PersistentSequentialDictionary(getSequence(txn, namingRulez.getPropertyCustomTypesSequence()),
+                        new TwoColumnTable(txn, namingRulez.getPropertyCustomTypesTable(), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING));
+
+                entitiesTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
+                    @NotNull
+                    @Override
+                    public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
+                        return new SingleColumnTable(txn,
+                                namingRulez.getEntitiesTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING);
+                    }
+                });
+                propertiesTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
+                    @NotNull
+                    @Override
+                    public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
+                        return new PropertiesTable(txn,
+                                namingRulez.getPropertiesTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES);
+                    }
+                });
+                linksTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
+                    @NotNull
+                    @Override
+                    public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
+                        return new TwoColumnTable(txn,
+                                namingRulez.getLinksTableName(entityTypeId), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING);
+                    }
+                });
+                blobsTables = new OpenTablesCache(new OpenTablesCache.TableCreator() {
+                    @NotNull
+                    @Override
+                    public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
+                        return new BlobsTable(PersistentEntityStoreImpl.this, txn,
+                                namingRulez.getBlobsTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES);
+                    }
+                });
+                final String internalSettingsName = namingRulez.getInternalSettingsName();
+                final Store settings = environment.openStore(internalSettingsName,
+                        StoreConfig.WITHOUT_DUPLICATES, txn.getEnvironmentTransaction(), false);
+                final boolean result = settings == null;
+                if (result) {
+                    internalSettings = environment.openStore(internalSettingsName,
+                            StoreConfig.WITHOUT_DUPLICATES, txn.getEnvironmentTransaction(), true);
+                } else {
+                    internalSettings = settings;
+                }
+                return result;
+            }
+        });
+        if (!config.getRefactoringSkipAll()) {
+            applyRefactorings(fromScratch); // this method includes refactorings that could be clustered into separate txns
+        }
+        executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                preloadTables((PersistentStoreTransaction) txn); // pre-load tables for all entity types to avoid lazy load of the tables
+            }
+        });
     }
 
     private void applyRefactorings(final boolean fromScratch) {
@@ -330,29 +332,33 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
     }
 
-    private BlobVault createDefaultFSBlobVault() throws IOException {
-        final PersistentSequence sequence = getSequence(getAndCheckCurrentTransaction(), BLOB_HANDLES_SEQUENCE);
-        FileSystemBlobVaultOld blobVault;
+    private BlobVault createDefaultFSBlobVault() {
         try {
-            blobVault = new FileSystemBlobVault(location, BLOBS_DIR, BLOBS_EXTENSION, new PersistentSequenceBlobHandleGenerator(sequence));
-        } catch (UnexpectedBlobVaultVersionException e) {
-            blobVault = null;
-        }
-        if (blobVault == null) {
-            if (config.getMaxInPlaceBlobSize() > 0) {
-                blobVault = new FileSystemBlobVaultOld(location, BLOBS_DIR, BLOBS_EXTENSION, BlobHandleGenerator.IMMUTABLE);
-            } else {
-                blobVault = new FileSystemBlobVaultOld(location, BLOBS_DIR, BLOBS_EXTENSION, new PersistentSequenceBlobHandleGenerator(sequence));
+            final PersistentSequence sequence = getSequence(getAndCheckCurrentTransaction(), BLOB_HANDLES_SEQUENCE);
+            FileSystemBlobVaultOld blobVault;
+            try {
+                blobVault = new FileSystemBlobVault(location, BLOBS_DIR, BLOBS_EXTENSION, new PersistentSequenceBlobHandleGenerator(sequence));
+            } catch (UnexpectedBlobVaultVersionException e) {
+                blobVault = null;
             }
-        }
-        final long current = sequence.get();
-        for (long blobHandle = current + 1; blobHandle < current + 1000; ++blobHandle) {
-            final File file = blobVault.getBlobLocation(blobHandle);
-            if (file.exists()) {
-                logger.error("Redundant blob file: " + file);
+            if (blobVault == null) {
+                if (config.getMaxInPlaceBlobSize() > 0) {
+                    blobVault = new FileSystemBlobVaultOld(location, BLOBS_DIR, BLOBS_EXTENSION, BlobHandleGenerator.IMMUTABLE);
+                } else {
+                    blobVault = new FileSystemBlobVaultOld(location, BLOBS_DIR, BLOBS_EXTENSION, new PersistentSequenceBlobHandleGenerator(sequence));
+                }
             }
+            final long current = sequence.get();
+            for (long blobHandle = current + 1; blobHandle < current + 1000; ++blobHandle) {
+                final File file = blobVault.getBlobLocation(blobHandle);
+                if (file.exists()) {
+                    logger.error("Redundant blob file: " + file);
+                }
+            }
+            return blobVault;
+        } catch (IOException e) {
+            throw ExodusException.toExodusException(e);
         }
-        return blobVault;
     }
 
     @Override
@@ -425,6 +431,11 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @Override
     public void clear() {
         environment.clear();
+        allSequences.clear();
+        entitiesSequences.clear();
+        propertyTypes.clear();
+
+        init();
     }
 
     @Override
@@ -1531,14 +1542,13 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
     }
 
-    void preloadTables(final PersistentStoreTransaction txn) {
+    private void preloadTables(final PersistentStoreTransaction txn) {
         // preload tables
         for (final String entityType : getEntityTypes(txn)) {
             final int id = getEntityTypeId(txn, entityType, false);
             if (id == -1) {
                 throw new IllegalStateException("Entity types iterator returned non-existent id");
             }
-            preloadTables(txn, id);
         }
     }
 
