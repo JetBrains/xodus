@@ -35,7 +35,9 @@ public class EntityTests extends EntityStoreTestBase {
 
     @Override
     protected String[] casesThatDontNeedExplicitTxn() {
-        return new String[]{"testConcurrentCreationTypeIdsAreOk", "testConcurrentSerializableChanges"};
+        return new String[]{"testConcurrentCreationTypeIdsAreOk",
+                "testConcurrentSerializableChanges",
+                "testEntityStoreClear"};
     }
 
     public void testCreateSingleEntity() throws Exception {
@@ -799,6 +801,44 @@ public class EntityTests extends EntityStoreTestBase {
         });
         Assert.assertFalse(txn.flush());
         Assert.assertEquals("3", issue.getProperty("description"));
+    }
+
+    @TestFor(issues = "XD-530")
+    public void testEntityStoreClear() {
+        final PersistentEntityStoreImpl store = getEntityStore();
+        final Entity user = store.computeInTransaction(new StoreTransactionalComputable<Entity>() {
+            @Override
+            public Entity compute(@NotNull StoreTransaction txn) {
+                final Entity result = txn.newEntity("User");
+                result.setProperty("login", "penemue");
+                return result;
+            }
+        });
+        store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                Assert.assertEquals("penemue", user.getProperty("login"));
+            }
+        });
+        store.clear();
+        store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                Assert.assertEquals(null, user.getProperty("login"));
+            }
+        });
+        store.executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                txn.newEntity("UserProfile");
+            }
+        });
+        store.executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                txn.getSequence("qwerty").increment();
+            }
+        });
     }
 
     private static InputStream string2Stream(String s) {
