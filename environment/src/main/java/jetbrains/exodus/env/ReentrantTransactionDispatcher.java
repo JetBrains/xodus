@@ -162,6 +162,11 @@ final class ReentrantTransactionDispatcher {
         txn.setAcquiredPermits(1);
     }
 
+    int getThreadPermits(@NotNull final Thread thread) {
+        final Integer result = threadPermits.get(thread);
+        return result == null ? 0 : result;
+    }
+
     private void waitForPermits(@NotNull final Thread thread,
                                 @NotNull final NavigableMap<Long, Condition> queue,
                                 final int permits,
@@ -220,11 +225,6 @@ final class ReentrantTransactionDispatcher {
         if (!notifyNextWaiter(nestedQueue)) {
             notifyNextWaiter(regularQueue);
         }
-    }
-
-    private int getThreadPermits(@NotNull final Thread thread) {
-        final Integer result = threadPermits.get(thread);
-        return result == null ? 0 : result;
     }
 
     private int getThreadPermitsToAcquire(@NotNull Thread thread) {

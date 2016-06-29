@@ -285,13 +285,16 @@ public class EnvironmentImpl implements Environment {
 
     @Override
     public void clear() {
+        final Thread currentThread = Thread.currentThread();
+        if (txnDispatcher.getThreadPermits(currentThread) != 0 || roTxnDispatcher.getThreadPermits(currentThread) != 0) {
+            throw new ExodusException("Environment.clear() can't proceed if there is a transaction in current thread");
+        }
         runAllTransactionSafeTasks();
         synchronized (txnSafeTasks) {
             txnSafeTasks.clear();
         }
         suspendGC();
         try {
-            final Thread currentThread = Thread.currentThread();
             final int permits = txnDispatcher.acquireExclusiveTransaction(currentThread);// wait for and stop all writing transactions
             try {
                 final int roPermits = roTxnDispatcher.acquireExclusiveTransaction(currentThread);// wait for and stop all read-only transactions

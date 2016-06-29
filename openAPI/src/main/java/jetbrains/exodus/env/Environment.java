@@ -101,7 +101,11 @@ public interface Environment extends Backupable {
     void executeTransactionSafeTask(@NotNull Runnable task);
 
     /**
-     * Clears all the data in the environment. It is safe to clear environment with lots of parallel transactions.
+     * Clears all the data in the environment. It is safe to clear environment with lots of parallel transactions,
+     * though it can't proceed if there is a {@linkplain Transaction} (even read-only) started in current thread.
+     *
+     * @throws ExodusException if there is a {@linkplain Transaction} in current thread
+     * @see Transaction
      */
     void clear();
 
