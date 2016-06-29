@@ -167,7 +167,7 @@ public interface Environment extends Backupable {
      * Suspends database garbage collector activity unless {@linkplain #resumeGC()} is called. Has no effect if it is
      * already suspended. Environment instance can created with disabled GC.
      *
-     * @see {@link EnvironmentConfig#setGcEnabled(boolean)}
+     * @see EnvironmentConfig#setGcEnabled(boolean)
      */
     void suspendGC();
 

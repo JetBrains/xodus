@@ -20,29 +20,32 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Store is a named collection of key/value pairs. {@code Store} can be opened using any of {@link Environment
- * Environment.openStore()} methods. If a Store is opened using {@link StoreConfig StoreConfig.WITHOUT_DUPLICATES}
- * or {@link StoreConfig StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING} then it is map, otherwise it is a multi-map.
+ * Store is a named collection of key/value pairs. {@code Store} can be opened using any of {@linkplain Environment
+ * Environment.openStore()} methods. If a Store is opened using {@linkplain StoreConfig#WITHOUT_DUPLICATES}
+ * or {@linkplain StoreConfig#WITHOUT_DUPLICATES_WITH_PREFIXING} then it is map, otherwise it is a multi-map.
  * Also {@code Store} can be thought as a table with two columns, one for keys and another for values.
- * Both keys and values are managed using instances of {@link ByteIterable}. You can use
- * {@link Cursor cursors} to iterate over a {@code Store}, to find nearest key or key/value pair, etc.
- * All operations can only be performed within a {@link Transaction transaction}.
+ * Both keys and values are managed using instances of {@linkplain ByteIterable}. You can use
+ * {@linkplain Cursor cursors} to iterate over a {@code Store}, to find nearest key or key/value pair, etc.
+ * All operations can only be performed within a {@linkplain Transaction transaction}.
  *
  * <p>Stores with and without key prefixing are implemented by different types of search trees.
- * If {@code Store} is opened using {@link StoreConfig StoreConfig.WITH_DUPLICATES} or
- * {@link StoreConfig StoreConfig.WITHOUT_DUPLICATES} then <a href="https://en.wikipedia.org/wiki/B%2B_tree">B+ tree</a>
+ * If {@code Store} is opened using {@linkplain StoreConfig StoreConfig.WITH_DUPLICATES} or
+ * {@linkplain StoreConfig StoreConfig.WITHOUT_DUPLICATES} then <a href="https://en.wikipedia.org/wiki/B%2B_tree">B+ tree</a>
  * is used, otherwise <a href="https://en.wikipedia.org/wiki/Radix_tree">Patricia trie</a> is used. Search tree types
  * differ in performance characteristics: stores with key prefixing has better random key access, whereas stores without
  * key prefixing are preferable for sequential access in order of keys.
  *
  * <p>Stores are rather stateless objects, so they can be used without any limitations in multi-threaded environments.
- * The only exceptions are {@link Environment Environment.truncateStore()} and {@link Environment Environment.removeStore()}
- * methods. After truncating, any {@code Store} should be re-opened, after removing it just cannot be used.
- * Opening {@code Store} for each database operation is also ok, but it will result in some performance overhead.
+ * Opening {@code Store} for each database operation is ok, but it will result in some performance overhead.
+ * A {@linkplain Store} instance cannot be re-used after any of {@linkplain Environment#truncateStore(String, Transaction)},
+ * {@linkplain Environment#removeStore(String, Transaction)} or {@linkplain Environment#clear()} methods is called.
+ * After truncating, any {@code Store} should be re-opened, after removing or clearing the environment it just cannot be used.
  *
  * @see Environment
  * @see Transaction
  * @see ContextualStore
+ * @see Environment#openStore(String, StoreConfig, Transaction)
+ * @see Environment#openStore(String, StoreConfig, Transaction, boolean)
  */
 public interface Store {
 

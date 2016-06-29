@@ -170,7 +170,7 @@ public interface Transaction {
 
     /**
      * @return true if the transaction was started as exclusive one
-     * @see
+     * @see Environment#beginExclusiveTransaction()
      */
     boolean isExclusive();
 
