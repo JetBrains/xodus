@@ -15,7 +15,28 @@
  */
 package jetbrains.exodus.vfs;
 
-@SuppressWarnings({"UnusedDeclaration"})
+import jetbrains.exodus.env.Environment;
+import jetbrains.exodus.env.Store;
+
+/**
+ * {@code ClusteringStrategy} as a part of {@linkplain VfsConfig} is specified on {@linkplain VirtualFileSystem}
+ * creation. It defines the way the {@code VirtualFileSystem} splits contents of {@linkplain File files} on clusters.
+ * Each cluster is a single key/value pair in a {@linkplain Store} of {@linkplain Environment} used to create the
+ * {@linkplain VirtualFileSystem}. The greater file is the more clusters are required to save its contents.
+ *
+ * <p>{@linkplain #LINEAR} clustering strategy says the {@linkplain VirtualFileSystem} to create clusters of
+ * the same size.
+ *
+ * <p>{@linkplain #QUADRATIC} clustering strategy says the {@linkplain VirtualFileSystem} to create new cluster greater
+ * than the previous one on a specific constant. This strategy is default.
+ *
+ * <p>{@linkplain #EXPONENTIAL} clustering strategy says the {@linkplain VirtualFileSystem} to create new cluster
+ * of size which is multiple of the size of the previous cluster.
+ *
+ * @see VirtualFileSystem
+ * @see VfsConfig
+ * @see VfsConfig#getClusteringStrategy()
+ */
 public abstract class ClusteringStrategy {
 
     public static final ClusteringStrategy LINEAR = new LinearClusteringStrategy();
