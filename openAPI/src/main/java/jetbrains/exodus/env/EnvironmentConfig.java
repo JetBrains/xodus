@@ -15,114 +15,381 @@
  */
 package jetbrains.exodus.env;
 
-import jetbrains.exodus.AbstractConfig;
-import jetbrains.exodus.ConfigurationStrategy;
-import jetbrains.exodus.InvalidSettingException;
+import jetbrains.exodus.*;
 import jetbrains.exodus.core.dataStructures.Pair;
 import org.jetbrains.annotations.NotNull;
 
-@SuppressWarnings("UnusedDeclaration")
+import java.util.Map;
+
+/**
+ * Specifies settings of {@linkplain Environment}. Default settings are specified by {@linkplain #DEFAULT} which
+ * is immutable. Any newly created {@code EnvironmentConfig} has the same settings as {@linkplain #DEFAULT}.
+ *
+ * <p>As a rule, the {@code EnvironmentConfig} instance is created along with the {@linkplain Environment} one.
+ * E.g., creation of {@linkplain Environment} with some tuned garbage collector settings can look as follows:
+ * <pre>
+ *     final EnvironmentConfig config = new EnvironmentConfig();
+ *     final Environment env = Environments.newInstance(""dbDirectory", config.setGcFileMinAge(3).setGcRunPeriod(60000));
+ * </pre>
+ *
+ * Some setting are mutable at runtime and some are immutable. Immutable at runtime settings can be changed, but they
+ * won't take effect on the {@linkplain Environment} instance. Those settings are applicable only during
+ * {@linkplain Environment} instance creation.
+ *
+ * <p>Some settings can be changed only before the database is physically created on storage device. E.g.,
+ * {@linkplain #LOG_FILE_SIZE} defines the size of a single {@code Log} file (.xd file) which cannot be changed for
+ * existing databases. It makes sense to choose values of such settings at design time and hardcode them.
+ *
+ * <p>You can define custom processing of changed settings values by
+ * {@linkplain #addChangedSettingsListener(ConfigSettingChangeListener)}. Override
+ * {@linkplain ConfigSettingChangeListener#beforeSettingChanged(String, Object, Map)} to pre-process mutations of
+ * settings and {@linkplain ConfigSettingChangeListener#afterSettingChanged(String, Object, Map)} to post-process them.
+ *
+ * @see Environment
+ * @see Environment#getEnvironmentConfig()
+ */
+@SuppressWarnings({"WeakerAccess", "unused"})
 public final class EnvironmentConfig extends AbstractConfig {
 
     public static final EnvironmentConfig DEFAULT = new EnvironmentConfig(ConfigurationStrategy.IGNORE);
 
+    /**
+     * Defines absolute value of memory in bytes that can be used by the LogCache. By default, is not set.
+     * <p>Mutable at runtime: no
+     *
+     * @see #MEMORY_USAGE_PERCENTAGE
+     */
     public static final String MEMORY_USAGE = "exodus.memoryUsage";
 
+    /**
+     * Defines percent of max memory (specified by the "-Xmx" java parameter) that can be used by the LogCache.
+     * Is applicable only if {@linkplain #MEMORY_USAGE} is not set. Default value is {@code 50}.
+     * <p>Mutable at runtime: no
+     *
+     * @see #MEMORY_USAGE
+     */
     public static final String MEMORY_USAGE_PERCENTAGE = "exodus.memoryUsagePercentage";
 
+    /**
+     * If is set to {@code true} forces file system's fsync call after each committed or flushed transaction. By default,
+     * is switched off since it creates great performance overhead and can be controlled manually.
+     * <p>Mutable at runtime: yes
+     */
     public static final String LOG_DURABLE_WRITE = "exodus.log.durableWrite";
 
-    public static final String LOG_FILE_SIZE = "exodus.log.fileSize"; // in Kb
+    /**
+     * Defines the maximum size in kilobytes of a single {@code Log} file (.xd file). The setting cannot be changed
+     * for existing databases. Default value is {@code 8192L}.
+     * <p>Mutable at runtime: no
+     */
+    public static final String LOG_FILE_SIZE = "exodus.log.fileSize";
 
-    public static final String LOG_LOCK_TIMEOUT = "exodus.log.lockTimeout"; // in milliseconds
+    /**
+     * Defines the number of milliseconds the Log constructor waits for the lock file. Default value is {@code 0L}.
+     * <p>Mutable at runtime: no
+     */
+    public static final String LOG_LOCK_TIMEOUT = "exodus.log.lockTimeout";
 
-    public static final String LOG_CACHE_PAGE_SIZE = "exodus.log.cache.pageSize"; // in bytes
+    /**
+     * Defines the size in bytes of a single page (byte array) in the LogCache. This number of bytes are read from
+     * storage device at a time.
+     * <p>Mutable at runtime: no
+     */
+    public static final String LOG_CACHE_PAGE_SIZE = "exodus.log.cache.pageSize";
 
+    /**
+     * Defines the maximum number of open files that LogCache maintains in order to reduce system calls to open and
+     * close files. The more open files is allowed the less system calls are performed in addition to reading files.
+     * This value can notably affect performance of database warm-up. Default value is {@code 50}.
+     * <p>Mutable at runtime: no
+     */
     public static final String LOG_CACHE_OPEN_FILES = "exodus.log.cache.openFilesCount";
 
+    /**
+     * If is set to {@code true} the LogCache is shared. Shared cache defined within a class loader caches raw binary
+     * data (contents of .xd files) of all {@linkplain Environment} instances created in scope of this class loader.
+     * By default, the LogCache is shared.
+     * <p>Mutable at runtime: no
+     */
     public static final String LOG_CACHE_SHARED = "exodus.log.cache.shared";
 
+    /**
+     * If is set to {@code true} the LogCache uses lock-free data structures. Default value is {@code true}.
+     * <p>Mutable at runtime: no
+     */
     public static final String LOG_CACHE_NON_BLOCKING = "exodus.log.cache.nonBlocking";
 
+    /**
+     * If is set to {@code true} then the Log constructor fails if the database directory is not clean. Can be useful
+     * if an applications expects that the database should always be newly created. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
     public static final String LOG_CLEAN_DIRECTORY_EXPECTED = "exodus.log.cleanDirectoryExpected";
 
+    /**
+     * If is set to {@code true} then the Log constructor implicitly clears the database is it occurred to be invalid
+     * when opened. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
     public static final String LOG_CLEAR_INVALID = "exodus.log.clearInvalid";
 
-    public static final String LOG_SYNC_PERIOD = "exodus.log.syncPeriod"; // in milliseconds
+    /**
+     * Sets the period in milliseconds to periodically force file system's fsync call if {@linkplain #LOG_DURABLE_WRITE}
+     * is switched off. Default value is {@code 1000L}.
+     * <p>Mutable at runtime: yes
+     *
+     * @see #LOG_DURABLE_WRITE
+     */
+    public static final String LOG_SYNC_PERIOD = "exodus.log.syncPeriod";
 
+    /**
+     * If is set to {@code true} then each complete and immutable {@code Log} file (.xd file) is marked with read-only
+     * attribute. Default value is {@code true}.
+     * <p>Mutable at runtime: no
+     */
     public static final String LOG_FULL_FILE_READ_ONLY = "exodus.log.fullFileReadonly";
 
+    /**
+     * If is set to {@code true} then the {@linkplain Environment} instance is read-only. Default value is {@code false}.
+     * <p>Mutable at runtime: yes
+     */
     public static final String ENV_IS_READONLY = "exodus.env.isReadonly";
 
     /**
-     * If this setting is set to {@code true} and exodus.env.isReadonly is also {@code true},
-     * env.openStore() doesn't try to create a store, but returns an empty immutable instance instead
+     * If is set to {@code true} and {@linkplain #ENV_IS_READONLY} is also {@code true} then
+     * {@linkplain Environment#openStore(String, StoreConfig, Transaction)} doesn't try to create a {@linkplain Store},
+     * but returns an empty immutable instance instead. Default value is {@code false}.
+     * <p>Mutable at runtime: yes
+     *
+     * @see #ENV_IS_READONLY
      */
     public static final String ENV_READONLY_EMPTY_STORES = "exodus.env.readonly.emptyStores";
 
+    /**
+     * Defines the size of the "store-get" cache. The "store-get" cache can increase performance of
+     * {@linkplain Store#get(Transaction, ByteIterable)} in certain cases. Default value is {@code 0} what means that
+     * the cache is inactive. If the setting is mutated at runtime the cache is invalidated.
+     * <p>Mutable at runtime: yes
+     */
     public static final String ENV_STOREGET_CACHE_SIZE = "exodus.env.storeGetCacheSize";
 
+    /**
+     * If is set to {@code true} then {@linkplain Environment#close()} doest't check if there are unfinished
+     * transactions. Otherwise it checks and throws {@linkplain ExodusException} if there are.
+     * Default value is {@code false}.
+     * <p>Mutable at runtime: yes
+     *
+     * @see Environment#close()
+     */
     public static final String ENV_CLOSE_FORCEDLY = "exodus.env.closeForcedly";
 
-    public static final String ENV_TXN_REPLAY_TIMEOUT = "exodus.env.txn.replayTimeout"; // in milliseconds
+    /**
+     * Defines the number of millisecond which a {@linkplain Transaction} can try to flush without attempts to upgrade
+     * (switch to an exclusive mode). Default value is {@code 2000L}.
+     * <p>Mutable at runtime: yes
+     *
+     * @see Transaction
+     * @see #ENV_TXN_REPLAY_MAX_COUNT
+     * @see #ENV_TXN_DOWNGRADE_AFTER_FLUSH
+     */
+    public static final String ENV_TXN_REPLAY_TIMEOUT = "exodus.env.txn.replayTimeout";
 
+    /**
+     * Defines the number of times which a {@linkplain Transaction} can try to flush without attempts to upgrade
+     * (switch to an exclusive mode). Default value is {@code 2}.
+     * <p>Mutable at runtime: yes
+     *
+     * @see Transaction
+     * @see #ENV_TXN_REPLAY_TIMEOUT
+     * @see #ENV_TXN_DOWNGRADE_AFTER_FLUSH
+     */
     public static final String ENV_TXN_REPLAY_MAX_COUNT = "exodus.env.txn.replayMaxCount";
 
+    /**
+     * If is set to {@code true} then any upgraded {@linkplain Transaction} will downgrade itself after
+     * {@linkplain Transaction#flush()}. Default value is {@code true}.
+     * <p>Mutable at runtime: yes
+     *
+     * @see Transaction
+     * @see #ENV_TXN_REPLAY_TIMEOUT
+     * @see #ENV_TXN_REPLAY_MAX_COUNT
+     */
     public static final String ENV_TXN_DOWNGRADE_AFTER_FLUSH = "exodus.env.txn.downgradeAfterFlush";
 
+    /**
+     * Defines the number of {@linkplain Transaction transactions} that can be started in parallel. By default it is
+     * unlimited.
+     * <p>Mutable at runtime: yes
+     *
+     * @see Transaction
+     * @see #ENV_MAX_PARALLEL_READONLY_TXNS
+     */
     public static final String ENV_MAX_PARALLEL_TXNS = "exodus.env.maxParallelTxns";
 
+    /**
+     * Defines the number of read-only {@linkplain Transaction transactions} that can be started in parallel. By
+     * default it is unlimited.
+     * <p>Mutable at runtime: yes
+     *
+     * @see Transaction
+     * @see Transaction#isReadonly()
+     * @see #ENV_MAX_PARALLEL_TXNS
+     */
     public static final String ENV_MAX_PARALLEL_READONLY_TXNS = "exodus.env.maxParallelReadonlyTxns";
 
-    public static final String ENV_MONITOR_TXNS_TIMEOUT = "exodus.env.monitorTxns.timeout"; // in milliseconds
+    /**
+     * Defines {@linkplain Transaction} timeout in milliseconds. If transaction doesn't finish in this timeout then
+     * it is reported in logs as stuck along with stack trace which it was created with. Default value is {@code 0}
+     * which means that no timeout for a {@linkplain Transaction} is defined. In that case, no monitor of stuck
+     * transactions is started. Otherwise it is started for each {@linkplain Environment}, though consuming only a
+     * single {@linkplain Thread} amongst all environments created within a single class loader.
+     * <p>Mutable at runtime: no
+     *
+     * @see Transaction
+     * @see #ENV_MONITOR_TXNS_CHECK_FREQ
+     */
+    public static final String ENV_MONITOR_TXNS_TIMEOUT = "exodus.env.monitorTxns.timeout";
 
-    public static final String ENV_MONITOR_TXNS_CHECK_FREQ = "exodus.env.monitorTxns.checkFreq"; // in milliseconds
+    /**
+     * If {@linkplain #ENV_MONITOR_TXNS_TIMEOUT} is non-zero then stuck transactions monitor starts and checks
+     * {@linkplain Environment}'s transactions with this frequency (period) specified in milliseconds.
+     * Default value is {@code 60000L}, one minute.
+     * <p>Mutable at runtime: no
+     *
+     * @see Transaction
+     * @see #ENV_MONITOR_TXNS_TIMEOUT
+     */
+    public static final String ENV_MONITOR_TXNS_CHECK_FREQ = "exodus.env.monitorTxns.checkFreq";
 
+    /**
+     * If is set to {@code true} then the {@linkplain Environment} gathers statistics. If
+     * {@linkplain #MANAGEMENT_ENABLED} is also {@code true} then the statistics is exposed by the JMX managed bean.
+     * Default value is {@code true}.
+     * <p>Mutable at runtime: no
+     *
+     * @see Environment#getStatistics()
+     * @see #MANAGEMENT_ENABLED
+     */
     public static final String ENV_GATHER_STATISTICS = "exodus.env.gatherStatistics";
 
+    /**
+     * Defines the maximum size of page of B+Tree. Default value is {@code 128}.
+     * <p>Mutable at runtime: no
+     */
     public static final String TREE_MAX_PAGE_SIZE = "exodus.tree.maxPageSize";
 
+    /**
+     * Defines the "tree-nodes" cache size. Default value is {@code 4096}.
+     * <p>Mutable at runtime: yes
+     */
     public static final String TREE_NODES_CACHE_SIZE = "exodus.tree.nodesCacheSize";
 
+    /**
+     * If is set to {@code true} then the database garbage collector is enabled. Default value is {@code true}.
+     * Switching GC off makes sense only for debugging purposes.
+     * <p>Mutable at runtime: yes
+     */
     public static final String GC_ENABLED = "exodus.gc.enabled";
 
-    public static final String GC_START_IN = "exodus.gc.startIn"; // in milliseconds
+    /**
+     * Defines the number of milliseconds which the database garbage collector is postponed for after the
+     * {@linkplain Environment} is created. Default value is {@code 60000}, one minute.
+     * <p>Mutable at runtime: yes
+     */
+    public static final String GC_START_IN = "exodus.gc.startIn";
 
+    /**
+     * Defines percent of minimum database utilization. Default value is {@code 70}. That means that only 30 percent
+     * of free space in raw data in {@code Log} files (.xd files) is allowed. If database utilization is less than
+     * defined, the database garbage collector is triggered.
+     * <p>Mutable at runtime: yes
+     */
     public static final String GC_MIN_UTILIZATION = "exodus.gc.minUtilization";
 
+    /**
+     * If is set to {@code true} the database garbage collector renames files rather than deletes them. Default
+     * value is {@code false}. It makes sense to change this setting only for debugging purposes.
+     * <p>Mutable at runtime: yes
+     */
     public static final String GC_RENAME_FILES = "exodus.gc.renameFiles";
 
+    /**
+     * Not for public use. Default value is {@code true}.
+     * <p>Mutable at runtime: no
+     */
     public static final String GC_USE_EXPIRATION_CHECKER = "exodus.gc.useExpirationChecker";
 
     /**
-     * Minimum age of a file to consider it for cleaning.
+     * Defines the minimum age of a {@code Log} file (.xd file) to consider it for cleaning by the database garbage
+     * collector. The age of the last (the newest, the rightmost) {@code Log} file is {@code 0}, the age of previous
+     * file is {@code 1}, etc. Default value is {@code 2}.
+     * <p>Mutable at runtime: yes
      */
     public static final String GC_MIN_FILE_AGE = "exodus.gc.fileMinAge";
 
     /**
-     * Cleaner checks log utilization and runs if necessary after this many new files are created in the log.
+     * Defines the number of new {@code Log} files (.xd files) that must be created to trigger if necessary (if database
+     * utilization is not sufficient) the next background cleaning cycle (single run of the database garbage collector)
+     * after the previous cycle finished. Default value is {@code 1}, i.e. GC can start after each newly created
+     * {@code Log} file.
+     * <p>Mutable at runtime: yes
      */
     public static final String GC_FILES_INTERVAL = "exodus.gc.filesInterval";
 
     /**
-     * If a single cleaner run didn't reach target utilization then next run will happen in this number of milliseconds.
+     * Defined the number of milliseconds after which background cleaning cycle (single run of the database garbage
+     * collector) can be repeated if the previous one didn't reach required utilization. Default value is
+     * {@code 30000}, half a minute.
+     * <p>Mutable at runtime: yes
      */
-    public static final String GC_RUN_PERIOD = "exodus.gc.runPeriod"; // in milliseconds
+    public static final String GC_RUN_PERIOD = "exodus.gc.runPeriod";
 
+    /**
+     * If is set to {@code true} then database utilization will be computed from scratch before the first cleaning
+     * cycle (single run of the database garbage collector) will be triggered. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
     public static final String GC_UTILIZATION_FROM_SCRATCH = "exodus.gc.utilization.fromScratch";
 
+    /**
+     * If is set to {@code true} the database garbage collector tries to acquire an exclusive {@linkplain Transaction}
+     * for its purposes. In that case, GC transaction never re-plays. In order to not block background cleaner thread
+     * forever, acquisition of exclusive GC transaction is performed with a timeout controlled by the
+     * {@linkplain #GC_TRANSACTION_ACQUIRE_TIMEOUT} setting. Default value is {@code true}.
+     * <p>Mutable at runtime: yes
+     *
+     * @see #GC_TRANSACTION_ACQUIRE_TIMEOUT
+     * @see Transaction#isExclusive()
+     */
     public static final String GC_USE_EXCLUSIVE_TRANSACTION = "exodus.gc.useExclusiveTransaction";
 
     /**
-     * If GC uses exclusive transactions this number of milliseconds is used as timeout acquiring exclusive permit.
+     * Defines timeout in milliseconds which is used by the database garbage collector to acquire exclusive
+     * {@linkplain Transaction} for its purposes if {@linkplain #GC_USE_EXCLUSIVE_TRANSACTION} is {@code true}.
+     * Default value is {@code 10}.
+     * <p>Mutable at runtime: yes
+     *
+     * @see #GC_USE_EXCLUSIVE_TRANSACTION
+     * @see Transaction#isExclusive()
      */
-    public static final String GC_TRANSACTION_ACQUIRE_TIMEOUT = "exodus.gc.transactionAcquireTimeout"; // in milliseconds
+    public static final String GC_TRANSACTION_ACQUIRE_TIMEOUT = "exodus.gc.transactionAcquireTimeout";
 
     /**
-     * If a file is successfully cleaned then delete it after this number of milliseconds.
+     * Defines the number of milliseconds which deletion of any successfully cleaned {@code Log} file (.xd file)
+     * is postponed for. Default value is {@code 5000}, 5 seconds.
+     * <p>Mutable at runtime: yes
      */
-    public static final String GC_FILES_DELETION_DELAY = "exodus.gc.filesDeletionDelay"; // in milliseconds
+    public static final String GC_FILES_DELETION_DELAY = "exodus.gc.filesDeletionDelay";
 
+    /**
+     * If is set to {@code true} then the {@linkplain Environment} exposes two JMX managed beans. One for
+     * {@linkplain Environment#getStatistics() environment statistics} and second for controlling the
+     * {@code EnvironmentConfig} settings. Default value is {@code true}.
+     * <p>Mutable at runtime: no
+     *
+     * @see Environment#getStatistics()
+     * @see Environment#getEnvironmentConfig()
+     */
     public static final String MANAGEMENT_ENABLED = "exodus.managementEnabled";
 
     public EnvironmentConfig() {

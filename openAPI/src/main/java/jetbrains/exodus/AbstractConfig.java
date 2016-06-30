@@ -17,7 +17,6 @@ package jetbrains.exodus;
 
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
-import jetbrains.exodus.core.dataStructures.hash.LinkedHashSet;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 
@@ -27,7 +26,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Base class for {@link jetbrains.exodus.env.EnvironmentConfig} and {@link jetbrains.exodus.entitystore.PersistentEntityStoreConfig}.
+ * Base class for {@linkplain jetbrains.exodus.env.EnvironmentConfig} and
+ * {@linkplain jetbrains.exodus.entitystore.PersistentEntityStoreConfig}.
  */
 public abstract class AbstractConfig {
 
