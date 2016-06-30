@@ -199,7 +199,7 @@ public interface Environment extends Backupable {
 
     /**
      * Starts new exclusive transaction which can be used to read and write data. For given exclusive transaction,
-     * it is guaranteed that no other transaction(except read-only ones) can started on the environment before the
+     * it is guaranteed that no other transaction (except read-only ones) can be started on the environment before the
      * given one finishes.
      *
      * @return new {@linkplain Transaction transaction} instance
@@ -211,7 +211,7 @@ public interface Environment extends Backupable {
 
     /**
      * Starts new exclusive transaction which can be used to read and write data. For given exclusive transaction,
-     * it is guaranteed that no other transaction(except read-only ones) can started on the environment before the
+     * it is guaranteed that no other transaction (except read-only ones) can be started on the environment before the
      * given one finishes. Specified {@code beginHook} is called each time when the transaction holds the new database
      * snapshot. First time it is called during {@code beginTransaction()} execution, then during each call to
      * {@linkplain Transaction#flush()} or {@linkplain Transaction#revert()}.
