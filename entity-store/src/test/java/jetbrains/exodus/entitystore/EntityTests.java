@@ -37,7 +37,8 @@ public class EntityTests extends EntityStoreTestBase {
     protected String[] casesThatDontNeedExplicitTxn() {
         return new String[]{"testConcurrentCreationTypeIdsAreOk",
                 "testConcurrentSerializableChanges",
-                "testEntityStoreClear"};
+                "testEntityStoreClear",
+                "testEntityStoreClear2"};
     }
 
     public void testCreateSingleEntity() throws Exception {
@@ -837,6 +838,31 @@ public class EntityTests extends EntityStoreTestBase {
             @Override
             public void execute(@NotNull StoreTransaction txn) {
                 txn.getSequence("qwerty").increment();
+            }
+        });
+    }
+
+    @TestFor(issues = "XD-531")
+    public void testEntityStoreClear2() {
+        final PersistentEntityStoreImpl store = getEntityStore();
+        store.getConfig().setMaxInPlaceBlobSize(0);
+        store.executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                txn.newEntity("User").setBlobString("bio", "I was born");
+            }
+        });
+        store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                assertNotNull(store.getBlobVault().getContent(0, ((PersistentStoreTransaction) txn).getEnvironmentTransaction()));
+            }
+        });
+        store.clear();
+        store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                assertNull(store.getBlobVault().getContent(0, ((PersistentStoreTransaction) txn).getEnvironmentTransaction()));
             }
         });
     }
