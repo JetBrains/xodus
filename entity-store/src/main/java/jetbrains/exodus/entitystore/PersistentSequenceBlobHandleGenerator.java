@@ -21,14 +21,19 @@ import org.jetbrains.annotations.NotNull;
 class PersistentSequenceBlobHandleGenerator implements BlobHandleGenerator {
 
     @NotNull
-    private final PersistentSequence sequence;
+    private final PersistentSequenceGetter sequenceGetter;
 
-    PersistentSequenceBlobHandleGenerator(@NotNull final PersistentSequence sequence) {
-        this.sequence = sequence;
+    PersistentSequenceBlobHandleGenerator(@NotNull final PersistentSequenceGetter sequenceGetter) {
+        this.sequenceGetter = sequenceGetter;
     }
 
     @Override
     public long nextHandle(@NotNull final Transaction txn) {
-        return sequence.increment();
+        return sequenceGetter.get().increment();
+    }
+
+    interface PersistentSequenceGetter {
+
+        PersistentSequence get();
     }
 }

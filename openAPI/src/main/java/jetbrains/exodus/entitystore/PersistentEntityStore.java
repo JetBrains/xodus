@@ -47,7 +47,8 @@ public interface PersistentEntityStore extends EntityStore, Backupable {
 
     /**
      * Clears all the data in the {@code PersistentEntityStore}. It is safe to clear {@code PersistentEntityStore}
-     * with lots of parallel transactions.
+     * with lots of parallel transactions. Make sure all {@linkplain java.io.InputStream} instances got from
+     * the {@linkplain #getBlobVault() blob vault} are closed.
      */
     void clear();
 

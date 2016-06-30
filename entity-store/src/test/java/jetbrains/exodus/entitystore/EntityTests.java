@@ -855,7 +855,13 @@ public class EntityTests extends EntityStoreTestBase {
         store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
             @Override
             public void execute(@NotNull StoreTransaction txn) {
-                assertNotNull(store.getBlobVault().getContent(0, ((PersistentStoreTransaction) txn).getEnvironmentTransaction()));
+                final InputStream content = store.getBlobVault().getContent(0, ((PersistentStoreTransaction) txn).getEnvironmentTransaction());
+                assertNotNull(content);
+                try {
+                    content.close();
+                } catch (IOException e) {
+                    throw ExodusException.toExodusException(e);
+                }
             }
         });
         store.clear();

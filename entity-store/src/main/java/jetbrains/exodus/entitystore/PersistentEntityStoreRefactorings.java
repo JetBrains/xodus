@@ -450,7 +450,14 @@ final class PersistentEntityStoreRefactorings {
             public void execute(@NotNull final StoreTransaction tx) {
                 final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
                 // reset blob handles sequence
-                final PersistentSequence sequence = store.getSequence(txn, blobHandlesSequenceName);
+                final PersistentSequenceBlobHandleGenerator.PersistentSequenceGetter persistentSequenceGetter =
+                        new PersistentSequenceBlobHandleGenerator.PersistentSequenceGetter() {
+                            @Override
+                            public PersistentSequence get() {
+                                return store.getSequence(txn, blobHandlesSequenceName);
+                            }
+                        };
+                final PersistentSequence sequence = persistentSequenceGetter.get();
                 store.executeInTransaction(new StoreTransactionalExecutable() {
                     @Override
                     public void execute(@NotNull StoreTransaction txn) {
@@ -461,7 +468,8 @@ final class PersistentEntityStoreRefactorings {
                 final FileSystemBlobVault newVault;
                 try {
                     newVault = new FileSystemBlobVault(store.getLocation(), TEMP_BLOBS_DIR,
-                            PersistentEntityStoreImpl.BLOBS_EXTENSION, new PersistentSequenceBlobHandleGenerator(sequence));
+                            PersistentEntityStoreImpl.BLOBS_EXTENSION,
+                            new PersistentSequenceBlobHandleGenerator(persistentSequenceGetter));
                     store.setBlobVault(newVault);
                 } catch (IOException e) {
                     throw ExodusException.toEntityStoreException(e);
@@ -538,7 +546,7 @@ final class PersistentEntityStoreRefactorings {
                     store.setBlobVault(new FileSystemBlobVault(store.getLocation(),
                             PersistentEntityStoreImpl.BLOBS_DIR,
                             PersistentEntityStoreImpl.BLOBS_EXTENSION,
-                            new PersistentSequenceBlobHandleGenerator(sequence)));
+                            new PersistentSequenceBlobHandleGenerator(persistentSequenceGetter)));
                 } catch (IOException e) {
                     throw ExodusException.toEntityStoreException(e);
                 }

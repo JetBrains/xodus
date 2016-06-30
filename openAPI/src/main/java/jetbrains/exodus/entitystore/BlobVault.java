@@ -127,6 +127,11 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
     public abstract long size();
 
     /**
+     * Is called on {@linkplain PersistentEntityStore#clear()}.
+     */
+    public abstract void clear();
+
+    /**
      * Is called on {@linkplain PersistentEntityStore#close()}.
      */
     public abstract void close();

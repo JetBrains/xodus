@@ -334,10 +334,17 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     private BlobVault createDefaultFSBlobVault() {
         try {
-            final PersistentSequence sequence = getSequence(getAndCheckCurrentTransaction(), BLOB_HANDLES_SEQUENCE);
             FileSystemBlobVaultOld blobVault;
+            final PersistentSequenceBlobHandleGenerator.PersistentSequenceGetter persistentSequenceGetter =
+                    new PersistentSequenceBlobHandleGenerator.PersistentSequenceGetter() {
+                        @Override
+                        public PersistentSequence get() {
+                            return getSequence(getAndCheckCurrentTransaction(), BLOB_HANDLES_SEQUENCE);
+                        }
+                    };
             try {
-                blobVault = new FileSystemBlobVault(location, BLOBS_DIR, BLOBS_EXTENSION, new PersistentSequenceBlobHandleGenerator(sequence));
+                blobVault = new FileSystemBlobVault(location, BLOBS_DIR, BLOBS_EXTENSION,
+                        new PersistentSequenceBlobHandleGenerator(persistentSequenceGetter));
             } catch (UnexpectedBlobVaultVersionException e) {
                 blobVault = null;
             }
@@ -345,10 +352,11 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 if (config.getMaxInPlaceBlobSize() > 0) {
                     blobVault = new FileSystemBlobVaultOld(location, BLOBS_DIR, BLOBS_EXTENSION, BlobHandleGenerator.IMMUTABLE);
                 } else {
-                    blobVault = new FileSystemBlobVaultOld(location, BLOBS_DIR, BLOBS_EXTENSION, new PersistentSequenceBlobHandleGenerator(sequence));
+                    blobVault = new FileSystemBlobVaultOld(location, BLOBS_DIR, BLOBS_EXTENSION,
+                            new PersistentSequenceBlobHandleGenerator(persistentSequenceGetter));
                 }
             }
-            final long current = sequence.get();
+            final long current = persistentSequenceGetter.get().get();
             for (long blobHandle = current + 1; blobHandle < current + 1000; ++blobHandle) {
                 final File file = blobVault.getBlobLocation(blobHandle);
                 if (file.exists()) {
@@ -436,6 +444,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         propertyTypes.clear();
 
         init();
+
+        blobVault.clear();
     }
 
     @Override

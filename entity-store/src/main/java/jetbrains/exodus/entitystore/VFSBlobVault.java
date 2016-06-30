@@ -148,6 +148,11 @@ public class VFSBlobVault extends BlobVault {
     }
 
     @Override
+    public void clear() {
+        // do nothing since we rely on Environment.clear()
+    }
+
+    @Override
     public void close() {
         fs.shutdown();
     }

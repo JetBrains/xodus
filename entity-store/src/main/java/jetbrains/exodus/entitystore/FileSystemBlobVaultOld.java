@@ -237,6 +237,11 @@ public class FileSystemBlobVaultOld extends BlobVault {
     }
 
     @Override
+    public void clear() {
+        IOUtil.deleteRecursively(location);
+    }
+
+    @Override
     public void close() {
     }
 
