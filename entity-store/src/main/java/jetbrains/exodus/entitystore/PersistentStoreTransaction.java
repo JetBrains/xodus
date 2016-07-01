@@ -842,7 +842,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             public void run() {
                 log.flushed();
                 if (mutableCache != null) { // mutableCache can be null if only blobs are modified
-                    final EntityIterableCacheImpl entityIterableCache = store.getEntityIterableCache();
+                    final EntityIterableCache entityIterableCache = store.getEntityIterableCache();
                     for (final UpdatableCachedInstanceIterable it : mutatedInTxn) {
                         it.endUpdate();
                         entityIterableCache.setCachedCount(it.getHandle(), it.size());

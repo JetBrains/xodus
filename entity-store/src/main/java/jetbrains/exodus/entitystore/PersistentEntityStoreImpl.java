@@ -115,7 +115,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private Store sequences;
 
     @NotNull
-    private final EntityIterableCacheImpl iterableCache;
+    private final EntityIterableCache iterableCache;
     @NotNull
     private final ConcurrentObjectCache<String, EntityId> entityIdCache; // this cache doesn't need snapshot isolation
     private Explainer explainer;
@@ -158,7 +158,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         this.name = name;
         location = environment.getLocation();
         namingRulez = new StoreNamingRules(name);
-        iterableCache = new EntityIterableCacheImpl(this);
+        iterableCache = new EntityIterableCache(this);
         entityIdCache = new ConcurrentObjectCache<>(ENTITY_ID_CACHE_SIZE);
         explainer = new Explainer(config.isExplainOn());
         propertyDataGetter = new PropertyDataGetter();
@@ -587,7 +587,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     @NotNull
-    public EntityIterableCacheImpl getEntityIterableCache() {
+    public EntityIterableCache getEntityIterableCache() {
         return iterableCache;
     }
 

@@ -29,9 +29,9 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.ref.WeakReference;
 
-public final class EntityIterableCacheImpl {
+public final class EntityIterableCache {
 
-    private static final Logger logger = LoggerFactory.getLogger(EntityIterableCacheImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(EntityIterableCache.class);
 
     @NotNull
     private final PersistentEntityStoreImpl store;
@@ -46,7 +46,7 @@ public final class EntityIterableCacheImpl {
     @NotNull
     final EntityStoreSharedAsyncProcessor processor;
 
-    public EntityIterableCacheImpl(@NotNull final PersistentEntityStoreImpl store) {
+    public EntityIterableCache(@NotNull final PersistentEntityStoreImpl store) {
         this.store = store;
         config = store.getConfig();
         cacheAdapter = new EntityIterableCacheAdapter(config);
@@ -281,9 +281,9 @@ public final class EntityIterableCacheImpl {
     private static class CacheHitRateAdjuster implements SharedTimer.ExpirablePeriodicTask {
 
         @NotNull
-        private final WeakReference<EntityIterableCacheImpl> cacheRef;
+        private final WeakReference<EntityIterableCache> cacheRef;
 
-        private CacheHitRateAdjuster(@NotNull final EntityIterableCacheImpl cache) {
+        private CacheHitRateAdjuster(@NotNull final EntityIterableCache cache) {
             cacheRef = new WeakReference<>(cache);
         }
 
@@ -294,7 +294,7 @@ public final class EntityIterableCacheImpl {
 
         @Override
         public void run() {
-            final EntityIterableCacheImpl cache = cacheRef.get();
+            final EntityIterableCache cache = cacheRef.get();
             if (cache != null) {
                 cache.cacheAdapter.adjustHitRate();
             }
