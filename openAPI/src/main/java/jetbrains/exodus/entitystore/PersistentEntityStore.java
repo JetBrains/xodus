@@ -182,6 +182,7 @@ public interface PersistentEntityStore extends EntityStore, Backupable {
 
     /**
      * @return statistics of this {@code PersistentEntityStore} instance
+     * @see PersistentEntityStoreConfig#GATHER_STATISTICS
      */
     @NotNull
     Statistics getStatistics();

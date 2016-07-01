@@ -286,7 +286,7 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     /**
      * If is set to {@code true} then the database garbage collector is enabled. Default value is {@code true}.
-     * Switching GC off makes sense only for debugging purposes.
+     * Switching GC off makes sense only for debugging and troubleshooting purposes.
      * <p>Mutable at runtime: yes
      */
     public static final String GC_ENABLED = "exodus.gc.enabled";
@@ -308,13 +308,13 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     /**
      * If is set to {@code true} the database garbage collector renames files rather than deletes them. Default
-     * value is {@code false}. It makes sense to change this setting only for debugging purposes.
+     * value is {@code false}. It makes sense to change this setting only for debugging and troubleshooting purposes.
      * <p>Mutable at runtime: yes
      */
     public static final String GC_RENAME_FILES = "exodus.gc.renameFiles";
 
     /**
-     * Not for public use. Default value is {@code true}.
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code true}.
      * <p>Mutable at runtime: no
      */
     public static final String GC_USE_EXPIRATION_CHECKER = "exodus.gc.useExpirationChecker";

@@ -23,66 +23,25 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.PrintStream;
 
-/**
- */
 interface ILeafNode extends INode {
 
-    /**
-     * Retruns leaf address. May return Loggable.NULL_ADDRESS if leaf wasn't saved yet.
-     *
-     * @return
-     */
     long getAddress();
 
-    /**
-     * @param iterable
-     * @return
-     */
     int compareKeyTo(@NotNull final ByteIterable iterable);
 
-    /**
-     * @param iterable
-     * @return
-     */
     int compareValueTo(@NotNull final ByteIterable iterable);
 
-    /**
-     * Returns true if given value equals to node value or exists in dup subtree
-     *
-     * @param value
-     * @return
-     */
     boolean valueExists(ByteIterable value);
 
-    /**
-     * Iterator over all addresses that compose this node
-     *
-     * @return
-     */
     LongIterator addressIterator();
 
-    /**
-     * True for node that store duplicates subtree
-     *
-     * @return
-     */
     boolean isDup();
 
-    /**
-     * True for mutable node
-     *
-     * @return
-     */
     boolean isMutable();
 
     @NotNull
     BTreeBase getTree();
 
-    /**
-     * Returns number of duplicates stored in this node. 1 for node without duplicates.
-     *
-     * @return
-     */
     long getDupCount();
 
     boolean isDupLeaf();

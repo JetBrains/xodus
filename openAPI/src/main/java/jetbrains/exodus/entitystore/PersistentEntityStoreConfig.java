@@ -16,63 +16,226 @@
 package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.AbstractConfig;
+import jetbrains.exodus.ConfigSettingChangeListener;
 import jetbrains.exodus.ConfigurationStrategy;
 import jetbrains.exodus.core.dataStructures.Pair;
+import jetbrains.exodus.env.Environment;
 import org.jetbrains.annotations.NotNull;
 
+import java.lang.ref.SoftReference;
+import java.util.Map;
+
+/**
+ * Specifies settings of {@linkplain PersistentEntityStore}. Default settings are specified by {@linkplain #DEFAULT} which
+ * is immutable. Any newly created {@code PersistentEntityStoreConfig} has the same settings as {@linkplain #DEFAULT}.
+ *
+ * <p>As a rule, the {@code PersistentEntityStoreConfig} instance is created along with the
+ * {@linkplain PersistentEntityStore} one.  E.g., for given {@linkplain Environment environment} creation of
+ * {@linkplain PersistentEntityStore} with some tuned caching settings can look as follows:
+ * <pre>
+ *     final PersistentEntityStoreConfig config = new PersistentEntityStoreConfig().setBlobStringsCacheSize(4000).setCachingDisabled(true);
+ *     final PersistentEntityStore store = PersistentEntityStores.newInstance(config, environment, "storeName");
+ * </pre>
+ *
+ * Some setting are mutable at runtime and some are immutable. Immutable at runtime settings can be changed, but they
+ * won't take effect on the {@linkplain PersistentEntityStore} instance. Those settings are applicable only during
+ * {@linkplain PersistentEntityStore} instance creation.
+ *
+ * <p>Most of the {@code PersistentEntityStoreConfig} settings allow to change behaviour of different caching processes.
+ * The rest of the settings are mostly not intended for public use, but for debugging and troubleshooting purposes.
+ *
+ * <p>You can define custom processing of changed settings values by
+ * {@linkplain #addChangedSettingsListener(ConfigSettingChangeListener)}. Override
+ * {@linkplain ConfigSettingChangeListener#beforeSettingChanged(String, Object, Map)} to pre-process mutations of
+ * settings and {@linkplain ConfigSettingChangeListener#afterSettingChanged(String, Object, Map)} to post-process them.
+ *
+ * @see PersistentEntityStore
+ * @see PersistentEntityStore#getConfig()
+ */
 @SuppressWarnings({"UnusedDeclaration", "WeakerAccess"})
 public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public static final PersistentEntityStoreConfig DEFAULT = new PersistentEntityStoreConfig(ConfigurationStrategy.IGNORE);
 
+    /**
+     * If is set to {@code true} then new {@linkplain PersistentEntityStore} will skip all refactorings on its creation.
+     * Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
     public static final String REFACTORING_SKIP_ALL = "exodus.entityStore.refactoring.skipAll";
 
+    /**
+     * If is set to {@code true} then new {@linkplain PersistentEntityStore} will force all refactorings on its creation.
+     * Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
     public static final String REFACTORING_FORCE_ALL = "exodus.entityStore.refactoring.forceAll";
 
+    /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
     public static final String REFACTORING_NULL_INDICES = "exodus.entityStore.refactoring.nullIndices";
 
+    /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
     public static final String REFACTORING_BLOB_NULL_INDICES = "exodus.entityStore.refactoring.blobNullIndices";
 
+    /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
     public static final String REFACTORING_HEAVY_LINKS = "exodus.entityStore.refactoring.heavyLinks";
 
+    /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
     public static final String REFACTORING_HEAVY_PROPS = "exodus.entityStore.refactoring.heavyProps";
 
+    /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
     public static final String REFACTORING_DELETE_REDUNDANT_BLOBS = "exodus.entityStore.refactoring.deleteRedundantBlobs";
 
+    /**
+     * Defines the maximum size in bytes of an "in-place" blob. In-place blob saves its content in
+     * {@linkplain Environment} (in .xd files), not in {@linkplain BlobVault}. "In-place" blobs are normally small
+     * blobs, saving them in {@code Environment} allows to reduce the nu,ber of files in {@code BlobVault}.
+     * Default value is {@code 10000}.
+     * <p>Mutable at runtime: yes
+     */
     public static final String MAX_IN_PLACE_BLOB_SIZE = "exodus.entityStore.maxInPlaceBlobSize";
 
+    /**
+     * Defines the size of "blob strings" cache. This caches is used by {@linkplain BlobVault} in order to reduce
+     * load created by the transformation of large binary content to UTF-8 strings. Default value is {2000}.
+     * <p>Mutable at runtime: yes
+     */
     public static final String BLOB_STRINGS_CACHE_SIZE = "exodus.entityStore.blobStringsCacheSize";
 
+    /**
+     * If is set to {@code true} then EntityIterableCache is not operable.
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
+     * <p>Mutable at runtime: yes
+     */
     public static final String CACHING_DISABLED = "exodus.entityStore.cachingDisabled";
 
+    /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
+     * <p>Mutable at runtime: yes
+     */
     public static final String REORDERING_DISABLED = "exodus.entityStore.reorderingDisabled";
 
+    /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
     public static final String EXPLAIN_ON = "exodus.entityStore.explainOn";
 
+    /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
     public static final String DEBUG_LINK_DATA_GETTER = "exodus.entityStore.debug.linkDataGetter";
 
+    /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
     public static final String DEBUG_SEARCH_FOR_INCOMING_LINKS_ON_DELETE = "exodus.entityStore.debug.searchForIncomingLinksOnDelete";
 
+    /**
+     * Defines the size of EntityIterableCache. EntityIterableCache is operable only if {@linkplain #CACHING_DISABLED}
+     * is {@code false}. Default value depends on the JVM memory settings.
+     * <p>Mutable at runtime: no
+     *
+     * @see #CACHING_DISABLED
+     */
     public static final String ENTITY_ITERABLE_CACHE_SIZE = "exodus.entityStore.entityIterableCache.size";
 
+    /**
+     * Defines the number of thread which EntityIterableCache uses for its background caching activity.
+     * EntityIterableCache is operable only if {@linkplain #CACHING_DISABLED} is {@code false}.
+     * Default value is {@code 2}, if CPU count is greater than {@code 3}, otherwise it is {@code 1}.
+     * <p>Mutable at runtime: no
+     *
+     * @see #CACHING_DISABLED
+     * @see PersistentEntityStore#getAsyncProcessor()
+     */
     public static final String ENTITY_ITERABLE_CACHE_THREAD_COUNT = "exodus.entityStore.entityIterableCache.threadCount";
 
+    /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code 10000L}.
+     * <p>Mutable at runtime: yes
+     */
     public static final String ENTITY_ITERABLE_CACHE_CACHING_TIMEOUT = "exodus.entityStore.entityIterableCache.cachingTimeout";
 
-    public static final String ENTITY_ITERABLE_CACHE_DEFERRED_DELAY = "exodus.entityStore.entityIterableCache.deferredDelay"; // in milliseconds
+    /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code 2000}.
+     * <p>Mutable at runtime: yes
+     */
+    public static final String ENTITY_ITERABLE_CACHE_DEFERRED_DELAY = "exodus.entityStore.entityIterableCache.deferredDelay";
 
+    /**
+     * Defines the maximum size of "direct" value in EntityIterableCache. EntityIterableCache caches results of
+     * different queries. Direct query results are strongly referenced, otherwise they are references through
+     * {@linkplain SoftReference}. Basically, the more direct values are the better caching performance is.
+     * Default value is {@code 512}.
+     * <p>Mutable at runtime: yes
+     */
     public static final String ENTITY_ITERABLE_CACHE_MAX_SIZE_OF_DIRECT_VALUE = "exodus.entityStore.entityIterableCache.maxSizeOfDirectValue";
 
+    /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
+     * <p>Mutable at runtime: yes
+     */
     public static final String ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE = "exodus.entityStore.entityIterableCache.useHumanReadable";
 
+    /**
+     * Defines the size of "property values" cache held by each {@linkplain StoreTransaction} instance. This cache
+     * reduces load created by de-serialization of property values. Default value is {@code 1024}.
+     * <p>Mutable at runtime: yes
+     */
     public static final String TRANSACTION_PROPS_CACHE_SIZE = "exodus.entityStore.transaction.propsCacheSize";
 
+    /**
+     * Defines the size of "links" cache held by each {@linkplain StoreTransaction} instance. This cache reduces load
+     * created by de-serialization of links between {@linkplain Entity entities}. Default value is {@code 1024}.
+     * <p>Mutable at runtime: yes
+     */
     public static final String TRANSACTION_LINKS_CACHE_SIZE = "exodus.entityStore.transaction.linksCacheSize";
 
+    /**
+     * Defines the size of "blob strings" cache held by each {@linkplain StoreTransaction} instance. This cache
+     * reduces load created by de-serialization of blob string. This cache is different from the one held by
+     * {@linkplain BlobVault}. Default value is {@code 256}.
+     * <p>Mutable at runtime: yes
+     */
     public static final String TRANSACTION_BLOB_STRINGS_CACHE_SIZE = "exodus.entityStore.transaction.blobStringsCacheSize";
 
+    /**
+     * If is set to {@code true} then {@linkplain PersistentEntityStore} gathers statistics and exposes it via
+     * JMX managed bean provided {@linkplain #MANAGEMENT_ENABLED} is also {@code true}.
+     * <p>Mutable at runtime: no
+     *
+     * @see #MANAGEMENT_ENABLED
+     * @see PersistentEntityStore#getStatistics()
+     */
     public static final String GATHER_STATISTICS = "exodus.entityStore.gatherStatistics";
 
+    /**
+     * If is set to {@code true} then the {@linkplain PersistentEntityStore} exposes two JMX managed beans. One for
+     * {@linkplain PersistentEntityStore#getStatistics() statistics} and second for controlling the
+     * {@code PersistentEntityStoreConfig} settings. Default value is {@code true}.
+     * <p>Mutable at runtime: no
+     *
+     * @see PersistentEntityStore#getStatistics()
+     * @see PersistentEntityStore#getConfig()
+     */
     public static final String MANAGEMENT_ENABLED = "exodus.entityStore.managementEnabled";
 
     private static final int MAX_DEFAULT_ENTITY_ITERABLE_CACHE_SIZE = 4096;
