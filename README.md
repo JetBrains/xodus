@@ -6,15 +6,13 @@
 
 JetBrains Xodus is a transactional schema-less embedded database written in Java. It was initially developed for [JetBrains YouTrack](http://jetbrains.com/youtrack) (an issue tracking and project management tool). Currently Xodus is also used in [JetBrains Hub](https://jetbrains.com/hub) (JetBrains' team tools connector) and in some internal JetBrains projects.
 
-Key features:
-- Xodus is written in pure Java.
 - Xodus is transactional and fully ACID-compliant.
 - Xodus is highly concurrent. Reads are completely non-blocking due to [MVCC](https://en.wikipedia.org/wiki/Multiversion_concurrency_control) and
 true [snapshot isolation](https://en.wikipedia.org/wiki/Snapshot_isolation).
 - Xodus is schema-less and agile. It requires no schema migrations or refactorings.
 - Xodus is embedded. It doesn’t require installation or administration.
-
-Xodus is free and licensed under [Apache 2.0](http://www.apache.org/licenses/LICENSE-2.0.html).
+- Xodus is written in pure Java.
+- Xodus is free and licensed under [Apache 2.0](http://www.apache.org/licenses/LICENSE-2.0.html).
 
 ##Hello Worlds!
 
@@ -52,7 +50,7 @@ env.close();
 ###Entity Stores
 ```java
 final PersistentEntityStore entityStore = PersistentEntityStores.newInstance("/home/me/.myAppData");
-executeInTransaction(new StoreTransactionalExecutable() {
+entityStore.executeInTransaction(new StoreTransactionalExecutable() {
     @Override
     public void execute(@NotNull final StoreTransaction txn) {
         final Entity message = txn.newEntity("Message");
