@@ -16,6 +16,7 @@
 package jetbrains.exodus.benchmark.dataStructures;
 
 import jetbrains.exodus.core.dataStructures.hash.*;
+import org.junit.After;
 import org.junit.Test;
 
 import java.util.Map;
@@ -23,6 +24,11 @@ import java.util.Set;
 
 @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
 public class HashContainersBenchmark {
+
+    @After
+    public void tearDown() {
+        System.out.println();
+    }
 
     @Test
     public void benchmarkHashMapGet() {
@@ -69,7 +75,7 @@ public class HashContainersBenchmark {
                 map.get(j + 1000000000);
             }
         }
-        System.out.println("100 000 000 lookups in java.util.HashMap took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in java.util.HashMap took " + (System.currentTimeMillis() - started));
 
         final Map<Integer, String> tested = new HashMap<>();
         for (int i = 0; i < 100000; ++i) {
@@ -81,7 +87,7 @@ public class HashContainersBenchmark {
                 tested.get(j + 1000000000);
             }
         }
-        System.out.println("100 000 000 lookups in HashMap took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in HashMap took " + (System.currentTimeMillis() - started));
     }
 
     @Test
@@ -129,7 +135,7 @@ public class HashContainersBenchmark {
                 set.contains(j + 1000000000);
             }
         }
-        System.out.println("100 000 000 lookups in java.util.HashSet took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in java.util.HashSet took " + (System.currentTimeMillis() - started));
 
         final HashSet<Integer> tested = new HashSet<>();
         for (int i = 0; i < 100000; ++i) {
@@ -141,7 +147,7 @@ public class HashContainersBenchmark {
                 tested.contains(j + 1000000000);
             }
         }
-        System.out.println("100 000 000 lookups in HashSet took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in HashSet took " + (System.currentTimeMillis() - started));
     }
 
     @Test
@@ -159,7 +165,7 @@ public class HashContainersBenchmark {
                 set.contains(new Object());
             }
         }
-        System.out.println("50 000 000 lookups in java.util.HashSet took " + (System.currentTimeMillis() - started));
+        System.out.println("50 000 000 lookups of missing Object keys in java.util.HashSet took " + (System.currentTimeMillis() - started));
 
         final HashSet<Object> tested = new HashSet<>();
         for (int i = 0; i < 100000; ++i) {
@@ -171,7 +177,7 @@ public class HashContainersBenchmark {
                 tested.contains(new Object());
             }
         }
-        System.out.println("50 000 000 lookups in HashSet took " + (System.currentTimeMillis() - started));
+        System.out.println("50 000 000 lookups of missing Object keys in HashSet took " + (System.currentTimeMillis() - started));
     }
 
     @Test
@@ -189,7 +195,7 @@ public class HashContainersBenchmark {
                 map.get(j);
             }
         }
-        System.out.println("100 000 000 lookups in java.util.HashMap took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups in java.util.HashMap<Integer,?> took " + (System.currentTimeMillis() - started));
 
         final IntHashMap<String> tested = new IntHashMap<>();
         for (int i = 0; i < 100000; ++i) {
@@ -219,7 +225,7 @@ public class HashContainersBenchmark {
                 map.get(j + 1000000000);
             }
         }
-        System.out.println("100 000 000 lookups in java.util.HashMap took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in java.util.HashMap<Integer,?> took " + (System.currentTimeMillis() - started));
 
         final IntHashMap<String> tested = new IntHashMap<>();
         for (int i = 0; i < 100000; ++i) {
@@ -231,7 +237,7 @@ public class HashContainersBenchmark {
                 tested.get(j + 1000000000);
             }
         }
-        System.out.println("100 000 000 lookups in IntHashMap took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in IntHashMap took " + (System.currentTimeMillis() - started));
     }
 
     @Test
@@ -279,7 +285,7 @@ public class HashContainersBenchmark {
                 set.contains(j + 1000000000);
             }
         }
-        System.out.println("100 000 000 lookups in java.util.HashSet<Integer> took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in java.util.HashSet<Integer> took " + (System.currentTimeMillis() - started));
 
         final IntHashSet tested = new IntHashSet();
         for (int i = 0; i < 100000; ++i) {
@@ -291,7 +297,7 @@ public class HashContainersBenchmark {
                 tested.contains(j + 1000000000);
             }
         }
-        System.out.println("100 000 000 lookups in IntHashSet took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in IntHashSet took " + (System.currentTimeMillis() - started));
     }
 
     @Test
@@ -309,7 +315,7 @@ public class HashContainersBenchmark {
                 map.get(j);
             }
         }
-        System.out.println("100 000 000 lookups in java.util.LinkedHashMap took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups in java.util.LinkedHashMap<Integer,?> took " + (System.currentTimeMillis() - started));
 
         final IntLinkedHashMap<String> tested = new IntLinkedHashMap<>();
         for (int i = 0; i < 100000; ++i) {
@@ -339,7 +345,7 @@ public class HashContainersBenchmark {
                 map.get(j + 1000000000);
             }
         }
-        System.out.println("100 000 000 lookups in java.util.LinkedHashMap took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in java.util.LinkedHashMap<Integer,?> took " + (System.currentTimeMillis() - started));
 
         final IntLinkedHashMap<String> tested = new IntLinkedHashMap<>();
         for (int i = 0; i < 100000; ++i) {
@@ -351,7 +357,7 @@ public class HashContainersBenchmark {
                 tested.get(j + 1000000000);
             }
         }
-        System.out.println("100 000 000 lookups in IntLinkedHashMap took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in IntLinkedHashMap took " + (System.currentTimeMillis() - started));
     }
 
     @Test
@@ -370,7 +376,7 @@ public class HashContainersBenchmark {
                 map.put(j, v);
             }
         }
-        System.out.println("20 000 000 LRU lookups in java.util.LinkedHashMap took " + (System.currentTimeMillis() - started));
+        System.out.println("20 000 000 LRU lookups in java.util.LinkedHashMap<Integer,?> took " + (System.currentTimeMillis() - started));
 
         final IntLinkedHashMap<String> tested = new IntLinkedHashMap<>();
         for (int i = 0; i < 100000; ++i) {
@@ -382,7 +388,7 @@ public class HashContainersBenchmark {
                 tested.get(j);
             }
         }
-        System.out.println("20 000 000 lookups in IntLinkedHashMap took " + (System.currentTimeMillis() - started));
+        System.out.println("20 000 000 LRU lookups in IntLinkedHashMap took " + (System.currentTimeMillis() - started));
     }
 
     @Test
@@ -430,7 +436,7 @@ public class HashContainersBenchmark {
                 map.get(j + 1000000000);
             }
         }
-        System.out.println("100 000 000 lookups in java.util.LinkedHashMap took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in java.util.LinkedHashMap took " + (System.currentTimeMillis() - started));
 
         final LinkedHashMap<Integer, String> tested = new LinkedHashMap<>();
         for (int i = 0; i < 100000; ++i) {
@@ -442,7 +448,7 @@ public class HashContainersBenchmark {
                 tested.get(j + 1000000000);
             }
         }
-        System.out.println("100 000 000 lookups in LinkedHashMap took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in LinkedHashMap took " + (System.currentTimeMillis() - started));
     }
 
     @Test
@@ -473,7 +479,7 @@ public class HashContainersBenchmark {
                 tested.get(j);
             }
         }
-        System.out.println("20 000 000 lookups in LinkedHashMap took " + (System.currentTimeMillis() - started));
+        System.out.println("20 000 000 LRU lookups in LinkedHashMap took " + (System.currentTimeMillis() - started));
     }
 
     @Test
@@ -491,7 +497,7 @@ public class HashContainersBenchmark {
                 set.contains(j);
             }
         }
-        System.out.println("100 000 000 lookups in java.util.HashSet took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups in java.util.LinkedHashSet took " + (System.currentTimeMillis() - started));
 
         final LinkedHashSet<Integer> tested = new LinkedHashSet<>();
         for (int i = 0; i < 100000; ++i) {
@@ -521,7 +527,7 @@ public class HashContainersBenchmark {
                 set.contains(j + 1000000000);
             }
         }
-        System.out.println("100 000 000 lookups in java.util.HashSet took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in java.util.LinkedHashSet took " + (System.currentTimeMillis() - started));
 
         final LinkedHashSet<Integer> tested = new LinkedHashSet<>();
         for (int i = 0; i < 100000; ++i) {
@@ -533,7 +539,7 @@ public class HashContainersBenchmark {
                 tested.contains(j + 1000000000);
             }
         }
-        System.out.println("100 000 000 lookups in LinkedHashSet took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in LinkedHashSet took " + (System.currentTimeMillis() - started));
     }
 
     @Test
@@ -551,7 +557,7 @@ public class HashContainersBenchmark {
                 map.get(j);
             }
         }
-        System.out.println("100 000 000 lookups in java.util.HashMap took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups in java.util.HashMap<Long,?> took " + (System.currentTimeMillis() - started));
 
         final LongHashMap<String> tested = new LongHashMap<>();
         for (long i = 0; i < 100000; ++i) {
@@ -581,7 +587,7 @@ public class HashContainersBenchmark {
                 map.get(j + 1000000000);
             }
         }
-        System.out.println("100 000 000 lookups in java.util.HashMap took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in java.util.HashMap<Long,?> took " + (System.currentTimeMillis() - started));
 
         final LongHashMap<String> tested = new LongHashMap<>();
         for (long i = 0; i < 100000; ++i) {
@@ -593,7 +599,7 @@ public class HashContainersBenchmark {
                 tested.get(j + 1000000000);
             }
         }
-        System.out.println("100 000 000 lookups in LongHashMap took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in LongHashMap took " + (System.currentTimeMillis() - started));
     }
 
     @Test
@@ -641,7 +647,7 @@ public class HashContainersBenchmark {
                 set.contains(j);
             }
         }
-        System.out.println("100 000 000 lookups in java.util.HashSet<Long> took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in java.util.HashSet<Long> took " + (System.currentTimeMillis() - started));
 
         final LongHashSet tested = new LongHashSet();
         for (int i = 0; i < 100000; ++i) {
@@ -653,7 +659,7 @@ public class HashContainersBenchmark {
                 tested.contains(j);
             }
         }
-        System.out.println("100 000 000 lookups in LongHashSet took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in LongHashSet took " + (System.currentTimeMillis() - started));
     }
 
     @Test
@@ -671,7 +677,7 @@ public class HashContainersBenchmark {
                 map.get(j);
             }
         }
-        System.out.println("100 000 000 lookups in java.util.LinkedHashMap took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups in java.util.LinkedHashMap<Long,?> took " + (System.currentTimeMillis() - started));
 
         final LongLinkedHashMap<String> tested = new LongLinkedHashMap<>();
         for (long i = 0; i < 100000; ++i) {
@@ -701,7 +707,7 @@ public class HashContainersBenchmark {
                 map.get(j + 1000000000);
             }
         }
-        System.out.println("100 000 000 lookups in java.util.LinkedHashMap took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in java.util.LinkedHashMap<Long,?> took " + (System.currentTimeMillis() - started));
 
         final LongLinkedHashMap<String> tested = new LongLinkedHashMap<>();
         for (long i = 0; i < 100000; ++i) {
@@ -713,7 +719,7 @@ public class HashContainersBenchmark {
                 tested.get(j + 1000000000);
             }
         }
-        System.out.println("100 000 000 lookups in LongLinkedHashMap took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in LongLinkedHashMap took " + (System.currentTimeMillis() - started));
     }
 
     @Test
@@ -732,7 +738,7 @@ public class HashContainersBenchmark {
                 map.put(j, v);
             }
         }
-        System.out.println("20 000 000 LRU lookups in java.util.LinkedHashMap took " + (System.currentTimeMillis() - started));
+        System.out.println("20 000 000 LRU lookups in java.util.LinkedHashMap<Long,?> took " + (System.currentTimeMillis() - started));
 
         final LongLinkedHashMap<String> tested = new LongLinkedHashMap<>();
         for (long i = 0; i < 100000; ++i) {
@@ -744,7 +750,7 @@ public class HashContainersBenchmark {
                 tested.get(j);
             }
         }
-        System.out.println("20 000 000 lookups in LongLinkedHashMap took " + (System.currentTimeMillis() - started));
+        System.out.println("20 000 000 LRU lookups in LongLinkedHashMap took " + (System.currentTimeMillis() - started));
     }
 
     @Test
@@ -762,7 +768,7 @@ public class HashContainersBenchmark {
                 set.contains(j);
             }
         }
-        System.out.println("100 000 000 lookups in java.util.HashSet took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups in java.util.LinkedHashSet<Long> took " + (System.currentTimeMillis() - started));
 
         final LongLinkedHashSet tested = new LongLinkedHashSet();
         for (long i = 0; i < 100000; ++i) {
@@ -774,7 +780,7 @@ public class HashContainersBenchmark {
                 tested.contains(j);
             }
         }
-        System.out.println("100 000 000 lookups in LinkedHashSet took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups in LongLinkedHashSet took " + (System.currentTimeMillis() - started));
     }
 
     @Test
@@ -792,7 +798,7 @@ public class HashContainersBenchmark {
                 set.contains(j + 1000000000);
             }
         }
-        System.out.println("100 000 000 lookups in java.util.HashSet took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in java.util.LinkedHashSet<Long> took " + (System.currentTimeMillis() - started));
 
         final LongLinkedHashSet tested = new LongLinkedHashSet();
         for (long i = 0; i < 100000; ++i) {
@@ -804,6 +810,6 @@ public class HashContainersBenchmark {
                 tested.contains(j + 1000000000);
             }
         }
-        System.out.println("100 000 000 lookups in LinkedHashSet took " + (System.currentTimeMillis() - started));
+        System.out.println("100 000 000 lookups of missing keys in LongLinkedHashSet took " + (System.currentTimeMillis() - started));
     }
 }
