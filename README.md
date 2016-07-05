@@ -5,13 +5,13 @@
 [![GitHub license](https://img.shields.io/hexpm/l/plug.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
 ![Repository Size](https://reposs.herokuapp.com/?path=JetBrains/xodus)
 
-JetBrains Xodus is a transactional schema-less embedded database written in Java. It was initially developed for [JetBrains YouTrack](http://jetbrains.com/youtrack) (an issue tracking and project management tool). Currently Xodus is also used in [JetBrains Hub](https://jetbrains.com/hub) (JetBrains' team tools connector) and in some internal JetBrains projects.
+JetBrains Xodus is a transactional schema-less embedded database that is written in Java. It was initially developed for [JetBrains YouTrack](http://jetbrains.com/youtrack), an issue tracking and project management tool. Xodus is also used in [JetBrains Hub](https://jetbrains.com/hub), the user management platform for JetBrains' team tools, and in some internal JetBrains projects.
 
 - Xodus is transactional and fully ACID-compliant.
 - Xodus is highly concurrent. Reads are completely non-blocking due to [MVCC](https://en.wikipedia.org/wiki/Multiversion_concurrency_control) and
 true [snapshot isolation](https://en.wikipedia.org/wiki/Snapshot_isolation).
-- Xodus is schema-less and agile. It requires no schema migrations or refactorings.
-- Xodus is embedded. It doesn’t require installation or administration.
+- Xodus is schema-less and agile. It does not require schema migrations or refactorings.
+- Xodus is embedded. It does not require installation or administration.
 - Xodus is written in pure Java.
 - Xodus is free and licensed under [Apache 2.0](http://www.apache.org/licenses/LICENSE-2.0.html).
 
@@ -34,7 +34,7 @@ dependencies {
 ```
 Read more about [managing dependencies](https://github.com/JetBrains/xodus/wiki/Managing-Dependencies).
 
-There are three different ways to deal with data which give three different API layers: [Environments](https://github.com/JetBrains/xodus/wiki/Environments), [Entity Stores](https://github.com/JetBrains/xodus/wiki/Entity-Stores) and [Virtual File Systems](https://github.com/JetBrains/xodus/wiki/Virtual-File-Systems).
+There are three different ways to deal with data, which results in three different API layers: [Environments](https://github.com/JetBrains/xodus/wiki/Environments), [Entity Stores](https://github.com/JetBrains/xodus/wiki/Entity-Stores) and [Virtual File Systems](https://github.com/JetBrains/xodus/wiki/Virtual-File-Systems).
  
 ###Environments
 ```java
@@ -79,11 +79,11 @@ env.close();
 ```
 
 ##Building from Source
-[Gradle](http://www.gradle.org) is used to build, test and publish. JDK 1.8 is required. To build the project run:
+[Gradle](http://www.gradle.org) is used to build, test, and publish. JDK 1.8 is required. To build the project, run:
 
     ./gradlew build
 
-To assemble jars and skip running tests run:
+To assemble JARs and skip running tests, run:
 
     ./gradlew assemble
 
