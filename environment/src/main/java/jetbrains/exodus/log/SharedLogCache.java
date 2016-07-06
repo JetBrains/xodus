@@ -16,37 +16,38 @@
 package jetbrains.exodus.log;
 
 import jetbrains.exodus.ArrayByteIterable;
-import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache;
-import jetbrains.exodus.core.dataStructures.ObjectCache;
+import jetbrains.exodus.core.dataStructures.ConcurrentLongObjectCache;
+import jetbrains.exodus.core.dataStructures.LongObjectCache;
+import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import org.jetbrains.annotations.NotNull;
 
 final class SharedLogCache extends LogCache {
 
     @NotNull
-    private final ObjectCacheBase<CacheKey, ArrayByteIterable> pagesCache;
+    private final LongObjectCacheBase<CachedValue> pagesCache;
 
     SharedLogCache(final long memoryUsage, final int pageSize, final boolean nonBlocking) {
         super(memoryUsage, pageSize);
         final int pagesCount = (int) (memoryUsage / (pageSize +
-                /* each page consumes additionally nearly 104 bytes in the cache */ 104));
+                /* each page consumes additionally 96 bytes in the cache */ 96));
         pagesCache = nonBlocking ?
-                new ConcurrentObjectCache<CacheKey, ArrayByteIterable>(pagesCount, CONCURRENT_CACHE_GENERATION_COUNT) :
-                new ObjectCache<CacheKey, ArrayByteIterable>(pagesCount);
+                new ConcurrentLongObjectCache<CachedValue>(pagesCount, CONCURRENT_CACHE_GENERATION_COUNT) :
+                new LongObjectCache<CachedValue>(pagesCount);
     }
 
     SharedLogCache(final int memoryUsagePercentage, final int pageSize, final boolean nonBlocking) {
         super(memoryUsagePercentage, pageSize);
         if (memoryUsage == Long.MAX_VALUE) {
             pagesCache = nonBlocking ?
-                    new ConcurrentObjectCache<CacheKey, ArrayByteIterable>(ObjectCacheBase.DEFAULT_SIZE, CONCURRENT_CACHE_GENERATION_COUNT) :
-                    new ObjectCache<CacheKey, ArrayByteIterable>();
+                    new ConcurrentLongObjectCache<CachedValue>(ObjectCacheBase.DEFAULT_SIZE, CONCURRENT_CACHE_GENERATION_COUNT) :
+                    new LongObjectCache<CachedValue>();
         } else {
             final int pagesCount = (int) (memoryUsage / (pageSize +
-                    /* each page consumes additionally nearly 104 bytes in the cache */ 104));
+                    /* each page consumes additionally 96 bytes in the cache */ 96));
             pagesCache = nonBlocking ?
-                    new ConcurrentObjectCache<CacheKey, ArrayByteIterable>(pagesCount, CONCURRENT_CACHE_GENERATION_COUNT) :
-                    new ObjectCache<CacheKey, ArrayByteIterable>(pagesCount);
+                    new ConcurrentLongObjectCache<CachedValue>(pagesCount, CONCURRENT_CACHE_GENERATION_COUNT) :
+                    new LongObjectCache<CachedValue>(pagesCount);
         }
     }
 
@@ -62,7 +63,9 @@ final class SharedLogCache extends LogCache {
 
     @Override
     void cachePage(@NotNull final Log log, final long pageAddress, @NotNull final ArrayByteIterable page) {
-        cachePage(new CacheKey(log.getIdentity(), pageAddress >> pageSizeLogarithm), page);
+        final int logIdentity = log.getIdentity();
+        final long adjustedPageAddress = pageAddress >> pageSizeLogarithm;
+        cachePage(getLogPageFingerPrint(logIdentity, adjustedPageAddress), logIdentity, adjustedPageAddress, page);
     }
 
     @Override
@@ -70,8 +73,11 @@ final class SharedLogCache extends LogCache {
     protected ArrayByteIterable getPage(@NotNull final Log log, final long pageAddress) {
         final long adjustedPageAddress = pageAddress >> pageSizeLogarithm;
         final int logIdentity = log.getIdentity();
-        final CacheKey cacheKey = new CacheKey(logIdentity, adjustedPageAddress);
-        ArrayByteIterable page = pagesCache.tryKeyLocked(cacheKey);
+        final long key = getLogPageFingerPrint(logIdentity, adjustedPageAddress);
+        final CachedValue cachedValue = pagesCache.tryKeyLocked(key);
+        ArrayByteIterable page =
+                (cachedValue != null && cachedValue.logIdentity == logIdentity && cachedValue.address == adjustedPageAddress) ?
+                        cachedValue.page : null;
         if (page != null) {
             return page;
         }
@@ -80,53 +86,47 @@ final class SharedLogCache extends LogCache {
             return page;
         }
         page = readFullPage(log, pageAddress);
-        cachePage(cacheKey, page);
+        cachePage(key, logIdentity, adjustedPageAddress, page);
         return page;
     }
 
     @Override
-    protected ArrayByteIterable removePage(@NotNull final Log log, final long pageAddress) {
-        final long adjustedPageAddress = pageAddress >> pageSizeLogarithm;
-        final int logIdentity = log.getIdentity();
-        final CacheKey cacheKey = new CacheKey(logIdentity, adjustedPageAddress);
+    protected void removePage(@NotNull final Log log, final long pageAddress) {
+        final long key = getLogPageFingerPrint(log.getIdentity(), pageAddress >> pageSizeLogarithm);
         pagesCache.lock();
         try {
-            return pagesCache.remove(cacheKey);
+            pagesCache.remove(key);
         } finally {
             pagesCache.unlock();
         }
     }
 
-    private void cachePage(@NotNull final CacheKey cacheKey, @NotNull final ArrayByteIterable page) {
+    private void cachePage(final long key, final int logIdentity, final long address, @NotNull final ArrayByteIterable page) {
         pagesCache.lock();
         try {
-            if (pagesCache.getObject(cacheKey) == null) {
-                pagesCache.cacheObject(cacheKey, postProcessTailPage(page));
+            if (pagesCache.getObject(key) == null) {
+                pagesCache.cacheObject(key, new CachedValue(logIdentity, address, postProcessTailPage(page)));
             }
         } finally {
             pagesCache.unlock();
         }
     }
 
-    private static final class CacheKey {
+    private static long getLogPageFingerPrint(final int logIdentity, final long address) {
+        return ((long) logIdentity << 32) + (long) logIdentity + address;
+    }
+
+    private static final class CachedValue {
 
         private final int logIdentity;
         private final long address;
+        private final ArrayByteIterable page;
 
-        private CacheKey(final int logIdentity, final long address) {
+        public CachedValue(final int logIdentity, final long address, @NotNull final ArrayByteIterable page) {
             this.logIdentity = logIdentity;
             this.address = address;
+            this.page = page;
         }
 
-        @SuppressWarnings({"EqualsWhichDoesntCheckParameterClass"})
-        public boolean equals(Object obj) {
-            final CacheKey key = (CacheKey) obj;
-            return address == key.address && logIdentity == key.logIdentity;
-
-        }
-
-        public int hashCode() {
-            return (logIdentity ^ (int) address) + (logIdentity << 16);
-        }
     }
 }
