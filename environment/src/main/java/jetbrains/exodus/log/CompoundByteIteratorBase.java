@@ -19,40 +19,41 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.ExodusException;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 abstract class CompoundByteIteratorBase implements ByteIterator {
 
-    @NotNull
+    @Nullable
     private ByteIterator current;
-    private boolean hasNext;
-    private boolean hasNextValid;
 
-    protected CompoundByteIteratorBase(@NotNull ByteIterator current) {
+    CompoundByteIteratorBase(@NotNull ByteIterator current) {
         this.current = current;
     }
 
-    protected CompoundByteIteratorBase() {
+    CompoundByteIteratorBase() {
         this(ByteIterable.EMPTY_ITERATOR);
     }
 
     @Override
     public boolean hasNext() {
-        if (!hasNextValid) {
-            hasNext = hasNextImpl();
-            hasNextValid = true;
+        if (current == null) {
+            return false;
         }
-        return hasNext;
+        if (current.hasNext()) {
+            return true;
+        }
+        current = nextIterator();
+        return hasNext();
     }
 
     @Override
     public long skip(final long length) {
-        long skipped = current.skip(length);
-        while (true) {
-            hasNextValid = false;
+        long skipped = 0;
+        while (current != null) {
+            skipped += current.skip(length - skipped);
             if (skipped >= length || !hasNext()) {
                 break;
             }
-            skipped += current.skip(length - skipped);
         }
         return skipped;
     }
@@ -62,24 +63,15 @@ abstract class CompoundByteIteratorBase implements ByteIterator {
         if (!hasNext()) {
             onFail("CompoundByteIterator: no more bytes available");
         }
-        final byte result = current.next();
-        hasNextValid = false;
-        return result;
-    }
-
-    private boolean hasNextImpl() {
-        while (!current.hasNext()) {
-            final ByteIterator nextIterator = nextIterator();
-            if (nextIterator == null) {
-                return false;
-            }
-            current = nextIterator;
-        }
-        return true;
+        //noinspection ConstantConditions
+        return current.next();
     }
 
     @NotNull
     protected ByteIterator getCurrent() {
+        if (current == null) {
+            throw new ExodusException("Can't get current ByteIterator, hasNext() == false");
+        }
         return current;
     }
 
