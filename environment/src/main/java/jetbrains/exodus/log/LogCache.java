@@ -22,7 +22,7 @@ import jetbrains.exodus.core.dataStructures.ConcurrentLongObjectCache;
 import jetbrains.exodus.util.MathUtil;
 import org.jetbrains.annotations.NotNull;
 
-@SuppressWarnings({"ProtectedField"})
+@SuppressWarnings("WeakerAccess")
 abstract class LogCache {
 
     protected static final int MINIMUM_PAGE_SIZE = LogUtil.LOG_BLOCK_ALIGNMENT;
@@ -88,7 +88,7 @@ abstract class LogCache {
     @NotNull
     abstract ArrayByteIterable getPage(@NotNull final Log log, final long pageAddress);
 
-    abstract ArrayByteIterable removePage(@NotNull final Log log, final long pageAddress);
+    abstract void removePage(@NotNull final Log log, final long pageAddress);
 
     protected ArrayByteIterable readFullPage(Log log, long pageAddress) {
         final ArrayByteIterable page = allocPage();

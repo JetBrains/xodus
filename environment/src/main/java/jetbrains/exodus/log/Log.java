@@ -39,7 +39,8 @@ public final class Log implements Closeable {
 
     private static final Logger logger = LoggerFactory.getLogger(Log.class);
 
-    private static AtomicInteger identityGenerator = new AtomicInteger();
+    private static AtomicInteger identityGenerator =
+            new AtomicInteger((int) (Math.random() * Integer.MAX_VALUE)); // initial log identity is rather "random"
 
     private static LogCache sharedCache = null;
 
@@ -883,10 +884,20 @@ public final class Log implements Closeable {
         return highAddress % fileLengthBound;
     }
 
-    public void setBufferedWriter(@NotNull final TransactionalDataWriter bufferedWriter) {
+    private void setBufferedWriter(@NotNull final TransactionalDataWriter bufferedWriter) {
         this.bufferedWriter = bufferedWriter;
-        // it's better for cached log cache to have always nonzero log identity:
-        logIdentity = identityGenerator.incrementAndGet();
+        final int intPrime = 800076929; // 800076929 is a prime
+        while (true) {
+            final int currentIdentity = identityGenerator.get();
+            int nextIdentity = (currentIdentity + intPrime) & 0x7fffffff;
+            if (nextIdentity == 0) {
+                nextIdentity += intPrime;
+            }
+            if (identityGenerator.compareAndSet(currentIdentity, nextIdentity)) {
+                logIdentity = nextIdentity;
+                break;
+            }
+        }
     }
 
     /**
