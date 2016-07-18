@@ -606,9 +606,7 @@ public final class Log implements Closeable {
         reader.removeBlock(address, rbt);
         // remove address of file of the list
         synchronized (blockAddrs) {
-            if (!blockAddrs.remove(address)) {
-                throw new ExodusException("There is no file by address " + address);
-            }
+            blockAddrs.remove(address);
         }
         // clear cache
         for (long offset = 0; offset < fileLengthBound; offset += cachePageSize) {
