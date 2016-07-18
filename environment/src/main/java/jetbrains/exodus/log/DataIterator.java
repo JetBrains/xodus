@@ -20,49 +20,90 @@ import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.ExodusException;
 import org.jetbrains.annotations.NotNull;
 
-final class DataIterator extends CompoundByteIteratorBase {
+final class DataIterator implements ByteIterator {
 
     @NotNull
     private final Log log;
-    private long currentAddress;
+    private long pageAddress;
+    private byte[] page;
+    private int offset;
+    private int length;
 
     DataIterator(@NotNull final Log log, final long startAddress) {
-        super(ArrayByteIterable.getEmptyIterator());
         this.log = log;
-        currentAddress = startAddress;
+        nextPage(startAddress);
     }
 
     @Override
-    protected ByteIterator nextIterator() {
-        final long prevAddress = getHighAddress();
-        final int alignment = ((int) prevAddress) & (log.getCachePageSize() - 1);
+    public boolean hasNext() {
+        if (page == null) {
+            return false;
+        }
+        if (offset >= length) {
+            nextPage(getHighAddress());
+            return hasNext();
+        }
+        return true;
+    }
+
+    @Override
+    public byte next() {
+        if (!hasNext()) {
+            throw new ExodusException("DataIterator: no more bytes available" +
+                    LogUtil.getWrongAddressErrorMessage(getHighAddress(), log.getFileSize()));
+        }
+        return page[offset++];
+    }
+
+    @Override
+    public long skip(final long bytes) {
+        long skipped = 0;
+        while (page != null && skipped < bytes) {
+            final long pageBytesToSkip = Math.min(bytes - skipped, length - offset);
+            skipped += pageBytesToSkip;
+            offset += pageBytesToSkip;
+            if (offset < length) {
+                break;
+            }
+            nextPage(getHighAddress());
+        }
+        return skipped;
+    }
+
+    byte[] getCurrentPage() {
+        return page;
+    }
+
+    int getOffset() {
+        return offset;
+    }
+
+    int getLength() {
+        return length;
+    }
+
+    long getHighAddress() {
+        return pageAddress + offset;
+    }
+
+    private void nextPage(final long highAddress) {
+        final int offset = ((int) highAddress) & (log.getCachePageSize() - 1);
         final ArrayByteIterable page;
-        final long newAddress = prevAddress - alignment;
+        final long pageAddress = highAddress - offset;
         try {
-            page = log.cache.getPage(log, newAddress);
+            page = log.cache.getPage(log, pageAddress);
         } catch (BlockNotFoundException e) {
-            return null;
+            this.page = null;
+            return;
         }
-        final int readBytes = page.getLength();
-        if (readBytes <= alignment) { // alignment is >= 0 for sure
-            return null;
+        final int len = page.getLength();
+        if (len <= offset) { // offset is >= 0 for sure
+            this.page = null;
+            return;
         }
-        currentAddress = newAddress;
-        return page.iterator(alignment);
-    }
-
-    public long getHighAddress() {
-        return currentAddress + getCurrent().getOffset();
-    }
-
-    @NotNull
-    @Override
-    public ArrayByteIterable.Iterator getCurrent() {
-        return (ArrayByteIterable.Iterator) super.getCurrent();
-    }
-
-    @Override
-    protected void onFail(@NotNull String message) throws ExodusException {
-        super.onFail(message + LogUtil.getWrongAddressErrorMessage(getHighAddress(), log.getFileSize()));
+        this.offset = offset;
+        this.length = len;
+        this.page = page.getBytesUnsafe();
+        this.pageAddress = pageAddress;
     }
 }
