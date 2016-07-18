@@ -94,6 +94,11 @@ public class UpdatablePropertiesCachedInstanceIterable extends UpdatableCachedIn
         valueClass = source.valueClass;
     }
 
+    @Override
+    public int getEntityTypeId() {
+        return entityTypeId;
+    }
+
     @Nullable
     public Class<? extends Comparable> getPropertyValueClass() {
         return valueClass;

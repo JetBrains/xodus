@@ -34,6 +34,7 @@ public abstract class EntityIterableBase implements EntityIterable {
 
     public static final EntityIterableBase EMPTY;
     public static final Map<EntityIterableType, EntityIterableInstantiator> INSTANTIATORS = new HashMap<>();
+    public static final int NULL_TYPE_ID = Integer.MIN_VALUE;
 
     static {
         EMPTY = new EntityIterableBase(null) {
@@ -118,7 +119,7 @@ public abstract class EntityIterableBase implements EntityIterable {
     }
 
     public int getEntityTypeId() {
-        throw new UnsupportedOperationException("getEntityTypeId not implemented");
+        return NULL_TYPE_ID;
     }
 
     @Override

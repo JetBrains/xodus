@@ -130,10 +130,6 @@ public class PersistentEntityId implements EntityId {
 
     @Override
     public int compareTo(@NotNull final EntityId o) {
-        if (!(o instanceof PersistentEntityId)) {
-            throw new RuntimeException("Illegal type of entity id, PersistentEntityId is expected.");
-        }
-        PersistentEntityId bid = (PersistentEntityId) o;
         final long rightLocalId = o.getLocalId();
         final int rightType = o.getTypeId();
         if (entityTypeId < rightType) {

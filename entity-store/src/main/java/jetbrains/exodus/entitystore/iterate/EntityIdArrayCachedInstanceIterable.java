@@ -33,7 +33,6 @@ public class EntityIdArrayCachedInstanceIterable extends CachedInstanceIterable 
 
     private static final int[] EMPTY_TYPE_IDS = new int[0];
     private static final long[] EMPTY_LOCAL_IDS = new long[0];
-    private static final int NULL_TYPE_ID = Integer.MIN_VALUE;
 
     private final boolean singleTypeId;
     @NotNull
@@ -191,6 +190,14 @@ public class EntityIdArrayCachedInstanceIterable extends CachedInstanceIterable 
         } finally {
             it.disposeIfShouldBe();
         }
+    }
+
+    @Override
+    public int getEntityTypeId() {
+        if (singleTypeId) {
+            return typeIds[0];
+        }
+        return super.getEntityTypeId();
     }
 
     protected EntityId extractNextId(final EntityIterator it) {
