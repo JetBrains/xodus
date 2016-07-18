@@ -34,6 +34,22 @@ public class PersistentHashMapTest {
         }
     }
 
+    @Test
+    public void hashKeyCollision() {
+        final PersistentHashMap<HashKey, String> map = new PersistentHashMap<>();
+        PersistentHashMap<HashKey, String>.MutablePersistentHashMap w = map.beginWrite();
+        HashKey first = new HashKey(1);
+        w.put(first, "a");
+        HashKey second = new HashKey(1);
+        w.put(second, "b");
+        w.endWrite();
+        Assert.assertEquals(2, map.getCurrent().size());
+        w = map.beginWrite();
+        w.removeKey(first);
+        w.endWrite();
+        Assert.assertEquals(1, map.getCurrent().size());
+    }
+
     @SuppressWarnings({"OverlyLongMethod"})
     @Test
     public void competingWritesTest() {
@@ -159,4 +175,20 @@ public class PersistentHashMapTest {
         }
         return p;
     }
+
+    private class HashKey {
+        private final int hashCode;
+
+        private HashKey(int hashCode) {
+            this.hashCode = hashCode;
+        }
+
+        // equals isn't overriden intentionally (default is identity comparison) to emulate hash collision
+
+        @Override
+        public int hashCode() {
+            return hashCode;
+        }
+    }
+
 }
