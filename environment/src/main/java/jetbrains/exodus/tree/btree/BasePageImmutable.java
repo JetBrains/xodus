@@ -29,7 +29,7 @@ abstract class BasePageImmutable extends BasePage {
     @NotNull
     protected final ByteIterableWithAddress data;
     protected long dataAddress;
-    protected int keyAddressLen;
+    protected byte keyAddressLen;
     @Nullable
     protected LongObjectCacheBase treeNodesCache;
 
@@ -94,7 +94,7 @@ abstract class BasePageImmutable extends BasePage {
     }
 
     protected void loadAddressLengths(final int length) {
-        checkAddressLength(keyAddressLen = length);
+        checkAddressLength(keyAddressLen = (byte) length);
     }
 
     protected static void checkAddressLength(long addressLen) {
