@@ -403,10 +403,9 @@ public final class Log implements Closeable {
         final int dataLength = CompressedUnsignedLongByteIterable.getInt(it);
         final long dataAddress = it.getHighAddress();
         if (dataLength > 0) {
-            final ArrayByteIterable.Iterator currentPageIt = it.getCurrent();
-            final byte[] currentPage = currentPageIt.getBytesUnsafe();
-            final int currentOffset = currentPageIt.getOffset();
-            if (currentPageIt.getLength() - currentOffset >= dataLength) {
+            final byte[] currentPage = it.getCurrentPage();
+            final int currentOffset = it.getOffset();
+            if (it.getLength() - currentOffset >= dataLength) {
                 return prototype == null ?
                         new RandomAccessLoggableAndArrayByteIterable(
                                 address, type, structureId, dataAddress, currentPage, currentOffset, dataLength) :
@@ -607,9 +606,7 @@ public final class Log implements Closeable {
         reader.removeBlock(address, rbt);
         // remove address of file of the list
         synchronized (blockAddrs) {
-            if (!blockAddrs.remove(address)) {
-                throw new ExodusException("There is no file by address " + address);
-            }
+            blockAddrs.remove(address);
         }
         // clear cache
         for (long offset = 0; offset < fileLengthBound; offset += cachePageSize) {

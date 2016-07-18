@@ -25,7 +25,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.PrintStream;
 
-final class InternalPage extends BasePageImmutable {
+class InternalPage extends BasePageImmutable {
 
     private int childAddressLen;
 
@@ -60,7 +60,7 @@ final class InternalPage extends BasePageImmutable {
     @Override
     @NotNull
     public BasePage getChild(final int index) {
-        return getTree().loadPage(getChildAddress(index), treeNodesCache);
+        return getTree().loadPage(getChildAddress(index), getTreeNodesCache());
     }
 
     @Override

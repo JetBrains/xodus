@@ -29,9 +29,7 @@ abstract class BasePageImmutable extends BasePage {
     @NotNull
     protected final ByteIterableWithAddress data;
     protected long dataAddress;
-    protected int keyAddressLen;
-    @Nullable
-    protected LongObjectCacheBase treeNodesCache;
+    protected byte keyAddressLen;
 
     /**
      * Create empty page
@@ -94,7 +92,7 @@ abstract class BasePageImmutable extends BasePage {
     }
 
     protected void loadAddressLengths(final int length) {
-        checkAddressLength(keyAddressLen = length);
+        checkAddressLength(keyAddressLen = (byte) length);
     }
 
     protected static void checkAddressLength(long addressLen) {
@@ -111,7 +109,7 @@ abstract class BasePageImmutable extends BasePage {
     @Override
     @NotNull
     public BaseLeafNode getKey(final int index) {
-        return getTree().loadLeaf(getKeyAddress(index), treeNodesCache);
+        return getTree().loadLeaf(getKeyAddress(index), getTreeNodesCache());
     }
 
     @Override
@@ -129,6 +127,7 @@ abstract class BasePageImmutable extends BasePage {
         if (dataAddress == Loggable.NULL_ADDRESS) {
             return SearchRes.NOT_FOUND;
         }
+        final LongObjectCacheBase treeNodesCache = getTreeNodesCache();
         final ILeafNode[] lastComparedKey = new ILeafNode[1];
         final int index = ByteIterableWithAddress.binarySearch(
                 new IByteIterableComparator() {
@@ -140,10 +139,9 @@ abstract class BasePageImmutable extends BasePage {
         return index >= 0 ? new SearchRes(index, lastComparedKey[0]) : new SearchRes(index);
     }
 
-    protected void setTreeNodesCache(@Nullable final LongObjectCacheBase treeNodesCache) {
-        if (this.treeNodesCache == null) {
-            this.treeNodesCache = treeNodesCache;
-        }
+    @Nullable
+    protected LongObjectCacheBase getTreeNodesCache() {
+        return null;
     }
 
     protected static void doReclaim(BTreeReclaimTraverser context) {

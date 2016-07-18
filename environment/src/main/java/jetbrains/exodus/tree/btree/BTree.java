@@ -25,6 +25,8 @@ public class BTree extends BTreeBase {
 
     private final RandomAccessLoggable rootLoggable;
     private final BasePageImmutable root;
+    @Nullable
+    private LongObjectCacheBase treeNodesCache;
 
     public BTree(@NotNull final Log log, final long rootAddress, final boolean allowsDuplicates, final int structureId) {
         this(log, BTreeBalancePolicy.DEFAULT, rootAddress, allowsDuplicates, structureId);
@@ -48,7 +50,7 @@ public class BTree extends BTreeBase {
         final ByteIterableWithAddress data = rootLoggable.getData();
         final ByteIteratorWithAddress it = data.iterator();
         size = CompressedUnsignedLongByteIterable.getLong(it);
-        root = loadPage(type, data.clone((int) (it.getAddress() - data.getDataAddress())));
+        root = loadRootPage(data.clone((int) (it.getAddress() - data.getDataAddress())));
     }
 
     @Override
@@ -66,14 +68,47 @@ public class BTree extends BTreeBase {
 
     @Override
     public void setTreeNodesCache(@Nullable final LongObjectCacheBase cache) {
-        if (size > 0) {
-            root.setTreeNodesCache(cache);
-        }
+        this.treeNodesCache = (size > 0) ? cache : null;
     }
 
     @Override
     @NotNull
     protected BasePage getRoot() {
         return root;
+    }
+
+    @NotNull
+    private BasePageImmutable loadRootPage(@NotNull final ByteIterableWithAddress data) {
+        final BasePageImmutable result;
+        final byte type = rootLoggable.getType();
+        switch (type) {
+            case LEAF_DUP_BOTTOM_ROOT: // TODO: convert to enum
+            case BOTTOM_ROOT:
+            case BOTTOM:
+            case DUP_BOTTOM:
+                result = new BottomPage(this, data) {
+                    @Nullable
+                    @Override
+                    protected LongObjectCacheBase getTreeNodesCache() {
+                        return treeNodesCache;
+                    }
+                };
+                break;
+            case LEAF_DUP_INTERNAL_ROOT:
+            case INTERNAL_ROOT:
+            case INTERNAL:
+            case DUP_INTERNAL:
+                result = new InternalPage(this, data) {
+                    @Nullable
+                    @Override
+                    protected LongObjectCacheBase getTreeNodesCache() {
+                        return treeNodesCache;
+                    }
+                };
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown loggable type [" + type + ']');
+        }
+        return result;
     }
 }

@@ -17,6 +17,7 @@ package jetbrains.exodus.log;
 
 import jetbrains.exodus.*;
 import jetbrains.exodus.util.LightOutputStream;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * This ByteIterable cannot be used for representing comparable or signed longs.
@@ -98,6 +99,23 @@ public final class CompressedUnsignedLongByteIterable extends ByteIterableBase {
             shift += 7;
         } while (iterator.hasNext());
         return throwBadCompressedNumber();
+    }
+
+    public static int getInt(@NotNull final DataIterator iterator) {
+        byte b = iterator.next();
+        if ((b & 0x80) != 0) {
+            return b & 0x7f;
+        }
+        int result = b & 0x7f;
+        int shift = 7;
+        while (true) {
+            b = iterator.next();
+            result += (b & 0x7f) << shift;
+            if ((b & 0x80) != 0) {
+                return result;
+            }
+            shift += 7;
+        }
     }
 
     public static int getCompressedSize(long l) {
