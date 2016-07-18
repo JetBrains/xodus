@@ -23,7 +23,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.PrintStream;
 
-final class BottomPage extends BasePageImmutable {
+class BottomPage extends BasePageImmutable {
 
     BottomPage(@NotNull final BTreeBase tree) {
         super(tree);
