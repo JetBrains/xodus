@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.TestFor;
 import jetbrains.exodus.entitystore.*;
+import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 
 import java.util.Iterator;
@@ -24,6 +25,10 @@ import java.util.Iterator;
 @SuppressWarnings({"HardCodedStringLiteral", "AutoBoxing", "ConstantConditions", "JUnitTestClassNamingConvention",
         "StringContatenationInLoop", "UnusedDeclaration", "WhileLoopReplaceableByForEach", "LoopStatementThatDoesntLoop"})
 public class EntityIterableTests extends EntityStoreTestBase {
+
+    protected String[] casesThatDontNeedExplicitTxn() {
+        return new String[]{"testEntityIterableCacheIsInvalidatedOnStoreClear"};
+    }
 
     public void testIterateAllEntities() throws Exception {
         final StoreTransaction txn = getStoreTransaction();
@@ -479,6 +484,36 @@ public class EntityIterableTests extends EntityStoreTestBase {
             Assert.assertEquals(10L + i, allUsers.getRoughSize());
             Thread.sleep(1000);
         }
+    }
+
+    @TestFor(issues = "XD-536")
+    public void testEntityIterableCacheIsInvalidatedOnStoreClear() {
+        final PersistentEntityStoreImpl entityStore = getEntityStore();
+        entityStore.executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                createNUsers(txn, 10);
+            }
+        });
+        entityStore.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                Assert.assertEquals(9, txn.getAll("User").indexOf(new PersistentEntity(entityStore, new PersistentEntityId(0, 9))));
+            }
+        });
+        entityStore.clear();
+        entityStore.executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                createNUsers(txn, 1);
+            }
+        });
+        entityStore.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                Assert.assertEquals(-1, txn.getAll("User").indexOf(new PersistentEntity(entityStore, new PersistentEntityId(0, 9))));
+            }
+        });
     }
 
     /**

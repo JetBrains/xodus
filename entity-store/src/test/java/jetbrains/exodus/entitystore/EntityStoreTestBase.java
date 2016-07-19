@@ -24,6 +24,7 @@ import org.junit.Assert;
 import java.io.File;
 
 public abstract class EntityStoreTestBase extends TestBase {
+
     private static final String TEMP_FOLDER = TestUtil.createTempDir().getAbsolutePath();
 
     private PersistentEntityStoreImpl store;
