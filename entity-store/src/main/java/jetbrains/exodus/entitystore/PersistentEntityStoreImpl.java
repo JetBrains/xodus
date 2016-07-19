@@ -443,6 +443,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         entitiesSequences.clear();
         propertyTypes.clear();
 
+        // fix of XD-536
+        iterableCache.clear();
+
         init();
 
         blobVault.clear();
