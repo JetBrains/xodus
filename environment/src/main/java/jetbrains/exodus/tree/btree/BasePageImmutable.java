@@ -95,7 +95,7 @@ abstract class BasePageImmutable extends BasePage {
         checkAddressLength(keyAddressLen = (byte) length);
     }
 
-    protected static void checkAddressLength(long addressLen) {
+    protected static void checkAddressLength(byte addressLen) {
         if (addressLen < 0 || addressLen > 8) {
             throw new ExodusException("Invalid length of address: " + addressLen);
         }
