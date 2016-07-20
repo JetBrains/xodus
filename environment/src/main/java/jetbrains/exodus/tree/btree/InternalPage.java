@@ -27,7 +27,7 @@ import java.io.PrintStream;
 
 class InternalPage extends BasePageImmutable {
 
-    private int childAddressLen;
+    private byte childAddressLen;
 
     protected InternalPage(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data) {
         super(tree, data);
