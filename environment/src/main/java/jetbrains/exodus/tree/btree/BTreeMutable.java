@@ -332,7 +332,9 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
             // if we have reached the end of file and the tree seems to be rather heavyweight then looks like
             // it was a huge transaction that saved the tree, and it's reasonable to stop here, without
             // reaching the tree's root, in order to avoid possible OOME (XD-513)
-            if (type == NullLoggable.TYPE && expiredLoggables.size() > MAX_EXPIRED_LOGGABLES_TO_CONTINUE_RECLAIM_ON_A_NEW_FILE) {
+            if (type == NullLoggable.TYPE &&
+                    expiredLoggables != null && // this check fixes XD-532 & XD-538
+                    expiredLoggables.size() > MAX_EXPIRED_LOGGABLES_TO_CONTINUE_RECLAIM_ON_A_NEW_FILE) {
                 break;
             }
             loggable = loggables.next();
