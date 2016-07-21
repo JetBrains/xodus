@@ -28,15 +28,15 @@ abstract class BasePageImmutable extends BasePage {
 
     @NotNull
     protected final ByteIterableWithAddress data;
-    protected long dataAddress;
-    protected byte keyAddressLen;
+    private long dataAddress;
+    byte keyAddressLen;
 
     /**
      * Create empty page
      *
      * @param tree tree which the page belongs to
      */
-    protected BasePageImmutable(@NotNull BTreeBase tree) {
+    BasePageImmutable(@NotNull BTreeBase tree) {
         super(tree);
         data = ByteIterableWithAddress.EMPTY;
         size = 0;
@@ -49,7 +49,7 @@ abstract class BasePageImmutable extends BasePage {
      * @param tree tree which the page belongs to
      * @param data binary data to load the page from.
      */
-    protected BasePageImmutable(@NotNull BTreeBase tree, @NotNull final ByteIterableWithAddress data) {
+    BasePageImmutable(@NotNull BTreeBase tree, @NotNull final ByteIterableWithAddress data) {
         super(tree);
         this.data = data;
         final ByteIteratorWithAddress it = data.iterator();
@@ -64,7 +64,7 @@ abstract class BasePageImmutable extends BasePage {
      * @param data source iterator
      * @param size computed size
      */
-    protected BasePageImmutable(@NotNull BTreeBase tree, @NotNull final ByteIterableWithAddress data, int size) {
+    BasePageImmutable(@NotNull BTreeBase tree, @NotNull final ByteIterableWithAddress data, int size) {
         super(tree);
         this.data = data;
         this.size = size;
@@ -86,7 +86,7 @@ abstract class BasePageImmutable extends BasePage {
         return dataAddress;
     }
 
-    protected ByteIterator getDataIterator(final int offset) {
+    ByteIterator getDataIterator(final int offset) {
         return dataAddress == Loggable.NULL_ADDRESS ?
                 ByteIterable.EMPTY_ITERATOR : data.iterator((int) (dataAddress - data.getDataAddress() + offset));
     }
@@ -95,7 +95,7 @@ abstract class BasePageImmutable extends BasePage {
         checkAddressLength(keyAddressLen = (byte) length);
     }
 
-    protected static void checkAddressLength(byte addressLen) {
+    static void checkAddressLength(byte addressLen) {
         if (addressLen < 0 || addressLen > 8) {
             throw new ExodusException("Invalid length of address: " + addressLen);
         }
@@ -128,15 +128,18 @@ abstract class BasePageImmutable extends BasePage {
             return SearchRes.NOT_FOUND;
         }
         final LongObjectCacheBase treeNodesCache = getTreeNodesCache();
-        final ILeafNode[] lastComparedKey = new ILeafNode[1];
-        final int index = ByteIterableWithAddress.binarySearch(
+        final SearchRes result = new SearchRes();
+        result.index = (short) ByteIterableWithAddress.binarySearch(
                 new IByteIterableComparator() {
                     @Override
                     public int compare(final long leftAddress, @NotNull final ByteIterable right) {
-                        return (lastComparedKey[0] = getTree().loadLeaf(leftAddress, treeNodesCache)).compareKeyTo(right);
+                        return (result.key = getTree().loadLeaf(leftAddress, treeNodesCache)).compareKeyTo(right);
                     }
                 }, key, low, size - 1, keyAddressLen, getTree().log, dataAddress);
-        return index >= 0 ? new SearchRes(index, lastComparedKey[0]) : new SearchRes(index);
+        if (result.index < 0) {
+            result.key = null;
+        }
+        return result;
     }
 
     @Nullable
@@ -144,7 +147,7 @@ abstract class BasePageImmutable extends BasePage {
         return null;
     }
 
-    protected static void doReclaim(BTreeReclaimTraverser context) {
+    static void doReclaim(BTreeReclaimTraverser context) {
         final BasePageMutable node = context.currentNode.getMutableCopy(context.mainTree);
         context.wasReclaim = true;
         context.setPage(node);
