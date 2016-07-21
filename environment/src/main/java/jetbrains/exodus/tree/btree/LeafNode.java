@@ -31,16 +31,16 @@ class LeafNode extends BaseLeafNode {
     private final RandomAccessLoggable loggable;
     private final int keyLength;
     private final int valueLength;
-    private final byte keyRecordSize;
 
     LeafNode(@NotNull final RandomAccessLoggable loggable) {
         this.loggable = loggable;
         final ByteIterableWithAddress data = loggable.getData();
         final ByteIteratorWithAddress iterator = data.iterator();
-        keyLength = CompressedUnsignedLongByteIterable.getInt(iterator);
+        final int keyLength = CompressedUnsignedLongByteIterable.getInt(iterator);
         final long dataAddress = iterator.getAddress();
-        keyRecordSize = (byte) (dataAddress - data.getDataAddress());  //CompressedUnsignedLongByteIterable.getCompressedSize(keyLength);
+        final int keyRecordSize = (byte) (dataAddress - data.getDataAddress());  //CompressedUnsignedLongByteIterable.getCompressedSize(keyLength);
         valueLength = loggable.getDataLength() - keyRecordSize - keyLength;
+        this.keyLength = (keyLength << 3) + keyRecordSize;
     }
 
     @Override
@@ -54,18 +54,18 @@ class LeafNode extends BaseLeafNode {
 
     @Override
     public int compareKeyTo(@NotNull final ByteIterable iterable) {
-        return loggable.getData().compareTo(keyRecordSize, keyLength, iterable);
+        return loggable.getData().compareTo(getKeyRecordSize(), getKeyLength(), iterable);
     }
 
     @Override
     public int compareValueTo(@NotNull final ByteIterable iterable) {
-        return loggable.getData().compareTo(keyRecordSize + keyLength, valueLength, iterable);
+        return loggable.getData().compareTo(getKeyRecordSize() + getKeyLength(), valueLength, iterable);
     }
 
     @Override
     @NotNull
     public ByteIterable getKey() {
-        return loggable.getData().subIterable(keyRecordSize, keyLength);
+        return loggable.getData().subIterable(getKeyRecordSize(), getKeyLength());
     }
 
     @Override
@@ -81,7 +81,15 @@ class LeafNode extends BaseLeafNode {
 
     @NotNull
     ByteIterableWithAddress getRawValue() {
-        return loggable.getData().clone(keyRecordSize + keyLength);
+        return loggable.getData().clone(getKeyRecordSize() + getKeyLength());
+    }
+
+    private int getKeyLength() {
+        return keyLength >>> 3;
+    }
+
+    private int getKeyRecordSize() {
+        return keyLength & 7;
     }
 
     protected void doReclaim(@NotNull BTreeReclaimTraverser context, final int leafIndex) {
