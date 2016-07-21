@@ -17,6 +17,7 @@ package jetbrains.exodus.bindings;
 
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.util.ByteIterableUtil;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 
@@ -28,6 +29,10 @@ import java.io.ByteArrayInputStream;
  * {@linkplain String} to {@linkplain ArrayByteIterable}, as well as to deserialize {@linkplain ByteIterable} to a value.
  * All the inheritors contain two static methods: one for getting {@linkplain ByteIterable} entry from a value,
  * and another for getting value from a {@linkplain ByteIterable} entry.
+ *
+ * <p>Bindings save the order of values. This means that the greater the value, the greater the {@code ByteIterable}
+ * entry. The order of the {@code ByteIterable} entries is defined by
+ * {@linkplain ByteIterableUtil#compare(ByteIterable, ByteIterable)}.
  *
  * @see BooleanBinding
  * @see ByteBinding

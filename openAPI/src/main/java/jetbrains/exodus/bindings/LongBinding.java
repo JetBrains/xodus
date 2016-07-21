@@ -29,8 +29,9 @@ import java.io.ByteArrayInputStream;
  * In addition to typical {@linkplain #longToEntry(long)} and {@linkplain #entryToLong(ByteIterable)} methods operating
  * with {@code ByteIterables} of length {@code 8}, {@code LongBinding} has a pair of methods for
  * serialization/deserialization of non-negative values to/from compressed entries:
- * {@linkplain #longToCompressedEntry(long)} and {@linkplain #compressedEntryToLong(ByteIterable)}. The less is a value
- * the shorter is its compressed entry. Sometimes compressed entries allow to significantly decrease database size.
+ * {@linkplain #longToCompressedEntry(long)} and {@linkplain #compressedEntryToLong(ByteIterable)}. The lower the value,
+ * the shorter the compressed entry. In some cases, compressed entries let you significantly decrease database size.
+ * Serialization of non-negative integers and longs to compressed entries also saves the order of values.
  *
  * @see ComparableBinding
  */
