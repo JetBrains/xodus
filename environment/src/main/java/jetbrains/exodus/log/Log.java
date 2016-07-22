@@ -53,6 +53,7 @@ public final class Log implements Closeable {
     final LogCache cache;
 
     private int logIdentity;
+    @SuppressWarnings("NullableProblems")
     @NotNull
     private TransactionalDataWriter bufferedWriter;
     /**
@@ -356,7 +357,7 @@ public final class Log implements Closeable {
         return bufferedWriter.getHighPage(alignedAddress);
     }
 
-    public final int getCachePageSize() {
+    final int getCachePageSize() {
         return cachePageSize;
     }
 
@@ -614,7 +615,7 @@ public final class Log implements Closeable {
         }
     }
 
-    public void truncateFile(final long address, final long length) {
+    private void truncateFile(final long address, final long length) {
         // truncate physical file
         reader.truncateBlock(address, length);
         // clear cache
@@ -632,8 +633,11 @@ public final class Log implements Closeable {
      * loggable can begin in one file and end in another. Also, this simplifies reading algorithm:
      * if we started reading by address it definitely should finish within current file.
      */
-    public void padWithNulls() {
+    void padWithNulls() {
         long bytesToWrite = fileLengthBound - getLastFileLength();
+        if (bytesToWrite == 0L) {
+            throw new ExodusException("Nothing to pad");
+        }
         if (bytesToWrite >= cachePageSize) {
             final ArrayByteIterable cachedTailPage = LogCache.getCachedTailPage(cachePageSize);
             if (cachedTailPage != null) {
@@ -645,8 +649,13 @@ public final class Log implements Closeable {
                 } while (bytesToWrite >= cachePageSize);
             }
         }
-        while (bytesToWrite-- > 0) {
-            writeContinuously(NullLoggable.create());
+        if (bytesToWrite == 0) {
+            bufferedWriter.commit();
+            createNewFileIfNecessary();
+        } else {
+            while (bytesToWrite-- > 0) {
+                writeContinuously(NullLoggable.create());
+            }
         }
     }
 
@@ -808,21 +817,7 @@ public final class Log implements Closeable {
             }
             bufferedWriter.commit();
             highAddress += recordLength;
-            if (getLastFileLength() == 0 || System.currentTimeMillis() > lastSyncTicks + config.getSyncPeriod()) {
-                flush(true);
-                if (getLastFileLength() == 0) {
-                    bufferedWriter.close();
-                    if (config.isFullFileReadonly()) {
-                        final Long lastFile;
-                        synchronized (blockAddrs) {
-                            lastFile = blockAddrs.getMaximum();
-                        }
-                        if (lastFile != null) {
-                            reader.getBlock(lastFile).setWritable(false);
-                        }
-                    }
-                }
-            }
+            createNewFileIfNecessary();
             return result;
         } catch (Throwable e) {
             highAddress = result;
@@ -831,6 +826,25 @@ public final class Log implements Closeable {
                 throw ExodusException.toExodusException(e);
             }
             return -1;
+        }
+    }
+
+    private void createNewFileIfNecessary() {
+        final boolean shouldCreateNewFile = getLastFileLength() == 0;
+        if (shouldCreateNewFile) {
+            flush(true);
+            bufferedWriter.close();
+            if (config.isFullFileReadonly()) {
+                final Long lastFile;
+                synchronized (blockAddrs) {
+                    lastFile = blockAddrs.getMaximum();
+                }
+                if (lastFile != null) {
+                    reader.getBlock(lastFile).setWritable(false);
+                }
+            }
+        } else if (System.currentTimeMillis() > lastSyncTicks + config.getSyncPeriod()) {
+            flush(true);
         }
     }
 
