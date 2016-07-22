@@ -16,7 +16,6 @@
 package jetbrains.exodus.env;
 
 import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.core.execution.locks.Latch;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -72,50 +71,5 @@ public class ReentrantTransactionDispatcherTest {
         Assert.assertEquals(8, dispatcher.getAvailablePermits());
         dispatcher.downgradeTransaction(Thread.currentThread(), 2);
         Assert.assertEquals(9, dispatcher.getAvailablePermits());
-    }
-
-
-    @Test
-    public void fairness() throws InterruptedException {
-        final int maxTransactions = 20;
-        final ReentrantTransactionDispatcher dispatcher = new ReentrantTransactionDispatcher(maxTransactions);
-        dispatcher.acquireTransaction(Thread.currentThread());
-        dispatcher.acquireTransaction(Thread.currentThread());
-        final Latch latch = Latch.create();
-        final int[] count = {0};
-        latch.acquire();
-        final Thread anotherExclusiveThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                latch.release();
-                final Thread thread = Thread.currentThread();
-                final int permits = dispatcher.acquireExclusiveTransaction(thread);
-                Assert.assertEquals(maxTransactions, permits);
-                Assert.assertEquals(0, dispatcher.getAvailablePermits());
-                Assert.assertEquals(0, count[0]);
-                dispatcher.releaseTransaction(thread, maxTransactions);
-            }
-        });
-        anotherExclusiveThread.start();
-        latch.acquire();
-        for (int i = 0; i < maxTransactions; ++i) {
-            final int ii = i;
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    latch.release();
-                    final Thread thread = Thread.currentThread();
-                    dispatcher.acquireTransaction(thread);
-                    Assert.assertEquals(count[0]++, ii);
-                    dispatcher.releaseTransaction(thread, 1);
-                }
-            }).start();
-            latch.acquire();
-        }
-        dispatcher.releaseTransaction(Thread.currentThread(), 1);
-        dispatcher.releaseTransaction(Thread.currentThread(), 1);
-        anotherExclusiveThread.join();
-        Thread.sleep(1000);
-        Assert.assertEquals(maxTransactions, dispatcher.getAvailablePermits());
     }
 }
