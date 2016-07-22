@@ -194,7 +194,7 @@ public class EntityIdArrayCachedInstanceIterable extends CachedInstanceIterable 
 
     @Override
     public int getEntityTypeId() {
-        if (singleTypeId) {
+        if (singleTypeId && typeIds.length > 0) {
             return typeIds[0];
         }
         return super.getEntityTypeId();
