@@ -21,28 +21,17 @@ public final class NullLoggable extends RandomAccessLoggableImpl {
 
     public static final byte TYPE = 0;
 
-    private static final NullLoggable PROTOTYPE = new NullLoggable(TYPE);
+    private static final NullLoggable PROTOTYPE = new NullLoggable(Loggable.NULL_ADDRESS);
 
     NullLoggable(final long address) {
         super(address, TYPE, ByteIterableWithAddress.getEmpty(address + 1), 0, NO_STRUCTURE_ID);
-    }
-
-    @NotNull
-    @Override
-    public RandomAccessByteIterable getData() {
-        throw new IllegalStateException("Can't access NullLoggable.getData()");
-    }
-
-    @Override
-    public int getDataLength() {
-        throw new IllegalStateException("Can't access NullLoggable.getDataLength()");
     }
 
     public static NullLoggable create() {
         return PROTOTYPE;
     }
 
-    public static boolean isNullLoggable(final byte type) {
+    static boolean isNullLoggable(final byte type) {
         return type == TYPE;
     }
 

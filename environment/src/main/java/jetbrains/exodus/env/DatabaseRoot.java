@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.env;
 
+import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.util.LightOutputStream;
@@ -22,7 +23,7 @@ import org.jetbrains.annotations.NotNull;
 
 final class DatabaseRoot extends RandomAccessLoggableImpl {
 
-    public static final byte DATABASE_ROOT_TYPE = 1;
+    static final byte DATABASE_ROOT_TYPE = 1;
 
     private static final long MAGIC_DIFF = 199L;
     private static final LoggableFactory ROOT_FACTORY = new LoggableFactory() {
@@ -61,11 +62,11 @@ final class DatabaseRoot extends RandomAccessLoggableImpl {
         return rootAddress;
     }
 
-    public int getLastStructureId() {
+    int getLastStructureId() {
         return lastStructureId;
     }
 
-    public boolean isValid() {
+    boolean isValid() {
         return isValid;
     }
 
@@ -73,12 +74,11 @@ final class DatabaseRoot extends RandomAccessLoggableImpl {
         LoggableFactory.registerLoggable(DATABASE_ROOT_TYPE, ROOT_FACTORY);
     }
 
-    static Loggable toLoggable(final long rootAddress, final int lastStructureId) {
+    static ByteIterable asByteIterable(final long rootAddress, final int lastStructureId) {
         final LightOutputStream output = new LightOutputStream(20);
         CompressedUnsignedLongByteIterable.fillBytes(rootAddress, output);
         CompressedUnsignedLongByteIterable.fillBytes(lastStructureId, output);
         CompressedUnsignedLongByteIterable.fillBytes(rootAddress + lastStructureId + MAGIC_DIFF, output);
-        return new LoggableToWrite(DATABASE_ROOT_TYPE, output.asArrayByteIterable());
+        return output.asArrayByteIterable();
     }
-
 }

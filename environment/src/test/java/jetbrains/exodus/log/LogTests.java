@@ -312,7 +312,7 @@ public class LogTests extends LogTestsBase {
         initLog(4, 1024 * 4);
         final int count = 10;
         for (int i = 0; i < count; ++i) {
-            getLog().write(createDataLoggable(i));
+            getLog().write((byte) 127, Loggable.NO_STRUCTURE_ID, CompressedUnsignedLongByteIterable.getIterable(i));
         }
         getLog().flush();
         final Iterator<RandomAccessLoggable> it = getLog().getLoggableIterator(0);
@@ -331,7 +331,7 @@ public class LogTests extends LogTestsBase {
         initLog(4, 1024 * 4);
         final int count = 10;
         for (int i = 0; i < count; ++i) {
-            getLog().write(createDataLoggable(i));
+            getLog().write((byte) 127, Loggable.NO_STRUCTURE_ID, CompressedUnsignedLongByteIterable.getIterable(i));
         }
         final Iterator<RandomAccessLoggable> it = getLog().getLoggableIterator(0);
         int i = 0;
@@ -373,7 +373,7 @@ public class LogTests extends LogTestsBase {
         initLog(fileSize, pageSize);
         final int count = 50000;
         for (int i = 0; i < count; ++i) {
-            final long addr = getLog().write(createDataLoggable(i));
+            final long addr = getLog().write((byte) 127, Loggable.NO_STRUCTURE_ID, CompressedUnsignedLongByteIterable.getIterable(i));
             Assert.assertEquals(i, (int) CompressedUnsignedLongByteIterable.getLong(getLog().read(addr).getData()));
         }
     }
@@ -383,7 +383,7 @@ public class LogTests extends LogTestsBase {
         final int count = 50000;
         final LongArrayList addrs = new LongArrayList();
         for (int i = 0; i < count; ++i) {
-            addrs.add(getLog().write(createDataLoggable(i)));
+            addrs.add(getLog().write((byte) 127, Loggable.NO_STRUCTURE_ID, CompressedUnsignedLongByteIterable.getIterable(i)));
         }
         for (int i = 0; i < count; ++i) {
             Assert.assertEquals(i, (int) CompressedUnsignedLongByteIterable.getLong(getLog().read(addrs.get(i)).getData()));
@@ -395,7 +395,7 @@ public class LogTests extends LogTestsBase {
         final int count = 50000;
         final LongHashMap<Integer> addrs = new LongHashMap<>();
         for (int i = 0; i < count; ++i) {
-            addrs.put(getLog().write(createDataLoggable(i)), valueOf(i));
+            addrs.put(getLog().write((byte) 127, Loggable.NO_STRUCTURE_ID, CompressedUnsignedLongByteIterable.getIterable(i)), valueOf(i));
         }
         for (Long addr : addrs.keySet()) {
             Assert.assertEquals((int) addrs.get(addr), (int) CompressedUnsignedLongByteIterable.getLong(getLog().read(addr).getData()));
@@ -403,12 +403,8 @@ public class LogTests extends LogTestsBase {
         }
     }
 
-    private static LoggableToWrite createDataLoggable(long data) {
-        return new LoggableToWrite((byte) 127, CompressedUnsignedLongByteIterable.getIterable(data), Loggable.NO_STRUCTURE_ID);
-    }
-
-    private static LoggableToWrite createNoDataLoggable(byte type) {
-        return new LoggableToWrite(type, ByteIterable.EMPTY, Loggable.NO_STRUCTURE_ID);
+    private static TestLoggable createNoDataLoggable(byte type) {
+        return new TestLoggable(type, ByteIterable.EMPTY, Loggable.NO_STRUCTURE_ID);
     }
 
 }

@@ -72,7 +72,7 @@ final class BTreeDupMutable extends BTreeMutable {
         if (log.isLastFileAddress(startAddress)) {
             sizeIterable = CompressedUnsignedLongByteIterable.getIterable(size << 1);
             iterables = new ByteIterable[]{keyIterable, key, sizeIterable, rootDataIterable};
-            result = log.tryWrite(new LoggableToWrite(type, new CompoundByteIterable(iterables), structureId));
+            result = log.tryWrite(type, structureId, new CompoundByteIterable(iterables));
             if (result >= 0) {
                 address = result;
                 return result;
@@ -90,12 +90,12 @@ final class BTreeDupMutable extends BTreeMutable {
         final ByteIterable offsetIterable =
                 CompressedUnsignedLongByteIterable.getIterable(log.getHighAddress() - startAddress);
         iterables = new ByteIterable[]{keyIterable, key, sizeIterable, offsetIterable, rootDataIterable};
-        final Loggable loggable = new LoggableToWrite(type, new CompoundByteIterable(iterables), structureId);
-        result = canRetry ? log.tryWrite(loggable) : log.writeContinuously(loggable);
+        final ByteIterable data = new CompoundByteIterable(iterables);
+        result = canRetry ? log.tryWrite(type, structureId, data) : log.writeContinuously(type, structureId, data);
         if (result < 0) {
             if (canRetry) {
                 iterables[3] = CompressedUnsignedLongByteIterable.getIterable(log.getHighAddress() - startAddress);
-                result = log.writeContinuously(new LoggableToWrite(type, new CompoundByteIterable(iterables), structureId));
+                result = log.writeContinuously(type, structureId, new CompoundByteIterable(iterables));
 
                 if (result < 0) {
                     throw new TooBigLoggableException();

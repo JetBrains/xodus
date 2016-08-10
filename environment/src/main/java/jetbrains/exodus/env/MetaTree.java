@@ -84,7 +84,8 @@ final class MetaTree {
         log.setHighAddress(0);
         final ITree resultTree = getEmptyMetaTree(env);
         final long rootAddress = resultTree.getMutableCopy().save();
-        final long root = log.write(DatabaseRoot.toLoggable(rootAddress, EnvironmentImpl.META_TREE_ID));
+        final long root = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
+                DatabaseRoot.asByteIterable(rootAddress, EnvironmentImpl.META_TREE_ID));
         log.flush();
         return new Pair<>(new MetaTree(resultTree, root, log.getHighAddress()), EnvironmentImpl.META_TREE_ID);
     }
@@ -140,7 +141,8 @@ final class MetaTree {
         final long newMetaTreeAddress = metaTree.save();
         final Log log = env.getLog();
         final int lastStructureId = env.getLastStructureId();
-        final long dbRootAddress = log.write(DatabaseRoot.toLoggable(newMetaTreeAddress, lastStructureId));
+        final long dbRootAddress = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
+                DatabaseRoot.asByteIterable(newMetaTreeAddress, lastStructureId));
         log.flush();
         final BTree resultTree = env.loadMetaTree(newMetaTreeAddress);
         final RandomAccessLoggable dbRootLoggable = log.read(dbRootAddress);
