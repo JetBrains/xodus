@@ -21,6 +21,9 @@ import jetbrains.exodus.core.dataStructures.LongObjectCache;
 import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import org.jetbrains.annotations.NotNull;
 
+import static jetbrains.exodus.core.dataStructures.LongObjectCacheBase.CriticalSection;
+import static jetbrains.exodus.core.dataStructures.LongObjectCacheBase.DEFAULT_SIZE;
+
 final class SeparateLogCache extends LogCache {
 
     @NotNull
@@ -39,7 +42,7 @@ final class SeparateLogCache extends LogCache {
         super(memoryUsagePercentage, pageSize);
         if (memoryUsage == Long.MAX_VALUE) {
             pagesCache = nonBlocking ?
-                    new ConcurrentLongObjectCache<ArrayByteIterable>(LongObjectCacheBase.DEFAULT_SIZE, CONCURRENT_CACHE_GENERATION_COUNT) :
+                    new ConcurrentLongObjectCache<ArrayByteIterable>(DEFAULT_SIZE, CONCURRENT_CACHE_GENERATION_COUNT) :
                     new LongObjectCache<ArrayByteIterable>();
         } else {
             final int pagesCount = (int) (memoryUsage / (pageSize +
@@ -52,11 +55,8 @@ final class SeparateLogCache extends LogCache {
 
     @Override
     public void clear() {
-        pagesCache.lock();
-        try {
+        try (CriticalSection ignored = pagesCache.newCriticalSection()) {
             pagesCache.clear();
-        } finally {
-            pagesCache.unlock();
         }
     }
 
@@ -89,22 +89,16 @@ final class SeparateLogCache extends LogCache {
 
     @Override
     protected void removePage(@NotNull final Log log, final long pageAddress) {
-        pagesCache.lock();
-        try {
+        try (CriticalSection ignored = pagesCache.newCriticalSection()) {
             pagesCache.remove(pageAddress >> pageSizeLogarithm);
-        } finally {
-            pagesCache.unlock();
         }
     }
 
     private void cachePage(final long cacheKey, @NotNull final ArrayByteIterable page) {
-        pagesCache.lock();
-        try {
+        try (CriticalSection ignored = pagesCache.newCriticalSection()) {
             if (pagesCache.getObject(cacheKey) == null) {
                 pagesCache.cacheObject(cacheKey, postProcessTailPage(page));
             }
-        } finally {
-            pagesCache.unlock();
         }
     }
 }

@@ -17,6 +17,7 @@ package jetbrains.exodus.io;
 
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.LongObjectCache;
+import jetbrains.exodus.core.dataStructures.LongObjectCacheBase.CriticalSection;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.util.SharedRandomAccessFile;
 import org.jetbrains.annotations.NotNull;
@@ -140,12 +141,9 @@ public class FileDataReader implements DataReader {
     }
 
     private void removeFileFromFileCache(long blockAddress) {
-        fileCache.lock();
         final SharedRandomAccessFile f;
-        try {
+        try (CriticalSection ignored = fileCache.newCriticalSection()) {
             f = fileCache.remove(blockAddress);
-        } finally {
-            fileCache.unlock();
         }
         try {
             if (f != null) {
@@ -196,31 +194,25 @@ public class FileDataReader implements DataReader {
 
         @NotNull
         private SharedRandomAccessFile getSharedRandomAccessFile(@NotNull final String mode) throws IOException {
-            fileCache.lock();
             SharedRandomAccessFile f;
-            try {
+            try (CriticalSection ignored = fileCache.newCriticalSection()) {
                 f = fileCache.tryKey(address);
                 if (f != null && f.employ() > 1) {
                     f.close();
                     f = null;
                 }
-            } finally {
-                fileCache.unlock();
             }
             if (f == null) {
                 f = new SharedRandomAccessFile(this, mode);
                 SharedRandomAccessFile obsolete = null;
-                fileCache.lock();
-                try {
+                try (CriticalSection ignored = fileCache.newCriticalSection()) {
                     if (fileCache.getObject(address) == null) {
                         f.employ();
                         obsolete = fileCache.cacheObject(address, f);
                     }
-                } finally {
-                    fileCache.unlock();
-                    if (obsolete != null) {
-                        obsolete.close();
-                    }
+                }
+                if (obsolete != null) {
+                    obsolete.close();
                 }
             }
             return f;

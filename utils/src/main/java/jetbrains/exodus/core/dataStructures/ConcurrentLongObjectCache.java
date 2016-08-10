@@ -135,6 +135,11 @@ public class ConcurrentLongObjectCache<V> extends LongObjectCacheBase<V> {
         throw new UnsupportedOperationException();
     }
 
+    @Override
+    public CriticalSection newCriticalSection() {
+        return TRIVIAL_CRITICAL_SECTION;
+    }
+
     private static class CacheEntry<V> {
 
         private static final CacheEntry NULL_OBJECT = new CacheEntry(Long.MIN_VALUE, null);
