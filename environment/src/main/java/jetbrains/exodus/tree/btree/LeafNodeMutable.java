@@ -19,7 +19,6 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterableBase;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.log.Loggable;
-import jetbrains.exodus.log.LoggableToWrite;
 import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
@@ -65,8 +64,7 @@ class LeafNodeMutable extends BaseLeafNodeMutable {
         CompressedUnsignedLongByteIterable.fillBytes(keyLength, output);
         ByteIterableBase.fillBytes(key, output);
         ByteIterableBase.fillBytes(value, output);
-        address = tree.getLog().write(new LoggableToWrite(
-                ((BTreeMutable) tree).getLeafType(), output.asArrayByteIterable(), tree.getStructureId()));
+        address = tree.getLog().write(((BTreeMutable) tree).getLeafType(), tree.getStructureId(), output.asArrayByteIterable());
         return address;
     }
 

@@ -22,6 +22,12 @@ public abstract class ObjectCacheBase<K, V> extends CacheHitRateable {
     public static final int DEFAULT_SIZE = 8192;
     public static final int MIN_SIZE = 4;
 
+    static final CriticalSection TRIVIAL_CRITICAL_SECTION = new CriticalSection() {
+        @Override
+        public void close() {
+        }
+    };
+
     protected final int size;
 
     protected ObjectCacheBase(final int size) {
@@ -59,11 +65,8 @@ public abstract class ObjectCacheBase<K, V> extends CacheHitRateable {
     }
 
     public V tryKeyLocked(@NotNull final K key) {
-        lock();
-        try {
+        try (CriticalSection ignored = newCriticalSection()) {
             return tryKey(key);
-        } finally {
-            unlock();
         }
     }
 
@@ -96,11 +99,25 @@ public abstract class ObjectCacheBase<K, V> extends CacheHitRateable {
 
     @Override
     public void adjustHitRate() {
-        lock();
-        try {
+        try (CriticalSection ignored = newCriticalSection()) {
             super.adjustHitRate();
-        } finally {
-            unlock();
         }
+    }
+
+    public CriticalSection newCriticalSection() {
+        lock();
+        return new CriticalSection() {
+
+            @Override
+            public void close() {
+                unlock();
+            }
+        };
+    }
+
+    public interface CriticalSection extends AutoCloseable {
+
+        @Override
+        void close();
     }
 }

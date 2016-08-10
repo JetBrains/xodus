@@ -85,6 +85,11 @@ public class FakeObjectCache<K, V> extends ObjectCacheBase<K, V> {
     }
 
     @Override
+    public CriticalSection newCriticalSection() {
+        return TRIVIAL_CRITICAL_SECTION;
+    }
+
+    @Override
     protected void incAttempts() {
         // do nothing
     }

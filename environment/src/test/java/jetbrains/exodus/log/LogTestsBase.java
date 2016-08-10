@@ -30,14 +30,14 @@ import org.junit.Before;
 import java.io.File;
 import java.io.IOException;
 
-public class LogTestsBase {
+class LogTestsBase {
 
     @SuppressWarnings({"FieldAccessedSynchronizedAndUnsynchronized"})
     protected volatile Log log;
     private File logDirectory = null;
     protected DataReader reader;
     protected DataWriter writer;
-    protected TeamCityMessenger myMessenger = null;
+    private TeamCityMessenger myMessenger = null;
 
     private static final String TEAMCITY_MESSAGES = "teamcity.messages";
 
@@ -87,19 +87,15 @@ public class LogTestsBase {
         return new Pair<DataReader, DataWriter>(new FileDataReader(logDirectory, 16), new FileDataWriter(logDirectory));
     }
 
-    protected void initLog(final long fileSize) {
+    void initLog(final long fileSize) {
         initLog(new LogConfig().setFileSize(fileSize));
     }
 
-    protected void initLog(final long fileSize, final int cachePageSize) {
+    void initLog(final long fileSize, final int cachePageSize) {
         initLog(new LogConfig().setFileSize(fileSize).setCachePageSize(cachePageSize));
     }
 
-    protected void initLog(final long fileSize, final int cachePageSize, final int memoryUsagePercentage) {
-        initLog(new LogConfig().setFileSize(fileSize).setCachePageSize(cachePageSize).setMemoryUsagePercentage(memoryUsagePercentage));
-    }
-
-    protected void initLog(final LogConfig config) {
+    void initLog(final LogConfig config) {
         if (log == null) {
             synchronized (this) {
                 if (log == null) {
@@ -122,22 +118,22 @@ public class LogTestsBase {
         return log;
     }
 
-    protected void closeLog() throws IOException {
+    void closeLog() throws IOException {
         if (log != null) {
             log.close();
             log = null;
         }
     }
 
-    protected File getLogDirectory() {
+    File getLogDirectory() {
         if (logDirectory == null) {
             logDirectory = TestUtil.createTempDir();
         }
         return logDirectory;
     }
 
-    public static LoggableToWrite createOneKbLoggable() {
-        return new LoggableToWrite((byte) 126, new ArrayByteIterable(new byte[1024], 1024), Loggable.NO_STRUCTURE_ID);
+    static TestLoggable createOneKbLoggable() {
+        return new TestLoggable((byte) 126, new ArrayByteIterable(new byte[1024], 1024), Loggable.NO_STRUCTURE_ID);
     }
 
 }

@@ -121,12 +121,12 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
                 flag = ReclaimFlag.RECLAIM;
             } else {
                 final ByteIterable[] iterables = getByteIterables(flag);
-                long result = log.tryWrite(new LoggableToWrite(type, new CompoundByteIterable(iterables), structureId));
+                long result = log.tryWrite(type, structureId, new CompoundByteIterable(iterables));
                 if (result < 0) {
                     iterables[0] = CompressedUnsignedLongByteIterable.getIterable(
                             (size << 1) + ReclaimFlag.RECLAIM.value
                     );
-                    result = log.writeContinuously(new LoggableToWrite(type, new CompoundByteIterable(iterables), structureId));
+                    result = log.writeContinuously(type, structureId, new CompoundByteIterable(iterables));
 
                     if (result < 0) {
                         throw new TooBigLoggableException();
@@ -135,7 +135,7 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
                 return result;
             }
         }
-        return log.write(new LoggableToWrite(type, new CompoundByteIterable(getByteIterables(flag)), structureId));
+        return log.write(type, structureId, new CompoundByteIterable(getByteIterables(flag)));
     }
 
     protected abstract byte getType();

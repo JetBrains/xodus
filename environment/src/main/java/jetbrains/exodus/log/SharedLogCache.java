@@ -22,6 +22,8 @@ import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import org.jetbrains.annotations.NotNull;
 
+import static jetbrains.exodus.core.dataStructures.LongObjectCacheBase.CriticalSection;
+
 final class SharedLogCache extends LogCache {
 
     @NotNull
@@ -93,22 +95,16 @@ final class SharedLogCache extends LogCache {
     @Override
     protected void removePage(@NotNull final Log log, final long pageAddress) {
         final long key = getLogPageFingerPrint(log.getIdentity(), pageAddress >> pageSizeLogarithm);
-        pagesCache.lock();
-        try {
+        try (CriticalSection ignored = pagesCache.newCriticalSection()) {
             pagesCache.remove(key);
-        } finally {
-            pagesCache.unlock();
         }
     }
 
     private void cachePage(final long key, final int logIdentity, final long address, @NotNull final ArrayByteIterable page) {
-        pagesCache.lock();
-        try {
+        try (CriticalSection ignored = pagesCache.newCriticalSection()) {
             if (pagesCache.getObject(key) == null) {
                 pagesCache.cacheObject(key, new CachedValue(logIdentity, address, postProcessTailPage(page)));
             }
-        } finally {
-            pagesCache.unlock();
         }
     }
 

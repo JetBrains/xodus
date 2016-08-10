@@ -28,7 +28,7 @@ public abstract class SoftObjectCacheBase<K, V> extends ObjectCacheBase<K, V> {
     private final int chunkSize;
     private final SoftReference<ObjectCacheBase<K, V>>[] chunks;
 
-    protected SoftObjectCacheBase(int cacheSize) {
+    SoftObjectCacheBase(int cacheSize) {
         super(cacheSize);
         if (cacheSize < MIN_SIZE) {
             cacheSize = MIN_SIZE;
@@ -70,11 +70,8 @@ public abstract class SoftObjectCacheBase<K, V> extends ObjectCacheBase<K, V> {
         if (chunk == null) {
             return null;
         }
-        chunk.lock();
-        try {
+        try (CriticalSection ignored = chunk.newCriticalSection()) {
             return chunk.getObject(key);
-        } finally {
-            chunk.unlock();
         }
     }
 
@@ -82,11 +79,8 @@ public abstract class SoftObjectCacheBase<K, V> extends ObjectCacheBase<K, V> {
     public V cacheObject(@NotNull final K key, @NotNull final V value) {
         final ObjectCacheBase<K, V> chunk = getChunk(key, true);
         assert chunk != null;
-        chunk.lock();
-        try {
+        try (CriticalSection ignored = chunk.newCriticalSection()) {
             return chunk.cacheObject(key, value);
-        } finally {
-            chunk.unlock();
         }
     }
 
@@ -96,17 +90,19 @@ public abstract class SoftObjectCacheBase<K, V> extends ObjectCacheBase<K, V> {
         if (chunk == null) {
             return null;
         }
-        chunk.lock();
-        try {
+        try (CriticalSection ignored = chunk.newCriticalSection()) {
             return chunk.remove(key);
-        } finally {
-            chunk.unlock();
         }
     }
 
     @Override
     public int count() {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public CriticalSection newCriticalSection() {
+        return TRIVIAL_CRITICAL_SECTION;
     }
 
     static int computeNumberOfChunks(final int cacheSize) {

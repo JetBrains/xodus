@@ -432,8 +432,12 @@ public final class Log implements Closeable {
      * @return address where the loggable was placed.
      */
     public long tryWrite(final Loggable loggable) {
+        return tryWrite(loggable.getType(), loggable.getStructureId(), loggable.getData());
+    }
+
+    public long tryWrite(final byte type, final int structureId, final ByteIterable data) {
         // allow new file creation only if new file starts loggable
-        long result = writeContinuously(loggable);
+        long result = writeContinuously(type, structureId, data);
         if (result < 0) {
             // rollback loggable and pad last file with nulls
             padWithNulls();
@@ -449,12 +453,16 @@ public final class Log implements Closeable {
      * @return address where the loggable was placed.
      */
     public long write(final Loggable loggable) {
+        return write(loggable.getType(), loggable.getStructureId(), loggable.getData());
+    }
+
+    public long write(final byte type, final int structureId, final ByteIterable data) {
         // allow new file creation only if new file starts loggable
-        long result = writeContinuously(loggable);
+        long result = writeContinuously(type, structureId, data);
         if (result < 0) {
             // rollback loggable and pad last file with nulls
             padWithNulls();
-            result = writeContinuously(loggable);
+            result = writeContinuously(type, structureId, data);
             if (result < 0) {
                 throw new TooBigLoggableException();
             }
@@ -766,8 +774,11 @@ public final class Log implements Closeable {
      * @return address where the loggable was placed or less than zero value if the loggable can't be
      * written continuously in current appendable file.
      */
-    @SuppressWarnings({"ThrowCaughtLocally", "OverlyLongMethod"})
     public long writeContinuously(final Loggable loggable) {
+        return writeContinuously(loggable.getType(), loggable.getStructureId(), loggable.getData());
+    }
+
+    public long writeContinuously(final byte type, final int structureId, final ByteIterable data) {
         final long result = highAddress;
 
         // begin of test-only code
@@ -797,18 +808,16 @@ public final class Log implements Closeable {
         }
         try {
             bufferedWriter.setMaxBytesToWrite((int) (fileLengthBound - getLastFileLength()));
-            final byte type = loggable.getType();
             bufferedWriter.write((byte) (type ^ 0x80));
             int recordLength = 1;
             // NullLoggable doesn't contain data
             if (!NullLoggable.isNullLoggable(type)) {
-                recordLength += writeByteIterable(bufferedWriter, CompressedUnsignedLongByteIterable.getIterable(loggable.getStructureId()));
-                final int length = loggable.getDataLength();
+                recordLength += writeByteIterable(bufferedWriter, CompressedUnsignedLongByteIterable.getIterable(structureId));
+                final int length = data.getLength();
                 if (length < 0) {
                     throw new ExodusException("Negative length of loggable data");
                 }
                 recordLength += writeByteIterable(bufferedWriter, CompressedUnsignedLongByteIterable.getIterable(length));
-                final ByteIterable data = loggable.getData();
                 final int actualLength = writeByteIterable(bufferedWriter, data);
                 if (actualLength != length) {
                     throw new IllegalArgumentException("Loggable contains invalid length descriptor");

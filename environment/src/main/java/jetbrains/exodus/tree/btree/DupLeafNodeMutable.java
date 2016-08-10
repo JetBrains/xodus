@@ -19,7 +19,6 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.CompoundByteIterable;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.log.Loggable;
-import jetbrains.exodus.log.LoggableToWrite;
 import jetbrains.exodus.tree.ITree;
 import org.jetbrains.annotations.NotNull;
 
@@ -65,12 +64,12 @@ class DupLeafNodeMutable extends BaseLeafNodeMutable {
         if (address != Loggable.NULL_ADDRESS) {
             throw new IllegalStateException("Leaf already saved");
         }
-        address = mainTree.getLog().write(new LoggableToWrite(((BTreeMutable) mainTree).getLeafType(),
+        address = mainTree.getLog().write(((BTreeMutable) mainTree).getLeafType(),
+                mainTree.getStructureId(),
                 new CompoundByteIterable(new ByteIterable[]{
                         CompressedUnsignedLongByteIterable.getIterable(key.getLength()),
                         key
-                }), mainTree.getStructureId()
-        ));
+                }));
         return address;
     }
 

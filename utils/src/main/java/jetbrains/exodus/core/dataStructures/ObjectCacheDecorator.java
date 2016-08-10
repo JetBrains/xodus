@@ -51,7 +51,7 @@ public abstract class ObjectCacheDecorator<K, V> extends ObjectCacheBase<K, V> {
 
     @Override
     public void unlock() {
-        getCache(false).lock();
+        getCache(false).unlock();
     }
 
     public V cacheObject(@NotNull K key, @NotNull V x) {
@@ -92,6 +92,11 @@ public abstract class ObjectCacheDecorator<K, V> extends ObjectCacheBase<K, V> {
     @Override
     public float hitRate() {
         return getCache(false).hitRate();
+    }
+
+    @Override
+    public CriticalSection newCriticalSection() {
+        return getCache(true).newCriticalSection();
     }
 
     @Override

@@ -20,7 +20,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.lang.ref.SoftReference;
 
-public class SoftLongObjectCache<V> extends CacheHitRateable {
+public class SoftLongObjectCache<V> extends LongObjectCacheBase<V> {
 
     public static final int DEFAULT_SIZE = 4096;
     public static final int MIN_SIZE = 16;
@@ -33,6 +33,7 @@ public class SoftLongObjectCache<V> extends CacheHitRateable {
     }
 
     public SoftLongObjectCache(int cacheSize) {
+        super(cacheSize);
         if (cacheSize < MIN_SIZE) {
             cacheSize = MIN_SIZE;
         }
@@ -42,12 +43,22 @@ public class SoftLongObjectCache<V> extends CacheHitRateable {
         clear();
     }
 
+    @Override
     public void clear() {
         for (int i = 0; i < chunks.length; i++) {
             chunks[i] = null;
         }
     }
 
+    @Override
+    public void lock() {
+    }
+
+    @Override
+    public void unlock() {
+    }
+
+    @Override
     public V tryKey(final long key) {
         incAttempts();
         final LongObjectCache<V> chunk = getChunk(key, false);
@@ -58,22 +69,33 @@ public class SoftLongObjectCache<V> extends CacheHitRateable {
         return result;
     }
 
+    @Override
     public V getObject(final long key) {
         final LongObjectCache<V> chunk = getChunk(key, false);
         return chunk == null ? null : chunk.getObject(key);
     }
 
-    public void cacheObject(final long key, @NotNull final V value) {
+    @Override
+    public V cacheObject(final long key, @NotNull final V value) {
         final LongObjectCache<V> chunk = getChunk(key, true);
         assert chunk != null;
-        chunk.cacheObject(key, value);
+        return chunk.cacheObject(key, value);
     }
 
-    public void remove(final long key) {
+    @Override
+    public V remove(final long key) {
         final LongObjectCache<V> chunk = getChunk(key, false);
-        if (chunk != null) {
-            chunk.remove(key);
-        }
+        return chunk == null ? null : chunk.remove(key);
+    }
+
+    @Override
+    public int count() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public CriticalSection newCriticalSection() {
+        return TRIVIAL_CRITICAL_SECTION;
     }
 
     @Nullable

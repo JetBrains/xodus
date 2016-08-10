@@ -23,7 +23,11 @@ public abstract class LongObjectCacheBase<V> extends CacheHitRateable {
     public static final int DEFAULT_SIZE = 8192;
     public static final int MIN_SIZE = 4;
 
-    private static final short ADAPTIVE_ATTEMPTS_THRESHOLD = 20000;
+    static final CriticalSection TRIVIAL_CRITICAL_SECTION = new CriticalSection() {
+        @Override
+        public void close() {
+        }
+    };
 
     protected final int size;
 
@@ -54,11 +58,8 @@ public abstract class LongObjectCacheBase<V> extends CacheHitRateable {
     }
 
     public V tryKeyLocked(final long key) {
-        lock();
-        try {
+        try (CriticalSection ignored = newCriticalSection()) {
             return tryKey(key);
-        } finally {
-            unlock();
         }
     }
 
@@ -89,11 +90,25 @@ public abstract class LongObjectCacheBase<V> extends CacheHitRateable {
 
     @Override
     public void adjustHitRate() {
-        lock();
-        try {
+        try (CriticalSection ignored = newCriticalSection()) {
             super.adjustHitRate();
-        } finally {
-            unlock();
         }
+    }
+
+    public CriticalSection newCriticalSection() {
+        lock();
+        return new CriticalSection() {
+
+            @Override
+            public void close() {
+                unlock();
+            }
+        };
+    }
+
+    public interface CriticalSection extends AutoCloseable {
+
+        @Override
+        void close();
     }
 }

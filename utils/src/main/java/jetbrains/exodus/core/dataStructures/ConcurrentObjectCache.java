@@ -132,6 +132,11 @@ public class ConcurrentObjectCache<K, V> extends ObjectCacheBase<K, V> {
         throw new UnsupportedOperationException();
     }
 
+    @Override
+    public CriticalSection newCriticalSection() {
+        return TRIVIAL_CRITICAL_SECTION;
+    }
+
     private static class CacheEntry<K, V> {
 
         @NotNull

@@ -296,7 +296,7 @@ class MutableNode extends NodeBase {
         final long startAddress = context.startAddress;
         long result;
         if (!isRoot()) {
-            result = log.write(new LoggableToWrite(type, mainIterable, structureId));
+            result = log.write(type, structureId, mainIterable);
             // save address of the first saved loggable
             if (startAddress == Loggable.NULL_ADDRESS) {
                 context.startAddress = result;
@@ -309,7 +309,7 @@ class MutableNode extends NodeBase {
         // In that case, startAddress is undefined, i.e. no other child is saved before root.
         if (startAddress == Loggable.NULL_ADDRESS) {
             iterables[1] = mainIterable;
-            result = log.write(new LoggableToWrite(type, new CompoundByteIterable(iterables, 2), structureId));
+            result = log.write(type, structureId, new CompoundByteIterable(iterables, 2));
             return result;
         }
         // Tree is saved with several loggables. Is it saved in a single file?
@@ -320,7 +320,7 @@ class MutableNode extends NodeBase {
             iterables[2] = mainIterable;
         } else {
             iterables[1] = mainIterable;
-            result = log.tryWrite(new LoggableToWrite(type, new CompoundByteIterable(iterables, 2), structureId));
+            result = log.tryWrite(type, structureId, new CompoundByteIterable(iterables, 2));
             if (result >= 0) {
                 return result;
             }
@@ -329,13 +329,12 @@ class MutableNode extends NodeBase {
         }
         type += PatriciaTreeBase.ROOT_BIT_WITH_BACKREF;
         iterables[pos] = CompressedUnsignedLongByteIterable.getIterable(log.getHighAddress() - startAddress);
-        final Loggable loggable = new LoggableToWrite(type, new CompoundByteIterable(iterables, pos + 2), structureId);
-        result = singleFile ? log.writeContinuously(loggable) : log.tryWrite(loggable);
+        final ByteIterable data = new CompoundByteIterable(iterables, pos + 2);
+        result = singleFile ? log.writeContinuously(type, structureId, data) : log.tryWrite(type, structureId, data);
         if (result < 0) {
             if (!singleFile) {
                 iterables[pos] = CompressedUnsignedLongByteIterable.getIterable(log.getHighAddress() - startAddress);
-                result = log.writeContinuously(
-                        new LoggableToWrite(type, new CompoundByteIterable(iterables, pos + 2), structureId));
+                result = log.writeContinuously(type, structureId, new CompoundByteIterable(iterables, pos + 2));
                 if (result >= 0) {
                     return result;
                 }

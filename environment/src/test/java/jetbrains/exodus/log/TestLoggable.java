@@ -21,18 +21,14 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Loggable for writing
  */
-public final class LoggableToWrite implements Loggable {
+final class TestLoggable implements Loggable {
 
     private final byte type;
     private final int structureId;
     @NotNull
     private final ByteIterable data;
 
-    public LoggableToWrite(final byte type, @NotNull final ByteIterable data) {
-        this(type, data, NO_STRUCTURE_ID);
-    }
-
-    public LoggableToWrite(final byte type, @NotNull final ByteIterable data, final int structureId) {
+    TestLoggable(final byte type, @NotNull final ByteIterable data, final int structureId) {
         this.type = type;
         this.data = data;
         this.structureId = structureId;
@@ -40,7 +36,7 @@ public final class LoggableToWrite implements Loggable {
 
     @Override
     public long getAddress() {
-        throw new UnsupportedOperationException("Loggable for writing has no address until it is written to log");
+        throw new UnsupportedOperationException("TestLoggable has no address until it is written to log");
     }
 
     @Override
