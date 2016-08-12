@@ -137,7 +137,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(LOG_FILE_SIZE, 8192L),
                 new Pair(LOG_LOCK_TIMEOUT, 0L),
                 new Pair(LOG_CACHE_PAGE_SIZE, 65536),
-                new Pair(LOG_CACHE_OPEN_FILES, 50),
+                new Pair(LOG_CACHE_OPEN_FILES, 500),
                 new Pair(LOG_CACHE_SHARED, true),
                 new Pair(LOG_CACHE_NON_BLOCKING, true),
                 new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
