@@ -16,8 +16,6 @@
 package jetbrains.exodus.io;
 
 import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.core.dataStructures.LongObjectCache;
-import jetbrains.exodus.core.dataStructures.LongObjectCacheBase.CriticalSection;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.util.SharedRandomAccessFile;
 import org.jetbrains.annotations.NotNull;
@@ -28,7 +26,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.Iterator;
 
 @SuppressWarnings({"PackageVisibleField", "ClassEscapesDefinedScope"})
 public class FileDataReader implements DataReader {
@@ -39,12 +36,10 @@ public class FileDataReader implements DataReader {
 
     @NotNull
     private final File dir;
-    @NotNull
-    private final LongObjectCache<SharedRandomAccessFile> fileCache;
 
     public FileDataReader(@NotNull final File dir, final int openFiles) {
         this.dir = dir;
-        fileCache = new LongObjectCache<>(openFiles);
+        SharedOpenFilesCache.setSize(openFiles);
     }
 
     @Override
@@ -52,7 +47,7 @@ public class FileDataReader implements DataReader {
         final File[] files = LogUtil.listFiles(dir);
         final Block[] result = new Block[files.length];
         for (int i = 0; i < files.length; ++i) {
-            result[i] = new FileBlock(LogUtil.getAddress(files[i].getName()));
+            result[i] = getBlock(LogUtil.getAddress(files[i].getName()));
         }
         sortBlocks(result);
         return result;
@@ -60,8 +55,8 @@ public class FileDataReader implements DataReader {
 
     @Override
     public void removeBlock(long blockAddress, @NotNull final RemoveBlockType rbt) {
-        removeFileFromFileCache(blockAddress);
         final File file = new File(dir, LogUtil.getLogFilename(blockAddress));
+        removeFileFromFileCache(file);
         setWritable(file);
         final boolean deleted = rbt == RemoveBlockType.Delete ? file.delete() : renameFile(file);
         if (!deleted) {
@@ -73,18 +68,18 @@ public class FileDataReader implements DataReader {
 
     @Override
     public void truncateBlock(long blockAddress, long length) {
-        removeFileFromFileCache(blockAddress);
-        final FileBlock block = getBlock(blockAddress);
-        setWritable(block);
+        final FileBlock file = getBlock(blockAddress);
+        removeFileFromFileCache(file);
+        setWritable(file);
         try {
-            try (SharedRandomAccessFile f = block.getSharedRandomAccessFile("rw")) {
+            try (SharedRandomAccessFile f = SharedOpenFilesCache.getInstance().getCachedFile(file, "rw")) {
                 f.setLength(length);
             }
             if (logger.isInfoEnabled()) {
-                logger.info("Truncated file " + block.getAbsolutePath() + " to length = " + length);
+                logger.info("Truncated file " + file.getAbsolutePath() + " to length = " + length);
             }
         } catch (IOException e) {
-            throw new ExodusException("Failed to truncate file " + block.getAbsolutePath(), e);
+            throw new ExodusException("Failed to truncate file " + file.getAbsolutePath(), e);
         }
     }
 
@@ -104,14 +99,9 @@ public class FileDataReader implements DataReader {
     @Override
     public void close() {
         try {
-            final Iterator<SharedRandomAccessFile> itr = fileCache.values();
-            while (itr.hasNext()) {
-                itr.next().close();
-            }
+            SharedOpenFilesCache.getInstance().removeDirectory(dir);
         } catch (IOException e) {
             throw new ExodusException("Can't close all files", e);
-        } finally {
-            fileCache.clear();
         }
     }
 
@@ -140,15 +130,9 @@ public class FileDataReader implements DataReader {
         });
     }
 
-    private void removeFileFromFileCache(long blockAddress) {
-        final SharedRandomAccessFile f;
-        try (CriticalSection ignored = fileCache.newCriticalSection()) {
-            f = fileCache.remove(blockAddress);
-        }
+    private void removeFileFromFileCache(@NotNull final File file) {
         try {
-            if (f != null) {
-                f.close();
-            }
+            SharedOpenFilesCache.getInstance().removeFile(file);
         } catch (IOException e) {
             throw new ExodusException(e);
         }
@@ -183,39 +167,13 @@ public class FileDataReader implements DataReader {
         @Override
         public int read(final byte[] output, long position, int count) {
             try {
-                try (SharedRandomAccessFile f = getSharedRandomAccessFile("r")) {
+                try (SharedRandomAccessFile f = SharedOpenFilesCache.getInstance().getCachedFile(this, "r")) {
                     f.seek(position);
                     return f.read(output, 0, count);
                 }
             } catch (IOException e) {
                 throw new ExodusException("Can't read file " + getAbsolutePath(), e);
             }
-        }
-
-        @NotNull
-        private SharedRandomAccessFile getSharedRandomAccessFile(@NotNull final String mode) throws IOException {
-            SharedRandomAccessFile f;
-            try (CriticalSection ignored = fileCache.newCriticalSection()) {
-                f = fileCache.tryKey(address);
-                if (f != null && f.employ() > 1) {
-                    f.close();
-                    f = null;
-                }
-            }
-            if (f == null) {
-                f = new SharedRandomAccessFile(this, mode);
-                SharedRandomAccessFile obsolete = null;
-                try (CriticalSection ignored = fileCache.newCriticalSection()) {
-                    if (fileCache.getObject(address) == null) {
-                        f.employ();
-                        obsolete = fileCache.cacheObject(address, f);
-                    }
-                }
-                if (obsolete != null) {
-                    obsolete.close();
-                }
-            }
-            return f;
         }
     }
 }
