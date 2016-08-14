@@ -42,7 +42,7 @@ public final class Log implements Closeable {
     private static AtomicInteger identityGenerator =
             new AtomicInteger((int) (Math.random() * Integer.MAX_VALUE)); // initial log identity is rather "random"
 
-    private static LogCache sharedCache = null;
+    private static volatile LogCache sharedCache = null;
 
     @NotNull
     private final LogConfig config;
