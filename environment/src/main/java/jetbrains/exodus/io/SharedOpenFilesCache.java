@@ -33,7 +33,7 @@ final class SharedOpenFilesCache {
 
     private static final Object syncObject = new Object();
     private static int cacheSize = 0;
-    private static SharedOpenFilesCache theCache = null;
+    private static volatile SharedOpenFilesCache theCache = null;
 
     private final ObjectCache<File, SharedRandomAccessFile> cache;
 
