@@ -79,7 +79,7 @@ final class SharedOpenFilesCache {
     }
 
     @NotNull
-    SharedRandomAccessFile getCachedFile(@NotNull final File file, @NotNull final String mode) throws IOException {
+    SharedRandomAccessFile getCachedFile(@NotNull final File file) throws IOException {
         SharedRandomAccessFile result;
         try (CriticalSection ignored = cache.newCriticalSection()) {
             result = cache.tryKey(file);
@@ -89,7 +89,7 @@ final class SharedOpenFilesCache {
             }
         }
         if (result == null) {
-            result = new SharedRandomAccessFile(file, mode);
+            result = new SharedRandomAccessFile(file, "r");
             SharedRandomAccessFile obsolete = null;
             try (CriticalSection ignored = cache.newCriticalSection()) {
                 if (cache.getObject(file) == null) {

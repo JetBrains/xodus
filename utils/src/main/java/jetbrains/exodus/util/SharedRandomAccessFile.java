@@ -23,11 +23,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class SharedRandomAccessFile extends RandomAccessFile {
 
+    private final File file;
     private final AtomicInteger clients;
 
     public SharedRandomAccessFile(File file, String mode) throws FileNotFoundException {
         super(file, mode);
+        this.file = file;
         clients = new AtomicInteger();
+    }
+
+    public File getFile() {
+        return file;
     }
 
     /**

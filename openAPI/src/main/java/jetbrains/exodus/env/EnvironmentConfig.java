@@ -105,6 +105,10 @@ public final class EnvironmentConfig extends AbstractConfig {
      */
     public static final String LOG_CACHE_OPEN_FILES = "exodus.log.cache.openFilesCount";
 
+    public static final String LOG_CACHE_USE_NIO = "exodus.log.cache.useNIO";
+
+    public static final String LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD = "exodus.log.cache.freePhysicalMemoryThreshold";
+
     /**
      * If is set to {@code true} the LogCache is shared. Shared cache defined within a class loader caches raw binary
      * data (contents of .xd files) of all {@linkplain Environment} instances created in scope of this class loader.
@@ -405,6 +409,8 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(LOG_LOCK_TIMEOUT, 0L),
                 new Pair(LOG_CACHE_PAGE_SIZE, 65536),
                 new Pair(LOG_CACHE_OPEN_FILES, 500),
+                new Pair(LOG_CACHE_USE_NIO, true),
+                new Pair(LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD, 1_000_000_000L),
                 new Pair(LOG_CACHE_SHARED, true),
                 new Pair(LOG_CACHE_NON_BLOCKING, true),
                 new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
@@ -500,6 +506,22 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public EnvironmentConfig setLogCacheOpenFilesCount(final int files) {
         return setSetting(LOG_CACHE_OPEN_FILES, files);
+    }
+
+    public boolean getLogCacheUseNio() {
+        return (Boolean) getSetting(LOG_CACHE_USE_NIO);
+    }
+
+    public EnvironmentConfig setLogCacheUseNio(final boolean useNio) {
+        return setSetting(LOG_CACHE_USE_NIO, useNio);
+    }
+
+    public long getLogCacheFreePhysicalMemoryThreshold() {
+        return (Long) getSetting(LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD);
+    }
+
+    public EnvironmentConfig getLogCacheFreePhysicalMemoryThreshold(final long freePhysicalMemoryThreshold) {
+        return setSetting(LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD, freePhysicalMemoryThreshold);
     }
 
     public boolean isLogCacheShared() {

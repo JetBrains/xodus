@@ -35,6 +35,10 @@ public interface EnvironmentConfigMBean {
 
     int getLogCacheOpenFilesCount();
 
+    boolean getLogCacheUseNio();
+
+    long getLogCacheFreePhysicalMemoryThreshold();
+
     boolean isLogCacheShared();
 
     boolean isLogCacheNonBlocking();
