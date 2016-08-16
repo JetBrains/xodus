@@ -17,8 +17,6 @@ package jetbrains.exodus.env.management;
 
 import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.env.EnvironmentImpl;
-import jetbrains.exodus.env.TransactionBase;
-import jetbrains.exodus.env.TransactionImpl;
 import jetbrains.exodus.management.MBeanBase;
 import org.jetbrains.annotations.NotNull;
 
@@ -73,6 +71,16 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     @Override
     public int getLogCacheOpenFilesCount() {
         return config.getLogCacheOpenFilesCount();
+    }
+
+    @Override
+    public boolean getLogCacheUseNio() {
+        return config.getLogCacheUseNio();
+    }
+
+    @Override
+    public long getLogCacheFreePhysicalMemoryThreshold() {
+        return config.getLogCacheFreePhysicalMemoryThreshold();
     }
 
     @Override

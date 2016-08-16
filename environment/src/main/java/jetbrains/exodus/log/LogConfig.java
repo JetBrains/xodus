@@ -41,6 +41,8 @@ public class LogConfig {
     private boolean nonBlockingCache;
     private int cachePageSize;
     private int cacheOpenFilesCount;
+    private boolean cacheUseNio;
+    private long cacheFreePhysicalMemoryThreshold;
     private boolean cleanDirectoryExpected;
     private boolean clearInvalidLog;
     private long syncPeriod;
@@ -98,7 +100,8 @@ public class LogConfig {
 
     public DataReader getReader() {
         if (reader == null) {
-            reader = new FileDataReader(checkDirectory(dir), getCacheOpenFilesCount());
+            reader = new FileDataReader(checkDirectory(dir),
+                    getCacheOpenFilesCount(), getCacheUseNio(), getCacheFreePhysicalMemoryThreshold());
         }
         return reader;
     }
@@ -168,6 +171,27 @@ public class LogConfig {
 
     public LogConfig setCacheOpenFilesCount(int cacheOpenFilesCount) {
         this.cacheOpenFilesCount = cacheOpenFilesCount;
+        return this;
+    }
+
+    public boolean getCacheUseNio() {
+        return cacheUseNio;
+    }
+
+    public LogConfig setCacheUseNio(boolean cacheUseNio) {
+        this.cacheUseNio = cacheUseNio;
+        return this;
+    }
+
+    public long getCacheFreePhysicalMemoryThreshold() {
+        if (cacheFreePhysicalMemoryThreshold == 0L) {
+            cacheFreePhysicalMemoryThreshold = 1_000_000_000L;
+        }
+        return cacheFreePhysicalMemoryThreshold;
+    }
+
+    public LogConfig setCacheFreePhysicalMemoryThreshold(long cacheFreePhysicalMemoryThreshold) {
+        this.cacheFreePhysicalMemoryThreshold = cacheFreePhysicalMemoryThreshold;
         return this;
     }
 

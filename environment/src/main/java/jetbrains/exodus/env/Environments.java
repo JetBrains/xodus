@@ -109,6 +109,8 @@ public final class Environments {
                 setLockTimeout(ec.getLogLockTimeout()).
                 setCachePageSize(ec.getLogCachePageSize()).
                 setCacheOpenFilesCount(ec.getLogCacheOpenFilesCount()).
+                setCacheUseNio(ec.getLogCacheUseNio()).
+                setCacheFreePhysicalMemoryThreshold(ec.getLogCacheFreePhysicalMemoryThreshold()).
                 setDurableWrite(ec.getLogDurableWrite()).
                 setSharedCache(ec.isLogCacheShared()).
                 setNonBlockingCache(ec.isLogCacheNonBlocking()).

@@ -69,7 +69,7 @@ public class LinkedHashMap<K, V> extends AbstractHashMap<K, V> {
         size += 1;
 
         if (removeEldestEntry(back)) {
-            remove(back.key);
+            remove(eldestKey());
         } else if (size > capacity) {
             rehash(HashUtil.nextCapacity(capacity));
         }
@@ -102,6 +102,14 @@ public class LinkedHashMap<K, V> extends AbstractHashMap<K, V> {
         unlink(e);
         size -= 1;
         return e.value;
+    }
+
+    public V removeEldest() {
+        return remove(eldestKey());
+    }
+
+    private K eldestKey() {
+        return back.key;
     }
 
     protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {

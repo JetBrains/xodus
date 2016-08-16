@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Comparator;
 
@@ -32,14 +33,27 @@ public class FileDataReader implements DataReader {
 
     private static final Logger logger = LoggerFactory.getLogger(FileDataReader.class);
 
+    private static final long DEFAULT_FREE_PHYSICAL_MEMORY_THRESHOLD = 1_000_000_000L; // ~1GB
     private static final String DELETED_FILE_EXTENSION = ".del";
 
     @NotNull
     private final File dir;
+    private final boolean useNio;
 
-    public FileDataReader(@NotNull final File dir, final int openFiles) {
+    public FileDataReader(@NotNull final File dir, final int openAndMappedFiles) {
+        this(dir, openAndMappedFiles, true, DEFAULT_FREE_PHYSICAL_MEMORY_THRESHOLD);
+    }
+
+    public FileDataReader(@NotNull final File dir,
+                          final int openFiles,
+                          final boolean useNio,
+                          final long freePhysicalMemoryThreshold) {
         this.dir = dir;
+        this.useNio = useNio;
         SharedOpenFilesCache.setSize(openFiles);
+        if (useNio) {
+            SharedMappedFilesCache.setFreePhysicalMemoryThreshold(freePhysicalMemoryThreshold);
+        }
     }
 
     @Override
@@ -72,7 +86,7 @@ public class FileDataReader implements DataReader {
         removeFileFromFileCache(file);
         setWritable(file);
         try {
-            try (SharedRandomAccessFile f = SharedOpenFilesCache.getInstance().getCachedFile(file, "rw")) {
+            try (SharedRandomAccessFile f = new SharedRandomAccessFile(file, "rw")) {
                 f.setLength(length);
             }
             if (logger.isInfoEnabled()) {
@@ -133,6 +147,9 @@ public class FileDataReader implements DataReader {
     private void removeFileFromFileCache(@NotNull final File file) {
         try {
             SharedOpenFilesCache.getInstance().removeFile(file);
+            if (useNio) {
+                SharedMappedFilesCache.getInstance().removeFileBuffer(file);
+            }
         } catch (IOException e) {
             throw new ExodusException(e);
         }
@@ -167,7 +184,23 @@ public class FileDataReader implements DataReader {
         @Override
         public int read(final byte[] output, long position, int count) {
             try {
-                try (SharedRandomAccessFile f = SharedOpenFilesCache.getInstance().getCachedFile(this, "r")) {
+                try (SharedRandomAccessFile f = SharedOpenFilesCache.getInstance().getCachedFile(this)) {
+                    if (useNio &&
+                            !canWrite() /* only read-only (immutable) files can be mapped */) {
+                        try {
+                            try (SharedMappedByteBuffer mappedBuffer = SharedMappedFilesCache.getInstance().getFileBuffer(f)) {
+                                final ByteBuffer buffer = mappedBuffer.getBuffer();
+                                buffer.position((int) position);
+                                buffer.get(output, 0, count);
+                                return count;
+                            }
+                        } catch (Throwable t) {
+                            // if we failed to read mapped file, then try ordinary RandomAccessFile.read()
+                            if (logger.isWarnEnabled()) {
+                                logger.warn("Failed to transfer bytes from memory mapped file", t);
+                            }
+                        }
+                    }
                     f.seek(position);
                     return f.read(output, 0, count);
                 }
