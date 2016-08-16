@@ -40,8 +40,8 @@ public class FileDataReader implements DataReader {
     private final File dir;
     private final boolean useNio;
 
-    public FileDataReader(@NotNull final File dir, final int openAndMappedFiles) {
-        this(dir, openAndMappedFiles, true, DEFAULT_FREE_PHYSICAL_MEMORY_THRESHOLD);
+    public FileDataReader(@NotNull final File dir, final int openFiles) {
+        this(dir, openFiles, true, DEFAULT_FREE_PHYSICAL_MEMORY_THRESHOLD);
     }
 
     public FileDataReader(@NotNull final File dir,
