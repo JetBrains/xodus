@@ -171,11 +171,11 @@ public final class GarbageCollector {
     boolean doCleanFile(final long fileAddress) {
         // the file may be already cleaned
         if (isFileToBeDeleted(fileAddress)) {
-            return false;
+            return true;
         }
         // fix of XD-505:
         if (!getLog().fileExists(fileAddress)) {
-            return false;
+            return true;
         }
         loggingInfo("start cleanFile(" + env.getLocation() + File.separatorChar + LogUtil.getLogFilename(fileAddress) + ')');
         final TransactionImpl txn;
