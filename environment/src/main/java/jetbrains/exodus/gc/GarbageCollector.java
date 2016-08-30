@@ -259,7 +259,7 @@ public final class GarbageCollector {
         Long fileAddress;
         boolean aFileWasDeleted = false;
         while ((fileAddress = deletionQueue.poll()) != null) {
-            aFileWasDeleted |= doDeletePendingFile(fileAddress);
+            aFileWasDeleted |= doDeletePendingFile(fileAddress, !aFileWasDeleted);
         }
         if (aFileWasDeleted) {
             utilizationProfile.estimateTotalBytes();
@@ -320,7 +320,7 @@ public final class GarbageCollector {
         final long[] files = pendingFilesToDelete.toLongArray();
         boolean aFileWasDeleted = false;
         for (final long fileAddress : files) {
-            aFileWasDeleted |= doDeletePendingFile(fileAddress);
+            aFileWasDeleted |= doDeletePendingFile(fileAddress, !aFileWasDeleted);
         }
         if (aFileWasDeleted) {
             utilizationProfile.estimateTotalBytes();
@@ -333,12 +333,14 @@ public final class GarbageCollector {
         }
     }
 
-    private boolean doDeletePendingFile(long fileAddress) {
+    private boolean doDeletePendingFile(final long fileAddress, final boolean flushAndSync) {
         if (pendingFilesToDelete.remove(fileAddress)) {
-            // force flush and fsync in order to fix XD-249
-            // in order to avoid data loss, it's necessary to make sure that any GC transaction is flushed
-            // to underlying storage device before any file is deleted
-            env.flushAndSync();
+            if (flushAndSync) {
+                // force flush and fsync in order to fix XD-249
+                // in order to avoid data loss, it's necessary to make sure that any GC transaction is flushed
+                // to underlying storage device before any file is deleted
+                env.flushAndSync();
+            }
             utilizationProfile.removeFile(fileAddress);
             getLog().removeFile(fileAddress, ec.getGcRenameFiles() ? RemoveBlockType.Rename : RemoveBlockType.Delete);
             return true;
