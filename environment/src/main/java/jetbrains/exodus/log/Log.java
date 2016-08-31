@@ -15,10 +15,7 @@
  */
 package jetbrains.exodus.log;
 
-import jetbrains.exodus.ArrayByteIterable;
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.InvalidSettingException;
+import jetbrains.exodus.*;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.core.dataStructures.skiplists.LongSkipList;
 import jetbrains.exodus.io.*;
@@ -894,7 +891,20 @@ public final class Log implements Closeable {
      */
     private static int writeByteIterable(final TransactionalDataWriter writer, final ByteIterable iterable) {
         final int length = iterable.getLength();
-        if (!writer.write(iterable.getBytesUnsafe(), 0, length)) {
+        if (length == 0) {
+            return 0;
+        }
+        if (length < 3) {
+            final ByteIterator iterator = iterable.iterator();
+            if (!writer.write(iterator.next())) {
+                throw new NewFileCreationDeniedException();
+            }
+            if (length == 2) {
+                if (!writer.write(iterator.next())) {
+                    throw new NewFileCreationDeniedException();
+                }
+            }
+        } else if (!writer.write(iterable.getBytesUnsafe(), 0, length)) {
             throw new NewFileCreationDeniedException();
         }
         return length;
