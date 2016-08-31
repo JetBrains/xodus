@@ -173,7 +173,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(GC_FILES_INTERVAL, 3),
                 new Pair(GC_RUN_PERIOD, 30000),
                 new Pair(GC_UTILIZATION_FROM_SCRATCH, false),
-                new Pair(GC_FILES_DELETION_DELAY, 0),
+                new Pair(GC_FILES_DELETION_DELAY, 2000),
                 new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
                 new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 20),
                 new Pair(MANAGEMENT_ENABLED, true)
