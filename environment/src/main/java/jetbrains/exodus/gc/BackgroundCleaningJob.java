@@ -119,7 +119,7 @@ final class BackgroundCleaningJob extends Job {
         }
 
         gc.resetNewFiles();
-        up.save();
+        up.setDirty(true);
 
         GarbageCollector.loggingInfo("Finished background cleaner loop for " + log.getLocation());
     }

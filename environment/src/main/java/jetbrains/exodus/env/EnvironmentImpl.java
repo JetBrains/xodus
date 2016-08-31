@@ -23,6 +23,7 @@ import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.gc.GarbageCollector;
+import jetbrains.exodus.gc.UtilizationProfile;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.log.Loggable;
@@ -338,8 +339,15 @@ public class EnvironmentImpl implements Environment {
             }
             checkInactive(ec.getEnvCloseForcedly());
             try {
-                if (!ec.getEnvIsReadonly()) {
-                    gc.saveUtilizationProfile();
+                if (!ec.getEnvIsReadonly() && ec.isGcEnabled()) {
+                    executeInTransaction(new TransactionalExecutable() {
+                        @Override
+                        public void execute(@NotNull final Transaction txn) {
+                            final UtilizationProfile up = gc.getUtilizationProfile();
+                            up.setDirty(true);
+                            up.save(txn);
+                        }
+                    });
                 }
                 ec.removeChangedSettingsListener(envSettingsListener);
                 logCacheHitRate = log.getCacheHitRate();
@@ -525,9 +533,19 @@ public class EnvironmentImpl implements Environment {
         if (!forceCommit && txn.isIdempotent()) {
             return true;
         }
+
         final Iterable<Loggable>[] expiredLoggables;
         final long initialHighAddress;
         final long resultingHighAddress;
+        final boolean isGcTransaction = txn.isGCTransaction();
+
+        boolean wasUpSaved = false;
+        final UtilizationProfile up = gc.getUtilizationProfile();
+        if (!isGcTransaction && up.isDirty()) {
+            up.save(txn);
+            wasUpSaved = true;
+        }
+
         synchronized (commitLock) {
             if (ec.getEnvIsReadonly()) {
                 throw new ReadonlyTransactionException();
@@ -537,7 +555,10 @@ public class EnvironmentImpl implements Environment {
                 // meta lock not needed 'cause write can only occur in another commit lock
                 return false;
             }
-            log.getConfig().setFsyncSuppressed(txn.isGCTransaction());
+            if (wasUpSaved) {
+                up.setDirty(false);
+            }
+            log.getConfig().setFsyncSuppressed(isGcTransaction);
             try {
                 initialHighAddress = log.getHighAddress();
                 try {
@@ -567,7 +588,7 @@ public class EnvironmentImpl implements Environment {
 
         // update statistics
         statistics.getStatisticsItem(EnvironmentStatistics.BYTES_WRITTEN).setTotal(resultingHighAddress);
-        if (txn.isGCTransaction()) {
+        if (isGcTransaction) {
             statistics.getStatisticsItem(EnvironmentStatistics.BYTES_MOVED_BY_GC).addTotal(resultingHighAddress - initialHighAddress);
         }
         statistics.getStatisticsItem(EnvironmentStatistics.FLUSHED_TRANSACTIONS).incTotal();

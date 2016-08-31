@@ -157,14 +157,7 @@ public final class GarbageCollector {
         return utilizationProfile;
     }
 
-    public void saveUtilizationProfile() {
-        // this condition is necessary for LogRecoveryTest
-        if (ec.isGcEnabled()) {
-            utilizationProfile.save();
-        }
-    }
-
-    public boolean isTooMuchFreeSpace() {
+    boolean isTooMuchFreeSpace() {
         return utilizationProfile.totalFreeSpacePercent() > getMaximumFreeSpacePercent();
     }
 
@@ -223,6 +216,8 @@ public final class GarbageCollector {
             txn.abort();
         }
         pendingFilesToDelete.add(fileAddress);
+        utilizationProfile.removeFile(fileAddress);
+        utilizationProfile.estimateTotalBytes();
         env.executeTransactionSafeTask(new Runnable() {
             @Override
             public void run() {
@@ -256,10 +251,6 @@ public final class GarbageCollector {
         }
         if (!filesToDelete.isEmpty()) {
             final long[] files = filesToDelete.toArray();
-            for (final long file : files) {
-                utilizationProfile.removeFile(file);
-            }
-            utilizationProfile.estimateTotalBytes();
             final Job deferredJob = new Job() {
                 @Override
                 protected void execute() throws Throwable {
