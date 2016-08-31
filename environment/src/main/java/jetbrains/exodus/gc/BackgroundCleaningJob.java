@@ -23,6 +23,8 @@ import jetbrains.exodus.log.Log;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Arrays;
+
 @SuppressWarnings("NullableProblems")
 final class BackgroundCleaningJob extends Job {
 
@@ -93,19 +95,26 @@ final class BackgroundCleaningJob extends Job {
 
     private void doCleanLog(@NotNull final Log log, @NotNull final GarbageCollector gc) {
         GarbageCollector.loggingInfo("Starting background cleaner loop for " + log.getLocation());
+
+        final EnvironmentImpl env = gc.getEnvironment();
+        final UtilizationProfile up = gc.getUtilizationProfile();
         final int newFiles = gc.getNewFiles();
-        final Long[] sparseFiles = gc.getUtilizationProfile().getFilesSortedByUtilization();
-        for (int i = 0; i < sparseFiles.length && canContinue(); ++i) {
-            // reset new files count before each cleaned file to prevent queueing of the
-            // next cleaning job before this one is not finished
-            gc.resetNewFiles();
-            final long file = sparseFiles[i];
-            if (i > newFiles) {
-                cleanFile(gc, file);
-            } else {
-                for (int j = 0; j < 4 && !cleanFile(gc, file) && canContinue(); ++j) {
-                    Thread.yield();
-                }
+        final long newBytesThreshold = newFiles * env.getEnvironmentConfig().getLogFileSize() * 1024L;
+        long initialHighAddress = log.getHighAddress();
+        Long[] sparseFiles = up.getFilesSortedByUtilization();
+
+        for (int i = 0; i < sparseFiles.length && canContinue(); ) {
+            if (cleanFile(gc, sparseFiles[i])) {
+                // reset new files count before each cleaned file to prevent queueing of the
+                // next cleaning job before this one is not finished
+                gc.resetNewFiles();
+                ++i;
+            }
+            final long newHighAddress = log.getHighAddress();
+            if (newHighAddress > initialHighAddress + newBytesThreshold) {
+                initialHighAddress = newHighAddress;
+                sparseFiles = Arrays.copyOf(up.getFilesSortedByUtilization(), sparseFiles.length - i);
+                i = 0;
             }
         }
         gc.resetNewFiles();
