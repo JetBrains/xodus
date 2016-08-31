@@ -16,6 +16,7 @@
 package jetbrains.exodus.gc;
 
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
@@ -225,17 +226,7 @@ public final class GarbageCollector {
         env.executeTransactionSafeTask(new Runnable() {
             @Override
             public void run() {
-                final int filesDeletionDelay = ec.getGcFilesDeletionDelay();
-                if (filesDeletionDelay == 0) {
-                    deletionQueue.offer(fileAddress);
-                } else {
-                    DeferredIO.getJobProcessor().queueIn(new Job() {
-                        @Override
-                        protected void execute() throws Throwable {
-                            deletionQueue.offer(fileAddress);
-                        }
-                    }, filesDeletionDelay);
-                }
+                deletionQueue.offer(fileAddress);
             }
         });
         return true;
@@ -256,14 +247,38 @@ public final class GarbageCollector {
 
     void deletePendingFiles() {
         cleaner.checkThread();
+        final LongArrayList filesToDelete = new LongArrayList();
         Long fileAddress;
-        boolean aFileWasDeleted = false;
         while ((fileAddress = deletionQueue.poll()) != null) {
-            aFileWasDeleted |= doDeletePendingFile(fileAddress, !aFileWasDeleted);
+            if (pendingFilesToDelete.remove(fileAddress)) {
+                filesToDelete.add(fileAddress);
+            }
         }
-        if (aFileWasDeleted) {
+        if (!filesToDelete.isEmpty()) {
+            final long[] files = filesToDelete.toArray();
+            for (final long file : files) {
+                utilizationProfile.removeFile(file);
+            }
             utilizationProfile.estimateTotalBytes();
-            utilizationProfile.save();
+            final Job deferredJob = new Job() {
+                @Override
+                protected void execute() throws Throwable {
+                    // force flush and fsync in order to fix XD-249
+                    // in order to avoid data loss, it's necessary to make sure that any GC transaction is flushed
+                    // to underlying storage device before any file is deleted
+                    env.flushAndSync();
+                    for (final long file : files) {
+                        getLog().removeFile(file, ec.getGcRenameFiles() ? RemoveBlockType.Rename : RemoveBlockType.Delete);
+                    }
+                }
+            };
+            final JobProcessorAdapter deferredIOProcessor = DeferredIO.getJobProcessor();
+            final int filesDeletionDelay = ec.getGcFilesDeletionDelay();
+            if (filesDeletionDelay == 0) {
+                deferredIOProcessor.queue(deferredJob);
+            } else {
+                deferredIOProcessor.queueIn(deferredJob, filesDeletionDelay);
+            }
         }
     }
 
@@ -319,10 +334,13 @@ public final class GarbageCollector {
     void testDeletePendingFiles() {
         final long[] files = pendingFilesToDelete.toLongArray();
         boolean aFileWasDeleted = false;
-        for (final long fileAddress : files) {
-            aFileWasDeleted |= doDeletePendingFile(fileAddress, !aFileWasDeleted);
+        for (final long file : files) {
+            utilizationProfile.removeFile(file);
+            getLog().removeFile(file, ec.getGcRenameFiles() ? RemoveBlockType.Rename : RemoveBlockType.Delete);
+            aFileWasDeleted = true;
         }
         if (aFileWasDeleted) {
+            pendingFilesToDelete.clear();
             utilizationProfile.estimateTotalBytes();
         }
     }
@@ -331,20 +349,5 @@ public final class GarbageCollector {
         if (logger.isInfoEnabled()) {
             logger.info(message);
         }
-    }
-
-    private boolean doDeletePendingFile(final long fileAddress, final boolean flushAndSync) {
-        if (pendingFilesToDelete.remove(fileAddress)) {
-            if (flushAndSync) {
-                // force flush and fsync in order to fix XD-249
-                // in order to avoid data loss, it's necessary to make sure that any GC transaction is flushed
-                // to underlying storage device before any file is deleted
-                env.flushAndSync();
-            }
-            utilizationProfile.removeFile(fileAddress);
-            getLog().removeFile(fileAddress, ec.getGcRenameFiles() ? RemoveBlockType.Rename : RemoveBlockType.Delete);
-            return true;
-        }
-        return false;
     }
 }
