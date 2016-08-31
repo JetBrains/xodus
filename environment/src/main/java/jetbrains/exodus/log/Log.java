@@ -567,7 +567,7 @@ public final class Log implements Closeable {
     public void flush(boolean forceSync) {
         final TransactionalDataWriter bufferedWriter = this.bufferedWriter;
         bufferedWriter.flush();
-        if (forceSync || config.isDurableWrite()) {
+        if ((forceSync || config.isDurableWrite()) && !config.isFsyncSuppressed()) {
             bufferedWriter.sync();
             lastSyncTicks = System.currentTimeMillis();
         }

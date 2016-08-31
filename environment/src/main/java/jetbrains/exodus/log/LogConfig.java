@@ -37,6 +37,7 @@ public class LogConfig {
     private DataReader reader;
     private DataWriter writer;
     private boolean isDurableWrite;
+    private boolean isFsyncSuppressed;
     private boolean sharedCache;
     private boolean nonBlockingCache;
     private int cachePageSize;
@@ -129,6 +130,15 @@ public class LogConfig {
 
     public LogConfig setDurableWrite(boolean durableWrite) {
         isDurableWrite = durableWrite;
+        return this;
+    }
+
+    public boolean isFsyncSuppressed() {
+        return isFsyncSuppressed;
+    }
+
+    public LogConfig setFsyncSuppressed(boolean fsyncSuppressed) {
+        isFsyncSuppressed = fsyncSuppressed;
         return this;
     }
 

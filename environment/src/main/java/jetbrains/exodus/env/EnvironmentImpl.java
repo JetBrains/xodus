@@ -537,25 +537,30 @@ public class EnvironmentImpl implements Environment {
                 // meta lock not needed 'cause write can only occur in another commit lock
                 return false;
             }
-            initialHighAddress = log.getHighAddress();
+            log.getConfig().setFsyncSuppressed(txn.isGCTransaction());
             try {
-                final MetaTree[] tree = new MetaTree[1];
-                expiredLoggables = txn.doCommit(tree);
-                synchronized (metaLock) {
-                    txn.setMetaTree(metaTree = tree[0]);
-                    txn.executeCommitHook();
-                }
-                resultingHighAddress = log.getHighAddress();
-            } catch (Throwable t) { // pokemon exception handling to decrease try/catch block overhead
-                loggerError("Failed to flush transaction", t);
+                initialHighAddress = log.getHighAddress();
                 try {
-                    log.setHighAddress(initialHighAddress);
-                } catch (Throwable th) {
-                    throwableOnCommit = t; // inoperative on failing to update high address too
-                    loggerError("Failed to rollback high address", th);
-                    throw ExodusException.toExodusException(th, "Failed to rollback high address");
+                    final MetaTree[] tree = new MetaTree[1];
+                    expiredLoggables = txn.doCommit(tree);
+                    synchronized (metaLock) {
+                        txn.setMetaTree(metaTree = tree[0]);
+                        txn.executeCommitHook();
+                    }
+                    resultingHighAddress = log.getHighAddress();
+                } catch (Throwable t) { // pokemon exception handling to decrease try/catch block overhead
+                    loggerError("Failed to flush transaction", t);
+                    try {
+                        log.setHighAddress(initialHighAddress);
+                    } catch (Throwable th) {
+                        throwableOnCommit = t; // inoperative on failing to update high address too
+                        loggerError("Failed to rollback high address", th);
+                        throw ExodusException.toExodusException(th, "Failed to rollback high address");
+                    }
+                    throw ExodusException.toExodusException(t, "Failed to flush transaction");
                 }
-                throw ExodusException.toExodusException(t, "Failed to flush transaction");
+            } finally {
+                log.getConfig().setFsyncSuppressed(false);
             }
         }
         gc.fetchExpiredLoggables(new ExpiredLoggableIterable(expiredLoggables));
