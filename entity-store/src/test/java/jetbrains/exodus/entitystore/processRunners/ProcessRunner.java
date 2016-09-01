@@ -16,9 +16,10 @@
 package jetbrains.exodus.entitystore.processRunners;
 
 import jetbrains.exodus.entitystore.Entity;
-import jetbrains.exodus.entitystore.EntityStore;
 import jetbrains.exodus.entitystore.EntityStoreTestBase;
+import jetbrains.exodus.entitystore.PersistentEntityStore;
 import jetbrains.exodus.entitystore.StoreTransaction;
+import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.util.ForkedLogic;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +31,7 @@ public class ProcessRunner extends ForkedLogic {
 
     private static final Logger logger = LoggerFactory.getLogger(ProcessRunner.class);
 
-    protected EntityStore store;
+    protected PersistentEntityStore store;
 
     protected StoreTransaction txn;
 
@@ -58,6 +59,8 @@ public class ProcessRunner extends ForkedLogic {
         Arrays.fill(blob, (byte) 1);
         entity.setBlob("weight", new ByteArrayInputStream(blob));
         txn.flush();
+        // txn.flush() can skip writing to file, manual flush is required
+        ((EnvironmentImpl) store.getEnvironment()).flushAndSync();
     }
 
     protected void oneMoreStep() throws Exception {
