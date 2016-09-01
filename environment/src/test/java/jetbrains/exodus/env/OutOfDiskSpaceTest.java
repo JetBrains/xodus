@@ -76,6 +76,7 @@ public class OutOfDiskSpaceTest extends EnvironmentTestsBase {
         try {
             env.openStore("another_store", StoreConfig.WITHOUT_DUPLICATES, txn);
             txn.flush();
+            env.flushAndSync();
         } finally {
             txn.abort();
         }
