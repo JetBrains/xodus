@@ -195,7 +195,8 @@ public final class UtilizationProfile {
                     fileUtilization = new FileUtilization();
                     filesUtilization.put(fileAddress, fileUtilization);
                 }
-                fileUtilization.fetchExpiredLoggable(loggable, fileUtilization.getFreeSpace());
+                fileUtilization.fetchExpiredLoggable(loggable,
+                        env.getEnvironmentConfig().getGcUseExpirationChecker() ? fileUtilization.getFreeSpace() : null);
             }
         }
     }
