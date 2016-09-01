@@ -91,6 +91,7 @@ public final class Log implements Closeable {
         }
         fileLengthBound = fileLength;
         reader = config.getReader();
+        reader.setLog(this);
         location = reader.getLocation();
         final Block[] blocks = reader.getBlocks();
         for (int i = 0; i < blocks.length; ++i) {
@@ -558,6 +559,19 @@ public final class Log implements Closeable {
             node = blockAddrs.getPrevious(node);
         }
         return result;
+    }
+
+    public boolean isImmutableFile(final long fileAddress) {
+        LongSkipList.SkipListNode node;
+        final Long maximum;
+        synchronized (blockAddrs) {
+            node = blockAddrs.search(fileAddress);
+            maximum = blockAddrs.getMaximum();
+        }
+        if (node == null || maximum == null /* unnecessary check making code green */) {
+            throw new ExodusException("There is no file by address " + fileAddress);
+        }
+        return node.getKey() < maximum;
     }
 
     public void flush() {

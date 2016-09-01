@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.io;
 
+import jetbrains.exodus.log.Log;
 import org.jetbrains.annotations.NotNull;
 
 public interface DataReader {
@@ -35,4 +36,6 @@ public interface DataReader {
     void clear();
 
     void close();
+
+    void setLog(@NotNull final Log log);
 }

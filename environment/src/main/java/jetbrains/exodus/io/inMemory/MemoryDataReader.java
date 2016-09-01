@@ -20,6 +20,7 @@ import jetbrains.exodus.io.Block;
 import jetbrains.exodus.io.DataReader;
 import jetbrains.exodus.io.FileDataReader;
 import jetbrains.exodus.io.RemoveBlockType;
+import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -76,6 +77,11 @@ public class MemoryDataReader implements DataReader {
     @Override
     public void close() {
         // nothing to do
+    }
+
+    @Override
+    public void setLog(@NotNull Log log) {
+        // we don't need Log here
     }
 
     @Override

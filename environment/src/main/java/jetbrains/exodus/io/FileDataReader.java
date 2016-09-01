@@ -16,9 +16,11 @@
 package jetbrains.exodus.io;
 
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.util.SharedRandomAccessFile;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +41,8 @@ public class FileDataReader implements DataReader {
     @NotNull
     private final File dir;
     private final boolean useNio;
+    @Nullable
+    private Log log;
 
     public FileDataReader(@NotNull final File dir, final int openFiles) {
         this(dir, openFiles, true, DEFAULT_FREE_PHYSICAL_MEMORY_THRESHOLD);
@@ -120,6 +124,11 @@ public class FileDataReader implements DataReader {
     }
 
     @Override
+    public void setLog(@NotNull Log log) {
+        this.log = log;
+    }
+
+    @Override
     public String getLocation() {
         return dir.getPath();
     }
@@ -186,7 +195,8 @@ public class FileDataReader implements DataReader {
             try {
                 try (SharedRandomAccessFile f = SharedOpenFilesCache.getInstance().getCachedFile(this)) {
                     if (useNio &&
-                            !canWrite() /* only read-only (immutable) files can be mapped */) {
+                            /* only read-only (immutable) files can be mapped */
+                            ((log != null && log.isImmutableFile(address)) || (log == null && !canWrite()))) {
                         try {
                             try (SharedMappedByteBuffer mappedBuffer = SharedMappedFilesCache.getInstance().getFileBuffer(f)) {
                                 final ByteBuffer buffer = mappedBuffer.getBuffer();
