@@ -99,11 +99,14 @@ final class BackgroundCleaningJob extends Job {
         final EnvironmentImpl env = gc.getEnvironment();
         final UtilizationProfile up = gc.getUtilizationProfile();
         final int newFiles = gc.getNewFiles();
-        final long newBytesThreshold = newFiles * env.getEnvironmentConfig().getLogFileSize() * 1024L;
+        final EnvironmentConfig ec = env.getEnvironmentConfig();
+        final long newBytesThreshold = newFiles * ec.getLogFileSize() * 1024L;
         long initialHighAddress = log.getHighAddress();
         Long[] sparseFiles = up.getFilesSortedByUtilization();
 
-        for (int i = 0; i < sparseFiles.length && canContinue(); ) {
+        final long loopStart = System.currentTimeMillis();
+
+        for (int i = 0; i < sparseFiles.length && canContinue() && loopStart + ec.getGcRunPeriod() > System.currentTimeMillis(); ) {
             if (cleanFile(gc, sparseFiles[i])) {
                 // reset new files count before each cleaned file to prevent queueing of the
                 // next cleaning job before this one is not finished
