@@ -73,6 +73,7 @@ public final class Log implements Closeable {
     private final long fileSize;
     private final long fileLengthBound; // and in bytes
     private long highAddress;
+    private long approvedHighAddress; // high address approved on a higher layer (by Environment transactions)
 
     @Nullable
     private LogTestConfig testConfig;
@@ -126,6 +127,7 @@ public final class Log implements Closeable {
         }
         DeferredIO.getJobProcessor();
         highAddress = 0;
+        approvedHighAddress = 0;
 
         final DataWriter baseWriter = config.getWriter();
         final LongSkipList.SkipListNode lastFile = blockAddrs.getMaximumNode();
@@ -161,6 +163,7 @@ public final class Log implements Closeable {
                 logger.error("Exception on Log recovery. Approved high address = " + approvedHighAddress, e);
             }
             setHighAddress(approvedHighAddress);
+            this.approvedHighAddress = approvedHighAddress;
         }
         flush(true);
     }
@@ -275,6 +278,10 @@ public final class Log implements Closeable {
                 setBufferedWriter(createBufferedWriter(baseWriter, highPageAddress, highPageContent, highPageSize));
             }
         }
+    }
+
+    public long approveHighAddress() {
+        return approvedHighAddress = highAddress;
     }
 
     public long getLowAddress() {
@@ -562,16 +569,7 @@ public final class Log implements Closeable {
     }
 
     public boolean isImmutableFile(final long fileAddress) {
-        LongSkipList.SkipListNode node;
-        final Long maximum;
-        synchronized (blockAddrs) {
-            node = blockAddrs.search(fileAddress);
-            maximum = blockAddrs.getMaximum();
-        }
-        if (node == null || maximum == null /* unnecessary check making code green */) {
-            throw new ExodusException("There is no file by address " + fileAddress);
-        }
-        return node.getKey() < maximum;
+        return fileAddress + fileLengthBound <= approvedHighAddress;
     }
 
     public void flush() {
