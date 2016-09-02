@@ -20,7 +20,7 @@ import jetbrains.exodus.core.execution.ThreadJobProcessorPool;
 
 public class DeferredIO {
 
-    private static JobProcessorAdapter deferredIOProcessor = null;
+    private static volatile JobProcessorAdapter deferredIOProcessor = null;
 
     private DeferredIO() {
     }
