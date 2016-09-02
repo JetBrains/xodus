@@ -164,7 +164,7 @@ public final class GarbageCollector {
     public /* public access is necessary to invoke the method from the Reflect class */
     boolean doCleanFile(final long fileAddress) {
         // the file may be already cleaned
-        if (isFileToBeDeleted(fileAddress)) {
+        if (pendingFilesToDelete.contains(fileAddress)) {
             return true;
         }
         // fix of XD-505:
@@ -240,7 +240,7 @@ public final class GarbageCollector {
         return ec.getGcFileMinAge();
     }
 
-    void deletePendingFiles() {
+    void deletePendingFiles(final boolean immediately) {
         cleaner.checkThread();
         final LongArrayList filesToDelete = new LongArrayList();
         Long fileAddress;
@@ -251,24 +251,30 @@ public final class GarbageCollector {
         }
         if (!filesToDelete.isEmpty()) {
             final long[] files = filesToDelete.toArray();
-            final Job deferredJob = new Job() {
-                @Override
-                protected void execute() throws Throwable {
-                    // force flush and fsync in order to fix XD-249
-                    // in order to avoid data loss, it's necessary to make sure that any GC transaction is flushed
-                    // to underlying storage device before any file is deleted
-                    env.flushAndSync();
-                    for (final long file : files) {
-                        getLog().removeFile(file, ec.getGcRenameFiles() ? RemoveBlockType.Rename : RemoveBlockType.Delete);
-                    }
+            if (immediately) {
+                for (final long file : files) {
+                    removeFile(file);
                 }
-            };
-            final JobProcessorAdapter deferredIOProcessor = DeferredIO.getJobProcessor();
-            final int filesDeletionDelay = ec.getGcFilesDeletionDelay();
-            if (filesDeletionDelay == 0) {
-                deferredIOProcessor.queue(deferredJob);
             } else {
-                deferredIOProcessor.queueIn(deferredJob, filesDeletionDelay);
+                final Job deferredJob = new Job() {
+                    @Override
+                    protected void execute() throws Throwable {
+                        // force flush and fsync in order to fix XD-249
+                        // in order to avoid data loss, it's necessary to make sure that any GC transaction is flushed
+                        // to underlying storage device before any file is deleted
+                        env.flushAndSync();
+                        for (final long file : files) {
+                            removeFile(file);
+                        }
+                    }
+                };
+                final JobProcessorAdapter deferredIOProcessor = DeferredIO.getJobProcessor();
+                final int filesDeletionDelay = ec.getGcFilesDeletionDelay();
+                if (filesDeletionDelay == 0) {
+                    deferredIOProcessor.queue(deferredJob);
+                } else {
+                    deferredIOProcessor.queueIn(deferredJob, filesDeletionDelay);
+                }
             }
         }
     }
@@ -292,16 +298,6 @@ public final class GarbageCollector {
     boolean cleanFile(final long fileAddress) {
         cleaner.checkThread();
         return doCleanFile(fileAddress);
-    }
-
-    /**
-     * Is file already cleaned and is to be deleted soon.
-     *
-     * @param fileAddress address of file.
-     * @return true if file is pending to be deleted soon.
-     */
-    boolean isFileToBeDeleted(long fileAddress) {
-        return pendingFilesToDelete.contains(fileAddress);
     }
 
     int getNewFiles() {
@@ -340,5 +336,9 @@ public final class GarbageCollector {
         if (logger.isInfoEnabled()) {
             logger.info(message);
         }
+    }
+
+    private void removeFile(final long file) {
+        getLog().removeFile(file, ec.getGcRenameFiles() ? RemoveBlockType.Rename : RemoveBlockType.Delete);
     }
 }

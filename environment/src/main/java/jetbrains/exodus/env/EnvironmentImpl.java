@@ -327,6 +327,7 @@ public class EnvironmentImpl implements Environment {
         if (statisticsMBean != null) {
             statisticsMBean.unregister();
         }
+        runAllTransactionSafeTasks();
         // in order to avoid deadlock, do not finish gc inside lock
         // it is safe to invoke gc.finish() several times
         gc.finish();
@@ -371,7 +372,6 @@ public class EnvironmentImpl implements Environment {
             throwableOnClose = new Throwable();
             throwableOnCommit = EnvironmentClosedException.INSTANCE;
         }
-        runAllTransactionSafeTasks();
         if (logger.isInfoEnabled()) {
             logger.info("Store get cache hit rate: " + ObjectCacheBase.formatHitRate(storeGetCacheHitRate));
             logger.info("Tree nodes cache hit rate: " + ObjectCacheBase.formatHitRate(treeNodesCacheHitRate));

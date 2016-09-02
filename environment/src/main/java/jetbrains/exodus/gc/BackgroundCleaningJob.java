@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.gc;
 
-import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.env.EnvironmentConfig;
 import jetbrains.exodus.env.EnvironmentImpl;
@@ -59,37 +58,41 @@ final class BackgroundCleaningJob extends Job {
         if (gc == null) {
             return;
         }
-        final BackgroundCleaner cleaner = gc.getCleaner();
-        if (canContinue()) {
-            final EnvironmentImpl env = gc.getEnvironment();
-            final EnvironmentConfig ec = env.getEnvironmentConfig();
-            final int gcStartIn = ec.getGcStartIn();
-            if (gcStartIn != 0) {
-                final long minTimeToInvokeCleaner = gcStartIn + env.getCreated();
-                if (minTimeToInvokeCleaner > System.currentTimeMillis()) {
-                    gc.wakeAt(minTimeToInvokeCleaner);
-                    return;
-                }
-            }
-            final Log log = env.getLog();
-            if (gc.getMinFileAge() < log.getNumberOfFiles()) {
-                cleaner.setCleaning(true);
-                try {
-                    doCleanLog(log, gc);
-                    if (gc.isTooMuchFreeSpace()) {
-                        final int gcRunPeriod = ec.getGcRunPeriod();
-                        if (gcRunPeriod > 0) {
-                            gc.wakeAt(System.currentTimeMillis() + gcRunPeriod);
-                        }
+        try {
+            final BackgroundCleaner cleaner = gc.getCleaner();
+            if (canContinue()) {
+                final EnvironmentImpl env = gc.getEnvironment();
+                final EnvironmentConfig ec = env.getEnvironmentConfig();
+                final int gcStartIn = ec.getGcStartIn();
+                if (gcStartIn != 0) {
+                    final long minTimeToInvokeCleaner = gcStartIn + env.getCreated();
+                    if (minTimeToInvokeCleaner > System.currentTimeMillis()) {
+                        gc.wakeAt(minTimeToInvokeCleaner);
+                        return;
                     }
-                } finally {
-                    cleaner.setCleaning(false);
+                }
+                final Log log = env.getLog();
+                if (gc.getMinFileAge() < log.getNumberOfFiles()) {
+                    cleaner.setCleaning(true);
+                    try {
+                        doCleanLog(log, gc);
+                        if (gc.isTooMuchFreeSpace()) {
+                            final int gcRunPeriod = ec.getGcRunPeriod();
+                            if (gcRunPeriod > 0) {
+                                gc.wakeAt(System.currentTimeMillis() + gcRunPeriod);
+                            }
+                        }
+                    } finally {
+                        cleaner.setCleaning(false);
+                    }
                 }
             }
-        }
-        // XD-446: if we stopped cleaning cycle due to background cleaner job processor has changed then re-queue the job to another processor
-        if (!cleaner.isCurrentThread()) {
-            gc.wake();
+            // XD-446: if we stopped cleaning cycle due to background cleaner job processor has changed then re-queue the job to another processor
+            if (!cleaner.isCurrentThread()) {
+                gc.wake();
+            }
+        } finally {
+            gc.deletePendingFiles(false);
         }
     }
 
@@ -140,14 +143,6 @@ final class BackgroundCleaningJob extends Job {
             return false;
         }
         final BackgroundCleaner cleaner = gc.getCleaner();
-        try {
-            gc.deletePendingFiles();
-        } catch (ExodusException e) {
-            if (!cleaner.isCurrentThread()) {
-                return false;
-            }
-            throw e;
-        }
         if (cleaner.isSuspended() || cleaner.isFinished()) {
             return false;
         }
