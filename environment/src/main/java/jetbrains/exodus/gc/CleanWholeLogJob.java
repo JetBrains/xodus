@@ -45,7 +45,7 @@ final class CleanWholeLogJob extends LatchJob {
                 final long highFileAddress = log.getHighFileAddress();
                 long fileAddress = log.getLowAddress();
                 while (fileAddress != highFileAddress) {
-                    gc.cleanFile(fileAddress);
+                    gc.doCleanFile(fileAddress);
                     fileAddress = log.getNextFileAddress(fileAddress);
                 }
                 gc.testDeletePendingFiles();

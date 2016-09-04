@@ -32,6 +32,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.lang.ref.SoftReference;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -59,6 +61,7 @@ public final class GarbageCollector {
     private final IExpirationChecker expirationChecker;
     @NotNull
     private final IntHashMap<StoreImpl> openStoresCache;
+    private boolean useRegularTxn;
 
     public GarbageCollector(@NotNull final EnvironmentImpl env) {
         this.env = env;
@@ -103,6 +106,7 @@ public final class GarbageCollector {
         openStoresCache.clear();
     }
 
+    @SuppressWarnings("unused")
     public void setCleanerJobProcessor(@NotNull final JobProcessorAdapter processor) {
         cleaner.setJobProcessor(processor);
     }
@@ -118,13 +122,13 @@ public final class GarbageCollector {
         }
     }
 
-    public void wakeAt(final long millis) {
+    void wakeAt(final long millis) {
         if (ec.isGcEnabled()) {
             cleaner.queueCleaningJobAt(millis);
         }
     }
 
-    public int getMaximumFreeSpacePercent() {
+    int getMaximumFreeSpacePercent() {
         return 100 - ec.getGcMinUtilization();
     }
 
@@ -163,68 +167,7 @@ public final class GarbageCollector {
 
     public /* public access is necessary to invoke the method from the Reflect class */
     boolean doCleanFile(final long fileAddress) {
-        // the file may be already cleaned
-        if (pendingFilesToDelete.contains(fileAddress)) {
-            return true;
-        }
-        // fix of XD-505:
-        if (!getLog().fileExists(fileAddress)) {
-            return true;
-        }
-        loggingInfo("start cleanFile(" + env.getLocation() + File.separatorChar + LogUtil.getLogFilename(fileAddress) + ')');
-        final TransactionImpl txn;
-        try {
-            txn = env.beginGCTransaction();
-        } catch (TransactionAcquireTimeoutException ignore) {
-            return false;
-        }
-        try {
-            final Log log = getLog();
-            if (logger.isDebugEnabled()) {
-                final long high = log.getHighAddress();
-                final long highFile = log.getHighFileAddress();
-                logger.debug(String.format(
-                        "Cleaner acquired txn when log high address was: %d (%s@%d) when cleaning file %s",
-                        high, LogUtil.getLogFilename(highFile), high - highFile, LogUtil.getLogFilename(fileAddress)
-                ));
-            }
-            final long nextFileAddress = fileAddress + log.getFileLengthBound();
-            final Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(fileAddress);
-            while (loggables.hasNext()) {
-                final RandomAccessLoggable loggable = loggables.next();
-                if (loggable.getAddress() >= nextFileAddress) {
-                    break;
-                }
-                final int structureId = loggable.getStructureId();
-                if (structureId != Loggable.NO_STRUCTURE_ID && structureId != EnvironmentImpl.META_TREE_ID) {
-                    StoreImpl store = openStoresCache.get(structureId);
-                    if (store == null) {
-                        // TODO: remove openStoresCache when txn.openStoreByStructureId() is fast enough (XD-381)
-                        store = txn.openStoreByStructureId(structureId);
-                        openStoresCache.put(structureId, store);
-                    }
-                    store.reclaim(txn, loggable, loggables, expirationChecker);
-                }
-            }
-            if (!txn.forceFlush()) {
-                return false;
-            }
-        } catch (Throwable e) {
-            logger.error("cleanFile(" + LogUtil.getLogFilename(fileAddress) + ')', e);
-            throw ExodusException.toExodusException(e);
-        } finally {
-            txn.abort();
-        }
-        pendingFilesToDelete.add(fileAddress);
-        utilizationProfile.removeFile(fileAddress);
-        utilizationProfile.estimateTotalBytes();
-        env.executeTransactionSafeTask(new Runnable() {
-            @Override
-            public void run() {
-                deletionQueue.offer(fileAddress);
-            }
-        });
-        return true;
+        return doCleanFiles(Collections.singleton(fileAddress).iterator());
     }
 
     public static boolean isUtilizationProfile(@NotNull final String storeName) {
@@ -240,7 +183,7 @@ public final class GarbageCollector {
         return ec.getGcFileMinAge();
     }
 
-    void deletePendingFiles(final boolean immediately) {
+    void deletePendingFiles() {
         cleaner.checkThread();
         final LongArrayList filesToDelete = new LongArrayList();
         Long fileAddress;
@@ -250,31 +193,12 @@ public final class GarbageCollector {
             }
         }
         if (!filesToDelete.isEmpty()) {
-            final long[] files = filesToDelete.toArray();
-            if (immediately) {
-                for (final long file : files) {
-                    removeFile(file);
-                }
-            } else {
-                final Job deferredJob = new Job() {
-                    @Override
-                    protected void execute() throws Throwable {
-                        // force flush and fsync in order to fix XD-249
-                        // in order to avoid data loss, it's necessary to make sure that any GC transaction is flushed
-                        // to underlying storage device before any file is deleted
-                        env.flushAndSync();
-                        for (final long file : files) {
-                            removeFile(file);
-                        }
-                    }
-                };
-                final JobProcessorAdapter deferredIOProcessor = DeferredIO.getJobProcessor();
-                final int filesDeletionDelay = ec.getGcFilesDeletionDelay();
-                if (filesDeletionDelay == 0) {
-                    deferredIOProcessor.queue(deferredJob);
-                } else {
-                    deferredIOProcessor.queueIn(deferredJob, filesDeletionDelay);
-                }
+            // force flush and fsync in order to fix XD-249
+            // in order to avoid data loss, it's necessary to make sure that any GC transaction is flushed
+            // to underlying storage device before any file is deleted
+            env.flushAndSync();
+            for (final long file : filesToDelete.toArray()) {
+                removeFile(file);
             }
         }
     }
@@ -289,23 +213,28 @@ public final class GarbageCollector {
     }
 
     /**
-     * Cleans a file by address. In order to avoid race conditions and synchronization issues,
+     * Cleans fragmented files. It is expected that the files are sorted by utilization, i.e.
+     * the first files are more fragmented. In order to avoid race conditions and synchronization issues,
      * this method should be called from the thread of background cleaner.
      *
-     * @param fileAddress address of file.
-     * @return true if the file was actually cleaned
+     * @param fragmentedFiles fragmented files
+     * @return {@code false} if there was unsuccessful attempt to clean a file (GC txn wasn't acquired or flushed)
      */
-    boolean cleanFile(final long fileAddress) {
+    boolean cleanFiles(@NotNull final Iterator<Long> fragmentedFiles) {
         cleaner.checkThread();
-        return doCleanFile(fileAddress);
+        return doCleanFiles(fragmentedFiles);
     }
 
-    int getNewFiles() {
-        return newFiles;
+    boolean isFileCleaned(final long file) {
+        return pendingFilesToDelete.contains(file);
     }
 
     void resetNewFiles() {
         newFiles = 0;
+    }
+
+    void setUseRegularTxn(final boolean useRegularTxn) {
+        this.useRegularTxn = useRegularTxn;
     }
 
     /**
@@ -335,6 +264,122 @@ public final class GarbageCollector {
     static void loggingInfo(@NotNull final String message) {
         if (logger.isInfoEnabled()) {
             logger.info(message);
+        }
+    }
+
+    private boolean doCleanFiles(@NotNull final Iterator<Long> fragmentedFiles) {
+        // if there are no more files then even don't start a txn
+        if (!fragmentedFiles.hasNext()) {
+            return true;
+        }
+        final LongSet cleanedFiles = new LongHashSet();
+        final TransactionImpl txn;
+        try {
+            txn = useRegularTxn ? (TransactionImpl) env.beginTransaction() : env.beginGCTransaction();
+        } catch (TransactionAcquireTimeoutException ignore) {
+            return false;
+        }
+        final boolean isTxnExclusive = txn.isExclusive();
+        try {
+            final SoftReference oomeGuard = new SoftReference<>(new Object());
+            final long started = System.currentTimeMillis();
+            while (fragmentedFiles.hasNext()) {
+                final long fileAddress = fragmentedFiles.next();
+                cleanSingleFile(fileAddress, txn);
+                cleanedFiles.add(fileAddress);
+                if (!isTxnExclusive) {
+                    break; // do not process more than one file in a non-exclusive txn
+                }
+                if (started + ec.getGcTransactionTimeout() < System.currentTimeMillis()) {
+                    break; // break by timeout
+                }
+                if (oomeGuard.get() == null) {
+                    break; // break because of the risk of OutOfMemoryError
+                }
+            }
+            if (!txn.forceFlush()) {
+                // paranoiac check
+                if (isTxnExclusive) {
+                    throw new ExodusException("Can't be: exclusive txn should be successfully flushed");
+                }
+                return false;
+            }
+        } catch (Throwable e) {
+            throw ExodusException.toExodusException(e);
+        } finally {
+            txn.abort();
+        }
+        if (!cleanedFiles.isEmpty()) {
+            for (final Long file : cleanedFiles) {
+                pendingFilesToDelete.add(file);
+                utilizationProfile.removeFile(file);
+            }
+            utilizationProfile.estimateTotalBytes();
+            env.executeTransactionSafeTask(new Runnable() {
+                @Override
+                public void run() {
+                    final int filesDeletionDelay = ec.getGcFilesDeletionDelay();
+                    if (filesDeletionDelay == 0) {
+                        for (final Long file : cleanedFiles) {
+                            deletionQueue.offer(file);
+                        }
+                    } else {
+                        DeferredIO.getJobProcessor().queueIn(new Job() {
+                            @Override
+                            protected void execute() throws Throwable {
+                                for (final Long file : cleanedFiles) {
+                                    deletionQueue.offer(file);
+                                }
+                            }
+                        }, filesDeletionDelay);
+                    }
+                }
+            });
+        }
+        return true;
+    }
+
+    /**
+     * @param fileAddress address of the file to clean
+     * @param txn         transaction
+     */
+    private void cleanSingleFile(final long fileAddress, @NotNull final TransactionImpl txn) {
+        // the file can be already cleaned
+        if (isFileCleaned(fileAddress)) {
+            throw new ExodusException("Attempt to clean already cleaned file");
+        }
+        loggingInfo("start cleanFile(" + env.getLocation() + File.separatorChar + LogUtil.getLogFilename(fileAddress) + ')');
+        final Log log = getLog();
+        if (logger.isDebugEnabled()) {
+            final long high = log.getHighAddress();
+            final long highFile = log.getHighFileAddress();
+            logger.debug(String.format(
+                    "Cleaner acquired txn when log high address was: %d (%s@%d) when cleaning file %s",
+                    high, LogUtil.getLogFilename(highFile), high - highFile, LogUtil.getLogFilename(fileAddress)
+            ));
+        }
+        try {
+            final long nextFileAddress = fileAddress + log.getFileLengthBound();
+            final Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(fileAddress);
+            while (loggables.hasNext()) {
+                final RandomAccessLoggable loggable = loggables.next();
+                if (loggable.getAddress() >= nextFileAddress) {
+                    break;
+                }
+                final int structureId = loggable.getStructureId();
+                if (structureId != Loggable.NO_STRUCTURE_ID && structureId != EnvironmentImpl.META_TREE_ID) {
+                    StoreImpl store = openStoresCache.get(structureId);
+                    if (store == null) {
+                        // TODO: remove openStoresCache when txn.openStoreByStructureId() is fast enough (XD-381)
+                        store = txn.openStoreByStructureId(structureId);
+                        openStoresCache.put(structureId, store);
+                    }
+                    store.reclaim(txn, loggable, loggables, expirationChecker);
+                }
+            }
+        } catch (Throwable e) {
+            logger.error("cleanFile(" + LogUtil.getLogFilename(fileAddress) + ')', e);
+            throw e;
         }
     }
 

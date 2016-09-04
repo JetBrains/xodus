@@ -122,6 +122,8 @@ public final class EnvironmentConfig extends AbstractConfig {
      */
     public static final String GC_TRANSACTION_ACQUIRE_TIMEOUT = "exodus.gc.transactionAcquireTimeout"; // in milliseconds
 
+    public static final String GC_TRANSACTION_TIMEOUT = "exodus.gc.transactionTimeout"; // in milliseconds
+
     /**
      * If a file is successfully cleaned then delete it after this number of milliseconds.
      */
@@ -140,7 +142,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(LOG_DURABLE_WRITE, false),
                 new Pair(LOG_FILE_SIZE, 8192L),
                 new Pair(LOG_LOCK_TIMEOUT, 0L),
-                new Pair(LOG_CACHE_PAGE_SIZE, 65536),
+                new Pair(LOG_CACHE_PAGE_SIZE, 256 * 1024),
                 new Pair(LOG_CACHE_OPEN_FILES, 500),
                 new Pair(LOG_CACHE_USE_NIO, true),
                 new Pair(LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD, 1_000_000_000L),
@@ -176,6 +178,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(GC_FILES_DELETION_DELAY, 2000),
                 new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
                 new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 1000),
+                new Pair(GC_TRANSACTION_TIMEOUT, 800),
                 new Pair(MANAGEMENT_ENABLED, true)
         }, strategy);
     }
@@ -537,6 +540,14 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public EnvironmentConfig setGcTransactionAcquireTimeout(final int txnAcquireTimeout) {
         return setSetting(GC_TRANSACTION_ACQUIRE_TIMEOUT, txnAcquireTimeout);
+    }
+
+    public int getGcTransactionTimeout() {
+        return (Integer) getSetting(GC_TRANSACTION_TIMEOUT);
+    }
+
+    public EnvironmentConfig setGcTransactionTimeout(final int txnTimeout) {
+        return setSetting(GC_TRANSACTION_TIMEOUT, txnTimeout);
     }
 
     public int getGcFilesDeletionDelay() {

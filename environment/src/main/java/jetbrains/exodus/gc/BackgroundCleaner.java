@@ -86,7 +86,7 @@ final class BackgroundCleaner {
             @Override
             protected void execute() throws Throwable {
                 try {
-                    gc.deletePendingFiles(true);
+                    gc.deletePendingFiles();
                 } finally {
                     release();
                 }

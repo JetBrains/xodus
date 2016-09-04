@@ -22,7 +22,7 @@ import jetbrains.exodus.log.Log;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Arrays;
+import java.util.Iterator;
 
 @SuppressWarnings("NullableProblems")
 final class BackgroundCleaningJob extends Job {
@@ -92,7 +92,7 @@ final class BackgroundCleaningJob extends Job {
                 gc.wake();
             }
         } finally {
-            gc.deletePendingFiles(false);
+            gc.deletePendingFiles();
         }
     }
 
@@ -101,40 +101,45 @@ final class BackgroundCleaningJob extends Job {
 
         final EnvironmentImpl env = gc.getEnvironment();
         final UtilizationProfile up = gc.getUtilizationProfile();
-        final int newFiles = gc.getNewFiles();
-        final EnvironmentConfig ec = env.getEnvironmentConfig();
-        final long newBytesThreshold = newFiles * ec.getLogFileSize() * 1024L;
-        long initialHighAddress = log.getHighAddress();
-        Long[] sparseFiles = up.getFilesSortedByUtilization();
-
+        final long highFile = log.getHighFileAddress();
         final long loopStart = System.currentTimeMillis();
+        final int gcRunPeriod = env.getEnvironmentConfig().getGcRunPeriod();
 
-        for (int i = 0; i < sparseFiles.length && canContinue() && loopStart + ec.getGcRunPeriod() > System.currentTimeMillis(); ) {
-            if (cleanFile(gc, sparseFiles[i])) {
-                // reset new files count before each cleaned file to prevent queueing of the
-                // next cleaning job before this one is not finished
-                gc.resetNewFiles();
-                ++i;
+        try {
+            do {
+                final Iterator<Long> fragmentedFiles = up.getFilesSortedByUtilization(highFile);
+                if (!fragmentedFiles.hasNext()) {
+                    return;
+                }
+                if (cleanFiles(gc, fragmentedFiles)) {
+                    break;
+                }
+                Thread.yield();
+            } while (canContinue() && loopStart + gcRunPeriod > System.currentTimeMillis());
+            gc.setUseRegularTxn(true);
+            try {
+                while (canContinue() && loopStart + gcRunPeriod > System.currentTimeMillis()) {
+                    final Iterator<Long> fragmentedFiles = up.getFilesSortedByUtilization(highFile);
+                    if (!fragmentedFiles.hasNext() || !cleanFiles(gc, fragmentedFiles)) {
+                        break;
+                    }
+                }
+            } finally {
+                gc.setUseRegularTxn(false);
             }
-            final long newHighAddress = log.getHighAddress();
-            if (newHighAddress > initialHighAddress + newBytesThreshold) {
-                initialHighAddress = newHighAddress;
-                sparseFiles = Arrays.copyOf(up.getFilesSortedByUtilization(), sparseFiles.length - i);
-                i = 0;
-            }
+        } finally {
+            gc.resetNewFiles();
+            up.setDirty(true);
+            GarbageCollector.loggingInfo("Finished background cleaner loop for " + log.getLocation());
         }
-
-        gc.resetNewFiles();
-        up.setDirty(true);
-
-        GarbageCollector.loggingInfo("Finished background cleaner loop for " + log.getLocation());
     }
 
     /**
      * We need this synchronized method in order to provide correctness of  {@link BackgroundCleaner#suspend()}.
      */
-    private synchronized boolean cleanFile(@NotNull final GarbageCollector gc, final long file) {
-        return gc.cleanFile(file);
+    private synchronized boolean cleanFiles(@NotNull final GarbageCollector gc,
+                                            @NotNull final Iterator<Long> fragmentedFiles) {
+        return gc.cleanFiles(fragmentedFiles);
     }
 
     private boolean canContinue() {
