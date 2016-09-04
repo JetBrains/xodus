@@ -39,7 +39,7 @@ final class MetaTree {
     final long root;
     final long highAddress;
 
-    MetaTree(final ITree tree, long root, long highAddress) {
+    private MetaTree(final ITree tree, long root, long highAddress) {
         this.tree = tree;
         this.root = root;
         this.highAddress = highAddress;
@@ -143,7 +143,6 @@ final class MetaTree {
         final int lastStructureId = env.getLastStructureId();
         final long dbRootAddress = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
                 DatabaseRoot.asByteIterable(newMetaTreeAddress, lastStructureId));
-        log.flush();
         final BTree resultTree = env.loadMetaTree(newMetaTreeAddress);
         final RandomAccessLoggable dbRootLoggable = log.read(dbRootAddress);
         expired.add(dbRootLoggable);

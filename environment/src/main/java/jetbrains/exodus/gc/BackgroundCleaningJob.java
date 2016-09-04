@@ -15,13 +15,14 @@
  */
 package jetbrains.exodus.gc;
 
-import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.env.EnvironmentConfig;
 import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.log.Log;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Iterator;
 
 @SuppressWarnings("NullableProblems")
 final class BackgroundCleaningJob extends Job {
@@ -57,66 +58,88 @@ final class BackgroundCleaningJob extends Job {
         if (gc == null) {
             return;
         }
-        final BackgroundCleaner cleaner = gc.getCleaner();
-        if (canContinue()) {
-            final EnvironmentImpl env = gc.getEnvironment();
-            final EnvironmentConfig ec = env.getEnvironmentConfig();
-            final int gcStartIn = ec.getGcStartIn();
-            if (gcStartIn != 0) {
-                final long minTimeToInvokeCleaner = gcStartIn + env.getCreated();
-                if (minTimeToInvokeCleaner > System.currentTimeMillis()) {
-                    gc.wakeAt(minTimeToInvokeCleaner);
-                    return;
-                }
-            }
-            final Log log = env.getLog();
-            if (gc.getMinFileAge() < log.getNumberOfFiles()) {
-                cleaner.setCleaning(true);
-                try {
-                    doCleanLog(log, gc);
-                    if (gc.isTooMuchFreeSpace()) {
-                        final int gcRunPeriod = ec.getGcRunPeriod();
-                        if (gcRunPeriod > 0) {
-                            gc.wakeAt(System.currentTimeMillis() + gcRunPeriod);
-                        }
+        try {
+            final BackgroundCleaner cleaner = gc.getCleaner();
+            if (canContinue()) {
+                final EnvironmentImpl env = gc.getEnvironment();
+                final EnvironmentConfig ec = env.getEnvironmentConfig();
+                final int gcStartIn = ec.getGcStartIn();
+                if (gcStartIn != 0) {
+                    final long minTimeToInvokeCleaner = gcStartIn + env.getCreated();
+                    if (minTimeToInvokeCleaner > System.currentTimeMillis()) {
+                        gc.wakeAt(minTimeToInvokeCleaner);
+                        return;
                     }
-                } finally {
-                    cleaner.setCleaning(false);
+                }
+                final Log log = env.getLog();
+                if (gc.getMinFileAge() < log.getNumberOfFiles()) {
+                    cleaner.setCleaning(true);
+                    try {
+                        doCleanLog(log, gc);
+                        if (gc.isTooMuchFreeSpace()) {
+                            final int gcRunPeriod = ec.getGcRunPeriod();
+                            if (gcRunPeriod > 0) {
+                                gc.wakeAt(System.currentTimeMillis() + gcRunPeriod);
+                            }
+                        }
+                    } finally {
+                        cleaner.setCleaning(false);
+                    }
                 }
             }
-        }
-        // XD-446: if we stopped cleaning cycle due to background cleaner job processor has changed then re-queue the job to another processor
-        if (!cleaner.isCurrentThread()) {
-            gc.wake();
+            // XD-446: if we stopped cleaning cycle due to background cleaner job processor has changed then re-queue the job to another processor
+            if (!cleaner.isCurrentThread()) {
+                gc.wake();
+            }
+        } finally {
+            gc.deletePendingFiles();
         }
     }
 
     private void doCleanLog(@NotNull final Log log, @NotNull final GarbageCollector gc) {
         GarbageCollector.loggingInfo("Starting background cleaner loop for " + log.getLocation());
-        final int newFiles = gc.getNewFiles();
-        final Long[] sparseFiles = gc.getUtilizationProfile().getFilesSortedByUtilization();
-        for (int i = 0; i < sparseFiles.length && canContinue(); ++i) {
-            // reset new files count before each cleaned file to prevent queueing of the
-            // next cleaning job before this one is not finished
-            gc.resetNewFiles();
-            final long file = sparseFiles[i];
-            if (i > newFiles) {
-                cleanFile(gc, file);
-            } else {
-                for (int j = 0; j < 4 && !cleanFile(gc, file) && canContinue(); ++j) {
-                    Thread.yield();
+
+        final EnvironmentImpl env = gc.getEnvironment();
+        final UtilizationProfile up = gc.getUtilizationProfile();
+        final long highFile = log.getHighFileAddress();
+        final long loopStart = System.currentTimeMillis();
+        final int gcRunPeriod = env.getEnvironmentConfig().getGcRunPeriod();
+
+        try {
+            do {
+                final Iterator<Long> fragmentedFiles = up.getFilesSortedByUtilization(highFile);
+                if (!fragmentedFiles.hasNext()) {
+                    return;
                 }
+                if (cleanFiles(gc, fragmentedFiles)) {
+                    break;
+                }
+                Thread.yield();
+            } while (canContinue() && loopStart + gcRunPeriod > System.currentTimeMillis());
+            gc.setUseRegularTxn(true);
+            try {
+                while (canContinue() && loopStart + gcRunPeriod > System.currentTimeMillis()) {
+                    final Iterator<Long> fragmentedFiles = up.getFilesSortedByUtilization(highFile);
+                    if (!fragmentedFiles.hasNext() || !cleanFiles(gc, fragmentedFiles)) {
+                        break;
+                    }
+                }
+            } finally {
+                gc.setUseRegularTxn(false);
             }
+        } finally {
+            gc.resetNewFiles();
+            up.setDirty(true);
+            GarbageCollector.loggingInfo("Finished background cleaner loop for " + log.getLocation());
         }
-        gc.resetNewFiles();
-        GarbageCollector.loggingInfo("Finished background cleaner loop for " + log.getLocation());
     }
 
     /**
      * We need this synchronized method in order to provide correctness of  {@link BackgroundCleaner#suspend()}.
      */
-    private synchronized boolean cleanFile(@NotNull final GarbageCollector gc, final long file) {
-        return gc.cleanFile(file);
+    private synchronized boolean cleanFiles(@NotNull final GarbageCollector gc,
+                                            @NotNull final Iterator<Long> fragmentedFiles) {
+        return gc.cleanFiles(fragmentedFiles);
     }
 
     private boolean canContinue() {
@@ -125,14 +148,6 @@ final class BackgroundCleaningJob extends Job {
             return false;
         }
         final BackgroundCleaner cleaner = gc.getCleaner();
-        try {
-            gc.deletePendingFiles();
-        } catch (ExodusException e) {
-            if (!cleaner.isCurrentThread()) {
-                return false;
-            }
-            throw e;
-        }
         if (cleaner.isSuspended() || cleaner.isFinished()) {
             return false;
         }

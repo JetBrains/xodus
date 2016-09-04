@@ -16,8 +16,8 @@
 package jetbrains.exodus.gc;
 
 import jetbrains.exodus.bindings.LongBinding;
+import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.Priority;
-import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.log.*;
@@ -39,6 +39,7 @@ public final class UtilizationProfile {
     private final TreeMap<Long, FileUtilization> filesUtilization; // file address -> FileUtilization object
     private long totalBytes;
     private long totalFreeBytes;
+    private volatile boolean isDirty;
 
     UtilizationProfile(@NotNull final EnvironmentImpl env, @NotNull final GarbageCollector gc) {
         this.env = env;
@@ -102,80 +103,47 @@ public final class UtilizationProfile {
     }
 
     /**
-     * Reloads utilization profile.
+     * Saves utilization profile in internal store within specified transaction.
      */
-    public void computeUtilizationFromScratch() {
-        gc.getCleaner().getJobProcessor().queue(new Job() {
-            @Override
-            protected void execute() throws Throwable {
-                final TreeMap<Long, Long> usedSpace = new TreeMap<>();
-                env.executeInReadonlyTransaction(new TransactionalExecutable() {
-                    @Override
-                    public void execute(@NotNull Transaction txn) {
-                        for (final String storeName : env.getAllStoreNames(txn)) {
-                            final StoreImpl store = env.openStore(storeName, StoreConfig.USE_EXISTING, txn);
-                            final LongIterator it = ((TransactionBase) txn).getTree(store).addressIterator();
-                            while (it.hasNext()) {
-                                final long address = it.next();
-                                final RandomAccessLoggable loggable = log.read(address);
-                                final Long fileAddress = log.getFileAddress(address);
-                                Long usedBytes = usedSpace.get(fileAddress);
-                                if (usedBytes == null) {
-                                    usedBytes = 0L;
-                                }
-                                usedBytes += loggable.length();
-                                usedSpace.put(fileAddress, usedBytes);
-                            }
-                        }
+    public void save(@NotNull final Transaction txn) {
+        if (isDirty) {
+            final StoreImpl store = env.openStore(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME,
+                    StoreConfig.WITHOUT_DUPLICATES, txn);
+            // clear entries for already deleted files
+            try (Cursor cursor = store.openCursor(txn)) {
+                while (cursor.getNext()) {
+                    final long fileAddress = LongBinding.compressedEntryToLong(cursor.getKey());
+                    final boolean fileIsDeleted;
+                    synchronized (filesUtilization) {
+                        fileIsDeleted = !filesUtilization.containsKey(fileAddress);
                     }
-                });
-                synchronized (filesUtilization) {
-                    filesUtilization.clear();
-                    for (final Map.Entry<Long, Long> entry : usedSpace.entrySet()) {
-                        filesUtilization.put(entry.getKey(), new FileUtilization(fileSize - entry.getValue()));
+                    if (fileIsDeleted) {
+                        cursor.deleteCurrent();
                     }
                 }
             }
-        }, Priority.highest);
-    }
-
-    /**
-     * Saves utilization profile in internal store.
-     */
-    void save() {
-        env.executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final Transaction txn) {
-                final StoreImpl store = env.openStore(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME,
-                        StoreConfig.WITHOUT_DUPLICATES, txn);
-                // clear entries for already deleted files
-                try (Cursor cursor = store.openCursor(txn)) {
-                    while (cursor.getNext()) {
-                        final long fileAddress = LongBinding.compressedEntryToLong(cursor.getKey());
-                        final boolean fileIsDeleted;
-                        synchronized (filesUtilization) {
-                            fileIsDeleted = !filesUtilization.containsKey(fileAddress);
-                        }
-                        if (fileIsDeleted) {
-                            cursor.deleteCurrent();
-                        }
-                    }
-                }
-                // save profile of up-to-date files
-                final List<Map.Entry<Long, FileUtilization>> filesUtilization;
-                synchronized (UtilizationProfile.this.filesUtilization) {
-                    filesUtilization = new ArrayList<>(UtilizationProfile.this.filesUtilization.entrySet());
-                }
-                for (final Map.Entry<Long, FileUtilization> entry : filesUtilization) {
-                    store.put(txn,
-                            LongBinding.longToCompressedEntry(entry.getKey()),
-                            CompressedUnsignedLongByteIterable.getIterable(entry.getValue().getFreeBytes()));
-                }
+            // save profile of up-to-date files
+            final List<Map.Entry<Long, FileUtilization>> filesUtilization;
+            synchronized (UtilizationProfile.this.filesUtilization) {
+                filesUtilization = new ArrayList<>(UtilizationProfile.this.filesUtilization.entrySet());
             }
-        });
+            for (final Map.Entry<Long, FileUtilization> entry : filesUtilization) {
+                store.put(txn,
+                        LongBinding.longToCompressedEntry(entry.getKey()),
+                        CompressedUnsignedLongByteIterable.getIterable(entry.getValue().getFreeBytes()));
+            }
+        }
     }
 
-    public int totalFreeSpacePercent() {
+    public boolean isDirty() {
+        return isDirty;
+    }
+
+    public void setDirty(boolean dirty) {
+        isDirty = dirty;
+    }
+
+    int totalFreeSpacePercent() {
         final long totalBytes = this.totalBytes;
         return (int) (totalBytes == 0 ? 0 : ((totalFreeBytes * 100L) / totalBytes));
     }
@@ -227,7 +195,8 @@ public final class UtilizationProfile {
                     fileUtilization = new FileUtilization();
                     filesUtilization.put(fileAddress, fileUtilization);
                 }
-                fileUtilization.fetchExpiredLoggable(loggable, fileUtilization.getFreeSpace());
+                fileUtilization.fetchExpiredLoggable(loggable,
+                        env.getEnvironmentConfig().getGcUseExpirationChecker() ? fileUtilization.getFreeSpace() : null);
             }
         }
     }
@@ -255,44 +224,98 @@ public final class UtilizationProfile {
         this.totalFreeBytes = totalFreeBytes;
     }
 
-    Long[] getFilesSortedByUtilization() {
-        final long maxFreeBytes = fileSize * (long) gc.getMaximumFreeSpacePercent() / 100L;
+    Iterator<Long> getFilesSortedByUtilization(final long highFile) {
         final long[] fileAddresses = log.getAllFileAddresses();
-        final LongHashMap<Long> sparseFiles = new LongHashMap<>();
+        final long maxFreeBytes = fileSize * (long) gc.getMaximumFreeSpacePercent() / 100L;
+        final PriorityQueue<Pair<Long, Long>> fragmentedFiles = new PriorityQueue<>(10, new Comparator<Pair<Long, Long>>() {
+            @Override
+            public int compare(Pair<Long, Long> leftPair, Pair<Long, Long> rightPair) {
+                final long leftFreeBytes = leftPair.getSecond();
+                final long rightFreeBytes = rightPair.getSecond();
+                if (leftFreeBytes == rightFreeBytes) {
+                    return 0;
+                }
+                return leftFreeBytes > rightFreeBytes ? -1 : 1;
+            }
+        });
+        final long[] totalCleanableBytes = {0};
+        final long[] totalFreeBytes = {0};
         synchronized (filesUtilization) {
             for (int i = gc.getMinFileAge(); i < fileAddresses.length; ++i) {
                 final long file = fileAddresses[i];
-                if (log.fileExists(file)) {
+                if (file < highFile && !gc.isFileCleaned(file)) {
+                    totalCleanableBytes[0] += fileSize;
                     final FileUtilization fileUtilization = filesUtilization.get(file);
                     if (fileUtilization == null) {
-                        sparseFiles.put(file, (Long) Long.MAX_VALUE);
+                        fragmentedFiles.add(new Pair<>(file, fileSize));
+                        totalFreeBytes[0] += fileSize;
                     } else {
                         final long freeBytes = fileUtilization.getFreeBytes();
                         if (freeBytes > maxFreeBytes) {
-                            sparseFiles.put(file, (Long) freeBytes);
+                            fragmentedFiles.add(new Pair<>(file, freeBytes));
                         }
+                        totalFreeBytes[0] += freeBytes;
                     }
                 }
             }
         }
-        final Long[] result = new Long[sparseFiles.size()];
-        for (int i = gc.getMinFileAge(), j = 0; i < fileAddresses.length; ++i) {
-            final long file = fileAddresses[i];
-            if (sparseFiles.containsKey(file)) {
-                result[j++] = file;
-            }
-        }
-        Arrays.sort(result, new Comparator<Long>() {
+        return new Iterator<Long>() {
+
             @Override
-            public int compare(Long o1, Long o2) {
-                final long freeBytes1 = sparseFiles.get(o1);
-                final long freeBytes2 = sparseFiles.get(o2);
-                if (freeBytes1 == freeBytes2) {
-                    return 0;
-                }
-                return freeBytes1 < freeBytes2 ? 1 : -1;
+            public boolean hasNext() {
+                return !fragmentedFiles.isEmpty() &&
+                        totalFreeBytes[0] > totalCleanableBytes[0] * gc.getMaximumFreeSpacePercent() / 100L;
             }
-        });
-        return result;
+
+            @Override
+            public Long next() {
+                final Pair<Long, Long> pair = fragmentedFiles.poll();
+                totalFreeBytes[0] -= pair.getSecond();
+                return pair.getFirst();
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException("remove");
+            }
+        };
+    }
+
+    /**
+     * Reloads utilization profile.
+     */
+    private void computeUtilizationFromScratch() {
+        gc.getCleaner().getJobProcessor().queue(new Job() {
+            @Override
+            protected void execute() throws Throwable {
+                final TreeMap<Long, Long> usedSpace = new TreeMap<>();
+                env.executeInReadonlyTransaction(new TransactionalExecutable() {
+                    @Override
+                    public void execute(@NotNull Transaction txn) {
+                        for (final String storeName : env.getAllStoreNames(txn)) {
+                            final StoreImpl store = env.openStore(storeName, StoreConfig.USE_EXISTING, txn);
+                            final LongIterator it = ((TransactionBase) txn).getTree(store).addressIterator();
+                            while (it.hasNext()) {
+                                final long address = it.next();
+                                final RandomAccessLoggable loggable = log.read(address);
+                                final Long fileAddress = log.getFileAddress(address);
+                                Long usedBytes = usedSpace.get(fileAddress);
+                                if (usedBytes == null) {
+                                    usedBytes = 0L;
+                                }
+                                usedBytes += loggable.length();
+                                usedSpace.put(fileAddress, usedBytes);
+                            }
+                        }
+                    }
+                });
+                synchronized (filesUtilization) {
+                    filesUtilization.clear();
+                    for (final Map.Entry<Long, Long> entry : usedSpace.entrySet()) {
+                        filesUtilization.put(entry.getKey(), new FileUtilization(fileSize - entry.getValue()));
+                    }
+                }
+            }
+        }, Priority.highest);
     }
 }

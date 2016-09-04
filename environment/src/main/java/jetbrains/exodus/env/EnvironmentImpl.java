@@ -23,6 +23,7 @@ import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.gc.GarbageCollector;
+import jetbrains.exodus.gc.UtilizationProfile;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.log.Loggable;
@@ -329,6 +330,7 @@ public class EnvironmentImpl implements Environment {
         if (statisticsMBean != null) {
             statisticsMBean.unregister();
         }
+        runAllTransactionSafeTasks();
         // in order to avoid deadlock, do not finish gc inside lock
         // it is safe to invoke gc.finish() several times
         gc.finish();
@@ -341,8 +343,15 @@ public class EnvironmentImpl implements Environment {
             }
             checkInactive(ec.getEnvCloseForcedly());
             try {
-                if (!ec.getEnvIsReadonly()) {
-                    gc.saveUtilizationProfile();
+                if (!ec.getEnvIsReadonly() && ec.isGcEnabled()) {
+                    executeInTransaction(new TransactionalExecutable() {
+                        @Override
+                        public void execute(@NotNull final Transaction txn) {
+                            final UtilizationProfile up = gc.getUtilizationProfile();
+                            up.setDirty(true);
+                            up.save(txn);
+                        }
+                    });
                 }
                 ec.removeChangedSettingsListener(envSettingsListener);
                 logCacheHitRate = log.getCacheHitRate();
@@ -366,7 +375,6 @@ public class EnvironmentImpl implements Environment {
             throwableOnClose = new EnvironmentClosedException();
             throwableOnCommit = throwableOnClose;
         }
-        runAllTransactionSafeTasks();
         if (logger.isInfoEnabled()) {
             logger.info("Store get cache hit rate: " + ObjectCacheBase.formatHitRate(storeGetCacheHitRate));
             logger.info("Tree nodes cache hit rate: " + ObjectCacheBase.formatHitRate(treeNodesCacheHitRate));
@@ -528,9 +536,19 @@ public class EnvironmentImpl implements Environment {
         if (!forceCommit && txn.isIdempotent()) {
             return true;
         }
+
         final Iterable<Loggable>[] expiredLoggables;
         final long initialHighAddress;
         final long resultingHighAddress;
+        final boolean isGcTransaction = txn.isGCTransaction();
+
+        boolean wasUpSaved = false;
+        final UtilizationProfile up = gc.getUtilizationProfile();
+        if (!isGcTransaction && up.isDirty()) {
+            up.save(txn);
+            wasUpSaved = true;
+        }
+
         synchronized (commitLock) {
             if (ec.getEnvIsReadonly()) {
                 throw new ReadonlyTransactionException();
@@ -540,32 +558,40 @@ public class EnvironmentImpl implements Environment {
                 // meta lock not needed 'cause write can only occur in another commit lock
                 return false;
             }
-            initialHighAddress = log.getHighAddress();
+            if (wasUpSaved) {
+                up.setDirty(false);
+            }
+            log.getConfig().setFsyncSuppressed(isGcTransaction);
             try {
-                final MetaTree[] tree = new MetaTree[1];
-                expiredLoggables = txn.doCommit(tree);
-                synchronized (metaLock) {
-                    txn.setMetaTree(metaTree = tree[0]);
-                    txn.executeCommitHook();
-                }
-                resultingHighAddress = log.getHighAddress();
-            } catch (Throwable t) { // pokemon exception handling to decrease try/catch block overhead
-                loggerError("Failed to flush transaction", t);
+                initialHighAddress = log.getHighAddress();
                 try {
-                    log.setHighAddress(initialHighAddress);
-                } catch (Throwable th) {
-                    throwableOnCommit = t; // inoperative on failing to update high address too
-                    loggerError("Failed to rollback high address", th);
-                    throw ExodusException.toExodusException(th, "Failed to rollback high address");
+                    final MetaTree[] tree = new MetaTree[1];
+                    expiredLoggables = txn.doCommit(tree);
+                    synchronized (metaLock) {
+                        txn.setMetaTree(metaTree = tree[0]);
+                        txn.executeCommitHook();
+                    }
+                    resultingHighAddress = log.approveHighAddress();
+                } catch (Throwable t) { // pokemon exception handling to decrease try/catch block overhead
+                    loggerError("Failed to flush transaction", t);
+                    try {
+                        log.setHighAddress(initialHighAddress);
+                    } catch (Throwable th) {
+                        throwableOnCommit = t; // inoperative on failing to update high address too
+                        loggerError("Failed to rollback high address", th);
+                        throw ExodusException.toExodusException(th, "Failed to rollback high address");
+                    }
+                    throw ExodusException.toExodusException(t, "Failed to flush transaction");
                 }
-                throw ExodusException.toExodusException(t, "Failed to flush transaction");
+            } finally {
+                log.getConfig().setFsyncSuppressed(false);
             }
         }
         gc.fetchExpiredLoggables(new ExpiredLoggableIterable(expiredLoggables));
 
         // update statistics
         statistics.getStatisticsItem(EnvironmentStatistics.BYTES_WRITTEN).setTotal(resultingHighAddress);
-        if (txn.isGCTransaction()) {
+        if (isGcTransaction) {
             statistics.getStatisticsItem(EnvironmentStatistics.BYTES_MOVED_BY_GC).addTotal(resultingHighAddress - initialHighAddress);
         }
         statistics.getStatisticsItem(EnvironmentStatistics.FLUSHED_TRANSACTIONS).incTotal();

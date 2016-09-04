@@ -15,10 +15,7 @@
  */
 package jetbrains.exodus.log;
 
-import jetbrains.exodus.ArrayByteIterable;
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.InvalidSettingException;
+import jetbrains.exodus.*;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.core.dataStructures.skiplists.LongSkipList;
 import jetbrains.exodus.io.*;
@@ -76,6 +73,7 @@ public final class Log implements Closeable {
     private final long fileSize;
     private final long fileLengthBound; // and in bytes
     private long highAddress;
+    private long approvedHighAddress; // high address approved on a higher layer (by Environment transactions)
 
     @Nullable
     private LogTestConfig testConfig;
@@ -94,6 +92,7 @@ public final class Log implements Closeable {
         }
         fileLengthBound = fileLength;
         reader = config.getReader();
+        reader.setLog(this);
         location = reader.getLocation();
         final Block[] blocks = reader.getBlocks();
         for (int i = 0; i < blocks.length; ++i) {
@@ -128,6 +127,7 @@ public final class Log implements Closeable {
         }
         DeferredIO.getJobProcessor();
         highAddress = 0;
+        approvedHighAddress = 0;
 
         final DataWriter baseWriter = config.getWriter();
         final LongSkipList.SkipListNode lastFile = blockAddrs.getMaximumNode();
@@ -163,6 +163,7 @@ public final class Log implements Closeable {
                 logger.error("Exception on Log recovery. Approved high address = " + approvedHighAddress, e);
             }
             setHighAddress(approvedHighAddress);
+            this.approvedHighAddress = approvedHighAddress;
         }
         flush(true);
     }
@@ -277,6 +278,10 @@ public final class Log implements Closeable {
                 setBufferedWriter(createBufferedWriter(baseWriter, highPageAddress, highPageContent, highPageSize));
             }
         }
+    }
+
+    public long approveHighAddress() {
+        return approvedHighAddress = highAddress;
     }
 
     public long getLowAddress() {
@@ -563,6 +568,10 @@ public final class Log implements Closeable {
         return result;
     }
 
+    public boolean isImmutableFile(final long fileAddress) {
+        return fileAddress + fileLengthBound <= approvedHighAddress;
+    }
+
     public void flush() {
         flush(false);
     }
@@ -570,7 +579,7 @@ public final class Log implements Closeable {
     public void flush(boolean forceSync) {
         final TransactionalDataWriter bufferedWriter = this.bufferedWriter;
         bufferedWriter.flush();
-        if (forceSync || config.isDurableWrite()) {
+        if ((forceSync || config.isDurableWrite()) && !config.isFsyncSuppressed()) {
             bufferedWriter.sync();
             lastSyncTicks = System.currentTimeMillis();
         }
@@ -894,7 +903,20 @@ public final class Log implements Closeable {
      */
     private static int writeByteIterable(final TransactionalDataWriter writer, final ByteIterable iterable) {
         final int length = iterable.getLength();
-        if (!writer.write(iterable.getBytesUnsafe(), 0, length)) {
+        if (length == 0) {
+            return 0;
+        }
+        if (length < 3) {
+            final ByteIterator iterator = iterable.iterator();
+            if (!writer.write(iterator.next())) {
+                throw new NewFileCreationDeniedException();
+            }
+            if (length == 2) {
+                if (!writer.write(iterator.next())) {
+                    throw new NewFileCreationDeniedException();
+                }
+            }
+        } else if (!writer.write(iterable.getBytesUnsafe(), 0, length)) {
             throw new NewFileCreationDeniedException();
         }
         return length;

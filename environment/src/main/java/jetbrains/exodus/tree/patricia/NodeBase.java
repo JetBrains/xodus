@@ -62,7 +62,7 @@ abstract class NodeBase implements INode {
     }
 
     boolean hasKey() {
-        return keySequence.getLength() > 0;
+        return keySequence != ByteIterable.EMPTY && keySequence.getLength() > 0;
     }
 
     @NotNull

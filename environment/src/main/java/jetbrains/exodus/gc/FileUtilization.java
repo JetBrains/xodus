@@ -18,6 +18,7 @@ package jetbrains.exodus.gc;
 import jetbrains.exodus.core.dataStructures.skiplists.LongIntSkipList;
 import jetbrains.exodus.log.Loggable;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.lang.ref.SoftReference;
 
@@ -28,7 +29,7 @@ final class FileUtilization {
 
     FileUtilization(long freeBytes) {
         this.freeBytes = freeBytes;
-        freeSpace = new SoftReference<>(new LongIntSkipList());
+        freeSpace = new SoftReference<>(null);
     }
 
     FileUtilization() {
@@ -48,32 +49,34 @@ final class FileUtilization {
         return node != null && node.getKey() + node.getValue() >= startAddress + length;
     }
 
-    void fetchExpiredLoggable(@NotNull final Loggable loggable, @NotNull final LongIntSkipList freeSpace) {
+    void fetchExpiredLoggable(@NotNull final Loggable loggable, @Nullable final LongIntSkipList freeSpace) {
         final long address = loggable.getAddress();
         final int length = loggable.length();
         freeBytes += length;
-        final LongIntSkipList.SkipListNode node = freeSpace.getLessOrEqual(address);
-        if (node == null) {
-            freeSpace.add(address, length);
-        } else {
-            final long freeSpaceStart = node.getKey();
-            final int freeSpaceLength = node.getValue();
-            if (freeSpaceStart + freeSpaceLength >= address) {
-                node.setValue(Math.max(freeSpaceLength, (int) (address - freeSpaceStart + length)));
-            } else {
+        if (freeSpace != null) {
+            final LongIntSkipList.SkipListNode node = freeSpace.getLessOrEqual(address);
+            if (node == null) {
                 freeSpace.add(address, length);
+            } else {
+                final long freeSpaceStart = node.getKey();
+                final int freeSpaceLength = node.getValue();
+                if (freeSpaceStart + freeSpaceLength >= address) {
+                    node.setValue(Math.max(freeSpaceLength, (int) (address - freeSpaceStart + length)));
+                } else {
+                    freeSpace.add(address, length);
+                }
             }
-        }
-        final LongIntSkipList.SkipListNode floorNode = freeSpace.getLessOrEqual(address);
-        if (floorNode != null) {
-            final LongIntSkipList.SkipListNode ceilingNode = freeSpace.getNext(floorNode);
-            if (ceilingNode != null) {
-                final long leftStart = floorNode.getKey();
-                final int leftLength = floorNode.getValue();
-                final long nextStart = ceilingNode.getKey();
-                if (leftStart + leftLength == nextStart) {
-                    floorNode.setValue(leftLength + ceilingNode.getValue());
-                    freeSpace.remove(nextStart);
+            final LongIntSkipList.SkipListNode floorNode = freeSpace.getLessOrEqual(address);
+            if (floorNode != null) {
+                final LongIntSkipList.SkipListNode ceilingNode = freeSpace.getNext(floorNode);
+                if (ceilingNode != null) {
+                    final long leftStart = floorNode.getKey();
+                    final int leftLength = floorNode.getValue();
+                    final long nextStart = ceilingNode.getKey();
+                    if (leftStart + leftLength == nextStart) {
+                        floorNode.setValue(leftLength + ceilingNode.getValue());
+                        freeSpace.remove(nextStart);
+                    }
                 }
             }
         }
