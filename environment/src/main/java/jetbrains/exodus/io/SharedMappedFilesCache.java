@@ -20,6 +20,7 @@ import jetbrains.exodus.core.dataStructures.hash.LinkedHashMap;
 import jetbrains.exodus.system.OperatingSystem;
 import jetbrains.exodus.util.SharedRandomAccessFile;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,14 +29,16 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 final class SharedMappedFilesCache {
 
-    private static long freePhysicalMemoryThreshold = 0L;
     private static final Object syncObject = new Object();
+    @Nullable
     private static volatile SharedMappedFilesCache theCache = null;
 
+    private final long freePhysicalMemoryThreshold;
     private final ConcurrentLinkedQueue<SharedMappedByteBuffer> obsoleteQueue;
     private final LinkedHashMap<File, SharedMappedByteBuffer> cache;
 
-    private SharedMappedFilesCache() {
+    private SharedMappedFilesCache(final long freePhysicalMemoryThreshold) {
+        this.freePhysicalMemoryThreshold = freePhysicalMemoryThreshold;
         obsoleteQueue = new ConcurrentLinkedQueue<>();
         cache = new LinkedHashMap<File, SharedMappedByteBuffer>() {
             @Override
@@ -54,22 +57,21 @@ final class SharedMappedFilesCache {
         };
     }
 
-    static void setFreePhysicalMemoryThreshold(final long freePhysicalMemoryThreshold) {
-        SharedMappedFilesCache.freePhysicalMemoryThreshold = freePhysicalMemoryThreshold;
-    }
-
-    static SharedMappedFilesCache getInstance() {
-        if (freePhysicalMemoryThreshold <= 0L) {
-            throw new ExodusException("Free physical memory threshold is not set (should be a positive value)");
-        }
-        SharedMappedFilesCache result = theCache;
-        if (result == null) {
+    static void createInstance(final long freePhysicalMemoryThreshold) {
+        if (theCache == null) {
             synchronized (syncObject) {
-                result = theCache;
-                if (result == null) {
-                    result = theCache = new SharedMappedFilesCache();
+                if (theCache == null) {
+                    theCache = new SharedMappedFilesCache(freePhysicalMemoryThreshold);
                 }
             }
+        }
+    }
+
+    @NotNull
+    static SharedMappedFilesCache getInstance() {
+        SharedMappedFilesCache result = theCache;
+        if (result == null) {
+            throw new ExodusException("SharedMappedFilesCache instance should be created explicitly");
         }
         return result;
     }
@@ -147,7 +149,7 @@ final class SharedMappedFilesCache {
         }
     }
 
-    private static boolean isOSOverloaded() {
+    private boolean isOSOverloaded() {
         return OperatingSystem.getFreePhysicalMemorySize() < freePhysicalMemoryThreshold;
     }
 }

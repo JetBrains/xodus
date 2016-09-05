@@ -56,7 +56,7 @@ public class FileDataReader implements DataReader {
         this.useNio = useNio;
         SharedOpenFilesCache.setSize(openFiles);
         if (useNio) {
-            SharedMappedFilesCache.setFreePhysicalMemoryThreshold(freePhysicalMemoryThreshold);
+            SharedMappedFilesCache.createInstance(freePhysicalMemoryThreshold);
         }
     }
 

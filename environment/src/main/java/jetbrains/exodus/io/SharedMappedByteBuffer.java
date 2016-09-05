@@ -48,7 +48,7 @@ final class SharedMappedByteBuffer implements AutoCloseable {
     @Override
     public void close() {
         if (clients.decrementAndGet() < 0) {
-            // TODO: implement more platform-independent code
+            // TODO: implement more platform-independent buffer cleaning
             if (buffer instanceof DirectBuffer) {
                 final Cleaner cleaner = ((DirectBuffer) buffer).cleaner();
                 if (cleaner != null) {
