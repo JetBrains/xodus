@@ -16,6 +16,7 @@
 package jetbrains.exodus.core.dataStructures;
 
 import jetbrains.exodus.core.dataStructures.hash.HashUtil;
+import jetbrains.exodus.util.MathUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -26,6 +27,7 @@ public abstract class SoftObjectCacheBase<K, V> extends ObjectCacheBase<K, V> {
     public static final int MIN_SIZE = 16;
 
     private final int chunkSize;
+    private final int mask;
     private final SoftReference<ObjectCacheBase<K, V>>[] chunks;
 
     SoftObjectCacheBase(int cacheSize) {
@@ -35,6 +37,7 @@ public abstract class SoftObjectCacheBase<K, V> extends ObjectCacheBase<K, V> {
         }
         //noinspection unchecked
         chunks = new SoftReference[computeNumberOfChunks(cacheSize)];
+        mask = (1 << MathUtil.integerLogarithm(chunks.length)) - 1;
         chunkSize = cacheSize / chunks.length;
         clear();
     }
@@ -117,7 +120,7 @@ public abstract class SoftObjectCacheBase<K, V> extends ObjectCacheBase<K, V> {
 
     @Nullable
     private ObjectCacheBase<K, V> getChunk(@NotNull final K key, final boolean create) {
-        final int chunkIndex = (key.hashCode() & 0x7fffffff) % chunks.length;
+        final int chunkIndex = HashUtil.indexFor(key.hashCode(), chunks.length, mask);
         final SoftReference<ObjectCacheBase<K, V>> ref = chunks[chunkIndex];
         ObjectCacheBase<K, V> result = ref == null ? null : ref.get();
         if (result == null && create) {

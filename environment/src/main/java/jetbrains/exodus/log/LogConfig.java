@@ -16,6 +16,7 @@
 package jetbrains.exodus.log;
 
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.env.EnvironmentConfig;
 import jetbrains.exodus.io.DataReader;
 import jetbrains.exodus.io.DataWriter;
 import jetbrains.exodus.io.FileDataReader;
@@ -27,7 +28,6 @@ import java.io.File;
 public class LogConfig {
 
     private static final int DEFAULT_FILE_SIZE = 1024; // in kilobytes
-    private static final int DEFAULT_SYNC_PERIOD = 1000; // in milliseconds
 
     private File dir;
     private long fileSize;
@@ -195,7 +195,7 @@ public class LogConfig {
 
     public long getCacheFreePhysicalMemoryThreshold() {
         if (cacheFreePhysicalMemoryThreshold == 0L) {
-            cacheFreePhysicalMemoryThreshold = 1_000_000_000L;
+            cacheFreePhysicalMemoryThreshold = EnvironmentConfig.DEFAULT.getLogCacheFreePhysicalMemoryThreshold();
         }
         return cacheFreePhysicalMemoryThreshold;
     }
@@ -221,7 +221,7 @@ public class LogConfig {
 
     public long getSyncPeriod() {
         if (syncPeriod == 0) {
-            syncPeriod = DEFAULT_SYNC_PERIOD;
+            syncPeriod = EnvironmentConfig.DEFAULT.getLogSyncPeriod();
         }
         return syncPeriod;
     }

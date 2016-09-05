@@ -29,17 +29,29 @@ public class HashUtil {
 
     public static int indexFor(int hash, final int length, final int mask) {
         hash = (hash + (hash >>> 16)) & mask;
-        if (hash >= length) {
-            hash -= length;
-        }
+        /** The following statement is the same as
+         *
+         * if (hash >= length) {
+         *     hash -= length;
+         * }
+         *
+         * but without branching.
+         */
+        hash -= length & (((hash - length) ^ 0x80000000) >> 31);
         return hash;
     }
 
     public static int indexFor(final long hash, final int length, final int mask) {
         int result = (int) ((hash + (hash >>> 16)) & mask);
-        if (result >= length) {
-            result -= length;
-        }
+        /** The following statement is the same as
+         *
+         * if (result >= length) {
+         *     result -= length;
+         * }
+         *
+         * but without branching.
+         */
+        result -= length & (((result - length) ^ 0x80000000) >> 31);
         return result;
     }
 
