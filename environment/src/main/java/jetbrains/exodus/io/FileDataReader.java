@@ -16,6 +16,7 @@
 package jetbrains.exodus.io;
 
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.env.EnvironmentConfig;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.util.SharedRandomAccessFile;
@@ -35,7 +36,6 @@ public class FileDataReader implements DataReader {
 
     private static final Logger logger = LoggerFactory.getLogger(FileDataReader.class);
 
-    private static final long DEFAULT_FREE_PHYSICAL_MEMORY_THRESHOLD = 1_000_000_000L; // ~1GB
     private static final String DELETED_FILE_EXTENSION = ".del";
 
     @NotNull
@@ -45,7 +45,7 @@ public class FileDataReader implements DataReader {
     private Log log;
 
     public FileDataReader(@NotNull final File dir, final int openFiles) {
-        this(dir, openFiles, true, DEFAULT_FREE_PHYSICAL_MEMORY_THRESHOLD);
+        this(dir, openFiles, true, EnvironmentConfig.DEFAULT.getLogCacheFreePhysicalMemoryThreshold());
     }
 
     public FileDataReader(@NotNull final File dir,
