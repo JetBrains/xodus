@@ -40,9 +40,9 @@ public final class EntityIterableCache {
     @NotNull
     private EntityIterableCacheAdapter cacheAdapter;
     @NotNull
-    private final ObjectCacheBase<Object, Long> deferredIterablesCache;
+    private ObjectCacheBase<Object, Long> deferredIterablesCache;
     @NotNull
-    private final ObjectCacheBase<Object, Long> iterableCountsCache;
+    private ObjectCacheBase<Object, Long> iterableCountsCache;
     @NotNull
     final EntityStoreSharedAsyncProcessor processor;
 
@@ -50,9 +50,7 @@ public final class EntityIterableCache {
         this.store = store;
         config = store.getConfig();
         cacheAdapter = new EntityIterableCacheAdapter(config);
-        final int cacheSize = config.getEntityIterableCacheSize();
-        deferredIterablesCache = new ConcurrentObjectCache<>(cacheSize);
-        iterableCountsCache = new ConcurrentObjectCache<>(cacheSize * 2);
+        clear();
         processor = new EntityStoreSharedAsyncProcessor(config.getEntityIterableCacheThreadCount());
         processor.start();
         SharedTimer.registerPeriodicTask(new CacheHitRateAdjuster(this));
@@ -68,6 +66,9 @@ public final class EntityIterableCache {
 
     public void clear() {
         cacheAdapter.clear();
+        final int cacheSize = config.getEntityIterableCacheSize();
+        deferredIterablesCache = new ConcurrentObjectCache<>(cacheSize);
+        iterableCountsCache = new ConcurrentObjectCache<>(cacheSize * 2);
     }
 
     /**
