@@ -304,6 +304,8 @@ public class EnvironmentImpl implements Environment {
                         synchronized (metaLock) {
                             gc.clear();
                             log.clear();
+                            invalidateStoreGetCache();
+                            invalidateTreeNodesCache();
                             throwableOnCommit = null;
                             final Pair<MetaTree, Integer> meta = MetaTree.create(this);
                             metaTree = meta.getFirst();
