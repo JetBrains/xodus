@@ -15,14 +15,12 @@
  */
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.env.Transaction;
 import org.jetbrains.annotations.NotNull;
 
 final class PersistentStoreTransactionSnapshot extends PersistentStoreTransaction {
 
-    PersistentStoreTransactionSnapshot(@NotNull final PersistentStoreTransaction source,
-                                       @NotNull final Transaction txn) {
-        super(source, true);
+    PersistentStoreTransactionSnapshot(@NotNull final PersistentStoreTransaction source) {
+        super(source, TransactionType.Readonly);
     }
 
     @Override

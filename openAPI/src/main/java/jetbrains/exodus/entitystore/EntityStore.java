@@ -54,6 +54,17 @@ public interface EntityStore {
     StoreTransaction beginTransaction();
 
     /**
+     * Starts new exclusive transaction which can be used to read and write data. For given exclusive transaction,
+     * it is guaranteed that no other transaction (except read-only ones) can be started on the {@code EntityStore}
+     * before this one finishes.
+     *
+     * @return new {@linkplain StoreTransaction} instance
+     * @see StoreTransaction
+     */
+    @NotNull
+    StoreTransaction beginExclusiveTransaction();
+
+    /**
      * Starts new transaction which can be used to only read data.
      *
      * @return new {@linkplain StoreTransaction} instance

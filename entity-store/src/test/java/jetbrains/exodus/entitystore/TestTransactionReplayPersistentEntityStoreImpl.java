@@ -39,9 +39,10 @@ public final class TestTransactionReplayPersistentEntityStoreImpl extends Persis
         this.replayFactor = replayFactor;
     }
 
+    @NotNull
     @Override
-    protected PersistentStoreTransaction createTxn() {
-        return new PersistentStoreTransaction(this) {
+    public PersistentStoreTransaction beginTransaction() {
+        final PersistentStoreTransaction result = new PersistentStoreTransaction(this) {
             private int replayed = 0;
 
             @Override
@@ -62,5 +63,7 @@ public final class TestTransactionReplayPersistentEntityStoreImpl extends Persis
                 return super.flush();
             }
         };
+        registerTransaction(result);
+        return result;
     }
 }

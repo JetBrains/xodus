@@ -50,20 +50,26 @@ import java.util.Set;
 @SuppressWarnings({"RawUseOfParameterizedType", "rawtypes"})
 public class PersistentStoreTransaction implements StoreTransaction, TxnGetterStategy {
 
+    enum TransactionType {
+        Regular,
+        Exclusive,
+        Readonly
+    }
+
     @NotNull
-    public static final ByteIterable ZERO_VERSION_ENTRY = IntegerBinding.intToCompressedEntry(0);
+    private static final ByteIterable ZERO_VERSION_ENTRY = IntegerBinding.intToCompressedEntry(0);
+
     @NotNull
     protected final PersistentEntityStoreImpl store;
     @NotNull
     protected final Transaction txn;
     @NotNull
-    protected final Set<EntityIterator> createdIterators;
+    private final Set<EntityIterator> createdIterators;
     private final ObjectCacheBase<PropertyId, Comparable> propsCache;
     @NotNull
     private final ObjectCacheBase<PropertyId, PersistentEntityId> linksCache;
     @NotNull
     private final ObjectCacheBase<PropertyId, String> blobStringsCache;
-    @NotNull
     private EntityIterableCacheAdapter localCache;
     private int localCacheAttempts;
     private int localCacheHits;
@@ -82,16 +88,18 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     private QueryCancellingPolicy queryCancellingPolicy;
 
     PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store) {
-        this(store, false);
+        this(store, TransactionType.Regular);
     }
 
     /**
      * Ctor for creating snapshot transactions.
      *
-     * @param source   source txn which snapshot should be created of.
-     * @param readOnly true if read-only snapshot
+     * @param source  source txn which snapshot should be created of.
+     * @param txnType type of snapshot transaction, only {@linkplain TransactionType#Regular} or
+     *                {@linkplain TransactionType#Readonly} are allowed
      */
-    PersistentStoreTransaction(@NotNull final PersistentStoreTransaction source, final boolean readOnly) {
+    PersistentStoreTransaction(@NotNull final PersistentStoreTransaction source,
+                               @NotNull final TransactionType txnType) {
         this.store = source.store;
         createdIterators = new HashSetDecorator<>();
         final PersistentEntityStoreConfig config = store.getConfig();
@@ -100,10 +108,20 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         blobStringsCache = createObjectCache(config.getTransactionBlobStringsCacheSize());
         localCache = source.localCache;
         localCacheAttempts = localCacheHits = 0;
-        txn = readOnly ? source.txn.getReadonlySnapshot() : source.txn.getSnapshot(getRevertCachesBeginHook());
+        switch (txnType) {
+            case Regular:
+                txn = source.txn.getSnapshot(getRevertCachesBeginHook());
+                break;
+            case Readonly:
+                txn = source.txn.getReadonlySnapshot();
+                break;
+            default:
+                throw new EntityStoreException("Can't create exclusive snapshot transaction");
+        }
     }
 
-    protected PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store, final boolean readOnly) {
+    protected PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store,
+                                         @NotNull final TransactionType txnType) {
         this.store = store;
         createdIterators = new HashSetDecorator<>();
         final PersistentEntityStoreConfig config = store.getConfig();
@@ -113,7 +131,19 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         localCacheAttempts = localCacheHits = 0;
         final Runnable beginHook = getRevertCachesBeginHook();
         final Environment env = store.getEnvironment();
-        txn = readOnly ? env.beginReadonlyTransaction(beginHook) : env.beginTransaction(beginHook);
+        switch (txnType) {
+            case Regular:
+                txn = env.beginTransaction(beginHook);
+                break;
+            case Exclusive:
+                txn = env.beginExclusiveTransaction(beginHook);
+                break;
+            case Readonly:
+                txn = env.beginReadonlyTransaction(beginHook);
+                break;
+            default:
+                throw new EntityStoreException("Can't create " + txnType + " transaction");
+        }
     }
 
     @Override
@@ -148,8 +178,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         return true;
     }
 
-    // exposed only for tests
-    boolean doCommit() {
+    private boolean doCommit() {
         if (txn.commit()) {
             store.unregisterTransaction(this);
             flushNonTransactionalBlobs();
@@ -210,7 +239,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     public PersistentStoreTransaction getSnapshot() {
         // this snapshots should not be registered in store, hence no de-registration
-        return new PersistentStoreTransactionSnapshot(this, txn);
+        return new PersistentStoreTransactionSnapshot(this);
     }
 
     @Override
@@ -610,7 +639,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     @NotNull
-    public EntityIterableCacheAdapter getLocalCache() {
+    EntityIterableCacheAdapter getLocalCache() {
         return mutableCache != null ? mutableCache : localCache;
     }
 
@@ -804,7 +833,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         blobStringsCache.close();
     }
 
-    protected void revertCaches() {
+    void revertCaches() {
         revertCaches(true);
     }
 
@@ -855,7 +884,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         });
     }
 
-    protected Runnable getRevertCachesBeginHook() {
+    private Runnable getRevertCachesBeginHook() {
         return new Runnable() {
             @Override
             public void run() {
@@ -900,6 +929,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                 new TransactionObjectCache<V>(size);
     }
 
+    @SuppressWarnings("WeakerAccess")
     enum HandleCheckResult {
         KEEP,
         REMOVE,
@@ -946,7 +976,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         protected final EntityId id;
 
-        protected EntityAddedOrRemovedHandleChecker(@NotNull final EntityId id) {
+        EntityAddedOrRemovedHandleChecker(@NotNull final EntityId id) {
             this.id = id;
         }
 
@@ -1014,9 +1044,9 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     private abstract static class LinkChangedHandleChecker extends HandleChecker {
         @NotNull
-        protected final PersistentEntityId sourceId;
+        final PersistentEntityId sourceId;
         @NotNull
-        protected final PersistentEntityId targetId;
+        final PersistentEntityId targetId;
         protected final int linkId;
 
         private LinkChangedHandleChecker(@NotNull PersistentEntityId sourceId, @NotNull PersistentEntityId targetId, int linkId) {
@@ -1033,6 +1063,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             LinkChangedHandleChecker that = (LinkChangedHandleChecker) obj;
 
             if (linkId != that.linkId) return false;
+            //noinspection SimplifiableIfStatement
             if (!sourceId.equals(that.sourceId)) return false;
             return targetId.equals(that.targetId);
         }
@@ -1150,6 +1181,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
             if (propertyId != that.propertyId) return false;
             if (typeId != that.typeId) return false;
+            //noinspection SimplifiableIfStatement
             if (newValue != null ? !newValue.equals(that.newValue) : that.newValue != null) return false;
             return !(oldValue != null ? !oldValue.equals(that.oldValue) : that.oldValue != null);
         }

@@ -20,7 +20,7 @@ import org.jetbrains.annotations.NotNull;
 public class ReadonlyPersistentStoreTransaction extends PersistentStoreTransaction {
 
     ReadonlyPersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store) {
-        super(store, true);
+        super(store, TransactionType.Readonly);
     }
 
     @Override
@@ -32,6 +32,6 @@ public class ReadonlyPersistentStoreTransaction extends PersistentStoreTransacti
     }
 
     public PersistentStoreTransaction getUpgradedTransaction() {
-        return new PersistentStoreTransaction(this, false);
+        return new PersistentStoreTransaction(this, TransactionType.Regular);
     }
 }

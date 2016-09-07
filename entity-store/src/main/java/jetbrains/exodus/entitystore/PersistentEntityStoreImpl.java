@@ -23,6 +23,7 @@ import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
+import jetbrains.exodus.entitystore.PersistentStoreTransaction.TransactionType;
 import jetbrains.exodus.entitystore.iterate.EntityFromLinkSetIterable;
 import jetbrains.exodus.entitystore.iterate.EntityFromLinksIterable;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
@@ -377,7 +378,15 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @Override
     @NotNull
     public PersistentStoreTransaction beginTransaction() {
-        final PersistentStoreTransaction txn = createTxn();
+        final PersistentStoreTransaction txn = new PersistentStoreTransaction(this);
+        registerTransaction(txn);
+        return txn;
+    }
+
+    @NotNull
+    @Override
+    public StoreTransaction beginExclusiveTransaction() {
+        final PersistentStoreTransaction txn = new PersistentStoreTransaction(this, TransactionType.Exclusive);
         registerTransaction(txn);
         return txn;
     }
@@ -387,10 +396,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final PersistentStoreTransaction txn = new ReadonlyPersistentStoreTransaction(this);
         registerTransaction(txn);
         return txn;
-    }
-
-    protected PersistentStoreTransaction createTxn() {
-        return new PersistentStoreTransaction(this);
     }
 
     @Override
