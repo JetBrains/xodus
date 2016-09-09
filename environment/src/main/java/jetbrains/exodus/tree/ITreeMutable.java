@@ -16,7 +16,7 @@
 package jetbrains.exodus.tree;
 
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.log.Loggable;
+import jetbrains.exodus.log.ExpiredLoggableInfo;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -120,10 +120,10 @@ public interface ITreeMutable extends ITree {
     long save();
 
     /**
-     * @return set of loggables that were changed by put or delete methods.
+     * @return set of infos about loggables that were changed by put or delete methods.
      */
     @NotNull
-    Collection<Loggable> getExpiredLoggables();
+    Collection<ExpiredLoggableInfo> getExpiredLoggables();
 
     /**
      * Checks if given loggable is part of this tree.

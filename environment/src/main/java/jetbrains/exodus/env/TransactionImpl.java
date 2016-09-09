@@ -19,7 +19,7 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.decorators.HashMapDecorator;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
-import jetbrains.exodus.log.Loggable;
+import jetbrains.exodus.log.ExpiredLoggableInfo;
 import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.ITreeMutable;
 import jetbrains.exodus.tree.TreeMetaInfo;
@@ -221,12 +221,12 @@ public class TransactionImpl extends TransactionBase {
     }
 
 
-    Iterable<Loggable>[] doCommit(@NotNull final MetaTree[] out) {
+    Iterable<ExpiredLoggableInfo>[] doCommit(@NotNull final MetaTree[] out) {
         final Set<Map.Entry<Integer, ITreeMutable>> entries = mutableTrees.entrySet();
         final Set<Map.Entry<Long, Pair<String, ITree>>> removedEntries = removedStores.entrySet();
         final int size = entries.size() + removedEntries.size();
         //noinspection unchecked
-        final Iterable<Loggable>[] expiredLoggables = new Iterable[size + 1];
+        final Iterable<ExpiredLoggableInfo>[] expiredLoggables = new Iterable[size + 1];
         int i = 0;
         final ITreeMutable metaTreeMutable = getMetaTree().tree.getMutableCopy();
         for (final Map.Entry<Long, Pair<String, ITree>> entry : removedEntries) {
@@ -239,7 +239,7 @@ public class TransactionImpl extends TransactionBase {
             MetaTree.addStore(metaTreeMutable, entry.getKey(), entry.getValue());
         }
         createdStores.clear();
-        final Collection<Loggable> last;
+        final Collection<ExpiredLoggableInfo> last;
         for (final Map.Entry<Integer, ITreeMutable> entry : entries) {
             final ITreeMutable treeMutable = entry.getValue();
             expiredLoggables[i++] = treeMutable.getExpiredLoggables();

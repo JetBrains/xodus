@@ -30,7 +30,7 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
 
     private MutableRoot root;
     @Nullable
-    private Collection<Loggable> expiredLoggables;
+    private Collection<ExpiredLoggableInfo> expiredLoggables;
     private List<ITreeCursorMutable> openCursors = null;
 
     PatriciaTreeMutable(@NotNull final Log log,
@@ -269,9 +269,9 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
     @SuppressWarnings({"NullableProblems"})
     @NotNull
     @Override
-    public Collection<Loggable> getExpiredLoggables() {
-        final Collection<Loggable> expiredLoggables = this.expiredLoggables;
-        return expiredLoggables == null ? Collections.<Loggable>emptyList() : expiredLoggables;
+    public Collection<ExpiredLoggableInfo> getExpiredLoggables() {
+        final Collection<ExpiredLoggableInfo> expiredLoggables = this.expiredLoggables;
+        return expiredLoggables == null ? Collections.<ExpiredLoggableInfo>emptyList() : expiredLoggables;
     }
 
     @Override
@@ -363,27 +363,27 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
         return new MutableNode(node);
     }
 
-    void addExpiredLoggable(long address) {
-        if (address != Loggable.NULL_ADDRESS) addExpiredLoggable(getLoggable(address));
-    }
-
-    void addExpiredLoggable(@Nullable final RandomAccessLoggable sourceLoggable) {
-        if (sourceLoggable != null) {
-            Collection<Loggable> expiredLoggables = this.expiredLoggables;
-            if (expiredLoggables == null) {
-                expiredLoggables = new ArrayList<>(16);
-                this.expiredLoggables = expiredLoggables;
-            }
-            expiredLoggables.add(sourceLoggable);
-        }
-    }
-
     static ByteIterable getNotNullValue(@NotNull final INode ln) {
         final ByteIterable value = ln.getValue();
         if (value == null) {
             throw new ExodusException("Value can't be null");
         }
         return value;
+    }
+
+    private void addExpiredLoggable(long address) {
+        if (address != Loggable.NULL_ADDRESS) addExpiredLoggable(getLoggable(address));
+    }
+
+    private void addExpiredLoggable(@Nullable final RandomAccessLoggable sourceLoggable) {
+        if (sourceLoggable != null) {
+            Collection<ExpiredLoggableInfo> expiredLoggables = this.expiredLoggables;
+            if (expiredLoggables == null) {
+                expiredLoggables = new ArrayList<>(16);
+                this.expiredLoggables = expiredLoggables;
+            }
+            expiredLoggables.add(new ExpiredLoggableInfo(sourceLoggable));
+        }
     }
 
     private boolean deleteImpl(@NotNull final ByteIterable key) {

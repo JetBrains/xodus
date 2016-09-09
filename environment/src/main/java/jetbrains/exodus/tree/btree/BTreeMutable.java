@@ -35,7 +35,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
 
     @NotNull
     private BasePageMutable root;
-    private Collection<Loggable> expiredLoggables = null;
+    private Collection<ExpiredLoggableInfo> expiredLoggables = null;
     @Nullable
     private List<ITreeCursorMutable> openCursors = null;
     @NotNull
@@ -211,8 +211,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     }
 
     protected void addExpiredLoggable(@NotNull Loggable loggable) {
-        getExpiredLoggables().add(loggable);
-        //logging.info(loggable.getAddress() + ":" + loggable.getStructureId() + ":" + loggable.getType());
+        getExpiredLoggables().add(new ExpiredLoggableInfo(loggable));
     }
 
     protected void addExpiredLoggable(long address) {
@@ -222,7 +221,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     @SuppressWarnings({"ReturnOfCollectionOrArrayField"})
     @Override
     @NotNull
-    public Collection<Loggable> getExpiredLoggables() {
+    public Collection<ExpiredLoggableInfo> getExpiredLoggables() {
         if (expiredLoggables == null) {
             expiredLoggables = new ArrayList<>(16);
         }
@@ -348,7 +347,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         return context.wasReclaim;
     }
 
-    protected void reclaimInternal(RandomAccessLoggable loggable, BTreeReclaimTraverser context) {
+    void reclaimInternal(RandomAccessLoggable loggable, BTreeReclaimTraverser context) {
         final ByteIterableWithAddress data = loggable.getData();
         final ByteIteratorWithAddress it = data.iterator();
         final int i = CompressedUnsignedLongByteIterable.getInt(it);
@@ -361,7 +360,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         }
     }
 
-    protected void reclaimBottom(RandomAccessLoggable loggable, BTreeReclaimTraverser context) {
+    void reclaimBottom(RandomAccessLoggable loggable, BTreeReclaimTraverser context) {
         final ByteIterableWithAddress data = loggable.getData();
         final ByteIteratorWithAddress it = data.iterator();
         final int i = CompressedUnsignedLongByteIterable.getInt(it);

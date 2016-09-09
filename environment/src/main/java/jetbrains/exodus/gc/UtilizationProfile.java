@@ -186,10 +186,10 @@ public final class UtilizationProfile {
      *
      * @param loggables expired loggables.
      */
-    void fetchExpiredLoggables(@NotNull final Iterable<Loggable> loggables) {
+    void fetchExpiredLoggables(@NotNull final Iterable<ExpiredLoggableInfo> loggables) {
         synchronized (filesUtilization) {
-            for (final Loggable loggable : loggables) {
-                final long fileAddress = log.getFileAddress(loggable.getAddress());
+            for (final ExpiredLoggableInfo loggable : loggables) {
+                final long fileAddress = log.getFileAddress(loggable.address);
                 FileUtilization fileUtilization = filesUtilization.get(fileAddress);
                 if (fileUtilization == null) {
                     fileUtilization = new FileUtilization();

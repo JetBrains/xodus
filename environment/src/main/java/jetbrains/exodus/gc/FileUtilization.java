@@ -16,6 +16,7 @@
 package jetbrains.exodus.gc;
 
 import jetbrains.exodus.core.dataStructures.skiplists.LongIntSkipList;
+import jetbrains.exodus.log.ExpiredLoggableInfo;
 import jetbrains.exodus.log.Loggable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -49,9 +50,9 @@ final class FileUtilization {
         return node != null && node.getKey() + node.getValue() >= startAddress + length;
     }
 
-    void fetchExpiredLoggable(@NotNull final Loggable loggable, @Nullable final LongIntSkipList freeSpace) {
-        final long address = loggable.getAddress();
-        final int length = loggable.length();
+    void fetchExpiredLoggable(@NotNull final ExpiredLoggableInfo loggable, @Nullable final LongIntSkipList freeSpace) {
+        final long address = loggable.address;
+        final int length = loggable.length;
         freeBytes += length;
         if (freeSpace != null) {
             final LongIntSkipList.SkipListNode node = freeSpace.getLessOrEqual(address);
