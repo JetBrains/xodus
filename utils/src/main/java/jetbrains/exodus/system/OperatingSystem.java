@@ -18,6 +18,7 @@ package jetbrains.exodus.system;
 import com.sun.management.OperatingSystemMXBean;
 
 import java.lang.management.ManagementFactory;
+import java.lang.ref.WeakReference;
 
 public final class OperatingSystem {
 
@@ -27,14 +28,27 @@ public final class OperatingSystem {
         osBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
     }
 
+    private static WeakReference<Long> cachedPhysicalMemorySize = new WeakReference<>(null);
+    private static WeakReference<Double> cachedSystemCpuLoad = new WeakReference<>(null);
+
     private OperatingSystem() {
     }
 
     public static long getFreePhysicalMemorySize() {
-        return osBean.getFreePhysicalMemorySize();
+        Long result = cachedPhysicalMemorySize.get();
+        if (result == null) {
+            result = osBean.getFreePhysicalMemorySize();
+            cachedPhysicalMemorySize = new WeakReference<>(result);
+        }
+        return result;
     }
 
     public static double getSystemCpuLoad() {
-        return osBean.getSystemCpuLoad();
+        Double result = cachedSystemCpuLoad.get();
+        if (result == null) {
+            result = osBean.getSystemCpuLoad();
+            cachedSystemCpuLoad = new WeakReference<>(result);
+        }
+        return result;
     }
 }
