@@ -850,7 +850,7 @@ public final class Log implements Closeable {
     private void createNewFileIfNecessary() {
         final boolean shouldCreateNewFile = getLastFileLength() == 0;
         if (shouldCreateNewFile) {
-            flush(true);
+            flush();
             bufferedWriter.close();
             if (config.isFullFileReadonly()) {
                 final Long lastFile;
