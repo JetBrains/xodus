@@ -18,6 +18,7 @@ package jetbrains.exodus.gc;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.Priority;
+import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.log.*;
@@ -36,7 +37,7 @@ public final class UtilizationProfile {
     private final Log log;
     private final long fileSize; // in bytes
     @NotNull
-    private final TreeMap<Long, FileUtilization> filesUtilization; // file address -> FileUtilization object
+    private final LongHashMap<Long> filesUtilization; // file address -> number of free bytes
     private long totalBytes;
     private long totalFreeBytes;
     private volatile boolean isDirty;
@@ -46,13 +47,13 @@ public final class UtilizationProfile {
         this.gc = gc;
         log = env.getLog();
         fileSize = log.getFileSize() * 1024L;
-        filesUtilization = new TreeMap<>();
+        filesUtilization = new LongHashMap<>();
         log.addNewFileListener(new NewFileListener() {
             @Override
             @SuppressWarnings({"ConstantConditions"})
             public void fileCreated(long fileAddress) {
                 synchronized (filesUtilization) {
-                    filesUtilization.put(fileAddress, new FileUtilization());
+                    filesUtilization.put(fileAddress, Long.valueOf(0L));
                 }
                 estimateTotalBytes();
             }
@@ -79,13 +80,13 @@ public final class UtilizationProfile {
                     if (!env.storeExists(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, txn)) {
                         computeUtilizationFromScratch();
                     } else {
-                        final Map<Long, FileUtilization> filesUtilization = new TreeMap<>();
+                        final LongHashMap<Long> filesUtilization = new LongHashMap<>();
                         final StoreImpl store = env.openStore(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES, txn);
                         try (Cursor cursor = store.openCursor(txn)) {
                             while (cursor.getNext()) {
                                 final long fileAddress = LongBinding.compressedEntryToLong(cursor.getKey());
                                 final long freeBytes = CompressedUnsignedLongByteIterable.getLong(cursor.getValue());
-                                filesUtilization.put(fileAddress, new FileUtilization(freeBytes));
+                                filesUtilization.put(fileAddress, Long.valueOf(freeBytes));
                             }
                         }
                         synchronized (UtilizationProfile.this.filesUtilization) {
@@ -123,14 +124,14 @@ public final class UtilizationProfile {
                 }
             }
             // save profile of up-to-date files
-            final List<Map.Entry<Long, FileUtilization>> filesUtilization;
+            final List<Map.Entry<Long, Long>> filesUtilization;
             synchronized (UtilizationProfile.this.filesUtilization) {
                 filesUtilization = new ArrayList<>(UtilizationProfile.this.filesUtilization.entrySet());
             }
-            for (final Map.Entry<Long, FileUtilization> entry : filesUtilization) {
+            for (final Map.Entry<Long, Long> entry : filesUtilization) {
                 store.put(txn,
                         LongBinding.longToCompressedEntry(entry.getKey()),
-                        CompressedUnsignedLongByteIterable.getIterable(entry.getValue().getFreeBytes()));
+                        CompressedUnsignedLongByteIterable.getIterable(entry.getValue()));
             }
         }
     }
@@ -154,30 +155,8 @@ public final class UtilizationProfile {
 
     long getFileFreeBytes(final long fileAddress) {
         synchronized (filesUtilization) {
-            final FileUtilization fileUtilization = filesUtilization.get(fileAddress);
-            return fileUtilization == null ? Long.MAX_VALUE : fileUtilization.getFreeBytes();
-        }
-    }
-
-    /**
-     * Checks whether specified loggable is expired.
-     *
-     * @param loggable loggable to check.
-     * @return true if the loggable is expired.
-     */
-    boolean isExpired(@NotNull final Loggable loggable) {
-        final long fileAddress = log.getFileAddress(loggable.getAddress());
-        synchronized (filesUtilization) {
-            final FileUtilization fileUtilization = filesUtilization.get(fileAddress);
-            return fileUtilization != null && fileUtilization.isExpired(loggable);
-        }
-    }
-
-    boolean isExpired(long startAddress, int length) {
-        final long fileAddress = log.getFileAddress(startAddress);
-        synchronized (filesUtilization) {
-            final FileUtilization fileUtilization = filesUtilization.get(fileAddress);
-            return fileUtilization != null && fileUtilization.isExpired(startAddress, length);
+            final Long freeBytes = filesUtilization.get(fileAddress);
+            return freeBytes == null ? Long.MAX_VALUE : freeBytes;
         }
     }
 
@@ -190,13 +169,12 @@ public final class UtilizationProfile {
         synchronized (filesUtilization) {
             for (final ExpiredLoggableInfo loggable : loggables) {
                 final long fileAddress = log.getFileAddress(loggable.address);
-                FileUtilization fileUtilization = filesUtilization.get(fileAddress);
-                if (fileUtilization == null) {
-                    fileUtilization = new FileUtilization();
-                    filesUtilization.put(fileAddress, fileUtilization);
+                Long freeBytes = filesUtilization.get(fileAddress);
+                if (freeBytes == null) {
+                    filesUtilization.put(fileAddress, Long.valueOf(loggable.length));
+                } else {
+                    filesUtilization.put(fileAddress, Long.valueOf(freeBytes + loggable.length));
                 }
-                fileUtilization.fetchExpiredLoggable(loggable,
-                        env.getEnvironmentConfig().getGcUseExpirationChecker() ? fileUtilization.getFreeSpace() : null);
             }
         }
     }
@@ -217,8 +195,8 @@ public final class UtilizationProfile {
         long totalFreeBytes = 0;
         synchronized (filesUtilization) {
             for (; i < fileAddresses.length; ++i) {
-                final FileUtilization fileUtilization = filesUtilization.get(fileAddresses[i]);
-                totalFreeBytes += fileUtilization != null ? fileUtilization.getFreeBytes() : fileSize;
+                final Long freeBytes = filesUtilization.get(fileAddresses[i]);
+                totalFreeBytes += freeBytes != null ? freeBytes : fileSize;
             }
         }
         this.totalFreeBytes = totalFreeBytes;
@@ -245,12 +223,11 @@ public final class UtilizationProfile {
                 final long file = fileAddresses[i];
                 if (file < highFile && !gc.isFileCleaned(file)) {
                     totalCleanableBytes[0] += fileSize;
-                    final FileUtilization fileUtilization = filesUtilization.get(file);
-                    if (fileUtilization == null) {
+                    final Long freeBytes = filesUtilization.get(file);
+                    if (freeBytes == null) {
                         fragmentedFiles.add(new Pair<>(file, fileSize));
                         totalFreeBytes[0] += fileSize;
                     } else {
-                        final long freeBytes = fileUtilization.getFreeBytes();
                         if (freeBytes > maxFreeBytes) {
                             fragmentedFiles.add(new Pair<>(file, freeBytes));
                         }
@@ -288,7 +265,7 @@ public final class UtilizationProfile {
         gc.getCleaner().getJobProcessor().queue(new Job() {
             @Override
             protected void execute() throws Throwable {
-                final TreeMap<Long, Long> usedSpace = new TreeMap<>();
+                final LongHashMap<Long> usedSpace = new LongHashMap<>();
                 env.executeInReadonlyTransaction(new TransactionalExecutable() {
                     @Override
                     public void execute(@NotNull Transaction txn) {
@@ -312,7 +289,7 @@ public final class UtilizationProfile {
                 synchronized (filesUtilization) {
                     filesUtilization.clear();
                     for (final Map.Entry<Long, Long> entry : usedSpace.entrySet()) {
-                        filesUtilization.put(entry.getKey(), new FileUtilization(fileSize - entry.getValue()));
+                        filesUtilization.put(entry.getKey(), Long.valueOf(fileSize - entry.getValue()));
                     }
                 }
             }

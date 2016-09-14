@@ -15,22 +15,17 @@
  */
 package jetbrains.exodus.tree.patricia;
 
-import jetbrains.exodus.tree.IExpirationChecker;
 import jetbrains.exodus.tree.INode;
 import org.jetbrains.annotations.NotNull;
 
 final class PatriciaReclaimSourceTraverser extends PatriciaTraverser {
 
-    @NotNull
-    final IExpirationChecker expirationChecker;
     private final long minAddress;
 
     PatriciaReclaimSourceTraverser(@NotNull final PatriciaTreeBase tree,
                                    @NotNull final NodeBase currentNode,
-                                   @NotNull final IExpirationChecker expirationChecker,
                                    final long minAddress) {
         super(tree, currentNode);
-        this.expirationChecker = expirationChecker;
         this.minAddress = minAddress;
         init(true);
     }

@@ -148,15 +148,8 @@ final class PatriciaTreeWithDuplicatesMutable extends PatriciaTreeWithDuplicates
 
     @Override
     public boolean reclaim(@NotNull final RandomAccessLoggable loggable,
-                           @NotNull final Iterator<RandomAccessLoggable> loggables,
-                           @NotNull final IExpirationChecker expirationChecker) {
-        return ((ITreeMutable) treeNoDuplicates).reclaim(loggable, loggables, expirationChecker);
-    }
-
-    @Override
-    public boolean reclaim(@NotNull final RandomAccessLoggable loggable,
                            @NotNull final Iterator<RandomAccessLoggable> loggables) {
-        return reclaim(loggable, loggables, IExpirationChecker.NONE);
+        return ((ITreeMutable) treeNoDuplicates).reclaim(loggable, loggables);
     }
 
     private ITreeMutable getTreeNoDuplicates() {

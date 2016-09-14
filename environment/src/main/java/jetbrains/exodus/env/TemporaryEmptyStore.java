@@ -17,7 +17,6 @@ package jetbrains.exodus.env;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.log.RandomAccessLoggable;
-import jetbrains.exodus.tree.IExpirationChecker;
 import jetbrains.exodus.tree.ITreeCursor;
 import jetbrains.exodus.tree.TreeMetaInfo;
 import org.jetbrains.annotations.NotNull;
@@ -93,8 +92,7 @@ class TemporaryEmptyStore extends StoreImpl {
     @Override
     public void reclaim(@NotNull final Transaction transaction,
                         @NotNull final RandomAccessLoggable loggable,
-                        @NotNull final Iterator<RandomAccessLoggable> loggables,
-                        @NotNull final IExpirationChecker expirationChecker) {
+                        @NotNull final Iterator<RandomAccessLoggable> loggables) {
         // nothing to reclaim
     }
 

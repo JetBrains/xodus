@@ -16,38 +16,34 @@
 package jetbrains.exodus.tree.btree;
 
 import jetbrains.exodus.log.RandomAccessLoggable;
-import jetbrains.exodus.tree.IExpirationChecker;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class BTreeReclaimTraverser extends BTreeTraverser {
+class BTreeReclaimTraverser extends BTreeTraverser {
     @NotNull
     protected final BTreeMutable mainTree;
+    boolean wasReclaim;
     @NotNull
-    protected final IExpirationChecker expirationChecker;
-    protected boolean wasReclaim;
+    final List<RandomAccessLoggable> dupLeafsLo = new ArrayList<>();
     @NotNull
-    protected final List<RandomAccessLoggable> dupLeafsLo = new ArrayList<>();
-    @NotNull
-    protected final List<RandomAccessLoggable> dupLeafsHi = new ArrayList<>();
+    final List<RandomAccessLoggable> dupLeafsHi = new ArrayList<>();
 
-    public BTreeReclaimTraverser(@NotNull BTreeMutable mainTree, @NotNull IExpirationChecker expirationChecker) {
+    BTreeReclaimTraverser(@NotNull BTreeMutable mainTree) {
         super(mainTree.getRoot());
         this.mainTree = mainTree;
-        this.expirationChecker = expirationChecker;
     }
 
     protected void setPage(BasePage node) {
         currentNode = node;
     }
 
-    protected void pushChild(int index) {
+    void pushChild(int index) {
         node = pushChild(new TreePos(currentNode, index), currentNode.getChild(index), 0);
     }
 
-    protected void popAndMutate() {
+    void popAndMutate() {
         final BasePage node = currentNode;
         moveUp();
         if (node.isMutable()) {

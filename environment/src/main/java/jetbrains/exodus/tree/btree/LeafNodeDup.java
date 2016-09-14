@@ -18,7 +18,6 @@ package jetbrains.exodus.tree.btree;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.log.*;
-import jetbrains.exodus.tree.IExpirationChecker;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -85,7 +84,7 @@ class LeafNodeDup extends LeafNode {
     }
 
     @NotNull
-    public BTreeDupMutable getTreeCopyMutable() {
+    BTreeDupMutable getTreeCopyMutable() {
         return tree.getMutableCopy();
     }
 
@@ -101,7 +100,7 @@ class LeafNodeDup extends LeafNode {
     }
 
     @Override
-    public void doReclaim(@NotNull BTreeReclaimTraverser context, final int leafIndex) {
+    public void doReclaim(@NotNull final BTreeReclaimTraverser context, final int leafIndex) {
         final long keyAddress = context.currentNode.getKeyAddress(leafIndex);
         final BTreeDupMutable tree;
         final BaseLeafNodeMutable mutable;
@@ -138,7 +137,7 @@ class LeafNodeDup extends LeafNode {
             }
         }
         // TODO: implement mutable lower bound to avoid allocations (yapavel knows how)
-        final BTreeReclaimTraverser dupStack = new BTreeReclaimTraverser(tree, context.expirationChecker);
+        final BTreeReclaimTraverser dupStack = new BTreeReclaimTraverser(tree);
         for (final RandomAccessLoggable loggable : context.dupLeafsLo) {
             switch (loggable.getType()) {
                 case BTreeBase.DUP_LEAF:
@@ -190,16 +189,15 @@ class LeafNodeDup extends LeafNode {
         final Log log = tree.log;
         if (startAddress != Loggable.NULL_ADDRESS && log.hasAddress(startAddress)) {
             final BoundLoggableIterator itr = new BoundLoggableIterator(log.getLoggableIterator(startAddress), log.getFileAddress(getAddress()));
-            collect(context.expirationChecker, context.dupLeafsLo, itr.next(), itr);
+            collect(context.dupLeafsLo, itr.next(), itr);
         }
         super.reclaim(context);
     }
 
     @Nullable
-    protected static RandomAccessLoggable collect(@NotNull final IExpirationChecker expirationChecker,
-                                                  final @NotNull List<RandomAccessLoggable> output,
-                                                  @NotNull RandomAccessLoggable loggable,
-                                                  final @NotNull Iterator<RandomAccessLoggable> loggables) {
+    static RandomAccessLoggable collect(@NotNull final List<RandomAccessLoggable> output,
+                                        @NotNull RandomAccessLoggable loggable,
+                                        @NotNull final Iterator<RandomAccessLoggable> loggables) {
         while (true) {
             switch (loggable.getType()) {
                 case NullLoggable.TYPE:
@@ -210,9 +208,7 @@ class LeafNodeDup extends LeafNode {
                 case BTreeBase.DUP_LEAF:
                 case BTreeBase.DUP_BOTTOM:
                 case BTreeBase.DUP_INTERNAL:
-                    if (!expirationChecker.expired(loggable)) {
-                        output.add(loggable);
-                    }
+                    output.add(loggable);
                     break;
                 default:
                     throw new ExodusException("Unexpected loggable type " + loggable.getType());

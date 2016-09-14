@@ -20,7 +20,6 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.log.RandomAccessLoggable;
-import jetbrains.exodus.tree.IExpirationChecker;
 import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.TreeMetaInfo;
 import jetbrains.exodus.tree.btree.BTree;
@@ -156,16 +155,15 @@ public class StoreImpl implements Store {
 
     public void reclaim(@NotNull final Transaction transaction,
                         @NotNull final RandomAccessLoggable loggable,
-                        @NotNull final Iterator<RandomAccessLoggable> loggables,
-                        @NotNull final IExpirationChecker expirationChecker) {
+                        @NotNull final Iterator<RandomAccessLoggable> loggables) {
         final TransactionImpl txn = EnvironmentImpl.throwIfReadonly(transaction, "Can't reclaim in read-only transaction");
         final boolean wasTreeCreated = txn.hasTreeMutable(this);
-        if (!txn.getMutableTree(this).reclaim(loggable, loggables, expirationChecker) && !wasTreeCreated) {
+        if (!txn.getMutableTree(this).reclaim(loggable, loggables) && !wasTreeCreated) {
             txn.removeTreeMutable(this);
         }
     }
 
-    public ITree openImmutableTree(@NotNull final MetaTree metaTree) {
+    ITree openImmutableTree(@NotNull final MetaTree metaTree) {
         final int structureId = getStructureId();
         final long upToDateRootAddress = metaTree.getRootAddress(structureId);
         final boolean hasDuplicates = metaInfo.hasDuplicates();

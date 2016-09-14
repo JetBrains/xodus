@@ -25,7 +25,6 @@ import jetbrains.exodus.core.execution.JobProcessorAdapter;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.io.RemoveBlockType;
 import jetbrains.exodus.log.*;
-import jetbrains.exodus.tree.IExpirationChecker;
 import jetbrains.exodus.util.DeferredIO;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -58,8 +57,6 @@ public final class GarbageCollector {
     private final BackgroundCleaner cleaner;
     private volatile int newFiles; // number of new files appeared after last cleaning job
     @NotNull
-    private final IExpirationChecker expirationChecker;
-    @NotNull
     private final IntHashMap<StoreImpl> openStoresCache;
     private boolean useRegularTxn;
 
@@ -71,22 +68,6 @@ public final class GarbageCollector {
         utilizationProfile = new UtilizationProfile(env, this);
         cleaner = new BackgroundCleaner(this);
         newFiles = ec.getGcFilesInterval() + 1;
-        if (!ec.getGcUseExpirationChecker()) {
-            expirationChecker = IExpirationChecker.NONE;
-        } else {
-            expirationChecker = new IExpirationChecker() {
-
-                @Override
-                public boolean expired(@NotNull final Loggable loggable) {
-                    return utilizationProfile.isExpired(loggable);
-                }
-
-                @Override
-                public boolean expired(long startAddress, int length) {
-                    return utilizationProfile.isExpired(startAddress, length);
-                }
-            };
-        }
         openStoresCache = new IntHashMap<>();
         env.getLog().addNewFileListener(new NewFileListener() {
             @Override
@@ -138,10 +119,6 @@ public final class GarbageCollector {
 
     public long getFileFreeBytes(final long fileAddress) {
         return utilizationProfile.getFileFreeBytes(fileAddress);
-    }
-
-    public boolean isExpired(final long startAddress, final int length) {
-        return utilizationProfile.isExpired(startAddress, length);
     }
 
     public void suspend() {
@@ -374,7 +351,7 @@ public final class GarbageCollector {
                         store = txn.openStoreByStructureId(structureId);
                         openStoresCache.put(structureId, store);
                     }
-                    store.reclaim(txn, loggable, loggables, expirationChecker);
+                    store.reclaim(txn, loggable, loggables);
                 }
             }
         } catch (Throwable e) {

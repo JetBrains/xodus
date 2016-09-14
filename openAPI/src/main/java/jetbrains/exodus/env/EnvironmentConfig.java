@@ -96,6 +96,7 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     public static final String GC_RENAME_FILES = "exodus.gc.renameFiles";
 
+    @Deprecated
     public static final String GC_USE_EXPIRATION_CHECKER = "exodus.gc.useExpirationChecker";
 
     /**
@@ -170,7 +171,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(GC_START_IN, 5000),
                 new Pair(GC_MIN_UTILIZATION, 50),
                 new Pair(GC_RENAME_FILES, false),
-                new Pair(GC_USE_EXPIRATION_CHECKER, true),
+                new Pair(GC_USE_EXPIRATION_CHECKER, false),
                 new Pair(GC_MIN_FILE_AGE, 2),
                 new Pair(GC_FILES_INTERVAL, 3),
                 new Pair(GC_RUN_PERIOD, 30000),
@@ -477,10 +478,12 @@ public final class EnvironmentConfig extends AbstractConfig {
         return setSetting(GC_RENAME_FILES, rename);
     }
 
+    @Deprecated
     public boolean getGcUseExpirationChecker() {
         return (Boolean) getSetting(GC_USE_EXPIRATION_CHECKER);
     }
 
+    @Deprecated
     public EnvironmentConfig setGcUseExpirationChecker(boolean useExpirationChecker) {
         return setSetting(GC_USE_EXPIRATION_CHECKER, useExpirationChecker);
     }
