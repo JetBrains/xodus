@@ -17,6 +17,7 @@ package jetbrains.exodus.gc;
 
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
+import jetbrains.exodus.core.dataStructures.Priority;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
@@ -89,7 +90,12 @@ public final class GarbageCollector {
 
     @SuppressWarnings("unused")
     public void setCleanerJobProcessor(@NotNull final JobProcessorAdapter processor) {
-        cleaner.setJobProcessor(processor);
+        cleaner.getJobProcessor().queue(new Job() {
+            @Override
+            protected void execute() throws Throwable {
+                cleaner.setJobProcessor(processor);
+            }
+        }, Priority.highest);
     }
 
     public void wake() {
