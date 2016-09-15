@@ -59,6 +59,9 @@ final class BackgroundCleaningJob extends Job {
             return;
         }
         final BackgroundCleaner cleaner = gc.getCleaner();
+        if (!cleaner.isCurrentThread()) {
+            return;
+        }
         try {
             if (canContinue()) {
                 final EnvironmentImpl env = gc.getEnvironment();
@@ -88,12 +91,7 @@ final class BackgroundCleaningJob extends Job {
                 }
             }
         } finally {
-            if (cleaner.isCurrentThread()) {
-                gc.deletePendingFiles();
-            } else {
-                // XD-446: if we stopped cleaning cycle due to background cleaner job processor has changed then re-queue the job to another processor
-                gc.wake();
-            }
+            gc.deletePendingFiles();
         }
     }
 
