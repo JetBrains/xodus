@@ -318,7 +318,8 @@ public final class EnvironmentConfig extends AbstractConfig {
     public static final String GC_RENAME_FILES = "exodus.gc.renameFiles";
 
     /**
-     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code true}.
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
+     * As of 1.0.2, is deprecated and has no effect.
      * <p>Mutable at runtime: no
      */
     @Deprecated
