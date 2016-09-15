@@ -23,7 +23,6 @@ import jetbrains.exodus.env.*;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.log.RandomAccessLoggable;
-import jetbrains.exodus.tree.IExpirationChecker;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
@@ -52,7 +51,7 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
         final StoreImpl store = openStoreAutoCommit("store");
         final Iterator<RandomAccessLoggable> itr = log.getLoggableIterator(startAddress);
         final TransactionBase txn = env.beginTransaction();
-        Assert.assertTrue(txn.getTree(store).getMutableCopy().reclaim(itr.next(), itr, IExpirationChecker.NONE));
+        Assert.assertTrue(txn.getTree(store).getMutableCopy().reclaim(itr.next(), itr));
         txn.abort();
     }
 

@@ -73,17 +73,16 @@ final class SharedLogCache extends LogCache {
     @Override
     @NotNull
     protected ArrayByteIterable getPage(@NotNull final Log log, final long pageAddress) {
+        ArrayByteIterable page = log.getHighPage(pageAddress);
+        if (page != null) {
+            return page;
+        }
         final long adjustedPageAddress = pageAddress >> pageSizeLogarithm;
         final int logIdentity = log.getIdentity();
         final long key = getLogPageFingerPrint(logIdentity, adjustedPageAddress);
         final CachedValue cachedValue = pagesCache.tryKeyLocked(key);
-        ArrayByteIterable page =
-                (cachedValue != null && cachedValue.logIdentity == logIdentity && cachedValue.address == adjustedPageAddress) ?
-                        cachedValue.page : null;
-        if (page != null) {
-            return page;
-        }
-        page = log.getHighPage(pageAddress);
+        page = (cachedValue != null && cachedValue.logIdentity == logIdentity && cachedValue.address == adjustedPageAddress) ?
+                cachedValue.page : null;
         if (page != null) {
             return page;
         }

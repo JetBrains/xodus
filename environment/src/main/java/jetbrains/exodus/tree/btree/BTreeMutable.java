@@ -36,7 +36,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
 
     @NotNull
     private BasePageMutable root;
-    private Collection<Loggable> expiredLoggables = null;
+    private Collection<ExpiredLoggableInfo> expiredLoggables = null;
     @Nullable
     private List<ITreeCursorMutable> openCursors = null;
     @NotNull
@@ -212,8 +212,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     }
 
     protected void addExpiredLoggable(@NotNull Loggable loggable) {
-        getExpiredLoggables().add(loggable);
-        //logging.info(loggable.getAddress() + ":" + loggable.getStructureId() + ":" + loggable.getType());
+        getExpiredLoggables().add(new ExpiredLoggableInfo(loggable));
     }
 
     protected void addExpiredLoggable(long address) {
@@ -223,7 +222,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     @SuppressWarnings({"ReturnOfCollectionOrArrayField"})
     @Override
     @NotNull
-    public Collection<Loggable> getExpiredLoggables() {
+    public Collection<ExpiredLoggableInfo> getExpiredLoggables() {
         if (expiredLoggables == null) {
             expiredLoggables = new ArrayList<>(16);
         }
@@ -270,15 +269,9 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     }
 
     @Override
-    public boolean reclaim(@NotNull RandomAccessLoggable loggable, @NotNull Iterator<RandomAccessLoggable> loggables) {
-        return reclaim(loggable, loggables, IExpirationChecker.NONE);
-    }
-
-    @Override
     public boolean reclaim(@NotNull RandomAccessLoggable loggable,
-                           @NotNull final Iterator<RandomAccessLoggable> loggables,
-                           @NotNull final IExpirationChecker expirationChecker) {
-        final BTreeReclaimTraverser context = new BTreeReclaimTraverser(this, expirationChecker);
+                           @NotNull final Iterator<RandomAccessLoggable> loggables) {
+        final BTreeReclaimTraverser context = new BTreeReclaimTraverser(this);
 
         loop:
         while (true) {
@@ -293,9 +286,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
                     new LeafNodeDup(this, loggable).reclaim(context);
                     break;
                 case LEAF:
-                    if (!expirationChecker.expired(loggable)) {
-                        new LeafNode(loggable).reclaim(context);
-                    }
+                    new LeafNode(loggable).reclaim(context);
                     break;
                 case BOTTOM_ROOT:
                 case INTERNAL_ROOT:
@@ -304,21 +295,17 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
                     }
                     break loop; // txn ended
                 case BOTTOM:
-                    if (!expirationChecker.expired(loggable)) {
-                        reclaimBottom(loggable, context);
-                    }
+                    reclaimBottom(loggable, context);
                     break;
                 case INTERNAL:
-                    if (!expirationChecker.expired(loggable)) {
-                        reclaimInternal(loggable, context);
-                    }
+                    reclaimInternal(loggable, context);
                     break;
                 case DUP_LEAF:
                 case DUP_BOTTOM:
                 case DUP_INTERNAL:
                     context.dupLeafsLo.clear();
                     context.dupLeafsHi.clear();
-                    final RandomAccessLoggable leaf = LeafNodeDup.collect(expirationChecker, context.dupLeafsHi, loggable, loggables);
+                    final RandomAccessLoggable leaf = LeafNodeDup.collect(context.dupLeafsHi, loggable, loggables);
                     if (leaf == null) {
                         break loop; // loggable of dup leaf type not found, txn ended prematurely
                     }
@@ -349,7 +336,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         return context.wasReclaim;
     }
 
-    protected void reclaimInternal(RandomAccessLoggable loggable, BTreeReclaimTraverser context) {
+    void reclaimInternal(RandomAccessLoggable loggable, BTreeReclaimTraverser context) {
         final ByteIterableWithAddress data = loggable.getData();
         final ByteIteratorWithAddress it = data.iterator();
         final int i = CompressedUnsignedLongByteIterable.getInt(it);
@@ -362,7 +349,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         }
     }
 
-    protected void reclaimBottom(RandomAccessLoggable loggable, BTreeReclaimTraverser context) {
+    void reclaimBottom(RandomAccessLoggable loggable, BTreeReclaimTraverser context) {
         final ByteIterableWithAddress data = loggable.getData();
         final ByteIteratorWithAddress it = data.iterator();
         final int i = CompressedUnsignedLongByteIterable.getInt(it);

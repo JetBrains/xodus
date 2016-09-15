@@ -137,7 +137,7 @@ final class MetaTree {
     @Nullable
     static MetaTree saveMetaTree(@NotNull final ITreeMutable metaTree,
                                  @NotNull final EnvironmentImpl env,
-                                 @NotNull final Collection<Loggable> expired) {
+                                 @NotNull final Collection<ExpiredLoggableInfo> expired) {
         final long newMetaTreeAddress = metaTree.save();
         final Log log = env.getLog();
         final int lastStructureId = env.getLastStructureId();
@@ -145,7 +145,7 @@ final class MetaTree {
                 DatabaseRoot.asByteIterable(newMetaTreeAddress, lastStructureId));
         final BTree resultTree = env.loadMetaTree(newMetaTreeAddress);
         final RandomAccessLoggable dbRootLoggable = log.read(dbRootAddress);
-        expired.add(dbRootLoggable);
+        expired.add(new ExpiredLoggableInfo(dbRootLoggable));
         return new MetaTree(resultTree, dbRootAddress, dbRootAddress + dbRootLoggable.length());
     }
 

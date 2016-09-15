@@ -24,9 +24,9 @@ import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.gc.GarbageCollector;
 import jetbrains.exodus.gc.UtilizationProfile;
+import jetbrains.exodus.log.ExpiredLoggableInfo;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
-import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.tree.TreeMetaInfo;
 import jetbrains.exodus.tree.btree.BTree;
 import jetbrains.exodus.tree.btree.BTreeBalancePolicy;
@@ -539,7 +539,7 @@ public class EnvironmentImpl implements Environment {
             return true;
         }
 
-        final Iterable<Loggable>[] expiredLoggables;
+        final Iterable<ExpiredLoggableInfo>[] expiredLoggables;
         final long initialHighAddress;
         final long resultingHighAddress;
         final boolean isGcTransaction = txn.isGCTransaction();
@@ -983,19 +983,19 @@ public class EnvironmentImpl implements Environment {
     }
 
     @SuppressWarnings({"AssignmentToCollectionOrArrayFieldFromParameter"})
-    private static class ExpiredLoggableIterable implements Iterable<Loggable> {
+    private static class ExpiredLoggableIterable implements Iterable<ExpiredLoggableInfo> {
 
-        private final Iterable<Loggable>[] expiredLoggables;
+        private final Iterable<ExpiredLoggableInfo>[] expiredLoggables;
 
-        private ExpiredLoggableIterable(Iterable<Loggable>[] expiredLoggables) {
+        private ExpiredLoggableIterable(Iterable<ExpiredLoggableInfo>[] expiredLoggables) {
             this.expiredLoggables = expiredLoggables;
         }
 
         @Override
-        public Iterator<Loggable> iterator() {
+        public Iterator<ExpiredLoggableInfo> iterator() {
 
-            return new Iterator<Loggable>() {
-                private Iterator<Loggable> current = expiredLoggables[0].iterator();
+            return new Iterator<ExpiredLoggableInfo>() {
+                private Iterator<ExpiredLoggableInfo> current = expiredLoggables[0].iterator();
                 private int index = 0;
 
                 @Override
@@ -1011,7 +1011,7 @@ public class EnvironmentImpl implements Environment {
                 }
 
                 @Override
-                public Loggable next() {
+                public ExpiredLoggableInfo next() {
                     if (!hasNext()) {
                         throw new NoSuchElementException("No more loggables available");
                     }

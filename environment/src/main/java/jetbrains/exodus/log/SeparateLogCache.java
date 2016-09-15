@@ -73,12 +73,12 @@ final class SeparateLogCache extends LogCache {
     @Override
     @NotNull
     ArrayByteIterable getPage(@NotNull final Log log, final long pageAddress) {
-        final long cacheKey = pageAddress >> pageSizeLogarithm;
-        ArrayByteIterable page = pagesCache.tryKeyLocked(cacheKey);
+        ArrayByteIterable page = log.getHighPage(pageAddress);
         if (page != null) {
             return page;
         }
-        page = log.getHighPage(pageAddress);
+        final long cacheKey = pageAddress >> pageSizeLogarithm;
+        page = pagesCache.tryKeyLocked(cacheKey);
         if (page != null) {
             return page;
         }

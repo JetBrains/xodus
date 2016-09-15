@@ -107,8 +107,6 @@ public interface EnvironmentConfigMBean {
 
     void setGcRenameFiles(boolean rename);
 
-    boolean getGcUseExpirationChecker();
-
     int getGcFileMinAge();
 
     void setGcFileMinAge(int minAge);
@@ -130,6 +128,10 @@ public interface EnvironmentConfigMBean {
     int getGcTransactionAcquireTimeout();
 
     void setGcTransactionAcquireTimeout(int timeout);
+
+    int getGcTransactionTimeout();
+
+    void setGcTransactionTimeout(int timeout);
 
     int getGcFilesDeletionDelay();
 

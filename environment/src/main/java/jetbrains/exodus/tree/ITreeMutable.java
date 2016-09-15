@@ -16,7 +16,7 @@
 package jetbrains.exodus.tree;
 
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.log.Loggable;
+import jetbrains.exodus.log.ExpiredLoggableInfo;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -120,23 +120,10 @@ public interface ITreeMutable extends ITree {
     long save();
 
     /**
-     * @return set of loggables that were changed by put or delete methods.
+     * @return set of infos about loggables that were changed by put or delete methods.
      */
     @NotNull
-    Collection<Loggable> getExpiredLoggables();
-
-    /**
-     * Checks if given loggable is part of this tree.
-     * If it is, then deserialize loggable to page or leaf and load path up to the root.
-     * On tree save, loaded path will be saved at the end of the log.
-     * This method may be called several times. If it's called for already loaded page or leaf, nothing happens.
-     *
-     * @param loggable          a candidate to reclaim.
-     * @param loggables         loggables following the candidate.
-     * @param expirationChecker callback to check if loggable was already expired
-     * @return true if any loggable (the candidate or any among loggables) was reclaimed.
-     */
-    boolean reclaim(@NotNull RandomAccessLoggable loggable, @NotNull Iterator<RandomAccessLoggable> loggables, @NotNull IExpirationChecker expirationChecker);
+    Collection<ExpiredLoggableInfo> getExpiredLoggables();
 
     /**
      * Same as reclaim with expirationChecker, but takes all loggables into account

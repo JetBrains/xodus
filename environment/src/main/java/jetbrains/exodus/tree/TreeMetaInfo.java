@@ -20,8 +20,8 @@ import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.env.StoreConfig;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
+import jetbrains.exodus.log.ExpiredLoggableInfo;
 import jetbrains.exodus.log.Log;
-import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.tree.btree.BTreeMetaInfo;
 import jetbrains.exodus.tree.patricia.PatriciaMetaInfo;
 import jetbrains.exodus.util.LightOutputStream;
@@ -105,7 +105,7 @@ public abstract class TreeMetaInfo {
     }
 
     @NotNull
-    public static Iterable<Loggable> getTreeLoggables(@NotNull final ITree tree) {
+    public static Iterable<ExpiredLoggableInfo> getTreeLoggables(@NotNull final ITree tree) {
         return new TreeLoggableIterable(tree);
     }
 
@@ -125,7 +125,7 @@ public abstract class TreeMetaInfo {
         }
     }
 
-    private static class TreeLoggableIterable implements Iterable<Loggable> {
+    private static class TreeLoggableIterable implements Iterable<ExpiredLoggableInfo> {
         @NotNull
         private final ITree tree;
 
@@ -134,8 +134,8 @@ public abstract class TreeMetaInfo {
         }
 
         @Override
-        public Iterator<Loggable> iterator() {
-            return new Iterator<Loggable>() {
+        public Iterator<ExpiredLoggableInfo> iterator() {
+            return new Iterator<ExpiredLoggableInfo>() {
                 final LongIterator itr = tree.addressIterator();
 
                 @Override
@@ -144,8 +144,8 @@ public abstract class TreeMetaInfo {
                 }
 
                 @Override
-                public Loggable next() {
-                    return tree.getLog().read(itr.next());
+                public ExpiredLoggableInfo next() {
+                    return new ExpiredLoggableInfo(tree.getLog().read(itr.next()));
                 }
 
                 @Override

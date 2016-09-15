@@ -17,7 +17,7 @@ package jetbrains.exodus.tree.patricia;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
-import jetbrains.exodus.log.Loggable;
+import jetbrains.exodus.log.ExpiredLoggableInfo;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import jetbrains.exodus.tree.*;
 import jetbrains.exodus.util.ByteIterableUtil;
@@ -142,21 +142,14 @@ final class PatriciaTreeWithDuplicatesMutable extends PatriciaTreeWithDuplicates
 
     @NotNull
     @Override
-    public Collection<Loggable> getExpiredLoggables() {
+    public Collection<ExpiredLoggableInfo> getExpiredLoggables() {
         return getTreeNoDuplicates().getExpiredLoggables();
     }
 
     @Override
     public boolean reclaim(@NotNull final RandomAccessLoggable loggable,
-                           @NotNull final Iterator<RandomAccessLoggable> loggables,
-                           @NotNull final IExpirationChecker expirationChecker) {
-        return ((ITreeMutable) treeNoDuplicates).reclaim(loggable, loggables, expirationChecker);
-    }
-
-    @Override
-    public boolean reclaim(@NotNull final RandomAccessLoggable loggable,
                            @NotNull final Iterator<RandomAccessLoggable> loggables) {
-        return reclaim(loggable, loggables, IExpirationChecker.NONE);
+        return ((ITreeMutable) treeNoDuplicates).reclaim(loggable, loggables);
     }
 
     private ITreeMutable getTreeNoDuplicates() {

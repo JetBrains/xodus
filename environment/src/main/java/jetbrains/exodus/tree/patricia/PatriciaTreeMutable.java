@@ -30,7 +30,7 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
 
     private MutableRoot root;
     @Nullable
-    private Collection<Loggable> expiredLoggables;
+    private Collection<ExpiredLoggableInfo> expiredLoggables;
     private List<ITreeCursorMutable> openCursors = null;
 
     PatriciaTreeMutable(@NotNull final Log log,
@@ -269,9 +269,9 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
     @SuppressWarnings({"NullableProblems"})
     @NotNull
     @Override
-    public Collection<Loggable> getExpiredLoggables() {
-        final Collection<Loggable> expiredLoggables = this.expiredLoggables;
-        return expiredLoggables == null ? Collections.<Loggable>emptyList() : expiredLoggables;
+    public Collection<ExpiredLoggableInfo> getExpiredLoggables() {
+        final Collection<ExpiredLoggableInfo> expiredLoggables = this.expiredLoggables;
+        return expiredLoggables == null ? Collections.<ExpiredLoggableInfo>emptyList() : expiredLoggables;
     }
 
     @Override
@@ -290,15 +290,8 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
     }
 
     @Override
-    public boolean reclaim(@NotNull final RandomAccessLoggable loggable,
-                           @NotNull final Iterator<RandomAccessLoggable> loggables) {
-        return reclaim(loggable, loggables, IExpirationChecker.NONE);
-    }
-
-    @Override
     public boolean reclaim(@NotNull RandomAccessLoggable loggable,
-                           @NotNull final Iterator<RandomAccessLoggable> loggables,
-                           @NotNull final IExpirationChecker expirationChecker) {
+                           @NotNull final Iterator<RandomAccessLoggable> loggables) {
         long minAddress = loggable.getAddress();
         while (true) {
             final byte type = loggable.getType();
@@ -337,7 +330,7 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
         }
 
         final PatriciaReclaimActualTraverser actual = new PatriciaReclaimActualTraverser(this);
-        reclaim(new PatriciaReclaimSourceTraverser(sourceTree, sourceRoot, expirationChecker, minAddress), actual);
+        reclaim(new PatriciaReclaimSourceTraverser(sourceTree, sourceRoot, minAddress), actual);
         return actual.wasReclaim || sourceRoot.getAddress() == root.sourceAddress;
     }
 
@@ -363,27 +356,27 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
         return new MutableNode(node);
     }
 
-    void addExpiredLoggable(long address) {
-        if (address != Loggable.NULL_ADDRESS) addExpiredLoggable(getLoggable(address));
-    }
-
-    void addExpiredLoggable(@Nullable final RandomAccessLoggable sourceLoggable) {
-        if (sourceLoggable != null) {
-            Collection<Loggable> expiredLoggables = this.expiredLoggables;
-            if (expiredLoggables == null) {
-                expiredLoggables = new ArrayList<>(16);
-                this.expiredLoggables = expiredLoggables;
-            }
-            expiredLoggables.add(sourceLoggable);
-        }
-    }
-
     static ByteIterable getNotNullValue(@NotNull final INode ln) {
         final ByteIterable value = ln.getValue();
         if (value == null) {
             throw new ExodusException("Value can't be null");
         }
         return value;
+    }
+
+    private void addExpiredLoggable(long address) {
+        if (address != Loggable.NULL_ADDRESS) addExpiredLoggable(getLoggable(address));
+    }
+
+    private void addExpiredLoggable(@Nullable final RandomAccessLoggable sourceLoggable) {
+        if (sourceLoggable != null) {
+            Collection<ExpiredLoggableInfo> expiredLoggables = this.expiredLoggables;
+            if (expiredLoggables == null) {
+                expiredLoggables = new ArrayList<>(16);
+                this.expiredLoggables = expiredLoggables;
+            }
+            expiredLoggables.add(new ExpiredLoggableInfo(sourceLoggable));
+        }
     }
 
     private boolean deleteImpl(@NotNull final ByteIterable key) {
@@ -441,16 +434,18 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
 
     private static void reclaim(@NotNull final PatriciaReclaimSourceTraverser source,
                                 @NotNull final PatriciaReclaimActualTraverser actual) {
-        if (actual.currentNode.getAddress() == source.currentNode.getAddress()) {
-            actual.currentNode = actual.currentNode.getMutableCopy(actual.mainTree);
+        final NodeBase actualNode = actual.currentNode;
+        final NodeBase sourceNode = source.currentNode;
+        if (actualNode.getAddress() == sourceNode.getAddress()) {
+            actual.currentNode = actualNode.getMutableCopy(actual.mainTree);
             actual.getItr();
             actual.wasReclaim = true;
             reclaimActualChildren(source, actual);
         } else {
             @NotNull
-            ByteIterator srcItr = source.currentNode.keySequence.iterator();
+            ByteIterator srcItr = sourceNode.keySequence.iterator();
             @NotNull
-            ByteIterator actItr = actual.currentNode.keySequence.iterator();
+            ByteIterator actItr = actualNode.keySequence.iterator();
             int srcPushes = 0;
             int actPushes = 0;
             while (true) {
@@ -472,7 +467,7 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
                         actItr = actual.currentNode.keySequence.iterator();
                     }
                 } else if (actItr.hasNext()) {
-                    final NodeChildrenIterator children = source.currentNode.getChildren(actItr.next());
+                    final NodeChildrenIterator children = sourceNode.getChildren(actItr.next());
                     final ChildReference child = children.getNode();
                     if (child == null || !source.isAddressReclaimable(child.suffixAddress)) {
                         break; // child can be expired if source parent was already not-current
@@ -481,7 +476,7 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
                     source.currentIterator = children;
                     source.moveDown();
                     ++srcPushes;
-                    srcItr = source.currentNode.keySequence.iterator();
+                    srcItr = sourceNode.keySequence.iterator();
                 } else { // both iterators matched, here comes the branching
                     reclaimChildren(source, actual);
                     break;
@@ -515,8 +510,6 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
 
     private static void reclaimChildren(@NotNull final PatriciaReclaimSourceTraverser source,
                                         @NotNull final PatriciaReclaimActualTraverser actual) {
-        final long parentAddress = source.currentNode.getAddress();
-        final IExpirationChecker expirationChecker = source.expirationChecker;
         source.moveToNextReclaimable();
         while (source.isValidPos() && actual.isValidPos()) {
             final ChildReference sourceChild = source.currentChild;
@@ -527,16 +520,11 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
             } else if (sourceByte > actualByte) {
                 actual.moveRight();
             } else {
-                final long suffixAddress = sourceChild.suffixAddress;
                 source.moveDown();
-                final long nextLoggableAddress = suffixAddress + source.getTree().getLoggable(source.currentNode.getAddress()).length(); //TODO: don't re-read
                 actual.moveDown();
                 reclaim(source, actual);
                 actual.popAndMutate();
                 source.moveUp();
-                if (expirationChecker.expired(nextLoggableAddress, (int) (parentAddress - nextLoggableAddress))) {
-                    break;
-                }
                 source.moveRight();
                 actual.moveRight();
             }

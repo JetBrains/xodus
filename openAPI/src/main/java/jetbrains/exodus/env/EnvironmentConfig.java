@@ -321,6 +321,7 @@ public final class EnvironmentConfig extends AbstractConfig {
      * Not for public use, for debugging and troubleshooting purposes. Default value is {@code true}.
      * <p>Mutable at runtime: no
      */
+    @Deprecated
     public static final String GC_USE_EXPIRATION_CHECKER = "exodus.gc.useExpirationChecker";
 
     /**
@@ -409,7 +410,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(LOG_DURABLE_WRITE, false),
                 new Pair(LOG_FILE_SIZE, 8192L),
                 new Pair(LOG_LOCK_TIMEOUT, 0L),
-                new Pair(LOG_CACHE_PAGE_SIZE, 256 * 1024),
+                new Pair(LOG_CACHE_PAGE_SIZE, 32 * 1024),
                 new Pair(LOG_CACHE_OPEN_FILES, 500),
                 new Pair(LOG_CACHE_USE_NIO, true),
                 new Pair(LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD, 1_000_000_000L), // ~1GB
@@ -417,7 +418,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(LOG_CACHE_NON_BLOCKING, true),
                 new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
                 new Pair(LOG_CLEAR_INVALID, false),
-                new Pair(LOG_SYNC_PERIOD, 1000L),
+                new Pair(LOG_SYNC_PERIOD, 10000L),
                 new Pair(LOG_FULL_FILE_READ_ONLY, true),
                 new Pair(ENV_IS_READONLY, false),
                 new Pair(ENV_READONLY_EMPTY_STORES, false),
@@ -437,7 +438,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(GC_START_IN, 5000),
                 new Pair(GC_MIN_UTILIZATION, 50),
                 new Pair(GC_RENAME_FILES, false),
-                new Pair(GC_USE_EXPIRATION_CHECKER, true),
+                new Pair(GC_USE_EXPIRATION_CHECKER, false),
                 new Pair(GC_MIN_FILE_AGE, 2),
                 new Pair(GC_FILES_INTERVAL, 3),
                 new Pair(GC_RUN_PERIOD, 30000),
@@ -445,7 +446,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(GC_FILES_DELETION_DELAY, 2000),
                 new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
                 new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 1000),
-                new Pair(GC_TRANSACTION_TIMEOUT, 800),
+                new Pair(GC_TRANSACTION_TIMEOUT, 1000),
                 new Pair(MANAGEMENT_ENABLED, true)
         }, strategy);
     }
@@ -744,10 +745,12 @@ public final class EnvironmentConfig extends AbstractConfig {
         return setSetting(GC_RENAME_FILES, rename);
     }
 
+    @Deprecated
     public boolean getGcUseExpirationChecker() {
         return (Boolean) getSetting(GC_USE_EXPIRATION_CHECKER);
     }
 
+    @Deprecated
     public EnvironmentConfig setGcUseExpirationChecker(boolean useExpirationChecker) {
         return setSetting(GC_USE_EXPIRATION_CHECKER, useExpirationChecker);
     }

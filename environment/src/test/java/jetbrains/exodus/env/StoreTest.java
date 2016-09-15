@@ -274,7 +274,6 @@ public class StoreTest extends EnvironmentTestsBase {
         store.put(txn, getKey(), getValue2());
         txn.commit();
         assertNotNullStringValue(store, getKey(), "value2");
-        Assert.assertTrue(env.getGC().isExpired(STORE_ROOT_ADDRESS, 1)); // is root of store obsolete
     }
 
     private void successivePutRightWithoutDuplicates(final StoreConfig config) {
@@ -304,7 +303,6 @@ public class StoreTest extends EnvironmentTestsBase {
         env.truncateStore("store", txn);
         txn.commit();
         assertEmptyValue(store, getKey());
-        Assert.assertTrue(env.getGC().isExpired(STORE_ROOT_ADDRESS, 1)); // root of store should be obsolete
         openStoreAutoCommit("store", StoreConfig.USE_EXISTING);
         assertEmptyValue(store, getKey());
     }

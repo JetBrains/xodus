@@ -254,11 +254,6 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
-    public boolean getGcUseExpirationChecker() {
-        return config.getGcUseExpirationChecker();
-    }
-
-    @Override
     public int getGcFileMinAge() {
         return config.getGcFileMinAge();
     }
@@ -311,6 +306,16 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     @Override
     public void setGcTransactionAcquireTimeout(int timeout) {
         config.setGcTransactionAcquireTimeout(timeout);
+    }
+
+    @Override
+    public int getGcTransactionTimeout() {
+        return config.getGcTransactionTimeout();
+    }
+
+    @Override
+    public void setGcTransactionTimeout(int timeout) {
+        config.setGcTransactionTimeout(timeout);
     }
 
     @Override
