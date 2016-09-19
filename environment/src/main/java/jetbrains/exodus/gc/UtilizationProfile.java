@@ -37,7 +37,7 @@ public final class UtilizationProfile {
     private final Log log;
     private final long fileSize; // in bytes
     @NotNull
-    private final LongHashMap<Long> filesUtilization; // file address -> number of free bytes
+    private final LongHashMap<MutableLong> filesUtilization; // file address -> number of free bytes
     private long totalBytes;
     private long totalFreeBytes;
     private volatile boolean isDirty;
@@ -53,7 +53,7 @@ public final class UtilizationProfile {
             @SuppressWarnings({"ConstantConditions"})
             public void fileCreated(long fileAddress) {
                 synchronized (filesUtilization) {
-                    filesUtilization.put(fileAddress, Long.valueOf(0L));
+                    filesUtilization.put(fileAddress, new MutableLong(0L));
                 }
                 estimateTotalBytes();
             }
@@ -80,13 +80,13 @@ public final class UtilizationProfile {
                     if (!env.storeExists(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, txn)) {
                         computeUtilizationFromScratch();
                     } else {
-                        final LongHashMap<Long> filesUtilization = new LongHashMap<>();
+                        final LongHashMap<MutableLong> filesUtilization = new LongHashMap<>();
                         final StoreImpl store = env.openStore(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES, txn);
                         try (Cursor cursor = store.openCursor(txn)) {
                             while (cursor.getNext()) {
                                 final long fileAddress = LongBinding.compressedEntryToLong(cursor.getKey());
                                 final long freeBytes = CompressedUnsignedLongByteIterable.getLong(cursor.getValue());
-                                filesUtilization.put(fileAddress, Long.valueOf(freeBytes));
+                                filesUtilization.put(fileAddress, new MutableLong(freeBytes));
                             }
                         }
                         synchronized (UtilizationProfile.this.filesUtilization) {
@@ -124,14 +124,14 @@ public final class UtilizationProfile {
                 }
             }
             // save profile of up-to-date files
-            final List<Map.Entry<Long, Long>> filesUtilization;
+            final List<Map.Entry<Long, MutableLong>> filesUtilization;
             synchronized (UtilizationProfile.this.filesUtilization) {
                 filesUtilization = new ArrayList<>(UtilizationProfile.this.filesUtilization.entrySet());
             }
-            for (final Map.Entry<Long, Long> entry : filesUtilization) {
+            for (final Map.Entry<Long, MutableLong> entry : filesUtilization) {
                 store.put(txn,
                         LongBinding.longToCompressedEntry(entry.getKey()),
-                        CompressedUnsignedLongByteIterable.getIterable(entry.getValue()));
+                        CompressedUnsignedLongByteIterable.getIterable(entry.getValue().value));
             }
         }
     }
@@ -155,8 +155,8 @@ public final class UtilizationProfile {
 
     long getFileFreeBytes(final long fileAddress) {
         synchronized (filesUtilization) {
-            final Long freeBytes = filesUtilization.get(fileAddress);
-            return freeBytes == null ? Long.MAX_VALUE : freeBytes;
+            final MutableLong freeBytes = filesUtilization.get(fileAddress);
+            return freeBytes == null ? Long.MAX_VALUE : freeBytes.value;
         }
     }
 
@@ -166,15 +166,19 @@ public final class UtilizationProfile {
      * @param loggables expired loggables.
      */
     void fetchExpiredLoggables(@NotNull final Iterable<ExpiredLoggableInfo> loggables) {
+        long prevFileAddress = -1L;
+        MutableLong prevFreeBytes = null;
         synchronized (filesUtilization) {
             for (final ExpiredLoggableInfo loggable : loggables) {
                 final long fileAddress = log.getFileAddress(loggable.address);
-                Long freeBytes = filesUtilization.get(fileAddress);
+                MutableLong freeBytes = prevFileAddress == fileAddress ? prevFreeBytes : filesUtilization.get(fileAddress);
                 if (freeBytes == null) {
-                    filesUtilization.put(fileAddress, Long.valueOf(loggable.length));
-                } else {
-                    filesUtilization.put(fileAddress, Long.valueOf(freeBytes + loggable.length));
+                    freeBytes = new MutableLong(0L);
+                    filesUtilization.put(fileAddress, freeBytes);
                 }
+                freeBytes.value += loggable.length;
+                prevFreeBytes = freeBytes;
+                prevFileAddress = fileAddress;
             }
         }
     }
@@ -195,8 +199,8 @@ public final class UtilizationProfile {
         long totalFreeBytes = 0;
         synchronized (filesUtilization) {
             for (; i < fileAddresses.length; ++i) {
-                final Long freeBytes = filesUtilization.get(fileAddresses[i]);
-                totalFreeBytes += freeBytes != null ? freeBytes : fileSize;
+                final MutableLong freeBytes = filesUtilization.get(fileAddresses[i]);
+                totalFreeBytes += freeBytes != null ? freeBytes.value : fileSize;
             }
         }
         this.totalFreeBytes = totalFreeBytes;
@@ -223,15 +227,16 @@ public final class UtilizationProfile {
                 final long file = fileAddresses[i];
                 if (file < highFile && !gc.isFileCleaned(file)) {
                     totalCleanableBytes[0] += fileSize;
-                    final Long freeBytes = filesUtilization.get(file);
+                    final MutableLong freeBytes = filesUtilization.get(file);
                     if (freeBytes == null) {
                         fragmentedFiles.add(new Pair<>(file, fileSize));
                         totalFreeBytes[0] += fileSize;
                     } else {
-                        if (freeBytes > maxFreeBytes) {
-                            fragmentedFiles.add(new Pair<>(file, freeBytes));
+                        final long freeBytesValue = freeBytes.value;
+                        if (freeBytesValue > maxFreeBytes) {
+                            fragmentedFiles.add(new Pair<>(file, freeBytesValue));
                         }
-                        totalFreeBytes[0] += freeBytes;
+                        totalFreeBytes[0] += freeBytesValue;
                     }
                 }
             }
@@ -289,10 +294,23 @@ public final class UtilizationProfile {
                 synchronized (filesUtilization) {
                     filesUtilization.clear();
                     for (final Map.Entry<Long, Long> entry : usedSpace.entrySet()) {
-                        filesUtilization.put(entry.getKey(), Long.valueOf(fileSize - entry.getValue()));
+                        filesUtilization.put(entry.getKey(), new MutableLong(fileSize - entry.getValue()));
                     }
                 }
             }
         }, Priority.highest);
+    }
+
+    /**
+     * Is used instead of {@linkplain Long} for saving free bytes per file in  order to update the value in-place, so
+     * reducing number of lookups in the {@linkplain #filesUtilization LongHashMap}.
+     */
+    private static class MutableLong {
+
+        private long value;
+
+        MutableLong(final long value) {
+            this.value = value;
+        }
     }
 }
