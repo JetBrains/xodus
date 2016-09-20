@@ -62,6 +62,7 @@ public final class Log implements Closeable {
 
     private final List<NewFileListener> newFileListeners;
     private final List<ReadBytesListener> readBytesListeners;
+    private final List<RemoveFileListener> removeFileListeners;
 
     /**
      * Size of single page in log cache.
@@ -113,6 +114,7 @@ public final class Log implements Closeable {
         }
         newFileListeners = new ArrayList<>(2);
         readBytesListeners = new ArrayList<>(2);
+        removeFileListeners = new ArrayList<>(2);
         final long memoryUsage = config.getMemoryUsage();
         final boolean nonBlockingCache = config.isNonBlockingCache();
         if (memoryUsage != 0) {
@@ -382,6 +384,12 @@ public final class Log implements Closeable {
         }
     }
 
+    public void addRemoveFileListener(@NotNull final RemoveFileListener listener) {
+        synchronized (removeFileListeners) {
+            removeFileListeners.add(listener);
+        }
+    }
+
     /**
      * Reads a random access loggable by specified address in the log.
      *
@@ -620,15 +628,28 @@ public final class Log implements Closeable {
     }
 
     public void removeFile(final long address, @NotNull final RemoveBlockType rbt) {
-        // remove physical file
-        reader.removeBlock(address, rbt);
-        // remove address of file of the list
-        synchronized (blockAddrs) {
-            blockAddrs.remove(address);
+        final RemoveFileListener[] listeners;
+        synchronized (removeFileListeners) {
+            listeners = removeFileListeners.toArray(new RemoveFileListener[removeFileListeners.size()]);
         }
-        // clear cache
-        for (long offset = 0; offset < fileLengthBound; offset += cachePageSize) {
-            cache.removePage(this, address + offset);
+        for (final RemoveFileListener listener : listeners) {
+            listener.beforeRemoveFile(address);
+        }
+        try {
+            // remove physical file
+            reader.removeBlock(address, rbt);
+            // remove address of file of the list
+            synchronized (blockAddrs) {
+                blockAddrs.remove(address);
+            }
+            // clear cache
+            for (long offset = 0; offset < fileLengthBound; offset += cachePageSize) {
+                cache.removePage(this, address + offset);
+            }
+        } finally {
+            for (final RemoveFileListener listener : listeners) {
+                listener.afterRemoveFile(address);
+            }
         }
     }
 
