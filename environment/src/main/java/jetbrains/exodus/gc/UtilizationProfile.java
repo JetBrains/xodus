@@ -163,9 +163,11 @@ public final class UtilizationProfile {
     /**
      * Updates utilization profile with new expired loggables.
      *
-     * @param loggables expired loggables.
+     * @param loggables                expired loggables.
+     * @param estimateTotalUtilization {@code true} if total utilization should be estimated from scratch
      */
-    void fetchExpiredLoggables(@NotNull final Iterable<ExpiredLoggableInfo> loggables) {
+    void fetchExpiredLoggables(@NotNull final Iterable<ExpiredLoggableInfo> loggables,
+                               final boolean estimateTotalUtilization) {
         long prevFileAddress = -1L;
         MutableLong prevFreeBytes = null;
         synchronized (filesUtilization) {
@@ -180,6 +182,9 @@ public final class UtilizationProfile {
                 prevFreeBytes = freeBytes;
                 prevFileAddress = fileAddress;
             }
+        }
+        if (estimateTotalUtilization) {
+            estimateTotalBytes();
         }
     }
 

@@ -120,8 +120,9 @@ public final class GarbageCollector {
         return 100 - ec.getGcMinUtilization();
     }
 
-    public void fetchExpiredLoggables(@NotNull final Iterable<ExpiredLoggableInfo> loggables) {
-        utilizationProfile.fetchExpiredLoggables(loggables);
+    public void fetchExpiredLoggables(@NotNull final Iterable<ExpiredLoggableInfo> loggables,
+                                      final boolean estimateTotalUtilization) {
+        utilizationProfile.fetchExpiredLoggables(loggables, estimateTotalUtilization);
     }
 
     public long getFileFreeBytes(final long fileAddress) {
