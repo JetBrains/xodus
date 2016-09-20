@@ -312,5 +312,10 @@ public final class UtilizationProfile {
         MutableLong(final long value) {
             this.value = value;
         }
+
+        @Override
+        public String toString() {
+            return Long.toString(value);
+        }
     }
 }
