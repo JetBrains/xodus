@@ -86,6 +86,7 @@ public final class GarbageCollector {
         pendingFilesToDelete.clear();
         deletionQueue.clear();
         openStoresCache.clear();
+        resetNewFiles();
     }
 
     @SuppressWarnings("unused")
