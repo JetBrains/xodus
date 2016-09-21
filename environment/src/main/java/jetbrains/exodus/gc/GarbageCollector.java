@@ -74,6 +74,7 @@ public final class GarbageCollector {
             @Override
             public void fileCreated(long fileAddress) {
                 ++newFiles;
+                utilizationProfile.estimateTotalBytes();
                 if (!cleaner.isCleaning() && newFiles > ec.getGcFilesInterval() && isTooMuchFreeSpace()) {
                     wake();
                 }
@@ -120,9 +121,8 @@ public final class GarbageCollector {
         return 100 - ec.getGcMinUtilization();
     }
 
-    public void fetchExpiredLoggables(@NotNull final Iterable<ExpiredLoggableInfo> loggables,
-                                      final boolean estimateTotalUtilization) {
-        utilizationProfile.fetchExpiredLoggables(loggables, estimateTotalUtilization);
+    public void fetchExpiredLoggables(@NotNull final Iterable<ExpiredLoggableInfo> loggables) {
+        utilizationProfile.fetchExpiredLoggables(loggables);
     }
 
     public long getFileFreeBytes(final long fileAddress) {

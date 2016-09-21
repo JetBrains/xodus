@@ -586,7 +586,7 @@ public class EnvironmentImpl implements Environment {
                 log.getConfig().setFsyncSuppressed(false);
             }
         }
-        gc.fetchExpiredLoggables(new ExpiredLoggableIterable(expiredLoggables), !isGcTransaction);
+        gc.fetchExpiredLoggables(new ExpiredLoggableIterable(expiredLoggables));
 
         // update statistics
         statistics.getStatisticsItem(EnvironmentStatistics.BYTES_WRITTEN).setTotal(resultingHighAddress);
