@@ -467,7 +467,7 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
                         actItr = actual.currentNode.keySequence.iterator();
                     }
                 } else if (actItr.hasNext()) {
-                    final NodeChildrenIterator children = sourceNode.getChildren(actItr.next());
+                    final NodeChildrenIterator children = source.currentNode.getChildren(actItr.next());
                     final ChildReference child = children.getNode();
                     if (child == null || !source.isAddressReclaimable(child.suffixAddress)) {
                         break; // child can be expired if source parent was already not-current
@@ -476,7 +476,7 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
                     source.currentIterator = children;
                     source.moveDown();
                     ++srcPushes;
-                    srcItr = sourceNode.keySequence.iterator();
+                    srcItr = source.currentNode.keySequence.iterator();
                 } else { // both iterators matched, here comes the branching
                     reclaimChildren(source, actual);
                     break;
