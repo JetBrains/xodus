@@ -54,7 +54,7 @@ class InternalPage extends BasePageImmutable {
     @Override
     public long getChildAddress(final int index) {
         final int offset = size * keyAddressLen + index * childAddressLen + 1;
-        return LongBinding.entryToUnsignedLong(getDataIterator(offset), childAddressLen);
+        return getDataIterator(offset).nextLong(childAddressLen);
     }
 
     @Override

@@ -67,10 +67,18 @@ public class LongBinding extends ComparableBinding {
         }
     }
 
-    public static long entryToUnsignedLong(@NotNull final ByteIterator bi, final int bytesPerLong) {
+    public static long entryToUnsignedLong(@NotNull final ByteIterator bi, final int length) {
         long result = 0;
-        for (int j = 0; j < bytesPerLong; ++j) {
+        for (int i = 0; i < length; ++i) {
             result = (result << 8) + ((int) bi.next() & 0xff);
+        }
+        return result;
+    }
+
+    public static long entryToUnsignedLong(@NotNull final byte[] bytes, final int offset, final int length) {
+        long result = 0;
+        for (int i = 0; i < length; ++i) {
+            result = (result << 8) + ((int) bytes[offset + i] & 0xff);
         }
         return result;
     }

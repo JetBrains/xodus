@@ -72,7 +72,7 @@ public final class CompressedUnsignedLongArrayByteIterable extends ByteIterableB
         if (size > 0) {
             final int bytesPerLong = iterator.next();
             for (int i = 0; i < size; ++i) {
-                output[i] = LongBinding.entryToUnsignedLong(iterator, bytesPerLong);
+                output[i] = iterator.nextLong(bytesPerLong);
             }
             return bytesPerLong;
         }
@@ -89,7 +89,7 @@ public final class CompressedUnsignedLongArrayByteIterable extends ByteIterableB
     public static int loadLongs(long[] output, ByteIterator iterator, int size, int bytesPerLong) {
         if (size > 0) {
             for (int i = 0; i < size; ++i) {
-                output[i] = LongBinding.entryToUnsignedLong(iterator, bytesPerLong);
+                output[i] = iterator.nextLong(bytesPerLong);
             }
             return bytesPerLong;
         }

@@ -18,6 +18,7 @@ package jetbrains.exodus.log;
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.bindings.LongBinding;
 import org.jetbrains.annotations.NotNull;
 
 final class DataIterator implements ByteIterator {
@@ -68,6 +69,16 @@ final class DataIterator implements ByteIterator {
             nextPage(getHighAddress());
         }
         return skipped;
+    }
+
+    @Override
+    public long nextLong(final int length) {
+        if (page == null || this.length - offset < length) {
+            return LongBinding.entryToUnsignedLong(this, length);
+        }
+        final long result = LongBinding.entryToUnsignedLong(page, offset, length);
+        offset += length;
+        return result;
     }
 
     byte[] getCurrentPage() {

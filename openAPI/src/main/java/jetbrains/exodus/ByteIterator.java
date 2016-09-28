@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus;
 
+import jetbrains.exodus.bindings.LongBinding;
+
 public interface ByteIterator {
 
     boolean hasNext();
@@ -29,4 +31,7 @@ public interface ByteIterator {
      */
     long skip(long length);
 
+    default long nextLong(final int length) {
+        return LongBinding.entryToUnsignedLong(this, length);
+    }
 }
