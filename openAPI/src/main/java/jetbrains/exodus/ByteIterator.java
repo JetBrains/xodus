@@ -17,11 +17,11 @@ package jetbrains.exodus;
 
 import jetbrains.exodus.bindings.LongBinding;
 
-public interface ByteIterator {
+public abstract class ByteIterator {
 
-    boolean hasNext();
+    public abstract boolean hasNext();
 
-    byte next();
+    public abstract byte next();
 
     /**
      * @param length items to skip
@@ -29,9 +29,9 @@ public interface ByteIterator {
      * @return how many items were skipped
      * zero if no elements left
      */
-    long skip(long length);
+    public abstract long skip(long length);
 
-    default long nextLong(final int length) {
+    public long nextLong(final int length) {
         return LongBinding.entryToUnsignedLong(this, length);
     }
 }

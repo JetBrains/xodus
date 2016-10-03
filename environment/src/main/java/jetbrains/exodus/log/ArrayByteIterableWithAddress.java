@@ -28,7 +28,7 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
     private final int start;
     private final int end;
 
-    public ArrayByteIterableWithAddress(final long address, @NotNull final byte[] bytes, final int start, final int length) {
+    ArrayByteIterableWithAddress(final long address, @NotNull final byte[] bytes, final int start, final int length) {
         super(address);
         this.bytes = bytes;
         this.start = start;
@@ -66,11 +66,11 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
         return ByteIterableBase.toString(bytes, start, end);
     }
 
-    private class ArrayByteIteratorWithAddress implements ByteIteratorWithAddress {
+    private class ArrayByteIteratorWithAddress extends ByteIteratorWithAddress {
 
         private int i;
 
-        public ArrayByteIteratorWithAddress(final int offset) {
+        ArrayByteIteratorWithAddress(final int offset) {
             i = start + offset;
         }
 

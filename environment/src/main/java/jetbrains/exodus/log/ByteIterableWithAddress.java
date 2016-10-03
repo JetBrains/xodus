@@ -139,7 +139,7 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
         return -(low + 1);  // key not found.
     }
 
-    private static class BinarySearchIterator implements ByteIterator {
+    private static class BinarySearchIterator extends ByteIterator {
         private byte[] page;
         private byte[] nextPage;
         private int offset;

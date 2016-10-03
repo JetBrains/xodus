@@ -120,7 +120,7 @@ public class ArrayByteIterable extends ByteIterableBase {
         return SINGLE_BYTE_ITERABLES[b & 0xff];
     }
 
-    public class Iterator implements ByteIterator {
+    public class Iterator extends ByteIterator {
 
         private int offset = 0;
 

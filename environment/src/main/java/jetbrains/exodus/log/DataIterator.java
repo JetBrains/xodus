@@ -21,7 +21,7 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.LongBinding;
 import org.jetbrains.annotations.NotNull;
 
-final class DataIterator implements ByteIterator {
+final class DataIterator extends ByteIterator {
 
     @NotNull
     private final Log log;

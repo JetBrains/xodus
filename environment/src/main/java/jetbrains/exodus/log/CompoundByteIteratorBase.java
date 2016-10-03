@@ -21,7 +21,7 @@ import jetbrains.exodus.ExodusException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-abstract class CompoundByteIteratorBase implements ByteIterator {
+abstract class CompoundByteIteratorBase extends ByteIterator {
 
     @Nullable
     private ByteIterator current;
