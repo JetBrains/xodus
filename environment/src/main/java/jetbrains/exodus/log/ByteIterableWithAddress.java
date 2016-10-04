@@ -112,9 +112,9 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
                     loaded = true;
                 }
                 page = it.page;
-                cmp = comparator.compare(LongBinding.entryToUnsignedLong(it.asCompound(), bytesPerLong), key);
+                cmp = comparator.compare(it.asCompound().nextLong(bytesPerLong), key);
             } else {
-                cmp = comparator.compare(LongBinding.entryToUnsignedLong(it, bytesPerLong), key);
+                cmp = comparator.compare(it.nextLong(bytesPerLong), key);
                 page = it.page;
                 address = it.address;
             }
@@ -140,7 +140,7 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
         return -(low + 1);  // key not found.
     }
 
-    private static class BinarySearchIterator implements ByteIterator {
+    private static class BinarySearchIterator extends ByteIterator {
         private byte[] page;
         private byte[] nextPage;
         private int offset;
@@ -177,6 +177,13 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
         @Override
         public long skip(long bytes) {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long nextLong(final int length) {
+            final long result = LongBinding.entryToUnsignedLong(page, offset, length);
+            offset += length;
+            return result;
         }
     }
 }

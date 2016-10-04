@@ -104,7 +104,7 @@ final class ImmutableNode extends NodeBase {
                     break;
                 }
                 if (cmp == 0) {
-                    final long nodeAddress = LongBinding.entryToUnsignedLong(it, childAddressLength);
+                    final long nodeAddress = it.nextLong(childAddressLength);
                     return PatriciaTreeBase.nodeIsRoot(type) ? tree.loadNode(nodeAddress) : tree.loadNonCachedNode(nodeAddress);
                 }
                 it.skip(childAddressLength);
@@ -123,7 +123,7 @@ final class ImmutableNode extends NodeBase {
                 } else if (cmp > 0) {
                     high = mid - 1;
                 } else {
-                    final long nodeAddress = LongBinding.entryToUnsignedLong(it, childAddressLength);
+                    final long nodeAddress = it.nextLong(childAddressLength);
                     return PatriciaTreeBase.nodeIsRoot(type) ? tree.loadNode(nodeAddress) : tree.loadNonCachedNode(nodeAddress);
                 }
             }
@@ -158,7 +158,7 @@ final class ImmutableNode extends NodeBase {
                     break;
                 }
                 if (cmp == 0) {
-                    final long suffixAddress = LongBinding.entryToUnsignedLong(it, childAddressLength);
+                    final long suffixAddress = it.nextLong(childAddressLength);
                     return new ImmutableNodeChildrenIterator(it, i + 1, new ChildReference(b, suffixAddress));
                 }
                 it.skip(childAddressLength);
@@ -177,7 +177,7 @@ final class ImmutableNode extends NodeBase {
                 } else if (cmp > 0) {
                     high = mid - 1;
                 } else {
-                    final long suffixAddress = LongBinding.entryToUnsignedLong(it, childAddressLength);
+                    final long suffixAddress = it.nextLong(childAddressLength);
                     return new ImmutableNodeChildrenIterator(it, mid + 1, new ChildReference(b, suffixAddress));
                 }
             }
@@ -196,7 +196,7 @@ final class ImmutableNode extends NodeBase {
                 byte actual = it.next();
                 int cmp = (actual & 0xff) - key;
                 if (cmp > 0) {
-                    final long suffixAddress = LongBinding.entryToUnsignedLong(it, childAddressLength);
+                    final long suffixAddress = it.nextLong(childAddressLength);
                     return new ImmutableNodeChildrenIterator(it, i + 1, new ChildReference(actual, suffixAddress));
                 }
                 it.skip(childAddressLength);
@@ -222,7 +222,7 @@ final class ImmutableNode extends NodeBase {
                 }
             }
             if (result != null) {
-                final long suffixAddress = LongBinding.entryToUnsignedLong(result, childAddressLength);
+                final long suffixAddress = result.nextLong(childAddressLength);
                 return new ImmutableNodeChildrenIterator(result, high + 1, new ChildReference(resultByte, suffixAddress));
             }
         }
@@ -304,7 +304,7 @@ final class ImmutableNode extends NodeBase {
         @Override
         public ChildReference next() {
             ++index;
-            return node = new ChildReference(itr.next(), LongBinding.entryToUnsignedLong(itr, childAddressLength));
+            return node = new ChildReference(itr.next(), itr.nextLong(childAddressLength));
         }
 
         @Override
@@ -316,7 +316,7 @@ final class ImmutableNode extends NodeBase {
         public ChildReference prev() {
             --index;
             itr = getDataIterator(index * (childAddressLength + 1));
-            return node = new ChildReference(itr.next(), LongBinding.entryToUnsignedLong(itr, childAddressLength));
+            return node = new ChildReference(itr.next(), itr.nextLong(childAddressLength));
         }
 
         @Override
@@ -329,7 +329,7 @@ final class ImmutableNode extends NodeBase {
             ++index;
             final ChildReference node = this.node;
             node.firstByte = itr.next();
-            node.suffixAddress = LongBinding.entryToUnsignedLong(itr, childAddressLength);
+            node.suffixAddress = itr.nextLong(childAddressLength);
         }
 
         @Override
@@ -338,7 +338,7 @@ final class ImmutableNode extends NodeBase {
             final ChildReference node = this.node;
             itr = getDataIterator(index * (childAddressLength + 1));
             node.firstByte = itr.next();
-            node.suffixAddress = LongBinding.entryToUnsignedLong(itr, childAddressLength);
+            node.suffixAddress = itr.nextLong(childAddressLength);
         }
 
         @Override

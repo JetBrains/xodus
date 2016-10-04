@@ -55,10 +55,12 @@ class StoreGetCache {
         private final long treeRootAddress;
         @NotNull
         private final ByteIterable key;
+        private int hc;
 
         KeyEntry(final long treeRootAddress, @NotNull final ByteIterable key) {
             this.treeRootAddress = treeRootAddress;
             this.key = key;
+            hc = 0;
         }
 
         @Override
@@ -71,10 +73,12 @@ class StoreGetCache {
 
         @Override
         public int hashCode() {
-            final int keyHashCode = key.hashCode();
-            int result = (int) ((treeRootAddress + keyHashCode) ^ (treeRootAddress >>> 32));
-            result = 31 * result + keyHashCode;
-            return result;
+            if (hc == 0) {
+                final int keyHashCode = key.hashCode();
+                int result = (int) ((treeRootAddress + keyHashCode) ^ (treeRootAddress >>> 32));
+                hc = 31 * result + keyHashCode;
+            }
+            return hc;
         }
     }
 }

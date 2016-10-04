@@ -15,9 +15,9 @@
  */
 package jetbrains.exodus.log;
 
-import jetbrains.exodus.ByteIterator;
+public interface RemoveFileListener {
 
-public abstract class ByteIteratorWithAddress extends ByteIterator {
+    void beforeRemoveFile(long fileAddress);
 
-    public abstract long getAddress();
+    void afterRemoveFile(long fileAddress);
 }

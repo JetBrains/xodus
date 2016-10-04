@@ -17,6 +17,7 @@ package jetbrains.exodus.log;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterableBase;
+import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.util.ByteIterableUtil;
 import org.jetbrains.annotations.NotNull;
 
@@ -27,7 +28,7 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
     private final int start;
     private final int end;
 
-    public ArrayByteIterableWithAddress(final long address, @NotNull final byte[] bytes, final int start, final int length) {
+    ArrayByteIterableWithAddress(final long address, @NotNull final byte[] bytes, final int start, final int length) {
         super(address);
         this.bytes = bytes;
         this.start = start;
@@ -65,11 +66,11 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
         return ByteIterableBase.toString(bytes, start, end);
     }
 
-    private class ArrayByteIteratorWithAddress implements ByteIteratorWithAddress {
+    private class ArrayByteIteratorWithAddress extends ByteIteratorWithAddress {
 
         private int i;
 
-        public ArrayByteIteratorWithAddress(final int offset) {
+        ArrayByteIteratorWithAddress(final int offset) {
             i = start + offset;
         }
 
@@ -93,6 +94,13 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
             final int skipped = Math.min(end - i, (int) bytes);
             i += skipped;
             return skipped;
+        }
+
+        @Override
+        public long nextLong(final int length) {
+            final long result = LongBinding.entryToUnsignedLong(bytes, i, length);
+            i += length;
+            return result;
         }
     }
 }

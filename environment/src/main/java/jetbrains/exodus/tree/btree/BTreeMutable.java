@@ -19,7 +19,6 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.CompoundByteIterable;
 import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.*;
 import org.jetbrains.annotations.NotNull;
@@ -365,7 +364,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     @Nullable
     private LeafNode loadMinKey(ByteIterator it) {
         final int addressLen = it.next();
-        final long keyAddress = LongBinding.entryToUnsignedLong(it, addressLen);
+        final long keyAddress = it.nextLong(addressLen);
         return log.hasAddress(keyAddress) ? loadLeaf(keyAddress) : null;
     }
 

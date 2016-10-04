@@ -103,7 +103,7 @@ abstract class BasePageImmutable extends BasePage {
 
     @Override
     protected long getKeyAddress(final int index) {
-        return LongBinding.entryToUnsignedLong(getDataIterator(index * keyAddressLen), keyAddressLen);
+        return getDataIterator(index * keyAddressLen).nextLong(keyAddressLen);
     }
 
     @Override

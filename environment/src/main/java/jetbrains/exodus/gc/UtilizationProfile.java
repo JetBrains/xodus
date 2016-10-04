@@ -163,7 +163,7 @@ public final class UtilizationProfile {
     /**
      * Updates utilization profile with new expired loggables.
      *
-     * @param loggables expired loggables.
+     * @param loggables                expired loggables.
      */
     void fetchExpiredLoggables(@NotNull final Iterable<ExpiredLoggableInfo> loggables) {
         long prevFileAddress = -1L;
@@ -311,6 +311,11 @@ public final class UtilizationProfile {
 
         MutableLong(final long value) {
             this.value = value;
+        }
+
+        @Override
+        public String toString() {
+            return Long.toString(value);
         }
     }
 }

@@ -74,6 +74,7 @@ public final class GarbageCollector {
             @Override
             public void fileCreated(long fileAddress) {
                 ++newFiles;
+                utilizationProfile.estimateTotalBytes();
                 if (!cleaner.isCleaning() && newFiles > ec.getGcFilesInterval() && isTooMuchFreeSpace()) {
                     wake();
                 }
@@ -86,6 +87,7 @@ public final class GarbageCollector {
         pendingFilesToDelete.clear();
         deletionQueue.clear();
         openStoresCache.clear();
+        resetNewFiles();
     }
 
     @SuppressWarnings("unused")

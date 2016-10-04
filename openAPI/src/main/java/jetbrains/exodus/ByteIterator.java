@@ -15,16 +15,21 @@
  */
 package jetbrains.exodus;
 
+import jetbrains.exodus.bindings.LongBinding;
 /**
  * Iterator of {@link ByteIterable}. Enumerates bytes without boxing.
  */
 public interface ByteIterator {
 
+public abstract class ByteIterator {
     /**
      * @return {@code true} if the iterator has more bytes
      */
     boolean hasNext();
 
+    public abstract boolean hasNext();
+
+    public abstract byte next();
     /**
      * @return next byte
      */
@@ -35,5 +40,10 @@ public interface ByteIterator {
      * @param bytes bytes to skip.
      * @return number of skipped bytes, zero if no bytes left ({@linkplain #hasNext()} returns {@code false}).
      */
+    public abstract long skip(long length);
+
+    public long nextLong(final int length) {
+        return LongBinding.entryToUnsignedLong(this, length);
+    }
     long skip(long bytes);
 }
