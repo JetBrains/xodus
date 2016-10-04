@@ -21,8 +21,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Base iterator for {@link CompoundByteIterable}.
  */
-public abstract class CompoundByteIteratorBase implements ByteIterator {
-abstract class CompoundByteIteratorBase extends ByteIterator {
+public abstract class CompoundByteIteratorBase extends  ByteIterator {
 
     @Nullable
     private ByteIterator current;
