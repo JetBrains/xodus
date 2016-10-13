@@ -188,6 +188,7 @@ class BufferedDataWriter implements TransactionalDataWriter {
         if (count > 0) {
             throw new IllegalStateException("Can't close uncommitted writer " + count);
         }
+        flush();
         child.close();
     }
 
