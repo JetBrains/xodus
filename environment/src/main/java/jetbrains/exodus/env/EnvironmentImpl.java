@@ -22,6 +22,7 @@ import jetbrains.exodus.core.dataStructures.ConcurrentLongObjectCache;
 import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Pair;
+import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.gc.GarbageCollector;
 import jetbrains.exodus.gc.UtilizationProfile;
 import jetbrains.exodus.log.ExpiredLoggableInfo;
@@ -73,6 +74,7 @@ public class EnvironmentImpl implements Environment {
     private final Object metaLock = new Object();
     private final ReentrantTransactionDispatcher txnDispatcher;
     private final ReentrantTransactionDispatcher roTxnDispatcher;
+    private final Job deferredFlushJob;
     @NotNull
     private final EnvironmentStatistics statistics;
     @Nullable
@@ -108,6 +110,16 @@ public class EnvironmentImpl implements Environment {
 
         txnDispatcher = new ReentrantTransactionDispatcher(ec.getEnvMaxParallelTxns());
         roTxnDispatcher = new ReentrantTransactionDispatcher(ec.getEnvMaxParallelReadonlyTxns());
+
+        deferredFlushJob = new Job() {
+            @Override
+            protected void execute() throws Throwable {
+                if (logger.isInfoEnabled()) {
+                    logger.info("Idle environment flush: " + getLocation());
+                }
+                flushAndSync();
+            }
+        };
 
         statistics = new EnvironmentStatistics(this);
         if (ec.isManagementEnabled()) {
@@ -587,6 +599,8 @@ public class EnvironmentImpl implements Environment {
             }
         }
         gc.fetchExpiredLoggables(new ExpiredLoggableIterable(expiredLoggables));
+
+        DeferredIO.getJobProcessor().queueIn(deferredFlushJob, ec.getLogSyncPeriod());
 
         // update statistics
         statistics.getStatisticsItem(EnvironmentStatistics.BYTES_WRITTEN).setTotal(resultingHighAddress);
