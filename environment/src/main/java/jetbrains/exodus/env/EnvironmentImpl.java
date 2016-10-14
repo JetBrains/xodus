@@ -470,7 +470,9 @@ public class EnvironmentImpl implements Environment {
      */
     public void flushAndSync() {
         synchronized (commitLock) {
-            getLog().flush(true);
+            if (isOpen()) {
+                getLog().flush(true);
+            }
         }
     }
 
