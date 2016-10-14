@@ -114,8 +114,8 @@ public class EnvironmentImpl implements Environment {
         deferredFlushJob = new Job() {
             @Override
             protected void execute() throws Throwable {
-                if (logger.isInfoEnabled()) {
-                    logger.info("Idle environment flush: " + getLocation());
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Idle environment flush: " + getLocation());
                 }
                 flushAndSync();
             }
