@@ -27,6 +27,7 @@ import jetbrains.exodus.gc.GarbageCollector;
 import jetbrains.exodus.gc.UtilizationProfile;
 import jetbrains.exodus.log.ExpiredLoggableInfo;
 import jetbrains.exodus.log.Log;
+import jetbrains.exodus.log.LogConfig;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.tree.TreeMetaInfo;
 import jetbrains.exodus.tree.btree.BTree;
@@ -574,7 +575,8 @@ public class EnvironmentImpl implements Environment {
             if (wasUpSaved) {
                 up.setDirty(false);
             }
-            log.getConfig().setFsyncSuppressed(isGcTransaction);
+            final LogConfig config = log.getConfig();
+            config.setFsyncSuppressed(isGcTransaction);
             try {
                 initialHighAddress = log.getHighAddress();
                 try {
@@ -583,6 +585,10 @@ public class EnvironmentImpl implements Environment {
                     synchronized (metaLock) {
                         txn.setMetaTree(metaTree = tree[0]);
                         txn.executeCommitHook();
+                    }
+                    // if durable write is ordered then flush and sync
+                    if (config.isDurableWrite()) {
+                        log.flush(true);
                     }
                     resultingHighAddress = log.approveHighAddress();
                 } catch (Throwable t) { // pokemon exception handling to decrease try/catch block overhead
@@ -597,7 +603,7 @@ public class EnvironmentImpl implements Environment {
                     throw ExodusException.toExodusException(t, "Failed to flush transaction");
                 }
             } finally {
-                log.getConfig().setFsyncSuppressed(false);
+                config.setFsyncSuppressed(false);
             }
         }
         gc.fetchExpiredLoggables(new ExpiredLoggableIterable(expiredLoggables));
