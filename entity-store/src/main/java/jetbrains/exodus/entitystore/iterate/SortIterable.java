@@ -70,6 +70,11 @@ public final class SortIterable extends EntityIterableDecoratorBase {
     }
 
     @Override
+    public int getEntityTypeId() {
+        return sourceTypeId;
+    }
+
+    @Override
     public boolean setOrigin(Object origin) {
         if (super.setOrigin(origin)) {
             propIndex.setOrigin(origin);

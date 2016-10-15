@@ -41,5 +41,7 @@ public interface EntityIterableHandle {
 
     boolean hasLinkId(int id);
 
+    boolean hasEntityTypeId(int entityTypeId);
+
     boolean isExpired();
 }

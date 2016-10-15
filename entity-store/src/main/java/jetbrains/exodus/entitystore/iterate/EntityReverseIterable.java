@@ -39,6 +39,11 @@ public final class EntityReverseIterable extends EntityIterableDecoratorBase {
     }
 
     @Override
+    public int getEntityTypeId() {
+        return source.getEntityTypeId();
+    }
+
+    @Override
     public boolean isEmpty() {
         return source.isEmpty();
     }
