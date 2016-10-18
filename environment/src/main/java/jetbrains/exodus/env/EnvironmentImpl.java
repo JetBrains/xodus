@@ -22,7 +22,6 @@ import jetbrains.exodus.core.dataStructures.ConcurrentLongObjectCache;
 import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Pair;
-import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.gc.GarbageCollector;
 import jetbrains.exodus.gc.UtilizationProfile;
 import jetbrains.exodus.log.ExpiredLoggableInfo;
@@ -75,7 +74,6 @@ public class EnvironmentImpl implements Environment {
     private final Object metaLock = new Object();
     private final ReentrantTransactionDispatcher txnDispatcher;
     private final ReentrantTransactionDispatcher roTxnDispatcher;
-    private final Job deferredFlushJob;
     @NotNull
     private final EnvironmentStatistics statistics;
     @Nullable
@@ -111,16 +109,6 @@ public class EnvironmentImpl implements Environment {
 
         txnDispatcher = new ReentrantTransactionDispatcher(ec.getEnvMaxParallelTxns());
         roTxnDispatcher = new ReentrantTransactionDispatcher(ec.getEnvMaxParallelReadonlyTxns());
-
-        deferredFlushJob = new Job() {
-            @Override
-            protected void execute() throws Throwable {
-                if (logger.isDebugEnabled()) {
-                    logger.debug("Idle environment flush: " + getLocation());
-                }
-                flushAndSync();
-            }
-        };
 
         statistics = new EnvironmentStatistics(this);
         if (ec.isManagementEnabled()) {
@@ -582,21 +570,22 @@ public class EnvironmentImpl implements Environment {
                 try {
                     final MetaTree[] tree = new MetaTree[1];
                     expiredLoggables = txn.doCommit(tree);
+                    // there is a temptation to postpone I/O in order to reduce number of writes to storage device,
+                    // but it's quite difficult to resolve all possible inconsistencies afterwards,
+                    // so think twice before removing the following line
+                    log.flush();
                     synchronized (metaLock) {
                         txn.setMetaTree(metaTree = tree[0]);
                         txn.executeCommitHook();
-                    }
-                    // if durable write is ordered then flush and sync
-                    if (config.isDurableWrite()) {
-                        log.flush(true);
                     }
                     resultingHighAddress = log.approveHighAddress();
                 } catch (Throwable t) { // pokemon exception handling to decrease try/catch block overhead
                     loggerError("Failed to flush transaction", t);
                     try {
                         log.setHighAddress(initialHighAddress);
+                        //log.approveHighAddress();
                     } catch (Throwable th) {
-                        throwableOnCommit = t; // inoperative on failing to update high address too
+                        throwableOnCommit = t; // inoperative on failing to update high address
                         loggerError("Failed to rollback high address", th);
                         throw ExodusException.toExodusException(th, "Failed to rollback high address");
                     }
@@ -607,8 +596,6 @@ public class EnvironmentImpl implements Environment {
             }
         }
         gc.fetchExpiredLoggables(new ExpiredLoggableIterable(expiredLoggables));
-
-        DeferredIO.getJobProcessor().queueIn(deferredFlushJob, ec.getLogSyncPeriod());
 
         // update statistics
         statistics.getStatisticsItem(EnvironmentStatistics.BYTES_WRITTEN).setTotal(resultingHighAddress);
