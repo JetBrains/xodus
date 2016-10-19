@@ -18,9 +18,7 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.bindings.ComparableBinding;
-import jetbrains.exodus.bindings.IntegerBinding;
-import jetbrains.exodus.bindings.LongBinding;
+import jetbrains.exodus.bindings.*;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
@@ -274,9 +272,10 @@ final class PersistentEntityStoreRefactorings {
                             final Transaction envTxn = txn.getEnvironmentTransaction();
                             final IntHashMap<LongHashMap<PropertyValue>> props = new IntHashMap<>();
                             final Cursor cursor = store.getPrimaryPropertyIndexCursor(txn, propTable);
+                            final PropertyTypes propertyTypes = store.getPropertyTypes();
                             while (cursor.getNext()) {
                                 final PropertyKey propKey = PropertyKey.entryToPropertyKey(cursor.getKey());
-                                final PropertyValue propValue = store.getPropertyTypes().entryToPropertyValue(cursor.getValue());
+                                final PropertyValue propValue = propertyTypes.entryToPropertyValue(cursor.getValue());
                                 final int propId = propKey.getPropertyId();
                                 LongHashMap<PropertyValue> entitiesToValues = props.get(propId);
                                 if (entitiesToValues == null) {
@@ -299,7 +298,7 @@ final class PersistentEntityStoreRefactorings {
                                 for (final long localId : localIds) {
                                     final PropertyValue propValue = entitiesToValues.get(localId);
                                     for (final ByteIterable secondaryKey : PropertiesTable.createSecondaryKeys(
-                                            store.getPropertyTypes(), PropertyTypes.propertyValueToEntry(propValue), propValue.getType())) {
+                                            propertyTypes, PropertyTypes.propertyValueToEntry(propValue), propValue.getType())) {
                                         final ByteIterable secondaryValue = LongBinding.longToCompressedEntry(localId);
                                         if (valueCursor == null || !valueCursor.getSearchBoth(secondaryKey, secondaryValue)) {
                                             missingPairs.add(new Pair<>(propId, new Pair<>(secondaryKey, secondaryValue)));
@@ -338,24 +337,40 @@ final class PersistentEntityStoreRefactorings {
                                     final ByteIterable keyEntry = c.getKey();
                                     final ByteIterable valueEntry = c.getValue();
                                     final PropertyValue propValue = entitiesToValues.get(LongBinding.compressedEntryToLong(valueEntry));
-                                    if (propValue == null) {
-                                        phantomPairs.add(new Pair<>(propId, new Pair<>(keyEntry, valueEntry)));
-                                    } else {
-                                        final ComparableBinding objectBinding = propValue.getBinding();
+                                    if (propValue != null) {
+                                        final Comparable data = propValue.getData();
+                                        final int typeId = propValue.getType().getTypeId();
+                                        final Class<? extends Comparable> dataClass;
+                                        final ComparableBinding objectBinding;
+                                        if (typeId == ComparableValueType.COMPARABLE_SET_VALUE_TYPE) {
+                                            //noinspection unchecked
+                                            dataClass = ((ComparableSet) data).getItemClass();
+                                            //noinspection ConstantConditions
+                                            objectBinding = propertyTypes.getPropertyType(dataClass).getBinding();
+                                        } else {
+                                            dataClass = data.getClass();
+                                            objectBinding = propValue.getBinding();
+                                        }
                                         final Comparable value;
                                         try {
                                             value = objectBinding.entryToObject(keyEntry);
+                                            if (dataClass.equals(value.getClass())) {
+                                                if (typeId == ComparableValueType.COMPARABLE_SET_VALUE_TYPE) {
+                                                    //noinspection unchecked
+                                                    if (((ComparableSet) data).containsItem(value)) {
+                                                        continue;
+                                                    }
+                                                } else //noinspection unchecked
+                                                    if (PropertyTypes.toLowerCase(data).compareTo(value) == 0) {
+                                                        continue;
+                                                    }
+                                            }
                                         } catch (Throwable t) {
+                                            logger.error("Error reading property value index ", t);
                                             throwJVMError(t);
-                                            phantomPairs.add(new Pair<>(propId, new Pair<>(keyEntry, valueEntry)));
-                                            continue;
-                                        }
-                                        final Comparable data = propValue.getData();
-                                        //noinspection unchecked
-                                        if (!data.getClass().equals(value.getClass()) || PropertyTypes.toLowerCase(data).compareTo(value) != 0) {
-                                            phantomPairs.add(new Pair<>(propId, new Pair<>(keyEntry, valueEntry)));
                                         }
                                     }
+                                    phantomPairs.add(new Pair<>(propId, new Pair<>(keyEntry, valueEntry)));
                                 }
                                 c.close();
                             }

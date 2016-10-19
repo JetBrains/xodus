@@ -74,6 +74,10 @@ public class ComparableSet<T extends Comparable<T>> implements Comparable<Compar
         return result;
     }
 
+    public boolean containsItem(@NotNull final T item) {
+        return set.contains(item);
+    }
+
     public boolean addItem(@NotNull final T item) {
         final boolean result = set.add(item);
         isDirty |= result;

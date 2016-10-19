@@ -32,6 +32,7 @@ import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.core.execution.SharedTimer;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.env.Environment;
+import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.env.Store;
 import jetbrains.exodus.env.Transaction;
 import jetbrains.exodus.util.StringBuilderSpinAllocator;
@@ -896,11 +897,14 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     private void flushNonTransactionalBlobs() {
         final BlobVault blobVault = store.getBlobVault();
         if (!blobVault.requiresTxn()) {
-            try {
-                blobVault.flushBlobs(blobStreams, blobFiles, deferredBlobsToDelete, txn);
-            } catch (Exception e) {
-                handleOutOfDiskSpace(e);
-                throw ExodusException.toEntityStoreException(e);
+            if (blobStreams != null || blobFiles != null || deferredBlobsToDelete != null) {
+                ((EnvironmentImpl) txn.getEnvironment()).flushAndSync();
+                try {
+                    blobVault.flushBlobs(blobStreams, blobFiles, deferredBlobsToDelete, txn);
+                } catch (Exception e) {
+                    handleOutOfDiskSpace(e);
+                    throw ExodusException.toEntityStoreException(e);
+                }
             }
         }
     }

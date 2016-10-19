@@ -1598,6 +1598,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
         entityTypes.logOperations(txn, flushLog);
         propertyIds.logOperations(txn, flushLog);
+        propertyCustomTypeIds.logOperations(txn, flushLog);
         linkIds.logOperations(txn, flushLog);
         for (final TableCreationOperation op : tableCreationLog) {
             op.persist(txn);

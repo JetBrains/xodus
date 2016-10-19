@@ -51,10 +51,14 @@ public abstract class EntityStoreTestBase extends TestBase {
     protected void setUp() throws Exception {
         isPartiallyTornDown = false;
         shouldCleanopOnTearDown = true;
-        store = createStoreInternal(getDatabaseFolder());
+        openStore();
         if (needsImplicitTxn()) {
             txn = store.beginTransaction();
         }
+    }
+
+    protected PersistentEntityStoreImpl openStore() throws Exception {
+        return store = createStoreInternal(getDatabaseFolder());
     }
 
     protected String getDatabaseFolder() {

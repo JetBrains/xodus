@@ -263,6 +263,17 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     }
 
     @Test
+    public void testReopenEnvironment2() {
+        testGetAllStoreNames();
+        final EnvironmentConfig envConfig = env.getEnvironmentConfig();
+        env.close();
+        final long highAddress = env.getLog().getHighAddress();
+        env = newEnvironmentInstance(LogConfig.create(reader, writer), envConfig);
+        Assert.assertEquals(highAddress, env.getLog().getHighAddress());
+        testGetAllStoreNames();
+    }
+
+    @Test
     public void testBreakSavingMetaTree() {
         final EnvironmentConfig ec = env.getEnvironmentConfig();
         if (ec.getLogCachePageSize() > 1024) {

@@ -26,6 +26,7 @@ import jetbrains.exodus.gc.GarbageCollector;
 import jetbrains.exodus.gc.UtilizationProfile;
 import jetbrains.exodus.log.ExpiredLoggableInfo;
 import jetbrains.exodus.log.Log;
+import jetbrains.exodus.log.LogConfig;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.tree.TreeMetaInfo;
 import jetbrains.exodus.tree.btree.BTree;
@@ -461,7 +462,9 @@ public class EnvironmentImpl implements Environment {
      */
     public void flushAndSync() {
         synchronized (commitLock) {
-            getLog().flush(true);
+            if (isOpen()) {
+                getLog().flush(true);
+            }
         }
     }
 
@@ -563,12 +566,17 @@ public class EnvironmentImpl implements Environment {
             if (wasUpSaved) {
                 up.setDirty(false);
             }
-            log.getConfig().setFsyncSuppressed(isGcTransaction);
+            final LogConfig config = log.getConfig();
+            config.setFsyncSuppressed(isGcTransaction);
             try {
                 initialHighAddress = log.getHighAddress();
                 try {
                     final MetaTree[] tree = new MetaTree[1];
                     expiredLoggables = txn.doCommit(tree);
+                    // there is a temptation to postpone I/O in order to reduce number of writes to storage device,
+                    // but it's quite difficult to resolve all possible inconsistencies afterwards,
+                    // so think twice before removing the following line
+                    log.flush();
                     synchronized (metaLock) {
                         txn.setMetaTree(metaTree = tree[0]);
                         txn.executeCommitHook();
@@ -578,15 +586,16 @@ public class EnvironmentImpl implements Environment {
                     loggerError("Failed to flush transaction", t);
                     try {
                         log.setHighAddress(initialHighAddress);
+                        //log.approveHighAddress();
                     } catch (Throwable th) {
-                        throwableOnCommit = t; // inoperative on failing to update high address too
+                        throwableOnCommit = t; // inoperative on failing to update high address
                         loggerError("Failed to rollback high address", th);
                         throw ExodusException.toExodusException(th, "Failed to rollback high address");
                     }
                     throw ExodusException.toExodusException(t, "Failed to flush transaction");
                 }
             } finally {
-                log.getConfig().setFsyncSuppressed(false);
+                config.setFsyncSuppressed(false);
             }
         }
         gc.fetchExpiredLoggables(new ExpiredLoggableIterable(expiredLoggables));
