@@ -5,7 +5,8 @@ mainClassName = 'org.openjdk.jmh.Main'
 sourceCompatibility = 1.8
 
 dependencies {
-    testCompile project(':benchmarks')
+    testCompile project(':environment')
+    testCompile project(':environment').sourceSets.test.output
     testCompile 'org.openjdk.jmh:jmh-core:1.12'
     testCompile 'org.openjdk.jmh:jmh-generator-annprocess:1.12'
     testCompile group: 'com.sleepycat', name: 'je', version: '5.0.73'
@@ -13,7 +14,7 @@ dependencies {
     testCompile group: 'net.openhft', name: 'chronicle-map', version: '3.8.0'
 }
 
-task testBenchmarksJMH(type:JavaExec) {
+task benchmarks(type: JavaExec) {
     jvmArgs = ['-Xmx1g', '-Xms1g']
     group 'Application'
     description 'Execute the benchmark timing of this project'

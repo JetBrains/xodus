@@ -92,16 +92,8 @@ public abstract class BenchmarkTestBase {
         }
     }
 
-    public static INode kv(String key) {
-        return new StringKVNode(key, "");
-    }
-
     public static INode kv(String key, String value) {
         return new StringKVNode(key, value);
-    }
-
-    public static INode kv(int key, String value) {
-        return kv(FORMATTER.format(key), value);
     }
 
     public static ByteIterable v(int value) {
