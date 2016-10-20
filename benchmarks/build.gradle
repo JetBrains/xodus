@@ -10,7 +10,7 @@ dependencies {
     testCompile 'org.openjdk.jmh:jmh-core:1.12'
     testCompile 'org.openjdk.jmh:jmh-generator-annprocess:1.12'
     testCompile group: 'org.mapdb', name: 'mapdb', version: '1.0.6'
-    testCompile group: 'net.openhft', name: 'chronicle-map', version: '3.8.0'
+    testCompile group: 'net.openhft', name: 'chronicle-map', version: '3.10.1'
 }
 
 task benchmarks(type: JavaExec) {
