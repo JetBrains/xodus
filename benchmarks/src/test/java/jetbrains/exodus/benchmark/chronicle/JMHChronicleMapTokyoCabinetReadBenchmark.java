@@ -18,15 +18,12 @@ package jetbrains.exodus.benchmark.chronicle;
 import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.map.ExternalMapQueryContext;
 import org.jetbrains.annotations.NotNull;
-import org.mapdb.DB;
-import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @State(Scope.Thread)
@@ -38,7 +35,7 @@ public class JMHChronicleMapTokyoCabinetReadBenchmark extends JMHChronicleMapTok
         computeInTransaction(new TransactionalComputable<Void>() {
             @Override
             public Void compute(@NotNull ChronicleMap<String, String> map) {
-               writeSuccessiveKeys(map);
+                writeSuccessiveKeys(map);
                 return null;
             }
         });
@@ -52,6 +49,7 @@ public class JMHChronicleMapTokyoCabinetReadBenchmark extends JMHChronicleMapTok
     public int successiveRead() {
         return computeInTransaction(new TransactionalComputable<Integer>() {
             int result;
+
             @Override
             public Integer compute(@NotNull ChronicleMap<String, String> map) {
                 result = 0;

@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.benchmark.je;
+package jetbrains.exodus.benchmark.chronicle;
 
-import com.sleepycat.je.DatabaseEntry;
-import com.sleepycat.je.Transaction;
+import net.openhft.chronicle.map.ChronicleMap;
 import org.jetbrains.annotations.NotNull;
 import org.openjdk.jmh.annotations.*;
 
@@ -24,36 +23,37 @@ import java.util.concurrent.TimeUnit;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
-public class JMH_JETokyoCabinetWriteBenchmark extends JMH_JETokyoCabinetBenchmarkBase {
+public class JMHChronicleMapTokyoCabinetWriteBenchmark extends JMHChronicleMapTokyoCabinetBenchmarkBase {
 
     @Benchmark
     @BenchmarkMode(Mode.SingleShotTime)
     @Warmup(iterations = 2)
-    @Measurement(iterations = 6)
-    @Fork(10)
+    @Measurement(iterations = 4)
+    @Fork(4)
     public void successiveWrite() {
-        writeSuccessiveKeys();
-    }
-
-    @Benchmark
-    @BenchmarkMode(Mode.SingleShotTime)
-    @Warmup(iterations = 2)
-    @Measurement(iterations = 6)
-    @Fork(10)
-    public void randomWrite() {
-        computeInTransaction(new TransactionalComputable<Object>() {
+        computeInTransaction(new TransactionalComputable<Void>() {
             @Override
-            public Object compute(@NotNull Transaction txn) {
-                for (final DatabaseEntry key : randomKeys) {
-                    store.put(txn, key, key);
-                }
+            public Void compute(@NotNull ChronicleMap<String, String> map) {
+                writeSuccessiveKeys(map);
                 return null;
             }
         });
     }
 
-    @Override
-    protected boolean isKeyPrefixing() {
-        return false;
+    @Benchmark
+    @BenchmarkMode(Mode.SingleShotTime)
+    @Warmup(iterations = 2)
+    @Measurement(iterations = 4)
+    @Fork(4)
+    public void randomWrite() {
+        computeInTransaction(new TransactionalComputable<Void>() {
+            @Override
+            public Void compute(@NotNull ChronicleMap<String, String> map) {
+                for (final String key : randomKeys) {
+                    map.put(key, key);
+                }
+                return null;
+            }
+        });
     }
 }

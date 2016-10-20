@@ -16,7 +16,7 @@
 package jetbrains.exodus.benchmark.env;
 
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.benchmark.BenchmarkTestBase;
+import jetbrains.exodus.benchmark.BenchmarkBase;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.io.FileDataReader;
@@ -36,7 +36,7 @@ import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.Collections;
 
-abstract class JMHEnvTokyoCabinetBenchmarkBase extends BenchmarkTestBase {
+abstract class JMHEnvTokyoCabinetBenchmarkBase extends BenchmarkBase {
 
     protected static final ByteIterable[] successiveKeys;
     protected static final ByteIterable[] randomKeys;

@@ -33,7 +33,7 @@ import java.text.DecimalFormat;
 import java.text.NumberFormat;
 
 @SuppressWarnings({"AssignmentToStaticFieldFromInstanceMethod"})
-public abstract class BenchmarkTestBase {
+public abstract class BenchmarkBase {
 
     protected static final int TOKYO_CABINET_BENCHMARK_SIZE = 1000000;
 
