@@ -53,13 +53,13 @@ import java.util.Set;
 public class PersistentStoreTransaction implements StoreTransaction, TxnGetterStategy {
 
     @NotNull
-    public static final ByteIterable ZERO_VERSION_ENTRY = IntegerBinding.intToCompressedEntry(0);
+    private static final ByteIterable ZERO_VERSION_ENTRY = IntegerBinding.intToCompressedEntry(0);
     @NotNull
     protected final PersistentEntityStoreImpl store;
     @NotNull
     protected final Transaction txn;
     @NotNull
-    protected final Set<EntityIterator> createdIterators;
+    private final Set<EntityIterator> createdIterators;
     private final ObjectCacheBase<PropertyId, Comparable> propsCache;
     @NotNull
     private final ObjectCacheBase<PropertyId, PersistentEntityId> linksCache;
@@ -624,7 +624,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     @NotNull
-    public EntityIterableCacheAdapter getLocalCache() {
+    EntityIterableCacheAdapter getLocalCache() {
         return mutableCache != null ? mutableCache : localCache;
     }
 
@@ -818,7 +818,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         blobStringsCache.close();
     }
 
-    protected void revertCaches() {
+    void revertCaches() {
         revertCaches(true);
     }
 
@@ -869,7 +869,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         });
     }
 
-    protected Runnable getRevertCachesBeginHook() {
+    private Runnable getRevertCachesBeginHook() {
         return new Runnable() {
             @Override
             public void run() {
@@ -959,11 +959,11 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
     }
 
-    private abstract static class EntityAddedOrRemovedHandleChecker extends HandleChecker {
+    private abstract static class EntityAddedOrDeletedHandleChecker extends HandleChecker {
 
         protected final EntityId id;
 
-        protected EntityAddedOrRemovedHandleChecker(@NotNull final EntityId id) {
+        EntityAddedOrDeletedHandleChecker(@NotNull final EntityId id) {
             this.id = id;
         }
 
@@ -972,7 +972,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             if (this == obj) return true;
             if (obj == null || getClass() != obj.getClass()) return false;
 
-            EntityAddedOrRemovedHandleChecker that = (EntityAddedOrRemovedHandleChecker) obj;
+            EntityAddedOrDeletedHandleChecker that = (EntityAddedOrDeletedHandleChecker) obj;
 
             return id.equals(that.id);
         }
@@ -983,7 +983,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
     }
 
-    private static class EntityDeletedHandleChecker extends EntityAddedOrRemovedHandleChecker {
+    private static class EntityDeletedHandleChecker extends EntityAddedOrDeletedHandleChecker {
 
         private EntityDeletedHandleChecker(@NotNull EntityId id) {
             super(id);
@@ -1006,7 +1006,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
     }
 
-    private static class EntityAddedHandleChecker extends EntityAddedOrRemovedHandleChecker {
+    private static class EntityAddedHandleChecker extends EntityAddedOrDeletedHandleChecker {
 
         private EntityAddedHandleChecker(@NotNull EntityId id) {
             super(id);
@@ -1031,9 +1031,9 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     private abstract static class LinkChangedHandleChecker extends HandleChecker {
         @NotNull
-        protected final PersistentEntityId sourceId;
+        final PersistentEntityId sourceId;
         @NotNull
-        protected final PersistentEntityId targetId;
+        final PersistentEntityId targetId;
         protected final int linkId;
 
         private LinkChangedHandleChecker(@NotNull PersistentEntityId sourceId, @NotNull PersistentEntityId targetId, int linkId) {
