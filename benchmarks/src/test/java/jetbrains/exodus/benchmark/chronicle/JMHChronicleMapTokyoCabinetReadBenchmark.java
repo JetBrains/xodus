@@ -72,8 +72,7 @@ public class JMHChronicleMapTokyoCabinetReadBenchmark extends JMHChronicleMapTok
             @Override
             public Integer compute(@NotNull ChronicleMap<String, String> map) {
                 int result = 0;
-                for (int i = 0; i < TOKYO_CABINET_BENCHMARK_SIZE; ++i) {
-                    final String key = randomKeys[i];
+                for (final String key : randomKeys) {
                     result += key.length();
                     try (ExternalMapQueryContext<String, String, ?> c = map.queryContext(key)) {
                         result += c.entry().value().size();

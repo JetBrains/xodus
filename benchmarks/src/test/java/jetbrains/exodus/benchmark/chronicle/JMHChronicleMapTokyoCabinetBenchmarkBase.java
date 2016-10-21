@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.benchmark.chronicle;
 
-import jetbrains.exodus.benchmark.BenchmarkBase;
+import jetbrains.exodus.benchmark.TokyoCabinetBenchmark;
 import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.map.VanillaChronicleMap;
 import org.jetbrains.annotations.NotNull;
@@ -24,50 +24,28 @@ import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.TearDown;
 
-import java.io.File;
 import java.io.IOException;
-import java.text.DecimalFormat;
-import java.text.NumberFormat;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Map;
 
-public abstract class JMHChronicleMapTokyoCabinetBenchmarkBase extends BenchmarkBase {
+abstract class JMHChronicleMapTokyoCabinetBenchmarkBase {
 
-    protected static final String[] successiveKeys;
-    protected static final String[] randomKeys;
-
-    public static final String PATTERN = "00000000";
-
-    static {
-        final DecimalFormat FORMAT = (DecimalFormat) NumberFormat.getIntegerInstance();
-        FORMAT.applyPattern(PATTERN);
-        successiveKeys = new String[TOKYO_CABINET_BENCHMARK_SIZE];
-        for (int i = 0; i < TOKYO_CABINET_BENCHMARK_SIZE; i++) {
-            successiveKeys[i] = FORMAT.format(i);
-        }
-        randomKeys = Arrays.copyOf(successiveKeys, successiveKeys.length);
-        shuffleKeys();
-    }
+    private static final String[] successiveKeys = TokyoCabinetBenchmark.getSuccessiveStrings(TokyoCabinetBenchmark.KEYS_COUNT);
+    static final String[] randomKeys = TokyoCabinetBenchmark.getRandomStrings(TokyoCabinetBenchmark.KEYS_COUNT);
 
     private ChronicleMap<String, String> map;
 
     @Setup(Level.Invocation)
     public void setup() throws IOException {
-        start();
-        shuffleKeys();
-        temporaryFolder = new TemporaryFolder();
-        temporaryFolder.create();
+        TokyoCabinetBenchmark.shuffleKeys(randomKeys);
         createEnvironment();
     }
 
     @TearDown(Level.Invocation)
     public void tearDown() throws IOException {
         closeTxMaker();
-        end();
     }
 
-    protected void writeSuccessiveKeys(@NotNull final Map<String, String> store) {
+    void writeSuccessiveKeys(@NotNull final Map<String, String> store) {
         for (final String key : successiveKeys) {
             store.put(key, key);
         }
@@ -75,9 +53,11 @@ public abstract class JMHChronicleMapTokyoCabinetBenchmarkBase extends Benchmark
 
     private void createEnvironment() throws IOException {
         closeTxMaker();
+        final TemporaryFolder temporaryFolder = new TemporaryFolder();
+        temporaryFolder.create();
         map = ChronicleMap.of(String.class, String.class)
-                .averageKey(PATTERN).averageValue(PATTERN).entries(randomKeys.length)
-                .createPersistedTo(new File("data"));
+                .entries(randomKeys.length)
+                .createPersistedTo(temporaryFolder.newFile("data"));
     }
 
     private void closeTxMaker() {
@@ -87,16 +67,12 @@ public abstract class JMHChronicleMapTokyoCabinetBenchmarkBase extends Benchmark
         }
     }
 
-    protected static void shuffleKeys() {
-        Collections.shuffle(Arrays.asList(randomKeys));
-    }
-
     protected interface TransactionalComputable<T> {
 
         T compute(@NotNull final ChronicleMap<String, String> map);
     }
 
-    protected <T> T computeInTransaction(@NotNull final TransactionalComputable<T> computable) {
+    <T> T computeInTransaction(@NotNull final TransactionalComputable<T> computable) {
         T result = computable.compute(map);
         try {
             ((VanillaChronicleMap) map).msync();

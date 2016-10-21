@@ -68,8 +68,7 @@ public class JMHMapDbTokyoCabinetReadBenchmark extends JMHMapDbTokyoCabinetBench
             public Integer compute(@NotNull final DB db) {
                 int result = 0;
                 final Map<Object, Object> store = createTestStore(db);
-                for (int i = 0; i < TOKYO_CABINET_BENCHMARK_SIZE; ++i) {
-                    final String key = randomKeys[i];
+                for (final String key : randomKeys) {
                     result += key.length();
                     result += ((String) store.get(key)).length();
                 }

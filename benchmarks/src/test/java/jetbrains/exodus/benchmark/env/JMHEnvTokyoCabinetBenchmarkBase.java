@@ -16,8 +16,7 @@
 package jetbrains.exodus.benchmark.env;
 
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.benchmark.BenchmarkBase;
-import jetbrains.exodus.bindings.StringBinding;
+import jetbrains.exodus.benchmark.TokyoCabinetBenchmark;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.io.FileDataReader;
 import jetbrains.exodus.io.FileDataWriter;
@@ -31,38 +30,19 @@ import org.openjdk.jmh.annotations.TearDown;
 
 import java.io.File;
 import java.io.IOException;
-import java.text.DecimalFormat;
-import java.text.NumberFormat;
-import java.util.Arrays;
-import java.util.Collections;
 
-abstract class JMHEnvTokyoCabinetBenchmarkBase extends BenchmarkBase {
+abstract class JMHEnvTokyoCabinetBenchmarkBase {
 
-    protected static final ByteIterable[] successiveKeys;
-    protected static final ByteIterable[] randomKeys;
+    private static final ByteIterable[] successiveKeys = TokyoCabinetBenchmark.getSuccessiveEntries(TokyoCabinetBenchmark.KEYS_COUNT);
+    static final ByteIterable[] randomKeys = TokyoCabinetBenchmark.getRandomEntries(TokyoCabinetBenchmark.KEYS_COUNT);
 
-    static {
-        final DecimalFormat FORMAT = (DecimalFormat) NumberFormat.getIntegerInstance();
-        FORMAT.applyPattern("00000000");
-        successiveKeys = new ByteIterable[TOKYO_CABINET_BENCHMARK_SIZE];
-        for (int i = 0; i < TOKYO_CABINET_BENCHMARK_SIZE; i++) {
-            successiveKeys[i] = StringBinding.stringToEntry(FORMAT.format(i));
-        }
-        randomKeys = Arrays.copyOf(successiveKeys, successiveKeys.length);
-        shuffleKeys();
-    }
-
-    private static final String STORE_NAME = "TokyoCabinetBenchmarkStore";
-
-    protected Environment env;
-
-    protected Store store;
+    Environment env;
+    Store store;
 
     @Setup(Level.Invocation)
     public void setup() throws IOException {
-        start();
         Log.invalidateSharedCache();
-        shuffleKeys();
+        TokyoCabinetBenchmark.shuffleKeys(randomKeys);
         final TemporaryFolder temporaryFolder = new TemporaryFolder();
         temporaryFolder.create();
         final File testsDirectory = temporaryFolder.newFolder("data");
@@ -70,7 +50,7 @@ abstract class JMHEnvTokyoCabinetBenchmarkBase extends BenchmarkBase {
         store = env.computeInTransaction(new TransactionalComputable<Store>() {
             @Override
             public Store compute(@NotNull Transaction txn) {
-                return env.openStore(STORE_NAME, getConfig(), txn);
+                return env.openStore("TokyoCabinetBenchmarkStore", getConfig(), txn);
             }
         });
     }
@@ -78,10 +58,9 @@ abstract class JMHEnvTokyoCabinetBenchmarkBase extends BenchmarkBase {
     @TearDown(Level.Invocation)
     public void tearDown() throws IOException {
         env.close();
-        end();
     }
 
-    protected void writeSuccessiveKeys() {
+    void writeSuccessiveKeys() {
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
@@ -90,10 +69,6 @@ abstract class JMHEnvTokyoCabinetBenchmarkBase extends BenchmarkBase {
                 }
             }
         });
-    }
-
-    protected static void shuffleKeys() {
-        Collections.shuffle(Arrays.asList(randomKeys));
     }
 
     protected abstract StoreConfig getConfig();

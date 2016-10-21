@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.benchmark.mapdb;
 
-import jetbrains.exodus.benchmark.BenchmarkBase;
+import jetbrains.exodus.benchmark.TokyoCabinetBenchmark;
 import org.jetbrains.annotations.NotNull;
 import org.junit.rules.TemporaryFolder;
 import org.mapdb.DB;
@@ -26,57 +26,40 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.TearDown;
 
 import java.io.IOException;
-import java.text.DecimalFormat;
-import java.text.NumberFormat;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Map;
 
-public abstract class JMHMapDbTokyoCabinetBenchmarkBase extends BenchmarkBase {
+abstract class JMHMapDbTokyoCabinetBenchmarkBase {
 
-    protected static final String[] successiveKeys;
-    protected static final String[] randomKeys;
-
-    static {
-        final DecimalFormat FORMAT = (DecimalFormat) NumberFormat.getIntegerInstance();
-        FORMAT.applyPattern("00000000");
-        successiveKeys = new String[TOKYO_CABINET_BENCHMARK_SIZE];
-        for (int i = 0; i < TOKYO_CABINET_BENCHMARK_SIZE; i++) {
-            successiveKeys[i] = FORMAT.format(i);
-        }
-        randomKeys = Arrays.copyOf(successiveKeys, successiveKeys.length);
-        shuffleKeys();
-    }
+    private static final String[] successiveKeys = TokyoCabinetBenchmark.getSuccessiveStrings(TokyoCabinetBenchmark.KEYS_COUNT);
+    static final String[] randomKeys = TokyoCabinetBenchmark.getRandomStrings(TokyoCabinetBenchmark.KEYS_COUNT);
 
     private TxMaker txMaker;
 
     @Setup(Level.Invocation)
     public void setup() throws IOException {
-        start();
-        shuffleKeys();
-        temporaryFolder = new TemporaryFolder();
-        temporaryFolder.create();
+        TokyoCabinetBenchmark.shuffleKeys(randomKeys);
         createEnvironment();
     }
 
     @TearDown(Level.Invocation)
     public void tearDown() throws IOException {
         closeTxMaker();
-        end();
     }
 
-    protected void writeSuccessiveKeys(@NotNull final Map<Object, Object> store) {
+    void writeSuccessiveKeys(@NotNull final Map<Object, Object> store) {
         for (final String key : successiveKeys) {
             store.put(key, key);
         }
     }
 
-    protected Map<Object, Object> createTestStore(@NotNull final DB db) {
+    Map<Object, Object> createTestStore(@NotNull final DB db) {
         return db.getTreeMap("testTokyoCabinet");
     }
 
     private void createEnvironment() throws IOException {
         closeTxMaker();
+        final TemporaryFolder temporaryFolder = new TemporaryFolder();
+        temporaryFolder.create();
         txMaker = DBMaker.newFileDB(temporaryFolder.newFile("data")).makeTxMaker();
     }
 
@@ -87,16 +70,12 @@ public abstract class JMHMapDbTokyoCabinetBenchmarkBase extends BenchmarkBase {
         }
     }
 
-    protected static void shuffleKeys() {
-        Collections.shuffle(Arrays.asList(randomKeys));
-    }
-
     protected interface TransactionalComputable<T> {
 
         T compute(@NotNull final DB db);
     }
 
-    protected <T> T computeInTransaction(@NotNull final TransactionalComputable<T> computable) {
+    <T> T computeInTransaction(@NotNull final TransactionalComputable<T> computable) {
         final DB db = txMaker.makeTx();
         try {
             return computable.compute(db);
