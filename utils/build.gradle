@@ -1,4 +1,4 @@
 dependencies {
-    compile 'org.jetbrains:annotations:13.0'
-    compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.12'
+    compile 'org.jetbrains:annotations:15.0'
+    compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.21'
 }
