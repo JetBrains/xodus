@@ -44,12 +44,12 @@ public class JMHEnvTokyoCabinetReadBenchmark extends JMHEnvTokyoCabinetBenchmark
             @Override
             public Integer compute(@NotNull final Transaction txn) {
                 int result = 0;
-                final Cursor c = store.openCursor(txn);
-                while (c.getNext()) {
-                    result += c.getKey().getLength();
-                    result += c.getValue().getLength();
+                try (Cursor c = store.openCursor(txn)) {
+                    while (c.getNext()) {
+                        result += c.getKey().getLength();
+                        result += c.getValue().getLength();
+                    }
                 }
-                c.close();
                 return result;
             }
         });
@@ -65,13 +65,13 @@ public class JMHEnvTokyoCabinetReadBenchmark extends JMHEnvTokyoCabinetBenchmark
             @Override
             public Integer compute(@NotNull final Transaction txn) {
                 int result = 0;
-                final Cursor c = store.openCursor(txn);
-                for (final ByteIterable key : randomKeys) {
-                    c.getSearchKey(key);
-                    result += c.getKey().getLength();
-                    result += c.getValue().getLength();
+                try (Cursor c = store.openCursor(txn)) {
+                    for (final ByteIterable key : randomKeys) {
+                        c.getSearchKey(key);
+                        result += c.getKey().getLength();
+                        result += c.getValue().getLength();
+                    }
                 }
-                c.close();
                 return result;
             }
         });

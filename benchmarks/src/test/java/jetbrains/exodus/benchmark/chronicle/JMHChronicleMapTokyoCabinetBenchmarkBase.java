@@ -56,6 +56,7 @@ abstract class JMHChronicleMapTokyoCabinetBenchmarkBase {
         final TemporaryFolder temporaryFolder = new TemporaryFolder();
         temporaryFolder.create();
         map = ChronicleMap.of(String.class, String.class)
+                .averageKeySize(8).averageValueSize(8)
                 .entries(randomKeys.length)
                 .createPersistedTo(temporaryFolder.newFile("data"));
     }
