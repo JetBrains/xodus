@@ -24,10 +24,7 @@ import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import jetbrains.exodus.util.IOUtil;
 import org.jetbrains.annotations.NotNull;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -72,6 +69,7 @@ public class RecoveryClassLoaderTest {
     }
 
     @Test
+    @Ignore
     public void testRecovery() {
         runIsolated(OPEN_ENVIRONMENT);
 
