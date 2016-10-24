@@ -126,5 +126,10 @@ public class MemoryDataReader implements DataReader {
         public boolean exists() {
             return true;
         }
+
+        @Override
+        public long lastModified() {
+            return 0;
+        }
     }
 }

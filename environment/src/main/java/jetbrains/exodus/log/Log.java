@@ -95,23 +95,9 @@ public final class Log implements Closeable {
         reader = config.getReader();
         reader.setLog(this);
         location = reader.getLocation();
-        final Block[] blocks = reader.getBlocks();
-        for (int i = 0; i < blocks.length; ++i) {
-            final Block block = blocks[i];
-            final long address = block.getAddress();
-            blockAddrs.add(address);
-            // if it is not the last file and its size is not as expected
-            final long blockLength = block.length();
-            if (blockLength > fileLength || (i < blocks.length - 1 && blockLength != fileLength)) {
-                if (config.isClearInvalidLog()) {
-                    blockAddrs.clear();
-                    reader.clear();
-                    break;
-                } else {
-                    throw new ExodusException("Unexpected file length" + LogUtil.getWrongAddressErrorMessage(address, fileSize));
-                }
-            }
-        }
+
+        checkLogConsistency();
+
         newFileListeners = new ArrayList<>(2);
         readBytesListeners = new ArrayList<>(2);
         removeFileListeners = new ArrayList<>(2);
@@ -168,6 +154,46 @@ public final class Log implements Closeable {
             this.approvedHighAddress = approvedHighAddress;
         }
         flush(true);
+    }
+
+    private void checkLogConsistency() {
+        final Block[] blocks = reader.getBlocks();
+        long previousLastModified = 0L;
+        for (int i = 0; i < blocks.length; ++i) {
+            final Block block = blocks[i];
+            final long address = block.getAddress();
+            final long blockLength = block.length();
+            String clearLogReason = null;
+            // if it is not the last file and its size is not as expected
+            if (blockLength > fileLengthBound || (i < blocks.length - 1 && blockLength != fileLengthBound)) {
+                clearLogReason = "Unexpected file length" + LogUtil.getWrongAddressErrorMessage(address, fileSize);
+            }
+            // if the file address is not a multiple of fileLengthBound
+            if (clearLogReason == null && address != getFileAddress(address)) {
+                if (!config.isClearInvalidLog()) {
+                    throw new ExodusException("Unexpected file address " +
+                            LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileSize));
+                }
+                clearLogReason = "Unexpected file address " +
+                        LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileSize);
+            }
+            // if this block lastModified time is less then previous one's
+            final long lastModified = block.lastModified();
+            if (clearLogReason == null && lastModified < previousLastModified) {
+                clearLogReason = "Unexpected lastModified time of " + LogUtil.getLogFilename(address);
+            }
+            if (clearLogReason != null) {
+                if (!config.isClearInvalidLog()) {
+                    throw new ExodusException(clearLogReason);
+                }
+                logger.error("Clearing log due to: " + clearLogReason);
+                blockAddrs.clear();
+                reader.clear();
+                break;
+            }
+            previousLastModified = lastModified;
+            blockAddrs.add(address);
+        }
     }
 
     @NotNull
@@ -824,12 +850,12 @@ public final class Log implements Closeable {
         final TransactionalDataWriter bufferedWriter = this.bufferedWriter;
         if (!bufferedWriter.isOpen()) {
             final long fileAddress = getFileAddress(result);
-            this.bufferedWriter.openOrCreateBlock(fileAddress, getLastFileLength());
+            bufferedWriter.openOrCreateBlock(fileAddress, getLastFileLength());
             final boolean fileCreated;
             synchronized (blockAddrs) {
                 fileCreated = blockAddrs.search(fileAddress) == null;
                 if (fileCreated) {
-                    blockAddrs.add(result);
+                    blockAddrs.add(fileAddress);
                 }
             }
             if (fileCreated) {

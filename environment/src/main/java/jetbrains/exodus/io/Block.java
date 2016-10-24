@@ -26,4 +26,6 @@ public interface Block {
     boolean setWritable(boolean writable);
 
     boolean exists();
+
+    long lastModified();
 }
