@@ -46,21 +46,32 @@ public class CompressBackupUtil {
         if (!backupRoot.exists() && !backupRoot.mkdirs()) {
             throw new IOException("Failed to create " + backupRoot.getAbsolutePath());
         }
-        final File backupFile;
+        final String fileName;
+        if (zip) {
+            fileName = getTimeStampedZipFileName();
+        } else {
+            fileName = getTimeStampedTarGzFileName();
+        }
+        final File backupFile = new File(backupRoot, backupNamePrefix == null ? fileName : backupNamePrefix + fileName);
+        return backup(target, backupFile, zip);
+    }
+
+    @NotNull
+    public static File backup(@NotNull final Backupable target,
+                              @NotNull final File backupFile, final boolean zip) throws Exception {
+        if (backupFile.exists()) {
+            throw new IOException("Backup file already exists:" + backupFile.getAbsolutePath());
+        }
         final BackupStrategy strategy = target.getBackupStrategy();
         strategy.beforeBackup();
         try {
             final ArchiveOutputStream archive;
             if (zip) {
-                final String fileName = getTimeStampedZipFileName();
-                backupFile = new File(backupRoot, backupNamePrefix == null ? fileName : backupNamePrefix + fileName);
                 final ZipArchiveOutputStream zipArchive =
                         new ZipArchiveOutputStream(new BufferedOutputStream(new FileOutputStream(backupFile)));
                 zipArchive.setLevel(Deflater.BEST_COMPRESSION);
                 archive = zipArchive;
             } else {
-                final String fileName = getTimeStampedTarGzFileName();
-                backupFile = new File(backupRoot, backupNamePrefix == null ? fileName : backupNamePrefix + fileName);
                 archive = new TarArchiveOutputStream(new GZIPOutputStream(
                         new BufferedOutputStream(new FileOutputStream(backupFile))));
             }
