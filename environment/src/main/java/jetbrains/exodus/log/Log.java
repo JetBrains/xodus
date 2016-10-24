@@ -158,7 +158,6 @@ public final class Log implements Closeable {
 
     private void checkLogConsistency() {
         final Block[] blocks = reader.getBlocks();
-        long previousLastModified = 0L;
         for (int i = 0; i < blocks.length; ++i) {
             final Block block = blocks[i];
             final long address = block.getAddress();
@@ -177,11 +176,6 @@ public final class Log implements Closeable {
                 clearLogReason = "Unexpected file address " +
                         LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileSize);
             }
-            // if this block lastModified time is less then previous one's
-            final long lastModified = block.lastModified();
-            if (clearLogReason == null && lastModified < previousLastModified) {
-                clearLogReason = "Unexpected lastModified time of " + LogUtil.getLogFilename(address);
-            }
             if (clearLogReason != null) {
                 if (!config.isClearInvalidLog()) {
                     throw new ExodusException(clearLogReason);
@@ -191,7 +185,6 @@ public final class Log implements Closeable {
                 reader.clear();
                 break;
             }
-            previousLastModified = lastModified;
             blockAddrs.add(address);
         }
     }
