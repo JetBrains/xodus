@@ -54,9 +54,15 @@ public class LongBinding extends ComparableBinding {
 
     /**
      * De-serializes {@linkplain ByteIterable} entry to a {@code long} value.
+     * The entry should be an output of {@linkplain #longToEntry(long)}.
      *
      * @param entry {@linkplain ByteIterable} instance
      * @return de-serialized value
+     * @see #longToEntry(long)
+     * @see #compressedEntryToLong(ByteIterable)
+     * @see #longToCompressedEntry(long)
+     * @see #compressedEntryToSignedLong(ByteIterable)
+     * @see #signedLongToCompressedEntry(long)
      */
     public static long entryToLong(@NotNull final ByteIterable entry) {
         return (Long) BINDING.entryToObject(entry);
@@ -67,19 +73,87 @@ public class LongBinding extends ComparableBinding {
      *
      * @param object value to serialize
      * @return {@linkplain ArrayByteIterable} entry
+     * @see #entryToLong(ByteIterable)
+     * @see #compressedEntryToLong(ByteIterable)
+     * @see #longToCompressedEntry(long)
+     * @see #compressedEntryToSignedLong(ByteIterable)
+     * @see #signedLongToCompressedEntry(long)
      */
     public static ArrayByteIterable longToEntry(final long object) {
         return BINDING.objectToEntry(object);
     }
 
-    public static long compressedEntryToLong(@NotNull final ByteIterable bi) {
-        return readCompressed(bi.iterator());
+    /**
+     * De-serializes compressed {@linkplain ByteIterable} entry to an unsigned {@code long} value.
+     * The entry should be an output of {@linkplain #longToCompressedEntry(long)}.
+     *
+     * @param entry {@linkplain ByteIterable} instance
+     * @return de-serialized value
+     * @see #entryToLong(ByteIterable)
+     * @see #longToEntry(long)
+     * @see #longToCompressedEntry(long)
+     * @see #compressedEntryToSignedLong(ByteIterable)
+     * @see #signedLongToCompressedEntry(long)
+     */
+    public static long compressedEntryToLong(@NotNull final ByteIterable entry) {
+        return readCompressed(entry.iterator());
     }
 
+    /**
+     * Serializes unsigned {@code long} value to the compressed {@linkplain ArrayByteIterable} entry.
+     *
+     * @param object non-negative value to serialize
+     * @return {@linkplain ArrayByteIterable} entry
+     * @see #entryToLong(ByteIterable)
+     * @see #longToEntry(long)
+     * @see #compressedEntryToLong(ByteIterable)
+     * @see #compressedEntryToSignedLong(ByteIterable)
+     * @see #signedLongToCompressedEntry(long)
+     */
     public static ArrayByteIterable longToCompressedEntry(final long object) {
+        if (object < 0) {
+            throw new IllegalArgumentException();
+        }
         final LightOutputStream output = new LightOutputStream(7);
         writeCompressed(output, object);
         return output.asArrayByteIterable();
+    }
+
+    /**
+     * De-serializes compressed {@linkplain ByteIterable} entry to a signed {@code long} value.
+     * The entry should be an output of {@linkplain #signedLongToCompressedEntry(long)}.
+     * <p><a href="https://developers.google.com/protocol-buffers/docs/encoding#types">ZigZag encoding</a> is used,
+     * so it doesn't save the order of values like other {@code ComparableBindings} do.
+     *
+     * @param entry {@linkplain ByteIterable} instance
+     * @return de-serialized value
+     * @see #entryToLong(ByteIterable)
+     * @see #longToEntry(long)
+     * @see #compressedEntryToLong(ByteIterable)
+     * @see #longToCompressedEntry(long)
+     * @see #signedLongToCompressedEntry(long)
+     */
+    public static long compressedEntryToSignedLong(@NotNull final ByteIterable entry) {
+        final long result = compressedEntryToLong(entry);
+        return (result >> 1) ^ (((result & 1) << 63) >> 63);
+    }
+
+    /**
+     * Serializes signed {@code long} value in the range {@code [Long.MIN_VALUE/2..Long.MAX_VALUE/2]}
+     * to the compressed {@linkplain ArrayByteIterable} entry.
+     * <p><a href="https://developers.google.com/protocol-buffers/docs/encoding#types">ZigZag encoding</a> is used,
+     * so it doesn't save the order of values like other {@code ComparableBindings} do.
+     *
+     * @param object value to serialize in the range {@code [Long.MIN_VALUE/2..Long.MAX_VALUE/2]}
+     * @return {@linkplain ArrayByteIterable} entry
+     * @see #entryToLong(ByteIterable)
+     * @see #longToEntry(long)
+     * @see #compressedEntryToLong(ByteIterable)
+     * @see #longToCompressedEntry(long)
+     * @see #compressedEntryToSignedLong(ByteIterable)
+     */
+    public static ArrayByteIterable signedLongToCompressedEntry(final long object) {
+        return longToCompressedEntry((object << 1) ^ (object >> 63));
     }
 
     public static void writeUnsignedLong(final long l,

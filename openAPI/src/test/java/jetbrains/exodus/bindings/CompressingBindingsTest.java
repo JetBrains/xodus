@@ -16,9 +16,15 @@
 package jetbrains.exodus.bindings;
 
 import jetbrains.exodus.ArrayByteIterable;
+import jetbrains.exodus.TestFor;
 import jetbrains.exodus.util.LightOutputStream;
 import org.junit.Assert;
 import org.junit.Test;
+
+import static jetbrains.exodus.bindings.IntegerBinding.*;
+import static jetbrains.exodus.bindings.IntegerBinding.writeCompressed;
+import static jetbrains.exodus.bindings.LongBinding.*;
+import static jetbrains.exodus.bindings.LongBinding.writeCompressed;
 
 public class CompressingBindingsTest {
 
@@ -67,15 +73,15 @@ public class CompressingBindingsTest {
     public void testCurrentTime() {
         final long time = System.currentTimeMillis();
         final LightOutputStream output = new LightOutputStream();
-        LongBinding.writeCompressed(output, time);
+        writeCompressed(output, time);
         Assert.assertTrue(output.size() < 8);
     }
 
     @Test
     public void testSuccessive() {
-        ArrayByteIterable prev = LongBinding.longToCompressedEntry(0);
+        ArrayByteIterable prev = longToCompressedEntry(0);
         for (long i = 1; i < 1000000; ++i) {
-            final ArrayByteIterable current = LongBinding.longToCompressedEntry(i);
+            final ArrayByteIterable current = longToCompressedEntry(i);
             Assert.assertTrue(current.compareTo(prev) > 0);
             prev = current;
         }
@@ -83,30 +89,70 @@ public class CompressingBindingsTest {
 
     @Test
     public void testLongMaxValue() {
-        Assert.assertEquals(Long.MAX_VALUE, LongBinding.compressedEntryToLong(LongBinding.longToCompressedEntry(Long.MAX_VALUE)));
-        Assert.assertEquals(Long.MAX_VALUE - 1, LongBinding.compressedEntryToLong(LongBinding.longToCompressedEntry(Long.MAX_VALUE - 1)));
+        Assert.assertEquals(Long.MAX_VALUE, compressedEntryToLong(longToCompressedEntry(Long.MAX_VALUE)));
+        Assert.assertEquals(Long.MAX_VALUE - 1, compressedEntryToLong(longToCompressedEntry(Long.MAX_VALUE - 1)));
     }
 
     @Test
     public void testSuccessive2() {
-        ArrayByteIterable prev = IntegerBinding.intToCompressedEntry(0);
+        ArrayByteIterable prev = intToCompressedEntry(0);
         for (int i = 1; i < 1000000; ++i) {
-            final ArrayByteIterable current = IntegerBinding.intToCompressedEntry(i);
+            final ArrayByteIterable current = intToCompressedEntry(i);
             Assert.assertTrue(current.compareTo(prev) > 0);
             prev = current;
         }
     }
 
+    @Test
+    @TestFor(issues = "XD-537")
+    public void testSignedLongs() {
+        Assert.assertEquals(1, signedLongToCompressedEntry(-1L).getLength());
+        assertSignedLong(-1L);
+        Assert.assertEquals(1, signedLongToCompressedEntry(-8L).getLength());
+        assertSignedLong(-8L);
+        Assert.assertEquals(2, signedLongToCompressedEntry(-9L).getLength());
+        assertSignedLong(-9L);
+        Assert.assertEquals(2, signedLongToCompressedEntry(-2048L).getLength());
+        assertSignedLong(-2048L);
+        Assert.assertEquals(3, signedLongToCompressedEntry(-2049L).getLength());
+        assertSignedLong(-2049L);
+        assertSignedLong((long) (Long.MAX_VALUE * (Math.random() - 0.5)));
+    }
+
+    @Test
+    @TestFor(issues = "XD-537")
+    public void testSignedInts() {
+        Assert.assertEquals(1, signedIntToCompressedEntry(-1).getLength());
+        assertSignedInt(-1);
+        Assert.assertEquals(1, signedIntToCompressedEntry(-16).getLength());
+        assertSignedInt(-16);
+        Assert.assertEquals(2, signedIntToCompressedEntry(-17).getLength());
+        assertSignedInt(-17);
+        Assert.assertEquals(2, signedIntToCompressedEntry(-4096).getLength());
+        assertSignedInt(-4096);
+        Assert.assertEquals(3, signedIntToCompressedEntry(-4097).getLength());
+        assertSignedInt(-4097);
+        assertSignedInt((int) (Integer.MAX_VALUE * (Math.random() - 0.5)));
+    }
+
+    private void assertSignedLong(final long value) {
+        Assert.assertEquals(value, compressedEntryToSignedLong(signedLongToCompressedEntry(value)));
+    }
+
+    private void assertSignedInt(final int value) {
+        Assert.assertEquals(value, compressedEntryToSignedInt(signedIntToCompressedEntry(value)));
+    }
+
     private static void testLong(long l) {
         final LightOutputStream output = new LightOutputStream();
-        LongBinding.writeCompressed(output, l);
+        writeCompressed(output, l);
         final ArrayByteIterable input = output.asArrayByteIterable();
         Assert.assertEquals(l, LongBinding.readCompressed(input.iterator()));
     }
 
     private static void testInt(int i) {
         final LightOutputStream output = new LightOutputStream();
-        IntegerBinding.writeCompressed(output, i);
+        writeCompressed(output, i);
         final ArrayByteIterable input = output.asArrayByteIterable();
         Assert.assertEquals(i, IntegerBinding.readCompressed(input.iterator()));
     }

@@ -54,9 +54,15 @@ public class IntegerBinding extends ComparableBinding {
 
     /**
      * De-serializes {@linkplain ByteIterable} entry to an {@code int} value.
+     * The entry should an output of {@linkplain #intToEntry(int)}.
      *
      * @param entry {@linkplain ByteIterable} instance
      * @return de-serialized value
+     * @see #intToEntry(int)
+     * @see #compressedEntryToInt(ByteIterable)
+     * @see #intToCompressedEntry(int)
+     * @see #compressedEntryToSignedInt(ByteIterable)
+     * @see #signedIntToCompressedEntry(int)
      */
     public static int entryToInt(@NotNull final ByteIterable entry) {
         return (Integer) BINDING.entryToObject(entry);
@@ -67,19 +73,87 @@ public class IntegerBinding extends ComparableBinding {
      *
      * @param object value to serialize
      * @return {@linkplain ArrayByteIterable} entry
+     * @see #entryToInt(ByteIterable)
+     * @see #compressedEntryToInt(ByteIterable)
+     * @see #intToCompressedEntry(int)
+     * @see #compressedEntryToSignedInt(ByteIterable)
+     * @see #signedIntToCompressedEntry(int)
      */
     public static ArrayByteIterable intToEntry(final int object) {
         return BINDING.objectToEntry(object);
     }
 
+    /**
+     * De-serializes compressed {@linkplain ByteIterable} entry to an unsigned {@code int} value.
+     * The entry should be an output of {@linkplain #intToCompressedEntry(int)}.
+     *
+     * @param entry {@linkplain ByteIterable} instance
+     * @return de-serialized value
+     * @see #entryToInt(ByteIterable)
+     * @see #intToEntry(int)
+     * @see #intToCompressedEntry(int)
+     * @see #compressedEntryToSignedInt(ByteIterable)
+     * @see #signedIntToCompressedEntry(int)
+     */
     public static int compressedEntryToInt(@NotNull final ByteIterable entry) {
         return readCompressed(entry.iterator());
     }
 
+    /**
+     * Serializes unsigned {@code int} value to the compressed {@linkplain ArrayByteIterable} entry.
+     *
+     * @param object non-negative value to serialize
+     * @return {@linkplain ArrayByteIterable} entry
+     * @see #entryToInt(ByteIterable)
+     * @see #intToEntry(int)
+     * @see #compressedEntryToInt(ByteIterable)
+     * @see #compressedEntryToSignedInt(ByteIterable)
+     * @see #signedIntToCompressedEntry(int)
+     */
     public static ArrayByteIterable intToCompressedEntry(final int object) {
+        if (object < 0) {
+            throw new IllegalArgumentException();
+        }
         final LightOutputStream output = new LightOutputStream(5);
         writeCompressed(output, object);
         return output.asArrayByteIterable();
+    }
+
+    /**
+     * De-serializes compressed {@linkplain ByteIterable} entry to a signed {@code int} value.
+     * The entry should be an output of {@linkplain #signedIntToCompressedEntry(int)}.
+     * <p><a href="https://developers.google.com/protocol-buffers/docs/encoding#types">ZigZag encoding</a> is used,
+     * so it doesn't save the order of values like other {@code ComparableBindings} do.
+     *
+     * @param entry {@linkplain ByteIterable} instance
+     * @return de-serialized value
+     * @see #entryToInt(ByteIterable)
+     * @see #intToEntry(int)
+     * @see #compressedEntryToInt(ByteIterable)
+     * @see #intToCompressedEntry(int)
+     * @see #signedIntToCompressedEntry(int)
+     */
+    public static int compressedEntryToSignedInt(@NotNull final ByteIterable entry) {
+        final int result = compressedEntryToInt(entry);
+        return (result >> 1) ^ (((result & 1) << 31) >> 31);
+    }
+
+    /**
+     * Serializes signed {@code int} value in the range {@code [Integer.MIN_VALUE/2..Integer.MAX_VALUE/2]}
+     * to the compressed {@linkplain ArrayByteIterable} entry.
+     * <p><a href="https://developers.google.com/protocol-buffers/docs/encoding#types">ZigZag encoding</a> is used,
+     * so it doesn't save the order of values like other {@code ComparableBindings} do.
+     *
+     * @param object value to serialize in the range {@code [Integer.MIN_VALUE/2..Integer.MAX_VALUE/2]}
+     * @return {@linkplain ArrayByteIterable} entry
+     * @see #entryToInt(ByteIterable)
+     * @see #intToEntry(int)
+     * @see #compressedEntryToInt(ByteIterable)
+     * @see #intToCompressedEntry(int)
+     * @see #compressedEntryToSignedInt(ByteIterable)
+     */
+    public static ArrayByteIterable signedIntToCompressedEntry(final int object) {
+        return intToCompressedEntry((object << 1) ^ (object >> 31));
     }
 
     public static int readCompressed(@NotNull final ByteIterator iterator) {
