@@ -11,6 +11,7 @@ dependencies {
     testCompile 'org.openjdk.jmh:jmh-generator-annprocess:1.15'
     testCompile group: 'org.mapdb', name: 'mapdb', version: '1.0.6'
     testCompile group: 'net.openhft', name: 'chronicle-map', version: '3.10.1'
+    testCompile group: 'com.h2database', name: 'h2-mvstore', version: '1.4.192'
 }
 
 task benchmarks(type: JavaExec) {
