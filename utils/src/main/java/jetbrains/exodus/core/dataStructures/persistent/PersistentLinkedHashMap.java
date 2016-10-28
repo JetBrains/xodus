@@ -19,11 +19,15 @@ import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class PersistentLinkedHashMap<K, V> {
+
+    private static final Logger logger = LoggerFactory.getLogger(PersistentLinkedHashMap.class);
 
     @Nullable
     private volatile Pair<PersistentHashMap<K, InternalValue<V>>, PersistentLong23TreeMap<K>> root;
@@ -131,10 +135,10 @@ public class PersistentLinkedHashMap<K, V> {
                 isDirty = true;
                 final long newOrder = orderCounter.incrementAndGet();
                 mapMutable.put(key, new InternalValue<>(newOrder, result));
-                if (!key.equals(queueMutable.remove(currentOrder))) {
-                    throw new RuntimeException("PersistentLinkedHashMap is inconsistent");
-                }
                 queueMutable.put(newOrder, key);
+                if (!key.equals(queueMutable.remove(currentOrder))) {
+                    logMapIsInconsistent();
+                }
             }
             return result;
         }
@@ -153,7 +157,7 @@ public class PersistentLinkedHashMap<K, V> {
             final InternalValue<V> internalValue = mapMutable.get(key);
             if (internalValue != null) {
                 if (!key.equals(queueMutable.remove(internalValue.getOrder()))) {
-                    throw new RuntimeException("PersistentLinkedHashMap is inconsistent");
+                    logMapIsInconsistent();
                 }
             }
             isDirty = true;
@@ -176,7 +180,7 @@ public class PersistentLinkedHashMap<K, V> {
             if (internalValue != null) {
                 isDirty = true;
                 if (!key.equals(queueMutable.remove(internalValue.getOrder()))) {
-                    throw new RuntimeException("PersistentLinkedHashMap is inconsistent");
+                    logMapIsInconsistent();
                 }
                 return internalValue.getValue();
             }
@@ -256,6 +260,14 @@ public class PersistentLinkedHashMap<K, V> {
             mapMutable.checkTip();
             queueMutable.checkTip();
         }
+    }
+
+    /**
+     * Logs the error that the map is inconsistent instead of throwing an exception. This leaves the chance for
+     * the map to recovery to a consistent state.
+     */
+    private static void logMapIsInconsistent() {
+        logger.error("PersistentLinkedHashMap is inconsistent", new Throwable());
     }
 
     public interface RemoveEldestFunction<K, V> {
