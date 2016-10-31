@@ -71,6 +71,11 @@ public abstract class MultiThreadDelegatingJobProcessor extends JobProcessorAdap
         return null;
     }
 
+    @Override
+    public long getCurrentJobStartedAt() {
+        return 0;
+    }
+
     @NotNull
     @Override
     public Iterable<Job> getPendingJobs() {

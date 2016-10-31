@@ -92,6 +92,11 @@ public class DelegatingJobProcessor<T extends JobProcessorAdapter> extends JobPr
         return delegate.getCurrentJob();
     }
 
+    @Override
+    public long getCurrentJobStartedAt() {
+        return delegate.getCurrentJobStartedAt();
+    }
+
     @NotNull
     @Override
     public Iterable<Job> getPendingJobs() {
