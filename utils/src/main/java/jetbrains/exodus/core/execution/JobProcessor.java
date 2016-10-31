@@ -61,6 +61,8 @@ public interface JobProcessor {
     @Nullable
     Job getCurrentJob();
 
+    long getCurrentJobStartedAt();
+
     @NotNull
     Iterable<Job> getPendingJobs();
 }

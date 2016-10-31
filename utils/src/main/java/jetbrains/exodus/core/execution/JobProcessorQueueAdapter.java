@@ -32,6 +32,7 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
     private final PriorityQueue<Long, Job> timeQueue;
     private volatile int outdatedJobsCount;
     private volatile Job currentJob;
+    private volatile long currentJobStartedAt;
     protected final Semaphore awake;
 
     @SuppressWarnings("unchecked")
@@ -142,6 +143,11 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
         return currentJob;
     }
 
+    @Override
+    public long getCurrentJobStartedAt() {
+        return currentJobStartedAt;
+    }
+
     @NotNull
     @Override
     public Iterable<Job> getPendingJobs() {
@@ -250,10 +256,12 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
 
     private void doExecuteJob(final Job job) {
         currentJob = job;
+        currentJobStartedAt = System.currentTimeMillis();
         try {
             executeJob(job);
         } finally {
             currentJob = null;
+            currentJobStartedAt = 0L;
         }
     }
 
