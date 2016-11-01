@@ -20,7 +20,7 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.rules.TemporaryFolder;
 import org.mapdb.DB;
 import org.mapdb.DBMaker;
-import org.mapdb.TxMaker;
+import org.mapdb.Serializer;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.TearDown;
@@ -33,7 +33,7 @@ abstract class JMHMapDbTokyoCabinetBenchmarkBase {
     private static final String[] successiveKeys = TokyoCabinetBenchmark.getSuccessiveStrings(TokyoCabinetBenchmark.KEYS_COUNT);
     static final String[] randomKeys = TokyoCabinetBenchmark.getRandomStrings(TokyoCabinetBenchmark.KEYS_COUNT);
 
-    private TxMaker txMaker;
+    DB db;
 
     @Setup(Level.Invocation)
     public void setup() throws IOException {
@@ -43,44 +43,31 @@ abstract class JMHMapDbTokyoCabinetBenchmarkBase {
 
     @TearDown(Level.Invocation)
     public void tearDown() throws IOException {
-        closeTxMaker();
+        closeDb();
     }
 
-    void writeSuccessiveKeys(@NotNull final Map<Object, Object> store) {
+    void writeSuccessiveKeys(@NotNull final Map<String, String> store) {
         for (final String key : successiveKeys) {
             store.put(key, key);
         }
+        db.commit();
     }
 
-    Map<Object, Object> createTestStore(@NotNull final DB db) {
-        return db.getTreeMap("testTokyoCabinet");
+    Map<String, String> createTestStore() {
+        return db.treeMap("testTokyoCabinet").keySerializer(Serializer.STRING).valueSerializer(Serializer.STRING).createOrOpen();
     }
 
     private void createEnvironment() throws IOException {
-        closeTxMaker();
+        closeDb();
         final TemporaryFolder temporaryFolder = new TemporaryFolder();
         temporaryFolder.create();
-        txMaker = DBMaker.newFileDB(temporaryFolder.newFile("data")).makeTxMaker();
+        db = DBMaker.tempFileDB().fileMmapEnable().concurrencyDisable().make();
     }
 
-    private void closeTxMaker() {
-        if (txMaker != null) {
-            txMaker.close();
-            txMaker = null;
-        }
-    }
-
-    protected interface TransactionalComputable<T> {
-
-        T compute(@NotNull final DB db);
-    }
-
-    <T> T computeInTransaction(@NotNull final TransactionalComputable<T> computable) {
-        final DB db = txMaker.makeTx();
-        try {
-            return computable.compute(db);
-        } finally {
-            db.commit();
+    private void closeDb() {
+        if (db != null) {
+            db.close();
+            db = null;
         }
     }
 }

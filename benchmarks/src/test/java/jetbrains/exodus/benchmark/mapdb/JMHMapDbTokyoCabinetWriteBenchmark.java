@@ -32,13 +32,7 @@ public class JMHMapDbTokyoCabinetWriteBenchmark extends JMHMapDbTokyoCabinetBenc
     @Measurement(iterations = 4)
     @Fork(4)
     public void successiveWrite() {
-        computeInTransaction(new TransactionalComputable() {
-            @Override
-            public Object compute(@NotNull final DB db) {
-                writeSuccessiveKeys(createTestStore(db));
-                return null;
-            }
-        });
+        writeSuccessiveKeys(createTestStore());
     }
 
     @Benchmark
@@ -47,15 +41,10 @@ public class JMHMapDbTokyoCabinetWriteBenchmark extends JMHMapDbTokyoCabinetBenc
     @Measurement(iterations = 4)
     @Fork(4)
     public void randomWrite() {
-        computeInTransaction(new TransactionalComputable() {
-            @Override
-            public Object compute(@NotNull final DB db) {
-                final Map<Object, Object> store = createTestStore(db);
-                for (final String key : randomKeys) {
-                    store.put(key, key);
-                }
-                return null;
-            }
-        });
+        final Map<String, String> store = createTestStore();
+        for (final String key : randomKeys) {
+            store.put(key, key);
+        }
+        db.commit();
     }
 }

@@ -15,8 +15,6 @@
  */
 package jetbrains.exodus.benchmark.mapdb;
 
-import org.jetbrains.annotations.NotNull;
-import org.mapdb.DB;
 import org.openjdk.jmh.annotations.*;
 
 import java.util.Map;
@@ -28,13 +26,7 @@ public class JMHMapDbTokyoCabinetReadBenchmark extends JMHMapDbTokyoCabinetBench
 
     @Setup(Level.Invocation)
     public void beforeBenchmark() {
-        computeInTransaction(new TransactionalComputable() {
-            @Override
-            public Object compute(@NotNull final DB db) {
-                writeSuccessiveKeys(createTestStore(db));
-                return null;
-            }
-        });
+        writeSuccessiveKeys(createTestStore());
     }
 
     @Benchmark
@@ -43,18 +35,13 @@ public class JMHMapDbTokyoCabinetReadBenchmark extends JMHMapDbTokyoCabinetBench
     @Measurement(iterations = 4)
     @Fork(4)
     public int successiveRead() {
-        return computeInTransaction(new TransactionalComputable<Integer>() {
-            @Override
-            public Integer compute(@NotNull final DB db) {
-                int result = 0;
-                final Map<Object, Object> store = createTestStore(db);
-                for (Map.Entry entry : store.entrySet()) {
-                    result += ((String) entry.getKey()).length();
-                    result += ((String) entry.getValue()).length();
-                }
-                return result;
-            }
-        });
+        int result = 0;
+        final Map<String, String> store = createTestStore();
+        for (Map.Entry<String, String> entry : store.entrySet()) {
+            result += entry.getKey().length();
+            result += entry.getValue().length();
+        }
+        return result;
     }
 
     @Benchmark
@@ -63,17 +50,12 @@ public class JMHMapDbTokyoCabinetReadBenchmark extends JMHMapDbTokyoCabinetBench
     @Measurement(iterations = 4)
     @Fork(4)
     public int randomRead() {
-        return computeInTransaction(new TransactionalComputable<Integer>() {
-            @Override
-            public Integer compute(@NotNull final DB db) {
-                int result = 0;
-                final Map<Object, Object> store = createTestStore(db);
-                for (final String key : randomKeys) {
-                    result += key.length();
-                    result += ((String) store.get(key)).length();
-                }
-                return result;
-            }
-        });
+        int result = 0;
+        final Map<String, String> store = createTestStore();
+        for (final String key : randomKeys) {
+            result += key.length();
+            result += store.get(key).length();
+        }
+        return result;
     }
 }
