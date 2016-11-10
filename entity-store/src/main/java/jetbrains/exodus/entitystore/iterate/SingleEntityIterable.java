@@ -90,7 +90,7 @@ public class SingleEntityIterable extends EntityIterableBase {
             @NotNull
             @Override
             public int[] getLinkIds() {
-                return LinksFilter.EMPTY_LINKS_ARRAY;
+                return IdFilter.EMPTY_ID_ARRAY;
             }
 
             @Override

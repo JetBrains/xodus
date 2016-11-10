@@ -93,7 +93,7 @@ public abstract class EntityIterableBase implements EntityIterable {
 
     @Nullable
     private final PersistentEntityStoreImpl store;
-    private EntityIterableHandle cachedHandle;
+    private EntityIterableHandleBase cachedHandle;
     private Object origin;
     @NotNull
     protected TxnGetterStategy txnGetter = TxnGetterStategy.DEFAULT;
@@ -226,7 +226,11 @@ public abstract class EntityIterableBase implements EntityIterable {
     @NotNull
     public final EntityIterableHandle getHandle() {
         if (cachedHandle == null) {
-            cachedHandle = getHandleImpl();
+            cachedHandle = (EntityIterableHandleBase) getHandleImpl();
+            final int entityTypeId = getEntityTypeId();
+            if (entityTypeId >= 0) {
+                cachedHandle.setEntityTypeIdFilter(new SingleIdFilter(entityTypeId));
+            }
         }
         return cachedHandle;
     }

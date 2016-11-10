@@ -87,7 +87,7 @@ public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
             public int[] getLinkIds() {
                 final int linksCount = linkNames.size();
                 if (linksCount == 0) {
-                    return LinksFilter.EMPTY_LINKS_ARRAY;
+                    return IdFilter.EMPTY_ID_ARRAY;
                 }
                 final int[] result = new int[linksCount];
                 int i = 0;

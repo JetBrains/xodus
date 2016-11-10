@@ -53,13 +53,13 @@ import java.util.Set;
 public class PersistentStoreTransaction implements StoreTransaction, TxnGetterStategy {
 
     @NotNull
-    public static final ByteIterable ZERO_VERSION_ENTRY = IntegerBinding.intToCompressedEntry(0);
+    private static final ByteIterable ZERO_VERSION_ENTRY = IntegerBinding.intToCompressedEntry(0);
     @NotNull
     protected final PersistentEntityStoreImpl store;
     @NotNull
     protected final Transaction txn;
     @NotNull
-    protected final Set<EntityIterator> createdIterators;
+    private final Set<EntityIterator> createdIterators;
     private final ObjectCacheBase<PropertyId, Comparable> propsCache;
     @NotNull
     private final ObjectCacheBase<PropertyId, PersistentEntityId> linksCache;
@@ -624,7 +624,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     @NotNull
-    public EntityIterableCacheAdapter getLocalCache() {
+    EntityIterableCacheAdapter getLocalCache() {
         return mutableCache != null ? mutableCache : localCache;
     }
 
@@ -818,7 +818,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         blobStringsCache.close();
     }
 
-    protected void revertCaches() {
+    void revertCaches() {
         revertCaches(true);
     }
 
@@ -869,7 +869,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         });
     }
 
-    protected Runnable getRevertCachesBeginHook() {
+    private Runnable getRevertCachesBeginHook() {
         return new Runnable() {
             @Override
             public void run() {
@@ -959,11 +959,11 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
     }
 
-    private abstract static class EntityAddedOrRemovedHandleChecker extends HandleChecker {
+    private abstract static class EntityAddedOrDeletedHandleChecker extends HandleChecker {
 
         protected final EntityId id;
 
-        protected EntityAddedOrRemovedHandleChecker(@NotNull final EntityId id) {
+        EntityAddedOrDeletedHandleChecker(@NotNull final EntityId id) {
             this.id = id;
         }
 
@@ -972,7 +972,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             if (this == obj) return true;
             if (obj == null || getClass() != obj.getClass()) return false;
 
-            EntityAddedOrRemovedHandleChecker that = (EntityAddedOrRemovedHandleChecker) obj;
+            EntityAddedOrDeletedHandleChecker that = (EntityAddedOrDeletedHandleChecker) obj;
 
             return id.equals(that.id);
         }
@@ -983,7 +983,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
     }
 
-    private static class EntityDeletedHandleChecker extends EntityAddedOrRemovedHandleChecker {
+    private static class EntityDeletedHandleChecker extends EntityAddedOrDeletedHandleChecker {
 
         private EntityDeletedHandleChecker(@NotNull EntityId id) {
             super(id);
@@ -992,7 +992,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         public HandleCheckResult checkHandle(@NotNull final EntityIterableHandle handle,
                                              @NotNull final EntityIterableCacheAdapter mutableCache) {
-            final boolean result = handle.isMatchedEntityDeleted(id);
+            final boolean result = handle.hasEntityTypeId(id.getTypeId()) && handle.isMatchedEntityDeleted(id);
             if (result && handle.getType() == EntityIterableType.ALL_ENTITIES) {
                 return HandleCheckResult.UPDATE;
             }
@@ -1006,7 +1006,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
     }
 
-    private static class EntityAddedHandleChecker extends EntityAddedOrRemovedHandleChecker {
+    private static class EntityAddedHandleChecker extends EntityAddedOrDeletedHandleChecker {
 
         private EntityAddedHandleChecker(@NotNull EntityId id) {
             super(id);
@@ -1015,7 +1015,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         public HandleCheckResult checkHandle(@NotNull final EntityIterableHandle handle,
                                              @NotNull final EntityIterableCacheAdapter mutableCache) {
-            final boolean result = handle.isMatchedEntityAdded(id);
+            final boolean result = handle.hasEntityTypeId(id.getTypeId()) && handle.isMatchedEntityAdded(id);
             if (result && handle.getType() == EntityIterableType.ALL_ENTITIES) {
                 return HandleCheckResult.UPDATE;
             }
@@ -1031,9 +1031,9 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     private abstract static class LinkChangedHandleChecker extends HandleChecker {
         @NotNull
-        protected final PersistentEntityId sourceId;
+        final PersistentEntityId sourceId;
         @NotNull
-        protected final PersistentEntityId targetId;
+        final PersistentEntityId targetId;
         protected final int linkId;
 
         private LinkChangedHandleChecker(@NotNull PersistentEntityId sourceId, @NotNull PersistentEntityId targetId, int linkId) {
@@ -1089,7 +1089,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     private static final class PropertyChangedHandleChecker extends HandleChecker {
 
-        private final int typeId;
+        private final int entityTypeId;
         private final long localId;
         private final int propertyId;
         @Nullable
@@ -1097,12 +1097,12 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Nullable
         private final Comparable newValue;
 
-        private PropertyChangedHandleChecker(int typeId, long localId, int propertyId,
+        private PropertyChangedHandleChecker(int entityTypeId, long localId, int propertyId,
                                              @Nullable Comparable oldValue, @Nullable Comparable newValue) {
             if (oldValue == null && newValue == null) {
                 throw new IllegalArgumentException("Either oldValue or newValue should be not null");
             }
-            this.typeId = typeId;
+            this.entityTypeId = entityTypeId;
             this.localId = localId;
             this.propertyId = propertyId;
             this.oldValue = oldValue;
@@ -1111,7 +1111,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         @Override
         public HandleCheckResult checkHandle(@NotNull EntityIterableHandle handle, @NotNull EntityIterableCacheAdapter mutableCache) {
-            if (handle.isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue)) {
+            if (handle.hasEntityTypeId(entityTypeId) && handle.isMatchedPropertyChanged(entityTypeId, propertyId, oldValue, newValue)) {
                 final EntityIterableType handleType = handle.getType();
                 if (handleType == EntityIterableType.ENTITIES_WITH_PROPERTY_SORTED_BY_VALUE) {
                     return HandleCheckResult.UPDATE;
@@ -1136,24 +1136,24 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                     if (oldSet != null) {
                         //noinspection unchecked
                         for (final Comparable item : (Iterable<? extends Comparable>) oldSet.minus(newSet)) {
-                            propertyIndex.update(typeId, localId, item, null);
+                            propertyIndex.update(entityTypeId, localId, item, null);
                         }
                     }
                     if (newSet != null) {
                         //noinspection unchecked
                         for (final Comparable item : (Iterable<? extends Comparable>) newSet.minus(oldSet)) {
-                            propertyIndex.update(typeId, localId, null, item);
+                            propertyIndex.update(entityTypeId, localId, null, item);
                         }
                     }
                 } else {
-                    propertyIndex.update(typeId, localId, oldValue, newValue);
+                    propertyIndex.update(entityTypeId, localId, oldValue, newValue);
                 }
             } else {
                 final UpdatableEntityIdSortedSetCachedInstanceIterable cachedInstance = (UpdatableEntityIdSortedSetCachedInstanceIterable) iterable;
                 if (oldValue == null) {
-                    cachedInstance.addEntity(new PersistentEntityId(typeId, localId));
+                    cachedInstance.addEntity(new PersistentEntityId(entityTypeId, localId));
                 } else {
-                    cachedInstance.removeEntity(new PersistentEntityId(typeId, localId));
+                    cachedInstance.removeEntity(new PersistentEntityId(entityTypeId, localId));
                 }
             }
         }
@@ -1166,14 +1166,14 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             PropertyChangedHandleChecker that = (PropertyChangedHandleChecker) obj;
 
             if (propertyId != that.propertyId) return false;
-            if (typeId != that.typeId) return false;
+            if (entityTypeId != that.entityTypeId) return false;
             if (newValue != null ? !newValue.equals(that.newValue) : that.newValue != null) return false;
             return !(oldValue != null ? !oldValue.equals(that.oldValue) : that.oldValue != null);
         }
 
         @Override
         public int hashCode() {
-            int result = typeId;
+            int result = entityTypeId;
             result = 31 * result + propertyId;
             result = 31 * result + (oldValue != null ? oldValue.hashCode() : 0);
             result = 31 * result + (newValue != null ? newValue.hashCode() : 0);
