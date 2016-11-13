@@ -1185,7 +1185,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
             if (propertyId != that.propertyId) return false;
             if (entityTypeId != that.entityTypeId) return false;
-            if (typeId != that.typeId) return false;
             //noinspection SimplifiableIfStatement
             if (newValue != null ? !newValue.equals(that.newValue) : that.newValue != null) return false;
             return !(oldValue != null ? !oldValue.equals(that.oldValue) : that.oldValue != null);
