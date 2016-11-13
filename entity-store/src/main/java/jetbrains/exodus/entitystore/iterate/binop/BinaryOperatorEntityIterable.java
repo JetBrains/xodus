@@ -38,6 +38,7 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
     @NotNull
     protected final EntityIterableBase iterable2;
     protected int depth;
+    private int entityTypeId;
 
     @SuppressWarnings({"ThrowableInstanceNeverThrown"})
     protected BinaryOperatorEntityIterable(@Nullable final PersistentStoreTransaction txn,
@@ -62,6 +63,17 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
         if (depth() < MAXIMUM_DEPTH_TO_ALLOW_CACHING && shouldBinaryOperationBeCached(iterable1, iterable2)) {
             depth += CAN_BE_CACHED_FLAG;
         }
+        entityTypeId = -1;
+    }
+
+    @Override
+    public int getEntityTypeId() {
+        if (entityTypeId < 0 && entityTypeId != NULL_TYPE_ID) {
+            final int leftId = getLeft().getEntityTypeId();
+            final int rightId = getRight().getEntityTypeId();
+            this.entityTypeId = leftId == rightId ? leftId : super.getEntityTypeId();
+        }
+        return entityTypeId;
     }
 
     @NotNull

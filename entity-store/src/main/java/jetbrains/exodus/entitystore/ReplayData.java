@@ -24,22 +24,24 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
-public class ReplayData {
+final class ReplayData {
 
     private static final List<EntityIterableHandle> NO_UPDATES = Collections.emptyList();
 
     private EntityIterableCacheAdapter cacheSnapshot;
 
-    private final Map<PersistentStoreTransaction.HandleChecker, List<EntityIterableHandle>> changes = new HashMap<>();
-    private Set<EntityIterableHandle> delete = new HashSet<>();
+    private final Map<PersistentStoreTransaction.HandleChecker, List<EntityIterableHandle>> changes;
+    private final Set<EntityIterableHandle> delete;
     private Set<EntityIterableHandle> suspicious;
 
-    public ReplayData() {
+    ReplayData() {
+        changes = new HashMap<>();
+        delete = new HashSet<>();
     }
 
-    public void updateMutableCache(@NotNull final EntityIterableCacheAdapter mutableCache,
-                                   @NotNull final List<UpdatableCachedInstanceIterable> mutatedInTxn,
-                                   @NotNull final PersistentStoreTransaction.HandleChecker checker) {
+    void updateMutableCache(@NotNull final EntityIterableCacheAdapter mutableCache,
+                            @NotNull final List<UpdatableCachedInstanceIterable> mutatedInTxn,
+                            @NotNull final PersistentStoreTransaction.HandleChecker checker) {
         final boolean alreadySeen = changes.containsKey(checker);
         if (suspicious != null && alreadySeen) {
             if (!suspicious.isEmpty()) {
@@ -107,11 +109,11 @@ public class ReplayData {
         }
     }
 
-    public void setCacheSnapshot(@NotNull final EntityIterableCacheAdapter cache) {
+    void setCacheSnapshot(@NotNull final EntityIterableCacheAdapter cache) {
         cacheSnapshot = cache;
     }
 
-    public boolean hasCacheSnapshot() {
+    boolean hasCacheSnapshot() {
         return cacheSnapshot != null;
     }
 
