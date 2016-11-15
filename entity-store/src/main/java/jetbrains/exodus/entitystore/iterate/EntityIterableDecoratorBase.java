@@ -28,7 +28,7 @@ public abstract class EntityIterableDecoratorBase extends EntityIterableBase {
     protected EntityIterableDecoratorBase(@NotNull final PersistentStoreTransaction txn,
                                           @NotNull final EntityIterableBase source) {
         super(txn);
-        this.source = source;
+        this.source = source.getSource();
         this.txnGetter = source.txnGetter;
     }
 
