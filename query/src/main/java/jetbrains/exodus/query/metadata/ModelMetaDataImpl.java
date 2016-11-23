@@ -25,7 +25,7 @@ public class ModelMetaDataImpl implements ModelMetaData {
 
     private Set<EntityMetaData> entityMetaDatas = new HashSet<>();
     private Map<String, AssociationMetaData> associationMetaDatas = new HashMap<>();
-    private Map<String, EntityMetaData> typeToEntityMetaDatas = null;
+    private volatile Map<String, EntityMetaData> typeToEntityMetaDatas = null;
 
     public void init() {
         reset();
@@ -65,7 +65,7 @@ public class ModelMetaDataImpl implements ModelMetaData {
             if (typeToEntityMetaDatas != null) {
                 return;
             }
-            typeToEntityMetaDatas = new HashMap<>();
+            final HashMap<String, EntityMetaData> typeToEntityMetaDatas = new HashMap<>();
 
             for (final EntityMetaData emd : entityMetaDatas) {
                 ((EntityMetaDataImpl) emd).reset();
@@ -76,6 +76,8 @@ public class ModelMetaDataImpl implements ModelMetaData {
                 }
                 typeToEntityMetaDatas.put(type, emd);
             }
+
+            this.typeToEntityMetaDatas = typeToEntityMetaDatas;
 
             for (EntityMetaData emd : entityMetaDatas) {
                 final EntityMetaDataImpl impl = (EntityMetaDataImpl) emd;
@@ -204,14 +206,14 @@ public class ModelMetaDataImpl implements ModelMetaData {
         }
 
         AssociationEndMetaDataImpl sourceEnd = new AssociationEndMetaDataImpl(
-                amd, sourceName, target, sourceCardinality, sourceType,
-                sourceCascadeDelete, sourceClearOnDelete, sourceTargetCascadeDelete, sourceTargetClearOnDelete);
+            amd, sourceName, target, sourceCardinality, sourceType,
+            sourceCascadeDelete, sourceClearOnDelete, sourceTargetCascadeDelete, sourceTargetClearOnDelete);
         addAssociationEndMetaDataToEntityTypeSubtree(source, sourceEnd);
 
         if (type != AssociationType.Directed) {
             AssociationEndMetaDataImpl targetEnd = new AssociationEndMetaDataImpl(
-                    amd, targetName, source, targetCardinality, targetType,
-                    targetCascadeDelete, targetClearOnDelete, targetTargetCascadeDelete, targetTargetClearOnDelete);
+                amd, targetName, source, targetCardinality, targetType,
+                targetCascadeDelete, targetClearOnDelete, targetTargetCascadeDelete, targetTargetClearOnDelete);
             addAssociationEndMetaDataToEntityTypeSubtree(target, targetEnd);
         }
 
@@ -242,7 +244,7 @@ public class ModelMetaDataImpl implements ModelMetaData {
         }
 
         associationMetaDatas.remove(getUniqueAssociationName(entityName, target.getType(),
-                associationName));
+            associationName));
         return amd;
     }
 
