@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.env;
 
+import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.log.ReadBytesListener;
 import jetbrains.exodus.management.Statistics;
 import jetbrains.exodus.management.StatisticsItem;
@@ -32,6 +33,9 @@ public class EnvironmentStatistics extends Statistics {
     public static final String FLUSHED_TRANSACTIONS = "Flushed transactions";
     public static final String DISK_USAGE = "Disk usage";
     public static final String UTILIZATION_PERCENT = "Utilization percent";
+    public static final String LOG_CACHE_HIT_RATE = "Log cache hit rate";
+    public static final String STORE_GET_CACHE_HIT_RATE = "StoreGet cache hit rate";
+    public static final String TREE_NODES_CACHE_HIT_RATE = "Tree nodes cache hit rate";
 
     private static final int DISK_USAGE_FREQ = 10000; // calculate disk usage not more often than each 10 seconds
 
@@ -49,6 +53,9 @@ public class EnvironmentStatistics extends Statistics {
         getStatisticsItem(FLUSHED_TRANSACTIONS);
         getStatisticsItem(DISK_USAGE);
         getStatisticsItem(UTILIZATION_PERCENT);
+        getStatisticsItem(LOG_CACHE_HIT_RATE);
+        getStatisticsItem(STORE_GET_CACHE_HIT_RATE);
+        getStatisticsItem(TREE_NODES_CACHE_HIT_RATE);
         env.getLog().addReadBytesListener(new ReadBytesListener() {
             @Override
             public void bytesRead(final byte[] bytes, final int count) {
@@ -78,6 +85,15 @@ public class EnvironmentStatistics extends Statistics {
         }
         if (UTILIZATION_PERCENT.equals(statisticsName)) {
             return new UtilizationPercentStatisticsItem(this);
+        }
+        if (LOG_CACHE_HIT_RATE.equals(statisticsName)) {
+            return new LogCacheHitRateStatisticsItem(this);
+        }
+        if (STORE_GET_CACHE_HIT_RATE.equals(statisticsName)) {
+            return new StoreGetCacheHitRateStatisticsItem(this);
+        }
+        if (TREE_NODES_CACHE_HIT_RATE.equals(statisticsName)) {
+            return new TreeNodesCacheHitRateStatisticsItem(this);
         }
         return super.createNewItem(statisticsName);
     }
@@ -131,6 +147,53 @@ public class EnvironmentStatistics extends Statistics {
         protected Long getAutoUpdatedTotal() {
             final EnvironmentStatistics statistics = (EnvironmentStatistics) getStatistics();
             return statistics == null ? null : (long) (statistics.env.getGC().getUtilizationProfile().totalUtilizationPercent());
+        }
+    }
+
+    private static class LogCacheHitRateStatisticsItem extends StatisticsItem {
+
+        LogCacheHitRateStatisticsItem(@NotNull final EnvironmentStatistics statistics) {
+            super(statistics);
+        }
+
+        @Override
+        public double getMean() {
+            final EnvironmentStatistics statistics = (EnvironmentStatistics) getStatistics();
+            return statistics == null ? 0 : statistics.env.getLog().getCacheHitRate();
+        }
+    }
+
+    private static class StoreGetCacheHitRateStatisticsItem extends StatisticsItem {
+
+        StoreGetCacheHitRateStatisticsItem(@NotNull final EnvironmentStatistics statistics) {
+            super(statistics);
+        }
+
+        @Override
+        public double getMean() {
+            final EnvironmentStatistics statistics = (EnvironmentStatistics) getStatistics();
+            if (statistics == null) {
+                return 0;
+            }
+            @Nullable final StoreGetCache storeGetCache = statistics.env.getStoreGetCache();
+            return storeGetCache == null ? 0 : storeGetCache.hitRate();
+        }
+    }
+
+    private static class TreeNodesCacheHitRateStatisticsItem extends StatisticsItem {
+
+        TreeNodesCacheHitRateStatisticsItem(@NotNull final EnvironmentStatistics statistics) {
+            super(statistics);
+        }
+
+        @Override
+        public double getMean() {
+            final EnvironmentStatistics statistics = (EnvironmentStatistics) getStatistics();
+            if (statistics == null) {
+                return 0;
+            }
+            final @Nullable LongObjectCacheBase treeNodesCache = statistics.env.getTreeNodesCache();
+            return treeNodesCache == null ? 0 : treeNodesCache.hitRate();
         }
     }
 }

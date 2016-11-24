@@ -63,8 +63,8 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     public void testCreateSingleStore() {
         final Store store = openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES);
         assertLoggableTypes(getLog(), 0, BTreeBase.BOTTOM_ROOT,
-                DatabaseRoot.DATABASE_ROOT_TYPE, BTreeBase.BOTTOM_ROOT, BTreeBase.LEAF, BTreeBase.LEAF,
-                BTreeBase.BOTTOM_ROOT, DatabaseRoot.DATABASE_ROOT_TYPE);
+            DatabaseRoot.DATABASE_ROOT_TYPE, BTreeBase.BOTTOM_ROOT, BTreeBase.LEAF, BTreeBase.LEAF,
+            BTreeBase.BOTTOM_ROOT, DatabaseRoot.DATABASE_ROOT_TYPE);
     }
 
     @Test
@@ -88,6 +88,9 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.FLUSHED_TRANSACTIONS));
         Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.DISK_USAGE));
         Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.UTILIZATION_PERCENT));
+        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.LOG_CACHE_HIT_RATE));
+        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.STORE_GET_CACHE_HIT_RATE));
+        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.TREE_NODES_CACHE_HIT_RATE));
     }
 
     @Test
@@ -487,8 +490,8 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             subfolders.put(subfolder, child);
         }
         return new Pair<DataReader, DataWriter>(
-                new FileDataReader(child, 16),
-                new FileDataWriter(child)
+            new FileDataReader(child, 16),
+            new FileDataWriter(child)
         );
     }
 

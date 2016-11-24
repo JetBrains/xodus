@@ -15,8 +15,8 @@
  */
 package jetbrains.exodus.env.management;
 
+import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.env.Environment;
-import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.management.MBeanBase;
 import jetbrains.exodus.management.Statistics;
 import org.jetbrains.annotations.NotNull;
@@ -40,81 +40,99 @@ public class EnvironmentStatistics extends MBeanBase implements EnvironmentStati
 
     @Override
     public long getBytesWritten() {
-        return statistics.getStatisticsItem(jetbrains.exodus.env.EnvironmentStatistics.BYTES_WRITTEN).getTotal();
+        return getTotal(jetbrains.exodus.env.EnvironmentStatistics.BYTES_WRITTEN);
     }
 
     @Override
     public double getBytesWrittenPerSecond() {
-        return statistics.getStatisticsItem(jetbrains.exodus.env.EnvironmentStatistics.BYTES_WRITTEN).getMean();
+        return getMean(jetbrains.exodus.env.EnvironmentStatistics.BYTES_WRITTEN);
     }
 
     @Override
     public long getBytesRead() {
-        return statistics.getStatisticsItem(jetbrains.exodus.env.EnvironmentStatistics.BYTES_READ).getTotal();
+        return getTotal(jetbrains.exodus.env.EnvironmentStatistics.BYTES_READ);
     }
 
     @Override
     public double getBytesReadPerSecond() {
-        return statistics.getStatisticsItem(jetbrains.exodus.env.EnvironmentStatistics.BYTES_READ).getMean();
+        return getMean(jetbrains.exodus.env.EnvironmentStatistics.BYTES_READ);
     }
 
     @Override
     public long getBytesMovedByGC() {
-        return statistics.getStatisticsItem(jetbrains.exodus.env.EnvironmentStatistics.BYTES_MOVED_BY_GC).getTotal();
+        return getTotal(jetbrains.exodus.env.EnvironmentStatistics.BYTES_MOVED_BY_GC);
     }
 
     @Override
     public double getBytesMovedByGCPerSecond() {
-        return statistics.getStatisticsItem(jetbrains.exodus.env.EnvironmentStatistics.BYTES_MOVED_BY_GC).getMean();
+        return getMean(jetbrains.exodus.env.EnvironmentStatistics.BYTES_MOVED_BY_GC);
     }
 
     @Override
-    public double getLogCacheHitRate() {
-        return ((EnvironmentImpl) env).getLog().getCacheHitRate();
+    public String getLogCacheHitRate() {
+        return ObjectCacheBase.formatHitRate((float) getMean(jetbrains.exodus.env.EnvironmentStatistics.LOG_CACHE_HIT_RATE));
     }
 
     @Override
     public long getNumberOfTransactions() {
-        return statistics.getStatisticsItem(jetbrains.exodus.env.EnvironmentStatistics.TRANSACTIONS).getTotal();
+        return getTotal(jetbrains.exodus.env.EnvironmentStatistics.TRANSACTIONS);
     }
 
     @Override
     public double getNumberOfTransactionsPerSecond() {
-        return statistics.getStatisticsItem(jetbrains.exodus.env.EnvironmentStatistics.TRANSACTIONS).getMean();
+        return getMean(jetbrains.exodus.env.EnvironmentStatistics.TRANSACTIONS);
     }
 
     @Override
     public long getNumberOfReadonlyTransactions() {
-        return statistics.getStatisticsItem(jetbrains.exodus.env.EnvironmentStatistics.READONLY_TRANSACTIONS).getTotal();
+        return getTotal(jetbrains.exodus.env.EnvironmentStatistics.READONLY_TRANSACTIONS);
     }
 
     @Override
     public double getNumberOfReadonlyTransactionsPerSecond() {
-        return statistics.getStatisticsItem(jetbrains.exodus.env.EnvironmentStatistics.READONLY_TRANSACTIONS).getMean();
+        return getMean(jetbrains.exodus.env.EnvironmentStatistics.READONLY_TRANSACTIONS);
     }
 
     @Override
     public int getActiveTransactions() {
-        return (int) statistics.getStatisticsItem(jetbrains.exodus.env.EnvironmentStatistics.ACTIVE_TRANSACTIONS).getTotal();
+        return (int) getTotal(jetbrains.exodus.env.EnvironmentStatistics.ACTIVE_TRANSACTIONS);
     }
 
     @Override
     public long getNumberOfFlushedTransactions() {
-        return statistics.getStatisticsItem(jetbrains.exodus.env.EnvironmentStatistics.FLUSHED_TRANSACTIONS).getTotal();
+        return getTotal(jetbrains.exodus.env.EnvironmentStatistics.FLUSHED_TRANSACTIONS);
     }
 
     @Override
     public double getNumberOfFlushedTransactionsPerSecond() {
-        return statistics.getStatisticsItem(jetbrains.exodus.env.EnvironmentStatistics.FLUSHED_TRANSACTIONS).getMean();
+        return getMean(jetbrains.exodus.env.EnvironmentStatistics.FLUSHED_TRANSACTIONS);
     }
 
     @Override
     public long getDiskUsage() {
-        return statistics.getStatisticsItem(jetbrains.exodus.env.EnvironmentStatistics.DISK_USAGE).getTotal();
+        return getTotal(jetbrains.exodus.env.EnvironmentStatistics.DISK_USAGE);
     }
 
     @Override
     public int getUtilizationPercent() {
-        return (int) statistics.getStatisticsItem(jetbrains.exodus.env.EnvironmentStatistics.UTILIZATION_PERCENT).getTotal();
+        return (int) getTotal(jetbrains.exodus.env.EnvironmentStatistics.UTILIZATION_PERCENT);
+    }
+
+    @Override
+    public String getStoreGetCacheHitRate() {
+        return ObjectCacheBase.formatHitRate((float) getMean(jetbrains.exodus.env.EnvironmentStatistics.STORE_GET_CACHE_HIT_RATE));
+    }
+
+    @Override
+    public String getTreeNodesCacheHitRate() {
+        return ObjectCacheBase.formatHitRate((float) getMean(jetbrains.exodus.env.EnvironmentStatistics.TREE_NODES_CACHE_HIT_RATE));
+    }
+
+    private long getTotal(@NotNull final String statisticsName) {
+        return statistics.getStatisticsItem(statisticsName).getTotal();
+    }
+
+    private double getMean(@NotNull final String statisticsName) {
+        return statistics.getStatisticsItem(statisticsName).getMean();
     }
 }

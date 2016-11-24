@@ -31,7 +31,7 @@ public interface EnvironmentStatisticsMBean {
 
     double getBytesMovedByGCPerSecond();
 
-    double getLogCacheHitRate();
+    String getLogCacheHitRate();
 
     long getNumberOfTransactions();
 
@@ -50,4 +50,8 @@ public interface EnvironmentStatisticsMBean {
     long getDiskUsage();
 
     int getUtilizationPercent();
+
+    String getStoreGetCacheHitRate();
+
+    String getTreeNodesCacheHitRate();
 }
