@@ -83,8 +83,10 @@ public abstract class CacheHitRateable {
         if (hits > attempts) {
             attempts = hits;
         }
-        this.attempts = attempts >> 1;
-        this.hits = hits >> 1;
+        if (attempts > 16) {
+            this.attempts = attempts >> 1;
+            this.hits = hits >> 1;
+        }
     }
 
     @Nullable
