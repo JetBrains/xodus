@@ -46,6 +46,8 @@ import java.lang.ref.SoftReference;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static jetbrains.exodus.env.EnvironmentStatistics.Type.*;
+
 public class EnvironmentImpl implements Environment {
 
     public static final int META_TREE_ID = 1;
@@ -601,11 +603,11 @@ public class EnvironmentImpl implements Environment {
         gc.fetchExpiredLoggables(new ExpiredLoggableIterable(expiredLoggables));
 
         // update statistics
-        statistics.getStatisticsItem(EnvironmentStatistics.BYTES_WRITTEN).setTotal(resultingHighAddress);
+        statistics.getStatisticsItem(BYTES_WRITTEN).setTotal(resultingHighAddress);
         if (isGcTransaction) {
-            statistics.getStatisticsItem(EnvironmentStatistics.BYTES_MOVED_BY_GC).addTotal(resultingHighAddress - initialHighAddress);
+            statistics.getStatisticsItem(BYTES_MOVED_BY_GC).addTotal(resultingHighAddress - initialHighAddress);
         }
-        statistics.getStatisticsItem(EnvironmentStatistics.FLUSHED_TRANSACTIONS).incTotal();
+        statistics.getStatisticsItem(FLUSHED_TRANSACTIONS).incTotal();
 
         return true;
     }

@@ -44,6 +44,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import static jetbrains.exodus.env.EnvironmentStatistics.Type.*;
+
 public class EnvironmentTest extends EnvironmentTestsBase {
 
     private final Map<String, File> subfolders = new HashMap<>();
@@ -56,7 +58,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     @Test
     public void testStatisticsBytesWritten() {
         testEmptyEnvironment();
-        Assert.assertTrue(env.getStatistics().getStatisticsItem(EnvironmentStatistics.BYTES_WRITTEN).getTotal() > 0L);
+        Assert.assertTrue(env.getStatistics().getStatisticsItem(BYTES_WRITTEN).getTotal() > 0L);
     }
 
     @Test
@@ -71,26 +73,26 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     public void testStatisticsTransactions() {
         testCreateSingleStore();
         final EnvironmentStatistics statistics = env.getStatistics();
-        Assert.assertTrue(statistics.getStatisticsItem(EnvironmentStatistics.TRANSACTIONS).getTotal() > 0L);
-        Assert.assertTrue(statistics.getStatisticsItem(EnvironmentStatistics.FLUSHED_TRANSACTIONS).getTotal() > 0L);
+        Assert.assertTrue(statistics.getStatisticsItem(TRANSACTIONS).getTotal() > 0L);
+        Assert.assertTrue(statistics.getStatisticsItem(FLUSHED_TRANSACTIONS).getTotal() > 0L);
     }
 
     @Test
     public void testStatisticsItemNames() {
         testStatisticsTransactions();
         final EnvironmentStatistics statistics = env.getStatistics();
-        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.BYTES_WRITTEN));
-        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.BYTES_READ));
-        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.BYTES_MOVED_BY_GC));
-        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.TRANSACTIONS));
-        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.READONLY_TRANSACTIONS));
-        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.ACTIVE_TRANSACTIONS));
-        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.FLUSHED_TRANSACTIONS));
-        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.DISK_USAGE));
-        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.UTILIZATION_PERCENT));
-        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.LOG_CACHE_HIT_RATE));
-        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.STORE_GET_CACHE_HIT_RATE));
-        Assert.assertTrue(statistics.getItemNames().contains(EnvironmentStatistics.TREE_NODES_CACHE_HIT_RATE));
+        Assert.assertNotNull(statistics.getStatisticsItem(BYTES_WRITTEN));
+        Assert.assertNotNull(statistics.getStatisticsItem(BYTES_READ));
+        Assert.assertNotNull(statistics.getStatisticsItem(BYTES_MOVED_BY_GC));
+        Assert.assertNotNull(statistics.getStatisticsItem(TRANSACTIONS));
+        Assert.assertNotNull(statistics.getStatisticsItem(READONLY_TRANSACTIONS));
+        Assert.assertNotNull(statistics.getStatisticsItem(ACTIVE_TRANSACTIONS));
+        Assert.assertNotNull(statistics.getStatisticsItem(FLUSHED_TRANSACTIONS));
+        Assert.assertNotNull(statistics.getStatisticsItem(DISK_USAGE));
+        Assert.assertNotNull(statistics.getStatisticsItem(UTILIZATION_PERCENT));
+        Assert.assertNotNull(statistics.getStatisticsItem(LOG_CACHE_HIT_RATE));
+        Assert.assertNotNull(statistics.getStatisticsItem(STORE_GET_CACHE_HIT_RATE));
+        Assert.assertNotNull(statistics.getStatisticsItem(TREE_NODES_CACHE_HIT_RATE));
     }
 
     @Test

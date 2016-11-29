@@ -18,6 +18,8 @@ package jetbrains.exodus.env;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import static jetbrains.exodus.env.EnvironmentStatistics.Type.READONLY_TRANSACTIONS;
+
 class ReadonlyTransaction extends TransactionBase {
 
     @Nullable
@@ -27,7 +29,7 @@ class ReadonlyTransaction extends TransactionBase {
         super(env, false);
         this.beginHook = getWrappedBeginHook(beginHook);
         env.holdNewestSnapshotBy(this);
-        env.getStatistics().getStatisticsItem(EnvironmentStatistics.READONLY_TRANSACTIONS).incTotal();
+        env.getStatistics().getStatisticsItem(READONLY_TRANSACTIONS).incTotal();
     }
 
     /**
@@ -40,7 +42,7 @@ class ReadonlyTransaction extends TransactionBase {
         final EnvironmentImpl env = getEnvironment();
         env.acquireTransaction(this);
         env.registerTransaction(this);
-        env.getStatistics().getStatisticsItem(EnvironmentStatistics.READONLY_TRANSACTIONS).incTotal();
+        env.getStatistics().getStatisticsItem(READONLY_TRANSACTIONS).incTotal();
     }
 
     @Override

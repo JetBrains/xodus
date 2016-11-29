@@ -19,29 +19,31 @@ import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.execution.SharedTimer;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 
 /**
  * Common/base class for metering various statistics.
  */
-public class Statistics {
+public class Statistics<T extends Enum> {
 
     @NotNull
     private final Map<String, StatisticsItem> items;
 
-    public Statistics() {
+    @NotNull
+    private final StatisticsItem[] builtInItems;
+
+    @NotNull
+    private final T[] keys;
+
+    public Statistics(@NotNull final T[] keys) {
         items = new HashMap<>();
+        builtInItems = new StatisticsItem[keys.length];
+        this.keys = keys;
     }
 
-    public Collection<String> getItemNames() {
-        final List<String> result;
-        synchronized (items) {
-            result = new ArrayList<>(items.keySet());
-        }
-        return result;
+    @NotNull
+    public StatisticsItem getStatisticsItem(@NotNull final T key) {
+        return builtInItems[key.ordinal()];
     }
 
     @NotNull
@@ -68,7 +70,25 @@ public class Statistics {
     }
 
     @NotNull
+    protected StatisticsItem createNewBuiltInItem(@NotNull final T key) {
+        return new StatisticsItem(this);
+    }
+
+    protected void createAllStatisticsItems() {
+        for (T key: keys) {
+            builtInItems[key.ordinal()] = createStatisticsItem(key);
+        }
+    }
+
+    @NotNull
     protected StatisticsItem createNewItem(@NotNull final String statisticsName) {
         return new StatisticsItem(this);
+    }
+
+
+    protected StatisticsItem createStatisticsItem(@NotNull final T key) {
+        final StatisticsItem created = createNewBuiltInItem(key);
+        SharedTimer.registerPeriodicTask(created);
+        return created;
     }
 }

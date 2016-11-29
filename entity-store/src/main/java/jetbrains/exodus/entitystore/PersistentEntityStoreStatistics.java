@@ -20,18 +20,36 @@ import jetbrains.exodus.management.StatisticsItem;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class PersistentEntityStoreStatistics extends Statistics {
+public class PersistentEntityStoreStatistics extends Statistics<PersistentEntityStoreStatistics.Type> {
 
-    public static final String BLOBS_DISK_USAGE = "Blobs disk usage";
-    public static final String CACHING_JOBS = "Caching jobs";
+    public enum Type {
+        BLOBS_DISK_USAGE("Blobs disk usage"),
+        CACHING_JOBS("Caching jobs");
+
+        public final String id;
+
+        Type(String id) {
+            this.id = id;
+        }
+    }
 
     @NotNull
     private final PersistentEntityStoreImpl store;
 
     PersistentEntityStoreStatistics(@NotNull final PersistentEntityStoreImpl store) {
+        super(Type.values());
         this.store = store;
-        getStatisticsItem(BLOBS_DISK_USAGE);
-        getStatisticsItem(CACHING_JOBS);
+
+        createAllStatisticsItems();
+    }
+
+    @Override
+    protected StatisticsItem createStatisticsItem(@NotNull Type key) {
+        // if don't gather statistics just return the new item and don't register it as periodic task in SharedTimer
+        if (!store.getConfig().getGatherStatistics()) {
+            return new StatisticsItem(this);
+        }
+        return super.createStatisticsItem(key);
     }
 
     @NotNull
@@ -46,14 +64,16 @@ public class PersistentEntityStoreStatistics extends Statistics {
 
     @NotNull
     @Override
-    protected StatisticsItem createNewItem(@NotNull final String statisticsName) {
-        if (BLOBS_DISK_USAGE.equals(statisticsName)) {
-            return new BlobsDiskUsageStatisticsItem(this);
+    protected StatisticsItem createNewBuiltInItem(@NotNull final Type key) {
+        switch (key) {
+            case BLOBS_DISK_USAGE:
+                return new BlobsDiskUsageStatisticsItem(this);
+            case CACHING_JOBS:
+                new CachingJobsStatisticsItem(this);
+
+            default:
+                return super.createNewBuiltInItem(key);
         }
-        if (CACHING_JOBS.equals(statisticsName)) {
-            return new CachingJobsStatisticsItem(this);
-        }
-        return super.createNewItem(statisticsName);
     }
 
     private static class BlobsDiskUsageStatisticsItem extends StatisticsItem {

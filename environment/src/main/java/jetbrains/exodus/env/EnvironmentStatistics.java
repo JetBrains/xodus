@@ -22,20 +22,31 @@ import jetbrains.exodus.management.StatisticsItem;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class EnvironmentStatistics extends Statistics {
+import static jetbrains.exodus.env.EnvironmentStatistics.Type.BYTES_READ;
+import static jetbrains.exodus.env.EnvironmentStatistics.Type.BYTES_WRITTEN;
 
-    public static final String BYTES_WRITTEN = "Bytes written";
-    public static final String BYTES_READ = "Bytes read";
-    public static final String BYTES_MOVED_BY_GC = "Bytes moved by GC";
-    public static final String TRANSACTIONS = "Transactions";
-    public static final String READONLY_TRANSACTIONS = "Read-only transactions";
-    public static final String ACTIVE_TRANSACTIONS = "Active transactions";
-    public static final String FLUSHED_TRANSACTIONS = "Flushed transactions";
-    public static final String DISK_USAGE = "Disk usage";
-    public static final String UTILIZATION_PERCENT = "Utilization percent";
-    public static final String LOG_CACHE_HIT_RATE = "Log cache hit rate";
-    public static final String STORE_GET_CACHE_HIT_RATE = "StoreGet cache hit rate";
-    public static final String TREE_NODES_CACHE_HIT_RATE = "Tree nodes cache hit rate";
+public class EnvironmentStatistics extends Statistics<EnvironmentStatistics.Type> {
+
+    public enum Type {
+        BYTES_WRITTEN("Bytes written"),
+        BYTES_READ("Bytes read"),
+        BYTES_MOVED_BY_GC("Bytes moved by GC"),
+        TRANSACTIONS("Transactions"),
+        READONLY_TRANSACTIONS("Read-only transactions"),
+        ACTIVE_TRANSACTIONS("Active transactions"),
+        FLUSHED_TRANSACTIONS("Flushed transactions"),
+        DISK_USAGE("Disk usage"),
+        UTILIZATION_PERCENT("Utilization percent"),
+        LOG_CACHE_HIT_RATE("Log cache hit rate"),
+        STORE_GET_CACHE_HIT_RATE("StoreGet cache hit rate"),
+        TREE_NODES_CACHE_HIT_RATE("Tree nodes cache hit rate");
+
+        public final String id;
+
+        Type(String id) {
+            this.id = id;
+        }
+    }
 
     private static final int DISK_USAGE_FREQ = 10000; // calculate disk usage not more often than each 10 seconds
 
@@ -43,25 +54,27 @@ public class EnvironmentStatistics extends Statistics {
     private final EnvironmentImpl env;
 
     EnvironmentStatistics(@NotNull final EnvironmentImpl env) {
+        super(Type.values());
         this.env = env;
+
+        createAllStatisticsItems();
         getStatisticsItem(BYTES_WRITTEN).setTotal(env.getLog().getHighAddress());
-        getStatisticsItem(BYTES_READ);
-        getStatisticsItem(BYTES_MOVED_BY_GC);
-        getStatisticsItem(TRANSACTIONS);
-        getStatisticsItem(READONLY_TRANSACTIONS);
-        getStatisticsItem(ACTIVE_TRANSACTIONS);
-        getStatisticsItem(FLUSHED_TRANSACTIONS);
-        getStatisticsItem(DISK_USAGE);
-        getStatisticsItem(UTILIZATION_PERCENT);
-        getStatisticsItem(LOG_CACHE_HIT_RATE);
-        getStatisticsItem(STORE_GET_CACHE_HIT_RATE);
-        getStatisticsItem(TREE_NODES_CACHE_HIT_RATE);
+
         env.getLog().addReadBytesListener(new ReadBytesListener() {
             @Override
             public void bytesRead(final byte[] bytes, final int count) {
                 getStatisticsItem(BYTES_READ).addTotal(count);
             }
         });
+    }
+
+    @Override
+    protected StatisticsItem createStatisticsItem(@NotNull Type key) {
+        // if don't gather statistics just return the new item and don't register it as periodic task in SharedTimer
+        if (!env.getEnvironmentConfig().getEnvGatherStatistics()) {
+            return new StatisticsItem(this);
+        }
+        return super.createStatisticsItem(key);
     }
 
     @NotNull
@@ -76,26 +89,24 @@ public class EnvironmentStatistics extends Statistics {
 
     @NotNull
     @Override
-    protected StatisticsItem createNewItem(@NotNull final String statisticsName) {
-        if (ACTIVE_TRANSACTIONS.equals(statisticsName)) {
-            return new ActiveTransactionsStatisticsItem(this);
+    protected StatisticsItem createNewBuiltInItem(@NotNull final Type key) {
+        switch (key) {
+            case ACTIVE_TRANSACTIONS:
+                return new ActiveTransactionsStatisticsItem(this);
+            case DISK_USAGE:
+                return new DiskUsageStatisticsItem(this);
+            case UTILIZATION_PERCENT:
+                return new UtilizationPercentStatisticsItem(this);
+            case LOG_CACHE_HIT_RATE:
+                return new LogCacheHitRateStatisticsItem(this);
+            case STORE_GET_CACHE_HIT_RATE:
+                return new StoreGetCacheHitRateStatisticsItem(this);
+            case TREE_NODES_CACHE_HIT_RATE:
+                return new TreeNodesCacheHitRateStatisticsItem(this);
+
+            default:
+                return super.createNewBuiltInItem(key);
         }
-        if (DISK_USAGE.equals(statisticsName)) {
-            return new DiskUsageStatisticsItem(this);
-        }
-        if (UTILIZATION_PERCENT.equals(statisticsName)) {
-            return new UtilizationPercentStatisticsItem(this);
-        }
-        if (LOG_CACHE_HIT_RATE.equals(statisticsName)) {
-            return new LogCacheHitRateStatisticsItem(this);
-        }
-        if (STORE_GET_CACHE_HIT_RATE.equals(statisticsName)) {
-            return new StoreGetCacheHitRateStatisticsItem(this);
-        }
-        if (TREE_NODES_CACHE_HIT_RATE.equals(statisticsName)) {
-            return new TreeNodesCacheHitRateStatisticsItem(this);
-        }
-        return super.createNewItem(statisticsName);
     }
 
     private static class ActiveTransactionsStatisticsItem extends StatisticsItem {

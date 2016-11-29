@@ -16,9 +16,11 @@
 package jetbrains.exodus.entitystore.management;
 
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
-import jetbrains.exodus.entitystore.PersistentEntityStoreStatistics;
 import jetbrains.exodus.management.MBeanBase;
 import org.jetbrains.annotations.NotNull;
+
+import static jetbrains.exodus.entitystore.PersistentEntityStoreStatistics.Type.BLOBS_DISK_USAGE;
+import static jetbrains.exodus.entitystore.PersistentEntityStoreStatistics.Type.CACHING_JOBS;
 
 public class EntityStoreStatistics extends MBeanBase implements EntityStoreStatisticsMBean {
 
@@ -30,14 +32,16 @@ public class EntityStoreStatistics extends MBeanBase implements EntityStoreStati
         this.store = store;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public long getBlobsDiskUsage() {
-        return store.getStatistics().getStatisticsItem(PersistentEntityStoreStatistics.BLOBS_DISK_USAGE).getTotal();
+        return store.getStatistics().getStatisticsItem(BLOBS_DISK_USAGE).getTotal();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public long getNumberOfCachingJobs() {
-        return store.getStatistics().getStatisticsItem(PersistentEntityStoreStatistics.CACHING_JOBS).getTotal();
+        return store.getStatistics().getStatisticsItem(CACHING_JOBS).getTotal();
     }
 
     @Override
