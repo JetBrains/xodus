@@ -22,7 +22,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * {@code Cursor} allows to access key/value pairs of a {@linkplain Store} in both successive (ascending and descending)
  * and random order. {@code Cursor} can be opened for a {@linkplain Store} in a {@linkplain Transaction}. Both key
- * ({@linkplain #getKey()}) and value ({linkplain {@link #getValue()}}) are accessible as {@linkplain ByteIterable}
+ * ({@linkplain #getKey()}) and value ({@linkplain #getValue()}) are accessible as {@linkplain ByteIterable}
  * instances. Finally, any cursor should always be closed.
  *
  * <p>Each newly created cursor points to a "virtual" key/value pair which is prior to the first (leftmost) pair. Use
