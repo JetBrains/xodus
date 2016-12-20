@@ -4,15 +4,19 @@
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.jetbrains.xodus/xodus-openAPI/badge.svg)](http://search.maven.org/#search%7Cga%7C1%7Corg.jetbrains.xodus)
 [![GitHub license](https://img.shields.io/hexpm/l/plug.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
 ![Repository Size](https://reposs.herokuapp.com/?path=JetBrains/xodus)
+![Pure Java + Kotlin](https://img.shields.io/badge/100%25-java%2bkotlin-orange.svg)
 
-JetBrains Xodus is a transactional schema-less embedded database that is written in Java. It was initially developed for [JetBrains YouTrack](http://jetbrains.com/youtrack), an issue tracking and project management tool. Xodus is also used in [JetBrains Hub](https://jetbrains.com/hub), the user management platform for JetBrains' team tools, and in some internal JetBrains projects.
+JetBrains Xodus is a transactional schema-less embedded database that is written in Java and [Kotlin](https://kotlinlang.org).
+It was initially developed for [JetBrains YouTrack](http://jetbrains.com/youtrack), an issue tracking and project
+management tool. Xodus is also used in [JetBrains Hub](https://jetbrains.com/hub), the user management platform
+for JetBrains' team tools, and in some internal JetBrains projects.
 
 - Xodus is transactional and fully ACID-compliant.
 - Xodus is highly concurrent. Reads are completely non-blocking due to [MVCC](https://en.wikipedia.org/wiki/Multiversion_concurrency_control) and
 true [snapshot isolation](https://en.wikipedia.org/wiki/Snapshot_isolation).
 - Xodus is schema-less and agile. It does not require schema migrations or refactorings.
 - Xodus is embedded. It does not require installation or administration.
-- Xodus is written in pure Java.
+- Xodus is written in pure Java and [Kotlin](https://kotlinlang.org).
 - Xodus is free and licensed under [Apache 2.0](http://www.apache.org/licenses/LICENSE-2.0.html).
 
 ##Hello Worlds!

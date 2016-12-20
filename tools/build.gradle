@@ -1,5 +1,5 @@
 buildscript {
-    ext.kotlinVersion = '0.13.1516'
+    ext.kotlinVersion = '1.0.5'
     repositories { mavenCentral() }
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
@@ -7,15 +7,23 @@ buildscript {
 }
 
 plugins {
-    id 'com.github.johnrengelman.shadow' version "1.2.2"
+    id 'com.github.johnrengelman.shadow' version "1.2.4"
 }
 
 apply plugin: 'kotlin'
 
 dependencies {
     compile project(':environment')
+    compile 'io.github.microutils:kotlin-logging:1.4.1'
     compile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.21'
     compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
+}
+
+license {
+    include "**/*.kt"
+    mapping {
+        kt = 'JAVADOC_STYLE'
+    }
 }
 
 //Shadow jar is a self-contained archive with all dependencies packed
@@ -25,7 +33,7 @@ shadowJar {
     mustRunAfter jar
     archiveName = jar.archiveName
     manifest {
-        attributes 'Main-Class': 'jetbrains.exodus.env.Reflect'
+        attributes 'Main-Class': 'jetbrains.exodus.env.ReflectKt'
     }
 }
 
