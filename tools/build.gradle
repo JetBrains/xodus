@@ -1,8 +1,10 @@
 buildscript {
     ext.kotlinVersion = '1.0.5'
+    ext.dokkaVersion = '0.9.11'
     repositories { mavenCentral() }
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
+        classpath "org.jetbrains.dokka:dokka-gradle-plugin:${dokkaVersion}"
     }
 }
 
@@ -11,6 +13,7 @@ plugins {
 }
 
 apply plugin: 'kotlin'
+apply plugin: 'org.jetbrains.dokka'
 
 dependencies {
     compile project(':environment')
@@ -35,6 +38,20 @@ shadowJar {
     manifest {
         attributes 'Main-Class': 'jetbrains.exodus.env.ReflectKt'
     }
+}
+
+task dokkaJavadoc(type: org.jetbrains.dokka.gradle.DokkaTask) {
+    outputFormat = 'javadoc'
+    outputDirectory = "$buildDir/javadoc"
+}
+
+javadocJar {
+    dependsOn dokkaJavadoc
+    from dokkaJavadoc.outputDirectory
+}
+
+sourceJar {
+    from project.sourceSets.main.kotlin
 }
 
 artifacts {
