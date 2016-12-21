@@ -598,7 +598,7 @@ public final class EnvironmentConfig extends AbstractConfig {
     }
 
     /**
-     * Returns the number of milliseconds the {@code Log) constructor waits for the lock file.
+     * Returns the number of milliseconds the {@code Log} constructor waits for the lock file.
      * Default value is {@code 0L}, i.e. it doesn't wait and fails immediately if the lock is acquired.
      * <p>Mutable at runtime: no
      *
