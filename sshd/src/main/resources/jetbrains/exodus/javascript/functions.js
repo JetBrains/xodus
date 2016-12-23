@@ -28,24 +28,24 @@ function printEntityIterable(entityIterable) {
 
     var getSize = entityIterable.size;
     if (getSize) {
-        println("Total " + getSize());
+        println("Total " + entityIterable.size());
     }
 }
 
 function printEntity(item) {
     println(item.getType() + " " + item.getId());
 
-    iter(item.getPropertyNames(), function(property) {
+    iter(item.getPropertyNames(), function (property) {
         println(property + "=[" + item.getProperty(property) + "]");
     });
 
-    iter(item.getLinkNames(), function(link) {
+    iter(item.getLinkNames(), function (link) {
         println(link + "=[" + item.getLink(link) + "]");
     });
 }
 
 function stat() {
-    iter(txn.getEntityTypes(), function(type) {
+    iter(txn.getEntityTypes(), function (type) {
         println(type + ": " + txn.getAll(type).size());
     });
 }
@@ -88,7 +88,7 @@ function add(type, props, flush, print) {
     var entity = txn.newEntity(type);
 
     if (props) {
-        for(var key in props){
+        for (var key in props) {
             if (props.hasOwnProperty(key)) {
                 var val = props[key];
                 entity.setProperty(key, val);

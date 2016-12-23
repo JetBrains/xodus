@@ -16,7 +16,7 @@
 package jetbrains.exodus.console;
 
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
-import jetbrains.exodus.sshd.RhinoServer;
+import jetbrains.exodus.javascript.RhinoServer;
 import org.apache.commons.cli.*;
 
 import java.io.IOException;
@@ -27,7 +27,7 @@ import java.util.Map;
  */
 public class Console {
 
-    public static void main(String[] args) throws IOException, ParseException {
+    public static void main(String[] args) throws IOException, ParseException, InterruptedException {
         CommandLine line = getCommandLine(args);
 
         Long port = (Long) line.getParsedOptionValue("l");
@@ -37,7 +37,7 @@ public class Console {
         Map<String, Object> config = new HashMap<>();
         config.put("location", line.getOptionValue('x', null));
 
-        new RhinoServer(port.intValue(), password, config);
+        new RhinoServer(config, port.intValue(), password);
     }
 
     private static CommandLine getCommandLine(String[] args) throws ParseException {
