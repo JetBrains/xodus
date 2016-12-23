@@ -16,6 +16,7 @@
 package jetbrains.exodus.core.execution;
 
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
+import org.jetbrains.annotations.NotNull;
 
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -29,6 +30,7 @@ public class ThreadJobProcessorPool {
     private static final Map<String, ThreadJobProcessor> PROCESSORS = new HashMap<>();
     private static final ThreadJobProcessor SPAWNER = new ThreadJobProcessor("threadJobProcessorPoolSpawner");
 
+    @NotNull
     public static ThreadJobProcessor getOrCreateJobProcessor(final String processorName) {
         ThreadJobProcessor result = PROCESSORS.get(processorName);
         if (result == null) {
