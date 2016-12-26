@@ -15,8 +15,6 @@
  */
 package jetbrains.exodus.benchmark.mapdb;
 
-import org.jetbrains.annotations.NotNull;
-import org.mapdb.DB;
 import org.openjdk.jmh.annotations.*;
 
 import java.util.Map;

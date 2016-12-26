@@ -1,33 +1,30 @@
-apply plugin: 'application'
+buildscript {
+    repositories {
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+}
 
-mainClassName = 'org.openjdk.jmh.Main'
+plugins {
+    id "me.champeau.gradle.jmh" version "0.3.1"
+}
 
 sourceCompatibility = 1.8
 
 dependencies {
-    testCompile project(':environment')
-    testCompile project(':environment').sourceSets.test.output
-    testCompile 'org.openjdk.jmh:jmh-core:1.15'
-    testCompile 'org.openjdk.jmh:jmh-generator-annprocess:1.15'
-    testCompile group: 'org.mapdb', name: 'mapdb', version: '3.0.2'
-    testCompile group: 'net.openhft', name: 'chronicle-map', version: '3.10.1'
-    testCompile group: 'com.h2database', name: 'h2-mvstore', version: '1.4.192'
+    jmh project(':environment')
+    jmh group: 'junit', name: 'junit', version: '4.12'
+    jmh group: 'org.mapdb', name: 'mapdb', version: '3.0.2'
+    jmh group: 'net.openhft', name: 'chronicle-map', version: '3.10.1'
+    jmh group: 'com.h2database', name: 'h2-mvstore', version: '1.4.192'
 }
 
-task benchmarks(type: JavaExec) {
-    jvmArgs = ['-Xmx1g', '-Xms1g']
-    group 'Application'
-    description 'Execute the benchmark timing of this project'
-    main 'org.openjdk.jmh.Main'
-    classpath = sourceSets.test.runtimeClasspath
-}
-
-jar {
-    from project.sourceSets.test.output
-}
-
-sourceJar {
-    from project.sourceSets.test.java
+jmh {
+    jmhVersion = '1.17.3'
+    jvmArgsPrepend '-Xmx1g -Xms1g'
+    duplicateClassesStrategy = 'warn'
+    forceGC = true
 }
 
 uploadArchives {
