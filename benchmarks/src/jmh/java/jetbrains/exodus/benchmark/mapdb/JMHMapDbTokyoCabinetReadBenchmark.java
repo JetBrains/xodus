@@ -17,6 +17,7 @@ package jetbrains.exodus.benchmark.mapdb;
 
 import org.openjdk.jmh.annotations.*;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -25,7 +26,8 @@ import java.util.concurrent.TimeUnit;
 public class JMHMapDbTokyoCabinetReadBenchmark extends JMHMapDbTokyoCabinetBenchmarkBase {
 
     @Setup(Level.Invocation)
-    public void beforeBenchmark() {
+    public void beforeBenchmark() throws IOException {
+        setup();
         writeSuccessiveKeys(createTestStore());
     }
 

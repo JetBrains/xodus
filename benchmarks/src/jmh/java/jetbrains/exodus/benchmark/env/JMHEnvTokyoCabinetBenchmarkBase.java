@@ -25,7 +25,6 @@ import jetbrains.exodus.log.LogConfig;
 import org.jetbrains.annotations.NotNull;
 import org.junit.rules.TemporaryFolder;
 import org.openjdk.jmh.annotations.Level;
-import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.TearDown;
 
 import java.io.File;
@@ -39,7 +38,6 @@ abstract class JMHEnvTokyoCabinetBenchmarkBase {
     Environment env;
     Store store;
 
-    @Setup(Level.Invocation)
     public void setup() throws IOException {
         Log.invalidateSharedCache();
         TokyoCabinetBenchmark.shuffleKeys(randomKeys);
@@ -57,7 +55,10 @@ abstract class JMHEnvTokyoCabinetBenchmarkBase {
 
     @TearDown(Level.Invocation)
     public void tearDown() throws IOException {
-        env.close();
+        if (env != null) {
+            env.close();
+            env = null;
+        }
     }
 
     void writeSuccessiveKeys() {

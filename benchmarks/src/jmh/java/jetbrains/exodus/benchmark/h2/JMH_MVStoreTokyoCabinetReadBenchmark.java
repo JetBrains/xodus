@@ -19,6 +19,7 @@ import org.h2.mvstore.MVStore;
 import org.jetbrains.annotations.NotNull;
 import org.openjdk.jmh.annotations.*;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -27,7 +28,8 @@ import java.util.concurrent.TimeUnit;
 public class JMH_MVStoreTokyoCabinetReadBenchmark extends JMH_MVStoreTokyoCabinetBenchmarkBase {
 
     @Setup(Level.Invocation)
-    public void beforeBenchmark() {
+    public void beforeBenchmark() throws IOException {
+        setup();
         computeInTransaction(new TransactionalComputable() {
             @Override
             public Object compute(@NotNull final MVStore store) {

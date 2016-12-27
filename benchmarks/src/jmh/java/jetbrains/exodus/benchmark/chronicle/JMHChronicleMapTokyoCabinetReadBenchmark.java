@@ -24,6 +24,7 @@ import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 @State(Scope.Thread)
@@ -31,7 +32,8 @@ import java.util.concurrent.TimeUnit;
 public class JMHChronicleMapTokyoCabinetReadBenchmark extends JMHChronicleMapTokyoCabinetBenchmarkBase {
 
     @Setup(Level.Invocation)
-    public void beforeBenchmark() {
+    public void beforeBenchmark() throws IOException {
+        setup();
         computeInTransaction(new TransactionalComputable<Void>() {
             @Override
             public Void compute(@NotNull ChronicleMap<String, String> map) {
@@ -85,8 +87,8 @@ public class JMHChronicleMapTokyoCabinetReadBenchmark extends JMHChronicleMapTok
 
     public static void main(String[] args) throws RunnerException {
         Options opt = new OptionsBuilder()
-                .include(JMHChronicleMapTokyoCabinetReadBenchmark.class.getSimpleName() + ".*")
-                .build();
+            .include(JMHChronicleMapTokyoCabinetReadBenchmark.class.getSimpleName() + ".*")
+            .build();
 
         new Runner(opt).run();
     }

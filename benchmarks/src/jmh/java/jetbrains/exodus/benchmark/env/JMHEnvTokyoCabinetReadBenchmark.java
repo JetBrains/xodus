@@ -23,6 +23,7 @@ import jetbrains.exodus.env.TransactionalComputable;
 import org.jetbrains.annotations.NotNull;
 import org.openjdk.jmh.annotations.*;
 
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 @State(Scope.Thread)
@@ -30,15 +31,16 @@ import java.util.concurrent.TimeUnit;
 public class JMHEnvTokyoCabinetReadBenchmark extends JMHEnvTokyoCabinetBenchmarkBase {
 
     @Setup(Level.Invocation)
-    public void beforeBenchmark() {
+    public void beforeBenchmark() throws IOException {
+        setup();
         writeSuccessiveKeys();
     }
 
     @Benchmark
     @BenchmarkMode(Mode.SingleShotTime)
     @Warmup(iterations = 2)
-    @Measurement(iterations = 6)
-    @Fork(10)
+    @Measurement(iterations = 4)
+    @Fork(4)
     public int successiveRead() {
         return env.computeInReadonlyTransaction(new TransactionalComputable<Integer>() {
             @Override
@@ -58,8 +60,8 @@ public class JMHEnvTokyoCabinetReadBenchmark extends JMHEnvTokyoCabinetBenchmark
     @Benchmark
     @BenchmarkMode(Mode.SingleShotTime)
     @Warmup(iterations = 2)
-    @Measurement(iterations = 6)
-    @Fork(10)
+    @Measurement(iterations = 4)
+    @Fork(4)
     public int randomRead() {
         return env.computeInReadonlyTransaction(new TransactionalComputable<Integer>() {
             @Override

@@ -19,11 +19,17 @@ import net.openhft.chronicle.map.ChronicleMap;
 import org.jetbrains.annotations.NotNull;
 import org.openjdk.jmh.annotations.*;
 
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
 public class JMHChronicleMapTokyoCabinetWriteBenchmark extends JMHChronicleMapTokyoCabinetBenchmarkBase {
+
+    @Setup(Level.Invocation)
+    public void beforeBenchmark() throws IOException {
+        setup();
+    }
 
     @Benchmark
     @BenchmarkMode(Mode.SingleShotTime)

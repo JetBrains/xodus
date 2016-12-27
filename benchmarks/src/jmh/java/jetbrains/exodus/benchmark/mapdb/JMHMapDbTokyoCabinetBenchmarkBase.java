@@ -18,11 +18,11 @@ package jetbrains.exodus.benchmark.mapdb;
 import jetbrains.exodus.benchmark.TokyoCabinetBenchmark;
 import org.jetbrains.annotations.NotNull;
 import org.junit.rules.TemporaryFolder;
+import org.mapdb.BTreeMap;
 import org.mapdb.DB;
 import org.mapdb.DBMaker;
 import org.mapdb.Serializer;
 import org.openjdk.jmh.annotations.Level;
-import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.TearDown;
 
 import java.io.IOException;
@@ -34,8 +34,8 @@ abstract class JMHMapDbTokyoCabinetBenchmarkBase {
     static final String[] randomKeys = TokyoCabinetBenchmark.getRandomStrings(TokyoCabinetBenchmark.KEYS_COUNT);
 
     DB db;
+    private BTreeMap<String, String> map;
 
-    @Setup(Level.Invocation)
     public void setup() throws IOException {
         TokyoCabinetBenchmark.shuffleKeys(randomKeys);
         createEnvironment();
@@ -54,7 +54,10 @@ abstract class JMHMapDbTokyoCabinetBenchmarkBase {
     }
 
     Map<String, String> createTestStore() {
-        return db.treeMap("testTokyoCabinet").keySerializer(Serializer.STRING).valueSerializer(Serializer.STRING).createOrOpen();
+        if (map == null) {
+            map = db.treeMap("testTokyoCabinet").keySerializer(Serializer.STRING).valueSerializer(Serializer.STRING).createOrOpen();
+        }
+        return map;
     }
 
     private void createEnvironment() throws IOException {
@@ -66,6 +69,8 @@ abstract class JMHMapDbTokyoCabinetBenchmarkBase {
 
     private void closeDb() {
         if (db != null) {
+            map.close();
+            map = null;
             db.close();
             db = null;
         }

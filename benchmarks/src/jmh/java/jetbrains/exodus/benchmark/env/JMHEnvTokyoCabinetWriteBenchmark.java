@@ -22,17 +22,23 @@ import jetbrains.exodus.env.TransactionalExecutable;
 import org.jetbrains.annotations.NotNull;
 import org.openjdk.jmh.annotations.*;
 
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
 public class JMHEnvTokyoCabinetWriteBenchmark extends JMHEnvTokyoCabinetBenchmarkBase {
 
+    @Setup(Level.Invocation)
+    public void beforeBenchmark() throws IOException {
+        setup();
+    }
+
     @Benchmark
     @BenchmarkMode(Mode.SingleShotTime)
     @Warmup(iterations = 2)
-    @Measurement(iterations = 6)
-    @Fork(10)
+    @Measurement(iterations = 4)
+    @Fork(4)
     public void successiveWrite() {
         writeSuccessiveKeys();
     }
@@ -40,8 +46,8 @@ public class JMHEnvTokyoCabinetWriteBenchmark extends JMHEnvTokyoCabinetBenchmar
     @Benchmark
     @BenchmarkMode(Mode.SingleShotTime)
     @Warmup(iterations = 2)
-    @Measurement(iterations = 6)
-    @Fork(10)
+    @Measurement(iterations = 4)
+    @Fork(4)
     public void randomWrite() {
         env.executeInTransaction(new TransactionalExecutable() {
             @Override

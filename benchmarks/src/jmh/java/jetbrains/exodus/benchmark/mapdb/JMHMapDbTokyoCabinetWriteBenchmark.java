@@ -17,12 +17,18 @@ package jetbrains.exodus.benchmark.mapdb;
 
 import org.openjdk.jmh.annotations.*;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
 public class JMHMapDbTokyoCabinetWriteBenchmark extends JMHMapDbTokyoCabinetBenchmarkBase {
+
+    @Setup(Level.Invocation)
+    public void beforeBenchmark() throws IOException {
+        setup();
+    }
 
     @Benchmark
     @BenchmarkMode(Mode.SingleShotTime)

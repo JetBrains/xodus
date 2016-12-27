@@ -19,12 +19,18 @@ import org.h2.mvstore.MVStore;
 import org.jetbrains.annotations.NotNull;
 import org.openjdk.jmh.annotations.*;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
 public class JMH_MVStoreTokyoCabinetWriteBenchmark extends JMH_MVStoreTokyoCabinetBenchmarkBase {
+
+    @Setup(Level.Invocation)
+    public void beforeBenchmark() throws IOException {
+        setup();
+    }
 
     @Benchmark
     @BenchmarkMode(Mode.SingleShotTime)

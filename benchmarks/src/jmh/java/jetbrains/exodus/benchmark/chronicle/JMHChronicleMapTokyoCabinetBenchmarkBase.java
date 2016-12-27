@@ -21,7 +21,6 @@ import net.openhft.chronicle.map.VanillaChronicleMap;
 import org.jetbrains.annotations.NotNull;
 import org.junit.rules.TemporaryFolder;
 import org.openjdk.jmh.annotations.Level;
-import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.TearDown;
 
 import java.io.IOException;
@@ -34,7 +33,6 @@ abstract class JMHChronicleMapTokyoCabinetBenchmarkBase {
 
     private ChronicleMap<String, String> map;
 
-    @Setup(Level.Invocation)
     public void setup() throws IOException {
         TokyoCabinetBenchmark.shuffleKeys(randomKeys);
         createEnvironment();
