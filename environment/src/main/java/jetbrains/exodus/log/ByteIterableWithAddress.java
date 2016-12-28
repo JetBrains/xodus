@@ -85,7 +85,7 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
         final BinarySearchIterator it = new BinarySearchIterator(pageSize);
 
         while (low <= high) {
-            final int mid = (low + high + 1) >>> 1;
+            final int mid = (low + high) >>> 1;
             final long midAddress = startAddress + (mid * bytesPerLong);
             it.offset = ((int) midAddress) & mask;
             it.address = midAddress - it.offset;
@@ -99,35 +99,30 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
                 loaded = true;
             }
 
+            final long address = it.address;
+            final byte[] page = it.page;
             final int cmp;
-            final long address;
-            final byte[] page;
 
             if (pageSize - it.offset < bytesPerLong) {
-                final long nextAddress = (address = it.address) + pageSize;
+                final long nextAddress = address + pageSize;
                 if (rightAddress == nextAddress) {
                     it.nextPage = rightPage;
                 } else {
                     it.nextPage = cache.getPage(log, nextAddress).getBytesUnsafe();
                     loaded = true;
                 }
-                page = it.page;
                 cmp = comparator.compare(it.asCompound().nextLong(bytesPerLong), key);
             } else {
                 cmp = comparator.compare(it.nextLong(bytesPerLong), key);
-                page = it.page;
-                address = it.address;
             }
 
             if (cmp < 0) {
-                //left < right
                 low = mid + 1;
                 if (loaded) {
-                    leftAddress = it.address;
-                    leftPage = it.page;
+                    leftAddress = address;
+                    leftPage = page;
                 }
             } else if (cmp > 0) {
-                //left > right
                 high = mid - 1;
                 if (loaded) {
                     rightAddress = address;

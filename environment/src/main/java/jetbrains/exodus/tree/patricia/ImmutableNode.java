@@ -19,7 +19,6 @@ import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.log.ByteIterableWithAddress;
 import jetbrains.exodus.log.ByteIteratorWithAddress;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
@@ -95,40 +94,22 @@ final class ImmutableNode extends NodeBase {
     @Nullable
     NodeBase getChild(@NotNull final PatriciaTreeBase tree, final byte b) {
         final int key = b & 0xff;
-        if (childrenCount < CHILDREN_COUNT_TO_TRIGGER_BINARY_SEARCH) {
-            // linear search
-            final ByteIterator it = getDataIterator(0);
-            for (int i = 0; i < childrenCount; ++i) {
-                int cmp = (it.next() & 0xff) - key;
-                if (cmp > 0) {
-                    break;
-                }
-                if (cmp == 0) {
-                    final long nodeAddress = it.nextLong(childAddressLength);
-                    return PatriciaTreeBase.nodeIsRoot(type) ? tree.loadNode(nodeAddress) : tree.loadNonCachedNode(nodeAddress);
-                }
-                it.skip(childAddressLength);
-            }
-        } else {
-            // binary search
-            final int childRecordLength = childAddressLength + 1;
-            int low = 0;
-            int high = childrenCount - 1;
-            while (low <= high) {
-                final int mid = (low + high + 1) >>> 1;
-                final ByteIterator it = getDataIterator(mid * childRecordLength);
-                int cmp = (it.next() & 0xff) - key;
-                if (cmp < 0) {
-                    low = mid + 1;
-                } else if (cmp > 0) {
-                    high = mid - 1;
-                } else {
-                    final long nodeAddress = it.nextLong(childAddressLength);
-                    return PatriciaTreeBase.nodeIsRoot(type) ? tree.loadNode(nodeAddress) : tree.loadNonCachedNode(nodeAddress);
-                }
+        int low = 0;
+        int high = childrenCount - 1;
+        while (low + CHILDREN_COUNT_TO_TRIGGER_BINARY_SEARCH - 1 <= high) {
+            final int mid = (low + high) >>> 1;
+            final ByteIterator it = getDataIterator(mid * (childAddressLength + 1));
+            int cmp = (it.next() & 0xff) - key;
+            if (cmp < 0) {
+                low = mid + 1;
+            } else if (cmp > 0) {
+                high = mid - 1;
+            } else {
+                final long nodeAddress = it.nextLong(childAddressLength);
+                return PatriciaTreeBase.nodeIsRoot(type) ? tree.loadNode(nodeAddress) : tree.loadNonCachedNode(nodeAddress);
             }
         }
-        return null;
+        return getChildUsingLinearSearch(tree, key, low, high + 1);
     }
 
     @Override
@@ -138,51 +119,32 @@ final class ImmutableNode extends NodeBase {
             @Override
             public NodeChildrenIterator iterator() {
                 return childrenCount == (short) 0 ?
-                        new EmptyNodeChildrenIterator() :
-                        new ImmutableNodeChildrenIterator(getDataIterator(0), 0, null);
+                    new EmptyNodeChildrenIterator() :
+                    new ImmutableNodeChildrenIterator(getDataIterator(0), 0, null);
             }
         };
     }
-
 
     @Override
     @NotNull
     NodeChildrenIterator getChildren(final byte b) {
         final int key = b & 0xff;
-        if (childrenCount < CHILDREN_COUNT_TO_TRIGGER_BINARY_SEARCH) {
-            // linear search
-            final ByteIterator it = getDataIterator(0);
-            for (int i = 0; i < childrenCount; ++i) {
-                int cmp = (it.next() & 0xff) - key;
-                if (cmp > 0) {
-                    break;
-                }
-                if (cmp == 0) {
-                    final long suffixAddress = it.nextLong(childAddressLength);
-                    return new ImmutableNodeChildrenIterator(it, i + 1, new ChildReference(b, suffixAddress));
-                }
-                it.skip(childAddressLength);
-            }
-        } else {
-            // binary search
-            final int childRecordLength = childAddressLength + 1;
-            int low = 0;
-            int high = childrenCount - 1;
-            while (low <= high) {
-                final int mid = (low + high + 1) >>> 1;
-                final ByteIterator it = getDataIterator(mid * childRecordLength);
-                int cmp = (it.next() & 0xff) - key;
-                if (cmp < 0) {
-                    low = mid + 1;
-                } else if (cmp > 0) {
-                    high = mid - 1;
-                } else {
-                    final long suffixAddress = it.nextLong(childAddressLength);
-                    return new ImmutableNodeChildrenIterator(it, mid + 1, new ChildReference(b, suffixAddress));
-                }
+        int low = 0;
+        int high = childrenCount - 1;
+        while (low + CHILDREN_COUNT_TO_TRIGGER_BINARY_SEARCH - 1 <= high) {
+            final int mid = (low + high) >>> 1;
+            final ByteIterator it = getDataIterator(mid * (childAddressLength + 1));
+            int cmp = (it.next() & 0xff) - key;
+            if (cmp < 0) {
+                low = mid + 1;
+            } else if (cmp > 0) {
+                high = mid - 1;
+            } else {
+                final long suffixAddress = it.nextLong(childAddressLength);
+                return new ImmutableNodeChildrenIterator(it, mid + 1, new ChildReference(b, suffixAddress));
             }
         }
-        return new EmptyNodeChildrenIterator();
+        return getChildrenUsingLinearSearch(b, low, high + 1);
     }
 
     @Override
@@ -229,6 +191,7 @@ final class ImmutableNode extends NodeBase {
         return new EmptyNodeChildrenIterator();
     }
 
+
     @Override
     int getChildrenCount() {
         return childrenCount;
@@ -242,6 +205,48 @@ final class ImmutableNode extends NodeBase {
 
     private ByteIterator getDataIterator(final int offset) {
         return address == Loggable.NULL_ADDRESS ? ByteIterable.EMPTY_ITERATOR : data.iterator(dataOffset + offset);
+    }
+
+    @Nullable
+    private NodeBase getChildUsingLinearSearch(@NotNull final PatriciaTreeBase tree,
+                                               final int key,
+                                               final int startIndex, /* inclusively */
+                                               final int endIndex    /* exclusively */) {
+        final ByteIterator it = getDataIterator(startIndex * (childAddressLength + 1));
+        for (int i = startIndex; i < endIndex; ++i) {
+            final int cmp = (it.next() & 0xff) - key;
+            if (cmp < 0) {
+                it.skip(childAddressLength);
+                continue;
+            }
+            if (cmp == 0) {
+                final long nodeAddress = it.nextLong(childAddressLength);
+                return PatriciaTreeBase.nodeIsRoot(type) ? tree.loadNode(nodeAddress) : tree.loadNonCachedNode(nodeAddress);
+            }
+            break;
+        }
+        return null;
+    }
+
+    @NotNull
+    private NodeChildrenIterator getChildrenUsingLinearSearch(final byte b,
+                                                              final int startIndex, /* inclusively */
+                                                              final int endIndex    /* exclusively */) {
+        final int key = b & 0xff;
+        final ByteIterator it = getDataIterator(startIndex * (childAddressLength + 1));
+        for (int i = startIndex; i < endIndex; ++i) {
+            int cmp = (it.next() & 0xff) - key;
+            if (cmp < 0) {
+                it.skip(childAddressLength);
+                continue;
+            }
+            if (cmp == 0) {
+                final long suffixAddress = it.nextLong(childAddressLength);
+                return new ImmutableNodeChildrenIterator(it, i + 1, new ChildReference(b, suffixAddress));
+            }
+            break;
+        }
+        return new EmptyNodeChildrenIterator();
     }
 
     @NotNull
