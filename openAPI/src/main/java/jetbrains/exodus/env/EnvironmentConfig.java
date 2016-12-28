@@ -446,7 +446,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(LOG_DURABLE_WRITE, false),
                 new Pair(LOG_FILE_SIZE, 8192L),
                 new Pair(LOG_LOCK_TIMEOUT, 0L),
-                new Pair(LOG_CACHE_PAGE_SIZE, 32 * 1024),
+            new Pair(LOG_CACHE_PAGE_SIZE, 64 * 1024),
                 new Pair(LOG_CACHE_OPEN_FILES, 500),
                 new Pair(LOG_CACHE_USE_NIO, true),
                 new Pair(LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD, 1_000_000_000L), // ~1GB
