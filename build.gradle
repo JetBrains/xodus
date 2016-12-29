@@ -13,7 +13,7 @@ def signingPassword = hasProperty('signingPassword') ? project.signingPassword :
 def signingSecretKeyRingFile = hasProperty('signingSecretKeyRingFile') ? project.signingSecretKeyRingFile : ''
 
 def shouldDeploy(project) {
-    return project.version.length() > 0 && !(project.name in ['benchmarks', 'console', 'samples', 'sshd'])
+    return project.version.length() > 0 && !(project.name in ['benchmarks', 'samples', 'sshd'])
 }
 
 subprojects {
