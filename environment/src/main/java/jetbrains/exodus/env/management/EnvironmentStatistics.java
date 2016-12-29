@@ -17,6 +17,7 @@ package jetbrains.exodus.env.management;
 
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.env.Environment;
+import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.env.EnvironmentStatistics.Type;
 import jetbrains.exodus.management.MBeanBase;
 import jetbrains.exodus.management.Statistics;
@@ -27,18 +28,18 @@ import static jetbrains.exodus.env.EnvironmentStatistics.Type.*;
 public class EnvironmentStatistics extends MBeanBase implements EnvironmentStatisticsMBean {
 
     @NotNull
-    private final Environment env;
+    private final EnvironmentImpl env;
     @NotNull
     private final Statistics<Type> statistics;
 
     @SuppressWarnings("unchecked")
-    public EnvironmentStatistics(@NotNull final Environment env) {
+    public EnvironmentStatistics(@NotNull final EnvironmentImpl env) {
         super(getObjectName(env));
         this.env = env;
-        statistics = (Statistics<Type>)env.getStatistics();
+        statistics = env.getStatistics();
     }
 
-    public static String getObjectName(@NotNull final Environment env) {
+    static String getObjectName(@NotNull final Environment env) {
         return OBJECT_NAME_PREFIX + ", location=" + escapeLocation(env.getLocation());
     }
 
@@ -130,6 +131,11 @@ public class EnvironmentStatistics extends MBeanBase implements EnvironmentStati
     @Override
     public String getTreeNodesCacheHitRate() {
         return ObjectCacheBase.formatHitRate((float) getMean(TREE_NODES_CACHE_HIT_RATE));
+    }
+
+    @Override
+    public String getStuckTransactionMonitorMessage() {
+        return env.getStuckTransactionMonitorMessage();
     }
 
     private long getTotal(@NotNull final Type statisticsName) {

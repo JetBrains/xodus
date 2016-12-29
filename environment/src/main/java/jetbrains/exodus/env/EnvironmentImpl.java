@@ -92,6 +92,9 @@ public class EnvironmentImpl implements Environment {
     private volatile Throwable throwableOnCommit;
     private EnvironmentClosedException throwableOnClose;
 
+    @Nullable
+    private final StuckTransactionMonitor stuckTxnMonitor;
+
     @SuppressWarnings({"ThisEscapedInObjectConstruction"})
     EnvironmentImpl(@NotNull final Log log, @NotNull final EnvironmentConfig ec) {
         this.log = log;
@@ -125,9 +128,7 @@ public class EnvironmentImpl implements Environment {
         throwableOnCommit = null;
         throwableOnClose = null;
 
-        if (transactionTimeout() > 0) {
-            new StuckTransactionMonitor(this);
-        }
+        stuckTxnMonitor = (transactionTimeout() > 0) ? new StuckTransactionMonitor(this) : null;
 
         if (logger.isInfoEnabled()) {
             logger.info("Exodus environment created: " + log.getLocation());
@@ -285,6 +286,11 @@ public class EnvironmentImpl implements Environment {
                 txnSafeTasks.addLast(new RunnableWithTxnRoot(task, newestTxnRoot));
             }
         }
+    }
+
+    @Nullable
+    public String getStuckTransactionMonitorMessage() {
+        return stuckTxnMonitor == null ? null : stuckTxnMonitor.getErrorMessage();
     }
 
     @Override
@@ -485,8 +491,8 @@ public class EnvironmentImpl implements Environment {
     protected TransactionBase beginTransaction(Runnable beginHook, boolean exclusive, boolean cloneMeta) {
         checkIsOperative();
         return ec.getEnvIsReadonly() ?
-                new ReadonlyTransaction(this, beginHook) :
-                new TransactionImpl(this, beginHook, exclusive, cloneMeta);
+            new ReadonlyTransaction(this, beginHook) :
+            new TransactionImpl(this, beginHook, exclusive, cloneMeta);
     }
 
     long getDiskUsage() {
@@ -508,7 +514,7 @@ public class EnvironmentImpl implements Environment {
     boolean shouldTransactionBeExclusive(@NotNull final TransactionImpl txn) {
         final int replayCount = txn.getReplayCount();
         return replayCount >= ec.getEnvTxnReplayMaxCount() ||
-                System.currentTimeMillis() - txn.getCreated() >= ec.getEnvTxnReplayTimeout();
+            System.currentTimeMillis() - txn.getCreated() >= ec.getEnvTxnReplayTimeout();
     }
 
     /**
@@ -671,12 +677,12 @@ public class EnvironmentImpl implements Environment {
             final boolean hasDuplicates = metaInfo.hasDuplicates();
             if (hasDuplicates != config.duplicates) {
                 throw new ExodusException("Attempt to open store '" + name + "' with duplicates = " +
-                        config.duplicates + " while it was created with duplicates =" + hasDuplicates);
+                    config.duplicates + " while it was created with duplicates =" + hasDuplicates);
             }
             if (metaInfo.isKeyPrefixing() != config.prefixing) {
                 if (!config.prefixing) {
                     throw new ExodusException("Attempt to open store '" + name +
-                            "' with prefixing = false while it was created with prefixing = true");
+                        "' with prefixing = false while it was created with prefixing = true");
                 }
                 // if we're trying to open existing store with prefixing which actually wasn't created as store
                 // with prefixing due to lack of the PatriciaTree feature, then open store with existing config
@@ -837,7 +843,7 @@ public class EnvironmentImpl implements Environment {
     private void reportAliveTransactions(final boolean debug) {
         if (transactionTimeout() == 0) {
             String stacksUnavailable = "Transactions stack traces are not available, " +
-                    "set \'" + EnvironmentConfig.ENV_MONITOR_TXNS_TIMEOUT + " > 0\'";
+                "set \'" + EnvironmentConfig.ENV_MONITOR_TXNS_TIMEOUT + " > 0\'";
             if (debug) {
                 logger.debug(stacksUnavailable);
             } else {
@@ -889,7 +895,7 @@ public class EnvironmentImpl implements Environment {
     private LongObjectCacheBase invalidateTreeNodesCache() {
         final int treeNodesCacheSize = ec.getTreeNodesCacheSize();
         final LongObjectCacheBase result = treeNodesCacheSize == 0 ? null :
-                new ConcurrentLongObjectCache(treeNodesCacheSize, 2);
+            new ConcurrentLongObjectCache(treeNodesCacheSize, 2);
         treeNodesCache = result == null ? null : new SoftReference<>(result);
         return result;
     }
@@ -918,8 +924,8 @@ public class EnvironmentImpl implements Environment {
             while (true) {
                 executable.execute(txn);
                 if (txn.isReadonly() || // txn can be read-only if Environment is in read-only mode
-                        txn.isFinished() || // txn can be finished if, e.g., it was aborted within executable
-                        txn.flush()) {
+                    txn.isFinished() || // txn can be finished if, e.g., it was aborted within executable
+                    txn.flush()) {
                     break;
                 }
                 txn.revert();
@@ -935,8 +941,8 @@ public class EnvironmentImpl implements Environment {
             while (true) {
                 final T result = computable.compute(txn);
                 if (txn.isReadonly() || // txn can be read-only if Environment is in read-only mode
-                        txn.isFinished() || // txn can be finished if, e.g., it was aborted within computable
-                        txn.flush()) {
+                    txn.isFinished() || // txn can be finished if, e.g., it was aborted within computable
+                    txn.flush()) {
                     return result;
                 }
                 txn.revert();

@@ -54,4 +54,6 @@ public interface EnvironmentStatisticsMBean {
     String getStoreGetCacheHitRate();
 
     String getTreeNodesCacheHitRate();
+
+    String getStuckTransactionMonitorMessage();
 }
