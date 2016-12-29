@@ -1,6 +1,4 @@
 buildscript {
-    ext.kotlinVersion = '1.0.5'
-    ext.dokkaVersion = '0.9.11'
     repositories { jcenter() }
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
