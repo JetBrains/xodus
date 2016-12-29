@@ -27,6 +27,9 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.MEASUREMENT_ITERATIONS;
+import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.WARMUP_ITERATIONS;
+
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
 public class JMHChronicleMapTokyoCabinetReadBenchmark extends JMHChronicleMapTokyoCabinetBenchmarkBase {
@@ -45,8 +48,8 @@ public class JMHChronicleMapTokyoCabinetReadBenchmark extends JMHChronicleMapTok
 
     @Benchmark
     @BenchmarkMode(Mode.SingleShotTime)
-    @Warmup(iterations = 2)
-    @Measurement(iterations = 4)
+    @Warmup(iterations = WARMUP_ITERATIONS)
+    @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(4)
     public int successiveRead() {
         return computeInTransaction(new TransactionalComputable<Integer>() {
@@ -66,8 +69,8 @@ public class JMHChronicleMapTokyoCabinetReadBenchmark extends JMHChronicleMapTok
 
     @Benchmark
     @BenchmarkMode(Mode.SingleShotTime)
-    @Warmup(iterations = 2)
-    @Measurement(iterations = 4)
+    @Warmup(iterations = WARMUP_ITERATIONS)
+    @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(4)
     public int randomRead() {
         return computeInTransaction(new TransactionalComputable<Integer>() {

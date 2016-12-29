@@ -26,6 +26,8 @@ import java.util.Collections;
 public class TokyoCabinetBenchmark {
 
     public static final int KEYS_COUNT = 1000000;
+    public static final int WARMUP_ITERATIONS = 4;
+    public static final int MEASUREMENT_ITERATIONS = 6;
 
     private static final String PATTERN;
     private static final DecimalFormat FORMAT;
