@@ -1,6 +1,11 @@
 buildscript {
     ext.kotlinVersion = '1.0.6'
     ext.dokkaVersion = '0.9.11'
+    repositories { jcenter() }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
+        classpath "org.jetbrains.dokka:dokka-gradle-plugin:${dokkaVersion}"
+    }
 }
 
 plugins {
@@ -24,8 +29,15 @@ static def shouldDeploy(project) {
 subprojects {
     apply plugin: 'license'
     apply plugin: 'java'
+    apply plugin: 'kotlin'
     apply plugin: 'maven'
     apply plugin: 'signing'
+
+    def kotlinUsed = project.sourceSets.main.kotlin.sourceDirectories.singleFile.exists()
+
+    if (kotlinUsed) {
+        apply plugin: 'org.jetbrains.dokka'
+    }
 
     sourceCompatibility = 1.7
     compileJava.options.encoding = 'UTF-8'
@@ -39,6 +51,11 @@ subprojects {
         ext.inceptionYear = 2010
         ext.year = Calendar.getInstance().get(Calendar.YEAR)
         ext.owner = 'JetBrains s.r.o.'
+        include "**/*.kt"
+        include "**/*.java"
+        mapping {
+            kt = 'JAVADOC_STYLE'
+        }
     }
 
     repositories {
@@ -65,6 +82,8 @@ subprojects {
 
     task javadocJar(type: Jar, dependsOn: javadoc) {
         classifier = 'javadoc'
+        duplicatesStrategy 'exclude'
+        includeEmptyDirs false
         from javadoc.destinationDir
     }
     // work around for Java 8 javadoc which is too strict
@@ -76,7 +95,32 @@ subprojects {
 
     task sourceJar(type: Jar) {
         classifier = 'sources'
+        duplicatesStrategy 'exclude'
+        includeEmptyDirs false
         from project.sourceSets.main.java
+    }
+
+    // configuring projects with Kotlin sources
+    if (kotlinUsed) {
+
+        dependencies {
+            compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
+            compile 'io.github.microutils:kotlin-logging:1.4.1'
+        }
+
+        sourceJar {
+            from project.sourceSets.main.kotlin
+        }
+
+        task dokkaJavadoc(type: org.jetbrains.dokka.gradle.DokkaTask) {
+            outputFormat = 'javadoc'
+            outputDirectory = "$buildDir/javadoc"
+        }
+
+        javadocJar {
+            dependsOn dokkaJavadoc
+            from dokkaJavadoc.outputDirectory
+        }
     }
 
     artifacts {

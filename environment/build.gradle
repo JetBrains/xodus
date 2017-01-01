@@ -1,14 +1,4 @@
-buildscript {
-    repositories { jcenter() }
-    dependencies {
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
-    }
-}
-
-apply plugin: 'kotlin'
-
 dependencies {
     compile project(':compress')
-    compile 'io.github.microutils:kotlin-logging:1.4.1'
     testCompile project(':utils').sourceSets.test.output
 }
