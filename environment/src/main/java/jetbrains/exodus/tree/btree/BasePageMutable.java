@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2016 JetBrains s.r.o.
+ * Copyright 2010 - 2017 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,10 @@ import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.CompoundByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.CompressedUnsignedLongArrayByteIterable;
-import jetbrains.exodus.log.*;
+import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
+import jetbrains.exodus.log.Log;
+import jetbrains.exodus.log.Loggable;
+import jetbrains.exodus.log.TooBigLoggableException;
 import jetbrains.exodus.tree.MutableTreeRoot;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
