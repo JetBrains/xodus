@@ -23,7 +23,6 @@ import jetbrains.exodus.io.DataWriter;
 import jetbrains.exodus.io.FileDataReader;
 import jetbrains.exodus.io.FileDataWriter;
 import jetbrains.exodus.util.IOUtil;
-import jetbrains.exodus.util.TeamCityMessenger;
 import org.junit.After;
 import org.junit.Before;
 
@@ -37,9 +36,6 @@ class LogTestsBase {
     private File logDirectory = null;
     protected DataReader reader;
     protected DataWriter writer;
-    private TeamCityMessenger myMessenger = null;
-
-    private static final String TEAMCITY_MESSAGES = "teamcity.messages";
 
     @Before
     public void setUp() throws IOException {
@@ -57,17 +53,6 @@ class LogTestsBase {
         }
 
         LoggableFactory.clear();
-
-        String tcMsgFileName = System.getProperty(TEAMCITY_MESSAGES);
-        if (tcMsgFileName != null) {
-            try {
-                myMessenger = new TeamCityMessenger(System.getProperty(TEAMCITY_MESSAGES));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        } else {
-            System.out.println("TeamCity messages disabled   :   no file to write messages in");
-        }
     }
 
     @After
@@ -77,10 +62,6 @@ class LogTestsBase {
         IOUtil.deleteRecursively(testsDirectory);
         IOUtil.deleteFile(testsDirectory);
         logDirectory = null;
-        if (myMessenger != null) {
-            myMessenger.close();
-        }
-
     }
 
     protected Pair<DataReader, DataWriter> createLogRW() {

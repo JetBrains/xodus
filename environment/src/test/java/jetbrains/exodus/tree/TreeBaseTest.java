@@ -22,7 +22,6 @@ import jetbrains.exodus.log.LogConfig;
 import jetbrains.exodus.tree.btree.LeafNodeKV;
 import jetbrains.exodus.util.IOUtil;
 import jetbrains.exodus.util.Random;
-import jetbrains.exodus.util.TeamCityMessenger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.junit.After;
@@ -42,8 +41,6 @@ import static org.junit.Assert.*;
 @SuppressWarnings({"AssignmentToStaticFieldFromInstanceMethod"})
 public abstract class TreeBaseTest {
 
-    private static final String TEAMCITY_MESSAGES = "teamcity.messages";
-
     private static final DecimalFormat FORMATTER;
     protected static final Random RANDOM;
 
@@ -57,7 +54,6 @@ public abstract class TreeBaseTest {
     protected ITreeMutable tm;
     protected static Log log = null;
     protected static File tempFolder = null;
-    protected TeamCityMessenger myMessenger = null;
 
     public ITree getTree() {
         return t;
@@ -79,14 +75,6 @@ public abstract class TreeBaseTest {
         }
         tempFolder = TestUtil.createTempDir();
         createLog();
-        String tcMsgFileName = System.getProperty(TEAMCITY_MESSAGES);
-        if (tcMsgFileName != null) {
-            try {
-                myMessenger = new TeamCityMessenger(System.getProperty(TEAMCITY_MESSAGES));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
     }
 
     private void createLog() {
@@ -104,9 +92,6 @@ public abstract class TreeBaseTest {
         log.close();
         IOUtil.deleteRecursively(tempFolder);
         IOUtil.deleteFile(tempFolder);
-        if (myMessenger != null) {
-            myMessenger.close();
-        }
     }
 
     protected void reopen() throws IOException {

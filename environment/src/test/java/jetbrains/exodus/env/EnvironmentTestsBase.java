@@ -34,7 +34,6 @@ import jetbrains.exodus.log.LoggableFactory;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import jetbrains.exodus.util.CompressBackupUtil;
 import jetbrains.exodus.util.IOUtil;
-import jetbrains.exodus.util.TeamCityMessenger;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.jetbrains.annotations.NotNull;
 import org.junit.After;
@@ -51,14 +50,11 @@ import java.util.zip.GZIPOutputStream;
 @SuppressWarnings({"ProtectedField", "UnusedDeclaration", "CallToPrintStackTrace"})
 public class EnvironmentTestsBase {
 
-    private static final String TEAMCITY_MESSAGES = "teamcity.messages";
-
     protected EnvironmentImpl env;
     private JobProcessor processor;
     private File envDirectory = null;
     protected DataReader reader;
     protected DataWriter writer;
-    protected TeamCityMessenger myMessenger = null;
 
     @Before
     public void setUp() throws Exception {
@@ -70,16 +66,6 @@ public class EnvironmentTestsBase {
         createEnvironment();
         processor = new ThreadJobProcessor("EnvironmentTestsBase processor");
         processor.start();
-        String tcMsgFileName = System.getProperty(TEAMCITY_MESSAGES);
-        if (tcMsgFileName != null) {
-            try {
-                myMessenger = new TeamCityMessenger(tcMsgFileName);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        } else {
-            System.out.println("TeamCity messages disabled   :   no file to write messages in");
-        }
     }
 
     @After
@@ -95,9 +81,6 @@ public class EnvironmentTestsBase {
             Log.invalidateSharedCache();
             deleteRW();
             processor.finish();
-            if (myMessenger != null) {
-                myMessenger.close();
-            }
         }
     }
 
