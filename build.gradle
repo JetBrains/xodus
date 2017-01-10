@@ -26,6 +26,8 @@ static def shouldDeploy(project) {
     return project.version.length() > 0 && !(project.name in ['benchmarks', 'samples', 'sshd'])
 }
 
+defaultTasks 'assemble'
+
 subprojects {
     apply plugin: 'license'
     apply plugin: 'java'
