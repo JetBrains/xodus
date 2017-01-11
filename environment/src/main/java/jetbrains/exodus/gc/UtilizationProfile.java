@@ -108,7 +108,7 @@ public final class UtilizationProfile {
     public void save(@NotNull final Transaction txn) {
         if (isDirty) {
             final StoreImpl store = env.openStore(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME,
-                    StoreConfig.WITHOUT_DUPLICATES, txn);
+                StoreConfig.WITHOUT_DUPLICATES, txn);
             // clear entries for already deleted files
             try (Cursor cursor = store.openCursor(txn)) {
                 while (cursor.getNext()) {
@@ -129,8 +129,8 @@ public final class UtilizationProfile {
             }
             for (final Map.Entry<Long, MutableLong> entry : filesUtilization) {
                 store.put(txn,
-                        LongBinding.longToCompressedEntry(entry.getKey()),
-                        CompressedUnsignedLongByteIterable.getIterable(entry.getValue().value));
+                    LongBinding.longToCompressedEntry(entry.getKey()),
+                    CompressedUnsignedLongByteIterable.getIterable(entry.getValue().value));
             }
         }
     }
@@ -162,7 +162,7 @@ public final class UtilizationProfile {
     /**
      * Updates utilization profile with new expired loggables.
      *
-     * @param loggables                expired loggables.
+     * @param loggables expired loggables.
      */
     void fetchExpiredLoggables(@NotNull final Iterable<ExpiredLoggableInfo> loggables) {
         long prevFileAddress = -1L;
@@ -245,7 +245,7 @@ public final class UtilizationProfile {
             @Override
             public boolean hasNext() {
                 return !fragmentedFiles.isEmpty() &&
-                        totalFreeBytes[0] > totalCleanableBytes[0] * gc.getMaximumFreeSpacePercent() / 100L;
+                    totalFreeBytes[0] > totalCleanableBytes[0] * gc.getMaximumFreeSpacePercent() / 100L;
             }
 
             @Override
@@ -295,6 +295,10 @@ public final class UtilizationProfile {
                     for (final Map.Entry<Long, Long> entry : usedSpace.entrySet()) {
                         filesUtilization.put(entry.getKey(), new MutableLong(fileSize - entry.getValue()));
                     }
+                }
+                estimateTotalBytes();
+                if (gc.isTooMuchFreeSpace()) {
+                    gc.wake();
                 }
             }
         }, env.getCreated() + env.getEnvironmentConfig().getGcStartIn());
