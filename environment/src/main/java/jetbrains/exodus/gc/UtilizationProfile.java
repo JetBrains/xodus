@@ -17,7 +17,6 @@ package jetbrains.exodus.gc;
 
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.core.dataStructures.Pair;
-import jetbrains.exodus.core.dataStructures.Priority;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.env.*;
@@ -267,7 +266,7 @@ public final class UtilizationProfile {
      * Reloads utilization profile.
      */
     private void computeUtilizationFromScratch() {
-        gc.getCleaner().getJobProcessor().queue(new Job() {
+        gc.getCleaner().getJobProcessor().queueAt(new Job() {
             @Override
             protected void execute() throws Throwable {
                 final LongHashMap<Long> usedSpace = new LongHashMap<>();
@@ -298,7 +297,7 @@ public final class UtilizationProfile {
                     }
                 }
             }
-        }, Priority.highest);
+        }, env.getCreated() + env.getEnvironmentConfig().getGcStartIn());
     }
 
     /**
