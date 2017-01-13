@@ -76,9 +76,28 @@ public enum StoreConfig {
         useExisting = ((bits >> 3) & 1) > 0;
     }
 
-
     @Override
     public String toString() {
         return "duplicates: " + duplicates + ", prefixing: " + prefixing + ", temporaryEmpty: " + temporaryEmpty + ", useExisting: " + useExisting;
+    }
+
+    /**
+     * Returns {@code StoreConfig} value corresponding to the specified {@linkplain Store} attributes.
+     *
+     * <table border=1>
+     * <tr><td/><th>With duplicates</th><th>Without duplicates</th></tr>
+     * <tr><th>With key prefixing</th><td>{@link #WITH_DUPLICATES_WITH_PREFIXING}</td><td>{@link #WITH_DUPLICATES_WITH_PREFIXING}</td></tr>
+     * <tr><th>Without key prefixing</th><td>{@link #WITH_DUPLICATES}</td><td>{@link #WITHOUT_DUPLICATES}</td></tr>
+     * </table>
+     *
+     * @param duplicates {@code true} if key duplicates are allowed
+     * @param prefixing  {@code true} if key prefixing is desired
+     * @return {@code StoreConfig} value corresponding to the specified {@linkplain Store} attributes
+     */
+    public static StoreConfig getStoreConfig(final boolean duplicates, final boolean prefixing) {
+        if (duplicates) {
+            return prefixing ? WITH_DUPLICATES_WITH_PREFIXING : WITH_DUPLICATES;
+        }
+        return prefixing ? WITHOUT_DUPLICATES_WITH_PREFIXING : WITHOUT_DUPLICATES;
     }
 }
