@@ -123,33 +123,33 @@ public class SortEngine {
             if (emd != null) {
                 final boolean isMultiple = emd.getAssociationEndMetaData(linkName).getCardinality().isMultiple();
                 final Comparator<Entity> cmp = toComparator(isMultiple ?
-                        new ComparableGetter() {
-                            @Override
-                            public Comparable select(final Entity entity) {
-                                // return the least property, to be replaced with getMin or something
-                                Iterable<Entity> links = getLinks(entity, linkName);
-                                Comparable result = null;
-                                for (final Entity target : links) {
-                                    final Comparable property = getProperty(target, propName);
-                                    if (result == null) {
+                    new ComparableGetter() {
+                        @Override
+                        public Comparable select(final Entity entity) {
+                            // return the least property, to be replaced with getMin or something
+                            Iterable<Entity> links = getLinks(entity, linkName);
+                            Comparable result = null;
+                            for (final Entity target : links) {
+                                final Comparable property = getProperty(target, propName);
+                                if (result == null) {
+                                    result = property;
+                                } else {
+                                    int compared = compareNullableComparables(result, property);
+                                    if (ascending && compared > 0 || !ascending && compared < 0) {
                                         result = property;
-                                    } else {
-                                        int compared = compareNullableComparables(result, property);
-                                        if (ascending && compared > 0 || !ascending && compared < 0) {
-                                            result = property;
-                                        }
                                     }
                                 }
-                                return result;
                             }
-                        } :
-                        new ComparableGetter() {
-                            @Override
-                            public Comparable select(final Entity entity) {
-                                final Entity target = getLink(entity, linkName);
-                                return target == null ? null : getProperty(target, propName);
-                            }
-                        });
+                            return result;
+                        }
+                    } :
+                    new ComparableGetter() {
+                        @Override
+                        public Comparable select(final Entity entity) {
+                            final Entity target = getLink(entity, linkName);
+                            return target == null ? null : getProperty(target, propName);
+                        }
+                    });
                 adjustedCmp = ascending ? cmp : new ReverseComparator(cmp);
                 final Iterable<Entity> i = queryEngine.toEntityIterable(source);
                 if (queryEngine.isPersistentIterable(i)) {
@@ -170,8 +170,8 @@ public class SortEngine {
                         long enumCount = allLinks instanceof EntitiesOfTypeIterable ? allLinks.size() : allLinks.getRoughCount();
                         if (enumCount < 0 || enumCount > MAX_ENUM_COUNT_TO_SORT_LINKS) {
                             distinctLinks = ((EntityIterableBase) (isMultiple ?
-                                    queryEngine.selectManyDistinct(it, linkName) :
-                                    queryEngine.selectDistinct(it, linkName)
+                                queryEngine.selectManyDistinct(it, linkName) :
+                                queryEngine.selectDistinct(it, linkName)
                             )).getSource();
                             enumCount = distinctLinks.getRoughCount();
                         } else {
@@ -208,7 +208,7 @@ public class SortEngine {
                                             public EntityIterableBase getIterable(String type) {
                                                 queryEngine.assertOperational();
                                                 return (EntityIterableBase) txn.sortLinks(type,
-                                                        distinctSortedLinks.getSource(), isMultiple, linkName, it, oppositeType, oppositeLinkName);
+                                                    distinctSortedLinks.getSource(), isMultiple, linkName, it, oppositeType, oppositeLinkName);
                                             }
                                         }, adjustedCmp);
                                     }
@@ -252,7 +252,11 @@ public class SortEngine {
         final EntityMetaData emd = mmd.getEntityMetaData(entityType);
         if (emd != null) {
             for (String subType : emd.getSubTypes()) {
-                it = ((EntityIterable) getAllEntities(subType, mmd)).concat(it);
+                if (Utils.unionSubtypes()) {
+                    it = ((EntityIterable) getAllEntities(subType, mmd)).union(it);
+                } else {
+                    it = ((EntityIterable) getAllEntities(subType, mmd)).concat(it);
+                }
             }
         }
         return queryEngine.wrap(it);

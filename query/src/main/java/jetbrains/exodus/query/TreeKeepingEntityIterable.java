@@ -32,7 +32,6 @@ import org.slf4j.LoggerFactory;
 public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
 
     private static final Logger logger = LoggerFactory.getLogger(TreeKeepingEntityIterable.class);
-    private static final boolean unionSubtypesResults = Boolean.getBoolean("jetbrains.exodus.query.unionSubtypesResults");
 
     private final Iterable<Entity> instance;
     private final NodeBase sourceTree;
@@ -167,7 +166,7 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
         Iterable<Entity> result = ast.instantiate(entityType, queryEngine, mmd);
         if (!(emd == null || ast.polymorphic())) {
             for (String subType : emd.getSubTypes()) {
-                if (unionSubtypesResults) {
+                if (Utils.unionSubtypes()) {
                     // union returns sorted by id results provided its operands are sorted by id
                     result = queryEngine.unionAdjusted(result, instantiateForWholeHierarchy(subType, ast));
                 } else {

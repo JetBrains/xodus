@@ -48,4 +48,10 @@ class Utils {
         } while (type != null);
         return false;
     }
+
+    private static final boolean unionSubtypesResults = Boolean.getBoolean("jetbrains.exodus.query.unionSubtypesResults");
+
+    static boolean unionSubtypes() {
+        return unionSubtypesResults;
+    }
 }
