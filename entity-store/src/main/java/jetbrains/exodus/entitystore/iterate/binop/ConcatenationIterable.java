@@ -39,9 +39,6 @@ public final class ConcatenationIterable extends BinaryOperatorEntityIterable {
                                  @NotNull final EntityIterableBase iterable1,
                                  @NotNull final EntityIterableBase iterable2) {
         super(txn, iterable1, iterable2, false);
-        if (iterable1.isSortedById() && iterable2.isSortedById()) {
-            depth += SORTED_BY_ID_FLAG;
-        }
     }
 
     @Override
