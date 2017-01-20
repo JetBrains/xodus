@@ -25,6 +25,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.UnsupportedEncodingException;
 
+import static jetbrains.exodus.entitystore.iterate.EntityIterableBase.NULL_TYPE_ID;
+
 @SuppressWarnings({"AbstractClassWithoutAbstractMethods", "RawUseOfParameterizedType", "ProtectedField"})
 public abstract class EntityIterableHandleBase implements EntityIterableHandle {
 
@@ -79,6 +81,10 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
     @Nullable
     public PersistentEntityStore getStore() {
         return store;
+    }
+
+    public int getEntityTypeId() {
+        return NULL_TYPE_ID;
     }
 
     @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")

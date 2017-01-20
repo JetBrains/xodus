@@ -38,7 +38,6 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
     @NotNull
     protected final EntityIterableBase iterable2;
     protected int depth;
-    private int entityTypeId;
 
     @SuppressWarnings({"ThrowableInstanceNeverThrown"})
     protected BinaryOperatorEntityIterable(@Nullable final PersistentStoreTransaction txn,
@@ -63,17 +62,11 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
         if (depth() < MAXIMUM_DEPTH_TO_ALLOW_CACHING && shouldBinaryOperationBeCached(iterable1, iterable2)) {
             depth += CAN_BE_CACHED_FLAG;
         }
-        entityTypeId = -1;
     }
 
     @Override
     public int getEntityTypeId() {
-        if (entityTypeId < 0 && entityTypeId != NULL_TYPE_ID) {
-            final int leftId = getLeft().getEntityTypeId();
-            final int rightId = getRight().getEntityTypeId();
-            this.entityTypeId = leftId == rightId ? leftId : super.getEntityTypeId();
-        }
-        return entityTypeId;
+        return getHandleImpl().getEntityTypeId();
     }
 
     @NotNull
@@ -119,8 +112,10 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
 
     @Override
     @NotNull
-    protected EntityIterableHandle getHandleImpl() {
+    protected EntityIterableHandleBase getHandleImpl() {
         return new EntityIterableHandleBase(getStore(), getIterableType()) {
+
+            private int entityTypeId = -1;
 
             @NotNull
             private final int[] linkIds = mergeLinkIds(iterable1.getHandle().getLinkIds(), iterable2.getHandle().getLinkIds());
@@ -155,15 +150,25 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
             }
 
             @Override
+            public int getEntityTypeId() {
+                if (entityTypeId == -1) {
+                    final int entityTypeId1 = ((EntityIterableHandleBase) iterable1.getHandle()).getEntityTypeId();
+                    final int entityTypeId2 = ((EntityIterableHandleBase) iterable2.getHandle()).getEntityTypeId();
+                    entityTypeId = entityTypeId1 == entityTypeId2 && entityTypeId1 >= 0 ? entityTypeId1 : NULL_TYPE_ID;
+                }
+                return entityTypeId;
+            }
+
+            @Override
             public boolean isMatchedEntityAdded(@NotNull final EntityId added) {
                 return iterable1.getHandle().isMatchedEntityAdded(added) ||
-                        iterable2.getHandle().isMatchedEntityAdded(added);
+                    iterable2.getHandle().isMatchedEntityAdded(added);
             }
 
             @Override
             public boolean isMatchedEntityDeleted(@NotNull final EntityId deleted) {
                 return iterable1.getHandle().isMatchedEntityDeleted(deleted) ||
-                        iterable2.getHandle().isMatchedEntityDeleted(deleted);
+                    iterable2.getHandle().isMatchedEntityDeleted(deleted);
             }
 
             @Override
@@ -211,7 +216,7 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
                                                     @Nullable final Comparable oldValue,
                                                     @Nullable final Comparable newValue) {
                 return iterable1.getHandle().isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue) ||
-                        iterable2.getHandle().isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue);
+                    iterable2.getHandle().isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue);
             }
 
             @Override
@@ -223,7 +228,7 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
 
     private static boolean shouldBinaryOperationBeCached(@NotNull EntityIterableBase iterable1, @NotNull EntityIterableBase iterable2) {
         return (iterable1.canBeCached() || iterable1.getHandle().getType() == EntityIterableType.ENTITIES_WITH_PROPERTY_SORTED_BY_VALUE) &&
-                (iterable2.canBeCached() || iterable2.getHandle().getType() == EntityIterableType.ENTITIES_WITH_PROPERTY_SORTED_BY_VALUE);
+            (iterable2.canBeCached() || iterable2.getHandle().getType() == EntityIterableType.ENTITIES_WITH_PROPERTY_SORTED_BY_VALUE);
     }
 
     private static boolean isOrderOk(@NotNull final EntityIterableHandle handle1,

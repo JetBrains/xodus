@@ -164,6 +164,11 @@ public final class SortIterable extends EntityIterableDecoratorBase {
             }
 
             @Override
+            public int getEntityTypeId() {
+                return sourceTypeId;
+            }
+
+            @Override
             public boolean isMatchedPropertyChanged(final int typeId,
                                                     final int propertyId,
                                                     @Nullable final Comparable oldValue,

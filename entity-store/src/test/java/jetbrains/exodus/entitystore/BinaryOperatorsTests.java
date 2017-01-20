@@ -243,12 +243,12 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
         final StoreTransaction txn = getStoreTransaction();
         txn.newEntity("Issue");
         Assert.assertEquals(1, toList(txn.getAll("User").concat(txn.getAll("Issue"))).size());
-        txn.flush();
+        Assert.assertTrue(txn.flush());
         txn.newEntity("User");
-        txn.flush();
+        Assert.assertTrue(txn.flush());
         Assert.assertEquals(2, toList(txn.getAll("User").concat(txn.getAll("Issue"))).size());
         txn.getAll("User").getFirst().delete();
-        txn.flush();
+        Assert.assertTrue(txn.flush());
         while (true) {
             txn.revert();
             final EntityIterableBase concat = (EntityIterableBase) txn.getAll("User").concat(txn.getAll("Issue"));
@@ -256,9 +256,12 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
             if (concat.isCached()) break;
             Thread.yield();
         }
+        txn.revert();
         txn.newEntity("User");
-        txn.flush();
-        Assert.assertEquals(2, toList(txn.getAll("User").concat(txn.getAll("Issue"))).size());
+        Assert.assertTrue(txn.flush());
+        final EntityIterableBase concat = (EntityIterableBase) txn.getAll("User").concat(txn.getAll("Issue"));
+        Assert.assertFalse(concat.isCached());
+        Assert.assertEquals(2, toList(concat).size());
     }
 
     private static List<Entity> toList(Iterable<Entity> it) {

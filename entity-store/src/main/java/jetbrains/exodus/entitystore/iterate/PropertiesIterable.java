@@ -149,6 +149,11 @@ public final class PropertiesIterable extends EntityIterableBase {
         }
 
         @Override
+        public int getEntityTypeId() {
+            return entityTypeId;
+        }
+
+        @Override
         public boolean isMatchedPropertyChanged(final int typeId,
                                                 final int propertyId,
                                                 @Nullable final Comparable oldValue,

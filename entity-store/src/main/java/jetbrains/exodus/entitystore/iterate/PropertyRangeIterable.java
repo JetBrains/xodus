@@ -118,6 +118,11 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
             }
 
             @Override
+            public int getEntityTypeId() {
+                return PropertyRangeIterable.this.getEntityTypeId();
+            }
+
+            @Override
             public boolean isMatchedPropertyChanged(final int typeId,
                                                     final int propId,
                                                     @Nullable final Comparable oldValue,

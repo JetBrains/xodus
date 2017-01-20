@@ -93,6 +93,11 @@ public class EntitiesOfTypeRangeIterable extends EntityIterableBase {
             }
 
             @Override
+            public int getEntityTypeId() {
+                return entityTypeId;
+            }
+
+            @Override
             public boolean isMatchedEntityAdded(@NotNull final EntityId added) {
                 return added.getTypeId() == entityTypeId && isRangeAffected(added.getLocalId());
             }

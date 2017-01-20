@@ -39,12 +39,12 @@ public final class PropertyValueIterable extends PropertyRangeOrValueIterableBas
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
                 try {
                     return new PropertyValueIterable(txn,
-                            Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]),
-                            Long.parseLong((String) parameters[2]));
+                        Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]),
+                        Long.parseLong((String) parameters[2]));
                 } catch (NumberFormatException e) {
                     return new PropertyValueIterable(txn,
-                            Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]),
-                            (Comparable) parameters[2]);
+                        Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]),
+                        (Comparable) parameters[2]);
                 }
             }
         });
@@ -105,6 +105,11 @@ public final class PropertyValueIterable extends PropertyRangeOrValueIterableBas
                 hash.apply(propertyId);
                 hash.applyDelimiter();
                 hash.apply(value.toString());
+            }
+
+            @Override
+            public int getEntityTypeId() {
+                return PropertyValueIterable.this.getEntityTypeId();
             }
 
             @Override

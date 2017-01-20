@@ -148,6 +148,11 @@ public class EntitiesWithLinkIterable extends EntityIterableBase {
         }
 
         @Override
+        public int getEntityTypeId() {
+            return entityTypeId;
+        }
+
+        @Override
         public boolean isMatchedLinkAdded(@NotNull final EntityId source,
                                           @NotNull final EntityId target,
                                           final int linkId) {

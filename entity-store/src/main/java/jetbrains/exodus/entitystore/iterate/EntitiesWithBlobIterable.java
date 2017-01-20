@@ -87,6 +87,11 @@ public class EntitiesWithBlobIterable extends EntityIterableBase {
             hash.applyDelimiter();
             hash.apply(blobId);
         }
+
+        @Override
+        public int getEntityTypeId() {
+            return entityTypeId;
+        }
     }
 
     public final class BlobsIterator extends EntityIteratorBase {

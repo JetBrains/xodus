@@ -68,6 +68,11 @@ public final class EntityReverseIterable extends EntityIterableDecoratorBase {
                 super.toString(builder);
                 applyDecoratedToBuilder(builder);
             }
+
+            @Override
+            public int getEntityTypeId() {
+                return source.getEntityTypeId();
+            }
         };
     }
 

@@ -100,6 +100,11 @@ class FilterEntityTypeIterable extends EntityIterableDecoratorBase {
                 hash.applyDelimiter();
                 super.hashCode(hash);
             }
+
+            @Override
+            public int getEntityTypeId() {
+                return entityTypeId;
+            }
         };
     }
 
