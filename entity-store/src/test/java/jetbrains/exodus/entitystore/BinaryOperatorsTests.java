@@ -15,9 +15,13 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.TestFor;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.iterate.EntityIteratorBase;
 import org.junit.Assert;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class BinaryOperatorsTests extends EntityStoreTestBase {
 
@@ -50,10 +54,10 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
         txn.flush();
         Assert.assertEquals(100, (int) txn.getAll("Issue").intersect(txn.findWithLinks("Issue", "comment")).size());
         Assert.assertTrue(((EntityIteratorBase) txn.getAll("Issue").intersect(
-                txn.findWithLinks("Issue", "comment")).iterator()).getIterable().isCachedInstance());
+            txn.findWithLinks("Issue", "comment")).iterator()).getIterable().isCachedInstance());
         // commutative intersect will be cached as well
         Assert.assertTrue(((EntityIteratorBase) txn.findWithLinks("Issue", "comment").intersect(
-                txn.getAll("Issue")).iterator()).getIterable().isCachedInstance());
+            txn.getAll("Issue")).iterator()).getIterable().isCachedInstance());
     }
 
     public void testSingularIntersect() {
@@ -129,10 +133,10 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
         txn.flush();
         Assert.assertEquals(200, (int) txn.getAll("Issue").union(txn.findWithLinks("Issue", "comment")).size());
         Assert.assertTrue(((EntityIteratorBase) txn.getAll("Issue").union(
-                txn.findWithLinks("Issue", "comment")).iterator()).getIterable().isCachedInstance());
+            txn.findWithLinks("Issue", "comment")).iterator()).getIterable().isCachedInstance());
         // commutative union will be cached as well
         Assert.assertTrue(((EntityIteratorBase) txn.findWithLinks("Issue", "comment").union(
-                txn.getAll("Issue")).iterator()).getIterable().isCachedInstance());
+            txn.getAll("Issue")).iterator()).getIterable().isCachedInstance());
     }
 
     public void testSingularUnion() {
@@ -156,7 +160,7 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
         Assert.assertEquals(23, (int) txn.find("Issue", "name", "Test issue #1", "Test issue #3").size());
         Assert.assertEquals(23, (int) txn.find("Issue", "name", "Test issue #2", "Test issue #4").size());
         Assert.assertEquals(34, (int) txn.find("Issue", "name", "Test issue #1", "Test issue #3").union(
-                txn.find("Issue", "name", "Test issue #2", "Test issue #4")).size());
+            txn.find("Issue", "name", "Test issue #2", "Test issue #4")).size());
     }
 
     public void testUnionUnsortedStress() {
@@ -232,5 +236,36 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
         Assert.assertEquals(200, (int) txn.getAll("Issue").concat(txn.getAll("Comment")).size());
         Assert.assertEquals(20, (int) txn.find("Issue", "name", "Test issue #0").concat(txn.find("Issue", "name", "Test issue #1")).size());
         Assert.assertEquals(30, (int) txn.find("Issue", "name", "Test issue #0").concat(txn.find("Issue", "name", "Test issue #1")).concat(txn.find("Issue", "name", "Test issue #2")).size());
+    }
+
+    @TestFor(issues = "XD-566")
+    public void testConcat2() {
+        final StoreTransaction txn = getStoreTransaction();
+        txn.newEntity("Issue");
+        Assert.assertEquals(1, toList(txn.getAll("User").concat(txn.getAll("Issue"))).size());
+        txn.flush();
+        txn.newEntity("User");
+        txn.flush();
+        Assert.assertEquals(2, toList(txn.getAll("User").concat(txn.getAll("Issue"))).size());
+        txn.getAll("User").getFirst().delete();
+        txn.flush();
+        while (true) {
+            txn.revert();
+            final EntityIterableBase concat = (EntityIterableBase) txn.getAll("User").concat(txn.getAll("Issue"));
+            Assert.assertEquals(1, toList(concat).size());
+            if (concat.isCached()) break;
+            Thread.yield();
+        }
+        txn.newEntity("User");
+        txn.flush();
+        Assert.assertEquals(2, toList(txn.getAll("User").concat(txn.getAll("Issue"))).size());
+    }
+
+    private static List<Entity> toList(Iterable<Entity> it) {
+        final List<Entity> result = new ArrayList<>();
+        for (Entity entity : it) {
+            result.add(entity);
+        }
+        return result;
     }
 }
