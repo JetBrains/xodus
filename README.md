@@ -27,13 +27,13 @@ To start using Xodus, define dependencies:
 <dependency>
     <groupId>org.jetbrains.xodus</groupId>
     <artifactId>xodus-openAPI</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4</version>
 </dependency>
 ```
 ```groovy
 // in Gradle project
 dependencies {
-    compile 'org.jetbrains.xodus:xodus-openAPI:1.0.3'
+    compile 'org.jetbrains.xodus:xodus-openAPI:1.0.4'
 }
 ```
 Read more about [managing dependencies](https://github.com/JetBrains/xodus/wiki/Managing-Dependencies).
