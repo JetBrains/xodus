@@ -1,10 +1,13 @@
 dependencies {
-    compile project(':openAPI')
-    compile project(':environment')
     compile project(':entity-store')
     compile 'org.apache.sshd:apache-sshd:0.14.0'
     compile 'commons-cli:commons-cli:1.2'
     compile 'org.mozilla:rhino:1.7.7.1'
+}
+
+// add license header to JavaScript files as well
+license {
+    include "**/*.js"
 }
 
 uploadArchives {

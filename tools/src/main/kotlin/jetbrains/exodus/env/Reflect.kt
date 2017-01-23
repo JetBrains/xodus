@@ -48,7 +48,7 @@ fun main(args: Array<String>) {
     var utilizationInfo = false
     val files2Clean = LinkedHashSet<String>()
     args.forEach { arg ->
-        if (arg.startsWith("-")) {
+        if (arg.startsWith('-')) {
             hasOptions = true
             when (arg.toLowerCase().substring(1)) {
                 "ls" -> gatherLogStats = true
@@ -113,7 +113,7 @@ fun main(args: Array<String>) {
     exitProcess(0)
 }
 
-fun printUsage() {
+internal fun printUsage() {
     println("Usage: Reflect [-options] <environment path> [environment path 2]")
     println("Options:")
     println("  -ls             gather Log Stats")
@@ -125,7 +125,7 @@ fun printUsage() {
     exitProcess(1)
 }
 
-class Reflect(directory: File) {
+internal class Reflect(directory: File) {
 
     companion object : KLogging() {
 

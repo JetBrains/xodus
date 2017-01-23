@@ -3,8 +3,8 @@ plugins {
 }
 
 dependencies {
-    compile project(':environment')
-    compile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.21'
+    compile project(':sshd')
+    compile 'com.hierynomus:sshj:0.19.1'
 }
 
 //Shadow jar is a self-contained archive with all dependencies packed
@@ -14,7 +14,7 @@ shadowJar {
     mustRunAfter jar
     archiveName = jar.archiveName
     manifest {
-        attributes 'Main-Class': 'jetbrains.exodus.env.ReflectKt'
+        attributes 'Main-Class': 'jetbrains.exodus.MainKt'
     }
 }
 

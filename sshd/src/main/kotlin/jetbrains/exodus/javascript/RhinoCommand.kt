@@ -18,31 +18,36 @@ package jetbrains.exodus.javascript
 import jetbrains.exodus.core.dataStructures.NanoSet
 import jetbrains.exodus.core.dataStructures.Priority
 import jetbrains.exodus.core.execution.Job
-import jetbrains.exodus.entitystore.PersistentEntityStore
-import jetbrains.exodus.entitystore.StoreTransactionalExecutable
 import org.apache.sshd.server.Command
 import org.apache.sshd.server.Environment
 import org.apache.sshd.server.ExitCallback
 import org.mozilla.javascript.*
 import org.mozilla.javascript.tools.ToolErrorReporter
 import java.awt.event.KeyEvent
-import java.io.InputStream
-import java.io.InputStreamReader
-import java.io.OutputStream
-import java.io.PrintStream
+import java.io.*
 
-internal class RhinoCommand(private val config: Map<String, *>) : Command, Job() {
+abstract class RhinoCommand(protected val config: Map<String, *>) : Job(), Command {
 
     companion object {
 
-        private val INITIAL_SCRIPTS = arrayOf("init.js", "functions.js", "opt.js")
+        internal fun createCommand(config: Map<String, *>): RhinoCommand {
+            return when (config[API_LAYER]) {
+                ENVIRONMENTS -> EnvironmentRhinoCommand(config)
+                ENTITY_STORES -> EntityStoreRhinoCommand(config)
+                else -> throw IllegalArgumentException("The value of apiLayer should be 'Environments' or 'EntityStores'")
+            }
+        }
+
+        const val TXN_PARAM = "txn"
+        const val API_LAYER = "apiLayer"
+        const val ENVIRONMENTS = "environments"
+        const val ENTITY_STORES = "entitystores"
+        const val CONSOLE = "console"
+        private const val JS_ENGINE_VERSION_PARAM = "jsEngineVersion"
+        private const val CONFIG_PARAM = "config"
+        private const val INTEROP_PARAM = "interop"
         private val FORBIDDEN_CLASSES = NanoSet("java.lang.System")
-        private val START_SCRIPT_PARAM = "startScript"
-        private val FINISH_SCRIPT_PARAM = "finishScript"
-        private val TXN_PARAM = "txn"
-        private val JS_ENGINE_VERSION_PARAM = "jsEngineVersion"
-        private val CONFIG_PARAM = "config"
-        private val OUTPUT_PARAM = "output"
+        private const val RECENT_COMMANDS_LIST_MAX_SIZE = 1000
 
         private fun isPrintableChar(c: Char): Boolean {
             val block = Character.UnicodeBlock.of(c)
@@ -58,7 +63,7 @@ internal class RhinoCommand(private val config: Map<String, *>) : Command, Job()
     private var stopped = false
     private var output: PrintStream? = null
     private var error: PrintStream? = null
-    private var scope: Scriptable? = null
+    private val recentCommands: MutableList<String> = arrayListOf()
 
     override fun setExitCallback(callback: ExitCallback?) {
         this.callback = callback
@@ -111,159 +116,147 @@ internal class RhinoCommand(private val config: Map<String, *>) : Command, Job()
         } finally {
             try {
                 callback?.onExit(0)
-                if (scope != null) {
-                    val finishScript = config[FINISH_SCRIPT_PARAM]
-                    if (finishScript is String) {
-                        evalResourceScript(cx, scope, finishScript)
-                    }
-                }
             } finally {
                 stopped = true
-                scope = null
                 Context.exit()
             }
         }
     }
 
+    protected fun evalResourceScripts(cx: Context, scope: Scriptable, vararg names: String) {
+        names.forEach {
+            cx.evaluateReader(scope, InputStreamReader(this.javaClass.getResourceAsStream(it)), it, 1, null)
+        }
+    }
+
+    fun evalFileSystemScript(cx: Context, scope: Scriptable, fileName: String) {
+        cx.evaluateReader(scope, FileReader(fileName), fileName, 1, null)
+    }
+
+    protected fun processScript(interop: Interop, script: Script, cx: Context, scope: Scriptable?) {
+        val result = script.exec(cx, scope)
+        if (result !== Context.getUndefinedValue()) {
+            interop.println(Context.toString(result))
+        }
+    }
+
+    protected open fun evalInitScripts(cx: Context, scope: Scriptable) {
+        evalResourceScripts(cx, scope, "bindings.js", "functions.js")
+    }
+
+    protected abstract fun evalTransactionalScript(cx: Context, script: Script, interop: Interop, scope: Scriptable)
+
     private fun processInput(cx: Context) {
-        while (!stopped) {
-            val sshdOutput = Output()
-            if (scope == null) {
-                scope = createScope(cx, sshdOutput)
-            }
-            output?.flush()
-            var line = 0
-            val source = StringBuilder()
-            // Collect lines of source to compile.
-            while (true) {
-                line++
-                sshdOutput.printChar(if (line == 1) '>' else ' ')
-                val newline = readLine(sshdOutput) ?: return
-                source.append(newline).append('\n')
-                if (cx.stringIsCompilableUnit(source.toString())) break
-            }
-            // execute script in transaction
-            try {
-                val script = cx.compileString(source.toString(), "<stdin>", line, null)
-                if (script != null) {
-                    val start = System.currentTimeMillis()
-                    val entityStore = getPersistentStore(scope ?: throw NullPointerException())
-                    if (entityStore == null) {
-                        processScript(sshdOutput, script, cx, scope)
-                    } else {
-                        entityStore.executeInTransaction(StoreTransactionalExecutable { txn ->
-                            ScriptableObject.putProperty(scope, TXN_PARAM, Context.javaToJS(txn, scope))
-                            processScript(sshdOutput, script, cx, scope)
-                        })
+        Interop(this, output ?: throw NullPointerException()).use { interop ->
+            interop.flushOutput()
+            val scope = createScope(cx, interop)
+            evalInitScripts(cx, scope)
+            while (!stopped) {
+                interop.printPrompt()
+                val cmd = buildString { readLine(this, interop) }
+                try {
+                    if (cmd.isNotBlank()) {
+                        // exit
+                        if (cmd.equals("exit", true) || cmd.equals("quit", true)) {
+                            if (isConsole) {
+                                interop.println("Press Enter to $cmd...")
+                            }
+                            break
+                        }
+                        recentCommands.add(cmd)
+                        if (recentCommands.size > RECENT_COMMANDS_LIST_MAX_SIZE) {
+                            recentCommands.removeAt(0)
+                        }
+                        val script = cx.compileString(ScriptPreprocessor.preprocess { cmd }, "<stdin>", 0, null)
+                        if (script != null) {
+                            val start = System.currentTimeMillis()
+                            // execute script in transaction if an Environment or an EntityStore is open
+                            evalTransactionalScript(cx, script, interop, scope)
+                            interop.println("Complete in ${(System.currentTimeMillis() - start)} ms")
+                        }
                     }
-                    sshdOutput.println("Complete in ${(System.currentTimeMillis() - start)} ms")
+                } catch (rex: RhinoException) {
+                    ToolErrorReporter.reportException(cx.errorReporter, rex)
+
+                } catch (ex: VirtualMachineError) {
+                    // Treat StackOverflow and OutOfMemory as runtime errors
+                    ex.printStackTrace()
+                    Context.reportError(ex.toString())
                 }
-            } catch (rex: RhinoException) {
-                ToolErrorReporter.reportException(cx.errorReporter, rex)
-            } catch (ex: VirtualMachineError) {
-                // Treat StackOverflow and OutOfMemory as runtime errors
-                ex.printStackTrace()
-                Context.reportError(ex.toString())
             }
         }
     }
 
-    private fun evalResourceScript(cx: Context, scope: Scriptable?, name: String) {
-        cx.evaluateReader(scope, InputStreamReader(this.javaClass.getResourceAsStream(name)), name, 1, null)
-    }
-
-    private fun createScope(cx: Context, output: Output): Scriptable {
+    private fun createScope(cx: Context, interop: Interop): Scriptable {
+        interop.cx = cx
         val scope = cx.initStandardObjects(null, true)
+        interop.scope = scope
         val config = NativeObject()
         this.config.forEach {
             config.defineProperty(it.key, it.value, NativeObject.READONLY)
         }
         config.defineProperty(JS_ENGINE_VERSION_PARAM, cx.implementationVersion, NativeObject.READONLY)
         ScriptableObject.putProperty(scope, CONFIG_PARAM, config)
-        ScriptableObject.putProperty(scope, OUTPUT_PARAM, Context.javaToJS(output, scope))
-        val startScript = this.config[START_SCRIPT_PARAM]
-        if (startScript is String) {
-            evalResourceScript(cx, scope, startScript)
-        }
-        INITIAL_SCRIPTS.forEach { evalResourceScript(cx, scope, it) }
+        ScriptableObject.putProperty(scope, INTEROP_PARAM, Context.javaToJS(interop, scope))
         return scope
     }
 
-    private fun readLine(output: Output): String? {
-        val safeInput = input ?: return null
-        val s = StringBuilder()
+    private fun readLine(s: StringBuilder, interop: Interop) {
+        val inp = input ?: return
+        var cmdIdx = recentCommands.size
         while (!stopped) {
-            val c = safeInput.read()
-            if (c == -1 || c == 3) break
+            val c = inp.read()
+            if (c == -1 || c == 3 || c == 26) break
             val ch = c.toChar()
-            if (ch == '\n' || ch == '\r') {
-                output.newLine()
+            if (ch == '\n') {
+                if (!isConsole) {
+                    interop.newLine()
+                }
                 break
             }
-            // delete
-            if (c == 127 && s.isNotEmpty()) {
-                s.deleteCharAt(s.length - 1)
-                output.printChar('\b')
+            when (c) {
+            // backspace
+                127 ->
+                    if (s.isNotEmpty()) {
+                        s.deleteCharAt(s.length - 1)
+                        interop.backspace()
+                    }
+            // up or down
+                27 -> {
+                    inp.read()
+                    var newCmdIdx = cmdIdx
+                    val upOrDown = inp.read()
+                    if (upOrDown == 65) {
+                        --newCmdIdx
+                    } else if (upOrDown == 66) {
+                        ++newCmdIdx
+                    }
+                    if (newCmdIdx >= 0 && newCmdIdx <= recentCommands.size && newCmdIdx != cmdIdx) {
+                        cmdIdx = newCmdIdx
+                        if (s.isNotEmpty()) {
+                            interop.backspace(s.length)
+                            s.delete(0, s.length)
+                        }
+                        if (newCmdIdx < recentCommands.size) {
+                            s.append(recentCommands[cmdIdx])
+                        }
+                        interop.print(s)
+                    }
+                }
+                else ->
+                    if (isPrintableChar(ch)) {
+                        if (!isConsole) {
+                            interop.printChar(ch)
+                        }
+                        s.append(ch)
+                    }
             }
-            if (isPrintableChar(ch)) {
-                output.printChar(c.toChar())
-                s.append(c.toChar())
-            }
         }
-        return s.toString()
-    }
-
-    private fun processScript(output: Output, script: Script, cx: Context, scope: Scriptable?) {
-        val result = script.exec(cx, scope)
-        if (result !== Context.getUndefinedValue()) {
-            output.println(Context.toString(result))
-        }
-    }
-
-    private fun getPersistentStore(scope: Scriptable): PersistentEntityStore? {
-        val store = scope.get("store", null)
-        if (store == null || store === UniqueTag.NOT_FOUND) {
-            return null
-        }
-        return Context.jsToJava(store, PersistentEntityStore::class.java) as PersistentEntityStore
     }
 
     private fun toPrintStream(out: OutputStream?): PrintStream? {
         return if (out == null) null else PrintStream(out)
     }
 
-    @Suppress("unused")
-    inner class Output {
-
-        override fun toString(): String {
-            return "SSHD Output"
-        }
-
-        fun print(s: String?) {
-            output?.print(s?.replace("\n", "\n\r"))
-            flushOutput()
-        }
-
-        fun println(s: String) {
-            print(s + '\n')
-        }
-
-        fun newLine() {
-            output?.print("\n\r")
-            flushOutput()
-        }
-
-        fun printChar(s: Char) {
-            if (s == '\n') {
-                newLine()
-            } else {
-                output?.print(s)
-                flushOutput()
-            }
-        }
-
-        private fun flushOutput() {
-            output?.flush()
-        }
-    }
+    private val isConsole = true == config[CONSOLE]
 }
