@@ -20,8 +20,10 @@
 interop.println("Welcome to Xodus EntityStores JS console. Type '/?' for help, 'exit' to exit.")
 
 function help() {
-    interop.println('help(), help, /?, ?                                - print this help.');
-    interop.println('exit, quit                                         - finish terminal session.');
+    interop.println('help, /?, ?                                        - print this help');
+    interop.println('exit, quit                                         - finish session');
+    interop.println('print <smth>                                       - print something');
+    interop.println('println <smth>                                     - print something and line feed');
     interop.println('load <path to file>                                - load script from file');
     interop.println('open <entityStore location> [entityStore name]     - open EntityStore by specified location.');
     interop.println('all                                                - print statistics for all Entity types');
@@ -30,6 +32,7 @@ function help() {
     interop.println('find <entity type> <prop name> <min> <max>         - print all entities of specified Entity type having specified property in range of values');
     interop.println('findStartingWith <entity type> <prop name> <value> - print all entities of specified Entity type having specified string property starting with value');
     interop.println('create <entity type> [properties]                  - create an entity of specified Entity type with specified properties');
+    interop.println('Use "getStore()" as a reference to Entity Store.');
 }
 
 function open(location, storeName) {

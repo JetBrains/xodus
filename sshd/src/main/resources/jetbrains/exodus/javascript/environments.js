@@ -19,8 +19,10 @@ interop.println("Welcome to Xodus Environment JS console. Type '/?' for help, 'e
 var environments = Packages.jetbrains.exodus.env;
 
 function help() {
-    interop.println('help(), help, /?, ?                              - print this help');
-    interop.println('exit, quit                                       - finish terminal session');
+    interop.println('help, /?, ?                                      - print this help');
+    interop.println('exit, quit                                       - finish session');
+    interop.println('print <smth>                                     - print something');
+    interop.println('println <smth>                                   - print something and line feed');
     interop.println('load <path to file>                              - load script from file');
     interop.println('open <environment location>                      - open Environment by specified location');
     interop.println('gc                                               - invoke GC');
@@ -28,6 +30,10 @@ function help() {
     interop.println('put <storeName> <key> <value> [dups] [prefixing] - put a value by key into the store');
     interop.println('get <storeName> <key>                            - get a value by key from the store');
     interop.println('remove <storeName> <key>                         - remove key/value from the store');
+    interop.println('Use "getEnv()" as a reference to Data Environment.');
+    interop.println('Use bindings functions: stringToEntry(), entryToString(), intToEntry(), entryToInt(),');
+    interop.println('  intToCompressedEntry(), compressedEntryToInt(), longToEntry(), entryToLong(),');
+    interop.println('  longToCompressedEntry(), compressedEntryToLong(), doubleToEntry(), entryToDouble().');
 }
 
 function open(location) {

@@ -24,7 +24,7 @@ import org.mozilla.javascript.ScriptableObject
 internal class EnvironmentRhinoCommand(config: Map<String, *>) : RhinoCommand(config) {
 
     override fun evalTransactionalScript(cx: Context, script: Script, interop: Interop, scope: Scriptable) {
-        val env = interop.getEnv()
+        val env = interop.env
         if (env != null) {
             env.executeInTransaction(TransactionalExecutable { txn ->
                 ScriptableObject.putProperty(scope, TXN_PARAM, Context.javaToJS(txn, scope))

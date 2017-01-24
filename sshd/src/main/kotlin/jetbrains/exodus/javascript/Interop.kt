@@ -26,13 +26,13 @@ import org.mozilla.javascript.Scriptable
 import java.io.Closeable
 import java.io.PrintStream
 
-class Interop(private val rhinoCommand: RhinoCommand, private val output: PrintStream) : Closeable {
+class Interop(private val rhinoCommand: RhinoCommand,
+              private val output: PrintStream,
+              private var environment: EnvironmentImpl? = null,
+              private var entityStore: PersistentEntityStoreImpl? = null) : Closeable {
 
-    private var environment: EnvironmentImpl? = null
-    private var entityStore: PersistentEntityStoreImpl? = null
-
-    var cx: Context? = null
-    var scope: Scriptable? = null
+    internal var cx: Context? = null
+    internal var scope: Scriptable? = null
 
     fun load(fileName: String) {
         rhinoCommand.evalFileSystemScript(
@@ -48,7 +48,7 @@ class Interop(private val rhinoCommand: RhinoCommand, private val output: PrintS
         }
     }
 
-    fun getEnv() = environment
+    val env = environment
 
     fun openEntityStore(location: String, storeName: String?) {
         entityStore?.run { entityStore = null; close() }
@@ -60,7 +60,7 @@ class Interop(private val rhinoCommand: RhinoCommand, private val output: PrintS
         }
     }
 
-    fun getStore() = entityStore
+    val store = entityStore
 
     val promptString: String get() {
         val env = environment

@@ -18,6 +18,8 @@ package jetbrains.exodus.javascript
 import jetbrains.exodus.core.dataStructures.NanoSet
 import jetbrains.exodus.core.dataStructures.Priority
 import jetbrains.exodus.core.execution.Job
+import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
+import jetbrains.exodus.env.EnvironmentImpl
 import org.apache.sshd.server.Command
 import org.apache.sshd.server.Environment
 import org.apache.sshd.server.ExitCallback
@@ -43,6 +45,8 @@ abstract class RhinoCommand(protected val config: Map<String, *>) : Job(), Comma
         const val ENVIRONMENTS = "environments"
         const val ENTITY_STORES = "entitystores"
         const val CONSOLE = "console"
+        const val ENVIRONMENT_INSTANCE = "environment instance"
+        const val ENTITY_STORE_INSTANCE = "entity store instance"
         private const val JS_ENGINE_VERSION_PARAM = "jsEngineVersion"
         private const val CONFIG_PARAM = "config"
         private const val INTEROP_PARAM = "interop"
@@ -147,7 +151,9 @@ abstract class RhinoCommand(protected val config: Map<String, *>) : Job(), Comma
     protected abstract fun evalTransactionalScript(cx: Context, script: Script, interop: Interop, scope: Scriptable)
 
     private fun processInput(cx: Context) {
-        Interop(this, output ?: throw NullPointerException()).use { interop ->
+        Interop(this, output ?: throw NullPointerException(),
+                config[ENVIRONMENT_INSTANCE] as? EnvironmentImpl,
+                config[ENTITY_STORE_INSTANCE] as? PersistentEntityStoreImpl).use { interop ->
             interop.flushOutput()
             val scope = createScope(cx, interop)
             evalInitScripts(cx, scope)

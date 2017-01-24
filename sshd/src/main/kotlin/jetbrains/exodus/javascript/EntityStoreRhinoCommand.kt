@@ -24,7 +24,7 @@ import org.mozilla.javascript.ScriptableObject
 internal class EntityStoreRhinoCommand(config: Map<String, *>) : RhinoCommand(config) {
 
     override fun evalTransactionalScript(cx: Context, script: Script, interop: Interop, scope: Scriptable) {
-        val store = interop.getStore()
+        val store = interop.store
         if (store != null) {
             store.executeInTransaction(StoreTransactionalExecutable { txn ->
                 ScriptableObject.putProperty(scope, TXN_PARAM, Context.javaToJS(txn, scope))

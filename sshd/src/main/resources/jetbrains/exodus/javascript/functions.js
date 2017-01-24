@@ -19,7 +19,7 @@ function print(o) {
 }
 
 function println(o) {
-    interop.print(o);
+    interop.println(o);
 }
 
 function load(filename) {
