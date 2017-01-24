@@ -26,6 +26,14 @@ function load(filename) {
     interop.load(filename);
 }
 
+function getEnv() {
+    return interop.getEnv()
+}
+
+function getStore() {
+    return interop.getStore()
+}
+
 function iter(iterable, f) {
     var iter = iterable.iterator();
     while (iter.hasNext()) {

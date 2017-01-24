@@ -178,7 +178,7 @@ abstract class RhinoCommand(protected val config: Map<String, *>) : Job(), Comma
                             val start = System.currentTimeMillis()
                             // execute script in transaction if an Environment or an EntityStore is open
                             evalTransactionalScript(cx, script, interop, scope)
-                            interop.println("Complete in ${(System.currentTimeMillis() - start)} ms")
+                            interop.println("Completed in ${(System.currentTimeMillis() - start)} ms")
                         }
                     }
                 } catch (rex: RhinoException) {

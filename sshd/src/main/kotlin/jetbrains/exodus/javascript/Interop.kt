@@ -48,7 +48,7 @@ class Interop(private val rhinoCommand: RhinoCommand,
         }
     }
 
-    val env = environment
+    val env: EnvironmentImpl? get() = environment
 
     fun openEntityStore(location: String, storeName: String?) {
         entityStore?.run { entityStore = null; close() }
@@ -60,7 +60,7 @@ class Interop(private val rhinoCommand: RhinoCommand,
         }
     }
 
-    val store = entityStore
+    val store: PersistentEntityStoreImpl? get() = entityStore
 
     val promptString: String get() {
         val env = environment
