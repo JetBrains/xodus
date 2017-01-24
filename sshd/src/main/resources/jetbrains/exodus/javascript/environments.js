@@ -40,23 +40,32 @@ function open(location) {
     interop.openEnvironment(location);
 }
 
+function assertEnvIsOpen() {
+    if (interop.getEnv()) return true;
+    println("At first, open Environment");
+    return false
+}
+
 function gc(on) {
     interop.gc(on)
 }
 
 function get(storeName, key) {
-    var store = interop.getEnv().openStore(storeName, environments.StoreConfig.USE_EXISTING, txn);
+    if (!assertEnvIsOpen()) return;
+    var store = getEnv().openStore(storeName, environments.StoreConfig.USE_EXISTING, txn);
     return store.get(txn, key);
 }
 
 function put(storeName, key, value, duplicates, prefixing) {
+    if (!assertEnvIsOpen()) return;
     var usePatriciaTree = prefixing || prefixing === undefined; // by default use Patricia tree
     var dups = duplicates !== undefined && duplicates;
-    var store = interop.getEnv().openStore(storeName, environments.StoreConfig.getStoreConfig(dups, usePatriciaTree), txn);
+    var store = getEnv().openStore(storeName, environments.StoreConfig.getStoreConfig(dups, usePatriciaTree), txn);
     return store.put(txn, key, value);
 }
 
 function remove(storeName, key) {
-    var store = interop.getEnv().openStore(storeName, environments.StoreConfig.USE_EXISTING, txn);
+    if (!assertEnvIsOpen()) return;
+    var store = getEnv().openStore(storeName, environments.StoreConfig.USE_EXISTING, txn);
     return store.delete(txn, key);
 }

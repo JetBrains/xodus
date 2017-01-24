@@ -39,29 +39,39 @@ function open(location, storeName) {
     interop.openEntityStore(location, storeName);
 }
 
+function assertStoreIsOpen() {
+    if (interop.getStore()) return true;
+    println("At first, open Entity Store");
+    return false
+}
+
 function all(type) {
+    if (!assertStoreIsOpen()) return;
     if (type) {
-        interop.print(txn.getAll(type));
+        print(txn.getAll(type));
     } else {
         iter(txn.getEntityTypes(), function (type) {
-            interop.println(type + ": " + txn.getAll(type).size());
+            println(type + ": " + txn.getAll(type).size());
         });
     }
 }
 
 function find(type, propertyName, propertyValue, maxValue) {
+    if (!assertStoreIsOpen()) return;
     if (maxValue == undefined) {
-        interop.print(txn.find(type, propertyName, propertyValue));
+        print(txn.find(type, propertyName, propertyValue));
     } else {
-        interop.print(txn.find(type, propertyName, propertyValue, maxValue));
+        print(txn.find(type, propertyName, propertyValue, maxValue));
     }
 }
 
 function findStartingWith(type, propertyName, propertyValue) {
-    interop.print(txn.findStartingWith(type, propertyName, propertyValue));
+    if (!assertStoreIsOpen()) return;
+    print(txn.findStartingWith(type, propertyName, propertyValue));
 }
 
-function create(type, props, flush, print) {
+function create(type, props, flush, printResult) {
+    if (!assertStoreIsOpen()) return;
     var entity = txn.newEntity(type);
     if (props) {
         for (var key in props) {
@@ -74,7 +84,7 @@ function create(type, props, flush, print) {
     if (flush || flush == undefined) {
         txn.flush();
     }
-    if (print || print == undefined) {
-        interop.print(entity);
+    if (printResult || printResult == undefined) {
+        print(entity);
     }
 }
