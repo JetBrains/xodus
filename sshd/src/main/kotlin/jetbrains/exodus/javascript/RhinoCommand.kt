@@ -107,12 +107,15 @@ abstract class RhinoCommand(protected val config: Map<String, *>) : Job(), Comma
             }
 
             override fun error(message: String?, sourceName: String?, line: Int, lineSource: String?, lineOffset: Int) {
-                val err = error ?: throw NullPointerException()
-                if (line > 0) {
-                    err.print("$line: ")
+                val out = output ?: throw NullPointerException()
+                if (sourceName != null) {
+                    out.print("$sourceName: ")
                 }
-                err.println(message)
-                err.flush()
+                if (line > 0) {
+                    out.print("$line: ")
+                }
+                out.println(message)
+                out.flush()
             }
         }
         try {
