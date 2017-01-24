@@ -9,7 +9,3 @@ dependencies {
 license {
     include "**/*.js"
 }
-
-uploadArchives {
-    enabled = false
-}
