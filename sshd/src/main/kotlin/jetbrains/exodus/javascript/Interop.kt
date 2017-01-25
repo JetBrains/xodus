@@ -50,13 +50,14 @@ class Interop(private val rhinoCommand: RhinoCommand,
 
     val env: EnvironmentImpl? get() = environment
 
-    fun openEntityStore(location: String, storeName: String?) {
+    fun openEntityStore(location: String, storeName: String) {
         entityStore?.run { entityStore = null; close() }
         if (location.isUndefinedOrNull) {
             println("Specify EntityStore location")
         } else {
             entityStore = PersistentEntityStores.newInstance(
-                    Environments.newInstance(location, envConfig), storeName ?: DEFAULT_ENTITY_STORE_NAME)
+                    Environments.newInstance(location, envConfig),
+                    if (storeName.isUndefinedOrNull) DEFAULT_ENTITY_STORE_NAME else storeName)
         }
     }
 
