@@ -17,6 +17,7 @@ package jetbrains.exodus.javascript
 
 import jetbrains.exodus.core.crypto.MessageDigestUtil
 import jetbrains.exodus.core.execution.ThreadJobProcessorPool
+import jetbrains.exodus.javascript.RhinoCommand.Companion.CONSOLE
 import mu.KLogging
 import org.apache.sshd.SshServer
 import org.apache.sshd.server.PasswordAuthenticator
@@ -46,6 +47,10 @@ class RhinoServer(config: Map<String, *>, port: Int = 2808, password: String? = 
             }
             setShellFactory { RhinoCommand.createCommand(config) }
             setPort(port)
+            // if we 're within console then setup infinite session timeout
+            if (config[CONSOLE] == true) {
+                properties[SshServer.IDLE_TIMEOUT] = Long.MAX_VALUE.toString()
+            }
             start()
         }
     }
