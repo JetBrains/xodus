@@ -14,26 +14,26 @@
  * limitations under the License.
  */
 
-interop.println("Welcome to Xodus Environment JS console. Type '/?' for help, 'exit' to exit.")
+println("Welcome to Xodus Environment JS console. Type '/?' for help, 'exit' to exit.")
 
 var environments = Packages.jetbrains.exodus.env;
 
 function help() {
-    interop.println('help, /?, ?                                      - print this help');
-    interop.println('exit, quit                                       - finish session');
-    interop.println('print <smth>                                     - print something');
-    interop.println('println <smth>                                   - print something and line feed');
-    interop.println('load <path to file>                              - load script from file');
-    interop.println('open <environment location>                      - open Environment by specified location');
-    interop.println('gc                                               - invoke GC');
-    interop.println('gc [on | off]                                    - turn GC on/off');
-    interop.println('put <storeName> <key> <value> [dups] [prefixing] - put a value by key into the store');
-    interop.println('get <storeName> <key>                            - get a value by key from the store');
-    interop.println('remove <storeName> <key>                         - remove key/value from the store');
-    interop.println('Use "getEnv()" as a reference to Data Environment.');
-    interop.println('Use bindings functions: stringToEntry(), entryToString(), intToEntry(), entryToInt(),');
-    interop.println('  intToCompressedEntry(), compressedEntryToInt(), longToEntry(), entryToLong(),');
-    interop.println('  longToCompressedEntry(), compressedEntryToLong(), doubleToEntry(), entryToDouble().');
+    println('help, /?, ?                                      - print this help');
+    println('exit, quit                                       - finish session');
+    println('print <smth>                                     - print something');
+    println('println <smth>                                   - print something and line feed');
+    println('load <path to file>                              - load script from file');
+    println('open <environment location>                      - open Environment by specified location');
+    println('gc                                               - invoke GC');
+    println('gc [on | off]                                    - turn GC on/off');
+    println('put <storeName> <key> <value> [dups] [prefixing] - put a value by key into the store');
+    println('get <storeName> <key>                            - get a value by key from the store');
+    println('remove <storeName> <key>                         - remove key/value from the store');
+    println('Refer to Data Environment as "getEnv()", to current transaction as "txn".');
+    println('Use bindings functions: stringToEntry(), entryToString(), intToEntry(), entryToInt(),');
+    println('  intToCompressedEntry(), compressedEntryToInt(), longToEntry(), entryToLong(),');
+    println('  longToCompressedEntry(), compressedEntryToLong(), doubleToEntry(), entryToDouble().');
 }
 
 function open(location) {

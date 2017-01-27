@@ -17,22 +17,22 @@
  * limitations under the License.
  */
 
-interop.println("Welcome to Xodus EntityStores JS console. Type '/?' for help, 'exit' to exit.")
+println("Welcome to Xodus EntityStores JS console. Type '/?' for help, 'exit' to exit.")
 
 function help() {
-    interop.println('help, /?, ?                                        - print this help');
-    interop.println('exit, quit                                         - finish session');
-    interop.println('print <smth>                                       - print something');
-    interop.println('println <smth>                                     - print something and line feed');
-    interop.println('load <path to file>                                - load script from file');
-    interop.println('open <entityStore location> [entityStore name]     - open EntityStore by specified location.');
-    interop.println('all                                                - print statistics for all Entity types');
-    interop.println('all <entity type>                                  - print all entities of specified Entity type');
-    interop.println('find <entity type> <prop name> <value>             - print all entities of specified Entity type having specified property');
-    interop.println('find <entity type> <prop name> <min> <max>         - print all entities of specified Entity type having specified property in range of values');
-    interop.println('findStartingWith <entity type> <prop name> <value> - print all entities of specified Entity type having specified string property starting with value');
-    interop.println('create <entity type> [properties]                  - create an entity of specified Entity type with specified properties');
-    interop.println('Use "getStore()" as a reference to Entity Store.');
+    println('help, /?, ?                                        - print this help');
+    println('exit, quit                                         - finish session');
+    println('print <smth>                                       - print something');
+    println('println <smth>                                     - print something and line feed');
+    println('load <path to file>                                - load script from file');
+    println('open <entityStore location> [entityStore name]     - open EntityStore by specified location.');
+    println('all                                                - print statistics for all Entity types');
+    println('all <entity type>                                  - print all entities of specified Entity type');
+    println('find <entity type> <prop name> <value>             - print all entities of specified Entity type having specified property');
+    println('find <entity type> <prop name> <min> <max>         - print all entities of specified Entity type having specified property in range of values');
+    println('findStartingWith <entity type> <prop name> <value> - print all entities of specified Entity type having specified string property starting with value');
+    println('create <entity type> [properties]                  - create an entity of specified Entity type with specified properties');
+    println('Refer to Entity Store as "getStore()", to current transaction as "txn".');
 }
 
 function open(location, storeName) {
