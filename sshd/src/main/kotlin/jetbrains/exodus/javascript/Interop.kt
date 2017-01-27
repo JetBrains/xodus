@@ -150,7 +150,7 @@ class Interop(private val rhinoCommand: RhinoCommand,
             entity.propertyNames.forEach {
                 builder.append('\n', it, " = ", entity.getProperty(it))
             }
-            entity.propertyNames.forEach {
+            entity.linkNames.forEach {
                 builder.append('\n', it, " = ", entity.getLink(it))
             }
             builder.append('\n')
