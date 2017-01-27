@@ -32,6 +32,7 @@ function help() {
     println('find <entity type> <prop name> <min> <max>         - print all entities of specified Entity type having specified property in range of values');
     println('findStartingWith <entity type> <prop name> <value> - print all entities of specified Entity type having specified string property starting with value');
     println('create <entity type> [properties]                  - create an entity of specified Entity type with specified properties');
+    println('entity <id>                                        - load entity by id');
     println('Refer to Entity Store as "getStore()", to current transaction as "txn".');
 }
 
@@ -87,4 +88,14 @@ function create(type, props, flush, printResult) {
     if (printResult || printResult == undefined) {
         print(entity);
     }
+}
+
+
+function entity(id) {
+    if (!assertStoreIsOpen()) return;
+    if (id == undefined) {
+        println("Entity id is expected");
+        return;
+    }
+    return interop.getEntity(id);
 }

@@ -16,6 +16,7 @@
 package jetbrains.exodus.javascript
 
 import jetbrains.exodus.entitystore.Entity
+import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
 import jetbrains.exodus.entitystore.PersistentEntityStores
 import jetbrains.exodus.env.EnvironmentConfig
@@ -101,6 +102,11 @@ class Interop(private val rhinoCommand: RhinoCommand,
     }
 
     fun println(o: Any?): Interop = print(o).run { newLine() }
+
+    fun getEntity(id: String): Entity {
+        val store = store ?: throw NullPointerException()
+        return store.getEntity(PersistentEntityId.toEntityId(id, store))
+    }
 
     internal fun newLine(): Interop = output.print("\n\r").run { flushOutput() }
 

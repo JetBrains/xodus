@@ -85,6 +85,7 @@ object ScriptPreprocessor {
             "all" to arrayOf({ cmd -> "all()" }),
             "find " to arrayOf(surroundWithBrackets, spacesToCommas),
             "findStartingWith " to arrayOf(surroundWithBrackets, spacesToCommas),
-            "create " to arrayOf(surroundWithBrackets, spacesToCommas)
+            "create " to arrayOf(surroundWithBrackets, spacesToCommas),
+            "entity " to arrayOf(surroundWithBrackets, insertQuotes)
     )
 }
