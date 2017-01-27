@@ -23,6 +23,7 @@ import jetbrains.exodus.env.EnvironmentConfig
 import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.Environments
 import org.mozilla.javascript.Context
+import org.mozilla.javascript.NativeJavaObject
 import org.mozilla.javascript.Scriptable
 import java.io.Closeable
 import java.io.PrintStream
@@ -95,6 +96,7 @@ class Interop(private val rhinoCommand: RhinoCommand,
             null -> "null"
             is Entity -> entityToString(o)
             is Iterable<*> -> iterableToString(o)
+            is NativeJavaObject -> return print(o.unwrap())
             else -> o.toString()
         }
         output.print(s.replace("\n", "\n\r"))
@@ -146,6 +148,7 @@ class Interop(private val rhinoCommand: RhinoCommand,
         private fun entityToString(entity: Entity) = buildString { entityToStringBuilder(this, entity) }
 
         private fun entityToStringBuilder(builder: StringBuilder, entity: Entity): StringBuilder {
+            builder.append('\n')
             builder.append(entity.type, ' ', entity.id)
             entity.propertyNames.forEach {
                 builder.append('\n', it, " = ", entity.getProperty(it))
@@ -153,7 +156,6 @@ class Interop(private val rhinoCommand: RhinoCommand,
             entity.linkNames.forEach {
                 builder.append('\n', it, " = ", entity.getLink(it))
             }
-            builder.append('\n')
             return builder
         }
 

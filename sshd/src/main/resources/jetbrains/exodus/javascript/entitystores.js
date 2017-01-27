@@ -27,10 +27,10 @@ function help() {
     println('load <path to file>                                - load script from file');
     println('open <entityStore location> [entityStore name]     - open EntityStore by specified location.');
     println('all                                                - print statistics for all Entity types');
-    println('all <entity type>                                  - print all entities of specified Entity type');
-    println('find <entity type> <prop name> <value>             - print all entities of specified Entity type having specified property');
-    println('find <entity type> <prop name> <min> <max>         - print all entities of specified Entity type having specified property in range of values');
-    println('findStartingWith <entity type> <prop name> <value> - print all entities of specified Entity type having specified string property starting with value');
+    println('all <entity type>                                  - load all entities of specified Entity type');
+    println('find <entity type> <prop name> <value>             - load all entities of specified Entity type having specified property');
+    println('find <entity type> <prop name> <min> <max>         - load all entities of specified Entity type having specified property in range of values');
+    println('findStartingWith <entity type> <prop name> <value> - load all entities of specified Entity type having specified string property starting with value');
     println('create <entity type> [properties]                  - create an entity of specified Entity type with specified properties');
     println('entity <id>                                        - load entity by id');
     println('Refer to Entity Store as "getStore()", to current transaction as "txn".');
@@ -49,29 +49,27 @@ function assertStoreIsOpen() {
 function all(type) {
     if (!assertStoreIsOpen()) return;
     if (type) {
-        print(txn.getAll(type));
-    } else {
-        iter(txn.getEntityTypes(), function (type) {
-            println(type + ": " + txn.getAll(type).size());
-        });
+        return txn.getAll(type);
     }
+    iter(txn.getEntityTypes(), function (type) {
+        println(type + ": " + txn.getAll(type).size());
+    });
 }
 
 function find(type, propertyName, propertyValue, maxValue) {
     if (!assertStoreIsOpen()) return;
     if (maxValue == undefined) {
-        print(txn.find(type, propertyName, propertyValue));
-    } else {
-        print(txn.find(type, propertyName, propertyValue, maxValue));
+        return txn.find(type, propertyName, propertyValue);
     }
+    return txn.find(type, propertyName, propertyValue, maxValue);
 }
 
 function findStartingWith(type, propertyName, propertyValue) {
     if (!assertStoreIsOpen()) return;
-    print(txn.findStartingWith(type, propertyName, propertyValue));
+    return txn.findStartingWith(type, propertyName, propertyValue);
 }
 
-function create(type, props, flush, printResult) {
+function create(type, props, flush) {
     if (!assertStoreIsOpen()) return;
     var entity = txn.newEntity(type);
     if (props) {
@@ -85,9 +83,7 @@ function create(type, props, flush, printResult) {
     if (flush || flush == undefined) {
         txn.flush();
     }
-    if (printResult || printResult == undefined) {
-        print(entity);
-    }
+    return entity
 }
 
 

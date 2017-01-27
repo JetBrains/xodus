@@ -143,7 +143,7 @@ abstract class RhinoCommand(protected val config: Map<String, *>) : Job(), Comma
     protected fun processScript(interop: Interop, script: Script, cx: Context, scope: Scriptable?) {
         val result = script.exec(cx, scope)
         if (result !== Context.getUndefinedValue()) {
-            interop.println(Context.toString(result))
+            interop.println(result)
         }
     }
 
