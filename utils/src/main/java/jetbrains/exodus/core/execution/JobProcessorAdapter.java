@@ -126,54 +126,12 @@ public abstract class JobProcessorAdapter implements JobProcessor {
 
     @Override
     public void waitForJobs(final long spinTimeout) {
-        synchronized (waitJob) {
-            try {
-                try {
-                    if (!waitJob.tryAcquire()) {
-                        return;
-                    }
-                } catch (InterruptedException e) {
-                    // ignore
-                }
-                // latchJob is queued without processor to ensure delegate will execute it
-                if (queueLowest(waitJob)) {
-                    try {
-                        if (!isFinished()) {
-                            waitJob.acquire();
-                        }
-                    } catch (InterruptedException e) {
-                        // ignore
-                    }
-                }
-            } finally {
-                waitJob.release();
-            }
-        }
+        waitForJobs(waitJob, spinTimeout);
     }
 
     @Override
     public void waitForTimedJobs(final long spinTimeout) {
-        synchronized (timedWaitJob) {
-            try {
-                try {
-                    timedWaitJob.acquire();
-                } catch (InterruptedException e) {
-                    // ignore
-                }
-                // latchJob is queued without processor to ensure delegate will execute it
-                if (queueLowestTimed(timedWaitJob)) {
-                    try {
-                        if (!isFinished()) {
-                            timedWaitJob.acquire();
-                        }
-                    } catch (InterruptedException e) {
-                        // ignore
-                    }
-                }
-            } finally {
-                timedWaitJob.release();
-            }
-        }
+        waitForJobs(timedWaitJob, spinTimeout);
     }
 
     @Override
@@ -221,25 +179,13 @@ public abstract class JobProcessorAdapter implements JobProcessor {
     protected abstract boolean queueLowestTimed(@NotNull final Job job);
 
     public boolean waitForLatchJob(final LatchJob latchJob, final long spinTimeout, final Priority priority) {
-        try {
-            if (!latchJob.tryAcquire()) {
-                return false;
-            }
-        } catch (InterruptedException e) {
-            // ignore
+        if (!acquireLatchJob(latchJob, spinTimeout)) {
+            return false;
         }
         // latchJob is queued without processor to ensure delegate will execute it
         if (queue(latchJob, priority)) {
-            try {
-                // perform attempts to acquire latch while delegate is not finished but with some timeout
-                // noinspection StatementWithEmptyBody
-                while (!isFinished()) {
-                    if (latchJob.acquire(spinTimeout)) {
-                        return true;
-                    }
-                }
-            } catch (InterruptedException e) {
-                // ignore
+            if (acquireLatchJob(latchJob, spinTimeout)) {
+                return true;
             }
         }
         return false;
@@ -288,6 +234,35 @@ public abstract class JobProcessorAdapter implements JobProcessor {
                 }
             }
         }
+    }
+
+    private void waitForJobs(@NotNull final LatchJob waitJob, final long spinTimeout) {
+        //noinspection SynchronizationOnLocalVariableOrMethodParameter
+        synchronized (waitJob) {
+            try {
+                if (!acquireLatchJob(waitJob, spinTimeout)) {
+                    return;
+                }
+                // latchJob is queued without processor to ensure delegate will execute it
+                if (queueLowest(waitJob)) {
+                    acquireLatchJob(waitJob, spinTimeout);
+                }
+            } finally {
+                waitJob.release();
+            }
+        }
+    }
+
+    private boolean acquireLatchJob(@NotNull final LatchJob waitJob, final long spinTimeout) {
+        while (!isFinished()) {
+            try {
+                if (waitJob.acquire(spinTimeout)) {
+                    return true;
+                }
+            } catch (InterruptedException ignore) {
+            }
+        }
+        return false;
     }
 
     private static final class WaitJob extends LatchJob {

@@ -29,7 +29,7 @@ public abstract class LatchJob extends Job {
         latch.release();
     }
 
-    public boolean tryAcquire() throws InterruptedException {
+    public boolean tryAcquire() {
         return latch.tryAcquire();
     }
 
