@@ -18,6 +18,8 @@ package jetbrains.exodus.util;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.backup.Backupable;
+import jetbrains.exodus.entitystore.PersistentEntityStore;
+import jetbrains.exodus.env.Environment;
 import org.apache.commons.compress.archivers.ArchiveOutputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
@@ -40,8 +42,25 @@ public class CompressBackupUtil {
     private CompressBackupUtil() {
     }
 
+    /**
+     * For specified {@linkplain Backupable} {@code source}, creates backup file in the specified {@code backupRoot}
+     * directory whose name is calculated using current timestamp and specified {@code backupNamePrefix} if it is not
+     * {@code null}. Typically, {@code source} is an {@linkplain Environment} or an {@linkplain PersistentEntityStore}
+     * instance. Set {@code zip = true} to create {@code .zip} backup file, otherwise {@code .tar.gz} file will be created.
+     *
+     * <p>{@linkplain Environment} and {@linkplain PersistentEntityStore} instances don't require any specific actions
+     * (like, e.g., switching to read-only mode) to do backups and get consistent copies of data within backups files.
+     * So backup can be performed on-the-fly not affecting database operations.
+     *
+     * @param source           an instance of {@linkplain Backupable}
+     * @param backupRoot       a directory which the backup file will be created in
+     * @param backupNamePrefix prefix of the backup file name
+     * @param zip              {@code true} to create {@code .zip} backup file, rather than {@code .tar.gz} one
+     * @return backup file (either .zip or .tag.gz)
+     * @throws Exception something went wrong
+     */
     @NotNull
-    public static File backup(@NotNull final Backupable target, @NotNull final File backupRoot,
+    public static File backup(@NotNull final Backupable source, @NotNull final File backupRoot,
                               @Nullable final String backupNamePrefix, final boolean zip) throws Exception {
         if (!backupRoot.exists() && !backupRoot.mkdirs()) {
             throw new IOException("Failed to create " + backupRoot.getAbsolutePath());
@@ -53,27 +72,42 @@ public class CompressBackupUtil {
             fileName = getTimeStampedTarGzFileName();
         }
         final File backupFile = new File(backupRoot, backupNamePrefix == null ? fileName : backupNamePrefix + fileName);
-        return backup(target, backupFile, zip);
+        return backup(source, backupFile, zip);
     }
 
+    /**
+     * For specified {@linkplain Backupable} {@code source} and {@code target} backup file, does backup.
+     * Typically, {@code source} is an {@linkplain Environment} or an {@linkplain PersistentEntityStore}
+     * instance. Set {@code zip = true} to create {@code .zip} backup file, otherwise {@code .tar.gz} file will be created.
+     *
+     * <p>{@linkplain Environment} and {@linkplain PersistentEntityStore} instances don't require any specific actions
+     * (like, e.g., switching to read-only mode) to do backups and get consistent copies of data within backups files.
+     * So backup can be performed on-the-fly not affecting database operations.
+     *
+     * @param source an instance of {@linkplain Backupable}
+     * @param target target backup file (either .zip or .tag.gz)
+     * @param zip    {@code true} to create {@code .zip} backup file, rather than {@code .tar.gz} one
+     * @return backup file the same as specified {@code target}
+     * @throws Exception something went wrong
+     */
     @NotNull
-    public static File backup(@NotNull final Backupable target,
-                              @NotNull final File backupFile, final boolean zip) throws Exception {
-        if (backupFile.exists()) {
-            throw new IOException("Backup file already exists:" + backupFile.getAbsolutePath());
+    public static File backup(@NotNull final Backupable source,
+                              @NotNull final File target, final boolean zip) throws Exception {
+        if (target.exists()) {
+            throw new IOException("Backup file already exists:" + target.getAbsolutePath());
         }
-        final BackupStrategy strategy = target.getBackupStrategy();
+        final BackupStrategy strategy = source.getBackupStrategy();
         strategy.beforeBackup();
         try {
             final ArchiveOutputStream archive;
             if (zip) {
                 final ZipArchiveOutputStream zipArchive =
-                        new ZipArchiveOutputStream(new BufferedOutputStream(new FileOutputStream(backupFile)));
+                    new ZipArchiveOutputStream(new BufferedOutputStream(new FileOutputStream(target)));
                 zipArchive.setLevel(Deflater.BEST_COMPRESSION);
                 archive = zipArchive;
             } else {
                 archive = new TarArchiveOutputStream(new GZIPOutputStream(
-                        new BufferedOutputStream(new FileOutputStream(backupFile))));
+                    new BufferedOutputStream(new FileOutputStream(target))));
             }
             try (ArchiveOutputStream aos = archive) {
                 for (final BackupStrategy.FileDescriptor fd : strategy.listFiles()) {
@@ -90,10 +124,10 @@ public class CompressBackupUtil {
                 }
             }
             if (strategy.isInterrupted()) {
-                logger.info("Backup interrupted, deleting \"" + backupFile.getName() + "\"...");
-                IOUtil.deleteFile(backupFile);
+                logger.info("Backup interrupted, deleting \"" + target.getName() + "\"...");
+                IOUtil.deleteFile(target);
             } else {
-                logger.info("Backup file \"" + backupFile.getName() + "\" created.");
+                logger.info("Backup file \"" + target.getName() + "\" created.");
             }
         } catch (Throwable t) {
             strategy.onError(t);
@@ -101,7 +135,7 @@ public class CompressBackupUtil {
         } finally {
             strategy.afterBackup();
         }
-        return backupFile;
+        return target;
     }
 
     @NotNull
@@ -140,7 +174,7 @@ public class CompressBackupUtil {
         TarArchiveOutputStream tarOut = null;
         try {
             tarOut = new TarArchiveOutputStream(new GZIPOutputStream(
-                    new BufferedOutputStream(new FileOutputStream(dest)), 0x1000));
+                new BufferedOutputStream(new FileOutputStream(dest)), 0x1000));
             doTar("", source, tarOut);
             tarOut.close();
         } catch (IOException e) {
