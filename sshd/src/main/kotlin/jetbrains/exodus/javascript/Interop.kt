@@ -46,7 +46,7 @@ class Interop(private val rhinoCommand: RhinoCommand,
         if (location.isUndefinedOrNull) {
             println("Specify Environment location")
         } else {
-            environment = Environments.newInstance(location, envConfig) as EnvironmentImpl
+            environment = Environments.newInstance(location.replaceBackslashes, envConfig) as EnvironmentImpl
         }
     }
 
@@ -58,7 +58,7 @@ class Interop(private val rhinoCommand: RhinoCommand,
             println("Specify EntityStore location")
         } else {
             entityStore = PersistentEntityStores.newInstance(
-                    Environments.newInstance(location, envConfig),
+                    Environments.newInstance(location.replaceBackslashes, envConfig),
                     if (storeName.isUndefinedOrNull) DEFAULT_ENTITY_STORE_NAME else storeName)
         }
     }
@@ -169,6 +169,8 @@ class Interop(private val rhinoCommand: RhinoCommand,
                 append('\n')
             }
         }
+
+        private val String.replaceBackslashes: String get() = replace('\\', '/')
 
         private val Any?.isUndefinedOrNull: Boolean get() = this == null || this == "undefined"
 
