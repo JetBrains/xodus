@@ -237,7 +237,7 @@ public final class EntityIterableCache {
                         }
                     } catch (TooLongEntityIterableInstantiationException e) {
                         if (logger.isInfoEnabled()) {
-                            logger.info("Caching forcedly stopped: " + getStringPresentation(handle));
+                            logger.info("Caching forcedly stopped, " + e.reason.message + ": " + getStringPresentation(handle));
                         }
                     }
                 }
@@ -271,12 +271,36 @@ public final class EntityIterableCache {
 
         @Override
         public void doCancel() {
-            throw new TooLongEntityIterableInstantiationException();
+            final TooLongEntityIterableInstantiationReason reason;
+            if (!cachingRoughCount && cacheAdapter != localCache) {
+                reason = TooLongEntityIterableInstantiationReason.CACHE_ADAPTER_OBSOLETE;
+            } else {
+                reason = TooLongEntityIterableInstantiationReason.JOB_OVERDUE;
+            }
+            throw new TooLongEntityIterableInstantiationException(reason);
         }
     }
 
     @SuppressWarnings({"serial", "SerializableClassInSecureContext", "EmptyClass", "SerializableHasSerializationMethods", "DeserializableClassInSecureContext"})
     private static class TooLongEntityIterableInstantiationException extends ExodusException {
+        private final TooLongEntityIterableInstantiationReason reason;
+
+        TooLongEntityIterableInstantiationException(TooLongEntityIterableInstantiationReason reason) {
+            super(reason.message);
+
+            this.reason = reason;
+        }
+    }
+
+    private enum TooLongEntityIterableInstantiationReason {
+        CACHE_ADAPTER_OBSOLETE("cache adapter is obsolete"),
+        JOB_OVERDUE("caching job is overdue");
+
+        private final String message;
+
+        TooLongEntityIterableInstantiationReason(String message) {
+            this.message = message;
+        }
     }
 
     private static class CacheHitRateAdjuster implements SharedTimer.ExpirablePeriodicTask {
