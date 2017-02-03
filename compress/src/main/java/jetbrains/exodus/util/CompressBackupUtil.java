@@ -16,6 +16,7 @@
 package jetbrains.exodus.util;
 
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.backup.BackupBean;
 import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.backup.Backupable;
 import jetbrains.exodus.entitystore.PersistentEntityStore;
@@ -73,6 +74,29 @@ public class CompressBackupUtil {
         }
         final File backupFile = new File(backupRoot, backupNamePrefix == null ? fileName : backupNamePrefix + fileName);
         return backup(source, backupFile, zip);
+    }
+
+    /**
+     * For specified {@linkplain BackupBean}, creates a backup file using {@linkplain Backupable}s decorated by the bean
+     * and the setting provided by the bean (backup path, prefix, zip or tar.gz).
+     *
+     * Sets {@linkplain System#currentTimeMillis()} as backup start time, get it by
+     * {@linkplain BackupBean#getBackupStartTicks()}.
+     *
+     * @param backupBean bean holding one or several {@linkplain Backupable}s and the settings
+     *                   describing how to create backup file (backup path, prefix, zip or tar.gz)
+     * @return backup file (either .zip or .tag.gz)
+     * @throws Exception something went wrong
+     * @see BackupBean
+     * @see BackupBean#getBackupPath()
+     * @see BackupBean#getBackupNamePrefix()
+     * @see BackupBean#getBackupToZip()
+     */
+    @NotNull
+    public static File backup(@NotNull final BackupBean backupBean) throws Exception {
+        backupBean.setBackupStartTicks(System.currentTimeMillis());
+        return backup(backupBean,
+            new File(backupBean.getBackupPath()), backupBean.getBackupNamePrefix(), backupBean.getBackupToZip());
     }
 
     /**

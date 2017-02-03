@@ -36,11 +36,7 @@ import java.util.List;
  *     // ...
  *     // ...
  *     // and further
- *     backupBean.setBackupStartTicks(System.currentTimeMillis());
- *     final File backup = CompressBackupUtil.backup(backupBean,
- *                                                   new File(backupBean.getBackupPath()),
- *                                                   backupBean.getBackupNamePrefix(),
- *                                                   backupBean.getBackupToZip());
+ *     final File backup = CompressBackupUtil.backup(backupBean);
  * </pre>
  *
  * @see Backupable
