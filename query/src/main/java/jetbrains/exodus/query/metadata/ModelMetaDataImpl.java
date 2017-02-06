@@ -16,15 +16,17 @@
 package jetbrains.exodus.query.metadata;
 
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
+import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ModelMetaDataImpl implements ModelMetaData {
 
-    private Set<EntityMetaData> entityMetaDatas = new HashSet<>();
-    private Map<String, AssociationMetaData> associationMetaDatas = new HashMap<>();
+    private final Set<EntityMetaData> entityMetaDatas = Collections.newSetFromMap(new ConcurrentHashMap<EntityMetaData, Boolean>());
+    private final Map<String, AssociationMetaData> associationMetaDatas = new ConcurrentHashMap<>();
     private volatile Map<String, EntityMetaData> typeToEntityMetaDatas = null;
 
     public void init() {
@@ -33,11 +35,11 @@ public class ModelMetaDataImpl implements ModelMetaData {
     }
 
     public void setEntityMetaDatas(@NotNull Set<EntityMetaData> entityMetaDatas) {
-        this.entityMetaDatas = entityMetaDatas;
+        this.entityMetaDatas.clear();
+        this.entityMetaDatas.addAll(entityMetaDatas);
         for (EntityMetaData emd : entityMetaDatas) {
             ((EntityMetaDataImpl) emd).setModelMetaData(this);
         }
-        // init();
     }
 
     public void setAssociationMetaDatas(Set<AssociationMetaData> associationMetaDatas) {
