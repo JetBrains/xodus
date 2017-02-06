@@ -126,12 +126,12 @@ public abstract class JobProcessorAdapter implements JobProcessor {
 
     @Override
     public void waitForJobs(final long spinTimeout) {
-        waitForJobs(waitJob, spinTimeout);
+        waitForJobs(waitJob, false, spinTimeout);
     }
 
     @Override
     public void waitForTimedJobs(final long spinTimeout) {
-        waitForJobs(timedWaitJob, spinTimeout);
+        waitForJobs(timedWaitJob, true, spinTimeout);
     }
 
     @Override
@@ -236,7 +236,7 @@ public abstract class JobProcessorAdapter implements JobProcessor {
         }
     }
 
-    private void waitForJobs(@NotNull final LatchJob waitJob, final long spinTimeout) {
+    private void waitForJobs(@NotNull final LatchJob waitJob, final boolean timed, final long spinTimeout) {
         //noinspection SynchronizationOnLocalVariableOrMethodParameter
         synchronized (waitJob) {
             try {
@@ -244,7 +244,7 @@ public abstract class JobProcessorAdapter implements JobProcessor {
                     return;
                 }
                 // latchJob is queued without processor to ensure delegate will execute it
-                if (queueLowest(waitJob)) {
+                if (timed ? queueLowestTimed(waitJob) : queueLowest(waitJob)) {
                     acquireLatchJob(waitJob, spinTimeout);
                 }
             } finally {
