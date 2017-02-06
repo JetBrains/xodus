@@ -95,13 +95,16 @@ public class StressTests extends EntityStoreTestBase {
 
     public void testCacheAdapter() {
         final PersistentEntityStoreImpl store = getEntityStore();
-        final Entity[] comments = new Entity[4];
+        final EntityStoreSharedAsyncProcessor asyncProcessor = store.getAsyncProcessor();
+
+        final Entity[] comments = new Entity[16];
         final Entity[] issues = new Entity[1000000];
+
 
         store.executeInTransaction(new StoreTransactionalExecutable() {
             @Override
             public void execute(@NotNull StoreTransaction txn) {
-                for (int i = 0; i < 4; i++) {
+                for (int i = 0; i < 16; i++) {
                     comments[i] = txn.newEntity("Comment");
                 }
 
@@ -124,8 +127,9 @@ public class StressTests extends EntityStoreTestBase {
             public void execute(@NotNull StoreTransaction txn) {
                 logger.info("Test cache cancel");
 
-                txn.findLinks("Issue", comments[2], "linkvalue").iterator();
-                txn.findLinks("Issue", comments[3], "linkvalue").iterator();
+                for (int i = 0; i < asyncProcessor.getThreadCount(); i++) {
+                    txn.findLinks("Issue", comments[i], "linkvalue").iterator();
+                }
 
                 try {
                     Thread.sleep(10);
@@ -138,18 +142,20 @@ public class StressTests extends EntityStoreTestBase {
         });
 
         long start = System.currentTimeMillis();
-        store.getAsyncProcessor().waitForJobs(5);
+        asyncProcessor.waitForJobs(5);
         long waitTime = System.currentTimeMillis() - start;
         logger.info("Wait: " + waitTime);
         assertTrue(waitTime < 25); // must be zero or 5 if some weird "spin" occurs
     }
 
-    private void warmUp(PersistentEntityStoreImpl store, final Entity[] comments) {
+    private void warmUp(final PersistentEntityStoreImpl store, final Entity[] comments) {
         store.executeInTransaction(new StoreTransactionalExecutable() {
             @Override
             public void execute(@NotNull StoreTransaction txn) {
-                txn.findLinks("Issue", comments[2], "linkvalue").iterator();
-                txn.findLinks("Issue", comments[3], "linkvalue").iterator();
+                final EntityStoreSharedAsyncProcessor asyncProcessor = store.getAsyncProcessor();
+                for (int i = 0; i < asyncProcessor.getThreadCount(); i++) {
+                    txn.findLinks("Issue", comments[i], "linkvalue").iterator();
+                }
             }
         });
 
