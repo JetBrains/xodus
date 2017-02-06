@@ -93,6 +93,71 @@ public class StressTests extends EntityStoreTestBase {
         }
     }
 
+    public void testCacheAdapter() {
+        final PersistentEntityStoreImpl store = getEntityStore();
+        final Entity[] comments = new Entity[4];
+        final Entity[] issues = new Entity[1000000];
+
+        store.executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                for (int i = 0; i < 4; i++) {
+                    comments[i] = txn.newEntity("Comment");
+                }
+
+                for (int i = 0; i < issues.length; i++) {
+                    Entity issue = txn.newEntity("Issue");
+                    issues[i] = issue;
+                    issue.setLink("linkvalue", comments[i % 4]);
+                }
+            }
+        });
+
+        // -XX:+UnlockDiagnosticVMOptions -XX:+PrintInlining
+        for (int i = 0; i < 30; i++) { // maybe more interesting at 300 iterations when inlining happens
+            logger.info("Warm up iteration: " + i);
+            warmUp(store, comments);
+        }
+
+        store.executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                logger.info("Test cache cancel");
+
+                txn.findLinks("Issue", comments[2], "linkvalue").iterator();
+                txn.findLinks("Issue", comments[3], "linkvalue").iterator();
+
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+                issues[14141].setLink("linkvalue", txn.newEntity("Comment")); // disrupt cache
+            }
+        });
+
+        long start = System.currentTimeMillis();
+        store.getAsyncProcessor().waitForJobs(5);
+        long waitTime = System.currentTimeMillis() - start;
+        logger.info("Wait: " + waitTime);
+        assertTrue(waitTime < 25); // must be zero or 5 if some weird "spin" occurs
+    }
+
+    private void warmUp(PersistentEntityStoreImpl store, final Entity[] comments) {
+        store.executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                txn.findLinks("Issue", comments[2], "linkvalue").iterator();
+                txn.findLinks("Issue", comments[3], "linkvalue").iterator();
+            }
+        });
+
+        store.getAsyncProcessor().waitForJobs(5);
+
+        store.getEntityIterableCache().clear();
+    }
+
     private static void createData(final StoreTransaction txn) {
         for (int i = 0; i < 100000; ++i) {
             final Entity issue = txn.newEntity("Issue");
