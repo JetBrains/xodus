@@ -31,6 +31,7 @@ import jetbrains.exodus.tree.LongIterator
 import jetbrains.exodus.tree.patricia.PatriciaTreeBase
 import mu.KLogging
 import java.io.File
+import java.io.PrintWriter
 import java.util.*
 import kotlin.system.exitProcess
 
@@ -40,6 +41,7 @@ fun main(args: Array<String>) {
     }
     var envPath: String? = null
     var envPath2: String? = null
+    var dumpUtilizationToFile: String? = null
     var hasOptions = false
     var gatherLogStats = false
     var validateRoots = false
@@ -47,7 +49,7 @@ fun main(args: Array<String>) {
     var copy = false
     var utilizationInfo = false
     val files2Clean = LinkedHashSet<String>()
-    args.forEach { arg ->
+    for (arg in args) {
         if (arg.startsWith('-')) {
             hasOptions = true
             when (arg.toLowerCase().substring(1)) {
@@ -59,6 +61,8 @@ fun main(args: Array<String>) {
                 else -> {
                     if (arg.startsWith("-cl")) {
                         files2Clean.add(arg.substring(3))
+                    } else if (arg.startsWith("-d")) {
+                        dumpUtilizationToFile = arg.substring(2)
                     } else {
                         printUsage()
                     }
@@ -69,7 +73,7 @@ fun main(args: Array<String>) {
                 envPath = arg
             } else {
                 envPath2 = arg
-                return@forEach
+                break
             }
         }
     }
@@ -88,7 +92,7 @@ fun main(args: Array<String>) {
         }
         if (!hasOptions) {
             reflect.gatherLogStats()
-            exitProcess(reflect.traverse())
+            exitProcess(reflect.traverse(dumpUtilizationToFile))
         } else {
             if (validateRoots) {
                 reflect.roots()
@@ -97,7 +101,7 @@ fun main(args: Array<String>) {
                 reflect.gatherLogStats()
             }
             if (traverse) {
-                exitProcess(reflect.traverse())
+                exitProcess(reflect.traverse(dumpUtilizationToFile))
             }
             if (copy) {
                 reflect.copy(File(envPath2))
@@ -119,6 +123,7 @@ internal fun printUsage() {
     println("  -ls             gather Log Stats")
     println("  -r              validate Roots")
     println("  -t              Traverse actual root")
+    println("  -d<file name>   Dump utilization to a file (can be used with the '-t' option)")
     println("  -c              Copy actual root to a new environment (environment path 2 is mandatory)")
     println("  -u              display stored Utilization")
     println("  -cl<file name>  CLean particular file before any reflection")
@@ -261,7 +266,7 @@ internal class Reflect(directory: File) {
     /**
      * @return exit code 0 if there were no problems traversing the database
      */
-    internal fun traverse(): Int {
+    internal fun traverse(dumpUtilizationToFile: String? = null): Int {
         val usedSpace = TreeMap<Long, Long?>()
         print("Analysing meta tree loggables... ")
         fetchUsedSpace(env.metaTree.addressIterator(), usedSpace)
@@ -297,6 +302,11 @@ internal class Reflect(directory: File) {
         }
         println()
         spaceInfo(usedSpace.entries)
+        dumpUtilizationToFile?.run {
+            PrintWriter(dumpUtilizationToFile).use { out ->
+                usedSpace.entries.map { "${it.key} ${it.value}" }.forEach { out.println(it) }
+            }
+        }
         return if (wereErrors) -1 else 0
     }
 
