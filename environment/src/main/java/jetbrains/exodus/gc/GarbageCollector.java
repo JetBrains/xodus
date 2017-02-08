@@ -28,6 +28,7 @@ import jetbrains.exodus.io.RemoveBlockType;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.util.DeferredIO;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -253,6 +254,16 @@ public final class GarbageCollector {
     static void loggingInfo(@NotNull final String message) {
         if (logger.isInfoEnabled()) {
             logger.info(message);
+        }
+    }
+
+    static void loggingError(@NotNull final String message, @Nullable final Throwable t) {
+        if (logger.isErrorEnabled()) {
+            if (t == null) {
+                logger.error(message);
+            } else {
+                logger.error(message, t);
+            }
         }
     }
 

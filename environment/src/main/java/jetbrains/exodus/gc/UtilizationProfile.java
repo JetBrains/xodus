@@ -25,7 +25,6 @@ import jetbrains.exodus.tree.LongIterator;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.*;
 
 public final class UtilizationProfile {
@@ -287,7 +286,8 @@ public final class UtilizationProfile {
                             usedSpace.put(address, usedBytes);
                         }
                     }
-                } catch (IOException ignore) {
+                } catch (Throwable t) {
+                    GarbageCollector.loggingError("Failed to load utilization from " + path, t);
                 }
                 // if an error occurs during reading the file, then GC will be too pessimistic, i.e. it will clean
                 // first the files which are missed in the utilization profile.
