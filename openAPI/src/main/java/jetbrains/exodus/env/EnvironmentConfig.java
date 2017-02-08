@@ -1521,7 +1521,7 @@ public final class EnvironmentConfig extends AbstractConfig {
      * @return this {@code EnvironmentConfig} instance
      */
     public EnvironmentConfig setGcUtilizationFromFile(final String file) {
-        return setSetting(GC_UTILIZATION_FROM_SCRATCH, file);
+        return setSetting(GC_UTILIZATION_FROM_FILE, file);
     }
 
     /**
