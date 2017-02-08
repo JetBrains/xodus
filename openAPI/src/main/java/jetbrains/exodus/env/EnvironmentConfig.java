@@ -374,8 +374,9 @@ public final class EnvironmentConfig extends AbstractConfig {
     /**
      * If is set to {@code true} then database utilization will be computed from scratch before the first cleaning
      * cycle (single run of the database garbage collector) is triggered, i.e. shortly after the database is open.
+     * In addition, can be used to compute utilization information at runtime by just modifying the setting value.
      * Default value is {@code false}.
-     * <p>Mutable at runtime: no
+     * <p>Mutable at runtime: yes
      */
     public static final String GC_UTILIZATION_FROM_SCRATCH = "exodus.gc.utilization.fromScratch";
 
@@ -383,7 +384,7 @@ public final class EnvironmentConfig extends AbstractConfig {
      * If is not empty, defines full path to the file with stored utilization. Is used on creation of an
      * {@linkplain Environment} to update {@code .xd} files' utilization before the first cleaning
      * cycle (single run of the database garbage collector) is triggered. In addition, can be used to reload utilization
-     * information in runtime by just modifying the setting value. Format of the stored utilization is expected
+     * information at runtime by just modifying the setting value. Format of the stored utilization is expected
      * to be the same as created by the {@code "-d"} option of the {@code Reflect} tool.
      * Default value is empty string.
      * <p>Mutable at runtime: yes
@@ -1472,8 +1473,9 @@ public final class EnvironmentConfig extends AbstractConfig {
     /**
      * Returns {@code true} if database utilization will be computed from scratch before the first cleaning
      * cycle (single run of the database garbage collector) is triggered, i.e. shortly after the database is open.
+     * In addition, can be used to compute utilization information at runtime by just modifying the setting value.
      * Default value is {@code false}.
-     * <p>Mutable at runtime: no
+     * <p>Mutable at runtime: yes
      *
      * @return {@code true} if database utilization will be computed from scratch
      */
@@ -1484,8 +1486,9 @@ public final class EnvironmentConfig extends AbstractConfig {
     /**
      * Set {@code true} if database utilization should be computed from scratch before the first cleaning
      * cycle (single run of the database garbage collector) is triggered, i.e. shortly after the database is open.
+     * In addition, can be used to compute utilization information at runtime by just modifying the setting value.
      * Default value is {@code false}.
-     * <p>Mutable at runtime: no
+     * <p>Mutable at runtime: yes
      *
      * @param fromScratch {@code true} if database utilization should be computed from scratch
      * @return this {@code EnvironmentConfig} instance
@@ -1498,7 +1501,7 @@ public final class EnvironmentConfig extends AbstractConfig {
      * Returns full path to the file with stored utilization. Is used on creation of an
      * {@linkplain Environment} to update {@code .xd} files' utilization before the first cleaning
      * cycle (single run of the database garbage collector) is triggered. In addition, can be used to reload utilization
-     * information in runtime by just modifying the setting value. Format of the stored utilization is expected
+     * information at runtime by just modifying the setting value. Format of the stored utilization is expected
      * to be the same as created by the {@code "-d"} option of the {@code Reflect} tool.
      * Default value is empty string.
      * <p>Mutable at runtime: yes
@@ -1513,9 +1516,10 @@ public final class EnvironmentConfig extends AbstractConfig {
      * Sets full path to the file with stored utilization. Is used on creation of an
      * {@linkplain Environment} to update {@code .xd} files' utilization before the first cleaning
      * cycle (single run of the database garbage collector) is triggered. In addition, can be used to reload utilization
-     * information in runtime by just modifying the setting value. Format of the stored utilization is expected
+     * information at runtime by just modifying the setting value. Format of the stored utilization is expected
      * to be the same as created by the {@code "-d"} option of the {@code Reflect} tool.
      * Default value is empty string.
+     * <p>Mutable at runtime: yes
      *
      * @param file full path to the file with stored utilization
      * @return this {@code EnvironmentConfig} instance

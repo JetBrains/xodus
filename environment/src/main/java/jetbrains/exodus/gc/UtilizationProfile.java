@@ -287,13 +287,13 @@ public final class UtilizationProfile {
                 }
                 setUtilization(usedSpace);
             }
-        }, getGcStartTime());
+        }, gc.getStartTime());
     }
 
     /**
      * Reloads utilization profile.
      */
-    private void computeUtilizationFromScratch() {
+    public void computeUtilizationFromScratch() {
         gc.getCleaner().getJobProcessor().queueAt(new Job() {
             @Override
             protected void execute() throws Throwable {
@@ -320,7 +320,7 @@ public final class UtilizationProfile {
                 });
                 setUtilization(usedSpace);
             }
-        }, getGcStartTime());
+        }, gc.getStartTime());
     }
 
     private void setUtilization(LongHashMap<Long> usedSpace) {
@@ -338,10 +338,6 @@ public final class UtilizationProfile {
         if (gc.isTooMuchFreeSpace()) {
             gc.wake();
         }
-    }
-
-    private long getGcStartTime() {
-        return env.getCreated() + env.getEnvironmentConfig().getGcStartIn();
     }
 
     /**

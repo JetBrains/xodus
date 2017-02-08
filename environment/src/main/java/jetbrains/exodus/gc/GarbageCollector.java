@@ -197,6 +197,10 @@ public final class GarbageCollector {
         return env.getLog();
     }
 
+    long getStartTime() {
+        return env.getCreated() + ec.getGcStartIn();
+    }
+
     /**
      * Cleans fragmented files. It is expected that the files are sorted by utilization, i.e.
      * the first files are more fragmented. In order to avoid race conditions and synchronization issues,
@@ -339,8 +343,8 @@ public final class GarbageCollector {
             final long high = log.getHighAddress();
             final long highFile = log.getHighFileAddress();
             logger.debug(String.format(
-                    "Cleaner acquired txn when log high address was: %d (%s@%d) when cleaning file %s",
-                    high, LogUtil.getLogFilename(highFile), high - highFile, LogUtil.getLogFilename(fileAddress)
+                "Cleaner acquired txn when log high address was: %d (%s@%d) when cleaning file %s",
+                high, LogUtil.getLogFilename(highFile), high - highFile, LogUtil.getLogFilename(fileAddress)
             ));
         }
         try {

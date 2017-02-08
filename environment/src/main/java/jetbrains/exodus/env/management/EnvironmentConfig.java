@@ -289,6 +289,11 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
+    public void setGcUtilizationFromScratch(boolean fromScratch) {
+        config.setGcUtilizationFromScratch(fromScratch);
+    }
+
+    @Override
     public String getGcUtilizationFromFile() {
         return config.getGcUtilizationFromFile();
     }

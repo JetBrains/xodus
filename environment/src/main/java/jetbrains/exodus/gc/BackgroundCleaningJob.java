@@ -64,16 +64,13 @@ final class BackgroundCleaningJob extends Job {
         }
         try {
             if (canContinue()) {
+                final long minTimeToInvokeCleaner = gc.getStartTime();
+                if (minTimeToInvokeCleaner > System.currentTimeMillis()) {
+                    gc.wakeAt(minTimeToInvokeCleaner);
+                    return;
+                }
                 final EnvironmentImpl env = gc.getEnvironment();
                 final EnvironmentConfig ec = env.getEnvironmentConfig();
-                final int gcStartIn = ec.getGcStartIn();
-                if (gcStartIn != 0) {
-                    final long minTimeToInvokeCleaner = gcStartIn + env.getCreated();
-                    if (minTimeToInvokeCleaner > System.currentTimeMillis()) {
-                        gc.wakeAt(minTimeToInvokeCleaner);
-                        return;
-                    }
-                }
                 final Log log = env.getLog();
                 if (gc.getMinFileAge() < log.getNumberOfFiles()) {
                     cleaner.setCleaning(true);
