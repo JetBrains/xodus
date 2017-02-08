@@ -25,6 +25,7 @@ import jetbrains.exodus.tree.LongIterator;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.*;
 
 public final class UtilizationProfile {
@@ -278,13 +279,18 @@ public final class UtilizationProfile {
             @Override
             protected void execute() throws Throwable {
                 final LongHashMap<Long> usedSpace = new LongHashMap<>();
-                try (Scanner scanner = new Scanner(new File(path))) {
-                    while (scanner.hasNextLong()) {
-                        final long address = scanner.nextLong();
-                        final Long usedBytes = scanner.nextLong();
-                        usedSpace.put(address, usedBytes);
+                try {
+                    try (Scanner scanner = new Scanner(new File(path))) {
+                        while (scanner.hasNextLong()) {
+                            final long address = scanner.nextLong();
+                            final Long usedBytes = scanner.nextLong();
+                            usedSpace.put(address, usedBytes);
+                        }
                     }
+                } catch (IOException ignore) {
                 }
+                // if an error occurs during reading the file, then GC will be too pessimistic, i.e. it will clean
+                // first the files which are missed in the utilization profile.
                 setUtilization(usedSpace);
             }
         }, gc.getStartTime());
