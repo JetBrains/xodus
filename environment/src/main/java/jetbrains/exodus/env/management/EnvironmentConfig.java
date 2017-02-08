@@ -289,6 +289,16 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
+    public String getGcUtilizationFromFile() {
+        return config.getGcUtilizationFromFile();
+    }
+
+    @Override
+    public void setGcUtilizationFromFile(String file) {
+        config.setGcUtilizationFromFile(file);
+    }
+
+    @Override
     public boolean getGcUseExclusiveTransaction() {
         return config.getGcUseExclusiveTransaction();
     }

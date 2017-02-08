@@ -995,6 +995,8 @@ public class EnvironmentImpl implements Environment {
                 log.getConfig().setDurableWrite(ec.getLogDurableWrite());
             } else if (key.equals(EnvironmentConfig.ENV_IS_READONLY) && !ec.getEnvIsReadonly()) {
                 resumeGC();
+            } else if (key.equals(EnvironmentConfig.GC_UTILIZATION_FROM_FILE)) {
+                gc.getUtilizationProfile().loadUtilizationFromFile((String) value);
             }
         }
     }

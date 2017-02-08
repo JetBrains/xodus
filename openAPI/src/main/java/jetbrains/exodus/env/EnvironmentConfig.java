@@ -380,6 +380,16 @@ public final class EnvironmentConfig extends AbstractConfig {
     public static final String GC_UTILIZATION_FROM_SCRATCH = "exodus.gc.utilization.fromScratch";
 
     /**
+     * If is not empty, defines full path to the file with stored utilization. Is used on creation of an
+     * {@linkplain Environment} to update {@code .xd} files' utilization before the first cleaning
+     * cycle (single run of the database garbage collector) is triggered. In addition, can be used to reload utilization
+     * information in runtime by just modifying the setting value. Format of the stored utilization is expected
+     * to be the same as created by the {@code "-d"} option of the {@code Reflect} tool.
+     * <p>Mutable at runtime: yes
+     */
+    public static final String GC_UTILIZATION_FROM_FILE = "exodus.gc.utilization.fromFile";
+
+    /**
      * If is set to {@code true} the database garbage collector tries to acquire exclusive {@linkplain Transaction}
      * for its purposes. In that case, GC transaction never re-plays. In order to not block background cleaner thread
      * forever, acquisition of exclusive GC transaction is performed with a timeout controlled by the
@@ -442,47 +452,48 @@ public final class EnvironmentConfig extends AbstractConfig {
     public EnvironmentConfig(@NotNull final ConfigurationStrategy strategy) {
         //noinspection unchecked
         super(new Pair[]{
-                new Pair(MEMORY_USAGE_PERCENTAGE, 50),
-                new Pair(LOG_DURABLE_WRITE, false),
-                new Pair(LOG_FILE_SIZE, 8192L),
-                new Pair(LOG_LOCK_TIMEOUT, 0L),
+            new Pair(MEMORY_USAGE_PERCENTAGE, 50),
+            new Pair(LOG_DURABLE_WRITE, false),
+            new Pair(LOG_FILE_SIZE, 8192L),
+            new Pair(LOG_LOCK_TIMEOUT, 0L),
             new Pair(LOG_CACHE_PAGE_SIZE, 64 * 1024),
-                new Pair(LOG_CACHE_OPEN_FILES, 500),
-                new Pair(LOG_CACHE_USE_NIO, true),
-                new Pair(LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD, 1_000_000_000L), // ~1GB
-                new Pair(LOG_CACHE_SHARED, true),
-                new Pair(LOG_CACHE_NON_BLOCKING, true),
-                new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
-                new Pair(LOG_CLEAR_INVALID, false),
-                new Pair(LOG_SYNC_PERIOD, 10000L),
-                new Pair(LOG_FULL_FILE_READ_ONLY, true),
-                new Pair(ENV_IS_READONLY, false),
-                new Pair(ENV_READONLY_EMPTY_STORES, false),
-                new Pair(ENV_STOREGET_CACHE_SIZE, 0),
-                new Pair(ENV_CLOSE_FORCEDLY, false),
-                new Pair(ENV_TXN_REPLAY_TIMEOUT, 2000L),
-                new Pair(ENV_TXN_REPLAY_MAX_COUNT, 2),
-                new Pair(ENV_TXN_DOWNGRADE_AFTER_FLUSH, true),
-                new Pair(ENV_MAX_PARALLEL_TXNS, Integer.MAX_VALUE),
-                new Pair(ENV_MAX_PARALLEL_READONLY_TXNS, Integer.MAX_VALUE),
-                new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
-                new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
-                new Pair(ENV_GATHER_STATISTICS, true),
-                new Pair(TREE_MAX_PAGE_SIZE, 128),
-                new Pair(TREE_NODES_CACHE_SIZE, 4096),
-                new Pair(GC_ENABLED, true),
-                new Pair(GC_START_IN, 10000),
-                new Pair(GC_MIN_UTILIZATION, 50),
-                new Pair(GC_RENAME_FILES, false),
-                new Pair(GC_MIN_FILE_AGE, 2),
-                new Pair(GC_FILES_INTERVAL, 3),
-                new Pair(GC_RUN_PERIOD, 30000),
-                new Pair(GC_UTILIZATION_FROM_SCRATCH, false),
-                new Pair(GC_FILES_DELETION_DELAY, 5000),
-                new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
-                new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 1000),
-                new Pair(GC_TRANSACTION_TIMEOUT, 1000),
-                new Pair(MANAGEMENT_ENABLED, true)
+            new Pair(LOG_CACHE_OPEN_FILES, 500),
+            new Pair(LOG_CACHE_USE_NIO, true),
+            new Pair(LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD, 1_000_000_000L), // ~1GB
+            new Pair(LOG_CACHE_SHARED, true),
+            new Pair(LOG_CACHE_NON_BLOCKING, true),
+            new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
+            new Pair(LOG_CLEAR_INVALID, false),
+            new Pair(LOG_SYNC_PERIOD, 10000L),
+            new Pair(LOG_FULL_FILE_READ_ONLY, true),
+            new Pair(ENV_IS_READONLY, false),
+            new Pair(ENV_READONLY_EMPTY_STORES, false),
+            new Pair(ENV_STOREGET_CACHE_SIZE, 0),
+            new Pair(ENV_CLOSE_FORCEDLY, false),
+            new Pair(ENV_TXN_REPLAY_TIMEOUT, 2000L),
+            new Pair(ENV_TXN_REPLAY_MAX_COUNT, 2),
+            new Pair(ENV_TXN_DOWNGRADE_AFTER_FLUSH, true),
+            new Pair(ENV_MAX_PARALLEL_TXNS, Integer.MAX_VALUE),
+            new Pair(ENV_MAX_PARALLEL_READONLY_TXNS, Integer.MAX_VALUE),
+            new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
+            new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
+            new Pair(ENV_GATHER_STATISTICS, true),
+            new Pair(TREE_MAX_PAGE_SIZE, 128),
+            new Pair(TREE_NODES_CACHE_SIZE, 4096),
+            new Pair(GC_ENABLED, true),
+            new Pair(GC_START_IN, 10000),
+            new Pair(GC_MIN_UTILIZATION, 50),
+            new Pair(GC_RENAME_FILES, false),
+            new Pair(GC_MIN_FILE_AGE, 2),
+            new Pair(GC_FILES_INTERVAL, 3),
+            new Pair(GC_RUN_PERIOD, 30000),
+            new Pair(GC_UTILIZATION_FROM_SCRATCH, false),
+            new Pair(GC_UTILIZATION_FROM_FILE, ""),
+            new Pair(GC_FILES_DELETION_DELAY, 5000),
+            new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
+            new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 1000),
+            new Pair(GC_TRANSACTION_TIMEOUT, 1000),
+            new Pair(MANAGEMENT_ENABLED, true)
         }, strategy);
     }
 
@@ -1480,6 +1491,34 @@ public final class EnvironmentConfig extends AbstractConfig {
      */
     public EnvironmentConfig setGcUtilizationFromScratch(final boolean fromScratch) {
         return setSetting(GC_UTILIZATION_FROM_SCRATCH, fromScratch);
+    }
+
+    /**
+     * Returns full path to the file with stored utilization. Is used on creation of an
+     * {@linkplain Environment} to update {@code .xd} files' utilization before the first cleaning
+     * cycle (single run of the database garbage collector) is triggered. In addition, can be used to reload utilization
+     * information in runtime by just modifying the setting value. Format of the stored utilization is expected
+     * to be the same as created by the {@code "-d"} option of the {@code Reflect} tool.
+     * <p>Mutable at runtime: yes
+     *
+     * @return if not empty, full path to the file with stored utilization.
+     */
+    public String getGcUtilizationFromFile() {
+        return (String) getSetting(GC_UTILIZATION_FROM_FILE);
+    }
+
+    /**
+     * Sets full path to the file with stored utilization. Is used on creation of an
+     * {@linkplain Environment} to update {@code .xd} files' utilization before the first cleaning
+     * cycle (single run of the database garbage collector) is triggered. In addition, can be used to reload utilization
+     * information in runtime by just modifying the setting value. Format of the stored utilization is expected
+     * to be the same as created by the {@code "-d"} option of the {@code Reflect} tool.
+     *
+     * @param file full path to the file with stored utilization
+     * @return this {@code EnvironmentConfig} instance
+     */
+    public EnvironmentConfig setGcUtilizationFromFile(final String file) {
+        return setSetting(GC_UTILIZATION_FROM_SCRATCH, file);
     }
 
     /**

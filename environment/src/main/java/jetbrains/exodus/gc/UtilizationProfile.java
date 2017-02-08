@@ -24,6 +24,7 @@ import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.LongIterator;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.File;
 import java.util.*;
 
 public final class UtilizationProfile {
@@ -70,35 +71,38 @@ public final class UtilizationProfile {
      * Loads utilization profile.
      */
     public void load() {
-        if (env.getEnvironmentConfig().getGcUtilizationFromScratch()) {
+        final EnvironmentConfig ec = env.getEnvironmentConfig();
+        if (ec.getGcUtilizationFromScratch()) {
             computeUtilizationFromScratch();
         } else {
-            env.executeInReadonlyTransaction(new TransactionalExecutable() {
-                @Override
-                public void execute(@NotNull final Transaction txn) {
-                    if (!env.storeExists(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, txn)) {
-                        computeUtilizationFromScratch();
-                    } else {
-                        final LongHashMap<MutableLong> filesUtilization = new LongHashMap<>();
-                        final StoreImpl store = env.openStore(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES, txn);
-                        try (Cursor cursor = store.openCursor(txn)) {
-                            while (cursor.getNext()) {
-                                final long fileAddress = LongBinding.compressedEntryToLong(cursor.getKey());
-                                final long freeBytes = CompressedUnsignedLongByteIterable.getLong(cursor.getValue());
-                                filesUtilization.put(fileAddress, new MutableLong(freeBytes));
+            final String storedUtilization = ec.getGcUtilizationFromFile();
+            if (!storedUtilization.isEmpty()) {
+                loadUtilizationFromFile(storedUtilization);
+            } else {
+                env.executeInReadonlyTransaction(new TransactionalExecutable() {
+                    @Override
+                    public void execute(@NotNull final Transaction txn) {
+                        if (!env.storeExists(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, txn)) {
+                            computeUtilizationFromScratch();
+                        } else {
+                            final LongHashMap<MutableLong> filesUtilization = new LongHashMap<>();
+                            final StoreImpl store = env.openStore(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES, txn);
+                            try (Cursor cursor = store.openCursor(txn)) {
+                                while (cursor.getNext()) {
+                                    final long fileAddress = LongBinding.compressedEntryToLong(cursor.getKey());
+                                    final long freeBytes = CompressedUnsignedLongByteIterable.getLong(cursor.getValue());
+                                    filesUtilization.put(fileAddress, new MutableLong(freeBytes));
+                                }
                             }
-                        }
-                        synchronized (UtilizationProfile.this.filesUtilization) {
-                            UtilizationProfile.this.filesUtilization.clear();
-                            UtilizationProfile.this.filesUtilization.putAll(filesUtilization);
+                            synchronized (UtilizationProfile.this.filesUtilization) {
+                                UtilizationProfile.this.filesUtilization.clear();
+                                UtilizationProfile.this.filesUtilization.putAll(filesUtilization);
+                            }
+                            estimateFreeBytesAndWakeGcIfNecessary();
                         }
                     }
-                }
-            });
-        }
-        estimateTotalBytes();
-        if (gc.isTooMuchFreeSpace()) {
-            gc.wake();
+                });
+            }
         }
     }
 
@@ -263,6 +267,30 @@ public final class UtilizationProfile {
     }
 
     /**
+     * Loads utilization profile from file.
+     *
+     * @param path external file with utilization info in the format as created by the {@code "-d"} option
+     *             of the {@code Reflect} tool
+     * @see EnvironmentConfig#setGcUtilizationFromFile(String)
+     */
+    public void loadUtilizationFromFile(@NotNull final String path) {
+        gc.getCleaner().getJobProcessor().queueAt(new Job() {
+            @Override
+            protected void execute() throws Throwable {
+                final LongHashMap<Long> usedSpace = new LongHashMap<>();
+                try (Scanner scanner = new Scanner(new File(path))) {
+                    while (scanner.hasNextLong()) {
+                        final long address = scanner.nextLong();
+                        final Long usedBytes = scanner.nextLong();
+                        usedSpace.put(address, usedBytes);
+                    }
+                }
+                setUtilization(usedSpace);
+            }
+        }, getGcStartTime());
+    }
+
+    /**
      * Reloads utilization profile.
      */
     private void computeUtilizationFromScratch() {
@@ -290,18 +318,30 @@ public final class UtilizationProfile {
                         }
                     }
                 });
-                synchronized (filesUtilization) {
-                    filesUtilization.clear();
-                    for (final Map.Entry<Long, Long> entry : usedSpace.entrySet()) {
-                        filesUtilization.put(entry.getKey(), new MutableLong(fileSize - entry.getValue()));
-                    }
-                }
-                estimateTotalBytes();
-                if (gc.isTooMuchFreeSpace()) {
-                    gc.wake();
-                }
+                setUtilization(usedSpace);
             }
-        }, env.getCreated() + env.getEnvironmentConfig().getGcStartIn());
+        }, getGcStartTime());
+    }
+
+    private void setUtilization(LongHashMap<Long> usedSpace) {
+        synchronized (filesUtilization) {
+            filesUtilization.clear();
+            for (final Map.Entry<Long, Long> entry : usedSpace.entrySet()) {
+                filesUtilization.put(entry.getKey(), new MutableLong(fileSize - entry.getValue()));
+            }
+        }
+        estimateFreeBytesAndWakeGcIfNecessary();
+    }
+
+    private void estimateFreeBytesAndWakeGcIfNecessary() {
+        estimateTotalBytes();
+        if (gc.isTooMuchFreeSpace()) {
+            gc.wake();
+        }
+    }
+
+    private long getGcStartTime() {
+        return env.getCreated() + env.getEnvironmentConfig().getGcStartIn();
     }
 
     /**

@@ -59,6 +59,8 @@ public abstract class AbstractConfig {
                 value = getInteger(strategy, propName, (Integer) defaultValue);
             } else if (clazz == Long.class) {
                 value = getLong(strategy, propName, (Long) defaultValue);
+            } else if (clazz == String.class) {
+                value = getString(strategy, propName, (String) defaultValue);
             } else {
                 throw new ExodusException(UNSUPPORTED_TYPE_ERROR_MSG);
             }
@@ -125,6 +127,8 @@ public abstract class AbstractConfig {
                     newValue = Integer.decode(value);
                 } else if (clazz == Long.class) {
                     newValue = Long.decode(value);
+                } else if (clazz == String.class) {
+                    newValue = value;
                 } else {
                     appendLineFeed(errorMessage);
                     errorMessage.append(UNSUPPORTED_TYPE_ERROR_MSG);
@@ -154,13 +158,15 @@ public abstract class AbstractConfig {
     }
 
     private static boolean getBoolean(@NotNull final ConfigurationStrategy strategy,
-                                      @NotNull final String propName, final boolean defaultValue) {
+                                      @NotNull final String propName,
+                                      final boolean defaultValue) {
         final String value = strategy.getProperty(propName);
         return value == null ? defaultValue : "true".equalsIgnoreCase(value);
     }
 
     private static Integer getInteger(@NotNull final ConfigurationStrategy strategy,
-                                      @NotNull String propName, Integer defaultValue) {
+                                      @NotNull final String propName,
+                                      final Integer defaultValue) {
         final String v = strategy.getProperty(propName);
         if (v != null) {
             try {
@@ -172,7 +178,8 @@ public abstract class AbstractConfig {
     }
 
     private static Long getLong(@NotNull final ConfigurationStrategy strategy,
-                                @NotNull String propName, Long defaultValue) {
+                                @NotNull final String propName,
+                                final Long defaultValue) {
         final String v = strategy.getProperty(propName);
         if (v != null) {
             try {
@@ -181,6 +188,13 @@ public abstract class AbstractConfig {
             }
         }
         return defaultValue;
+    }
+
+    private static String getString(@NotNull final ConfigurationStrategy strategy,
+                                    @NotNull final String propName,
+                                    final String defaultValue) {
+        final String v = strategy.getProperty(propName);
+        return v == null ? defaultValue : v;
     }
 
     private static void appendLineFeed(@NotNull final StringBuilder builder) {
