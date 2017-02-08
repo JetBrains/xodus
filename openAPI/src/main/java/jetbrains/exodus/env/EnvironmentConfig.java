@@ -385,6 +385,7 @@ public final class EnvironmentConfig extends AbstractConfig {
      * cycle (single run of the database garbage collector) is triggered. In addition, can be used to reload utilization
      * information in runtime by just modifying the setting value. Format of the stored utilization is expected
      * to be the same as created by the {@code "-d"} option of the {@code Reflect} tool.
+     * Default value is empty string.
      * <p>Mutable at runtime: yes
      */
     public static final String GC_UTILIZATION_FROM_FILE = "exodus.gc.utilization.fromFile";
@@ -1499,6 +1500,7 @@ public final class EnvironmentConfig extends AbstractConfig {
      * cycle (single run of the database garbage collector) is triggered. In addition, can be used to reload utilization
      * information in runtime by just modifying the setting value. Format of the stored utilization is expected
      * to be the same as created by the {@code "-d"} option of the {@code Reflect} tool.
+     * Default value is empty string.
      * <p>Mutable at runtime: yes
      *
      * @return if not empty, full path to the file with stored utilization.
@@ -1513,6 +1515,7 @@ public final class EnvironmentConfig extends AbstractConfig {
      * cycle (single run of the database garbage collector) is triggered. In addition, can be used to reload utilization
      * information in runtime by just modifying the setting value. Format of the stored utilization is expected
      * to be the same as created by the {@code "-d"} option of the {@code Reflect} tool.
+     * Default value is empty string.
      *
      * @param file full path to the file with stored utilization
      * @return this {@code EnvironmentConfig} instance
