@@ -55,7 +55,9 @@ public class ModelMetaDataImpl implements ModelMetaData {
     }
 
     void reset() {
-        typeToEntityMetaDatas = null;
+        synchronized (entityMetaDatas) {
+            typeToEntityMetaDatas = null;
+        }
     }
 
     void update() {
@@ -63,7 +65,7 @@ public class ModelMetaDataImpl implements ModelMetaData {
             return;
         }
 
-        synchronized (this) {
+        synchronized (entityMetaDatas) {
             if (typeToEntityMetaDatas != null) {
                 return;
             }
