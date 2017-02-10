@@ -116,8 +116,8 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
 
     @NotNull
     @Override
-    public TransactionImpl beginGCTransaction() {
-        final TransactionImpl result = super.beginGCTransaction();
+    public ReadWriteTransaction beginGCTransaction() {
+        final ReadWriteTransaction result = super.beginGCTransaction();
         setCurrentTransaction(result);
         return result;
     }

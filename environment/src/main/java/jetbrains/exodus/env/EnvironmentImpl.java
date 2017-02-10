@@ -223,11 +223,11 @@ public class EnvironmentImpl implements Environment {
     }
 
     @NotNull
-    public TransactionImpl beginGCTransaction() {
+    public ReadWriteTransaction beginGCTransaction() {
         if (ec.getEnvIsReadonly()) {
             throw new ReadonlyTransactionException("Can't start GC transaction on read-only Environment");
         }
-        return new TransactionImpl(this, null, ec.getGcUseExclusiveTransaction(), true) {
+        return new ReadWriteTransaction(this, null, ec.getGcUseExclusiveTransaction(), true) {
 
             @Override
             boolean isGCTransaction() {
@@ -405,7 +405,7 @@ public class EnvironmentImpl implements Environment {
 
     @Override
     public void truncateStore(@NotNull final String storeName, @NotNull final Transaction txn) {
-        final TransactionImpl t = throwIfReadonly(txn, "Can't truncate a store in read-only transaction");
+        final ReadWriteTransaction t = throwIfReadonly(txn, "Can't truncate a store in read-only transaction");
         StoreImpl store = openStore(storeName, StoreConfig.USE_EXISTING, t, false);
         if (store == null) {
             throw new ExodusException("Attempt to truncate unknown store '" + storeName + '\'');
@@ -418,7 +418,7 @@ public class EnvironmentImpl implements Environment {
 
     @Override
     public void removeStore(@NotNull final String storeName, @NotNull final Transaction txn) {
-        final TransactionImpl t = throwIfReadonly(txn, "Can't remove a store in read-only transaction");
+        final ReadWriteTransaction t = throwIfReadonly(txn, "Can't remove a store in read-only transaction");
         final StoreImpl store = openStore(storeName, StoreConfig.USE_EXISTING, t, false);
         if (store == null) {
             throw new ExodusException("Attempt to remove unknown store '" + storeName + '\'');
@@ -492,7 +492,7 @@ public class EnvironmentImpl implements Environment {
         checkIsOperative();
         return ec.getEnvIsReadonly() ?
             new ReadonlyTransaction(this, beginHook) :
-            new TransactionImpl(this, beginHook, exclusive, cloneMeta);
+            new ReadWriteTransaction(this, beginHook, exclusive, cloneMeta);
     }
 
     long getDiskUsage() {
@@ -511,7 +511,7 @@ public class EnvironmentImpl implements Environment {
         (txn.isReadonly() ? roTxnDispatcher : txnDispatcher).downgradeTransaction(txn);
     }
 
-    boolean shouldTransactionBeExclusive(@NotNull final TransactionImpl txn) {
+    boolean shouldTransactionBeExclusive(@NotNull final ReadWriteTransaction txn) {
         final int replayCount = txn.getReplayCount();
         return replayCount >= ec.getEnvTxnReplayMaxCount() ||
             System.currentTimeMillis() - txn.getCreated() >= ec.getEnvTxnReplayTimeout();
@@ -537,7 +537,7 @@ public class EnvironmentImpl implements Environment {
     }
 
     @SuppressWarnings("OverlyNestedMethod")
-    boolean commitTransaction(@NotNull final TransactionImpl txn, final boolean forceCommit) {
+    boolean commitTransaction(@NotNull final ReadWriteTransaction txn, final boolean forceCommit) {
         if (flushTransaction(txn, forceCommit)) {
             finishTransaction(txn);
             return true;
@@ -545,7 +545,7 @@ public class EnvironmentImpl implements Environment {
         return false;
     }
 
-    boolean flushTransaction(@NotNull final TransactionImpl txn, final boolean forceCommit) {
+    boolean flushTransaction(@NotNull final ReadWriteTransaction txn, final boolean forceCommit) {
         if (!forceCommit && txn.isIdempotent()) {
             return true;
         }
@@ -670,7 +670,7 @@ public class EnvironmentImpl implements Environment {
             final int structureId = allocateStructureId();
             metaInfo = TreeMetaInfo.load(this, config.duplicates, config.prefixing, structureId);
             result = createStore(name, metaInfo);
-            final TransactionImpl tx = throwIfReadonly(txn, "Can't create a store in read-only transaction");
+            final ReadWriteTransaction tx = throwIfReadonly(txn, "Can't create a store in read-only transaction");
             tx.getMutableTree(result);
             tx.storeCreated(result);
         } else {
@@ -703,7 +703,7 @@ public class EnvironmentImpl implements Environment {
         txns.add(txn);
     }
 
-    boolean isRegistered(@NotNull final TransactionImpl txn) {
+    boolean isRegistered(@NotNull final ReadWriteTransaction txn) {
         return txns.contains(txn);
     }
 
@@ -778,11 +778,11 @@ public class EnvironmentImpl implements Environment {
         return GarbageCollector.isUtilizationProfile(storeName);
     }
 
-    static TransactionImpl throwIfReadonly(@NotNull final Transaction txn, @NotNull final String exceptionMessage) {
+    static ReadWriteTransaction throwIfReadonly(@NotNull final Transaction txn, @NotNull final String exceptionMessage) {
         if (txn.isReadonly()) {
             throw new ReadonlyTransactionException(exceptionMessage);
         }
-        return (TransactionImpl) txn;
+        return (ReadWriteTransaction) txn;
     }
 
     static void loggerError(@NotNull final String errorMessage) {
@@ -975,7 +975,7 @@ public class EnvironmentImpl implements Environment {
                                 EnvironmentConfig.resumeConfigChangeListenersForThread();
                             }
                         });
-                        ((TransactionImpl) txn).forceFlush();
+                        ((ReadWriteTransaction) txn).forceFlush();
                     }
                 } finally {
                     txn.abort();

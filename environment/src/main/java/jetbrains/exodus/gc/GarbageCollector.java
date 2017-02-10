@@ -273,9 +273,9 @@ public final class GarbageCollector {
             return true;
         }
         final LongSet cleanedFiles = new LongHashSet();
-        final TransactionImpl txn;
+        final ReadWriteTransaction txn;
         try {
-            txn = useRegularTxn ? (TransactionImpl) env.beginTransaction() : env.beginGCTransaction();
+            txn = useRegularTxn ? (ReadWriteTransaction) env.beginTransaction() : env.beginGCTransaction();
         } catch (TransactionAcquireTimeoutException ignore) {
             return false;
         }
@@ -343,7 +343,7 @@ public final class GarbageCollector {
      * @param fileAddress address of the file to clean
      * @param txn         transaction
      */
-    private void cleanSingleFile(final long fileAddress, @NotNull final TransactionImpl txn) {
+    private void cleanSingleFile(final long fileAddress, @NotNull final ReadWriteTransaction txn) {
         // the file can be already cleaned
         if (isFileCleaned(fileAddress)) {
             throw new ExodusException("Attempt to clean already cleaned file");

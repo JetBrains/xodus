@@ -139,7 +139,7 @@ public class StoreImpl implements Store {
     }
 
     public boolean isNew(@NotNull final Transaction txn) {
-        return !txn.isReadonly() && ((TransactionImpl) txn).isStoreNew(name);
+        return !txn.isReadonly() && ((ReadWriteTransaction) txn).isStoreNew(name);
     }
 
     public void persistCreation(@NotNull final Transaction txn) {
@@ -154,7 +154,7 @@ public class StoreImpl implements Store {
     public void reclaim(@NotNull final Transaction transaction,
                         @NotNull final RandomAccessLoggable loggable,
                         @NotNull final Iterator<RandomAccessLoggable> loggables) {
-        final TransactionImpl txn = EnvironmentImpl.throwIfReadonly(transaction, "Can't reclaim in read-only transaction");
+        final ReadWriteTransaction txn = EnvironmentImpl.throwIfReadonly(transaction, "Can't reclaim in read-only transaction");
         final boolean wasTreeCreated = txn.hasTreeMutable(this);
         if (!txn.getMutableTree(this).reclaim(loggable, loggables) && !wasTreeCreated) {
             txn.removeTreeMutable(this);

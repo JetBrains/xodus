@@ -65,7 +65,7 @@ public abstract class TransactionBase implements Transaction {
     @Override
     public Transaction getSnapshot(@Nullable final Runnable beginHook) {
         checkIsFinished();
-        return new TransactionImpl(this, beginHook);
+        return new ReadWriteTransaction(this, beginHook);
     }
 
     @Override

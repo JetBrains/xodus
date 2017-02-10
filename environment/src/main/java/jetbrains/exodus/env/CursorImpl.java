@@ -144,7 +144,7 @@ final class CursorImpl implements Cursor {
 
     @Override
     public boolean deleteCurrent() {
-        final TransactionImpl txn = EnvironmentImpl.throwIfReadonly(this.txn,
+        final ReadWriteTransaction txn = EnvironmentImpl.throwIfReadonly(this.txn,
                 "Can't delete a key/value pair of cursor in read-only transaction");
         if (treeCursor == null) {
             treeCursor = txn.getMutableTree(store).openCursor();

@@ -30,7 +30,7 @@ import java.util.*;
 
 import static jetbrains.exodus.env.EnvironmentStatistics.Type.TRANSACTIONS;
 
-public class TransactionImpl extends TransactionBase {
+public class ReadWriteTransaction extends TransactionBase {
 
     @NotNull
     private final Map<Integer, ITreeMutable> mutableTrees;
@@ -44,10 +44,10 @@ public class TransactionImpl extends TransactionBase {
     private Runnable commitHook;
     private int replayCount;
 
-    TransactionImpl(@NotNull final EnvironmentImpl env,
-                    @Nullable final Runnable beginHook,
-                    final boolean isExclusive,
-                    final boolean cloneMeta) {
+    ReadWriteTransaction(@NotNull final EnvironmentImpl env,
+                         @Nullable final Runnable beginHook,
+                         final boolean isExclusive,
+                         final boolean cloneMeta) {
         super(env, isExclusive);
         mutableTrees = new TreeMap<>();
         removedStores = new LongHashMap<>();
@@ -57,7 +57,7 @@ public class TransactionImpl extends TransactionBase {
             public void run() {
                 final MetaTree currentMetaTree = env.getMetaTree();
                 setMetaTree(cloneMeta ? currentMetaTree.getClone() : currentMetaTree);
-                env.registerTransaction(TransactionImpl.this);
+                env.registerTransaction(ReadWriteTransaction.this);
                 if (beginHook != null) {
                     beginHook.run();
                 }
@@ -69,7 +69,7 @@ public class TransactionImpl extends TransactionBase {
         env.getStatistics().getStatisticsItem(TRANSACTIONS).incTotal();
     }
 
-    TransactionImpl(@NotNull final TransactionBase origin, @Nullable final Runnable beginHook) {
+    ReadWriteTransaction(@NotNull final TransactionBase origin, @Nullable final Runnable beginHook) {
         super(origin.getEnvironment(), false);
         mutableTrees = new TreeMap<>();
         removedStores = new LongHashMap<>();
@@ -173,8 +173,8 @@ public class TransactionImpl extends TransactionBase {
         final EnvironmentImpl env = getEnvironment();
         final String storeName = getMetaTree().getStoreNameByStructureId(structureId, env);
         return storeName == null ?
-                new TemporaryEmptyStore(env) :
-                env.openStoreImpl(storeName, StoreConfig.USE_EXISTING, this, getTreeMetaInfo(storeName));
+            new TemporaryEmptyStore(env) :
+            env.openStoreImpl(storeName, StoreConfig.USE_EXISTING, this, getTreeMetaInfo(storeName));
     }
 
     @NotNull

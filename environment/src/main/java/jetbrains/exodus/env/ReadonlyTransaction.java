@@ -20,7 +20,7 @@ import org.jetbrains.annotations.Nullable;
 
 import static jetbrains.exodus.env.EnvironmentStatistics.Type.READONLY_TRANSACTIONS;
 
-class ReadonlyTransaction extends TransactionBase {
+public class ReadonlyTransaction extends TransactionBase {
 
     @Nullable
     private final Runnable beginHook;
