@@ -25,7 +25,7 @@ public class ReadonlyTransaction extends TransactionBase {
     @Nullable
     private final Runnable beginHook;
 
-    ReadonlyTransaction(@NotNull final EnvironmentImpl env, @Nullable final Runnable beginHook) {
+    public ReadonlyTransaction(@NotNull final EnvironmentImpl env, @Nullable final Runnable beginHook) {
         super(env, false);
         this.beginHook = getWrappedBeginHook(beginHook);
         env.holdNewestSnapshotBy(this);
