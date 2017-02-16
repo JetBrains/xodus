@@ -770,6 +770,16 @@ public class EnvironmentImpl implements Environment {
         }
     }
 
+    void setHighAddress(final long highAddress) {
+        synchronized (commitLock) {
+            log.setHighAddress(highAddress);
+            final Pair<MetaTree, Integer> meta = MetaTree.create(this);
+            synchronized (metaLock) {
+                metaTree = meta.getFirst();
+            }
+        }
+    }
+
     protected StoreImpl createTemporaryEmptyStore(String name) {
         return new TemporaryEmptyStore(this, name);
     }

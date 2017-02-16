@@ -406,6 +406,37 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     }
 
     @Test
+    public void testSetHighAddress() {
+        final Store store = openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES);
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                store.put(txn, StringBinding.stringToEntry("key"), StringBinding.stringToEntry("value1"));
+            }
+        });
+        final long highAddress = env.getLog().getHighAddress();
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                store.put(txn, StringBinding.stringToEntry("key"), StringBinding.stringToEntry("value2"));
+            }
+        });
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                Assert.assertEquals(StringBinding.stringToEntry("value2"), store.get(txn, StringBinding.stringToEntry("key")));
+            }
+        });
+        env.setHighAddress(highAddress);
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                Assert.assertEquals(StringBinding.stringToEntry("value1"), store.get(txn, StringBinding.stringToEntry("key")));
+            }
+        });
+    }
+
+    @Test
     public void testSharedCache() throws InterruptedException, IOException {
         env.getEnvironmentConfig().setLogCacheShared(true);
         reopenEnvironment();
