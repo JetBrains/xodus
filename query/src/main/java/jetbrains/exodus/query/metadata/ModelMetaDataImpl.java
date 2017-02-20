@@ -91,6 +91,8 @@ public class ModelMetaDataImpl implements ModelMetaData {
                 result.put(type, emd);
             }
 
+            this.typeToEntityMetaDatas = result;
+
             for (EntityMetaData emd : entityMetaDatas) {
                 final EntityMetaDataImpl impl = (EntityMetaDataImpl) emd;
                 final Set<AssociationEndMetaData> ends = impl.getExternalAssociationEnds();
@@ -147,8 +149,7 @@ public class ModelMetaDataImpl implements ModelMetaData {
                 } while (t != null);
                 ((EntityMetaDataImpl) emd).setThisAndSuperTypes(thisAndSuperTypes);
             }
-
-            return this.typeToEntityMetaDatas = result;
+            return result;
         }
     }
 
