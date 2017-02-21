@@ -28,6 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ModelMetaDataImpl implements ModelMetaData {
 
     private static final Logger logger = LoggerFactory.getLogger(ModelMetaDataImpl.class);
+    private static final boolean LOG_RESET = Boolean.getBoolean("jetbrains.exodus.query.metadata.logReset");
 
     private final Set<EntityMetaData> entityMetaDatas = Collections.newSetFromMap(new ConcurrentHashMap<EntityMetaData, Boolean>());
     private final Map<String, AssociationMetaData> associationMetaDatas = new ConcurrentHashMap<>();
@@ -59,7 +60,7 @@ public class ModelMetaDataImpl implements ModelMetaData {
     }
 
     void reset() {
-        if (Boolean.getBoolean("jetbrains.exodus.query.metadata.logReset")) {
+        if (LOG_RESET) {
             logger.info("ModelMetaDataImpl#reset() invoked in thread " + Thread.currentThread(), new Throwable());
         }
         synchronized (entityMetaDatas) {
