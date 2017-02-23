@@ -30,7 +30,7 @@ import java.util.Collection;
 import java.util.List;
 
 @SuppressWarnings({"unchecked"})
-public class PersistentEntity implements Entity {
+public class PersistentEntity implements Entity, TxnProvider {
 
     @NotNull
     private final PersistentEntityStoreImpl store;
@@ -91,13 +91,7 @@ public class PersistentEntity implements Entity {
     @Override
     @NotNull
     public String getType() {
-        return store.getEntityType(new TxnProvider() {
-            @NotNull
-            @Override
-            public PersistentStoreTransaction getTransaction() {
-                return PersistentEntity.this.getTransaction();
-            }
-        }, id.getTypeId());
+        return store.getEntityType(this, id.getTypeId());
     }
 
     @Override

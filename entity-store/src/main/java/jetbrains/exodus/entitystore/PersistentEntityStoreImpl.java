@@ -137,6 +137,15 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @NotNull
     private final Set<TableCreationOperation> tableCreationLog = new HashSet<>();
 
+    @NotNull
+    private final TxnProvider txnProvider = new TxnProvider() {
+        @NotNull
+        @Override
+        public PersistentStoreTransaction getTransaction() {
+            return getAndCheckCurrentTransaction();
+        }
+    };
+
     public PersistentEntityStoreImpl(@NotNull final Environment environment, @NotNull final String name) throws Exception {
         this(environment, null, name);
     }
@@ -1337,13 +1346,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
      */
     @Deprecated
     public int getEntityTypeId(@NotNull final String entityType, final boolean allowCreate) {
-        return getEntityTypeId(new TxnProvider() {
-            @NotNull
-            @Override
-            public PersistentStoreTransaction getTransaction() {
-                return getAndCheckCurrentTransaction();
-            }
-        }, entityType, allowCreate);
+        return getEntityTypeId(txnProvider, entityType, allowCreate);
     }
 
     public int getEntityTypeId(@NotNull final PersistentStoreTransaction txn, @NotNull final String entityType, final boolean allowCreate) {
@@ -1363,13 +1366,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @Override
     @NotNull
     public String getEntityType(final int entityTypeId) {
-        return getEntityType(new TxnProvider() {
-            @NotNull
-            @Override
-            public PersistentStoreTransaction getTransaction() {
-                return getAndCheckCurrentTransaction();
-            }
-        }, entityTypeId);
+        return getEntityType(txnProvider, entityTypeId);
     }
 
     @NotNull
@@ -1473,13 +1470,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @Deprecated
     public int getPropertyId(@NotNull final String propertyName, final boolean allowCreate) {
-        return getPropertyId(new TxnProvider() {
-            @NotNull
-            @Override
-            public PersistentStoreTransaction getTransaction() {
-                return getAndCheckCurrentTransaction();
-            }
-        }, propertyName, allowCreate);
+        return getPropertyId(txnProvider, propertyName, allowCreate);
     }
 
     /**
@@ -1506,13 +1497,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @Deprecated
     public int getLinkId(@NotNull final String linkName, final boolean allowCreate) {
-        return getLinkId(new TxnProvider() {
-            @NotNull
-            @Override
-            public PersistentStoreTransaction getTransaction() {
-                return getAndCheckCurrentTransaction();
-            }
-        }, linkName, allowCreate);
+        return getLinkId(txnProvider, linkName, allowCreate);
     }
 
     /**
