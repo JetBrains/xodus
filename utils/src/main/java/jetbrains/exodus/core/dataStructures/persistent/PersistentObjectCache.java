@@ -19,6 +19,7 @@ import jetbrains.exodus.core.dataStructures.CacheHitRateable;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
+import jetbrains.exodus.core.dataStructures.hash.PairProcedure;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -58,6 +59,15 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
         firstGenSizeBound = source.firstGenSizeBound;
         secondGenSizeBound = source.secondGenSizeBound;
         root = new AtomicReference<>(source.root.get());
+        setAttempts(source.getAttempts());
+        setHits(source.getHits());
+    }
+
+    protected PersistentObjectCache(@NotNull final PersistentObjectCache<K, V> source, @Nullable final EvictListener<K, V> listener) {
+        size = source.size;
+        firstGenSizeBound = source.firstGenSizeBound;
+        secondGenSizeBound = source.secondGenSizeBound;
+        root = new AtomicReference<>(Root.getClone(source.root.get(), listener, firstGenSizeBound, secondGenSizeBound));
         setAttempts(source.getAttempts());
         setHits(source.getHits());
     }
@@ -192,6 +202,15 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
         current.getSecondGen().beginWrite().forEachKey(procedure);
     }
 
+    public void forEachEntry(final PairProcedure<K, V> procedure) {
+        final Root<K, V> current = getCurrent();
+        if (current == null) {
+            return;
+        }
+        current.getFirstGen().beginWrite().forEachEntry(procedure);
+        current.getSecondGen().beginWrite().forEachEntry(procedure);
+    }
+
     public Iterator<K> keys() {
         final Root<K, V> current = getCurrent();
         if (current == null) {
@@ -296,6 +315,11 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
             }
         }
 
+        public Root(@NotNull PersistentLinkedHashMap<K, V> firstGen, @NotNull PersistentLinkedHashMap<K, V> secondGen) {
+            this.firstGen = firstGen;
+            this.secondGen = secondGen;
+        }
+
         @NotNull
         public PersistentLinkedHashMap<K, V> getFirstGen() {
             return firstGen;
@@ -304,6 +328,60 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
         @NotNull
         public PersistentLinkedHashMap<K, V> getSecondGen() {
             return secondGen;
+        }
+
+        static <K, V> Root<K, V> getClone(@Nullable final Root<K, V> sourceRoot,
+                                          @Nullable final EvictListener<K, V> listener,
+                                          final int firstGenSizeBound, final int secondGenSizeBound) {
+            if (listener == null) {
+                final PersistentLinkedHashMap.RemoveEldestFunction<K, V> firstGenEvict = new PersistentLinkedHashMap.RemoveEldestFunction<K, V>() {
+                    @Override
+                    public boolean removeEldest(@NotNull final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> map,
+                                                @NotNull final K key, @Nullable final V value) {
+                        return map.size() > secondGenSizeBound;
+                    }
+                };
+                final PersistentLinkedHashMap.RemoveEldestFunction<K, V> secondGenEvict = new PersistentLinkedHashMap.RemoveEldestFunction<K, V>() {
+                    @Override
+                    public boolean removeEldest(@NotNull final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> map,
+                                                @NotNull final K key, @Nullable final V value) {
+                        return map.size() > firstGenSizeBound;
+                    }
+                };
+                if (sourceRoot != null) {
+                    return new Root<>(sourceRoot.firstGen.getClone(firstGenEvict), sourceRoot.secondGen.getClone(secondGenEvict));
+                } else {
+                    return new Root<>(new PersistentLinkedHashMap<>(firstGenEvict), new PersistentLinkedHashMap<>(secondGenEvict));
+                }
+            }
+
+            final PersistentLinkedHashMap.RemoveEldestFunction<K, V> firstGenEvict = new PersistentLinkedHashMap.RemoveEldestFunction<K, V>() {
+                @Override
+                public boolean removeEldest(@NotNull final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> map,
+                                            @NotNull final K key, @Nullable final V value) {
+                    if (map.size() > firstGenSizeBound) {
+                        listener.onEvict(key, value);
+                        return true;
+                    }
+                    return false;
+                }
+            };
+            final PersistentLinkedHashMap.RemoveEldestFunction<K, V> secondGenEvict = new PersistentLinkedHashMap.RemoveEldestFunction<K, V>() {
+                @Override
+                public boolean removeEldest(@NotNull final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> map,
+                                            @NotNull final K key, @Nullable final V value) {
+                    if (map.size() > secondGenSizeBound) {
+                        listener.onEvict(key, value);
+                        return true;
+                    }
+                    return false;
+                }
+            };
+            if (sourceRoot != null) {
+                return new Root<>(sourceRoot.firstGen.getClone(firstGenEvict), sourceRoot.secondGen.getClone(secondGenEvict));
+            } else {
+                return new Root<>(new PersistentLinkedHashMap<>(firstGenEvict), new PersistentLinkedHashMap<>(secondGenEvict));
+            }
         }
     }
 }

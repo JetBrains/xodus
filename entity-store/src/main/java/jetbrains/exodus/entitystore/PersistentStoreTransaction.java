@@ -75,10 +75,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     private int localCacheAttempts;
     private int localCacheHits;
     @Nullable
-    private EntityIterableCacheAdapter mutableCache;
+    private EntityIterableCacheAdapterMutable mutableCache;
     private List<UpdatableCachedInstanceIterable> mutatedInTxn;
-    @Nullable
-    private ReplayData replayData;
     @Nullable
     private LongHashMap<InputStream> blobStreams;
     @Nullable
@@ -184,7 +182,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             store.unregisterTransaction(this);
             flushNonTransactionalBlobs();
             revertCaches();
-            replayData = null;
             return true;
         }
         revert();
@@ -217,7 +214,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (txn.flush()) {
             flushNonTransactionalBlobs();
             revertCaches(false); // do not clear props & links caches
-            replayData = null;
             return true;
         }
         revert();
@@ -228,14 +224,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     public void revert() {
         disposeCreatedIterators();
         txn.revert();
-        if (replayData != null) {
-            if (mutableCache == null) {
-                mutableCache = localCache.getClone();
-                mutatedInTxn = new ArrayList<>();
-            }
-            replayData.init(mutableCache.getCacheInstance());
-            replayData.apply(mutableCache);
-        }
+        mutableCache = null;
+        mutatedInTxn = new ArrayList<>();
     }
 
     public PersistentStoreTransaction getSnapshot() {
@@ -628,14 +618,11 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     public void addCachedInstance(@NotNull final CachedInstanceIterable cached) {
-        // don't remember cached instances on txn replay. this looks innocent by now.
-        if (replayData == null || !replayData.hasCacheSnapshot()) {
-            final EntityIterableCacheAdapter localCache = getLocalCache();
-            final EntityIterableHandle handle = cached.getHandle();
-            if (localCache.getObject(handle) == null) {
-                localCache.cacheObject(handle, cached);
-                store.getEntityIterableCache().setCachedCount(handle, cached.size());
-            }
+        final EntityIterableCacheAdapter localCache = getLocalCache();
+        final EntityIterableHandle handle = cached.getHandle();
+        if (localCache.getObject(handle) == null) {
+            localCache.cacheObject(handle, cached);
+            store.getEntityIterableCache().setCachedCount(handle, cached.size());
         }
     }
 
@@ -877,7 +864,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                         it.endUpdate();
                         entityIterableCache.setCachedCount(it.getHandle(), it.size());
                     }
-                    if (!entityIterableCache.compareAndSetCacheAdapter(localCache, mutableCache)) {
+                    if (!entityIterableCache.compareAndSetCacheAdapter(localCache, mutableCache.endWrite())) {
                         throw new EntityStoreException("This exception should never be thrown");
                     }
                 }
@@ -910,15 +897,13 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     private void updateMutableCache(@NotNull final HandleChecker checker) {
-        if (replayData == null) {
-            replayData = new ReplayData();
-        }
+        EntityIterableCacheAdapterMutable cache = mutableCache;
         if (mutableCache == null) {
-            mutableCache = localCache.getClone(); // preemptive version mismatch disabled
+            cache = localCache.getClone();
+            mutableCache = cache; // preemptive version mismatch disabled
             mutatedInTxn = new ArrayList<>();
-            replayData.setCacheSnapshot(mutableCache.getClone());
         }
-        replayData.updateMutableCache(mutableCache, mutatedInTxn, checker);
+        cache.update(checker, mutatedInTxn);
     }
 
     private void handleOutOfDiskSpace(final Exception e) {

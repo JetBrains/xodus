@@ -17,6 +17,7 @@ package jetbrains.exodus.core.dataStructures.persistent;
 
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
+import jetbrains.exodus.core.dataStructures.hash.PairProcedure;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -48,7 +49,7 @@ public class PersistentLinkedHashMap<K, V> {
         this.removeEldest = removeEldest;
     }
 
-    private PersistentLinkedHashMap(@NotNull final PersistentLinkedHashMap<K, V> source) {
+    private PersistentLinkedHashMap(@NotNull final PersistentLinkedHashMap<K, V> source, @Nullable final RemoveEldestFunction<K, V> removeEldest) {
         final Pair<PersistentHashMap<K, InternalValue<V>>, PersistentLong23TreeMap<K>> sourceRoot = source.root;
         if (sourceRoot == null) {
             root = new Pair<>(
@@ -58,7 +59,7 @@ public class PersistentLinkedHashMap<K, V> {
                     sourceRoot.getFirst().getClone(), sourceRoot.getSecond().getClone());
         }
         orderCounter = source.orderCounter;
-        removeEldest = source.removeEldest;
+        this.removeEldest = removeEldest;
     }
 
     public int size() {
@@ -71,7 +72,11 @@ public class PersistentLinkedHashMap<K, V> {
     }
 
     public PersistentLinkedHashMap<K, V> getClone() {
-        return new PersistentLinkedHashMap<>(this);
+        return new PersistentLinkedHashMap<>(this, removeEldest);
+    }
+
+    public PersistentLinkedHashMap<K, V> getClone(@Nullable final RemoveEldestFunction<K, V> removeEldestFunction) {
+        return new PersistentLinkedHashMap<>(this, removeEldestFunction);
     }
 
     public PersistentLinkedHashMapMutable<K, V> beginWrite() {
@@ -200,6 +205,15 @@ public class PersistentLinkedHashMap<K, V> {
                 @Override
                 public boolean execute(PersistentHashMap.Entry<K, InternalValue<V>> object) {
                     return procedure.execute(object.getKey());
+                }
+            });
+        }
+
+        public void forEachEntry(final PairProcedure<K, V> procedure) {
+            mapMutable.forEachKey(new ObjectProcedure<PersistentHashMap.Entry<K, InternalValue<V>>>() {
+                @Override
+                public boolean execute(PersistentHashMap.Entry<K, InternalValue<V>> object) {
+                    return procedure.execute(object.getKey(), object.getValue().getValue());
                 }
             });
         }

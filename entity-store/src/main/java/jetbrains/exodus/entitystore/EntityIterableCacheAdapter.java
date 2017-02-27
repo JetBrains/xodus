@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
+import jetbrains.exodus.core.dataStructures.persistent.EvictListener;
 import jetbrains.exodus.core.dataStructures.persistent.PersistentObjectCache;
 import jetbrains.exodus.core.execution.SharedTimer;
 import jetbrains.exodus.entitystore.iterate.CachedInstanceIterable;
@@ -24,22 +25,21 @@ import org.jetbrains.annotations.Nullable;
 
 import java.lang.ref.SoftReference;
 
-@SuppressWarnings("unchecked")
-final class EntityIterableCacheAdapter {
+class EntityIterableCacheAdapter {
 
     @NotNull
-    private final PersistentEntityStoreConfig config;
+    protected final PersistentEntityStoreConfig config;
     @NotNull
-    private final NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem> cache;
+    protected final NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem> cache;
 
     EntityIterableCacheAdapter(@NotNull final PersistentEntityStoreConfig config) {
-        this.config = config;
-        cache = new NonAdjustablePersistentObjectCache<>(config.getEntityIterableCacheSize());
+        this(config, new NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem>(config.getEntityIterableCacheSize()));
     }
 
-    private EntityIterableCacheAdapter(@NotNull final EntityIterableCacheAdapter source) {
-        config = source.config;
-        cache = source.cache.getClone();
+    EntityIterableCacheAdapter(@NotNull final PersistentEntityStoreConfig config,
+                               @NotNull final NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem> cache) {
+        this.config = config;
+        this.cache = cache;
     }
 
     @NotNull
@@ -89,8 +89,8 @@ final class EntityIterableCacheAdapter {
         return cache.count() < cache.size() / 2;
     }
 
-    EntityIterableCacheAdapter getClone() {
-        return new EntityIterableCacheAdapter(this);
+    EntityIterableCacheAdapterMutable getClone() {
+        return EntityIterableCacheAdapterMutable.create(this);
     }
 
     void adjustHitRate() {
@@ -107,6 +107,14 @@ final class EntityIterableCacheAdapter {
             if (cached == null) {
                 cache.remove(key);
             }
+        }
+        return cached;
+    }
+
+    static CachedInstanceIterable getCachedValue(@NotNull CacheItem item) {
+        CachedInstanceIterable cached = item.cached;
+        if (cached == null) {
+            cached = item.ref.get();
         }
         return cached;
     }
@@ -130,7 +138,7 @@ final class EntityIterableCacheAdapter {
     NonAdjustablePersistentObjectCache doesn't adjust itself in order to avoid as many cache adjusters
     as many versions of the cache (as a persistent data structure) can be.
      */
-    private static class NonAdjustablePersistentObjectCache<K, V> extends PersistentObjectCache<K, V> {
+    static class NonAdjustablePersistentObjectCache<K, V> extends PersistentObjectCache<K, V> {
 
         private NonAdjustablePersistentObjectCache(final int size) {
             super(size);
@@ -140,9 +148,22 @@ final class EntityIterableCacheAdapter {
             super(source);
         }
 
+        private NonAdjustablePersistentObjectCache(@NotNull final NonAdjustablePersistentObjectCache<K, V> source,
+                                                   @Nullable final EvictListener<K, V> listener) {
+            super(source, listener);
+        }
+
         @Override
         public NonAdjustablePersistentObjectCache<K, V> getClone() {
             return new NonAdjustablePersistentObjectCache<>(this);
+        }
+
+        NonAdjustablePersistentObjectCache<K, V> getClone(final EvictListener<K, V> listener) {
+            return new NonAdjustablePersistentObjectCache<>(this, listener);
+        }
+
+        NonAdjustablePersistentObjectCache<K, V> endWrite() {
+            return new NonAdjustablePersistentObjectCache<>(this, null);
         }
 
         @Nullable
