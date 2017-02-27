@@ -926,6 +926,9 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     abstract static class HandleChecker {
+        int getLinkId() {
+            return -1;
+        }
 
         abstract HandleCheckResult checkHandle(@NotNull final EntityIterableHandle handle,
                                                @NotNull final EntityIterableCacheAdapter mutableCache);
@@ -1045,6 +1048,11 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
 
         @Override
+        int getLinkId() {
+            return linkId;
+        }
+
+        @Override
         public boolean equals(Object obj) {
             if (this == obj) return true;
             if (obj == null || getClass() != obj.getClass()) return false;
@@ -1074,7 +1082,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         @Override
         public HandleCheckResult checkHandle(@NotNull EntityIterableHandle handle, @NotNull EntityIterableCacheAdapter mutableCache) {
-            return handle.hasLinkId(linkId) && handle.isMatchedLinkAdded(sourceId, targetId, linkId) ? HandleCheckResult.REMOVE : HandleCheckResult.KEEP;
+            return handle.isMatchedLinkAdded(sourceId, targetId, linkId) ? HandleCheckResult.REMOVE : HandleCheckResult.KEEP;
         }
     }
 
@@ -1086,7 +1094,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         @Override
         public HandleCheckResult checkHandle(@NotNull EntityIterableHandle handle, @NotNull EntityIterableCacheAdapter mutableCache) {
-            return handle.hasLinkId(linkId) && handle.isMatchedLinkDeleted(sourceId, targetId, linkId) ? HandleCheckResult.REMOVE : HandleCheckResult.KEEP;
+            return handle.isMatchedLinkDeleted(sourceId, targetId, linkId) ? HandleCheckResult.REMOVE : HandleCheckResult.KEEP;
         }
     }
 

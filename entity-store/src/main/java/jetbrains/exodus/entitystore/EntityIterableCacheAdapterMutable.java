@@ -43,13 +43,21 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
 
     void update(@NotNull final PersistentStoreTransaction.HandleChecker checker,
                 @NotNull final List<UpdatableCachedInstanceIterable> mutatedInTxn) {
-        forEachKey(new ObjectProcedure<EntityIterableHandle>() {
+        final ObjectProcedure<EntityIterableHandle> procedure = new ObjectProcedure<EntityIterableHandle>() {
             @Override
             public boolean execute(EntityIterableHandle object) {
                 check(object, checker, mutatedInTxn);
                 return true;
             }
-        });
+        };
+
+        final int linkId = checker.getLinkId();
+
+        if (linkId >= 0) {
+            state.forEachLink(linkId, procedure);
+        } else {
+            forEachKey(procedure);
+        }
     }
 
     @Override
@@ -130,7 +138,17 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
             removeHandle(key);
         }
 
-        private void removeHandle(@NotNull EntityIterableHandle key) {
+        void forEachLink(final int linkId, final ObjectProcedure<EntityIterableHandle> procedure) {
+            final Set<EntityIterableHandle> handles = byLink.get(linkId);
+
+            if (handles != null) {
+                for (EntityIterableHandle handle : handles) {
+                    procedure.execute(handle);
+                }
+            }
+        }
+
+        void removeHandle(@NotNull EntityIterableHandle key) {
             for (int linkId : key.getLinkIds()) {
                 Set<EntityIterableHandle> handles = byLink.get(linkId);
                 if (handles != null) {
@@ -139,18 +157,20 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
             }
         }
 
-        private void addHandle(@NotNull EntityIterableHandle handle) {
+        void addHandle(@NotNull EntityIterableHandle handle) {
             for (int linkId : handle.getLinkIds()) {
-                Set<EntityIterableHandle> handles = byLink.get(linkId);
-                if (handles == null) {
-                    handles = new HashSet<>();
-                    byLink.put(linkId, handles);
+                if (linkId >= 0) {
+                    Set<EntityIterableHandle> handles = byLink.get(linkId);
+                    if (handles == null) {
+                        handles = new HashSet<>();
+                        byLink.put(linkId, handles);
+                    }
+                    handles.add(handle);
                 }
-                handles.add(handle);
             }
         }
 
-        private void clear() {
+        void clear() {
             byLink.clear();
         }
     }
