@@ -15,8 +15,8 @@
  */
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
+import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
 import jetbrains.exodus.core.dataStructures.hash.PairProcedure;
 import jetbrains.exodus.core.dataStructures.persistent.EvictListener;
@@ -28,12 +28,12 @@ import java.util.List;
 import java.util.Set;
 
 final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter {
-    private final State state;
+    private final HandlesDistribution handlesDistribution;
 
-    private EntityIterableCacheAdapterMutable(@NotNull final PersistentEntityStoreConfig config, @NotNull final State state) {
-        super(config, state.cache);
+    private EntityIterableCacheAdapterMutable(@NotNull final PersistentEntityStoreConfig config, @NotNull final HandlesDistribution handlesDistribution) {
+        super(config, handlesDistribution.cache);
 
-        this.state = state;
+        this.handlesDistribution = handlesDistribution;
     }
 
     @NotNull
@@ -54,7 +54,7 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
         final int linkId = checker.getLinkId();
 
         if (linkId >= 0) {
-            state.forEachLink(linkId, procedure);
+            handlesDistribution.forEachLink(linkId, procedure);
         } else {
             forEachKey(procedure);
         }
@@ -64,21 +64,21 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
     void cacheObject(@NotNull EntityIterableHandle key, @NotNull CachedInstanceIterable it) {
         super.cacheObject(key, it);
 
-        state.addHandle(key);
+        handlesDistribution.addHandle(key);
     }
 
     @Override
     void remove(@NotNull EntityIterableHandle key) {
         super.remove(key);
 
-        state.removeHandle(key);
+        handlesDistribution.removeHandle(key);
     }
 
     @Override
     void clear() {
         super.clear();
 
-        state.clear();
+        handlesDistribution.clear();
     }
 
     private void check(@NotNull final EntityIterableHandle handle,
@@ -105,20 +105,20 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
     }
 
     static EntityIterableCacheAdapterMutable create(@NotNull final EntityIterableCacheAdapter source) {
-        State state = new State(source.cache);
-        return new EntityIterableCacheAdapterMutable(source.config, state);
+        HandlesDistribution handlesDistribution = new HandlesDistribution(source.cache);
+        return new EntityIterableCacheAdapterMutable(source.config, handlesDistribution);
     }
 
-    private static class State implements EvictListener<EntityIterableHandle, CacheItem> {
+    private static class HandlesDistribution implements EvictListener<EntityIterableHandle, CacheItem> {
         private final NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem> cache;
 
-        private final HashMap<Integer, Set<EntityIterableHandle>> byLink;
-        // private final HashMap<Integer, ArrayList<EntityIterableHandle>> byType;
+        private final IntHashMap<Set<EntityIterableHandle>> byLink;
+        // private final IntHashMap<Set<EntityIterableHandle>> byType;
 
-        State(@NotNull final NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem> cache) {
+        HandlesDistribution(@NotNull final NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem> cache) {
             this.cache = cache.getClone(this);
-            byLink = new HashMap<>(cache.count());
-            // byType = new HashMap<>(cache.count());
+            byLink = new IntHashMap<>(cache.count());
+            // byType = new IntHashMap<>(cache.count());
 
             cache.forEachEntry(new PairProcedure<EntityIterableHandle, CacheItem>() {
                 @Override
