@@ -938,6 +938,10 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             return -1;
         }
 
+        int getTypeIdAffectingCreation() {
+            return -1;
+        }
+
         abstract HandleCheckResult checkHandle(@NotNull final EntityIterableHandle handle,
                                                @NotNull final EntityIterableCacheAdapter mutableCache);
 
@@ -981,7 +985,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
 
         @Override
-        int getTypeId() {
+        int getTypeIdAffectingCreation() {
             return id.getTypeId();
         }
 
@@ -1005,6 +1009,11 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         private EntityDeletedHandleChecker(@NotNull EntityId id) {
             super(id);
+        }
+
+        @Override
+        int getTypeId() {
+            return id.getTypeId();
         }
 
         @Override

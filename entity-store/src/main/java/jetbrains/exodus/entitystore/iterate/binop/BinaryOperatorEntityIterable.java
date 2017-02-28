@@ -124,6 +124,9 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
             private final int[] propertyIds = mergeFieldIds(iterable1.getHandle().getPropertyIds(), iterable2.getHandle().getPropertyIds());
 
             @NotNull
+            private final int[] typeIdsAffectingCreation = mergeFieldIds(iterable1.getHandle().getTypeIdsAffectingCreation(), iterable2.getHandle().getTypeIdsAffectingCreation());
+
+            @NotNull
             @Override
             public int[] getLinkIds() {
                 return linkIds;
@@ -133,6 +136,12 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
             @NotNull
             public int[] getPropertyIds() {
                 return propertyIds;
+            }
+
+            @NotNull
+            @Override
+            public int[] getTypeIdsAffectingCreation() {
+                return typeIdsAffectingCreation;
             }
 
             @Override

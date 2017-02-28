@@ -55,11 +55,14 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
         final int linkId;
         final int propertyId;
         final int typeId;
+        final int typeIdAffectingCreation;
 
         if ((linkId = checker.getLinkId()) >= 0) {
             handlesDistribution.byLink.forEachHandle(linkId, procedure);
         } else if ((propertyId = checker.getPropertyId()) >= 0) {
             handlesDistribution.byProp.forEachHandle(propertyId, procedure);
+        } else if ((typeIdAffectingCreation = checker.getTypeIdAffectingCreation()) >= 0) {
+            handlesDistribution.byTypeIdAffectingCreation.forEachHandle(typeIdAffectingCreation, procedure);
         } else if ((typeId = checker.getTypeId()) >= 0) {
             handlesDistribution.byTypeId.forEachHandle(typeId, procedure);
             handlesDistribution.byTypeId.forEachHandle(EntityIterableBase.NULL_TYPE_ID, procedure);
@@ -123,6 +126,7 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
         private final FieldIdGroupedHandles byLink;
         private final FieldIdGroupedHandles byProp;
         private final FieldIdGroupedHandles byTypeId;
+        private final FieldIdGroupedHandles byTypeIdAffectingCreation;
 
         HandlesDistribution(@NotNull final NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem> cache) {
             this.cache = cache.getClone(this);
@@ -130,6 +134,7 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
             byLink = new FieldIdGroupedHandles(count / 16);
             byProp = new FieldIdGroupedHandles(count / 16);
             byTypeId = new FieldIdGroupedHandles(count / 16);
+            byTypeIdAffectingCreation = new FieldIdGroupedHandles(count / 16);
 
             cache.forEachEntry(new PairProcedure<EntityIterableHandle, CacheItem>() {
                 @Override
@@ -152,18 +157,21 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
             byLink.remove(handle, handle.getLinkIds());
             byProp.remove(handle, handle.getPropertyIds());
             byTypeId.remove(handle, handle.getEntityTypeId());
+            byTypeIdAffectingCreation.remove(handle, handle.getTypeIdsAffectingCreation());
         }
 
         void addHandle(@NotNull EntityIterableHandle handle) {
             byLink.add(handle, handle.getLinkIds());
             byProp.add(handle, handle.getPropertyIds());
             byTypeId.add(handle, handle.getEntityTypeId());
+            byTypeIdAffectingCreation.add(handle, handle.getTypeIdsAffectingCreation());
         }
 
         void clear() {
             byLink.clear();
             byProp.clear();
             byTypeId.clear();
+            byTypeIdAffectingCreation.clear();
         }
     }
 

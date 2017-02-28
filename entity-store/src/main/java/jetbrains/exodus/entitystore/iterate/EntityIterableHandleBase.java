@@ -146,6 +146,12 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
     }
 
     @Override
+    @NotNull
+    public int[] getTypeIdsAffectingCreation() {
+        return IdFilter.EMPTY_ID_ARRAY;
+    }
+
+    @Override
     public boolean isExpired() {
         return false;
     }
