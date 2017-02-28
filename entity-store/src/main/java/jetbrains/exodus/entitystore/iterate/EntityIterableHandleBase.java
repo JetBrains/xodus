@@ -83,6 +83,7 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
         return store;
     }
 
+    @Override
     public int getEntityTypeId() {
         return NULL_TYPE_ID;
     }

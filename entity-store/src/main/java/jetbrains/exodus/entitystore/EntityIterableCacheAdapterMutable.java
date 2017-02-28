@@ -21,6 +21,7 @@ import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
 import jetbrains.exodus.core.dataStructures.hash.PairProcedure;
 import jetbrains.exodus.core.dataStructures.persistent.EvictListener;
 import jetbrains.exodus.entitystore.iterate.CachedInstanceIterable;
+import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.iterate.UpdatableCachedInstanceIterable;
 import org.jetbrains.annotations.NotNull;
 
@@ -53,11 +54,15 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
 
         final int linkId;
         final int propertyId;
+        final int typeId;
 
         if ((linkId = checker.getLinkId()) >= 0) {
             handlesDistribution.byLink.forEachHandle(linkId, procedure);
         } else if ((propertyId = checker.getPropertyId()) >= 0) {
             handlesDistribution.byProp.forEachHandle(propertyId, procedure);
+        } else if ((typeId = checker.getTypeId()) >= 0) {
+            handlesDistribution.byTypeId.forEachHandle(typeId, procedure);
+            handlesDistribution.byTypeId.forEachHandle(EntityIterableBase.NULL_TYPE_ID, procedure);
         } else {
             forEachKey(procedure);
         }
@@ -117,11 +122,14 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
 
         private final FieldIdGroupedHandles byLink;
         private final FieldIdGroupedHandles byProp;
+        private final FieldIdGroupedHandles byTypeId;
 
         HandlesDistribution(@NotNull final NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem> cache) {
             this.cache = cache.getClone(this);
-            byLink = new FieldIdGroupedHandles(cache.count() / 2);
-            byProp = new FieldIdGroupedHandles(cache.count() / 8);
+            int count = cache.count();
+            byLink = new FieldIdGroupedHandles(count / 16);
+            byProp = new FieldIdGroupedHandles(count / 16);
+            byTypeId = new FieldIdGroupedHandles(count / 16);
 
             cache.forEachEntry(new PairProcedure<EntityIterableHandle, CacheItem>() {
                 @Override
@@ -140,19 +148,22 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
             removeHandle(key);
         }
 
-        void removeHandle(@NotNull EntityIterableHandle key) {
-            byLink.remove(key, key.getLinkIds());
-            byProp.remove(key, key.getPropertyIds());
+        void removeHandle(@NotNull EntityIterableHandle handle) {
+            byLink.remove(handle, handle.getLinkIds());
+            byProp.remove(handle, handle.getPropertyIds());
+            byTypeId.remove(handle, handle.getEntityTypeId());
         }
 
         void addHandle(@NotNull EntityIterableHandle handle) {
             byLink.add(handle, handle.getLinkIds());
             byProp.add(handle, handle.getPropertyIds());
+            byTypeId.add(handle, handle.getEntityTypeId());
         }
 
         void clear() {
             byLink.clear();
             byProp.clear();
+            byTypeId.clear();
         }
     }
 
@@ -162,25 +173,34 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
             super(capacity);
         }
 
+        // it is allowed to add EntityIterableBase.NULL_TYPE_ID
+        void add(@NotNull EntityIterableHandle handle, int fieldId) {
+            Set<EntityIterableHandle> handles = get(fieldId);
+            if (handles == null) {
+                handles = new HashSet<>();
+                put(fieldId, handles);
+            }
+            handles.add(handle);
+        }
+
         void add(@NotNull EntityIterableHandle handle, @NotNull int[] fieldIds) {
             for (int fieldId : fieldIds) {
                 if (fieldId >= 0) {
-                    Set<EntityIterableHandle> handles = get(fieldId);
-                    if (handles == null) {
-                        handles = new HashSet<>();
-                        put(fieldId, handles);
-                    }
-                    handles.add(handle);
+                    add(handle, fieldId);
                 }
+            }
+        }
+
+        void remove(@NotNull EntityIterableHandle handle, int fieldId) {
+            Set<EntityIterableHandle> handles = get(fieldId);
+            if (handles != null) {
+                handles.remove(handle);
             }
         }
 
         void remove(@NotNull EntityIterableHandle handle, @NotNull int[] fieldIds) {
             for (int fieldId : fieldIds) {
-                Set<EntityIterableHandle> handles = get(fieldId);
-                if (handles != null) {
-                    handles.remove(handle);
-                }
+                remove(handle, fieldId);
             }
         }
 

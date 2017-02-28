@@ -934,6 +934,10 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             return -1;
         }
 
+        int getTypeId() {
+            return -1;
+        }
+
         abstract HandleCheckResult checkHandle(@NotNull final EntityIterableHandle handle,
                                                @NotNull final EntityIterableCacheAdapter mutableCache);
 
@@ -977,6 +981,11 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
 
         @Override
+        int getTypeId() {
+            return id.getTypeId();
+        }
+
+        @Override
         public boolean equals(Object obj) {
             if (this == obj) return true;
             if (obj == null || getClass() != obj.getClass()) return false;
@@ -1001,7 +1010,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         public HandleCheckResult checkHandle(@NotNull final EntityIterableHandle handle,
                                              @NotNull final EntityIterableCacheAdapter mutableCache) {
-            final boolean result = handle.hasEntityTypeId(id.getTypeId()) && handle.isMatchedEntityDeleted(id);
+            final boolean result = handle.isMatchedEntityDeleted(id);
             if (result && handle.getType() == EntityIterableType.ALL_ENTITIES) {
                 return HandleCheckResult.UPDATE;
             }
@@ -1024,7 +1033,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         public HandleCheckResult checkHandle(@NotNull final EntityIterableHandle handle,
                                              @NotNull final EntityIterableCacheAdapter mutableCache) {
-            final boolean result = handle.hasEntityTypeId(id.getTypeId()) && handle.isMatchedEntityAdded(id);
+            final boolean result = handle.isMatchedEntityAdded(id);
             if (result && handle.getType() == EntityIterableType.ALL_ENTITIES) {
                 return HandleCheckResult.UPDATE;
             }
@@ -1127,6 +1136,11 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         int getPropertyId() {
             return propertyId;
+        }
+
+        @Override
+        int getTypeId() {
+            return entityTypeId;
         }
 
         @Override
