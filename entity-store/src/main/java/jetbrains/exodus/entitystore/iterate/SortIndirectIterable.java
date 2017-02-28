@@ -137,7 +137,7 @@ public class SortIndirectIterable extends EntityIterableDecoratorBase {
             private final EntityIterableHandleBase sortedLinksHandle = (EntityIterableHandleBase) sortedLinks.getHandle();
 
             @NotNull
-            private final int[] linkIds = mergeLinkIds(new int[]{linkId}, mergeLinkIds(decorated.getLinkIds(), sortedLinksHandle.getLinkIds()));
+            private final int[] linkIds = mergeFieldIds(new int[]{linkId}, mergeFieldIds(decorated.getLinkIds(), sortedLinksHandle.getLinkIds()));
 
             @NotNull
             @Override

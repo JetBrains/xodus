@@ -139,6 +139,12 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
     }
 
     @Override
+    @NotNull
+    public int[] getPropertyIds() {
+        return IdFilter.EMPTY_ID_ARRAY;
+    }
+
+    @Override
     public boolean isExpired() {
         return false;
     }
@@ -164,7 +170,7 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
     }
 
     @NotNull
-    protected static int[] mergeLinkIds(@NotNull final int[] left, @NotNull final int[] right) {
+    protected static int[] mergeFieldIds(@NotNull final int[] left, @NotNull final int[] right) {
         final int l = left.length;
         if (l == 0) return right;
         final int r = right.length;

@@ -42,6 +42,12 @@ public class EntityIterableHandleDecorator extends EntityIterableHandleBase {
     }
 
     @Override
+    @NotNull
+    public int[] getPropertyIds() {
+        return decorated.getPropertyIds();
+    }
+
+    @Override
     public boolean isMatchedEntityAdded(@NotNull final EntityId added) {
         return decorated.isMatchedEntityAdded(added);
     }

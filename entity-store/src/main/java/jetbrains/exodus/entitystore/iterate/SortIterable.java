@@ -139,6 +139,14 @@ public final class SortIterable extends EntityIterableDecoratorBase {
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
         return new EntityIterableHandleDecorator(getStore(), SortIterable.getType(), source.getHandle()) {
+            @NotNull
+            private final int[] propertyIds = mergeFieldIds(new int[]{propertyId}, decorated.getPropertyIds());
+
+            @NotNull
+            @Override
+            public int[] getPropertyIds() {
+                return propertyIds;
+            }
 
             @Override
             public void toString(@NotNull final StringBuilder builder) {

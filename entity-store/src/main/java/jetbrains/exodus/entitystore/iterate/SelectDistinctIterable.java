@@ -69,7 +69,7 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
         return new EntityIterableHandleDecorator(getStore(), SelectDistinctIterable.getType(), source.getHandle()) {
 
             @NotNull
-            private final int[] linkIds = mergeLinkIds(new int[]{linkId}, decorated.getLinkIds());
+            private final int[] linkIds = mergeFieldIds(new int[]{linkId}, decorated.getLinkIds());
 
             @NotNull
             @Override

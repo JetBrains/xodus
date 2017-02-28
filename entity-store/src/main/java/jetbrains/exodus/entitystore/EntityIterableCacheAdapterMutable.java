@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2017 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -51,10 +51,13 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
             }
         };
 
-        final int linkId = checker.getLinkId();
+        final int linkId;
+        final int propertyId;
 
-        if (linkId >= 0) {
-            handlesDistribution.forEachLink(linkId, procedure);
+        if ((linkId = checker.getLinkId()) >= 0) {
+            handlesDistribution.byLink.forEachHandle(linkId, procedure);
+        } else if ((propertyId = checker.getPropertyId()) >= 0) {
+            handlesDistribution.byProp.forEachHandle(propertyId, procedure);
         } else {
             forEachKey(procedure);
         }
@@ -112,13 +115,13 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
     private static class HandlesDistribution implements EvictListener<EntityIterableHandle, CacheItem> {
         private final NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem> cache;
 
-        private final IntHashMap<Set<EntityIterableHandle>> byLink;
-        // private final IntHashMap<Set<EntityIterableHandle>> byType;
+        private final FieldIdGroupedHandles byLink;
+        private final FieldIdGroupedHandles byProp;
 
         HandlesDistribution(@NotNull final NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem> cache) {
             this.cache = cache.getClone(this);
-            byLink = new IntHashMap<>(cache.count());
-            // byType = new IntHashMap<>(cache.count());
+            byLink = new FieldIdGroupedHandles(cache.count() / 2);
+            byProp = new FieldIdGroupedHandles(cache.count() / 8);
 
             cache.forEachEntry(new PairProcedure<EntityIterableHandle, CacheItem>() {
                 @Override
@@ -126,7 +129,6 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
                     CachedInstanceIterable iterable = getCachedValue(value);
                     if (iterable != null) {
                         addHandle(handle);
-                        // handle.getType(); handle.getType().getKind(); iterable.getEntityTypeId();
                     }
                     return true;
                 }
@@ -138,40 +140,58 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
             removeHandle(key);
         }
 
-        void forEachLink(final int linkId, final ObjectProcedure<EntityIterableHandle> procedure) {
-            final Set<EntityIterableHandle> handles = byLink.get(linkId);
-
-            if (handles != null) {
-                for (EntityIterableHandle handle : handles) {
-                    procedure.execute(handle);
-                }
-            }
-        }
-
         void removeHandle(@NotNull EntityIterableHandle key) {
-            for (int linkId : key.getLinkIds()) {
-                Set<EntityIterableHandle> handles = byLink.get(linkId);
-                if (handles != null) {
-                    handles.remove(key);
-                }
-            }
+            byLink.remove(key, key.getLinkIds());
+            byProp.remove(key, key.getPropertyIds());
         }
 
         void addHandle(@NotNull EntityIterableHandle handle) {
-            for (int linkId : handle.getLinkIds()) {
-                if (linkId >= 0) {
-                    Set<EntityIterableHandle> handles = byLink.get(linkId);
+            byLink.add(handle, handle.getLinkIds());
+            byProp.add(handle, handle.getPropertyIds());
+        }
+
+        void clear() {
+            byLink.clear();
+            byProp.clear();
+        }
+    }
+
+    private static class FieldIdGroupedHandles extends IntHashMap<Set<EntityIterableHandle>> {
+
+        FieldIdGroupedHandles(int capacity) {
+            super(capacity);
+        }
+
+        void add(@NotNull EntityIterableHandle handle, @NotNull int[] fieldIds) {
+            for (int fieldId : fieldIds) {
+                if (fieldId >= 0) {
+                    Set<EntityIterableHandle> handles = get(fieldId);
                     if (handles == null) {
                         handles = new HashSet<>();
-                        byLink.put(linkId, handles);
+                        put(fieldId, handles);
                     }
                     handles.add(handle);
                 }
             }
         }
 
-        void clear() {
-            byLink.clear();
+        void remove(@NotNull EntityIterableHandle handle, @NotNull int[] fieldIds) {
+            for (int fieldId : fieldIds) {
+                Set<EntityIterableHandle> handles = get(fieldId);
+                if (handles != null) {
+                    handles.remove(handle);
+                }
+            }
+        }
+
+        void forEachHandle(final int fieldId, final ObjectProcedure<EntityIterableHandle> procedure) {
+            final Set<EntityIterableHandle> handles = get(fieldId);
+
+            if (handles != null) {
+                for (EntityIterableHandle handle : handles) {
+                    procedure.execute(handle);
+                }
+            }
         }
     }
 }

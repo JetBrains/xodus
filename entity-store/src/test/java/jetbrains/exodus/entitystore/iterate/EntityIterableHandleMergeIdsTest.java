@@ -18,13 +18,13 @@ package jetbrains.exodus.entitystore.iterate;
 import junit.framework.TestCase;
 import org.jetbrains.annotations.NotNull;
 
-import static jetbrains.exodus.entitystore.iterate.EntityIterableHandleBase.mergeLinkIds;
+import static jetbrains.exodus.entitystore.iterate.EntityIterableHandleBase.mergeFieldIds;
 import static org.junit.Assert.assertArrayEquals;
 
 public class EntityIterableHandleMergeIdsTest extends TestCase {
 
     public void testEmpty() {
-        assertNotNull(mergeLinkIds(new int[0], new int[0]));
+        assertNotNull(mergeFieldIds(new int[0], new int[0]));
         int[] ids = {1};
         checkArrays(ids, new int[0], ids);
     }
@@ -61,7 +61,7 @@ public class EntityIterableHandleMergeIdsTest extends TestCase {
     }
 
     private static void checkArrays(@NotNull int[] left, @NotNull int[] right, @NotNull int[] expected) {
-        assertArrayEquals(expected, mergeLinkIds(left, right));
-        assertArrayEquals(expected, mergeLinkIds(right, left));
+        assertArrayEquals(expected, mergeFieldIds(left, right));
+        assertArrayEquals(expected, mergeFieldIds(right, left));
     }
 }

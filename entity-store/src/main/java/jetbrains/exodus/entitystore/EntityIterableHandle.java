@@ -39,6 +39,9 @@ public interface EntityIterableHandle {
     @NotNull
     int[] getLinkIds();
 
+    @NotNull
+    int[] getPropertyIds();
+
     boolean hasLinkId(int id);
 
     boolean hasEntityTypeId(int entityTypeId);

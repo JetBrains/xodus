@@ -930,6 +930,10 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             return -1;
         }
 
+        int getPropertyId() {
+            return -1;
+        }
+
         abstract HandleCheckResult checkHandle(@NotNull final EntityIterableHandle handle,
                                                @NotNull final EntityIterableCacheAdapter mutableCache);
 
@@ -1118,6 +1122,11 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             this.propertyId = propertyId;
             this.oldValue = oldValue;
             this.newValue = newValue;
+        }
+
+        @Override
+        int getPropertyId() {
+            return propertyId;
         }
 
         @Override

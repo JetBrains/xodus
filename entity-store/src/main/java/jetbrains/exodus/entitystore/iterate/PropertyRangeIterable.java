@@ -94,6 +94,12 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
         final int propertyId = getPropertyId();
         return new ConstantEntityIterableHandle(getStore(), getType()) {
 
+            @NotNull
+            @Override
+            public int[] getPropertyIds() {
+                return new int[]{propertyId};
+            }
+
             @Override
             public void toString(@NotNull final StringBuilder builder) {
                 super.toString(builder);

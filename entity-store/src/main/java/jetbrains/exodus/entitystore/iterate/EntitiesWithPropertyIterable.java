@@ -76,6 +76,12 @@ public class EntitiesWithPropertyIterable extends EntityIterableBase {
             super(EntitiesWithPropertyIterable.this.getStore(), EntitiesWithPropertyIterable.getType());
         }
 
+        @NotNull
+        @Override
+        public int[] getPropertyIds() {
+            return new int[]{propertyId};
+        }
+
         @Override
         public void toString(@NotNull final StringBuilder builder) {
             super.toString(builder);
