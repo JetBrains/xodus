@@ -36,7 +36,7 @@ public class ModelMetaDataImpl implements ModelMetaData {
 
     public void init() {
         reset();
-        update();
+        prepare();
     }
 
     public void setEntityMetaDatas(@NotNull Set<EntityMetaData> entityMetaDatas) {
@@ -69,7 +69,7 @@ public class ModelMetaDataImpl implements ModelMetaData {
     }
 
     @NotNull
-    Map<String, EntityMetaData> update() {
+    public Map<String, EntityMetaData> prepare() {
         Map<String, EntityMetaData> result = typeToEntityMetaDatas;
         if (result != null) {
             return result;
@@ -165,13 +165,13 @@ public class ModelMetaDataImpl implements ModelMetaData {
     @Override
     @Nullable
     public EntityMetaData getEntityMetaData(@NotNull String entityType) {
-        return update().get(entityType);
+        return prepare().get(entityType);
     }
 
     @Override
     @NotNull
     public Iterable<EntityMetaData> getEntitiesMetaData() {
-        return update().values();
+        return prepare().values();
     }
 
     public boolean hasAssociation(String sourceEntityName, String targetEntityName, String sourceName) {
@@ -222,13 +222,13 @@ public class ModelMetaDataImpl implements ModelMetaData {
         AssociationEndMetaDataImpl sourceEnd = new AssociationEndMetaDataImpl(
             amd, sourceName, target, sourceCardinality, sourceType,
             sourceCascadeDelete, sourceClearOnDelete, sourceTargetCascadeDelete, sourceTargetClearOnDelete);
-        addAssociationEndMetaDataToEntityTypeSubtree(update(), source, sourceEnd);
+        addAssociationEndMetaDataToEntityTypeSubtree(prepare(), source, sourceEnd);
 
         if (type != AssociationType.Directed) {
             AssociationEndMetaDataImpl targetEnd = new AssociationEndMetaDataImpl(
                 amd, targetName, source, targetCardinality, targetType,
                 targetCascadeDelete, targetClearOnDelete, targetTargetCascadeDelete, targetTargetClearOnDelete);
-            addAssociationEndMetaDataToEntityTypeSubtree(update(), target, targetEnd);
+            addAssociationEndMetaDataToEntityTypeSubtree(prepare(), target, targetEnd);
         }
 
         return amd;
@@ -244,7 +244,7 @@ public class ModelMetaDataImpl implements ModelMetaData {
 
     @Override
     public AssociationMetaData removeAssociation(String entityName, String associationName) {
-        final Map<String, EntityMetaData> typeToEntityMetaDatas = update();
+        final Map<String, EntityMetaData> typeToEntityMetaDatas = prepare();
 
         // remove from source
         EntityMetaDataImpl source = (EntityMetaDataImpl) getEntityMetaData(entityName);
