@@ -170,9 +170,13 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
             @Override
             public int getEntityTypeId() {
                 if (entityTypeId == -1) {
-                    final int entityTypeId1 = ((EntityIterableHandleBase) iterable1.getHandle()).getEntityTypeId();
-                    final int entityTypeId2 = ((EntityIterableHandleBase) iterable2.getHandle()).getEntityTypeId();
-                    entityTypeId = entityTypeId1 == entityTypeId2 && entityTypeId1 >= 0 ? entityTypeId1 : NULL_TYPE_ID;
+                    final int entityTypeId1 = iterable1.getHandle().getEntityTypeId();
+                    if (entityTypeId1 < 0) {
+                        entityTypeId = NULL_TYPE_ID;
+                    } else {
+                        final int entityTypeId2 = iterable2.getHandle().getEntityTypeId();
+                        entityTypeId = entityTypeId1 == entityTypeId2 ? entityTypeId1 : NULL_TYPE_ID;
+                    }
                 }
                 return entityTypeId;
             }
@@ -233,8 +237,10 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
                                                     final int propertyId,
                                                     @Nullable final Comparable oldValue,
                                                     @Nullable final Comparable newValue) {
-                return iterable1.getHandle().isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue) ||
-                    iterable2.getHandle().isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue);
+                final int entityTypeId = getEntityTypeId();
+                return (entityTypeId < 0 || entityTypeId == typeId) &&
+                    (iterable1.getHandle().isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue)
+                        || iterable2.getHandle().isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue));
             }
 
             @Override
