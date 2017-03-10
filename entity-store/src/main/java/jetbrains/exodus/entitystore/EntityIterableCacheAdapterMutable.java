@@ -185,7 +185,7 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
         void add(@NotNull EntityIterableHandle handle, int fieldId) {
             Set<EntityIterableHandle> handles = get(fieldId);
             if (handles == null) {
-                handles = new HashSet<>();
+                handles = new HashSet<>(10, 0.6f);
                 put(fieldId, handles);
             }
             handles.add(handle);
