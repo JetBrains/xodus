@@ -24,6 +24,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
 
 import static jetbrains.exodus.entitystore.iterate.EntityIterableBase.NULL_TYPE_ID;
 
@@ -80,7 +81,6 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
         return NULL_TYPE_ID;
     }
 
-    @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
     public boolean equals(Object obj) {
         if (!(obj instanceof EntityIterableHandle)) {
             return false;
@@ -279,22 +279,11 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
             return hashCode;
         }
 
+        @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
         @Override
         public boolean equals(Object obj) {
-            if (!(obj instanceof EntityIterableHandleHash)) {
-                return false;
-            }
             final EntityIterableHandleHash rightHash = (EntityIterableHandleHash) obj;
-            if (hashCode != rightHash.hashCode) {
-                return false;
-            }
-            final long[] rightHashLongs = rightHash.hashLongs;
-            for (int i = 0; i < hashLongs.length; ++i) {
-                if (hashLongs[i] != rightHashLongs[i]) {
-                    return false;
-                }
-            }
-            return true;
+            return hashCode == rightHash.hashCode && Arrays.equals(hashLongs, rightHash.hashLongs);
         }
 
         public void apply(final byte b) {
