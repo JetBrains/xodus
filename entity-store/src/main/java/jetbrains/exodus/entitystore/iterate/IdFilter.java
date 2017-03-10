@@ -37,19 +37,6 @@ final class TrivialNegativeIdFilter implements IdFilter {
     }
 }
 
-final class TrivialPositiveIdFilter implements IdFilter {
-
-    static final IdFilter INSTANCE = new TrivialPositiveIdFilter();
-
-    private TrivialPositiveIdFilter() {
-    }
-
-    @Override
-    public boolean hasId(final int id) {
-        return true;
-    }
-}
-
 abstract class InitialIdFilter implements IdFilter {
 
     @Override

@@ -40,8 +40,6 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
     private EntityIterableHandleHash hash;
     @NotNull
     private IdFilter linksFilter;
-    @NotNull
-    private IdFilter entityTypeIdFilter;
 
     protected EntityIterableHandleBase(@Nullable final PersistentEntityStore store,
                                        @NotNull final EntityIterableType type) {
@@ -59,7 +57,6 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
                 linksFilter = filter;
             }
         };
-        entityTypeIdFilter = TrivialPositiveIdFilter.INSTANCE;
     }
 
     @Override
@@ -71,11 +68,6 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
     @Override
     public final boolean hasLinkId(int id) {
         return linksFilter.hasId(id);
-    }
-
-    @Override
-    public final boolean hasEntityTypeId(int entityTypeId) {
-        return entityTypeIdFilter.hasId(entityTypeId);
     }
 
     @Nullable
@@ -171,10 +163,6 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
     }
 
     public abstract void hashCode(@NotNull final EntityIterableHandleHash hash);
-
-    void setEntityTypeIdFilter(@NotNull final IdFilter entityTypeIdFilter) {
-        this.entityTypeIdFilter = entityTypeIdFilter;
-    }
 
     @NotNull
     protected static int[] mergeFieldIds(@NotNull final int[] left, @NotNull final int[] right) {

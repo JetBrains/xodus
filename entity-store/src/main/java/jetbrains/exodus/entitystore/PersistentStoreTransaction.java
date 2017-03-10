@@ -1154,7 +1154,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         @Override
         public HandleCheckResult checkHandle(@NotNull EntityIterableHandle handle, @NotNull EntityIterableCacheAdapter mutableCache) {
-            if (handle.hasEntityTypeId(entityTypeId) && handle.isMatchedPropertyChanged(entityTypeId, propertyId, oldValue, newValue)) {
+            if (handle.isMatchedPropertyChanged(entityTypeId, propertyId, oldValue, newValue)) {
                 final EntityIterableType handleType = handle.getType();
                 if (handleType == EntityIterableType.ENTITIES_WITH_PROPERTY_SORTED_BY_VALUE) {
                     return HandleCheckResult.UPDATE;
