@@ -25,15 +25,16 @@ import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.iterate.UpdatableCachedInstanceIterable;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter {
+
     private final HandlesDistribution handlesDistribution;
 
     private EntityIterableCacheAdapterMutable(@NotNull final PersistentEntityStoreConfig config, @NotNull final HandlesDistribution handlesDistribution) {
         super(config, handlesDistribution.cache);
-
         this.handlesDistribution = handlesDistribution;
     }
 
@@ -74,21 +75,18 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
     @Override
     void cacheObject(@NotNull EntityIterableHandle key, @NotNull CachedInstanceIterable it) {
         super.cacheObject(key, it);
-
         handlesDistribution.addHandle(key);
     }
 
     @Override
     void remove(@NotNull EntityIterableHandle key) {
         super.remove(key);
-
         handlesDistribution.removeHandle(key);
     }
 
     @Override
     void clear() {
         super.clear();
-
         handlesDistribution.clear();
     }
 
@@ -106,8 +104,8 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
                 if (it != null) {
                     if (!it.isMutated()) {
                         it = it.beginUpdate();
-                        // cache new mutated iterable instance
-                        cacheObject(handle, it);
+                        // cache new mutated iterable instance not affecting HandlesDistribution
+                        super.cacheObject(handle, it);
                         mutatedInTxn.add(it);
                     }
                     checker.update(handle, it);
@@ -121,8 +119,9 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
     }
 
     private static class HandlesDistribution implements EvictListener<EntityIterableHandle, CacheItem> {
-        private final NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem> cache;
 
+        private final NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem> cache;
+        private final Set<EntityIterableHandle> removed;
         private final FieldIdGroupedHandles byLink;
         private final FieldIdGroupedHandles byProp;
         private final FieldIdGroupedHandles byTypeId;
@@ -131,10 +130,11 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
         HandlesDistribution(@NotNull final NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem> cache) {
             this.cache = cache.getClone(this);
             int count = cache.count();
-            byLink = new FieldIdGroupedHandles(count / 16);
-            byProp = new FieldIdGroupedHandles(count / 16);
-            byTypeId = new FieldIdGroupedHandles(count / 16);
-            byTypeIdAffectingCreation = new FieldIdGroupedHandles(count / 16);
+            removed = new HashSet<>();
+            byLink = new FieldIdGroupedHandles(count / 16, removed);
+            byProp = new FieldIdGroupedHandles(count / 16, removed);
+            byTypeId = new FieldIdGroupedHandles(count / 16, removed);
+            byTypeIdAffectingCreation = new FieldIdGroupedHandles(count / 16, removed);
 
             cache.forEachEntry(new PairProcedure<EntityIterableHandle, CacheItem>() {
                 @Override
@@ -149,18 +149,15 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
         }
 
         @Override
-        public void onEvict(EntityIterableHandle key, CacheItem value) {
+        public void onEvict(@NotNull final EntityIterableHandle key, CacheItem value) {
             removeHandle(key);
         }
 
-        void removeHandle(@NotNull EntityIterableHandle handle) {
-            byLink.remove(handle, handle.getLinkIds());
-            byProp.remove(handle, handle.getPropertyIds());
-            byTypeId.remove(handle, handle.getEntityTypeId());
-            byTypeIdAffectingCreation.remove(handle, handle.getTypeIdsAffectingCreation());
+        void removeHandle(@NotNull final EntityIterableHandle handle) {
+            removed.add(handle);
         }
 
-        void addHandle(@NotNull EntityIterableHandle handle) {
+        void addHandle(@NotNull final EntityIterableHandle handle) {
             byLink.add(handle, handle.getLinkIds());
             byProp.add(handle, handle.getPropertyIds());
             byTypeId.add(handle, handle.getEntityTypeId());
@@ -175,23 +172,26 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
         }
     }
 
-    private static class FieldIdGroupedHandles extends IntHashMap<Set<EntityIterableHandle>> {
+    private static class FieldIdGroupedHandles extends IntHashMap<List<EntityIterableHandle>> {
 
-        FieldIdGroupedHandles(int capacity) {
+        private final Set<EntityIterableHandle> removed;
+
+        FieldIdGroupedHandles(int capacity, @NotNull final Set<EntityIterableHandle> removed) {
             super(capacity);
+            this.removed = removed;
         }
 
         // it is allowed to add EntityIterableBase.NULL_TYPE_ID
-        void add(@NotNull EntityIterableHandle handle, int fieldId) {
-            Set<EntityIterableHandle> handles = get(fieldId);
+        void add(@NotNull final EntityIterableHandle handle, int fieldId) {
+            List<EntityIterableHandle> handles = get(fieldId);
             if (handles == null) {
-                handles = new HashSet<>(10, 0.6f);
+                handles = new ArrayList<>(4);
                 put(fieldId, handles);
             }
             handles.add(handle);
         }
 
-        void add(@NotNull EntityIterableHandle handle, @NotNull int[] fieldIds) {
+        void add(@NotNull final EntityIterableHandle handle, @NotNull int[] fieldIds) {
             for (int fieldId : fieldIds) {
                 if (fieldId >= 0) {
                     add(handle, fieldId);
@@ -199,25 +199,13 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
             }
         }
 
-        void remove(@NotNull EntityIterableHandle handle, int fieldId) {
-            Set<EntityIterableHandle> handles = get(fieldId);
-            if (handles != null) {
-                handles.remove(handle);
-            }
-        }
-
-        void remove(@NotNull EntityIterableHandle handle, @NotNull int[] fieldIds) {
-            for (int fieldId : fieldIds) {
-                remove(handle, fieldId);
-            }
-        }
-
         void forEachHandle(final int fieldId, final ObjectProcedure<EntityIterableHandle> procedure) {
-            final Set<EntityIterableHandle> handles = get(fieldId);
-
+            final List<EntityIterableHandle> handles = get(fieldId);
             if (handles != null) {
-                for (EntityIterableHandle handle : handles) {
-                    procedure.execute(handle);
+                for (final EntityIterableHandle handle : handles) {
+                    if (!removed.contains(handle)) {
+                        procedure.execute(handle);
+                    }
                 }
             }
         }
