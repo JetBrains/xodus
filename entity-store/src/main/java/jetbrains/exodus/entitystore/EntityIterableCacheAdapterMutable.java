@@ -165,6 +165,7 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
         }
 
         void clear() {
+            removed.clear();
             byLink.clear();
             byProp.clear();
             byTypeId.clear();
