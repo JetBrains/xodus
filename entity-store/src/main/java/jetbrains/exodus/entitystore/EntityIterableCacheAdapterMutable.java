@@ -203,9 +203,15 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
         void forEachHandle(final int fieldId, final ObjectProcedure<EntityIterableHandle> procedure) {
             final List<EntityIterableHandle> handles = get(fieldId);
             if (handles != null) {
-                for (final EntityIterableHandle handle : handles) {
-                    if (!removed.contains(handle)) {
+                if (removed.isEmpty()) {
+                    for (final EntityIterableHandle handle : handles) {
                         procedure.execute(handle);
+                    }
+                } else {
+                    for (final EntityIterableHandle handle : handles) {
+                        if (!removed.contains(handle)) {
+                            procedure.execute(handle);
+                        }
                     }
                 }
             }
