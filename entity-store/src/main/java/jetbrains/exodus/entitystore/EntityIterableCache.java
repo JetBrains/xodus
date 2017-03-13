@@ -232,12 +232,14 @@ public final class EntityIterableCache {
                             it.getOrCreateCachedInstance(txn);
                             final long cachedIn = System.currentTimeMillis() - started;
                             if (cachedIn > 1000) {
-                                logger.info("Cached in " + cachedIn + " ms, handle=" + getStringPresentation(handle));
+                                String action = cancellingPolicy.cachingRoughCount ? "Cached for rough count" : "Cached";
+                                logger.info(action + " in " + cachedIn + " ms, handle=" + getStringPresentation(handle));
                             }
                         }
                     } catch (TooLongEntityIterableInstantiationException e) {
                         if (logger.isInfoEnabled()) {
-                            logger.info("Caching forcedly stopped, " + e.reason.message + ": " + getStringPresentation(handle));
+                            String action = cancellingPolicy.cachingRoughCount ? "Caching for rough count" : "Caching";
+                            logger.info(action + " forcedly stopped, " + e.reason.message + ": " + getStringPresentation(handle));
                         }
                     }
                 }
