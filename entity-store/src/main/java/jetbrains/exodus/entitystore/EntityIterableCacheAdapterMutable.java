@@ -130,7 +130,9 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
         HandlesDistribution(@NotNull final NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem> cache) {
             this.cache = cache.getClone(this);
             int count = cache.count();
-            removed = new HashSet<>();
+            // this set is intentionally created quite disperse in order to reduce number of calls
+            // to EntityIterableHandle.equals() during iteration of handle clusters
+            removed = new HashSet<>(10, .33f);
             byLink = new FieldIdGroupedHandles(count / 16, removed);
             byProp = new FieldIdGroupedHandles(count / 16, removed);
             byTypeId = new FieldIdGroupedHandles(count / 16, removed);
