@@ -568,4 +568,16 @@ public class FindTests extends EntityStoreTestBase {
         final PersistentStoreTransaction txn = getStoreTransaction();
         Assert.assertTrue(txn.findWithPropSortedByValue("Issue", "commenters").iterator().hasNext());
     }
+
+    @TestFor(issues = "XD-577")
+    public void testTT() throws InterruptedException {
+        final StoreTransaction txn = getStoreTransaction();
+        final Entity issue = txn.newEntity("Issue");
+        issue.setProperty("summary", "summary");
+        Assert.assertEquals(1L, txn.findStartingWith("Issue", "summary", "summary").size());
+        issue.setProperty("summary", "no summary");
+        Assert.assertEquals(0L, txn.findStartingWith("Issue", "summary", "summary").size());
+        issue.setProperty("summary", "summary");
+        Assert.assertEquals(1L, txn.findStartingWith("Issue", "summary", "summary").size());
+    }
 }
