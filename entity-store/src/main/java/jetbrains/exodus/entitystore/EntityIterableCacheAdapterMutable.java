@@ -160,7 +160,9 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
         }
 
         void addHandle(@NotNull final EntityIterableHandle handle) {
-            removed.remove(handle);
+            if (!removed.isEmpty()) {
+                removed.remove(handle);
+            }
             byLink.add(handle, handle.getLinkIds());
             byProp.add(handle, handle.getPropertyIds());
             byTypeId.add(handle, handle.getEntityTypeId());
