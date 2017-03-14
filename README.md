@@ -1,4 +1,4 @@
-#JetBrains Xodus
+# JetBrains Xodus
 
 [![TeamCity (build status)](https://img.shields.io/teamcity/http/teamcity.jetbrains.com/s/Xodus_Build.svg)](http://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build&guest=1)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.jetbrains.xodus/xodus-openAPI/badge.svg)](http://search.maven.org/#search%7Cga%7C1%7Corg.jetbrains.xodus)
@@ -19,7 +19,7 @@ true [snapshot isolation](https://en.wikipedia.org/wiki/Snapshot_isolation).
 - Xodus is written in pure Java and [Kotlin](https://kotlinlang.org).
 - Xodus is free and licensed under [Apache 2.0](http://www.apache.org/licenses/LICENSE-2.0.html).
 
-##Hello Worlds!
+## Hello Worlds!
 
 To start using Xodus, define dependencies:
 ```xml
@@ -40,7 +40,7 @@ Read more about [managing dependencies](https://github.com/JetBrains/xodus/wiki/
 
 There are three different ways to deal with data, which results in three different API layers: [Environments](https://github.com/JetBrains/xodus/wiki/Environments), [Entity Stores](https://github.com/JetBrains/xodus/wiki/Entity-Stores) and [Virtual File Systems](https://github.com/JetBrains/xodus/wiki/Virtual-File-Systems).
  
-###Environments
+### Environments
 ```java
 final Environment env = Environments.newInstance("/home/me/.myAppData");
 env.executeInTransaction(new TransactionalExecutable() {
@@ -52,7 +52,7 @@ env.executeInTransaction(new TransactionalExecutable() {
 });
 env.close();
 ```
-###Entity Stores
+### Entity Stores
 ```java
 final PersistentEntityStore entityStore = PersistentEntityStores.newInstance("/home/me/.myAppData");
 entityStore.executeInTransaction(new StoreTransactionalExecutable() {
@@ -64,7 +64,7 @@ entityStore.executeInTransaction(new StoreTransactionalExecutable() {
 });
 entityStore.close();
 ```
-###Virtual File Systems
+### Virtual File Systems
 ```java
 final Environment env = Environments.newInstance("/home/me/.myAppData");
 final VirtualFileSystem vfs = new VirtualFileSystem(env);
@@ -82,7 +82,7 @@ vfs.shutdown();
 env.close(); 
 ```
 
-##Building from Source
+## Building from Source
 [Gradle](http://www.gradle.org) is used to build, test, and publish. JDK 1.8 is required. To build the project, run:
 
     ./gradlew build
@@ -91,7 +91,7 @@ To assemble JARs and skip running tests, run:
 
     ./gradlew assemble
 
-##Find out More
+## Find out More
 - [Xodus wiki](https://github.com/JetBrains/xodus/wiki)
 - [Report an issue](http://xodus.myjetbrains.com/youtrack)
 - [Check out the latest builds](https://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build)
