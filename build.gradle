@@ -26,6 +26,10 @@ static def shouldDeploy(project) {
     return project.version.length() > 0 && !(project.name in ['benchmarks', 'samples'])
 }
 
+task wrapper(type: Wrapper) {
+    gradleVersion = '3.3'
+}
+
 defaultTasks 'assemble'
 
 subprojects {
