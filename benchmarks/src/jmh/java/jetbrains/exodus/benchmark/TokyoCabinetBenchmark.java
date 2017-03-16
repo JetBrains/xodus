@@ -69,7 +69,21 @@ public class TokyoCabinetBenchmark {
         return result;
     }
 
-    public static <T extends Comparable<T>> void shuffleKeys(final T[] keys) {
+    public static byte[][] getSuccessiveByteArrays(final int count) {
+        final byte[][] result = new byte[count][];
+        for (int i = 0; i < count; i++) {
+            result[i] = StringBinding.stringToEntry(FORMAT.format(i)).getBytesUnsafe();
+        }
+        return result;
+    }
+
+    public static byte[][] getRandomByteArrays(final int count) {
+        final byte[][] result = getSuccessiveByteArrays(count);
+        shuffleKeys(result);
+        return result;
+    }
+
+    public static <T> void shuffleKeys(final T[] keys) {
         Collections.shuffle(Arrays.asList(keys));
     }
 }
