@@ -24,9 +24,9 @@ abstract class JMH_LMDBTokyoCabinetBenchmarkBase {
         temporaryFolder = new TemporaryFolder();
         temporaryFolder.create();
         final File testsDirectory = temporaryFolder.newFolder("data");
-        env = new Env(testsDirectory.getPath());
+        env = new Env();
+        env.open(testsDirectory.getPath(), Constants.NOSYNC | Constants.WRITEMAP);
         env.setMapSize(MAP_SIZE);
-        env.addFlags(Constants.NOSYNC);
         db = env.openDatabase();
     }
 
