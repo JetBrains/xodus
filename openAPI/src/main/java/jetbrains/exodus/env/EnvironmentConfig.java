@@ -305,9 +305,10 @@ public final class EnvironmentConfig extends AbstractConfig {
     public static final String TREE_MAX_PAGE_SIZE = "exodus.tree.maxPageSize";
 
     /**
-     * Defines the "tree-nodes" cache size. Default value is {@code 4096}.
-     * <p>Mutable at runtime: yes
+     * As of 1.1.0, is deprecated and has no effect.
+     * <p>Mutable at runtime: no
      */
+    @Deprecated
     public static final String TREE_NODES_CACHE_SIZE = "exodus.tree.nodesCacheSize";
 
     /**
@@ -481,7 +482,6 @@ public final class EnvironmentConfig extends AbstractConfig {
             new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
             new Pair(ENV_GATHER_STATISTICS, true),
             new Pair(TREE_MAX_PAGE_SIZE, 128),
-            new Pair(TREE_NODES_CACHE_SIZE, 4096),
             new Pair(GC_ENABLED, true),
             new Pair(GC_START_IN, 10000),
             new Pair(GC_MIN_UTILIZATION, 50),
@@ -1232,24 +1232,25 @@ public final class EnvironmentConfig extends AbstractConfig {
     }
 
     /**
-     * Returns the "tree-nodes" cache size. Default value is {@code 4096}.
-     * <p>Mutable at runtime: yes
+     * As of 1.1.0, is deprecated and has no effect.
+     * <p>Mutable at runtime: no
      *
-     * @return size of the "tree-nodes" cache
+     * @return {@code 0}
      */
+    @Deprecated
     public int getTreeNodesCacheSize() {
-        return (Integer) getSetting(TREE_NODES_CACHE_SIZE);
+        return 0;
     }
 
     /**
-     * Sets the "tree-nodes" cache size. Default value is {@code 4096}.
-     * <p>Mutable at runtime: yes
+     * As of 1.1.0, is deprecated and has no effect.
+     * <p>Mutable at runtime: no
      *
-     * @param cacheSize size of the "tree-nodes" cache
      * @return this {@code EnvironmentConfig} instance
      */
+    @Deprecated
     public EnvironmentConfig setTreeNodesCacheSize(final int cacheSize) {
-        return setSetting(TREE_NODES_CACHE_SIZE, cacheSize);
+        return this;
     }
 
     /**
@@ -1371,7 +1372,6 @@ public final class EnvironmentConfig extends AbstractConfig {
      * As of 1.0.2, is deprecated and has no effect.
      * <p>Mutable at runtime: no
      *
-     * @param useExpirationChecker {@code true} or {@code false}
      * @return this {@code EnvironmentConfig} instance
      */
     @Deprecated

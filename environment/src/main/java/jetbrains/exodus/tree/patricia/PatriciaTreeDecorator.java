@@ -16,12 +16,10 @@
 package jetbrains.exodus.tree.patricia;
 
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.tree.INode;
 import jetbrains.exodus.tree.ITree;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.io.PrintStream;
 
@@ -63,11 +61,6 @@ abstract class PatriciaTreeDecorator implements ITree {
     @Override
     public long getSize() {
         return treeNoDuplicates.getSize();
-    }
-
-    @Override
-    public void setTreeNodesCache(@Nullable final LongObjectCacheBase cache) {
-        treeNoDuplicates.setTreeNodesCache(cache);
     }
 
     @Override

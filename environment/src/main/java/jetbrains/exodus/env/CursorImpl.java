@@ -17,7 +17,6 @@ package jetbrains.exodus.env;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.ITreeCursor;
 import org.jetbrains.annotations.NotNull;
 
@@ -100,28 +99,24 @@ final class CursorImpl implements Cursor {
     @Override
     public ByteIterable getSearchKey(@NotNull final ByteIterable key) {
         checkTreeCursor();
-        setTreeNodesCache();
         return treeCursor.getSearchKey(key);
     }
 
     @Override
     public ByteIterable getSearchKeyRange(@NotNull final ByteIterable key) {
         checkTreeCursor();
-        setTreeNodesCache();
         return treeCursor.getSearchKeyRange(key);
     }
 
     @Override
     public boolean getSearchBoth(@NotNull final ByteIterable key, @NotNull final ByteIterable value) {
         checkTreeCursor();
-        setTreeNodesCache();
         return treeCursor.getSearchBoth(key, value);
     }
 
     @Override
     public ByteIterable getSearchBothRange(@NotNull final ByteIterable key, @NotNull final ByteIterable value) {
         checkTreeCursor();
-        setTreeNodesCache();
         return treeCursor.getSearchBothRange(key, value);
     }
 
@@ -166,13 +161,6 @@ final class CursorImpl implements Cursor {
     private void checkTreeCursor() {
         if (treeCursor == null) {
             treeCursor = txn.getTree(store).openCursor();
-        }
-    }
-
-    private void setTreeNodesCache() {
-        final ITree tree = treeCursor.getTree();
-        if (tree != null) {
-            tree.setTreeNodesCache(store.getEnvironment().getTreeNodesCache());
         }
     }
 }

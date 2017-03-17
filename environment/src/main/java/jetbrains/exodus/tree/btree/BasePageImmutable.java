@@ -18,10 +18,8 @@ package jetbrains.exodus.tree.btree;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.log.*;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 abstract class BasePageImmutable extends BasePage {
 
@@ -108,7 +106,7 @@ abstract class BasePageImmutable extends BasePage {
     @Override
     @NotNull
     public BaseLeafNode getKey(final int index) {
-        return getTree().loadLeaf(getKeyAddress(index), getTreeNodesCache());
+        return getTree().loadLeaf(getKeyAddress(index));
     }
 
     @Override
@@ -126,24 +124,18 @@ abstract class BasePageImmutable extends BasePage {
         if (dataAddress == Loggable.NULL_ADDRESS) {
             return SearchRes.NOT_FOUND;
         }
-        final LongObjectCacheBase treeNodesCache = getTreeNodesCache();
         final SearchRes result = new SearchRes();
         result.index = (short) ByteIterableWithAddress.binarySearch(
                 new IByteIterableComparator() {
                     @Override
                     public int compare(final long leftAddress, @NotNull final ByteIterable right) {
-                        return (result.key = getTree().loadLeaf(leftAddress, treeNodesCache)).compareKeyTo(right);
+                        return (result.key = getTree().loadLeaf(leftAddress)).compareKeyTo(right);
                     }
                 }, key, low, size - 1, keyAddressLen, getTree().log, dataAddress);
         if (result.index < 0) {
             result.key = null;
         }
         return result;
-    }
-
-    @Nullable
-    protected LongObjectCacheBase getTreeNodesCache() {
-        return null;
     }
 
     static void doReclaim(BTreeReclaimTraverser context) {

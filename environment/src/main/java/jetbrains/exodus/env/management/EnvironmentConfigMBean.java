@@ -89,10 +89,6 @@ public interface EnvironmentConfigMBean {
 
     int getTreeMaxPageSize();
 
-    int getTreeNodesCacheSize();
-
-    void setTreeNodesCacheSize(int cacheSize);
-
     boolean isGcEnabled();
 
     void setGcEnabled(boolean enabled);

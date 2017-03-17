@@ -209,16 +209,6 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
-    public int getTreeNodesCacheSize() {
-        return config.getTreeNodesCacheSize();
-    }
-
-    @Override
-    public void setTreeNodesCacheSize(int cacheSize) {
-        config.setTreeNodesCacheSize(cacheSize);
-    }
-
-    @Override
     public boolean isGcEnabled() {
         return config.isGcEnabled();
     }

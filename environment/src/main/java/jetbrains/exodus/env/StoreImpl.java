@@ -70,7 +70,6 @@ public class StoreImpl implements Store {
             if (result != null) {
                 return result == NULL_CACHED_VALUE ? null : result;
             }
-            tree.setTreeNodesCache(environment.getTreeNodesCache());
             result = tree.get(key);
             storeGetCache.cacheObject(treeRootAddress, key, result == null ? NULL_CACHED_VALUE : new ArrayByteIterable(result));
             return result;

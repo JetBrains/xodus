@@ -129,11 +129,6 @@ public class EnvironmentStatistics extends MBeanBase implements EnvironmentStati
     }
 
     @Override
-    public String getTreeNodesCacheHitRate() {
-        return ObjectCacheBase.formatHitRate((float) getMean(TREE_NODES_CACHE_HIT_RATE));
-    }
-
-    @Override
     public String getStuckTransactionMonitorMessage() {
         return env.getStuckTransactionMonitorMessage();
     }

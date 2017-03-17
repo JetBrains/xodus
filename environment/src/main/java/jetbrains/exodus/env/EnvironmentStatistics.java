@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.env;
 
-import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.log.ReadBytesListener;
 import jetbrains.exodus.management.Statistics;
 import jetbrains.exodus.management.StatisticsItem;
@@ -38,8 +37,7 @@ public class EnvironmentStatistics extends Statistics<EnvironmentStatistics.Type
         DISK_USAGE("Disk usage"),
         UTILIZATION_PERCENT("Utilization percent"),
         LOG_CACHE_HIT_RATE("Log cache hit rate"),
-        STORE_GET_CACHE_HIT_RATE("StoreGet cache hit rate"),
-        TREE_NODES_CACHE_HIT_RATE("Tree nodes cache hit rate");
+        STORE_GET_CACHE_HIT_RATE("StoreGet cache hit rate");
 
         public final String id;
 
@@ -101,8 +99,6 @@ public class EnvironmentStatistics extends Statistics<EnvironmentStatistics.Type
                 return new LogCacheHitRateStatisticsItem(this);
             case STORE_GET_CACHE_HIT_RATE:
                 return new StoreGetCacheHitRateStatisticsItem(this);
-            case TREE_NODES_CACHE_HIT_RATE:
-                return new TreeNodesCacheHitRateStatisticsItem(this);
 
             default:
                 return super.createNewBuiltInItem(key);
@@ -188,23 +184,6 @@ public class EnvironmentStatistics extends Statistics<EnvironmentStatistics.Type
             }
             @Nullable final StoreGetCache storeGetCache = statistics.env.getStoreGetCache();
             return storeGetCache == null ? 0 : storeGetCache.hitRate();
-        }
-    }
-
-    private static class TreeNodesCacheHitRateStatisticsItem extends StatisticsItem {
-
-        TreeNodesCacheHitRateStatisticsItem(@NotNull final EnvironmentStatistics statistics) {
-            super(statistics);
-        }
-
-        @Override
-        public double getMean() {
-            final EnvironmentStatistics statistics = (EnvironmentStatistics) getStatistics();
-            if (statistics == null) {
-                return 0;
-            }
-            final @Nullable LongObjectCacheBase treeNodesCache = statistics.env.getTreeNodesCache();
-            return treeNodesCache == null ? 0 : treeNodesCache.hitRate();
         }
     }
 }

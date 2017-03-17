@@ -17,7 +17,6 @@ package jetbrains.exodus.tree.patricia;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
-import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import jetbrains.exodus.tree.INode;
@@ -48,8 +47,6 @@ public abstract class PatriciaTreeBase implements ITree {
     protected final Log log;
     protected final int structureId;
     protected long size;
-    @Nullable
-    protected LongObjectCacheBase treeNodesCache;
 
     protected PatriciaTreeBase(@NotNull final Log log, final int structureId) {
         this.log = log;
@@ -113,11 +110,6 @@ public abstract class PatriciaTreeBase implements ITree {
         return new AddressIterator(new PatriciaTraverser(this, getRoot()));
     }
 
-    @Override
-    public void setTreeNodesCache(@Nullable final LongObjectCacheBase treeNodesCache) {
-        this.treeNodesCache = treeNodesCache;
-    }
-
     @NotNull
     final RandomAccessLoggable getLoggable(final long address) {
         return log.read(address);
@@ -125,18 +117,7 @@ public abstract class PatriciaTreeBase implements ITree {
 
     @NotNull
     final ImmutableNode loadNode(final long address) {
-        final LongObjectCacheBase treeNodesCache = this.treeNodesCache;
-        if (treeNodesCache == null) {
-            return loadNonCachedNode(address);
-        }
-        final Object node = treeNodesCache.tryKey(address);
-        if (node != null) {
-            return (ImmutableNode) node;
-        }
-        final ImmutableNode result = loadNonCachedNode(address);
-        //noinspection unchecked
-        treeNodesCache.cacheObject(address, result);
-        return result;
+        return loadNonCachedNode(address);
     }
 
     final ImmutableNode loadNonCachedNode(final long address) {

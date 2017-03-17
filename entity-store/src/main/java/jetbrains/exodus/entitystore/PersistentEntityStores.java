@@ -73,9 +73,6 @@ public final class PersistentEntityStores {
         if (ec.getEnvStoreGetCacheSize() == EnvironmentConfig.DEFAULT.getEnvStoreGetCacheSize()) {
             ec.setEnvStoreGetCacheSize(STORE_GET_CACHE_SIZE);
         }
-        if (ec.getTreeNodesCacheSize() == EnvironmentConfig.DEFAULT.getTreeNodesCacheSize()) {
-            ec.setTreeNodesCacheSize(TREE_NODES_CACHE_SIZE);
-        }
         return ec.setEnvReadonlyEmptyStores(true);
     }
 }

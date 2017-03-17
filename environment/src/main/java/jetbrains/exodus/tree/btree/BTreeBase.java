@@ -104,13 +104,8 @@ public abstract class BTreeBase implements ITree {
     @Override
     public ITreeCursor openCursor() {
         return allowsDuplicates ?
-                new BTreeCursorDup(new BTreeTraverserDup(getRoot())) :
-                new TreeCursor(new BTreeTraverser(getRoot()));
-    }
-
-    @Override
-    public void setTreeNodesCache(@Nullable final LongObjectCacheBase cache) {
-        // by default do nothing
+            new BTreeCursorDup(new BTreeTraverserDup(getRoot())) :
+            new TreeCursor(new BTreeTraverser(getRoot()));
     }
 
     protected final RandomAccessLoggable getLoggable(long address) {
@@ -157,21 +152,6 @@ public abstract class BTreeBase implements ITree {
             default:
                 throw new IllegalArgumentException("Unknown loggable type [" + type + ']');
         }
-        return result;
-    }
-
-    @NotNull
-    protected LeafNode loadLeaf(final long address, @Nullable final LongObjectCacheBase treeNodesCache) {
-        if (treeNodesCache == null) {
-            return loadLeaf(address);
-        }
-        final Object node = treeNodesCache.tryKey(address);
-        if (node != null) {
-            return (LeafNode) node;
-        }
-        final LeafNode result = loadLeaf(address);
-        //noinspection unchecked
-        treeNodesCache.cacheObject(address, result);
         return result;
     }
 

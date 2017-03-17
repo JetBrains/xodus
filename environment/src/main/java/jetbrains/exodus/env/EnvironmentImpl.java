@@ -18,8 +18,6 @@ package jetbrains.exodus.env;
 import jetbrains.exodus.ConfigSettingChangeListener;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.backup.BackupStrategy;
-import jetbrains.exodus.core.dataStructures.ConcurrentLongObjectCache;
-import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.gc.GarbageCollector;
@@ -42,7 +40,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.ref.SoftReference;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -68,8 +65,6 @@ public class EnvironmentImpl implements Environment {
     private final LinkedList<RunnableWithTxnRoot> txnSafeTasks;
     @Nullable
     private StoreGetCache storeGetCache;
-    @Nullable
-    private SoftReference<LongObjectCacheBase> treeNodesCache;
     private final EnvironmentSettingsListener envSettingsListener;
     private final GarbageCollector gc;
     private final Object commitLock = new Object();
@@ -106,7 +101,6 @@ public class EnvironmentImpl implements Environment {
         txns = new TransactionSet();
         txnSafeTasks = new LinkedList<>();
         invalidateStoreGetCache();
-        invalidateTreeNodesCache();
         envSettingsListener = new EnvironmentSettingsListener();
         ec.addChangedSettingsListener(envSettingsListener);
 
@@ -314,7 +308,6 @@ public class EnvironmentImpl implements Environment {
                             gc.clear();
                             log.clear();
                             invalidateStoreGetCache();
-                            invalidateTreeNodesCache();
                             throwableOnCommit = null;
                             final Pair<MetaTree, Integer> meta = MetaTree.create(this);
                             metaTree = meta.getFirst();
@@ -347,7 +340,6 @@ public class EnvironmentImpl implements Environment {
         gc.finish();
         final float logCacheHitRate;
         final float storeGetCacheHitRate;
-        final float treeNodesCacheHitRate;
         synchronized (commitLock) {
             if (!isOpen()) {
                 throw throwableOnClose;
@@ -376,19 +368,11 @@ public class EnvironmentImpl implements Environment {
                 storeGetCacheHitRate = storeGetCache.hitRate();
                 storeGetCache.close();
             }
-            final LongObjectCacheBase treeNodesCache = this.treeNodesCache == null ? null : this.treeNodesCache.get();
-            if (treeNodesCache == null) {
-                treeNodesCacheHitRate = 0;
-            } else {
-                treeNodesCacheHitRate = treeNodesCache.hitRate();
-                treeNodesCache.close();
-            }
             throwableOnClose = new EnvironmentClosedException();
             throwableOnCommit = throwableOnClose;
         }
         if (logger.isInfoEnabled()) {
             logger.info("Store get cache hit rate: " + ObjectCacheBase.formatHitRate(storeGetCacheHitRate));
-            logger.info("Tree nodes cache hit rate: " + ObjectCacheBase.formatHitRate(treeNodesCacheHitRate));
             logger.info("Exodus log cache hit rate: " + ObjectCacheBase.formatHitRate(logCacheHitRate));
         }
     }
@@ -754,16 +738,6 @@ public class EnvironmentImpl implements Environment {
         return storeGetCache;
     }
 
-    @Nullable
-    LongObjectCacheBase getTreeNodesCache() {
-        final SoftReference<LongObjectCacheBase> cacheRef = treeNodesCache;
-        if (cacheRef != null) {
-            final LongObjectCacheBase cache = cacheRef.get();
-            return cache != null ? cache : invalidateTreeNodesCache();
-        }
-        return null;
-    }
-
     void forEachActiveTransaction(@NotNull final TransactionalExecutable executable) {
         for (final Transaction txn : txns) {
             executable.execute(txn);
@@ -902,14 +876,6 @@ public class EnvironmentImpl implements Environment {
         storeGetCache = storeGetCacheSize == 0 ? null : new StoreGetCache(storeGetCacheSize);
     }
 
-    private LongObjectCacheBase invalidateTreeNodesCache() {
-        final int treeNodesCacheSize = ec.getTreeNodesCacheSize();
-        final LongObjectCacheBase result = treeNodesCacheSize == 0 ? null :
-            new ConcurrentLongObjectCache(treeNodesCacheSize, 2);
-        treeNodesCache = result == null ? null : new SoftReference<>(result);
-        return result;
-    }
-
     private static void applyEnvironmentSettings(@NotNull final String location,
                                                  @NotNull final EnvironmentConfig ec) {
         final File propsFile = new File(location, ENVIRONMENT_PROPERTIES_FILE);
@@ -997,8 +963,6 @@ public class EnvironmentImpl implements Environment {
         public void afterSettingChanged(@NotNull String key, @NotNull Object value, @NotNull Map<String, Object> context) {
             if (key.equals(EnvironmentConfig.ENV_STOREGET_CACHE_SIZE)) {
                 invalidateStoreGetCache();
-            } else if (key.equals(EnvironmentConfig.TREE_NODES_CACHE_SIZE)) {
-                invalidateTreeNodesCache();
             } else if (key.equals(EnvironmentConfig.LOG_SYNC_PERIOD)) {
                 log.getConfig().setSyncPeriod(ec.getLogSyncPeriod());
             } else if (key.equals(EnvironmentConfig.LOG_DURABLE_WRITE)) {
