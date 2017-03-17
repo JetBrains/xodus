@@ -11,6 +11,7 @@ import java.io.IOException;
 
 abstract class JMH_LMDBTokyoCabinetBenchmarkBase {
 
+    private static final int MAP_SIZE = 1024 * 1024 * 1024;
     private static final byte[][] successiveKeys = TokyoCabinetBenchmark.getSuccessiveByteArrays(TokyoCabinetBenchmark.KEYS_COUNT);
     static final byte[][] randomKeys = TokyoCabinetBenchmark.getRandomByteArrays(TokyoCabinetBenchmark.KEYS_COUNT);
 
@@ -23,7 +24,7 @@ abstract class JMH_LMDBTokyoCabinetBenchmarkBase {
         temporaryFolder.create();
         final File testsDirectory = temporaryFolder.newFolder("data");
         env = new Env(testsDirectory.getPath());
-        env.setMapSize(1024*1024*1024);
+        env.setMapSize(MAP_SIZE);
         db = env.openDatabase();
     }
 
