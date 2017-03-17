@@ -31,6 +31,7 @@ abstract class JMHChronicleMapTokyoCabinetBenchmarkBase {
     private static final String[] successiveKeys = TokyoCabinetBenchmark.getSuccessiveStrings(TokyoCabinetBenchmark.KEYS_COUNT);
     static final String[] randomKeys = TokyoCabinetBenchmark.getRandomStrings(TokyoCabinetBenchmark.KEYS_COUNT);
 
+    private TemporaryFolder temporaryFolder;
     private ChronicleMap<String, String> map;
 
     public void setup() throws IOException {
@@ -51,7 +52,7 @@ abstract class JMHChronicleMapTokyoCabinetBenchmarkBase {
 
     private void createEnvironment() throws IOException {
         closeTxMaker();
-        final TemporaryFolder temporaryFolder = new TemporaryFolder();
+        temporaryFolder = new TemporaryFolder();
         temporaryFolder.create();
         map = ChronicleMap.of(String.class, String.class)
                 .averageKeySize(8).averageValueSize(8)
@@ -63,6 +64,9 @@ abstract class JMHChronicleMapTokyoCabinetBenchmarkBase {
         if (map != null) {
             map.close();
             map = null;
+        }
+        if (temporaryFolder != null) {
+            temporaryFolder.delete();
         }
     }
 

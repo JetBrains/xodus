@@ -30,6 +30,7 @@ abstract class JMH_MVStoreTokyoCabinetBenchmarkBase {
     private static final String[] successiveKeys = TokyoCabinetBenchmark.getSuccessiveStrings(TokyoCabinetBenchmark.KEYS_COUNT);
     static final String[] randomKeys = TokyoCabinetBenchmark.getRandomStrings(TokyoCabinetBenchmark.KEYS_COUNT);
 
+    private TemporaryFolder temporaryFolder;
     private MVStore store;
 
     public void setup() throws IOException {
@@ -54,7 +55,7 @@ abstract class JMH_MVStoreTokyoCabinetBenchmarkBase {
 
     private void createEnvironment() throws IOException {
         closeStore();
-        final TemporaryFolder temporaryFolder = new TemporaryFolder();
+        temporaryFolder = new TemporaryFolder();
         temporaryFolder.create();
         store = new MVStore.Builder()
                 .fileName(temporaryFolder.newFile("data").getAbsolutePath())
@@ -66,6 +67,9 @@ abstract class JMH_MVStoreTokyoCabinetBenchmarkBase {
         if (store != null) {
             store.close();
             store = null;
+        }
+        if (temporaryFolder != null) {
+            temporaryFolder.delete();
         }
     }
 

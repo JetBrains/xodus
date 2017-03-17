@@ -15,12 +15,13 @@ abstract class JMH_LMDBTokyoCabinetBenchmarkBase {
     private static final byte[][] successiveKeys = TokyoCabinetBenchmark.getSuccessiveByteArrays(TokyoCabinetBenchmark.KEYS_COUNT);
     static final byte[][] randomKeys = TokyoCabinetBenchmark.getRandomByteArrays(TokyoCabinetBenchmark.KEYS_COUNT);
 
+    private TemporaryFolder temporaryFolder;
     Env env;
     Database db;
 
     public void setup() throws IOException {
         TokyoCabinetBenchmark.shuffleKeys(randomKeys);
-        final TemporaryFolder temporaryFolder = new TemporaryFolder();
+        temporaryFolder = new TemporaryFolder();
         temporaryFolder.create();
         final File testsDirectory = temporaryFolder.newFolder("data");
         env = new Env(testsDirectory.getPath());
@@ -38,6 +39,9 @@ abstract class JMH_LMDBTokyoCabinetBenchmarkBase {
         if (env != null) {
             env.close();
             env = null;
+        }
+        if (temporaryFolder != null) {
+            temporaryFolder.delete();
         }
     }
 
