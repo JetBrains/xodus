@@ -92,7 +92,6 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         Assert.assertNotNull(statistics.getStatisticsItem(UTILIZATION_PERCENT));
         Assert.assertNotNull(statistics.getStatisticsItem(LOG_CACHE_HIT_RATE));
         Assert.assertNotNull(statistics.getStatisticsItem(STORE_GET_CACHE_HIT_RATE));
-        Assert.assertNotNull(statistics.getStatisticsItem(TREE_NODES_CACHE_HIT_RATE));
     }
 
     @Test
