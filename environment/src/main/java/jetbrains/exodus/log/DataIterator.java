@@ -21,18 +21,19 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.LongBinding;
 import org.jetbrains.annotations.NotNull;
 
-final class DataIterator extends ByteIterator {
+public final class DataIterator extends ByteIterator {
 
     @NotNull
     private final Log log;
     private long pageAddress;
-    private byte[] page;
+    private ArrayByteIterable page;
     private int offset;
     private int length;
 
-    DataIterator(@NotNull final Log log, final long startAddress) {
+    public DataIterator(@NotNull final Log log, final long startAddress) {
         this.log = log;
-        nextPage(startAddress);
+        pageAddress = -1L;
+        checkPage(startAddress);
     }
 
     @Override
@@ -41,7 +42,7 @@ final class DataIterator extends ByteIterator {
             return false;
         }
         if (offset >= length) {
-            nextPage(getHighAddress());
+            checkPage(getHighAddress());
             return hasNext();
         }
         return true;
@@ -51,9 +52,9 @@ final class DataIterator extends ByteIterator {
     public byte next() {
         if (!hasNext()) {
             throw new ExodusException("DataIterator: no more bytes available" +
-                    LogUtil.getWrongAddressErrorMessage(getHighAddress(), log.getFileSize()));
+                LogUtil.getWrongAddressErrorMessage(getHighAddress(), log.getFileSize()));
         }
-        return page[offset++];
+        return page.getBytesUnsafe()[offset++];
     }
 
     @Override
@@ -66,7 +67,7 @@ final class DataIterator extends ByteIterator {
             if (offset < length) {
                 break;
             }
-            nextPage(getHighAddress());
+            checkPage(getHighAddress());
         }
         return skipped;
     }
@@ -76,13 +77,49 @@ final class DataIterator extends ByteIterator {
         if (page == null || this.length - offset < length) {
             return LongBinding.entryToUnsignedLong(this, length);
         }
-        final long result = LongBinding.entryToUnsignedLong(page, offset, length);
+        final long result = LongBinding.entryToUnsignedLong(page.getBytesUnsafe(), offset, length);
         offset += length;
         return result;
     }
 
-    byte[] getCurrentPage() {
+    public void checkPage(final long highAddress) {
+        final int offset = ((int) highAddress) & (log.getCachePageSize() - 1);
+        final long pageAddress = highAddress - offset;
+        if (this.pageAddress != pageAddress) {
+            if (loadPage(pageAddress) == null) {
+                return;
+            }
+        }
+        int len = page.getLength();
+        if (len <= offset) { // offset is >= 0 for sure
+            // we should try to reload page since this page can near the right bound of the log (highAddress)
+            if (loadPage(pageAddress) == null) {
+                return;
+            }
+            len = page.getLength();
+            if (len <= offset) { // offset is >= 0 for sure
+                this.pageAddress = -1L;
+                page = null;
+                return;
+            }
+        }
+        this.length = len;
+        this.offset = offset;
+    }
+
+    private ArrayByteIterable loadPage(long pageAddress) {
+        try {
+            page = log.cache.getPage(log, pageAddress);
+            this.pageAddress = pageAddress;
+        } catch (BlockNotFoundException e) {
+            this.pageAddress = -1L;
+            this.page = null;
+        }
         return page;
+    }
+
+    byte[] getCurrentPage() {
+        return page.getBytesUnsafe();
     }
 
     int getOffset() {
@@ -95,26 +132,5 @@ final class DataIterator extends ByteIterator {
 
     long getHighAddress() {
         return pageAddress + offset;
-    }
-
-    private void nextPage(final long highAddress) {
-        final int offset = ((int) highAddress) & (log.getCachePageSize() - 1);
-        final ArrayByteIterable page;
-        final long pageAddress = highAddress - offset;
-        try {
-            page = log.cache.getPage(log, pageAddress);
-        } catch (BlockNotFoundException e) {
-            this.page = null;
-            return;
-        }
-        final int len = page.getLength();
-        if (len <= offset) { // offset is >= 0 for sure
-            this.page = null;
-            return;
-        }
-        this.offset = offset;
-        this.length = len;
-        this.page = page.getBytesUnsafe();
-        this.pageAddress = pageAddress;
     }
 }

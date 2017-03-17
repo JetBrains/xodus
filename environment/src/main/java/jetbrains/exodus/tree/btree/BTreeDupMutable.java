@@ -89,7 +89,7 @@ final class BTreeDupMutable extends BTreeMutable {
         }
         sizeIterable = CompressedUnsignedLongByteIterable.getIterable((size << 1) + 1);
         final ByteIterable offsetIterable =
-                CompressedUnsignedLongByteIterable.getIterable(log.getHighAddress() - startAddress);
+            CompressedUnsignedLongByteIterable.getIterable(log.getHighAddress() - startAddress);
         iterables = new ByteIterable[]{keyIterable, key, sizeIterable, offsetIterable, rootDataIterable};
         final ByteIterable data = new CompoundByteIterable(iterables);
         result = canRetry ? log.tryWrite(type, structureId, data) : log.writeContinuously(type, structureId, data);

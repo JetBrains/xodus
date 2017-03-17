@@ -16,6 +16,7 @@
 package jetbrains.exodus.tree.patricia;
 
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.log.DataIterator;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.tree.INode;
 import jetbrains.exodus.tree.ITree;
@@ -36,6 +37,12 @@ abstract class PatriciaTreeDecorator implements ITree {
     @Override
     public Log getLog() {
         return treeNoDuplicates.getLog();
+    }
+
+    @NotNull
+    @Override
+    public DataIterator getDataIterator(long address) {
+        return treeNoDuplicates.getDataIterator(address);
     }
 
     @Override

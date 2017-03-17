@@ -203,6 +203,12 @@ final class MetaTree {
     }
 
     private static ITree getEmptyMetaTree(@NotNull final EnvironmentImpl env) {
-        return new BTreeEmpty(env.getLog(), env.getBTreeBalancePolicy(), false, EnvironmentImpl.META_TREE_ID);
+        return new BTreeEmpty(env.getLog(), env.getBTreeBalancePolicy(), false, EnvironmentImpl.META_TREE_ID) {
+            @NotNull
+            @Override
+            public DataIterator getDataIterator(long address) {
+                return new DataIterator(log, address);
+            }
+        };
     }
 }

@@ -19,6 +19,7 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.log.ByteIterableWithAddress;
+import jetbrains.exodus.log.DataIterator;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import jetbrains.exodus.tree.INode;
@@ -49,6 +50,8 @@ public abstract class BTreeBase implements ITree {
 
     @NotNull
     protected final Log log;
+    @Nullable
+    private DataIterator dataIterator = null;
     @NotNull
     protected final BTreeBalancePolicy balancePolicy;
     protected final boolean allowsDuplicates;
@@ -91,6 +94,17 @@ public abstract class BTreeBase implements ITree {
     }
 
     @NotNull
+    @Override
+    public DataIterator getDataIterator(long address) {
+        if (dataIterator == null) {
+            dataIterator = new DataIterator(log, address);
+        } else {
+            dataIterator.checkPage(address);
+        }
+        return dataIterator;
+    }
+
+    @NotNull
     public BTreeBalancePolicy getBalancePolicy() {
         return balancePolicy;
     }
@@ -109,7 +123,7 @@ public abstract class BTreeBase implements ITree {
     }
 
     protected final RandomAccessLoggable getLoggable(long address) {
-        return log.read(address);
+        return log.read(getDataIterator(address), address);
     }
 
     @NotNull

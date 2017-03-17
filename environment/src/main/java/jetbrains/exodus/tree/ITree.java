@@ -16,6 +16,7 @@
 package jetbrains.exodus.tree;
 
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.log.DataIterator;
 import jetbrains.exodus.log.Log;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -29,6 +30,9 @@ public interface ITree {
 
     @NotNull
     Log getLog();
+
+    @NotNull
+    DataIterator getDataIterator(long address);
 
     long getRootAddress();
 

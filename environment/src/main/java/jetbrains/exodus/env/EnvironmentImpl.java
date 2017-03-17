@@ -22,10 +22,7 @@ import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.gc.GarbageCollector;
 import jetbrains.exodus.gc.UtilizationProfile;
-import jetbrains.exodus.log.ExpiredLoggableInfo;
-import jetbrains.exodus.log.Log;
-import jetbrains.exodus.log.LogConfig;
-import jetbrains.exodus.log.LogUtil;
+import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.TreeMetaInfo;
 import jetbrains.exodus.tree.btree.BTree;
 import jetbrains.exodus.tree.btree.BTreeBalancePolicy;
@@ -517,7 +514,13 @@ public class EnvironmentImpl implements Environment {
     @Nullable
     BTree loadMetaTree(final long rootAddress) {
         if (rootAddress < 0 || rootAddress >= log.getHighAddress()) return null;
-        return new BTree(log, getBTreeBalancePolicy(), rootAddress, false, META_TREE_ID);
+        return new BTree(log, getBTreeBalancePolicy(), rootAddress, false, META_TREE_ID) {
+            @NotNull
+            @Override
+            public DataIterator getDataIterator(long address) {
+                return new DataIterator(log, address);
+            }
+        };
     }
 
     @SuppressWarnings("OverlyNestedMethod")

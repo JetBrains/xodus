@@ -17,6 +17,7 @@ package jetbrains.exodus.tree.patricia;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
+import jetbrains.exodus.log.DataIterator;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import jetbrains.exodus.tree.INode;
@@ -45,6 +46,8 @@ public abstract class PatriciaTreeBase implements ITree {
 
     @NotNull
     protected final Log log;
+    @Nullable
+    private DataIterator dataIterator = null;
     protected final int structureId;
     protected long size;
 
@@ -57,6 +60,17 @@ public abstract class PatriciaTreeBase implements ITree {
     @Override
     public Log getLog() {
         return log;
+    }
+
+    @NotNull
+    @Override
+    public DataIterator getDataIterator(long address) {
+        if (dataIterator == null) {
+            dataIterator = new DataIterator(log, address);
+        } else {
+            dataIterator.checkPage(address);
+        }
+        return dataIterator;
     }
 
     @Override
@@ -112,7 +126,7 @@ public abstract class PatriciaTreeBase implements ITree {
 
     @NotNull
     final RandomAccessLoggable getLoggable(final long address) {
-        return log.read(address);
+        return log.read(getDataIterator(address), address);
     }
 
     @NotNull
