@@ -21,9 +21,7 @@ import jetbrains.exodus.TestFor;
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -35,18 +33,6 @@ public class LogTests extends LogTestsBase {
 
     private static final Loggable DUMMY_LOGGABLE = createNoDataLoggable((byte) 1);
     private static final Loggable ONE_KB_LOGGABLE = createOneKbLoggable();
-
-    @Before
-    @Override
-    public void setUp() throws IOException {
-        super.setUp();
-        LoggableFactory.registerLoggable(DUMMY_LOGGABLE.getType(), new LoggableFactory() {
-            @Override
-            protected RandomAccessLoggable create(long address, @NotNull ByteIterableWithAddress data, int dataLength, int structureId) {
-                return new RandomAccessLoggableImpl(address, DUMMY_LOGGABLE.getType(), ByteIterableWithAddress.getEmpty(address + 3), dataLength, structureId);
-            }
-        });
-    }
 
     @Test
     public void testWrite() throws IOException {
@@ -178,23 +164,6 @@ public class LogTests extends LogTestsBase {
                 getLog().write(ONE_KB_LOGGABLE);
             }
         }, TooBigLoggableException.class);
-    }
-
-    @Test
-    public void testRegisterSameTypeLoggable() {
-        TestUtil.runWithExpectedException(new Runnable() {
-            @Override
-            public void run() {
-                final LoggableFactory factory = new LoggableFactory() {
-                    @Override
-                    protected RandomAccessLoggable create(long address, @NotNull ByteIterableWithAddress data, int dataLength, int structureId) {
-                        throw new UnsupportedOperationException("Shouldn't be there");
-                    }
-                };
-                LoggableFactory.registerLoggable(1, factory);
-                LoggableFactory.registerLoggable(1, factory);
-            }
-        }, ExodusException.class);
     }
 
     @Test

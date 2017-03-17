@@ -30,7 +30,6 @@ import jetbrains.exodus.io.FileDataReader;
 import jetbrains.exodus.io.FileDataWriter;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogConfig;
-import jetbrains.exodus.log.LoggableFactory;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import jetbrains.exodus.util.CompressBackupUtil;
 import jetbrains.exodus.util.IOUtil;
@@ -62,7 +61,6 @@ public class EnvironmentTestsBase {
         final Pair<DataReader, DataWriter> readerWriterPair = createRW();
         reader = readerWriterPair.getFirst();
         writer = readerWriterPair.getSecond();
-        LoggableFactory.clear();
         createEnvironment();
         processor = new ThreadJobProcessor("EnvironmentTestsBase processor");
         processor.start();
@@ -90,7 +88,7 @@ public class EnvironmentTestsBase {
             final File root = new File(location);
             final File targetFile = new File(target);
             TarArchiveOutputStream tarGz = new TarArchiveOutputStream(new GZIPOutputStream(
-                    new BufferedOutputStream(new FileOutputStream(targetFile)), 0x1000));
+                new BufferedOutputStream(new FileOutputStream(targetFile)), 0x1000));
             for (final File file : IOUtil.listFiles(root)) {
                 final long fileSize = file.length();
                 if (file.isFile() && fileSize != 0) {
@@ -139,8 +137,8 @@ public class EnvironmentTestsBase {
             throw new IOException("Failed to create directory for tests.");
         }
         return new Pair<DataReader, DataWriter>(
-                new FileDataReader(testsDirectory, 16),
-                new FileDataWriter(testsDirectory)
+            new FileDataReader(testsDirectory, 16),
+            new FileDataWriter(testsDirectory)
         );
     }
 

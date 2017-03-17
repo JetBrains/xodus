@@ -47,9 +47,10 @@ final class MetaTree {
 
     static Pair<MetaTree, Integer> create(@NotNull final EnvironmentImpl env) {
         final Log log = env.getLog();
-        DatabaseRoot dbRoot = (DatabaseRoot) log.getLastLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);
-        if (dbRoot != null) {
+        Loggable rootLoggable = log.getLastLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);
+        if (rootLoggable != null) {
             do {
+                final DatabaseRoot dbRoot = new DatabaseRoot(rootLoggable);
                 final long root = dbRoot.getAddress();
                 if (dbRoot.isValid()) {
                     try {
@@ -64,28 +65,26 @@ final class MetaTree {
                         }
                     } catch (ExodusException e) {
                         EnvironmentImpl.loggerError("Failed to recover to valid root" +
-                                LogUtil.getWrongAddressErrorMessage(dbRoot.getAddress(), env.getEnvironmentConfig().getLogFileSize()), e);
+                            LogUtil.getWrongAddressErrorMessage(dbRoot.getAddress(), env.getEnvironmentConfig().getLogFileSize()), e);
                         // XD-449: try next database root if we failed to traverse whole MetaTree
                         // TODO: this check should become obsolete after XD-334 is implemented
                     }
                 }
                 // continue recovery
-                dbRoot = (DatabaseRoot) log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, root);
-            } while (dbRoot != null);
-
+                rootLoggable = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, root);
+            } while (rootLoggable != null);
             // "abnormal program termination", "blue screen of doom"
             // Something quite strange with the database: it is not empty, but no valid
             // root has found. We can't just reset the database and lose all the contents,
             // we should have a chance to investigate the case. So failing...
             throw new ExodusException("Database is not empty, but no valid root found");
-
         }
         // no roots found: the database is empty
         log.setHighAddress(0);
         final ITree resultTree = getEmptyMetaTree(env);
         final long rootAddress = resultTree.getMutableCopy().save();
         final long root = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
-                DatabaseRoot.asByteIterable(rootAddress, EnvironmentImpl.META_TREE_ID));
+            DatabaseRoot.asByteIterable(rootAddress, EnvironmentImpl.META_TREE_ID));
         log.flush();
         return new Pair<>(new MetaTree(resultTree, root, log.getHighAddress()), EnvironmentImpl.META_TREE_ID);
     }
@@ -123,7 +122,7 @@ final class MetaTree {
         final long treeRootAddress = treeMutable.save();
         final int structureId = treeMutable.getStructureId();
         out.put(LongBinding.longToCompressedEntry(structureId),
-                CompressedUnsignedLongByteIterable.getIterable(treeRootAddress));
+            CompressedUnsignedLongByteIterable.getIterable(treeRootAddress));
     }
 
     /**
@@ -142,7 +141,7 @@ final class MetaTree {
         final Log log = env.getLog();
         final int lastStructureId = env.getLastStructureId();
         final long dbRootAddress = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
-                DatabaseRoot.asByteIterable(newMetaTreeAddress, lastStructureId));
+            DatabaseRoot.asByteIterable(newMetaTreeAddress, lastStructureId));
         final BTree resultTree = env.loadMetaTree(newMetaTreeAddress);
         final RandomAccessLoggable dbRootLoggable = log.read(dbRootAddress);
         expired.add(new ExpiredLoggableInfo(dbRootLoggable));

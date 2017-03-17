@@ -123,7 +123,6 @@ public final class Environments {
     @NotNull
     public static Log newLogInstance(@NotNull final LogConfig config) {
         // In order to avoid XD-96, we need to load the DatabaseRoot class before creating Log instance
-        DatabaseRoot.register();
         return new Log(config);
     }
 

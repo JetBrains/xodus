@@ -37,7 +37,7 @@ public final class Log implements Closeable {
     private static final Logger logger = LoggerFactory.getLogger(Log.class);
 
     private static AtomicInteger identityGenerator =
-            new AtomicInteger((int) (Math.random() * Integer.MAX_VALUE)); // initial log identity is rather "random"
+        new AtomicInteger((int) (Math.random() * Integer.MAX_VALUE)); // initial log identity is rather "random"
 
     private static volatile LogCache sharedCache = null;
 
@@ -105,13 +105,13 @@ public final class Log implements Closeable {
         final boolean nonBlockingCache = config.isNonBlockingCache();
         if (memoryUsage != 0) {
             cache = config.isSharedCache() ?
-                    getSharedCache(memoryUsage, cachePageSize, nonBlockingCache) :
-                    new SeparateLogCache(memoryUsage, cachePageSize, nonBlockingCache);
+                getSharedCache(memoryUsage, cachePageSize, nonBlockingCache) :
+                new SeparateLogCache(memoryUsage, cachePageSize, nonBlockingCache);
         } else {
             final int memoryUsagePercentage = config.getMemoryUsagePercentage();
             cache = config.isSharedCache() ?
-                    getSharedCache(memoryUsagePercentage, cachePageSize, nonBlockingCache) :
-                    new SeparateLogCache(memoryUsagePercentage, cachePageSize, nonBlockingCache);
+                getSharedCache(memoryUsagePercentage, cachePageSize, nonBlockingCache) :
+                new SeparateLogCache(memoryUsagePercentage, cachePageSize, nonBlockingCache);
         }
         DeferredIO.getJobProcessor();
         highAddress = 0;
@@ -127,7 +127,7 @@ public final class Log implements Closeable {
             final long highPageAddress = getHighPageAddress();
             final byte[] highPageContent = new byte[cachePageSize];
             setBufferedWriter(createBufferedWriter(baseWriter, highPageAddress,
-                    highPageContent, highAddress == 0 ? 0 : readBytes(highPageContent, highPageAddress)));
+                highPageContent, highAddress == 0 ? 0 : readBytes(highPageContent, highPageAddress)));
             // here we should check whether last loggable is written correctly
             final Iterator<RandomAccessLoggable> lastFileLoggables = new LoggableIterator(this, lastFileAddress);
             long approvedHighAddress = lastFileAddress;
@@ -171,10 +171,10 @@ public final class Log implements Closeable {
             if (clearLogReason == null && address != getFileAddress(address)) {
                 if (!config.isClearInvalidLog()) {
                     throw new ExodusException("Unexpected file address " +
-                            LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileSize));
+                        LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileSize));
                 }
                 clearLogReason = "Unexpected file address " +
-                        LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileSize);
+                    LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileSize);
             }
             if (clearLogReason != null) {
                 if (!config.isClearInvalidLog()) {
@@ -431,7 +431,6 @@ public final class Log implements Closeable {
         if (NullLoggable.isNullLoggable(type)) {
             return new NullLoggable(address);
         }
-        final LoggableFactory prototype = LoggableFactory.getPrototype(type);
         final int structureId = CompressedUnsignedLongByteIterable.getInt(it);
         final int dataLength = CompressedUnsignedLongByteIterable.getInt(it);
         final long dataAddress = it.getHighAddress();
@@ -439,17 +438,12 @@ public final class Log implements Closeable {
             final byte[] currentPage = it.getCurrentPage();
             final int currentOffset = it.getOffset();
             if (it.getLength() - currentOffset >= dataLength) {
-                return prototype == null ?
-                        new RandomAccessLoggableAndArrayByteIterable(
-                                address, type, structureId, dataAddress, currentPage, currentOffset, dataLength) :
-                        prototype.create(
-                                address, new ArrayByteIterableWithAddress(dataAddress, currentPage, currentOffset, dataLength), dataLength, structureId);
+                return new RandomAccessLoggableAndArrayByteIterable(
+                    address, type, structureId, dataAddress, currentPage, currentOffset, dataLength);
             }
         }
         final RandomAccessByteIterable data = new RandomAccessByteIterable(dataAddress, this);
-        return prototype == null ?
-                new RandomAccessLoggableImpl(address, type, data, dataLength, structureId) :
-                prototype.create(address, data, dataLength, structureId);
+        return new RandomAccessLoggableImpl(address, type, data, dataLength, structureId);
     }
 
     public LoggableIterator getLoggableIterator(final long startAddress) {
@@ -788,7 +782,7 @@ public final class Log implements Closeable {
         final DataWriter writer = config.getWriter();
         if (!writer.lock(lockTimeout)) {
             throw new ExodusException("Can't acquire environment lock after " +
-                    lockTimeout + " ms.\n\n Lock owner info: \n" + writer.lockInfo());
+                lockTimeout + " ms.\n\n Lock owner info: \n" + writer.lockInfo());
         }
     }
 

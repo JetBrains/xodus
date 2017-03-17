@@ -17,45 +17,38 @@ package jetbrains.exodus.env;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
-import jetbrains.exodus.log.*;
+import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
+import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 
-final class DatabaseRoot extends RandomAccessLoggableImpl {
+final class DatabaseRoot {
 
     static final byte DATABASE_ROOT_TYPE = 1;
 
     private static final long MAGIC_DIFF = 199L;
-    private static final LoggableFactory ROOT_FACTORY = new LoggableFactory() {
-        @Override
-        protected RandomAccessLoggable create(final long address,
-                                              @NotNull final ByteIterableWithAddress data,
-                                              final int dataLength,
-                                              final int structureId) {
-            final ByteIterator it = data.iterator();
-            final long rootAddress = CompressedUnsignedLongByteIterable.getLong(it);
-            final int lastStructureId = CompressedUnsignedLongByteIterable.getInt(it);
-            final boolean isValid = rootAddress ==
-                    CompressedUnsignedLongByteIterable.getLong(it) - lastStructureId - MAGIC_DIFF;
-            return new DatabaseRoot(rootAddress, lastStructureId, isValid, address, data, dataLength);
-        }
-    };
 
+    @NotNull
+    private final Loggable loggable;
     private final long rootAddress;
     private final int lastStructureId;
     private final boolean isValid;
 
-    @SuppressWarnings({"ConstructorWithTooManyParameters"})
-    private DatabaseRoot(final long rootAddress,
-                         final int lastStructureId,
-                         final boolean isValid,
-                         final long address,
-                         @NotNull final ByteIterableWithAddress data,
-                         final int dataLength) {
-        super(address, DATABASE_ROOT_TYPE, data, dataLength, NO_STRUCTURE_ID);
-        this.rootAddress = rootAddress;
-        this.lastStructureId = lastStructureId;
-        this.isValid = isValid;
+    DatabaseRoot(@NotNull final Loggable loggable) {
+        this.loggable = loggable;
+        final ByteIterator it = loggable.getData().iterator();
+        rootAddress = CompressedUnsignedLongByteIterable.getLong(it);
+        lastStructureId = CompressedUnsignedLongByteIterable.getInt(it);
+        isValid = rootAddress ==
+            CompressedUnsignedLongByteIterable.getLong(it) - lastStructureId - MAGIC_DIFF;
+    }
+
+    public long getAddress() {
+        return loggable.getAddress();
+    }
+
+    public long length() {
+        return loggable.length();
     }
 
     long getRootAddress() {
@@ -68,10 +61,6 @@ final class DatabaseRoot extends RandomAccessLoggableImpl {
 
     boolean isValid() {
         return isValid;
-    }
-
-    static void register() {
-        LoggableFactory.registerLoggable(DATABASE_ROOT_TYPE, ROOT_FACTORY);
     }
 
     static ByteIterable asByteIterable(final long rootAddress, final int lastStructureId) {

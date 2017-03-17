@@ -222,9 +222,9 @@ internal class Reflect(directory: File) {
         log.allFileAddresses.reversed().forEach {
             val endAddress = it + log.getFileSize(it)
             log.getLoggableIterator(it).forEach {
-                if (it is DatabaseRoot) {
+                if (it.type == DatabaseRoot.DATABASE_ROOT_TYPE) {
                     ++totalRoots
-                    if (!it.isValid) {
+                    if (!DatabaseRoot(it).isValid) {
                         logger.error("Invalid root at address: ${it.getAddress()}")
                     }
                 }

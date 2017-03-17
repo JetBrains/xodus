@@ -51,8 +51,6 @@ class LogTestsBase {
             reader = logRW.getFirst();
             writer = logRW.getSecond();
         }
-
-        LoggableFactory.clear();
     }
 
     @After
