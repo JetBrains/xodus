@@ -1,8 +1,13 @@
+import org.apache.commons.lang3.SystemUtils
+
 buildscript {
     repositories {
         maven {
             url "https://plugins.gradle.org/m2/"
         }
+    }
+    dependencies {
+        classpath 'org.apache.commons:commons-lang3:3.5'
     }
 }
 
@@ -19,11 +24,24 @@ dependencies {
     jmh group: 'org.mapdb', name: 'mapdb', version: '3.0.2'
     jmh group: 'net.openhft', name: 'chronicle-map', version: '3.11.0'
     jmh group: 'com.h2database', name: 'h2-mvstore', version: '1.4.193'
+    jmh group: 'org.deephacks.lmdbjni', name: 'lmdbjni', version: '0.4.6'
+
+    def os
+    if (SystemUtils.IS_OS_LINUX) {
+        os = "linux64"
+    } else if (SystemUtils.IS_OS_MAC_OSX) {
+        os = "osx64"
+    } else if (SystemUtils.IS_OS_WINDOWS) {
+        os = "win64"
+    }
+    if (os) {
+        jmh group: 'org.deephacks.lmdbjni', name: "lmdbjni-$os", version: '0.4.6'
+    }
 }
 
 jmh {
     // uncomment the following line to exclude all benchmarks except Xodus Tokyo Cabinet
-    //exclude = 'dataStructures|chronicle|h2|mapdb'
+    //exclude = 'dataStructures|chronicle|h2|mapdb|lmdb'
     jmhVersion = '1.17.3'
     jvmArgsPrepend '-Xmx1g -Xms1g'
     duplicateClassesStrategy = 'warn'

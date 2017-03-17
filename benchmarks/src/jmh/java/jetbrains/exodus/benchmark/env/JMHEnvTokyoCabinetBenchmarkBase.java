@@ -35,13 +35,14 @@ abstract class JMHEnvTokyoCabinetBenchmarkBase {
     private static final ByteIterable[] successiveKeys = TokyoCabinetBenchmark.getSuccessiveEntries(TokyoCabinetBenchmark.KEYS_COUNT);
     static final ByteIterable[] randomKeys = TokyoCabinetBenchmark.getRandomEntries(TokyoCabinetBenchmark.KEYS_COUNT);
 
+    private TemporaryFolder temporaryFolder;
     Environment env;
     Store store;
 
     public void setup() throws IOException {
         Log.invalidateSharedCache();
         TokyoCabinetBenchmark.shuffleKeys(randomKeys);
-        final TemporaryFolder temporaryFolder = new TemporaryFolder();
+        temporaryFolder = new TemporaryFolder();
         temporaryFolder.create();
         final File testsDirectory = temporaryFolder.newFolder("data");
         env = Environments.newInstance(LogConfig.create(new FileDataReader(testsDirectory, 16), new FileDataWriter(testsDirectory)));
@@ -58,6 +59,9 @@ abstract class JMHEnvTokyoCabinetBenchmarkBase {
         if (env != null) {
             env.close();
             env = null;
+        }
+        if (temporaryFolder != null) {
+            temporaryFolder.delete();
         }
     }
 

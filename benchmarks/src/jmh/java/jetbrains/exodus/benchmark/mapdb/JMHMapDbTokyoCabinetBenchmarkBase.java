@@ -33,6 +33,7 @@ abstract class JMHMapDbTokyoCabinetBenchmarkBase {
     private static final String[] successiveKeys = TokyoCabinetBenchmark.getSuccessiveStrings(TokyoCabinetBenchmark.KEYS_COUNT);
     static final String[] randomKeys = TokyoCabinetBenchmark.getRandomStrings(TokyoCabinetBenchmark.KEYS_COUNT);
 
+    private TemporaryFolder temporaryFolder;
     DB db;
     private BTreeMap<String, String> map;
 
@@ -62,7 +63,7 @@ abstract class JMHMapDbTokyoCabinetBenchmarkBase {
 
     private void createEnvironment() throws IOException {
         closeDb();
-        final TemporaryFolder temporaryFolder = new TemporaryFolder();
+        temporaryFolder = new TemporaryFolder();
         temporaryFolder.create();
         db = DBMaker.tempFileDB().fileMmapEnable().concurrencyDisable().make();
     }
@@ -73,6 +74,9 @@ abstract class JMHMapDbTokyoCabinetBenchmarkBase {
             map = null;
             db.close();
             db = null;
+        }
+        if (temporaryFolder != null) {
+            temporaryFolder.delete();
         }
     }
 }
