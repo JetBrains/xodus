@@ -570,7 +570,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     @TestFor(issues = "XD-577")
-    public void testTT() throws InterruptedException {
+    public void testSuccessiveInvalidationAndUpdateCachedResult() throws InterruptedException {
         final StoreTransaction txn = getStoreTransaction();
         final Entity issue = txn.newEntity("Issue");
         issue.setProperty("summary", "summary");
