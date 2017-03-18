@@ -107,17 +107,6 @@ public final class DataIterator extends ByteIterator {
         this.offset = offset;
     }
 
-    private ArrayByteIterable loadPage(long pageAddress) {
-        try {
-            page = log.cache.getPage(log, pageAddress);
-            this.pageAddress = pageAddress;
-        } catch (BlockNotFoundException e) {
-            this.pageAddress = -1L;
-            this.page = null;
-        }
-        return page;
-    }
-
     byte[] getCurrentPage() {
         return page.getBytesUnsafe();
     }
@@ -132,5 +121,20 @@ public final class DataIterator extends ByteIterator {
 
     long getHighAddress() {
         return pageAddress + offset;
+    }
+
+    boolean availableInCurrentPage(final int bytes) {
+        return length - offset >= bytes;
+    }
+
+    private ArrayByteIterable loadPage(long pageAddress) {
+        try {
+            page = log.cache.getPage(log, pageAddress);
+            this.pageAddress = pageAddress;
+        } catch (BlockNotFoundException e) {
+            this.pageAddress = -1L;
+            this.page = null;
+        }
+        return page;
     }
 }

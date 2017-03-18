@@ -431,19 +431,7 @@ public final class Log implements Closeable {
         if (NullLoggable.isNullLoggable(type)) {
             return new NullLoggable(address);
         }
-        final int structureId = CompressedUnsignedLongByteIterable.getInt(it);
-        final int dataLength = CompressedUnsignedLongByteIterable.getInt(it);
-        final long dataAddress = it.getHighAddress();
-        if (dataLength > 0) {
-            final byte[] currentPage = it.getCurrentPage();
-            final int currentOffset = it.getOffset();
-            if (it.getLength() - currentOffset >= dataLength) {
-                return new RandomAccessLoggableAndArrayByteIterable(
-                    address, type, structureId, dataAddress, currentPage, currentOffset, dataLength);
-            }
-        }
-        final RandomAccessByteIterable data = new RandomAccessByteIterable(dataAddress, this);
-        return new RandomAccessLoggableImpl(address, type, data, dataLength, structureId);
+        return read(type, it, address);
     }
 
     /**
@@ -453,17 +441,17 @@ public final class Log implements Closeable {
      */
     @NotNull
     public RandomAccessLoggable readNotNull(final DataIterator it, final long address) {
-        final byte type = (byte) (it.next() ^ 0x80);
+        return read((byte) (it.next() ^ 0x80), it, address);
+    }
+
+    @NotNull
+    private RandomAccessLoggable read(final byte type, final DataIterator it, final long address) {
         final int structureId = CompressedUnsignedLongByteIterable.getInt(it);
         final int dataLength = CompressedUnsignedLongByteIterable.getInt(it);
         final long dataAddress = it.getHighAddress();
-        if (dataLength > 0) {
-            final byte[] currentPage = it.getCurrentPage();
-            final int currentOffset = it.getOffset();
-            if (it.getLength() - currentOffset >= dataLength) {
-                return new RandomAccessLoggableAndArrayByteIterable(
-                    address, type, structureId, dataAddress, currentPage, currentOffset, dataLength);
-            }
+        if (dataLength > 0 && it.availableInCurrentPage(dataLength)) {
+            return new RandomAccessLoggableAndArrayByteIterable(
+                address, type, structureId, dataAddress, it.getCurrentPage(), it.getOffset(), dataLength);
         }
         final RandomAccessByteIterable data = new RandomAccessByteIterable(dataAddress, this);
         return new RandomAccessLoggableImpl(address, type, data, dataLength, structureId);
