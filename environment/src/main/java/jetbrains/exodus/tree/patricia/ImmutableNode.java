@@ -32,7 +32,6 @@ final class ImmutableNode extends NodeBase {
     private static final int LAZY_KEY_VALUE_ITERABLE_MIN_LENGTH = 16;
 
     private final long address;
-    private final byte type;
     @NotNull
     private final ByteIterableWithAddress data;
     private final int dataOffset;
@@ -49,7 +48,6 @@ final class ImmutableNode extends NodeBase {
                           @NotNull final ByteIteratorWithAddress it) {
         super(extractKey(type, data, it), extractValue(type, data, it));
         this.address = address;
-        this.type = type;
         this.data = data;
         if (PatriciaTreeBase.nodeHasChildren(type)) {
             final int i = CompressedUnsignedLongByteIterable.getInt(it);
@@ -68,7 +66,6 @@ final class ImmutableNode extends NodeBase {
     ImmutableNode() {
         super(ByteIterable.EMPTY, null);
         address = Loggable.NULL_ADDRESS;
-        type = PatriciaTreeBase.NODE_WO_KEY_WO_VALUE_WO_CHILDREN;
         data = ByteIterableWithAddress.EMPTY;
         dataOffset = 0;
         childrenCount = (short) 0;
