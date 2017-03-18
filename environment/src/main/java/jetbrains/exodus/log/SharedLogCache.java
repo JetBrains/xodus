@@ -66,55 +66,48 @@ final class SharedLogCache extends LogCache {
     @Override
     void cachePage(@NotNull final Log log, final long pageAddress, @NotNull final byte[] page) {
         final int logIdentity = log.getIdentity();
-        final long adjustedPageAddress = pageAddress >> pageSizeLogarithm;
-        cachePage(getLogPageFingerPrint(logIdentity, adjustedPageAddress), logIdentity, adjustedPageAddress, page);
+        cachePage(getLogPageFingerPrint(logIdentity, pageAddress), logIdentity, pageAddress, page);
     }
 
     @NotNull
     @Override
     byte[] getPage(@NotNull Log log, long pageAddress) {
-        final long adjustedPageAddress = pageAddress >> pageSizeLogarithm;
         final int logIdentity = log.getIdentity();
-        final long key = getLogPageFingerPrint(logIdentity, adjustedPageAddress);
+        final long key = getLogPageFingerPrint(logIdentity, pageAddress);
         final CachedValue cachedValue = pagesCache.tryKeyLocked(key);
-        byte[] page = (cachedValue != null && cachedValue.logIdentity == logIdentity && cachedValue.address == adjustedPageAddress) ?
-            cachedValue.page : null;
-        if (page != null) {
-            return page;
+        if (cachedValue != null && cachedValue.logIdentity == logIdentity && cachedValue.address == pageAddress) {
+            return cachedValue.page;
         }
-        page = log.getHighPage(pageAddress);
+        byte[] page = log.getHighPage(pageAddress);
         if (page != null) {
             return page;
         }
         page = readFullPage(log, pageAddress);
-        cachePage(key, logIdentity, adjustedPageAddress, page);
+        cachePage(key, logIdentity, pageAddress, page);
         return page;
     }
 
     @Override
     @NotNull
     protected ArrayByteIterable getPageIterable(@NotNull final Log log, final long pageAddress) {
-        final long adjustedPageAddress = pageAddress >> pageSizeLogarithm;
         final int logIdentity = log.getIdentity();
-        final long key = getLogPageFingerPrint(logIdentity, adjustedPageAddress);
+        final long key = getLogPageFingerPrint(logIdentity, pageAddress);
         final CachedValue cachedValue = pagesCache.tryKeyLocked(key);
-        byte[] page = (cachedValue != null && cachedValue.logIdentity == logIdentity && cachedValue.address == adjustedPageAddress) ?
-            cachedValue.page : null;
-        if (page != null) {
-            return new ArrayByteIterable(page);
+        if (cachedValue != null && cachedValue.logIdentity == logIdentity && cachedValue.address == pageAddress) {
+            return new ArrayByteIterable(cachedValue.page);
         }
-        page = log.getHighPage(pageAddress);
+        byte[] page = log.getHighPage(pageAddress);
         if (page != null) {
             return new ArrayByteIterable(page, (int) Math.min(log.getHighAddress() - pageAddress, (long) pageSize));
         }
         page = readFullPage(log, pageAddress);
-        cachePage(key, logIdentity, adjustedPageAddress, page);
+        cachePage(key, logIdentity, pageAddress, page);
         return new ArrayByteIterable(page);
     }
 
     @Override
     protected void removePage(@NotNull final Log log, final long pageAddress) {
-        final long key = getLogPageFingerPrint(log.getIdentity(), pageAddress >> pageSizeLogarithm);
+        final long key = getLogPageFingerPrint(log.getIdentity(), pageAddress);
         try (CriticalSection ignored = pagesCache.newCriticalSection()) {
             pagesCache.remove(key);
         }

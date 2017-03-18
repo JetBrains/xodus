@@ -67,14 +67,13 @@ final class SeparateLogCache extends LogCache {
 
     @Override
     void cachePage(@NotNull final Log log, final long pageAddress, @NotNull final byte[] page) {
-        cachePage(pageAddress >> pageSizeLogarithm, page);
+        cachePage(pageAddress, page);
     }
 
     @Override
     @NotNull
     ArrayByteIterable getPageIterable(@NotNull final Log log, final long pageAddress) {
-        final long cacheKey = pageAddress >> pageSizeLogarithm;
-        byte[] page = pagesCache.tryKeyLocked(cacheKey);
+        byte[] page = pagesCache.tryKeyLocked(pageAddress);
         if (page != null) {
             return new ArrayByteIterable(page);
         }
@@ -83,15 +82,14 @@ final class SeparateLogCache extends LogCache {
             return new ArrayByteIterable(page, (int) Math.min(log.getHighAddress() - pageAddress, (long) pageSize));
         }
         page = readFullPage(log, pageAddress);
-        cachePage(cacheKey, page);
+        cachePage(pageAddress, page);
         return new ArrayByteIterable(page);
     }
 
     @NotNull
     @Override
     byte[] getPage(@NotNull final Log log, final long pageAddress) {
-        final long cacheKey = pageAddress >> pageSizeLogarithm;
-        byte[] page = pagesCache.tryKeyLocked(cacheKey);
+        byte[] page = pagesCache.tryKeyLocked(pageAddress);
         if (page != null) {
             return page;
         }
@@ -100,14 +98,14 @@ final class SeparateLogCache extends LogCache {
             return page;
         }
         page = readFullPage(log, pageAddress);
-        cachePage(cacheKey, page);
+        cachePage(pageAddress, page);
         return page;
     }
 
     @Override
     protected void removePage(@NotNull final Log log, final long pageAddress) {
         try (CriticalSection ignored = pagesCache.newCriticalSection()) {
-            pagesCache.remove(pageAddress >> pageSizeLogarithm);
+            pagesCache.remove(pageAddress);
         }
     }
 

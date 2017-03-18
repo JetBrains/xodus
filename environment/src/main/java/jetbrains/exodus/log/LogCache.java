@@ -37,7 +37,6 @@ abstract class LogCache {
     protected final long memoryUsage;
     protected final int memoryUsagePercentage;
     protected final int pageSize;
-    protected final int pageSizeLogarithm;
 
     /**
      * @param memoryUsage amount of memory which the cache is allowed to occupy (in bytes).
@@ -47,7 +46,7 @@ abstract class LogCache {
     protected LogCache(final long memoryUsage, final int pageSize) {
         checkPageSize(pageSize);
         this.pageSize = pageSize;
-        if ((pageSizeLogarithm = integerLogarithm(pageSize)) < 0) {
+        if (integerLogarithm(pageSize) < 0) {
             throw new InvalidSettingException("Log cache bytes size should be a power of 2: " + pageSize);
         }
         final long maxMemory = Runtime.getRuntime().maxMemory();
@@ -72,7 +71,7 @@ abstract class LogCache {
             throw new InvalidSettingException("Memory usage percent cannot be greater than " + MAXIMUM_MEM_USAGE_PERCENT);
         }
         this.pageSize = pageSize;
-        if ((pageSizeLogarithm = integerLogarithm(pageSize)) < 0) {
+        if (integerLogarithm(pageSize) < 0) {
             throw new InvalidSettingException("Log cache bytes size should be a power of 2: " + pageSize);
         }
         final long maxMemory = Runtime.getRuntime().maxMemory();
