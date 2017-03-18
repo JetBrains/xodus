@@ -105,8 +105,7 @@ final class ImmutableNode extends NodeBase {
             } else if (cmp > 0) {
                 high = mid - 1;
             } else {
-                final long nodeAddress = it.nextLong(childAddressLength);
-                return PatriciaTreeBase.nodeIsRoot(type) ? tree.loadNode(nodeAddress) : tree.loadNonCachedNode(nodeAddress);
+                return tree.loadNode(it.nextLong(childAddressLength));
             }
         }
         return getChildUsingLinearSearch(tree, key, low, high + 1);
@@ -220,8 +219,7 @@ final class ImmutableNode extends NodeBase {
                 continue;
             }
             if (cmp == 0) {
-                final long nodeAddress = it.nextLong(childAddressLength);
-                return PatriciaTreeBase.nodeIsRoot(type) ? tree.loadNode(nodeAddress) : tree.loadNonCachedNode(nodeAddress);
+                return tree.loadNode(it.nextLong(childAddressLength));
             }
             break;
         }

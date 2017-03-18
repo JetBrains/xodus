@@ -131,10 +131,6 @@ public abstract class PatriciaTreeBase implements ITree {
 
     @NotNull
     final ImmutableNode loadNode(final long address) {
-        return loadNonCachedNode(address);
-    }
-
-    final ImmutableNode loadNonCachedNode(final long address) {
         final RandomAccessLoggable loggable = getLoggable(address);
         return new ImmutableNode(address, loggable.getType(), loggable.getData());
     }
