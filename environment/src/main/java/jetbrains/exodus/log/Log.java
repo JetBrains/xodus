@@ -446,6 +446,29 @@ public final class Log implements Closeable {
         return new RandomAccessLoggableImpl(address, type, data, dataLength, structureId);
     }
 
+    /**
+     * Just like {@linkplain #read(DataIterator, long)} reads loggable which never can be a {@linkplain NullLoggable}.
+     *
+     * @return a loggable which is not{@linkplain NullLoggable}
+     */
+    @NotNull
+    public RandomAccessLoggable readNotNull(final DataIterator it, final long address) {
+        final byte type = (byte) (it.next() ^ 0x80);
+        final int structureId = CompressedUnsignedLongByteIterable.getInt(it);
+        final int dataLength = CompressedUnsignedLongByteIterable.getInt(it);
+        final long dataAddress = it.getHighAddress();
+        if (dataLength > 0) {
+            final byte[] currentPage = it.getCurrentPage();
+            final int currentOffset = it.getOffset();
+            if (it.getLength() - currentOffset >= dataLength) {
+                return new RandomAccessLoggableAndArrayByteIterable(
+                    address, type, structureId, dataAddress, currentPage, currentOffset, dataLength);
+            }
+        }
+        final RandomAccessByteIterable data = new RandomAccessByteIterable(dataAddress, this);
+        return new RandomAccessLoggableImpl(address, type, data, dataLength, structureId);
+    }
+
     public LoggableIterator getLoggableIterator(final long startAddress) {
         return new LoggableIterator(this, startAddress);
     }

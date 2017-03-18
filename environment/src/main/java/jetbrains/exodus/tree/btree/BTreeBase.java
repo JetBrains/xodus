@@ -123,7 +123,7 @@ public abstract class BTreeBase implements ITree {
     }
 
     protected final RandomAccessLoggable getLoggable(long address) {
-        return log.read(getDataIterator(address), address);
+        return log.readNotNull(getDataIterator(address), address);
     }
 
     @NotNull

@@ -140,7 +140,7 @@ public abstract class TreeMetaInfo {
                 @Override
                 public ExpiredLoggableInfo next() {
                     final long nextAddress = itr.next();
-                    return new ExpiredLoggableInfo(tree.getLog().read(tree.getDataIterator(nextAddress), nextAddress));
+                    return new ExpiredLoggableInfo(tree.getLog().readNotNull(tree.getDataIterator(nextAddress), nextAddress));
                 }
 
                 @Override

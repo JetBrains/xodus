@@ -126,7 +126,7 @@ public abstract class PatriciaTreeBase implements ITree {
 
     @NotNull
     final RandomAccessLoggable getLoggable(final long address) {
-        return log.read(getDataIterator(address), address);
+        return log.readNotNull(getDataIterator(address), address);
     }
 
     @NotNull
