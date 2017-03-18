@@ -46,13 +46,14 @@ public abstract class PatriciaTreeBase implements ITree {
 
     @NotNull
     protected final Log log;
-    @Nullable
-    private DataIterator dataIterator = null;
+    @NotNull
+    private final DataIterator dataIterator;
     protected final int structureId;
     protected long size;
 
     protected PatriciaTreeBase(@NotNull final Log log, final int structureId) {
         this.log = log;
+        dataIterator = new DataIterator(log);
         this.structureId = structureId;
     }
 
@@ -65,11 +66,7 @@ public abstract class PatriciaTreeBase implements ITree {
     @NotNull
     @Override
     public DataIterator getDataIterator(long address) {
-        if (dataIterator == null) {
-            dataIterator = new DataIterator(log, address);
-        } else {
-            dataIterator.checkPage(address);
-        }
+        dataIterator.checkPage(address);
         return dataIterator;
     }
 

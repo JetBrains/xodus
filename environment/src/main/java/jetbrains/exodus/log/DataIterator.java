@@ -29,10 +29,16 @@ public final class DataIterator extends ByteIterator {
     private int offset;
     private int length;
 
+    public DataIterator(@NotNull final Log log) {
+        this(log, -1L);
+    }
+
     public DataIterator(@NotNull final Log log, final long startAddress) {
         this.log = log;
         pageAddress = -1L;
-        checkPage(startAddress);
+        if (startAddress >= 0) {
+            checkPage(startAddress);
+        }
     }
 
     @Override
@@ -92,8 +98,8 @@ public final class DataIterator extends ByteIterator {
             } catch (BlockNotFoundException e) {
                 this.pageAddress = -1L;
                 page = null;
+                return;
             }
-
         }
         final int len = (int) Math.min(log.getHighAddress() - pageAddress, (long) cachePageSize);
         if (len <= offset) { // offset is >= 0 for sure
