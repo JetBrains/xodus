@@ -15,7 +15,10 @@
  */
 package jetbrains.exodus.log;
 
-import jetbrains.exodus.*;
+import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.ByteIterator;
+import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.core.dataStructures.skiplists.LongSkipList;
 import jetbrains.exodus.io.*;
@@ -379,7 +382,7 @@ public final class Log implements Closeable {
         return result;
     }
 
-    ArrayByteIterable getHighPage(long alignedAddress) {
+    byte[] getHighPage(long alignedAddress) {
         return bufferedWriter.getHighPage(alignedAddress);
     }
 
@@ -701,11 +704,10 @@ public final class Log implements Closeable {
             throw new ExodusException("Nothing to pad");
         }
         if (bytesToWrite >= cachePageSize) {
-            final ArrayByteIterable cachedTailPage = LogCache.getCachedTailPage(cachePageSize);
+            final byte[] cachedTailPage = LogCache.getCachedTailPage(cachePageSize);
             if (cachedTailPage != null) {
-                final byte[] bytes = cachedTailPage.getBytesUnsafe();
                 do {
-                    bufferedWriter.write(bytes, 0, cachePageSize);
+                    bufferedWriter.write(cachedTailPage, 0, cachePageSize);
                     bytesToWrite -= cachePageSize;
                     highAddress += cachePageSize;
                 } while (bytesToWrite >= cachePageSize);

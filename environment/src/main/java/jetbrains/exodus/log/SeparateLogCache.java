@@ -27,29 +27,29 @@ import static jetbrains.exodus.core.dataStructures.LongObjectCacheBase.DEFAULT_S
 final class SeparateLogCache extends LogCache {
 
     @NotNull
-    private final LongObjectCacheBase<ArrayByteIterable> pagesCache;
+    private final LongObjectCacheBase<byte[]> pagesCache;
 
     SeparateLogCache(final long memoryUsage, final int pageSize, final boolean nonBlocking) {
         super(memoryUsage, pageSize);
         final int pagesCount = (int) (memoryUsage / (pageSize +
                 /* each page consumes additionally nearly 80 bytes in the cache */ 80));
         pagesCache = nonBlocking ?
-                new ConcurrentLongObjectCache<ArrayByteIterable>(pagesCount, CONCURRENT_CACHE_GENERATION_COUNT) :
-                new LongObjectCache<ArrayByteIterable>(pagesCount);
+            new ConcurrentLongObjectCache<byte[]>(pagesCount, CONCURRENT_CACHE_GENERATION_COUNT) :
+            new LongObjectCache<byte[]>(pagesCount);
     }
 
     SeparateLogCache(final int memoryUsagePercentage, final int pageSize, final boolean nonBlocking) {
         super(memoryUsagePercentage, pageSize);
         if (memoryUsage == Long.MAX_VALUE) {
             pagesCache = nonBlocking ?
-                    new ConcurrentLongObjectCache<ArrayByteIterable>(DEFAULT_SIZE, CONCURRENT_CACHE_GENERATION_COUNT) :
-                    new LongObjectCache<ArrayByteIterable>();
+                new ConcurrentLongObjectCache<byte[]>(DEFAULT_SIZE, CONCURRENT_CACHE_GENERATION_COUNT) :
+                new LongObjectCache<byte[]>();
         } else {
             final int pagesCount = (int) (memoryUsage / (pageSize +
                     /* each page consumes additionally nearly 80 bytes in the cache */ 80));
             pagesCache = nonBlocking ?
-                    new ConcurrentLongObjectCache<ArrayByteIterable>(pagesCount, CONCURRENT_CACHE_GENERATION_COUNT) :
-                    new LongObjectCache<ArrayByteIterable>(pagesCount);
+                new ConcurrentLongObjectCache<byte[]>(pagesCount, CONCURRENT_CACHE_GENERATION_COUNT) :
+                new LongObjectCache<byte[]>(pagesCount);
         }
     }
 
@@ -66,19 +66,36 @@ final class SeparateLogCache extends LogCache {
     }
 
     @Override
-    void cachePage(@NotNull final Log log, final long pageAddress, @NotNull final ArrayByteIterable page) {
+    void cachePage(@NotNull final Log log, final long pageAddress, @NotNull final byte[] page) {
         cachePage(pageAddress >> pageSizeLogarithm, page);
     }
 
     @Override
     @NotNull
-    ArrayByteIterable getPage(@NotNull final Log log, final long pageAddress) {
-        ArrayByteIterable page = log.getHighPage(pageAddress);
+    ArrayByteIterable getPageIterable(@NotNull final Log log, final long pageAddress) {
+        final long cacheKey = pageAddress >> pageSizeLogarithm;
+        byte[] page = pagesCache.tryKeyLocked(cacheKey);
+        if (page != null) {
+            return new ArrayByteIterable(page);
+        }
+        page = log.getHighPage(pageAddress);
+        if (page != null) {
+            return new ArrayByteIterable(page, (int) Math.min(log.getHighAddress() - pageAddress, (long) pageSize));
+        }
+        page = readFullPage(log, pageAddress);
+        cachePage(cacheKey, page);
+        return new ArrayByteIterable(page);
+    }
+
+    @NotNull
+    @Override
+    byte[] getPage(@NotNull final Log log, final long pageAddress) {
+        final long cacheKey = pageAddress >> pageSizeLogarithm;
+        byte[] page = pagesCache.tryKeyLocked(cacheKey);
         if (page != null) {
             return page;
         }
-        final long cacheKey = pageAddress >> pageSizeLogarithm;
-        page = pagesCache.tryKeyLocked(cacheKey);
+        page = log.getHighPage(pageAddress);
         if (page != null) {
             return page;
         }
@@ -94,10 +111,10 @@ final class SeparateLogCache extends LogCache {
         }
     }
 
-    private void cachePage(final long cacheKey, @NotNull final ArrayByteIterable page) {
+    private void cachePage(final long cacheKey, @NotNull final byte[] pageArray) {
         try (CriticalSection ignored = pagesCache.newCriticalSection()) {
             if (pagesCache.getObject(cacheKey) == null) {
-                pagesCache.cacheObject(cacheKey, postProcessTailPage(page));
+                pagesCache.cacheObject(cacheKey, postProcessTailPage(pageArray));
             }
         }
     }

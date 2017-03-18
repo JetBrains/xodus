@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.log;
 
-import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.LongBinding;
@@ -26,7 +25,7 @@ public final class DataIterator extends ByteIterator {
     @NotNull
     private final Log log;
     private long pageAddress;
-    private ArrayByteIterable page;
+    private byte[] page;
     private int offset;
     private int length;
 
@@ -54,7 +53,7 @@ public final class DataIterator extends ByteIterator {
             throw new ExodusException("DataIterator: no more bytes available" +
                 LogUtil.getWrongAddressErrorMessage(getHighAddress(), log.getFileSize()));
         }
-        return page.getBytesUnsafe()[offset++];
+        return page[offset++];
     }
 
     @Override
@@ -77,38 +76,37 @@ public final class DataIterator extends ByteIterator {
         if (page == null || this.length - offset < length) {
             return LongBinding.entryToUnsignedLong(this, length);
         }
-        final long result = LongBinding.entryToUnsignedLong(page.getBytesUnsafe(), offset, length);
+        final long result = LongBinding.entryToUnsignedLong(page, offset, length);
         offset += length;
         return result;
     }
 
     public void checkPage(final long highAddress) {
-        final int offset = ((int) highAddress) & (log.getCachePageSize() - 1);
+        final int cachePageSize = log.getCachePageSize();
+        final int offset = ((int) highAddress) & (cachePageSize - 1);
         final long pageAddress = highAddress - offset;
         if (this.pageAddress != pageAddress) {
-            if (loadPage(pageAddress) == null) {
-                return;
-            }
-        }
-        int len = page.getLength();
-        if (len <= offset) { // offset is >= 0 for sure
-            // we should try to reload page since this page can near the right bound of the log (highAddress)
-            if (loadPage(pageAddress) == null) {
-                return;
-            }
-            len = page.getLength();
-            if (len <= offset) { // offset is >= 0 for sure
+            try {
+                page = log.cache.getPage(log, pageAddress);
+                this.pageAddress = pageAddress;
+            } catch (BlockNotFoundException e) {
                 this.pageAddress = -1L;
                 page = null;
-                return;
             }
+
+        }
+        final int len = (int) Math.min(log.getHighAddress() - pageAddress, (long) cachePageSize);
+        if (len <= offset) { // offset is >= 0 for sure
+            this.pageAddress = -1L;
+            page = null;
+            return;
         }
         this.length = len;
         this.offset = offset;
     }
 
     byte[] getCurrentPage() {
-        return page.getBytesUnsafe();
+        return page;
     }
 
     int getOffset() {
@@ -125,16 +123,5 @@ public final class DataIterator extends ByteIterator {
 
     boolean availableInCurrentPage(final int bytes) {
         return length - offset >= bytes;
-    }
-
-    private ArrayByteIterable loadPage(long pageAddress) {
-        try {
-            page = log.cache.getPage(log, pageAddress);
-            this.pageAddress = pageAddress;
-        } catch (BlockNotFoundException e) {
-            this.pageAddress = -1L;
-            this.page = null;
-        }
-        return page;
     }
 }

@@ -77,7 +77,7 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
                                    Log log, long startAddress) {
         final LogCache cache = log.cache;
         final int pageSize = log.getCachePageSize();
-        final int mask = pageSize - 1; // page size is always a power of 2
+        final int mask = pageSize - 1; // bytes size is always a power of 2
         long leftAddress = -1L;
         byte[] leftPage = null;
         long rightAddress = -1L;
@@ -95,7 +95,7 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
             } else if (it.address == rightAddress) {
                 it.page = rightPage;
             } else {
-                it.page = cache.getPage(log, it.address).getBytesUnsafe();
+                it.page = cache.getPage(log, it.address);
                 loaded = true;
             }
 
@@ -108,7 +108,7 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
                 if (rightAddress == nextAddress) {
                     it.nextPage = rightPage;
                 } else {
-                    it.nextPage = cache.getPage(log, nextAddress).getBytesUnsafe();
+                    it.nextPage = cache.getPage(log, nextAddress);
                     loaded = true;
                 }
                 cmp = comparator.compare(it.asCompound().nextLong(bytesPerLong), key);
@@ -140,7 +140,6 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
         private byte[] nextPage;
         private int offset;
         private long address;
-
         private final int pageSize;
 
         private BinarySearchIterator(int pageSize) {

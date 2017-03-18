@@ -21,6 +21,7 @@ import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.core.dataStructures.ConcurrentLongObjectCache;
 import jetbrains.exodus.util.MathUtil;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 @SuppressWarnings("WeakerAccess")
 abstract class LogCache {
@@ -31,7 +32,7 @@ abstract class LogCache {
     protected static final int MAXIMUM_MEM_USAGE_PERCENT = 95;
     protected static final int CONCURRENT_CACHE_GENERATION_COUNT = 2;
 
-    private static final ConcurrentLongObjectCache<ArrayByteIterable> TAIL_PAGES_CACHE = new ConcurrentLongObjectCache<>(10);
+    private static final ConcurrentLongObjectCache<byte[]> TAIL_PAGES_CACHE = new ConcurrentLongObjectCache<>(10);
 
     protected final long memoryUsage;
     protected final int memoryUsagePercentage;
@@ -40,14 +41,14 @@ abstract class LogCache {
 
     /**
      * @param memoryUsage amount of memory which the cache is allowed to occupy (in bytes).
-     * @param pageSize    number of bytes in a page.
+     * @param pageSize    number of bytes in a bytes.
      * @throws InvalidSettingException if settings are invalid.
      */
     protected LogCache(final long memoryUsage, final int pageSize) {
         checkPageSize(pageSize);
         this.pageSize = pageSize;
         if ((pageSizeLogarithm = integerLogarithm(pageSize)) < 0) {
-            throw new InvalidSettingException("Log cache page size should be a power of 2: " + pageSize);
+            throw new InvalidSettingException("Log cache bytes size should be a power of 2: " + pageSize);
         }
         final long maxMemory = Runtime.getRuntime().maxMemory();
         if (maxMemory <= memoryUsage) {
@@ -59,7 +60,7 @@ abstract class LogCache {
 
     /**
      * @param memoryUsagePercentage amount of memory which the cache is allowed to occupy (in percents to the max memory value).
-     * @param pageSize              number of bytes in a page.
+     * @param pageSize              number of bytes in a bytes.
      * @throws InvalidSettingException if settings are invalid.
      */
     protected LogCache(final int memoryUsagePercentage, final int pageSize) {
@@ -72,7 +73,7 @@ abstract class LogCache {
         }
         this.pageSize = pageSize;
         if ((pageSizeLogarithm = integerLogarithm(pageSize)) < 0) {
-            throw new InvalidSettingException("Log cache page size should be a power of 2: " + pageSize);
+            throw new InvalidSettingException("Log cache bytes size should be a power of 2: " + pageSize);
         }
         final long maxMemory = Runtime.getRuntime().maxMemory();
         memoryUsage = maxMemory == Long.MAX_VALUE ? Long.MAX_VALUE : maxMemory / 100L * (long) memoryUsagePercentage;
@@ -83,23 +84,28 @@ abstract class LogCache {
 
     abstract float hitRate();
 
-    abstract void cachePage(@NotNull final Log log, final long pageAddress, @NotNull final ArrayByteIterable page);
+    abstract void cachePage(@NotNull final Log log, final long pageAddress, @NotNull final byte[] page);
 
     @NotNull
-    abstract ArrayByteIterable getPage(@NotNull final Log log, final long pageAddress);
+    abstract byte[] getPage(@NotNull final Log log, final long pageAddress);
+
+    @NotNull
+    abstract ArrayByteIterable getPageIterable(@NotNull final Log log, final long pageAddress);
 
     abstract void removePage(@NotNull final Log log, final long pageAddress);
 
-    protected ArrayByteIterable readFullPage(Log log, long pageAddress) {
-        final ArrayByteIterable page = allocPage();
-        if (log.readBytes(page.getBytesUnsafe(), pageAddress) != pageSize) {
-            throw new ExodusException("Can't read full page from log [" + log.getLocation() + "] with address " + pageAddress);
+    @NotNull
+    protected byte[] readFullPage(Log log, long pageAddress) {
+        final byte[] page = allocPage();
+        if (log.readBytes(page, pageAddress) != pageSize) {
+            throw new ExodusException("Can't read full bytes from log [" + log.getLocation() + "] with address " + pageAddress);
         }
         return page;
     }
 
-    ArrayByteIterable allocPage() {
-        return new ArrayByteIterable(new byte[pageSize]);
+    @NotNull
+    byte[] allocPage() {
+        return new byte[pageSize];
     }
 
     private static void checkPageSize(int pageSize) throws InvalidSettingException {
@@ -116,27 +122,26 @@ abstract class LogCache {
         return 1 << result == i ? result : -1;
     }
 
-    protected static ArrayByteIterable postProcessTailPage(@NotNull final ArrayByteIterable page) {
+    protected static byte[] postProcessTailPage(@NotNull final byte[] page) {
         if (isTailPage(page)) {
-            final int length = page.getLength();
-            final ArrayByteIterable cachedPage = getCachedTailPage(length);
-            if (cachedPage != null) {
-                return cachedPage;
+            final int length = page.length;
+            final byte[] cachedTailPage = getCachedTailPage(length);
+            if (cachedTailPage != null) {
+                return cachedTailPage;
             }
             TAIL_PAGES_CACHE.cacheObject(length, page);
         }
         return page;
     }
 
-    static ArrayByteIterable getCachedTailPage(final int cachePageSize) {
+    @Nullable
+    static byte[] getCachedTailPage(final int cachePageSize) {
         return TAIL_PAGES_CACHE.tryKey(cachePageSize);
     }
 
-    private static boolean isTailPage(@NotNull final ArrayByteIterable page) {
-        final int length = page.getLength();
-        final byte[] bytes = page.getBytesUnsafe();
-        for (int i = 0; i < length; ++i) {
-            if (bytes[i] != (byte) 0x80) {
+    private static boolean isTailPage(@NotNull final byte[] page) {
+        for (byte b : page) {
+            if (b != (byte) 0x80) {
                 return false;
             }
         }

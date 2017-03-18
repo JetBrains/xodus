@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.log;
 
-import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.io.DataWriter;
@@ -41,16 +40,16 @@ class BufferedDataWriter implements TransactionalDataWriter {
 
     private BufferedDataWriter(@NotNull final Log log,
                                @NotNull final DataWriter child,
-                               @NotNull final ArrayByteIterable page,
+                               @NotNull final byte[] page,
                                final long pageAddress) {
         this.log = log;
         logCache = log.cache;
         this.child = child;
         currentPage = new MutablePage(null, page, pageAddress);
         pageSize = log.getCachePageSize();
-        if (pageSize != page.getBytesUnsafe().length) {
-            throw new InvalidSettingException("Configured page size doesn't match actual page size, pageSize = " +
-                    pageSize + ", actual page size = " + page.getBytesUnsafe().length);
+        if (pageSize != page.length) {
+            throw new InvalidSettingException("Configured bytes size doesn't match actual bytes size, pageSize = " +
+                pageSize + ", actual bytes size = " + page.length);
         }
     }
 
@@ -64,7 +63,7 @@ class BufferedDataWriter implements TransactionalDataWriter {
                        final long highPageAddress,
                        final byte[] highPageContent,
                        final int highPageSize) {
-        this(log, child, new ArrayByteIterable(highPageContent), highPageAddress);
+        this(log, child, highPageContent, highPageAddress);
         currentPage.setPageSize(highPageSize);
     }
 
@@ -145,7 +144,7 @@ class BufferedDataWriter implements TransactionalDataWriter {
             for (final MutablePage mutablePage : fullPages) {
                 final int off = mutablePage.flushedCount;
                 child.write(mutablePage.bytes, off, pageSize - off);
-                logCache.cachePage(log, mutablePage.pageAddress, mutablePage.page);
+                logCache.cachePage(log, mutablePage.pageAddress, mutablePage.bytes);
             }
             currentPage.previousPage = null;
         }
@@ -212,13 +211,12 @@ class BufferedDataWriter implements TransactionalDataWriter {
     }
 
     @Override
-    public ArrayByteIterable getHighPage(final long alignedAddress) {
+    public byte[] getHighPage(final long alignedAddress) {
         MutablePage currentPage = this.currentPage;
         do {
             final long highPageAddress = currentPage.pageAddress;
             if (alignedAddress == highPageAddress) {
-                final int committedCount = currentPage.committedCount;
-                return committedCount > 0 ? new ArrayByteIterable(currentPage.bytes, committedCount) : null;
+                return currentPage.bytes;
             }
             currentPage = currentPage.previousPage;
         } while (currentPage != null);
@@ -249,20 +247,15 @@ class BufferedDataWriter implements TransactionalDataWriter {
         @Nullable
         MutablePage previousPage;
         @NotNull
-        final ArrayByteIterable page;
-        @NotNull
         final byte[] bytes;
         final long pageAddress;
         int flushedCount;
         int committedCount;
         int writtenCount;
 
-        MutablePage(@Nullable final MutablePage previousPage,
-                    @NotNull final ArrayByteIterable page,
-                    final long pageAddress) {
+        MutablePage(@Nullable final MutablePage previousPage, @NotNull final byte[] page, final long pageAddress) {
             this.previousPage = previousPage;
-            this.page = page;
-            bytes = page.getBytesUnsafe();
+            this.bytes = page;
             this.pageAddress = pageAddress;
             setPageSize(0);
         }

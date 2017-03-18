@@ -15,17 +15,16 @@
  */
 package jetbrains.exodus.io;
 
-import jetbrains.exodus.ArrayByteIterable;
+import org.jetbrains.annotations.Nullable;
 
-/**
- */
 public interface TransactionalDataWriter extends DataWriter {
 
     DataWriter getChildWriter();
 
     boolean write(byte b);
 
-    ArrayByteIterable getHighPage(long alignedAddress);
+    @Nullable
+    byte[] getHighPage(long alignedAddress);
 
     void setMaxBytesToWrite(int capacity);
 
