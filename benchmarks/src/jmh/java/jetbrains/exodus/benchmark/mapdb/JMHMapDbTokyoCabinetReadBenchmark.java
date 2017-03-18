@@ -21,8 +21,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.MEASUREMENT_ITERATIONS;
-import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.WARMUP_ITERATIONS;
+import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.*;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
@@ -38,7 +37,7 @@ public class JMHMapDbTokyoCabinetReadBenchmark extends JMHMapDbTokyoCabinetBench
     @BenchmarkMode(Mode.SingleShotTime)
     @Warmup(iterations = WARMUP_ITERATIONS)
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
-    @Fork(4)
+    @Fork(FORKS)
     public int successiveRead() {
         int result = 0;
         final Map<String, String> store = createTestStore();
@@ -53,7 +52,7 @@ public class JMHMapDbTokyoCabinetReadBenchmark extends JMHMapDbTokyoCabinetBench
     @BenchmarkMode(Mode.SingleShotTime)
     @Warmup(iterations = WARMUP_ITERATIONS)
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
-    @Fork(4)
+    @Fork(FORKS)
     public int randomRead() {
         int result = 0;
         final Map<String, String> store = createTestStore();

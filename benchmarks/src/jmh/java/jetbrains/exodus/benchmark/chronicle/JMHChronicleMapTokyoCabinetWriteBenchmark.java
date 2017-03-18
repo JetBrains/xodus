@@ -22,8 +22,7 @@ import org.openjdk.jmh.annotations.*;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.MEASUREMENT_ITERATIONS;
-import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.WARMUP_ITERATIONS;
+import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.*;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
@@ -38,7 +37,7 @@ public class JMHChronicleMapTokyoCabinetWriteBenchmark extends JMHChronicleMapTo
     @BenchmarkMode(Mode.SingleShotTime)
     @Warmup(iterations = WARMUP_ITERATIONS)
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
-    @Fork(4)
+    @Fork(FORKS)
     public void successiveWrite() {
         computeInTransaction(new TransactionalComputable<Void>() {
             @Override
@@ -53,7 +52,7 @@ public class JMHChronicleMapTokyoCabinetWriteBenchmark extends JMHChronicleMapTo
     @BenchmarkMode(Mode.SingleShotTime)
     @Warmup(iterations = WARMUP_ITERATIONS)
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
-    @Fork(4)
+    @Fork(FORKS)
     public void randomWrite() {
         computeInTransaction(new TransactionalComputable<Void>() {
             @Override

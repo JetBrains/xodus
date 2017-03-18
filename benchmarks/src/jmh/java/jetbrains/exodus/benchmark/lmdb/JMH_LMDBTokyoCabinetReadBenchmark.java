@@ -15,14 +15,14 @@
  */
 package jetbrains.exodus.benchmark.lmdb;
 
-import org.fusesource.lmdbjni.*;
+import org.fusesource.lmdbjni.BufferCursor;
+import org.fusesource.lmdbjni.Transaction;
 import org.openjdk.jmh.annotations.*;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.MEASUREMENT_ITERATIONS;
-import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.WARMUP_ITERATIONS;
+import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.*;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
@@ -38,7 +38,7 @@ public class JMH_LMDBTokyoCabinetReadBenchmark extends JMH_LMDBTokyoCabinetBench
     @BenchmarkMode(Mode.SingleShotTime)
     @Warmup(iterations = WARMUP_ITERATIONS)
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
-    @Fork(4)
+    @Fork(FORKS)
     public int successiveRead() {
         try (Transaction txn = env.createReadTransaction()) {
             int result = 0;
@@ -58,7 +58,7 @@ public class JMH_LMDBTokyoCabinetReadBenchmark extends JMH_LMDBTokyoCabinetBench
     @BenchmarkMode(Mode.SingleShotTime)
     @Warmup(iterations = WARMUP_ITERATIONS)
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
-    @Fork(4)
+    @Fork(FORKS)
     public int randomRead() {
         try (Transaction txn = env.createReadTransaction()) {
             int result = 0;
