@@ -42,7 +42,7 @@ dependencies {
 jmh {
     // uncomment the following line to exclude all benchmarks except Xodus Tokyo Cabinet
     //exclude = 'dataStructures|chronicle|h2|mapdb|lmdb'
-    jmhVersion = '1.17.3'
+    jmhVersion = '1.18'
     jvmArgsPrepend '-Xmx1g -Xms1g'
     duplicateClassesStrategy = 'warn'
     resultFormat = 'JSON'
