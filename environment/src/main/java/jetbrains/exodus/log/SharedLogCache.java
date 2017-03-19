@@ -122,7 +122,7 @@ final class SharedLogCache extends LogCache {
     }
 
     private static long getLogPageFingerPrint(final int logIdentity, final long address) {
-        return ((long) logIdentity << 32) + (long) logIdentity + address;
+        return ((address + logIdentity) << 32) + address + logIdentity;
     }
 
     private static final class CachedValue {
