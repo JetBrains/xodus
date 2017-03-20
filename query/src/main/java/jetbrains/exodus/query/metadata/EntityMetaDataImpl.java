@@ -24,10 +24,11 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class EntityMetaDataImpl implements EntityMetaData {
 
-    private ModelMetaData modelMetaData = null;
+    private final AtomicReference<ModelMetaData> modelMetaData;
     private String type = null;
     private String superType = null;
     private Set<String> interfaces = new LinkedHashSetDecorator<>();
@@ -49,10 +50,11 @@ public class EntityMetaDataImpl implements EntityMetaData {
     private Map<String, AssociationEndMetaData> associationEnds = null;
 
     public EntityMetaDataImpl() {
+        this.modelMetaData = new AtomicReference<>();
     }
 
     public EntityMetaDataImpl(@NotNull ModelMetaData modelMetaData) {
-        this.modelMetaData = modelMetaData;
+        this.modelMetaData = new AtomicReference<>(modelMetaData);
     }
 
     void reset() {
@@ -80,7 +82,7 @@ public class EntityMetaDataImpl implements EntityMetaData {
 
     @Override
     public ModelMetaData getModelMetaData() {
-        return modelMetaData;
+        return modelMetaData.get();
     }
 
     public void setModelMetaData(ModelMetaData modelMetaData) {
@@ -88,7 +90,9 @@ public class EntityMetaDataImpl implements EntityMetaData {
             ((IndexImpl) index).setModelMetaData(modelMetaData);
         }
 
-        this.modelMetaData = modelMetaData;
+        if (!this.modelMetaData.compareAndSet(null, modelMetaData)) {
+            throw new IllegalStateException("Cannot reuse EntityMetaDataImpl between " + modelMetaData + " and " + this.modelMetaData.get());
+        }
     }
 
     public void setType(String type) {
@@ -152,7 +156,7 @@ public class EntityMetaDataImpl implements EntityMetaData {
         final Set<String> subTypes = emd.subTypes;
         result.addAll(subTypes);
         for (final String subType : subTypes) {
-            collectSubTypes((EntityMetaDataImpl) modelMetaData.getEntityMetaData(subType), result);
+            collectSubTypes((EntityMetaDataImpl) modelMetaData.get().getEntityMetaData(subType), result);
         }
     }
 
@@ -412,7 +416,7 @@ public class EntityMetaDataImpl implements EntityMetaData {
     }
 
     private EntityMetaData getEntityMetaData(String type) {
-        return modelMetaData.getEntityMetaData(type);
+        return modelMetaData.get().getEntityMetaData(type);
     }
 
     public void setOwnIndexes(Set<Index> ownIndexes) {
