@@ -18,6 +18,7 @@ package jetbrains.exodus.benchmark.h2;
 import org.h2.mvstore.MVStore;
 import org.jetbrains.annotations.NotNull;
 import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.infra.Blackhole;
 
 import java.io.IOException;
 import java.util.Map;
@@ -32,11 +33,10 @@ public class JMH_MVStoreTokyoCabinetReadBenchmark extends JMH_MVStoreTokyoCabine
     @Setup(Level.Invocation)
     public void beforeBenchmark() throws IOException {
         setup();
-        computeInTransaction(new TransactionalComputable() {
+        executeInTransaction(new TransactionalExecutable() {
             @Override
-            public Object compute(@NotNull final MVStore store) {
+            public void execute(@NotNull final MVStore store) {
                 writeSuccessiveKeys(createTestMap(store));
-                return null;
             }
         });
     }
@@ -46,17 +46,15 @@ public class JMH_MVStoreTokyoCabinetReadBenchmark extends JMH_MVStoreTokyoCabine
     @Warmup(iterations = WARMUP_ITERATIONS)
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
-    public int successiveRead() {
-        return computeInTransaction(new TransactionalComputable<Integer>() {
+    public void successiveRead(final Blackhole bh) {
+        executeInTransaction(new TransactionalExecutable() {
             @Override
-            public Integer compute(@NotNull final MVStore store) {
-                int result = 0;
+            public void execute(@NotNull final MVStore store) {
                 final Map<Object, Object> map = createTestMap(store);
                 for (Map.Entry entry : map.entrySet()) {
-                    result += ((String) entry.getKey()).length();
-                    result += ((String) entry.getValue()).length();
+                    bh.consume(entry.getKey());
+                    bh.consume(entry.getValue());
                 }
-                return result;
             }
         });
     }
@@ -66,17 +64,14 @@ public class JMH_MVStoreTokyoCabinetReadBenchmark extends JMH_MVStoreTokyoCabine
     @Warmup(iterations = WARMUP_ITERATIONS)
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
-    public int randomRead() {
-        return computeInTransaction(new TransactionalComputable<Integer>() {
+    public void randomRead(final Blackhole bh) {
+        executeInTransaction(new TransactionalExecutable() {
             @Override
-            public Integer compute(@NotNull final MVStore store) {
-                int result = 0;
+            public void execute(@NotNull final MVStore store) {
                 final Map<Object, Object> map = createTestMap(store);
                 for (final String key : randomKeys) {
-                    result += key.length();
-                    result += ((String) map.get(key)).length();
+                    bh.consume(map.get(key));
                 }
-                return result;
             }
         });
     }

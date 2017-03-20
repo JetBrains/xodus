@@ -16,12 +16,14 @@
 package jetbrains.exodus.benchmark.env;
 
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.env.Cursor;
 import jetbrains.exodus.env.StoreConfig;
 import jetbrains.exodus.env.Transaction;
-import jetbrains.exodus.env.TransactionalComputable;
+import jetbrains.exodus.env.TransactionalExecutable;
 import org.jetbrains.annotations.NotNull;
 import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.infra.Blackhole;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -43,18 +45,16 @@ public class JMHEnvTokyoCabinetReadBenchmark extends JMHEnvTokyoCabinetBenchmark
     @Warmup(iterations = WARMUP_ITERATIONS)
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
-    public int successiveRead() {
-        return env.computeInReadonlyTransaction(new TransactionalComputable<Integer>() {
+    public void successiveRead(final Blackhole bh) {
+        env.executeInReadonlyTransaction(new TransactionalExecutable() {
             @Override
-            public Integer compute(@NotNull final Transaction txn) {
-                int result = 0;
+            public void execute(@NotNull final Transaction txn) {
                 try (Cursor c = store.openCursor(txn)) {
                     while (c.getNext()) {
-                        result += c.getKey().getLength();
-                        result += c.getValue().getLength();
+                        consumeBytes(bh, c.getKey());
+                        consumeBytes(bh, c.getValue());
                     }
                 }
-                return result;
             }
         });
     }
@@ -64,19 +64,16 @@ public class JMHEnvTokyoCabinetReadBenchmark extends JMHEnvTokyoCabinetBenchmark
     @Warmup(iterations = WARMUP_ITERATIONS)
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
-    public int randomRead() {
-        return env.computeInReadonlyTransaction(new TransactionalComputable<Integer>() {
+    public void randomRead(final Blackhole bh) {
+        env.executeInReadonlyTransaction(new TransactionalExecutable() {
             @Override
-            public Integer compute(@NotNull final Transaction txn) {
-                int result = 0;
+            public void execute(@NotNull final Transaction txn) {
                 try (Cursor c = store.openCursor(txn)) {
                     for (final ByteIterable key : randomKeys) {
                         c.getSearchKey(key);
-                        result += c.getKey().getLength();
-                        result += c.getValue().getLength();
+                        consumeBytes(bh, c.getValue());
                     }
                 }
-                return result;
             }
         });
     }
@@ -84,5 +81,12 @@ public class JMHEnvTokyoCabinetReadBenchmark extends JMHEnvTokyoCabinetBenchmark
     @Override
     protected StoreConfig getConfig() {
         return StoreConfig.WITHOUT_DUPLICATES;
+    }
+
+    private static void consumeBytes(final Blackhole bh, final ByteIterable it) {
+        final ByteIterator iterator = it.iterator();
+        while (iterator.hasNext()) {
+            bh.consume(iterator.next());
+        }
     }
 }

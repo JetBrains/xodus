@@ -40,11 +40,10 @@ public class JMH_MVStoreTokyoCabinetWriteBenchmark extends JMH_MVStoreTokyoCabin
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
     public void successiveWrite() {
-        computeInTransaction(new TransactionalComputable() {
+        executeInTransaction(new TransactionalExecutable() {
             @Override
-            public Object compute(@NotNull final MVStore store) {
+            public void execute(@NotNull final MVStore store) {
                 writeSuccessiveKeys(createTestMap(store));
-                return null;
             }
         });
     }
@@ -55,14 +54,13 @@ public class JMH_MVStoreTokyoCabinetWriteBenchmark extends JMH_MVStoreTokyoCabin
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
     public void randomWrite() {
-        computeInTransaction(new TransactionalComputable() {
+        executeInTransaction(new TransactionalExecutable() {
             @Override
-            public Object compute(@NotNull final MVStore store) {
+            public void execute(@NotNull final MVStore store) {
                 final Map<Object, Object> map = createTestMap(store);
                 for (final String key : randomKeys) {
                     map.put(key, key);
                 }
-                return null;
             }
         });
     }

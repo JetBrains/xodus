@@ -16,8 +16,10 @@
 package jetbrains.exodus.benchmark.lmdb;
 
 import org.fusesource.lmdbjni.BufferCursor;
+import org.fusesource.lmdbjni.DirectBuffer;
 import org.fusesource.lmdbjni.Transaction;
 import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.infra.Blackhole;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -39,18 +41,16 @@ public class JMH_LMDBTokyoCabinetReadBenchmark extends JMH_LMDBTokyoCabinetBench
     @Warmup(iterations = WARMUP_ITERATIONS)
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
-    public int successiveRead() {
+    public void successiveRead(final Blackhole bh) {
         try (Transaction txn = env.createReadTransaction()) {
-            int result = 0;
             try (BufferCursor c = db.bufferCursor(txn)) {
                 if (c.first()) {
                     do {
-                        result += c.keyLength();
-                        result += c.valLength();
+                        consumeBytes(bh, c.keyBuffer());
+                        consumeBytes(bh, c.valBuffer());
                     } while (c.next());
                 }
             }
-            return result;
         }
     }
 
@@ -59,18 +59,21 @@ public class JMH_LMDBTokyoCabinetReadBenchmark extends JMH_LMDBTokyoCabinetBench
     @Warmup(iterations = WARMUP_ITERATIONS)
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
-    public int randomRead() {
+    public void randomRead(final Blackhole bh) {
         try (Transaction txn = env.createReadTransaction()) {
-            int result = 0;
             try (BufferCursor c = db.bufferCursor(txn)) {
                 for (final byte[] key : randomKeys) {
                     c.keyWriteBytes(key);
                     c.seekKey();
-                    result += c.keyLength();
-                    result += c.valLength();
+                    consumeBytes(bh, c.valBuffer());
                 }
             }
-            return result;
+        }
+    }
+
+    private static void consumeBytes(final Blackhole bh, final DirectBuffer buffer) {
+        for (int i = 0; i < buffer.capacity(); ++i) {
+            bh.consume(buffer.getByte(i));
         }
     }
 }

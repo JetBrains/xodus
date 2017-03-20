@@ -58,9 +58,9 @@ abstract class JMH_MVStoreTokyoCabinetBenchmarkBase {
         temporaryFolder = new TemporaryFolder();
         temporaryFolder.create();
         store = new MVStore.Builder()
-                .fileName(temporaryFolder.newFile("data").getAbsolutePath())
-                .autoCommitDisabled()
-                .open();
+            .fileName(temporaryFolder.newFile("data").getAbsolutePath())
+            .autoCommitDisabled()
+            .open();
     }
 
     private void closeStore() {
@@ -73,14 +73,14 @@ abstract class JMH_MVStoreTokyoCabinetBenchmarkBase {
         }
     }
 
-    protected interface TransactionalComputable<T> {
+    protected interface TransactionalExecutable {
 
-        T compute(@NotNull final MVStore store);
+        void execute(@NotNull final MVStore store);
     }
 
-    <T> T computeInTransaction(@NotNull final TransactionalComputable<T> computable) {
+    void executeInTransaction(@NotNull final TransactionalExecutable executable) {
         try {
-            return computable.compute(store);
+            executable.execute(store);
         } finally {
             store.commit();
         }

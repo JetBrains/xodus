@@ -39,11 +39,10 @@ public class JMHChronicleMapTokyoCabinetWriteBenchmark extends JMHChronicleMapTo
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
     public void successiveWrite() {
-        computeInTransaction(new TransactionalComputable<Void>() {
+        executeInTransaction(new TransactionalExecutable() {
             @Override
-            public Void compute(@NotNull ChronicleMap<String, String> map) {
+            public void execute(@NotNull ChronicleMap<String, String> map) {
                 writeSuccessiveKeys(map);
-                return null;
             }
         });
     }
@@ -54,13 +53,12 @@ public class JMHChronicleMapTokyoCabinetWriteBenchmark extends JMHChronicleMapTo
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
     public void randomWrite() {
-        computeInTransaction(new TransactionalComputable<Void>() {
+        executeInTransaction(new TransactionalExecutable() {
             @Override
-            public Void compute(@NotNull ChronicleMap<String, String> map) {
+            public void execute(@NotNull ChronicleMap<String, String> map) {
                 for (final String key : randomKeys) {
                     map.put(key, key);
                 }
-                return null;
             }
         });
     }

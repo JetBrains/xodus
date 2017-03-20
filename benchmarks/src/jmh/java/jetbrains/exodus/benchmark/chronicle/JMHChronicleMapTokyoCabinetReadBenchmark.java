@@ -19,6 +19,7 @@ import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.map.ExternalMapQueryContext;
 import org.jetbrains.annotations.NotNull;
 import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
@@ -36,11 +37,10 @@ public class JMHChronicleMapTokyoCabinetReadBenchmark extends JMHChronicleMapTok
     @Setup(Level.Invocation)
     public void beforeBenchmark() throws IOException {
         setup();
-        computeInTransaction(new TransactionalComputable<Void>() {
+        executeInTransaction(new TransactionalExecutable() {
             @Override
-            public Void compute(@NotNull ChronicleMap<String, String> map) {
+            public void execute(@NotNull ChronicleMap<String, String> map) {
                 writeSuccessiveKeys(map);
-                return null;
             }
         });
     }
@@ -50,18 +50,14 @@ public class JMHChronicleMapTokyoCabinetReadBenchmark extends JMHChronicleMapTok
     @Warmup(iterations = WARMUP_ITERATIONS)
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
-    public int successiveRead() {
-        return computeInTransaction(new TransactionalComputable<Integer>() {
-            int result;
-
+    public void successiveRead(final Blackhole bh) {
+        executeInTransaction(new TransactionalExecutable() {
             @Override
-            public Integer compute(@NotNull ChronicleMap<String, String> map) {
-                result = 0;
+            public void execute(@NotNull ChronicleMap<String, String> map) {
                 map.forEachEntry(e -> {
-                    result += e.key().size();
-                    result += e.value().size();
+                    bh.consume(e.key().get());
+                    bh.consume(e.value().get());
                 });
-                return result;
             }
         });
     }
@@ -71,18 +67,15 @@ public class JMHChronicleMapTokyoCabinetReadBenchmark extends JMHChronicleMapTok
     @Warmup(iterations = WARMUP_ITERATIONS)
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
-    public int randomRead() {
-        return computeInTransaction(new TransactionalComputable<Integer>() {
+    public void randomRead(final Blackhole bh) {
+        executeInTransaction(new TransactionalExecutable() {
             @Override
-            public Integer compute(@NotNull ChronicleMap<String, String> map) {
-                int result = 0;
+            public void execute(@NotNull ChronicleMap<String, String> map) {
                 for (final String key : randomKeys) {
-                    result += key.length();
                     try (ExternalMapQueryContext<String, String, ?> c = map.queryContext(key)) {
-                        result += c.entry().value().size();
+                        bh.consume(c.entry().value().get());
                     }
                 }
-                return result;
             }
         });
     }

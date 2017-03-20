@@ -70,18 +70,17 @@ abstract class JMHChronicleMapTokyoCabinetBenchmarkBase {
         }
     }
 
-    protected interface TransactionalComputable<T> {
+    protected interface TransactionalExecutable {
 
-        T compute(@NotNull final ChronicleMap<String, String> map);
+        void execute(@NotNull final ChronicleMap<String, String> map);
     }
 
-    <T> T computeInTransaction(@NotNull final TransactionalComputable<T> computable) {
-        T result = computable.compute(map);
+    void executeInTransaction(@NotNull final TransactionalExecutable executable) {
+        executable.execute(map);
         try {
             ((VanillaChronicleMap) map).msync();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        return result;
     }
 }

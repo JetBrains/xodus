@@ -16,6 +16,7 @@
 package jetbrains.exodus.benchmark.mapdb;
 
 import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.infra.Blackhole;
 
 import java.io.IOException;
 import java.util.Map;
@@ -38,14 +39,12 @@ public class JMHMapDbTokyoCabinetReadBenchmark extends JMHMapDbTokyoCabinetBench
     @Warmup(iterations = WARMUP_ITERATIONS)
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
-    public int successiveRead() {
-        int result = 0;
+    public void successiveRead(final Blackhole bh) {
         final Map<String, String> store = createTestStore();
         for (Map.Entry<String, String> entry : store.entrySet()) {
-            result += entry.getKey().length();
-            result += entry.getValue().length();
+            bh.consume(entry.getKey().length());
+            bh.consume(entry.getValue().length());
         }
-        return result;
     }
 
     @Benchmark
@@ -53,13 +52,10 @@ public class JMHMapDbTokyoCabinetReadBenchmark extends JMHMapDbTokyoCabinetBench
     @Warmup(iterations = WARMUP_ITERATIONS)
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
-    public int randomRead() {
-        int result = 0;
+    public void randomRead(final Blackhole bh) {
         final Map<String, String> store = createTestStore();
         for (final String key : randomKeys) {
-            result += key.length();
-            result += store.get(key).length();
+            bh.consume(store.get(key).length());
         }
-        return result;
     }
 }
