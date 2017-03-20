@@ -461,6 +461,10 @@ public class QueryEngine {
         return excludeNonTrees(adjustEntityIterable(left), adjustEntityIterable(right));
     }
 
+    public EntityIterable instantiateGetAll(@NotNull final String entityType) {
+        return getPersistentStore().getAndCheckCurrentTransaction().getAll(entityType);
+    }
+
     public static boolean isEmptyIterable(Iterable<Entity> it) {
         return it == null || it == EntityIterableBase.EMPTY || (it instanceof StaticTypedIterableDecorator && ((StaticTypedIterableDecorator) it).getDecorated() == EntityIterableBase.EMPTY);
     }

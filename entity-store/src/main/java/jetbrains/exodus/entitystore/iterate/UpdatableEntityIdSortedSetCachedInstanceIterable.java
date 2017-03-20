@@ -175,11 +175,13 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
         mutableLocalIds = null;
     }
 
+    @Override
     public final void addEntity(final EntityId id) {
         checkEntityType(id);
         checkMutableIds().put(id.getLocalId(), EMPTY_IDS);
     }
 
+    @Override
     public final void removeEntity(final EntityId id) {
         checkEntityType(id);
         checkMutableIds().remove(id.getLocalId());

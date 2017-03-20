@@ -1029,7 +1029,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         void update(@NotNull final EntityIterableHandle handle,
                     @NotNull final UpdatableCachedInstanceIterable iterable) {
-            ((UpdatableEntityIdSortedSetCachedInstanceIterable) iterable).removeEntity(id);
+            iterable.removeEntity(id);
         }
     }
 
@@ -1052,7 +1052,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         void update(@NotNull final EntityIterableHandle handle,
                     @NotNull final UpdatableCachedInstanceIterable iterable) {
-            ((UpdatableEntityIdSortedSetCachedInstanceIterable) iterable).addEntity(id);
+            iterable.addEntity(id);
         }
     }
 
@@ -1192,11 +1192,10 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                     propertyIndex.update(entityTypeId, localId, oldValue, newValue);
                 }
             } else {
-                final UpdatableEntityIdSortedSetCachedInstanceIterable cachedInstance = (UpdatableEntityIdSortedSetCachedInstanceIterable) iterable;
                 if (oldValue == null) {
-                    cachedInstance.addEntity(new PersistentEntityId(entityTypeId, localId));
+                    iterable.addEntity(new PersistentEntityId(entityTypeId, localId));
                 } else {
-                    cachedInstance.removeEntity(new PersistentEntityId(entityTypeId, localId));
+                    iterable.removeEntity(new PersistentEntityId(entityTypeId, localId));
                 }
             }
         }

@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
+import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -38,6 +39,10 @@ public abstract class UpdatableCachedInstanceIterable extends CachedInstanceIter
     public abstract UpdatableCachedInstanceIterable beginUpdate();
 
     public abstract boolean isMutated();
+
+    public abstract void addEntity(final EntityId id);
+
+    public abstract void removeEntity(final EntityId id);
 
     public abstract void endUpdate();
 }

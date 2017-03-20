@@ -27,7 +27,7 @@ public class GetAll extends NodeBase {
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData) {
         queryEngine.assertOperational();
-        return queryEngine.getPersistentStore().getAndCheckCurrentTransaction().getAll(entityType);
+        return queryEngine.instantiateGetAll(entityType);
     }
 
     @Override
