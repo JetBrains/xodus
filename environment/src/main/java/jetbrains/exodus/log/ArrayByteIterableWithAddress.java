@@ -15,8 +15,10 @@
  */
 package jetbrains.exodus.log;
 
+import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterableBase;
+import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.util.ByteIterableUtil;
 import org.jetbrains.annotations.NotNull;
@@ -61,6 +63,13 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
         return end - start;
     }
 
+    @NotNull
+    @Override
+    public ByteIterable subIterable(final int offset, final int length) {
+        final int adjustedLen = Math.min(length, Math.max(getLength() - offset, 0));
+        return adjustedLen == 0 ? ArrayByteIterable.EMPTY : new SubIterable(bytes, start + offset, adjustedLen);
+    }
+
     @Override
     public String toString() {
         return ByteIterableBase.toString(bytes, start, end);
@@ -100,6 +109,62 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
         public long nextLong(final int length) {
             final long result = LongBinding.entryToUnsignedLong(bytes, i, length);
             i += length;
+            return result;
+        }
+    }
+
+    private static class SubIterable extends ByteIterableBase {
+
+        private final int offset;
+
+        SubIterable(@NotNull final byte[] bytes, final int offset, final int length) {
+            this.bytes = bytes;
+            this.offset = offset;
+            this.length = length;
+        }
+
+        @Override
+        public int compareTo(ByteIterable right) {
+            return ByteIterableUtil.compare(bytes, offset + length, offset, right.getBytesUnsafe(), right.getLength());
+        }
+
+        @Override
+        public ByteIterator iterator() {
+            return getIterator();
+        }
+
+        @Override
+        protected ByteIterator getIterator() {
+            return new ByteIterator() {
+
+                int remained = length;
+                int i = offset;
+
+                @Override
+                public boolean hasNext() {
+                    return remained > 0;
+                }
+
+                @Override
+                public byte next() {
+                    remained--;
+                    return bytes[i++];
+                }
+
+                @Override
+                public long skip(long bytes) {
+                    final int result = Math.min(remained, (int) bytes);
+                    remained -= result;
+                    i += result;
+                    return result;
+                }
+            };
+        }
+
+        @Override
+        public byte[] getBytesUnsafe() {
+            final byte[] result = new byte[length];
+            System.arraycopy(bytes, offset, result, 0, length);
             return result;
         }
     }
