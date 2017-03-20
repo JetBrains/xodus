@@ -83,9 +83,7 @@ final class MetaTree {
         log.setHighAddress(0);
         final ITree resultTree = getEmptyMetaTree(env);
         final long rootAddress = resultTree.getMutableCopy().save();
-        final long root = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
-            DatabaseRoot.asByteIterable(rootAddress, EnvironmentImpl.META_TREE_ID));
-        log.flush();
+        final long root = writeDatabaseRoot(log, rootAddress, EnvironmentImpl.META_TREE_ID);
         return new Pair<>(new MetaTree(resultTree, root, log.getHighAddress()), EnvironmentImpl.META_TREE_ID);
     }
 
@@ -140,12 +138,23 @@ final class MetaTree {
         final long newMetaTreeAddress = metaTree.save();
         final Log log = env.getLog();
         final int lastStructureId = env.getLastStructureId();
-        final long dbRootAddress = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
-            DatabaseRoot.asByteIterable(newMetaTreeAddress, lastStructureId));
+        final long dbRootAddress = writeDatabaseRoot(log, newMetaTreeAddress, lastStructureId);
         final BTree resultTree = env.loadMetaTree(newMetaTreeAddress);
         final RandomAccessLoggable dbRootLoggable = log.read(dbRootAddress);
         expired.add(new ExpiredLoggableInfo(dbRootLoggable));
         return new MetaTree(resultTree, dbRootAddress, dbRootAddress + dbRootLoggable.length());
+    }
+
+    private static long writeDatabaseRoot(@NotNull final Log log, final long rootAddress, final int lastStructureId) {
+        // fsync here ensures that the new database root is written only after all other transaction data
+        // were persisted to disk. Without it there is a significant risk of getting corrupted database on
+        // a system failure, because the OS is free to persist cached file pages to disk out of order.
+        log.flush(true);
+
+        final long dbRootAddress = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
+            DatabaseRoot.asByteIterable(rootAddress, lastStructureId));
+        log.flush();
+        return dbRootAddress;
     }
 
     @NotNull

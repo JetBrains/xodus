@@ -568,10 +568,6 @@ public class EnvironmentImpl implements Environment {
                 try {
                     final MetaTree[] tree = new MetaTree[1];
                     expiredLoggables = txn.doCommit(tree);
-                    // there is a temptation to postpone I/O in order to reduce number of writes to storage device,
-                    // but it's quite difficult to resolve all possible inconsistencies afterwards,
-                    // so think twice before removing the following line
-                    log.flush();
                     synchronized (metaLock) {
                         txn.setMetaTree(metaTree = tree[0]);
                         txn.executeCommitHook();
