@@ -25,7 +25,7 @@ import jetbrains.exodus.env.Cursor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public final class EntitiesWithLinkSortedIterable extends EntitiesWithLinkIterable {
+public class EntitiesWithLinkSortedIterable extends EntitiesWithLinkIterable {
 
     private final int oppositeEntityTypeId;
     private final int oppositeLinkId;
