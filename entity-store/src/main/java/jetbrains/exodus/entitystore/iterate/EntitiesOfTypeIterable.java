@@ -169,5 +169,27 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
         public boolean isMatchedEntityDeleted(@NotNull final EntityId deleted) {
             return deleted.getTypeId() == entityTypeId;
         }
+
+        @Override
+        public boolean onEntityAdded(@NotNull EntityAddedOrDeletedHandleChecker handleChecker) {
+            UpdatableCachedInstanceIterable iterable = handleChecker.getUpdatableIterable(this);
+            if (iterable != null) {
+                UpdatableEntityIdSortedSetCachedInstanceIterable index = (UpdatableEntityIdSortedSetCachedInstanceIterable) iterable;
+                index.addEntity(handleChecker.getId());
+                return true;
+            }
+            return false;
+        }
+
+        @Override
+        public boolean onEntityDeleted(@NotNull EntityAddedOrDeletedHandleChecker handleChecker) {
+            UpdatableCachedInstanceIterable iterable = handleChecker.getUpdatableIterable(this);
+            if (iterable != null) {
+                UpdatableEntityIdSortedSetCachedInstanceIterable index = (UpdatableEntityIdSortedSetCachedInstanceIterable) iterable;
+                index.removeEntity(handleChecker.getId());
+                return true;
+            }
+            return false;
+        }
     }
 }

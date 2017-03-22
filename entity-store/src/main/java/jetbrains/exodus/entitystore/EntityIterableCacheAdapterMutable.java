@@ -22,7 +22,6 @@ import jetbrains.exodus.core.dataStructures.hash.PairProcedure;
 import jetbrains.exodus.core.dataStructures.persistent.EvictListener;
 import jetbrains.exodus.entitystore.iterate.CachedInstanceIterable;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
-import jetbrains.exodus.entitystore.iterate.UpdatableCachedInstanceIterable;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -43,12 +42,13 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
         return new EntityIterableCacheAdapter(config, cache.endWrite());
     }
 
-    void update(@NotNull final PersistentStoreTransaction.HandleChecker checker,
-                @NotNull final List<UpdatableCachedInstanceIterable> mutatedInTxn) {
+    void update(@NotNull final PersistentStoreTransaction.HandleCheckerAdapter checker) {
         final ObjectProcedure<EntityIterableHandle> procedure = new ObjectProcedure<EntityIterableHandle>() {
             @Override
             public boolean execute(EntityIterableHandle object) {
-                check(object, checker, mutatedInTxn);
+                if (checker.checkHandle(object)) {
+                    remove(object);
+                }
                 return true;
             }
         };
@@ -90,27 +90,8 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
         handlesDistribution.clear();
     }
 
-    private void check(@NotNull final EntityIterableHandle handle,
-                       @NotNull final PersistentStoreTransaction.HandleChecker checker,
-                       @NotNull List<UpdatableCachedInstanceIterable> mutatedInTxn) {
-        switch (checker.checkHandle(handle, this)) {
-            case KEEP:
-                break; // do nothing, keep handle
-            case REMOVE:
-                remove(handle);
-                break;
-            case UPDATE:
-                UpdatableCachedInstanceIterable it = (UpdatableCachedInstanceIterable) getObject(handle);
-                if (it != null) {
-                    if (!it.isMutated()) {
-                        it = it.beginUpdate();
-                        // cache new mutated iterable instance not affecting HandlesDistribution
-                        super.cacheObject(handle, it);
-                        mutatedInTxn.add(it);
-                    }
-                    checker.update(handle, it);
-                }
-        }
+    void cacheObjectNotAffectingHandleDistribution(@NotNull EntityIterableHandle handle, CachedInstanceIterable it) {
+        super.cacheObject(handle, it);
     }
 
     static EntityIterableCacheAdapterMutable create(@NotNull final EntityIterableCacheAdapter source) {

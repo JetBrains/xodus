@@ -166,6 +166,38 @@ public final class PropertiesIterable extends EntityIterableBase {
                                                 @Nullable final Comparable newValue) {
             return PropertiesIterable.this.propertyId == propertyId && entityTypeId == typeId;
         }
+
+        @Override
+        public boolean onPropertyChanged(@NotNull PropertyChangedHandleChecker handleChecker) {
+            UpdatableCachedInstanceIterable iterable = handleChecker.getUpdatableIterable(this);
+            if (iterable != null) {
+                final UpdatablePropertiesCachedInstanceIterable propertyIndex = (UpdatablePropertiesCachedInstanceIterable) iterable;
+                final Comparable oldValue = handleChecker.getOldValue();
+                final Comparable newValue = handleChecker.getNewValue();
+                final long localId = handleChecker.getLocalId();
+                if (oldValue instanceof ComparableSet || newValue instanceof ComparableSet) {
+                    //noinspection ConstantConditions
+                    final ComparableSet oldSet = (ComparableSet) oldValue;
+                    final ComparableSet newSet = (ComparableSet) newValue;
+                    if (oldSet != null) {
+                        //noinspection unchecked
+                        for (final Comparable item : (Iterable<? extends Comparable>) oldSet.minus(newSet)) {
+                            propertyIndex.update(entityTypeId, localId, item, null);
+                        }
+                    }
+                    if (newSet != null) {
+                        //noinspection unchecked
+                        for (final Comparable item : (Iterable<? extends Comparable>) newSet.minus(oldSet)) {
+                            propertyIndex.update(entityTypeId, localId, null, item);
+                        }
+                    }
+                } else {
+                    propertyIndex.update(entityTypeId, localId, oldValue, newValue);
+                }
+                return true;
+            }
+            return false;
+        }
     }
 
     /**

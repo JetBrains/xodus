@@ -118,16 +118,6 @@ public class UpdatablePropertiesCachedInstanceIterable extends UpdatableCachedIn
         return mutableIndex != null;
     }
 
-    @Override
-    public void addEntity(EntityId id) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void removeEntity(EntityId id) {
-        throw new UnsupportedOperationException();
-    }
-
     public void endUpdate() {
         Persistent23Tree.MutableTree<IndexEntry> index = mutableIndex;
         if (index == null) {

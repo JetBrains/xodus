@@ -125,6 +125,31 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
         return true;
     }
 
+    @Override
+    public boolean onEntityAdded(@NotNull EntityAddedOrDeletedHandleChecker handleChecker) {
+        return false;
+    }
+
+    @Override
+    public boolean onEntityDeleted(@NotNull EntityAddedOrDeletedHandleChecker handleChecker) {
+        return false;
+    }
+
+    @Override
+    public boolean onLinkAdded(@NotNull LinkChangedHandleChecker handleChecker) {
+        return false;
+    }
+
+    @Override
+    public boolean onLinkDeleted(@NotNull LinkChangedHandleChecker handleChecker) {
+        return false;
+    }
+
+    @Override
+    public boolean onPropertyChanged(@NotNull PropertyChangedHandleChecker handleChecker) {
+        return false;
+    }
+
     @NotNull
     @Override
     public int[] getLinkIds() {

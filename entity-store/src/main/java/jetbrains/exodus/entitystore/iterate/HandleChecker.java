@@ -15,29 +15,19 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
-import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.EntityIterableHandle;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public abstract class UpdatableCachedInstanceIterable extends CachedInstanceIterable {
+public interface HandleChecker {
+    int getLinkId();
 
-    protected UpdatableCachedInstanceIterable(@Nullable final PersistentStoreTransaction txn,
-                                              @NotNull final EntityIterableBase source) {
-        super(txn, source);
-    }
+    int getPropertyId();
 
-    @Override
-    protected void orderById() {
-        throw new UnsupportedOperationException();
-    }
+    int getTypeId();
 
-    public boolean isUpdatable() {
-        return true;
-    }
+    int getTypeIdAffectingCreation();
 
-    public abstract UpdatableCachedInstanceIterable beginUpdate();
-
-    public abstract boolean isMutated();
-
-    public abstract void endUpdate();
+    @Nullable
+    UpdatableCachedInstanceIterable getUpdatableIterable(@NotNull final EntityIterableHandle handle);
 }

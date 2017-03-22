@@ -109,6 +109,26 @@ public class EntitiesWithPropertyIterable extends EntityIterableBase {
                                                 @Nullable final Comparable newValue) {
             return EntitiesWithPropertyIterable.this.propertyId == propertyId && entityTypeId == typeId;
         }
+
+        @Override
+        public boolean onPropertyChanged(@NotNull PropertyChangedHandleChecker handleChecker) {
+            final Comparable oldValue = handleChecker.getOldValue();
+            final Comparable newValue = handleChecker.getNewValue();
+            if (oldValue == null || newValue == null) {
+                UpdatableCachedInstanceIterable iterable = handleChecker.getUpdatableIterable(this);
+                if (iterable != null) {
+                    UpdatableEntityIdSortedSetCachedInstanceIterable index = (UpdatableEntityIdSortedSetCachedInstanceIterable) iterable;
+                    final long localId = handleChecker.getLocalId();
+                    if (oldValue == null) {
+                        index.addEntity(new PersistentEntityId(entityTypeId, localId));
+                    } else {
+                        index.removeEntity(new PersistentEntityId(entityTypeId, localId));
+                    }
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 
     public final class PropertiesIterator extends EntityIteratorBase {

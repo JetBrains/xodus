@@ -15,6 +15,9 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.entitystore.iterate.EntityAddedOrDeletedHandleChecker;
+import jetbrains.exodus.entitystore.iterate.LinkChangedHandleChecker;
+import jetbrains.exodus.entitystore.iterate.PropertyChangedHandleChecker;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -35,6 +38,16 @@ public interface EntityIterableHandle {
 
     boolean isMatchedPropertyChanged(int entityType, int propertyId,
                                      @Nullable Comparable oldValue, @Nullable Comparable newValue);
+
+    boolean onEntityAdded(@NotNull EntityAddedOrDeletedHandleChecker handleChecker);
+
+    boolean onEntityDeleted(@NotNull EntityAddedOrDeletedHandleChecker handleChecker);
+
+    boolean onLinkAdded(@NotNull LinkChangedHandleChecker handleChecker);
+
+    boolean onLinkDeleted(@NotNull LinkChangedHandleChecker handleChecker);
+
+    boolean onPropertyChanged(@NotNull PropertyChangedHandleChecker handleChecker);
 
     int getEntityTypeId();
 
