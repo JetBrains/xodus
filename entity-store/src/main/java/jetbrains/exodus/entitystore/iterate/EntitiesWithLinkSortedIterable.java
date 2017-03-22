@@ -27,8 +27,8 @@ import org.jetbrains.annotations.Nullable;
 
 public class EntitiesWithLinkSortedIterable extends EntitiesWithLinkIterable {
 
-    private final int oppositeEntityTypeId;
-    private final int oppositeLinkId;
+    protected final int oppositeEntityTypeId;
+    protected final int oppositeLinkId;
 
     public EntitiesWithLinkSortedIterable(@NotNull final PersistentStoreTransaction txn,
                                           final int entityTypeId,
