@@ -27,6 +27,8 @@ public interface DataWriter extends Closeable {
 
     void sync();
 
+    void syncDirectory();
+
     @Override
     void close();
 

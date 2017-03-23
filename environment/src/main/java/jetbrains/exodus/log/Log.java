@@ -859,6 +859,9 @@ public final class Log implements Closeable {
                 }
             }
             if (fileCreated) {
+                // fsync the directory to ensure we will find the log file in the directory after system crash
+                bufferedWriter.syncDirectory();
+
                 notifyFileCreated(fileAddress);
             }
         }
