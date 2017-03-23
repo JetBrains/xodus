@@ -900,7 +900,10 @@ public final class Log implements Closeable {
     private void createNewFileIfNecessary() {
         final boolean shouldCreateNewFile = getLastFileLength() == 0;
         if (shouldCreateNewFile) {
-            flush();
+            // Don't forget to fsync the old file before closing it, otherwise will get a corrupted DB in the case of a
+            // system failure:
+            flush(true);
+
             bufferedWriter.close();
             if (config.isFullFileReadonly()) {
                 final Long lastFile;
