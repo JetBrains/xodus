@@ -137,7 +137,7 @@ public final class EntityIterableCache {
         final EntityIterableHandle handle = it.getHandle();
         @Nullable
         final Long result = getCachedCount(handle);
-        if (!it.hasCustomTxn() && !isCachingQueueFull()) {
+        if (it.isThreadSafe() && !isCachingQueueFull()) {
             new EntityIterableAsyncInstantiation(handle, it, true).queue(Priority.normal);
         }
         return result == null ? -1 : result;

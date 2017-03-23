@@ -436,11 +436,11 @@ public abstract class EntityIterableBase implements EntityIterable {
      * @return true if should.
      */
     public boolean canBeCached() {
-        return !hasCustomTxn();
+        return isThreadSafe();
     }
 
-    public boolean hasCustomTxn() {
-        return txnGetter != TxnGetterStategy.DEFAULT;
+    public boolean isThreadSafe() {
+        return txnGetter == TxnGetterStategy.DEFAULT;
     }
 
     public boolean isCachedInstance() {
