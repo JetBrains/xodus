@@ -900,7 +900,11 @@ public final class Log implements Closeable {
     private void createNewFileIfNecessary() {
         final boolean shouldCreateNewFile = getLastFileLength() == 0;
         if (shouldCreateNewFile) {
-            flush();
+            // fsync the old file to make sure the new database root is written only after all other transaction data
+            // were persisted to disk. Without it there is a significant risk of getting corrupted database on
+            // a system failure, because the OS is allowed to write cached file pages to disk out of order.
+            flush(true);
+
             bufferedWriter.close();
             if (config.isFullFileReadonly()) {
                 final Long lastFile;
