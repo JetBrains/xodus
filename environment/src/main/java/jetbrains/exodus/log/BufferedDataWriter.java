@@ -183,6 +183,11 @@ class BufferedDataWriter implements TransactionalDataWriter {
     }
 
     @Override
+    public void syncDirectory() {
+        child.syncDirectory();
+    }
+
+    @Override
     public void close() {
         if (count > 0) {
             throw new IllegalStateException("Can't close uncommitted writer " + count);

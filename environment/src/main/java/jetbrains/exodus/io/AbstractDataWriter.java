@@ -36,6 +36,10 @@ public abstract class AbstractDataWriter implements DataWriter {
     }
 
     @Override
+    public void syncDirectory() {
+    }
+
+    @Override
     public final void close() {
         if (open) {
             closeImpl();

@@ -32,6 +32,8 @@ public class FileDataWriter extends AbstractDataWriter {
     @NotNull
     private final File dir;
     @NotNull
+    private final FileChannel dirChannel;
+    @NotNull
     private final LockingManager lockingManager;
     @Nullable
     private RandomAccessFile file;
@@ -39,6 +41,11 @@ public class FileDataWriter extends AbstractDataWriter {
     public FileDataWriter(final File directory) {
         file = null;
         dir = directory;
+        try {
+            dirChannel = FileChannel.open(dir.toPath());
+        } catch (IOException e) {
+            throw new ExodusException("Cannot open the environment directory.", e);
+        }
         lockingManager = new LockingManager(dir);
     }
 
@@ -113,6 +120,15 @@ public class FileDataWriter extends AbstractDataWriter {
             if (file.getChannel().isOpen()) {
                 throw new ExodusException(ioe);
             }
+        }
+    }
+
+    @Override
+    public void syncDirectory() {
+        try {
+            dirChannel.force(false);
+        } catch (IOException e) {
+            throw new ExodusException("Cannot fsync directory", e);
         }
     }
 }
