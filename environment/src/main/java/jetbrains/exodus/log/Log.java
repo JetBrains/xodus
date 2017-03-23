@@ -768,15 +768,22 @@ public final class Log implements Closeable {
         return new DataIterator(this, address);
     }
 
+    @NotNull
     private static LogCache getSharedCache(final long memoryUsage, final int pageSize, final boolean nonBlocking) {
-        if (sharedCache == null) {
+        LogCache result = sharedCache;
+        if (result == null) {
             synchronized (Log.class) {
                 if (sharedCache == null) {
                     sharedCache = new SharedLogCache(memoryUsage, pageSize, nonBlocking);
                 }
+                result = sharedCache;
             }
         }
-        return sharedCache;
+        if (result.pageSize != pageSize) {
+            throw new ExodusException("SharedLogCache was created with page size " + result.pageSize +
+                " and then requested with page size " + pageSize + ". EnvironmentConfig.LOG_CACHE_PAGE_SIZE was set manually.");
+        }
+        return result;
     }
 
     private static LogCache getSharedCache(final int memoryUsagePercentage, final int pageSize, final boolean nonBlocking) {

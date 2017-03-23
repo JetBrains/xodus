@@ -92,8 +92,12 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     /**
      * Defines the size in bytes of a single page (byte array) in the LogCache. This number of bytes is read from
-     * {@linkplain java.nio.MappedByteBuffer} of {@linkplain java.io.RandomAccessFile} at a time.
-     * Default value is {@code 32 * 1024}.
+     * {@linkplain java.nio.MappedByteBuffer} or {@linkplain java.io.RandomAccessFile} at a time.
+     *
+     * <p>If the LogCache is shared ({@linkplain #LOG_CACHE_SHARED}) all {@linkplain Environment}s should be configured
+     * to use single LogCache page size.
+     *
+     * <p>Default value is {@code 64 * 1024}.
      * <p>Mutable at runtime: no
      */
     public static final String LOG_CACHE_PAGE_SIZE = "exodus.log.cache.pageSize";
@@ -634,8 +638,12 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     /**
      * Returns the size in bytes of a single page (byte array) in the LogCache. This number of bytes is read from
-     * {@linkplain java.nio.MappedByteBuffer} of {@linkplain java.io.RandomAccessFile} at a time.
-     * Default value is {@code 32 * 1024}.
+     * {@linkplain java.nio.MappedByteBuffer} or {@linkplain java.io.RandomAccessFile} at a time.
+     *
+     * <p>If the LogCache is shared ({@linkplain #LOG_CACHE_SHARED}) all {@linkplain Environment}s should be configured
+     * to use single LogCache page size.
+     *
+     * <p>Default value is {@code 64 * 1024}.
      * <p>Mutable at runtime: no
      *
      * @return size in bytes of a single page (byte array) in the LogCache
@@ -646,8 +654,12 @@ public final class EnvironmentConfig extends AbstractConfig {
 
     /**
      * Sets the size in bytes of a single page (byte array) in the LogCache. This number of bytes is read from
-     * {@linkplain java.nio.MappedByteBuffer} of {@linkplain java.io.RandomAccessFile} at a time.
-     * Default value is {@code 32 * 1024}.
+     * {@linkplain java.nio.MappedByteBuffer} or {@linkplain java.io.RandomAccessFile} at a time.
+     *
+     * <p>If the LogCache is shared ({@linkplain #LOG_CACHE_SHARED}) all {@linkplain Environment}s should be configured
+     * to use single LogCache page size.
+     *
+     * <p>Default value is {@code 64 * 1024}.
      * <p>Mutable at runtime: no
      *
      * @param bytes size in bytes of a single page (byte array) in the LogCache
