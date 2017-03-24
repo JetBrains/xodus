@@ -406,12 +406,6 @@ public final class Log implements Closeable {
         }
     }
 
-    public void addRemoveFileListener(@NotNull final RemoveFileListener listener) {
-        synchronized (removeFileListeners) {
-            removeFileListeners.add(listener);
-        }
-    }
-
     /**
      * Reads a random access loggable by specified address in the log.
      *
@@ -644,10 +638,6 @@ public final class Log implements Closeable {
         reader.clear();
         setBufferedWriter(createEmptyBufferedWriter(bufferedWriter.getChildWriter()));
         highAddress = 0;
-    }
-
-    public boolean fileExists(final long fileAddress) {
-        return reader.getBlock(fileAddress).exists();
     }
 
     public void removeFile(final long address) {
@@ -918,7 +908,7 @@ public final class Log implements Closeable {
                     lastFile = blockAddrs.getMaximum();
                 }
                 if (lastFile != null) {
-                    reader.getBlock(lastFile).setWritable(false);
+                    reader.getBlock(lastFile).setReadOnly();
                 }
             }
         } else if (System.currentTimeMillis() > lastSyncTicks + config.getSyncPeriod()) {

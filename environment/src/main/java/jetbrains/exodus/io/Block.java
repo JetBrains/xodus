@@ -23,9 +23,5 @@ public interface Block {
 
     int read(byte[] output, long position, int count);
 
-    boolean setWritable(boolean writable);
-
-    boolean exists();
-
-    long lastModified();
+    boolean setReadOnly();
 }

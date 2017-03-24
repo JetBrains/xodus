@@ -118,18 +118,8 @@ public class MemoryDataReader implements DataReader {
         }
 
         @Override
-        public boolean setWritable(boolean writable) {
+        public boolean setReadOnly() {
             return false;
-        }
-
-        @Override
-        public boolean exists() {
-            return true;
-        }
-
-        @Override
-        public long lastModified() {
-            return 0;
         }
     }
 }
