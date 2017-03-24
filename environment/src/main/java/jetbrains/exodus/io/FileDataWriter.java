@@ -48,7 +48,7 @@ public class FileDataWriter extends AbstractDataWriter {
         try {
             channel = FileChannel.open(dir.toPath());
         } catch (IOException e) {
-            logger.warn("Can't open directory channel. Log directory fsync won't be performed.", e);
+            logger.warn("Can't open directory channel. Log directory fsync won't be performed.");
         }
         dirChannel = channel;
         lockingManager = new LockingManager(dir);
