@@ -20,6 +20,8 @@ import jetbrains.exodus.OutOfDiskSpaceException;
 import jetbrains.exodus.log.LogUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,9 +31,10 @@ import java.nio.channels.FileChannel;
 
 public class FileDataWriter extends AbstractDataWriter {
 
+    private static final Logger logger = LoggerFactory.getLogger(FileDataWriter.class);
+
     @NotNull
     private final File dir;
-    @NotNull
     private final FileChannel dirChannel;
     @NotNull
     private final LockingManager lockingManager;
@@ -41,11 +44,13 @@ public class FileDataWriter extends AbstractDataWriter {
     public FileDataWriter(final File directory) {
         file = null;
         dir = directory;
+        FileChannel channel = null;
         try {
-            dirChannel = FileChannel.open(dir.toPath());
+            channel = FileChannel.open(dir.toPath());
         } catch (IOException e) {
-            throw new ExodusException("Cannot open the environment directory.", e);
+            logger.warn("Cannot open the environment directory. Log directory fsync will not be performed.", e);
         }
+        dirChannel = channel;
         lockingManager = new LockingManager(dir);
     }
 
@@ -125,10 +130,12 @@ public class FileDataWriter extends AbstractDataWriter {
 
     @Override
     public void syncDirectory() {
-        try {
-            dirChannel.force(false);
-        } catch (IOException e) {
-            throw new ExodusException("Cannot fsync directory", e);
+        if (dirChannel != null) {
+            try {
+                dirChannel.force(false);
+            } catch (IOException e) {
+                throw new ExodusException("Cannot fsync directory", e);
+            }
         }
     }
 }
