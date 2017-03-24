@@ -41,14 +41,14 @@ public class FileDataWriter extends AbstractDataWriter {
     @Nullable
     private RandomAccessFile file;
 
-    public FileDataWriter(final File directory) {
+    public FileDataWriter(@NotNull final File directory) {
         file = null;
         dir = directory;
         FileChannel channel = null;
         try {
             channel = FileChannel.open(dir.toPath());
         } catch (IOException e) {
-            logger.warn("Cannot open the environment directory. Log directory fsync will not be performed.", e);
+            logger.warn("Can't open directory channel. Log directory fsync won't be performed.", e);
         }
         dirChannel = channel;
         lockingManager = new LockingManager(dir);
@@ -56,13 +56,17 @@ public class FileDataWriter extends AbstractDataWriter {
 
     @Override
     public boolean write(byte[] b, int off, int len) throws ExodusException {
+        final RandomAccessFile file = this.file;
+        if (file == null) {
+            throw new ExodusException("Can't write, FileDataWriter is closed");
+        }
         try {
             file.write(b, off, len);
         } catch (IOException ioe) {
             if (lockingManager.getUsableSpace() < len) {
                 throw new OutOfDiskSpaceException(ioe);
             }
-            throw new ExodusException("Can't write to file", ioe);
+            throw new ExodusException("Can't write", ioe);
         }
         return true;
     }
@@ -92,11 +96,15 @@ public class FileDataWriter extends AbstractDataWriter {
 
     @Override
     protected void closeImpl() {
+        final RandomAccessFile file = this.file;
+        if (file == null) {
+            throw new ExodusException("Can't close already closed FileDataWriter");
+        }
         try {
             file.close();
-            file = null;
+            this.file = null;
         } catch (IOException e) {
-            throw new ExodusException(e);
+            throw new ExodusException("Can't close FileDataWriter", e);
         }
     }
 
@@ -115,7 +123,7 @@ public class FileDataWriter extends AbstractDataWriter {
         }
     }
 
-    private void forceSync(@NotNull final RandomAccessFile file) {
+    private static void forceSync(@NotNull final RandomAccessFile file) {
         try {
             final FileChannel channel = file.getChannel();
             channel.force(false);
