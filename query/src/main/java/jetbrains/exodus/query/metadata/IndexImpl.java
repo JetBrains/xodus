@@ -15,22 +15,13 @@
  */
 package jetbrains.exodus.query.metadata;
 
-import jetbrains.exodus.core.dataStructures.hash.HashSet;
-
 import java.util.List;
-import java.util.Set;
 
 public class IndexImpl implements Index {
 
     private List<IndexField> fields;
 
-    private ModelMetaData modelMetaData;
-
     private String ownerEnityType;
-
-    public void setModelMetaData(ModelMetaData modelMetaData) {
-        this.modelMetaData = modelMetaData;
-    }
 
     public void setFields(List<IndexField> fields) {
         this.fields = fields;
@@ -39,16 +30,6 @@ public class IndexImpl implements Index {
     @Override
     public List<IndexField> getFields() {
         return fields;
-    }
-
-    @Override
-    public Set<String> getEntityTypesToIndex() {
-        // me and inheritors
-        Set<String> res = new HashSet<>();
-        final String enityType = ownerEnityType;
-        res.add(enityType);
-        res.addAll(modelMetaData.getEntityMetaData(enityType).getAllSubTypes());
-        return res;
     }
 
     @Override

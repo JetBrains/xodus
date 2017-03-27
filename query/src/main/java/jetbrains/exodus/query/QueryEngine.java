@@ -42,7 +42,7 @@ public class QueryEngine {
     public QueryEngine(final ModelMetaData mmd, final PersistentEntityStoreImpl persistentStore) {
         this.mmd = mmd;
         this.persistentStore = persistentStore;
-        ukiEngine = new UniqueKeyIndicesEngine(persistentStore);
+        ukiEngine = new MetaDataAwareUniqueKeyIndicesEngine(persistentStore, mmd);
     }
 
     protected Iterable<Entity> inMemorySelectDistinct(Iterable<Entity> it, final String linkName) {

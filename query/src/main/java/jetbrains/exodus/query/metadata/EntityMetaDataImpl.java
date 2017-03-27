@@ -86,10 +86,6 @@ public class EntityMetaDataImpl implements EntityMetaData {
     }
 
     public void setModelMetaData(ModelMetaData modelMetaData) {
-        for (Index index : this.ownIndexes) {
-            ((IndexImpl) index).setModelMetaData(modelMetaData);
-        }
-
         if (!this.modelMetaData.compareAndSet(null, modelMetaData)) {
             throw new IllegalStateException("Cannot reuse EntityMetaDataImpl between " + modelMetaData + " and " + this.modelMetaData.get());
         }
@@ -474,5 +470,4 @@ public class EntityMetaDataImpl implements EntityMetaData {
     public String toString() {
         return type;
     }
-
 }

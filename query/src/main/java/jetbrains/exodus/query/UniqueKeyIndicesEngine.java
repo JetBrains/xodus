@@ -16,6 +16,7 @@
 package jetbrains.exodus.query;
 
 import jetbrains.exodus.bindings.LongBinding;
+import jetbrains.exodus.core.dataStructures.NanoSet;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.core.dataStructures.hash.LinkedHashMap;
 import jetbrains.exodus.entitystore.*;
@@ -140,7 +141,7 @@ public class UniqueKeyIndicesEngine {
         }
         SingleColumnTable indexTable = null;
         Comparable[] props = new Comparable[propCount];
-        for (final String entityType : index.getEntityTypesToIndex()) {
+        for (final String entityType : getEntityTypesToIndex(index)) {
             int i = 0;
             for (final Entity entity : snapshot.getAll(entityType)) {
                 for (int j = 0; j < propCount; ++j) {
@@ -170,6 +171,10 @@ public class UniqueKeyIndicesEngine {
             }
             txn.flush();
         }
+    }
+
+    protected Set<String> getEntityTypesToIndex(@NotNull Index index) {
+        return new NanoSet<>(index.getOwnerEntityType());
     }
 
     @NotNull

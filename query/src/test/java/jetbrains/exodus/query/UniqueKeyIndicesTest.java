@@ -180,11 +180,6 @@ public class UniqueKeyIndicesTest extends EntityStoreTestBase {
         }
 
         @Override
-        public Set<String> getEntityTypesToIndex() {
-            return new NanoSet<>("Issue");
-        }
-
-        @Override
         public String getOwnerEntityType() {
             return "Issue";
         }

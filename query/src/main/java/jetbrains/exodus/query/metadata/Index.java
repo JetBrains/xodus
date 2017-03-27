@@ -16,19 +16,11 @@
 package jetbrains.exodus.query.metadata;
 
 import java.util.List;
-import java.util.Set;
 
 public interface Index {
 
     String getOwnerEntityType();
 
     List<IndexField> getFields();
-
-    /**
-     * Returns entity types that must be indexed.
-     *
-     * @return
-     */
-    Set<String> getEntityTypesToIndex();
 
 }
