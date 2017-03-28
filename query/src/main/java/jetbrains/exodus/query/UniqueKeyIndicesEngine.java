@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.query;
 
+import jetbrains.exodus.ArrayByteIterable;
+import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.core.dataStructures.NanoSet;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
@@ -162,8 +164,12 @@ public class UniqueKeyIndicesEngine {
                             environment.storeExists(uniqueKeyIndexName, txn.getEnvironmentTransaction()) ?
                                     StoreConfig.USE_EXISTING : StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING);
                 }
-                if (!indexTable.getDatabase().add(txn.getEnvironmentTransaction(), propertyTypes.dataArrayToEntry(props), LongBinding.longToCompressedEntry(entity.getId().getLocalId()))) {
-                    throw new EntityStoreException("Failed to insert unique key (already exists), index: " + index + ", values = " + Arrays.toString(props));
+                ArrayByteIterable propsEntry = propertyTypes.dataArrayToEntry(props);
+                if (!indexTable.getDatabase().add(txn.getEnvironmentTransaction(), propsEntry, LongBinding.longToCompressedEntry(entity.getId().getLocalId()))) {
+                    ByteIterable oldEntityIdEntry = indexTable.getDatabase().get(txn.getEnvironmentTransaction(), propsEntry);
+                    assert oldEntityIdEntry != null;
+                    long oldEntityId = LongBinding.compressedEntryToLong(oldEntityIdEntry);
+                    throw new EntityStoreException("Failed to insert unique key (already exists), index: " + index + ", values = " + Arrays.toString(props) + ", new entity = " + entity + ", old entity id = " + oldEntityId + ", index owner entity type = " + index.getOwnerEntityType());
                 }
                 if (++i % 100 == 0) {
                     txn.flush();
