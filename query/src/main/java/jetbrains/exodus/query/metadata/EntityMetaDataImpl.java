@@ -47,7 +47,7 @@ public class EntityMetaDataImpl implements EntityMetaData {
     private Set<Index> indexes = null;
     private List<String> allSubTypes = null;
     private Map<String, Set<String>> incomingAssociations = null;
-    private Ends ends = null;
+    private volatile Ends ends = null;
 
     public EntityMetaDataImpl() {
         this.modelMetaData = new AtomicReference<>();
