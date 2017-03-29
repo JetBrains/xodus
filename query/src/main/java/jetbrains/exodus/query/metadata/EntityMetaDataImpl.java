@@ -44,10 +44,9 @@ public class EntityMetaDataImpl implements EntityMetaData {
 
     private Map<String, Set<Index>> fieldToIndexes = null;
     private Set<Index> indexes = null;
-    private Set<String> aggregationChildEnds = null;
     private List<String> allSubTypes = null;
     private Map<String, Set<String>> incomingAssociations = null;
-    private Map<String, AssociationEndMetaData> associationEnds = null;
+    private Ends ends = null;
 
     public EntityMetaDataImpl() {
         this.modelMetaData = new AtomicReference<>();
@@ -60,11 +59,10 @@ public class EntityMetaDataImpl implements EntityMetaData {
     void reset() {
         synchronized (this) {
             allSubTypes = null;
-            associationEnds = null;
             incomingAssociations = null;
             indexes = null;
             fieldToIndexes = null;
-            aggregationChildEnds = null;
+            ends = null;
         }
     }
 
@@ -254,15 +252,13 @@ public class EntityMetaDataImpl implements EntityMetaData {
 
     @Override
     public AssociationEndMetaData getAssociationEndMetaData(@NotNull String name) {
-        updateAssociationEnds();
-        return associationEnds.get(name);
+        return getAssociationEnds().associationEnds.get(name);
     }
 
     @Override
     @NotNull
     public Collection<AssociationEndMetaData> getAssociationEndsMetaData() {
-        updateAssociationEnds();
-        return associationEnds.values();
+        return getAssociationEnds().associationEnds.values();
     }
 
     @Override
@@ -290,14 +286,12 @@ public class EntityMetaDataImpl implements EntityMetaData {
 
     @Override
     public boolean hasAggregationChildEnds() {
-        updateAssociationEnds();
-        return !aggregationChildEnds.isEmpty();
+        return !getAssociationEnds().aggregationChildEnds.isEmpty();
     }
 
     @Override
     public Set<String> getAggregationChildEnds() {
-        updateAssociationEnds();
-        return aggregationChildEnds;
+        return getAssociationEnds().aggregationChildEnds;
     }
 
     @Override
@@ -439,35 +433,51 @@ public class EntityMetaDataImpl implements EntityMetaData {
         this.requiredIfProperties = requiredIfProperties;
     }
 
-    private void updateAssociationEnds() {
-        if (associationEnds == null) {
+    @NotNull
+    private Ends getAssociationEnds() {
+        Ends result = ends;
+        if (result == null) {
             synchronized (this) {
-                if (associationEnds == null) {
+                result = ends;
+                if (result == null) {
                     if (externalAssociationEnds == null) {
-                        associationEnds = Collections.emptyMap();
-                        aggregationChildEnds = Collections.emptySet();
+                        result = new Ends();
                     } else {
-                        associationEnds = new HashMap<>(externalAssociationEnds.size());
-                        aggregationChildEnds = new LinkedHashSetDecorator<>();
+                        result = new Ends(
+                            new HashMap<String, AssociationEndMetaData>(externalAssociationEnds.size()),
+                            new LinkedHashSetDecorator<String>());
                         for (final AssociationEndMetaData aemd : externalAssociationEnds) {
-                            associationEnds.put(aemd.getName(), aemd);
+                            result.associationEnds.put(aemd.getName(), aemd);
                             if (aemd.getAssociationEndType() == AssociationEndType.ChildEnd) {
-                                aggregationChildEnds.add(aemd.getName());
+                                result.aggregationChildEnds.add(aemd.getName());
                             }
                         }
                     }
+                    ends = result;
                 }
             }
         }
-    }
-
-    @Deprecated
-    public void setUniqueProperties(@NotNull Set<String> uniqueProperties) {
-        //throw new UnsupportedOperationException("Regenerate your persistent models.");
+        return result;
     }
 
     @Override
     public String toString() {
         return type;
+    }
+
+    private static class Ends {
+
+        private final Map<String, AssociationEndMetaData> associationEnds;
+        private final Set<String> aggregationChildEnds;
+
+        private Ends() {
+            this(Collections.<String, AssociationEndMetaData>emptyMap(), Collections.<String>emptySet());
+        }
+
+        private Ends(@NotNull final Map<String, AssociationEndMetaData> associationEnds,
+                     @NotNull final Set<String> aggregationChildEnds) {
+            this.associationEnds = associationEnds;
+            this.aggregationChildEnds = aggregationChildEnds;
+        }
     }
 }
