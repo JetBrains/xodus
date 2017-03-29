@@ -20,6 +20,7 @@ import jetbrains.exodus.core.dataStructures.decorators.LinkedHashSetDecorator;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.entitystore.Entity;
+import jetbrains.exodus.util.StringInterner;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -90,18 +91,11 @@ public class EntityMetaDataImpl implements EntityMetaData {
     }
 
     public void setType(String type) {
-        if (type != null) {
-            type = type.intern();
-        }
-        this.type = type;
+        this.type = StringInterner.intern(type);
     }
 
     public void setSuperType(String superType) {
-        if (superType != null) {
-            superType = superType.intern();
-        }
-        this.superType = superType;
-
+        this.superType = StringInterner.intern(superType);
         resetSelfAndSubtypes();
     }
 
