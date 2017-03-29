@@ -219,7 +219,7 @@ class PatriciaTraverser implements TreeTraverser {
         NodeChildrenIterator[] tmp = new NodeChildrenIterator[INITIAL_STACK_CAPACITY];
         // go down and search
         while (true) {
-            if (node.matchesKeySequence(it).matchingLength < 0) {
+            if (NodeBase.MatchResult.getMatchingLength(node.matchesKeySequence(it)) < 0) {
                 return false;
             }
             if (!it.hasNext()) {
@@ -255,10 +255,11 @@ class PatriciaTraverser implements TreeTraverser {
         boolean smaller = false;
         while (true) {
             final boolean hasNext = it.hasNext();
-            final NodeBase.MatchResult matchResult = node.matchesKeySequence(it);
-            if (matchResult.matchingLength < 0) {
+            final long matchResult = node.matchesKeySequence(it);
+            if (NodeBase.MatchResult.getMatchingLength(matchResult) < 0) {
                 if (value == null) {
-                    smaller = matchResult.hasNext && (!hasNext || (matchResult.keyByte & 0xff) < (matchResult.nextByte & 0xff));
+                    smaller = NodeBase.MatchResult.hasNext(matchResult) && (!hasNext ||
+                        NodeBase.MatchResult.getKeyByte(matchResult) < NodeBase.MatchResult.getNextByte(matchResult));
                     dive = !smaller;
                     break;
                 }

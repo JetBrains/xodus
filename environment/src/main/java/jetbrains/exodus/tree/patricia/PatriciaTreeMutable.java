@@ -63,12 +63,12 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
         byte prevFirstByte = (byte) 0;
         boolean result = false;
         while (true) {
-            final NodeBase.MatchResult matchResult = node.matchesKeySequence(it);
-            final int matchingLength = matchResult.matchingLength;
+            final long matchResult = node.matchesKeySequence(it);
+            final int matchingLength = NodeBase.MatchResult.getMatchingLength(matchResult);
             if (matchingLength < 0) {
-                final MutableNode prefix = node.splitKey(-matchingLength - 1, matchResult.keyByte);
-                if (matchResult.hasNext) {
-                    prefix.hang(matchResult.nextByte, it).setValue(value);
+                final MutableNode prefix = node.splitKey(-matchingLength - 1, NodeBase.MatchResult.getKeyByte(matchResult));
+                if (NodeBase.MatchResult.hasNext(matchResult)) {
+                    prefix.hang(NodeBase.MatchResult.getNextByte(matchResult), it).setValue(value);
                 } else {
                     prefix.setValue(value);
                 }
@@ -122,14 +122,14 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
         MutableNode prev = null;
         byte prevFirstByte = (byte) 0;
         while (true) {
-            final NodeBase.MatchResult matchResult = node.matchesKeySequence(it);
-            final int matchingLength = matchResult.matchingLength;
+            final long matchResult = node.matchesKeySequence(it);
+            final int matchingLength = NodeBase.MatchResult.getMatchingLength(matchResult);
             if (matchingLength < 0) {
-                if (!matchResult.hasNext) {
+                if (!NodeBase.MatchResult.hasNext(matchResult)) {
                     throw new IllegalArgumentException();
                 }
-                final MutableNode prefix = node.splitKey(-matchingLength - 1, matchResult.keyByte);
-                prefix.hangRight(matchResult.nextByte, it).setValue(value);
+                final MutableNode prefix = node.splitKey(-matchingLength - 1, NodeBase.MatchResult.getKeyByte(matchResult));
+                prefix.hangRight(NodeBase.MatchResult.getNextByte(matchResult), it).setValue(value);
                 if (prev == null) {
                     root = new MutableRoot(prefix, root.sourceAddress);
                 } else {
@@ -176,12 +176,13 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
         MutableNode mutableNode = null;
         final Deque<ChildReferenceTransient> stack = new ArrayDeque<>();
         while (true) {
-            final NodeBase.MatchResult matchResult = node.matchesKeySequence(it);
-            final int matchingLength = matchResult.matchingLength;
+            final long matchResult = node.matchesKeySequence(it);
+            final int matchingLength = NodeBase.MatchResult.getMatchingLength(matchResult);
             if (matchingLength < 0) {
-                final MutableNode prefix = node.getMutableCopy(this).splitKey(-matchingLength - 1, matchResult.keyByte);
-                if (matchResult.hasNext) {
-                    prefix.hang(matchResult.nextByte, it).setValue(value);
+                final MutableNode prefix = node.getMutableCopy(this).
+                    splitKey(-matchingLength - 1, NodeBase.MatchResult.getKeyByte(matchResult));
+                if (NodeBase.MatchResult.hasNext(matchResult)) {
+                    prefix.hang(NodeBase.MatchResult.getNextByte(matchResult), it).setValue(value);
                 } else {
                     prefix.setValue(value);
                 }
@@ -384,7 +385,7 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
         NodeBase node = root;
         final Deque<ChildReferenceTransient> stack = new ArrayDeque<>();
         for (; ; ) {
-            if (node == null || node.matchesKeySequence(it).matchingLength < 0) {
+            if (node == null || NodeBase.MatchResult.getMatchingLength(node.matchesKeySequence(it)) < 0) {
                 return false;
             }
             if (!it.hasNext()) {

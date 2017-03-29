@@ -36,29 +36,22 @@ abstract class NodeBase implements INode {
         this.value = value;
     }
 
-    /**
-     * Does specified iterator match node's key sequence?
-     *
-     * @param it iterator.
-     * @return If parameter matches the key sequence then returns a non-negative value, otherwise - a negative one.
-     * In the latter case, absolute value  of result is equal to the number of matching bytes plus one.
-     * E.g,. if 0 bytes match (key sequence is empty) then result is 0, if 0 bytes do not match result is -1.
-     */
-    MatchResult matchesKeySequence(@NotNull final ByteIterator it) {
+
+    long matchesKeySequence(@NotNull final ByteIterator it) {
         int matchingLength = 0;
         final ByteIterator keyIt = keySequence.iterator();
         while (keyIt.hasNext()) {
             final byte keyByte = keyIt.next();
             if (!it.hasNext()) {
-                return new MatchResult(-matchingLength - 1, keyByte, false, (byte) 0);
+                return MatchResult.getMatchResult(-matchingLength - 1, keyByte, false, (byte) 0);
             }
             final byte nextByte = it.next();
             if (nextByte != keyByte) {
-                return new MatchResult(-matchingLength - 1, keyByte, true, nextByte);
+                return MatchResult.getMatchResult(-matchingLength - 1, keyByte, true, nextByte);
             }
             ++matchingLength;
         }
-        return new MatchResult(matchingLength);
+        return MatchResult.getMatchResult(matchingLength);
     }
 
     boolean hasKey() {
@@ -112,8 +105,8 @@ abstract class NodeBase implements INode {
     @Override
     public String toString() {
         return String.format("%s} %s %s",
-                keySequence.iterator().hasNext() ? "{key:" + keySequence.toString() : '{',
-                value == null ? "@" : value.toString() + " @", getAddress()
+            keySequence.iterator().hasNext() ? "{key:" + keySequence.toString() : '{',
+            value == null ? "@" : value.toString() + " @", getAddress()
         );
     }
 
@@ -126,20 +119,39 @@ abstract class NodeBase implements INode {
     @SuppressWarnings({"PackageVisibleField"})
     static class MatchResult {
 
-        final int matchingLength;
-        final byte keyByte;
-        final boolean hasNext;
-        final byte nextByte;
-
-        MatchResult(final int matchingLength) {
-            this(matchingLength, (byte) 0, false, (byte) 0);
+        static long getMatchResult(final int matchingLength) {
+            return getMatchResult(matchingLength, (byte) 0, false, (byte) 0);
         }
 
-        private MatchResult(final int matchingLength, final byte keyByte, final boolean hasNext, final byte nextByte) {
-            this.matchingLength = matchingLength;
-            this.keyByte = keyByte;
-            this.hasNext = hasNext;
-            this.nextByte = nextByte;
+        static long getMatchResult(final int matchingLength,
+                                   final byte keyByte,
+                                   final boolean hasNext,
+                                   final byte nextByte) {
+            long result = (((long) Math.abs(matchingLength)) << 18) + ((keyByte & 0xff) << 10) + ((nextByte & 0xff) << 2);
+            if (matchingLength < 0) {
+                result += 2;
+            }
+            if (hasNext) {
+                ++result;
+            }
+            return result;
+        }
+
+        static int getMatchingLength(final long matchResult) {
+            final int result = (int) (matchResult >> 18);
+            return (matchResult & 2) == 0 ? result : -result;
+        }
+
+        static int getKeyByte(final long matchResult) {
+            return (int) (matchResult >> 10) & 0xff;
+        }
+
+        static int getNextByte(final long matchResult) {
+            return (int) (matchResult >> 2) & 0xff;
+        }
+
+        static boolean hasNext(final long matchResult) {
+            return (matchResult & 1) != 0;
         }
     }
 

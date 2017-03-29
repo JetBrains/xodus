@@ -159,7 +159,7 @@ public abstract class PatriciaTreeBase implements ITree {
         final ByteIterator it = key.iterator();
         NodeBase node = getRoot();
         do {
-            if (node.matchesKeySequence(it).matchingLength < 0) {
+            if (NodeBase.MatchResult.getMatchingLength(node.matchesKeySequence(it)) < 0) {
                 return null;
             }
             if (!it.hasNext()) {

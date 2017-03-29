@@ -86,7 +86,7 @@ class MutableNode extends NodeBase {
             @Override
             public NodeChildrenIterator iterator() {
                 return children.isEmpty() ?
-                        new EmptyNodeChildrenIterator() : new MutableNodeChildrenIterator(MutableNode.this, children);
+                    new EmptyNodeChildrenIterator() : new MutableNodeChildrenIterator(MutableNode.this, children);
             }
         };
     }
@@ -227,10 +227,14 @@ class MutableNode extends NodeBase {
             suffixKey = keySequence.subIterable(prefixLength + 1, suffixLength);
         }
         final MutableNode suffix = new MutableNode(suffixKey, value,
-                // copy children of this node to the suffix one
-                children);
+            // copy children of this node to the suffix one
+            children);
         prefix.setChild(nextByte, suffix);
         return prefix;
+    }
+
+    MutableNode splitKey(final int prefixLength, final int nextByte) {
+        return splitKey(prefixLength, (byte) nextByte);
     }
 
     void mergeWithSingleChild(@NotNull final PatriciaTreeMutable tree) {
@@ -238,7 +242,7 @@ class MutableNode extends NodeBase {
         final NodeBase child = ref.getNode(tree);
         value = child.value;
         keySequence = new CompoundByteIterable(new ByteIterable[]{
-                keySequence, SingleByteIterable.getIterable(ref.firstByte), child.keySequence});
+            keySequence, SingleByteIterable.getIterable(ref.firstByte), child.keySequence});
         copyChildrenFrom(child);
     }
 
@@ -248,10 +252,18 @@ class MutableNode extends NodeBase {
         return result;
     }
 
+    MutableNode hang(final int firstByte, @NotNull final ByteIterator tail) {
+        return hang((byte) firstByte, tail);
+    }
+
     MutableNode hangRight(final byte firstByte, @NotNull final ByteIterator tail) {
         final MutableNode result = new MutableNode(new ArrayByteIterable(tail));
         addRightChild(firstByte, result);
         return result;
+    }
+
+    MutableNode hangRight(final int firstByte, @NotNull final ByteIterator tail) {
+        return hangRight((byte) firstByte, tail);
     }
 
     @SuppressWarnings({"OverlyLongMethod"})
