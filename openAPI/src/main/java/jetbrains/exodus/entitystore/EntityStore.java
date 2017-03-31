@@ -18,6 +18,8 @@ package jetbrains.exodus.entitystore;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.Closeable;
+
 /**
  * {@code EntityStore} describes abstract named transactional
  * <a href="https://github.com/JetBrains/xodus/wiki/Entity-Stores">Entity Store</a>.
@@ -25,7 +27,7 @@ import org.jetbrains.annotations.Nullable;
  * @see StoreTransaction
  * @see PersistentEntityStore
  */
-public interface EntityStore {
+public interface EntityStore extends Closeable {
 
     /**
      * Returns unique human readable name of the (@code EntityStore}.

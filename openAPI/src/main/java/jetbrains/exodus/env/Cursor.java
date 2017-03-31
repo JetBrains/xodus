@@ -19,6 +19,8 @@ import jetbrains.exodus.ByteIterable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.Closeable;
+
 /**
  * {@code Cursor} allows to access key/value pairs of a {@linkplain Store} in both successive (ascending and descending)
  * and random order. {@code Cursor} can be opened for a {@linkplain Store} in a {@linkplain Transaction}. Both key
@@ -32,7 +34,7 @@ import org.jetbrains.annotations.Nullable;
  * @see Store
  * @see Store#openCursor(Transaction)
  */
-public interface Cursor extends AutoCloseable {
+public interface Cursor extends Closeable {
 
     /**
      * Moves the {@code Cursor} to the next key/value pair. If the {@code Cursor} is just created the method moves

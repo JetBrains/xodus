@@ -15,34 +15,23 @@
  */
 package jetbrains.exodus.env
 
-inline fun Environment.use(action: Environment.() -> Unit) {
-    try {
-        action()
-    } finally {
-        close()
-    }
-}
-
-inline fun Cursor.forEach(action: Cursor.() -> Unit) {
+inline fun Cursor.forEach(action: Cursor.() -> Unit) = use {
     while (next) {
         action()
     }
-    close()
 }
 
-inline fun Cursor.forEachReversed(action: Cursor.() -> Unit) {
+inline fun Cursor.forEachReversed(action: Cursor.() -> Unit) = use {
     while (prev) {
         action()
     }
-    close()
 }
 
-inline fun Cursor.forEachIndexed(action: Cursor.(Int) -> Unit) {
+inline fun Cursor.forEachIndexed(action: Cursor.(Int) -> Unit) = use {
     var i = 0
     while (next) {
         action(i++)
     }
-    close()
 }
 
 inline fun jetbrains.exodus.tree.LongIterator.forEach(action: (Long) -> Unit) {

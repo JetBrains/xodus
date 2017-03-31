@@ -21,6 +21,7 @@ import jetbrains.exodus.management.Statistics;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.Closeable;
 import java.util.List;
 
 /**
@@ -41,7 +42,7 @@ import java.util.List;
  * </pre>
  * After finishing working with the Environment you should {@linkplain #close()} it.
  */
-public interface Environment extends Backupable {
+public interface Environment extends Closeable, Backupable {
 
     /**
      * Returns the value of {@linkplain System#currentTimeMillis()} when this environment was created. If your

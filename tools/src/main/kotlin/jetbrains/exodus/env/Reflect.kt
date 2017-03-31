@@ -311,8 +311,8 @@ internal class Reflect(directory: File) {
     }
 
     fun copy(there: File) {
-        Environments.newInstance(there, env.environmentConfig).use {
-            println("Copying environment to " + location)
+        Environments.newInstance(there, env.environmentConfig).use { newEnv ->
+            println("Copying environment to " + newEnv.location)
             val names = env.computeInReadonlyTransaction { txn -> env.getAllStoreNames(txn) }
             val size = names.size
             println("Stores found: " + size)
@@ -356,8 +356,8 @@ internal class Reflect(directory: File) {
                     println()
                     logger.error("Failed to completely copy store $name", storeIsBroken)
                 }
-                executeInTransaction { txn ->
-                    val store = openStore(name, config ?: throw NullPointerException(), txn)
+                newEnv.executeInTransaction { txn ->
+                    val store = newEnv.openStore(name, config ?: throw NullPointerException(), txn)
                     for ((key, valueSet) in pairs) {
                         for (value in valueSet) {
                             store.putRight(txn, key, value)
