@@ -16,7 +16,6 @@
 package jetbrains.exodus.env
 
 import jetbrains.exodus.ArrayByteIterable
-import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap
 import jetbrains.exodus.core.dataStructures.hash.LinkedHashSet
@@ -27,6 +26,7 @@ import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogConfig
 import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.log.NullLoggable
+import jetbrains.exodus.runtime.OOMGuard
 import jetbrains.exodus.tree.LongIterator
 import jetbrains.exodus.tree.patricia.PatriciaTreeBase
 import mu.KLogging
@@ -311,28 +311,32 @@ internal class Reflect(directory: File) {
     }
 
     fun copy(there: File) {
+        val guard = OOMGuard()
         Environments.newInstance(there, env.environmentConfig).use { newEnv ->
             println("Copying environment to " + newEnv.location)
             val names = env.computeInReadonlyTransaction { txn -> env.getAllStoreNames(txn) }
             val size = names.size
             println("Stores found: " + size)
             names.forEachIndexed { i, name ->
-                print("Copying store $name ($i of $size )")
-                var config: StoreConfig? = null
+                print("Copying store $name (${i + 1} of $size )")
+                var config: StoreConfig
                 var storeSize = 0L
                 var totalPairs = 0L
-                val pairs = TreeMap<ByteIterable, MutableSet<ByteIterable>>()
                 var storeIsBroken: Throwable? = null
                 try {
-                    env.executeInReadonlyTransaction { txn ->
-                        val store = env.openStore(name, StoreConfig.USE_EXISTING, txn)
-                        config = store.config
-                        storeSize = store.count(txn)
-                        store.openCursor(txn).forEach {
-                            val key = ArrayByteIterable(key)
-                            val valueSet = pairs[key] ?: TreeSet<ByteIterable>()
-                            if (valueSet.add(ArrayByteIterable(value))) ++totalPairs
-                            pairs[key] = valueSet
+                    newEnv.executeInExclusiveTransaction { targetTxn ->
+                        env.executeInReadonlyTransaction { sourceTxn ->
+                            val sourceStore = env.openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
+                            config = sourceStore.config
+                            val targetStore = newEnv.openStore(name, config, sourceTxn)
+                            storeSize = sourceStore.count(sourceTxn)
+                            sourceStore.openCursor(sourceTxn).forEach {
+                                ++totalPairs
+                                targetStore.putRight(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))
+                                if (guard.isItCloseToOOM()) {
+                                    targetTxn.flush()
+                                }
+                            }
                         }
                     }
                 } catch (t: Throwable) {
@@ -340,29 +344,26 @@ internal class Reflect(directory: File) {
                 }
                 if (storeIsBroken != null) {
                     try {
-                        env.executeInReadonlyTransaction { txn ->
-                            val store = env.openStore(name, StoreConfig.USE_EXISTING, txn)
-                            config = store.config
-                            storeSize = store.count(txn)
-                            store.openCursor(txn).forEachReversed {
-                                val key = ArrayByteIterable(key)
-                                val valueSet = pairs[key] ?: TreeSet<ByteIterable>()
-                                if (valueSet.add(ArrayByteIterable(value))) ++totalPairs
-                                pairs[key] = valueSet
+                        newEnv.executeInExclusiveTransaction { targetTxn ->
+                            env.executeInReadonlyTransaction { sourceTxn ->
+                                val sourceStore = env.openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
+                                config = sourceStore.config
+                                val targetStore = newEnv.openStore(name, config, sourceTxn)
+                                storeSize = sourceStore.count(sourceTxn)
+                                sourceStore.openCursor(sourceTxn).forEachReversed {
+                                    if (targetStore.put(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))) {
+                                        ++totalPairs
+                                    }
+                                    if (guard.isItCloseToOOM()) {
+                                        targetTxn.flush()
+                                    }
+                                }
                             }
                         }
                     } catch (ignore: Throwable) {
                     }
                     println()
                     logger.error("Failed to completely copy store $name", storeIsBroken)
-                }
-                newEnv.executeInTransaction { txn ->
-                    val store = newEnv.openStore(name, config ?: throw NullPointerException(), txn)
-                    for ((key, valueSet) in pairs) {
-                        for (value in valueSet) {
-                            store.putRight(txn, key, value)
-                        }
-                    }
                 }
                 println(". Saved store size = $storeSize, actual number of pairs = $totalPairs")
             }
