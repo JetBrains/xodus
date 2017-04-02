@@ -26,6 +26,7 @@ import jetbrains.exodus.core.execution.JobProcessorAdapter;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.io.RemoveBlockType;
 import jetbrains.exodus.log.*;
+import jetbrains.exodus.runtime.OOMGuard;
 import jetbrains.exodus.util.DeferredIO;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -33,7 +34,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.lang.ref.SoftReference;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -281,7 +281,7 @@ public final class GarbageCollector {
         }
         final boolean isTxnExclusive = txn.isExclusive();
         try {
-            final SoftReference oomeGuard = new SoftReference<>(new Object());
+            final OOMGuard guard = new OOMGuard();
             final long started = System.currentTimeMillis();
             while (fragmentedFiles.hasNext()) {
                 final long fileAddress = fragmentedFiles.next();
@@ -293,7 +293,7 @@ public final class GarbageCollector {
                 if (started + ec.getGcTransactionTimeout() < System.currentTimeMillis()) {
                     break; // break by timeout
                 }
-                if (oomeGuard.get() == null) {
+                if (guard.isItCloseToOOM()) {
                     break; // break because of the risk of OutOfMemoryError
                 }
             }
