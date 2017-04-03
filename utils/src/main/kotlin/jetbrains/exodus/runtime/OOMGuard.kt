@@ -19,13 +19,20 @@ import java.lang.ref.SoftReference
 
 class OOMGuard {
 
-    private var ref: SoftReference<Any> = SoftReference(Any())
+    private var ref: SoftReference<Any> = newReference()
 
-    fun isItCloseToOOM(): Boolean {
-        if (ref.get() != null) {
-            return false
+    fun isItCloseToOOM(): Boolean = (ref.get() == null).apply {
+        if (this) {
+            reset()
         }
-        ref = SoftReference(Any())
-        return true
+    }
+
+    fun reset() {
+        ref = newReference()
+    }
+
+    private companion object {
+
+        fun newReference() = SoftReference(Any())
     }
 }

@@ -335,6 +335,7 @@ internal class Reflect(directory: File) {
                                 targetStore.putRight(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))
                                 if (guard.isItCloseToOOM()) {
                                     targetTxn.flush()
+                                    guard.reset()
                                 }
                             }
                         }
@@ -356,6 +357,7 @@ internal class Reflect(directory: File) {
                                     }
                                     if (guard.isItCloseToOOM()) {
                                         targetTxn.flush()
+                                        guard.reset()
                                     }
                                 }
                             }
