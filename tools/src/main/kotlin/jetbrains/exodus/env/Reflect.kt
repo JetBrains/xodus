@@ -328,7 +328,7 @@ internal class Reflect(directory: File) {
                         env.executeInReadonlyTransaction { sourceTxn ->
                             val sourceStore = env.openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
                             config = sourceStore.config
-                            val targetStore = newEnv.openStore(name, config, sourceTxn)
+                            val targetStore = newEnv.openStore(name, config, targetTxn)
                             storeSize = sourceStore.count(sourceTxn)
                             sourceStore.openCursor(sourceTxn).forEach {
                                 ++totalPairs
@@ -341,6 +341,9 @@ internal class Reflect(directory: File) {
                         }
                     }
                 } catch (t: Throwable) {
+                    if (t is VirtualMachineError) {
+                        throw t
+                    }
                     storeIsBroken = t
                 }
                 if (storeIsBroken != null) {
@@ -349,7 +352,7 @@ internal class Reflect(directory: File) {
                             env.executeInReadonlyTransaction { sourceTxn ->
                                 val sourceStore = env.openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
                                 config = sourceStore.config
-                                val targetStore = newEnv.openStore(name, config, sourceTxn)
+                                val targetStore = newEnv.openStore(name, config, targetTxn)
                                 storeSize = sourceStore.count(sourceTxn)
                                 sourceStore.openCursor(sourceTxn).forEachReversed {
                                     if (targetStore.put(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))) {
@@ -362,7 +365,10 @@ internal class Reflect(directory: File) {
                                 }
                             }
                         }
-                    } catch (ignore: Throwable) {
+                    } catch (t: Throwable) {
+                        if (t is VirtualMachineError) {
+                            throw t
+                        }
                     }
                     println()
                     logger.error("Failed to completely copy store $name", storeIsBroken)
