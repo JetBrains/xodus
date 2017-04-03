@@ -311,7 +311,7 @@ internal class Reflect(directory: File) {
     }
 
     fun copy(there: File) {
-        val guard = OOMGuard()
+        val guard = OOMGuard(0x100000) // free 1MB if OMM is near
         Environments.newInstance(there, env.environmentConfig).use { newEnv ->
             println("Copying environment to " + newEnv.location)
             val names = env.computeInReadonlyTransaction { txn -> env.getAllStoreNames(txn) }
@@ -321,7 +321,6 @@ internal class Reflect(directory: File) {
                 print("Copying store $name (${i + 1} of $size )")
                 var config: StoreConfig
                 var storeSize = 0L
-                var totalPairs = 0L
                 var storeIsBroken: Throwable? = null
                 try {
                     newEnv.executeInExclusiveTransaction { targetTxn ->
@@ -331,7 +330,6 @@ internal class Reflect(directory: File) {
                             val targetStore = newEnv.openStore(name, config, targetTxn)
                             storeSize = sourceStore.count(sourceTxn)
                             sourceStore.openCursor(sourceTxn).forEach {
-                                ++totalPairs
                                 targetStore.putRight(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))
                                 if (guard.isItCloseToOOM()) {
                                     targetTxn.flush()
@@ -341,6 +339,7 @@ internal class Reflect(directory: File) {
                         }
                     }
                 } catch (t: Throwable) {
+                    logger.warn(t, { "Failed to completely copy $name, proceeding in reverse order..." })
                     if (t is VirtualMachineError) {
                         throw t
                     }
@@ -355,9 +354,7 @@ internal class Reflect(directory: File) {
                                 val targetStore = newEnv.openStore(name, config, targetTxn)
                                 storeSize = sourceStore.count(sourceTxn)
                                 sourceStore.openCursor(sourceTxn).forEachReversed {
-                                    if (targetStore.put(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))) {
-                                        ++totalPairs
-                                    }
+                                    targetStore.put(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))
                                     if (guard.isItCloseToOOM()) {
                                         targetTxn.flush()
                                         guard.reset()
@@ -366,6 +363,7 @@ internal class Reflect(directory: File) {
                             }
                         }
                     } catch (t: Throwable) {
+                        logger.error(t, { "Failed to completely copy $name" })
                         if (t is VirtualMachineError) {
                             throw t
                         }
@@ -373,7 +371,8 @@ internal class Reflect(directory: File) {
                     println()
                     logger.error("Failed to completely copy store $name", storeIsBroken)
                 }
-                println(". Saved store size = $storeSize, actual number of pairs = $totalPairs")
+                val actualSize = newEnv.computeInReadonlyTransaction { txn -> newEnv.openStore(name, StoreConfig.USE_EXISTING, txn).count(txn) }
+                println(". Saved store size = $storeSize, actual number of pairs = $actualSize")
             }
         }
     }

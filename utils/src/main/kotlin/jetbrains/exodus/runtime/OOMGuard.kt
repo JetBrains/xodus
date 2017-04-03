@@ -17,7 +17,7 @@ package jetbrains.exodus.runtime
 
 import java.lang.ref.SoftReference
 
-class OOMGuard {
+class OOMGuard(private val extraBytes: Int = 0) {
 
     private var ref: SoftReference<Any> = newReference()
 
@@ -31,8 +31,5 @@ class OOMGuard {
         ref = newReference()
     }
 
-    private companion object {
-
-        fun newReference() = SoftReference(Any())
-    }
+    private fun newReference() = SoftReference(if (extraBytes == 0) Any() else ByteArray(extraBytes))
 }
