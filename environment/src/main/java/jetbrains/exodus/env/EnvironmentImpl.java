@@ -410,6 +410,7 @@ public class EnvironmentImpl implements Environment {
     @Override
     @NotNull
     public List<String> getAllStoreNames(@NotNull final Transaction txn) {
+        checkIfTransactionCreatedAgainstThis(txn);
         return ((TransactionBase) txn).getAllStoreNames();
     }
 
@@ -481,10 +482,12 @@ public class EnvironmentImpl implements Environment {
     }
 
     void acquireTransaction(@NotNull final TransactionBase txn) {
+        checkIfTransactionCreatedAgainstThis(txn);
         (txn.isReadonly() ? roTxnDispatcher : txnDispatcher).acquireTransaction(txn, this);
     }
 
     void releaseTransaction(@NotNull final TransactionBase txn) {
+        checkIfTransactionCreatedAgainstThis(txn);
         (txn.isReadonly() ? roTxnDispatcher : txnDispatcher).releaseTransaction(txn);
     }
 
@@ -533,6 +536,8 @@ public class EnvironmentImpl implements Environment {
     }
 
     boolean flushTransaction(@NotNull final ReadWriteTransaction txn, final boolean forceCommit) {
+        checkIfTransactionCreatedAgainstThis(txn);
+
         if (!forceCommit && txn.isIdempotent()) {
             return true;
         }
@@ -642,6 +647,7 @@ public class EnvironmentImpl implements Environment {
                             @NotNull StoreConfig config,
                             @NotNull final TransactionBase txn,
                             @Nullable TreeMetaInfo metaInfo) {
+        checkIfTransactionCreatedAgainstThis(txn);
         if (config.useExisting) { // this parameter requires to recalculate
             if (metaInfo == null) {
                 throw new ExodusException("Can't restore meta information for store " + name);
@@ -685,12 +691,14 @@ public class EnvironmentImpl implements Environment {
     }
 
     void registerTransaction(@NotNull final TransactionBase txn) {
+        checkIfTransactionCreatedAgainstThis(txn);
         // N.B! due to TransactionImpl.revert(), there can appear a txn which is already in the transaction set
         // any implementation of transaction set should process this well
         txns.add(txn);
     }
 
     boolean isRegistered(@NotNull final ReadWriteTransaction txn) {
+        checkIfTransactionCreatedAgainstThis(txn);
         return txns.contains(txn);
     }
 
@@ -802,6 +810,12 @@ public class EnvironmentImpl implements Environment {
                 }
             }
             DeferredIO.getJobProcessor().waitForJobs(100);
+        }
+    }
+
+    private void checkIfTransactionCreatedAgainstThis(@NotNull final Transaction txn) {
+        if (txn.getEnvironment() != this) {
+            throw new ExodusException("Transaction is created against another Environment");
         }
     }
 
