@@ -311,7 +311,7 @@ internal class Reflect(directory: File) {
     }
 
     fun copy(there: File) {
-        val guard = OOMGuard(0x100000) // free 1MB if OMM is near
+        val guard = OOMGuard(0x1000000) // free 16MB if OMM is near
         Environments.newInstance(there, env.environmentConfig).use { newEnv ->
             println("Copying environment to " + newEnv.location)
             val names = env.computeInReadonlyTransaction { txn -> env.getAllStoreNames(txn) }
