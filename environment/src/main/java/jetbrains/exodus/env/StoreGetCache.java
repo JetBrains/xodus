@@ -17,7 +17,7 @@ package jetbrains.exodus.env;
 
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.core.dataStructures.SoftConcurrentObjectCache;
+import jetbrains.exodus.core.dataStructures.SoftConcurrentLongObjectCache;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -27,10 +27,10 @@ import org.jetbrains.annotations.Nullable;
  */
 class StoreGetCache {
 
-    private final SoftConcurrentObjectCache<KeyEntry, ArrayByteIterable> cache;
+    private final SoftConcurrentLongObjectCache<ValueEntry> cache;
 
     StoreGetCache(final int cacheSize) {
-        cache = new SoftConcurrentObjectCache<>(cacheSize);
+        cache = new SoftConcurrentLongObjectCache<>(cacheSize);
     }
 
     void close() {
@@ -39,46 +39,34 @@ class StoreGetCache {
 
     @Nullable
     ByteIterable tryKey(final long treeRootAddress, @NotNull final ByteIterable key) {
-        return cache.tryKey(new KeyEntry(treeRootAddress, key));
+        final ValueEntry ve = cache.tryKey(cacheKey(treeRootAddress, key));
+        return ve == null || ve.treeRootAddress != treeRootAddress || !ve.key.equals(key) ? null : ve.value;
     }
 
     void cacheObject(final long treeRootAddress, @NotNull final ByteIterable key, @NotNull final ArrayByteIterable value) {
-        cache.cacheObject(new KeyEntry(treeRootAddress, key), value);
+        cache.cacheObject(cacheKey(treeRootAddress, key), new ValueEntry(treeRootAddress, key, value));
     }
 
     float hitRate() {
         return cache.hitRate();
     }
 
-    private static class KeyEntry {
+    private static long cacheKey(final long treeRootAddress, @NotNull final ByteIterable key) {
+        return treeRootAddress ^ key.hashCode();
+    }
+
+    private static class ValueEntry {
 
         private final long treeRootAddress;
         @NotNull
         private final ByteIterable key;
-        private int hc;
+        @NotNull
+        private final ArrayByteIterable value;
 
-        KeyEntry(final long treeRootAddress, @NotNull final ByteIterable key) {
+        ValueEntry(final long treeRootAddress, @NotNull final ByteIterable key, @NotNull final ArrayByteIterable value) {
             this.treeRootAddress = treeRootAddress;
             this.key = key;
-            hc = 0;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            final KeyEntry right = (KeyEntry) o;
-            return treeRootAddress == right.treeRootAddress && key.equals(right.key);
-        }
-
-        @Override
-        public int hashCode() {
-            if (hc == 0) {
-                final int keyHashCode = key.hashCode();
-                int result = (int) ((treeRootAddress + keyHashCode) ^ (treeRootAddress >>> 32));
-                hc = 31 * result + keyHashCode;
-            }
-            return hc;
+            this.value = value;
         }
     }
 }
