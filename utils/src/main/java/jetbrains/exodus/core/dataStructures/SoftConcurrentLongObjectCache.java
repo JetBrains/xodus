@@ -17,15 +17,15 @@ package jetbrains.exodus.core.dataStructures;
 
 import org.jetbrains.annotations.NotNull;
 
-public class SoftLongObjectCache<V> extends SoftLongObjectCacheBase<V> {
+public class SoftConcurrentLongObjectCache<V> extends SoftLongObjectCacheBase<V> {
 
-    public SoftLongObjectCache(final int cacheSize) {
+    public SoftConcurrentLongObjectCache(final int cacheSize) {
         super(cacheSize);
     }
 
     @NotNull
     @Override
-    protected LongObjectCache<V> newChunk(final int chunkSize) {
-        return new LongObjectCache<>(chunkSize);
+    protected ConcurrentLongObjectCache<V> newChunk(final int chunkSize) {
+        return new ConcurrentLongObjectCache<>(chunkSize);
     }
 }
