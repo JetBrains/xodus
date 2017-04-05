@@ -29,6 +29,13 @@ public abstract class ObjectCacheBase<K, V> extends CacheHitRateable {
     };
 
     protected final int size;
+    private final CriticalSection criticalSection = new CriticalSection() {
+
+        @Override
+        public void close() {
+            unlock();
+        }
+    };
 
     protected ObjectCacheBase(final int size) {
         this.size = Math.max(MIN_SIZE, size);
@@ -106,13 +113,7 @@ public abstract class ObjectCacheBase<K, V> extends CacheHitRateable {
 
     public CriticalSection newCriticalSection() {
         lock();
-        return new CriticalSection() {
-
-            @Override
-            public void close() {
-                unlock();
-            }
-        };
+        return criticalSection;
     }
 
     public interface CriticalSection extends AutoCloseable {
