@@ -62,7 +62,7 @@ public class SoftLongObjectCache<V> extends LongObjectCacheBase<V> {
     public V tryKey(final long key) {
         incAttempts();
         final LongObjectCache<V> chunk = getChunk(key, false);
-        final V result = chunk == null ? null : chunk.tryKey(key);
+        final V result = chunk == null ? null : chunk.tryKeyLocked(key);
         if (result != null) {
             incHits();
         }
@@ -72,20 +72,34 @@ public class SoftLongObjectCache<V> extends LongObjectCacheBase<V> {
     @Override
     public V getObject(final long key) {
         final LongObjectCache<V> chunk = getChunk(key, false);
-        return chunk == null ? null : chunk.getObject(key);
+        if (chunk == null) {
+            return null;
+        }
+        try (CriticalSection ignored = chunk.newCriticalSection()) {
+            return chunk.getObject(key);
+        }
     }
 
     @Override
     public V cacheObject(final long key, @NotNull final V value) {
         final LongObjectCache<V> chunk = getChunk(key, true);
-        assert chunk != null;
-        return chunk.cacheObject(key, value);
+        if (chunk == null) {
+            throw new NullPointerException();
+        }
+        try (CriticalSection ignored = chunk.newCriticalSection()) {
+            return chunk.cacheObject(key, value);
+        }
     }
 
     @Override
     public V remove(final long key) {
         final LongObjectCache<V> chunk = getChunk(key, false);
-        return chunk == null ? null : chunk.remove(key);
+        if (chunk == null) {
+            return null;
+        }
+        try (CriticalSection ignored = chunk.newCriticalSection()) {
+            return chunk.remove(key);
+        }
     }
 
     @Override

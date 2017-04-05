@@ -50,7 +50,6 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
     private static final int STRING_CONTENT_CACHE_SIZE = 0x1000;
     private static final int READ_BUFFER_SIZE = 0x4000;
 
-    private final Object stringContentCacheLock = new Object();
     private SoftLongObjectCache<String> stringContentCache;
     protected final ByteArraySpinAllocator bufferAllocator;
 
@@ -142,9 +141,7 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
      * @param cacheSize cache size
      */
     public final void setStringContentCacheSize(final int cacheSize) {
-        synchronized (stringContentCacheLock) {
-            stringContentCache = new SoftLongObjectCache<>(cacheSize);
-        }
+        stringContentCache = new SoftLongObjectCache<>(cacheSize);
     }
 
     /**
@@ -158,17 +155,13 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
     @Nullable
     public final String getStringContent(final long blobHandle, @NotNull final Transaction txn) throws IOException {
         String result;
-        synchronized (stringContentCacheLock) {
-            result = stringContentCache.tryKey(blobHandle);
-        }
+        result = stringContentCache.tryKey(blobHandle);
         if (result == null) {
             final InputStream content = getContent(blobHandle, txn);
             result = content == null ? null : UTFUtil.readUTF(content);
             if (result != null) {
-                synchronized (stringContentCacheLock) {
-                    if (stringContentCache.getObject(blobHandle) == null) {
-                        stringContentCache.cacheObject(blobHandle, result);
-                    }
+                if (stringContentCache.getObject(blobHandle) == null) {
+                    stringContentCache.cacheObject(blobHandle, result);
                 }
             }
         }
@@ -180,9 +173,7 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
      * contents cache
      */
     public final float getStringContentCacheHitRate() {
-        synchronized (stringContentCacheLock) {
-            return stringContentCache.hitRate();
-        }
+        return stringContentCache.hitRate();
     }
 
     public final ByteArrayOutputStream copyStream(@NotNull final InputStream source,
