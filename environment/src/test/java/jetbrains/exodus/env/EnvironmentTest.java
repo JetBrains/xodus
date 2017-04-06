@@ -436,6 +436,45 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     }
 
     @Test
+    @TestFor(issues = "XD-590")
+    public void issueXD_590_reported() {
+        // 1) open store
+        final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
+            @Override
+            public Store compute(@NotNull final Transaction txn) {
+                return env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn);
+            }
+        });
+        // 2) store(put) a key 1 , value A1
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                store.put(txn, StringBinding.stringToEntry("key1"), StringBinding.stringToEntry("A1"));
+            }
+        });
+        // 3) using second transaction : store(put) key 2 value A2,  update key 1 with B1. inside transaction reload ke1 (value=B1 OK)
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                store.put(txn, StringBinding.stringToEntry("key2"), StringBinding.stringToEntry("A2"));
+                store.put(txn, StringBinding.stringToEntry("key1"), StringBinding.stringToEntry("B1"));
+                final ByteIterable value1 = store.get(txn, StringBinding.stringToEntry("key1"));
+                Assert.assertNotNull(value1);
+                Assert.assertEquals("B1", StringBinding.entryToString(value1));
+            }
+        });
+        // 4) using third transaction : reload key 1 , value is A1 !=B1   !!!!! Error.
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                final ByteIterable value1 = store.get(txn, StringBinding.stringToEntry("key1"));
+                Assert.assertNotNull(value1);
+                Assert.assertEquals("B1", StringBinding.entryToString(value1));
+            }
+        });
+    }
+
+    @Test
     public void testSharedCache() throws InterruptedException, IOException {
         env.getEnvironmentConfig().setLogCacheShared(true);
         reopenEnvironment();
