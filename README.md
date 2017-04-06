@@ -5,6 +5,7 @@
 [![GitHub license](https://img.shields.io/hexpm/l/plug.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
 ![Repository Size](https://reposs.herokuapp.com/?path=JetBrains/xodus)
 ![Pure Java + Kotlin](https://img.shields.io/badge/100%25-java%2bkotlin-orange.svg)
+[![Stack Overflow](http://img.shields.io/:stack%20overflow-xodus-brightgreen.svg)](http://stackoverflow.com/questions/tagged/xodus)
 
 JetBrains Xodus is a transactional schema-less embedded database that is written in Java and [Kotlin](https://kotlinlang.org).
 It was initially developed for [JetBrains YouTrack](http://jetbrains.com/youtrack), an issue tracking and project
@@ -94,6 +95,7 @@ To assemble JARs and skip running tests, run:
 ## Find out More
 - [Xodus wiki](https://github.com/JetBrains/xodus/wiki)
 - [Report an issue](http://xodus.myjetbrains.com/youtrack)
+- [Stack Overflow](http://stackoverflow.com/questions/tagged/xodus)
 - [Check out the latest builds](https://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build)
 - [Observe development in Upsource](https://upsource.jetbrains.com/Xodus/view)
 - [EntityStore browser](https://github.com/lehvolk/xodus-entity-browser)
