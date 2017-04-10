@@ -23,7 +23,7 @@ public interface DataWriter extends Closeable {
 
     boolean isOpen();
 
-    boolean write(byte[] b, int off, int len) throws ExodusException;
+    void write(byte[] b, int off, int len) throws ExodusException;
 
     void sync();
 

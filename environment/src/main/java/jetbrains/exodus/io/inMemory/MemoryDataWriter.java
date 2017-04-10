@@ -30,9 +30,8 @@ public class MemoryDataWriter extends AbstractDataWriter {
     }
 
     @Override
-    public boolean write(byte[] b, int off, int len) {
+    public void write(byte[] b, int off, int len) {
         data.write(b, off, len);
-        return true;
     }
 
     @Override

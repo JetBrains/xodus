@@ -92,15 +92,12 @@ public class OutOfDiskSpaceTest extends EnvironmentTestsBase {
         }
 
         @Override
-        public boolean write(byte[] b, int off, int len) {
+        public void write(byte[] b, int off, int len) {
             if (limit >= 0 && written + len > limit) {
                 throw new OutOfDiskSpaceException(new IOException("No space left on device"));
             }
-            if (super.write(b, off, len)) {
-                written += len;
-                return true;
-            }
-            return false;
+            super.write(b, off, len);
+            written += len;
         }
     }
 }

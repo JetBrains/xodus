@@ -36,7 +36,6 @@ class BufferedDataWriter implements TransactionalDataWriter {
     private MutablePage currentPage;
     private final int pageSize;
     private int count;
-    private int capacity;
 
     private BufferedDataWriter(@NotNull final Log log,
                                @NotNull final DataWriter child,
@@ -79,36 +78,28 @@ class BufferedDataWriter implements TransactionalDataWriter {
     }
 
     @Override
-    public boolean write(byte b) {
+    public void write(byte b) {
         final int count = this.count;
         MutablePage currentPage = this.currentPage;
         final int writtenCount = currentPage.writtenCount;
         if (writtenCount < pageSize) {
             currentPage.bytes[writtenCount] = b;
             currentPage.writtenCount = writtenCount + 1;
-            this.count = count + 1;
-            return true;
+        } else {
+            currentPage = allocNewPage();
+            currentPage.bytes[0] = b;
+            currentPage.writtenCount = 1;
         }
-        if (count >= capacity) {
-            return false;
-        }
-        currentPage = allocNewPage();
-        currentPage.bytes[0] = b;
-        currentPage.writtenCount = 1;
         this.count = count + 1;
-        return true;
     }
 
     @Override
-    public boolean write(byte[] b, int off, int len) throws ExodusException {
+    public void write(byte[] b, int off, int len) throws ExodusException {
         final int count = this.count + len;
         MutablePage currentPage = this.currentPage;
         while (len > 0) {
             int bytesToWrite = pageSize - currentPage.writtenCount;
             if (bytesToWrite == 0) {
-                if (count > capacity) {
-                    return false;
-                }
                 currentPage = allocNewPage();
                 bytesToWrite = pageSize;
             }
@@ -121,12 +112,6 @@ class BufferedDataWriter implements TransactionalDataWriter {
             off += bytesToWrite;
         }
         this.count = count;
-        return true;
-    }
-
-    @Override
-    public void setMaxBytesToWrite(final int capacity) {
-        this.capacity = capacity;
     }
 
     @Override

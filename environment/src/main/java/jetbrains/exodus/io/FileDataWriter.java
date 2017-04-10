@@ -55,7 +55,7 @@ public class FileDataWriter extends AbstractDataWriter {
     }
 
     @Override
-    public boolean write(byte[] b, int off, int len) throws ExodusException {
+    public void write(byte[] b, int off, int len) throws ExodusException {
         final RandomAccessFile file = this.file;
         if (file == null) {
             throw new ExodusException("Can't write, FileDataWriter is closed");
@@ -68,7 +68,6 @@ public class FileDataWriter extends AbstractDataWriter {
             }
             throw new ExodusException("Can't write", ioe);
         }
-        return true;
     }
 
     @Override

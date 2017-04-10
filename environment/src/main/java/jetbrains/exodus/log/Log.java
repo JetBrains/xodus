@@ -15,10 +15,7 @@
  */
 package jetbrains.exodus.log;
 
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ByteIterator;
-import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.InvalidSettingException;
+import jetbrains.exodus.*;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.core.dataStructures.skiplists.LongSkipList;
 import jetbrains.exodus.io.*;
@@ -858,40 +855,36 @@ public final class Log implements Closeable {
             if (fileCreated) {
                 // fsync the directory to ensure we will find the log file in the directory after system crash
                 bufferedWriter.syncDirectory();
-
                 notifyFileCreated(fileAddress);
             }
         }
-        try {
-            bufferedWriter.setMaxBytesToWrite((int) (fileLengthBound - getLastFileLength()));
+
+        final boolean isNull = NullLoggable.isNullLoggable(type);
+        int recordLength = 1;
+        if (isNull) {
             bufferedWriter.write((byte) (type ^ 0x80));
-            int recordLength = 1;
-            // NullLoggable doesn't contain data
-            if (!NullLoggable.isNullLoggable(type)) {
-                recordLength += writeByteIterable(bufferedWriter, CompressedUnsignedLongByteIterable.getIterable(structureId));
-                final int length = data.getLength();
-                if (length < 0) {
-                    throw new ExodusException("Negative length of loggable data");
-                }
-                recordLength += writeByteIterable(bufferedWriter, CompressedUnsignedLongByteIterable.getIterable(length));
-                final int actualLength = writeByteIterable(bufferedWriter, data);
-                if (actualLength != length) {
-                    throw new IllegalArgumentException("Loggable contains invalid length descriptor");
-                }
-                recordLength += actualLength;
+        } else {
+            final ByteIterable structureIdIterable = CompressedUnsignedLongByteIterable.getIterable(structureId);
+            final int dataLength = data.getLength();
+            final ByteIterable dataLengthIterable = CompressedUnsignedLongByteIterable.getIterable(dataLength);
+            recordLength += structureIdIterable.getLength();
+            recordLength += dataLengthIterable.getLength();
+            recordLength += dataLength;
+            if (recordLength > fileLengthBound - getLastFileLength()) {
+                return -1L;
             }
-            bufferedWriter.commit();
-            highAddress += recordLength;
-            createNewFileIfNecessary();
-            return result;
-        } catch (Throwable e) {
-            highAddress = result;
-            bufferedWriter.rollback();
-            if (!(e instanceof NewFileCreationDeniedException)) {
-                throw ExodusException.toExodusException(e);
+            bufferedWriter.write((byte) (type ^ 0x80));
+            writeByteIterable(bufferedWriter, structureIdIterable);
+            writeByteIterable(bufferedWriter, dataLengthIterable);
+            if (dataLength > 0) {
+                writeByteIterable(bufferedWriter, data);
             }
-            return -1;
+
         }
+        bufferedWriter.commit();
+        highAddress += recordLength;
+        createNewFileIfNecessary();
+        return result;
     }
 
     private void createNewFileIfNecessary() {
@@ -951,25 +944,24 @@ public final class Log implements Closeable {
      * @param iterable byte iterable to write.
      * @return
      */
-    private static int writeByteIterable(final TransactionalDataWriter writer, final ByteIterable iterable) {
+    private static void writeByteIterable(final TransactionalDataWriter writer, final ByteIterable iterable) {
         final int length = iterable.getLength();
-        if (length == 0) {
-            return 0;
-        }
-        if (length < 3) {
+        if (iterable instanceof ArrayByteIterable) {
+            final byte[] bytes = iterable.getBytesUnsafe();
+            if (length == 1) {
+                writer.write(bytes[0]);
+            } else {
+                writer.write(bytes, 0, length);
+            }
+        } else if (length >= 3) {
+            writer.write(iterable.getBytesUnsafe(), 0, length);
+        } else {
             final ByteIterator iterator = iterable.iterator();
-            if (!writer.write(iterator.next())) {
-                throw new NewFileCreationDeniedException();
-            }
+            writer.write(iterator.next());
             if (length == 2) {
-                if (!writer.write(iterator.next())) {
-                    throw new NewFileCreationDeniedException();
-                }
+                writer.write(iterator.next());
             }
-        } else if (!writer.write(iterable.getBytesUnsafe(), 0, length)) {
-            throw new NewFileCreationDeniedException();
         }
-        return length;
     }
 
     private long getLastFileLength() {
@@ -990,14 +982,5 @@ public final class Log implements Closeable {
                 break;
             }
         }
-    }
-
-    /**
-     * Auxiliary exception necessary for aligned writing of loggables. It is thrown when a loggable
-     * is trying to be placed into two files. In that case, we rollback the loggable, pad the last
-     * file with nulls and write the loggable into the new file.
-     */
-    @SuppressWarnings({"serial", "SerializableClassInSecureContext", "SerializableHasSerializationMethods", "DeserializableClassInSecureContext", "EmptyClass"})
-    private static final class NewFileCreationDeniedException extends RuntimeException {
     }
 }

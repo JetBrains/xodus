@@ -21,12 +21,10 @@ public interface TransactionalDataWriter extends DataWriter {
 
     DataWriter getChildWriter();
 
-    boolean write(byte b);
+    void write(byte b);
 
     @Nullable
     byte[] getHighPage(long alignedAddress);
-
-    void setMaxBytesToWrite(int capacity);
 
     void commit();
 
