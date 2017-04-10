@@ -60,11 +60,13 @@ class LeafNodeMutable extends BaseLeafNodeMutable {
             throw new IllegalStateException("Leaf already saved");
         }
         final int keyLength = key.getLength();
-        final LightOutputStream output = new LightOutputStream(keyLength + value.getLength() + 3);
+        final BTreeMutable mutableTree = (BTreeMutable) tree;
+        final LightOutputStream output = mutableTree.getLeafStream();
+        output.clear();
         CompressedUnsignedLongByteIterable.fillBytes(keyLength, output);
         ByteIterableBase.fillBytes(key, output);
         ByteIterableBase.fillBytes(value, output);
-        address = tree.getLog().write(((BTreeMutable) tree).getLeafType(), tree.getStructureId(), output.asArrayByteIterable());
+        address = tree.getLog().write(mutableTree.getLeafType(), tree.getStructureId(), output.asArrayByteIterable());
         return address;
     }
 

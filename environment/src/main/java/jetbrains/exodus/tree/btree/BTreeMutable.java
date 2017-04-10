@@ -21,6 +21,7 @@ import jetbrains.exodus.CompoundByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.*;
+import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -40,10 +41,12 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     private List<ITreeCursorMutable> openCursors = null;
     @NotNull
     private final BTreeBase immutableTree;
+    private final LightOutputStream leafStream;
 
     BTreeMutable(@NotNull final BTreeBase tree) {
         super(tree.log, tree.balancePolicy, tree.allowsDuplicates, tree.structureId);
         immutableTree = tree;
+        leafStream = new LightOutputStream(16);
         root = tree.getRoot().getMutableCopy(this);
         size = tree.getSize();
     }
@@ -159,6 +162,10 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
             return true;
         }
         return false;
+    }
+
+    LightOutputStream getLeafStream() {
+        return leafStream;
     }
 
     protected boolean delete(@NotNull ByteIterable key, @Nullable ByteIterable value) {
