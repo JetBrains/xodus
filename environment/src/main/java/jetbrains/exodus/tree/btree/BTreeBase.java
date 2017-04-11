@@ -53,6 +53,8 @@ public abstract class BTreeBase implements ITree {
     @NotNull
     private final DataIterator dataIterator;
     @NotNull
+    private final SearchRes searchRes;
+    @NotNull
     protected final BTreeBalancePolicy balancePolicy;
     protected final boolean allowsDuplicates;
     protected long size = -1;
@@ -61,6 +63,7 @@ public abstract class BTreeBase implements ITree {
     BTreeBase(@NotNull final Log log, @NotNull final BTreeBalancePolicy balancePolicy, final boolean allowsDuplicates, final int structureId) {
         this.log = log;
         dataIterator = new DataIterator(log);
+        searchRes = new SearchRes();
         this.balancePolicy = balancePolicy;
         this.allowsDuplicates = allowsDuplicates;
         this.structureId = structureId;
@@ -99,6 +102,11 @@ public abstract class BTreeBase implements ITree {
     public DataIterator getDataIterator(long address) {
         dataIterator.checkPage(address);
         return dataIterator;
+    }
+
+    @NotNull
+    public SearchRes getSearchRes() {
+        return searchRes;
     }
 
     @NotNull

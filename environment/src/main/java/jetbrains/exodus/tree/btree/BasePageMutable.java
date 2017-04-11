@@ -127,7 +127,7 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
                 long result = log.tryWrite(type, structureId, new CompoundByteIterable(iterables));
                 if (result < 0) {
                     iterables[0] = CompressedUnsignedLongByteIterable.getIterable(
-                            (size << 1) + ReclaimFlag.RECLAIM.value
+                        (size << 1) + ReclaimFlag.RECLAIM.value
                     );
                     result = log.writeContinuously(type, structureId, new CompoundByteIterable(iterables));
 
@@ -254,6 +254,7 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
     protected static SearchRes binarySearch(final @NotNull BasePage page,
                                             final @NotNull ByteIterable key,
                                             int low, int high) {
+        final SearchRes result = page.getTree().getSearchRes();
         while (low <= high) {
             final int mid = (low + high + 1) >>> 1;
             final ILeafNode midKey = page.getKey(mid);
@@ -263,10 +264,16 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
             } else if (cmp > 0) {
                 high = mid - 1;
             } else {
-                return new SearchRes(mid, midKey); // key found
+                // key found
+                result.key = midKey;
+                result.index = mid;
+                return result;
             }
         }
-        return new SearchRes(-(low + 1));  // key not found.
+        // key not found
+        result.key = null;
+        result.index = -(low + 1);
+        return result;
     }
 
     protected enum ReclaimFlag {

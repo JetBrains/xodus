@@ -25,6 +25,7 @@ import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.*;
 import jetbrains.exodus.tree.btree.BTree;
 import jetbrains.exodus.tree.btree.BTreeEmpty;
+import jetbrains.exodus.tree.btree.SearchRes;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -208,6 +209,12 @@ final class MetaTree {
             @Override
             public DataIterator getDataIterator(long address) {
                 return new DataIterator(log, address);
+            }
+
+            @NotNull
+            @Override
+            public SearchRes getSearchRes() {
+                return new SearchRes();
             }
         };
     }

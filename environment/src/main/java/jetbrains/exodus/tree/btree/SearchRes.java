@@ -20,18 +20,18 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Result of binary search
  */
-class SearchRes {
+public final class SearchRes {
 
     static final SearchRes NOT_FOUND = new SearchRes(-1);
 
-    public short index;
+    public int index;
     public ILeafNode key;
 
-    SearchRes() {
+    public SearchRes() {
     }
 
     SearchRes(int index, @Nullable ILeafNode key) {
-        this.index = (short) index;
+        this.index = index;
         this.key = key;
     }
 

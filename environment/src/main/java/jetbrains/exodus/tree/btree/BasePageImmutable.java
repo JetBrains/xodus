@@ -85,7 +85,7 @@ abstract class BasePageImmutable extends BasePage {
 
     ByteIterator getDataIterator(final int offset) {
         return dataAddress == Loggable.NULL_ADDRESS ?
-                ByteIterable.EMPTY_ITERATOR : data.iterator((int) (dataAddress - data.getDataAddress() + offset));
+            ByteIterable.EMPTY_ITERATOR : data.iterator((int) (dataAddress - data.getDataAddress() + offset));
     }
 
     protected void loadAddressLengths(final int length) {
@@ -124,14 +124,15 @@ abstract class BasePageImmutable extends BasePage {
         if (dataAddress == Loggable.NULL_ADDRESS) {
             return SearchRes.NOT_FOUND;
         }
-        final SearchRes result = new SearchRes();
-        result.index = (short) ByteIterableWithAddress.binarySearch(
-                new IByteIterableComparator() {
-                    @Override
-                    public int compare(final long leftAddress, @NotNull final ByteIterable right) {
-                        return (result.key = getTree().loadLeaf(leftAddress)).compareKeyTo(right);
-                    }
-                }, key, low, size - 1, keyAddressLen, getTree().log, dataAddress);
+        final BTreeBase tree = getTree();
+        final SearchRes result = tree.getSearchRes();
+        result.index = ByteIterableWithAddress.binarySearch(
+            new IByteIterableComparator() {
+                @Override
+                public int compare(final long leftAddress, @NotNull final ByteIterable right) {
+                    return (result.key = tree.loadLeaf(leftAddress)).compareKeyTo(right);
+                }
+            }, key, low, size - 1, keyAddressLen, tree.log, dataAddress);
         if (result.index < 0) {
             result.key = null;
         }
