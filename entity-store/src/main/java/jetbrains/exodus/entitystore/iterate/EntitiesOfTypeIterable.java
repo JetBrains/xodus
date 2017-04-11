@@ -64,7 +64,7 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
     @Override
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
-        return new EntitiesOfTypeIterableHandle();
+        return new EntitiesOfTypeIterableHandle(this);
     }
 
     @Override
@@ -82,14 +82,16 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
         return new UpdatableEntityIdSortedSetCachedInstanceIterable(txn, this);
     }
 
-    private final class EntitiesOfTypeIterator extends EntityIteratorBase {
+    public static final class EntitiesOfTypeIterator extends EntityIteratorBase {
 
         private boolean hasNext;
         private boolean hasNextValid;
+        protected final int entityTypeId;
 
-        private EntitiesOfTypeIterator(@NotNull final EntitiesOfTypeIterable iterable,
-                                       @NotNull final Cursor index) {
+        public EntitiesOfTypeIterator(@NotNull final EntitiesOfTypeIterable iterable,
+                                      @NotNull final Cursor index) {
             super(iterable);
+            entityTypeId = iterable.entityTypeId;
             setCursor(index);
         }
 
@@ -106,7 +108,7 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
         @Nullable
         public EntityId nextIdImpl() {
             if (hasNextImpl()) {
-                explain(getType());
+                getIterable().explain(getType());
                 final EntityId result = getEntityId();
                 hasNextValid = false;
                 return result;
@@ -128,14 +130,12 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
         }
     }
 
-    /**
-     * Public access is needed in order to access directly from PersistentStoreTransaction.
-     */
+    public static class EntitiesOfTypeIterableHandle extends ConstantEntityIterableHandle {
+        protected final int entityTypeId;
 
-    protected class EntitiesOfTypeIterableHandle extends ConstantEntityIterableHandle {
-
-        public EntitiesOfTypeIterableHandle() {
-            super(EntitiesOfTypeIterable.this.getStore(), EntitiesOfTypeIterable.getType());
+        public EntitiesOfTypeIterableHandle(@NotNull final EntitiesOfTypeIterable source) {
+            super(source.getStore(), EntitiesOfTypeIterable.getType());
+            this.entityTypeId = source.entityTypeId;
         }
 
         @Override
