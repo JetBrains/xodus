@@ -16,9 +16,6 @@
 package jetbrains.exodus.log;
 
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ByteIterator;
-import jetbrains.exodus.CompoundByteIteratorBase;
-import jetbrains.exodus.bindings.LongBinding;
 import org.jetbrains.annotations.NotNull;
 
 public abstract class ByteIterableWithAddress implements ByteIterable {
@@ -68,116 +65,5 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
 
     public static ByteIterableWithAddress getEmpty(final long address) {
         return new ArrayByteIterableWithAddress(address, ByteIterable.EMPTY_BYTES, 0, 0);
-    }
-
-    public static int binarySearch(@NotNull final IByteIterableComparator comparator,
-                                   final ByteIterable key,
-                                   int low, int high,
-                                   final int bytesPerLong,
-                                   Log log, long startAddress) {
-        final LogCache cache = log.cache;
-        final int pageSize = log.getCachePageSize();
-        final int mask = pageSize - 1; // bytes size is always a power of 2
-        long leftAddress = -1L;
-        byte[] leftPage = null;
-        long rightAddress = -1L;
-        byte[] rightPage = null;
-        final BinarySearchIterator it = new BinarySearchIterator(pageSize);
-
-        while (low <= high) {
-            final int mid = (low + high) >>> 1;
-            final long midAddress = startAddress + (mid * bytesPerLong);
-            it.offset = ((int) midAddress) & mask;
-            it.address = midAddress - it.offset;
-            boolean loaded = false;
-            if (it.address == leftAddress) {
-                it.page = leftPage;
-            } else if (it.address == rightAddress) {
-                it.page = rightPage;
-            } else {
-                it.page = cache.getPage(log, it.address);
-                loaded = true;
-            }
-
-            final long address = it.address;
-            final byte[] page = it.page;
-            final int cmp;
-
-            if (pageSize - it.offset < bytesPerLong) {
-                final long nextAddress = address + pageSize;
-                if (rightAddress == nextAddress) {
-                    it.nextPage = rightPage;
-                } else {
-                    it.nextPage = cache.getPage(log, nextAddress);
-                    loaded = true;
-                }
-                cmp = comparator.compare(it.asCompound().nextLong(bytesPerLong), key);
-            } else {
-                cmp = comparator.compare(it.nextLong(bytesPerLong), key);
-            }
-
-            if (cmp < 0) {
-                low = mid + 1;
-                if (loaded) {
-                    leftAddress = address;
-                    leftPage = page;
-                }
-            } else if (cmp > 0) {
-                high = mid - 1;
-                if (loaded) {
-                    rightAddress = address;
-                    rightPage = page;
-                }
-            } else {
-                return mid; // key found
-            }
-        }
-        return -(low + 1);  // key not found.
-    }
-
-    private static class BinarySearchIterator extends ByteIterator {
-        private byte[] page;
-        private byte[] nextPage;
-        private int offset;
-        private long address;
-        private final int pageSize;
-
-        private BinarySearchIterator(int pageSize) {
-            this.pageSize = pageSize;
-        }
-
-        private CompoundByteIteratorBase asCompound() {
-            return new CompoundByteIteratorBase(this) {
-                @Override
-                protected ByteIterator nextIterator() {
-                    page = nextPage;
-                    address += pageSize;
-                    offset = 0;
-                    return BinarySearchIterator.this;
-                }
-            };
-        }
-
-        @Override
-        public boolean hasNext() {
-            return offset < pageSize;
-        }
-
-        @Override
-        public byte next() {
-            return page[offset++];
-        }
-
-        @Override
-        public long skip(long bytes) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public long nextLong(final int length) {
-            final long result = LongBinding.entryToUnsignedLong(page, offset, length);
-            offset += length;
-            return result;
-        }
     }
 }

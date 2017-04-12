@@ -17,7 +17,9 @@ package jetbrains.exodus.tree.btree;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
+import jetbrains.exodus.CompoundByteIteratorBase;
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.log.*;
 import org.jetbrains.annotations.NotNull;
 
@@ -126,16 +128,7 @@ abstract class BasePageImmutable extends BasePage {
         }
         final BTreeBase tree = getTree();
         final SearchRes result = tree.getSearchRes();
-        result.index = ByteIterableWithAddress.binarySearch(
-            new IByteIterableComparator() {
-                @Override
-                public int compare(final long leftAddress, @NotNull final ByteIterable right) {
-                    return (result.key = tree.loadLeaf(leftAddress)).compareKeyTo(right);
-                }
-            }, key, low, size - 1, keyAddressLen, tree.log, dataAddress);
-        if (result.index < 0) {
-            result.key = null;
-        }
+        binarySearch(tree, result, key, low, size - 1, keyAddressLen, dataAddress);
         return result;
     }
 
@@ -144,5 +137,122 @@ abstract class BasePageImmutable extends BasePage {
         context.wasReclaim = true;
         context.setPage(node);
         context.popAndMutate();
+    }
+
+    private static void binarySearch(@NotNull final BTreeBase tree,
+                                     @NotNull final SearchRes result,
+                                     @NotNull final ByteIterable key,
+                                     int low, int high,
+                                     final int bytesPerLong,
+                                     long startAddress) {
+        final Log log = tree.log;
+        final int pageSize = log.getCachePageSize();
+        final int mask = pageSize - 1; // bytes size is always a power of 2
+        long leftAddress = -1L;
+        byte[] leftPage = null;
+        long rightAddress = -1L;
+        byte[] rightPage = null;
+        final BinarySearchIterator it = new BinarySearchIterator(pageSize);
+
+        while (low <= high) {
+            final int mid = (low + high) >>> 1;
+            final long midAddress = startAddress + (mid * bytesPerLong);
+            it.offset = ((int) midAddress) & mask;
+            it.address = midAddress - it.offset;
+            boolean loaded = false;
+            if (it.address == leftAddress) {
+                it.page = leftPage;
+            } else if (it.address == rightAddress) {
+                it.page = rightPage;
+            } else {
+                it.page = log.getCachedPage(it.address);
+                loaded = true;
+            }
+
+            final long address = it.address;
+            final byte[] page = it.page;
+            final int cmp;
+
+            if (pageSize - it.offset < bytesPerLong) {
+                final long nextAddress = address + pageSize;
+                if (rightAddress == nextAddress) {
+                    it.nextPage = rightPage;
+                } else {
+                    it.nextPage = log.getCachedPage(nextAddress);
+                    loaded = true;
+                }
+                cmp = (result.key = tree.loadLeaf(it.asCompound().nextLong(bytesPerLong))).compareKeyTo(key);
+            } else {
+                cmp = (result.key = tree.loadLeaf(it.nextLong(bytesPerLong))).compareKeyTo(key);
+            }
+
+            if (cmp < 0) {
+                low = mid + 1;
+                if (loaded) {
+                    leftAddress = address;
+                    leftPage = page;
+                }
+            } else if (cmp > 0) {
+                high = mid - 1;
+                if (loaded) {
+                    rightAddress = address;
+                    rightPage = page;
+                }
+            } else {
+                // key found
+                result.index = mid;
+                return;
+            }
+        }
+        // key not found
+        result.index = -(low + 1);
+        result.key = null;
+    }
+
+    private static class BinarySearchIterator extends ByteIterator {
+
+        private byte[] page;
+        private byte[] nextPage;
+        private int offset;
+        private long address;
+        private final int pageSize;
+
+        private BinarySearchIterator(int pageSize) {
+            this.pageSize = pageSize;
+        }
+
+        private CompoundByteIteratorBase asCompound() {
+            return new CompoundByteIteratorBase(this) {
+                @Override
+                protected ByteIterator nextIterator() {
+                    page = nextPage;
+                    address += pageSize;
+                    offset = 0;
+                    return BinarySearchIterator.this;
+                }
+            };
+        }
+
+        @Override
+        public boolean hasNext() {
+            return offset < pageSize;
+        }
+
+        @Override
+        public byte next() {
+            return page[offset++];
+        }
+
+        @Override
+        public long skip(long bytes) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long nextLong(final int length) {
+            final long result = LongBinding.entryToUnsignedLong(page, offset, length);
+            offset += length;
+            return result;
+        }
     }
 }

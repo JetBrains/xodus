@@ -383,7 +383,11 @@ public final class Log implements Closeable {
         return bufferedWriter.getHighPage(alignedAddress);
     }
 
-    final int getCachePageSize() {
+    public byte[] getCachedPage(final long pageAddress) {
+        return cache.getPage(this, pageAddress);
+    }
+
+    public final int getCachePageSize() {
         return cachePageSize;
     }
 
