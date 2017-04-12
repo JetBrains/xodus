@@ -18,10 +18,7 @@ package jetbrains.exodus.tree.btree;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
-import jetbrains.exodus.log.ByteIterableWithAddress;
-import jetbrains.exodus.log.DataIterator;
-import jetbrains.exodus.log.Log;
-import jetbrains.exodus.log.RandomAccessLoggable;
+import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.INode;
 import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.ITreeCursor;
@@ -53,8 +50,6 @@ public abstract class BTreeBase implements ITree {
     @NotNull
     private final DataIterator dataIterator;
     @NotNull
-    private final SearchRes searchRes;
-    @NotNull
     protected final BTreeBalancePolicy balancePolicy;
     protected final boolean allowsDuplicates;
     protected long size = -1;
@@ -63,7 +58,6 @@ public abstract class BTreeBase implements ITree {
     BTreeBase(@NotNull final Log log, @NotNull final BTreeBalancePolicy balancePolicy, final boolean allowsDuplicates, final int structureId) {
         this.log = log;
         dataIterator = new DataIterator(log);
-        searchRes = new SearchRes();
         this.balancePolicy = balancePolicy;
         this.allowsDuplicates = allowsDuplicates;
         this.structureId = structureId;
@@ -102,11 +96,6 @@ public abstract class BTreeBase implements ITree {
     public DataIterator getDataIterator(long address) {
         dataIterator.checkPage(address);
         return dataIterator;
-    }
-
-    @NotNull
-    public SearchRes getSearchRes() {
-        return searchRes;
     }
 
     @NotNull
@@ -191,6 +180,15 @@ public abstract class BTreeBase implements ITree {
             default:
                 throw new IllegalArgumentException("Unexpected loggable type " + loggable.getType() + " at address " + loggable.getAddress());
         }
+    }
+
+    int compareLeafToKey(final long address, @NotNull final ByteIterable key) {
+        final RandomAccessLoggable loggable = getLoggable(address);
+        final ByteIterableWithAddress data = loggable.getData();
+        final ByteIteratorWithAddress iterator = data.iterator();
+        final int keyLength = CompressedUnsignedLongByteIterable.getInt(iterator);
+        final int keyRecordSize = (int) (iterator.getAddress() - data.getDataAddress());
+        return data.compareTo(keyRecordSize, keyLength, key);
     }
 
     @Override

@@ -117,96 +117,67 @@ abstract class BasePageImmutable extends BasePage {
     }
 
     @Override
-    protected SearchRes binarySearch(final ByteIterable key) {
+    protected int binarySearch(final ByteIterable key) {
         return binarySearch(key, 0);
     }
 
     @Override
-    protected SearchRes binarySearch(final ByteIterable key, final int low) {
+    protected int binarySearch(final ByteIterable key, int low) {
         if (dataAddress == Loggable.NULL_ADDRESS) {
-            return SearchRes.NOT_FOUND;
+            return -1;
         }
-        final BTreeBase tree = getTree();
-        final SearchRes result = tree.getSearchRes();
-        binarySearch(tree, result, key, low, size - 1, keyAddressLen, dataAddress);
-        return result;
-    }
 
-    static void doReclaim(BTreeReclaimTraverser context) {
-        final BasePageMutable node = context.currentNode.getMutableCopy(context.mainTree);
-        context.wasReclaim = true;
-        context.setPage(node);
-        context.popAndMutate();
-    }
-
-    private static void binarySearch(@NotNull final BTreeBase tree,
-                                     @NotNull final SearchRes result,
-                                     @NotNull final ByteIterable key,
-                                     int low, int high,
-                                     final int bytesPerLong,
-                                     long startAddress) {
         final Log log = tree.log;
-        final int pageSize = log.getCachePageSize();
-        final int mask = pageSize - 1; // bytes size is always a power of 2
+        final int cachePageSize = log.getCachePageSize();
+        final int bytesPerAddress = keyAddressLen;
+        int high = size - 1;
         long leftAddress = -1L;
         byte[] leftPage = null;
         long rightAddress = -1L;
         byte[] rightPage = null;
-        final BinarySearchIterator it = new BinarySearchIterator(pageSize);
+        final BinarySearchIterator it = new BinarySearchIterator();
 
         while (low <= high) {
             final int mid = (low + high) >>> 1;
-            final long midAddress = startAddress + (mid * bytesPerLong);
-            it.offset = ((int) midAddress) & mask;
-            it.address = midAddress - it.offset;
-            boolean loaded = false;
-            if (it.address == leftAddress) {
+            final long midAddress = dataAddress + (mid * bytesPerAddress);
+            final int offset;
+            it.offset = offset = ((int) midAddress) & (cachePageSize - 1); // cache page size is always a power of 2
+            final long pageAddress = midAddress - offset;
+            if (pageAddress == leftAddress) {
                 it.page = leftPage;
-            } else if (it.address == rightAddress) {
+            } else if (pageAddress == rightAddress) {
                 it.page = rightPage;
             } else {
-                it.page = log.getCachedPage(it.address);
-                loaded = true;
+                it.page = leftPage = log.getCachedPage(pageAddress);
+                leftAddress = pageAddress;
             }
 
-            final long address = it.address;
-            final byte[] page = it.page;
-            final int cmp;
-
-            if (pageSize - it.offset < bytesPerLong) {
-                final long nextAddress = address + pageSize;
-                if (rightAddress == nextAddress) {
+            final long leafAddress;
+            if (cachePageSize - offset < bytesPerAddress) {
+                final long nextPageAddress = pageAddress + cachePageSize;
+                if (rightAddress == nextPageAddress) {
                     it.nextPage = rightPage;
                 } else {
-                    it.nextPage = log.getCachedPage(nextAddress);
-                    loaded = true;
+                    it.nextPage = rightPage = log.getCachedPage(nextPageAddress);
+                    rightAddress = nextPageAddress;
                 }
-                cmp = (result.key = tree.loadLeaf(it.asCompound().nextLong(bytesPerLong))).compareKeyTo(key);
+                leafAddress = it.asCompound().nextLong(bytesPerAddress);
             } else {
-                cmp = (result.key = tree.loadLeaf(it.nextLong(bytesPerLong))).compareKeyTo(key);
+                leafAddress = it.nextLong(bytesPerAddress);
             }
 
+            final int cmp = tree.compareLeafToKey(leafAddress, key);
             if (cmp < 0) {
                 low = mid + 1;
-                if (loaded) {
-                    leftAddress = address;
-                    leftPage = page;
-                }
             } else if (cmp > 0) {
                 high = mid - 1;
-                if (loaded) {
-                    rightAddress = address;
-                    rightPage = page;
-                }
             } else {
                 // key found
-                result.index = mid;
-                return;
+                return mid;
             }
         }
         // key not found
-        result.index = -(low + 1);
-        result.key = null;
+        return -(low + 1);
     }
 
     private static class BinarySearchIterator extends ByteIterator {
@@ -214,19 +185,12 @@ abstract class BasePageImmutable extends BasePage {
         private byte[] page;
         private byte[] nextPage;
         private int offset;
-        private long address;
-        private final int pageSize;
-
-        private BinarySearchIterator(int pageSize) {
-            this.pageSize = pageSize;
-        }
 
         private CompoundByteIteratorBase asCompound() {
             return new CompoundByteIteratorBase(this) {
                 @Override
                 protected ByteIterator nextIterator() {
                     page = nextPage;
-                    address += pageSize;
                     offset = 0;
                     return BinarySearchIterator.this;
                 }
@@ -235,7 +199,7 @@ abstract class BasePageImmutable extends BasePage {
 
         @Override
         public boolean hasNext() {
-            return offset < pageSize;
+            return offset < page.length;
         }
 
         @Override
@@ -250,9 +214,14 @@ abstract class BasePageImmutable extends BasePage {
 
         @Override
         public long nextLong(final int length) {
-            final long result = LongBinding.entryToUnsignedLong(page, offset, length);
-            offset += length;
-            return result;
+            return LongBinding.entryToUnsignedLong(page, offset, length);
         }
+    }
+
+    static void doReclaim(BTreeReclaimTraverser context) {
+        final BasePageMutable node = context.currentNode.getMutableCopy(context.mainTree);
+        context.wasReclaim = true;
+        context.setPage(node);
+        context.popAndMutate();
     }
 }

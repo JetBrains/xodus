@@ -137,7 +137,7 @@ class BTreeTraverser implements TreeTraverser {
         stack[top] = null; // help gc
     }
 
-    SearchRes getNextSibling(ByteIterable key) {
+    int getNextSibling(ByteIterable key) {
         return currentNode.binarySearch(key, currentPos);
     }
 

@@ -213,12 +213,12 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
     }
 
     @Override
-    protected SearchRes binarySearch(final ByteIterable key) {
+    protected int binarySearch(final ByteIterable key) {
         return binarySearch(key, 0);
     }
 
     @Override
-    protected SearchRes binarySearch(final ByteIterable key, final int low) {
+    protected int binarySearch(final ByteIterable key, final int low) {
         return binarySearch(this, key, low, getSize() - 1);
     }
 
@@ -242,19 +242,10 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
 
     protected abstract void mergeWithLeft(BasePageMutable page);
 
-    /**
-     * Classical binary search without cast to Comparable
-     *
-     * @param page find key for this page
-     * @param key  search for
-     * @param low  low border
-     * @param high high border
-     * @return search result
-     */
-    protected static SearchRes binarySearch(final @NotNull BasePage page,
-                                            final @NotNull ByteIterable key,
-                                            int low, int high) {
-        final SearchRes result = page.getTree().getSearchRes();
+    protected static int binarySearch(final @NotNull BasePage page,
+                                      final @NotNull ByteIterable key,
+                                      int low, int high) {
+        final BTreeBase tree = page.getTree();
         while (low <= high) {
             final int mid = (low + high + 1) >>> 1;
             final ILeafNode midKey = page.getKey(mid);
@@ -265,15 +256,11 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
                 high = mid - 1;
             } else {
                 // key found
-                result.key = midKey;
-                result.index = mid;
-                return result;
+                return mid;
             }
         }
         // key not found
-        result.key = null;
-        result.index = -(low + 1);
-        return result;
+        return -(low + 1);
     }
 
     protected enum ReclaimFlag {

@@ -38,7 +38,7 @@ class LeafNode extends BaseLeafNode {
         final ByteIteratorWithAddress iterator = data.iterator();
         final int keyLength = CompressedUnsignedLongByteIterable.getInt(iterator);
         final long dataAddress = iterator.getAddress();
-        final int keyRecordSize = (byte) (dataAddress - data.getDataAddress());  //CompressedUnsignedLongByteIterable.getCompressedSize(keyLength);
+        final int keyRecordSize = (int) (dataAddress - data.getDataAddress());
         valueLength = loggable.getDataLength() - keyRecordSize - keyLength;
         this.keyLength = (keyLength << 3) + keyRecordSize;
     }
@@ -116,7 +116,7 @@ class LeafNode extends BaseLeafNode {
                 leafIndex = context.currentPos;
             } else {
                 context.moveRight();
-                leafIndex = context.getNextSibling(keyIterable).index;
+                leafIndex = context.getNextSibling(keyIterable);
             }
             if (leafIndex >= 0) {
                 doReclaim(context, leafIndex);
@@ -131,7 +131,7 @@ class LeafNode extends BaseLeafNode {
             while (true) {
                 context.popAndMutate();
                 context.moveRight();
-                final int index = context.getNextSibling(keyIterable).index;
+                final int index = context.getNextSibling(keyIterable);
                 if (index < 0) {
                     if (context.canMoveTo(-index - 1) || !context.canMoveUp()) {
                         context.moveTo(Math.max(-index - 2, 0));
@@ -145,13 +145,13 @@ class LeafNode extends BaseLeafNode {
         }
         // go down
         while (context.canMoveDown()) {
-            int index = context.getNextSibling(keyIterable).index;
+            int index = context.getNextSibling(keyIterable);
             if (index < 0) {
                 index = Math.max(-index - 2, 0);
             }
             context.pushChild(index);
         }
-        int leafIndex = context.getNextSibling(keyIterable).index;
+        int leafIndex = context.getNextSibling(keyIterable);
         if (leafIndex >= 0) {
             doReclaim(context, leafIndex);
             context.moveTo(leafIndex + 1);

@@ -110,7 +110,7 @@ class BottomPage extends BasePageImmutable {
             while (true) {
                 context.popAndMutate();
                 context.moveRight();
-                final int index = context.getNextSibling(keyIterable).index;
+                final int index = context.getNextSibling(keyIterable);
                 if (index < 0) {
                     if (!context.canMoveUp()) {
                         context.moveTo(Math.max(-index - 2, 0));
@@ -124,7 +124,7 @@ class BottomPage extends BasePageImmutable {
         }
         // go down
         while (context.canMoveDown()) {
-            int index = context.getNextSibling(keyIterable).index;
+            int index = context.getNextSibling(keyIterable);
             if (index < 0) {
                 index = Math.max(-index - 2, 0);
             }
@@ -136,9 +136,9 @@ class BottomPage extends BasePageImmutable {
     }
 
     static ILeafNode get(@NotNull ByteIterable key, @NotNull BasePage page) {
-        final SearchRes res = page.binarySearch(key);
-        if (res.index >= 0) {
-            return res.key;
+        final int index = page.binarySearch(key);
+        if (index >= 0) {
+            return page.getKey(index);
         }
         return null;
     }
@@ -160,8 +160,7 @@ class BottomPage extends BasePageImmutable {
 
     @Nullable
     static ILeafNode find(@NotNull BTreeTraverser stack, int depth, @NotNull ByteIterable key, @Nullable ByteIterable value, boolean equalOrNext, @NotNull BasePage page) {
-        final SearchRes res = page.binarySearch(key);
-        int index = res.index;
+        int index = page.binarySearch(key);
         if (index < 0) {
             if (value == null && equalOrNext) {
                 index = -index - 1;
@@ -171,7 +170,7 @@ class BottomPage extends BasePageImmutable {
             }
         }
 
-        ILeafNode ln = res.key == null ? page.getKey(index) : res.key;
+        ILeafNode ln = page.getKey(index);
 
         if (ln.isDup()) {
             BasePage dupRoot = ln.getTree().getRoot();
@@ -209,8 +208,7 @@ class BottomPage extends BasePageImmutable {
     }
 
     static boolean keyExists(@NotNull ByteIterable key, @NotNull BasePage page) {
-        int index = page.binarySearch(key).index;
-        return index >= 0;
+        return page.binarySearch(key) >= 0;
     }
 
     static boolean exists(@NotNull ByteIterable key, @NotNull ByteIterable value, @NotNull BasePage page) {

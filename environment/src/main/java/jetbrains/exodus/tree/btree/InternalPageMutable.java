@@ -134,8 +134,7 @@ public class InternalPageMutable extends BasePageMutable {
     @Override
     @Nullable
     public BasePageMutable put(@NotNull ByteIterable key, @NotNull ByteIterable value, boolean overwrite, boolean[] result) {
-        final SearchRes res = binarySearch(key);
-        int pos = res.index;
+        int pos = binarySearch(key);
 
         if (pos >= 0 && !overwrite) {
             // key found and overwrite is not possible - error

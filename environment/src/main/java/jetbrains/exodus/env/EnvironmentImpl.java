@@ -26,7 +26,6 @@ import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.TreeMetaInfo;
 import jetbrains.exodus.tree.btree.BTree;
 import jetbrains.exodus.tree.btree.BTreeBalancePolicy;
-import jetbrains.exodus.tree.btree.SearchRes;
 import jetbrains.exodus.util.DeferredIO;
 import jetbrains.exodus.util.IOUtil;
 import org.jetbrains.annotations.NotNull;
@@ -523,12 +522,6 @@ public class EnvironmentImpl implements Environment {
             @Override
             public DataIterator getDataIterator(long address) {
                 return new DataIterator(log, address);
-            }
-
-            @NotNull
-            @Override
-            public SearchRes getSearchRes() {
-                return new SearchRes();
             }
         };
     }

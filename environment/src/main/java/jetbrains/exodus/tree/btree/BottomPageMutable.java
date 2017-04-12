@@ -59,18 +59,13 @@ class BottomPageMutable extends BasePageMutable {
     @Override
     @Nullable
     public BasePageMutable put(@NotNull ByteIterable key, @NotNull ByteIterable value, boolean overwrite, boolean[] result) {
-        final SearchRes res = binarySearch(key);
-
         final BTreeMutable tree = (BTreeMutable) getTree();
 
-        int pos = res.index;
+        int pos = binarySearch(key);
         if (pos >= 0) {
             if (overwrite) {
                 // key found
-                final ILeafNode ln = res.key;
-                if (ln == null) {
-                    throw new IllegalStateException("Leaf is expected to be found");
-                }
+                final ILeafNode ln = getKey(pos);
                 if (tree.allowsDuplicates) {
                     // overwrite for tree with duplicates means add new value to existing key
                     // manage sub-tree of duplicates
@@ -196,14 +191,13 @@ class BottomPageMutable extends BasePageMutable {
 
     @Override
     public boolean delete(@NotNull ByteIterable key, @Nullable ByteIterable value) {
-        final SearchRes sp = binarySearch(key);
-        final int pos = sp.index;
+        final int pos = binarySearch(key);
         if (pos < 0) return false;
 
         final BTreeMutable tree = (BTreeMutable) getTree();
 
         if (tree.allowsDuplicates) {
-            final ILeafNode ln = sp.key;
+            final ILeafNode ln = getKey(pos);
             if (value == null) { // size will be decreased dramatically, all dup sub-tree will expire
                 tree.addExpiredLoggable(keysAddresses[pos]);
                 LongIterator it = ln.addressIterator();

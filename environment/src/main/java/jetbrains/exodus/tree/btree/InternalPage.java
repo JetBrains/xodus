@@ -94,9 +94,8 @@ class InternalPage extends BasePageImmutable {
     }
 
     static ILeafNode get(@NotNull final ByteIterable key, BasePage page) {
-        final SearchRes res = page.binarySearch(key);
-        final int index = res.index;
-        return index < 0 ? page.getChild(Math.max(-index - 2, 0)).get(key) : res.key;
+        final int index = page.binarySearch(key);
+        return index < 0 ? page.getChild(Math.max(-index - 2, 0)).get(key) : page.getKey(index);
     }
 
     @SuppressWarnings({"VariableNotUsedInsideIf"})
@@ -120,15 +119,13 @@ class InternalPage extends BasePageImmutable {
     }
 
     static boolean keyExists(@NotNull final ByteIterable key, BasePage page) {
-        final SearchRes res = page.binarySearch(key);
-        final int index = res.index;
+        final int index = page.binarySearch(key);
         return index >= 0 || page.getChild(Math.max(-index - 2, 0)).keyExists(key);
     }
 
     static boolean exists(@NotNull final ByteIterable key, @NotNull final ByteIterable value, BasePage page) {
-        final SearchRes res = page.binarySearch(key);
-        final int index = res.index;
-        return index < 0 ? page.getChild(Math.max(-index - 2, 0)).exists(key, value) : res.key.valueExists(value);
+        final int index = page.binarySearch(key);
+        return index < 0 ? page.getChild(Math.max(-index - 2, 0)).exists(key, value) : page.getKey(index).valueExists(value);
     }
 
     @Override
@@ -161,7 +158,7 @@ class InternalPage extends BasePageImmutable {
                         return;
                     }
                     context.moveRight();
-                    final int index = context.getNextSibling(keyIterable).index;
+                    final int index = context.getNextSibling(keyIterable);
                     if (index < 0) {
                         if (!context.canMoveUp()) {
                             context.moveTo(Math.max(-index - 2, 0));
@@ -179,7 +176,7 @@ class InternalPage extends BasePageImmutable {
                     doReclaim(context);
                     return;
                 }
-                int index = context.getNextSibling(keyIterable).index;
+                int index = context.getNextSibling(keyIterable);
                 if (index < 0) {
                     index = Math.max(-index - 2, 0);
                 }
@@ -205,13 +202,10 @@ class InternalPage extends BasePageImmutable {
      * @return index (non-negative or -1 which means that nothing was found)
      */
     protected static int binarySearchGuessUnsafe(@NotNull final BasePage page, @NotNull final ByteIterable key) {
-        final SearchRes res = page.binarySearch(key);
-
-        int index = res.index;
+        int index = page.binarySearch(key);
         if (index < 0) {
             index = -index - 2;
         }
-
         return index;
     }
 

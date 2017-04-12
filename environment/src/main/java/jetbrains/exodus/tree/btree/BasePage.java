@@ -28,7 +28,7 @@ import java.io.PrintStream;
 abstract class BasePage implements Dumpable {
 
     @NotNull
-    private final BTreeBase tree;
+    protected final BTreeBase tree;
     protected int size;
 
     protected BasePage(@NotNull final BTreeBase tree) {
@@ -83,9 +83,9 @@ abstract class BasePage implements Dumpable {
 
     protected abstract long getBottomPagesCount();
 
-    protected abstract SearchRes binarySearch(final ByteIterable key);
+    protected abstract int binarySearch(final ByteIterable key);
 
-    protected abstract SearchRes binarySearch(final ByteIterable key, final int low);
+    protected abstract int binarySearch(final ByteIterable key, final int low);
 
     @Nullable
     protected abstract ILeafNode get(@NotNull final ByteIterable key);
