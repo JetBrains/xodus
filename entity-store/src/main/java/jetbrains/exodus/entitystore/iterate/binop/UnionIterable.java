@@ -17,7 +17,7 @@ package jetbrains.exodus.entitystore.iterate.binop;
 
 import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.iterate.*;
-import jetbrains.exodus.entitystore.util.EntityIdSet;
+import jetbrains.exodus.entitystore.util.EntityIdSetFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -140,7 +140,7 @@ public final class UnionIterable extends BinaryOperatorEntityIterable {
         private final EntityIterableBase iterable1;
         @NotNull
         private final EntityIterableBase iterable2;
-        private final EntityIdSet iterated;
+        private EntityIdSet iterated;
         private Iterator<EntityId> iterator1;
         private Iterator<EntityId> iterator2;
         private EntityId nextId;
@@ -158,7 +158,7 @@ public final class UnionIterable extends BinaryOperatorEntityIterable {
                 this.iterable1 = iterable2;
                 this.iterable2 = iterable1;
             }
-            iterated = new EntityIdSet();
+            iterated = EntityIdSetFactory.newSet();
             nextId = PersistentEntityId.EMPTY_ID;
         }
 
@@ -190,7 +190,7 @@ public final class UnionIterable extends BinaryOperatorEntityIterable {
         @Nullable
         public EntityId nextIdImpl() {
             final EntityId nextId = this.nextId;
-            iterated.add(nextId);
+            iterated = iterated.add(nextId);
             return nextId;
         }
 

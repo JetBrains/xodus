@@ -15,16 +15,17 @@
  */
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.entitystore.util.EntityIdSet;
+import jetbrains.exodus.entitystore.iterate.EntityIdSet;
+import jetbrains.exodus.entitystore.util.EntityIdSetFactory;
 import org.junit.Assert;
 
 public class EntityIdSetTest extends EntityStoreTestBase {
 
     public void testEntityIdSet() {
-        final EntityIdSet set = new EntityIdSet();
+        EntityIdSet set = EntityIdSetFactory.newSet();
         for (int i = 0; i < 10; ++i) {
             for (long j = 0; j < 1000; ++j) {
-                set.add(i, j);
+                set = set.add(i, j);
             }
             for (long j = 0; j < 1000; ++j) {
                 Assert.assertTrue(set.contains(i, j));
@@ -35,38 +36,38 @@ public class EntityIdSetTest extends EntityStoreTestBase {
         }
         Assert.assertEquals(-1, set.count());
         Assert.assertFalse(set.contains(null));
-        set.add(null);
+        set = set.add(null);
         Assert.assertTrue(set.contains(null));
     }
 
     public void testEntityIdSetIterator() {
-        final EntityIdSet set = new EntityIdSet();
+        EntityIdSet set = EntityIdSetFactory.newSet();
         for (int i = 0; i < 10; ++i) {
             for (long j = 0; j < 1000; ++j) {
-                set.add(i, j);
+                set = set.add(i, j);
             }
         }
-        EntityIdSet sample = new EntityIdSet();
+        EntityIdSet sample = EntityIdSetFactory.newSet();
         for (final EntityId entityId : set) {
             Assert.assertTrue(set.contains(entityId));
             Assert.assertFalse(sample.contains(entityId));
-            sample.add(entityId);
+            sample = sample.add(entityId);
         }
         Assert.assertFalse(sample.contains(null));
-        set.add(null);
-        sample = new EntityIdSet();
+        set = set.add(null);
+        sample = EntityIdSetFactory.newSet();
         for (final EntityId entityId : set) {
             Assert.assertTrue(set.contains(entityId));
             Assert.assertFalse(sample.contains(entityId));
-            sample.add(entityId);
+            sample = sample.add(entityId);
         }
         Assert.assertTrue(sample.contains(null));
     }
 
     public void testEntityIdSetCount() {
-        final EntityIdSet set = new EntityIdSet();
+        EntityIdSet set = EntityIdSetFactory.newSet();
         for (int i = 0; i < 100; ++i) {
-            set.add(7, i);
+            set = set.add(7, i);
         }
         Assert.assertEquals(100, set.count());
     }
