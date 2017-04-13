@@ -17,7 +17,6 @@ package jetbrains.exodus.tree.btree;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.INode;
 import jetbrains.exodus.tree.ITree;
@@ -118,21 +117,6 @@ public abstract class BTreeBase implements ITree {
 
     protected final RandomAccessLoggable getLoggable(long address) {
         return log.readNotNull(getDataIterator(address), address);
-    }
-
-    @NotNull
-    protected final BasePageImmutable loadPage(final long address, @Nullable final LongObjectCacheBase treeNodesCache) {
-        if (treeNodesCache == null) {
-            return loadPage(address);
-        }
-        final Object page = treeNodesCache.tryKey(address);
-        if (page != null) {
-            return (BasePageImmutable) page;
-        }
-        final BasePageImmutable result = loadPage(address);
-        //noinspection unchecked
-        treeNodesCache.cacheObject(address, result);
-        return result;
     }
 
     @NotNull
