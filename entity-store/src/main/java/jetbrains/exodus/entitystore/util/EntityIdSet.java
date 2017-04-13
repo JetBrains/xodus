@@ -106,6 +106,14 @@ public class EntityIdSet implements Iterable<EntityId> {
         return singleTypeId == typeId && localIds.remove(localId);
     }
 
+    public int count() {
+        LongSet localIds = singleTypeLocalIds;
+        if (localIds == null) {
+            return -1;
+        }
+        return localIds.size();
+    }
+
     @Nullable
     public LongSet getTypeSet(int typeId) {
         return set.get(typeId);

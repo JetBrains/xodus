@@ -33,6 +33,7 @@ public class EntityIdSetTest extends EntityStoreTestBase {
                 Assert.assertFalse(set.contains(i + 1, j));
             }
         }
+        Assert.assertEquals(-1, set.count());
         Assert.assertFalse(set.contains(null));
         set.add(null);
         Assert.assertTrue(set.contains(null));
@@ -60,5 +61,13 @@ public class EntityIdSetTest extends EntityStoreTestBase {
             sample.add(entityId);
         }
         Assert.assertTrue(sample.contains(null));
+    }
+
+    public void testEntityIdSetCount() {
+        final EntityIdSet set = new EntityIdSet();
+        for (int i = 0; i < 100; ++i) {
+            set.add(7, i);
+        }
+        Assert.assertEquals(100, set.count());
     }
 }
