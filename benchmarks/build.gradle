@@ -43,12 +43,17 @@ dependencies {
 
 jmh {
     // uncomment the following line to exclude all benchmarks except Xodus Tokyo Cabinet
-    //exclude = 'dataStructures|chronicle|h2|mapdb|lmdb'
+    //exclude = 'dataStructures|util|chronicle|h2|mapdb|lmdb'
     jmhVersion = '1.18'
     jvmArgsPrepend '-Xmx1g -Xms1g'
     duplicateClassesStrategy = 'warn'
     resultFormat = 'JSON'
 }
+
+task deleteEmptyBenchmarkList(type: Delete) {
+    delete "$buildDir/jmh-generated-classes/META-INF/BenchmarkList"
+}
+jmhCompileGeneratedClasses.finalizedBy deleteEmptyBenchmarkList
 
 jmhReport {
     jmhResultPath = project.file('build/reports/jmh/results.json')
