@@ -170,12 +170,22 @@ public class PersistentLinkedHashMap<K, V> {
             mapMutable.put(key, new InternalValue<>(newOrder, value));
             queueMutable.put(newOrder, key);
             if (removeEldest != null) {
-                final PersistentLong23TreeMap.Entry<K> min = queueMutable.getMinimum();
-                if (min != null) {
+                int removed = 0;
+                PersistentLong23TreeMap.Entry<K> min;
+                while ((min = queueMutable.getMinimum()) != null) {
+                    if (removed > 50000) {
+                        break; // prevent looping on implementation errors
+                    }
                     final K eldestKey = min.getValue();
                     if (removeEldest.removeEldest(this, eldestKey, getValue(eldestKey))) {
                         remove(eldestKey);
+                        removed++;
+                    } else {
+                        break;
                     }
+                }
+                if (removed > 1000 && logger.isWarnEnabled()) {
+                    logger.warn("PersistentLinkedHashMap evicted " + removed + " keys during a single put().");
                 }
             }
         }

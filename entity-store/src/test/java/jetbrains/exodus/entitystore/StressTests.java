@@ -15,8 +15,10 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.core.dataStructures.NanoSet;
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.core.execution.ThreadJobProcessor;
+import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.util.Random;
 import org.jetbrains.annotations.NotNull;
 
@@ -146,6 +148,46 @@ public class StressTests extends EntityStoreTestBase {
         long waitTime = System.currentTimeMillis() - start;
         logger.info("Wait: " + waitTime);
         assertTrue(waitTime < 25); // must be zero or 5 if some weird "spin" occurs
+    }
+
+    public void testCacheAdapterEvict() {
+        final PersistentEntityStoreImpl store = getEntityStore();
+        final EntityStoreSharedAsyncProcessor asyncProcessor = store.getAsyncProcessor();
+
+        final Entity[] comments = new Entity[16];
+        final Entity[] issues = new Entity[200000];
+
+        final String linkName = "linkvalue";
+        final NanoSet<String> linkNames = new NanoSet<>(linkName);
+
+        store.executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                for (int i = 0; i < 16; i++) {
+                    comments[i] = txn.newEntity("Comment");
+                }
+
+                for (int i = 0; i < issues.length; i++) {
+                    Entity issue = txn.newEntity("Issue");
+                    issues[i] = issue;
+                    issue.setLink(linkName, comments[i % 4]);
+                }
+            }
+        });
+
+        store.executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                for (Entity issue : issues) {
+                    ((EntityIterableBase) issue.getLinks(linkName)).getOrCreateCachedInstance((PersistentStoreTransaction) txn);
+                    ((EntityIterableBase) issue.getLinks(linkNames)).getOrCreateCachedInstance((PersistentStoreTransaction) txn);
+                }
+            }
+        });
+
+        asyncProcessor.waitForJobs(5);
+
+        assertTrue(store.getEntityIterableCache().count() <= store.getConfig().getEntityIterableCacheSize());
     }
 
     private void warmUp(final PersistentEntityStoreImpl store, final Entity[] comments) {
