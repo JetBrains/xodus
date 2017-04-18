@@ -185,7 +185,7 @@ public class PersistentLinkedHashMap<K, V> {
                     }
                 }
                 if (removed > 1000 && logger.isWarnEnabled()) {
-                    logger.warn("PersistentLinkedHashMap evicted " + removed + " keys during a single put().");
+                    logger.warn("PersistentLinkedHashMap evicted " + removed + " keys during a single put().", new Throwable());
                 }
             }
         }
