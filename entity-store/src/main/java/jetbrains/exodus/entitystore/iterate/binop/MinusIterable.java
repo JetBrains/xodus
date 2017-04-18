@@ -17,7 +17,6 @@ package jetbrains.exodus.entitystore.iterate.binop;
 
 import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.iterate.*;
-import jetbrains.exodus.entitystore.util.EntityIdSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

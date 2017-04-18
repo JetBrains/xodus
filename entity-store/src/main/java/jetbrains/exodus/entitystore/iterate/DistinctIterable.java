@@ -16,7 +16,7 @@
 package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.entitystore.*;
-import jetbrains.exodus.entitystore.util.EntityIdSet;
+import jetbrains.exodus.entitystore.util.EntityIdSetFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -111,7 +111,7 @@ public final class DistinctIterable extends EntityIterableDecoratorBase {
         @NotNull
         private final EntityIterator source;
         @NotNull
-        private final EntityIdSet iterated;
+        private EntityIdSet iterated;
         @Nullable
         private EntityId nextId;
 
@@ -119,7 +119,7 @@ public final class DistinctIterable extends EntityIterableDecoratorBase {
                                          @NotNull final EntityIterable source) {
             super(iterable);
             this.source = source.iterator();
-            iterated = new EntityIdSet();
+            iterated = EntityIdSetFactory.newSet();
         }
 
         @Override
@@ -128,7 +128,7 @@ public final class DistinctIterable extends EntityIterableDecoratorBase {
                 final EntityId id = source.nextId();
                 if (!iterated.contains(id)) {
                     nextId = id;
-                    iterated.add(id);
+                    iterated = iterated.add(id);
                     return true;
                 }
             }

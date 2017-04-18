@@ -21,7 +21,7 @@ import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.EntityIterator;
 import jetbrains.exodus.entitystore.PersistentEntityId;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
-import jetbrains.exodus.entitystore.util.EntityIdSet;
+import jetbrains.exodus.entitystore.util.EntityIdSetFactory;
 import jetbrains.exodus.entitystore.util.IntArrayListSpinAllocator;
 import jetbrains.exodus.entitystore.util.LongArrayListSpinAllocator;
 import org.jetbrains.annotations.NotNull;
@@ -54,7 +54,7 @@ public class EntityIdArrayCachedInstanceIterable extends CachedInstanceIterable 
                 isSortedById = true;
                 typeIds = EMPTY_TYPE_IDS;
                 localIds = EMPTY_LOCAL_IDS;
-                idSet = EntityIdSet.EMPTY_SET;
+                idSet = EntityIdSetFactory.newSet();
             } else {
                 final IntArrayList typeIds = IntArrayListSpinAllocator.alloc();
                 final LongArrayList localIds = LongArrayListSpinAllocator.alloc();
@@ -313,22 +313,20 @@ public class EntityIdArrayCachedInstanceIterable extends CachedInstanceIterable 
     public EntityIdSet toSet(@NotNull final PersistentStoreTransaction txn) {
         if (idSet == null) {
             final int count = typeIds.length;
+            EntityIdSet result = EntityIdSetFactory.newSet();
             if (count == 0) {
-                return EntityIdSet.EMPTY_SET;
+                return result;
             }
-            final EntityIdSet result;
             if (count == 1) {
-                result = new EntityIdSet(); //TODO: replace with some kind of "nano" single element set
                 final int typeId = typeIds[0];
                 if (typeId == NULL_TYPE_ID) {
-                    result.add(null);
+                    result = result.add(null);
                 } else {
                     for (long localId : localIds) {
-                        result.add(typeId, localId);
+                        result = result.add(typeId, localId);
                     }
                 }
             } else {
-                result = new EntityIdSet();
                 if (isSortedById) {
                     int j = 0;
                     for (int i = 0; i < count; ++i) {
@@ -337,12 +335,12 @@ public class EntityIdArrayCachedInstanceIterable extends CachedInstanceIterable 
                         final int upperBound = typeIds[i];
                         if (typeId == NULL_TYPE_ID) {
                             while (j < upperBound) {
-                                result.add(null);
+                                result = result.add(null);
                                 ++j;
                             }
                         } else {
                             while (j < upperBound) {
-                                result.add(typeId, localIds[j++]);
+                                result = result.add(typeId, localIds[j++]);
                             }
                         }
                     }
@@ -350,9 +348,9 @@ public class EntityIdArrayCachedInstanceIterable extends CachedInstanceIterable 
                     for (int i = 0; i < count; ++i) {
                         final int typeId = typeIds[i];
                         if (typeId == NULL_TYPE_ID) {
-                            result.add(null);
+                            result = result.add(null);
                         } else {
-                            result.add(typeId, localIds[i]);
+                            result = result.add(typeId, localIds[i]);
                         }
                     }
                 }

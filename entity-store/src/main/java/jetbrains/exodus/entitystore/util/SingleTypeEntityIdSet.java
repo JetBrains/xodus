@@ -15,62 +15,58 @@
  */
 package jetbrains.exodus.entitystore.util;
 
-import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.PersistentEntityId;
+import jetbrains.exodus.entitystore.iterate.EntityIdSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Iterator;
-import java.util.Map;
 
-@Deprecated
-public class EntityIdSet implements Iterable<EntityId> {
+class SingleTypeEntityIdSet implements EntityIdSet {
 
-    public static final EntityIdSet EMPTY_SET = new EntityIdSet();
-
-    private final IntHashMap<LongSet> set;
-    private int singleTypeId;
-    private LongSet singleTypeLocalIds;
+    private final int singleTypeId;
+    @NotNull
+    private LongSet singleTypeLocalIds = new LongHashSet(100, 3);
     private boolean holdsNull;
 
-    public EntityIdSet() {
-        set = new IntHashMap<>();
+    SingleTypeEntityIdSet(@Nullable final EntityId id) {
+        if (this.holdsNull = (id == null)) {
+            this.singleTypeId = -1;
+        } else {
+            this.singleTypeId = id.getTypeId();
+            singleTypeLocalIds.add(id.getLocalId());
+        }
     }
 
-    public void add(@Nullable final EntityId id) {
+    SingleTypeEntityIdSet(int singleTypeId, long localId) {
+        this.singleTypeId = singleTypeId;
+        this.holdsNull = false;
+        singleTypeLocalIds.add(localId);
+    }
+
+    public EntityIdSet add(@Nullable final EntityId id) {
         if (id == null) {
             holdsNull = true;
-            return;
+            return this;
         }
         final int typeId = id.getTypeId();
         final long localId = id.getLocalId();
-        add(typeId, localId);
+        return add(typeId, localId);
     }
 
-    public void add(final int typeId, final long localId) {
-        LongSet localIds = singleTypeLocalIds;
-        if (localIds != null) {
-            if (typeId != singleTypeId) {
-                localIds = null;
-            }
+    public EntityIdSet add(final int typeId, final long localId) {
+        if (typeId == singleTypeId) {
+            singleTypeLocalIds.add(localId);
+            return this;
         } else {
-            localIds = set.get(typeId);
+            final LongHashSet moreLocalIds = new LongHashSet(100, 3);
+            moreLocalIds.add(localId);
+            return new MultiTypeEntityIdSet(typeId, moreLocalIds, singleTypeId, singleTypeLocalIds, holdsNull);
         }
-        if (localIds == null) {
-            localIds = new LongHashSet(100, 3);
-            set.put(typeId, localIds);
-            if (set.size() > 1) {
-                singleTypeLocalIds = null;
-            } else {
-                singleTypeId = typeId;
-                singleTypeLocalIds = localIds;
-            }
-        }
-        localIds.add(localId);
     }
 
     public boolean contains(@Nullable final EntityId id) {
@@ -81,12 +77,7 @@ public class EntityIdSet implements Iterable<EntityId> {
     }
 
     public boolean contains(final int typeId, final long localId) {
-        LongSet localIds = singleTypeLocalIds;
-        if (localIds == null) {
-            localIds = set.get(typeId);
-            return localIds != null && localIds.contains(localId);
-        }
-        return singleTypeId == typeId && localIds.contains(localId);
+        return singleTypeId == typeId && singleTypeLocalIds.contains(localId);
     }
 
     public boolean remove(@Nullable final EntityId id) {
@@ -99,48 +90,31 @@ public class EntityIdSet implements Iterable<EntityId> {
     }
 
     public boolean remove(final int typeId, final long localId) {
-        LongSet localIds = singleTypeLocalIds;
-        if (localIds == null) {
-            localIds = set.get(typeId);
-            return localIds != null && localIds.remove(localId);
-        }
-        return singleTypeId == typeId && localIds.remove(localId);
+        return singleTypeId == typeId && singleTypeLocalIds.remove(localId);
     }
 
     public int count() {
-        LongSet localIds = singleTypeLocalIds;
-        if (localIds == null) {
-            return -1;
-        }
-        return localIds.size();
+        return singleTypeLocalIds.size();
     }
 
     @Nullable
     public LongSet getTypeSet(int typeId) {
-        return set.get(typeId);
+        if (typeId == singleTypeId) {
+            return singleTypeLocalIds;
+        }
+        return null;
     }
 
     @Override
     public Iterator<EntityId> iterator() {
-        final Iterator<Map.Entry<Integer, LongSet>> entries = set.entrySet().iterator();
         return new Iterator<EntityId>() {
-
-            private int typeId = -1;
             @NotNull
-            private LongIterator it = LongIterator.EMPTY;
+            private final LongIterator it = singleTypeLocalIds.iterator();
             private boolean hasNull = holdsNull;
 
             @Override
             public boolean hasNext() {
-                while (!it.hasNext()) {
-                    if (!entries.hasNext()) {
-                        return hasNull;
-                    }
-                    final Map.Entry<Integer, LongSet> nextTypeSet = entries.next();
-                    typeId = nextTypeSet.getKey();
-                    it = nextTypeSet.getValue().iterator();
-                }
-                return true;
+                return it.hasNext() || hasNull;
             }
 
             @Override
@@ -152,7 +126,7 @@ public class EntityIdSet implements Iterable<EntityId> {
                     hasNull = false;
                     return null;
                 }
-                return new PersistentEntityId(typeId, it.next());
+                return new PersistentEntityId(singleTypeId, it.next());
             }
 
             @Override

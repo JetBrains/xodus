@@ -20,7 +20,7 @@ import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.EntityIterator;
 import jetbrains.exodus.entitystore.PersistentEntityId;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
-import jetbrains.exodus.entitystore.util.EntityIdSet;
+import jetbrains.exodus.entitystore.util.EntityIdSetFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -141,10 +141,10 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
     @Override
     public EntityIdSet toSet(@NotNull final PersistentStoreTransaction txn) {
         if (idSet == null) {
-            final EntityIdSet result = new EntityIdSet();
+            EntityIdSet result = EntityIdSetFactory.newSet();
             final EntityIterator it = getIteratorImpl(txn);
             while (it.hasNext()) {
-                result.add(it.nextId());
+                result = result.add(it.nextId());
             }
             if (mutableLocalIds != null) {
                 return result;

@@ -21,7 +21,7 @@ import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
 import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.tables.LinkValue;
 import jetbrains.exodus.entitystore.tables.PropertyKey;
-import jetbrains.exodus.entitystore.util.EntityIdSet;
+import jetbrains.exodus.entitystore.util.EntityIdSetFactory;
 import jetbrains.exodus.env.Cursor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -128,7 +128,7 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
         private final EntityIteratorBase sourceIt;
         @NotNull
         private final IntHashMap<Cursor> usedCursors;
-        private final EntityIdSet iterated;
+        private EntityIdSet iterated;
         private EntityId nextId;
         @NotNull
         private final PersistentStoreTransaction txn;
@@ -137,7 +137,7 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
             super(SelectDistinctIterable.this);
             sourceIt = (EntityIteratorBase) source.iterator();
             usedCursors = new IntHashMap<>();
-            iterated = new EntityIdSet();
+            iterated = EntityIdSetFactory.newSet();
             nextId = null;
             this.txn = txn;
         }
@@ -182,7 +182,7 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
         @Nullable
         public EntityId nextIdImpl() {
             final EntityId nextId = this.nextId;
-            iterated.add(nextId);
+            iterated = iterated.add(nextId);
             return nextId;
         }
 

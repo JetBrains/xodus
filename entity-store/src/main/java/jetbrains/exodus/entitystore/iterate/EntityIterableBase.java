@@ -21,7 +21,6 @@ import jetbrains.exodus.entitystore.iterate.binop.ConcatenationIterable;
 import jetbrains.exodus.entitystore.iterate.binop.IntersectionIterable;
 import jetbrains.exodus.entitystore.iterate.binop.MinusIterable;
 import jetbrains.exodus.entitystore.iterate.binop.UnionIterable;
-import jetbrains.exodus.entitystore.util.EntityIdSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
