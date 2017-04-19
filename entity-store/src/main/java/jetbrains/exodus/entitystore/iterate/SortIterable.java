@@ -23,6 +23,7 @@ import jetbrains.exodus.entitystore.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.PriorityQueue;
@@ -315,7 +316,7 @@ public final class SortIterable extends EntityIterableDecoratorBase {
             this.propIterator = propIterator;
             final EntityIdSet sourceSet = source.toSet(txn);
             hasNull = sourceSet.contains(null);
-            final LongSet rightOrder = sourceSet.getTypeSet(sourceTypeId);
+            final Collection<Long> rightOrder = sourceSet.getTypeSet(sourceTypeId);
             if (rightOrder == null) {
                 this.rightOrder = LongSet.EMPTY;
             } else {

@@ -15,9 +15,10 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
-import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.entitystore.EntityId;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Collection;
 
 public interface EntityIdSet extends Iterable<EntityId> {
 
@@ -33,7 +34,7 @@ public interface EntityIdSet extends Iterable<EntityId> {
 
     boolean remove(final int typeId, final long localId);
 
-    @Nullable LongSet getTypeSet(int typeId);
+    @Nullable Collection<Long> getTypeSet(int typeId);
 
     int count();
 }
