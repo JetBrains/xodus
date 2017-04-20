@@ -770,22 +770,30 @@ public final class Log implements Closeable {
                 result = sharedCache;
             }
         }
-        if (result.pageSize != pageSize) {
-            throw new ExodusException("SharedLogCache was created with page size " + result.pageSize +
-                " and then requested with page size " + pageSize + ". EnvironmentConfig.LOG_CACHE_PAGE_SIZE was set manually.");
-        }
+        checkCachePageSize(pageSize, result);
         return result;
     }
 
+    @NotNull
     private static LogCache getSharedCache(final int memoryUsagePercentage, final int pageSize, final boolean nonBlocking) {
-        if (sharedCache == null) {
+        LogCache result = sharedCache;
+        if (result == null) {
             synchronized (Log.class) {
                 if (sharedCache == null) {
                     sharedCache = new SharedLogCache(memoryUsagePercentage, pageSize, nonBlocking);
                 }
+                result = sharedCache;
             }
         }
-        return sharedCache;
+        checkCachePageSize(pageSize, result);
+        return result;
+    }
+
+    private static void checkCachePageSize(final int pageSize, @NotNull final LogCache result) {
+        if (result.pageSize != pageSize) {
+            throw new ExodusException("SharedLogCache was created with page size " + result.pageSize +
+                " and then requested with page size " + pageSize + ". EnvironmentConfig.LOG_CACHE_PAGE_SIZE was set manually.");
+        }
     }
 
     private void tryLock() {
