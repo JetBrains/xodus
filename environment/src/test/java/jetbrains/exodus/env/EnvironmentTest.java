@@ -39,6 +39,7 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -475,6 +476,15 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     }
 
     @Test
+    @TestFor(issues = "XD-594")
+    public void leakingEnvironment() throws Exception {
+        tearDown();
+        final WeakReference<Environment> envRef = new WeakReference<Environment>(createAndCloseEnvironment());
+        waitForPendingFinalizers(10000);
+        Assert.assertNull(envRef.get());
+    }
+
+    @Test
     public void testSharedCache() throws InterruptedException, IOException {
         env.getEnvironmentConfig().setLogCacheShared(true);
         reopenEnvironment();
@@ -580,4 +590,20 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         }
     }
 
+    private EnvironmentImpl createAndCloseEnvironment() throws IOException {
+        final Pair<DataReader, DataWriter> rw = createRW();
+        final EnvironmentImpl env = newEnvironmentInstance(
+            LogConfig.create(rw.getFirst(), rw.getSecond()), new EnvironmentConfig().setGcUtilizationFromScratch(true));
+        env.close();
+        return env;
+    }
+
+    private void waitForPendingFinalizers(final long timeoutMillis) {
+        final long started = System.currentTimeMillis();
+        final WeakReference ref = new WeakReference<>(new Object());
+        while (ref.get() != null && System.currentTimeMillis() - started < timeoutMillis) {
+            System.gc();
+            Thread.yield();
+        }
+    }
 }

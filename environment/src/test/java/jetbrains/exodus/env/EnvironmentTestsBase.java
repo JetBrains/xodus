@@ -71,6 +71,7 @@ public class EnvironmentTestsBase {
         try {
             if (env != null) {
                 env.close();
+                env = null;
             }
         } catch (final ExodusException e) {
             archiveDB(env.getLocation(), getClass().getName() + '.' + System.currentTimeMillis() + ".tar.gz");
