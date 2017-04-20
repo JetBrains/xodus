@@ -25,6 +25,7 @@ import jetbrains.exodus.tree.LongIterator;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
+import java.lang.ref.WeakReference;
 import java.util.*;
 
 public final class UtilizationProfile {
@@ -300,33 +301,7 @@ public final class UtilizationProfile {
      * Reloads utilization profile.
      */
     public void computeUtilizationFromScratch() {
-        gc.getCleaner().getJobProcessor().queueAt(new Job() {
-            @Override
-            protected void execute() throws Throwable {
-                final LongHashMap<Long> usedSpace = new LongHashMap<>();
-                env.executeInReadonlyTransaction(new TransactionalExecutable() {
-                    @Override
-                    public void execute(@NotNull Transaction txn) {
-                        for (final String storeName : env.getAllStoreNames(txn)) {
-                            final StoreImpl store = env.openStore(storeName, StoreConfig.USE_EXISTING, txn);
-                            final LongIterator it = ((TransactionBase) txn).getTree(store).addressIterator();
-                            while (it.hasNext()) {
-                                final long address = it.next();
-                                final RandomAccessLoggable loggable = log.read(address);
-                                final Long fileAddress = log.getFileAddress(address);
-                                Long usedBytes = usedSpace.get(fileAddress);
-                                if (usedBytes == null) {
-                                    usedBytes = 0L;
-                                }
-                                usedBytes += loggable.length();
-                                usedSpace.put(fileAddress, usedBytes);
-                            }
-                        }
-                    }
-                });
-                setUtilization(usedSpace);
-            }
-        }, gc.getStartTime());
+        gc.getCleaner().getJobProcessor().queueAt(new ComputeUtilizationFromScratchJob(this), gc.getStartTime());
     }
 
     private void setUtilization(LongHashMap<Long> usedSpace) {
@@ -361,6 +336,45 @@ public final class UtilizationProfile {
         @Override
         public String toString() {
             return Long.toString(value);
+        }
+    }
+
+    private static class ComputeUtilizationFromScratchJob extends Job {
+
+        private final WeakReference<UtilizationProfile> up;
+
+        private ComputeUtilizationFromScratchJob(@NotNull final UtilizationProfile up) {
+            this.up = new WeakReference<>(up);
+        }
+
+        @Override
+        protected void execute() throws Throwable {
+            final UtilizationProfile up = this.up.get();
+            if (up == null) return;
+            final LongHashMap<Long> usedSpace = new LongHashMap<>();
+            final EnvironmentImpl env = up.env;
+            env.executeInReadonlyTransaction(new TransactionalExecutable() {
+                @Override
+                public void execute(@NotNull Transaction txn) {
+                    final Log log = up.log;
+                    for (final String storeName : env.getAllStoreNames(txn)) {
+                        final StoreImpl store = env.openStore(storeName, StoreConfig.USE_EXISTING, txn);
+                        final LongIterator it = ((TransactionBase) txn).getTree(store).addressIterator();
+                        while (it.hasNext()) {
+                            final long address = it.next();
+                            final RandomAccessLoggable loggable = log.read(address);
+                            final Long fileAddress = log.getFileAddress(address);
+                            Long usedBytes = usedSpace.get(fileAddress);
+                            if (usedBytes == null) {
+                                usedBytes = 0L;
+                            }
+                            usedBytes += loggable.length();
+                            usedSpace.put(fileAddress, usedBytes);
+                        }
+                    }
+                }
+            });
+            up.setUtilization(usedSpace);
         }
     }
 }
