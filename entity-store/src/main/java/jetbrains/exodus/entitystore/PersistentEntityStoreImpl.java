@@ -1649,7 +1649,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 blobVault.close();
                 environment.close();
             }
-
+            iterableCache.clear();
             logger.info("Closed successfully.");
         } catch (Exception e) {
             logger.error("close() failed", e);
