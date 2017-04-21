@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.query.metadata;
 
+import jetbrains.exodus.util.StringInterner;
 import org.jetbrains.annotations.NotNull;
 
 public class AssociationEndMetaDataImpl implements AssociationEndMetaData {
@@ -40,7 +41,7 @@ public class AssociationEndMetaDataImpl implements AssociationEndMetaData {
                                       AssociationEndType type,
                                       boolean cascadeDelete, boolean clearOnDelete,
                                       boolean targetCascadeDelete, boolean targetClearOnDelete) {
-        this.name = name;
+        this.name = StringInterner.intern(name);
         emd = oppositeEndEntityType;
         emdType = oppositeEndEntityType.getType();
         this.cardinality = cardinality;
@@ -123,7 +124,7 @@ public class AssociationEndMetaDataImpl implements AssociationEndMetaData {
     }
 
     public void setName(@NotNull String name) {
-        this.name = name;
+        this.name = StringInterner.intern(name);
     }
 
     public void setOppositeEntityMetaDataType(@NotNull final String emdType) {

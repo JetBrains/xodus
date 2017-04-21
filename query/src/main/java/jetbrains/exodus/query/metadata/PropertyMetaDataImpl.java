@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.query.metadata;
 
+import jetbrains.exodus.util.StringInterner;
 import org.jetbrains.annotations.NotNull;
 
 public class PropertyMetaDataImpl implements PropertyMetaData {
@@ -26,12 +27,12 @@ public class PropertyMetaDataImpl implements PropertyMetaData {
     }
 
     public PropertyMetaDataImpl(final String name, final PropertyType type) {
-        this.name = name;
+        this.name = StringInterner.intern(name);
         this.type = type;
     }
 
     public void setName(String name) {
-        this.name = name;
+        this.name = StringInterner.intern(name);
     }
 
     public void setType(PropertyType type) {

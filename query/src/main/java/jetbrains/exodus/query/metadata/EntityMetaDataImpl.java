@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.query.metadata;
 
+import jetbrains.exodus.core.dataStructures.NanoSet;
 import jetbrains.exodus.core.dataStructures.decorators.HashMapDecorator;
 import jetbrains.exodus.core.dataStructures.decorators.LinkedHashSetDecorator;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
@@ -44,7 +45,7 @@ public class EntityMetaDataImpl implements EntityMetaData {
     private Set<String> requiredIfProperties = Collections.emptySet();
 
     private Map<String, Set<Index>> fieldToIndexes = null;
-    private Set<Index> indexes = null;
+    private volatile Set<Index> indexes = null;
     private List<String> allSubTypes = null;
     private Map<String, Set<String>> incomingAssociations = null;
     private volatile Ends ends = null;
@@ -364,17 +365,17 @@ public class EntityMetaDataImpl implements EntityMetaData {
 
             synchronized (this) {
                 if (indexes == null) {
-                    indexes = new HashSet<>();
-
+                    final Set<Index> result = new HashSet<>();
                     // add indexes of super types
                     for (String t : getThisAndSuperTypes()) {
                         for (Index index : getEntityMetaData(t).getOwnIndexes()) {
                             final String enityType = index.getOwnerEntityType();
                             for (String st : getEntityMetaData(enityType).getThisAndSuperTypes()) {
-                                indexes.addAll(getEntityMetaData(st).getOwnIndexes());
+                                result.addAll(getEntityMetaData(st).getOwnIndexes());
                             }
                         }
                     }
+                    indexes = copySet(result);
                 }
             }
         }
@@ -420,11 +421,12 @@ public class EntityMetaDataImpl implements EntityMetaData {
     }
 
     public void setRequiredProperties(@NotNull Set<String> requiredProperties) {
-        this.requiredProperties = requiredProperties;
+        this.requiredProperties = copySet(requiredProperties);
+
     }
 
     public void setRequiredIfProperties(@NotNull Set<String> requiredIfProperties) {
-        this.requiredIfProperties = requiredIfProperties;
+        this.requiredIfProperties = copySet(requiredIfProperties);
     }
 
     @NotNull
@@ -457,6 +459,17 @@ public class EntityMetaDataImpl implements EntityMetaData {
     @Override
     public String toString() {
         return type;
+    }
+
+    private static <E> Set<E> copySet(@NotNull final Set<E> origin) {
+        final int size = origin.size();
+        if (size == 0) {
+            return Collections.emptySet();
+        }
+        if (size == 1) {
+            return new NanoSet<>(origin.iterator().next());
+        }
+        return new HashSet<>(origin);
     }
 
     private static class Ends {
