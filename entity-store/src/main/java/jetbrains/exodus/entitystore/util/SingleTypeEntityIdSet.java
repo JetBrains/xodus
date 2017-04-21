@@ -30,7 +30,7 @@ class SingleTypeEntityIdSet implements EntityIdSet {
 
     private final int singleTypeId;
     @NotNull
-    private LongSet singleTypeLocalIds = new LongHashSet(100, 3);
+    private final LongSet singleTypeLocalIds = new LongHashSet(100, 3);
     private boolean holdsNull;
 
     SingleTypeEntityIdSet(@Nullable final EntityId id) {
