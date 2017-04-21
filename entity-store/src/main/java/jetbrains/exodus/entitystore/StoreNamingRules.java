@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.util.StringInterner;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 
@@ -144,6 +145,7 @@ final class StoreNamingRules {
             builder.append('#');
             builder.append(param);
         }
-        return builder.toString();
+        //noinspection ConstantConditions
+        return StringInterner.intern(builder.toString());
     }
 }

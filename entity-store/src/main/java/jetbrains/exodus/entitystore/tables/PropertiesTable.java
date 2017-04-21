@@ -42,7 +42,6 @@ public final class PropertiesTable extends Table {
 
     @NotNull
     private final PersistentEntityStoreImpl store;
-    private final String name;
     private final Store primaryStore;
     private final IntHashMap<Store> valueIndexes;
     private final Store allPropsIndex;
@@ -51,7 +50,6 @@ public final class PropertiesTable extends Table {
                            @NotNull final String name,
                            @NotNull final StoreConfig primaryConfig) {
         this.store = txn.getStore();
-        this.name = name;
         final Transaction envTxn = txn.getEnvironmentTransaction();
         final Environment env = store.getEnvironment();
         primaryStore = env.openStore(name, primaryConfig, envTxn);
@@ -191,7 +189,7 @@ public final class PropertiesTable extends Table {
     }
 
     private String valueIndexName(final int propertyId) {
-        return name + PROP_VALUE_IDX + propertyId;
+        return primaryStore.getName() + PROP_VALUE_IDX + propertyId;
     }
 
     private static boolean deleteFromStore(@NotNull final Transaction txn,
