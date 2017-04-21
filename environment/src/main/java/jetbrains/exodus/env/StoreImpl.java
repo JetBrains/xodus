@@ -28,6 +28,7 @@ import jetbrains.exodus.tree.btree.BTreeEmpty;
 import jetbrains.exodus.tree.patricia.PatriciaTree;
 import jetbrains.exodus.tree.patricia.PatriciaTreeEmpty;
 import jetbrains.exodus.tree.patricia.PatriciaTreeWithDuplicates;
+import jetbrains.exodus.util.StringInterner;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -48,7 +49,8 @@ public class StoreImpl implements Store {
 
     StoreImpl(@NotNull final EnvironmentImpl env, @NotNull final String name, @NotNull final TreeMetaInfo metaInfo) {
         this.environment = env;
-        this.name = name;
+        //noinspection ConstantConditions
+        this.name = StringInterner.intern(name);
         this.metaInfo = metaInfo;
     }
 
@@ -170,15 +172,15 @@ public class StoreImpl implements Store {
         if (!metaInfo.isKeyPrefixing()) {
             final BTreeBalancePolicy balancePolicy = environment.getBTreeBalancePolicy();
             result = treeIsEmpty ?
-                    new BTreeEmpty(log, balancePolicy, hasDuplicates, structureId) :
-                    new BTree(log, balancePolicy, upToDateRootAddress, hasDuplicates, structureId);
+                new BTreeEmpty(log, balancePolicy, hasDuplicates, structureId) :
+                new BTree(log, balancePolicy, upToDateRootAddress, hasDuplicates, structureId);
         } else {
             if (treeIsEmpty) {
                 result = new PatriciaTreeEmpty(log, structureId, hasDuplicates);
             } else {
                 result = hasDuplicates ?
-                        new PatriciaTreeWithDuplicates(log, upToDateRootAddress, structureId) :
-                        new PatriciaTree(log, upToDateRootAddress, structureId);
+                    new PatriciaTreeWithDuplicates(log, upToDateRootAddress, structureId) :
+                    new PatriciaTree(log, upToDateRootAddress, structureId);
             }
         }
         return result;
