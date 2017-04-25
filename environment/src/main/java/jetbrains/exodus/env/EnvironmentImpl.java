@@ -325,6 +325,12 @@ public class EnvironmentImpl implements Environment {
     @SuppressWarnings({"AccessToStaticFieldLockedOnInstance"})
     @Override
     public void close() {
+        // if this is already closed do nothing
+        synchronized (commitLock) {
+            if (!isOpen()) {
+                return;
+            }
+        }
         if (configMBean != null) {
             configMBean.unregister();
         }
@@ -338,7 +344,8 @@ public class EnvironmentImpl implements Environment {
         final float logCacheHitRate;
         final float storeGetCacheHitRate;
         synchronized (commitLock) {
-            if (!isOpen()) {
+            // concurrent close() detected
+            if (throwableOnClose != null) {
                 throw throwableOnClose;
             }
             checkInactive(ec.getEnvCloseForcedly());

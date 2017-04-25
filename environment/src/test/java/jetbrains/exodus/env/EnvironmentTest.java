@@ -195,15 +195,11 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             env.openStore("new_store" + i, StoreConfig.WITHOUT_DUPLICATES, txn);
         }
         txn.commit();
-        getEnvironment().close();
         final EnvironmentConfig envConfig = env.getEnvironmentConfig();
+        env.close();
         try {
-            TestUtil.runWithExpectedException(new Runnable() {
-                @Override
-                public void run() {
-                    env.close();
-                }
-            }, EnvironmentClosedException.class);
+            Assert.assertFalse(env.isOpen());
+            env.close();
         } finally {
             // forget old env anyway to prevent tearDown fail
             env = newEnvironmentInstance(LogConfig.create(reader, writer), envConfig);
