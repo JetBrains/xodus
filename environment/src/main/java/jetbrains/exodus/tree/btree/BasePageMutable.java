@@ -245,7 +245,6 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
     protected static int binarySearch(final @NotNull BasePage page,
                                       final @NotNull ByteIterable key,
                                       int low, int high) {
-        final BTreeBase tree = page.getTree();
         while (low <= high) {
             final int mid = (low + high + 1) >>> 1;
             final ILeafNode midKey = page.getKey(mid);
