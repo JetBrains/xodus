@@ -309,7 +309,7 @@ public final class EnvironmentConfig extends AbstractConfig {
     public static final String TREE_MAX_PAGE_SIZE = "exodus.tree.maxPageSize";
 
     /**
-     * As of 1.1.0, is deprecated and has no effect.
+     * As of 1.0.5, is deprecated and has no effect.
      * <p>Mutable at runtime: no
      */
     @Deprecated
@@ -1244,7 +1244,7 @@ public final class EnvironmentConfig extends AbstractConfig {
     }
 
     /**
-     * As of 1.1.0, is deprecated and has no effect.
+     * As of 1.0.5, is deprecated and has no effect.
      * <p>Mutable at runtime: no
      *
      * @return {@code 0}
@@ -1255,7 +1255,7 @@ public final class EnvironmentConfig extends AbstractConfig {
     }
 
     /**
-     * As of 1.1.0, is deprecated and has no effect.
+     * As of 1.0.5, is deprecated and has no effect.
      * <p>Mutable at runtime: no
      *
      * @return this {@code EnvironmentConfig} instance
