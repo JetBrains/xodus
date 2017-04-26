@@ -35,9 +35,7 @@ public interface EntityStoreConfigMBean {
 
     void setMaxInPlaceBlobSize(int blobSize);
 
-    int getBlobStringsCacheSize();
-
-    void setBlobStringsCacheSize(int blobStringsCacheSize);
+    boolean isBlobStringsCacheShared();
 
     boolean isCachingDisabled();
 

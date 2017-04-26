@@ -111,10 +111,20 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
     public static final String MAX_IN_PLACE_BLOB_SIZE = "exodus.entityStore.maxInPlaceBlobSize";
 
     /**
-     * Defines the size of "blob strings" cache. This caches is used by {@linkplain BlobVault} in order to reduce
-     * load created by the transformation of large binary content to UTF-8 strings. Default value is {2000}.
-     * <p>Mutable at runtime: yes
+     * If is set to {@code true} then {@linkplain BlobVault} uses shared (static) blob strings cache.
+     * Otherwise, {@linkplain BlobVault} creates its own cache. Default value is {@code true}.
+     * <p>Mutable at runtime: no
+     *
+     * @since 1.0.5
      */
+    public static final String BLOB_STRINGS_CACHE_SHARED = "exodus.entityStore.blobStringsCacheShared";
+
+    /**
+     * As of 1.0.5, is deprecated and has no effect. Though system property with the name
+     * {@code "exodus.entityStore.blobStringsCacheSize"} is used to configure size of blob strings cache.
+     * <p>Mutable at runtime: no
+     */
+    @Deprecated
     public static final String BLOB_STRINGS_CACHE_SIZE = "exodus.entityStore.blobStringsCacheSize";
 
     /**
@@ -247,31 +257,31 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
     public PersistentEntityStoreConfig(@NotNull final ConfigurationStrategy strategy) {
         //noinspection unchecked
         super(new Pair[]{
-                new Pair(REFACTORING_SKIP_ALL, false),
-                new Pair(REFACTORING_FORCE_ALL, false),
-                new Pair(REFACTORING_NULL_INDICES, false),
-                new Pair(REFACTORING_BLOB_NULL_INDICES, false),
-                new Pair(REFACTORING_HEAVY_LINKS, false),
-                new Pair(REFACTORING_HEAVY_PROPS, false),
-                new Pair(REFACTORING_DELETE_REDUNDANT_BLOBS, false),
-                new Pair(MAX_IN_PLACE_BLOB_SIZE, 10000),
-                new Pair(BLOB_STRINGS_CACHE_SIZE, 2000),
-                new Pair(CACHING_DISABLED, false),
-                new Pair(REORDERING_DISABLED, false),
-                new Pair(EXPLAIN_ON, false),
-                new Pair(DEBUG_LINK_DATA_GETTER, false),
-                new Pair(DEBUG_SEARCH_FOR_INCOMING_LINKS_ON_DELETE, false),
-                new Pair(ENTITY_ITERABLE_CACHE_SIZE, defaultEntityIterableCacheSize()),
-                new Pair(ENTITY_ITERABLE_CACHE_THREAD_COUNT, Runtime.getRuntime().availableProcessors() > 3 ? 2 : 1),
-                new Pair(ENTITY_ITERABLE_CACHE_CACHING_TIMEOUT, 10000L),
-                new Pair(ENTITY_ITERABLE_CACHE_DEFERRED_DELAY, 2000),
-                new Pair(ENTITY_ITERABLE_CACHE_MAX_SIZE_OF_DIRECT_VALUE, 512),
-                new Pair(ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE, false),
-                new Pair(TRANSACTION_PROPS_CACHE_SIZE, 1024),
-                new Pair(TRANSACTION_LINKS_CACHE_SIZE, 1024),
-                new Pair(TRANSACTION_BLOB_STRINGS_CACHE_SIZE, 256),
-                new Pair(GATHER_STATISTICS, true),
-                new Pair(MANAGEMENT_ENABLED, true)
+            new Pair(REFACTORING_SKIP_ALL, false),
+            new Pair(REFACTORING_FORCE_ALL, false),
+            new Pair(REFACTORING_NULL_INDICES, false),
+            new Pair(REFACTORING_BLOB_NULL_INDICES, false),
+            new Pair(REFACTORING_HEAVY_LINKS, false),
+            new Pair(REFACTORING_HEAVY_PROPS, false),
+            new Pair(REFACTORING_DELETE_REDUNDANT_BLOBS, false),
+            new Pair(MAX_IN_PLACE_BLOB_SIZE, 10000),
+            new Pair(BLOB_STRINGS_CACHE_SHARED, true),
+            new Pair(CACHING_DISABLED, false),
+            new Pair(REORDERING_DISABLED, false),
+            new Pair(EXPLAIN_ON, false),
+            new Pair(DEBUG_LINK_DATA_GETTER, false),
+            new Pair(DEBUG_SEARCH_FOR_INCOMING_LINKS_ON_DELETE, false),
+            new Pair(ENTITY_ITERABLE_CACHE_SIZE, defaultEntityIterableCacheSize()),
+            new Pair(ENTITY_ITERABLE_CACHE_THREAD_COUNT, Runtime.getRuntime().availableProcessors() > 3 ? 2 : 1),
+            new Pair(ENTITY_ITERABLE_CACHE_CACHING_TIMEOUT, 10000L),
+            new Pair(ENTITY_ITERABLE_CACHE_DEFERRED_DELAY, 2000),
+            new Pair(ENTITY_ITERABLE_CACHE_MAX_SIZE_OF_DIRECT_VALUE, 512),
+            new Pair(ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE, false),
+            new Pair(TRANSACTION_PROPS_CACHE_SIZE, 1024),
+            new Pair(TRANSACTION_LINKS_CACHE_SIZE, 1024),
+            new Pair(TRANSACTION_BLOB_STRINGS_CACHE_SIZE, 256),
+            new Pair(GATHER_STATISTICS, true),
+            new Pair(MANAGEMENT_ENABLED, true)
         }, strategy);
     }
 
@@ -344,10 +354,20 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
         return setSetting(MAX_IN_PLACE_BLOB_SIZE, blobSize);
     }
 
+    public boolean isBlobStringsCacheShared() {
+        return (Boolean) getSetting(BLOB_STRINGS_CACHE_SHARED);
+    }
+
+    public PersistentEntityStoreConfig setBlobStringsCacheShared(final boolean shared) {
+        return setSetting(BLOB_STRINGS_CACHE_SHARED, shared);
+    }
+
+    @Deprecated
     public int getBlobStringsCacheSize() {
         return (Integer) getSetting(BLOB_STRINGS_CACHE_SIZE);
     }
 
+    @Deprecated
     public PersistentEntityStoreConfig setBlobStringsCacheSize(final int blobStringsCacheSize) {
         return setSetting(BLOB_STRINGS_CACHE_SIZE, blobStringsCacheSize);
     }

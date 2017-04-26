@@ -56,18 +56,21 @@ public class FileSystemBlobVaultOld extends BlobVault {
      */
     private final AtomicLong size;
 
-    public FileSystemBlobVaultOld(@NotNull final String parentDirectory,
+    public FileSystemBlobVaultOld(@NotNull final PersistentEntityStoreConfig config,
+                                  @NotNull final String parentDirectory,
                                   @NotNull final String blobsDirectory,
                                   @NotNull final String blobExtension,
                                   @NotNull final BlobHandleGenerator blobHandleGenerator) throws IOException {
-        this(parentDirectory, blobsDirectory, blobExtension, blobHandleGenerator, EXPECTED_VERSION);
+        this(config, parentDirectory, blobsDirectory, blobExtension, blobHandleGenerator, EXPECTED_VERSION);
     }
 
-    protected FileSystemBlobVaultOld(@NotNull final String parentDirectory,
+    protected FileSystemBlobVaultOld(@NotNull final PersistentEntityStoreConfig config,
+                                     @NotNull final String parentDirectory,
                                      @NotNull final String blobsDirectory,
                                      @NotNull final String blobExtension,
                                      @NotNull final BlobHandleGenerator blobHandleGenerator,
                                      final int expectedVersion) throws IOException {
+        super(config);
         this.blobsDirectory = blobsDirectory;
         this.blobExtension = blobExtension;
         location = new File(parentDirectory, blobsDirectory);

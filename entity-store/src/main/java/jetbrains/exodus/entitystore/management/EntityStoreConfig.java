@@ -74,13 +74,8 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
-    public int getBlobStringsCacheSize() {
-        return config.getBlobStringsCacheSize();
-    }
-
-    @Override
-    public void setBlobStringsCacheSize(int blobStringsCacheSize) {
-        config.setBlobStringsCacheSize(blobStringsCacheSize);
+    public boolean isBlobStringsCacheShared() {
+        return config.isBlobStringsCacheShared();
     }
 
     @Override

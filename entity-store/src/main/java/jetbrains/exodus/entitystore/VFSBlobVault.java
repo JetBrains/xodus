@@ -47,11 +47,12 @@ public class VFSBlobVault extends BlobVault {
     @NotNull
     private final VirtualFileSystem fs;
 
-    public VFSBlobVault(@NotNull final Environment env) {
-        this(new VirtualFileSystem(env, BLOB_VAULT_VFS_CONFIG));
+    public VFSBlobVault(@NotNull final PersistentEntityStoreConfig config, @NotNull final Environment env) {
+        this(config, new VirtualFileSystem(env, BLOB_VAULT_VFS_CONFIG));
     }
 
-    public VFSBlobVault(@NotNull final VirtualFileSystem fs) {
+    public VFSBlobVault(@NotNull final PersistentEntityStoreConfig config, @NotNull final VirtualFileSystem fs) {
+        super(config);
         this.fs = fs;
     }
 
@@ -163,8 +164,8 @@ public class VFSBlobVault extends BlobVault {
     }
 
     public void refactorFromFS(@NotNull final PersistentEntityStoreImpl store) throws IOException {
-        final BlobVault sourceVault = new FileSystemBlobVaultOld(store.getLocation(),
-                "blobs", ".blob", BlobHandleGenerator.IMMUTABLE);
+        final BlobVault sourceVault = new FileSystemBlobVaultOld(store.getConfig(), store.getLocation(),
+            "blobs", ".blob", BlobHandleGenerator.IMMUTABLE);
 
         final LongSet allBlobs = store.computeInReadonlyTransaction(new StoreTransactionalComputable<LongSet>() {
             @Override

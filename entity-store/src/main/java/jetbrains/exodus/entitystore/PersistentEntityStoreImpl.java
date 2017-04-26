@@ -206,7 +206,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 if (blobVault == null) {
                     setBlobVault(createDefaultFSBlobVault());
                 }
-                PersistentEntityStoreImpl.this.blobVault.setStringContentCacheSize(config.getBlobStringsCacheSize());
 
                 final TwoColumnTable entityTypesTable = new TwoColumnTable(txn,
                         namingRulez.getEntityTypesTableName(), StoreConfig.WITHOUT_DUPLICATES);
@@ -348,16 +347,16 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                         }
                     };
             try {
-                blobVault = new FileSystemBlobVault(location, BLOBS_DIR, BLOBS_EXTENSION,
+                blobVault = new FileSystemBlobVault(config, location, BLOBS_DIR, BLOBS_EXTENSION,
                         new PersistentSequenceBlobHandleGenerator(persistentSequenceGetter));
             } catch (UnexpectedBlobVaultVersionException e) {
                 blobVault = null;
             }
             if (blobVault == null) {
                 if (config.getMaxInPlaceBlobSize() > 0) {
-                    blobVault = new FileSystemBlobVaultOld(location, BLOBS_DIR, BLOBS_EXTENSION, BlobHandleGenerator.IMMUTABLE);
+                    blobVault = new FileSystemBlobVaultOld(config, location, BLOBS_DIR, BLOBS_EXTENSION, BlobHandleGenerator.IMMUTABLE);
                 } else {
-                    blobVault = new FileSystemBlobVaultOld(location, BLOBS_DIR, BLOBS_EXTENSION,
+                    blobVault = new FileSystemBlobVaultOld(config, location, BLOBS_DIR, BLOBS_EXTENSION,
                             new PersistentSequenceBlobHandleGenerator(persistentSequenceGetter));
                 }
             }

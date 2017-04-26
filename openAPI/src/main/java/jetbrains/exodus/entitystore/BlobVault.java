@@ -16,7 +16,6 @@
 package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.backup.Backupable;
-import jetbrains.exodus.core.dataStructures.SoftLongObjectCache;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.env.Transaction;
@@ -47,14 +46,24 @@ import java.io.InputStream;
  */
 public abstract class BlobVault implements BlobHandleGenerator, Backupable {
 
-    private static final int STRING_CONTENT_CACHE_SIZE = 0x1000;
     private static final int READ_BUFFER_SIZE = 0x4000;
     static final ByteArraySpinAllocator bufferAllocator = new ByteArraySpinAllocator(READ_BUFFER_SIZE);
+    private static final BlobStringsCache.BlobStringsCacheCreator
+        stringContentCacheCreator = new BlobStringsCache.BlobStringsCacheCreator();
+    private static final IdGenerator identityGenerator = new IdGenerator();
 
-    private SoftLongObjectCache<String> stringContentCache;
+    private final BlobStringsCache stringContentCache;
+    private final int vaultIdentity;
 
-    protected BlobVault() {
-        stringContentCache = new SoftLongObjectCache<>(STRING_CONTENT_CACHE_SIZE);
+    protected BlobVault(@NotNull final PersistentEntityStoreConfig config) {
+        stringContentCache = config.isBlobStringsCacheShared() ?
+            stringContentCacheCreator.getInstance() :
+            new BlobStringsCache.BlobStringsCacheCreator().getInstance();
+        vaultIdentity = identityGenerator.nextId();
+    }
+
+    public int getIdentity() {
+        return vaultIdentity;
     }
 
     /**
@@ -135,15 +144,6 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
     public abstract void close();
 
     /**
-     * Sets the size of string contents cache.
-     *
-     * @param cacheSize cache size
-     */
-    public final void setStringContentCacheSize(final int cacheSize) {
-        stringContentCache = new SoftLongObjectCache<>(cacheSize);
-    }
-
-    /**
      * Returns string content of blob identified by specified blob handle. String contents cache is used.
      *
      * @param blobHandle blob handle
@@ -154,13 +154,13 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
     @Nullable
     public final String getStringContent(final long blobHandle, @NotNull final Transaction txn) throws IOException {
         String result;
-        result = stringContentCache.tryKey(blobHandle);
+        result = stringContentCache.tryKey(this, blobHandle);
         if (result == null) {
             final InputStream content = getContent(blobHandle, txn);
             result = content == null ? null : UTFUtil.readUTF(content);
             if (result != null) {
-                if (stringContentCache.getObject(blobHandle) == null) {
-                    stringContentCache.cacheObject(blobHandle, result);
+                if (stringContentCache.getObject(this, blobHandle) == null) {
+                    stringContentCache.cacheObject(this, blobHandle, result);
                 }
             }
         }
@@ -172,7 +172,7 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
      * contents cache
      */
     public final float getStringContentCacheHitRate() {
-        return stringContentCache.hitRate();
+        return stringContentCache.getHitRate();
     }
 
     public final ByteArrayOutputStream copyStream(@NotNull final InputStream source,
