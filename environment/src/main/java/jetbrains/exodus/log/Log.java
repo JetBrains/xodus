@@ -20,6 +20,7 @@ import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.core.dataStructures.skiplists.LongSkipList;
 import jetbrains.exodus.io.*;
 import jetbrains.exodus.util.DeferredIO;
+import jetbrains.exodus.util.IdGenerator;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -29,16 +30,13 @@ import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @SuppressWarnings({"JavaDoc"})
 public final class Log implements Closeable {
 
     private static final Logger logger = LoggerFactory.getLogger(Log.class);
 
-    private static AtomicInteger identityGenerator =
-        new AtomicInteger((int) (Math.random() * Integer.MAX_VALUE)); // initial log identity is rather "random"
-
+    private static IdGenerator identityGenerator = new IdGenerator();
     private static volatile LogCache sharedCache = null;
 
     @NotNull
@@ -982,17 +980,6 @@ public final class Log implements Closeable {
 
     private void setBufferedWriter(@NotNull final TransactionalDataWriter bufferedWriter) {
         this.bufferedWriter = bufferedWriter;
-        final int intPrime = 800076929; // 800076929 is a prime
-        while (true) {
-            final int currentIdentity = identityGenerator.get();
-            int nextIdentity = (currentIdentity + intPrime) & 0x7fffffff;
-            if (nextIdentity == 0) {
-                nextIdentity += intPrime;
-            }
-            if (identityGenerator.compareAndSet(currentIdentity, nextIdentity)) {
-                logIdentity = nextIdentity;
-                break;
-            }
-        }
+        logIdentity = identityGenerator.nextId();
     }
 }
