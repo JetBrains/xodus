@@ -71,7 +71,7 @@ public class PersistentObjectCacheTest {
         final PersistentObjectCache<String, String> cache = new PersistentObjectCache<>(4);
         cache.put("IDEA", "good IDEA");
         cache.put("NetBeans", "bad IDEA");
-        final PersistentObjectCache<String, String> copy = cache.getClone();
+        final PersistentObjectCache<String, String> copy = cache.getClone(null);
         Assert.assertNotNull(copy.get("IDEA"));
         copy.put("Eclipse", "An IDE");
         Assert.assertNull(cache.get("Eclipse"));

@@ -54,15 +54,6 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
         root = new AtomicReference<>();
     }
 
-    protected PersistentObjectCache(@NotNull final PersistentObjectCache<K, V> source) {
-        size = source.size;
-        firstGenSizeBound = source.firstGenSizeBound;
-        secondGenSizeBound = source.secondGenSizeBound;
-        root = new AtomicReference<>(source.root.get());
-        setAttempts(source.getAttempts());
-        setHits(source.getHits());
-    }
-
     protected PersistentObjectCache(@NotNull final PersistentObjectCache<K, V> source, @Nullable final EvictListener<K, V> listener) {
         size = source.size;
         firstGenSizeBound = source.firstGenSizeBound;
@@ -278,8 +269,8 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
         return result.iterator();
     }
 
-    public PersistentObjectCache<K, V> getClone() {
-        return new PersistentObjectCache<>(this);
+    public PersistentObjectCache<K, V> getClone(@Nullable final EvictListener<K, V> listener) {
+        return new PersistentObjectCache<>(this, listener);
     }
 
     private Root<K, V> getCurrent() {

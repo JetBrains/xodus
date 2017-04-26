@@ -144,21 +144,13 @@ class EntityIterableCacheAdapter {
             super(size);
         }
 
-        private NonAdjustablePersistentObjectCache(@NotNull final NonAdjustablePersistentObjectCache<K, V> source) {
-            super(source);
-        }
-
         private NonAdjustablePersistentObjectCache(@NotNull final NonAdjustablePersistentObjectCache<K, V> source,
                                                    @Nullable final EvictListener<K, V> listener) {
             super(source, listener);
         }
 
         @Override
-        public NonAdjustablePersistentObjectCache<K, V> getClone() {
-            return new NonAdjustablePersistentObjectCache<>(this);
-        }
-
-        NonAdjustablePersistentObjectCache<K, V> getClone(final EvictListener<K, V> listener) {
+        public NonAdjustablePersistentObjectCache<K, V> getClone(final EvictListener<K, V> listener) {
             return new NonAdjustablePersistentObjectCache<>(this, listener);
         }
 
