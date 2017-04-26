@@ -17,21 +17,18 @@ package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.*;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.entitystore.tables.*;
 import jetbrains.exodus.env.*;
-import jetbrains.exodus.util.IOUtil;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.*;
 
 final class PersistentEntityStoreRefactorings {
@@ -454,118 +451,6 @@ final class PersistentEntityStoreRefactorings {
                         }
                     });
                 }
-            }
-        });
-    }
-
-    void refactorInPlaceBlobs(@NotNull final FileSystemBlobVaultOld oldVault,
-                              @NotNull final String blobHandlesSequenceName) {
-        store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final StoreTransaction tx) {
-                final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
-                // reset blob handles sequence
-                final PersistentSequenceBlobHandleGenerator.PersistentSequenceGetter persistentSequenceGetter =
-                        new PersistentSequenceBlobHandleGenerator.PersistentSequenceGetter() {
-                            @Override
-                            public PersistentSequence get() {
-                                return store.getSequence(txn, blobHandlesSequenceName);
-                            }
-                        };
-                final PersistentSequence sequence = persistentSequenceGetter.get();
-                store.executeInTransaction(new StoreTransactionalExecutable() {
-                    @Override
-                    public void execute(@NotNull StoreTransaction txn) {
-                        sequence.set(-1L);
-                    }
-                });
-                // create new vault
-                final FileSystemBlobVault newVault;
-                try {
-                    newVault = new FileSystemBlobVault(store.getLocation(), TEMP_BLOBS_DIR,
-                            PersistentEntityStoreImpl.BLOBS_EXTENSION,
-                            new PersistentSequenceBlobHandleGenerator(persistentSequenceGetter));
-                    store.setBlobVault(newVault);
-                } catch (IOException e) {
-                    throw ExodusException.toEntityStoreException(e);
-                }
-                for (final String entityType : store.getEntityTypes(txn)) {
-                    runReadonlyTransactionSafeForEntityType(entityType, new Runnable() {
-                        @Override
-                        public void run() {
-                            final List<Pair<PropertyKey, Long>> blobHandles = new ArrayList<>();
-                            final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
-                            final BlobsTable blobs = store.getBlobsTable(txn, entityTypeId);
-                            final Transaction envTxn = txn.getEnvironmentTransaction();
-                            try (Cursor cursor = blobs.getPrimaryIndex().openCursor(envTxn)) {
-                                while (cursor.getNext()) {
-                                    final long blobHandle = LongBinding.compressedEntryToLong(cursor.getValue());
-                                    if (!PersistentEntityStoreImpl.isEmptyOrInPlaceBlobHandle(blobHandle)) {
-                                        final PropertyKey key = PropertyKey.entryToPropertyKey(cursor.getKey());
-                                        blobHandles.add(new Pair<>(key, blobHandle));
-                                    }
-                                }
-                            }
-                            if (!blobHandles.isEmpty()) {
-                                safeExecuteRefactoringForEntityType(entityType,
-                                        new StoreTransactionalExecutable() {
-                                            @Override
-                                            public void execute(@NotNull final StoreTransaction tx) {
-                                                final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
-                                                final int blobsCount = blobHandles.size();
-                                                int i = 0;
-                                                for (final Pair<PropertyKey, Long> entry : blobHandles) {
-                                                    if ((i++ % 1000) == 0) {
-                                                        if (logger.isInfoEnabled()) {
-                                                            logger.info("Refactoring moving tiny blobs into database for [" + entityType +
-                                                                    "]. Blobs processed: " + i + " of " + blobsCount);
-                                                        }
-                                                    }
-                                                    final PropertyKey key = entry.getFirst();
-                                                    final PersistentEntity entity = new PersistentEntity(
-                                                            store, new PersistentEntityId(entityTypeId, key.getEntityLocalId()));
-                                                    final String blobName = store.getPropertyName(txn, key.getPropertyId());
-                                                    if (blobName == null) {
-                                                        throw new NullPointerException("Blob name is expected");
-                                                    }
-                                                    try {
-                                                        final long blobHandle = entry.getSecond();
-                                                        txn.preserveBlob(blobHandle);
-                                                        store.setBlob(txn, entity, blobName, oldVault.getBlobLocation(blobHandle));
-                                                    } catch (IOException e) {
-                                                        logger.error("Failed to set blob", e);
-                                                    }
-                                                }
-                                            }
-                                        }
-                                );
-                                if (logger.isInfoEnabled()) {
-                                    logger.info("Refactoring moving tiny blobs into database for [" + entityType + "] completed.");
-                                }
-                            }
-                        }
-                    });
-                }
-                oldVault.close();
-                newVault.close();
-                logInfo("Moving finished, deleting old vault...");
-                final File oldVaultLocation = oldVault.getVaultLocation();
-                IOUtil.deleteRecursively(oldVaultLocation);
-                if (!oldVaultLocation.delete()) {
-                    throw new EntityStoreException("Failed to delete old blob vault");
-                }
-                if (!newVault.getVaultLocation().renameTo(oldVaultLocation)) {
-                    throw new EntityStoreException("Failed to rename temporary blob vault");
-                }
-                try {
-                    store.setBlobVault(new FileSystemBlobVault(store.getLocation(),
-                            PersistentEntityStoreImpl.BLOBS_DIR,
-                            PersistentEntityStoreImpl.BLOBS_EXTENSION,
-                            new PersistentSequenceBlobHandleGenerator(persistentSequenceGetter)));
-                } catch (IOException e) {
-                    throw ExodusException.toEntityStoreException(e);
-                }
-                logInfo("Refactoring moving tiny blobs into database finished successfully.");
             }
         });
     }
