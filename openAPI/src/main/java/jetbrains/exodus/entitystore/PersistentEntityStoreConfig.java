@@ -120,6 +120,15 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
     public static final String BLOB_STRINGS_CACHE_SHARED = "exodus.entityStore.blobStringsCacheShared";
 
     /**
+     * Defines the maximum size in bytes of a blob string that can be cached in blob strings cache.
+     * Default value is {@code 1000000}.
+     * <p>Mutable at runtime: yes
+     *
+     * @since 1.0.5
+     */
+    public static final String BLOB_STRINGS_CACHE_MAX_VALUE_SIZE = "exodus.entityStore.blobStringsCacheMaxValueSize";
+
+    /**
      * As of 1.0.5, is deprecated and has no effect. Though system property with the name
      * {@code "exodus.entityStore.blobStringsCacheSize"} is used to configure size of blob strings cache.
      * <p>Mutable at runtime: no
@@ -266,6 +275,7 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
             new Pair(REFACTORING_DELETE_REDUNDANT_BLOBS, false),
             new Pair(MAX_IN_PLACE_BLOB_SIZE, 10000),
             new Pair(BLOB_STRINGS_CACHE_SHARED, true),
+            new Pair(BLOB_STRINGS_CACHE_MAX_VALUE_SIZE, 1000000L),
             new Pair(CACHING_DISABLED, false),
             new Pair(REORDERING_DISABLED, false),
             new Pair(EXPLAIN_ON, false),
@@ -360,6 +370,14 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public PersistentEntityStoreConfig setBlobStringsCacheShared(final boolean shared) {
         return setSetting(BLOB_STRINGS_CACHE_SHARED, shared);
+    }
+
+    public long getBlobStringsCacheMaxValueSize() {
+        return (Long) getSetting(BLOB_STRINGS_CACHE_MAX_VALUE_SIZE);
+    }
+
+    public PersistentEntityStoreConfig setBlobStringsCacheMaxValueSize(final long maxValueSize) {
+        return setSetting(BLOB_STRINGS_CACHE_MAX_VALUE_SIZE, maxValueSize);
     }
 
     @Deprecated

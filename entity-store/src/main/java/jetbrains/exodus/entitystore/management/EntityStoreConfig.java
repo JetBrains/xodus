@@ -79,6 +79,16 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
+    public long getBlobStringsCacheMaxValueSize() {
+        return config.getBlobStringsCacheMaxValueSize();
+    }
+
+    @Override
+    public void setBlobStringsCacheMaxValueSize(long maxValueSize) {
+        config.setBlobStringsCacheMaxValueSize(maxValueSize);
+    }
+
+    @Override
     public boolean isCachingDisabled() {
         return config.isCachingDisabled();
     }

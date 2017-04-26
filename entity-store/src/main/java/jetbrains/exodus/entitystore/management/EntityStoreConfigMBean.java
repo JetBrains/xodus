@@ -37,6 +37,10 @@ public interface EntityStoreConfigMBean {
 
     boolean isBlobStringsCacheShared();
 
+    long getBlobStringsCacheMaxValueSize();
+
+    void setBlobStringsCacheMaxValueSize(long maxValueSize);
+
     boolean isCachingDisabled();
 
     void setCachingDisabled(boolean disabled);

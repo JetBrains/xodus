@@ -52,10 +52,12 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
         stringContentCacheCreator = new BlobStringsCache.BlobStringsCacheCreator();
     private static final IdGenerator identityGenerator = new IdGenerator();
 
+    private final PersistentEntityStoreConfig config;
     private final BlobStringsCache stringContentCache;
     private final int vaultIdentity;
 
     protected BlobVault(@NotNull final PersistentEntityStoreConfig config) {
+        this.config = config;
         stringContentCache = config.isBlobStringsCacheShared() ?
             stringContentCacheCreator.getInstance() :
             new BlobStringsCache.BlobStringsCacheCreator().getInstance();
@@ -158,7 +160,7 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
         if (result == null) {
             final InputStream content = getContent(blobHandle, txn);
             result = content == null ? null : UTFUtil.readUTF(content);
-            if (result != null) {
+            if (result != null && result.length() <= config.getBlobStringsCacheMaxValueSize()) {
                 if (stringContentCache.getObject(this, blobHandle) == null) {
                     stringContentCache.cacheObject(this, blobHandle, result);
                 }
