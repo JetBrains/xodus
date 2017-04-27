@@ -43,9 +43,10 @@ class PersistentObjectCacheStressTest {
             (1..values).forEach {
                 put("key$it", "value$it")
             }
-            assertNotNull(get("key4"))
-            assertNotNull(get("key12"))
-            assertNotNull(get("key23"))
+            val cached = arrayListOf<String>()
+            forEachEntry { key, value ->
+                cached.add(key)
+            }
 
             val sema = Semaphore(0)
             val count = 10
@@ -58,9 +59,9 @@ class PersistentObjectCacheStressTest {
                         while (true) {
                             iteration++
                             put("key4", "value4")
-                            assertNotNull(get("key4"))
-                            assertNotNull(get("key12"))
-                            assertNotNull(get("key23"))
+                            cached.forEach {
+                                assertNotNull(get(it))
+                            }
                         }
                     } catch (t: Throwable) {
                         println("Error at iteration: $iteration , cache size: ${count()}")
