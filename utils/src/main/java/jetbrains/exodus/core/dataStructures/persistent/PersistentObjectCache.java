@@ -343,14 +343,14 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
                     @Override
                     public boolean removeEldest(@NotNull final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> map,
                                                 @NotNull final K key, @Nullable final V value) {
-                        return map.size() > secondGenSizeBound;
+                        return map.size() > firstGenSizeBound;
                     }
                 };
                 final PersistentLinkedHashMap.RemoveEldestFunction<K, V> secondGenEvict = new PersistentLinkedHashMap.RemoveEldestFunction<K, V>() {
                     @Override
                     public boolean removeEldest(@NotNull final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> map,
                                                 @NotNull final K key, @Nullable final V value) {
-                        return map.size() > firstGenSizeBound;
+                        return map.size() > secondGenSizeBound;
                     }
                 };
                 if (sourceRoot != null) {
