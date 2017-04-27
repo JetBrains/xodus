@@ -27,6 +27,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static jetbrains.exodus.core.dataStructures.persistent.PersistentLinkedHashMap.logMapIsInconsistent;
+
 public class PersistentObjectCache<K, V> extends CacheHitRateable {
 
     private final int size;
@@ -109,13 +111,17 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
                 }
                 if (firstGenMutable.isDirty()) {
                     wereMutations = true;
-                    firstGen.endWrite(firstGenMutable);
+                    if (!firstGen.endWrite(firstGenMutable)) {
+                        logMapIsInconsistent();
+                    }
                 }
             }
             if (!wereMutations) {
                 break;
             }
-            secondGen.endWrite(secondGenMutable);
+            if (secondGenMutable.isDirty() && !secondGen.endWrite(secondGenMutable)) {
+                logMapIsInconsistent();
+            }
         } while (!root.compareAndSet(current, next));
         if (result != null) {
             incHits();
@@ -154,8 +160,12 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
             } else {
                 firstGenMutable.put(key, x);
             }
-            firstGen.endWrite(firstGenMutable);
-            secondGen.endWrite(secondGenMutable);
+            if (firstGenMutable.isDirty() && !firstGen.endWrite(firstGenMutable)) {
+                logMapIsInconsistent();
+            }
+            if (secondGenMutable.isDirty() && !secondGen.endWrite(secondGenMutable)) {
+                logMapIsInconsistent();
+            }
         } while (!root.compareAndSet(current, next));
     }
 
@@ -170,7 +180,9 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
             final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> firstGenMutable = firstGen.beginWrite();
             result = firstGenMutable.remove(key);
             if (result != null) {
-                firstGen.endWrite(firstGenMutable);
+                if (!firstGen.endWrite(firstGenMutable)) {
+                    logMapIsInconsistent();
+                }
             } else {
                 final PersistentLinkedHashMap<K, V> secondGen = next.getSecondGen();
                 final PersistentLinkedHashMap.PersistentLinkedHashMapMutable<K, V> secondGenMutable = secondGen.beginWrite();
@@ -178,7 +190,9 @@ public class PersistentObjectCache<K, V> extends CacheHitRateable {
                 if (result == null) {
                     break;
                 }
-                secondGen.endWrite(secondGenMutable);
+                if (!secondGen.endWrite(secondGenMutable)) {
+                    logMapIsInconsistent();
+                }
             }
         } while (!root.compareAndSet(current, next));
         return result;

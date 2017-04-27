@@ -87,11 +87,11 @@ public class PersistentLinkedHashMap<K, V> {
         if (!mutableMap.isDirty() || mutableMap.getSourceRoot() != root) {
             return false;
         }
-        mutableMap.getMapMutable().endWrite();
-        mutableMap.getQueueMutable().endWrite();
+        // TODO: this is a relaxed condition (not to break existing behaviour)
+        boolean result = mutableMap.getMapMutable().endWrite() && mutableMap.getQueueMutable().endWrite();
         root = new Pair<>(
                 mutableMap.getMap(), mutableMap.getQueue());
-        return true;
+        return result;
     }
 
     public static class PersistentLinkedHashMapMutable<K, V> implements Iterable<Pair<K, V>> {
@@ -290,7 +290,7 @@ public class PersistentLinkedHashMap<K, V> {
      * Logs the error that the map is inconsistent instead of throwing an exception. This leaves the chance for
      * the map to recovery to a consistent state.
      */
-    private static void logMapIsInconsistent() {
+    static void logMapIsInconsistent() {
         logger.error("PersistentLinkedHashMap is inconsistent", new Throwable());
     }
 
