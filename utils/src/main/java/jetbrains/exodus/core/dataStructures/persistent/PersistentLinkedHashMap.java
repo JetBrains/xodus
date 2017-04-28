@@ -53,10 +53,10 @@ public class PersistentLinkedHashMap<K, V> {
         final Pair<PersistentHashMap<K, InternalValue<V>>, PersistentLong23TreeMap<K>> sourceRoot = source.root;
         if (sourceRoot == null) {
             root = new Pair<>(
-                    new PersistentHashMap<K, InternalValue<V>>(), new PersistentLong23TreeMap<K>());
+                new PersistentHashMap<K, InternalValue<V>>(), new PersistentLong23TreeMap<K>());
         } else {
             root = new Pair<>(
-                    sourceRoot.getFirst().getClone(), sourceRoot.getSecond().getClone());
+                sourceRoot.getFirst().getClone(), sourceRoot.getSecond().getClone());
         }
         orderCounter = source.orderCounter;
         this.removeEldest = removeEldest;
@@ -90,7 +90,7 @@ public class PersistentLinkedHashMap<K, V> {
         // TODO: this is a relaxed condition (not to break existing behaviour)
         boolean result = mutableMap.getMapMutable().endWrite() && mutableMap.getQueueMutable().endWrite();
         root = new Pair<>(
-                mutableMap.getMap(), mutableMap.getQueue());
+            mutableMap.getMap(), mutableMap.getQueue());
         return result;
     }
 
@@ -141,9 +141,7 @@ public class PersistentLinkedHashMap<K, V> {
                 final long newOrder = orderCounter.incrementAndGet();
                 mapMutable.put(key, new InternalValue<>(newOrder, result));
                 queueMutable.put(newOrder, key);
-                if (!key.equals(queueMutable.remove(currentOrder))) {
-                    logMapIsInconsistent();
-                }
+                checkKeyAndOrder(key, currentOrder);
             }
             return result;
         }
@@ -161,9 +159,7 @@ public class PersistentLinkedHashMap<K, V> {
         public void put(@NotNull final K key, @Nullable final V value) {
             final InternalValue<V> internalValue = mapMutable.get(key);
             if (internalValue != null) {
-                if (!key.equals(queueMutable.remove(internalValue.getOrder()))) {
-                    logMapIsInconsistent();
-                }
+                checkKeyAndOrder(key, internalValue.getOrder());
             }
             isDirty = true;
             final long newOrder = orderCounter.incrementAndGet();
@@ -194,9 +190,7 @@ public class PersistentLinkedHashMap<K, V> {
             final InternalValue<V> internalValue = mapMutable.removeKey(key);
             if (internalValue != null) {
                 isDirty = true;
-                if (!key.equals(queueMutable.remove(internalValue.getOrder()))) {
-                    logMapIsInconsistent();
-                }
+                checkKeyAndOrder(key, internalValue.getOrder());
                 return internalValue.getValue();
             }
             return null;
@@ -283,6 +277,14 @@ public class PersistentLinkedHashMap<K, V> {
         void checkTip() {
             mapMutable.checkTip();
             queueMutable.checkTip();
+        }
+
+        private void checkKeyAndOrder(@NotNull final K key, final long prevOrder) {
+            final K keyByOrder = queueMutable.remove(prevOrder);
+            if (!key.equals(keyByOrder)) {
+                logger.error("PersistentLinkedHashMap is inconsistent, key = " + key + ", keyByOrder = " + keyByOrder +
+                    ", prevOrder = " + prevOrder, new Throwable());
+            }
         }
     }
 
