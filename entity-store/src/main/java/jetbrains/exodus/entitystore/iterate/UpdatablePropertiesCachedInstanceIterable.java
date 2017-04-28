@@ -63,14 +63,19 @@ public class UpdatablePropertiesCachedInstanceIterable extends UpdatableCachedIn
                 final Collection<IndexEntry> tempList = new ArrayList<>();
                 EntityId id = it.nextId();
                 entityTypeId = id.getTypeId();
+                Comparable prevValue = null;
                 Comparable propValue = it.currentValue();
                 valueClass = propValue.getClass();
                 while (true) {
+                    if (prevValue != null && prevValue.equals(propValue)) {
+                        propValue = prevValue;
+                    }
                     tempList.add(new IndexEntry(propValue, id.getLocalId()));
                     if (!it.hasNext()) {
                         break;
                     }
                     id = it.nextId();
+                    prevValue = propValue;
                     propValue = it.currentValue();
                     if (!valueClass.equals(propValue.getClass())) {
                         throw new EntityStoreException("Unexpected property value class");
