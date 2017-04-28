@@ -169,7 +169,7 @@ public class PersistentLinkedHashMap<K, V> {
                 int removed = 0;
                 PersistentLong23TreeMap.Entry<K> min;
                 while ((min = queueMutable.getMinimum()) != null) {
-                    if (removed > 50000) {
+                    if (removed >= 50) {
                         break; // prevent looping on implementation errors
                     }
                     final K eldestKey = min.getValue();
@@ -180,7 +180,7 @@ public class PersistentLinkedHashMap<K, V> {
                         break;
                     }
                 }
-                if (removed > 1000 && logger.isWarnEnabled()) {
+                if (removed > 20 && logger.isWarnEnabled()) {
                     logger.warn("PersistentLinkedHashMap evicted " + removed + " keys during a single put().", new Throwable());
                 }
             }
