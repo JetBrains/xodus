@@ -101,7 +101,7 @@ class UpdatablePropertiesCachedInstanceIterable(txn: PersistentStoreTransaction?
         }
         val oldEntry = if (oldValue == null) null else IndexEntry(PropertyTypes.toLowerCase(oldValue), localId)
         val newEntry = if (newValue == null) null else IndexEntry(PropertyTypes.toLowerCase(newValue), localId)
-        if (oldEntry == null && newEntry == null) {
+        if (oldEntry == newEntry) {
             throw IllegalStateException("Can't update in-memory index: both oldValue and newValue are null")
         }
         val index = mutableIndex ?: throw IllegalStateException("Mutate index before updating it")
@@ -113,7 +113,11 @@ class UpdatablePropertiesCachedInstanceIterable(txn: PersistentStoreTransaction?
             }
         }
         if (newEntry != null) {
-            index.add(newEntry)
+            val entryNoDuplicates = IndexEntryNoDuplicates(newEntry.propValue, newEntry.localId)
+            if (!index.contains(entryNoDuplicates)) {
+                newEntry.propValue = entryNoDuplicates.propValue
+                index.add(newEntry)
+            }
             if (valueClass == null) {
                 valueClass = newEntry.propValue.javaClass
             }
@@ -142,11 +146,27 @@ class UpdatablePropertiesCachedInstanceIterable(txn: PersistentStoreTransaction?
 
     private val currentTree get() = mutableIndex ?: index.beginRead()
 
-    private class IndexEntry(val propValue: Comparable<Any>, val localId: Long) : Comparable<IndexEntry> {
+    private open class IndexEntry(var propValue: Comparable<Any>, val localId: Long) : Comparable<IndexEntry> {
 
         override fun compareTo(other: IndexEntry): Int {
             var result = propValue.compareTo(other.propValue)
             if (result == 0) {
+                if (localId < other.localId) {
+                    result = -1
+                } else if (localId > other.localId) {
+                    result = 1
+                }
+            }
+            return result
+        }
+    }
+
+    private class IndexEntryNoDuplicates(propValue: Comparable<Any>, localId: Long) : IndexEntry(propValue, localId) {
+
+        override fun compareTo(other: IndexEntry): Int {
+            var result = propValue.compareTo(other.propValue)
+            if (result == 0) {
+                propValue = other.propValue
                 if (localId < other.localId) {
                     result = -1
                 } else if (localId > other.localId) {
