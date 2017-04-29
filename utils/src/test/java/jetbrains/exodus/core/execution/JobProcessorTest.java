@@ -17,7 +17,6 @@ package jetbrains.exodus.core.execution;
 
 import jetbrains.exodus.core.dataStructures.Priority;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 
 public class JobProcessorTest {
@@ -26,11 +25,6 @@ public class JobProcessorTest {
 
     private void createProcessor() {
         processor = new ThreadJobProcessor("Test Job Processor");
-    }
-
-    @Before
-    public void setUp() throws Exception {
-        System.setProperty(JobProcessorQueueAdapter.CONCURRENT_QUEUE_PROPERTY, "false");
     }
 
     @Test

@@ -15,7 +15,10 @@
  */
 package jetbrains.exodus.core.execution;
 
-import jetbrains.exodus.core.dataStructures.*;
+import jetbrains.exodus.core.dataStructures.Pair;
+import jetbrains.exodus.core.dataStructures.Priority;
+import jetbrains.exodus.core.dataStructures.PriorityQueue;
+import jetbrains.exodus.core.dataStructures.StablePriorityQueue;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -26,8 +29,6 @@ import java.util.concurrent.TimeUnit;
 
 public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
 
-    public static final String CONCURRENT_QUEUE_PROPERTY = "jetbrains.exodus.core.execution.concurrentQueue";
-
     private final PriorityQueue<Priority, Job> queue;
     private final PriorityQueue<Long, Job> timeQueue;
     private volatile int outdatedJobsCount;
@@ -37,8 +38,8 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
 
     @SuppressWarnings("unchecked")
     protected JobProcessorQueueAdapter() {
-        queue = createQueue();
-        timeQueue = createQueue();
+        queue = new StablePriorityQueue<>();
+        timeQueue = new StablePriorityQueue<>();
         awake = new Semaphore(0);
     }
 
@@ -263,14 +264,5 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
             currentJob = null;
             currentJobStartedAt = 0L;
         }
-    }
-
-    @SuppressWarnings("rawtypes")
-    private static PriorityQueue createQueue() {
-        final String concurrentQueueProperty = System.getProperty(CONCURRENT_QUEUE_PROPERTY);
-        if (concurrentQueueProperty != null && "false".equalsIgnoreCase(concurrentQueueProperty)) {
-            return new StablePriorityQueue();
-        }
-        return new ConcurrentStablePriorityQueue();
     }
 }
