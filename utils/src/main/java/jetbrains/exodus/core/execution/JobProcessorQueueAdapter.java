@@ -19,6 +19,7 @@ import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.Priority;
 import jetbrains.exodus.core.dataStructures.PriorityQueue;
 import jetbrains.exodus.core.dataStructures.StablePriorityQueue;
+import jetbrains.exodus.core.execution.locks.CriticalSection;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -49,15 +50,12 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
         if (job.getProcessor() == null) {
             job.setProcessor(this);
         }
-        queue.lock();
-        try {
+        try (CriticalSection ignored = queue.lock()) {
             final Pair<Priority, Job> pair = queue.floorPair();
             final Priority priority = pair == null ? Priority.highest : pair.getFirst();
             if (queue.push(priority, job) != null) {
                 return false;
             }
-        } finally {
-            queue.unlock();
         }
         awake.release();
         return true;
@@ -69,13 +67,10 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
         if (job.getProcessor() == null) {
             job.setProcessor(this);
         }
-        queue.lock();
-        try {
+        try (CriticalSection ignored = queue.lock()) {
             if (queue.push(priority, job) != null) {
                 return false;
             }
-        } finally {
-            queue.unlock();
         }
         awake.release();
         return true;
@@ -92,12 +87,9 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
         Job oldJob;
         final Pair<Long, Job> pair;
         final long priority = Long.MAX_VALUE - millis;
-        timeQueue.lock();
-        try {
+        try (CriticalSection ignored = timeQueue.lock()) {
             oldJob = timeQueue.push(priority, job);
             pair = timeQueue.peekPair();
-        } finally {
-            timeQueue.unlock();
         }
         if (pair != null && pair.getFirst() != priority) {
             return oldJob;
@@ -114,15 +106,12 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
         if (job.getProcessor() == null) {
             job.setProcessor(this);
         }
-        timeQueue.lock();
-        try {
+        try (CriticalSection ignored = timeQueue.lock()) {
             final Pair<Long, Job> pair = timeQueue.floorPair();
             final long priority = pair == null ? Long.MAX_VALUE - System.currentTimeMillis() : pair.getFirst();
             if (timeQueue.push(priority, job) != null) {
                 return false;
             }
-        } finally {
-            timeQueue.unlock();
         }
         awake.release();
         return true;
@@ -165,11 +154,8 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
         if (!isFinished()) {
             if (jobsQueued) {
                 final Job job;
-                queue.lock();
-                try {
+                try (CriticalSection ignored = queue.lock()) {
                     job = queue.pop();
-                } finally {
-                    queue.unlock();
                 }
                 doExecuteJob(job);
             } else {
@@ -187,16 +173,13 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
         final Collection<Job> outdatedJobs = new ArrayList<>();
         final long currentTimePriority = Long.MAX_VALUE - System.currentTimeMillis();
         final int count;
-        timeQueue.lock();
-        try {
+        try (CriticalSection ignored = timeQueue.lock()) {
             Pair<Long, Job> pair = timeQueue.peekPair();
             while (pair != null && pair.getFirst() >= currentTimePriority) {
                 outdatedJobs.add(timeQueue.pop());
                 pair = timeQueue.peekPair();
             }
             count = outdatedJobs.size();
-        } finally {
-            timeQueue.unlock();
         }
         // outdatedJobsCount is updated in single thread, so we won't bother with synchronization on its update
         outdatedJobsCount = count;
@@ -220,14 +203,11 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
      */
     private Job executeImmediateJobIfAny() {
         Job urgentImmediateJob = null;
-        queue.lock();
-        try {
+        try (CriticalSection ignored = queue.lock()) {
             final Pair<Priority, Job> peekPair = queue.peekPair();
             if (peekPair != null && peekPair.getFirst() == Priority.highest) {
                 urgentImmediateJob = queue.pop();
             }
-        } finally {
-            queue.unlock();
         }
         if (urgentImmediateJob != null) {
             doExecuteJob(urgentImmediateJob);
@@ -238,11 +218,8 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
     // returns true if a job was queued within a timeout
     protected boolean waitForJobs() throws InterruptedException {
         final Pair<Long, Job> peekPair;
-        timeQueue.lock();
-        try {
+        try (CriticalSection ignored = timeQueue.lock()) {
             peekPair = timeQueue.peekPair();
-        } finally {
-            timeQueue.unlock();
         }
         if (peekPair == null) {
             awake.acquire();

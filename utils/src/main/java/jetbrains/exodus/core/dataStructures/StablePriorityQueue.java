@@ -17,41 +17,34 @@ package jetbrains.exodus.core.dataStructures;
 
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.LinkedHashSet;
+import jetbrains.exodus.core.execution.locks.CriticalSection;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class StablePriorityQueue<P extends Comparable<? super P>, E> extends PriorityQueue<P, E> {
 
     private final TreeMap<P, LinkedHashSet<E>> theQueue;
     private final Map<E, Pair<E, P>> priorities;
-    private final Lock lock;
+    private final CriticalSection criticalSection;
 
     public StablePriorityQueue() {
         theQueue = new TreeMap<>();
         priorities = new HashMap<>();
-        lock = new ReentrantLock();
+        criticalSection = new CriticalSection();
     }
 
     @Override
     public boolean isEmpty() {
-        lock();
-        try {
+        try (CriticalSection ignored = lock()) {
             return priorities.isEmpty();
-        } finally {
-            unlock();
         }
     }
 
     @Override
     public int size() {
-        lock();
-        try {
+        try (CriticalSection ignored = lock()) {
             return priorities.size();
-        } finally {
-            unlock();
         }
     }
 
@@ -122,13 +115,13 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
     }
 
     @Override
-    public void lock() {
-        lock.lock();
+    public CriticalSection lock() {
+        return criticalSection.enter();
     }
 
     @Override
     public void unlock() {
-        lock.unlock();
+        criticalSection.unlock();
     }
 
     @Override

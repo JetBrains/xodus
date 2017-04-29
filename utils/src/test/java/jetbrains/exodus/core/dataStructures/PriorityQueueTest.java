@@ -17,6 +17,7 @@ package jetbrains.exodus.core.dataStructures;
 
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.core.dataStructures.hash.IntHashSet;
+import jetbrains.exodus.core.execution.locks.CriticalSection;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -138,8 +139,7 @@ public abstract class PriorityQueueTest {
                 try {
                     //noinspection InfiniteLoopStatement
                     while (true) {
-                        queue.lock();
-                        try {
+                        try (CriticalSection ignored = queue.lock()) {
                             final ConcurrentTestObject value = new ConcurrentTestObject(counter);
                             final Priority p;
                             switch (value.number % 5) {
@@ -160,8 +160,6 @@ public abstract class PriorityQueueTest {
                                     break;
                             }
                             queue.push(p, value);
-                        } finally {
-                            queue.unlock();
                         }
                     }
                 } catch (RuntimeException e) {
