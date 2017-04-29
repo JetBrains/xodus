@@ -17,6 +17,7 @@ package jetbrains.exodus.env;
 
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
+import jetbrains.exodus.core.execution.locks.CriticalSection;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
@@ -24,7 +25,6 @@ import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
 
 final class ReentrantTransactionDispatcher {
 
@@ -36,7 +36,7 @@ final class ReentrantTransactionDispatcher {
     @NotNull
     private final NavigableMap<Long, Condition> nestedQueue;
     @NotNull
-    private final ReentrantLock lock;
+    private final CriticalSection criticalSection;
     private long acquireOrder;
     private int acquiredPermits;
 
@@ -48,13 +48,13 @@ final class ReentrantTransactionDispatcher {
         threadPermits = new HashMap<>();
         regularQueue = new TreeMap<>();
         nestedQueue = new TreeMap<>();
-        lock = new ReentrantLock(false); // we explicitly don't need fairness here
+        criticalSection = new CriticalSection(false /* we explicitly don't need fairness here */);
         acquireOrder = 0;
         acquiredPermits = 0;
     }
 
     int getAvailablePermits() {
-        try (CriticalSection ignored = new CriticalSection(lock)) {
+        try (CriticalSection ignored = criticalSection.enter()) {
             return availablePermits - acquiredPermits;
         }
     }
@@ -66,7 +66,7 @@ final class ReentrantTransactionDispatcher {
      * @return the number of acquired permits, identically equal to 1.
      */
     int acquireTransaction(@NotNull final Thread thread) {
-        try (CriticalSection ignored = new CriticalSection(lock)) {
+        try (CriticalSection ignored = criticalSection.enter()) {
             final int currentThreadPermits = getThreadPermitsToAcquire(thread);
             waitForPermits(thread, currentThreadPermits > 0 ? nestedQueue : regularQueue, 1, currentThreadPermits);
         }
@@ -81,7 +81,7 @@ final class ReentrantTransactionDispatcher {
      * @return the number of acquired permits.
      */
     int acquireExclusiveTransaction(@NotNull final Thread thread) {
-        try (CriticalSection ignored = new CriticalSection(lock)) {
+        try (CriticalSection ignored = criticalSection.enter()) {
             final int currentThreadPermits = getThreadPermitsToAcquire(thread);
             // if there are no permits acquired in the thread then we can acquire exclusive txn, i.e. all available permits
             if (currentThreadPermits == 0) {
@@ -119,7 +119,7 @@ final class ReentrantTransactionDispatcher {
      * Release transaction that was acquired in a thread with specified permits.
      */
     void releaseTransaction(@NotNull final Thread thread, final int permits) {
-        try (CriticalSection ignored = new CriticalSection(lock)) {
+        try (CriticalSection ignored = criticalSection.enter()) {
             int currentThreadPermits = getThreadPermits(thread);
             if (permits > currentThreadPermits) {
                 throw new ExodusException("Can't release more permits than it was acquired");
@@ -144,7 +144,7 @@ final class ReentrantTransactionDispatcher {
      */
     void downgradeTransaction(@NotNull final Thread thread, final int permits) {
         if (permits > 1) {
-            try (CriticalSection ignored = new CriticalSection(lock)) {
+            try (CriticalSection ignored = criticalSection.enter()) {
                 int currentThreadPermits = getThreadPermits(thread);
                 if (permits > currentThreadPermits) {
                     throw new ExodusException("Can't release more permits than it was acquired");
@@ -171,7 +171,7 @@ final class ReentrantTransactionDispatcher {
                                 @NotNull final NavigableMap<Long, Condition> queue,
                                 final int permits,
                                 final int currentThreadPermits) {
-        final Condition condition = lock.newCondition();
+        final Condition condition = criticalSection.newCondition();
         final long currentOrder = acquireOrder++;
         queue.put(currentOrder, condition);
         while (acquiredPermits > availablePermits - permits || queue.firstKey() != currentOrder) {
@@ -192,11 +192,11 @@ final class ReentrantTransactionDispatcher {
      */
     private int tryAcquireExclusiveTransaction(@NotNull final Thread thread, final int timeout) {
         long nanos = TimeUnit.MILLISECONDS.toNanos(timeout);
-        try (CriticalSection ignored = new CriticalSection(lock)) {
+        try (CriticalSection ignored = criticalSection.enter()) {
             if (getThreadPermits(thread) > 0) {
                 throw new ExodusException("Exclusive transaction can't be nested");
             }
-            final Condition condition = lock.newCondition();
+            final Condition condition = criticalSection.newCondition();
             final long currentOrder = acquireOrder++;
             regularQueue.put(currentOrder, condition);
             while (acquiredPermits > 0 || regularQueue.firstKey() != currentOrder) {
@@ -241,21 +241,5 @@ final class ReentrantTransactionDispatcher {
             return true;
         }
         return false;
-    }
-
-    private static final class CriticalSection implements AutoCloseable {
-
-        @NotNull
-        private final ReentrantLock lock;
-
-        private CriticalSection(@NotNull final ReentrantLock lock) {
-            this.lock = lock;
-            lock.lock();
-        }
-
-        @Override
-        public void close() {
-            lock.unlock();
-        }
     }
 }
