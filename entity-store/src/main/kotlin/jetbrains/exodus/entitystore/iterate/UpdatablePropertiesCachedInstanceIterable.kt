@@ -21,6 +21,7 @@ import jetbrains.exodus.entitystore.EntityStoreException
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.tables.PropertyTypes
+import jetbrains.exodus.kotlin.notNull
 import mu.KLogging
 
 class UpdatablePropertiesCachedInstanceIterable(txn: PersistentStoreTransaction?,
@@ -29,8 +30,8 @@ class UpdatablePropertiesCachedInstanceIterable(txn: PersistentStoreTransaction?
 
     companion object : KLogging() {
 
-        val PropertyValueIterator.nextId get() = this.nextId() ?: throw NullPointerException()
-        val PropertyValueIterator.currentValue: Comparable<Any> get() = this.currentValue() ?: throw NullPointerException()
+        val PropertyValueIterator.nextId get() = this.nextId().notNull
+        val PropertyValueIterator.currentValue: Comparable<Any> get() = this.currentValue().notNull
     }
 
     private var typeId = -1

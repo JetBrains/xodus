@@ -20,6 +20,7 @@ import jetbrains.exodus.core.dataStructures.Priority
 import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
 import jetbrains.exodus.env.EnvironmentImpl
+import jetbrains.exodus.kotlin.notNull
 import org.apache.sshd.server.Command
 import org.apache.sshd.server.Environment
 import org.apache.sshd.server.ExitCallback
@@ -107,7 +108,7 @@ abstract class RhinoCommand(protected val config: Map<String, *>) : Job(), Comma
             }
 
             override fun error(message: String?, sourceName: String?, line: Int, lineSource: String?, lineOffset: Int) {
-                val out = output ?: throw NullPointerException()
+                val out = output.notNull
                 if (sourceName != null) {
                     out.print("$sourceName: ")
                 }
@@ -154,7 +155,7 @@ abstract class RhinoCommand(protected val config: Map<String, *>) : Job(), Comma
     protected abstract fun evalTransactionalScript(cx: Context, script: Script, interop: Interop, scope: Scriptable)
 
     private fun processInput(cx: Context) {
-        Interop(this, output ?: throw NullPointerException(),
+        Interop(this, output.notNull,
                 config[ENVIRONMENT_INSTANCE] as? EnvironmentImpl,
                 config[ENTITY_STORE_INSTANCE] as? PersistentEntityStoreImpl).use { interop ->
             interop.flushOutput()

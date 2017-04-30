@@ -22,6 +22,7 @@ import jetbrains.exodus.entitystore.PersistentEntityStores
 import jetbrains.exodus.env.EnvironmentConfig
 import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.Environments
+import jetbrains.exodus.kotlin.notNull
 import org.mozilla.javascript.Context
 import org.mozilla.javascript.NativeJavaObject
 import org.mozilla.javascript.Scriptable
@@ -37,8 +38,7 @@ class Interop(private val rhinoCommand: RhinoCommand,
     internal var scope: Scriptable? = null
 
     fun load(fileName: String) {
-        rhinoCommand.evalFileSystemScript(
-                cx ?: throw NullPointerException(), scope ?: throw NullPointerException(), fileName)
+        rhinoCommand.evalFileSystemScript(cx.notNull, scope.notNull, fileName)
     }
 
     fun openEnvironment(location: String) {
@@ -106,7 +106,7 @@ class Interop(private val rhinoCommand: RhinoCommand,
     fun println(o: Any?): Interop = print(o).run { newLine() }
 
     fun getEntity(id: String): Entity {
-        val store = store ?: throw NullPointerException()
+        val store = store.notNull
         return store.getEntity(PersistentEntityId.toEntityId(id, store))
     }
 
