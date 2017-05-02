@@ -141,7 +141,7 @@ public class PersistentLinkedHashMap<K, V> {
                 final long newOrder = orderCounter.incrementAndGet();
                 mapMutable.put(key, new InternalValue<>(newOrder, result));
                 queueMutable.put(newOrder, key);
-                checkKeyAndOrder(key, currentOrder);
+                removeKeyAndCheckConsistency(key, currentOrder);
             }
             return result;
         }
@@ -159,7 +159,7 @@ public class PersistentLinkedHashMap<K, V> {
         public void put(@NotNull final K key, @Nullable final V value) {
             final InternalValue<V> internalValue = mapMutable.get(key);
             if (internalValue != null) {
-                checkKeyAndOrder(key, internalValue.getOrder());
+                removeKeyAndCheckConsistency(key, internalValue.getOrder());
             }
             isDirty = true;
             final long newOrder = orderCounter.incrementAndGet();
@@ -174,13 +174,15 @@ public class PersistentLinkedHashMap<K, V> {
                     }
                     final K eldestKey = min.getValue();
                     if (removeEldest.removeEldest(this, eldestKey, getValue(eldestKey))) {
-                        remove(eldestKey);
+                        isDirty = true;
+                        mapMutable.removeKey(eldestKey);   // removeKey may do nothing, but we still must
+                        queueMutable.remove(min.getKey()); // remove min key from the order queue
                         removed++;
                     } else {
                         break;
                     }
                 }
-                if (removed > 20 && logger.isWarnEnabled()) {
+                if (removed >= 35 && logger.isWarnEnabled()) {
                     logger.warn("PersistentLinkedHashMap evicted " + removed + " keys during a single put().", new Throwable());
                 }
             }
@@ -190,7 +192,7 @@ public class PersistentLinkedHashMap<K, V> {
             final InternalValue<V> internalValue = mapMutable.removeKey(key);
             if (internalValue != null) {
                 isDirty = true;
-                checkKeyAndOrder(key, internalValue.getOrder());
+                removeKeyAndCheckConsistency(key, internalValue.getOrder());
                 return internalValue.getValue();
             }
             return null;
@@ -279,7 +281,7 @@ public class PersistentLinkedHashMap<K, V> {
             queueMutable.checkTip();
         }
 
-        private void checkKeyAndOrder(@NotNull final K key, final long prevOrder) {
+        private void removeKeyAndCheckConsistency(@NotNull final K key, final long prevOrder) {
             final K keyByOrder = queueMutable.remove(prevOrder);
             if (!key.equals(keyByOrder)) {
                 logger.error("PersistentLinkedHashMap is inconsistent, key = " + key + ", keyByOrder = " + keyByOrder +
