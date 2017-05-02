@@ -91,7 +91,7 @@ class UpdatablePropertiesCachedInstanceIterable(txn: PersistentStoreTransaction?
     override fun isMutated() = mutableIndex != null
 
     override fun endUpdate() {
-        val index = mutableIndex ?: throw IllegalStateException("UpdatablePropertiesCachedInstanceIterable was not mutated")
+        val index = mutableIndex.notNull { "UpdatablePropertiesCachedInstanceIterable was not mutated" }
         index.endWrite()
         mutableIndex = null
     }
@@ -105,7 +105,7 @@ class UpdatablePropertiesCachedInstanceIterable(txn: PersistentStoreTransaction?
         if (oldEntry == newEntry) {
             throw IllegalStateException("Can't update in-memory index: both oldValue and newValue are null")
         }
-        val index = mutableIndex ?: throw IllegalStateException("Mutate index before updating it")
+        val index = mutableIndex.notNull { "Mutate index before updating it" }
         if (oldEntry != null) {
             if (index.contains(oldEntry)) {
                 index.exclude(oldEntry)

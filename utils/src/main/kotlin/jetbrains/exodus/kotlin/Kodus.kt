@@ -15,4 +15,8 @@
  */
 package jetbrains.exodus.kotlin
 
-val <T> T?.notNull: T get() = this ?: throw NullPointerException()
+import java.lang.IllegalStateException
+
+val <T> T?.notNull: T get() = this ?: throw IllegalStateException()
+
+fun <T> T?.notNull(msg: () -> Any?) = this ?: throw IllegalStateException(msg().toString())
