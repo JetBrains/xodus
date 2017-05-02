@@ -1,5 +1,4 @@
 dependencies {
-    compile 'com.github.penemue:keap:0.1.0'
     compile project(':entity-store')
     testCompile project(':entity-store').sourceSets.test.output
     testCompile project(':utils').sourceSets.test.output

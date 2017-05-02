@@ -243,7 +243,7 @@ public class SortEngine {
     }
 
     protected Iterable<Entity> sortInMemory(Iterable<Entity> source, Comparator<Entity> comparator) {
-        return new InMemoryKeapSortIterable(source, comparator);
+        return new InMemoryMergeSortIterable(source, comparator);
     }
 
     private Iterable<Entity> getAllEntities(final String entityType, final ModelMetaData mmd) {
