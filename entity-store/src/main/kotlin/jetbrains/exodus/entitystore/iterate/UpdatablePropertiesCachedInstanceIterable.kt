@@ -22,16 +22,17 @@ import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.tables.PropertyTypes
 import jetbrains.exodus.kotlin.notNull
-import mu.KLogging
+import org.slf4j.LoggerFactory
 
 class UpdatablePropertiesCachedInstanceIterable(txn: PersistentStoreTransaction?,
                                                 it: PropertyValueIterator?,
                                                 source: EntityIterableBase) : UpdatableCachedInstanceIterable(txn, source) {
 
-    companion object : KLogging() {
+    companion object {
 
-        val PropertyValueIterator.nextId get() = this.nextId().notNull
-        val PropertyValueIterator.currentValue: Comparable<Any> get() = this.currentValue().notNull
+        private val logger = LoggerFactory.getLogger(UpdatablePropertiesCachedInstanceIterable::class.java)
+        private val PropertyValueIterator.nextId get() = this.nextId().notNull
+        private val PropertyValueIterator.currentValue: Comparable<Any> get() = this.currentValue().notNull
     }
 
     private var typeId = -1
