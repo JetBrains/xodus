@@ -76,21 +76,20 @@ public class PersistentLinkedHashMap<K, V> {
     }
 
     public boolean endWrite(@NotNull final PersistentLinkedHashMapMutable<K, V> mutableMap) {
-        if (!mutableMap.isDirty() || mutableMap.sourceRoot != root) {
+        if (!mutableMap.isDirty() || (root != null && mutableMap.root != root)) {
             return false;
         }
         // TODO: this is a relaxed condition (not to break existing behaviour)
         boolean result = mutableMap.endWrite();
-        root = mutableMap.root;
+        root = new Root<>(mutableMap.root.map, mutableMap.root.queue, mutableMap.order);
         return result;
     }
 
     public static class PersistentLinkedHashMapMutable<K, V> implements Iterable<Pair<K, V>> {
 
-        @Nullable
-        private final Root<K, V> sourceRoot;
         @NotNull
         private final Root<K, V> root;
+        private long order;
         @Nullable
         private final RemoveEldestFunction<K, V> removeEldest;
         @NotNull
@@ -100,8 +99,14 @@ public class PersistentLinkedHashMap<K, V> {
         private boolean isDirty;
 
         public PersistentLinkedHashMapMutable(@NotNull final PersistentLinkedHashMap<K, V> source) {
-            sourceRoot = source.root;
-            root = sourceRoot == null ? new Root<K, V>() : new Root<>(sourceRoot);
+            final Root<K, V> sourceRoot = source.root;
+            if (sourceRoot == null) {
+                root = new Root<>();
+                order = 0L;
+            } else {
+                root = sourceRoot;
+                order = sourceRoot.order;
+            }
             removeEldest = source.removeEldest;
             mapMutable = root.map.beginWrite();
             queueMutable = root.queue.beginWrite();
@@ -118,7 +123,7 @@ public class PersistentLinkedHashMap<K, V> {
             final long currentOrder = internalValue.getOrder();
             if (root.order > currentOrder + (mapMutable.size() >> 1)) {
                 isDirty = true;
-                final long newOrder = ++root.order;
+                final long newOrder = ++order;
                 mapMutable.put(key, new InternalValue<>(newOrder, result));
                 queueMutable.put(newOrder, key);
                 removeKeyAndCheckConsistency(key, currentOrder);
@@ -142,7 +147,7 @@ public class PersistentLinkedHashMap<K, V> {
                 removeKeyAndCheckConsistency(key, internalValue.getOrder());
             }
             isDirty = true;
-            final long newOrder = ++root.order;
+            final long newOrder = ++order;
             mapMutable.put(key, new InternalValue<>(newOrder, value));
             queueMutable.put(newOrder, key);
             if (removeEldest != null) {
@@ -270,7 +275,7 @@ public class PersistentLinkedHashMap<K, V> {
         private final PersistentHashMap<K, InternalValue<V>> map;
         @NotNull
         private final PersistentLong23TreeMap<K> queue;
-        private long order;
+        private final long order;
 
         private Root() {
             this(new PersistentHashMap<K, InternalValue<V>>(), new PersistentLong23TreeMap<K>(), 0L);
