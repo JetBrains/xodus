@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.core.dataStructures;
 
-import jetbrains.exodus.core.execution.locks.CriticalSection;
+import jetbrains.exodus.core.execution.locks.Guard;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -44,7 +44,7 @@ public abstract class PriorityQueue<P extends Comparable<? super P>, E> implemen
 
     public abstract void clear();
 
-    public abstract CriticalSection lock();
+    public abstract Guard lock();
 
     public abstract void unlock();
 }

@@ -13,27 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.core.execution.locks;
+package jetbrains.exodus.core.execution;
 
-import java.util.concurrent.locks.ReentrantLock;
+import org.junit.Before;
 
-public final class CriticalSection extends ReentrantLock implements Guard {
+public class JobProcessorWithConcurrentQueueTest extends JobProcessorTest {
 
-    public CriticalSection() {
-        this(false);
-    }
-
-    public CriticalSection(final boolean fair) {
-        super(fair);
-    }
-
-    public CriticalSection enter() {
-        lock();
-        return this;
-    }
-
-    @Override
-    public void close() {
-        unlock();
+    @Before
+    public void setUp() throws Exception {
+        System.setProperty(JobProcessorQueueAdapter.CONCURRENT_QUEUE_PROPERTY, "true");
     }
 }

@@ -18,6 +18,7 @@ package jetbrains.exodus.core.dataStructures;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.LinkedHashSet;
 import jetbrains.exodus.core.execution.locks.CriticalSection;
+import jetbrains.exodus.core.execution.locks.Guard;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -36,14 +37,14 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
 
     @Override
     public boolean isEmpty() {
-        try (CriticalSection ignored = lock()) {
+        try (Guard ignored = lock()) {
             return priorities.isEmpty();
         }
     }
 
     @Override
     public int size() {
-        try (CriticalSection ignored = lock()) {
+        try (Guard ignored = lock()) {
             return priorities.size();
         }
     }

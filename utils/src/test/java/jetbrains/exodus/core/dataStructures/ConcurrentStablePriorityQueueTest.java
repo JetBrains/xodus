@@ -13,27 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.core.execution.locks;
+package jetbrains.exodus.core.dataStructures;
 
-import java.util.concurrent.locks.ReentrantLock;
-
-public final class CriticalSection extends ReentrantLock implements Guard {
-
-    public CriticalSection() {
-        this(false);
-    }
-
-    public CriticalSection(final boolean fair) {
-        super(fair);
-    }
-
-    public CriticalSection enter() {
-        lock();
-        return this;
-    }
+@SuppressWarnings("rawtypes")
+public class ConcurrentStablePriorityQueueTest extends PriorityQueueTest {
 
     @Override
-    public void close() {
-        unlock();
+    protected PriorityQueue createQueue() {
+        return new ConcurrentStablePriorityQueue();
     }
 }

@@ -15,25 +15,14 @@
  */
 package jetbrains.exodus.core.execution.locks;
 
-import java.util.concurrent.locks.ReentrantLock;
+public interface Guard extends AutoCloseable {
+    Guard EMPTY = new Guard() {
+        @Override
+        public void close() {
 
-public final class CriticalSection extends ReentrantLock implements Guard {
-
-    public CriticalSection() {
-        this(false);
-    }
-
-    public CriticalSection(final boolean fair) {
-        super(fair);
-    }
-
-    public CriticalSection enter() {
-        lock();
-        return this;
-    }
+        }
+    };
 
     @Override
-    public void close() {
-        unlock();
-    }
+    void close();
 }
