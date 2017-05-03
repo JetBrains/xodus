@@ -24,47 +24,39 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
-import java.util.concurrent.atomic.AtomicLong;
 
 public class PersistentLinkedHashMap<K, V> {
 
     private static final Logger logger = LoggerFactory.getLogger(PersistentLinkedHashMap.class);
 
     @Nullable
-    private volatile Pair<PersistentHashMap<K, InternalValue<V>>, PersistentLong23TreeMap<K>> root;
-    @NotNull
-    private final AtomicLong orderCounter;
+    private volatile Root<K, V> root;
     @Nullable
     private final RemoveEldestFunction<K, V> removeEldest;
 
     public PersistentLinkedHashMap() {
         root = null;
-        orderCounter = new AtomicLong();
         removeEldest = null;
     }
 
     public PersistentLinkedHashMap(@Nullable final RemoveEldestFunction<K, V> removeEldest) {
         root = null;
-        orderCounter = new AtomicLong();
         this.removeEldest = removeEldest;
     }
 
     private PersistentLinkedHashMap(@NotNull final PersistentLinkedHashMap<K, V> source, @Nullable final RemoveEldestFunction<K, V> removeEldest) {
-        final Pair<PersistentHashMap<K, InternalValue<V>>, PersistentLong23TreeMap<K>> sourceRoot = source.root;
+        final Root<K, V> sourceRoot = source.root;
         if (sourceRoot == null) {
-            root = new Pair<>(
-                new PersistentHashMap<K, InternalValue<V>>(), new PersistentLong23TreeMap<K>());
+            root = new Root<>();
         } else {
-            root = new Pair<>(
-                sourceRoot.getFirst().getClone(), sourceRoot.getSecond().getClone());
+            root = new Root<>(sourceRoot);
         }
-        orderCounter = source.orderCounter;
         this.removeEldest = removeEldest;
     }
 
     public int size() {
-        final Pair<PersistentHashMap<K, InternalValue<V>>, PersistentLong23TreeMap<K>> root = this.root;
-        return root == null ? 0 : root.getFirst().getCurrent().size();
+        final Root<K, V> root = this.root;
+        return root == null ? 0 : root.map.getCurrent().size();
     }
 
     public boolean isEmpty() {
@@ -84,47 +76,35 @@ public class PersistentLinkedHashMap<K, V> {
     }
 
     public boolean endWrite(@NotNull final PersistentLinkedHashMapMutable<K, V> mutableMap) {
-        if (!mutableMap.isDirty() || mutableMap.getSourceRoot() != root) {
+        if (!mutableMap.isDirty() || mutableMap.sourceRoot != root) {
             return false;
         }
         // TODO: this is a relaxed condition (not to break existing behaviour)
-        boolean result = mutableMap.getMapMutable().endWrite() && mutableMap.getQueueMutable().endWrite();
-        root = new Pair<>(
-            mutableMap.getMap(), mutableMap.getQueue());
+        boolean result = mutableMap.endWrite();
+        root = mutableMap.root;
         return result;
     }
 
     public static class PersistentLinkedHashMapMutable<K, V> implements Iterable<Pair<K, V>> {
 
         @Nullable
-        private final Pair<PersistentHashMap<K, InternalValue<V>>, PersistentLong23TreeMap<K>> sourceRoot;
+        private final Root<K, V> sourceRoot;
         @NotNull
-        private final AtomicLong orderCounter;
+        private final Root<K, V> root;
         @Nullable
         private final RemoveEldestFunction<K, V> removeEldest;
         @NotNull
-        private final PersistentHashMap<K, InternalValue<V>> map;
-        @NotNull
         private final PersistentHashMap<K, InternalValue<V>>.MutablePersistentHashMap mapMutable;
-        @NotNull
-        private final PersistentLong23TreeMap<K> queue;
         @NotNull
         private final PersistentLong23TreeMap<K>.MutableMap queueMutable;
         private boolean isDirty;
 
-        public PersistentLinkedHashMapMutable(PersistentLinkedHashMap<K, V> source) {
+        public PersistentLinkedHashMapMutable(@NotNull final PersistentLinkedHashMap<K, V> source) {
             sourceRoot = source.root;
-            orderCounter = source.orderCounter;
+            root = sourceRoot == null ? new Root<K, V>() : new Root<>(sourceRoot);
             removeEldest = source.removeEldest;
-            if (sourceRoot == null) {
-                map = new PersistentHashMap<>();
-                queue = new PersistentLong23TreeMap<>();
-            } else {
-                map = sourceRoot.getFirst();
-                queue = sourceRoot.getSecond();
-            }
-            mapMutable = map.beginWrite();
-            queueMutable = queue.beginWrite();
+            mapMutable = root.map.beginWrite();
+            queueMutable = root.queue.beginWrite();
             isDirty = false;
         }
 
@@ -136,9 +116,9 @@ public class PersistentLinkedHashMap<K, V> {
             }
             final V result = internalValue.getValue();
             final long currentOrder = internalValue.getOrder();
-            if (orderCounter.get() > currentOrder + (mapMutable.size() >> 1)) {
+            if (root.order > currentOrder + (mapMutable.size() >> 1)) {
                 isDirty = true;
-                final long newOrder = orderCounter.incrementAndGet();
+                final long newOrder = ++root.order;
                 mapMutable.put(key, new InternalValue<>(newOrder, result));
                 queueMutable.put(newOrder, key);
                 removeKeyAndCheckConsistency(key, currentOrder);
@@ -162,7 +142,7 @@ public class PersistentLinkedHashMap<K, V> {
                 removeKeyAndCheckConsistency(key, internalValue.getOrder());
             }
             isDirty = true;
-            final long newOrder = orderCounter.incrementAndGet();
+            final long newOrder = ++root.order;
             mapMutable.put(key, new InternalValue<>(newOrder, value));
             queueMutable.put(newOrder, key);
             if (removeEldest != null) {
@@ -251,29 +231,8 @@ public class PersistentLinkedHashMap<K, V> {
             };
         }
 
-        @Nullable
-        public Pair<PersistentHashMap<K, InternalValue<V>>, PersistentLong23TreeMap<K>> getSourceRoot() {
-            return sourceRoot;
-        }
-
-        @NotNull
-        public PersistentHashMap<K, InternalValue<V>> getMap() {
-            return map;
-        }
-
-        @NotNull
-        public PersistentHashMap<K, InternalValue<V>>.MutablePersistentHashMap getMapMutable() {
-            return mapMutable;
-        }
-
-        @NotNull
-        public PersistentLong23TreeMap<K> getQueue() {
-            return queue;
-        }
-
-        @NotNull
-        public PersistentLong23TreeMap<K>.MutableMap getQueueMutable() {
-            return queueMutable;
+        boolean endWrite() {
+            return mapMutable.endWrite() && queueMutable.endWrite();
         }
 
         void checkTip() {
@@ -303,6 +262,30 @@ public class PersistentLinkedHashMap<K, V> {
         boolean removeEldest(@NotNull final PersistentLinkedHashMapMutable<K, V> map,
                              @NotNull final K key,
                              @Nullable final V value);
+    }
+
+    private static class Root<K, V> {
+
+        @NotNull
+        private final PersistentHashMap<K, InternalValue<V>> map;
+        @NotNull
+        private final PersistentLong23TreeMap<K> queue;
+        private long order;
+
+        private Root() {
+            this(new PersistentHashMap<K, InternalValue<V>>(), new PersistentLong23TreeMap<K>(), 0L);
+        }
+
+        private Root(@NotNull final Root<K, V> source) {
+            this(source.map.getClone(), source.queue.getClone(), source.order);
+        }
+
+        private Root(@NotNull final PersistentHashMap<K, InternalValue<V>> map,
+                     @NotNull PersistentLong23TreeMap<K> queue, final long order) {
+            this.map = map;
+            this.queue = queue;
+            this.order = order;
+        }
     }
 
     private static class InternalValue<V> {
