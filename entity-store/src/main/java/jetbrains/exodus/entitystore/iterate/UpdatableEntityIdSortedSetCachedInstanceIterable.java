@@ -49,7 +49,7 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
             if (!it.hasNext()) {
                 localIds = EMPTY_IDS;
             } else {
-                localIds = new PersistentLong23TreeSet();
+                localIds = EMPTY_IDS.getClone();
                 final PersistentLongSet.MutableSet mutableLocalIds = localIds.beginWrite();
                 do {
                     final EntityId entityId = it.nextId();
