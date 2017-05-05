@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.core.dataStructures;
 
+import jetbrains.exodus.core.execution.SharedTimer;
 import org.jetbrains.annotations.NotNull;
 
 public class SoftConcurrentLongObjectCache<V> extends SoftLongObjectCacheBase<V> {
@@ -26,6 +27,11 @@ public class SoftConcurrentLongObjectCache<V> extends SoftLongObjectCacheBase<V>
     @NotNull
     @Override
     protected ConcurrentLongObjectCache<V> newChunk(final int chunkSize) {
-        return new ConcurrentLongObjectCache<>(chunkSize);
+        return new ConcurrentLongObjectCache<V>(chunkSize) {
+            @Override
+            protected SharedTimer.ExpirablePeriodicTask getCacheAdjuster() {
+                return null;
+            }
+        };
     }
 }
