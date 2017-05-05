@@ -53,7 +53,7 @@ public class PersistentLong23TreeMap<V> implements PersistentLongMap<V> {
 
     @Override
     public Entry<V> createEntry(long key, V value) {
-        return new Entry<>(key, value);
+        return new LongMapEntry<>(key, value);
     }
 
     protected static class ImmutableMap<V> extends Persistent23Tree.ImmutableTree<PersistentLongMap.Entry<V>> implements PersistentLongMap.ImmutableMap<V> {
@@ -68,14 +68,14 @@ public class PersistentLong23TreeMap<V> implements PersistentLongMap<V> {
             if (root == null) {
                 return null;
             }
-            PersistentLongMap.Entry<V> entry = root.get(new Entry<V>(key));
+            PersistentLongMap.Entry<V> entry = root.get(new LongMapEntry<V>(key));
             return entry == null ? null : entry.getValue();
         }
 
         @Override
         public boolean containsKey(long key) {
             final Node<PersistentLongMap.Entry<V>> root = getRoot();
-            return root != null && root.get(new Entry<V>(key)) != null;
+            return root != null && root.get(new LongMapEntry<V>(key)) != null;
         }
     }
 
@@ -91,7 +91,7 @@ public class PersistentLong23TreeMap<V> implements PersistentLongMap<V> {
             if (root == null) {
                 return null;
             }
-            PersistentLongMap.Entry<V> entry = root.get(new Entry<V>(key));
+            PersistentLongMap.Entry<V> entry = root.get(new LongMapEntry<V>(key));
             return entry == null ? null : entry.getValue();
         }
 
@@ -102,7 +102,7 @@ public class PersistentLong23TreeMap<V> implements PersistentLongMap<V> {
 
         @Override
         public void put(long key, @NotNull V value) {
-            add(new Entry<>(key, value));
+            add(new LongMapEntry<>(key, value));
         }
 
         @Override
@@ -111,7 +111,7 @@ public class PersistentLong23TreeMap<V> implements PersistentLongMap<V> {
             if (root == null) {
                 return null;
             }
-            Pair<Node<PersistentLongMap.Entry<V>>, PersistentLongMap.Entry<V>> removeResult = root.remove(new Entry<V>(key), true);
+            Pair<Node<PersistentLongMap.Entry<V>>, PersistentLongMap.Entry<V>> removeResult = root.remove(new LongMapEntry<V>(key), true);
             if (removeResult == null) {
                 return null;
             }
@@ -122,39 +122,6 @@ public class PersistentLong23TreeMap<V> implements PersistentLongMap<V> {
             root = res == null ? null : res.asRoot(root.getSize() - 1);
             setRoot(root);
             return removeResult.getSecond().getValue();
-        }
-    }
-
-    @SuppressWarnings("ComparableImplementedButEqualsNotOverridden")
-    protected static class Entry<V> implements PersistentLongMap.Entry<V> {
-
-        private final long key;
-        private final V value;
-
-        Entry(long k) {
-            this(k, null);
-        }
-
-        Entry(long k, @Nullable V v) {
-            key = k;
-            value = v;
-        }
-
-        @SuppressWarnings("NullableProblems") // Comparable<T> contract requires NPE if argument is null
-        @Override
-        public int compareTo(PersistentLongMap.Entry<V> o) {
-            final long otherKey = o.getKey();
-            return key > otherKey ? 1 : key == otherKey ? 0 : -1;
-        }
-
-        @Override
-        public V getValue() {
-            return value;
-        }
-
-        @Override
-        public long getKey() {
-            return key;
         }
     }
 }
