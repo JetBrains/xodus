@@ -299,7 +299,7 @@ public class Persistent23TreeTest {
                 Assert.assertEquals(new Integer(j), key);
                 j++;
             }
-            tree.checkTip();
+            tree.testConsistency();
             entries.add(i);
         }
     }
@@ -360,7 +360,7 @@ public class Persistent23TreeTest {
         Assert.assertEquals(0, min.intValue());
         Integer max = tree.getMaximum();
         Assert.assertEquals(MAX_KEY, max.intValue());
-        tree.checkTip();
+        tree.testConsistency();
     }
 
     @Test
@@ -395,7 +395,7 @@ public class Persistent23TreeTest {
         final Persistent23Tree.ImmutableTree<Integer> current = source.beginRead();
         Assert.assertEquals(min, current.getMinimum().intValue());
         Assert.assertEquals(max, tree.getMaximum().intValue());
-        tree.checkTip();
+        tree.testConsistency();
     }
 
     @Test
@@ -557,7 +557,7 @@ public class Persistent23TreeTest {
 
     private static void checkInsertRemove(Random random, Persistent23Tree<Integer> set, int count) {
         Persistent23Tree.MutableTree<Integer> tree = set.beginWrite();
-        tree.checkTip();
+        tree.testConsistency();
         addEntries(random, tree, count);
         removeEntries(random, tree, count);
         Assert.assertEquals(0, tree.size());
@@ -573,9 +573,9 @@ public class Persistent23TreeTest {
             int key = p[i];
             tree.add(key);
             Assert.assertFalse(tree.isEmpty());
-            tree.checkTip();
+            tree.testConsistency();
             tree.add(key);
-            tree.checkTip();
+            tree.testConsistency();
             for (int j = 0; j <= 10; j++) {
                 int testKey = p[i * j / 10];
                 Assert.assertTrue(tree.contains(testKey));
@@ -594,9 +594,9 @@ public class Persistent23TreeTest {
             Assert.assertFalse(tree.isEmpty());
             int key = p[i];
             Assert.assertTrue(tree.exclude(key));
-            tree.checkTip();
+            tree.testConsistency();
             Assert.assertFalse(tree.exclude(key));
-            tree.checkTip();
+            tree.testConsistency();
             for (int j = 0; j <= 10; j++) {
                 int testKey = p[i * j / 10];
                 Assert.assertFalse(tree.contains(testKey));

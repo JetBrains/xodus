@@ -30,17 +30,17 @@ inline fun <K : Comparable<K>, V> Persistent23TreeMap<K, V>.writeFinally(block: 
     }
 }
 
-inline fun <V, R> PersistentLong23TreeMap<V>.read(block: PersistentLong23TreeMap<V>.ImmutableMap.() -> R): R {
+inline fun <V, R> PersistentLongMap<V>.read(block: PersistentLongMap.ImmutableMap<V>.() -> R): R {
     return beginRead().block()
 }
 
-inline fun <V> PersistentLong23TreeMap<V>.write(block: PersistentLong23TreeMap<V>.MutableMap.() -> Unit): Boolean {
+inline fun <V> PersistentLongMap<V>.write(block: PersistentLongMap.MutableMap<V>.() -> Unit): Boolean {
     val mutableMap = beginWrite()
     mutableMap.block()
     return mutableMap.endWrite()
 }
 
-inline fun <V> PersistentLong23TreeMap<V>.writeFinally(block: PersistentLong23TreeMap<V>.MutableMap.() -> Unit) {
+inline fun <V> PersistentLongMap<V>.writeFinally(block: PersistentLongMap.MutableMap<V>.() -> Unit) {
     while (!write(block)) {
     }
 }

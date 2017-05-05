@@ -249,7 +249,7 @@ public class Persistent23Tree<K extends Comparable<K>> extends AbstractPersisten
             return startingRoot;
         }
 
-        void checkTip() {
+        public void testConsistency() {
             if (root != null) {
                 checkNode(root);
             }

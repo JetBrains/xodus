@@ -15,7 +15,9 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
-import jetbrains.exodus.core.dataStructures.persistent.PersistentLong23TreeMap;
+import jetbrains.exodus.core.dataStructures.hash.LongIterator;
+import jetbrains.exodus.core.dataStructures.persistent.PersistentLong23TreeSet;
+import jetbrains.exodus.core.dataStructures.persistent.PersistentLongSet;
 import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.EntityIterator;
 import jetbrains.exodus.entitystore.PersistentEntityId;
@@ -24,18 +26,15 @@ import jetbrains.exodus.entitystore.util.EntityIdSetFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Iterator;
-
-@SuppressWarnings("unchecked")
 public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableCachedInstanceIterable {
 
-    private static final PersistentLong23TreeMap EMPTY_IDS = new PersistentLong23TreeMap();
+    private static final PersistentLongSet EMPTY_IDS = new PersistentLong23TreeSet();
 
     private final int entityTypeId;
     @NotNull
-    private final PersistentLong23TreeMap localIds;
+    private final PersistentLongSet localIds;
     @Nullable
-    private PersistentLong23TreeMap.MutableMap mutableLocalIds;
+    private PersistentLongSet.MutableSet mutableLocalIds;
     @Nullable
     private EntityIdSet idSet;
     @Nullable
@@ -50,14 +49,14 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
             if (!it.hasNext()) {
                 localIds = EMPTY_IDS;
             } else {
-                localIds = new PersistentLong23TreeMap();
-                final PersistentLong23TreeMap.MutableMap mutableLocalIds = localIds.beginWrite();
+                localIds = new PersistentLong23TreeSet();
+                final PersistentLongSet.MutableSet mutableLocalIds = localIds.beginWrite();
                 do {
                     final EntityId entityId = it.nextId();
                     if (entityId == null) {
                         throw new NullPointerException("EntityIteratorBase.nextId() returned null!");
                     }
-                    mutableLocalIds.put(entityId.getLocalId(), EMPTY_IDS);
+                    mutableLocalIds.add(entityId.getLocalId());
                 } while (it.hasNext());
                 mutableLocalIds.endWrite();
             }
@@ -89,14 +88,14 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
         if (localIds == EMPTY_IDS && mutableLocalIds == null) {
             return EntityIteratorBase.EMPTY;
         }
-        final PersistentLong23TreeMap.MutableMap currentMap = getCurrentMap();
+        final PersistentLongSet.MutableSet currentSet = getCurrentMap();
         if (mutableLocalIds == null) {
             if (idArray == null) {
-                final long[] result = new long[currentMap.size()];
-                final Iterator<PersistentLong23TreeMap.Entry> it = currentMap.iterator();
+                final long[] result = new long[currentSet.size()];
+                final LongIterator it = currentSet.longIterator();
                 int i = 0;
                 while (it.hasNext()) {
-                    result[i++] = it.next().getKey();
+                    result[i++] = it.next();
                 }
                 idArray = result;
             }
@@ -118,7 +117,7 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
         }
         return new NonDisposableEntityIterator(this) {
 
-            private final Iterator<PersistentLong23TreeMap.Entry> it = currentMap.iterator();
+            private final LongIterator it = currentSet.longIterator();
 
             @Override
             protected boolean hasNextImpl() {
@@ -128,7 +127,7 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
             @Nullable
             @Override
             protected EntityId nextIdImpl() {
-                return new PersistentEntityId(entityTypeId, it.next().getKey());
+                return new PersistentEntityId(entityTypeId, it.next());
             }
         };
     }
@@ -177,7 +176,7 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
 
     final void addEntity(final EntityId id) {
         checkEntityType(id);
-        checkMutableIds().put(id.getLocalId(), EMPTY_IDS);
+        checkMutableIds().add(id.getLocalId());
     }
 
     final void removeEntity(final EntityId id) {
@@ -185,12 +184,12 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
         checkMutableIds().remove(id.getLocalId());
     }
 
-    private PersistentLong23TreeMap.MutableMap getCurrentMap() {
+    private PersistentLongSet.MutableSet getCurrentMap() {
         return mutableLocalIds == null ? localIds.beginWrite() : mutableLocalIds;
     }
 
-    private PersistentLong23TreeMap.MutableMap checkMutableIds() {
-        PersistentLong23TreeMap.MutableMap mutableLocalIds = this.mutableLocalIds;
+    private PersistentLongSet.MutableSet checkMutableIds() {
+        PersistentLongSet.MutableSet mutableLocalIds = this.mutableLocalIds;
         if (mutableLocalIds == null) {
             throw new IllegalStateException("UpdatableEntityIdSortedSetCachedInstanceIterable was not mutated");
         }

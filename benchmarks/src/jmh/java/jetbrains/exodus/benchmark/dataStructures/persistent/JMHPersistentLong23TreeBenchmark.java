@@ -16,6 +16,7 @@
 package jetbrains.exodus.benchmark.dataStructures.persistent;
 
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLong23TreeMap;
+import jetbrains.exodus.core.dataStructures.persistent.PersistentLongMap;
 import org.openjdk.jmh.annotations.*;
 
 import java.util.TreeMap;
@@ -27,7 +28,7 @@ public class JMHPersistentLong23TreeBenchmark {
 
     private static final int MAP_SIZE = 100000;
 
-    private final PersistentLong23TreeMap<Object> tree = new PersistentLong23TreeMap();
+    private final PersistentLongMap<Object> tree = new PersistentLong23TreeMap<>();
     private final TreeMap<Long, Object> juTree = new TreeMap<>();
     private final Object value = new Object();
     private long existingKey = 0;
@@ -35,7 +36,7 @@ public class JMHPersistentLong23TreeBenchmark {
 
     @Setup
     public void prepare() {
-        final PersistentLong23TreeMap<Object>.MutableMap mutableMap = tree.beginWrite();
+        final PersistentLongMap.MutableMap<Object> mutableMap = tree.beginWrite();
         for (int i = 0; i < MAP_SIZE; ++i) {
             // the keys are even
             mutableMap.put((long) (i * 2), value);

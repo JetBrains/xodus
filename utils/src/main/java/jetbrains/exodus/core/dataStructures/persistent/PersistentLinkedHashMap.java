@@ -95,7 +95,7 @@ public class PersistentLinkedHashMap<K, V> {
         @NotNull
         private final PersistentHashMap<K, InternalValue<V>>.MutablePersistentHashMap mapMutable;
         @NotNull
-        private final PersistentLong23TreeMap<K>.MutableMap queueMutable;
+        private final PersistentLongMap.MutableMap<K> queueMutable;
         private boolean isDirty;
 
         public PersistentLinkedHashMapMutable(@NotNull final PersistentLinkedHashMap<K, V> source) {
@@ -152,7 +152,7 @@ public class PersistentLinkedHashMap<K, V> {
             queueMutable.put(newOrder, key);
             if (removeEldest != null) {
                 int removed = 0;
-                PersistentLong23TreeMap.Entry<K> min;
+                PersistentLongMap.Entry<K> min;
                 while ((min = queueMutable.getMinimum()) != null) {
                     if (removed >= 50) {
                         break; // prevent looping on implementation errors
@@ -242,14 +242,14 @@ public class PersistentLinkedHashMap<K, V> {
 
         void checkTip() {
             mapMutable.checkTip();
-            queueMutable.checkTip();
+            queueMutable.testConsistency();
         }
 
         private void removeKeyAndCheckConsistency(@NotNull final K key, final long prevOrder) {
             final K keyByOrder = queueMutable.remove(prevOrder);
             if (!key.equals(keyByOrder)) {
                 logger.error("PersistentLinkedHashMap is inconsistent, key = " + key + ", keyByOrder = " + keyByOrder +
-                    ", prevOrder = " + prevOrder, new Throwable());
+                        ", prevOrder = " + prevOrder, new Throwable());
             }
         }
     }
@@ -274,7 +274,7 @@ public class PersistentLinkedHashMap<K, V> {
         @NotNull
         private final PersistentHashMap<K, InternalValue<V>> map;
         @NotNull
-        private final PersistentLong23TreeMap<K> queue;
+        private final PersistentLongMap<K> queue;
         private final long order;
 
         private Root() {
@@ -286,7 +286,7 @@ public class PersistentLinkedHashMap<K, V> {
         }
 
         private Root(@NotNull final PersistentHashMap<K, InternalValue<V>> map,
-                     @NotNull PersistentLong23TreeMap<K> queue, final long order) {
+                     @NotNull PersistentLongMap<K> queue, final long order) {
             this.map = map;
             this.queue = queue;
             this.order = order;

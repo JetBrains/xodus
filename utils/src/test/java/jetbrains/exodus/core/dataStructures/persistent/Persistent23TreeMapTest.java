@@ -303,7 +303,7 @@ public class Persistent23TreeMapTest {
 
     private static void checkInsertRemove(Random random, Persistent23TreeMap<Integer, String> map, int count) {
         Persistent23TreeMap.MutableMap<Integer, String> write = map.beginWrite();
-        write.checkTip();
+        write.testConsistency();
         addEntries(random, write, count);
         removeEntries(random, write, count);
         Assert.assertEquals(0, write.size());
@@ -319,10 +319,10 @@ public class Persistent23TreeMapTest {
             int key = p[i];
             tree.put(key, key + " ");
             Assert.assertFalse(tree.isEmpty());
-            tree.checkTip();
+            tree.testConsistency();
             Assert.assertEquals(i + 1, tree.size());
             tree.put(key, String.valueOf(key));
-            tree.checkTip();
+            tree.testConsistency();
             Assert.assertEquals(i + 1, tree.size());
             for (int j = 0; j <= 10; j++) {
                 int testKey = p[i * j / 10];
@@ -342,9 +342,9 @@ public class Persistent23TreeMapTest {
             Assert.assertFalse(tree.isEmpty());
             int key = p[i];
             Assert.assertEquals(String.valueOf(key), tree.remove(key));
-            tree.checkTip();
+            tree.testConsistency();
             Assert.assertNull(tree.remove(key));
-            tree.checkTip();
+            tree.testConsistency();
             for (int j = 0; j <= 10; j++) {
                 int testKey = p[i * j / 10];
                 Assert.assertFalse(tree.containsKey(testKey));
