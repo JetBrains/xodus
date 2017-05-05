@@ -52,7 +52,8 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
     @Override
     public E push(@NotNull final P priority, @NotNull final E value) {
         LinkedHashSet<E> values;
-        Pair<E, P> oldPair = priorities.put(value, new Pair<>(value, priority));
+        final Pair<E, P> oldPair = priorities.remove(value);
+        priorities.put(value, new Pair<>(value, priority));
         final P oldPriority = oldPair == null ? null : oldPair.getSecond();
         final E oldValue = oldPair == null ? null : oldPair.getFirst();
         if (oldPriority != null && (values = theQueue.get(oldPriority)) != null) {
