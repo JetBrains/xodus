@@ -34,7 +34,7 @@ public class PersistentLong23TreeSet implements PersistentLongSet {
     }
 
     @Override
-    public ImmutableSet beginRead() {
+    public PersistentLongSet.ImmutableSet beginRead() {
         return new ImmutableSet(set.getRoot());
     }
 
@@ -44,7 +44,7 @@ public class PersistentLong23TreeSet implements PersistentLongSet {
     }
 
     @Override
-    public MutableSet beginWrite() {
+    public PersistentLongSet.MutableSet beginWrite() {
         return new MutableSet(set);
     }
 
