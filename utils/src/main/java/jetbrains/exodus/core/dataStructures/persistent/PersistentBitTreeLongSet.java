@@ -24,12 +24,11 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
     private static final int BITS_PER_ENTRY = 10;
     private static final int ELEMENTS_PER_ENTRY = 1 << BITS_PER_ENTRY;
     private static final int MASK = ELEMENTS_PER_ENTRY - 1;
-    private static final Persistent23Tree<Entry> EMPTY = new Persistent23Tree<>();
 
     private final Root root;
 
     public PersistentBitTreeLongSet() {
-        this.root = new Root(EMPTY, 0);
+        this.root = new Root(new Persistent23Tree<Entry>(), 0);
     }
 
     private PersistentBitTreeLongSet(Root root) {
