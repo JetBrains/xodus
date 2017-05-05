@@ -244,10 +244,6 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
 
     @SuppressWarnings("rawtypes")
     private static PriorityQueue createQueue() {
-        final String concurrentQueueProperty = System.getProperty(CONCURRENT_QUEUE_PROPERTY);
-        if (concurrentQueueProperty != null && "false".equalsIgnoreCase(concurrentQueueProperty)) {
-            return new StablePriorityQueue();
-        }
-        return new ConcurrentStablePriorityQueue();
+        return Boolean.getBoolean(CONCURRENT_QUEUE_PROPERTY) ? new ConcurrentStablePriorityQueue() : new StablePriorityQueue();
     }
 }
