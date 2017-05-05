@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.core.dataStructures;
 
+import jetbrains.exodus.TestFor;
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.core.dataStructures.hash.IntHashSet;
 import jetbrains.exodus.core.execution.locks.Guard;
@@ -23,7 +24,7 @@ import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public abstract class PriorityQueueTest {
@@ -146,6 +147,22 @@ public abstract class PriorityQueueTest {
         assertEquals(new TestObject(0), queue.pop());
     }
 
+    @TestFor(issues = "XD-600")
+    @Test
+    public void mergePushedOut() {
+        final PriorityQueue<Integer, TestObject> queue = createQueue();
+        final TestObject firstValue = new TestObject(0);
+        TestObject pushedOut = queue.push(0, firstValue);
+        assertNull(pushedOut);
+        final TestObject secondValue = new TestObject(0);
+        pushedOut = queue.push(0, secondValue);
+        assertSame(firstValue, pushedOut);
+        pushedOut.number = 1;
+        assertEquals(1, queue.size());
+        assertNotNull(queue.pop());
+        assertNull(queue.pop());
+    }
+
     @SuppressWarnings("ObjectAllocationInLoop")
     @Test
     public void concurrentBenchmark() throws InterruptedException {
@@ -219,7 +236,7 @@ public abstract class PriorityQueueTest {
 
         private static final int MAX_TEST_OBJECTS = 3000000;
 
-        private final int number;
+        private int number;
 
         private TestObject(final int number) {
             this.number = number;
