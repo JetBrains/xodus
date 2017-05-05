@@ -129,7 +129,6 @@ class BufferedDataWriter implements TransactionalDataWriter {
             for (final MutablePage mutablePage : fullPages) {
                 final int off = mutablePage.flushedCount;
                 child.write(mutablePage.bytes, off, pageSize - off);
-                logCache.cachePage(log, mutablePage.pageAddress, mutablePage.bytes);
             }
             currentPage.previousPage = null;
         }
