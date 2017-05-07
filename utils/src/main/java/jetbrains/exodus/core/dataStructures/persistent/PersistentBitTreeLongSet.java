@@ -143,7 +143,7 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
                 size++;
             } else {
                 if (!entry.bits.get(bitIndex)) {
-                    final Entry copy = new Entry(index, entry.bits);
+                    final Entry copy = new Entry(index, entry);
                     mutableSet.add(copy);
                     entry = copy;
                     size++;
@@ -169,7 +169,7 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
             } else {
                 return false;
             }
-            final Entry copy = new Entry(index, entry.bits);
+            final Entry copy = new Entry(index, entry);
             copy.bits.clear(bitIndex);
             if (copy.bits.isEmpty()) {
                 mutableSet.exclude(entry);
@@ -198,10 +198,10 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
             this.index = min;
         }
 
-        public Entry(long min, BitSet bits) {
+        public Entry(long min, Entry other) {
             this.index = min;
-            if (bits != null) {
-                this.bits.or(bits);
+            if (other != null) {
+                this.bits.or(other.bits);
             }
         }
 
