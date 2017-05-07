@@ -143,6 +143,9 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
                 size++;
             } else {
                 if (!entry.bits.get(bitIndex)) {
+                    final Entry copy = new Entry(index, entry.bits);
+                    mutableSet.add(copy);
+                    entry = copy;
                     size++;
                 }
             }
@@ -152,26 +155,28 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
         @Override
         public boolean remove(long key) {
             final long index = getEntryIndex(key);
-            Entry entry;
             final AbstractPersistent23Tree.RootNode<Entry> root = mutableSet.getRoot();
             if (root == null) {
-                entry = null;
-            } else {
-                entry = mutableSet.getRoot().get(new Entry(index, null));
+                return false;
             }
+            Entry entry = mutableSet.getRoot().get(new Entry(index, null));
             if (entry == null) {
                 return false;
             }
             int bitIndex = (int) (key & MASK);
-            final boolean result = !entry.bits.get(bitIndex);
-            if (result) {
+            if (entry.bits.get(bitIndex)) {
                 size--;
+            } else {
+                return false;
             }
-            entry.bits.clear(bitIndex);
-            if (entry.bits.isEmpty()) {
+            final Entry copy = new Entry(index, entry.bits);
+            copy.bits.clear(bitIndex);
+            if (copy.bits.isEmpty()) {
                 mutableSet.exclude(entry);
+            } else {
+                mutableSet.add(copy);
             }
-            return result;
+            return true;
         }
 
         @Override
