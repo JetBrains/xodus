@@ -18,16 +18,16 @@ package jetbrains.exodus.core.dataStructures.persistent;
 import org.jetbrains.annotations.Nullable;
 
 @SuppressWarnings("ComparableImplementedButEqualsNotOverridden")
-class LongMapEntry<V> implements PersistentLongMap.Entry<V> {
+public class LongMapEntry<V> implements PersistentLongMap.Entry<V> {
 
     private final long key;
     private final V value;
 
-    LongMapEntry(long k) {
+    public LongMapEntry(long k) {
         this(k, null);
     }
 
-    LongMapEntry(long k, @Nullable V v) {
+    public LongMapEntry(long k, @Nullable V v) {
         key = k;
         value = v;
     }

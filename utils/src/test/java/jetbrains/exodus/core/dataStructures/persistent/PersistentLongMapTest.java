@@ -164,7 +164,7 @@ public class PersistentLongMapTest {
                 try {
                     treeItr.next();
                     Assert.fail();
-                } catch (NoSuchElementException e) {
+                } catch (NoSuchElementException ignored) {
                 }
                 Assert.assertFalse(treeItr.hasNext());
             }
@@ -185,15 +185,15 @@ public class PersistentLongMapTest {
             Assert.assertEquals(i, size);
             if ((size & 1023) == 0 || size < 100) {
                 if (i > 0) {
-                    checkTailIteration(write, added, map.createEntry(added.first(), null));
-                    checkTailIteration(write, added, map.createEntry(added.first() - 1, null));
-                    checkTailIteration(write, added, map.createEntry(added.last(), null));
-                    checkTailIteration(write, added, map.createEntry(added.last() + 1, null));
+                    checkTailIteration(write, added, new LongMapEntry<String>(added.first(), null));
+                    checkTailIteration(write, added, new LongMapEntry<String>(added.first() - 1, null));
+                    checkTailIteration(write, added, new LongMapEntry<String>(added.last(), null));
+                    checkTailIteration(write, added, new LongMapEntry<String>(added.last() + 1, null));
                 }
-                checkTailIteration(write, added, map.createEntry(Long.MAX_VALUE, null));
-                checkTailIteration(write, added, map.createEntry(Long.MIN_VALUE, null));
+                checkTailIteration(write, added, new LongMapEntry<String>(Long.MAX_VALUE, null));
+                checkTailIteration(write, added, new LongMapEntry<String>(Long.MIN_VALUE, null));
                 for (int j = 0; j < 10; j++) {
-                    checkTailIteration(write, added, map.createEntry(p[i * j / 10], null));
+                    checkTailIteration(write, added, new LongMapEntry<String>(p[i * j / 10], null));
                 }
             }
             write.put(p[i], String.valueOf(p[i]));
@@ -213,15 +213,15 @@ public class PersistentLongMapTest {
             Assert.assertEquals(i, size);
             if ((size & 1023) == 0 || size < 100) {
                 if (i > 0) {
-                    checkTailReverseIteration(write, added, map.createEntry(added.first(), null));
-                    checkTailReverseIteration(write, added, map.createEntry(added.first() - 1, null));
-                    checkTailReverseIteration(write, added, map.createEntry(added.last(), null));
-                    checkTailReverseIteration(write, added, map.createEntry(added.last() + 1, null));
+                    checkTailReverseIteration(write, added, new LongMapEntry<String>(added.first(), null));
+                    checkTailReverseIteration(write, added, new LongMapEntry<String>(added.first() - 1, null));
+                    checkTailReverseIteration(write, added, new LongMapEntry<String>(added.last(), null));
+                    checkTailReverseIteration(write, added, new LongMapEntry<String>(added.last() + 1, null));
                 }
-                checkTailReverseIteration(write, added, map.createEntry(Long.MAX_VALUE, null));
-                checkTailReverseIteration(write, added, map.createEntry(Long.MIN_VALUE, null));
+                checkTailReverseIteration(write, added, new LongMapEntry<String>(Long.MAX_VALUE, null));
+                checkTailReverseIteration(write, added, new LongMapEntry<String>(Long.MIN_VALUE, null));
                 for (int j = 0; j < 10; j++) {
-                    checkTailReverseIteration(write, added, map.createEntry(p[i * j / 10], null));
+                    checkTailReverseIteration(write, added, new LongMapEntry<String>(p[i * j / 10], null));
                 }
             }
             write.put(p[i], String.valueOf(p[i]));

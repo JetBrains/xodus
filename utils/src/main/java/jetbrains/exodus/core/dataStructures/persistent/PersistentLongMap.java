@@ -27,8 +27,6 @@ public interface PersistentLongMap<V> {
 
     MutableMap<V> beginWrite();
 
-    Entry<V> createEntry(long key, V value);
-
     interface ImmutableMap<V> extends Iterable<Entry<V>> {
         V get(long key);
 

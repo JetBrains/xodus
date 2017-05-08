@@ -51,11 +51,6 @@ public class PersistentLong23TreeMap<V> implements PersistentLongMap<V> {
         return set.endWrite(tree);
     }
 
-    @Override
-    public Entry<V> createEntry(long key, V value) {
-        return new LongMapEntry<>(key, value);
-    }
-
     protected static class ImmutableMap<V> extends Persistent23Tree.ImmutableTree<PersistentLongMap.Entry<V>> implements PersistentLongMap.ImmutableMap<V> {
 
         ImmutableMap(RootNode<PersistentLongMap.Entry<V>> root) {
