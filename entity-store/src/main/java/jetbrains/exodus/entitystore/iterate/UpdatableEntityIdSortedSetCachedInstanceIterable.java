@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
+import jetbrains.exodus.core.dataStructures.persistent.PersistentBitTreeLongSet;
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLong23TreeSet;
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLongSet;
 import jetbrains.exodus.entitystore.EntityId;
@@ -28,7 +29,7 @@ import org.jetbrains.annotations.Nullable;
 
 public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableCachedInstanceIterable {
 
-    private static final PersistentLongSet EMPTY_IDS = new PersistentLong23TreeSet();
+    private static final PersistentLongSet EMPTY_IDS = USE_BIT_SETS ? new PersistentBitTreeLongSet() : new PersistentLong23TreeSet();
 
     private final int entityTypeId;
     @NotNull

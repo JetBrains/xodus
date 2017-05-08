@@ -19,19 +19,23 @@ import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.BitSet;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 public class PersistentBitTreeLongSet implements PersistentLongSet {
     private static final int BITS_PER_ENTRY = 10;
     private static final int ELEMENTS_PER_ENTRY = 1 << BITS_PER_ENTRY;
     private static final int MASK = ELEMENTS_PER_ENTRY - 1;
+    private static final BitSet FAKE = new BitSet();
 
+    @NotNull
     private final Root root;
 
     public PersistentBitTreeLongSet() {
         this.root = new Root(new Persistent23Tree<Entry>(), 0);
     }
 
-    private PersistentBitTreeLongSet(Root root) {
+    private PersistentBitTreeLongSet(@NotNull final Root root) {
         this.root = root;
     }
 
@@ -55,9 +59,10 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
     }
 
     protected static class ImmutableSet implements PersistentLongSet.ImmutableSet {
+        @NotNull
         protected final Root root;
 
-        ImmutableSet(Root root) {
+        ImmutableSet(@NotNull final Root root) {
             this.root = root;
         }
 
@@ -70,7 +75,7 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
 
         @Override
         public LongIterator longIterator() {
-            throw new UnsupportedOperationException();
+            return new ItemIterator(root.map);
         }
 
         @Override
@@ -86,7 +91,7 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
 
     protected static class MutableSet implements PersistentLongSet.MutableSet {
         @NotNull
-        private Persistent23Tree.MutableTree<Entry> mutableSet;
+        private final Persistent23Tree.MutableTree<Entry> mutableSet;
         private int size;
         private final PersistentBitTreeLongSet baseSet;
 
@@ -113,7 +118,7 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
 
         @Override
         public LongIterator longIterator() {
-            throw new UnsupportedOperationException();
+            return new ItemIterator(mutableSet);
         }
 
         @Override
@@ -192,16 +197,21 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
 
     protected static class Entry implements Comparable<Entry> {
         private final long index;
-        private final BitSet bits = new BitSet(ELEMENTS_PER_ENTRY);
+        @NotNull
+        private final BitSet bits;
 
         public Entry(long min) {
             this.index = min;
+            this.bits = new BitSet(ELEMENTS_PER_ENTRY);
         }
 
         public Entry(long min, Entry other) {
             this.index = min;
             if (other != null) {
+                this.bits = new BitSet(ELEMENTS_PER_ENTRY);
                 this.bits.or(other.bits);
+            } else {
+                this.bits = FAKE; // querying entry must have no bits in order to reduce memory and GC pressure
             }
         }
 
@@ -225,6 +235,58 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
 
         public Root getClone() {
             return new Root(map.getClone(), size);
+        }
+    }
+
+    protected static class ItemIterator implements LongIterator {
+        @NotNull
+        protected final Iterator<Entry> iterator;
+        protected Entry currentEntry = null;
+        protected long currentEntryBase = 0;
+        protected int next = -1;
+
+        ItemIterator(AbstractPersistent23Tree<Entry> tree) {
+            iterator = tree.iterator();
+        }
+
+        @Override
+        public Long next() {
+            return nextLong();
+        }
+
+        @Override
+        public long nextLong() {
+            if (!hasNext()) {
+                throw new NoSuchElementException();
+            }
+            final int index = this.next;
+            final long result = index + currentEntryBase;
+            this.next = currentEntry.bits.nextSetBit(index + 1);
+            return result;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return next != -1 || fetchEntry() != -1;
+        }
+
+        public int fetchEntry() {
+            while (iterator.hasNext()) {
+                final Entry entry = iterator.next();
+                final int nextIndex = entry.bits.nextSetBit(0);
+                if (nextIndex != -1) {
+                    currentEntry = entry;
+                    currentEntryBase = entry.index << BITS_PER_ENTRY;
+                    next = nextIndex;
+                    return nextIndex;
+                }
+            }
+            return -1;
+        }
+
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException();
         }
     }
 }
