@@ -340,7 +340,7 @@ public class EntityIdArrayCachedInstanceIterable extends CachedInstanceIterable 
                 final long min = localIds[0];
                 if (min >= 0) {
                     final long range = localIds[length - 1] - min + 1;
-                    if (Math.min((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length, Integer.MAX_VALUE) >= range) {
+                    if (range < Integer.MAX_VALUE && range <= ((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length)) {
                         return new ImmutableSingleTypeEntityIdBitSet(typeId, localIds);
                     }
                 }
