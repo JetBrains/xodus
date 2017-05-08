@@ -24,61 +24,70 @@ import jetbrains.exodus.entitystore.tables.PropertyTypes
 import jetbrains.exodus.kotlin.notNull
 import org.slf4j.LoggerFactory
 
-class UpdatablePropertiesCachedInstanceIterable(txn: PersistentStoreTransaction?,
-                                                it: PropertyValueIterator?,
-                                                source: EntityIterableBase) : UpdatableCachedInstanceIterable(txn, source) {
+class UpdatablePropertiesCachedInstanceIterable private constructor(txn: PersistentStoreTransaction?,
+                                                                    source: EntityIterableBase,
+                                                                    private var typeId: Int,
+                                                                    private var valueClass: Class<Comparable<Any>>?,
+                                                                    private val index: Persistent23Tree<IndexEntry>
+) : UpdatableCachedInstanceIterable(txn, source) {
 
     companion object {
-
         private val logger = LoggerFactory.getLogger(UpdatablePropertiesCachedInstanceIterable::class.java)
         private val PropertyValueIterator.nextId get() = this.nextId().notNull
         private val PropertyValueIterator.currentValue: Comparable<Any> get() = this.currentValue().notNull
-    }
 
-    private var typeId = -1
-    private var index = Persistent23Tree<IndexEntry>()
-    private var mutableIndex: Persistent23Tree.MutableTree<IndexEntry>? = null
-    private var valueClass: Class<Comparable<Any>>? = null
-
-    init {
-        try {
-            if (it != null && it.hasNext()) {
-                val id: EntityId = it.nextId
-                typeId = id.typeId
-                var prevValue: Comparable<Any> = it.currentValue
-                valueClass = prevValue.javaClass
-                val tempList = mutableListOf(IndexEntry(prevValue, id.localId))
-                while (it.hasNext()) {
-                    val localId = it.nextId.localId
-                    val currentValue: Comparable<Any> = it.currentValue
-                    if (prevValue == currentValue) {
-                        tempList.add(IndexEntry(prevValue, localId))
-                    } else {
-                        tempList.add(IndexEntry(currentValue, localId))
-                        prevValue = currentValue
-                        if (valueClass != currentValue.javaClass) {
-                            throw EntityStoreException("Unexpected property value class")
+        @JvmStatic
+        fun newInstance(
+                txn: PersistentStoreTransaction?, it: PropertyValueIterator?, source: EntityIterableBase
+        ): UpdatablePropertiesCachedInstanceIterable {
+            try {
+                if (it != null && it.hasNext()) {
+                    val index = Persistent23Tree<IndexEntry>()
+                    val id: EntityId = it.nextId
+                    val typeId = id.typeId
+                    var prevValue: Comparable<Any> = it.currentValue
+                    val valueClass = prevValue.javaClass
+                    val tempList = mutableListOf(IndexEntry(prevValue, id.localId))
+                    while (it.hasNext()) {
+                        val localId = it.nextId.localId
+                        val currentValue: Comparable<Any> = it.currentValue
+                        if (prevValue == currentValue) {
+                            tempList.add(IndexEntry(prevValue, localId))
+                        } else {
+                            tempList.add(IndexEntry(currentValue, localId))
+                            prevValue = currentValue
+                            if (valueClass != currentValue.javaClass) {
+                                throw EntityStoreException("Unexpected property value class")
+                            }
                         }
                     }
+                    index.beginWrite().run {
+                        addAll(tempList, tempList.size)
+                        endWrite()
+                    }
+                    return UpdatablePropertiesCachedInstanceIterable(txn, source, typeId, valueClass, index)
+                } else {
+                    return UpdatablePropertiesCachedInstanceIterable(txn, source, -1, null, Persistent23Tree<IndexEntry>())
                 }
-                index.beginWrite().run {
-                    addAll(tempList, tempList.size)
-                    endWrite()
+            } finally {
+                if (it is EntityIteratorBase) {
+                    it.disposeIfShouldBe()
                 }
-            }
-        } finally {
-            if (it is EntityIteratorBase) {
-                it.disposeIfShouldBe()
             }
         }
     }
 
+    private var mutableIndex: Persistent23Tree.MutableTree<IndexEntry>? = null
+
     // constructor for mutating source index
-    private constructor(source: UpdatablePropertiesCachedInstanceIterable) : this(source.transaction, null, source) {
-        typeId = source.typeId
-        index = source.index.clone
+    private constructor(source: UpdatablePropertiesCachedInstanceIterable) : this(
+            source.transaction,
+            source,
+            source.typeId,
+            source.valueClass,
+            source.index.clone
+    ) {
         mutableIndex = index.beginWrite()
-        valueClass = source.valueClass
     }
 
     override fun getEntityTypeId() = typeId

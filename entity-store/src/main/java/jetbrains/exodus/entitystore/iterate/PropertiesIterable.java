@@ -95,7 +95,7 @@ public final class PropertiesIterable extends EntityIterableBase {
 
     @Override
     protected CachedInstanceIterable createCachedInstance(@NotNull final PersistentStoreTransaction txn) {
-        return new UpdatablePropertiesCachedInstanceIterable(txn, getIterator(txn, true), this);
+        return UpdatablePropertiesCachedInstanceIterable.newInstance(txn, getIterator(txn, true), this);
     }
 
     @Override
