@@ -15,11 +15,12 @@
  */
 package jetbrains.exodus.entitystore.util;
 
+import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.iterate.EntityIdSet;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Set;
@@ -66,9 +67,9 @@ class EmptyEntityIdSet implements EntityIdSet {
     }
 
     @Override
-    @Nullable
-    public Collection<Long> getTypeSet(int typeId) {
-        return null;
+    @NotNull
+    public LongSet getTypeSetSnapshot(int typeId) {
+        return LongSet.EMPTY;
     }
 
     @Override

@@ -97,12 +97,13 @@ class SingleTypeEntityIdSet implements EntityIdSet {
         return singleTypeLocalIds.size();
     }
 
-    @Nullable
-    public LongSet getTypeSet(int typeId) {
+    @Override
+    @NotNull
+    public LongSet getTypeSetSnapshot(int typeId) {
         if (typeId == singleTypeId) {
-            return singleTypeLocalIds;
+            return new LongHashSet(singleTypeLocalIds);
         }
-        return null;
+        return LongSet.EMPTY;
     }
 
     @Override

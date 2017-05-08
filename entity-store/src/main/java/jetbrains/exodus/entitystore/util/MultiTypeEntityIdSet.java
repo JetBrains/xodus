@@ -90,9 +90,14 @@ class MultiTypeEntityIdSet implements EntityIdSet {
         return -1;
     }
 
-    @Nullable
-    public LongSet getTypeSet(int typeId) {
-        return set.get(typeId);
+    @Override
+    @NotNull
+    public LongSet getTypeSetSnapshot(int typeId) {
+        final LongSet typeSet = set.get(typeId);
+        if (typeSet != null) {
+            return new LongHashSet(typeSet);
+        }
+        return LongSet.EMPTY;
     }
 
     @Override

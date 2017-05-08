@@ -16,8 +16,10 @@
 package jetbrains.exodus.core.dataStructures.hash;
 
 import jetbrains.exodus.util.MathUtil;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.AbstractSet;
+import java.util.Collection;
 import java.util.Iterator;
 
 public class LongHashSet extends AbstractSet<Long> implements LongSet {
@@ -39,6 +41,20 @@ public class LongHashSet extends AbstractSet<Long> implements LongSet {
     public LongHashSet(int capacity, float loadFactor) {
         this.loadFactor = loadFactor;
         init(capacity);
+    }
+
+    public LongHashSet(@NotNull final LongSet source) {
+        this(source.size());
+        for (final long element : source) {
+            add(element);
+        }
+    }
+
+    public LongHashSet(@NotNull final Collection<Long> source) {
+        this(source.size());
+        for (final long element : source) {
+            add(element);
+        }
     }
 
     @Override

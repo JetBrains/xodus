@@ -16,14 +16,12 @@
 package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
-import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.entitystore.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.PriorityQueue;
@@ -316,15 +314,7 @@ public final class SortIterable extends EntityIterableDecoratorBase {
             this.propIterator = propIterator;
             final EntityIdSet sourceSet = source.toSet(txn);
             hasNull = sourceSet.contains(null);
-            final Collection<Long> rightOrder = sourceSet.getTypeSet(sourceTypeId);
-            if (rightOrder == null) {
-                this.rightOrder = LongSet.EMPTY;
-            } else {
-                this.rightOrder = new LongHashSet(rightOrder.size());
-                for (final long localId : rightOrder) {
-                    this.rightOrder.add(localId);
-                }
-            }
+            rightOrder = sourceSet.getTypeSetSnapshot(sourceTypeId);
             nextId = null;
         }
 
