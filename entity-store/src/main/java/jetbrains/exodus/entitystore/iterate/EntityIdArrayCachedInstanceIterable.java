@@ -22,6 +22,7 @@ import jetbrains.exodus.entitystore.EntityIterator;
 import jetbrains.exodus.entitystore.PersistentEntityId;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.entitystore.util.EntityIdSetFactory;
+import jetbrains.exodus.entitystore.util.ImmutableSingleTypeEntityIdBitSet;
 import jetbrains.exodus.entitystore.util.IntArrayListSpinAllocator;
 import jetbrains.exodus.entitystore.util.LongArrayListSpinAllocator;
 import org.jetbrains.annotations.NotNull;
@@ -31,6 +32,7 @@ import java.util.Arrays;
 
 public class EntityIdArrayCachedInstanceIterable extends CachedInstanceIterable {
 
+    private static final int MAX_COMPRESSED_SET_LOAD_FACTOR = 64;
     private static final int[] EMPTY_TYPE_IDS = new int[0];
     private static final long[] EMPTY_LOCAL_IDS = new long[0];
 
@@ -322,8 +324,23 @@ public class EntityIdArrayCachedInstanceIterable extends CachedInstanceIterable 
                 if (typeId == NULL_TYPE_ID) {
                     result = result.add(null);
                 } else {
-                    for (long localId : localIds) {
-                        result = result.add(typeId, localId);
+                    if (USE_BIT_SETS && isSortedById) {
+                        final int length = localIds.length;
+                        if (length > 1) {
+                            final long min = localIds[0];
+                            if (min >= 0) {
+                                final long range = localIds[length - 1] - min + 1;
+                                if (Math.min((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length, Integer.MAX_VALUE) >= range) {
+                                    result = new ImmutableSingleTypeEntityIdBitSet(typeId, localIds);
+                                }
+                            }
+                        } else if (length == 1) {
+                            result = result.add(typeId, localIds[0]);
+                        }
+                    } else {
+                        for (long localId : localIds) {
+                            result = result.add(typeId, localId);
+                        }
                     }
                 }
             } else {

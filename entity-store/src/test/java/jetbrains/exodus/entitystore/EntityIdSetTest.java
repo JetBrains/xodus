@@ -17,7 +17,10 @@ package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.entitystore.iterate.EntityIdSet;
 import jetbrains.exodus.entitystore.util.EntityIdSetFactory;
+import jetbrains.exodus.entitystore.util.ImmutableSingleTypeEntityIdBitSet;
 import org.junit.Assert;
+
+import java.util.Arrays;
 
 public class EntityIdSetTest extends EntityStoreTestBase {
 
@@ -70,5 +73,34 @@ public class EntityIdSetTest extends EntityStoreTestBase {
             set = set.add(7, i);
         }
         Assert.assertEquals(100, set.count());
+    }
+
+    public void testBitSet() {
+        checkSet(0, 2, 7, 11, 55, 78);
+        checkSet(4, 6, 7, 11, 55, 260);
+        checkSet(4147483647L, 4147483648L, 4147483649L);
+    }
+
+    private void checkSet(long... data) {
+        Arrays.sort(data);
+        final int typeId = 7;
+        ImmutableSingleTypeEntityIdBitSet set = new ImmutableSingleTypeEntityIdBitSet(typeId, data);
+        assertEquals(data.length, set.count());
+        long prevValue = data[0] - 20;
+        for (final long value : data) {
+            for (long k = prevValue + 1; k < value; k++) {
+                assertFalse(set.contains(typeId, k));
+            }
+            prevValue = value;
+            assertTrue(set.contains(typeId, value));
+            assertFalse(set.contains(3, value));
+        }
+        final long[] actualData = new long[data.length];
+        int i = 0;
+        for (final EntityId id : set) {
+            assertEquals(typeId, id.getTypeId());
+            actualData[i++] = id.getLocalId();
+        }
+        Assert.assertArrayEquals(data, actualData);
     }
 }
