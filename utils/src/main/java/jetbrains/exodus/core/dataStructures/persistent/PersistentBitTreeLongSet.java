@@ -238,12 +238,12 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
         }
     }
 
-    protected static class ItemIterator implements LongIterator {
+    private final static class ItemIterator implements LongIterator {
         @NotNull
-        protected final Iterator<Entry> iterator;
-        protected Entry currentEntry = null;
-        protected long currentEntryBase = 0;
-        protected int next = -1;
+        private final Iterator<Entry> iterator;
+        private Entry currentEntry = null;
+        private long currentEntryBase = 0;
+        private int next = -1;
 
         ItemIterator(AbstractPersistent23Tree<Entry> tree) {
             iterator = tree.iterator();
@@ -270,7 +270,7 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
             return next != -1 || fetchEntry() != -1;
         }
 
-        public int fetchEntry() {
+        private int fetchEntry() {
             while (iterator.hasNext()) {
                 final Entry entry = iterator.next();
                 final int nextIndex = entry.bits.nextSetBit(0);
