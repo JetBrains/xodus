@@ -311,70 +311,80 @@ public class EntityIdArrayCachedInstanceIterable extends CachedInstanceIterable 
     }
 
     @Override
-    @SuppressWarnings({"OverlyLongMethod", "OverlyNestedMethod", "AssignmentToForLoopParameter"})
     public EntityIdSet toSet(@NotNull final PersistentStoreTransaction txn) {
         if (idSet == null) {
             final int count = typeIds.length;
-            EntityIdSet result = EntityIdSetFactory.newSet();
             if (count == 0) {
-                return result;
+                return EntityIdSetFactory.newSet();
             }
+            final EntityIdSet result;
             if (count == 1) {
                 final int typeId = typeIds[0];
                 if (typeId == NULL_TYPE_ID) {
-                    result = result.add(null);
+                    result = EntityIdSetFactory.newSet().add(null);
                 } else {
-                    if (USE_BIT_SETS && isSortedById) {
-                        final int length = localIds.length;
-                        if (length > 1) {
-                            final long min = localIds[0];
-                            if (min >= 0) {
-                                final long range = localIds[length - 1] - min + 1;
-                                if (Math.min((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length, Integer.MAX_VALUE) >= range) {
-                                    result = new ImmutableSingleTypeEntityIdBitSet(typeId, localIds);
-                                }
-                            }
-                        } else if (length == 1) {
-                            result = result.add(typeId, localIds[0]);
-                        }
-                    } else {
-                        for (long localId : localIds) {
-                            result = result.add(typeId, localId);
-                        }
-                    }
+                    result = toSingleTypeIdSet(typeId);
                 }
             } else {
-                if (isSortedById) {
-                    int j = 0;
-                    for (int i = 0; i < count; ++i) {
-                        final int typeId = typeIds[i];
-                        ++i;
-                        final int upperBound = typeIds[i];
-                        if (typeId == NULL_TYPE_ID) {
-                            while (j < upperBound) {
-                                result = result.add(null);
-                                ++j;
-                            }
-                        } else {
-                            while (j < upperBound) {
-                                result = result.add(typeId, localIds[j++]);
-                            }
-                        }
-                    }
-                } else {
-                    for (int i = 0; i < count; ++i) {
-                        final int typeId = typeIds[i];
-                        if (typeId == NULL_TYPE_ID) {
-                            result = result.add(null);
-                        } else {
-                            result = result.add(typeId, localIds[i]);
-                        }
-                    }
-                }
+                result = toMultiTypeIdSet(count);
             }
             idSet = result;
         }
         return idSet;
+    }
+
+    private EntityIdSet toSingleTypeIdSet(int typeId) {
+        if (USE_BIT_SETS && isSortedById) {
+            final int length = localIds.length;
+            if (length > 1) {
+                final long min = localIds[0];
+                if (min >= 0) {
+                    final long range = localIds[length - 1] - min + 1;
+                    if (Math.min((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length, Integer.MAX_VALUE) >= range) {
+                        return new ImmutableSingleTypeEntityIdBitSet(typeId, localIds);
+                    }
+                }
+            } else if (length == 1) {
+                return EntityIdSetFactory.newSet().add(typeId, localIds[0]);
+            }
+        }
+        EntityIdSet result = EntityIdSetFactory.newSet();
+        for (long localId : localIds) {
+            result = result.add(typeId, localId);
+        }
+        return result;
+    }
+
+    private EntityIdSet toMultiTypeIdSet(int count) {
+        EntityIdSet result = EntityIdSetFactory.newSet();
+        if (isSortedById) {
+            int j = 0;
+            for (int i = 0; i < count; ++i) {
+                final int typeId = typeIds[i];
+                ++i;
+                final int upperBound = typeIds[i];
+                if (typeId == NULL_TYPE_ID) {
+                    while (j < upperBound) {
+                        result = result.add(null);
+                        ++j;
+                    }
+                } else {
+                    while (j < upperBound) {
+                        result = result.add(typeId, localIds[j++]);
+                    }
+                }
+            }
+        } else {
+            for (int i = 0; i < count; ++i) {
+                final int typeId = typeIds[i];
+                if (typeId == NULL_TYPE_ID) {
+                    result = result.add(null);
+                } else {
+                    result = result.add(typeId, localIds[i]);
+                }
+            }
+        }
+        return result;
     }
 
     private class EntityIdArrayIteratorNullTypeId extends NonDisposableEntityIterator {
