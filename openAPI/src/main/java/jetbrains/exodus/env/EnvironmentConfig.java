@@ -91,6 +91,13 @@ public final class EnvironmentConfig extends AbstractConfig {
     public static final String LOG_LOCK_TIMEOUT = "exodus.log.lockTimeout";
 
     /**
+     * Defines the debug identifier to be written to the lock file alongside with other debug information.
+     * Default value is {@code ManagementFactory.getRuntimeMXBean().getName()} which has a form of {@code pid@hostname}.
+     * <p>Mutable at runtime: no
+     */
+    public static final String LOG_LOCK_ID = "exodus.log.lockID";
+
+    /**
      * Defines the size in bytes of a single page (byte array) in the LogCache. This number of bytes is read from
      * {@linkplain java.nio.MappedByteBuffer} or {@linkplain java.io.RandomAccessFile} at a time.
      *
@@ -463,6 +470,7 @@ public final class EnvironmentConfig extends AbstractConfig {
             new Pair(LOG_DURABLE_WRITE, false),
             new Pair(LOG_FILE_SIZE, 8192L),
             new Pair(LOG_LOCK_TIMEOUT, 0L),
+            new Pair(LOG_LOCK_ID, null),
             new Pair(LOG_CACHE_PAGE_SIZE, 64 * 1024),
             new Pair(LOG_CACHE_OPEN_FILES, 500),
             new Pair(LOG_CACHE_USE_NIO, true),
@@ -626,6 +634,17 @@ public final class EnvironmentConfig extends AbstractConfig {
     }
 
     /**
+     * Sets the debug identifier to be written to the lock file alongside with other debug information.
+     * <p>Mutable at runtime: no
+     *
+     * @param id the debug identifier to be written to the lock file alongside with other debug information
+     * @return this {@code EnvironmentConfig} instance
+     */
+    public EnvironmentConfig setLogLockId(final String id) {
+        return setSetting(LOG_LOCK_ID, id);
+    }
+
+    /**
      * Sets the number of milliseconds the {@code Log} constructor waits for the lock file.
      * <p>Mutable at runtime: no
      *
@@ -634,6 +653,18 @@ public final class EnvironmentConfig extends AbstractConfig {
      */
     public EnvironmentConfig setLogLockTimeout(final long millis) {
         return setSetting(LOG_LOCK_TIMEOUT, millis);
+    }
+
+    /**
+     * Sets the debug identifier to be written to the lock file alongside with other debug information.
+     * Default value is {@code ManagementFactory.getRuntimeMXBean().getName()} which has a form of {@code pid@hostname}.
+     * <p>Mutable at runtime: no
+     *
+     * @return the debug identifier to be written to the lock file alongside with other debug information
+     * or null if the default value is used
+     */
+    public String getLogLockId() {
+        return (String) getSetting(LOG_LOCK_ID);
     }
 
     /**

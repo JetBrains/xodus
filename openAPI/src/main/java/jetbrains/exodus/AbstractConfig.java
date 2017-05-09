@@ -52,19 +52,25 @@ public abstract class AbstractConfig {
             final String propName = prop.getFirst();
             final Object defaultValue = prop.getSecond();
             final Object value;
-            final Class<?> clazz = defaultValue.getClass();
-            if (clazz == Boolean.class) {
-                value = getBoolean(strategy, propName, (Boolean) defaultValue);
-            } else if (clazz == Integer.class) {
-                value = getInteger(strategy, propName, (Integer) defaultValue);
-            } else if (clazz == Long.class) {
-                value = getLong(strategy, propName, (Long) defaultValue);
-            } else if (clazz == String.class) {
-                value = getString(strategy, propName, (String) defaultValue);
+            if (defaultValue == null) { // String is considered default property type
+                value = getString(strategy, propName, null);
             } else {
-                throw new ExodusException(UNSUPPORTED_TYPE_ERROR_MSG);
+                final Class<?> clazz = defaultValue.getClass();
+                if (clazz == Boolean.class) {
+                    value = getBoolean(strategy, propName, (Boolean) defaultValue);
+                } else if (clazz == Integer.class) {
+                    value = getInteger(strategy, propName, (Integer) defaultValue);
+                } else if (clazz == Long.class) {
+                    value = getLong(strategy, propName, (Long) defaultValue);
+                } else if (clazz == String.class) {
+                    value = getString(strategy, propName, (String) defaultValue);
+                } else {
+                    throw new ExodusException(UNSUPPORTED_TYPE_ERROR_MSG);
+                }
             }
-            setSetting(propName, value);
+            if (value != null) {
+                setSetting(propName, value);
+            }
         }
     }
 

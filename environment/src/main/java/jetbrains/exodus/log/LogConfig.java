@@ -32,6 +32,7 @@ public class LogConfig {
     private File dir;
     private long fileSize;
     private long lockTimeout;
+    private String lockId;
     private long memoryUsage;
     private int memoryUsagePercentage;
     private DataReader reader;
@@ -78,6 +79,15 @@ public class LogConfig {
         return this;
     }
 
+    public String getLockId() {
+        return lockId;
+    }
+
+    public LogConfig setLockId(String lockId) {
+        this.lockId = lockId;
+        return this;
+    }
+
     public long getMemoryUsage() {
         return memoryUsage;
     }
@@ -114,7 +124,7 @@ public class LogConfig {
 
     public DataWriter getWriter() {
         if (writer == null) {
-            writer = new FileDataWriter(checkDirectory(dir));
+            writer = new FileDataWriter(checkDirectory(dir), getLockId());
         }
         return writer;
     }

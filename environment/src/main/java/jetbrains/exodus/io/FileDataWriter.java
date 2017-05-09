@@ -42,6 +42,10 @@ public class FileDataWriter extends AbstractDataWriter {
     private RandomAccessFile file;
 
     public FileDataWriter(@NotNull final File directory) {
+        this(directory, null);
+    }
+
+    public FileDataWriter(@NotNull File directory, @Nullable String lockId) {
         file = null;
         dir = directory;
         FileChannel channel = null;
@@ -51,7 +55,7 @@ public class FileDataWriter extends AbstractDataWriter {
             logger.warn("Can't open directory channel. Log directory fsync won't be performed.");
         }
         dirChannel = channel;
-        lockingManager = new LockingManager(dir);
+        lockingManager = new LockingManager(dir, lockId);
     }
 
     @Override

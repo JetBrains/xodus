@@ -38,12 +38,15 @@ public class LockingManager {
     @NotNull
     private final File dir;
     @Nullable
+    private final String lockId;
+    @Nullable
     private RandomAccessFile lockFile;
     @Nullable
     private FileLock lock;
 
-    LockingManager(@NotNull File dir) {
+    LockingManager(@NotNull File dir, @Nullable String lockId) {
         this.dir = dir;
+        this.lockId = lockId;
     }
 
     public boolean lock(final long timeout) {
@@ -90,11 +93,15 @@ public class LockingManager {
             if (lock != null) {
                 lockFile.setLength(0);
                 lockFile.writeBytes("Private property of Exodus:");
-                final RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
-                if (bean != null) {
-                    // Got runtime system bean (try to get PID)
-                    // Result of bean.getName() is unknown
-                    lockFile.writeBytes(' ' + bean.getName());
+                if (lockId == null) {
+                    final RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
+                    if (bean != null) {
+                        // Got runtime system bean (try to get PID)
+                        // Result of bean.getName() is unknown
+                        lockFile.writeBytes(' ' + bean.getName());
+                    }
+                } else {
+                    lockFile.writeBytes(' ' + lockId);
                 }
                 lockFile.writeBytes("\n\n");
                 for (final StackTraceElement element : new Throwable().getStackTrace()) {
