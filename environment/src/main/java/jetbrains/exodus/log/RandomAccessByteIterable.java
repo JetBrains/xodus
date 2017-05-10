@@ -68,7 +68,7 @@ class RandomAccessByteIterable extends ByteIterableWithAddress {
         int rightStep = 0;
 
         while (true) {
-            int limit = Math.min(len, Math.min(leftLen - leftStep, rightLen));
+            int limit = Math.min(len, Math.min(leftLen + rightStep - leftStep, rightLen));
             while (rightStep < limit) {
                 byte b1 = leftArray[leftStep++];
                 byte b2 = rightArray[rightStep++];
