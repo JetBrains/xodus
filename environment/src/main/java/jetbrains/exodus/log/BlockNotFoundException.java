@@ -19,11 +19,11 @@ import jetbrains.exodus.ExodusException;
 
 public class BlockNotFoundException extends ExodusException {
 
-    public BlockNotFoundException(final String message, final long address) {
-        super(message + " Requested address: " + address);
+    public BlockNotFoundException(final String message, final long address, final long fileSize) {
+        super(message + LogUtil.getWrongAddressErrorMessage(address, fileSize));
     }
 
-    public BlockNotFoundException(final long address) {
-        this("File not found", address);
+    public BlockNotFoundException(final long address, final long fileSize) {
+        this("File not found", address, fileSize);
     }
 }

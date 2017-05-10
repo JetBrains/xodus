@@ -731,16 +731,16 @@ public final class Log implements Closeable {
             node = blockAddrs.getLessOrEqual(address);
         }
         if (node == null) {
-            throw new BlockNotFoundException("Address is out of log space, underflow", address);
+            throw new BlockNotFoundException("Address is out of log space, underflow", address, fileLengthBound);
         }
         final long leftBound = node.getKey();
         final Block block = reader.getBlock(leftBound);
         final long fileSize = getFileSize(leftBound);
         if (leftBound + fileSize <= address) {
             if (blockAddrs.getMaximumNode() == node) {
-                throw new BlockNotFoundException("Address is out of log space, overflow", address);
+                throw new BlockNotFoundException("Address is out of log space, overflow", address, fileLengthBound);
             }
-            throw new BlockNotFoundException(address);
+            throw new BlockNotFoundException(address, fileLengthBound);
         }
         final int readBytes = block.read(output, address - leftBound, output.length);
         notifyReadBytes(output, readBytes);

@@ -60,7 +60,7 @@ class RandomAccessByteIterable extends ByteIterableWithAddress {
 
         int leftLen = left.getLength();
         if (leftLen <= leftStep) { // alignment is >= 0 for sure
-            throw new BlockNotFoundException(alignedAddress);
+            throw new BlockNotFoundException(alignedAddress, log.getFileLengthBound());
         }
         byte[] leftArray = left.getBytesUnsafe();
         byte[] rightArray = right.getBytesUnsafe();
