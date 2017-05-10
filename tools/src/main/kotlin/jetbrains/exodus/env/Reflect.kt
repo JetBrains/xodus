@@ -371,7 +371,12 @@ internal class Reflect(directory: File) {
                     println()
                     logger.error("Failed to completely copy store $name", storeIsBroken)
                 }
-                val actualSize = newEnv.computeInReadonlyTransaction { txn -> newEnv.openStore(name, StoreConfig.USE_EXISTING, txn).count(txn) }
+                val actualSize = newEnv.computeInReadonlyTransaction { txn ->
+                    if (newEnv.storeExists(name, txn)) {
+                        newEnv.openStore(name, StoreConfig.USE_EXISTING, txn).count(txn)
+                    } else 0L
+
+                }
                 println(". Saved store size = $storeSize, actual number of pairs = $actualSize")
             }
         }
