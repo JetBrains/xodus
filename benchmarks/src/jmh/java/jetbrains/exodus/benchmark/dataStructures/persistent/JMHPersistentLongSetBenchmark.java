@@ -24,13 +24,16 @@ public class JMHPersistentLongSetBenchmark {
 
     @Setup
     public void prepare() {
-        final PersistentLongSet.MutableSet mutableMap = treeSet.beginWrite();
+        final PersistentLongSet.MutableSet mutableTreeSet = treeSet.beginWrite();
+        final PersistentLongSet.MutableSet mutableBitSet = treeSet.beginWrite();
         for (int i = 0; i < MAP_SIZE; ++i) {
             // the keys are even
-            mutableMap.add((long) (i * 2));
+            mutableTreeSet.add((long) (i * 2));
+            mutableBitSet.add((long) (i * 2));
             juTree.put((long) (i * 2), value);
         }
-        mutableMap.endWrite();
+        mutableTreeSet.endWrite();
+        mutableBitSet.endWrite();
     }
 
     @Setup(Level.Invocation)
