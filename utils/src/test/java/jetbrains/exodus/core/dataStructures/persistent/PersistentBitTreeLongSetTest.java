@@ -41,6 +41,22 @@ public class PersistentBitTreeLongSetTest {
     }
 
     @Test
+    public void testLongIterator() {
+        PersistentLongSet set = createSet();
+        PersistentLongSet.MutableSet write = set.beginWrite();
+        for (long i = 0; i < 100000; ++i) {
+            write.add(i);
+        }
+        write.endWrite();
+        LongIterator iterator = set.beginRead().longIterator();
+        for (long i = 0; i < 100000; ++i) {
+            Assert.assertTrue(iterator.hasNext());
+            Assert.assertEquals(i, iterator.nextLong());
+        }
+        Assert.assertFalse(iterator.hasNext());
+    }
+
+    @Test
     public void mutableTreeRandomInsertDeleteTest() {
         Random random = new Random(2343489);
         PersistentLongSet set = createSet();
