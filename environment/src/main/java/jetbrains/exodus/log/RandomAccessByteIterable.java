@@ -58,17 +58,17 @@ class RandomAccessByteIterable extends ByteIterableWithAddress {
         alignedAddress -= leftStep;
         ArrayByteIterable left = cache.getPageIterable(log, alignedAddress);
 
-        int leftLen = left.getLength();
+        final int leftLen = left.getLength();
         if (leftLen <= leftStep) { // alignment is >= 0 for sure
             throw new BlockNotFoundException(alignedAddress, log.getFileLengthBound());
         }
         byte[] leftArray = left.getBytesUnsafe();
-        byte[] rightArray = right.getBytesUnsafe();
+        final byte[] rightArray = right.getBytesUnsafe();
         final int rightLen = right.getLength();
         int rightStep = 0;
+        int limit = Math.min(len, Math.min(leftLen - leftStep, rightLen));
 
         while (true) {
-            int limit = Math.min(len, Math.min(leftLen + rightStep - leftStep, rightLen));
             while (rightStep < limit) {
                 byte b1 = leftArray[leftStep++];
                 byte b2 = rightArray[rightStep++];
@@ -82,8 +82,8 @@ class RandomAccessByteIterable extends ByteIterableWithAddress {
             // move left array to next cache page
             left = cache.getPageIterable(log, alignedAddress += pageSize);
             leftArray = left.getBytesUnsafe();
-            leftLen = left.getLength();
             leftStep = 0;
+            limit = Math.min(len, Math.min(left.getLength() + rightStep, rightLen));
         }
     }
 }
