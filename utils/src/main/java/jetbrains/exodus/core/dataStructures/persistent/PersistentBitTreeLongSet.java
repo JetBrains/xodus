@@ -69,7 +69,11 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
         @Override
         public boolean contains(long key) {
             final long index = getEntryIndex(key);
-            final Entry entry = root.map.getRoot().get(new Entry(index, null));
+            final AbstractPersistent23Tree.RootNode<Entry> root = this.root.map.getRoot();
+            if (root == null) {
+                return false;
+            }
+            final Entry entry = root.get(new Entry(index, null));
             return entry != null && entry.bits.get((int) (key & MASK));
         }
 
@@ -109,11 +113,7 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
                 return false;
             }
             final Entry entry = root.get(new Entry(index, null));
-            if (entry == null) {
-                return false;
-            }
-            int bitIndex = (int) (key & MASK);
-            return entry.bits.get(bitIndex);
+            return entry != null && entry.bits.get((int) (key & MASK));
         }
 
         @Override
