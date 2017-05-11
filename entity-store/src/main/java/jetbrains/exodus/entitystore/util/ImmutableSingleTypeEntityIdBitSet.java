@@ -43,7 +43,7 @@ public class ImmutableSingleTypeEntityIdBitSet implements EntityIdSet {
         if (min < 0 || bitsCount >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException();
         }
-        data = new BitSet(((int) bitsCount));
+        data = new BitSet((int) bitsCount);
         for (final long value : source) {
             data.set((int) (value - min));
         }
@@ -100,7 +100,7 @@ public class ImmutableSingleTypeEntityIdBitSet implements EntityIdSet {
             int next = data.nextSetBit(0);
             while (next != -1) {
                 result.add(next + min);
-                // if (nextBitIndex == Integer.MAX_VALUE) { break; }
+                // if (next == Integer.MAX_VALUE) { break; }
                 next = data.nextSetBit(next + 1);
             }
             return result;
