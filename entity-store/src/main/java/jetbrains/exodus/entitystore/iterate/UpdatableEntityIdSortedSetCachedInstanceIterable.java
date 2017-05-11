@@ -89,7 +89,7 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
         if (localIds == EMPTY_IDS && mutableLocalIds == null) {
             return EntityIteratorBase.EMPTY;
         }
-        final PersistentLongSet.MutableSet currentSet = getCurrentMap();
+        final PersistentLongSet.ImmutableSet currentSet = getCurrentMap();
         if (mutableLocalIds == null) {
             if (idArray == null) {
                 final long[] result = new long[currentSet.size()];
@@ -185,8 +185,8 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
         checkMutableIds().remove(id.getLocalId());
     }
 
-    private PersistentLongSet.MutableSet getCurrentMap() {
-        return mutableLocalIds == null ? localIds.beginWrite() : mutableLocalIds;
+    private PersistentLongSet.ImmutableSet getCurrentMap() {
+        return mutableLocalIds == null ? localIds.beginRead() : mutableLocalIds;
     }
 
     private PersistentLongSet.MutableSet checkMutableIds() {
