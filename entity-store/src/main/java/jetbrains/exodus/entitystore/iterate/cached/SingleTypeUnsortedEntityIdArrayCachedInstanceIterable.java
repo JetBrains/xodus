@@ -18,19 +18,19 @@ package jetbrains.exodus.entitystore.iterate.cached;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
-import jetbrains.exodus.entitystore.iterate.CachedInstanceIterable;
-import jetbrains.exodus.entitystore.iterate.EntityIdSet;
-import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
-import jetbrains.exodus.entitystore.iterate.EntityIteratorBase;
+import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.entitystore.iterate.cached.iterator.EntityIdArrayIteratorNullTypeId;
 import jetbrains.exodus.entitystore.iterate.cached.iterator.EntityIdArrayIteratorSingleTypeId;
 import jetbrains.exodus.entitystore.iterate.cached.iterator.ReverseEntityIdArrayIteratorNullTypeId;
 import jetbrains.exodus.entitystore.iterate.cached.iterator.ReverseEntityIdArrayIteratorSingleTypeId;
 import jetbrains.exodus.entitystore.util.EntityIdSetFactory;
+import jetbrains.exodus.entitystore.util.ImmutableSingleTypeEntityIdBitSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
+
+import static jetbrains.exodus.entitystore.iterate.EntityIdArrayCachedInstanceIterableFactory.MAX_COMPRESSED_SET_LOAD_FACTOR;
 
 public class SingleTypeUnsortedEntityIdArrayCachedInstanceIterable extends CachedInstanceIterable {
     private final int typeId;
@@ -59,6 +59,22 @@ public class SingleTypeUnsortedEntityIdArrayCachedInstanceIterable extends Cache
     @Override
     protected CachedInstanceIterable orderById() {
         Arrays.sort(localIds);
+        if (USE_BIT_SETS && typeId != NULL_TYPE_ID) {
+            final int length = localIds.length;
+            if (length > 1) {
+                final long min = localIds[0];
+                if (min >= 0) {
+                    final long range = localIds[length - 1] - min + 1;
+                    if (range < Integer.MAX_VALUE
+                            && range <= ((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length)) {
+                        final SortedEntityIdSet set = new ImmutableSingleTypeEntityIdBitSet(
+                                typeId, localIds, length
+                        );
+                        return new SingleTypeSortedSetEntityIdCachedInstanceIterable(txnGetter.getTxn(this), getSource(), typeId, set);
+                    }
+                }
+            }
+        }
         return new SingleTypeSortedEntityIdArrayCachedInstanceIterable(txnGetter.getTxn(this), getSource(), typeId, localIds, idSet);
     }
 

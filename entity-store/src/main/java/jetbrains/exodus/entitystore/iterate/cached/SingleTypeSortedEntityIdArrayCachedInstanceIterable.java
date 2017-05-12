@@ -17,13 +17,15 @@ package jetbrains.exodus.entitystore.iterate.cached;
 
 import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
-import jetbrains.exodus.entitystore.iterate.*;
+import jetbrains.exodus.entitystore.iterate.CachedInstanceIterable;
+import jetbrains.exodus.entitystore.iterate.EntityIdSet;
+import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
+import jetbrains.exodus.entitystore.iterate.EntityIteratorBase;
 import jetbrains.exodus.entitystore.iterate.cached.iterator.EntityIdArrayIteratorNullTypeId;
 import jetbrains.exodus.entitystore.iterate.cached.iterator.EntityIdArrayIteratorSingleTypeId;
 import jetbrains.exodus.entitystore.iterate.cached.iterator.ReverseEntityIdArrayIteratorNullTypeId;
 import jetbrains.exodus.entitystore.iterate.cached.iterator.ReverseEntityIdArrayIteratorSingleTypeId;
 import jetbrains.exodus.entitystore.util.EntityIdSetFactory;
-import jetbrains.exodus.entitystore.util.ImmutableSingleTypeEntityIdBitSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -106,20 +108,6 @@ public class SingleTypeSortedEntityIdArrayCachedInstanceIterable extends CachedI
 
     @NotNull
     private EntityIdSet toSetImpl() {
-        if (USE_BIT_SETS) {
-            final int length = localIds.length;
-            if (length > 1) {
-                final long min = localIds[0];
-                if (min >= 0) {
-                    final long range = localIds[length - 1] - min + 1;
-                    if (range < Integer.MAX_VALUE && range <= ((long) EntityIdArrayCachedInstanceIterableFactory.MAX_COMPRESSED_SET_LOAD_FACTOR * length)) {
-                        return new ImmutableSingleTypeEntityIdBitSet(typeId, localIds);
-                    }
-                }
-            } else if (length == 1) {
-                return EntityIdSetFactory.newSet().add(typeId, localIds[0]);
-            }
-        }
         EntityIdSet result = EntityIdSetFactory.newSet();
         for (long localId : localIds) {
             result = result.add(typeId, localId);

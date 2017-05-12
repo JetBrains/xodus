@@ -20,6 +20,7 @@ import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.PersistentEntityId;
 import jetbrains.exodus.entitystore.iterate.EntityIdSet;
+import jetbrains.exodus.entitystore.iterate.SortedEntityIdSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -27,7 +28,7 @@ import java.util.BitSet;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-public class ImmutableSingleTypeEntityIdBitSet implements EntityIdSet {
+public class ImmutableSingleTypeEntityIdBitSet implements SortedEntityIdSet {
     private final int singleTypeId;
     private final int size;
     private final long min;
@@ -35,8 +36,15 @@ public class ImmutableSingleTypeEntityIdBitSet implements EntityIdSet {
     private final BitSet data;
 
     public ImmutableSingleTypeEntityIdBitSet(final int singleTypeId, final long[] source) {
+        this(singleTypeId, source, source.length);
+    }
+
+    public ImmutableSingleTypeEntityIdBitSet(final int singleTypeId, final long[] source, int length) {
+        if (length > source.length) {
+            throw new IllegalArgumentException();
+        }
         this.singleTypeId = singleTypeId;
-        size = source.length;
+        size = length;
         min = source[0];
         max = source[size - 1];
         final long bitsCount = max - min + 1;
@@ -44,8 +52,8 @@ public class ImmutableSingleTypeEntityIdBitSet implements EntityIdSet {
             throw new IllegalArgumentException();
         }
         data = new BitSet((int) bitsCount);
-        for (final long value : source) {
-            data.set((int) (value - min));
+        for (int i = 0; i < size; i++) {
+            data.set((int) (source[i] - min));
         }
     }
 
@@ -92,6 +100,42 @@ public class ImmutableSingleTypeEntityIdBitSet implements EntityIdSet {
         return new IdIterator();
     }
 
+    @Override
+    public int indexOf(@NotNull EntityId entityId) {
+        long id = entityId.getLocalId();
+        if (!contains(entityId.getTypeId(), id)) {
+            return -1;
+        }
+        int nextBitIndex = data.nextSetBit(0);
+        int result = 0;
+        if (nextBitIndex != -1) {
+            id -= min;
+            while (nextBitIndex < id) {
+                result++;
+                nextBitIndex = data.nextSetBit(nextBitIndex + 1);
+                if (nextBitIndex == -1) {
+                    break;
+                }
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public EntityId getFirst() {
+        return new PersistentEntityId(singleTypeId, min);
+    }
+
+    @Override
+    public EntityId getLast() {
+        return new PersistentEntityId(singleTypeId, max);
+    }
+
+    @Override
+    public Iterator<EntityId> reverseIterator() {
+        return new ReverseIdIterator();
+    }
+
     @NotNull
     @Override
     public LongSet getTypeSetSnapshot(int typeId) {
@@ -121,6 +165,31 @@ public class ImmutableSingleTypeEntityIdBitSet implements EntityIdSet {
             if (nextBitIndex != -1) {
                 final int bitIndex = nextBitIndex;
                 nextBitIndex = data.nextSetBit(nextBitIndex + 1);
+                return new PersistentEntityId(singleTypeId, bitIndex + min);
+            } else {
+                throw new NoSuchElementException();
+            }
+        }
+
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    class ReverseIdIterator implements Iterator<EntityId> {
+        int nextBitIndex = data.previousSetBit((int) (max - min));
+
+        @Override
+        public boolean hasNext() {
+            return nextBitIndex != -1;
+        }
+
+        @Override
+        public EntityId next() {
+            if (nextBitIndex != -1) {
+                final int bitIndex = nextBitIndex;
+                nextBitIndex = data.previousSetBit(nextBitIndex - 1);
                 return new PersistentEntityId(singleTypeId, bitIndex + min);
             } else {
                 throw new NoSuchElementException();
