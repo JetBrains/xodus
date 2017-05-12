@@ -18,7 +18,7 @@ package jetbrains.exodus;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Helps helps to create new {@code ByteIterable} as a part of another (source) {@code ByteIterable}.
+ * Helps to create new {@code ByteIterable} as a part of another (source) {@code ByteIterable}.
  * Is used in basic implementation of {@link ByteIterable#subIterable(int, int)}.
  */
 public class FixedLengthByteIterable extends ByteIterableBase {
