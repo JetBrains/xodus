@@ -1,6 +1,7 @@
 import org.apache.commons.lang3.SystemUtils
 
 buildscript {
+    ext.jmhVersion = '1.19'
     repositories {
         maven {
             url "https://plugins.gradle.org/m2/"
@@ -21,7 +22,7 @@ sourceCompatibility = 1.8
 dependencies {
     jmh project(':environment')
     // the following dependency is necessary for running benchmarks in IntelliJ using ide-jmh-plugin
-    jmh 'org.openjdk.jmh:jmh-generator-annprocess:1.18'
+    jmh "org.openjdk.jmh:jmh-generator-annprocess:$jmhVersion"
     jmh group: 'junit', name: 'junit', version: '4.12'
     jmh group: 'org.mapdb', name: 'mapdb', version: '3.0.2'
     jmh group: 'net.openhft', name: 'chronicle-map', version: '3.11.0'
@@ -44,7 +45,7 @@ dependencies {
 jmh {
     // uncomment the following line to exclude all benchmarks except Xodus Tokyo Cabinet
     //exclude = 'dataStructures|util|chronicle|h2|mapdb|lmdb'
-    jmhVersion = '1.18'
+    jmhVersion = project.jmhVersion
     jvmArgsPrepend '-Xmx1g -Xms1g'
     duplicateClassesStrategy = 'warn'
     resultFormat = 'JSON'
