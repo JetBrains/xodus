@@ -169,6 +169,15 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
     }
 
     @Override
+    public boolean isConsistent() {
+        return true;
+    }
+
+    @Override
+    public void resetBirthTime() {
+    }
+
+    @Override
     public boolean isExpired() {
         return false;
     }

@@ -119,7 +119,7 @@ public final class EntityIterableCache {
             return it.getOrCreateCachedInstance(txn);
         }
         if (!isCachingQueueFull()) {
-            new EntityIterableAsyncInstantiation(handle, it, false).queue(Priority.below_normal);
+            new EntityIterableAsyncInstantiation(handle, it, true).queue(Priority.below_normal);
         }
 
         return it;
@@ -135,10 +135,9 @@ public final class EntityIterableCache {
             return it.getOrCreateCachedInstance(it.getTransaction()).size();
         }
         final EntityIterableHandle handle = it.getHandle();
-        @Nullable
-        final Long result = getCachedCount(handle);
+        @Nullable final Long result = getCachedCount(handle);
         if (it.isThreadSafe() && !isCachingQueueFull()) {
-            new EntityIterableAsyncInstantiation(handle, it, true).queue(Priority.normal);
+            new EntityIterableAsyncInstantiation(handle, it, false).queue(Priority.normal);
         }
         return result == null ? -1 : result;
     }
@@ -171,7 +170,7 @@ public final class EntityIterableCache {
 
     private String getStringPresentation(@NotNull final EntityIterableHandle handle) {
         return config.getEntityIterableCacheUseHumanReadable() ?
-                EntityIterableBase.getHumanReadablePresentation(handle) : handle.toString();
+            EntityIterableBase.getHumanReadablePresentation(handle) : handle.toString();
     }
 
     @SuppressWarnings({"EqualsAndHashcode"})
@@ -186,10 +185,10 @@ public final class EntityIterableCache {
 
         private EntityIterableAsyncInstantiation(@NotNull final EntityIterableHandle handle,
                                                  @NotNull final EntityIterableBase it,
-                                                 final boolean cachingRoughCount) {
+                                                 final boolean isConsistent) {
             this.it = it;
             this.handle = handle;
-            cancellingPolicy = new CachingCancellingPolicy(cachingRoughCount);
+            cancellingPolicy = new CachingCancellingPolicy(isConsistent && handle.isConsistent());
             setProcessor(processor);
         }
 
@@ -214,14 +213,17 @@ public final class EntityIterableCache {
 
         @Override
         protected void execute() throws Throwable {
-            final long started = System.currentTimeMillis();
-            if (cancellingPolicy.isOverdue(started) || isCachingQueueFull()) {
+            final long started;
+            if (isCachingQueueFull() || cancellingPolicy.isOverdue(started = System.currentTimeMillis())) {
                 return;
             }
             Thread.yield();
             store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
                 @Override
                 public void execute(@NotNull final StoreTransaction tx) {
+                    if (!handle.isConsistent()) {
+                        handle.resetBirthTime();
+                    }
                     final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
                     cancellingPolicy.setLocalCache(txn.getLocalCache());
                     txn.setQueryCancellingPolicy(cancellingPolicy);
@@ -232,13 +234,13 @@ public final class EntityIterableCache {
                             it.getOrCreateCachedInstance(txn);
                             final long cachedIn = System.currentTimeMillis() - started;
                             if (cachedIn > 1000) {
-                                String action = cancellingPolicy.cachingRoughCount ? "Cached for rough count" : "Cached";
+                                String action = cancellingPolicy.isConsistent ? "Cached" : "Cached (inconsistent)";
                                 logger.info(action + " in " + cachedIn + " ms, handle=" + getStringPresentation(handle));
                             }
                         }
                     } catch (TooLongEntityIterableInstantiationException e) {
                         if (logger.isInfoEnabled()) {
-                            String action = cancellingPolicy.cachingRoughCount ? "Caching for rough count" : "Caching";
+                            String action = cancellingPolicy.isConsistent ? "Caching" : "Caching (inconsistent)";
                             logger.info(action + " forcedly stopped, " + e.reason.message + ": " + getStringPresentation(handle));
                         }
                     }
@@ -249,12 +251,12 @@ public final class EntityIterableCache {
 
     private final class CachingCancellingPolicy implements QueryCancellingPolicy {
 
-        private final boolean cachingRoughCount;
+        private final boolean isConsistent;
         private final long startTime;
         private EntityIterableCacheAdapter localCache;
 
-        private CachingCancellingPolicy(final boolean cachingRoughCount) {
-            this.cachingRoughCount = cachingRoughCount;
+        private CachingCancellingPolicy(final boolean isConsistent) {
+            this.isConsistent = isConsistent;
             startTime = System.currentTimeMillis();
         }
 
@@ -268,13 +270,13 @@ public final class EntityIterableCache {
 
         @Override
         public boolean needToCancel() {
-            return (!cachingRoughCount && cacheAdapter != localCache) || isOverdue(System.currentTimeMillis());
+            return (isConsistent && cacheAdapter != localCache) || isOverdue(System.currentTimeMillis());
         }
 
         @Override
         public void doCancel() {
             final TooLongEntityIterableInstantiationReason reason;
-            if (!cachingRoughCount && cacheAdapter != localCache) {
+            if (isConsistent && cacheAdapter != localCache) {
                 reason = TooLongEntityIterableInstantiationReason.CACHE_ADAPTER_OBSOLETE;
             } else {
                 reason = TooLongEntityIterableInstantiationReason.JOB_OVERDUE;

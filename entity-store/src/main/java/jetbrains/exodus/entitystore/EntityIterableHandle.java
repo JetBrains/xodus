@@ -62,5 +62,9 @@ public interface EntityIterableHandle {
 
     boolean hasLinkId(int id);
 
+    boolean isConsistent();
+
+    void resetBirthTime();
+
     boolean isExpired();
 }
