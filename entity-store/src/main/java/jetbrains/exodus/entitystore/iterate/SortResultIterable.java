@@ -41,6 +41,11 @@ public class SortResultIterable extends EntityIterableDecoratorBase {
     }
 
     @Override
+    public boolean contains(@NotNull Entity entity) {
+        return source.contains(entity);
+    }
+
+    @Override
     public int indexOf(@NotNull final Entity entity) {
         return indexOfImpl(entity.getId());
     }
