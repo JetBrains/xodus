@@ -116,6 +116,7 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
     private static class SubIterable extends ByteIterableBase {
 
         private final int offset;
+        private byte[] bytesUnsafe;
 
         SubIterable(@NotNull final byte[] bytes, final int offset, final int length) {
             this.bytes = bytes;
@@ -163,9 +164,15 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
 
         @Override
         public byte[] getBytesUnsafe() {
-            final byte[] result = new byte[length];
-            System.arraycopy(bytes, offset, result, 0, length);
-            return result;
+            if (bytesUnsafe == null) {
+                if (offset == 0) {
+                    bytesUnsafe = bytes;
+                } else {
+                    bytesUnsafe = new byte[length];
+                    System.arraycopy(bytes, offset, bytesUnsafe, 0, length);
+                }
+            }
+            return bytesUnsafe;
         }
     }
 }
