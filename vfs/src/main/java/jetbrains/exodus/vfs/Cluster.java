@@ -17,6 +17,7 @@ package jetbrains.exodus.vfs;
 
 import jetbrains.exodus.*;
 import jetbrains.exodus.bindings.IntegerBinding;
+import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -30,7 +31,7 @@ class Cluster {
     private int size;
 
     Cluster(@NotNull final ByteIterable it) {
-        iterator = it instanceof FixedLengthByteIterable ? ((FixedLengthByteIterable) it).getSource().iterator() : it.iterator();
+        iterator = it.iterator();
         clusterNumber = 0;
         size = IntegerBinding.readCompressed(iterator);
     }
@@ -71,20 +72,22 @@ class Cluster {
     }
 
     static ByteIterable writeCluster(@NotNull final byte[] cluster, final int size, final boolean accumulateInRAM) {
-        final ByteIterable bi;
         if (accumulateInRAM) {
-            bi = new ArrayByteIterable(cluster, size);
-        } else {
-            try {
-                final File file = File.createTempFile("~exodus-vfs-output-cluster", ".tmp");
-                try (RandomAccessFile out = new RandomAccessFile(file, "rw")) {
-                    out.write(cluster, 0, size);
-                }
-                bi = new FileByteIterable(file);
-                file.deleteOnExit();
-            } catch (IOException e) {
-                throw ExodusException.toExodusException(e);
+            final LightOutputStream output = new LightOutputStream(size + 5);
+            IntegerBinding.writeCompressed(output, size);
+            output.write(cluster, 0, size);
+            return output.asArrayByteIterable();
+        }
+        final ByteIterable bi;
+        try {
+            final File file = File.createTempFile("~exodus-vfs-output-cluster", ".tmp");
+            try (RandomAccessFile out = new RandomAccessFile(file, "rw")) {
+                out.write(cluster, 0, size);
             }
+            bi = new FileByteIterable(file);
+            file.deleteOnExit();
+        } catch (IOException e) {
+            throw ExodusException.toExodusException(e);
         }
         return new CompoundByteIterable(new ByteIterable[]{IntegerBinding.intToCompressedEntry(size), bi});
     }
