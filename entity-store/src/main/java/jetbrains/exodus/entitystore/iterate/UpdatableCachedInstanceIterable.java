@@ -27,7 +27,7 @@ public abstract class UpdatableCachedInstanceIterable extends CachedInstanceIter
     }
 
     @Override
-    protected void orderById() {
+    protected CachedInstanceIterable orderById() {
         throw new UnsupportedOperationException();
     }
 

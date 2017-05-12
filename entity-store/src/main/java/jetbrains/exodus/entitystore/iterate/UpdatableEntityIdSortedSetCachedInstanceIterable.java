@@ -138,6 +138,7 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
         return getCurrentMap().size();
     }
 
+    @NotNull
     @Override
     public EntityIdSet toSet(@NotNull final PersistentStoreTransaction txn) {
         if (idSet == null) {
@@ -150,6 +151,7 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
                 return result;
             }
             idSet = result;
+            return result;
         }
         return idSet;
     }

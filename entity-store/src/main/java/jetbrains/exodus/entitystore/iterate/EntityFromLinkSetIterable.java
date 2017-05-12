@@ -140,20 +140,15 @@ public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
     @Override
     protected CachedInstanceIterable createCachedInstance(@NotNull final PersistentStoreTransaction txn) {
         final IntArrayList propIds = new IntArrayList();
-        return new EntityIdArrayCachedInstanceIterable(txn, EntityFromLinkSetIterable.this) {
+        final CachedInstanceIterable cached = EntityIdArrayCachedInstanceIterableFactory.createInstance(txn, this, new LinksIterator(openCursor(txn), getFirstKey()) {
             @Override
-            protected EntityId extractNextId(final EntityIterator it) {
-                final EntityId result = super.extractNextId(it);
-                propIds.add(((EntityFromLinkSetIteratorBase) it).currentPropId());
+            public EntityId nextId() {
+                final EntityId result = super.nextId();
+                propIds.add(currentPropId());
                 return result;
             }
-
-            @NotNull
-            @Override
-            public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
-                return new EntityIdArrayWithSetIteratorWrapper(this, super.getIteratorImpl(txn), propIds, linkNames);
-            }
-        };
+        });
+        return new EntityIdArrayWithSetIterableWrapper(txn, cached, propIds, linkNames);
     }
 
     private Cursor openCursor(@NotNull final PersistentStoreTransaction txn) {

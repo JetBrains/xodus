@@ -79,5 +79,5 @@ public abstract class CachedInstanceIterable extends EntityIterableBase {
         return countImpl(txn) == 0;
     }
 
-    protected abstract void orderById();
+    protected abstract CachedInstanceIterable orderById();
 }

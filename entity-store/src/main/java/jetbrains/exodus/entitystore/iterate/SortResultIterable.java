@@ -60,6 +60,7 @@ public class SortResultIterable extends EntityIterableDecoratorBase {
         return source.getLast();
     }
 
+    @NotNull
     @Override
     public EntityIdSet toSet(@NotNull final PersistentStoreTransaction txn) {
         return source.toSet(txn);

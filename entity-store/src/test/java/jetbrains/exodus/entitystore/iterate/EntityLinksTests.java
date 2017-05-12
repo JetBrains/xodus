@@ -68,6 +68,26 @@ public class EntityLinksTests extends EntityStoreTestBase {
         Assert.assertEquals(10, i);
     }
 
+    public void testAddAndIterateReorder() throws Exception {
+        final StoreTransaction txn = getStoreTransaction();
+        final Entity[] issues = new Entity[10];
+        for (int i = 0; i < issues.length; i++) {
+            final Entity issue = txn.newEntity("Issue");
+            issue.setProperty("description", "Test issue " + i);
+            issues[i] = issue;
+        }
+        for (int i = 0; i < 10; ++i) {
+            Entity issue = issues[9 - i];
+            final Entity comment = txn.newEntity("Comment");
+            comment.setProperty("body", "Comment" + i);
+            issue.addLink("comment", comment);
+            comment.addLink("issue", issue);
+        }
+        txn.flush();
+        Assert.assertEquals(0, (int) txn.findWithLinks("Issue", "issue").size());
+        Assert.assertEquals(10, (int) txn.findWithLinks("Issue", "comment").size());
+    }
+
     public void testAddAndDeleteSomeLinks() throws Exception {
         testAddAndIterateLinks();
         final StoreTransaction txn = getStoreTransaction();

@@ -480,8 +480,8 @@ public abstract class EntityIterableBase implements EntityIterable {
         }
         if (cached == null) {
             cached = createCachedInstance(txn);
-            if (!config.isReorderingDisabled() && !cached.isSortedById() && canBeReordered()) {
-                cached.orderById();
+            if (canBeReordered() && !config.isReorderingDisabled() && !cached.isSortedById()) {
+                cached = cached.orderById();
             }
             if (canBeCached) {
                 txn.addCachedInstance(cached);
@@ -492,6 +492,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         return cached;
     }
 
+    @NotNull
     public EntityIdSet toSet(@NotNull final PersistentStoreTransaction txn) {
         return getOrCreateCachedInstance(txn).toSet(txn);
     }
@@ -540,7 +541,7 @@ public abstract class EntityIterableBase implements EntityIterable {
     }
 
     protected CachedInstanceIterable createCachedInstance(@NotNull final PersistentStoreTransaction txn) {
-        return new EntityIdArrayCachedInstanceIterable(txn, this);
+        return EntityIdArrayCachedInstanceIterableFactory.createInstance(txn, this);
     }
 
     public static String getHumanReadablePresentation(@NotNull final EntityIterableHandle handle) {
