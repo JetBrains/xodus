@@ -153,7 +153,9 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
                 mutableSet.add(entry);
                 size++;
             } else {
-                if (!entry.bits.get(bitIndex)) {
+                if (entry.bits.get(bitIndex)) {
+                    return;
+                } else {
                     final Entry copy = new Entry(index, entry);
                     mutableSet.add(copy);
                     entry = copy;
