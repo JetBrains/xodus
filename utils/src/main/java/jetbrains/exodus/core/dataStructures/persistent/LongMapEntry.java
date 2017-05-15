@@ -17,7 +17,6 @@ package jetbrains.exodus.core.dataStructures.persistent;
 
 import org.jetbrains.annotations.Nullable;
 
-@SuppressWarnings("ComparableImplementedButEqualsNotOverridden")
 public class LongMapEntry<V> implements PersistentLongMap.Entry<V> {
 
     private final long key;
@@ -32,13 +31,6 @@ public class LongMapEntry<V> implements PersistentLongMap.Entry<V> {
         value = v;
     }
 
-    @SuppressWarnings("NullableProblems") // Comparable<T> contract requires NPE if argument is null
-    @Override
-    public int compareTo(PersistentLongMap.Entry<V> o) {
-        final long otherKey = o.getKey();
-        return key > otherKey ? 1 : key == otherKey ? 0 : -1;
-    }
-
     @Override
     public V getValue() {
         return value;
@@ -47,5 +39,29 @@ public class LongMapEntry<V> implements PersistentLongMap.Entry<V> {
     @Override
     public long getKey() {
         return key;
+    }
+
+    @SuppressWarnings("NullableProblems") // Comparable<T> contract requires NPE if argument is null
+    @Override
+    public int compareTo(PersistentLongMap.Entry<V> o) {
+        final long otherKey = o.getKey();
+        return key > otherKey ? 1 : key == otherKey ? 0 : -1;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof PersistentLongMap.Entry)) return false;
+
+        final PersistentLongMap.Entry that = (PersistentLongMap.Entry) o;
+
+        return key == that.getKey() && (value != null ? value.equals(that.getValue()) : that.getValue() == null);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = (int) (key ^ (key >>> 32));
+        result = 31 * result + (value != null ? value.hashCode() : 0);
+        return result;
     }
 }

@@ -107,12 +107,17 @@ public class PersistentLongMapTest {
                 }
                 Assert.assertFalse(iterator.hasNext());
 
+                boolean first = true;
                 iterator = added.iterator();
                 Iterator<PersistentLongMap.Entry<String>> treeItr = write.iterator();
                 for (int j = 0; j < size; j++) {
                     PersistentLongMap.Entry<String> key = treeItr.next();
                     Assert.assertTrue(iterator.hasNext());
                     long next = iterator.next();
+                    if (first) {
+                        Assert.assertEquals(new LongMapEntry<>(next, String.valueOf(next)), write.getMinimum());
+                        first = false;
+                    }
                     Assert.assertEquals(next, key.getKey());
                     Assert.assertEquals(String.valueOf(next), key.getValue());
                 }
