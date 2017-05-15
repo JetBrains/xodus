@@ -19,6 +19,7 @@ import jetbrains.exodus.*;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,14 +27,15 @@ import java.io.RandomAccessFile;
 
 class Cluster {
 
-    private final ByteIterator iterator;
+    @NotNull
+    private final ByteIterable it;
+    @Nullable
+    private ByteIterator iterator;
     private long clusterNumber;
     private int size;
 
     Cluster(@NotNull final ByteIterable it) {
-        iterator = it.iterator();
-        clusterNumber = 0;
-        size = IntegerBinding.readCompressed(iterator);
+        this.it = it;
     }
 
     long getClusterNumber() {
@@ -45,22 +47,24 @@ class Cluster {
     }
 
     int getSize() {
+        getIterator();
         return size;
     }
 
     boolean hasNext() {
-        return size > 0 && iterator.hasNext();
+        return getSize() > 0 && getIterator().hasNext();
     }
 
     byte next() {
-        final byte result = iterator.next();
+        final byte result = getIterator().next();
         --size;
         return result;
     }
 
     long skip(final long length) {
-        final long skipped = length > size ? size : iterator.skip(length);
-        size -= (int) skipped;
+        final int size = getSize();
+        final long skipped = length > size ? size : getIterator().skip(length);
+        this.size -= (int) skipped;
         return skipped;
     }
 
@@ -90,5 +94,14 @@ class Cluster {
             throw ExodusException.toExodusException(e);
         }
         return new CompoundByteIterable(new ByteIterable[]{IntegerBinding.intToCompressedEntry(size), bi});
+    }
+
+    @NotNull
+    private ByteIterator getIterator() {
+        if (iterator == null) {
+            iterator = it.iterator();
+            size = IntegerBinding.readCompressed(iterator);
+        }
+        return iterator;
     }
 }

@@ -55,6 +55,14 @@ public abstract class ClusteringStrategy {
         this.maxClusterSize = maxClusterSize;
     }
 
+    public int getMaxClusterSize() {
+        return maxClusterSize;
+    }
+
+    public boolean isLinear() {
+        return false;
+    }
+
     protected int adjustClusterSize(final int nextClusterSize) {
         return nextClusterSize > maxClusterSize ? maxClusterSize : nextClusterSize;
     }
@@ -101,6 +109,11 @@ public abstract class ClusteringStrategy {
         @Override
         int getNextClusterSize(final int prevClusterSize) {
             return prevClusterSize;
+        }
+
+        @Override
+        public boolean isLinear() {
+            return true;
         }
     }
 
