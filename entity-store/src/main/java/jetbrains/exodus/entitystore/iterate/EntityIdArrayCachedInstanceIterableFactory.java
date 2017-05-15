@@ -21,6 +21,7 @@ import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.entitystore.iterate.cached.*;
 import jetbrains.exodus.entitystore.util.ImmutableSingleTypeEntityIdBitSet;
+import jetbrains.exodus.entitystore.util.ImmutableSingleTypeEntityIdCollection;
 import jetbrains.exodus.entitystore.util.IntArrayListSpinAllocator;
 import jetbrains.exodus.entitystore.util.LongArrayListSpinAllocator;
 import org.jetbrains.annotations.NotNull;
@@ -191,6 +192,22 @@ public class EntityIdArrayCachedInstanceIterableFactory {
             }
         }
         return new SingleTypeSortedEntityIdArrayCachedInstanceIterable(txn, source, typeId, localIds.toArray(), it.toSet());
+    }
+
+    @NotNull
+    public static OrderedEntityIdCollection makeIdCollection(int typeId, long[] localIds) {
+        final int length = localIds.length;
+        if (length > 1) {
+            final long min = localIds[0];
+            if (min >= 0) {
+                final long range = localIds[length - 1] - min + 1;
+                if (range < Integer.MAX_VALUE
+                        && range <= ((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length)) {
+                    return new ImmutableSingleTypeEntityIdBitSet(typeId, localIds, length);
+                }
+            }
+        }
+        return new ImmutableSingleTypeEntityIdCollection(typeId, localIds);
     }
 
     private static void addNextTypeId(final int nextTypeId, IntArrayList typeIds, LongArrayList localIds) {

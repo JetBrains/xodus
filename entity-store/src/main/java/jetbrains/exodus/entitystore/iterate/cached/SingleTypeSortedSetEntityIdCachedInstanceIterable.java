@@ -20,8 +20,8 @@ import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.EntityIterator;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.entitystore.iterate.*;
-import jetbrains.exodus.entitystore.iterate.cached.iterator.EntityIdSetIteratorSingleTypeId;
-import jetbrains.exodus.entitystore.iterate.cached.iterator.ReverseEntityIdSetIteratorSingleTypeId;
+import jetbrains.exodus.entitystore.iterate.cached.iterator.OrderedEntityIdCollectionIterator;
+import jetbrains.exodus.entitystore.iterate.cached.iterator.ReverseOrderedEntityIdCollectionIterator;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -70,13 +70,13 @@ public class SingleTypeSortedSetEntityIdCachedInstanceIterable extends CachedIns
     @NotNull
     @Override
     public EntityIteratorBase getIteratorImpl(@NotNull PersistentStoreTransaction txn) {
-        return new EntityIdSetIteratorSingleTypeId(this, localIds);
+        return new OrderedEntityIdCollectionIterator(this, localIds);
     }
 
     @NotNull
     @Override
     public EntityIterator getReverseIteratorImpl(@NotNull PersistentStoreTransaction txn) {
-        return new ReverseEntityIdSetIteratorSingleTypeId(this, localIds);
+        return new ReverseOrderedEntityIdCollectionIterator(this, localIds);
     }
 
     @NotNull

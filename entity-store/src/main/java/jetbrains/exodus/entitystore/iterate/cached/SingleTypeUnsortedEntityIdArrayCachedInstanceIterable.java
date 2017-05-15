@@ -20,11 +20,12 @@ import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.entitystore.iterate.cached.iterator.EntityIdArrayIteratorNullTypeId;
-import jetbrains.exodus.entitystore.iterate.cached.iterator.EntityIdArrayIteratorSingleTypeId;
+import jetbrains.exodus.entitystore.iterate.cached.iterator.OrderedEntityIdCollectionIterator;
 import jetbrains.exodus.entitystore.iterate.cached.iterator.ReverseEntityIdArrayIteratorNullTypeId;
-import jetbrains.exodus.entitystore.iterate.cached.iterator.ReverseEntityIdArrayIteratorSingleTypeId;
+import jetbrains.exodus.entitystore.iterate.cached.iterator.ReverseOrderedEntityIdCollectionIterator;
 import jetbrains.exodus.entitystore.util.EntityIdSetFactory;
 import jetbrains.exodus.entitystore.util.ImmutableSingleTypeEntityIdBitSet;
+import jetbrains.exodus.entitystore.util.ImmutableSingleTypeEntityIdCollection;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -97,7 +98,7 @@ public class SingleTypeUnsortedEntityIdArrayCachedInstanceIterable extends Cache
         if (typeId == NULL_TYPE_ID) {
             return new EntityIdArrayIteratorNullTypeId(this, localIds.length);
         }
-        return new EntityIdArrayIteratorSingleTypeId(this, typeId, localIds);
+        return new OrderedEntityIdCollectionIterator(this, new ImmutableSingleTypeEntityIdCollection(typeId, localIds));
     }
 
     @NotNull
@@ -106,7 +107,7 @@ public class SingleTypeUnsortedEntityIdArrayCachedInstanceIterable extends Cache
         if (typeId == NULL_TYPE_ID) {
             return new ReverseEntityIdArrayIteratorNullTypeId(this, localIds.length);
         }
-        return new ReverseEntityIdArrayIteratorSingleTypeId(this, typeId, localIds);
+        return new ReverseOrderedEntityIdCollectionIterator(this, new ImmutableSingleTypeEntityIdCollection(typeId, localIds));
     }
 
     @NotNull

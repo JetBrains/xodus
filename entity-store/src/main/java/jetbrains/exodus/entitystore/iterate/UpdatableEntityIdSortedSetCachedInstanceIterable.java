@@ -22,6 +22,7 @@ import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.EntityIterator;
 import jetbrains.exodus.entitystore.PersistentEntityId;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.iterate.cached.iterator.OrderedEntityIdCollectionIterator;
 import jetbrains.exodus.entitystore.util.EntityIdSetFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -38,7 +39,7 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
     @Nullable
     private EntityIdSet idSet;
     @Nullable
-    private long[] idArray;
+    private OrderedEntityIdCollection idCollection;
 
     public UpdatableEntityIdSortedSetCachedInstanceIterable(@NotNull final PersistentStoreTransaction txn,
                                                             @NotNull final EntityIterableBase source) {
@@ -65,7 +66,7 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
         }
         mutableLocalIds = null;
         idSet = null;
-        idArray = null;
+        idCollection = null;
     }
 
     // constructor for mutating
@@ -75,7 +76,7 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
         localIds = source.localIds.getClone();
         mutableLocalIds = localIds.beginWrite();
         idSet = null;
-        idArray = null;
+        idCollection = null;
     }
 
     public int getEntityTypeId() {
@@ -90,30 +91,16 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
         }
         final PersistentLongSet.ImmutableSet currentSet = getCurrentMap();
         if (mutableLocalIds == null) {
-            if (idArray == null) {
+            if (idCollection == null) {
                 final long[] result = new long[currentSet.size()];
                 final LongIterator it = currentSet.longIterator();
                 int i = 0;
                 while (it.hasNext()) {
                     result[i++] = it.next();
                 }
-                idArray = result;
+                idCollection = EntityIdArrayCachedInstanceIterableFactory.makeIdCollection(entityTypeId, result);
             }
-            return new NonDisposableEntityIterator(this) {
-
-                private int i = 0;
-
-                @Override
-                protected boolean hasNextImpl() {
-                    return i < idArray.length;
-                }
-
-                @Nullable
-                @Override
-                protected EntityId nextIdImpl() {
-                    return new PersistentEntityId(entityTypeId, idArray[i++]);
-                }
-            };
+            return new OrderedEntityIdCollectionIterator(this, idCollection);
         }
         return new NonDisposableEntityIterator(this) {
 

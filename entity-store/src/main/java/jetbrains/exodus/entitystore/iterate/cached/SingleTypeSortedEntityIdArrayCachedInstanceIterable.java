@@ -22,10 +22,11 @@ import jetbrains.exodus.entitystore.iterate.EntityIdSet;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.iterate.EntityIteratorBase;
 import jetbrains.exodus.entitystore.iterate.cached.iterator.EntityIdArrayIteratorNullTypeId;
-import jetbrains.exodus.entitystore.iterate.cached.iterator.EntityIdArrayIteratorSingleTypeId;
+import jetbrains.exodus.entitystore.iterate.cached.iterator.OrderedEntityIdCollectionIterator;
 import jetbrains.exodus.entitystore.iterate.cached.iterator.ReverseEntityIdArrayIteratorNullTypeId;
-import jetbrains.exodus.entitystore.iterate.cached.iterator.ReverseEntityIdArrayIteratorSingleTypeId;
+import jetbrains.exodus.entitystore.iterate.cached.iterator.ReverseOrderedEntityIdCollectionIterator;
 import jetbrains.exodus.entitystore.util.EntityIdSetFactory;
+import jetbrains.exodus.entitystore.util.ImmutableSingleTypeEntityIdCollection;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -33,7 +34,7 @@ import java.util.Arrays;
 
 public class SingleTypeSortedEntityIdArrayCachedInstanceIterable extends CachedInstanceIterable {
     private final int typeId;
-    private final long[] localIds;
+    private final ImmutableSingleTypeEntityIdCollection localIds;
     @Nullable
     private EntityIdSet idSet;
 
@@ -41,7 +42,7 @@ public class SingleTypeSortedEntityIdArrayCachedInstanceIterable extends CachedI
                                                                int typeId, long[] localIds, @Nullable EntityIdSet idSet) {
         super(txn, source);
         this.typeId = typeId;
-        this.localIds = localIds;
+        this.localIds = new ImmutableSingleTypeEntityIdCollection(typeId, localIds);
         this.idSet = idSet;
     }
 
@@ -62,13 +63,13 @@ public class SingleTypeSortedEntityIdArrayCachedInstanceIterable extends CachedI
 
     @Override
     protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
-        return localIds.length;
+        return localIds.count();
     }
 
     @Override
     protected int indexOfImpl(@NotNull final EntityId entityId) {
         if (typeId == entityId.getTypeId()) {
-            final int result = Arrays.binarySearch(localIds, entityId.getLocalId());
+            final int result = Arrays.binarySearch(localIds.getIdArray(), entityId.getLocalId());
             if (result >= 0) {
                 return result;
             }
@@ -80,18 +81,18 @@ public class SingleTypeSortedEntityIdArrayCachedInstanceIterable extends CachedI
     @Override
     public EntityIteratorBase getIteratorImpl(@NotNull PersistentStoreTransaction txn) {
         if (typeId == NULL_TYPE_ID) {
-            return new EntityIdArrayIteratorNullTypeId(this, localIds.length);
+            return new EntityIdArrayIteratorNullTypeId(this, localIds.count());
         }
-        return new EntityIdArrayIteratorSingleTypeId(this, typeId, localIds);
+        return new OrderedEntityIdCollectionIterator(this, localIds);
     }
 
     @NotNull
     @Override
     public EntityIteratorBase getReverseIteratorImpl(@NotNull PersistentStoreTransaction txn) {
         if (typeId == NULL_TYPE_ID) {
-            return new ReverseEntityIdArrayIteratorNullTypeId(this, localIds.length);
+            return new ReverseEntityIdArrayIteratorNullTypeId(this, localIds.count());
         }
-        return new ReverseEntityIdArrayIteratorSingleTypeId(this, typeId, localIds);
+        return new ReverseOrderedEntityIdCollectionIterator(this, localIds);
     }
 
     @NotNull
@@ -109,7 +110,7 @@ public class SingleTypeSortedEntityIdArrayCachedInstanceIterable extends CachedI
     @NotNull
     private EntityIdSet toSetImpl() {
         EntityIdSet result = EntityIdSetFactory.newSet();
-        for (long localId : localIds) {
+        for (long localId : localIds.getIdArray()) {
             result = result.add(typeId, localId);
         }
         return result;

@@ -16,9 +16,13 @@
 package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.entitystore.EntityId;
-import org.jetbrains.annotations.NotNull;
 
-public interface SortedEntityIdSet extends EntityIdSet, OrderedEntityIdCollection {
+import java.util.Iterator;
 
-    int indexOf(@NotNull EntityId entityId);
+public interface OrderedEntityIdCollection extends EntityIdCollection {
+    EntityId getFirst();
+
+    EntityId getLast();
+
+    Iterator<EntityId> reverseIterator();
 }

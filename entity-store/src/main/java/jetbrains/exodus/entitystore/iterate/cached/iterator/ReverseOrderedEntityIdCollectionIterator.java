@@ -16,52 +16,60 @@
 package jetbrains.exodus.entitystore.iterate.cached.iterator;
 
 import jetbrains.exodus.entitystore.EntityId;
-import jetbrains.exodus.entitystore.PersistentEntityId;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.iterate.NonDisposableEntityIterator;
+import jetbrains.exodus.entitystore.iterate.OrderedEntityIdCollection;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class EntityIdArrayIteratorSingleTypeId extends NonDisposableEntityIterator {
-    private int index = 0;
-    private final int typeId;
-    private final long[] localIds;
+import java.util.Iterator;
 
-    public EntityIdArrayIteratorSingleTypeId(@NotNull EntityIterableBase iterable, int typeId, long[] localIds) {
+public class ReverseOrderedEntityIdCollectionIterator extends NonDisposableEntityIterator {
+    private int index = 0;
+    @NotNull
+    private final OrderedEntityIdCollection source;
+    @NotNull
+    private final Iterator<EntityId> sourceIterator;
+
+    public ReverseOrderedEntityIdCollectionIterator(@NotNull EntityIterableBase iterable, @NotNull OrderedEntityIdCollection source) {
         super(iterable);
-        this.typeId = typeId;
-        this.localIds = localIds;
+        this.source = source;
+        this.sourceIterator = source.reverseIterator();
     }
 
     @Override
     public boolean skip(int number) {
-        index += number;
-        return hasNextImpl();
+        while (number-- > 0 && sourceIterator.hasNext()) {
+            nextIdImpl();
+        }
+        return sourceIterator.hasNext();
     }
 
     @Override
     @Nullable
     public EntityId nextId() {
-        final int index = this.index++;
-        return new PersistentEntityId(typeId, localIds[index]);
+        EntityId result = sourceIterator.next();
+        index++;
+        return result;
     }
 
     @Override
     @Nullable
     public EntityId getLast() {
-        return new PersistentEntityId(typeId, localIds[localIds.length - 1]);
+        return source.getFirst();
     }
 
     @Override
     @Nullable
     public EntityId nextIdImpl() {
-        final int index = this.index++;
-        return new PersistentEntityId(typeId, localIds[index]);
+        EntityId result = sourceIterator.next();
+        index++;
+        return result;
     }
 
     @Override
     protected boolean hasNextImpl() {
-        return index < localIds.length;
+        return sourceIterator.hasNext();
     }
 
     @Override

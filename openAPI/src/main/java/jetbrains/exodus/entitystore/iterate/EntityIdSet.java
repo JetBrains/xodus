@@ -20,7 +20,7 @@ import jetbrains.exodus.entitystore.EntityId;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public interface EntityIdSet extends Iterable<EntityId> {
+public interface EntityIdSet extends EntityIdCollection {
 
     EntityIdSet add(@Nullable final EntityId id);
 
@@ -36,6 +36,4 @@ public interface EntityIdSet extends Iterable<EntityId> {
 
     @NotNull
     LongSet getTypeSetSnapshot(int typeId);
-
-    int count();
 }
