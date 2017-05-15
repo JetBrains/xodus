@@ -41,7 +41,7 @@ public class PersistentBitTreeLongMap<V> implements PersistentLongMap<V> {
     }
 
     @Override
-    public ImmutableMap<V> beginRead() {
+    public PersistentLongMap.ImmutableMap<V> beginRead() {
         return new ImmutableMap<>(root.map.beginRead(), root.size);
     }
 
@@ -51,7 +51,7 @@ public class PersistentBitTreeLongMap<V> implements PersistentLongMap<V> {
     }
 
     @Override
-    public MutableMap<V> beginWrite() {
+    public PersistentLongMap.MutableMap<V> beginWrite() {
         return new MutableMap<>(root.map.beginWrite(), root.size, this);
     }
 
