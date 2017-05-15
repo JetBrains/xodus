@@ -45,8 +45,15 @@ public class ExodusDirectory extends Directory {
     public ExodusDirectory(@NotNull final ContextualEnvironment env,
                            @NotNull final StoreConfig contentsStoreConfig,
                            @NotNull final LockFactory lockFactory) throws IOException {
+        this(env, createDefaultVfsConfig(), contentsStoreConfig, lockFactory);
+    }
+
+    public ExodusDirectory(@NotNull final ContextualEnvironment env,
+                           @NotNull final VfsConfig vfsConfig,
+                           @NotNull final StoreConfig contentsStoreConfig,
+                           @NotNull final LockFactory lockFactory) throws IOException {
         this.env = env;
-        vfs = new VirtualFileSystem(env, createDefaultVfsConfig(), contentsStoreConfig);
+        vfs = new VirtualFileSystem(env, vfsConfig, contentsStoreConfig);
         setLockFactory(lockFactory);
     }
 
