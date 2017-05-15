@@ -32,43 +32,43 @@ public class VfsStreamsTests extends VfsTestsBase {
     private static final String UTF_8 = "UTF-8";
     private static final String HOEGAARDEN = "hoegaarden";
     private static final String RENAT_GILFANOV =
-            "Ночью здесь человек лежал, глядя в неба тьму,\n" +
-                    "Вперив глаза в отсутствие чего бы то ни было.\n" +
-                    "Рассеянная улыбка раздвигала губы ему,\n" +
-                    "Потом наступил прибой, но воды ни прибыло.\n" +
-                    "От жёлтой полоски света, крадущейся с корабля\n" +
-                    "По чёрному дёгтю волн, от мерного их брожения\n" +
-                "Рыбы впадали в транс. И северный ветер, как конопля,\n" +
-                    "Бродил по извилинам волн, воспаляя воображение.\n" +
-                    "Лежащий глядел в то место, откуда бывает снег,\n" +
-                    "Где, обозначенный красной точкою, медленно двигался к катастрофе\n" +
-                    "Самолёт, в котором совершенно чужой ему человек,\n" +
-                    "Подозвав стюардессу, с улыбкой заказывал себе кофе…\n\n" +
+        "Ночью здесь человек лежал, глядя в неба тьму,\n" +
+            "Вперив глаза в отсутствие чего бы то ни было.\n" +
+            "Рассеянная улыбка раздвигала губы ему,\n" +
+            "Потом наступил прибой, но воды ни прибыло.\n" +
+            "От жёлтой полоски света, крадущейся с корабля\n" +
+            "По чёрному дёгтю волн, от мерного их брожения\n" +
+            "Рыбы впадали в транс. И северный ветер, как конопля,\n" +
+            "Бродил по извилинам волн, воспаляя воображение.\n" +
+            "Лежащий глядел в то место, откуда бывает снег,\n" +
+            "Где, обозначенный красной точкою, медленно двигался к катастрофе\n" +
+            "Самолёт, в котором совершенно чужой ему человек,\n" +
+            "Подозвав стюардессу, с улыбкой заказывал себе кофе…\n\n" +
 
-                    "Может быть, обитатель звёзд\n" +
-                    "глядящий на нас с небес,\n" +
-                    "учует тепло наших гнезд.\n" +
-                    "Нам нельзя обойтися без.\n" +
-                    "Алое солнце красит\n" +
-                    "рамы оконной метр.\n" +
-                    "Дети пьют простоквашу,\n" +
-                    "боясь выходить на ветр.\n" +
-                    "Глядя, как вечер играет\n" +
-                    "заката красным мячом,\n" +
-                    "старый отец умирает,\n" +
-                    "вжавшись в постель плечом.\n" +
-                    "Пока гоношится ветер,\n" +
-                    "и вкус простокваши кисл,\n" +
-                    "он прикрывает веки\n" +
-                    "и думает свою мысль.\n" +
-                    "А мысль его незаметна\n" +
-                    "и также тиха, как он.\n" +
-                    "Слабей завыванья ветра\n" +
-                    "и дребезжанья окон.\n" +
-                    "Мысль не имеет приметы,\n" +
-                    "лишь имя длиной в строку.\n" +
-                    "�?мя то \"смерть\", и это\n" +
-                    "нравится старику.";
+            "Может быть, обитатель звёзд\n" +
+            "глядящий на нас с небес,\n" +
+            "учует тепло наших гнезд.\n" +
+            "Нам нельзя обойтися без.\n" +
+            "Алое солнце красит\n" +
+            "рамы оконной метр.\n" +
+            "Дети пьют простоквашу,\n" +
+            "боясь выходить на ветр.\n" +
+            "Глядя, как вечер играет\n" +
+            "заката красным мячом,\n" +
+            "старый отец умирает,\n" +
+            "вжавшись в постель плечом.\n" +
+            "Пока гоношится ветер,\n" +
+            "и вкус простокваши кисл,\n" +
+            "он прикрывает веки\n" +
+            "и думает свою мысль.\n" +
+            "А мысль его незаметна\n" +
+            "и также тиха, как он.\n" +
+            "Слабей завыванья ветра\n" +
+            "и дребезжанья окон.\n" +
+            "Мысль не имеет приметы,\n" +
+            "лишь имя длиной в строку.\n" +
+            "Имя то \"смерть\", и это\n" +
+            "нравится старику.";
 
     @Test
     public void writeRead() throws IOException {
@@ -215,8 +215,8 @@ public class VfsStreamsTests extends VfsTestsBase {
         txn.flush();
         final InputStream inputStream = vfs.readFile(txn, file0);
         Assert.assertEquals('x' + HOEGAARDEN.substring(1) +
-                'x' + HOEGAARDEN.substring(1) + 'x' + HOEGAARDEN.substring(1) +
-                'x' + HOEGAARDEN.substring(1), streamAsString(inputStream));
+            'x' + HOEGAARDEN.substring(1) + 'x' + HOEGAARDEN.substring(1) +
+            'x' + HOEGAARDEN.substring(1), streamAsString(inputStream));
         inputStream.close();
         txn.abort();
     }
@@ -246,8 +246,8 @@ public class VfsStreamsTests extends VfsTestsBase {
         txn.flush();
         final InputStream inputStream = vfs.readFile(txn, file0);
         Assert.assertEquals('x' + HOEGAARDEN.substring(1) +
-                'x' + HOEGAARDEN.substring(1) + 'x' + HOEGAARDEN.substring(1) +
-                'x' + HOEGAARDEN.substring(1) + HOEGAARDEN, streamAsString(inputStream));
+            'x' + HOEGAARDEN.substring(1) + 'x' + HOEGAARDEN.substring(1) +
+            'x' + HOEGAARDEN.substring(1) + HOEGAARDEN, streamAsString(inputStream));
         inputStream.close();
         txn.abort();
     }
@@ -288,8 +288,8 @@ public class VfsStreamsTests extends VfsTestsBase {
         txn.flush();
         final InputStream inputStream = vfs.readFile(txn, file0);
         Assert.assertEquals('x' + HOEGAARDEN.substring(1) +
-                'x' + HOEGAARDEN.substring(1) + 'x' + HOEGAARDEN.substring(1) +
-                'x' + HOEGAARDEN.substring(1), streamAsString(inputStream));
+            'x' + HOEGAARDEN.substring(1) + 'x' + HOEGAARDEN.substring(1) +
+            'x' + HOEGAARDEN.substring(1), streamAsString(inputStream));
         inputStream.close();
         txn.abort();
     }
