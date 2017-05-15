@@ -288,9 +288,6 @@ public class PersistentLongMapTest {
             Assert.assertTrue(iterator.hasNext());
             PersistentLongMap.Entry<String> entry = treeItr.next();
             long next = iterator.next();
-            if (next != entry.getKey()) {
-                System.out.println(first);
-            }
             Assert.assertEquals(next, entry.getKey());
             Assert.assertEquals(String.valueOf(next), entry.getValue());
         }
@@ -306,11 +303,7 @@ public class PersistentLongMapTest {
             long next = iterator.next();
             Assert.assertEquals(next, entry.getKey());
             Assert.assertEquals(String.valueOf(next), entry.getValue());
-        }
-        if (iterator.hasNext()) {
-            System.out.println(first);
-        }
-        Assert.assertFalse(iterator.hasNext());
+        }Assert.assertFalse(iterator.hasNext());
     }
 
     private static void checkInsertRemove(Random random, PersistentLongMap<String> map, int count) {
