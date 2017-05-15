@@ -17,6 +17,7 @@ package jetbrains.exodus.core.dataStructures.persistent;
 
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.BitSet;
 import java.util.Iterator;
@@ -58,6 +59,11 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
         return value >> BITS_PER_ENTRY;
     }
 
+    @NotNull
+    private static PersistentBitTreeLongSet.Entry makeIndexEntry(long index) {
+        return new Entry(index, FAKE);
+    }
+
     protected static class ImmutableSet implements PersistentLongSet.ImmutableSet {
         @NotNull
         protected final AbstractPersistent23Tree<Entry> map;
@@ -68,14 +74,18 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
             this.size = size;
         }
 
-        @Override
-        public boolean contains(long key) {
-            final long index = getEntryIndex(key);
+        @Nullable
+        private Entry getEntryByIndex(long index) {
             final AbstractPersistent23Tree.RootNode<Entry> root = map.getRoot();
             if (root == null) {
-                return false;
+                return null;
             }
-            final Entry entry = root.get(new Entry(index, null));
+            return root.get(makeIndexEntry(index));
+        }
+
+        @Override
+        public boolean contains(long key) {
+            final Entry entry = getEntryByIndex(getEntryIndex(key));
             return entry != null && entry.bits.get((int) (key & MASK));
         }
 
@@ -111,14 +121,18 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
             return mutableSet.getRoot();
         }
 
-        @Override
-        public boolean contains(long key) {
-            final long index = getEntryIndex(key);
+        @Nullable
+        private Entry getEntryByIndex(long index) {
             final AbstractPersistent23Tree.RootNode<Entry> root = getRoot();
             if (root == null) {
-                return false;
+                return null;
             }
-            final Entry entry = root.get(new Entry(index, null));
+            return root.get(makeIndexEntry(index));
+        }
+
+        @Override
+        public boolean contains(long key) {
+            final Entry entry = getEntryByIndex(getEntryIndex(key));
             return entry != null && entry.bits.get((int) (key & MASK));
         }
 
@@ -140,13 +154,7 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
         @Override
         public void add(long key) {
             final long index = getEntryIndex(key);
-            Entry entry;
-            final AbstractPersistent23Tree.RootNode<Entry> root = getRoot();
-            if (root == null) {
-                entry = null;
-            } else {
-                entry = getRoot().get(new Entry(index, null));
-            }
+            Entry entry = getEntryByIndex(index);
             int bitIndex = (int) (key & MASK);
             if (entry == null) {
                 entry = new Entry(index);
@@ -168,11 +176,7 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
         @Override
         public boolean remove(long key) {
             final long index = getEntryIndex(key);
-            final AbstractPersistent23Tree.RootNode<Entry> root = getRoot();
-            if (root == null) {
-                return false;
-            }
-            Entry entry = getRoot().get(new Entry(index, null));
+            final Entry entry = getEntryByIndex(index);
             if (entry == null) {
                 return false;
             }
@@ -208,19 +212,20 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
         @NotNull
         private final BitSet bits;
 
-        public Entry(long min) {
-            this.index = min;
+        public Entry(long index) {
+            this.index = index;
             this.bits = new BitSet(ELEMENTS_PER_ENTRY);
         }
 
-        public Entry(long min, Entry other) {
-            this.index = min;
-            if (other != null) {
-                this.bits = new BitSet(ELEMENTS_PER_ENTRY);
-                this.bits.or(other.bits);
-            } else {
-                this.bits = FAKE; // querying entry must have no bits in order to reduce memory and GC pressure
-            }
+        private Entry(long index, Entry other) {
+            this.index = index;
+            this.bits = new BitSet(ELEMENTS_PER_ENTRY);
+            this.bits.or(other.bits);
+        }
+
+        protected Entry(long index, @NotNull BitSet bits) {
+            this.index = index;
+            this.bits = bits;
         }
 
         @Override
