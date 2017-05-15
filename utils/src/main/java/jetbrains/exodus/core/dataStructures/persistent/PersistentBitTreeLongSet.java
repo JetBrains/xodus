@@ -275,10 +275,10 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
 
         @Override
         public boolean hasNext() {
-            return next != -1 || fetchEntry() != -1;
+            return next != -1 || fetchEntry();
         }
 
-        private int fetchEntry() {
+        private boolean fetchEntry() {
             while (iterator.hasNext()) {
                 final Entry entry = iterator.next();
                 final int nextIndex = entry.bits.nextSetBit(0);
@@ -286,10 +286,10 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
                     currentEntry = entry;
                     currentEntryBase = entry.index << BITS_PER_ENTRY;
                     next = nextIndex;
-                    return nextIndex;
+                    return true;
                 }
             }
-            return -1;
+            return false;
         }
 
         @Override
