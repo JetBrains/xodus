@@ -303,7 +303,8 @@ public class PersistentLongMapTest {
             long next = iterator.next();
             Assert.assertEquals(next, entry.getKey());
             Assert.assertEquals(String.valueOf(next), entry.getValue());
-        }Assert.assertFalse(iterator.hasNext());
+        }
+        Assert.assertFalse(iterator.hasNext());
     }
 
     private static void checkInsertRemove(Random random, PersistentLongMap<String> map, int count) {
