@@ -59,7 +59,7 @@ public class SingleTypeUnsortedEntityIdArrayCachedInstanceIterable extends Cache
     @Override
     protected CachedInstanceIterable orderById() {
         Arrays.sort(localIds);
-        if (USE_BIT_SETS && typeId != NULL_TYPE_ID) {
+        if (typeId != NULL_TYPE_ID) {
             final int length = localIds.length;
             if (length > 1) {
                 final long min = localIds[0];

@@ -22,8 +22,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public abstract class CachedInstanceIterable extends EntityIterableBase {
-    public static final boolean USE_BIT_SETS = Boolean.getBoolean("exodus.entityStore.entityIterableCache.useBitSets");
-
     @NotNull
     private final EntityIterableHandle sourceHandle;
 

@@ -174,7 +174,7 @@ public class EntityIdArrayCachedInstanceIterableFactory {
             IntArrayList typeIds, LongArrayList localIds
     ) {
         final int typeId = typeIds.get(0);
-        if (CachedInstanceIterable.USE_BIT_SETS && typeId != NULL_TYPE_ID) {
+        if (typeId != NULL_TYPE_ID) {
             final int length = localIds.size();
             if (length > 1) {
                 final long min = localIds.get(0);
