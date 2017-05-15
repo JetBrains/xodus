@@ -70,12 +70,12 @@ public class PersistentLongMapTest {
         Assert.assertFalse(read.containsKey(3));
         Assert.assertEquals(2, read.size());
 
-        Object root = ((PersistentLong23TreeMap.MutableMap) write1).getRoot();
+        Object root = ((RootHolder) write1).getRoot();
         write1.put(2, "2");
-        Assert.assertFalse(((PersistentLong23TreeMap.MutableMap) write1).getRoot() == root);
-        root = ((PersistentLong23TreeMap.MutableMap) write2).getRoot();
+        Assert.assertFalse(((RootHolder) write1).getRoot() == root);
+        root = ((RootHolder) write2).getRoot();
         write2.put(2, "_2");
-        Assert.assertFalse(((PersistentLong23TreeMap.MutableMap) write2).getRoot() == root);
+        Assert.assertFalse(((RootHolder) write2).getRoot() == root);
         Assert.assertTrue(write1.endWrite());
         Assert.assertFalse(write2.endWrite());
         read = tree.beginRead();
@@ -185,15 +185,15 @@ public class PersistentLongMapTest {
             Assert.assertEquals(i, size);
             if ((size & 1023) == 0 || size < 100) {
                 if (i > 0) {
-                    checkTailIteration(write, added, new LongMapEntry<String>(added.first(), null));
-                    checkTailIteration(write, added, new LongMapEntry<String>(added.first() - 1, null));
-                    checkTailIteration(write, added, new LongMapEntry<String>(added.last(), null));
-                    checkTailIteration(write, added, new LongMapEntry<String>(added.last() + 1, null));
+                    checkTailIteration(write, added, added.first());
+                    checkTailIteration(write, added, added.first() - 1);
+                    checkTailIteration(write, added, added.last());
+                    checkTailIteration(write, added, added.last() + 1);
                 }
-                checkTailIteration(write, added, new LongMapEntry<String>(Long.MAX_VALUE, null));
-                checkTailIteration(write, added, new LongMapEntry<String>(Long.MIN_VALUE, null));
+                checkTailIteration(write, added, Long.MAX_VALUE);
+                checkTailIteration(write, added, Long.MIN_VALUE);
                 for (int j = 0; j < 10; j++) {
-                    checkTailIteration(write, added, new LongMapEntry<String>(p[i * j / 10], null));
+                    checkTailIteration(write, added, p[i * j / 10]);
                 }
             }
             write.put(p[i], String.valueOf(p[i]));
@@ -213,15 +213,15 @@ public class PersistentLongMapTest {
             Assert.assertEquals(i, size);
             if ((size & 1023) == 0 || size < 100) {
                 if (i > 0) {
-                    checkTailReverseIteration(write, added, new LongMapEntry<String>(added.first(), null));
-                    checkTailReverseIteration(write, added, new LongMapEntry<String>(added.first() - 1, null));
-                    checkTailReverseIteration(write, added, new LongMapEntry<String>(added.last(), null));
-                    checkTailReverseIteration(write, added, new LongMapEntry<String>(added.last() + 1, null));
+                    checkTailReverseIteration(write, added, added.first());
+                    checkTailReverseIteration(write, added, added.first() - 1);
+                    checkTailReverseIteration(write, added, added.last());
+                    checkTailReverseIteration(write, added, added.last() + 1);
                 }
-                checkTailReverseIteration(write, added, new LongMapEntry<String>(Long.MAX_VALUE, null));
-                checkTailReverseIteration(write, added, new LongMapEntry<String>(Long.MIN_VALUE, null));
+                checkTailReverseIteration(write, added, Long.MAX_VALUE);
+                checkTailReverseIteration(write, added, Long.MIN_VALUE);
                 for (int j = 0; j < 10; j++) {
-                    checkTailReverseIteration(write, added, new LongMapEntry<String>(p[i * j / 10], null));
+                    checkTailReverseIteration(write, added, p[i * j / 10]);
                 }
             }
             write.put(p[i], String.valueOf(p[i]));
@@ -281,9 +281,25 @@ public class PersistentLongMapTest {
         return new PersistentLong23TreeMap<>();
     }
 
-    private static void checkTailIteration(PersistentLongMap.MutableMap<String> tree, SortedSet<Long> added, PersistentLongMap.Entry<String> first) {
-        Iterator<Long> iterator = added.tailSet(first.getKey()).iterator();
-        for (Iterator<PersistentLongMap.Entry<String>> treeItr = tree.tailIterator(first);
+    private static void checkTailIteration(PersistentLongMap.MutableMap<String> tree, SortedSet<Long> added, long first) {
+        Iterator<Long> iterator = added.tailSet(first).iterator();
+        for (Iterator<PersistentLongMap.Entry<String>> treeItr = tree.tailEntryIterator(first);
+             treeItr.hasNext(); ) {
+            Assert.assertTrue(iterator.hasNext());
+            PersistentLongMap.Entry<String> entry = treeItr.next();
+            long next = iterator.next();
+            if (next != entry.getKey()) {
+                System.out.println(first);
+            }
+            Assert.assertEquals(next, entry.getKey());
+            Assert.assertEquals(String.valueOf(next), entry.getValue());
+        }
+        Assert.assertFalse(iterator.hasNext());
+    }
+
+    private static void checkTailReverseIteration(PersistentLongMap.MutableMap<String> tree, SortedSet<Long> added, long first) {
+        Iterator<Long> iterator = ((NavigableSet<Long>) added.tailSet(first)).descendingIterator();
+        for (Iterator<PersistentLongMap.Entry<String>> treeItr = tree.tailReverseEntryIterator(first);
              treeItr.hasNext(); ) {
             Assert.assertTrue(iterator.hasNext());
             PersistentLongMap.Entry<String> entry = treeItr.next();
@@ -291,18 +307,8 @@ public class PersistentLongMapTest {
             Assert.assertEquals(next, entry.getKey());
             Assert.assertEquals(String.valueOf(next), entry.getValue());
         }
-        Assert.assertFalse(iterator.hasNext());
-    }
-
-    private static void checkTailReverseIteration(PersistentLongMap.MutableMap<String> tree, SortedSet<Long> added, PersistentLongMap.Entry<String> first) {
-        Iterator<Long> iterator = ((NavigableSet<Long>) added.tailSet(first.getKey())).descendingIterator();
-        for (Iterator<PersistentLongMap.Entry<String>> treeItr = tree.tailReverseIterator(first);
-             treeItr.hasNext(); ) {
-            Assert.assertTrue(iterator.hasNext());
-            PersistentLongMap.Entry<String> entry = treeItr.next();
-            long next = iterator.next();
-            Assert.assertEquals(next, entry.getKey());
-            Assert.assertEquals(String.valueOf(next), entry.getValue());
+        if (iterator.hasNext()) {
+            System.out.println(first);
         }
         Assert.assertFalse(iterator.hasNext());
     }

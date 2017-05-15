@@ -19,6 +19,8 @@ import jetbrains.exodus.core.dataStructures.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Iterator;
+
 public class PersistentLong23TreeMap<V> implements PersistentLongMap<V> {
 
     private final Persistent23Tree<PersistentLongMap.Entry<V>> set;
@@ -72,9 +74,19 @@ public class PersistentLong23TreeMap<V> implements PersistentLongMap<V> {
             final Node<PersistentLongMap.Entry<V>> root = getRoot();
             return root != null && root.get(new LongMapEntry<V>(key)) != null;
         }
+
+        @Override
+        public Iterator<Entry<V>> tailEntryIterator(long staringKey) {
+            return tailIterator(new LongMapEntry<V>(staringKey));
+        }
+
+        @Override
+        public Iterator<Entry<V>> tailReverseEntryIterator(long staringKey) {
+            return tailReverseIterator(new LongMapEntry<V>(staringKey));
+        }
     }
 
-    protected static class MutableMap<V> extends Persistent23Tree.MutableTree<PersistentLongMap.Entry<V>> implements PersistentLongMap.MutableMap<V> {
+    protected static class MutableMap<V> extends Persistent23Tree.MutableTree<PersistentLongMap.Entry<V>> implements PersistentLongMap.MutableMap<V>, RootHolder {
 
         MutableMap(Persistent23Tree<PersistentLongMap.Entry<V>> set) {
             super(set);
@@ -93,6 +105,16 @@ public class PersistentLong23TreeMap<V> implements PersistentLongMap<V> {
         @Override
         public boolean containsKey(long key) {
             return get(key) != null;
+        }
+
+        @Override
+        public Iterator<Entry<V>> tailEntryIterator(long staringKey) {
+            return tailIterator(new LongMapEntry<V>(staringKey));
+        }
+
+        @Override
+        public Iterator<Entry<V>> tailReverseEntryIterator(long staringKey) {
+            return tailReverseIterator(new LongMapEntry<V>(staringKey));
         }
 
         @Override

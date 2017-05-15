@@ -237,7 +237,7 @@ public class Persistent23Tree<K extends Comparable<K>> extends AbstractPersisten
         }
 
         @Override
-        RootNode<K> getRoot() {
+        public RootNode<K> getRoot() {
             return root;
         }
 

@@ -40,9 +40,9 @@ public interface PersistentLongMap<V> {
 
         Iterator<Entry<V>> reverseIterator();
 
-        Iterator<Entry<V>> tailIterator(PersistentLongMap.Entry<V> staringEntry);
+        Iterator<Entry<V>> tailEntryIterator(long staringKey);
 
-        Iterator<Entry<V>> tailReverseIterator(PersistentLongMap.Entry<V> staringEntry);
+        Iterator<Entry<V>> tailReverseEntryIterator(long staringKey);
     }
 
     interface MutableMap<V> extends ImmutableMap<V> {
