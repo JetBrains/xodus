@@ -20,7 +20,7 @@ public class VfsStreamsLinearStrategySmallClusterTests extends VfsStreamsTests {
     @Override
     protected VirtualFileSystem createVirtualFileSystem() {
         final VfsConfig config = new VfsConfig();
-        config.setClusteringStrategy(new ClusteringStrategy.LinearClusteringStrategy(16));
+        config.setClusteringStrategy(new ClusteringStrategy.LinearClusteringStrategy(2));
         return new VirtualFileSystem(getEnvironment(), config);
     }
 }

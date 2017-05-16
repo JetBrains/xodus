@@ -17,32 +17,80 @@ package jetbrains.exodus.vfs;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.env.Cursor;
-import jetbrains.exodus.env.Store;
 import jetbrains.exodus.env.Transaction;
 import org.jetbrains.annotations.NotNull;
 
 class ClusterIterator {
 
+    private final VirtualFileSystem vfs;
     private final long fd;
     private final Cursor cursor;
     private Cluster currentCluster;
     private boolean isClosed;
 
-    ClusterIterator(@NotNull final Transaction txn, @NotNull final File file, @NotNull final Store contents) {
-        this(txn, file.getDescriptor(), contents);
+    ClusterIterator(@NotNull final VirtualFileSystem vfs,
+                    @NotNull final Transaction txn,
+                    @NotNull final File file) {
+        this(vfs, txn, file.getDescriptor());
     }
 
-    ClusterIterator(@NotNull final Transaction txn, long fileDescriptor, @NotNull final Store contents) {
+    ClusterIterator(@NotNull final VirtualFileSystem vfs,
+                    @NotNull final Transaction txn,
+                    final long fileDescriptor) {
+        this(vfs, txn, fileDescriptor, 0L);
+    }
+
+    ClusterIterator(@NotNull final VirtualFileSystem vfs,
+                    @NotNull final Transaction txn,
+                    final long fileDescriptor,
+                    long position) {
+        this.vfs = vfs;
         fd = fileDescriptor;
-        cursor = contents.openCursor(txn);
-        final ByteIterable it = cursor.getSearchKeyRange(ClusterKey.toByteIterable(fd, 0));
-        if (it == null) {
-            currentCluster = null;
-        } else {
-            currentCluster = new Cluster(it);
-            adjustCurrentCluster();
-        }
+        cursor = vfs.getContents().openCursor(txn);
+        seek(position);
         isClosed = false;
+    }
+
+    /**
+     * Seeks to the cluster that contains data by position. Doesn't navigate within cluster itself.
+     *
+     * @param position position in the file
+     */
+    void seek(long position) {
+        final ClusteringStrategy cs = vfs.getConfig().getClusteringStrategy();
+        final int firstClusterSize = cs.getFirstClusterSize();
+        if (cs.isLinear()) {
+            // if clustering strategy is linear then all clusters has the same size
+            final ByteIterable it = cursor.getSearchKeyRange(ClusterKey.toByteIterable(fd, position / firstClusterSize));
+            if (it == null) {
+                currentCluster = null;
+            } else {
+                currentCluster = new Cluster(it);
+                adjustCurrentCluster();
+            }
+        } else {
+            ByteIterable it = cursor.getSearchKeyRange(ClusterKey.toByteIterable(fd, 0L));
+            if (it == null) {
+                currentCluster = null;
+            } else {
+                final int maxClusterSize = cs.getMaxClusterSize();
+                int clusterSize = 0;
+                currentCluster = new Cluster(it);
+                adjustCurrentCluster();
+                while (currentCluster != null) {
+                    // if cluster size is equal to max cluster size, then all further cluster will have that size,
+                    // so we don't need to load their size
+                    if (clusterSize < maxClusterSize) {
+                        clusterSize = currentCluster.getSize();
+                    }
+                    if (position < clusterSize) {
+                        break;
+                    }
+                    position -= clusterSize;
+                    moveToNext();
+                }
+            }
+        }
     }
 
     boolean hasCluster() {

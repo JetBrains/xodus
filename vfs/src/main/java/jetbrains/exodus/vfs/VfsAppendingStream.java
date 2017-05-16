@@ -51,15 +51,15 @@ class VfsAppendingStream extends OutputStream {
 
         final ClusteringStrategy clusteringStrategy = config.getClusteringStrategy();
 
-        final Pair<Cluster, Cluster> pairOfClusters = getTwoLastClusters(txn, file, contents);
+        final Pair<Cluster, Cluster> pairOfClusters = getTwoLastClusters(vfs, txn, file);
         final Cluster prevCluster = pairOfClusters.getFirst();
         final Cluster currentCluster = pairOfClusters.getSecond();
         final int prevClusterSize = prevCluster == null ? 0 : prevCluster.getSize();
         final int currentClusterSize = currentCluster == null ? 0 : currentCluster.getSize();
         final int clusterSize = prevClusterSize == 0 ?
-                clusteringStrategy.getFirstClusterSize() : clusteringStrategy.getNextClusterSize(prevClusterSize);
+            clusteringStrategy.getFirstClusterSize() : clusteringStrategy.getNextClusterSize(prevClusterSize);
 
-        currentClusterNumber = currentCluster == null ? clusteringStrategy.getNextClusterNumber(0) : currentCluster.getClusterNumber();
+        currentClusterNumber = currentCluster == null ? 0 : currentCluster.getClusterNumber();
 
         if (clusterSize <= currentClusterSize) {
             // current cluster is full, alloc the next one
@@ -96,23 +96,23 @@ class VfsAppendingStream extends OutputStream {
     private void allocNextCluster(final int size) {
         outputCluster = new byte[size];
         position = 0;
-        currentClusterNumber = config.getClusteringStrategy().getNextClusterNumber(currentClusterNumber);
+        ++currentClusterNumber;
     }
 
     private void flushCurrentCluster() {
         if (position > 0) {
             contents.put(txn, ClusterKey.toByteIterable(fd, currentClusterNumber),
-                    Cluster.writeCluster(outputCluster, position, config.getAccumulateChangesInRAM()));
+                Cluster.writeCluster(outputCluster, position, config.getAccumulateChangesInRAM()));
             clusterFlushTrigger.run();
         }
     }
 
     // Seeking to end of the file by walking through all clusters
-    private static Pair<Cluster, Cluster> getTwoLastClusters(@NotNull final Transaction txn,
-                                                             @NotNull final File file,
-                                                             @NotNull final Store contents) {
+    private static Pair<Cluster, Cluster> getTwoLastClusters(@NotNull VirtualFileSystem vfs,
+                                                             @NotNull final Transaction txn,
+                                                             @NotNull final File file) {
         // todo: seek to end of file without loading all clusters
-        final ClusterIterator iterator = new ClusterIterator(txn, file, contents);
+        final ClusterIterator iterator = new ClusterIterator(vfs, txn, file);
         try {
             Cluster prevCluster = null;
             Cluster currCluster = null;

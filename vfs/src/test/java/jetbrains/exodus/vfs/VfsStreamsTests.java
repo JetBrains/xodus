@@ -273,19 +273,24 @@ public class VfsStreamsTests extends VfsTestsBase {
         outputStream.write((HOEGAARDEN + HOEGAARDEN + HOEGAARDEN + HOEGAARDEN).getBytes(UTF_8));
         outputStream.close();
         txn.flush();
+        Assert.assertEquals(40, vfs.getFileLength(txn, file0));
         outputStream = vfs.writeFile(txn, file0, 0);
         outputStream.write("x".getBytes(UTF_8));
         outputStream.close();
+        Assert.assertEquals(40, vfs.getFileLength(txn, file0));
         outputStream = vfs.writeFile(txn, file0, 10);
         outputStream.write("x".getBytes(UTF_8));
         outputStream.close();
+        Assert.assertEquals(40, vfs.getFileLength(txn, file0));
         outputStream = vfs.writeFile(txn, file0, 20);
         outputStream.write("x".getBytes(UTF_8));
         outputStream.close();
+        Assert.assertEquals(40, vfs.getFileLength(txn, file0));
         outputStream = vfs.writeFile(txn, file0, 30);
         outputStream.write("x".getBytes(UTF_8));
         outputStream.close();
         txn.flush();
+        Assert.assertEquals(40, vfs.getFileLength(txn, file0));
         final InputStream inputStream = vfs.readFile(txn, file0);
         Assert.assertEquals('x' + HOEGAARDEN.substring(1) +
             'x' + HOEGAARDEN.substring(1) + 'x' + HOEGAARDEN.substring(1) +

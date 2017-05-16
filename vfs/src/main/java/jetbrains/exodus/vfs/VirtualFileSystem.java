@@ -146,16 +146,16 @@ public class VirtualFileSystem {
         this.config = config;
         if (txn != null) {
             settings = new VfsSettings(env, env.openStore(
-                    SETTINGS_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn));
+                SETTINGS_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn));
             pathnames = env.openStore(
-                    PATHNAMES_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn);
+                PATHNAMES_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn);
             contents = env.openStore(CONTENTS_STORE_NAME, contentsStoreConfig, txn);
         } else {
             settings = env.computeInTransaction(new TransactionalComputable<VfsSettings>() {
                 @Override
                 public VfsSettings compute(@NotNull final Transaction txn) {
                     return new VfsSettings(env, env.openStore(
-                            SETTINGS_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn));
+                        SETTINGS_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn));
                 }
             });
             pathnames = env.computeInTransaction(new TransactionalComputable<Store>() {
@@ -306,7 +306,7 @@ public class VirtualFileSystem {
             if (value != null) {
                 final File result = new File(path, value);
                 // at first delete contents
-                final ClusterIterator iterator = new ClusterIterator(txn, result, contents);
+                final ClusterIterator iterator = new ClusterIterator(this, txn, result);
                 try {
                     while (iterator.hasCluster()) {
                         iterator.deleteCurrent();
@@ -380,8 +380,9 @@ public class VirtualFileSystem {
      * @see File#getDescriptor()
      */
     public long getFileLength(@NotNull final Transaction txn, final long fileDescriptor) {
+        // todo: compute length without traversing all clusters at least in case of linear clustering strategy
         long result = 0;
-        final ClusterIterator it = new ClusterIterator(txn, fileDescriptor, contents);
+        final ClusterIterator it = new ClusterIterator(this, txn, fileDescriptor);
         try {
             while (it.hasCluster()) {
                 result += it.getCurrent().getSize();

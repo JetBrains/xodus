@@ -33,28 +33,14 @@ public class VfsInputStream extends InputStream {
                    @NotNull final Transaction txn,
                    final long fileDescriptor,
                    long position) {
-        clusterIterator = new ClusterIterator(txn, fileDescriptor, vfs.getContents());
-
-        final ClusteringStrategy clusteringStrategy = vfs.getConfig().getClusteringStrategy();
-        final boolean isLinearClusteringStrategy = clusteringStrategy.isLinear();
-        final int maxClusterSize = clusteringStrategy.getMaxClusterSize();
-
-        int clusterSize = -1;
-
-        while (clusterIterator.hasCluster()) {
-            final Cluster currentCluster = clusterIterator.getCurrent();
-            if (clusterSize == -1 || !(isLinearClusteringStrategy || maxClusterSize == clusterSize)) {
-                clusterSize = currentCluster.getSize();
+        clusterIterator = new ClusterIterator(vfs, txn, fileDescriptor, position);
+        final Cluster current = clusterIterator.getCurrent();
+        if (current != null) {
+            position %= current.getSize();
+            final long skipped = current.skip(position);
+            if (skipped != position) {
+                throw new VfsException();
             }
-            if (position < clusterSize) {
-                final long skipped = currentCluster.skip(position);
-                if (skipped != position) {
-                    throw new VfsException();
-                }
-                break;
-            }
-            position -= clusterSize;
-            clusterIterator.moveToNext();
         }
     }
 

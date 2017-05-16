@@ -60,17 +60,23 @@ class VfsOutputStream extends OutputStream {
         contents = vfs.getContents();
         final ClusteringStrategy clusteringStrategy = config.getClusteringStrategy();
         this.clusterFlushTrigger = clusterFlushTrigger;
-        clusterIterator = new ClusterIterator(txn, fileDescriptor, contents);
-        currentClusterNumber = 0;
-        loadCurrentCluster(clusteringStrategy.getFirstClusterSize());
-        while (clusterIterator.hasCluster()) {
-            if (position < outputClusterSize) {
-                this.position = (int) position;
-                break;
+        clusterIterator = new ClusterIterator(vfs, txn, fileDescriptor, position);
+        if (clusterIterator.getCurrent() != null) {
+            loadCurrentCluster(clusteringStrategy.getFirstClusterSize());
+            this.position = (int) (position % outputClusterSize);
+        } else {
+            clusterIterator.seek(0L);
+            currentClusterNumber = -1L;
+            loadCurrentCluster(clusteringStrategy.getFirstClusterSize());
+            while (clusterIterator.hasCluster()) {
+                if (position < outputClusterSize) {
+                    this.position = (int) position;
+                    break;
+                }
+                position -= outputClusterSize;
+                clusterIterator.moveToNext();
+                loadCurrentCluster(clusteringStrategy.getNextClusterSize(outputCluster.length));
             }
-            position -= outputClusterSize;
-            clusterIterator.moveToNext();
-            loadCurrentCluster(clusteringStrategy.getNextClusterSize(outputCluster.length));
         }
     }
 
@@ -140,7 +146,7 @@ class VfsOutputStream extends OutputStream {
     private void flushCurrentCluster() {
         if (isOutputClusterDirty) {
             contents.put(txn, ClusterKey.toByteIterable(fd, currentClusterNumber),
-                    Cluster.writeCluster(outputCluster, outputClusterSize, config.getAccumulateChangesInRAM()));
+                Cluster.writeCluster(outputCluster, outputClusterSize, config.getAccumulateChangesInRAM()));
             if (clusterFlushTrigger != null) {
                 clusterFlushTrigger.run();
             }
@@ -152,7 +158,7 @@ class VfsOutputStream extends OutputStream {
         if (currentCluster == null) {
             outputClusterSize = 0;
             outputCluster = new byte[clusterSize];
-            currentClusterNumber = config.getClusteringStrategy().getNextClusterNumber(currentClusterNumber);
+            ++currentClusterNumber;
         } else {
             outputClusterSize = currentCluster.getSize();
             outputCluster = new byte[clusterSize > outputClusterSize ? clusterSize : outputClusterSize];

@@ -47,8 +47,6 @@ public abstract class ClusteringStrategy {
 
     abstract int getNextClusterSize(final int prevClusterSize);
 
-    abstract long getNextClusterNumber(final long clusterNumber);
-
     private int maxClusterSize = Integer.MAX_VALUE;
 
     public void setMaxClusterSize(final int maxClusterSize) {
@@ -71,7 +69,6 @@ public abstract class ClusteringStrategy {
     private abstract static class DefaultInitialClusteringStrategy extends ClusteringStrategy {
 
         private static final int DEFAULT_FIRST_CLUSTER_SIZE = 4096;
-        private static final long DEFAULT_CLUSTER_NUMBER_DELTA = 1024;
 
         protected final int firstClusterSize;
 
@@ -86,11 +83,6 @@ public abstract class ClusteringStrategy {
         @Override
         int getFirstClusterSize() {
             return firstClusterSize;
-        }
-
-        @Override
-        long getNextClusterNumber(final long clusterNumber) {
-            return clusterNumber + DEFAULT_CLUSTER_NUMBER_DELTA;
         }
     }
 
