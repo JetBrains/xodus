@@ -16,7 +16,6 @@
 package jetbrains.exodus.lucene;
 
 import jetbrains.exodus.vfs.File;
-import jetbrains.exodus.vfs.VfsException;
 import jetbrains.exodus.vfs.VfsInputStream;
 import org.apache.lucene.store.IndexInput;
 import org.jetbrains.annotations.NotNull;
@@ -44,10 +43,7 @@ public class ExodusIndexInput extends IndexInput {
         super("ExodusDirectory IndexInput for " + name);
         this.directory = directory;
         this.file = directory.openExistingFile(name, true);
-        input = directory.getVfs().readFile(directory.getEnvironment().getAndCheckCurrentTransaction(), file);
-        if (input.skip(currentPosition) < currentPosition) {
-            throw new VfsException("Can't set current position");
-        }
+        input = directory.getVfs().readFile(directory.getEnvironment().getAndCheckCurrentTransaction(), file, currentPosition);
         this.currentPosition = currentPosition;
     }
 
