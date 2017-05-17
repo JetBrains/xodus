@@ -15,7 +15,10 @@
  */
 package jetbrains.exodus.vfs;
 
-import jetbrains.exodus.*;
+import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.CompoundByteIterable;
+import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.FileByteIterable;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
@@ -30,7 +33,8 @@ class Cluster {
     @NotNull
     private final ByteIterable it;
     @Nullable
-    private ByteIterator iterator;
+    private byte[] bytes;
+    private int position;
     private long startingPosition;
     private long clusterNumber;
     private int size;
@@ -56,32 +60,30 @@ class Cluster {
     }
 
     int getSize() {
-        getIterator();
+        getBytes();
         return size;
     }
 
     boolean hasNext() {
-        return getIterator().hasNext();
+        return getSize() > 0;
     }
 
     byte next() {
-        final byte result = getIterator().next();
+        final byte result = getBytes()[position++];
         --size;
         return result;
     }
 
     long skip(final long length) {
         final int size = getSize();
-        final long skipped = length > size ? size : getIterator().skip(length);
-        this.size -= (int) skipped;
+        final int skipped = (int) Math.min(size, length);
+        this.size -= skipped;
+        position += skipped;
         return skipped;
     }
 
     void copyTo(@NotNull final byte[] array) {
-        int i = 0;
-        while (hasNext()) {
-            array[i++] = next();
-        }
+        System.arraycopy(getBytes(), position, array, 0, size);
     }
 
     static ByteIterable writeCluster(@NotNull final byte[] cluster, final int size, final boolean accumulateInRAM) {
@@ -106,11 +108,18 @@ class Cluster {
     }
 
     @NotNull
-    private ByteIterator getIterator() {
-        if (iterator == null) {
-            iterator = it.iterator();
-            size = IntegerBinding.readCompressed(iterator);
+    private byte[] getBytes() {
+        if (bytes == null) {
+            bytes = it.getBytesUnsafe();
+            // inlined IntegerBinding.readCompressed
+            final int firstByte = bytes[0] & 0xff;
+            int size = firstByte & 0x1f;
+            position = (firstByte >> 5) + 1;
+            for (int i = 1; i < position; ++i) {
+                size = (size << 8) + (bytes[i] & 0xff);
+            }
+            this.size = size;
         }
-        return iterator;
+        return bytes;
     }
 }
