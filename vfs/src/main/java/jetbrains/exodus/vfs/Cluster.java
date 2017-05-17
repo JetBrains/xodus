@@ -36,7 +36,7 @@ class Cluster {
     private int size;
 
     Cluster(@NotNull final ByteIterable it) {
-        this.it = it;
+        this.it = (it instanceof FixedLengthByteIterable) ? ((FixedLengthByteIterable) it).getSource() : it;
     }
 
     long getStartingPosition() {
@@ -61,7 +61,7 @@ class Cluster {
     }
 
     boolean hasNext() {
-        return getIterator().hasNext();
+        return getSize() > 0;
     }
 
     byte next() {
