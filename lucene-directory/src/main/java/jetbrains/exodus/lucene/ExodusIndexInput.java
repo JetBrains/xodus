@@ -60,13 +60,6 @@ public class ExodusIndexInput extends IndexInput {
     @Override
     public void seek(long pos) throws IOException {
         if (pos != currentPosition) {
-            if (pos > currentPosition) {
-                final long bytesToSkip = pos - currentPosition;
-                if (input.skip(bytesToSkip) == bytesToSkip) {
-                    currentPosition = pos;
-                    return;
-                }
-            }
             input.close();
             input = directory.getVfs().readFile(directory.getEnvironment().getAndCheckCurrentTransaction(), file, pos);
             currentPosition = pos;
@@ -86,7 +79,11 @@ public class ExodusIndexInput extends IndexInput {
 
     @Override
     public void readBytes(byte[] b, int offset, int len) throws IOException {
-        currentPosition += input.read(b, offset, len);
+        if (len == 1) {
+            b[offset] = readByte();
+        } else {
+            currentPosition += input.read(b, offset, len);
+        }
     }
 
     @SuppressWarnings("CloneDoesntCallSuperClone")

@@ -58,24 +58,26 @@ class ClusterIterator {
      */
     void seek(long position) {
         final ClusteringStrategy cs = vfs.getConfig().getClusteringStrategy();
-        final int firstClusterSize = cs.getFirstClusterSize();
+        final ByteIterable it;
         if (cs.isLinear()) {
             // if clustering strategy is linear then all clusters has the same size
-            final ByteIterable it = cursor.getSearchKeyRange(ClusterKey.toByteIterable(fd, position / firstClusterSize));
+            it = cursor.getSearchKeyRange(ClusterKey.toByteIterable(fd, position / cs.getFirstClusterSize()));
             if (it == null) {
                 currentCluster = null;
             } else {
                 currentCluster = new Cluster(it);
+                currentCluster.setStartingPosition(0L);
                 adjustCurrentCluster();
             }
         } else {
-            ByteIterable it = cursor.getSearchKeyRange(ClusterKey.toByteIterable(fd, 0L));
+            it = cursor.getSearchKeyRange(ClusterKey.toByteIterable(fd, 0L));
             if (it == null) {
                 currentCluster = null;
             } else {
                 final int maxClusterSize = cs.getMaxClusterSize();
                 int clusterSize = 0;
                 currentCluster = new Cluster(it);
+                long startingPosition = 0L;
                 adjustCurrentCluster();
                 while (currentCluster != null) {
                     // if cluster size is equal to max cluster size, then all further cluster will have that size,
@@ -83,10 +85,12 @@ class ClusterIterator {
                     if (clusterSize < maxClusterSize) {
                         clusterSize = currentCluster.getSize();
                     }
+                    currentCluster.setStartingPosition(startingPosition);
                     if (position < clusterSize) {
                         break;
                     }
                     position -= clusterSize;
+                    startingPosition += clusterSize;
                     moveToNext();
                 }
             }

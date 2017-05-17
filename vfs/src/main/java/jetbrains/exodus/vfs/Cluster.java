@@ -31,11 +31,20 @@ class Cluster {
     private final ByteIterable it;
     @Nullable
     private ByteIterator iterator;
+    private long startingPosition;
     private long clusterNumber;
     private int size;
 
     Cluster(@NotNull final ByteIterable it) {
         this.it = it;
+    }
+
+    long getStartingPosition() {
+        return startingPosition;
+    }
+
+    void setStartingPosition(final long startingPosition) {
+        this.startingPosition = startingPosition;
     }
 
     long getClusterNumber() {
@@ -52,7 +61,7 @@ class Cluster {
     }
 
     boolean hasNext() {
-        return getSize() > 0 && getIterator().hasNext();
+        return getIterator().hasNext();
     }
 
     byte next() {

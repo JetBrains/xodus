@@ -36,7 +36,7 @@ public class VfsInputStream extends InputStream {
         clusterIterator = new ClusterIterator(vfs, txn, fileDescriptor, position);
         final Cluster current = clusterIterator.getCurrent();
         if (current != null) {
-            position %= current.getSize();
+            position -= current.getStartingPosition();
             final long skipped = current.skip(position);
             if (skipped != position) {
                 throw new VfsException();
@@ -47,15 +47,15 @@ public class VfsInputStream extends InputStream {
     @Override
     public int read() throws IOException {
         while (true) {
-            if (!clusterIterator.hasCluster()) {
+            final Cluster current = clusterIterator.getCurrent();
+            if (current == null) {
                 return -1;
             }
-            if (clusterIterator.getCurrent().hasNext()) {
-                break;
+            if (current.hasNext()) {
+                return current.next() & 0xff;
             }
             clusterIterator.moveToNext();
         }
-        return clusterIterator.getCurrent().next() & 0xff;
     }
 
     @Override
