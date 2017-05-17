@@ -166,6 +166,16 @@ public class IntegerBinding extends ComparableBinding {
         return result;
     }
 
+    public static int readCompressed(@NotNull final byte[] bytes) {
+        final int firstByte = bytes[0] & 0xff;
+        int result = firstByte & 0x1f;
+        int byteLen = firstByte >> 5;
+        for (int i = 1; i <= byteLen; ++i) {
+            result = (result << 8) + (bytes[i] & 0xff);
+        }
+        return result;
+    }
+
     public static void writeCompressed(@NotNull final LightOutputStream output, int i) {
         final int[] bytes = new int[4];
         for (int j = 0; j < 4; ++j) {
