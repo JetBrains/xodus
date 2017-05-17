@@ -66,8 +66,11 @@ class ClusterIterator {
                 currentCluster = null;
             } else {
                 currentCluster = new Cluster(it);
-                currentCluster.setStartingPosition(0L);
                 adjustCurrentCluster();
+                final Cluster currentCluster = this.currentCluster;
+                if (currentCluster != null) {
+                    currentCluster.setStartingPosition(currentCluster.getClusterNumber() * cs.getFirstClusterSize());
+                }
             }
         } else {
             it = cursor.getSearchKeyRange(ClusterKey.toByteIterable(fd, 0L));
