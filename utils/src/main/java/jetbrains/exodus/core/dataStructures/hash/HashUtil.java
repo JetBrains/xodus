@@ -79,6 +79,10 @@ public class HashUtil {
         return shift;
     }
 
+    public static int getFirstPrime() {
+        return tableSizes[0];
+    }
+
     public static int getCeilingPrime(int size) {
         int i = Arrays.binarySearch(tableSizes, size);
         if (i < 0) {

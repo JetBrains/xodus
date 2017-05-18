@@ -51,7 +51,7 @@ class StringInterner private constructor(size: Int = StringInterner.INTERNER_SIZ
     companion object {
 
         private const val NUMBER_OF_GENERATIONS = 3
-        private const val INTERNER_SIZE = 15991 * NUMBER_OF_GENERATIONS
+        private val INTERNER_SIZE = Integer.getInteger("exodus.util.stringInternerCacheSize", 15991 * NUMBER_OF_GENERATIONS)
         private val IS_JAVA8 = System.getProperty("java.version").run { Integer.parseInt(split('.')[1]) >= 8 }
         private val DEFAULT_INTERNER = StringInterner()
 

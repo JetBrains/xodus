@@ -188,7 +188,7 @@ public final class SortIterable extends EntityIterableDecoratorBase {
 
     @Override
     public boolean canBeCached() {
-        return true;
+        return source.isThreadSafe();
     }
 
     @SuppressWarnings({"MethodOnlyUsedFromInnerClass"})
