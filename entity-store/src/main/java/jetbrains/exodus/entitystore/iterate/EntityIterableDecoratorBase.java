@@ -57,6 +57,11 @@ public abstract class EntityIterableDecoratorBase extends EntityIterableBase {
         return super.canBeCached() && (source.canBeCached() || source.isCachedInstance());
     }
 
+    @Override
+    public boolean isThreadSafe() {
+        return super.isThreadSafe() && source.isThreadSafe();
+    }
+
     @NotNull
     public final EntityIterableBase getDecorated() {
         return source;
