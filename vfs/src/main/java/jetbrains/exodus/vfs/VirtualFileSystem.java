@@ -306,14 +306,11 @@ public class VirtualFileSystem {
             if (value != null) {
                 final File result = new File(path, value);
                 // at first delete contents
-                final ClusterIterator iterator = new ClusterIterator(this, txn, result);
-                try {
+                try (ClusterIterator iterator = new ClusterIterator(this, txn, result)) {
                     while (iterator.hasCluster()) {
                         iterator.deleteCurrent();
                         iterator.moveToNext();
                     }
-                } finally {
-                    iterator.close();
                 }
                 cursor.deleteCurrent();
                 return result;
@@ -382,14 +379,11 @@ public class VirtualFileSystem {
     public long getFileLength(@NotNull final Transaction txn, final long fileDescriptor) {
         // todo: compute length without traversing all clusters at least in case of linear clustering strategy
         long result = 0;
-        final ClusterIterator it = new ClusterIterator(this, txn, fileDescriptor);
-        try {
+        try (ClusterIterator it = new ClusterIterator(this, txn, fileDescriptor)) {
             while (it.hasCluster()) {
                 result += it.getCurrent().getSize();
                 it.moveToNext();
             }
-        } finally {
-            it.close();
         }
         return result;
     }

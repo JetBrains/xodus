@@ -134,10 +134,8 @@ class VfsOutputStream extends OutputStream {
 
     @Override
     public void close() {
-        try {
+        try (ClusterIterator ignore = clusterIterator) {
             flushCurrentCluster();
-        } finally {
-            clusterIterator.close();
         }
     }
 

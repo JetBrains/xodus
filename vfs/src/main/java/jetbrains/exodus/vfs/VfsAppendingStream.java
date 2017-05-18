@@ -112,8 +112,7 @@ class VfsAppendingStream extends OutputStream {
                                                              @NotNull final Transaction txn,
                                                              @NotNull final File file) {
         // todo: seek to end of file without loading all clusters
-        final ClusterIterator iterator = new ClusterIterator(vfs, txn, file);
-        try {
+        try (ClusterIterator iterator = new ClusterIterator(vfs, txn, file)) {
             Cluster prevCluster = null;
             Cluster currCluster = null;
             while (iterator.hasCluster()) {
@@ -122,8 +121,6 @@ class VfsAppendingStream extends OutputStream {
                 iterator.moveToNext();
             }
             return new Pair<>(prevCluster, currCluster);
-        } finally {
-            iterator.close();
         }
     }
 }

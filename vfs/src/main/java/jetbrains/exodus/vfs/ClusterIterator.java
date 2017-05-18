@@ -20,7 +20,9 @@ import jetbrains.exodus.env.Cursor;
 import jetbrains.exodus.env.Transaction;
 import org.jetbrains.annotations.NotNull;
 
-class ClusterIterator {
+import java.io.Closeable;
+
+class ClusterIterator implements Closeable {
 
     private final VirtualFileSystem vfs;
     private final long fd;
@@ -125,7 +127,7 @@ class ClusterIterator {
         }
     }
 
-    void close() {
+    public void close() {
         if (!isClosed) {
             cursor.close();
             isClosed = true;
