@@ -380,9 +380,25 @@ public class VirtualFileSystem {
         // todo: compute length without traversing all clusters at least in case of linear clustering strategy
         long result = 0;
         try (ClusterIterator it = new ClusterIterator(this, txn, fileDescriptor)) {
-            while (it.hasCluster()) {
-                result += it.getCurrent().getSize();
-                it.moveToNext();
+            // if clustering strategy is linear we can avoid reading cluster size for each cluster
+            final ClusteringStrategy cs = config.getClusteringStrategy();
+            if (cs.isLinear()) {
+                Cluster previous = null;
+                while (it.hasCluster()) {
+                    if (previous != null) {
+                        result += cs.getFirstClusterSize();
+                    }
+                    previous = it.getCurrent();
+                    it.moveToNext();
+                }
+                if (previous != null) {
+                    result += previous.getSize();
+                }
+            } else {
+                while (it.hasCluster()) {
+                    result += it.getCurrent().getSize();
+                    it.moveToNext();
+                }
             }
         }
         return result;
