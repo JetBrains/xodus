@@ -60,7 +60,7 @@ public class JMHStringInternerMacroBenchmark {
     @Warmup(iterations = 4, time = 1)
     @Measurement(iterations = 8, time = 1)
     @Fork(value = 5, jvmArgsAppend = "-XX:StringTableSize=1024099")
-    public int jdkIntern() {
+    public int jdkInternSparse() {
         int result = 0;
         for (int index : indices) {
             result += strings[index].intern().charAt(10);
@@ -74,7 +74,21 @@ public class JMHStringInternerMacroBenchmark {
     @Warmup(iterations = 4, time = 1)
     @Measurement(iterations = 8, time = 1)
     @Fork(5)
-    public int xdIntern() {
+    public int xdInternDefault() {
+        int result = 0;
+        for (int index : indices) {
+            result += xdInterner.doIntern(strings[index]).charAt(10);
+            String again = strings[STRINGS_COUNT - index - 1].intern();
+            result += again.charAt(again.length() - 1);
+        }
+        return result;
+    }
+
+    @Benchmark
+    @Warmup(iterations = 4, time = 1)
+    @Measurement(iterations = 8, time = 1)
+    @Fork(value = 5, jvmArgsAppend = "-Dexodus.util.stringInternerCacheSize=1024101")
+    public int xdInternSparse() {
         int result = 0;
         for (int index : indices) {
             result += xdInterner.doIntern(strings[index]).charAt(10);
