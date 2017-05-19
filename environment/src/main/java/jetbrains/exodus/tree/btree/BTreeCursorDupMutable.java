@@ -33,6 +33,7 @@ public class BTreeCursorDupMutable extends TreeCursorMutable {
 
     @Override
     public boolean getNextDup() {
+        moveIfNecessary();
         // move to next dup if in -1 position or dupCursor has next element
         if (traverser.node == ILeafNode.EMPTY) {
             if (wasDelete) {
@@ -59,6 +60,7 @@ public class BTreeCursorDupMutable extends TreeCursorMutable {
 
     @Override
     public boolean getNextNoDup() {
+        moveIfNecessary();
         if (wasDelete) {
             if (getNext()) {
                 /* we managed to re-navigate to key which is next
@@ -89,6 +91,7 @@ public class BTreeCursorDupMutable extends TreeCursorMutable {
 
     @Override
     public int count() {
+        moveIfNecessary();
         return traverser.inDupTree ? (int) traverser.currentNode.getTree().size : super.count();
     }
 

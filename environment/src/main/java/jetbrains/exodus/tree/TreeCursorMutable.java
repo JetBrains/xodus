@@ -16,6 +16,7 @@
 package jetbrains.exodus.tree;
 
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.ExodusException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -31,6 +32,10 @@ public class TreeCursorMutable extends TreeCursor implements ITreeCursorMutable 
     protected ByteIterable nextAfterRemovedKey = null;
     @Nullable
     protected ByteIterable nextAfterRemovedValue = null;
+    @Nullable
+    private ByteIterable moveToKey = null;
+    @Nullable
+    private ByteIterable moveToValue = null;
 
     public TreeCursorMutable(ITreeMutable tree, TreeTraverser traverser) {
         super(traverser);
@@ -44,6 +49,7 @@ public class TreeCursorMutable extends TreeCursor implements ITreeCursorMutable 
 
     @Override
     public boolean getNext() {
+        moveIfNecessary();
         if (wasDelete) {
             wasDelete = false;
             // move to remembered next
@@ -71,11 +77,13 @@ public class TreeCursorMutable extends TreeCursor implements ITreeCursorMutable 
 
     @Override
     protected boolean hasNext() {
+        moveIfNecessary();
         return wasDelete ? nextAfterRemovedKey != null : super.hasNext();
     }
 
     @Override
     public boolean getPrev() {
+        moveIfNecessary();
         if (wasDelete) {
             throw new UnsupportedOperationException();
         } else {
@@ -85,6 +93,7 @@ public class TreeCursorMutable extends TreeCursor implements ITreeCursorMutable 
 
     @Override
     protected boolean hasPrev() {
+        moveIfNecessary();
         if (wasDelete) {
             throw new UnsupportedOperationException();
         } else {
@@ -94,6 +103,7 @@ public class TreeCursorMutable extends TreeCursor implements ITreeCursorMutable 
 
     @Override
     public boolean deleteCurrent() {
+        moveIfNecessary();
         if (wasDelete) {
             return false;
         }
@@ -131,27 +141,9 @@ public class TreeCursorMutable extends TreeCursor implements ITreeCursorMutable 
         final ByteIterable key = getKey();
         final ByteIterable value = getValue();
 
-        reset(tree.getRoot());
-
-        // move to current
-        final boolean withDuplicates = tree.isAllowingDuplicates();
-        if (!traverser.moveTo(key, withDuplicates ? value : null)) {
-            wasDelete = true;
-            // null means current was removed
-            // try to move to next key/value
-            if (withDuplicates) {
-                if (!(traverser.moveToRange(key, value) || traverser.moveToRange(key, null))) {
-                    // null means key/value was removed, move to next key
-                    return;
-                }
-            } else if (!traverser.moveToRange(key, null)) {
-                return;
-            }
-            nextAfterRemovedKey = traverser.getKey();
-            nextAfterRemovedValue = traverser.getValue();
-        } else {
-            inited = true;
-        }
+        //moveToPair(key, value);
+        moveToKey = key;
+        moveToValue = value;
     }
 
     @Override
@@ -187,6 +179,39 @@ public class TreeCursorMutable extends TreeCursor implements ITreeCursorMutable 
                     cursor.treeChanged();
                 }
             }
+        }
+    }
+
+    protected void moveIfNecessary() {
+        if (moveToKey != null) {
+            if (moveToValue == null) {
+                throw new ExodusException("Can't move Cursor to null value");
+            }
+            moveToPair(moveToKey, moveToValue);
+            moveToKey = moveToValue = null;
+        }
+    }
+
+    private void moveToPair(@NotNull final ByteIterable key, @NotNull final ByteIterable value) {
+        reset(tree.getRoot());
+        // move to current
+        final boolean withDuplicates = tree.isAllowingDuplicates();
+        if (!traverser.moveTo(key, withDuplicates ? value : null)) {
+            wasDelete = true;
+            // null means current was removed
+            // try to move to next key/value
+            if (withDuplicates) {
+                if (!(traverser.moveToRange(key, value) || traverser.moveToRange(key, null))) {
+                    // null means key/value was removed, move to next key
+                    return;
+                }
+            } else if (!traverser.moveToRange(key, null)) {
+                return;
+            }
+            nextAfterRemovedKey = traverser.getKey();
+            nextAfterRemovedValue = traverser.getValue();
+        } else {
+            inited = true;
         }
     }
 }
