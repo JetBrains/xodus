@@ -102,6 +102,18 @@ public class TreeCursorMutable extends TreeCursor implements ITreeCursorMutable 
     }
 
     @Override
+    public @NotNull ByteIterable getKey() {
+        moveIfNecessary();
+        return super.getKey();
+    }
+
+    @Override
+    public @NotNull ByteIterable getValue() {
+        moveIfNecessary();
+        return super.getValue();
+    }
+
+    @Override
     public boolean deleteCurrent() {
         moveIfNecessary();
         if (wasDelete) {
