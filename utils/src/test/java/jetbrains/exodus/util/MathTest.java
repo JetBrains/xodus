@@ -15,16 +15,21 @@
  */
 package jetbrains.exodus.util;
 
-public class MathUtil {
+import org.junit.Assert;
+import org.junit.Test;
 
-    /**
-     * @param i integer
-     * @return discrete logarithm of specified integer base 2
-     */
-    public static int integerLogarithm(final int i) {
-        if (i <= 0) {
-            return 0;
+public class MathTest {
+
+    @Test
+    public void testLog() {
+        int power = 1;
+        int expected = 0;
+        for (int i = 0; i < 10000; i++) {
+            Assert.assertEquals(expected, MathUtil.integerLogarithm(i));
+            if (i == power) {
+                power <<= 1;
+                expected++;
+            }
         }
-        return Integer.SIZE - Integer.numberOfLeadingZeros(i - 1);
     }
 }
