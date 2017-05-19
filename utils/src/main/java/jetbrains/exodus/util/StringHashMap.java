@@ -16,15 +16,13 @@
 package jetbrains.exodus.util;
 
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
-import jetbrains.exodus.core.dataStructures.hash.HashUtil;
 
 public class StringHashMap<T> extends HashMap<String, T> {
     private static final int DEFAULT_CAPACITY = 9;
     private static final float DEFAULT_LOAD_FACTOR = 3;
-    private static final int DEFAULT_TABLE_SIZE = HashUtil.getCeilingPrime((int) (DEFAULT_CAPACITY / DEFAULT_LOAD_FACTOR));
 
     public StringHashMap() {
-        super(DEFAULT_CAPACITY, DEFAULT_LOAD_FACTOR, DEFAULT_TABLE_SIZE);
+        super(DEFAULT_CAPACITY, DEFAULT_LOAD_FACTOR, DEFAULT_TABLE_SIZE, DEFAULT_MASK);
     }
 
     public StringHashMap(int capacity, float loadFactor) {

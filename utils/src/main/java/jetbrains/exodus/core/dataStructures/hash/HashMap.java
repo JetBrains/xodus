@@ -23,6 +23,9 @@ import java.util.Iterator;
 import java.util.Map;
 
 public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable {
+    protected static final int DEFAULT_TABLE_SIZE = 3;
+    protected static final int DEFAULT_MASK = 3;
+
     private Entry<K, V>[] table;
     private int capacity;
     private final float loadFactor;
@@ -30,7 +33,7 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
     private Entry<K, V> nullEntry;
 
     public HashMap() {
-        this(0, HashUtil.DEFAULT_LOAD_FACTOR, HashUtil.getFirstPrime());
+        this(0, HashUtil.DEFAULT_LOAD_FACTOR, DEFAULT_TABLE_SIZE, DEFAULT_MASK);
     }
 
     public HashMap(int capacity) {
@@ -42,12 +45,13 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
         init(capacity);
     }
 
-    protected HashMap(int capacity, float loadFactor, int tableSize) {
+    protected HashMap(int capacity, float loadFactor, int tableSize, int mask) {
         this.loadFactor = loadFactor;
         if (capacity < HashUtil.MIN_CAPACITY) {
             capacity = HashUtil.MIN_CAPACITY;
         }
-        allocateTable(tableSize);
+        table = new Entry[tableSize];
+        this.mask = mask;
         this.capacity = capacity;
         size = 0;
     }
