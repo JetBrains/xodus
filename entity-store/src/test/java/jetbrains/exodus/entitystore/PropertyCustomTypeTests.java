@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.TestFor;
 import jetbrains.exodus.bindings.ComparableBinding;
 import jetbrains.exodus.entitystore.tables.PropertyTypes;
 import jetbrains.exodus.util.LightOutputStream;
@@ -78,6 +79,36 @@ public class PropertyCustomTypeTests extends EntityStoreTestBase {
             Assert.assertTrue(txn.find("CustomType", Integer.toString(i + 1), new ComparablePair(i, Integer.toString(i))).isEmpty());
             Thread.sleep(1);
         }
+    }
+
+    public void testRegisterTwice() throws Exception {
+        PersistentEntityStoreImpl store = getEntityStore();
+        PropertyTypes propertyTypes = store.getPropertyTypes();
+        PersistentStoreTransaction txn = getStoreTransaction();
+        ComparablePair<Integer, String> sample = new ComparablePair<>(0, "");
+        ComparablePairBinding customBinding = new ComparablePairBinding(propertyTypes, sample);
+        store.registerCustomPropertyType(txn, sample.getClass(), customBinding);
+
+        reinit();
+
+        store = getEntityStore();
+        propertyTypes = store.getPropertyTypes();
+        txn = getStoreTransaction();
+        sample = new ComparablePair<>(0, "");
+        customBinding = new ComparablePairBinding(propertyTypes, sample);
+        store.registerCustomPropertyType(txn, sample.getClass(), customBinding);
+    }
+
+    @TestFor(issues = "XD-603")
+    public void testRegisterTwiceWithoutReinit() throws Exception {
+        PersistentEntityStoreImpl store = getEntityStore();
+        PropertyTypes propertyTypes = store.getPropertyTypes();
+        PersistentStoreTransaction txn = getStoreTransaction();
+        ComparablePair<Integer, String> sample = new ComparablePair<>(0, "");
+        ComparablePairBinding customBinding = new ComparablePairBinding(propertyTypes, sample);
+        store.registerCustomPropertyType(txn, sample.getClass(), customBinding);
+        Assert.assertTrue(txn.flush());
+        store.registerCustomPropertyType(txn, sample.getClass(), customBinding);
     }
 
     private static final class ComparablePair<F extends Comparable<F>, S extends Comparable<S>> implements Comparable<ComparablePair<F, S>> {
