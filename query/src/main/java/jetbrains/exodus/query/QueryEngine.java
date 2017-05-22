@@ -107,7 +107,7 @@ public class QueryEngine {
     }
 
     public boolean isPersistentIterable(Iterable<Entity> it) {
-        return it instanceof EntityIterable;
+        return it instanceof EntityIterableBase;
     }
 
     public TreeKeepingEntityIterable queryGetAll(String entityType) {
