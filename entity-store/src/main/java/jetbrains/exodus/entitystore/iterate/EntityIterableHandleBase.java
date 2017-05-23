@@ -82,6 +82,9 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
     }
 
     public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof EntityIterableHandle)) {
             return false;
         }
@@ -317,7 +320,7 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
         @Override
         public boolean equals(Object obj) {
             final EntityIterableHandleHash rightHash = (EntityIterableHandleHash) obj;
-            return hashCode == rightHash.hashCode && Arrays.equals(hashLongs, rightHash.hashLongs);
+            return this == rightHash || (hashCode == rightHash.hashCode && Arrays.equals(hashLongs, rightHash.hashLongs));
         }
 
         public void apply(final byte b) {
