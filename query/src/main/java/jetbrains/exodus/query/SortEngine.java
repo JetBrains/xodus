@@ -248,7 +248,7 @@ public class SortEngine {
 
     private Iterable<Entity> getAllEntities(final String entityType, final ModelMetaData mmd) {
         queryEngine.assertOperational();
-        EntityIterable it = queryEngine.getPersistentStore().getAndCheckCurrentTransaction().getAll(entityType);
+        EntityIterable it = queryEngine.instantiateGetAll(entityType);
         final EntityMetaData emd = mmd.getEntityMetaData(entityType);
         if (emd != null) {
             for (String subType : emd.getSubTypes()) {
