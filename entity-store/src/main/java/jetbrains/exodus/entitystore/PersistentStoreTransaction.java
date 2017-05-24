@@ -916,7 +916,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     @SuppressWarnings("unchecked")
-    public static <T extends UpdatableCachedInstanceIterable> T getUpdatableIterable(
+    public static <T> T getUpdatableIterable(
             @NotNull final HandleChecker handleChecker, @NotNull final EntityIterableHandle handle, @NotNull final Class<T> handleType
     ) {
         final HandleCheckerAdapter checker = (HandleCheckerAdapter) handleChecker;
@@ -996,6 +996,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
 
         @Override
+        @Deprecated
         public UpdatableCachedInstanceIterable getUpdatableIterable(@NotNull EntityIterableHandle handle) {
             return PersistentStoreTransaction.getUpdatableIterable(this, handle, UpdatableCachedInstanceIterable.class);
         }
