@@ -115,14 +115,14 @@ public class EntitiesWithPropertyIterable extends EntityIterableBase {
             final Comparable oldValue = handleChecker.getOldValue();
             final Comparable newValue = handleChecker.getNewValue();
             if (oldValue == null || newValue == null) {
-                UpdatableCachedInstanceIterable iterable = handleChecker.getUpdatableIterable(this);
+                UpdatableEntityIdSortedSetCachedInstanceIterable iterable
+                        = PersistentStoreTransaction.getUpdatableIterable(handleChecker, this, UpdatableEntityIdSortedSetCachedInstanceIterable.class);
                 if (iterable != null) {
-                    UpdatableEntityIdSortedSetCachedInstanceIterable index = (UpdatableEntityIdSortedSetCachedInstanceIterable) iterable;
                     final long localId = handleChecker.getLocalId();
                     if (oldValue == null) {
-                        index.addEntity(new PersistentEntityId(entityTypeId, localId));
+                        iterable.addEntity(new PersistentEntityId(entityTypeId, localId));
                     } else {
-                        index.removeEntity(new PersistentEntityId(entityTypeId, localId));
+                        iterable.removeEntity(new PersistentEntityId(entityTypeId, localId));
                     }
                     return true;
                 }

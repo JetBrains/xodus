@@ -172,10 +172,10 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
 
         @Override
         public boolean onEntityAdded(@NotNull EntityAddedOrDeletedHandleChecker handleChecker) {
-            UpdatableCachedInstanceIterable iterable = handleChecker.getUpdatableIterable(this);
+            UpdatableEntityIdSortedSetCachedInstanceIterable iterable
+                    = PersistentStoreTransaction.getUpdatableIterable(handleChecker, this, UpdatableEntityIdSortedSetCachedInstanceIterable.class);
             if (iterable != null) {
-                UpdatableEntityIdSortedSetCachedInstanceIterable index = (UpdatableEntityIdSortedSetCachedInstanceIterable) iterable;
-                index.addEntity(handleChecker.getId());
+                iterable.addEntity(handleChecker.getId());
                 return true;
             }
             return false;
@@ -183,10 +183,10 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
 
         @Override
         public boolean onEntityDeleted(@NotNull EntityAddedOrDeletedHandleChecker handleChecker) {
-            UpdatableCachedInstanceIterable iterable = handleChecker.getUpdatableIterable(this);
+            UpdatableEntityIdSortedSetCachedInstanceIterable iterable
+                    = PersistentStoreTransaction.getUpdatableIterable(handleChecker, this, UpdatableEntityIdSortedSetCachedInstanceIterable.class);
             if (iterable != null) {
-                UpdatableEntityIdSortedSetCachedInstanceIterable index = (UpdatableEntityIdSortedSetCachedInstanceIterable) iterable;
-                index.removeEntity(handleChecker.getId());
+                iterable.removeEntity(handleChecker.getId());
                 return true;
             }
             return false;

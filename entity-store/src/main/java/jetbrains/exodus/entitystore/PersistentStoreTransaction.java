@@ -37,6 +37,8 @@ import jetbrains.exodus.env.Transaction;
 import jetbrains.exodus.util.StringBuilderSpinAllocator;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -49,6 +51,7 @@ import java.util.Set;
 
 @SuppressWarnings({"RawUseOfParameterizedType", "rawtypes"})
 public class PersistentStoreTransaction implements StoreTransaction, TxnGetterStategy {
+    private static final Logger logger = LoggerFactory.getLogger(PersistentStoreTransaction.class);
 
     enum TransactionType {
         Regular,
@@ -912,6 +915,29 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
     }
 
+    @SuppressWarnings("unchecked")
+    public static <T extends UpdatableCachedInstanceIterable> T getUpdatableIterable(
+            @NotNull final HandleChecker handleChecker, @NotNull final EntityIterableHandle handle, @NotNull final Class<T> handleType
+    ) {
+        final HandleCheckerAdapter checker = (HandleCheckerAdapter) handleChecker;
+        final CachedInstanceIterable instance = checker.get(handle);
+        if (instance != null) {
+            if (handleType.isAssignableFrom(instance.getClass())) {
+                UpdatableCachedInstanceIterable it = (UpdatableCachedInstanceIterable) instance;
+                if (!it.isMutated()) {
+                    it = checker.beginUpdate(handle, it);
+                }
+                return (T) it;
+            }
+            checker.remove(handle, instance);
+            if (logger.isErrorEnabled()) {
+                logger.error("Iterable doesn't match expected class " + handleType.getName()
+                        + ", handle = " + handle + ", found = " + instance.getClass().getName() + ", handle = " + instance.getHandle());
+            }
+        }
+        return null;
+    }
+
     private static <V> ObjectCacheBase<PropertyId, V> createObjectCache(final int size) {
         return size == 0 ?
                 new FakeObjectCache<PropertyId, V>() :
@@ -953,20 +979,25 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         abstract boolean checkHandle(@NotNull final EntityIterableHandle handle);
 
-        @Nullable
+        CachedInstanceIterable get(@NotNull EntityIterableHandle handle) {
+            return mutableCache.getObject(handle);
+        }
+
+        UpdatableCachedInstanceIterable beginUpdate(@NotNull EntityIterableHandle handle, @NotNull UpdatableCachedInstanceIterable instance) {
+            final UpdatableCachedInstanceIterable it = instance.beginUpdate();
+            // cache new mutated iterable instance not affecting HandlesDistribution
+            mutableCache.cacheObjectNotAffectingHandleDistribution(handle, it);
+            mutatedInTxn.add(it);
+            return it;
+        }
+
+        void remove(@NotNull EntityIterableHandle handle, @NotNull CachedInstanceIterable instance) {
+            mutableCache.remove(handle);
+        }
+
         @Override
-        public UpdatableCachedInstanceIterable getUpdatableIterable(@NotNull final EntityIterableHandle handle) {
-            UpdatableCachedInstanceIterable it = (UpdatableCachedInstanceIterable) mutableCache.getObject(handle);
-            if (it != null) {
-                if (!it.isMutated()) {
-                    it = it.beginUpdate();
-                    // cache new mutated iterable instance not affecting HandlesDistribution
-                    mutableCache.cacheObjectNotAffectingHandleDistribution(handle, it);
-                    mutatedInTxn.add(it);
-                }
-                return it;
-            }
-            return null;
+        public UpdatableCachedInstanceIterable getUpdatableIterable(@NotNull EntityIterableHandle handle) {
+            return PersistentStoreTransaction.getUpdatableIterable(this, handle, UpdatableCachedInstanceIterable.class);
         }
     }
 

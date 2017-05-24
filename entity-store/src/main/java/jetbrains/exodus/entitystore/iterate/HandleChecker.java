@@ -17,7 +17,6 @@ package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.entitystore.EntityIterableHandle;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 public interface HandleChecker {
     int getLinkId();
@@ -28,6 +27,6 @@ public interface HandleChecker {
 
     int getTypeIdAffectingCreation();
 
-    @Nullable
+    @Deprecated
     UpdatableCachedInstanceIterable getUpdatableIterable(@NotNull final EntityIterableHandle handle);
 }
