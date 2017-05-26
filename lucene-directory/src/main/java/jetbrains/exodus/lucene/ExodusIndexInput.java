@@ -60,6 +60,13 @@ public class ExodusIndexInput extends IndexInput {
     @Override
     public void seek(long pos) throws IOException {
         if (pos != currentPosition) {
+            if (pos > currentPosition) {
+                final long bytesToSkip = pos - currentPosition;
+                if (input.skip(bytesToSkip) == bytesToSkip) {
+                    currentPosition = pos;
+                    return;
+                }
+            }
             input.close();
             input = directory.getVfs().readFile(directory.getEnvironment().getAndCheckCurrentTransaction(), file, pos);
             currentPosition = pos;
