@@ -143,6 +143,13 @@ class ClusterIterator implements Closeable {
         if (clusterKey.getDescriptor() != fd) {
             currentCluster = null;
         } else {
+            final IOCancellingPolicyProvider cancellingPolicyProvider = vfs.getCancellingPolicyProvider();
+            if (cancellingPolicyProvider != null) {
+                final IOCancellingPolicy cancellingPolicy = cancellingPolicyProvider.getPolicy();
+                if (cancellingPolicy.needToCancel()) {
+                    cancellingPolicy.doCancel();
+                }
+            }
             currentCluster.setClusterNumber(clusterKey.getClusterNumber());
         }
     }

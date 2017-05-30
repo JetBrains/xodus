@@ -65,6 +65,8 @@ public class VirtualFileSystem {
     private final Store pathnames;
     private final Store contents;
     private final AtomicLong fileDescriptorSequence;
+    @Nullable
+    private IOCancellingPolicyProvider cancellingPolicyProvider;
 
     /**
      * Creates {@code VirtualFileSystem} over specified {@linkplain Environment} with default settings
@@ -607,6 +609,15 @@ public class VirtualFileSystem {
      */
     public VfsConfig getConfig() {
         return config;
+    }
+
+    @Nullable
+    public IOCancellingPolicyProvider getCancellingPolicyProvider() {
+        return cancellingPolicyProvider;
+    }
+
+    public void setCancellingPolicyProvider(@NotNull final IOCancellingPolicyProvider cancellingPolicyProvider) {
+        this.cancellingPolicyProvider = cancellingPolicyProvider;
     }
 
     Store getContents() {
