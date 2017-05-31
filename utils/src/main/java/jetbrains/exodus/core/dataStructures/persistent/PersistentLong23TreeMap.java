@@ -53,6 +53,7 @@ public class PersistentLong23TreeMap<V> implements PersistentLongMap<V> {
         return set.endWrite(tree);
     }
 
+    @SuppressWarnings("unchecked")
     protected static class ImmutableMap<V> extends Persistent23Tree.ImmutableTree<PersistentLongMap.Entry<V>> implements PersistentLongMap.ImmutableMap<V> {
 
         ImmutableMap(RootNode<PersistentLongMap.Entry<V>> root) {
@@ -65,14 +66,14 @@ public class PersistentLong23TreeMap<V> implements PersistentLongMap<V> {
             if (root == null) {
                 return null;
             }
-            PersistentLongMap.Entry<V> entry = root.get(new LongMapEntry<V>(key));
+            PersistentLongMap.Entry<V> entry = root.getByWeight(key);
             return entry == null ? null : entry.getValue();
         }
 
         @Override
         public boolean containsKey(long key) {
             final Node<PersistentLongMap.Entry<V>> root = getRoot();
-            return root != null && root.get(new LongMapEntry<V>(key)) != null;
+            return root != null && root.getByWeight(key) != null;
         }
 
         @Override
@@ -86,6 +87,7 @@ public class PersistentLong23TreeMap<V> implements PersistentLongMap<V> {
         }
     }
 
+    @SuppressWarnings("unchecked")
     protected static class MutableMap<V> extends Persistent23Tree.MutableTree<PersistentLongMap.Entry<V>> implements PersistentLongMap.MutableMap<V>, RootHolder {
 
         MutableMap(Persistent23Tree<PersistentLongMap.Entry<V>> set) {
@@ -98,7 +100,7 @@ public class PersistentLong23TreeMap<V> implements PersistentLongMap<V> {
             if (root == null) {
                 return null;
             }
-            PersistentLongMap.Entry<V> entry = root.get(new LongMapEntry<V>(key));
+            PersistentLongMap.Entry<V> entry = root.getByWeight(key);
             return entry == null ? null : entry.getValue();
         }
 

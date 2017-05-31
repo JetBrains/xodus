@@ -17,7 +17,7 @@ package jetbrains.exodus.core.dataStructures.persistent;
 
 import org.jetbrains.annotations.Nullable;
 
-public class LongMapEntry<V> implements PersistentLongMap.Entry<V> {
+public class LongMapEntry<V> implements PersistentLongMap.Entry<V>, LongComparable<PersistentLongMap.Entry<V>> {
 
     private final long key;
     private final V value;
@@ -38,6 +38,11 @@ public class LongMapEntry<V> implements PersistentLongMap.Entry<V> {
 
     @Override
     public long getKey() {
+        return key;
+    }
+
+    @Override
+    public long getWeight() {
         return key;
     }
 

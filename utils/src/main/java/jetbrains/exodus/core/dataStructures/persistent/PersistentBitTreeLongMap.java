@@ -80,7 +80,7 @@ public class PersistentBitTreeLongMap<V> implements PersistentLongMap<V> {
             if (root == null) {
                 return null;
             }
-            return root.get(makeIndexEntry(index));
+            return root.getByWeight(index);
         }
 
         @SuppressWarnings("unchecked")
@@ -169,7 +169,7 @@ public class PersistentBitTreeLongMap<V> implements PersistentLongMap<V> {
             if (root == null) {
                 return null;
             }
-            return root.get(makeIndexEntry(index));
+            return root.getByWeight(index);
         }
 
         @SuppressWarnings("unchecked")
@@ -296,7 +296,7 @@ public class PersistentBitTreeLongMap<V> implements PersistentLongMap<V> {
         }
     }
 
-    protected static class Entry implements Comparable<Entry> {
+    protected static class Entry implements LongComparable<Entry> {
         private final long index;
         @NotNull
         private final BitSet bits;
@@ -319,6 +319,11 @@ public class PersistentBitTreeLongMap<V> implements PersistentLongMap<V> {
                 this.bits = FAKE_BITS;
                 this.data = FAKE_DATA;
             }
+        }
+
+        @Override
+        public long getWeight() {
+            return index;
         }
 
         @Override

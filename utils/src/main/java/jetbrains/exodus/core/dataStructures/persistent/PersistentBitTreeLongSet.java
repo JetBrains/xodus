@@ -80,7 +80,7 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
             if (root == null) {
                 return null;
             }
-            return root.get(makeIndexEntry(index));
+            return root.getByWeight(index);
         }
 
         @Override
@@ -127,7 +127,7 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
             if (root == null) {
                 return null;
             }
-            return root.get(makeIndexEntry(index));
+            return root.getByWeight(index);
         }
 
         @Override
@@ -207,7 +207,7 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
         }
     }
 
-    protected static class Entry implements Comparable<Entry> {
+    protected static class Entry implements LongComparable<Entry> {
         private final long index;
         @NotNull
         private final BitSet bits;
@@ -226,6 +226,11 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
         protected Entry(long index, @NotNull BitSet bits) {
             this.index = index;
             this.bits = bits;
+        }
+
+        @Override
+        public long getWeight() {
+            return index;
         }
 
         @Override

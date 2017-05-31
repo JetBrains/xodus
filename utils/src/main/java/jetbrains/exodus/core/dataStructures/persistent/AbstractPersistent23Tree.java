@@ -459,6 +459,8 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
 
         K get(@NotNull K key);
 
+        K getByWeight(long weight);
+
         boolean getLess(K key, Stack<TreePos<K>> stack);
 
         /**
@@ -592,6 +594,12 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
         @Override
         public K get(@NotNull K key) {
             return key.compareTo(firstKey) == 0 ? firstKey : null;
+        }
+
+        @Override
+        public K getByWeight(long weight) {
+            final long firstKeyWeight = ((LongComparable) firstKey).getWeight();
+            return firstKeyWeight == weight ? firstKey : null;
         }
 
         @Override
@@ -789,6 +797,19 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
         }
 
         @Override
+        public K getByWeight(long weight) {
+            final long firstKeyWeight = ((LongComparable) firstKey).getWeight();
+            if (firstKeyWeight == weight) {
+                return firstKey;
+            }
+            if (weight < firstKeyWeight) {
+                return firstChild.getByWeight(weight);
+            } else {
+                return secondChild.getByWeight(weight);
+            }
+        }
+
+        @Override
         public boolean getLess(K key, Stack<TreePos<K>> stack) {
             AbstractPersistent23Tree.getLess(this, stack);
             int comp = firstKey.compareTo(key);
@@ -947,6 +968,18 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
                 return firstKey;
             }
             if (comp > 0 && key.compareTo(secondKey) == 0) {
+                return secondKey;
+            }
+            return null;
+        }
+
+        @Override
+        public K getByWeight(long weight) {
+            long keyWeight = ((LongComparable) firstKey).getWeight();
+            if (keyWeight == weight) {
+                return firstKey;
+            }
+            if (weight > keyWeight && weight == ((LongComparable) secondKey).getWeight()) {
                 return secondKey;
             }
             return null;
@@ -1208,6 +1241,27 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
         }
 
         @Override
+        public K getByWeight(long weight) {
+            long keyWeight = ((LongComparable) firstKey).getWeight();
+            if (weight < keyWeight) {
+                return firstChild.getByWeight(weight);
+            }
+            if (keyWeight == weight) {
+                return firstKey;
+            }
+            keyWeight = ((LongComparable) secondKey).getWeight();
+            if (keyWeight == weight) {
+                return secondKey;
+            } else {
+                if (weight < keyWeight) {
+                    return secondChild.getByWeight(weight);
+                } else {
+                    return thirdChild.getByWeight(weight);
+                }
+            }
+        }
+
+        @Override
         public boolean getLess(K key, Stack<TreePos<K>> stack) {
             AbstractPersistent23Tree.getLess(this, stack);
             int comp = secondKey.compareTo(key);
@@ -1330,6 +1384,11 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
 
         @Override
         public K get(@NotNull K key) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public K getByWeight(long weight) {
             throw new UnsupportedOperationException();
         }
 
