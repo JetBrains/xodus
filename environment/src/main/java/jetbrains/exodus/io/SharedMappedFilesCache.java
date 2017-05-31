@@ -24,6 +24,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -123,8 +125,35 @@ public final class SharedMappedFilesCache {
 
     void removeFileBuffer(@NotNull final File file) {
         try {
+            final SharedMappedByteBuffer obsolete;
             synchronized (cache) {
-                cache.remove(file);
+                obsolete = cache.remove(file);
+            }
+            if (obsolete != null) {
+                obsoleteQueue.offer(obsolete);
+            }
+        } finally {
+            freeObsoleteBuffers();
+        }
+    }
+
+    void removeDirectory(@NotNull final File dir) throws IOException {
+        try {
+            final List<SharedMappedByteBuffer> result = new ArrayList<>();
+            final List<File> obsoleteFiles = new ArrayList<>();
+            synchronized (cache) {
+                for (File file : cache.keySet()) {
+                    if (file.getParentFile().equals(dir)) {
+                        obsoleteFiles.add(file);
+                        result.add(cache.get(file));
+                    }
+                }
+                for (final File file : obsoleteFiles) {
+                    cache.remove(file);
+                }
+            }
+            for (final SharedMappedByteBuffer obsolete : result) {
+                obsoleteQueue.offer(obsolete);
             }
         } finally {
             freeObsoleteBuffers();

@@ -118,6 +118,9 @@ public class FileDataReader implements DataReader {
     public void close() {
         try {
             SharedOpenFilesCache.getInstance().removeDirectory(dir);
+            if (useNio) {
+                SharedMappedFilesCache.getInstance().removeDirectory(dir);
+            }
         } catch (IOException e) {
             throw new ExodusException("Can't close all files", e);
         }
@@ -167,7 +170,7 @@ public class FileDataReader implements DataReader {
     private static boolean renameFile(@NotNull final File file) {
         final String name = file.getName();
         return file.renameTo(new File(file.getParent(),
-                name.substring(0, name.indexOf(LogUtil.LOG_FILE_EXTENSION)) + DELETED_FILE_EXTENSION));
+            name.substring(0, name.indexOf(LogUtil.LOG_FILE_EXTENSION)) + DELETED_FILE_EXTENSION));
     }
 
     private static void setWritable(@NotNull final File file) {
@@ -196,7 +199,7 @@ public class FileDataReader implements DataReader {
                 try (SharedRandomAccessFile f = SharedOpenFilesCache.getInstance().getCachedFile(this)) {
                     if (useNio &&
                             /* only read-only (immutable) files can be mapped */
-                            ((log != null && log.isImmutableFile(address)) || (log == null && !canWrite()))) {
+                        ((log != null && log.isImmutableFile(address)) || (log == null && !canWrite()))) {
                         try {
                             try (SharedMappedByteBuffer mappedBuffer = SharedMappedFilesCache.getInstance().getFileBuffer(f)) {
                                 final ByteBuffer buffer = mappedBuffer.getBuffer();
