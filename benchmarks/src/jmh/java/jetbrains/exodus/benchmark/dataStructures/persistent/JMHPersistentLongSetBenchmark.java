@@ -59,48 +59,48 @@ public class JMHPersistentLongSetBenchmark {
     }
 
     @Benchmark
-    @Warmup(iterations = 4, time = 1)
-    @Measurement(iterations = 6, time = 1)
+    @Warmup(iterations = 6, time = 1)
+    @Measurement(iterations = 8, time = 1)
     @Fork(5)
     public boolean get23TreeExisting() {
         return treeSet.beginRead().contains(existingKey);
     }
 
     @Benchmark
-    @Warmup(iterations = 4, time = 1)
-    @Measurement(iterations = 6, time = 1)
+    @Warmup(iterations = 6, time = 1)
+    @Measurement(iterations = 8, time = 1)
     @Fork(5)
     public boolean get23TreeMissing() {
         return treeSet.beginRead().contains(missingKey);
     }
 
     @Benchmark
-    @Warmup(iterations = 4, time = 1)
-    @Measurement(iterations = 6, time = 1)
+    @Warmup(iterations = 6, time = 1)
+    @Measurement(iterations = 8, time = 1)
     @Fork(5)
     public boolean getBitTreeExisting() {
         return bitTreeSet.beginRead().contains(existingKey);
     }
 
     @Benchmark
-    @Warmup(iterations = 4, time = 1)
-    @Measurement(iterations = 6, time = 1)
+    @Warmup(iterations = 6, time = 1)
+    @Measurement(iterations = 8, time = 1)
     @Fork(5)
     public boolean getBitTreeMissing() {
         return bitTreeSet.beginRead().contains(missingKey);
     }
 
     @Benchmark
-    @Warmup(iterations = 4, time = 1)
-    @Measurement(iterations = 6, time = 1)
+    @Warmup(iterations = 6, time = 1)
+    @Measurement(iterations = 8, time = 1)
     @Fork(5)
     public boolean treeMapGetExisting() {
         return juTree.containsKey(existingKey);
     }
 
     @Benchmark
-    @Warmup(iterations = 4, time = 1)
-    @Measurement(iterations = 6, time = 1)
+    @Warmup(iterations = 6, time = 1)
+    @Measurement(iterations = 8, time = 1)
     @Fork(5)
     public boolean treeMapGetMissing() {
         return juTree.containsKey(missingKey);
