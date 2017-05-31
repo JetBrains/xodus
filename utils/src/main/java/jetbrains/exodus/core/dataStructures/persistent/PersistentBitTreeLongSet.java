@@ -27,7 +27,6 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
     private static final int BITS_PER_ENTRY = 10;
     private static final int ELEMENTS_PER_ENTRY = 1 << BITS_PER_ENTRY;
     private static final int MASK = ELEMENTS_PER_ENTRY - 1;
-    private static final BitSet FAKE = new BitSet();
 
     @NotNull
     private final Root root;
@@ -57,11 +56,6 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
 
     private static long getEntryIndex(long value) {
         return value >> BITS_PER_ENTRY;
-    }
-
-    @NotNull
-    private static PersistentBitTreeLongSet.Entry makeIndexEntry(long index) {
-        return new Entry(index, FAKE);
     }
 
     protected static class ImmutableSet implements PersistentLongSet.ImmutableSet {
@@ -221,11 +215,6 @@ public class PersistentBitTreeLongSet implements PersistentLongSet {
             this.index = index;
             this.bits = new BitSet(ELEMENTS_PER_ENTRY);
             this.bits.or(other.bits);
-        }
-
-        protected Entry(long index, @NotNull BitSet bits) {
-            this.index = index;
-            this.bits = bits;
         }
 
         @Override
