@@ -19,7 +19,6 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.ObjectCache;
 import jetbrains.exodus.util.SharedRandomAccessFile;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -104,8 +103,7 @@ public final class SharedOpenFilesCache {
         return result;
     }
 
-    @Nullable
-    SharedRandomAccessFile removeFile(@NotNull final File file) throws IOException {
+    void removeFile(@NotNull final File file) throws IOException {
         final SharedRandomAccessFile result;
         try (CriticalSection ignored = cache.newCriticalSection()) {
             result = cache.remove(file);
@@ -113,10 +111,9 @@ public final class SharedOpenFilesCache {
         if (result != null) {
             result.close();
         }
-        return result;
     }
 
-    List<SharedRandomAccessFile> removeDirectory(@NotNull final File dir) throws IOException {
+    void removeDirectory(@NotNull final File dir) throws IOException {
         final List<SharedRandomAccessFile> result = new ArrayList<>();
         final List<File> obsoleteFiles = new ArrayList<>();
         try (CriticalSection ignored = cache.newCriticalSection()) {
@@ -135,7 +132,6 @@ public final class SharedOpenFilesCache {
         for (final SharedRandomAccessFile obsolete : result) {
             obsolete.close();
         }
-        return result;
     }
 
     private void clear() throws IOException {
