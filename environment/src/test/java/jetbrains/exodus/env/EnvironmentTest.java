@@ -26,10 +26,7 @@ import jetbrains.exodus.io.DataReader;
 import jetbrains.exodus.io.DataWriter;
 import jetbrains.exodus.io.FileDataReader;
 import jetbrains.exodus.io.FileDataWriter;
-import jetbrains.exodus.log.Log;
-import jetbrains.exodus.log.LogConfig;
-import jetbrains.exodus.log.LogTestConfig;
-import jetbrains.exodus.log.Loggable;
+import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.btree.BTreeBalancePolicy;
 import jetbrains.exodus.tree.btree.BTreeBase;
 import jetbrains.exodus.util.IOUtil;
@@ -478,6 +475,54 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         final WeakReference<Environment> envRef = new WeakReference<Environment>(createAndCloseEnvironment());
         waitForPendingFinalizers(10000);
         Assert.assertNull(envRef.get());
+    }
+
+    @Test
+    @TestFor(issues = "XD-606")
+    public void mappedFileNotUnmapped() {
+        File tempDir = TestUtil.createTempDir();
+        try {
+            final Environment env = Environments.newInstance(tempDir, new EnvironmentConfig().setLogFileSize(1).setLogCachePageSize(1024).setLogCacheShared(false));
+            final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
+                @Override
+                public Store compute(@NotNull Transaction txn) {
+                    return env.openStore("0", StoreConfig.WITHOUT_DUPLICATES, txn);
+                }
+            });
+            env.executeInTransaction(new TransactionalExecutable() {
+                @Override
+                public void execute(@NotNull Transaction txn) {
+                    store.put(txn, StringBinding.stringToEntry("k"), StringBinding.stringToEntry("v"));
+                    for (int i = 0; i < 200; ++i) {
+                        store.put(txn, StringBinding.stringToEntry("k" + i), StringBinding.stringToEntry("v" + i));
+                    }
+                }
+            });
+            Assert.assertEquals("v", env.computeInTransaction(new TransactionalComputable<String>() {
+                @Override
+                public String compute(@NotNull Transaction txn) {
+                    return StringBinding.entryToString(store.get(txn, StringBinding.stringToEntry("k")));
+                }
+            }));
+            env.close();
+            final Environment reopenedEnv = Environments.newInstance(tempDir, env.getEnvironmentConfig());
+            final Store reopenedStore = reopenedEnv.computeInTransaction(new TransactionalComputable<Store>() {
+                @Override
+                public Store compute(@NotNull Transaction txn) {
+                    return reopenedEnv.openStore("0", StoreConfig.USE_EXISTING, txn);
+                }
+            });
+            Assert.assertEquals("v", reopenedEnv.computeInTransaction(new TransactionalComputable<String>() {
+                @Override
+                public String compute(@NotNull Transaction txn) {
+                    return StringBinding.entryToString(reopenedStore.get(txn, StringBinding.stringToEntry("k")));
+                }
+            }));
+            reopenedEnv.close();
+            Assert.assertTrue(new File(tempDir, LogUtil.getLogFilename(0)).renameTo(new File(tempDir, LogUtil.getLogFilename(0x1000000))));
+        } finally {
+            IOUtil.deleteRecursively(tempDir);
+        }
     }
 
     @Test
