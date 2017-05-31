@@ -24,10 +24,7 @@ import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.core.execution.JobProcessor;
 import jetbrains.exodus.core.execution.ThreadJobProcessor;
 import jetbrains.exodus.core.execution.locks.Latch;
-import jetbrains.exodus.io.DataReader;
-import jetbrains.exodus.io.DataWriter;
-import jetbrains.exodus.io.FileDataReader;
-import jetbrains.exodus.io.FileDataWriter;
+import jetbrains.exodus.io.*;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogConfig;
 import jetbrains.exodus.log.RandomAccessLoggable;
@@ -57,7 +54,7 @@ public class EnvironmentTestsBase {
 
     @Before
     public void setUp() throws Exception {
-        Log.invalidateSharedCache();
+        invalidateSharedCaches();
         final Pair<DataReader, DataWriter> readerWriterPair = createRW();
         reader = readerWriterPair.getFirst();
         writer = readerWriterPair.getSecond();
@@ -77,7 +74,7 @@ public class EnvironmentTestsBase {
             archiveDB(env.getLocation(), getClass().getName() + '.' + System.currentTimeMillis() + ".tar.gz");
             throw e;
         } finally {
-            Log.invalidateSharedCache();
+            invalidateSharedCaches();
             deleteRW();
             processor.finish();
         }
@@ -328,5 +325,14 @@ public class EnvironmentTestsBase {
     protected void set2KbFileWithoutGC() {
         setLogFileSize(2);
         env.getEnvironmentConfig().setGcEnabled(false);
+    }
+
+    private static void invalidateSharedCaches() {
+        Log.invalidateSharedCache();
+        try {
+            SharedOpenFilesCache.invalidate();
+            SharedMappedFilesCache.invalidate();
+        } catch (IOException ignore) {
+        }
     }
 }

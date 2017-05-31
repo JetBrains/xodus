@@ -27,7 +27,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-final class SharedMappedFilesCache {
+public final class SharedMappedFilesCache {
 
     private static final Object syncObject = new Object();
     @Nullable
@@ -79,7 +79,7 @@ final class SharedMappedFilesCache {
     /**
      * For tests only!!!
      */
-    static void invalidate() throws IOException {
+    public static void invalidate() throws IOException {
         final SharedMappedFilesCache oldCache;
         synchronized (syncObject) {
             oldCache = SharedMappedFilesCache.theCache;

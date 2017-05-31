@@ -29,7 +29,7 @@ import java.util.List;
 
 import static jetbrains.exodus.core.dataStructures.ObjectCacheBase.CriticalSection;
 
-final class SharedOpenFilesCache {
+public final class SharedOpenFilesCache {
 
     private static final Object syncObject = new Object();
     private static int cacheSize = 0;
@@ -67,7 +67,7 @@ final class SharedOpenFilesCache {
     /**
      * For tests only!!!
      */
-    static void invalidate() throws IOException {
+    public static void invalidate() throws IOException {
         final SharedOpenFilesCache obsolete;
         synchronized (syncObject) {
             obsolete = theCache;
