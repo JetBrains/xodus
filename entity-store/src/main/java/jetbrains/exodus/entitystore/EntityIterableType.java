@@ -25,10 +25,30 @@ public enum EntityIterableType {
     ENTITY_FROM_LINKS("Outgoing links from an entity", 3),
     ENTITY_TO_LINKS("Incoming links to an entity", 4),
     ENTITIES_WITH_LINK("Entities with link", 5),
-    ENTITIES_WITH_PROPERTY("Entities with property", 6),
-    ENTITIES_WITH_PROPERTY_SORTED_BY_VALUE("Entities with property sorted by its value", 7),
-    ENTITIES_BY_PROP_VALUE("Entities with specified property value", 8),
-    ENTITIES_BY_PROP_VALUE_IN_RANGE("Entities with a property value in range", 9),
+    ENTITIES_WITH_PROPERTY("Entities with property", 6) {
+        @Override
+        public boolean isPropertyIndex() {
+            return true;
+        }
+    },
+    ENTITIES_WITH_PROPERTY_SORTED_BY_VALUE("Entities with property sorted by its value", 7) {
+        @Override
+        public boolean isPropertyIndex() {
+            return true;
+        }
+    },
+    ENTITIES_BY_PROP_VALUE("Entities with specified property value", 8) {
+        @Override
+        public boolean isPropertyIndex() {
+            return true;
+        }
+    },
+    ENTITIES_BY_PROP_VALUE_IN_RANGE("Entities with a property value in range", 9) {
+        @Override
+        public boolean isPropertyIndex() {
+            return true;
+        }
+    },
     ENTITIES_WITH_BLOB("Entities with blob", 10),
     INTERSECT("Intersection", 11),
     UNION("Union", 12),
@@ -66,6 +86,10 @@ public enum EntityIterableType {
 
     public int getType() {
         return type;
+    }
+
+    public boolean isPropertyIndex() {
+        return false;
     }
 
 }
