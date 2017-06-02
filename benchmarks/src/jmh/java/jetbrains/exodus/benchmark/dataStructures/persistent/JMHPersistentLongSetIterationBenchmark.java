@@ -51,8 +51,8 @@ public class JMHPersistentLongSetIterationBenchmark {
     }
 
     @Benchmark
-    @Warmup(iterations = 4, time = 1)
-    @Measurement(iterations = 6, time = 1)
+    @Warmup(iterations = 6, time = 1)
+    @Measurement(iterations = 8, time = 1)
     @Fork(5)
     public long iterate23Tree() {
         LongIterator iterator = treeSet.beginRead().longIterator();
@@ -64,8 +64,8 @@ public class JMHPersistentLongSetIterationBenchmark {
     }
 
     @Benchmark
-    @Warmup(iterations = 4, time = 1)
-    @Measurement(iterations = 6, time = 1)
+    @Warmup(iterations = 6, time = 1)
+    @Measurement(iterations = 8, time = 1)
     @Fork(5)
     public long iterateBitTree() {
         LongIterator iterator = bitTreeSet.beginRead().longIterator();
@@ -77,8 +77,8 @@ public class JMHPersistentLongSetIterationBenchmark {
     }
 
     @Benchmark
-    @Warmup(iterations = 4, time = 1)
-    @Measurement(iterations = 6, time = 1)
+    @Warmup(iterations = 6, time = 1)
+    @Measurement(iterations = 8, time = 1)
     @Fork(5)
     public long iterateTreeMap() {
         Iterator<Long> iterator = juTree.keySet().iterator();
