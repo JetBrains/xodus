@@ -18,35 +18,33 @@ package jetbrains.exodus.core.dataStructures;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.LinkedHashSet;
 import jetbrains.exodus.core.execution.locks.CriticalSection;
-import jetbrains.exodus.core.execution.locks.Guard;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class StablePriorityQueue<P extends Comparable<? super P>, E> extends PriorityQueue<P, E> {
 
     private final TreeMap<P, LinkedHashSet<E>> theQueue;
     private final Map<E, Pair<E, P>> priorities;
+    private final AtomicInteger size;
     private final CriticalSection criticalSection;
 
     public StablePriorityQueue() {
         theQueue = new TreeMap<>();
         priorities = new HashMap<>();
+        size = new AtomicInteger(0);
         criticalSection = new CriticalSection();
     }
 
     @Override
     public boolean isEmpty() {
-        try (Guard ignored = lock()) {
-            return priorities.isEmpty();
-        }
+        return size.get() == 0;
     }
 
     @Override
     public int size() {
-        try (Guard ignored = lock()) {
-            return priorities.size();
-        }
+        return size.get();
     }
 
     @Override
@@ -54,6 +52,7 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
         LinkedHashSet<E> values;
         final Pair<E, P> oldPair = priorities.remove(value);
         priorities.put(value, new Pair<>(value, priority));
+        invalidateSize();
         final P oldPriority = oldPair == null ? null : oldPair.getSecond();
         final E oldValue = oldPair == null ? null : oldPair.getFirst();
         if (oldPriority != null && (values = theQueue.get(oldPriority)) != null) {
@@ -73,7 +72,7 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
 
     @Override
     public Pair<P, E> peekPair() {
-        if (isEmpty()) {
+        if (priorities.size() == 0) {
             return null;
         }
         final TreeMap<P, LinkedHashSet<E>> queue = theQueue;
@@ -84,7 +83,7 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
 
     @Override
     public Pair<P, E> floorPair() {
-        if (isEmpty()) {
+        if (priorities.size() == 0) {
             return null;
         }
         final TreeMap<P, LinkedHashSet<E>> queue = theQueue;
@@ -95,7 +94,7 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
 
     @Override
     public E pop() {
-        if (isEmpty()) {
+        if (priorities.size() == 0) {
             return null;
         }
         final TreeMap<P, LinkedHashSet<E>> queue = theQueue;
@@ -103,6 +102,7 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
         final Set<E> values = queue.get(priority);
         final E result = values.iterator().next();
         priorities.remove(result);
+        invalidateSize();
         values.remove(result);
         if (values.isEmpty()) {
             queue.remove(priority);
@@ -114,6 +114,7 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
     public void clear() {
         theQueue.clear();
         priorities.clear();
+        size.set(0);
     }
 
     @Override
@@ -131,12 +132,12 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
         return new QueueIterator();
     }
 
-
     public boolean remove(@NotNull final E value) {
         final Pair<E, P> pair = priorities.remove(value);
         if (pair == null) {
             return false;
         }
+        invalidateSize();
         final P priority = pair.getSecond();
         final LinkedHashSet<E> values = theQueue.get(priority);
         values.remove(value);
@@ -144,6 +145,11 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
             theQueue.remove(priority);
         }
         return true;
+    }
+
+
+    private void invalidateSize() {
+        size.set(priorities.size());
     }
 
     private class QueueIterator implements Iterator<E> {
