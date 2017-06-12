@@ -55,6 +55,8 @@ public abstract class EntityIteratorBase implements EntityIterator {
     private boolean finished;
     private boolean disposed;
     private Cursor cursor;
+    @Nullable
+    private QueryCancellingPolicy queryCancellingPolicy;
 
     protected EntityIteratorBase(@NotNull final EntityIterableBase iterable) {
         this.iterable = iterable;
@@ -125,8 +127,8 @@ public abstract class EntityIteratorBase implements EntityIterator {
         try {
             if ((++nextIdCounter & 0x1ff) == 0) {
                 // do not check QueryCancellingPolicy too often
-                final QueryCancellingPolicy cancellingPolicy = iterable.getTransaction().getQueryCancellingPolicy();
-                if (cancellingPolicy != null && cancellingPolicy.needToCancel()) {
+                final QueryCancellingPolicy cancellingPolicy = getQueryCancellingPolicy();
+                if (cancellingPolicy != QueryCancellingPolicy.NONE && cancellingPolicy.needToCancel()) {
                     cancellingPolicy.doCancel();
                 }
             }
@@ -153,6 +155,7 @@ public abstract class EntityIteratorBase implements EntityIterator {
 
     @Override
     public boolean dispose() {
+        queryCancellingPolicy = null;
         if (!disposed) {
             disposed = true;
             final PersistentStoreTransaction txn = iterable.getStore().getCurrentTransaction();
@@ -174,6 +177,19 @@ public abstract class EntityIteratorBase implements EntityIterator {
         if (shouldBeDisposed()) {
             dispose();
         }
+    }
+
+    @NotNull
+    protected QueryCancellingPolicy getQueryCancellingPolicy() {
+        QueryCancellingPolicy result = this.queryCancellingPolicy;
+        if (result == null) {
+            result = iterable.getTransaction().getQueryCancellingPolicy();
+            if (result == null) {
+                result = QueryCancellingPolicy.NONE;
+            }
+            queryCancellingPolicy = result;
+        }
+        return result;
     }
 
     protected PersistentEntityStoreImpl getStore() {

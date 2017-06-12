@@ -30,6 +30,17 @@ package jetbrains.exodus.entitystore;
  * @see EntityIterable#getTransaction()
  */
 public interface QueryCancellingPolicy {
+    QueryCancellingPolicy NONE = new QueryCancellingPolicy() {
+        @Override
+        public boolean needToCancel() {
+            return false;
+        }
+
+        @Override
+        public void doCancel() {
+        }
+    };
+
 
     /**
      * @return {@code true} when it's time to cancel iteration over {@linkplain EntityIterable} instances which were
