@@ -45,6 +45,8 @@ public class EntityIdArrayCachedInstanceIterableFactory {
             } else {
                 final IntArrayList typeIds = IntArrayListSpinAllocator.alloc();
                 final LongArrayList localIds = LongArrayListSpinAllocator.alloc();
+                long min;
+                long max;
                 try {
                     boolean onlyOneTypeId = true;
                     boolean localSorted = true;
@@ -76,9 +78,13 @@ public class EntityIdArrayCachedInstanceIterableFactory {
                             }
                             id = it.nextId();
                         }
+                        min = localIds.get(0);
+                        max = localIds.get(localIds.size() - 1);
                     } else {
                         int lastTypeId = -1;
                         long lastLocalId = -1;
+                        min = Long.MAX_VALUE;
+                        max = Long.MIN_VALUE;
                         boolean compact = true;
                         EntityId id = it.nextId();
                         while (true) {
@@ -111,6 +117,12 @@ public class EntityIdArrayCachedInstanceIterableFactory {
                                 }
                             }
                             localIds.add(nextLocalId);
+                            if (nextLocalId > max) {
+                                max = nextLocalId;
+                            }
+                            if (nextLocalId < min) {
+                                min = nextLocalId;
+                            }
                             if (compact) {
                                 if (localSorted) {
                                     if (nextTypeId > lastTypeId) {
@@ -142,7 +154,7 @@ public class EntityIdArrayCachedInstanceIterableFactory {
                     }
                     if (localSorted) {
                         if (onlyOneTypeId) {
-                            return makeSingleTypeSortedIterable(txn, source, it, typeIds, localIds);
+                            return makeSingleTypeSortedIterable(txn, source, it, typeIds, localIds, min, max);
                         } else {
                             return new MultiTypeSortedEntityIdArrayCachedInstanceIterable(
                                     txn, source, typeIds.toArray(), localIds.toArray(), it.toSet()
@@ -150,9 +162,7 @@ public class EntityIdArrayCachedInstanceIterableFactory {
                         }
                     } else {
                         if (onlyOneTypeId) {
-                            return new SingleTypeUnsortedEntityIdArrayCachedInstanceIterable(
-                                    txn, source, typeIds.get(0), localIds.toArray(), it.toSet()
-                            );
+                            return makeSingleTypeUnsortedIterable(txn, source, it, typeIds, localIds, min, max);
                         } else {
                             return new MultiTypeUnsortedEntityIdArrayCachedInstanceIterable(
                                     txn, source, typeIds.toArray(), localIds.toArray(), it.toSet()
@@ -172,15 +182,14 @@ public class EntityIdArrayCachedInstanceIterableFactory {
     @NotNull
     private static CachedInstanceIterable makeSingleTypeSortedIterable(
             @NotNull PersistentStoreTransaction txn, @NotNull EntityIterableBase source, @NotNull EntityIteratorBase it,
-            IntArrayList typeIds, LongArrayList localIds
+            IntArrayList typeIds, LongArrayList localIds, long min, long max
     ) {
         final int typeId = typeIds.get(0);
         if (typeId != NULL_TYPE_ID) {
             final int length = localIds.size();
             if (length > 1) {
-                final long min = localIds.get(0);
                 if (min >= 0) {
-                    final long range = localIds.get(length - 1) - min + 1;
+                    final long range = max - min + 1;
                     if (range < Integer.MAX_VALUE
                             && range <= ((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length)) {
                         final SortedEntityIdSet set = new ImmutableSingleTypeEntityIdBitSet(
@@ -192,6 +201,16 @@ public class EntityIdArrayCachedInstanceIterableFactory {
             }
         }
         return new SingleTypeSortedEntityIdArrayCachedInstanceIterable(txn, source, typeId, localIds.toArray(), it.toSet());
+    }
+
+    @NotNull
+    private static CachedInstanceIterable makeSingleTypeUnsortedIterable(
+            @NotNull PersistentStoreTransaction txn, @NotNull EntityIterableBase source, @NotNull EntityIteratorBase it,
+            IntArrayList typeIds, LongArrayList localIds, long min, long max
+    ) {
+        return new SingleTypeUnsortedEntityIdArrayCachedInstanceIterable(
+                txn, source, typeIds.get(0), localIds.toArray(), it.toSet(), min, max
+        );
     }
 
     @NotNull

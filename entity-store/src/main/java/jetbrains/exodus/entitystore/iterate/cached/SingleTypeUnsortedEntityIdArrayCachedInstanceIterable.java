@@ -23,6 +23,7 @@ import jetbrains.exodus.entitystore.iterate.cached.iterator.EntityIdArrayIterato
 import jetbrains.exodus.entitystore.iterate.cached.iterator.OrderedEntityIdCollectionIterator;
 import jetbrains.exodus.entitystore.iterate.cached.iterator.ReverseEntityIdArrayIteratorNullTypeId;
 import jetbrains.exodus.entitystore.iterate.cached.iterator.ReverseOrderedEntityIdCollectionIterator;
+import jetbrains.exodus.entitystore.iterate.util.LongArrayIterator;
 import jetbrains.exodus.entitystore.util.EntityIdSetFactory;
 import jetbrains.exodus.entitystore.util.ImmutableSingleTypeEntityIdBitSet;
 import jetbrains.exodus.entitystore.util.ImmutableSingleTypeEntityIdCollection;
@@ -38,13 +39,17 @@ public class SingleTypeUnsortedEntityIdArrayCachedInstanceIterable extends Cache
     private final long[] localIds;
     @Nullable
     private EntityIdSet idSet;
+    private final long min;
+    private final long max;
 
     public SingleTypeUnsortedEntityIdArrayCachedInstanceIterable(@NotNull PersistentStoreTransaction txn, @NotNull EntityIterableBase source,
-                                                                 int typeId, long[] localIds, @Nullable EntityIdSet idSet) {
+                                                                 int typeId, long[] localIds, @Nullable EntityIdSet idSet, long min, long max) {
         super(txn, source);
         this.typeId = typeId;
         this.localIds = localIds;
         this.idSet = idSet;
+        this.min = min;
+        this.max = max;
     }
 
     @Override
@@ -63,9 +68,8 @@ public class SingleTypeUnsortedEntityIdArrayCachedInstanceIterable extends Cache
         if (typeId != NULL_TYPE_ID) {
             final int length = localIds.length;
             if (length > 1) {
-                final long min = localIds[0];
                 if (min >= 0) {
-                    final long range = localIds[length - 1] - min + 1;
+                    final long range = max - min + 1;
                     if (range < Integer.MAX_VALUE
                             && range <= ((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length)) {
                         final SortedEntityIdSet set = new ImmutableSingleTypeEntityIdBitSet(
@@ -120,12 +124,33 @@ public class SingleTypeUnsortedEntityIdArrayCachedInstanceIterable extends Cache
         if (typeId == NULL_TYPE_ID) {
             result = EntityIdSetFactory.newSet().add(null);
         } else {
-            result = EntityIdSetFactory.newSet();
-            for (long localId : localIds) {
-                result = result.add(typeId, localId);
-            }
+            result = toSetImpl();
         }
         idSet = result;
+        return result;
+    }
+
+    @NotNull
+    private EntityIdSet toSetImpl() {
+        if (typeId != NULL_TYPE_ID) {
+            final int length = localIds.length;
+            if (length > 1) {
+                if (min >= 0) {
+                    final long range = max - min + 1;
+                    if (range < Integer.MAX_VALUE
+                            && range <= ((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length)) {
+                        return new ImmutableSingleTypeEntityIdBitSet(
+                                typeId, min, max, new LongArrayIterator(localIds), length
+                        );
+                    }
+                }
+            }
+        }
+
+        EntityIdSet result = EntityIdSetFactory.newSet();
+        for (long localId : localIds) {
+            result = result.add(typeId, localId);
+        }
         return result;
     }
 }
