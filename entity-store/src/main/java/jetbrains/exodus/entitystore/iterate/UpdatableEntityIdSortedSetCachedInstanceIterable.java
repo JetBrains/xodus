@@ -89,22 +89,13 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
         if (localIds == EMPTY_IDS && mutableLocalIds == null) {
             return EntityIteratorBase.EMPTY;
         }
-        final PersistentLongSet.ImmutableSet currentSet = getCurrentMap();
-        if (mutableLocalIds == null) {
-            if (idCollection == null) {
-                final long[] result = new long[currentSet.size()];
-                final LongIterator it = currentSet.longIterator();
-                int i = 0;
-                while (it.hasNext()) {
-                    result[i++] = it.next();
-                }
-                idCollection = EntityIdArrayCachedInstanceIterableFactory.makeIdCollection(entityTypeId, result);
-            }
-            return new OrderedEntityIdCollectionIterator(this, idCollection);
+        final PersistentLongSet.MutableSet mutableSet = mutableLocalIds;
+        if (mutableSet == null) {
+            return new OrderedEntityIdCollectionIterator(this, getOrCreateIdCollection());
         }
         return new NonDisposableEntityIterator(this) {
 
-            private final LongIterator it = currentSet.longIterator();
+            private final LongIterator it = mutableSet.longIterator();
 
             @Override
             protected boolean hasNextImpl() {
@@ -128,12 +119,21 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
     @Override
     public EntityIdSet toSet(@NotNull final PersistentStoreTransaction txn) {
         if (idSet == null) {
-            EntityIdSet result = EntityIdSetFactory.newSet();
+            final boolean isImmutable = mutableLocalIds == null;
+            if (isImmutable) {
+                final EntityIdCollection idCollection = getOrCreateIdCollection();
+                if (idCollection instanceof EntityIdSet) {
+                    final EntityIdSet result = (EntityIdSet) idCollection;
+                    idSet = result;
+                    return result;
+                }
+            }
             final EntityIterator it = getIteratorImpl(txn);
+            EntityIdSet result = EntityIdSetFactory.newSet();
             while (it.hasNext()) {
                 result = result.add(it.nextId());
             }
-            if (mutableLocalIds != null) {
+            if (!isImmutable) {
                 return result;
             }
             idSet = result;
@@ -171,6 +171,23 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
     final void removeEntity(final EntityId id) {
         checkEntityType(id);
         checkMutableIds().remove(id.getLocalId());
+    }
+
+    @NotNull
+    private OrderedEntityIdCollection getOrCreateIdCollection() {
+        OrderedEntityIdCollection collection = this.idCollection;
+        if (collection == null) {
+            PersistentLongSet.ImmutableSet currentSet = localIds.beginRead();
+            final long[] result = new long[currentSet.size()];
+            final LongIterator it = currentSet.longIterator();
+            int i = 0;
+            while (it.hasNext()) {
+                result[i++] = it.next();
+            }
+            collection = EntityIdArrayCachedInstanceIterableFactory.makeIdCollection(entityTypeId, result);
+            this.idCollection = collection;
+        }
+        return collection;
     }
 
     private PersistentLongSet.ImmutableSet getCurrentMap() {
