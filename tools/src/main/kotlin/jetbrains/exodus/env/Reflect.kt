@@ -200,10 +200,13 @@ internal class Reflect(directory: File) {
 
         val reader = FileDataReader(directory, 16)
         val writer = FileDataWriter(directory)
-        val fileSizeInKB = if (files.size > 1)
-            (maxFileSize + pageSize - 1) / pageSize * pageSize / LogUtil.LOG_BLOCK_ALIGNMENT else
-            EnvironmentConfig.DEFAULT.logFileSize
-        val config = EnvironmentConfig().setLogFileSize(fileSizeInKB).setLogCachePageSize(pageSize).setGcEnabled(false)
+        val config = EnvironmentConfig().setLogCachePageSize(pageSize).setGcEnabled(false)
+        if (config.logFileSize == EnvironmentConfig.DEFAULT.logFileSize) {
+            val fileSizeInKB = if (files.size > 1)
+                (maxFileSize + pageSize - 1) / pageSize * pageSize / LogUtil.LOG_BLOCK_ALIGNMENT else
+                EnvironmentConfig.DEFAULT.logFileSize
+            config.logFileSize = fileSizeInKB
+        }
 
         env = Environments.newInstance(LogConfig.create(reader, writer), config) as EnvironmentImpl
         log = env.log
@@ -227,7 +230,7 @@ internal class Reflect(directory: File) {
                 if (it.type == DatabaseRoot.DATABASE_ROOT_TYPE) {
                     ++totalRoots
                     if (!DatabaseRoot(it).isValid) {
-                        logger.error("Invalid root at address: ${it.getAddress()}")
+                        logger.error("Invalid root at address: ${it.address}")
                     }
                 }
                 if (it.address + it.length() >= endAddress) return@forEach
