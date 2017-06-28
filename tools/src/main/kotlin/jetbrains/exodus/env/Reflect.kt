@@ -200,7 +200,9 @@ internal class Reflect(directory: File) {
 
         val reader = FileDataReader(directory, 16)
         val writer = FileDataWriter(directory)
-        val fileSizeInKB = (maxFileSize + pageSize - 1) / pageSize * pageSize / LogUtil.LOG_BLOCK_ALIGNMENT
+        val fileSizeInKB = if (files.size > 1)
+            (maxFileSize + pageSize - 1) / pageSize * pageSize / LogUtil.LOG_BLOCK_ALIGNMENT else
+            EnvironmentConfig.DEFAULT.logFileSize
         val config = EnvironmentConfig().setLogFileSize(fileSizeInKB).setLogCachePageSize(pageSize).setGcEnabled(false)
 
         env = Environments.newInstance(LogConfig.create(reader, writer), config) as EnvironmentImpl
