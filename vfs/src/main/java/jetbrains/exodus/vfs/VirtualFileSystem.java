@@ -23,8 +23,12 @@ import jetbrains.exodus.env.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -618,6 +622,14 @@ public class VirtualFileSystem {
 
     public void setCancellingPolicyProvider(@NotNull final IOCancellingPolicyProvider cancellingPolicyProvider) {
         this.cancellingPolicyProvider = cancellingPolicyProvider;
+    }
+
+    public void dump(@NotNull final Transaction txn, @NotNull final Path directory) throws IOException {
+        for (final File file : getFiles(txn)) {
+            try (InputStream content = readFile(txn, file)) {
+                Files.copy(content, Paths.get(directory.toString(), file.getPath()));
+            }
+        }
     }
 
     Store getContents() {
