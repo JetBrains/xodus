@@ -32,6 +32,7 @@ fun main(args: Array<String>) {
     }
     when (args[0].toLowerCase()) {
         "reflect" -> jetbrains.exodus.env.main(args.skipFirst)
+        "vfs" -> jetbrains.exodus.vfs.main(args.skipFirst)
         "environmentjsconsole" ->
             startRhinoServer(args.skipFirst, ENVIRONMENTS).use {
                 ptyShell(it.port)
@@ -47,7 +48,7 @@ fun main(args: Array<String>) {
 
 internal fun printUsage() {
     println("Usage: <tool name> [tool parameters]")
-    println("Available tools: Reflect | EnvironmentJSConsole | EntityStoreJSConsole")
+    println("Available tools: Reflect | Vfs | EnvironmentJSConsole | EntityStoreJSConsole")
     exitProcess(1)
 }
 
