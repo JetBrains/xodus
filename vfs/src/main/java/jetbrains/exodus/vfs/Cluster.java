@@ -84,12 +84,16 @@ class Cluster {
         }
     }
 
-    static ByteIterable writeCluster(@NotNull final byte[] cluster, final int size, final boolean accumulateInRAM) {
+    static ByteIterable writeCluster(@NotNull final byte[] cluster,
+                                     @Nullable final ClusterConverter clusterConverter,
+                                     final int size,
+                                     final boolean accumulateInRAM) {
         if (accumulateInRAM) {
             final LightOutputStream output = new LightOutputStream(size + 5);
             IntegerBinding.writeCompressed(output, size);
             output.write(cluster, 0, size);
-            return output.asArrayByteIterable();
+            final ArrayByteIterable result = output.asArrayByteIterable();
+            return clusterConverter == null ? result : clusterConverter.onWrite(result);
         }
         final ByteIterable bi;
         try {

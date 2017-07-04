@@ -20,6 +20,7 @@ import jetbrains.exodus.env.EnvironmentTestsBase;
 import jetbrains.exodus.env.StoreConfig;
 import jetbrains.exodus.env.Transaction;
 import jetbrains.exodus.log.LogConfig;
+import org.jetbrains.annotations.Nullable;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
@@ -55,6 +56,7 @@ public class VfsStressTests extends EnvironmentTestsBase {
         final VfsConfig config = new VfsConfig();
         config.setClusteringStrategy(new ClusteringStrategy.QuadraticClusteringStrategy(4));
         vfs = new VirtualFileSystem(getEnvironment(), config, StoreConfig.WITHOUT_DUPLICATES);
+        vfs.setClusterConverter(getClusterConverter());
         Transaction txn = env.beginTransaction();
         File bigFile = vfs.createFile(txn, "big_file");
         txn.commit();
@@ -87,5 +89,10 @@ public class VfsStressTests extends EnvironmentTestsBase {
             vfs.deleteFile(txn, temp);
             txn.commit();
         }
+    }
+
+    @Nullable
+    ClusterConverter getClusterConverter() {
+        return null;
     }
 }

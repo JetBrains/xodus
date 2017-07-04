@@ -26,7 +26,7 @@ import java.io.OutputStream;
 class VfsAppendingStream extends OutputStream {
 
     @NotNull
-    private final VfsConfig config;
+    private final VirtualFileSystem vfs;
     @NotNull
     private final Transaction txn;
     private final long fd;
@@ -41,7 +41,7 @@ class VfsAppendingStream extends OutputStream {
                        @NotNull final Transaction txn,
                        @NotNull final File file,
                        @NotNull final Runnable clusterFlushTrigger) {
-        this.config = vfs.getConfig();
+        this.vfs = vfs;
         this.txn = txn;
         fd = file.getDescriptor();
         contents = vfs.getContents();
@@ -49,7 +49,7 @@ class VfsAppendingStream extends OutputStream {
 
         outputCluster = null;
 
-        final ClusteringStrategy clusteringStrategy = config.getClusteringStrategy();
+        final ClusteringStrategy clusteringStrategy = vfs.getConfig().getClusteringStrategy();
 
         final Pair<Cluster, Cluster> pairOfClusters = getTwoLastClusters(vfs, txn, file);
         final Cluster prevCluster = pairOfClusters.getFirst();
@@ -80,7 +80,7 @@ class VfsAppendingStream extends OutputStream {
     public void write(int b) throws IOException {
         if (position == outputCluster.length) {
             flushCurrentCluster();
-            allocNextCluster(config.getClusteringStrategy().getNextClusterSize(position));
+            allocNextCluster(vfs.getConfig().getClusteringStrategy().getNextClusterSize(position));
         }
         outputCluster[position++] = (byte) b;
     }
@@ -102,7 +102,8 @@ class VfsAppendingStream extends OutputStream {
     private void flushCurrentCluster() {
         if (position > 0) {
             contents.put(txn, ClusterKey.toByteIterable(fd, currentClusterNumber),
-                Cluster.writeCluster(outputCluster, position, config.getAccumulateChangesInRAM()));
+                Cluster.writeCluster(
+                    outputCluster, vfs.getClusterConverter(), position, vfs.getConfig().getAccumulateChangesInRAM()));
             clusterFlushTrigger.run();
         }
     }

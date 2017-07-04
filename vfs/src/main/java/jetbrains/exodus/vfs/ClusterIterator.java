@@ -24,6 +24,7 @@ import java.io.Closeable;
 
 class ClusterIterator implements Closeable {
 
+    @NotNull
     private final VirtualFileSystem vfs;
     private final long fd;
     private final Cursor cursor;
@@ -67,7 +68,7 @@ class ClusterIterator implements Closeable {
             if (it == null) {
                 currentCluster = null;
             } else {
-                currentCluster = new Cluster(it);
+                currentCluster = readCluster(it);
                 adjustCurrentCluster();
                 final Cluster currentCluster = this.currentCluster;
                 if (currentCluster != null) {
@@ -81,7 +82,7 @@ class ClusterIterator implements Closeable {
             } else {
                 final int maxClusterSize = cs.getMaxClusterSize();
                 int clusterSize = 0;
-                currentCluster = new Cluster(it);
+                currentCluster = readCluster(it);
                 long startingPosition = 0L;
                 adjustCurrentCluster();
                 while (currentCluster != null) {
@@ -115,7 +116,7 @@ class ClusterIterator implements Closeable {
             if (!cursor.getNext()) {
                 currentCluster = null;
             } else {
-                currentCluster = new Cluster(cursor.getValue());
+                currentCluster = readCluster(cursor.getValue());
                 adjustCurrentCluster();
             }
         }
@@ -136,6 +137,12 @@ class ClusterIterator implements Closeable {
 
     boolean isClosed() {
         return isClosed;
+    }
+
+    @NotNull
+    private Cluster readCluster(@NotNull final ByteIterable it) {
+        final ClusterConverter clusterConverter = vfs.getClusterConverter();
+        return new Cluster(clusterConverter == null ? it : clusterConverter.onRead(it));
     }
 
     private void adjustCurrentCluster() {

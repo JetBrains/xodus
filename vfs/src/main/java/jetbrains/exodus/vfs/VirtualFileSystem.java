@@ -71,6 +71,8 @@ public class VirtualFileSystem {
     private final AtomicLong fileDescriptorSequence;
     @Nullable
     private IOCancellingPolicyProvider cancellingPolicyProvider;
+    @Nullable
+    private ClusterConverter clusterConverter;
 
     /**
      * Creates {@code VirtualFileSystem} over specified {@linkplain Environment} with default settings
@@ -622,6 +624,15 @@ public class VirtualFileSystem {
 
     public void setCancellingPolicyProvider(@NotNull final IOCancellingPolicyProvider cancellingPolicyProvider) {
         this.cancellingPolicyProvider = cancellingPolicyProvider;
+    }
+
+    @Nullable
+    public ClusterConverter getClusterConverter() {
+        return clusterConverter;
+    }
+
+    public void setClusterConverter(@Nullable final ClusterConverter clusterConverter) {
+        this.clusterConverter = clusterConverter;
     }
 
     public void dump(@NotNull final Transaction txn, @NotNull final Path directory) throws IOException {

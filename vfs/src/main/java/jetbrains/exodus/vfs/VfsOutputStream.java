@@ -26,7 +26,7 @@ import java.io.OutputStream;
 class VfsOutputStream extends OutputStream {
 
     @NotNull
-    private final VfsConfig config;
+    private final VirtualFileSystem vfs;
     @NotNull
     private final Transaction txn;
     private final long fd;
@@ -54,14 +54,14 @@ class VfsOutputStream extends OutputStream {
         if (position < 0) {
             throw new IllegalArgumentException("Position in output stream can't be negative");
         }
-        this.config = vfs.getConfig();
+        this.vfs = vfs;
         this.txn = txn;
         fd = fileDescriptor;
         contents = vfs.getContents();
         this.clusterFlushTrigger = clusterFlushTrigger;
         currentClusterNumber = -1L;
         clusterIterator = new ClusterIterator(vfs, txn, fileDescriptor, position);
-        final ClusteringStrategy clusteringStrategy = config.getClusteringStrategy();
+        final ClusteringStrategy clusteringStrategy = vfs.getConfig().getClusteringStrategy();
         if (clusterIterator.getCurrent() != null) {
             loadCurrentCluster(clusteringStrategy.getFirstClusterSize());
             this.position = (int) (position % outputClusterSize);
@@ -88,7 +88,7 @@ class VfsOutputStream extends OutputStream {
         if (position == outputCluster.length) {
             flushCurrentCluster();
             clusterIterator.moveToNext();
-            loadCurrentCluster(config.getClusteringStrategy().getNextClusterSize(position));
+            loadCurrentCluster(vfs.getConfig().getClusteringStrategy().getNextClusterSize(position));
             position = this.position;
         }
 
@@ -146,7 +146,8 @@ class VfsOutputStream extends OutputStream {
     private void flushCurrentCluster() {
         if (isOutputClusterDirty) {
             contents.put(txn, ClusterKey.toByteIterable(fd, currentClusterNumber),
-                Cluster.writeCluster(outputCluster, outputClusterSize, config.getAccumulateChangesInRAM()));
+                Cluster.writeCluster(
+                    outputCluster, vfs.getClusterConverter(), outputClusterSize, vfs.getConfig().getAccumulateChangesInRAM()));
             if (clusterFlushTrigger != null) {
                 clusterFlushTrigger.run();
             }
