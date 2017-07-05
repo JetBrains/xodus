@@ -21,6 +21,7 @@ import jetbrains.exodus.entitystore.iterate.binop.ConcatenationIterable;
 import jetbrains.exodus.entitystore.iterate.binop.IntersectionIterable;
 import jetbrains.exodus.entitystore.iterate.binop.MinusIterable;
 import jetbrains.exodus.entitystore.iterate.binop.UnionIterable;
+import jetbrains.exodus.entitystore.util.EntityIdSetFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -58,6 +59,12 @@ public abstract class EntityIterableBase implements EntityIterable {
                         // do nothing
                     }
                 };
+            }
+
+            @Override
+            @NotNull
+            public EntityIdSet toSet(@NotNull PersistentStoreTransaction txn) {
+                return EntityIdSetFactory.newSet();
             }
 
             @Override
@@ -300,7 +307,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (this instanceof ConcatenationIterable) {
             final ConcatenationIterable thisConcat = (ConcatenationIterable) this;
             return new ConcatenationIterable(txn, thisConcat.getLeft(),
-                new ConcatenationIterable(txn, thisConcat.getRight(), (EntityIterableBase) right));
+                    new ConcatenationIterable(txn, thisConcat.getRight(), (EntityIterableBase) right));
         }
         return new ConcatenationIterable(txn, this, (EntityIterableBase) right);
     }
@@ -593,8 +600,8 @@ public abstract class EntityIterableBase implements EntityIterable {
             getHumanReadablePresentation(tmp, types, pos, indent + INDENT);
         }
         if (type == EntityIterableType.SELECT_DISTINCT.getType() ||
-            type == EntityIterableType.SELECTMANY_DISTINCT.getType() ||
-            type == EntityIterableType.SORTING.getType()) {
+                type == EntityIterableType.SELECTMANY_DISTINCT.getType() ||
+                type == EntityIterableType.SORTING.getType()) {
             presentation.append(' ').append(types[pos[0]]);
             pos[0]++;
         }
@@ -626,8 +633,8 @@ public abstract class EntityIterableBase implements EntityIterable {
 
     private static boolean isDecoratorForSelectDistinct(@NotNull final EntityIterable source) {
         return source instanceof SortIterable || source instanceof SortIndirectIterable ||
-            source instanceof EntityReverseIterable || source instanceof DistinctIterable ||
-            source instanceof SortResultIterable;
+                source instanceof EntityReverseIterable || source instanceof DistinctIterable ||
+                source instanceof SortResultIterable;
     }
 
     public static EntityIterableBase instantiate(final PersistentStoreTransaction txn, PersistentEntityStoreImpl store, String presentation) {
