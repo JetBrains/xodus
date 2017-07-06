@@ -55,6 +55,12 @@ public class EntitiesWithLinkSortedIterable extends EntitiesWithLinkIterable {
     @Override
     protected EntityIterableHandle getHandleImpl() {
         return new EntitiesWithLinkIterableHandle() {
+            @Override
+            public void toString(@NotNull StringBuilder builder) {
+                super.toString(builder);
+                builder.append('-');
+                builder.append(oppositeEntityTypeId);
+            }
 
             @Override
             public void hashCode(@NotNull final EntityIterableHandleHash hash) {
