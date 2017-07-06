@@ -316,7 +316,10 @@ final class ImmutableNode extends NodeBase {
         public ChildReference prev() {
             --index;
             itr = getDataIterator(index * (childAddressLength + 1));
-            return node = new ChildReference(itr.next(), itr.nextLong(childAddressLength));
+            final byte firstByte = itr.next();
+            final long suffixAddress = itr.nextLong(childAddressLength);
+            return node == null || node.suffixAddress != suffixAddress ?
+                node = new ChildReference(firstByte, suffixAddress) : prev();
         }
 
         @Override
@@ -337,8 +340,14 @@ final class ImmutableNode extends NodeBase {
             --index;
             final ChildReference node = this.node;
             itr = getDataIterator(index * (childAddressLength + 1));
-            node.firstByte = itr.next();
-            node.suffixAddress = itr.nextLong(childAddressLength);
+            final byte firstByte = itr.next();
+            final long suffixAddress = itr.nextLong(childAddressLength);
+            if (suffixAddress == node.suffixAddress) {
+                prevInPlace();
+            } else {
+                node.firstByte = firstByte;
+                node.suffixAddress = suffixAddress;
+            }
         }
 
         @Override
