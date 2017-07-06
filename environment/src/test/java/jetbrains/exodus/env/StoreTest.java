@@ -16,6 +16,7 @@
 package jetbrains.exodus.env;
 
 import jetbrains.exodus.*;
+import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
@@ -339,6 +340,36 @@ public class StoreTest extends EnvironmentTestsBase {
                 }
             });
         }
+    }
+
+    @Test
+    @TestFor(issues = "XD-608")
+    public void testXD_608_Thorsten_Schemm() {
+        final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
+            @Override
+            public Store compute(@NotNull Transaction txn) {
+                return env.openStore("Whatever", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn, true);
+            }
+        });
+        Assert.assertNotNull(store);
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                store.put(txn, IntegerBinding.intToEntry(0), IntegerBinding.intToEntry(0));
+                store.put(txn, IntegerBinding.intToEntry(1), IntegerBinding.intToEntry(1));
+            }
+        });
+        env.executeInReadonlyTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                try (Cursor cursor = store.openCursor(txn)) {
+                    Assert.assertNotNull(cursor.getSearchKey(IntegerBinding.intToEntry(1)));
+                    Assert.assertEquals(1, IntegerBinding.entryToInt(cursor.getKey()));
+                    Assert.assertTrue(cursor.getPrev());
+                    Assert.assertEquals(0, IntegerBinding.entryToInt(cursor.getKey()));
+                }
+            }
+        });
     }
 
     private static String[] XD_601_KEYS = new String[]{
