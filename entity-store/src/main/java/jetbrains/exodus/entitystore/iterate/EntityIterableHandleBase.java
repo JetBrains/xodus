@@ -99,13 +99,7 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
     @NotNull
     public final Object getIdentity() {
         if (hash == null) {
-            hash = new EntityIterableHandleHash(store);
-            hash.apply(type.getType());
-            if (type != EntityIterableType.EMPTY) {
-                hash.applyDelimiter();
-            }
-            hashCode(hash);
-            hash.computeHashCode();
+            hash = computeHash();
         }
         return hash;
     }
@@ -200,6 +194,17 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
     }
 
     public abstract void hashCode(@NotNull final EntityIterableHandleHash hash);
+
+    private EntityIterableHandleHash computeHash() {
+        final EntityIterableHandleHash result = new EntityIterableHandleHash(store);
+        result.apply(type.getType());
+        if (type != EntityIterableType.EMPTY) {
+            result.applyDelimiter();
+        }
+        hashCode(result);
+        result.computeHashCode();
+        return result;
+    }
 
     @NotNull
     protected static int[] mergeFieldIds(@NotNull final int[] left, @NotNull final int[] right) {
