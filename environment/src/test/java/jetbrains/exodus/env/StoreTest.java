@@ -347,6 +347,44 @@ public class StoreTest extends EnvironmentTestsBase {
     }
 
     @Test
+    @TestFor(issues = "XD-608")
+    public void testXD_608_Mutable() {
+        env.getEnvironmentConfig().setGcEnabled(false);
+        final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
+            @Override
+            public Store compute(@NotNull Transaction txn) {
+                return env.openStore("Whatever", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn, true);
+            }
+        });
+        Assert.assertNotNull(store);
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                store.put(txn, IntegerBinding.intToEntry(0), IntegerBinding.intToEntry(0));
+                store.put(txn, IntegerBinding.intToEntry(1), IntegerBinding.intToEntry(1));
+                try (Cursor cursor = store.openCursor(txn)) {
+                    Assert.assertTrue(cursor.getPrev());
+                    Assert.assertEquals(1, IntegerBinding.entryToInt(cursor.getKey()));
+                    Assert.assertTrue(cursor.getPrev());
+                    Assert.assertEquals(0, IntegerBinding.entryToInt(cursor.getKey()));
+                }
+                try (Cursor cursor = store.openCursor(txn)) {
+                    Assert.assertNotNull(cursor.getSearchKey(IntegerBinding.intToEntry(0)));
+                    Assert.assertEquals(0, IntegerBinding.entryToInt(cursor.getKey()));
+                    Assert.assertTrue(cursor.getNext());
+                    Assert.assertEquals(1, IntegerBinding.entryToInt(cursor.getKey()));
+                }
+                try (Cursor cursor = store.openCursor(txn)) {
+                    Assert.assertNotNull(cursor.getSearchKey(IntegerBinding.intToEntry(1)));
+                    Assert.assertEquals(1, IntegerBinding.entryToInt(cursor.getKey()));
+                    Assert.assertTrue(cursor.getPrev());
+                    Assert.assertEquals(0, IntegerBinding.entryToInt(cursor.getKey()));
+                }
+            }
+        });
+    }
+
+    @Test
     @TestFor(issues = "XD-601")
     public void testXD_601_by_Thorsten_Schemm() {
         env.getEnvironmentConfig().setGcEnabled(false);

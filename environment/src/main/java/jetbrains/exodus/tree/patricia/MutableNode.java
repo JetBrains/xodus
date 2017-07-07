@@ -429,7 +429,12 @@ class MutableNode extends NodeBase {
 
         @Override
         public ChildReference prev() {
-            return ref = refs.prev();
+            final ChildReference ref = this.ref;
+            this.ref = refs.prev();
+            if (ref != null && ref == this.ref) {
+                this.ref = refs.prev();
+            }
+            return this.ref;
         }
 
         @Override
