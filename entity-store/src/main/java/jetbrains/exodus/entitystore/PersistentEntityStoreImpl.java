@@ -555,6 +555,16 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     @Override
+    public void executeInExclusiveTransaction(@NotNull final StoreTransactionalExecutable executable) {
+        final StoreTransaction txn = beginExclusiveTransaction();
+        try {
+            executable.execute(txn);
+        } finally {
+            txn.commit();
+        }
+    }
+
+    @Override
     public void executeInReadonlyTransaction(@NotNull StoreTransactionalExecutable executable) {
         final PersistentStoreTransaction txn = beginReadonlyTransaction();
         try {
@@ -587,6 +597,16 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             }
         }
         return result;
+    }
+
+    @Override
+    public <T> T computeInExclusiveTransaction(@NotNull final StoreTransactionalComputable<T> computable) {
+        final StoreTransaction txn = beginExclusiveTransaction();
+        try {
+            return computable.compute(txn);
+        } finally {
+            txn.commit();
+        }
     }
 
     @Override

@@ -63,6 +63,16 @@ public interface PersistentEntityStore extends EntityStore, Backupable {
     void executeInTransaction(@NotNull StoreTransactionalExecutable executable);
 
     /**
+     * Executes specified executable in a new exclusive {@linkplain StoreTransaction transaction}. Exclusive
+     * transaction guarantees that no one other transaction can even start before this one is finished, so
+     * the executable is executed once.
+     *
+     * @param executable transactional executable
+     * @see StoreTransactionalExecutable
+     */
+    void executeInExclusiveTransaction(@NotNull StoreTransactionalExecutable executable);
+
+    /**
      * Executes specified executable in a new read-only {@linkplain StoreTransaction transaction}.
      * {@linkplain StoreTransactionalExecutable#execute(StoreTransaction)} is called once since the transaction is
      * read-only, and it is never flushed.
@@ -82,6 +92,16 @@ public interface PersistentEntityStore extends EntityStore, Backupable {
      * @see StoreTransactionalComputable
      */
     <T> T computeInTransaction(@NotNull StoreTransactionalComputable<T> computable);
+
+    /**
+     * Computes and returns a value by calling specified computable in a new exclusive
+     * {@linkplain StoreTransaction transaction}. Exclusive transaction guarantees that no one other transaction can
+     * even start before this one is finished, so the computable is computed once.
+     *
+     * @param computable transactional computable
+     * @see StoreTransactionalComputable
+     */
+    <T> T computeInExclusiveTransaction(@NotNull StoreTransactionalComputable<T> computable);
 
     /**
      * Computes and returns a value by calling specified computable in a new read-only transaction.
