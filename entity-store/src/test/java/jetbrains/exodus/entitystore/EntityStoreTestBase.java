@@ -112,6 +112,18 @@ public abstract class EntityStoreTestBase extends TestBase {
         IOUtil.deleteFile(tempFolder);
     }
 
+    public void transactional(@NotNull final PersistentStoreTransactionalExecutable executable) {
+        store.executeInTransaction(wrap(executable));
+    }
+
+    public void transactionalExclusive(@NotNull final PersistentStoreTransactionalExecutable executable) {
+        store.executeInExclusiveTransaction(wrap(executable));
+    }
+
+    public void transactionalReadonly(@NotNull final PersistentStoreTransactionalExecutable executable) {
+        store.executeInReadonlyTransaction(wrap(executable));
+    }
+
     protected final PersistentEntityStoreImpl getEntityStore() {
         return store;
     }
@@ -151,5 +163,20 @@ public abstract class EntityStoreTestBase extends TestBase {
         shouldCleanopOnTearDown = false;
         tearDown();
         setUp();
+    }
+
+    @NotNull
+    private static StoreTransactionalExecutable wrap(@NotNull final EntityStoreTestBase.PersistentStoreTransactionalExecutable executable) {
+        return new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                executable.execute((PersistentStoreTransaction) txn);
+            }
+        };
+    }
+
+    public interface PersistentStoreTransactionalExecutable {
+
+        void execute(@NotNull final PersistentStoreTransaction txn);
     }
 }

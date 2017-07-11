@@ -126,16 +126,4 @@ class StickyObjectTest : EntityStoreTestBase() {
         }
 
     }
-
-    fun transactional(block: (PersistentStoreTransaction) -> Unit) = entityStore.executeInTransaction {
-        block(it as PersistentStoreTransaction)
-    }
-
-    fun transactionalExclusive(block: (PersistentStoreTransaction) -> Unit) = entityStore.executeInExclusiveTransaction {
-        block(it as PersistentStoreTransaction)
-    }
-
-    fun transactionalReadonly(block: (PersistentStoreTransaction) -> Unit) = entityStore.executeInReadonlyTransaction {
-        block(it as PersistentStoreTransaction)
-    }
 }
