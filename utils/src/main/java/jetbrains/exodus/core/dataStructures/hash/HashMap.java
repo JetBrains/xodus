@@ -47,7 +47,13 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
 
     public HashMap(HashMap<K, V> copy) {
         this(copy.capacity, copy.loadFactor, copy.table.length, copy.mask);
-        System.arraycopy(copy.table, 0, table, 0, copy.table.length);
+        final Entry<K, V>[] source = copy.table;
+        for (int i = 0; i < source.length; i++) {
+            final Entry<K, V> sourceEntry = source[i];
+            if (sourceEntry != null) {
+                table[i] = new Entry<>(sourceEntry.key, sourceEntry.value);
+            }
+        }
     }
 
     protected HashMap(int capacity, float loadFactor, int tableSize, int mask) {
