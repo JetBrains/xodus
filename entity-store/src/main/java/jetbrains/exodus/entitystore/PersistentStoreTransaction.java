@@ -581,9 +581,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     public void registerStickyObject(@NotNull final EntityIterableHandle handle, Object object) {
-        if (!txn.isExclusive()) {
-            throw new IllegalStateException("Sticky object must be registred in exclusive transaction");
-        }
         mutableCache().registerStickyObject(handle, object);
     }
 
@@ -950,7 +947,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             if (handleType.isAssignableFrom(instance.getClass())) {
                 Updatable it = (Updatable) instance;
                 if (!it.isMutated()) {
-                    it = checker.beginUpdate(it);
+                    it = it.beginUpdate(checker.txn);
+                    checker.beginUpdate(it);
                 }
                 return (T) it;
             }
@@ -1002,6 +1000,16 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             return -1;
         }
 
+        @Override
+        @NotNull
+        public PersistentStoreTransaction getTxn() {
+            return txn;
+        }
+
+        public void beginUpdate(@NotNull Updatable instance) {
+            mutatedInTxn.add(instance);
+        }
+
         void updateCache() {
             mutableCache.update(this);
         }
@@ -1010,12 +1018,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         CachedInstanceIterable get(@NotNull EntityIterableHandle handle) {
             return mutableCache.getObject(handle);
-        }
-
-        Updatable beginUpdate(@NotNull Updatable instance) {
-            final Updatable it = instance.beginUpdate(txn);
-            mutatedInTxn.add(it);
-            return it;
         }
 
         void remove(@NotNull EntityIterableHandle handle) {

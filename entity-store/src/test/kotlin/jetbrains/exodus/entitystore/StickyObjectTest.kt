@@ -15,21 +15,56 @@
  */
 package jetbrains.exodus.entitystore
 
-import jetbrains.exodus.entitystore.iterate.CachedInstanceIterable
-import jetbrains.exodus.entitystore.iterate.EntitiesOfTypeIterable
-import jetbrains.exodus.entitystore.iterate.UpdatableEntityIdSortedSetCachedInstanceIterable
+import jetbrains.exodus.entitystore.iterate.*
 import org.junit.Assert
 
 class StickyObjectTest : EntityStoreTestBase() {
 
     override fun needsImplicitTxn() = false
 
+    fun testNonIterable() {
+        val handle = object : ConstantEntityIterableHandle(entityStore, EntityIterableType.ALL_ENTITIES_RANGE) {
+            override fun hashCode(hash: EntityIterableHandleHash) {
+            }
+
+            override fun isMatchedEntityAdded(added: EntityId) = true
+
+            override fun onEntityAdded(handleChecker: EntityAddedOrDeletedHandleChecker): Boolean {
+                var counter = handleChecker.txn.getStickyObject(this) as Updatable
+                if (!counter.isMutated) {
+                    counter = counter.beginUpdate(handleChecker.txn)
+                    handleChecker.beginUpdate(counter)
+                }
+                (counter as MutableCounter).value++
+                return true
+            }
+        }
+
+        fun PersistentStoreTransaction.getCount() = (getStickyObject(handle) as Counter).value
+
+        transactionalExclusive {
+            it.registerStickyObject(handle, ImmutableCounter(handle))
+            it.newEntity("Issue")
+            Assert.assertEquals(1, it.getCount())
+        }
+        transactional {
+            it.newEntity("Issue")
+            Assert.assertEquals(2, it.getCount())
+            transactionalReadonly { it ->
+                Assert.assertEquals(1, it.getCount())
+            }
+        }
+        transactional {
+            Assert.assertEquals(2, it.getCount())
+        }
+    }
+
     fun testAllOfTypeIterable() {
-        entityStore.executeInTransaction {
+        transactional {
             it.newEntity("Issue")
         }
-        entityStore.executeInExclusiveTransaction {
-            val all = makeIterable(it as PersistentStoreTransaction)
+        transactionalExclusive {
+            val all = makeIterable(it)
             it.registerStickyObject(all.handle, object : UpdatableEntityIdSortedSetCachedInstanceIterable(it, all) {
                 override fun beginUpdate(txn: PersistentStoreTransaction): Updatable {
                     val result = beginUpdate()
@@ -39,8 +74,8 @@ class StickyObjectTest : EntityStoreTestBase() {
             })
             it.newEntity("Issue")
         }
-        entityStore.executeInTransaction {
-            val all = makeIterable(it as PersistentStoreTransaction)
+        transactional {
+            val all = makeIterable(it)
             Assert.assertEquals(2, all.size())
             val iterator = all.iterator()
             Assert.assertTrue(iterator.hasNext())
@@ -61,5 +96,49 @@ class StickyObjectTest : EntityStoreTestBase() {
                 }
             }
         }
+    }
+
+    interface Counter : Updatable {
+
+        val value: Int
+        override fun beginUpdate(txn: PersistentStoreTransaction): Counter
+
+    }
+
+    class ImmutableCounter(val handle: EntityIterableHandle, override val value: Int = 0) : Counter {
+
+        override fun beginUpdate(txn: PersistentStoreTransaction): Counter {
+            val result = MutableCounter(handle, value)
+            txn.registerStickyObject(handle, result)
+            return result
+        }
+
+        override fun isMutated() = false
+
+        override fun endUpdate(txn: PersistentStoreTransaction) = throw UnsupportedOperationException()
+
+    }
+
+    class MutableCounter(val handle: EntityIterableHandle, override var value: Int) : Counter {
+
+        override fun beginUpdate(txn: PersistentStoreTransaction) = throw UnsupportedOperationException()
+        override fun isMutated() = true
+
+        override fun endUpdate(txn: PersistentStoreTransaction) {
+            txn.registerStickyObject(handle, ImmutableCounter(handle, value))
+        }
+
+    }
+
+    fun transactional(block: (PersistentStoreTransaction) -> Unit) = entityStore.executeInTransaction {
+        block(it as PersistentStoreTransaction)
+    }
+
+    fun transactionalExclusive(block: (PersistentStoreTransaction) -> Unit) = entityStore.executeInExclusiveTransaction {
+        block(it as PersistentStoreTransaction)
+    }
+
+    fun transactionalReadonly(block: (PersistentStoreTransaction) -> Unit) = entityStore.executeInReadonlyTransaction {
+        block(it as PersistentStoreTransaction)
     }
 }

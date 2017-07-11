@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.entitystore.EntityIterableHandle;
+import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.entitystore.Updatable;
 import org.jetbrains.annotations.NotNull;
 
@@ -27,6 +28,11 @@ public interface HandleChecker {
     int getTypeId();
 
     int getTypeIdAffectingCreation();
+
+    @NotNull
+    PersistentStoreTransaction getTxn();
+
+    void beginUpdate(@NotNull Updatable instance);
 
     @Deprecated
     Updatable getUpdatableIterable(@NotNull final EntityIterableHandle handle);
