@@ -116,7 +116,7 @@ public class EntitiesWithPropertyIterable extends EntityIterableBase {
             final Comparable newValue = handleChecker.getNewValue();
             if (oldValue == null || newValue == null) {
                 UpdatableEntityIdSortedSetCachedInstanceIterable iterable
-                        = PersistentStoreTransaction.getUpdatableIterable(handleChecker, this, UpdatableEntityIdSortedSetCachedInstanceIterable.class);
+                        = PersistentStoreTransaction.getUpdatable(handleChecker, this, UpdatableEntityIdSortedSetCachedInstanceIterable.class);
                 if (iterable != null) {
                     final long localId = handleChecker.getLocalId();
                     if (oldValue == null) {

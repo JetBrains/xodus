@@ -173,7 +173,7 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
         @Override
         public boolean onEntityAdded(@NotNull EntityAddedOrDeletedHandleChecker handleChecker) {
             UpdatableEntityIdSortedSetCachedInstanceIterable iterable
-                    = PersistentStoreTransaction.getUpdatableIterable(handleChecker, this, UpdatableEntityIdSortedSetCachedInstanceIterable.class);
+                    = PersistentStoreTransaction.getUpdatable(handleChecker, this, UpdatableEntityIdSortedSetCachedInstanceIterable.class);
             if (iterable != null) {
                 iterable.addEntity(handleChecker.getId());
                 return true;
@@ -184,7 +184,7 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
         @Override
         public boolean onEntityDeleted(@NotNull EntityAddedOrDeletedHandleChecker handleChecker) {
             UpdatableEntityIdSortedSetCachedInstanceIterable iterable
-                    = PersistentStoreTransaction.getUpdatableIterable(handleChecker, this, UpdatableEntityIdSortedSetCachedInstanceIterable.class);
+                    = PersistentStoreTransaction.getUpdatable(handleChecker, this, UpdatableEntityIdSortedSetCachedInstanceIterable.class);
             if (iterable != null) {
                 iterable.removeEntity(handleChecker.getId());
                 return true;

@@ -70,7 +70,7 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
     }
 
     // constructor for mutating
-    private UpdatableEntityIdSortedSetCachedInstanceIterable(@NotNull final UpdatableEntityIdSortedSetCachedInstanceIterable source) {
+    protected UpdatableEntityIdSortedSetCachedInstanceIterable(@NotNull final UpdatableEntityIdSortedSetCachedInstanceIterable source) {
         super(source.getTransaction(), source);
         entityTypeId = source.entityTypeId;
         localIds = source.localIds.getClone();

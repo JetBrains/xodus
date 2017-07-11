@@ -170,7 +170,7 @@ public final class PropertiesIterable extends EntityIterableBase {
         @Override
         public boolean onPropertyChanged(@NotNull PropertyChangedHandleChecker handleChecker) {
             UpdatablePropertiesCachedInstanceIterable iterable
-                    = PersistentStoreTransaction.getUpdatableIterable(handleChecker, this, UpdatablePropertiesCachedInstanceIterable.class);
+                    = PersistentStoreTransaction.getUpdatable(handleChecker, this, UpdatablePropertiesCachedInstanceIterable.class);
             if (iterable != null) {
                 final Comparable oldValue = handleChecker.getOldValue();
                 final Comparable newValue = handleChecker.getNewValue();

@@ -33,15 +33,15 @@ class EntityIterableCacheAdapter {
     @NotNull
     protected final NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem> cache;
     @NotNull
-    protected final HashMap<EntityIterableHandle, Object> stickyObjects;
+    protected final HashMap<EntityIterableHandle, Updatable> stickyObjects;
 
     EntityIterableCacheAdapter(@NotNull final PersistentEntityStoreConfig config) {
-        this(config, new NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem>(config.getEntityIterableCacheSize()), new HashMap<EntityIterableHandle, Object>());
+        this(config, new NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem>(config.getEntityIterableCacheSize()), new HashMap<EntityIterableHandle, Updatable>());
     }
 
     EntityIterableCacheAdapter(@NotNull final PersistentEntityStoreConfig config,
                                @NotNull final NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem> cache,
-                               @NotNull final HashMap<EntityIterableHandle, Object> stickyObjects) {
+                               @NotNull final HashMap<EntityIterableHandle, Updatable> stickyObjects) {
         this.config = config;
         this.cache = cache;
         this.stickyObjects = stickyObjects;
@@ -66,6 +66,14 @@ class EntityIterableCacheAdapter {
             return (CachedInstanceIterable) getStickyObject(key);
         }
         return parseCachedObject(key, cache.getObject(key));
+    }
+
+    @Nullable
+    Updatable getUpdatable(@NotNull final EntityIterableHandle key) {
+        if (key.isSticky()) {
+            return getStickyObject(key);
+        }
+        return (Updatable) parseCachedObject(key, cache.getObject(key));
     }
 
     void cacheObject(@NotNull final EntityIterableHandle key, @NotNull final CachedInstanceIterable it) {
@@ -108,8 +116,8 @@ class EntityIterableCacheAdapter {
         cache.adjustHitRate();
     }
 
-    Object getStickyObject(@NotNull final EntityIterableHandle handle) {
-        Object result = stickyObjects.get(handle);
+    Updatable getStickyObject(@NotNull final EntityIterableHandle handle) {
+        Updatable result = stickyObjects.get(handle);
         if (result == null) {
             throw new IllegalStateException("Sticky object not found");
         }

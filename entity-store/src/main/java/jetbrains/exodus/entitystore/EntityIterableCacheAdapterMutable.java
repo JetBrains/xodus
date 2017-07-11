@@ -31,7 +31,7 @@ public final class EntityIterableCacheAdapterMutable extends EntityIterableCache
 
     private EntityIterableCacheAdapterMutable(@NotNull final PersistentEntityStoreConfig config,
                                               @NotNull final HandlesDistribution handlesDistribution,
-                                              @NotNull HashMap<EntityIterableHandle, Object> stickyObjects) {
+                                              @NotNull HashMap<EntityIterableHandle, Updatable> stickyObjects) {
         super(config, handlesDistribution.cache, stickyObjects);
         this.handlesDistribution = handlesDistribution;
     }
@@ -81,7 +81,7 @@ public final class EntityIterableCacheAdapterMutable extends EntityIterableCache
         handlesDistribution.addHandle(key);
     }
 
-    void registerStickyObject(@NotNull final EntityIterableHandle handle, Object object) {
+    void registerStickyObject(@NotNull final EntityIterableHandle handle, Updatable object) {
         stickyObjects.put(handle, object);
     }
 

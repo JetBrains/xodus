@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore
+package jetbrains.exodus.entitystore.iterate
 
-import jetbrains.exodus.entitystore.iterate.*
+import jetbrains.exodus.entitystore.*
 import org.junit.Assert
 
 class StickyObjectTest : EntityStoreTestBase() {
@@ -24,25 +24,22 @@ class StickyObjectTest : EntityStoreTestBase() {
 
     fun testNonIterable() {
         val handle = object : ConstantEntityIterableHandle(entityStore, EntityIterableType.ALL_ENTITIES_RANGE) {
+            override fun isSticky() = true
+
             override fun hashCode(hash: EntityIterableHandleHash) {
             }
 
             override fun isMatchedEntityAdded(added: EntityId) = true
 
             override fun onEntityAdded(handleChecker: EntityAddedOrDeletedHandleChecker): Boolean {
-                var counter = handleChecker.txn.getStickyObject(this) as Updatable
-                if (!counter.isMutated) {
-                    counter = counter.beginUpdate(handleChecker.txn)
-                    handleChecker.beginUpdate(counter)
-                }
-                (counter as MutableCounter).value++
+                PersistentStoreTransaction.getUpdatable(handleChecker, this, MutableCounter::class.java).value++
                 return true
             }
         }
 
         fun PersistentStoreTransaction.getCount() = (getStickyObject(handle) as Counter).value
 
-        transactionalExclusive {
+        transactional {
             it.registerStickyObject(handle, ImmutableCounter(handle))
             it.newEntity("Issue")
             Assert.assertEquals(1, it.getCount())
@@ -63,24 +60,32 @@ class StickyObjectTest : EntityStoreTestBase() {
         transactional {
             it.newEntity("Issue")
         }
-        transactionalExclusive {
+        transactional {
             val all = makeIterable(it)
-            it.registerStickyObject(all.handle, object : UpdatableEntityIdSortedSetCachedInstanceIterable(it, all) {
-                override fun beginUpdate(txn: PersistentStoreTransaction): Updatable {
-                    val result = beginUpdate()
-                    txn.registerStickyObject(handle, result)
-                    return result
-                }
-            })
+            it.registerStickyObject(all.handle, MyUpdatableEntityIdSortedSetCachedInstanceIterable(it, all))
             it.newEntity("Issue")
         }
         transactional {
             val all = makeIterable(it)
             Assert.assertEquals(2, all.size())
+            it.newEntity("Issue")
+            Assert.assertEquals(3, all.size())
             val iterator = all.iterator()
             Assert.assertTrue(iterator.hasNext())
             iterator.next()
             Assert.assertTrue(iterator.hasNext())
+        }
+    }
+
+    class MyUpdatableEntityIdSortedSetCachedInstanceIterable : UpdatableEntityIdSortedSetCachedInstanceIterable {
+        constructor(txn: PersistentStoreTransaction, source: EntityIterableBase) : super(txn, source)
+
+        constructor(source: MyUpdatableEntityIdSortedSetCachedInstanceIterable) : super(source)
+
+        override fun beginUpdate(txn: PersistentStoreTransaction): Updatable {
+            val result = MyUpdatableEntityIdSortedSetCachedInstanceIterable(this)
+            txn.registerStickyObject(handle, result)
+            return result
         }
     }
 
@@ -91,8 +96,14 @@ class StickyObjectTest : EntityStoreTestBase() {
             }
 
             override fun getHandleImpl(): EntityIterableHandle {
-                return object : EntitiesOfTypeIterable.EntitiesOfTypeIterableHandle(this) {
+                return object : EntitiesOfTypeIterableHandle(this) {
                     override fun isSticky() = true
+
+                    override fun onEntityAdded(handleChecker: EntityAddedOrDeletedHandleChecker): Boolean {
+                        PersistentStoreTransaction.getUpdatable(handleChecker, this,
+                                UpdatableEntityIdSortedSetCachedInstanceIterable::class.java).addEntity(handleChecker.id)
+                        return true
+                    }
                 }
             }
         }

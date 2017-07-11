@@ -580,11 +580,11 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         cache.cacheObjectNotAffectingHandleDistribution(handle, iterable);
     }
 
-    public void registerStickyObject(@NotNull final EntityIterableHandle handle, Object object) {
+    public void registerStickyObject(@NotNull final EntityIterableHandle handle, Updatable object) {
         mutableCache().registerStickyObject(handle, object);
     }
 
-    public Object getStickyObject(@NotNull final EntityIterableHandle handle) {
+    public Updatable getStickyObject(@NotNull final EntityIterableHandle handle) {
         return getLocalCache().getStickyObject(handle);
     }
 
@@ -938,24 +938,31 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> T getUpdatableIterable(
+    public static <T> T getUpdatable(
             @NotNull final HandleChecker handleChecker, @NotNull final EntityIterableHandle handle, @NotNull final Class<T> handleType
     ) {
         final HandleCheckerAdapter checker = (HandleCheckerAdapter) handleChecker;
-        final CachedInstanceIterable instance = checker.get(handle);
+        Updatable instance = checker.get(handle);
         if (instance != null) {
-            if (handleType.isAssignableFrom(instance.getClass())) {
-                Updatable it = (Updatable) instance;
-                if (!it.isMutated()) {
-                    it = it.beginUpdate(checker.txn);
-                    checker.beginUpdate(it);
+            if (!instance.isMutated()) {
+                instance = instance.beginUpdate(checker.txn);
+                if (handleType.isAssignableFrom(instance.getClass())) {
+                    checker.beginUpdate(instance);
+                    return (T) instance;
                 }
-                return (T) it;
+            } else if (handleType.isAssignableFrom(instance.getClass())) {
+                return (T) instance;
             }
             checker.remove(handle);
             if (logger.isErrorEnabled()) {
+                final String handlePart;
+                if (instance instanceof EntityIterableBase) {
+                    handlePart = ", handle = " + ((EntityIterableBase) instance).getHandle();
+                } else {
+                    handlePart = "";
+                }
                 logger.error("Iterable doesn't match expected class " + handleType.getName()
-                        + ", handle = " + handle + ", found = " + instance.getClass().getName() + ", handle = " + instance.getHandle());
+                        + ", handle = " + handle + ", found = " + instance.getClass().getName() + handlePart);
             }
         }
         return null;
@@ -1016,8 +1023,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         abstract boolean checkHandle(@NotNull final EntityIterableHandle handle);
 
-        CachedInstanceIterable get(@NotNull EntityIterableHandle handle) {
-            return mutableCache.getObject(handle);
+        Updatable get(@NotNull EntityIterableHandle handle) {
+            return mutableCache.getUpdatable(handle);
         }
 
         void remove(@NotNull EntityIterableHandle handle) {
@@ -1027,7 +1034,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         @Deprecated
         public Updatable getUpdatableIterable(@NotNull EntityIterableHandle handle) {
-            return PersistentStoreTransaction.getUpdatableIterable(this, handle, Updatable.class);
+            return PersistentStoreTransaction.getUpdatable(this, handle, Updatable.class);
         }
     }
 
