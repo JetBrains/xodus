@@ -36,6 +36,21 @@ public class FixedLengthByteIterable extends ByteIterableBase {
     }
 
     @Override
+    public byte[] getBytesUnsafe() {
+        if (bytes == null) {
+            final int length = this.length;
+            final byte[] bytes = new byte[length];
+            final ByteIterator it = source.iterator();
+            it.skip(offset);
+            for (int i = 0; it.hasNext() && i < length; ++i) {
+                bytes[i] = it.next();
+            }
+            this.bytes = bytes;
+        }
+        return bytes;
+    }
+
+    @Override
     public int getLength() {
         return length;
     }
