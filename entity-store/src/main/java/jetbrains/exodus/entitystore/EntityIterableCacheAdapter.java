@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
 import jetbrains.exodus.core.dataStructures.persistent.EvictListener;
 import jetbrains.exodus.core.dataStructures.persistent.PersistentObjectCache;
@@ -31,15 +32,19 @@ class EntityIterableCacheAdapter {
     protected final PersistentEntityStoreConfig config;
     @NotNull
     protected final NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem> cache;
+    @NotNull
+    protected final HashMap<EntityIterableHandle, Object> stickyObjects;
 
     EntityIterableCacheAdapter(@NotNull final PersistentEntityStoreConfig config) {
-        this(config, new NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem>(config.getEntityIterableCacheSize()));
+        this(config, new NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem>(config.getEntityIterableCacheSize()), new HashMap<EntityIterableHandle, Object>());
     }
 
     EntityIterableCacheAdapter(@NotNull final PersistentEntityStoreConfig config,
-                               @NotNull final NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem> cache) {
+                               @NotNull final NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem> cache,
+                               @NotNull final HashMap<EntityIterableHandle, Object> stickyObjects) {
         this.config = config;
         this.cache = cache;
+        this.stickyObjects = stickyObjects;
     }
 
     @NotNull
@@ -49,11 +54,17 @@ class EntityIterableCacheAdapter {
 
     @Nullable
     CachedInstanceIterable tryKey(@NotNull final EntityIterableHandle key) {
+        if (key.isSticky()) {
+            return (CachedInstanceIterable) getStickyObject(key);
+        }
         return parseCachedObject(key, cache.tryKey(key));
     }
 
     @Nullable
     CachedInstanceIterable getObject(@NotNull final EntityIterableHandle key) {
+        if (key.isSticky()) {
+            return (CachedInstanceIterable) getStickyObject(key);
+        }
         return parseCachedObject(key, cache.getObject(key));
     }
 
@@ -95,6 +106,14 @@ class EntityIterableCacheAdapter {
 
     void adjustHitRate() {
         cache.adjustHitRate();
+    }
+
+    Object getStickyObject(@NotNull final EntityIterableHandle handle) {
+        Object result = stickyObjects.get(handle);
+        if (result == null) {
+            throw new IllegalStateException("Sticky object not found");
+        }
+        return result;
     }
 
     private CachedInstanceIterable parseCachedObject(@NotNull final EntityIterableHandle key, @Nullable final CacheItem item) {

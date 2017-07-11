@@ -13,21 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.iterate;
+package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.entitystore.EntityIterableHandle;
-import jetbrains.exodus.entitystore.Updatable;
 import org.jetbrains.annotations.NotNull;
 
-public interface HandleChecker {
-    int getLinkId();
+public interface Updatable {
 
-    int getPropertyId();
+    Updatable beginUpdate(@NotNull PersistentStoreTransaction txn);
 
-    int getTypeId();
+    boolean isMutated();
 
-    int getTypeIdAffectingCreation();
-
-    @Deprecated
-    Updatable getUpdatableIterable(@NotNull final EntityIterableHandle handle);
+    void endUpdate(@NotNull PersistentStoreTransaction txn);
 }

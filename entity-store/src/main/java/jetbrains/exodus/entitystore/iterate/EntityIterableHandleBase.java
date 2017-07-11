@@ -105,6 +105,11 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
     }
 
     @Override
+    public boolean isSticky() {
+        return false;
+    }
+
+    @Override
     public boolean isMatchedEntityAdded(@NotNull final EntityId added) {
         return true;
     }

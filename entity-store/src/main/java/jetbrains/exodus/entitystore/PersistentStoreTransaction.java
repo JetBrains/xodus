@@ -78,7 +78,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     private int localCacheHits;
     @Nullable
     private EntityIterableCacheAdapterMutable mutableCache;
-    private List<UpdatableCachedInstanceIterable> mutatedInTxn;
+    private List<Updatable> mutatedInTxn;
     @Nullable
     private LongHashMap<InputStream> blobStreams;
     @Nullable
@@ -138,6 +138,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                 break;
             case Exclusive:
                 txn = env.beginExclusiveTransaction(beginHook);
+                mutableCache = createMutableCache();
                 break;
             case Readonly:
                 txn = env.beginReadonlyTransaction(beginHook);
@@ -245,7 +246,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                     txn, LongBinding.longToCompressedEntry(entityLocalId), ZERO_VERSION_ENTRY);
             final PersistentEntityId id = new PersistentEntityId(entityTypeId, entityLocalId);
             // update iterables' cache
-            new EntityAddedHandleCheckerImpl(id, mutableCache(), mutatedInTxn).updateCache();
+            new EntityAddedHandleCheckerImpl(this, id, mutableCache(), mutatedInTxn).updateCache();
             return new PersistentEntity(store, id);
         } catch (Exception e) {
             throw ExodusException.toEntityStoreException(e);
@@ -258,7 +259,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             final EntityId entityId = entity.getId();
             final Store entitiesTable = store.getEntitiesTable(this, entityId.getTypeId());
             entitiesTable.put(txn, LongBinding.longToCompressedEntry(entityId.getLocalId()), ZERO_VERSION_ENTRY);
-            new EntityAddedHandleCheckerImpl(entityId, mutableCache(), mutatedInTxn).updateCache();
+            new EntityAddedHandleCheckerImpl(this, entityId, mutableCache(), mutatedInTxn).updateCache();
         } catch (Exception e) {
             throw ExodusException.toEntityStoreException(e);
         }
@@ -570,6 +571,26 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         return queryCancellingPolicy;
     }
 
+    public void registerMutatedHandle(@NotNull final EntityIterableHandle handle, @NotNull final CachedInstanceIterable iterable) {
+        final EntityIterableCacheAdapterMutable cache = this.mutableCache;
+        if (cache == null) {
+            throw new IllegalStateException("Transaction wasn't mutated");
+        }
+        // cache new mutated iterable instance not affecting HandlesDistribution
+        cache.cacheObjectNotAffectingHandleDistribution(handle, iterable);
+    }
+
+    public void registerStickyObject(@NotNull final EntityIterableHandle handle, Object object) {
+        if (!txn.isExclusive()) {
+            throw new IllegalStateException("Sticky object must be registred in exclusive transaction");
+        }
+        mutableCache().registerStickyObject(handle, object);
+    }
+
+    public Object getStickyObject(@NotNull final EntityIterableHandle handle) {
+        return getLocalCache().getStickyObject(handle);
+    }
+
     @SuppressWarnings({"HardCodedStringLiteral"})
     public String toString() {
         final StringBuilder builder = StringBuilderSpinAllocator.alloc();
@@ -701,7 +722,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     void entityDeleted(@NotNull final PersistentEntityId id) {
-        new EntityDeletedHandleCheckerImpl(id, mutableCache(), mutatedInTxn).updateCache();
+        new EntityDeletedHandleCheckerImpl(this, id, mutableCache(), mutatedInTxn).updateCache();
     }
 
     void propertyChanged(@NotNull final PersistentEntityId id,
@@ -710,7 +731,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                          @Nullable final Comparable newValue) {
         final PropertyId propId = new PropertyId(id, propertyId);
         propsCache.remove(propId);
-        new PropertyChangedHandleCheckerImpl(id.getTypeId(), id.getLocalId(), propertyId,
+        new PropertyChangedHandleCheckerImpl(this, id.getTypeId(), id.getLocalId(), propertyId,
                 oldValue, newValue, mutableCache(), mutatedInTxn).updateCache();
     }
 
@@ -719,7 +740,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                    final int linkId) {
         final PropertyId propId = new PropertyId(sourceId, linkId);
         linksCache.remove(propId);
-        new LinkAddedHandleChecker(sourceId, targetId, linkId, mutableCache(), mutatedInTxn).updateCache();
+        new LinkAddedHandleChecker(this, sourceId, targetId, linkId, mutableCache(), mutatedInTxn).updateCache();
     }
 
     void linkDeleted(@NotNull final PersistentEntityId sourceId,
@@ -727,7 +748,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                      final int linkId) {
         final PropertyId propId = new PropertyId(sourceId, linkId);
         linksCache.remove(propId);
-        new LinkDeletedHandleChecker(sourceId, targetId, linkId, mutableCache(), mutatedInTxn).updateCache();
+        new LinkDeletedHandleChecker(this, sourceId, targetId, linkId, mutableCache(), mutatedInTxn).updateCache();
     }
 
     void addBlob(final long blobHandle, @NotNull final InputStream stream) throws IOException {
@@ -863,9 +884,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                 log.flushed();
                 if (mutableCache != null) { // mutableCache can be null if only blobs are modified
                     final EntityIterableCache entityIterableCache = store.getEntityIterableCache();
-                    for (final UpdatableCachedInstanceIterable it : mutatedInTxn) {
-                        it.endUpdate();
-                        entityIterableCache.setCachedCount(it.getHandle(), it.size());
+                    for (final Updatable it : mutatedInTxn) {
+                        it.endUpdate(PersistentStoreTransaction.this);
                     }
                     if (!entityIterableCache.compareAndSetCacheAdapter(localCache, mutableCache.endWrite())) {
                         throw new EntityStoreException("This exception should never be thrown");
@@ -902,11 +922,16 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     private EntityIterableCacheAdapterMutable mutableCache() {
         EntityIterableCacheAdapterMutable cache = mutableCache;
         if (mutableCache == null) {
-            cache = localCache.getClone();
+            cache = createMutableCache();
             mutableCache = cache; // preemptive version mismatch disabled
-            mutatedInTxn = new ArrayList<>();
         }
         return cache;
+    }
+
+    private EntityIterableCacheAdapterMutable createMutableCache() {
+        final EntityIterableCacheAdapterMutable result = localCache.getClone();
+        mutatedInTxn = new ArrayList<>();
+        return result;
     }
 
     private void handleOutOfDiskSpace(final Exception e) {
@@ -923,13 +948,13 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         final CachedInstanceIterable instance = checker.get(handle);
         if (instance != null) {
             if (handleType.isAssignableFrom(instance.getClass())) {
-                UpdatableCachedInstanceIterable it = (UpdatableCachedInstanceIterable) instance;
+                Updatable it = (Updatable) instance;
                 if (!it.isMutated()) {
-                    it = checker.beginUpdate(handle, it);
+                    it = checker.beginUpdate(it);
                 }
                 return (T) it;
             }
-            checker.remove(handle, instance);
+            checker.remove(handle);
             if (logger.isErrorEnabled()) {
                 logger.error("Iterable doesn't match expected class " + handleType.getName()
                         + ", handle = " + handle + ", found = " + instance.getClass().getName() + ", handle = " + instance.getHandle());
@@ -946,12 +971,16 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     abstract static class HandleCheckerAdapter implements HandleChecker {
         @NotNull
-        final List<UpdatableCachedInstanceIterable> mutatedInTxn;
+        final PersistentStoreTransaction txn;
+        @NotNull
+        final List<Updatable> mutatedInTxn;
         @NotNull
         final EntityIterableCacheAdapterMutable mutableCache;
 
-        HandleCheckerAdapter(@NotNull List<UpdatableCachedInstanceIterable> mutatedInTxn,
+        HandleCheckerAdapter(@NotNull PersistentStoreTransaction txn,
+                             @NotNull List<Updatable> mutatedInTxn,
                              @NotNull EntityIterableCacheAdapterMutable mutableCache) {
+            this.txn = txn;
             this.mutatedInTxn = mutatedInTxn;
             this.mutableCache = mutableCache;
         }
@@ -983,22 +1012,20 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             return mutableCache.getObject(handle);
         }
 
-        UpdatableCachedInstanceIterable beginUpdate(@NotNull EntityIterableHandle handle, @NotNull UpdatableCachedInstanceIterable instance) {
-            final UpdatableCachedInstanceIterable it = instance.beginUpdate();
-            // cache new mutated iterable instance not affecting HandlesDistribution
-            mutableCache.cacheObjectNotAffectingHandleDistribution(handle, it);
+        Updatable beginUpdate(@NotNull Updatable instance) {
+            final Updatable it = instance.beginUpdate(txn);
             mutatedInTxn.add(it);
             return it;
         }
 
-        void remove(@NotNull EntityIterableHandle handle, @NotNull CachedInstanceIterable instance) {
+        void remove(@NotNull EntityIterableHandle handle) {
             mutableCache.remove(handle);
         }
 
         @Override
         @Deprecated
-        public UpdatableCachedInstanceIterable getUpdatableIterable(@NotNull EntityIterableHandle handle) {
-            return PersistentStoreTransaction.getUpdatableIterable(this, handle, UpdatableCachedInstanceIterable.class);
+        public Updatable getUpdatableIterable(@NotNull EntityIterableHandle handle) {
+            return PersistentStoreTransaction.getUpdatableIterable(this, handle, Updatable.class);
         }
     }
 
@@ -1031,10 +1058,11 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         protected final EntityId id;
 
-        EntityAddedOrDeletedHandleCheckerAdapter(@NotNull final EntityId id,
-                                                 @NotNull List<UpdatableCachedInstanceIterable> mutatedInTxn,
+        EntityAddedOrDeletedHandleCheckerAdapter(@NotNull PersistentStoreTransaction txn,
+                                                 @NotNull final EntityId id,
+                                                 @NotNull List<Updatable> mutatedInTxn,
                                                  @NotNull EntityIterableCacheAdapterMutable mutableCache) {
-            super(mutatedInTxn, mutableCache);
+            super(txn, mutatedInTxn, mutableCache);
             this.id = id;
         }
 
@@ -1066,10 +1094,11 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     private static class EntityDeletedHandleCheckerImpl extends EntityAddedOrDeletedHandleCheckerAdapter {
 
-        private EntityDeletedHandleCheckerImpl(@NotNull EntityId id,
+        private EntityDeletedHandleCheckerImpl(@NotNull PersistentStoreTransaction txn,
+                                               @NotNull EntityId id,
                                                @NotNull EntityIterableCacheAdapterMutable mutatedInTxn,
-                                               @NotNull List<UpdatableCachedInstanceIterable> mutableCache) {
-            super(id, mutableCache, mutatedInTxn);
+                                               @NotNull List<Updatable> mutableCache) {
+            super(txn, id, mutableCache, mutatedInTxn);
         }
 
         @Override
@@ -1086,10 +1115,11 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     private static class EntityAddedHandleCheckerImpl extends EntityAddedOrDeletedHandleCheckerAdapter {
 
-        private EntityAddedHandleCheckerImpl(@NotNull EntityId id,
+        private EntityAddedHandleCheckerImpl(@NotNull PersistentStoreTransaction txn,
+                                             @NotNull EntityId id,
                                              @NotNull EntityIterableCacheAdapterMutable mutableCache,
-                                             @NotNull List<UpdatableCachedInstanceIterable> mutatedInTxn) {
-            super(id, mutatedInTxn, mutableCache);
+                                             @NotNull List<Updatable> mutatedInTxn) {
+            super(txn, id, mutatedInTxn, mutableCache);
         }
 
         @Override
@@ -1106,10 +1136,11 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         final PersistentEntityId targetId;
         protected final int linkId;
 
-        private LinkChangedHandleCheckerImpl(@NotNull PersistentEntityId sourceId, @NotNull PersistentEntityId targetId,
-                                             int linkId, @NotNull List<UpdatableCachedInstanceIterable> mutatedInTxn,
+        private LinkChangedHandleCheckerImpl(@NotNull PersistentStoreTransaction txn,
+                                             @NotNull PersistentEntityId sourceId, @NotNull PersistentEntityId targetId,
+                                             int linkId, @NotNull List<Updatable> mutatedInTxn,
                                              @NotNull EntityIterableCacheAdapterMutable mutableCache) {
-            super(mutatedInTxn, mutableCache);
+            super(txn, mutatedInTxn, mutableCache);
             this.sourceId = sourceId;
             this.targetId = targetId;
             this.linkId = linkId;
@@ -1154,10 +1185,11 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     private static final class LinkAddedHandleChecker extends LinkChangedHandleCheckerImpl {
 
-        private LinkAddedHandleChecker(@NotNull PersistentEntityId sourceId, @NotNull PersistentEntityId targetId,
+        private LinkAddedHandleChecker(@NotNull PersistentStoreTransaction txn,
+                                       @NotNull PersistentEntityId sourceId, @NotNull PersistentEntityId targetId,
                                        int linkId, @NotNull EntityIterableCacheAdapterMutable mutatedInTxn,
-                                       @NotNull List<UpdatableCachedInstanceIterable> mutableCache) {
-            super(sourceId, targetId, linkId, mutableCache, mutatedInTxn);
+                                       @NotNull List<Updatable> mutableCache) {
+            super(txn, sourceId, targetId, linkId, mutableCache, mutatedInTxn);
         }
 
         @Override
@@ -1169,10 +1201,11 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     private static final class LinkDeletedHandleChecker extends LinkChangedHandleCheckerImpl {
 
-        private LinkDeletedHandleChecker(@NotNull PersistentEntityId sourceId, @NotNull PersistentEntityId targetId,
+        private LinkDeletedHandleChecker(@NotNull PersistentStoreTransaction txn,
+                                         @NotNull PersistentEntityId sourceId, @NotNull PersistentEntityId targetId,
                                          int linkId, @NotNull EntityIterableCacheAdapterMutable mutatedInTxn,
-                                         @NotNull List<UpdatableCachedInstanceIterable> mutableCache) {
-            super(sourceId, targetId, linkId, mutableCache, mutatedInTxn);
+                                         @NotNull List<Updatable> mutableCache) {
+            super(txn, sourceId, targetId, linkId, mutableCache, mutatedInTxn);
         }
 
         @Override
@@ -1192,11 +1225,12 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Nullable
         private final Comparable newValue;
 
-        private PropertyChangedHandleCheckerImpl(int entityTypeId, long localId, int propertyId,
+        private PropertyChangedHandleCheckerImpl(@NotNull PersistentStoreTransaction txn,
+                                                 int entityTypeId, long localId, int propertyId,
                                                  @Nullable Comparable oldValue, @Nullable Comparable newValue,
                                                  @NotNull EntityIterableCacheAdapterMutable mutatedInTxn,
-                                                 @NotNull List<UpdatableCachedInstanceIterable> mutableCache) {
-            super(mutableCache, mutatedInTxn);
+                                                 @NotNull List<Updatable> mutableCache) {
+            super(txn, mutableCache, mutatedInTxn);
             if (oldValue == null && newValue == null) {
                 throw new IllegalArgumentException("Either oldValue or newValue should be not null");
             }

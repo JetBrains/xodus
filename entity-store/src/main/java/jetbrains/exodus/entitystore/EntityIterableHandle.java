@@ -28,6 +28,8 @@ public interface EntityIterableHandle {
 
     Object getIdentity();
 
+    boolean isSticky();
+
     boolean isMatchedEntityAdded(@NotNull EntityId added);
 
     boolean isMatchedEntityDeleted(@NotNull EntityId deleted);

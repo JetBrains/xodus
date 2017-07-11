@@ -15,10 +15,7 @@
  */
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.core.dataStructures.hash.HashSet;
-import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
-import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
-import jetbrains.exodus.core.dataStructures.hash.PairProcedure;
+import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.core.dataStructures.persistent.EvictListener;
 import jetbrains.exodus.entitystore.iterate.CachedInstanceIterable;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
@@ -28,18 +25,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter {
+public final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter {
 
     private final HandlesDistribution handlesDistribution;
 
-    private EntityIterableCacheAdapterMutable(@NotNull final PersistentEntityStoreConfig config, @NotNull final HandlesDistribution handlesDistribution) {
-        super(config, handlesDistribution.cache);
+    private EntityIterableCacheAdapterMutable(@NotNull final PersistentEntityStoreConfig config,
+                                              @NotNull final HandlesDistribution handlesDistribution,
+                                              @NotNull HashMap<EntityIterableHandle, Object> stickyObjects) {
+        super(config, handlesDistribution.cache, stickyObjects);
         this.handlesDistribution = handlesDistribution;
     }
 
     @NotNull
     EntityIterableCacheAdapter endWrite() {
-        return new EntityIterableCacheAdapter(config, cache.endWrite());
+        return new EntityIterableCacheAdapter(config, cache.endWrite(), stickyObjects);
     }
 
     void update(@NotNull final PersistentStoreTransaction.HandleCheckerAdapter checker) {
@@ -70,6 +69,10 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
         } else {
             forEachKey(procedure);
         }
+
+        for (final EntityIterableHandle handle : stickyObjects.keySet()) {
+            checker.checkHandle(handle);
+        }
     }
 
     @Override
@@ -78,8 +81,15 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
         handlesDistribution.addHandle(key);
     }
 
+    void registerStickyObject(@NotNull final EntityIterableHandle handle, Object object) {
+        stickyObjects.put(handle, object);
+    }
+
     @Override
     void remove(@NotNull EntityIterableHandle key) {
+        if (key.isSticky()) {
+            throw new IllegalStateException("Cannot remove sticky object");
+        }
         super.remove(key);
         handlesDistribution.removeHandle(key);
     }
@@ -87,6 +97,7 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
     @Override
     void clear() {
         super.clear();
+        // stickyObjects.clear();
         handlesDistribution.clear();
     }
 
@@ -96,7 +107,7 @@ final class EntityIterableCacheAdapterMutable extends EntityIterableCacheAdapter
 
     static EntityIterableCacheAdapterMutable create(@NotNull final EntityIterableCacheAdapter source) {
         HandlesDistribution handlesDistribution = new HandlesDistribution(source.cache);
-        return new EntityIterableCacheAdapterMutable(source.config, handlesDistribution);
+        return new EntityIterableCacheAdapterMutable(source.config, handlesDistribution, new HashMap<>(source.stickyObjects));
     }
 
     private static class HandlesDistribution implements EvictListener<EntityIterableHandle, CacheItem> {

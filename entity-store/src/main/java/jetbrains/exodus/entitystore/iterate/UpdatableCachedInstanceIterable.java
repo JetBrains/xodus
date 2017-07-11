@@ -16,10 +16,11 @@
 package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.Updatable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public abstract class UpdatableCachedInstanceIterable extends CachedInstanceIterable {
+public abstract class UpdatableCachedInstanceIterable extends CachedInstanceIterable implements Updatable {
 
     protected UpdatableCachedInstanceIterable(@Nullable final PersistentStoreTransaction txn,
                                               @NotNull final EntityIterableBase source) {
@@ -35,9 +36,22 @@ public abstract class UpdatableCachedInstanceIterable extends CachedInstanceIter
         return true;
     }
 
+    @Override
+    public Updatable beginUpdate(@NotNull PersistentStoreTransaction txn) {
+        final UpdatableCachedInstanceIterable result = beginUpdate();
+        txn.registerMutatedHandle(getHandle(), result);
+        return result;
+    }
+
     public abstract UpdatableCachedInstanceIterable beginUpdate();
 
     public abstract boolean isMutated();
+
+    @Override
+    public void endUpdate(@NotNull PersistentStoreTransaction txn) {
+        endUpdate();
+        txn.getStore().getEntityIterableCache().setCachedCount(getHandle(), size());
+    }
 
     public abstract void endUpdate();
 }

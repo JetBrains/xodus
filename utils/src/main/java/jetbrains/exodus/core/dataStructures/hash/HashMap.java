@@ -45,6 +45,11 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
         init(capacity);
     }
 
+    public HashMap(HashMap<K, V> copy) {
+        this(copy.capacity, copy.loadFactor, copy.table.length, copy.mask);
+        System.arraycopy(copy.table, 0, table, 0, copy.table.length);
+    }
+
     protected HashMap(int capacity, float loadFactor, int tableSize, int mask) {
         this.loadFactor = loadFactor;
         if (capacity < HashUtil.MIN_CAPACITY) {
