@@ -99,10 +99,7 @@ class StickyObjectTest : EntityStoreTestBase() {
     }
 
     interface Counter : Updatable {
-
         val value: Int
-        override fun beginUpdate(txn: PersistentStoreTransaction): Counter
-
     }
 
     class ImmutableCounter(val handle: EntityIterableHandle, override val value: Int = 0) : Counter {
