@@ -31,11 +31,7 @@ public class ReadonlyPersistentStoreTransaction extends PersistentStoreTransacti
         return true;
     }
 
-    public PersistentStoreTransaction getUpgradedTransaction(boolean exclusive) {
-        return new PersistentStoreTransaction(this, exclusive ? TransactionType.Exclusive : TransactionType.Regular);
-    }
-
     public PersistentStoreTransaction getUpgradedTransaction() {
-        return getUpgradedTransaction(false);
+        return new PersistentStoreTransaction(this, TransactionType.Regular);
     }
 }
