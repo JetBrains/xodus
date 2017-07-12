@@ -50,6 +50,10 @@ public class FixedLengthByteIterable extends ByteIterableBase {
         return bytes;
     }
 
+    public int getOffset() {
+        return offset;
+    }
+
     @Override
     public int getLength() {
         return length;
