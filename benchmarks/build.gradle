@@ -28,6 +28,7 @@ dependencies {
     jmh group: 'net.openhft', name: 'chronicle-map', version: '3.11.0'
     jmh group: 'com.h2database', name: 'h2-mvstore', version: '1.4.193'
     jmh group: 'org.deephacks.lmdbjni', name: 'lmdbjni', version: '0.4.6'
+    jmh group: 'com.akiban', name: 'akiban-persistit', version: '3.3.0'
 
     def os
     if (SystemUtils.IS_OS_LINUX) {
@@ -44,7 +45,7 @@ dependencies {
 
 jmh {
     // uncomment the following line to exclude all benchmarks except Xodus Tokyo Cabinet
-    //exclude = 'dataStructures|util|chronicle|h2|mapdb|lmdb'
+    // exclude = 'dataStructures|util|chronicle|h2|mapdb|lmdb|persistit'
     jmhVersion = project.jmhVersion
     jvmArgsPrepend '-Xmx1g -Xms1g'
     duplicateClassesStrategy = 'warn'
