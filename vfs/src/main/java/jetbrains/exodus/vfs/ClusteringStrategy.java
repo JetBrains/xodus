@@ -43,7 +43,7 @@ public abstract class ClusteringStrategy {
     public static final ClusteringStrategy QUADRATIC = new QuadraticClusteringStrategy();
     public static final ClusteringStrategy EXPONENTIAL = new ExponentialClusteringStrategy();
 
-    abstract int getFirstClusterSize();
+    public abstract int getFirstClusterSize();
 
     abstract int getNextClusterSize(final int prevClusterSize);
 
@@ -81,7 +81,7 @@ public abstract class ClusteringStrategy {
         }
 
         @Override
-        int getFirstClusterSize() {
+        public int getFirstClusterSize() {
             return firstClusterSize;
         }
     }

@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.lucene;
 
+import jetbrains.exodus.vfs.ClusteringStrategy;
 import jetbrains.exodus.vfs.File;
 import jetbrains.exodus.vfs.VfsInputStream;
 import org.apache.lucene.store.IndexInput;
@@ -61,8 +62,12 @@ public class ExodusIndexInput extends IndexInput {
     public void seek(long pos) throws IOException {
         if (pos != currentPosition) {
             if (pos > currentPosition) {
+                final ClusteringStrategy clusteringStrategy = directory.getVfs().getConfig().getClusteringStrategy();
                 final long bytesToSkip = pos - currentPosition;
-                if (input.skip(bytesToSkip) == bytesToSkip) {
+                final int clusterSize = clusteringStrategy.getFirstClusterSize();
+                if ((!clusteringStrategy.isLinear() ||
+                    (currentPosition % clusterSize) + bytesToSkip < clusterSize) // or we are within single cluster
+                    && input.skip(bytesToSkip) == bytesToSkip) {
                     currentPosition = pos;
                     return;
                 }
