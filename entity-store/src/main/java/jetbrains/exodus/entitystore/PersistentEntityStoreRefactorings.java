@@ -20,10 +20,11 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.bindings.*;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
+import jetbrains.exodus.core.dataStructures.hash.IntHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
+import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.entitystore.tables.*;
 import jetbrains.exodus.env.*;
-import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,9 +35,6 @@ import java.util.*;
 final class PersistentEntityStoreRefactorings {
 
     private static final Logger logger = LoggerFactory.getLogger(PersistentEntityStoreRefactorings.class);
-
-    @NonNls
-    private static final String TEMP_BLOBS_DIR = PersistentEntityStoreImpl.BLOBS_DIR + "-refactoring";
 
     @NotNull
     private final PersistentEntityStoreImpl store;
@@ -157,6 +155,40 @@ final class PersistentEntityStoreRefactorings {
         });
     }
 
+    void refactorDropEmptyPrimaryLinkTables() {
+        store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final StoreTransaction tx) {
+                final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
+
+                for (final String entityType : store.getEntityTypes(txn)) {
+                    runReadonlyTransactionSafeForEntityType(entityType, new Runnable() {
+                        @Override
+                        public void run() {
+                            final Transaction envTxn = txn.getEnvironmentTransaction();
+                            final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
+                            final TwoColumnTable linksTable = store.getLinksTable(txn, entityTypeId);
+
+                            final long primaryCount = linksTable.getPrimaryCount(envTxn);
+                            if (primaryCount != 0L && linksTable.getSecondaryCount(envTxn) == 0L) {
+                                store.getEnvironment().executeInTransaction(new TransactionalExecutable() {
+                                    @Override
+                                    public void execute(@NotNull Transaction txn) {
+                                        linksTable.truncateFirst(txn);
+                                    }
+                                });
+
+                                if (logger.isInfoEnabled()) {
+                                    logger.info("Drop links' tables when primary index is empty for [" + entityType + ']');
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        });
+    }
+
     void refactorMakeLinkTablesConsistent() {
         store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
             @Override
@@ -169,65 +201,95 @@ final class PersistentEntityStoreRefactorings {
                     runReadonlyTransactionSafeForEntityType(entityType, new Runnable() {
                         @Override
                         public void run() {
-                            final Collection<Pair<ByteIterable, ByteIterable>> badLinks = new ArrayList<>();
+                            final Collection<Pair<ByteIterable, ByteIterable>> redundantLinks = new ArrayList<>();
                             final Collection<Pair<ByteIterable, ByteIterable>> deleteLinks = new ArrayList<>();
                             final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
                             final TwoColumnTable linksTable = store.getLinksTable(txn, entityTypeId);
                             final Transaction envTxn = txn.getEnvironmentTransaction();
                             final Store entitiesTable = store.getEntitiesTable(txn, entityTypeId);
+                            final LongHashSet all = new LongHashSet((int) entitiesTable.count(envTxn));
+                            final LongHashSet linkFilter = new LongHashSet((int) linksTable.getPrimaryCount(envTxn));
+                            try (Cursor cursor = store.getEntitiesIndexCursor(txn, entityTypeId)) {
+                                while (cursor.getNext()) {
+                                    all.add(LongBinding.compressedEntryToLong(cursor.getKey()));
+                                }
+                            }
+                            final IntHashSet redundantLinkTypes = new IntHashSet();
+                            final IntHashSet deletedLinkTypes = new IntHashSet();
+                            final IntHashSet deletedLinkIds = new IntHashSet();
                             try (Cursor cursor = linksTable.getFirstIndexCursor(envTxn)) {
                                 while (cursor.getNext()) {
                                     final ByteIterable first = cursor.getKey();
                                     final ByteIterable second = cursor.getValue();
+                                    LinkValue linkValue = null;
                                     final long localId = LongBinding.compressedEntryToLong(first);
-                                    if (entitiesTable.get(envTxn, LongBinding.longToCompressedEntry(localId)) == null) {
+                                    if (!all.contains(localId)) {
+                                        try {
+                                            linkValue = LinkValue.entryToLinkValue(second);
+                                            deletedLinkTypes.add(linkValue.getEntityId().getTypeId());
+                                            deletedLinkIds.add(linkValue.getLinkId());
+                                        } catch (ArrayIndexOutOfBoundsException aobe) {
+                                            // ignore
+                                        }
                                         do {
                                             deleteLinks.add(new Pair<>(first, second));
                                         } while (cursor.getNextDup());
                                         continue;
+                                    } else {
+                                        linkFilter.add((first.hashCode() << 31L) + second.hashCode());
                                     }
-                                    final LinkValue linkValue = LinkValue.entryToLinkValue(second);
+                                    if (linkValue == null) {
+                                        linkValue = LinkValue.entryToLinkValue(second);
+                                    }
+                                    final EntityId targetEntityId = linkValue.getEntityId();
                                     // if target doesn't exist
-                                    if (store.getLastVersion(txn, linkValue.getEntityId()) < 0) {
+                                    if (store.getLastVersion(txn, targetEntityId) < 0) {
+                                        deletedLinkTypes.add(targetEntityId.getTypeId());
+                                        deletedLinkIds.add(linkValue.getLinkId());
                                         deleteLinks.add(new Pair<>(first, second));
                                         continue;
+                                    } else {
+                                        linkFilter.add((first.hashCode() << 31L) + second.hashCode());
                                     }
                                     if (!linksTable.contains2(envTxn, first, second)) {
-                                        badLinks.add(new Pair<>(first, second));
+                                        redundantLinkTypes.add(targetEntityId.getTypeId());
+                                        redundantLinks.add(new Pair<>(first, second));
                                     }
                                 }
                             }
-                            if (!badLinks.isEmpty()) {
+                            if (!redundantLinks.isEmpty()) {
                                 store.getEnvironment().executeInTransaction(new TransactionalExecutable() {
                                     @Override
                                     public void execute(@NotNull final Transaction txn) {
-                                        for (final Pair<ByteIterable, ByteIterable> badLink : badLinks) {
+                                        for (final Pair<ByteIterable, ByteIterable> badLink : redundantLinks) {
                                             linksTable.put(txn, badLink.getFirst(), badLink.getSecond());
                                         }
                                     }
                                 });
                                 if (logger.isInfoEnabled()) {
-                                    logger.info(badLinks.size() + " missing links found and fixed for [" + entityType + ']');
+                                    logger.info(redundantLinks.size() + " missing links found for [" + entityType + ']');
                                 }
-                                badLinks.clear();
+                                redundantLinks.clear();
                             }
                             try (Cursor cursor = linksTable.getSecondIndexCursor(envTxn)) {
                                 while ((cursor.getNext())) {
                                     final ByteIterable second = cursor.getKey();
                                     final ByteIterable first = cursor.getValue();
-                                    if (!linksTable.contains(envTxn, first, second)) {
-                                        badLinks.add(new Pair<>(first, second));
+                                    if (!linkFilter.contains((first.hashCode() << 31L) + second.hashCode())) {
+                                        if (!linksTable.contains(envTxn, first, second)) {
+                                            redundantLinks.add(new Pair<>(first, second));
+                                        }
                                     }
                                 }
                             }
-                            final int badLinksSize = badLinks.size();
+                            final int redundantLinksSize = redundantLinks.size();
                             final int deleteLinksSize = deleteLinks.size();
-                            if (badLinksSize > 0 || deleteLinksSize > 0) {
+                            if (redundantLinksSize > 0 || deleteLinksSize > 0) {
                                 store.getEnvironment().executeInTransaction(new TransactionalExecutable() {
                                     @Override
                                     public void execute(@NotNull final Transaction txn) {
-                                        for (final Pair<ByteIterable, ByteIterable> badLink : badLinks) {
-                                            deletePair(linksTable.getSecondIndexCursor(txn), badLink.getFirst(), badLink.getSecond());
+                                        for (final Pair<ByteIterable, ByteIterable> redundantLink : redundantLinks) {
+                                            deletePair(linksTable.getSecondIndexCursor(txn), redundantLink.getFirst(), redundantLink.getSecond());
                                         }
                                         for (final Pair<ByteIterable, ByteIterable> deleteLink : deleteLinks) {
                                             deletePair(linksTable.getFirstIndexCursor(txn), deleteLink.getFirst(), deleteLink.getSecond());
@@ -237,11 +299,34 @@ final class PersistentEntityStoreRefactorings {
                                     }
                                 });
                                 if (logger.isInfoEnabled()) {
-                                    if (badLinksSize > 0) {
-                                        logger.info(badLinksSize + " redundant links found and fixed for [" + entityType + ']');
+                                    if (redundantLinksSize > 0) {
+                                        final ArrayList<String> redundantLinkTypeNames = new ArrayList<>(redundantLinkTypes.size());
+                                        for (final int typeId : redundantLinkTypes) {
+                                            redundantLinkTypeNames.add(store.getEntityType(txn, typeId));
+                                        }
+                                        logger.info(redundantLinksSize + " redundant links found and fixed for [" + entityType + "] and targets: " + redundantLinkTypeNames);
                                     }
                                     if (deleteLinksSize > 0) {
-                                        logger.info(deleteLinksSize + " phantom links found and fixed for [" + entityType + ']');
+                                        final ArrayList<String> deletedLinkTypeNames = new ArrayList<>(deletedLinkTypes.size());
+                                        for (final int typeId : deletedLinkTypes) {
+                                            try {
+                                                final String entityTypeName = store.getEntityType(txn, typeId);
+                                                deletedLinkTypeNames.add(entityTypeName);
+                                            } catch (Throwable t) {
+                                                // ignore
+                                            }
+                                        }
+                                        final ArrayList<String> deletedLinkIdsNames = new ArrayList<>(deletedLinkIds.size());
+                                        for (final int typeId : deletedLinkIds) {
+                                            try {
+                                                final String linkName = store.getLinkName(txn, typeId);
+                                                deletedLinkIdsNames.add(linkName);
+                                            } catch (Throwable t) {
+                                                // ignore
+                                            }
+                                        }
+                                        logger.info(deleteLinksSize + " phantom links found and fixed for [" + entityType + "] and targets: " + deletedLinkTypeNames);
+                                        logger.info("Link types: " + deletedLinkIdsNames);
                                     }
                                 }
                             }

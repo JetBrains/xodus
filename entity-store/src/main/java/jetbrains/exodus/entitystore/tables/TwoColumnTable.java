@@ -122,6 +122,18 @@ public final class TwoColumnTable extends Table {
         return second.openCursor(txn);
     }
 
+    public void truncateFirst(@NotNull final Transaction txn) {
+        txn.getEnvironment().truncateStore(first.getName(), txn);
+    }
+
+    public long getPrimaryCount(@NotNull final Transaction txn) {
+        return first.count(txn);
+    }
+
+    public long getSecondaryCount(@NotNull final Transaction txn) {
+        return second.count(txn);
+    }
+
     @Override
     public boolean canBeCached() {
         return !first.getConfig().temporaryEmpty && !second.getConfig().temporaryEmpty;
