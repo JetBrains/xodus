@@ -260,6 +260,7 @@ public abstract class JobProcessorAdapter implements JobProcessor {
                     return true;
                 }
             } catch (InterruptedException ignore) {
+                Thread.currentThread().interrupt();
             }
         }
         return false;

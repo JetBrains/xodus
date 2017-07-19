@@ -488,6 +488,7 @@ public class TransactionTest extends EnvironmentTestsBase {
                 try {
                     Thread.sleep(600);
                 } catch (InterruptedException ignore) {
+                    Thread.currentThread().interrupt();
                 }
                 txn.revert();
                 Assert.assertFalse(txn.isExclusive());
@@ -556,6 +557,7 @@ public class TransactionTest extends EnvironmentTestsBase {
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException ignore) {
+                    Thread.currentThread().interrupt();
                 }
                 env.suspendGC();
             }

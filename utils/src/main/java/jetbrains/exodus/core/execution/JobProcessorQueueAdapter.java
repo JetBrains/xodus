@@ -148,6 +148,7 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
         try {
             jobsQueued = waitForJobs();
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             return;
         }
         if (!isFinished()) {

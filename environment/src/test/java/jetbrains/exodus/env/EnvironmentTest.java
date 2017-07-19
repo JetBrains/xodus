@@ -168,6 +168,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                     });
                     latch.acquire();
                 } catch (InterruptedException ignore) {
+                    Thread.currentThread().interrupt();
                     Assert.assertTrue(false);
                 }
                 Assert.assertNull(th[0]);

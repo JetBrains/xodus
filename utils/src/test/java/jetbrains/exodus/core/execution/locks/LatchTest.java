@@ -44,6 +44,7 @@ public class LatchTest {
                 try {
                     b.acquire();
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     e.printStackTrace();
                 }
                 testPassed[0] = true;
@@ -75,6 +76,7 @@ public class LatchTest {
                     try {
                         b.acquire();
                     } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
                         e.printStackTrace();
                     }
                     testPassed[0] += 1;

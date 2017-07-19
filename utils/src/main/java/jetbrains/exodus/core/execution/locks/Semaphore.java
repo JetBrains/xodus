@@ -48,6 +48,7 @@ public class Semaphore {
             try {
                 wait(1000);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
             }
         }

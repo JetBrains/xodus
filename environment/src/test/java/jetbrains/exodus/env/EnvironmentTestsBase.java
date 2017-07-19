@@ -169,6 +169,7 @@ public class EnvironmentTestsBase {
             });
             sync.acquire();
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             // ignore
         }
     }

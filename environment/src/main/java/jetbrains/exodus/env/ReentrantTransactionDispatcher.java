@@ -206,6 +206,7 @@ final class ReentrantTransactionDispatcher {
                         break;
                     }
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     break;
                 }
             }

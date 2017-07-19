@@ -294,6 +294,7 @@ public class JobProcessorTest {
             try {
                 acquire();
             } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
                 // ignore
             }
             processor.queue(this, Priority.highest);
@@ -325,6 +326,7 @@ public class JobProcessorTest {
             try {
                 Thread.sleep(ticks);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 e.printStackTrace();
             }
         }
@@ -348,6 +350,7 @@ public class JobProcessorTest {
                 Thread.sleep(ticks);
                 getProcessor().queueIn(this, ticks);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 e.printStackTrace();
             }
         }
@@ -418,6 +421,7 @@ public class JobProcessorTest {
                 processor.resume();
                 state = ResumeRunnableState.RESUMED;
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 state = ResumeRunnableState.INTERRUPTED;
                 e.printStackTrace();
             }
@@ -444,6 +448,7 @@ public class JobProcessorTest {
                 processor.suspend();
                 state = SuspendRunnableState.SUSPENDED;
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 state = SuspendRunnableState.INTERRUPTED;
                 e.printStackTrace();
             }

@@ -87,6 +87,7 @@ public class ThreadJobProcessor extends JobProcessorQueueAdapter {
         try {
             thread.join();
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             // ignore
         }
     }

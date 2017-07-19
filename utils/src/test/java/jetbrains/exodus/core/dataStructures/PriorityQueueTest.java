@@ -218,6 +218,7 @@ public abstract class PriorityQueueTest {
                     try {
                         threads[i].join();
                     } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
                         // ignore
                     }
                 }
