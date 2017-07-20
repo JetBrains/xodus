@@ -346,7 +346,7 @@ public class EnvironmentImpl implements Environment {
         synchronized (commitLock) {
             // concurrent close() detected
             if (throwableOnClose != null) {
-                throw new EnvironmentClosedException(throwableOnClose);
+                throw new EnvironmentClosedException(throwableOnClose); // add combined stack trace information
             }
             checkInactive(ec.getEnvCloseForcedly());
             try {
@@ -372,7 +372,7 @@ public class EnvironmentImpl implements Environment {
                 storeGetCacheHitRate = storeGetCache.hitRate();
                 storeGetCache.close();
             }
-            throwableOnClose = new Throwable();
+            throwableOnClose = new EnvironmentClosedException();
             throwableOnCommit = throwableOnClose;
         }
         if (logger.isInfoEnabled()) {
