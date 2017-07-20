@@ -82,7 +82,7 @@ public class EnvironmentImpl implements Environment {
      * it will remain inoperative forever.
      */
     private volatile Throwable throwableOnCommit;
-    private EnvironmentClosedException throwableOnClose;
+    private Throwable throwableOnClose;
 
     @Nullable
     private final StuckTransactionMonitor stuckTxnMonitor;
@@ -346,7 +346,7 @@ public class EnvironmentImpl implements Environment {
         synchronized (commitLock) {
             // concurrent close() detected
             if (throwableOnClose != null) {
-                throw throwableOnClose;
+                throw new EnvironmentClosedException(throwableOnClose);
             }
             checkInactive(ec.getEnvCloseForcedly());
             try {
@@ -372,7 +372,7 @@ public class EnvironmentImpl implements Environment {
                 storeGetCacheHitRate = storeGetCache.hitRate();
                 storeGetCache.close();
             }
-            throwableOnClose = new EnvironmentClosedException();
+            throwableOnClose = new Throwable();
             throwableOnCommit = throwableOnClose;
         }
         if (logger.isInfoEnabled()) {

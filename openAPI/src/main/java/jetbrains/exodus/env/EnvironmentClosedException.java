@@ -26,7 +26,7 @@ public class EnvironmentClosedException extends ExodusException {
 
     private static final String DEFAULT_MESSAGE = "Environment is already closed";
 
-    public EnvironmentClosedException() {
-        super(DEFAULT_MESSAGE);
+    public EnvironmentClosedException(Throwable cause) {
+        super(DEFAULT_MESSAGE, cause);
     }
 }
