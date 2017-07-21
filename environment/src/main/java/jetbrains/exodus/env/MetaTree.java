@@ -148,6 +148,10 @@ final class MetaTree {
         return new MetaTree(resultTree, dbRootAddress, dbRootAddress + dbRootLoggable.length());
     }
 
+    long getAllStoreCount() {
+        return tree.getSize();
+    }
+
     @NotNull
     List<String> getAllStoreNames() {
         final ITree tree = this.tree;

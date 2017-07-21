@@ -84,7 +84,11 @@ public final class UtilizationProfile {
                     @Override
                     public void execute(@NotNull final Transaction txn) {
                         if (!env.storeExists(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, txn)) {
-                            computeUtilizationFromScratch();
+                            if (env.getAllStoreCount() == 0 && log.getNumberOfFiles() <= 1) {
+                                clearUtilization();
+                            } else {
+                                computeUtilizationFromScratch();
+                            }
                         } else {
                             final LongHashMap<MutableLong> filesUtilization = new LongHashMap<>();
                             final StoreImpl store = env.openStore(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES, txn);
@@ -113,7 +117,7 @@ public final class UtilizationProfile {
     public void save(@NotNull final Transaction txn) {
         if (isDirty) {
             final StoreImpl store = env.openStore(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME,
-                StoreConfig.WITHOUT_DUPLICATES, txn);
+                    StoreConfig.WITHOUT_DUPLICATES, txn);
             // clear entries for already deleted files
             try (Cursor cursor = store.openCursor(txn)) {
                 while (cursor.getNext()) {
@@ -134,8 +138,8 @@ public final class UtilizationProfile {
             }
             for (final Map.Entry<Long, MutableLong> entry : filesUtilization) {
                 store.put(txn,
-                    LongBinding.longToCompressedEntry(entry.getKey()),
-                    CompressedUnsignedLongByteIterable.getIterable(entry.getValue().value));
+                        LongBinding.longToCompressedEntry(entry.getKey()),
+                        CompressedUnsignedLongByteIterable.getIterable(entry.getValue().value));
             }
         }
     }
@@ -250,7 +254,7 @@ public final class UtilizationProfile {
             @Override
             public boolean hasNext() {
                 return !fragmentedFiles.isEmpty() &&
-                    totalFreeBytes[0] > totalCleanableBytes[0] * gc.getMaximumFreeSpacePercent() / 100L;
+                        totalFreeBytes[0] > totalCleanableBytes[0] * gc.getMaximumFreeSpacePercent() / 100L;
             }
 
             @Override
@@ -302,6 +306,12 @@ public final class UtilizationProfile {
      */
     public void computeUtilizationFromScratch() {
         gc.getCleaner().getJobProcessor().queueAt(new ComputeUtilizationFromScratchJob(this), gc.getStartTime());
+    }
+
+    private void clearUtilization() {
+        synchronized (filesUtilization) {
+            filesUtilization.clear();
+        }
     }
 
     private void setUtilization(LongHashMap<Long> usedSpace) {

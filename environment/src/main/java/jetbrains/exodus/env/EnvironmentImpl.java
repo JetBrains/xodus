@@ -414,6 +414,12 @@ public class EnvironmentImpl implements Environment {
         t.storeRemoved(store);
     }
 
+    public long getAllStoreCount() {
+        synchronized (metaLock) {
+            return metaTree.getAllStoreCount();
+        }
+    }
+
     @Override
     @NotNull
     public List<String> getAllStoreNames(@NotNull final Transaction txn) {
