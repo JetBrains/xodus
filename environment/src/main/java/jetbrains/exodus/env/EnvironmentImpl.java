@@ -875,6 +875,9 @@ public class EnvironmentImpl implements Environment {
     private void checkIsOperative() {
         final Throwable t = throwableOnCommit;
         if (t != null) {
+            if (t instanceof EnvironmentClosedException) {
+                throw new ExodusException("Environment is inoperative", t);
+            }
             throw ExodusException.toExodusException(t, "Environment is inoperative");
         }
     }
