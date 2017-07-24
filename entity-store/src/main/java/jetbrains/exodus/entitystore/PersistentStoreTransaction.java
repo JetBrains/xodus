@@ -167,6 +167,11 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     @Override
+    public boolean isFinished() {
+        return txn.isFinished();
+    }
+
+    @Override
     public boolean commit() {
         // txn can be read-only if Environment is in read-only mode
         if (!isReadonly()) {
