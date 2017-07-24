@@ -149,7 +149,11 @@ final class MetaTree {
     }
 
     long getAllStoreCount() {
-        return tree.getSize();
+        long size = tree.getSize();
+        if (size % 2L != 0) {
+            EnvironmentImpl.loggerError("MetaTree size is not even");
+        }
+        return size / 2;
     }
 
     @NotNull
