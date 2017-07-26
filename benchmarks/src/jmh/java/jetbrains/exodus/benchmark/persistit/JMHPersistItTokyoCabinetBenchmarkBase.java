@@ -23,7 +23,6 @@ import com.persistit.logging.Slf4jAdapter;
 import java.io.IOException;
 import java.util.Properties;
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.benchmark.TokyoCabinetBenchmark;
 import org.jetbrains.annotations.NotNull;
 import org.junit.rules.TemporaryFolder;
@@ -54,9 +53,8 @@ abstract class JMHPersistItTokyoCabinetBenchmarkBase {
     void writeSuccessiveKeys(@NotNull final Exchange store) throws PersistitException {
         for (final ByteIterable key : successiveKeys) {
             exchange.clear();
-            ByteIterator it = key.iterator();
-            while (it.hasNext()) {
-                exchange.append(it.next());
+            for (int i = 0; i < key.getLength(); i++) {
+                exchange.append(key.getBytesUnsafe()[i]);
             }
             exchange.getValue().put(key.getBytesUnsafe());
             exchange.store();

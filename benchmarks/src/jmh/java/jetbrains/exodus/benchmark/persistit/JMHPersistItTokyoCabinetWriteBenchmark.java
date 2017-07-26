@@ -63,7 +63,7 @@ public class JMHPersistItTokyoCabinetWriteBenchmark extends JMHPersistItTokyoCab
         final Exchange exchange = createTestStore();
         for (final ByteIterable key : randomKeys) {
             exchange.clear();
-            for (int i = 0; i< key.getLength(); i++) {
+            for (int i = 0; i < key.getLength(); i++) {
                 exchange.append(key.getBytesUnsafe()[i]);
             }
             exchange.getValue().put(key.getBytesUnsafe());
