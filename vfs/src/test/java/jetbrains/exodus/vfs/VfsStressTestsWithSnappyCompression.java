@@ -15,9 +15,10 @@
  */
 package jetbrains.exodus.vfs;
 
+import io.airlift.compress.snappy.SnappyCompressor;
+import io.airlift.compress.snappy.SnappyDecompressor;
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
-import org.iq80.snappy.Snappy;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -29,16 +30,22 @@ public class VfsStressTestsWithSnappyCompression extends VfsStressTests {
             @NotNull
             @Override
             public ByteIterable onRead(@NotNull final ByteIterable raw) {
-                return new ArrayByteIterable(Snappy.uncompress(raw.getBytesUnsafe(), 0, raw.getLength()));
+                final int length = raw.getLength();
+                int decompressedLength = length * 3 + 500;
+                final byte[] result = new byte[decompressedLength];
+                decompressedLength = new SnappyDecompressor().decompress(
+                    raw.getBytesUnsafe(), 0, length, result, 0, decompressedLength);
+                return new ArrayByteIterable(result, decompressedLength);
             }
 
             @NotNull
             @Override
             public ByteIterable onWrite(@NotNull final ByteIterable source) {
                 final int sourceLength = source.getLength();
-                final byte[] compressed = new byte[Snappy.maxCompressedLength(sourceLength)];
-                final int compressedLength = Snappy.compress(
-                    source.getBytesUnsafe(), 0, sourceLength, compressed, 0);
+                int compressedLength = sourceLength + sourceLength / 5 + 50;
+                final byte[] compressed = new byte[compressedLength];
+                compressedLength = new SnappyCompressor().compress(
+                    source.getBytesUnsafe(), 0, sourceLength, compressed, 0, compressedLength);
                 return new ArrayByteIterable(compressed, compressedLength);
             }
         };
