@@ -88,7 +88,6 @@ abstract class JMHPersistItTokyoCabinetBenchmarkBase {
         props.setProperty("jmx", "false");
         persistit.setProperties(props);
         persistit.initialize();
-        persistit.flush();
         volume = persistit.createTemporaryVolume();
 
     }

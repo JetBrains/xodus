@@ -16,11 +16,11 @@
 package jetbrains.exodus.benchmark.persistit;
 
 import com.persistit.Exchange;
+import com.persistit.Key;
 import com.persistit.exception.PersistitException;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ByteIterator;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -54,12 +54,12 @@ public class JMHPersistItTokyoCabinetReadBenchmark extends JMHPersistItTokyoCabi
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
     public void successiveRead(final Blackhole bh) throws PersistitException {
-        final Exchange store = createTestStore();
-        store.reset();
-        while (store.hasNext()) {
-            store.next();
-            bh.consume(store.getKey().toString().length());
-            bh.consume(((byte[]) store.getValue().get()).length);
+        final Exchange exchange = createTestStore();
+        exchange.clear();
+        exchange.append(Key.BEFORE);
+        while (exchange.traverse(Key.GT, true)) {
+            bh.consume(exchange.getKey().toString().length());
+            bh.consume(((byte[]) exchange.getValue().get()).length);
         }
     }
 
@@ -69,15 +69,15 @@ public class JMHPersistItTokyoCabinetReadBenchmark extends JMHPersistItTokyoCabi
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
     public void randomRead(final Blackhole bh) throws PersistitException {
-        final Exchange store = createTestStore();
+        final Exchange exchange = createTestStore();
         for (final ByteIterable key : randomKeys) {
-            store.clear();
-            ByteIterator it = key.iterator();
-            while (it.hasNext()) {
-                store.append(it.next());
+            exchange.clear();
+            for (int i = 0; i< key.getLength(); i++) {
+                exchange.append(key.getBytesUnsafe()[i]);
             }
+            exchange.fetch();
 
-            bh.consume(((byte[]) store.getValue().get()).length);
+            bh.consume(((byte[]) exchange.getValue().get()).length);
         }
     }
 }

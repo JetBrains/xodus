@@ -20,7 +20,6 @@ import com.persistit.exception.PersistitException;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ByteIterator;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -61,15 +60,14 @@ public class JMHPersistItTokyoCabinetWriteBenchmark extends JMHPersistItTokyoCab
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
     public void randomWrite() throws PersistitException {
-        final Exchange store = createTestStore();
+        final Exchange exchange = createTestStore();
         for (final ByteIterable key : randomKeys) {
-            store.clear();
-            ByteIterator it = key.iterator();
-            while (it.hasNext()) {
-                store.append(it.next());
+            exchange.clear();
+            for (int i = 0; i< key.getLength(); i++) {
+                exchange.append(key.getBytesUnsafe()[i]);
             }
-            store.getValue().put(key.getBytesUnsafe());
-            store.store();
+            exchange.getValue().put(key.getBytesUnsafe());
+            exchange.store();
         }
         persistit.flush();
     }
