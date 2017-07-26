@@ -309,17 +309,20 @@ final class ImmutableNode extends NodeBase {
 
         @Override
         public boolean hasPrev() {
-            return index > 0;
+            final int i = index;
+            if (i == 0) return false;
+            final ChildReference node = this.node;
+            if (node == null) return true;
+            final ByteIterator it = getDataIterator((i - 1) * (childAddressLength + 1));
+            it.next();
+            return node.suffixAddress != it.nextLong(childAddressLength) || --index > 0;
         }
 
         @Override
         public ChildReference prev() {
             --index;
             itr = getDataIterator(index * (childAddressLength + 1));
-            final byte firstByte = itr.next();
-            final long suffixAddress = itr.nextLong(childAddressLength);
-            return node == null || node.suffixAddress != suffixAddress ?
-                node = new ChildReference(firstByte, suffixAddress) : prev();
+            return node = new ChildReference(itr.next(), itr.nextLong(childAddressLength));
         }
 
         @Override
@@ -340,14 +343,8 @@ final class ImmutableNode extends NodeBase {
             --index;
             final ChildReference node = this.node;
             itr = getDataIterator(index * (childAddressLength + 1));
-            final byte firstByte = itr.next();
-            final long suffixAddress = itr.nextLong(childAddressLength);
-            if (suffixAddress == node.suffixAddress) {
-                prevInPlace();
-            } else {
-                node.firstByte = firstByte;
-                node.suffixAddress = suffixAddress;
-            }
+            node.firstByte = itr.next();
+            node.suffixAddress = itr.nextLong(childAddressLength);
         }
 
         @Override

@@ -178,10 +178,6 @@ final class ChildReferenceSet implements Iterable<ChildReference> {
             return ref;
         }
 
-        public boolean hasPrev() {
-            return index > 0;
-        }
-
         public ChildReference prev() {
             ChildReference ref;
             do {
@@ -202,6 +198,10 @@ final class ChildReferenceSet implements Iterable<ChildReference> {
 
         int getIndex() {
             return index;
+        }
+
+        ChildReference referenceAt(final int index) {
+            return refs[index];
         }
     }
 }

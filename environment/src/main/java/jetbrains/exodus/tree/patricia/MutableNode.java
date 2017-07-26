@@ -424,17 +424,16 @@ class MutableNode extends NodeBase {
 
         @Override
         public boolean hasPrev() {
-            return refs.hasPrev();
+            final int index = refs.getIndex();
+            if (index == 0) return false;
+            if (refs.referenceAt(index - 1) != ref) return true;
+            refs.prev();
+            return index > 1;
         }
 
         @Override
         public ChildReference prev() {
-            final ChildReference ref = this.ref;
-            this.ref = refs.prev();
-            if (ref != null && ref == this.ref) {
-                this.ref = refs.prev();
-            }
-            return this.ref;
+            return ref = refs.prev();
         }
 
         @Override
