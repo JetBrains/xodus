@@ -73,6 +73,10 @@ subprojects {
         testCompile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.21'
     }
 
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+    }
+
     jar {
         manifest {
             attributes 'Implementation-Title': archivesBaseName, 'Implementation-Version': version
