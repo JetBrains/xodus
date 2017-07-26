@@ -75,6 +75,13 @@ public interface StoreTransaction {
     boolean isReadonly();
 
     /**
+     * @return true if the transaction is finished, committed or aborted
+     * @see #commit()
+     * @see #abort()
+     */
+    boolean isFinished();
+
+    /**
      * Tries to commits all changes and finish the {@code StoreTransaction}. If the method succeed, it returns
      * {@code true}. Use {@link #abort()} method to finish transaction ignoring changes.
      *
