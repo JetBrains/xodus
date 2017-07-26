@@ -81,7 +81,7 @@ abstract class JMHPersistItTokyoCabinetBenchmarkBase {
         props.setProperty("datapath", temporaryFolder.getRoot().getAbsolutePath());
         props.setProperty("logpath", "${datapath}/log");
         props.setProperty("logfile", "${logpath}/persistit_${timestamp}.log");
-        props.setProperty("buffer.count.8192", "10");
+        props.setProperty("buffer.count.8192", "5000");
         props.setProperty("journalpath", "${datapath}/journal");
         props.setProperty("tmpvoldir", "${datapath}");
         props.setProperty("volume.1", "${datapath}/persistit,create,pageSize:8192,initialPages:10,extensionPages:100,maximumPages:25000");
