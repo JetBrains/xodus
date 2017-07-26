@@ -385,6 +385,44 @@ public class StoreTest extends EnvironmentTestsBase {
     }
 
     @Test
+    @TestFor(issues = "XD-614")
+    public void testXD_614_by_Thorsten_Schemm() {
+        env.getEnvironmentConfig().setGcEnabled(false);
+        final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
+            @Override
+            public Store compute(@NotNull Transaction txn) {
+                return env.openStore("Whatever", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn, true);
+            }
+        });
+        Assert.assertNotNull(store);
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                store.put(txn, IntegerBinding.intToEntry(0), IntegerBinding.intToEntry(0));
+                store.put(txn, IntegerBinding.intToEntry(256), IntegerBinding.intToEntry(256));
+                store.put(txn, IntegerBinding.intToEntry(257), IntegerBinding.intToEntry(257));
+                store.put(txn, IntegerBinding.intToEntry(512), IntegerBinding.intToEntry(512));
+                store.put(txn, IntegerBinding.intToEntry(521), IntegerBinding.intToEntry(521));
+                try (Cursor cursor = store.openCursor(txn)) {
+                    Assert.assertNotNull(cursor.getSearchKey(IntegerBinding.intToEntry(256)));
+                    Assert.assertTrue(cursor.getPrev());
+                    Assert.assertEquals(0, IntegerBinding.entryToInt(cursor.getKey()));
+                }
+            }
+        });
+        env.executeInReadonlyTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                try (Cursor cursor = store.openCursor(txn)) {
+                    Assert.assertNotNull(cursor.getSearchKey(IntegerBinding.intToEntry(256)));
+                    Assert.assertTrue(cursor.getPrev());
+                    Assert.assertEquals(0, IntegerBinding.entryToInt(cursor.getKey()));
+                }
+            }
+        });
+    }
+
+    @Test
     @TestFor(issues = "XD-601")
     public void testXD_601_by_Thorsten_Schemm() {
         env.getEnvironmentConfig().setGcEnabled(false);
