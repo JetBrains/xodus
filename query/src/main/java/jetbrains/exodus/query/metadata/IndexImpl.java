@@ -21,7 +21,7 @@ public class IndexImpl implements Index {
 
     private List<IndexField> fields;
 
-    private String ownerEnityType;
+    private String ownerEntityType;
 
     public void setFields(List<IndexField> fields) {
         this.fields = fields;
@@ -34,11 +34,11 @@ public class IndexImpl implements Index {
 
     @Override
     public String getOwnerEntityType() {
-        return ownerEnityType;
+        return ownerEntityType;
     }
 
-    public void setOwnerEnityType(String ownerEnityType) {
-        this.ownerEnityType = ownerEnityType;
+    public void setOwnerEntityType(String ownerEntityType) {
+        this.ownerEntityType = ownerEntityType;
     }
 
     @Override
