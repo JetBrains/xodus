@@ -35,9 +35,9 @@ public class MetaDataAwareUniqueKeyIndicesEngine extends UniqueKeyIndicesEngine 
     @Override
     protected Set<String> getEntityTypesToIndex(@NotNull Index index) {
         Set<String> res = new HashSet<>();
-        final String enityType = index.getOwnerEntityType();
-        res.add(enityType);
-        res.addAll(modelMetaData.getEntityMetaData(enityType).getAllSubTypes());
+        final String entityType = index.getOwnerEntityType();
+        res.add(entityType);
+        res.addAll(modelMetaData.getEntityMetaData(entityType).getAllSubTypes());
         return res;
     }
 }

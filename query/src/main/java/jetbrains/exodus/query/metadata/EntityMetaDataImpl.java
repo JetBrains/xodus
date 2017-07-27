@@ -369,8 +369,8 @@ public class EntityMetaDataImpl implements EntityMetaData {
                     // add indexes of super types
                     for (String t : getThisAndSuperTypes()) {
                         for (Index index : getEntityMetaData(t).getOwnIndexes()) {
-                            final String enityType = index.getOwnerEntityType();
-                            for (String st : getEntityMetaData(enityType).getThisAndSuperTypes()) {
+                            final String entityType = index.getOwnerEntityType();
+                            for (String st : getEntityMetaData(entityType).getThisAndSuperTypes()) {
                                 result.addAll(getEntityMetaData(st).getOwnIndexes());
                             }
                         }
