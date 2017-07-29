@@ -116,7 +116,7 @@ final class ImmutableNode extends NodeBase {
             public NodeChildrenIterator iterator() {
                 return childrenCount == (short) 0 ?
                     new EmptyNodeChildrenIterator() :
-                    new ImmutableNodeChildrenIterator(getDataIterator(0), 0, null);
+                    new ImmutableNodeChildrenIterator(getDataIterator(0), -1, null);
             }
         };
     }
@@ -137,7 +137,7 @@ final class ImmutableNode extends NodeBase {
                 high = mid - 1;
             } else {
                 final long suffixAddress = it.nextLong(childAddressLength);
-                return new ImmutableNodeChildrenIterator(it, mid + 1, new ChildReference(b, suffixAddress));
+                return new ImmutableNodeChildrenIterator(it, mid, new ChildReference(b, suffixAddress));
             }
         }
         return getChildrenUsingLinearSearch(b, low, high + 1);
@@ -155,7 +155,7 @@ final class ImmutableNode extends NodeBase {
                 int cmp = (actual & 0xff) - key;
                 if (cmp > 0) {
                     final long suffixAddress = it.nextLong(childAddressLength);
-                    return new ImmutableNodeChildrenIterator(it, i + 1, new ChildReference(actual, suffixAddress));
+                    return new ImmutableNodeChildrenIterator(it, i, new ChildReference(actual, suffixAddress));
                 }
                 it.skip(childAddressLength);
             }
@@ -181,7 +181,7 @@ final class ImmutableNode extends NodeBase {
             }
             if (result != null) {
                 final long suffixAddress = result.nextLong(childAddressLength);
-                return new ImmutableNodeChildrenIterator(result, high + 1, new ChildReference(resultByte, suffixAddress));
+                return new ImmutableNodeChildrenIterator(result, high, new ChildReference(resultByte, suffixAddress));
             }
         }
         return new EmptyNodeChildrenIterator();
@@ -237,7 +237,7 @@ final class ImmutableNode extends NodeBase {
             }
             if (cmp == 0) {
                 final long suffixAddress = it.nextLong(childAddressLength);
-                return new ImmutableNodeChildrenIterator(it, i + 1, new ChildReference(b, suffixAddress));
+                return new ImmutableNodeChildrenIterator(it, i, new ChildReference(b, suffixAddress));
             }
             break;
         }
@@ -298,7 +298,7 @@ final class ImmutableNode extends NodeBase {
 
         @Override
         public boolean hasNext() {
-            return index < childrenCount;
+            return index < childrenCount - 1;
         }
 
         @Override
@@ -309,13 +309,7 @@ final class ImmutableNode extends NodeBase {
 
         @Override
         public boolean hasPrev() {
-            final int i = index;
-            if (i == 0) return false;
-            final ChildReference node = this.node;
-            if (node == null) return true;
-            final ByteIterator it = getDataIterator((i - 1) * (childAddressLength + 1));
-            it.next();
-            return node.suffixAddress != it.nextLong(childAddressLength) || --index > 0;
+            return index > 0;
         }
 
         @Override

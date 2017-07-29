@@ -34,7 +34,7 @@ final class PatriciaReclaimActualTraverser extends PatriciaTraverser {
         final NodeChildrenIterator topItr = stack[top];
         final NodeBase parentNode = topItr.getParentNode();
         if (currentNode.isMutable()) {
-            final int pos = topItr.getIndex() - 1;
+            final int pos = topItr.getIndex();
             final MutableNode parentNodeMutable = parentNode.getMutableCopy(mainTree);
             parentNodeMutable.setChild(pos, (MutableNode) currentNode);
             currentNode = parentNodeMutable;

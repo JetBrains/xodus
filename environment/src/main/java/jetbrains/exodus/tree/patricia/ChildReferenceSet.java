@@ -16,6 +16,7 @@
 package jetbrains.exodus.tree.patricia;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Iterator;
 
@@ -121,7 +122,7 @@ final class ChildReferenceSet implements Iterable<ChildReference> {
 
     @Override
     public ChildReferenceIterator iterator() {
-        return iterator(0);
+        return iterator(-1);
     }
 
     ChildReferenceIterator iterator(final int index) {
@@ -161,33 +162,33 @@ final class ChildReferenceSet implements Iterable<ChildReference> {
 
         @Override
         public boolean hasNext() {
-            return index < size;
+            return index < size - 1;
         }
 
         @Override
         public ChildReference next() {
             ChildReference ref;
+            int i = index;
             do {
-                if (index >= size) {
+                if (++i >= size) {
                     return null;
                 }
-                ref = refs[index];
-                ++index;
+                ref = refs[i];
             } while (ref == null);
-
+            index = i;
             return ref;
         }
 
         public ChildReference prev() {
             ChildReference ref;
+            int i = index;
             do {
-                if (index <= 0) {
+                if (--i < 0) {
                     return null;
                 }
-                --index;
-                ref = refs[index];
+                ref = refs[i];
             } while (ref == null);
-
+            index = i;
             return ref;
         }
 
@@ -200,8 +201,10 @@ final class ChildReferenceSet implements Iterable<ChildReference> {
             return index;
         }
 
-        ChildReference referenceAt(final int index) {
-            return refs[index];
+        @Nullable
+        ChildReference currentRef() {
+            final int i = this.index;
+            return i >= 0 && i < size ? refs[i] : null;
         }
     }
 }

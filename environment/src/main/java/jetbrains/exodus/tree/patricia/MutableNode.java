@@ -408,7 +408,7 @@ class MutableNode extends NodeBase {
                                             @NotNull final ChildReferenceSet.ChildReferenceIterator refs) {
             this.node = node;
             this.refs = refs;
-            ref = refs.next();
+            ref = refs.currentRef();
             this.key = node.keySequence;
         }
 
@@ -424,11 +424,7 @@ class MutableNode extends NodeBase {
 
         @Override
         public boolean hasPrev() {
-            final int index = refs.getIndex();
-            if (index == 0) return false;
-            if (refs.referenceAt(index - 1) != ref) return true;
-            refs.prev();
-            return index > 1;
+            return refs.getIndex() > 0;
         }
 
         @Override
