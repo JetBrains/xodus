@@ -423,6 +423,48 @@ public class StoreTest extends EnvironmentTestsBase {
     }
 
     @Test
+    @TestFor(issues = "XD-614")
+    public void testXD_614_next_prev() {
+        env.getEnvironmentConfig().setGcEnabled(false);
+        final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
+            @Override
+            public Store compute(@NotNull Transaction txn) {
+                return env.openStore("Whatever", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn, true);
+            }
+        });
+        Assert.assertNotNull(store);
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                for (int i = 0; i < 512; ++i) {
+                    store.put(txn, IntegerBinding.intToEntry(i), IntegerBinding.intToEntry(i));
+                }
+                try (Cursor cursor = store.openCursor(txn)) {
+                    for (int i = 0; i < 511; ++i) {
+                        Assert.assertTrue(cursor.getNext());
+                        Assert.assertEquals(i, IntegerBinding.entryToInt(cursor.getKey()));
+                        Assert.assertTrue(cursor.getNext());
+                        Assert.assertTrue(cursor.getPrev());
+                    }
+                }
+            }
+        });
+        env.executeInReadonlyTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                try (Cursor cursor = store.openCursor(txn)) {
+                    for (int i = 0; i < 511; ++i) {
+                        Assert.assertTrue(cursor.getNext());
+                        Assert.assertEquals(i, IntegerBinding.entryToInt(cursor.getKey()));
+                        Assert.assertTrue(cursor.getNext());
+                        Assert.assertTrue(cursor.getPrev());
+                    }
+                }
+            }
+        });
+    }
+
+    @Test
     @TestFor(issues = "XD-601")
     public void testXD_601_by_Thorsten_Schemm() {
         env.getEnvironmentConfig().setGcEnabled(false);
