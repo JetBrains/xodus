@@ -17,6 +17,7 @@ package jetbrains.exodus.tree;
 
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.TestFor;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.env.Cursor;
 import jetbrains.exodus.util.Random;
@@ -450,6 +451,29 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
             }
         }
         testCursorOrder(new TreeSet<>(keys));
+    }
+
+    @Test
+    @TestFor(issues = "XD-614")
+    public void failingGetNextAndGetPrevDontInvalidateKeyValue() {
+        tm = createMutableTree(false, 1);
+        tm.put(kv("0", "0"));
+        try (Cursor cursor = tm.openCursor()) {
+            Assert.assertTrue(cursor.getNext());
+            Assert.assertEquals(key("0"), cursor.getKey());
+            Assert.assertEquals(key("0"), cursor.getValue());
+            Assert.assertFalse(cursor.getNext());
+            Assert.assertEquals(key("0"), cursor.getKey());
+            Assert.assertEquals(key("0"), cursor.getValue());
+        }
+        try (Cursor cursor = tm.openCursor()) {
+            Assert.assertTrue(cursor.getPrev());
+            Assert.assertEquals(key("0"), cursor.getKey());
+            Assert.assertEquals(key("0"), cursor.getValue());
+            Assert.assertFalse(cursor.getPrev());
+            Assert.assertEquals(key("0"), cursor.getKey());
+            Assert.assertEquals(key("0"), cursor.getValue());
+        }
     }
 
     private void testCursorOrder(final TreeSet<String> keys) {
