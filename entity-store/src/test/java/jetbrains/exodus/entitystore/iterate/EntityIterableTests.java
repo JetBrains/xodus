@@ -447,6 +447,19 @@ public class EntityIterableTests extends EntityStoreTestBase {
         Assert.assertEquals(1L, users.getRoughSize());
     }
 
+    public void testSingleEntityIterable2() {
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        final int count = 1;
+        createNUsers(txn, count);
+        txn.flush();
+        EntityIterable users = txn.getSingletonIterable(txn.getAll("User").getFirst());
+        users = users.union(users);
+        Assert.assertFalse(((EntityIterableBase) users).canBeCached());
+        Assert.assertEquals(-1L, users.getRoughCount());
+        getEntityStore().getAsyncProcessor().waitForJobs(100);
+        Assert.assertEquals(1L, users.getRoughCount());
+    }
+
     @TestFor(issues = "XD-502")
     public void testFindWithPropSortedCount() {
         final PersistentStoreTransaction txn = getStoreTransaction();
