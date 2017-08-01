@@ -475,7 +475,13 @@ public abstract class EntityIterableBase implements EntityIterable {
         return ((EntityIterableBase) entities).store == null ? EMPTY : new FilterLinksIterable(txn, linkId, this, entities);
     }
 
+    @NotNull
     public final CachedInstanceIterable getOrCreateCachedInstance(@NotNull final PersistentStoreTransaction txn) {
+        return getOrCreateCachedInstance(txn, false);
+    }
+
+    @NotNull
+    public final CachedInstanceIterable getOrCreateCachedInstance(@NotNull PersistentStoreTransaction txn, boolean forceCount) {
         if (store == null) {
             throw new NullPointerException("Can't create cached instance for EMPTY iterable");
         }
@@ -495,6 +501,8 @@ public abstract class EntityIterableBase implements EntityIterable {
             } else {
                 store.getEntityIterableCache().setCachedCount(getHandle(), cached.size());
             }
+        } else if (forceCount) {
+            store.getEntityIterableCache().setCachedCount(getHandle(), cached.size());
         }
         return cached;
     }

@@ -229,9 +229,9 @@ public final class EntityIterableCache {
                     txn.setQueryCancellingPolicy(cancellingPolicy);
                     try {
                         if (!logger.isInfoEnabled()) {
-                            it.getOrCreateCachedInstance(txn);
+                            it.getOrCreateCachedInstance(txn, !cancellingPolicy.isConsistent);
                         } else {
-                            it.getOrCreateCachedInstance(txn);
+                            it.getOrCreateCachedInstance(txn, !cancellingPolicy.isConsistent);
                             final long cachedIn = System.currentTimeMillis() - started;
                             if (cachedIn > 1000) {
                                 String action = cancellingPolicy.isConsistent ? "Cached" : "Cached (inconsistent)";
