@@ -39,6 +39,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static jetbrains.exodus.env.EnvironmentStatistics.Type.*;
 
@@ -65,7 +66,8 @@ public class EnvironmentImpl implements Environment {
     private final EnvironmentSettingsListener envSettingsListener;
     private final GarbageCollector gc;
     private final Object commitLock = new Object();
-    private final Object metaLock = new Object();
+    private final ReentrantReadWriteLock.ReadLock metaReadLock;
+    private final ReentrantReadWriteLock.WriteLock metaWriteLock;
     private final ReentrantTransactionDispatcher txnDispatcher;
     private final ReentrantTransactionDispatcher roTxnDispatcher;
     @NotNull
@@ -102,6 +104,10 @@ public class EnvironmentImpl implements Environment {
         ec.addChangedSettingsListener(envSettingsListener);
 
         gc = new GarbageCollector(this);
+
+        ReentrantReadWriteLock metaLock = new ReentrantReadWriteLock();
+        metaReadLock = metaLock.readLock();
+        metaWriteLock = metaLock.writeLock();
 
         txnDispatcher = new ReentrantTransactionDispatcher(ec.getEnvMaxParallelTxns());
         roTxnDispatcher = new ReentrantTransactionDispatcher(ec.getEnvMaxParallelReadonlyTxns());
@@ -301,7 +307,8 @@ public class EnvironmentImpl implements Environment {
                 final int roPermits = roTxnDispatcher.acquireExclusiveTransaction(currentThread);// wait for and stop all read-only transactions
                 try {
                     synchronized (commitLock) {
-                        synchronized (metaLock) {
+                        metaWriteLock.lock();
+                        try {
                             gc.clear();
                             log.clear();
                             invalidateStoreGetCache();
@@ -309,6 +316,8 @@ public class EnvironmentImpl implements Environment {
                             final Pair<MetaTree, Integer> meta = MetaTree.create(this);
                             metaTree = meta.getFirst();
                             structureId.set(meta.getSecond());
+                        } finally {
+                            metaWriteLock.unlock();
                         }
                     }
                 } finally {
@@ -415,8 +424,11 @@ public class EnvironmentImpl implements Environment {
     }
 
     public long getAllStoreCount() {
-        synchronized (metaLock) {
+        metaReadLock.lock();
+        try {
             return metaTree.getAllStoreCount();
+        } finally {
+            metaReadLock.unlock();
         }
     }
 
@@ -590,9 +602,12 @@ public class EnvironmentImpl implements Environment {
                     // but it's quite difficult to resolve all possible inconsistencies afterwards,
                     // so think twice before removing the following line
                     log.flush();
-                    synchronized (metaLock) {
+                    metaWriteLock.lock();
+                    try {
                         txn.setMetaTree(metaTree = tree[0]);
                         txn.executeCommitHook();
+                    } finally {
+                        metaWriteLock.unlock();
                     }
                     resultingHighAddress = log.approveHighAddress();
                 } catch (Throwable t) { // pokemon exception handling to decrease try/catch block overhead
@@ -632,11 +647,14 @@ public class EnvironmentImpl implements Environment {
             acquireTransaction(txn);
         }
         final Runnable beginHook = txn.getBeginHook();
-        synchronized (metaLock) {
+        metaReadLock.lock();
+        try {
             if (beginHook != null) {
                 beginHook.run();
             }
             return metaTree;
+        } finally {
+            metaReadLock.unlock();
         }
     }
 
@@ -772,8 +790,11 @@ public class EnvironmentImpl implements Environment {
         synchronized (commitLock) {
             log.setHighAddress(highAddress);
             final Pair<MetaTree, Integer> meta = MetaTree.create(this);
-            synchronized (metaLock) {
+            metaWriteLock.lock();
+            try {
                 metaTree = meta.getFirst();
+            } finally {
+                metaWriteLock.unlock();
             }
         }
     }
