@@ -20,11 +20,15 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.TestFor;
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.bindings.ComparableSet;
+import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.util.ByteArraySizedInputStream;
+import jetbrains.exodus.util.DeferredIO;
 import jetbrains.exodus.util.LightByteArrayOutputStream;
 import jetbrains.exodus.util.UTFUtil;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
+import org.junit.Ignore;
+import org.junit.Test;
 
 import java.io.*;
 import java.net.URL;
@@ -36,9 +40,10 @@ public class EntityTests extends EntityStoreTestBase {
     @Override
     protected String[] casesThatDontNeedExplicitTxn() {
         return new String[]{"testConcurrentCreationTypeIdsAreOk",
-                "testConcurrentSerializableChanges",
-                "testEntityStoreClear",
-                "testEntityStoreClear2"};
+            "testConcurrentSerializableChanges",
+            "testEntityStoreClear",
+            "testEntityStoreClear2",
+            "testGettingPhantomLink"};
     }
 
     public void testCreateSingleEntity() throws Exception {
@@ -869,6 +874,55 @@ public class EntityTests extends EntityStoreTestBase {
             @Override
             public void execute(@NotNull StoreTransaction txn) {
                 assertNull(store.getBlobVault().getContent(0, ((PersistentStoreTransaction) txn).getEnvironmentTransaction()));
+            }
+        });
+    }
+
+    @Test
+    @Ignore
+    public void createPhantomLink() {
+        final PersistentEntityStoreImpl store = getEntityStore();
+        final Entity issue = store.computeInTransaction(new StoreTransactionalComputable<Entity>() {
+            @Override
+            public Entity compute(@NotNull StoreTransaction txn) {
+                return txn.newEntity("Issue");
+            }
+        });
+        final Entity comment = store.computeInTransaction(new StoreTransactionalComputable<Entity>() {
+            @Override
+            public Entity compute(@NotNull StoreTransaction txn) {
+                return txn.newEntity("Comment");
+            }
+        });
+        DeferredIO.getJobProcessor().queueIn(new Job() {
+            @Override
+            protected void execute() throws Throwable {
+                store.executeInTransaction(new StoreTransactionalExecutable() {
+                    @Override
+                    public void execute(@NotNull StoreTransaction txn) {
+                        comment.delete();
+                    }
+                });
+            }
+        }, 2000);
+        final int[] i = {0};
+        store.executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                try {
+                    Thread.sleep(3000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                issue.setLink("comment", comment);
+                ++i[0];
+            }
+        });
+        Assert.assertEquals(2, i[0]);
+        store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                Assert.assertNull(issue.getLink("comment"));
             }
         });
     }
