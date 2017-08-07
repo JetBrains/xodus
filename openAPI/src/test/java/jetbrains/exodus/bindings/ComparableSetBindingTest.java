@@ -93,4 +93,13 @@ public class ComparableSetBindingTest {
         Assert.assertTrue(copy.removeItem(0));
         Assert.assertNotEquals(set, copy);
     }
+
+    @Test
+    public void testCaseInsensitive() {
+        final ComparableSet<String> set1 = new ComparableSet<>();
+        set1.addItem("xodus");
+        final ComparableSet<String> set2 = new ComparableSet<>();
+        set2.addItem("Xodus");
+        Assert.assertEquals(0, set1.compareTo(set2));
+    }
 }

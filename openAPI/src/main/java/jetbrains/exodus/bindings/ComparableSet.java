@@ -18,6 +18,7 @@ package jetbrains.exodus.bindings;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.NavigableSet;
 import java.util.TreeSet;
@@ -26,15 +27,18 @@ public class ComparableSet<T extends Comparable<T>> implements Comparable<Compar
 
     @NotNull
     private final NavigableSet<T> set;
+    private final ComparableSetItemComparator<T> comparator;
     private boolean isDirty;
 
     public ComparableSet() {
-        this.set = new TreeSet<>();
+        comparator = new ComparableSetItemComparator<>();
+        this.set = new TreeSet<>(comparator);
         isDirty = false;
     }
 
     public ComparableSet(@NotNull final Iterable<T> it) {
-        this.set = new TreeSet<>();
+        comparator = new ComparableSetItemComparator<>();
+        this.set = new TreeSet<>(comparator);
         for (final T item : it) {
             set.add(item);
         }
@@ -43,11 +47,21 @@ public class ComparableSet<T extends Comparable<T>> implements Comparable<Compar
 
     @Override
     public int compareTo(@NotNull final ComparableSet<T> right) {
-        //noinspection ConstantConditions
-        if (isEmpty() || !getItemClass().equals(String.class)) {
-            return caseSensitiveCompareTo(right);
+        final Iterator<T> thisIt = set.iterator();
+        final Iterator<T> rightIt = right.set.iterator();
+        while (thisIt.hasNext() && rightIt.hasNext()) {
+            final int cmp = comparator.compare(thisIt.next(), rightIt.next());
+            if (cmp != 0) {
+                return cmp;
+            }
         }
-        return caseInsensitiveCompareTo(right);
+        if (thisIt.hasNext()) {
+            return 1;
+        }
+        if (rightIt.hasNext()) {
+            return -1;
+        }
+        return 0;
     }
 
     public T getMinimum() {
@@ -146,45 +160,18 @@ public class ComparableSet<T extends Comparable<T>> implements Comparable<Compar
         return set.iterator();
     }
 
-    private int caseSensitiveCompareTo(@NotNull ComparableSet<T> right) {
-        final Iterator<T> thisIt = set.iterator();
-        final Iterator<T> rightIt = right.set.iterator();
-        while (thisIt.hasNext() && rightIt.hasNext()) {
-            final int cmp = thisIt.next().compareTo(rightIt.next());
-            if (cmp != 0) {
-                return cmp;
-            }
-        }
-        if (thisIt.hasNext()) {
-            return 1;
-        }
-        if (rightIt.hasNext()) {
-            return -1;
-        }
-        return 0;
-    }
-
-    @SuppressWarnings("unchecked")
-    private int caseInsensitiveCompareTo(@NotNull ComparableSet<T> right) {
-        final Iterator<String> thisIt = (Iterator<String>) set.iterator();
-        final Iterator<String> rightIt = (Iterator<String>) right.set.iterator();
-        while (thisIt.hasNext() && rightIt.hasNext()) {
-            final int cmp = thisIt.next().compareToIgnoreCase(rightIt.next());
-            if (cmp != 0) {
-                return cmp;
-            }
-        }
-        if (thisIt.hasNext()) {
-            return 1;
-        }
-        if (rightIt.hasNext()) {
-            return -1;
-        }
-        return 0;
-    }
-
     public interface Consumer<T extends Comparable<T>> {
 
         void accept(@NotNull final T item, final int index);
+    }
+
+    private static class ComparableSetItemComparator<T extends Comparable<T>> implements Comparator<T> {
+        @Override
+        public int compare(@NotNull final T o1, @NotNull final T o2) {
+            if (o1 instanceof String && o2 instanceof String) {
+                return ((String) o1).compareToIgnoreCase((String) o2);
+            }
+            return o1.compareTo(o2);
+        }
     }
 }
