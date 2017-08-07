@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.bindings.ComparableBinding;
+import jetbrains.exodus.bindings.ComparableSet;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.tables.PropertyTypes;
@@ -130,6 +131,9 @@ public final class PropertyValueIterable extends PropertyRangeOrValueIterableBas
             private boolean isValueMatched(Comparable value) {
                 if (value == null) {
                     return false;
+                }
+                if (value instanceof ComparableSet) {
+                    return ((ComparableSet) value).containsItem(PropertyValueIterable.this.value);
                 }
                 value = PropertyTypes.toLowerCase(value);
                 return value.compareTo(PropertyValueIterable.this.value) == 0;
