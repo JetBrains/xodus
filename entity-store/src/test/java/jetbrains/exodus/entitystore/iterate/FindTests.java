@@ -580,4 +580,21 @@ public class FindTests extends EntityStoreTestBase {
         issue.setProperty("summary", "summary");
         Assert.assertEquals(1L, txn.findStartingWith("Issue", "summary", "summary").size());
     }
+
+    @TestFor(issues = "XD-618")
+    public void testInvalidateComparableSetPropertyIterables() {
+        testFindComparableSetCaseInsensitive();
+
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException ignore) {
+        }
+
+        final StoreTransaction txn = getStoreTransaction();
+        final Entity issue = txn.getAll("Issue").getFirst();
+        final ComparableSet<String> set = (ComparableSet<String>) issue.getProperty("commenters");
+        set.addItem("bot");
+
+        issue.setProperty("commenters", set);
+    }
 }
