@@ -42,11 +42,11 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
                     long min = Long.parseLong((String) parameters[2]);
                     long max = Long.parseLong((String) parameters[3]);
                     return new PropertyRangeIterable(txn,
-                            Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]), min, max);
+                        Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]), min, max);
                 } catch (NumberFormatException e) {
                     return new PropertyRangeIterable(txn,
-                            Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]),
-                            (Comparable) parameters[2], (Comparable) parameters[3]);
+                        Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]),
+                        (Comparable) parameters[2], (Comparable) parameters[3]);
                 }
             }
         });
@@ -144,7 +144,7 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
                     final ComparableSet set = (ComparableSet) value;
                     // not null set should be non-empty
                     return isRangeAffectedByPrimitiveValue(set.getMinimum()) ||
-                            isRangeAffectedByPrimitiveValue(set.getMaximum());
+                        isRangeAffectedByPrimitiveValue(set.getMaximum());
                 }
                 return isRangeAffectedByPrimitiveValue(value);
             }
@@ -171,10 +171,7 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
             final ComparableBinding binding = propertyValue.getBinding();
             long result = 0;
             boolean success = cursor.getSearchKeyRange(propertyValue.dataToEntry()) != null;
-            while (success) {
-                if (max.compareTo(binding.entryToObject(cursor.getKey())) < 0) {
-                    break;
-                }
+            while (success && max.compareTo(binding.entryToObject(cursor.getKey())) >= 0) {
                 result += cursor.count();
                 success = cursor.getNextNoDup();
             }
