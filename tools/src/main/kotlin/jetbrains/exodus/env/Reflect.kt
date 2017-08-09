@@ -329,18 +329,23 @@ internal class Reflect(directory: File) {
                 var storeIsBroken: Throwable? = null
                 try {
                     newEnv.executeInExclusiveTransaction { targetTxn ->
-                        env.executeInReadonlyTransaction { sourceTxn ->
-                            val sourceStore = env.openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
-                            config = sourceStore.config
-                            val targetStore = newEnv.openStore(name, config, targetTxn)
-                            storeSize = sourceStore.count(sourceTxn)
-                            sourceStore.openCursor(sourceTxn).forEach {
-                                targetStore.putRight(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))
-                                if (guard.isItCloseToOOM()) {
-                                    targetTxn.flush()
-                                    guard.reset()
+                        try {
+                            env.executeInReadonlyTransaction { sourceTxn ->
+                                val sourceStore = env.openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
+                                config = sourceStore.config
+                                val targetStore = newEnv.openStore(name, config, targetTxn)
+                                storeSize = sourceStore.count(sourceTxn)
+                                sourceStore.openCursor(sourceTxn).forEach {
+                                    targetStore.putRight(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))
+                                    if (guard.isItCloseToOOM()) {
+                                        targetTxn.flush()
+                                        guard.reset()
+                                    }
                                 }
                             }
+                        } catch (t: Throwable) {
+                            targetTxn.flush()
+                            throw t
                         }
                     }
                 } catch (t: Throwable) {
@@ -353,18 +358,23 @@ internal class Reflect(directory: File) {
                 if (storeIsBroken != null) {
                     try {
                         newEnv.executeInExclusiveTransaction { targetTxn ->
-                            env.executeInReadonlyTransaction { sourceTxn ->
-                                val sourceStore = env.openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
-                                config = sourceStore.config
-                                val targetStore = newEnv.openStore(name, config, targetTxn)
-                                storeSize = sourceStore.count(sourceTxn)
-                                sourceStore.openCursor(sourceTxn).forEachReversed {
-                                    targetStore.put(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))
-                                    if (guard.isItCloseToOOM()) {
-                                        targetTxn.flush()
-                                        guard.reset()
+                            try {
+                                env.executeInReadonlyTransaction { sourceTxn ->
+                                    val sourceStore = env.openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
+                                    config = sourceStore.config
+                                    val targetStore = newEnv.openStore(name, config, targetTxn)
+                                    storeSize = sourceStore.count(sourceTxn)
+                                    sourceStore.openCursor(sourceTxn).forEachReversed {
+                                        targetStore.put(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))
+                                        if (guard.isItCloseToOOM()) {
+                                            targetTxn.flush()
+                                            guard.reset()
+                                        }
                                     }
                                 }
+                            } catch (t: Throwable) {
+                                targetTxn.flush()
+                                throw t
                             }
                         }
                     } catch (t: Throwable) {
