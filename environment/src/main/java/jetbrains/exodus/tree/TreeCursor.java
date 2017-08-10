@@ -25,24 +25,28 @@ import org.jetbrains.annotations.Nullable;
 public class TreeCursor implements ITreeCursor {
 
     @NotNull
-    protected final TreeTraverser traverser;
+    final TreeTraverser traverser;
+    protected boolean canGoDown;
+    boolean alreadyIn;
+    boolean inited;
+    private ByteIterable cachedKey;
+    private ByteIterable cachedValue;
 
-    protected boolean canGoDown = true;
-    protected boolean alreadyIn;
-    protected boolean inited = false;
-
-    public TreeCursor(TreeTraverser traverser) {
-        this.traverser = traverser;
-        alreadyIn = false;
+    public TreeCursor(@NotNull final TreeTraverser traverser) {
+        this(traverser, false);
     }
 
-    public TreeCursor(TreeTraverser traverser, boolean alreadyIn) {
+    public TreeCursor(@NotNull final TreeTraverser traverser, boolean alreadyIn) {
         this.traverser = traverser;
         this.alreadyIn = alreadyIn;
+        canGoDown = true;
+        inited = false;
+        cachedKey = cachedValue = null;
     }
 
     protected boolean hasNext() {
         if (inited) {
+            invalidateCachedKeyValuePair();
             return traverser.canMoveRight() || advance();
         }
         return traverser.isNotEmpty();
@@ -50,6 +54,7 @@ public class TreeCursor implements ITreeCursor {
 
     protected boolean hasPrev() {
         if (inited) {
+            invalidateCachedKeyValuePair();
             return traverser.canMoveLeft() || retreat();
         }
         return traverser.isNotEmpty();
@@ -63,12 +68,14 @@ public class TreeCursor implements ITreeCursor {
         }
         if (alreadyIn) {
             alreadyIn = false;
+            invalidateCachedKeyValuePair();
             return true;
         }
         while (true) {
             if (canGoDown) {
                 if (traverser.canMoveDown()) {
                     if (traverser.moveDown().hasValue()) {
+                        invalidateCachedKeyValuePair();
                         return true;
                     }
                     continue;
@@ -79,6 +86,7 @@ public class TreeCursor implements ITreeCursor {
             if (traverser.canMoveRight()) {
                 final INode node = traverser.moveRight();
                 if (!traverser.canMoveDown() && node.hasValue()) {
+                    invalidateCachedKeyValuePair();
                     return true;
                 }
             } else if (!advance()) {
@@ -96,12 +104,14 @@ public class TreeCursor implements ITreeCursor {
         }
         if (alreadyIn) {
             alreadyIn = false;
+            invalidateCachedKeyValuePair();
             return true;
         }
         while (true) {
             if (canGoDown) {
                 if (traverser.canMoveDown()) {
                     if (traverser.moveDownToLast().hasValue()) {
+                        invalidateCachedKeyValuePair();
                         return true;
                     }
                     continue;
@@ -112,6 +122,7 @@ public class TreeCursor implements ITreeCursor {
             if (traverser.canMoveLeft()) {
                 final INode node = traverser.moveLeft();
                 if (!traverser.canMoveDown() && node.hasValue()) {
+                    invalidateCachedKeyValuePair();
                     return true;
                 }
             } else if (!retreat()) {
@@ -121,7 +132,7 @@ public class TreeCursor implements ITreeCursor {
         return false;
     }
 
-    protected boolean advance() {
+    private boolean advance() {
         while (traverser.canMoveUp()) {
             if (traverser.canMoveRight()) {
                 return true;
@@ -134,7 +145,7 @@ public class TreeCursor implements ITreeCursor {
         return traverser.canMoveRight();
     }
 
-    protected boolean retreat() {
+    private boolean retreat() {
         while (traverser.canMoveUp()) {
             if (traverser.canMoveLeft()) {
                 return true;
@@ -149,6 +160,7 @@ public class TreeCursor implements ITreeCursor {
 
     @Override
     public boolean getLast() {
+        invalidateCachedKeyValuePair();
         // move up to root
         while (traverser.canMoveUp()) {
             traverser.moveUp();
@@ -162,13 +174,13 @@ public class TreeCursor implements ITreeCursor {
     @Override
     @NotNull
     public ByteIterable getKey() {
-        return traverser.getKey();
+        return cachedKey == null ? cachedKey = traverser.getKey() : cachedKey;
     }
 
     @Override
     @NotNull
     public ByteIterable getValue() {
-        return traverser.getValue();
+        return cachedValue == null ? cachedValue = traverser.getValue() : cachedValue;
     }
 
     @Override
@@ -219,7 +231,7 @@ public class TreeCursor implements ITreeCursor {
 
     @Override
     public void close() {
-        // do nothing
+        invalidateCachedKeyValuePair();
     }
 
     @Override
@@ -239,6 +251,7 @@ public class TreeCursor implements ITreeCursor {
 
     @Nullable
     protected ByteIterable moveTo(@NotNull ByteIterable key, @Nullable ByteIterable value, boolean rangeSearch) {
+        invalidateCachedKeyValuePair();
         if (rangeSearch ? traverser.moveToRange(key, value) : traverser.moveTo(key, value)) {
             canGoDown = true;
             alreadyIn = false;
@@ -249,4 +262,7 @@ public class TreeCursor implements ITreeCursor {
         return null;
     }
 
+    void invalidateCachedKeyValuePair() {
+        cachedKey = cachedValue = null;
+    }
 }
