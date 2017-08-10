@@ -476,6 +476,32 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
         }
     }
 
+    @Test
+    @TestFor(issues = "XD-619")
+    public void failingGetNextAndGetPrevDontInvalidateKeyValue2() {
+        tm = createMutableTree(false, 1);
+        final int treeSize = 10000;
+        for (int i = 0; i < treeSize; ++i) {
+            tm.put(kv(i, Integer.toString(i)));
+        }
+        try (Cursor cursor = tm.openCursor()) {
+            ByteIterable key = null;
+            while (cursor.getNext()) {
+                key = cursor.getKey();
+            }
+            Assert.assertEquals(key(treeSize - 1), key);
+            Assert.assertEquals(key(treeSize - 1), cursor.getKey());
+        }
+        try (Cursor cursor = tm.openCursor()) {
+            ByteIterable key = null;
+            while (cursor.getPrev()) {
+                key = cursor.getKey();
+            }
+            Assert.assertEquals(key(0), key);
+            Assert.assertEquals(key(0), cursor.getKey());
+        }
+    }
+
     private void testCursorOrder(final TreeSet<String> keys) {
         final ITreeCursor cursor = tm.openCursor();
         for (final String key : keys) {
