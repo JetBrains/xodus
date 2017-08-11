@@ -27,8 +27,6 @@ import jetbrains.exodus.util.LightByteArrayOutputStream;
 import jetbrains.exodus.util.UTFUtil;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
-import org.junit.Ignore;
-import org.junit.Test;
 
 import java.io.*;
 import java.net.URL;
@@ -43,7 +41,9 @@ public class EntityTests extends EntityStoreTestBase {
             "testConcurrentSerializableChanges",
             "testEntityStoreClear",
             "testEntityStoreClear2",
-            "testGettingPhantomLink"};
+            "testSetPhantomLink",
+            "testAddPhantomLink"
+        };
     }
 
     public void testCreateSingleEntity() throws Exception {
@@ -878,9 +878,15 @@ public class EntityTests extends EntityStoreTestBase {
         });
     }
 
-    @Test
-    @Ignore
-    public void createPhantomLink() {
+    public void testSetPhantomLink() {
+        setOrAddPhantomLink(false);
+    }
+
+    public void testAddPhantomLink() {
+        setOrAddPhantomLink(true);
+    }
+
+    private void setOrAddPhantomLink(final boolean setLink) {
         final PersistentEntityStoreImpl store = getEntityStore();
         final Entity issue = store.computeInTransaction(new StoreTransactionalComputable<Entity>() {
             @Override
@@ -904,20 +910,29 @@ public class EntityTests extends EntityStoreTestBase {
                     }
                 });
             }
-        }, 2000);
+        }, 500);
         final int[] i = {0};
-        store.executeInTransaction(new StoreTransactionalExecutable() {
+        TestUtil.runWithExpectedException(new Runnable() {
             @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                try {
-                    Thread.sleep(3000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                issue.setLink("comment", comment);
-                ++i[0];
+            public void run() {
+                store.executeInTransaction(new StoreTransactionalExecutable() {
+                    @Override
+                    public void execute(@NotNull StoreTransaction txn) {
+                        try {
+                            Thread.sleep(2000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        ++i[0];
+                        if (setLink) {
+                            issue.setLink("comment", comment);
+                        } else {
+                            issue.addLink("comment", comment);
+                        }
+                    }
+                });
             }
-        });
+        }, EntityRemovedInDatabaseException.class);
         Assert.assertEquals(2, i[0]);
         store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
             @Override
