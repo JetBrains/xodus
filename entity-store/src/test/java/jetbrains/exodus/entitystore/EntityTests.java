@@ -888,6 +888,9 @@ public class EntityTests extends EntityStoreTestBase {
 
     private void setOrAddPhantomLink(final boolean setLink) {
         final PersistentEntityStoreImpl store = getEntityStore();
+
+        store.getConfig().setDebugTestLinkedEntities(true);
+
         final Entity issue = store.computeInTransaction(new StoreTransactionalComputable<Entity>() {
             @Override
             public Entity compute(@NotNull StoreTransaction txn) {

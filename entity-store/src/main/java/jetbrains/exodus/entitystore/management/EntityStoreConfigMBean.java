@@ -57,6 +57,10 @@ public interface EntityStoreConfigMBean {
 
     void setDebugSearchForIncomingLinksOnDelete(boolean debug);
 
+    boolean isDebugTestLinkedEntities();
+
+    void setDebugTestLinkedEntities(boolean debug);
+
     int getEntityIterableCacheSize();
 
     int getEntityIterableCacheThreadCount();

@@ -1131,7 +1131,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final LinkValue linkValue = new LinkValue(target.getId(), linkId);
 
         // check if the target is already deleted
-        target = txn.getEntity(target.getId());
+        if (config.isDebugTestLinkedEntities()) {
+            target = txn.getEntity(target.getId());
+        }
 
         if (!getLinksTable(txn, entityTypeId).put(txn.getEnvironmentTransaction(),
             PropertyKey.propertyKeyToEntry(linkKey), LinkValue.linkValueToEntry(linkValue))) {
@@ -1156,7 +1158,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         boolean oldTargetDeleted = false;
 
         // check if the target is already deleted
-        if (target != null) {
+        if (target != null && config.isDebugTestLinkedEntities()) {
             target = txn.getEntity(target.getId());
         }
 
