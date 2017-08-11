@@ -22,7 +22,7 @@ import org.junit.Test;
 public class StringInternerTest {
 
     @Test
-    public void sameIntance() {
+    public void sameInstance() {
         final String firstString = "Intern me right away";
         //noinspection RedundantStringConstructorCall
         final String secondString = new String("Intern me") + " right away";
