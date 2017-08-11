@@ -31,6 +31,8 @@ import org.junit.Assert;
 import java.io.*;
 import java.net.URL;
 import java.util.Date;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
 
 @SuppressWarnings({"RawUseOfParameterizedType"})
 public class EntityTests extends EntityStoreTestBase {
@@ -878,17 +880,18 @@ public class EntityTests extends EntityStoreTestBase {
         });
     }
 
-    public void testSetPhantomLink() {
+    public void testSetPhantomLink() throws InterruptedException {
         setOrAddPhantomLink(false);
     }
 
-    public void testAddPhantomLink() {
+    public void testAddPhantomLink() throws InterruptedException {
         setOrAddPhantomLink(true);
     }
 
-    private void setOrAddPhantomLink(final boolean setLink) {
+    private void setOrAddPhantomLink(final boolean setLink) throws InterruptedException {
         final PersistentEntityStoreImpl store = getEntityStore();
 
+        store.getEnvironment().getEnvironmentConfig().setGcEnabled(false);
         store.getConfig().setDebugTestLinkedEntities(true);
 
         final Entity issue = store.computeInTransaction(new StoreTransactionalComputable<Entity>() {
@@ -903,17 +906,26 @@ public class EntityTests extends EntityStoreTestBase {
                 return txn.newEntity("Comment");
             }
         });
-        DeferredIO.getJobProcessor().queueIn(new Job() {
+        final CountDownLatch startBoth = new CountDownLatch(2);
+        final Semaphore deleted = new Semaphore(0);
+        DeferredIO.getJobProcessor().queue(new Job() {
             @Override
             protected void execute() throws Throwable {
                 store.executeInTransaction(new StoreTransactionalExecutable() {
                     @Override
                     public void execute(@NotNull StoreTransaction txn) {
+                        startBoth.countDown();
+                        try {
+                            startBoth.await();
+                        } catch (InterruptedException ignore) {
+                        }
                         comment.delete();
+                        txn.flush();
+                        deleted.release();
                     }
                 });
             }
-        }, 500);
+        });
         final int[] i = {0};
         TestUtil.runWithExpectedException(new Runnable() {
             @Override
@@ -921,16 +933,22 @@ public class EntityTests extends EntityStoreTestBase {
                 store.executeInTransaction(new StoreTransactionalExecutable() {
                     @Override
                     public void execute(@NotNull StoreTransaction txn) {
-                        try {
-                            Thread.sleep(2000);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
+                        final boolean first = i[0] == 0;
+                        if (first) {
+                            startBoth.countDown();
+                            try {
+                                startBoth.await();
+                            } catch (InterruptedException ignore) {
+                            }
                         }
                         ++i[0];
                         if (setLink) {
                             issue.setLink("comment", comment);
                         } else {
                             issue.addLink("comment", comment);
+                        }
+                        if (first) {
+                            deleted.acquireUninterruptibly();
                         }
                     }
                 });
