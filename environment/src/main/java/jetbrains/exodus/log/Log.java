@@ -721,7 +721,7 @@ public final class Log implements Closeable {
         }
     }
 
-    int getIdentity() {
+    public int getIdentity() {
         return logIdentity;
     }
 
