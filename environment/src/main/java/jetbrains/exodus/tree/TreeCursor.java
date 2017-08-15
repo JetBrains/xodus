@@ -29,8 +29,6 @@ public class TreeCursor implements ITreeCursor {
     protected boolean canGoDown;
     boolean alreadyIn;
     boolean inited;
-    private ByteIterable cachedKey;
-    private ByteIterable cachedValue;
 
     public TreeCursor(@NotNull final TreeTraverser traverser) {
         this(traverser, false);
@@ -41,12 +39,10 @@ public class TreeCursor implements ITreeCursor {
         this.alreadyIn = alreadyIn;
         canGoDown = true;
         inited = false;
-        cachedKey = cachedValue = null;
     }
 
     protected boolean hasNext() {
         if (inited) {
-            invalidateCachedKeyValuePair();
             return traverser.canMoveRight() || advance();
         }
         return traverser.isNotEmpty();
@@ -54,7 +50,6 @@ public class TreeCursor implements ITreeCursor {
 
     protected boolean hasPrev() {
         if (inited) {
-            invalidateCachedKeyValuePair();
             return traverser.canMoveLeft() || retreat();
         }
         return traverser.isNotEmpty();
@@ -68,32 +63,15 @@ public class TreeCursor implements ITreeCursor {
         }
         if (alreadyIn) {
             alreadyIn = false;
-            invalidateCachedKeyValuePair();
             return true;
         }
-        while (true) {
-            if (canGoDown) {
-                if (traverser.canMoveDown()) {
-                    if (traverser.moveDown().hasValue()) {
-                        invalidateCachedKeyValuePair();
-                        return true;
-                    }
-                    continue;
-                }
-            } else {
-                canGoDown = true;
-            }
-            if (traverser.canMoveRight()) {
-                final INode node = traverser.moveRight();
-                if (!traverser.canMoveDown() && node.hasValue()) {
-                    invalidateCachedKeyValuePair();
-                    return true;
-                }
-            } else if (!advance()) {
-                break;
-            }
+        final boolean result = moveToNext();
+        if (!result) {
+            traverser.init(false);
+            canGoDown = true;
+            moveToPrev();
         }
-        return false;
+        return result;
     }
 
     @Override
@@ -104,63 +82,19 @@ public class TreeCursor implements ITreeCursor {
         }
         if (alreadyIn) {
             alreadyIn = false;
-            invalidateCachedKeyValuePair();
             return true;
         }
-        while (true) {
-            if (canGoDown) {
-                if (traverser.canMoveDown()) {
-                    if (traverser.moveDownToLast().hasValue()) {
-                        invalidateCachedKeyValuePair();
-                        return true;
-                    }
-                    continue;
-                }
-            } else {
-                canGoDown = true;
-            }
-            if (traverser.canMoveLeft()) {
-                final INode node = traverser.moveLeft();
-                if (!traverser.canMoveDown() && node.hasValue()) {
-                    invalidateCachedKeyValuePair();
-                    return true;
-                }
-            } else if (!retreat()) {
-                break;
-            }
+        final boolean result = moveToPrev();
+        if (!result) {
+            traverser.init(true);
+            canGoDown = true;
+            moveToNext();
         }
-        return false;
-    }
-
-    private boolean advance() {
-        while (traverser.canMoveUp()) {
-            if (traverser.canMoveRight()) {
-                return true;
-            } else {
-                traverser.moveUp();
-                canGoDown = false;
-            }
-        }
-
-        return traverser.canMoveRight();
-    }
-
-    private boolean retreat() {
-        while (traverser.canMoveUp()) {
-            if (traverser.canMoveLeft()) {
-                return true;
-            } else {
-                traverser.moveUp();
-                canGoDown = false;
-            }
-        }
-
-        return traverser.canMoveLeft();
+        return result;
     }
 
     @Override
     public boolean getLast() {
-        invalidateCachedKeyValuePair();
         // move up to root
         while (traverser.canMoveUp()) {
             traverser.moveUp();
@@ -174,13 +108,13 @@ public class TreeCursor implements ITreeCursor {
     @Override
     @NotNull
     public ByteIterable getKey() {
-        return cachedKey == null ? cachedKey = traverser.getKey() : cachedKey;
+        return traverser.getKey();
     }
 
     @Override
     @NotNull
     public ByteIterable getValue() {
-        return cachedValue == null ? cachedValue = traverser.getValue() : cachedValue;
+        return traverser.getValue();
     }
 
     @Override
@@ -231,7 +165,6 @@ public class TreeCursor implements ITreeCursor {
 
     @Override
     public void close() {
-        invalidateCachedKeyValuePair();
     }
 
     @Override
@@ -251,7 +184,6 @@ public class TreeCursor implements ITreeCursor {
 
     @Nullable
     protected ByteIterable moveTo(@NotNull ByteIterable key, @Nullable ByteIterable value, boolean rangeSearch) {
-        invalidateCachedKeyValuePair();
         if (rangeSearch ? traverser.moveToRange(key, value) : traverser.moveTo(key, value)) {
             canGoDown = true;
             alreadyIn = false;
@@ -262,7 +194,77 @@ public class TreeCursor implements ITreeCursor {
         return null;
     }
 
-    void invalidateCachedKeyValuePair() {
-        cachedKey = cachedValue = null;
+    private boolean moveToNext() {
+        while (true) {
+            if (canGoDown) {
+                if (traverser.canMoveDown()) {
+                    if (traverser.moveDown().hasValue()) {
+                        return true;
+                    }
+                    continue;
+                }
+            } else {
+                canGoDown = true;
+            }
+            if (traverser.canMoveRight()) {
+                final INode node = traverser.moveRight();
+                if (!traverser.canMoveDown() && node.hasValue()) {
+                    return true;
+                }
+            } else if (!advance()) {
+                break;
+            }
+        }
+        return false;
+    }
+
+    private boolean moveToPrev() {
+        while (true) {
+            if (canGoDown) {
+                if (traverser.canMoveDown()) {
+                    if (traverser.moveDownToLast().hasValue()) {
+                        return true;
+                    }
+                    continue;
+                }
+            } else {
+                canGoDown = true;
+            }
+            if (traverser.canMoveLeft()) {
+                final INode node = traverser.moveLeft();
+                if (!traverser.canMoveDown() && node.hasValue()) {
+                    return true;
+                }
+            } else if (!retreat()) {
+                break;
+            }
+        }
+        return false;
+    }
+
+    private boolean advance() {
+        while (traverser.canMoveUp()) {
+            if (traverser.canMoveRight()) {
+                return true;
+            } else {
+                traverser.moveUp();
+                canGoDown = false;
+            }
+        }
+
+        return traverser.canMoveRight();
+    }
+
+    private boolean retreat() {
+        while (traverser.canMoveUp()) {
+            if (traverser.canMoveLeft()) {
+                return true;
+            } else {
+                traverser.moveUp();
+                canGoDown = false;
+            }
+        }
+
+        return traverser.canMoveLeft();
     }
 }

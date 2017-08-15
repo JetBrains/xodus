@@ -140,8 +140,6 @@ public class TreeCursorMutable extends TreeCursor implements ITreeCursorMutable 
         // root may be changed by tree.delete, so reset cursor with new root
         reset(tree.getRoot());
 
-        invalidateCachedKeyValuePair();
-
         return true;
     }
 
@@ -152,9 +150,6 @@ public class TreeCursorMutable extends TreeCursor implements ITreeCursorMutable 
 
     @Override
     public void treeChanged() {
-
-        invalidateCachedKeyValuePair();
-
         final ByteIterable key = getKey();
         final ByteIterable value = getValue();
 
@@ -165,7 +160,6 @@ public class TreeCursorMutable extends TreeCursor implements ITreeCursorMutable 
 
     @Override
     public void close() {
-        invalidateCachedKeyValuePair();
         tree.cursorClosed(this);
     }
 
@@ -211,7 +205,6 @@ public class TreeCursorMutable extends TreeCursor implements ITreeCursorMutable 
     }
 
     private void moveToPair(@NotNull final ByteIterable key, @NotNull final ByteIterable value) {
-        invalidateCachedKeyValuePair();
         reset(tree.getRoot());
         // move to current
         final boolean withDuplicates = tree.isAllowingDuplicates();

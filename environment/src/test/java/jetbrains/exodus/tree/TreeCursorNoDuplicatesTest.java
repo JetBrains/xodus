@@ -491,6 +491,11 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
             }
             Assert.assertEquals(key(treeSize - 1), key);
             Assert.assertEquals(key(treeSize - 1), cursor.getKey());
+            cursor.getNext();
+            cursor.getNext();
+            Assert.assertEquals(key(treeSize - 1), cursor.getKey());
+            cursor.getPrev();
+            Assert.assertEquals(key(treeSize - 2), cursor.getKey());
         }
         try (Cursor cursor = tm.openCursor()) {
             ByteIterable key = null;
@@ -499,6 +504,11 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
             }
             Assert.assertEquals(key(0), key);
             Assert.assertEquals(key(0), cursor.getKey());
+            cursor.getPrev();
+            cursor.getPrev();
+            Assert.assertEquals(key(0), cursor.getKey());
+            cursor.getNext();
+            Assert.assertEquals(key(1), cursor.getKey());
         }
     }
 
