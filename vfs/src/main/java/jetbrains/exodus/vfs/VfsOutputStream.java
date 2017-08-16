@@ -62,14 +62,15 @@ class VfsOutputStream extends OutputStream {
         currentClusterNumber = -1L;
         clusterIterator = new ClusterIterator(vfs, txn, fileDescriptor, position);
         final ClusteringStrategy clusteringStrategy = vfs.getConfig().getClusteringStrategy();
+        final int firstClusterSize = clusteringStrategy.getFirstClusterSize();
         if (clusterIterator.getCurrent() != null) {
-            loadCurrentCluster(clusteringStrategy.getFirstClusterSize());
-            this.position = (int) (position % outputClusterSize);
+            loadCurrentCluster(firstClusterSize);
+            this.position = (int) (position % firstClusterSize);
         } else {
             if (position > 0L) {
                 clusterIterator.seek(0L);
             }
-            loadCurrentCluster(clusteringStrategy.getFirstClusterSize());
+            loadCurrentCluster(firstClusterSize);
             while (clusterIterator.hasCluster()) {
                 if (position < outputClusterSize) {
                     this.position = (int) position;
