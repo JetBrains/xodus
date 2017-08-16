@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.vfs;
 
+import jetbrains.exodus.TestFor;
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.env.Transaction;
 import org.jetbrains.annotations.NotNull;
@@ -385,6 +386,60 @@ public class VfsStreamsTests extends VfsTestsBase {
             outputStream.close();
             txn.flush();
         }
+        txn.abort();
+    }
+
+    @Test
+    public void testWriteAndSeek() throws IOException {
+        Transaction txn = env.beginTransaction();
+        final File file = vfs.createFile(txn, "file0");
+        OutputStream outputStream;
+        for (int i = 0; i < 4; ++i) {
+            outputStream = vfs.writeFile(txn, file, i);
+            outputStream.write(HOEGAARDEN.getBytes(UTF_8));
+            outputStream.close();
+        }
+        txn.flush();
+        final InputStream inputStream = vfs.readFile(txn, file);
+        Assert.assertEquals("hhh" + HOEGAARDEN, streamAsString(inputStream));
+        txn.abort();
+    }
+
+    @Test
+    @TestFor(issues = "XD-624")
+    public void testWriteAndSeek2() throws IOException {
+        Transaction txn = env.beginTransaction();
+        vfs.getConfig().setClusteringStrategy(new ClusteringStrategy.LinearClusteringStrategy(8));
+        final File file = vfs.createFile(txn, "file0");
+        OutputStream outputStream = vfs.writeFile(txn, file);
+        final byte[] bytes = HOEGAARDEN.getBytes(UTF_8);
+        outputStream.write(bytes);
+        outputStream.close();
+        outputStream = vfs.writeFile(txn, file, bytes.length);
+        outputStream.write(bytes);
+        outputStream.close();
+        txn.flush();
+        final InputStream inputStream = vfs.readFile(txn, file);
+        Assert.assertEquals(HOEGAARDEN + HOEGAARDEN, streamAsString(inputStream));
+        txn.abort();
+    }
+
+    @Test
+    @TestFor(issues = "XD-624")
+    public void testWriteAndSeek3() throws IOException {
+        Transaction txn = env.beginTransaction();
+        vfs.getConfig().setClusteringStrategy(new ClusteringStrategy.LinearClusteringStrategy(8));
+        final File file = vfs.createFile(txn, "file0");
+        OutputStream outputStream = vfs.writeFile(txn, file);
+        final byte[] bytes = HOEGAARDEN.getBytes(UTF_8);
+        outputStream.write(bytes);
+        outputStream.close();
+        outputStream = vfs.appendFile(txn, file);
+        outputStream.write(bytes);
+        outputStream.close();
+        txn.flush();
+        final InputStream inputStream = vfs.readFile(txn, file);
+        Assert.assertEquals(HOEGAARDEN + HOEGAARDEN, streamAsString(inputStream));
         txn.abort();
     }
 
