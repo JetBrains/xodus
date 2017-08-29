@@ -52,17 +52,21 @@ object ScriptPreprocessor {
     private val spacesToCommas: (String) -> String = { it.replace(' ', ',') }
 
     private val insertQuotes: (String) -> String = {
-        buildString {
-            val idx = it.indexOf('(') + 1
-            append(it, 0, idx)
-            if (it[idx] != '"') {
-                append('"')
+        if (it.indexOfAny(charArrayOf('"', '\'')) >= 0) {
+            it
+        } else {
+            buildString {
+                val idx = it.indexOf('(') + 1
+                append(it, 0, idx)
+                if (it[idx] != '"') {
+                    append('"')
+                }
+                append(it, idx, it.length - 1)
+                if (it[it.length - 2] != '"') {
+                    append('"')
+                }
+                append(it, it.length - 1, it.length)
             }
-            append(it, idx, it.length - 1)
-            if (it[it.length - 2] != '"') {
-                append('"')
-            }
-            append(it, it.length - 1, it.length)
         }
     }
 
@@ -77,7 +81,7 @@ object ScriptPreprocessor {
             "gc(on)" to arrayOf({ cmd -> "gc(true)" }),
             "gc(off)" to arrayOf({ cmd -> "gc(false)" }),
             "gc" to arrayOf({ cmd -> "gc()" }),
-            "open " to arrayOf(surroundWithBrackets, insertQuotes),
+            "open " to arrayOf(surroundWithBrackets, spacesToCommas),
             "get " to arrayOf(surroundWithBrackets, spacesToCommas),
             "put " to arrayOf(surroundWithBrackets, spacesToCommas),
             "delete " to arrayOf(surroundWithBrackets, spacesToCommas),
