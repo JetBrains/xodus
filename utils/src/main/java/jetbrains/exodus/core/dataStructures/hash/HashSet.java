@@ -45,9 +45,7 @@ public class HashSet<E> extends AbstractSet<E> {
 
     public HashSet(final Collection<E> collection) {
         this(collection.size());
-        for (final E e : collection) {
-            add(e);
-        }
+        this.addAll(collection);
     }
 
     @Override
