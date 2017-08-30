@@ -47,7 +47,7 @@ class StickyObjectTest : EntityStoreTestBase() {
         transactional {
             it.newEntity("Issue")
             Assert.assertEquals(2, it.getCount())
-            transactionalReadonly { it ->
+            transactionalReadonly {
                 Assert.assertEquals(1, it.getCount())
             }
         }

@@ -33,7 +33,7 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
     private Entry<K, V> nullEntry;
 
     public HashMap() {
-        this(0, HashUtil.DEFAULT_LOAD_FACTOR, DEFAULT_TABLE_SIZE, DEFAULT_MASK);
+        this(0, 0, HashUtil.DEFAULT_LOAD_FACTOR, DEFAULT_TABLE_SIZE, DEFAULT_MASK);
     }
 
     public HashMap(int capacity) {
@@ -46,17 +46,17 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
     }
 
     public HashMap(HashMap<K, V> copy) {
-        this(copy.capacity, copy.loadFactor, copy.table.length, copy.mask);
+        this(copy.capacity, copy.size, copy.loadFactor, copy.table.length, copy.mask);
         final Entry<K, V>[] source = copy.table;
         for (int i = 0; i < source.length; i++) {
             final Entry<K, V> sourceEntry = source[i];
             if (sourceEntry != null) {
-                table[i] = new Entry<>(sourceEntry.key, sourceEntry.value);
+                table[i] = new Entry<>(sourceEntry.key, sourceEntry.value, sourceEntry.hashNext);
             }
         }
     }
 
-    protected HashMap(int capacity, float loadFactor, int tableSize, int mask) {
+    protected HashMap(int capacity, int size, float loadFactor, int tableSize, int mask) {
         this.loadFactor = loadFactor;
         if (capacity < HashUtil.MIN_CAPACITY) {
             capacity = HashUtil.MIN_CAPACITY;
@@ -64,7 +64,7 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
         table = new Entry[tableSize];
         this.mask = mask;
         this.capacity = capacity;
-        size = 0;
+        this.size = size;
     }
 
     @Override
@@ -203,6 +203,12 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
         private Entry(final K key, final V value) {
             this.key = key;
             this.value = value;
+        }
+
+        public Entry(final K key, final V value, final Entry<K, V> hashNext) {
+            this.key = key;
+            this.value = value;
+            this.hashNext = hashNext;
         }
 
         @Override
