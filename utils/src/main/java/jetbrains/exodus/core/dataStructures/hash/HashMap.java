@@ -49,10 +49,7 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
         this(copy.capacity, copy.size, copy.loadFactor, copy.table.length, copy.mask);
         final Entry<K, V>[] source = copy.table;
         for (int i = 0; i < source.length; i++) {
-            final Entry<K, V> sourceEntry = source[i];
-            if (sourceEntry != null) {
-                table[i] = new Entry<>(sourceEntry.key, sourceEntry.value, sourceEntry.hashNext);
-            }
+            table[i] = copyEntry(source[i]);
         }
     }
 
@@ -191,6 +188,12 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
                 }
             }
         }
+    }
+
+    @Nullable
+    private HashMap.Entry<K, V> copyEntry(@Nullable final Entry<K, V> sourceEntry) {
+        return sourceEntry == null ? null :
+            new Entry<>(sourceEntry.key, sourceEntry.value, copyEntry(sourceEntry.hashNext));
     }
 
 
