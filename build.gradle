@@ -188,7 +188,7 @@ subprojects {
                 }
             }
             signing {
-                required { !isSnapshot && gradle.taskGraph.hasTask('uploadArchives') }
+                required { !isSnapshot && signingKeyId.length() > 0 && gradle.taskGraph.hasTask('uploadArchives') }
                 sign configurations.archives
             }
         }
