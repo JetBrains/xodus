@@ -137,7 +137,7 @@ subprojects {
         archives jar, javadocJar, sourceJar
     }
 
-    if (!isSnapshot) {
+    if (!isSnapshot && signingKeyId.length() > 0) {
         ext.'signing.keyId' = signingKeyId
         ext.'signing.password' = signingPassword
         ext.'signing.secretKeyRingFile' = signingSecretKeyRingFile
