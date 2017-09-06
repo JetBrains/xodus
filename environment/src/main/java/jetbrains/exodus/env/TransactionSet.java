@@ -90,14 +90,14 @@ final class TransactionSet implements Iterable<TransactionBase> {
         return getCurrent().size();
     }
 
-    @Nullable
-    TransactionBase getOldestTransaction() {
-        return txns.get().getMin();
+    long getOldestTxnRootAddress() {
+        final TransactionBase oldestTxn = txns.get().getMin();
+        return oldestTxn == null ? Long.MAX_VALUE : oldestTxn.getRoot();
     }
 
-    @Nullable
-    TransactionBase getNewestTransaction() {
-        return txns.get().getMax();
+    long getNewestTxnRootAddress() {
+        final TransactionBase newestTxn = txns.get().getMax();
+        return newestTxn == null ? Long.MIN_VALUE : newestTxn.getRoot();
     }
 
     @NotNull
