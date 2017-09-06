@@ -41,6 +41,11 @@ public class IndexImpl implements Index {
         this.ownerEntityType = ownerEntityType;
     }
 
+    @Deprecated
+    public void setOwnerEnityType(String ownerEntityType) {
+        setOwnerEntityType(ownerEntityType);
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
