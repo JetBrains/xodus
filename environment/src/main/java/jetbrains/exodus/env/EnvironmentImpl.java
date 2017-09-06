@@ -771,9 +771,7 @@ public class EnvironmentImpl implements Environment {
     }
 
     void forEachActiveTransaction(@NotNull final TransactionalExecutable executable) {
-        for (final Transaction txn : txns) {
-            executable.execute(txn);
-        }
+        txns.forEach(executable);
     }
 
     void setHighAddress(final long highAddress) {
