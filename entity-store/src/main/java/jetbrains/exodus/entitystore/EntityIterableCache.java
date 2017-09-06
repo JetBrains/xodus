@@ -22,6 +22,7 @@ import jetbrains.exodus.core.dataStructures.Priority;
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.core.execution.SharedTimer;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
+import jetbrains.exodus.env.ReadonlyTransactionException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -238,9 +239,14 @@ public final class EntityIterableCache {
                                 logger.info(action + " in " + cachedIn + " ms, handle=" + getStringPresentation(handle));
                             }
                         }
+                    } catch (ReadonlyTransactionException rte) {
+                        // work around XD-626
+                        final String action = cancellingPolicy.isConsistent ? "Caching" : "Caching (inconsistent)";
+                        logger.error(action + " failed with ReadonlyTransactionException. Re-queueing...");
+                        queue(Priority.below_normal);
                     } catch (TooLongEntityIterableInstantiationException e) {
                         if (logger.isInfoEnabled()) {
-                            String action = cancellingPolicy.isConsistent ? "Caching" : "Caching (inconsistent)";
+                            final String action = cancellingPolicy.isConsistent ? "Caching" : "Caching (inconsistent)";
                             logger.info(action + " forcedly stopped, " + e.reason.message + ": " + getStringPresentation(handle));
                         }
                     }
