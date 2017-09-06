@@ -19,64 +19,63 @@ import jetbrains.exodus.core.dataStructures.persistent.PersistentHashSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Iterator;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
-final class TransactionSet implements Iterable<TransactionBase> {
+final class TransactionSet {
 
-    private final AtomicReference<MinMaxAwareTransactionSet> txns;
+    private final AtomicReference<MinMaxAwareSnapshotSet> snapshots;
 
     TransactionSet() {
-        txns = new AtomicReference<>(new MinMaxAwareTransactionSet());
+        snapshots = new AtomicReference<>(new MinMaxAwareSnapshotSet());
     }
 
-    @Override
-    public Iterator<TransactionBase> iterator() {
-        return getCurrent().iterator();
+    void forEach(@NotNull final TransactionalExecutable executable) {
+        for (final Snapshot snapshot : getCurrent()) {
+            executable.execute(snapshot.txn);
+        }
     }
 
     void add(@NotNull final TransactionBase txn) {
-        final long root = txn.getRoot();
+        final Snapshot snapshot = new Snapshot(txn, txn.getRoot());
         for (; ; ) {
-            final MinMaxAwareTransactionSet prevSet = txns.get();
-            final PersistentHashSet<TransactionBase> newSet = prevSet.set.getClone();
-            final TransactionBase prevMin = prevSet.min;
-            final TransactionBase newMin;
-            if (newSet.contains(txn)) {
-                newMin = prevMin == txn ? null : prevMin;
-            } else {
-                final PersistentHashSet.MutablePersistentHashSet<TransactionBase> mutableSet = newSet.beginWrite();
-                mutableSet.add(txn);
+            final MinMaxAwareSnapshotSet prevSet = snapshots.get();
+            final PersistentHashSet<Snapshot> newSet = prevSet.set.getClone();
+            if (!newSet.contains(snapshot)) {
+                final PersistentHashSet.MutablePersistentHashSet<Snapshot> mutableSet = newSet.beginWrite();
+                mutableSet.add(snapshot);
                 mutableSet.endWrite();
-                newMin = prevMin != null && prevMin.getRoot() > root ? txn : prevMin;
             }
-            final TransactionBase prevMax = prevSet.max;
-            final TransactionBase newMax = prevMax != null && prevMax.getRoot() < root ? txn : prevMax;
-            if (this.txns.compareAndSet(prevSet, new MinMaxAwareTransactionSet(newSet, newMin, newMax))) {
+            final Snapshot prevMin = prevSet.min;
+            final Snapshot prevMax = prevSet.max;
+            final Snapshot newMin = prevMin != null && prevMin.root > snapshot.root ? snapshot : prevMin;
+            final Snapshot newMax = prevMax != null && prevMax.root < snapshot.root ? snapshot : prevMax;
+            if (this.snapshots.compareAndSet(prevSet, new MinMaxAwareSnapshotSet(newSet, newMin, newMax))) {
                 break;
             }
         }
     }
 
     boolean contains(@NotNull final TransactionBase txn) {
-        return getCurrent().contains(txn);
+        return getCurrent().contains(new Snapshot(txn, 0));
     }
 
     void remove(@NotNull final TransactionBase txn) {
+        final Snapshot snapshot = new Snapshot(txn, 0);
         for (; ; ) {
-            final MinMaxAwareTransactionSet prevSet = txns.get();
-            final PersistentHashSet<TransactionBase> newSet = prevSet.set.getClone();
-            final PersistentHashSet.MutablePersistentHashSet<TransactionBase> mutableSet = newSet.beginWrite();
-            if (!mutableSet.remove(txn)) {
+            final MinMaxAwareSnapshotSet prevSet = snapshots.get();
+            final PersistentHashSet<Snapshot> newSet = prevSet.set.getClone();
+            final PersistentHashSet.MutablePersistentHashSet<Snapshot> mutableSet = newSet.beginWrite();
+            if (!mutableSet.remove(snapshot)) {
                 break;
             }
             mutableSet.endWrite();
             // update min & max
-            final TransactionBase prevMin = prevSet.min;
-            final TransactionBase newMin = prevMin == txn ? null : prevMin;
-            final TransactionBase prevMax = prevSet.max;
-            final TransactionBase newMax = prevMax == txn ? null : prevMax;
-            if (this.txns.compareAndSet(prevSet, new MinMaxAwareTransactionSet(newSet, newMin, newMax))) {
+            final Snapshot prevMin = prevSet.min;
+            final Snapshot prevMax = prevSet.max;
+            final Snapshot newMin = Objects.equals(prevMin, snapshot) ? null : prevMin;
+            final Snapshot newMax = Objects.equals(prevMax, snapshot) ? null : prevMax;
+            if (this.snapshots.compareAndSet(prevSet, new MinMaxAwareSnapshotSet(newSet, newMin, newMax))) {
                 break;
             }
         }
@@ -90,51 +89,48 @@ final class TransactionSet implements Iterable<TransactionBase> {
         return getCurrent().size();
     }
 
-    @Nullable
-    TransactionBase getOldestTransaction() {
-        return txns.get().getMin();
+    long getOldestTxnRootAddress() {
+        final Snapshot oldestSnapshot = snapshots.get().getMin();
+        return oldestSnapshot == null ? Long.MAX_VALUE : oldestSnapshot.root;
     }
 
-    @Nullable
-    TransactionBase getNewestTransaction() {
-        return txns.get().getMax();
+    long getNewestTxnRootAddress() {
+        final Snapshot newestSnapshot = snapshots.get().getMax();
+        return newestSnapshot == null ? Long.MIN_VALUE : newestSnapshot.root;
     }
 
     @NotNull
-    private PersistentHashSet<TransactionBase> getCurrent() {
-        return txns.get().set;
+    private PersistentHashSet<Snapshot> getCurrent() {
+        return snapshots.get().set;
     }
 
-    private static class MinMaxAwareTransactionSet {
+    private static class MinMaxAwareSnapshotSet {
 
         @NotNull
-        private final PersistentHashSet<TransactionBase> set;
+        final PersistentHashSet<Snapshot> set;
         @Nullable
-        private TransactionBase min;
+        volatile Snapshot min;
         @Nullable
-        private TransactionBase max;
+        volatile Snapshot max;
 
-        private MinMaxAwareTransactionSet(@NotNull final PersistentHashSet<TransactionBase> set,
-                                          @Nullable final TransactionBase min, @Nullable final TransactionBase max) {
+        MinMaxAwareSnapshotSet(@NotNull final PersistentHashSet<Snapshot> set,
+                               @Nullable final Snapshot min, @Nullable final Snapshot max) {
             this.set = set;
             this.min = min;
             this.max = max;
         }
 
-        private MinMaxAwareTransactionSet() {
-            this(new PersistentHashSet<TransactionBase>(), null, null);
+        MinMaxAwareSnapshotSet() {
+            this(new PersistentHashSet<Snapshot>(), null, null);
         }
 
         @Nullable
-        private TransactionBase getMin() {
+        Snapshot getMin() {
             if (min == null) {
-                TransactionBase min = null;
-                long minRoot = Long.MIN_VALUE;
-                for (final TransactionBase txn : set) {
-                    final long root = txn.getRoot();
-                    if (min == null || root < minRoot) {
-                        min = txn;
-                        minRoot = root;
+                Snapshot min = null;
+                for (final Snapshot snapshot : set) {
+                    if (min == null || snapshot.root < min.root) {
+                        min = snapshot;
                     }
                 }
                 this.min = min;
@@ -143,20 +139,39 @@ final class TransactionSet implements Iterable<TransactionBase> {
         }
 
         @Nullable
-        private TransactionBase getMax() {
+        Snapshot getMax() {
             if (max == null) {
-                TransactionBase max = null;
-                long maxRoot = Long.MAX_VALUE;
-                for (final TransactionBase txn : set) {
-                    final long root = txn.getRoot();
-                    if (max == null || root > maxRoot) {
-                        max = txn;
-                        maxRoot = root;
+                Snapshot max = null;
+                for (final Snapshot snapshot : set) {
+                    if (max == null || snapshot.root > max.root) {
+                        max = snapshot;
                     }
                 }
                 this.max = max;
             }
             return max;
+        }
+    }
+
+    private static class Snapshot {
+
+        @NotNull
+        final Transaction txn;
+        final long root;
+
+        Snapshot(@NotNull Transaction txn, long root) {
+            this.txn = txn;
+            this.root = root;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return this == other || other instanceof Snapshot && txn.equals(((Snapshot)other).txn);
+        }
+
+        @Override
+        public int hashCode() {
+            return txn.hashCode();
         }
     }
 }

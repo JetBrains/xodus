@@ -275,7 +275,7 @@ public class EnvironmentImpl implements Environment {
 
     @Override
     public void executeTransactionSafeTask(@NotNull final Runnable task) {
-        final long newestTxnRoot = getNewestTxnRootAddress();
+        final long newestTxnRoot = txns.getNewestTxnRootAddress();
         if (newestTxnRoot == Long.MIN_VALUE) {
             task.run();
         } else {
@@ -740,7 +740,7 @@ public class EnvironmentImpl implements Environment {
     void runTransactionSafeTasks() {
         if (throwableOnCommit == null) {
             List<Runnable> tasksToRun = null;
-            final long oldestTxnRoot = getOldestTxnRootAddress();
+            final long oldestTxnRoot = txns.getOldestTxnRootAddress();
             synchronized (txnSafeTasks) {
                 while (true) {
                     if (!txnSafeTasks.isEmpty()) {
@@ -766,24 +766,12 @@ public class EnvironmentImpl implements Environment {
     }
 
     @Nullable
-    TransactionBase getOldestTransaction() {
-        return txns.getOldestTransaction();
-    }
-
-    @Nullable
-    TransactionBase getNewestTransaction() {
-        return txns.getNewestTransaction();
-    }
-
-    @Nullable
     StoreGetCache getStoreGetCache() {
         return storeGetCache;
     }
 
     void forEachActiveTransaction(@NotNull final TransactionalExecutable executable) {
-        for (final Transaction txn : txns) {
-            executable.execute(txn);
-        }
+        txns.forEach(executable);
     }
 
     void setHighAddress(final long highAddress) {
@@ -824,16 +812,6 @@ public class EnvironmentImpl implements Environment {
         } else {
             logger.error(errorMessage, t);
         }
-    }
-
-    private long getOldestTxnRootAddress() {
-        final TransactionBase oldestTxn = getOldestTransaction();
-        return oldestTxn == null ? Long.MAX_VALUE : oldestTxn.getRoot();
-    }
-
-    private long getNewestTxnRootAddress() {
-        final TransactionBase newestTxn = getNewestTransaction();
-        return newestTxn == null ? Long.MIN_VALUE : newestTxn.getRoot();
     }
 
     private void runAllTransactionSafeTasks() {
