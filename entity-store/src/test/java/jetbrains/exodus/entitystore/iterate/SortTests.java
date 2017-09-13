@@ -265,7 +265,7 @@ public class SortTests extends EntityStoreTestBase {
         issue.setProperty("created", System.currentTimeMillis());
         txn.flush();
         final EntityIterableBase sortedByCreated =
-                (EntityIterableBase) txn.sort("Issue", "created", txn.find("Issue", "description", "description"), true);
+            (EntityIterableBase) txn.sort("Issue", "created", txn.find("Issue", "description", "description"), true);
         for (; ; ) {
             Assert.assertTrue(sortedByCreated.iterator().hasNext());
             Thread.yield();
@@ -276,6 +276,25 @@ public class SortTests extends EntityStoreTestBase {
         issue.setProperty("description", "new description");
         txn.flush();
         Assert.assertFalse(sortedByCreated.iterator().hasNext());
+    }
+
+    @TestFor(issues = "XD-609")
+    public void testSortTinySourceWithLargeIndex() throws InterruptedException {
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        final int count = 50000;
+        for (int i = 0; i < count; ++i) {
+            final Entity issue = txn.newEntity("Issue");
+            issue.setProperty("body", Integer.toString(i / 1000));
+            if (i % 500 == 0) {
+                issue.setProperty("hasComment", true);
+            }
+        }
+        txn.flush();
+        System.out.println("Sorting started");
+        final long start = System.currentTimeMillis();
+        final EntityIterableBase unsorted = txn.findWithProp("Issue", "hasComment");
+        Assert.assertEquals("9", txn.sort("Issue", "body", unsorted, true).getLast().getProperty("body"));
+        System.out.println("Sorting took " + (System.currentTimeMillis() - start));
     }
 
     public void testSortByTwoColumnsAscendingStable() {
