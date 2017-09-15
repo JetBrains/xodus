@@ -119,13 +119,15 @@ public final class SortIterable extends EntityIterableDecoratorBase {
         final PersistentEntityStoreImpl store = getStore();
         final EntityIterableBase cachedPropertyIndex = store.getEntityIterableCache().putIfNotCached(propIndex);
 
-        // if property index is much greater than source then it makes sense to sort source in-memory (XD-609)
-        final long sourceSize = source.size();
-        final long indexSize = cachedPropertyIndex.size();
-        final long log2IndexSize = MathUtil.longLogarithm(indexSize);
-        if ((cachedPropertyIndex.isCachedInstance() && sourceSize * sourceSize * log2IndexSize < indexSize) ||
-            (!cachedPropertyIndex.isCachedInstance() && sourceSize * log2IndexSize * log2IndexSize < indexSize)) {
-            return new StableInMemorySortIterator((int) sourceSize);
+        if (store.getConfig().isDebugAllowInMemorySort()) {
+            // if property index is much greater than source then it makes sense to sort source in-memory (XD-609)
+            final long sourceSize = source.size();
+            final long indexSize = cachedPropertyIndex.size();
+            final long log2IndexSize = MathUtil.longLogarithm(indexSize);
+            if ((cachedPropertyIndex.isCachedInstance() && sourceSize * sourceSize * log2IndexSize < indexSize) ||
+                (!cachedPropertyIndex.isCachedInstance() && sourceSize * log2IndexSize * log2IndexSize < indexSize)) {
+                return new StableInMemorySortIterator((int) sourceSize);
+            }
         }
 
         final EntityIterator propIterator = ascending ?

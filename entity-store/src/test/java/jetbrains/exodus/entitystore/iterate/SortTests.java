@@ -280,6 +280,9 @@ public class SortTests extends EntityStoreTestBase {
 
     @TestFor(issues = "XD-609")
     public void testSortTinySourceWithLargeIndex() throws InterruptedException {
+        // switch in-memory sort on
+        getEntityStore().getConfig().setDebugAllowInMemorySort(true);
+
         final PersistentStoreTransaction txn = getStoreTransaction();
         final int count = 50000;
         for (int i = 0; i < count; ++i) {

@@ -139,6 +139,16 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
+    public boolean isDebugAllowInMemorySort() {
+        return config.isDebugAllowInMemorySort();
+    }
+
+    @Override
+    public void setDebugAllowInMemorySort(boolean debug) {
+        config.setDebugAllowInMemorySort(debug);
+    }
+
+    @Override
     public int getEntityIterableCacheSize() {
         return config.getEntityIterableCacheSize();
     }

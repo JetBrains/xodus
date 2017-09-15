@@ -174,6 +174,12 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
     public static final String DEBUG_TEST_LINKED_ENTITIES = "exodus.entityStore.debug.testLinkedEntities";
 
     /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
+     * <p>Mutable at runtime: yes
+     */
+    public static final String DEBUG_ALLOW_IN_MEMORY_SORT = "exodus.entityStore.debug.allowInMemorySort";
+
+    /**
      * Defines the size of EntityIterableCache. EntityIterableCache is operable only if {@linkplain #CACHING_DISABLED}
      * is {@code false}. Default value depends on the JVM memory settings.
      * <p>Mutable at runtime: no
@@ -288,6 +294,7 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
             new Pair(DEBUG_LINK_DATA_GETTER, false),
             new Pair(DEBUG_SEARCH_FOR_INCOMING_LINKS_ON_DELETE, false),
             new Pair(DEBUG_TEST_LINKED_ENTITIES, false),
+            new Pair(DEBUG_ALLOW_IN_MEMORY_SORT, false),
             new Pair(ENTITY_ITERABLE_CACHE_SIZE, defaultEntityIterableCacheSize()),
             new Pair(ENTITY_ITERABLE_CACHE_THREAD_COUNT, Runtime.getRuntime().availableProcessors() > 3 ? 2 : 1),
             new Pair(ENTITY_ITERABLE_CACHE_CACHING_TIMEOUT, 10000L),
@@ -443,6 +450,14 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public PersistentEntityStoreConfig setDebugTestLinkedEntities(final boolean debug) {
         return setSetting(DEBUG_TEST_LINKED_ENTITIES, debug);
+    }
+
+    public boolean isDebugAllowInMemorySort() {
+        return (Boolean) getSetting(DEBUG_ALLOW_IN_MEMORY_SORT);
+    }
+
+    public PersistentEntityStoreConfig setDebugAllowInMemorySort(final boolean debug) {
+        return setSetting(DEBUG_ALLOW_IN_MEMORY_SORT, debug);
     }
 
     public int getEntityIterableCacheSize() {

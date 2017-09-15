@@ -61,6 +61,10 @@ public interface EntityStoreConfigMBean {
 
     void setDebugTestLinkedEntities(boolean debug);
 
+    boolean isDebugAllowInMemorySort();
+
+    void setDebugAllowInMemorySort(boolean debug);
+
     int getEntityIterableCacheSize();
 
     int getEntityIterableCacheThreadCount();
