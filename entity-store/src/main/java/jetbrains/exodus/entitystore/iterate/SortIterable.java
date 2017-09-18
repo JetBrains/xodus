@@ -19,6 +19,7 @@ import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.entitystore.*;
+import jetbrains.exodus.entitystore.tables.PropertyValue;
 import jetbrains.exodus.util.MathUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -124,8 +125,10 @@ public final class SortIterable extends EntityIterableDecoratorBase {
             final long sourceSize = source.size();
             final long indexSize = cachedPropertyIndex.size();
             final long log2IndexSize = MathUtil.longLogarithm(indexSize);
-            if ((cachedPropertyIndex.isCachedInstance() && sourceSize * sourceSize * log2IndexSize < indexSize) ||
-                (!cachedPropertyIndex.isCachedInstance() && sourceSize * log2IndexSize * log2IndexSize < indexSize)) {
+            final long sizeMulLog = sourceSize * log2IndexSize;
+            final boolean isCachedInstance = cachedPropertyIndex.isCachedInstance();
+            if ((isCachedInstance && sizeMulLog * sourceSize < indexSize) ||
+                (!isCachedInstance && sizeMulLog * log2IndexSize < indexSize)) {
                 return new StableInMemorySortIterator((int) sourceSize);
             }
         }
@@ -378,7 +381,12 @@ public final class SortIterable extends EntityIterableDecoratorBase {
             final PersistentStoreTransaction txn = getTransaction();
             final String propertyName = store.getPropertyName(txn, propertyId);
             if (propertyName == null) {
-                throw new NullPointerException("Can't be");
+                throw new NullPointerException("Property name is null");
+            }
+
+            final int propertyId = store.getPropertyId(txn, propertyName, false);
+            if (propertyId < 0) {
+                throw new IllegalStateException("Property name is not registered");
             }
 
             final EntityIterator it = source.iterator();
@@ -388,8 +396,8 @@ public final class SortIterable extends EntityIterableDecoratorBase {
                 if (nextId == null) {
                     hasNull = true;
                 } else if (nextId.getTypeId() == sourceTypeId) {
-                    pairs.add(new IdValuePair(nextId.getLocalId(),
-                        store.getProperty(txn, new PersistentEntity(store, nextId), propertyName)));
+                    final PropertyValue propValue = store.getPropertyValue(txn, new PersistentEntity(store, nextId), propertyId);
+                    pairs.add(new IdValuePair(nextId.getLocalId(), propValue == null ? null : propValue.getData()));
                 }
             }
 

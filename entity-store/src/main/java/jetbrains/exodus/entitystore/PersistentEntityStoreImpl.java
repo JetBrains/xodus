@@ -656,9 +656,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
         Comparable result = txn.getCachedProperty(entity, propertyId);
         if (result == null) {
-            final ByteIterable resultEntry = getRawProperty(txn, entity, propertyId);
-            if (resultEntry != null) {
-                final PropertyValue propValue = propertyTypes.entryToPropertyValue(resultEntry);
+            final PropertyValue propValue = getPropertyValue(txn, entity, propertyId);
+            if (propValue != null) {
                 result = propValue.getData();
                 if (propValue.getType().getTypeId() != ComparableValueType.COMPARABLE_SET_VALUE_TYPE) {
                     txn.cacheProperty(entity.getId(), propertyId, result);
@@ -666,6 +665,14 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             }
         }
         return result;
+    }
+
+    @Nullable
+    public PropertyValue getPropertyValue(@NotNull final PersistentStoreTransaction txn,
+                                          @NotNull final PersistentEntity entity,
+                                          final int propertyId) {
+        final ByteIterable entry = getRawProperty(txn, entity, propertyId);
+        return entry != null ? propertyTypes.entryToPropertyValue(entry) : null;
     }
 
     @Nullable

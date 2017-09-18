@@ -296,8 +296,10 @@ public class SortTests extends EntityStoreTestBase {
         System.out.println("Sorting started");
         final long start = System.currentTimeMillis();
         final EntityIterableBase unsorted = txn.findWithProp("Issue", "hasComment");
-        Assert.assertEquals("9", txn.sort("Issue", "body", unsorted, true).getLast().getProperty("body"));
-        Assert.assertEquals("0", txn.sort("Issue", "body", unsorted, true).getFirst().getProperty("body"));
+        final EntityIterable sorted = txn.sort("Issue", "body", unsorted, true);
+        Assert.assertEquals("9", sorted.getLast().getProperty("body"));
+        Assert.assertEquals("0", sorted.getFirst().getProperty("body"));
+        Assert.assertEquals("0", txn.sort("Issue", "no prop", sorted, true).getFirst().getProperty("body"));
         System.out.println("Sorting took " + (System.currentTimeMillis() - start));
     }
 
