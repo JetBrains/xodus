@@ -177,7 +177,10 @@ public class IntegerBinding extends ComparableBinding {
     }
 
     public static void writeCompressed(@NotNull final LightOutputStream output, int i) {
-        final int[] bytes = new int[4];
+        writeCompressed(output, i, new int[4]);
+    }
+
+    public static void writeCompressed(@NotNull final LightOutputStream output, int i, final int[] bytes) {
         for (int j = 0; j < 4; ++j) {
             bytes[j] = i & 0xff;
             i >>= 8;

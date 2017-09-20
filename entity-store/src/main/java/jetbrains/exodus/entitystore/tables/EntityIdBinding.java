@@ -57,7 +57,11 @@ public class EntityIdBinding {
     }
 
     public static void writeEntityId(@NotNull final LightOutputStream output, @NotNull final EntityId object) {
-        IntegerBinding.writeCompressed(output, object.getTypeId());
-        LongBinding.writeCompressed(output, object.getLocalId());
+        writeEntityId(output, object, new int[8]);
+    }
+
+    public static void writeEntityId(@NotNull final LightOutputStream output, @NotNull final EntityId object, final int[] bytes) {
+        IntegerBinding.writeCompressed(output, object.getTypeId(), bytes);
+        LongBinding.writeCompressed(output, object.getLocalId(), bytes);
     }
 }

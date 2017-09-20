@@ -120,9 +120,10 @@ public class File {
 
     ArrayByteIterable toByteIterable() {
         final LightOutputStream output = new LightOutputStream();
-        LongBinding.writeCompressed(output, fd);
-        LongBinding.writeCompressed(output, created);
-        LongBinding.writeCompressed(output, lastModified);
+        final int[] bytes = new int[8];
+        LongBinding.writeCompressed(output, fd, bytes);
+        LongBinding.writeCompressed(output, created, bytes);
+        LongBinding.writeCompressed(output, lastModified, bytes);
         return output.asArrayByteIterable();
     }
 }

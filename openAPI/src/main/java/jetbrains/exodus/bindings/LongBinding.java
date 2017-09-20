@@ -192,7 +192,10 @@ public class LongBinding extends ComparableBinding {
     }
 
     public static void writeCompressed(@NotNull final LightOutputStream output, long l) {
-        final int[] bytes = new int[8];
+        writeCompressed(output, l, new int[8]);
+    }
+
+    public static void writeCompressed(@NotNull final LightOutputStream output, long l, final int[] bytes) {
         for (int i = 0; i < 8; ++i) {
             bytes[i] = (int) (l & 0xff);
             l >>= 8;

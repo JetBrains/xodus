@@ -51,8 +51,9 @@ public class LinkValue {
 
     public static ArrayByteIterable linkValueToEntry(@NotNull final LinkValue object) {
         final LightOutputStream output = new LightOutputStream();
-        IntegerBinding.writeCompressed(output, object.linkId);
-        EntityIdBinding.writeEntityId(output, object.entityId);
+        final int[] bytes = new int[8];
+        IntegerBinding.writeCompressed(output, object.linkId, bytes);
+        EntityIdBinding.writeEntityId(output, object.entityId, bytes);
         return output.asArrayByteIterable();
     }
 }

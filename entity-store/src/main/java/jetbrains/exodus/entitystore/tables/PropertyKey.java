@@ -55,7 +55,8 @@ public final class PropertyKey {
     }
 
     public static void writePropertyKey(@NotNull final LightOutputStream output, @NotNull final PropertyKey object) {
-        LongBinding.writeCompressed(output, object.entityLocalId);
-        IntegerBinding.writeCompressed(output, object.propertyId);
+        final int[] bytes = new int[8];
+        LongBinding.writeCompressed(output, object.entityLocalId, bytes);
+        IntegerBinding.writeCompressed(output, object.propertyId, bytes);
     }
 }
