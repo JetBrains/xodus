@@ -21,7 +21,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Base iterator for {@link CompoundByteIterable}.
  */
-public abstract class CompoundByteIteratorBase extends  ByteIterator {
+public abstract class CompoundByteIteratorBase extends ByteIterator {
 
     @Nullable
     private ByteIterator current;
@@ -60,9 +60,7 @@ public abstract class CompoundByteIteratorBase extends  ByteIterator {
 
     @Override
     public byte next() {
-        if (!hasNext()) {
-            onFail("CompoundByteIterator: no more bytes available");
-        }
+        hasNext();
         //noinspection ConstantConditions
         return current.next();
     }
@@ -79,8 +77,4 @@ public abstract class CompoundByteIteratorBase extends  ByteIterator {
      * @return null to finish.
      */
     protected abstract ByteIterator nextIterator();
-
-    protected void onFail(@NotNull final String message) throws ExodusException {
-        throw new ExodusException(message);
-    }
 }

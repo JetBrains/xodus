@@ -16,7 +16,6 @@
 package jetbrains.exodus.log;
 
 import jetbrains.exodus.ByteIterator;
-import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.LongBinding;
 import org.jetbrains.annotations.NotNull;
 
@@ -56,8 +55,8 @@ public final class DataIterator extends ByteIterator {
     @Override
     public byte next() {
         if (!hasNext()) {
-            throw new ExodusException("DataIterator: no more bytes available" +
-                LogUtil.getWrongAddressErrorMessage(getHighAddress(), log.getFileSize()));
+            DataCorruptionException.raise(
+                "DataIterator: no more bytes available", log, getHighAddress());
         }
         return page[offset++];
     }

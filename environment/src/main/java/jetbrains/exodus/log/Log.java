@@ -47,6 +47,8 @@ public final class Log implements Closeable {
     private final LongSkipList blockAddrs;
     final LogCache cache;
 
+    private volatile boolean isClosing;
+
     private int logIdentity;
     @SuppressWarnings("NullableProblems")
     @NotNull
@@ -112,6 +114,7 @@ public final class Log implements Closeable {
                 new SeparateLogCache(memoryUsagePercentage, cachePageSize, nonBlockingCache);
         }
         DeferredIO.getJobProcessor();
+        isClosing = false;
         highAddress = 0;
         approvedHighAddress = 0;
 
@@ -615,6 +618,7 @@ public final class Log implements Closeable {
 
     @Override
     public void close() {
+        isClosing = true;
         flush(true);
         reader.close();
         bufferedWriter.close();
@@ -622,6 +626,10 @@ public final class Log implements Closeable {
         synchronized (blockAddrs) {
             blockAddrs.clear();
         }
+    }
+
+    public boolean isClosing() {
+        return isClosing;
     }
 
     public void release() {
@@ -725,22 +733,22 @@ public final class Log implements Closeable {
         return logIdentity;
     }
 
-    int readBytes(final byte[] output, final long address) throws BlockNotFoundException {
+    int readBytes(final byte[] output, final long address) {
         final LongSkipList.SkipListNode node;
         synchronized (blockAddrs) {
             node = blockAddrs.getLessOrEqual(address);
         }
         if (node == null) {
-            throw new BlockNotFoundException("Address is out of log space, underflow", address, fileLengthBound);
+            BlockNotFoundException.raise("Address is out of log space, underflow", this, address);
         }
         final long leftBound = node.getKey();
         final Block block = reader.getBlock(leftBound);
         final long fileSize = getFileSize(leftBound);
         if (leftBound + fileSize <= address) {
             if (blockAddrs.getMaximumNode() == node) {
-                throw new BlockNotFoundException("Address is out of log space, overflow", address, fileLengthBound);
+                BlockNotFoundException.raise("Address is out of log space, overflow", this, address);
             }
-            throw new BlockNotFoundException(address, fileLengthBound);
+            BlockNotFoundException.raise(this, address);
         }
         final int readBytes = block.read(output, address - leftBound, output.length);
         notifyReadBytes(output, readBytes);

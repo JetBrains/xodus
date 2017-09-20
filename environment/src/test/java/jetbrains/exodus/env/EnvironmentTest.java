@@ -526,6 +526,45 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         }
     }
 
+    @Test(expected = IllegalStateException.class)
+    @TestFor(issues = "XD-628")
+    public void readCloseRace() {
+        final Store store = openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES);
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                for (int i = 0; i < 10000; ++i) {
+                    store.put(txn, IntegerBinding.intToEntry(i), StringBinding.stringToEntry(Integer.toString(i)));
+                }
+            }
+        });
+        env.getEnvironmentConfig().setEnvCloseForcedly(true);
+        env.executeInReadonlyTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                try (Cursor cursor = store.openCursor(txn)) {
+                    final Latch latch = Latch.create();
+                    try {
+                        latch.acquire();
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                env.close();
+                                latch.release();
+                            }
+                        }).run();
+                        latch.acquire();
+                    } catch (InterruptedException ignore) {
+                    }
+                    while (cursor.getNext()) {
+                        Assert.assertNotNull(cursor.getKey());
+                        Assert.assertNotNull(cursor.getValue());
+                    }
+                }
+            }
+        });
+    }
+
     @Test
     public void testSharedCache() throws InterruptedException, IOException {
         env.getEnvironmentConfig().setLogCacheShared(true);

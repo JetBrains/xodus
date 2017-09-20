@@ -15,20 +15,27 @@
  */
 package jetbrains.exodus.log;
 
+import jetbrains.exodus.ExodusException;
 import org.jetbrains.annotations.NotNull;
 
-class BlockNotFoundException extends DataCorruptionException {
+class DataCorruptionException extends ExodusException {
 
-    private BlockNotFoundException(final String message, final long address, final long fileSize) {
-        super(message + LogUtil.getWrongAddressErrorMessage(address, fileSize));
+    DataCorruptionException(@NotNull final String message) {
+        super(message);
+    }
+
+    private DataCorruptionException(@NotNull final String message, final long address, final long fileSize) {
+        this(message + LogUtil.getWrongAddressErrorMessage(address, fileSize));
     }
 
     static void raise(@NotNull final String message, @NotNull final Log log, final long address) {
         checkLogIsClosing(log);
-        throw new BlockNotFoundException(message, address, log.getFileSize());
+        throw new DataCorruptionException(message, address, log.getFileSize());
     }
 
-    static void raise(@NotNull final Log log, final long address) {
-        raise("File not found", log, address);
+    static void checkLogIsClosing(@NotNull final Log log) {
+        if (log.isClosing()) {
+            throw new IllegalStateException("Attempt to read closed log");
+        }
     }
 }
