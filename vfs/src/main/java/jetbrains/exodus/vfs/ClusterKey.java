@@ -42,7 +42,7 @@ class ClusterKey {
     }
 
     static ArrayByteIterable toByteIterable(final long fd, final long clusterNumber) {
-        final LightOutputStream output = new LightOutputStream();
+        final LightOutputStream output = new LightOutputStream(8);
         final int[] bytes = new int[8];
         LongBinding.writeCompressed(output, fd, bytes);
         LongBinding.writeCompressed(output, clusterNumber, bytes);
