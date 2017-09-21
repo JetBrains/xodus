@@ -123,6 +123,9 @@ public final class SortIterable extends EntityIterableDecoratorBase {
         if (store.getConfig().isDebugAllowInMemorySort()) {
             // if property index is much greater than source then it makes sense to sort source in-memory (XD-609)
             final long sourceSize = source.size();
+            if (sourceSize == 0) {
+                return EntityIteratorBase.EMPTY;
+            }
             final long indexSize = cachedPropertyIndex.size();
             final long log2IndexSize = MathUtil.longLogarithm(indexSize);
             final long sizeMulLog = sourceSize * log2IndexSize;
