@@ -102,7 +102,8 @@ abstract class BasePageImmutable extends BasePage {
 
     @Override
     protected long getKeyAddress(final int index) {
-        return getDataIterator(index * keyAddressLen).nextLong(keyAddressLen);
+        return dataAddress == Loggable.NULL_ADDRESS ? Loggable.NULL_ADDRESS :
+            data.nextLong((int) (dataAddress - data.getDataAddress() + index * keyAddressLen), keyAddressLen);
     }
 
     @Override

@@ -38,6 +38,11 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
     }
 
     @Override
+    public long nextLong(int offset, int length) {
+        return LongBinding.entryToUnsignedLong(bytes, start + offset, length);
+    }
+
+    @Override
     public ByteIteratorWithAddress iterator() {
         return iterator(0);
     }

@@ -23,13 +23,13 @@ class RandomAccessLoggableAndArrayByteIterable extends ArrayByteIterableWithAddr
     private final byte type;
     private final byte headerLength;
 
-    public RandomAccessLoggableAndArrayByteIterable(final long address,
-                                                    final byte type,
-                                                    final int structureId,
-                                                    final long dataAddress,
-                                                    @NotNull final byte[] bytes,
-                                                    final int start,
-                                                    final int dataLength) {
+    RandomAccessLoggableAndArrayByteIterable(final long address,
+                                             final byte type,
+                                             final int structureId,
+                                             final long dataAddress,
+                                             @NotNull final byte[] bytes,
+                                             final int start,
+                                             final int dataLength) {
         super(dataAddress, bytes, start, dataLength);
         this.structureId = structureId;
         this.type = type;
