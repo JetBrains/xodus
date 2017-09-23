@@ -16,7 +16,6 @@
 package jetbrains.exodus.tree.btree;
 
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.CompoundByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.log.*;
@@ -210,8 +209,8 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         final ByteIterable savedData = root.getData();
 
         final ByteIterable[] iterables = {
-                CompressedUnsignedLongByteIterable.getIterable(size),
-                savedData
+            CompressedUnsignedLongByteIterable.getIterable(size),
+            savedData
         };
 
         return log.write(type, structureId, new CompoundByteIterable(iterables));
@@ -245,8 +244,8 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
             cursors = openCursors;
         }
         final TreeCursorMutable result = allowsDuplicates ?
-                new BTreeCursorDupMutable(this, new BTreeTraverserDup(root)) :
-                new TreeCursorMutable(this, new BTreeTraverser(root));
+            new BTreeCursorDupMutable(this, new BTreeTraverserDup(root)) :
+            new TreeCursorMutable(this, new BTreeTraverser(root));
         cursors.add(result);
         return result;
     }
@@ -327,8 +326,8 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
             // it was a huge transaction that saved the tree, and it's reasonable to stop here, without
             // reaching the tree's root, in order to avoid possible OOME (XD-513)
             if (type == NullLoggable.TYPE &&
-                    expiredLoggables != null && // this check fixes XD-532 & XD-538
-                    expiredLoggables.size() > MAX_EXPIRED_LOGGABLES_TO_CONTINUE_RECLAIM_ON_A_NEW_FILE) {
+                expiredLoggables != null && // this check fixes XD-532 & XD-538
+                expiredLoggables.size() > MAX_EXPIRED_LOGGABLES_TO_CONTINUE_RECLAIM_ON_A_NEW_FILE) {
                 break;
             }
             loggable = loggables.next();
@@ -347,7 +346,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         final ByteIteratorWithAddress it = data.iterator();
         final int i = CompressedUnsignedLongByteIterable.getInt(it);
         if ((i & 1) == 1 && i > 1) {
-            final LeafNode minKey = loadMinKey(data.iterator(CompressedUnsignedLongByteIterable.getCompressedSize(i)));
+            final LeafNode minKey = loadMinKey(data, CompressedUnsignedLongByteIterable.getCompressedSize(i));
             if (minKey != null) {
                 final InternalPage page = new InternalPage(this, data.clone((int) (it.getAddress() - data.getDataAddress())), i >> 1);
                 page.reclaim(minKey.getKey(), context);
@@ -360,7 +359,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         final ByteIteratorWithAddress it = data.iterator();
         final int i = CompressedUnsignedLongByteIterable.getInt(it);
         if ((i & 1) == 1 && i > 1) {
-            final LeafNode minKey = loadMinKey(data.iterator(CompressedUnsignedLongByteIterable.getCompressedSize(i)));
+            final LeafNode minKey = loadMinKey(data, CompressedUnsignedLongByteIterable.getCompressedSize(i));
             if (minKey != null) {
                 final BottomPage page = new BottomPage(this, data.clone((int) (it.getAddress() - data.getDataAddress())), i >> 1);
                 page.reclaim(minKey.getKey(), context);
@@ -369,10 +368,9 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     }
 
     @Nullable
-    private LeafNode loadMinKey(ByteIterator it) {
-        final int addressLen = it.next();
-        final long keyAddress = it.nextLong(addressLen);
+    private LeafNode loadMinKey(ByteIterableWithAddress data, int offset) {
+        final int addressLen = data.byteAt(offset);
+        final long keyAddress = data.nextLong(offset + 1, addressLen);
         return log.hasAddress(keyAddress) ? loadLeaf(keyAddress) : null;
     }
-
 }
