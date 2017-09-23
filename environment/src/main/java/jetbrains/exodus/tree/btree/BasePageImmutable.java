@@ -27,7 +27,7 @@ abstract class BasePageImmutable extends BasePage {
 
     @NotNull
     protected final ByteIterableWithAddress data;
-    private long dataAddress;
+    long dataAddress;
     byte keyAddressLen;
 
     /**

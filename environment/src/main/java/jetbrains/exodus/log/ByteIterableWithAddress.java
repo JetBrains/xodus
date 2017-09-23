@@ -40,6 +40,10 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
         return iterator(offset).nextLong(length);
     }
 
+    public int getCompressedUnsignedInt() {
+        return CompressedUnsignedLongByteIterable.getInt(this);
+    }
+
     @Override
     public abstract ByteIteratorWithAddress iterator();
 

@@ -53,7 +53,7 @@ class InternalPage extends BasePageImmutable {
     @Override
     public long getChildAddress(final int index) {
         final int offset = size * keyAddressLen + index * childAddressLen + 1;
-        return getDataIterator(offset).nextLong(childAddressLen);
+        return data.nextLong((int) (dataAddress - data.getDataAddress() + offset), childAddressLen);
     }
 
     @Override

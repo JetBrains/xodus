@@ -48,6 +48,20 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
     }
 
     @Override
+    public int getCompressedUnsignedInt() {
+        int result = 0;
+        int shift = 0;
+        for (int i = start; ; ++i) {
+            final byte b = bytes[i];
+            result += (b & 0x7f) << shift;
+            if ((b & 0x80) != 0) {
+                return result;
+            }
+            shift += 7;
+        }
+    }
+
+    @Override
     public ByteIteratorWithAddress iterator() {
         return iterator(0);
     }
