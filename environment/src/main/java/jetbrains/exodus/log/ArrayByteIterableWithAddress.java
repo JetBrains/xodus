@@ -162,24 +162,21 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
         protected ByteIterator getIterator() {
             return new ByteIterator() {
 
-                int remained = length;
                 int i = offset;
 
                 @Override
                 public boolean hasNext() {
-                    return remained > 0;
+                    return length > i - offset;
                 }
 
                 @Override
                 public byte next() {
-                    remained--;
                     return bytes[i++];
                 }
 
                 @Override
                 public long skip(long bytes) {
-                    final int result = Math.min(remained, (int) bytes);
-                    remained -= result;
+                    final int result = Math.min(length - i + offset, (int) bytes);
                     i += result;
                     return result;
                 }
