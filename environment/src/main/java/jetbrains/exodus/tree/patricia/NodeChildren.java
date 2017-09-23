@@ -16,11 +16,13 @@
 package jetbrains.exodus.tree.patricia;
 
 import jetbrains.exodus.ByteIterable;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Iterator;
 
 interface NodeChildren extends Iterable<ChildReference> {
 
+    @NotNull
     @Override
     NodeChildrenIterator iterator();
 }

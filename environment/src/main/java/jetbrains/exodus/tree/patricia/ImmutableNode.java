@@ -28,7 +28,6 @@ import org.jetbrains.annotations.Nullable;
 
 final class ImmutableNode extends NodeBase {
 
-    private static final int CHILDREN_COUNT_TO_TRIGGER_BINARY_SEARCH = 8;
     private static final int LAZY_KEY_VALUE_ITERABLE_MIN_LENGTH = 16;
 
     private final long address;
@@ -93,25 +92,26 @@ final class ImmutableNode extends NodeBase {
         final int key = b & 0xff;
         int low = 0;
         int high = childrenCount - 1;
-        while (low + CHILDREN_COUNT_TO_TRIGGER_BINARY_SEARCH - 1 <= high) {
+        while (low <= high) {
             final int mid = (low + high) >>> 1;
-            final ByteIterator it = getDataIterator(mid * (childAddressLength + 1));
-            int cmp = (it.next() & 0xff) - key;
+            final int offset = dataOffset + mid * (childAddressLength + 1);
+            final int cmp = (data.byteAt(offset) & 0xff) - key;
             if (cmp < 0) {
                 low = mid + 1;
             } else if (cmp > 0) {
                 high = mid - 1;
             } else {
-                return tree.loadNode(it.nextLong(childAddressLength));
+                return tree.loadNode(data.nextLong(offset + 1, childAddressLength));
             }
         }
-        return getChildUsingLinearSearch(tree, key, low, high + 1);
+        return null;
     }
 
     @Override
     @NotNull
     NodeChildren getChildren() {
         return new NodeChildren() {
+            @NotNull
             @Override
             public NodeChildrenIterator iterator() {
                 return childrenCount == (short) 0 ?
@@ -127,62 +127,47 @@ final class ImmutableNode extends NodeBase {
         final int key = b & 0xff;
         int low = 0;
         int high = childrenCount - 1;
-        while (low + CHILDREN_COUNT_TO_TRIGGER_BINARY_SEARCH - 1 <= high) {
+        while (low <= high) {
             final int mid = (low + high) >>> 1;
-            final ByteIterator it = getDataIterator(mid * (childAddressLength + 1));
-            int cmp = (it.next() & 0xff) - key;
+            final int offset = dataOffset + mid * (childAddressLength + 1);
+            final int cmp = (data.byteAt(offset) & 0xff) - key;
             if (cmp < 0) {
                 low = mid + 1;
             } else if (cmp > 0) {
                 high = mid - 1;
             } else {
-                final long suffixAddress = it.nextLong(childAddressLength);
-                return new ImmutableNodeChildrenIterator(it, mid, new ChildReference(b, suffixAddress));
+                final long suffixAddress = data.nextLong(offset + 1, childAddressLength);
+                return new ImmutableNodeChildrenIterator(
+                    data.iterator(offset + childAddressLength + 1), mid, new ChildReference(b, suffixAddress));
             }
         }
-        return getChildrenUsingLinearSearch(b, low, high + 1);
+        return new EmptyNodeChildrenIterator();
     }
 
     @Override
     @NotNull
     NodeChildrenIterator getChildrenRange(final byte b) {
         final int key = b & 0xff;
-        if (childrenCount < CHILDREN_COUNT_TO_TRIGGER_BINARY_SEARCH) {
-            // linear search
-            final ByteIterator it = getDataIterator(0);
-            for (int i = 0; i < childrenCount; ++i) {
-                byte actual = it.next();
-                int cmp = (actual & 0xff) - key;
-                if (cmp > 0) {
-                    final long suffixAddress = it.nextLong(childAddressLength);
-                    return new ImmutableNodeChildrenIterator(it, i, new ChildReference(actual, suffixAddress));
-                }
-                it.skip(childAddressLength);
+        int low = -1;
+        int high = childrenCount;
+        int resultOffset = -1;
+        byte resultByte = (byte) 0;
+        while (high - low > 1) {
+            final int mid = (low + high + 1) >>> 1;
+            final int offset = dataOffset + mid * (childAddressLength + 1);
+            final byte actual = data.byteAt(offset);
+            if ((actual & 0xff) > key) {
+                resultOffset = offset;
+                resultByte = actual;
+                high = mid;
+            } else {
+                low = mid;
             }
-        } else {
-            // binary search
-            final int childRecordLength = childAddressLength + 1;
-            int low = -1;
-            int high = childrenCount;
-            ByteIterator result = null;
-            byte resultByte = (byte) 0;
-            while (high - low > 1) {
-                int mid = (low + high + 1) >>> 1;
-                final ByteIterator it = getDataIterator(mid * childRecordLength);
-                byte actual = it.next();
-                int cmp = (actual & 0xff) - key;
-                if (cmp > 0) {
-                    result = it;
-                    resultByte = actual;
-                    high = mid;
-                } else {
-                    low = mid;
-                }
-            }
-            if (result != null) {
-                final long suffixAddress = result.nextLong(childAddressLength);
-                return new ImmutableNodeChildrenIterator(result, high, new ChildReference(resultByte, suffixAddress));
-            }
+        }
+        if (resultOffset >= 0) {
+            final ByteIteratorWithAddress it = data.iterator(resultOffset + 1);
+            final long suffixAddress = it.nextLong(childAddressLength);
+            return new ImmutableNodeChildrenIterator(it, high, new ChildReference(resultByte, suffixAddress));
         }
         return new EmptyNodeChildrenIterator();
     }
@@ -201,47 +186,6 @@ final class ImmutableNode extends NodeBase {
 
     private ByteIterator getDataIterator(final int offset) {
         return address == Loggable.NULL_ADDRESS ? ByteIterable.EMPTY_ITERATOR : data.iterator(dataOffset + offset);
-    }
-
-    @Nullable
-    private NodeBase getChildUsingLinearSearch(@NotNull final PatriciaTreeBase tree,
-                                               final int key,
-                                               final int startIndex, /* inclusively */
-                                               final int endIndex    /* exclusively */) {
-        final ByteIterator it = getDataIterator(startIndex * (childAddressLength + 1));
-        for (int i = startIndex; i < endIndex; ++i) {
-            final int cmp = (it.next() & 0xff) - key;
-            if (cmp < 0) {
-                it.skip(childAddressLength);
-                continue;
-            }
-            if (cmp == 0) {
-                return tree.loadNode(it.nextLong(childAddressLength));
-            }
-            break;
-        }
-        return null;
-    }
-
-    @NotNull
-    private NodeChildrenIterator getChildrenUsingLinearSearch(final byte b,
-                                                              final int startIndex, /* inclusively */
-                                                              final int endIndex    /* exclusively */) {
-        final int key = b & 0xff;
-        final ByteIterator it = getDataIterator(startIndex * (childAddressLength + 1));
-        for (int i = startIndex; i < endIndex; ++i) {
-            int cmp = (it.next() & 0xff) - key;
-            if (cmp < 0) {
-                it.skip(childAddressLength);
-                continue;
-            }
-            if (cmp == 0) {
-                final long suffixAddress = it.nextLong(childAddressLength);
-                return new ImmutableNodeChildrenIterator(it, i, new ChildReference(b, suffixAddress));
-            }
-            break;
-        }
-        return new EmptyNodeChildrenIterator();
     }
 
     @NotNull

@@ -32,6 +32,10 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
         return address;
     }
 
+    public byte byteAt(final int offset) {
+        return iterator(offset).next();
+    }
+
     public long nextLong(final int offset, final int length) {
         return iterator(offset).nextLong(length);
     }
