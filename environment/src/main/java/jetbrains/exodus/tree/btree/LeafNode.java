@@ -17,7 +17,6 @@ package jetbrains.exodus.tree.btree;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.log.ByteIterableWithAddress;
-import jetbrains.exodus.log.ByteIteratorWithAddress;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import org.jetbrains.annotations.NotNull;
@@ -35,10 +34,8 @@ class LeafNode extends BaseLeafNode {
     LeafNode(@NotNull final RandomAccessLoggable loggable) {
         this.loggable = loggable;
         final ByteIterableWithAddress data = loggable.getData();
-        final ByteIteratorWithAddress iterator = data.iterator();
-        final int keyLength = CompressedUnsignedLongByteIterable.getInt(iterator);
-        final long dataAddress = iterator.getAddress();
-        final int keyRecordSize = (int) (dataAddress - data.getDataAddress());
+        final int keyLength = data.getCompressedUnsignedInt();
+        final int keyRecordSize = CompressedUnsignedLongByteIterable.getCompressedSize(keyLength);
         valueLength = loggable.getDataLength() - keyRecordSize - keyLength;
         this.keyLength = (keyLength << 3) + keyRecordSize;
     }
