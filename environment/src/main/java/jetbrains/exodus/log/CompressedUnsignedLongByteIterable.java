@@ -119,8 +119,14 @@ public final class CompressedUnsignedLongByteIterable extends ByteIterableBase {
     }
 
     public static int getCompressedSize(long l) {
-        l >>= 7;
-        int result = 1;
+        if (l < 128) {
+            return 1;
+        }
+        if (l < 16384) {
+            return 2;
+        }
+        l >>= 21;
+        int result = 3;
         while (l > 0) {
             ++result;
             l >>= 7;
