@@ -217,7 +217,7 @@ final class ImmutableNode extends NodeBase {
         if (length < LAZY_KEY_VALUE_ITERABLE_MIN_LENGTH) {
             return new ArrayByteIterable(it, length);
         }
-        final ByteIterable result = data.clone((int) (it.getAddress() - data.getDataAddress())).subIterable(0, length);
+        final ByteIterable result = data.subIterable((int) (it.getAddress() - data.getDataAddress()), length);
         it.skip(length);
         return result;
     }

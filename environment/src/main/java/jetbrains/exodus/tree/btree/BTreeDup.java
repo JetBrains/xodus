@@ -35,7 +35,7 @@ final class BTreeDup extends BTreeBase {
         super(mainTree.getLog(), mainTree.getBalancePolicy(), false, mainTree.getStructureId());
         this.leafNodeDup = leafNodeDup;
         leafNodeDupKey = leafNodeDup.getKey();
-        final ByteIterator iterator = leafNodeDup.getRawValue().iterator();
+        final ByteIterator iterator = leafNodeDup.getRawValue(0).iterator();
         final long l = CompressedUnsignedLongByteIterable.getLong(iterator);
         size = l >> 1;
         if ((l & 1) == 1) {
@@ -72,7 +72,7 @@ final class BTreeDup extends BTreeBase {
     @NotNull
     @Override
     protected BasePage getRoot() {
-        return loadPage(leafNodeDup.getType(), leafNodeDup.getRawValue().clone(dataOffset));
+        return loadPage(leafNodeDup.getType(), leafNodeDup.getRawValue(dataOffset));
     }
 
     @Override

@@ -68,7 +68,7 @@ class LeafNode extends BaseLeafNode {
     @Override
     @NotNull
     public ByteIterable getValue() {
-        return getRawValue().subIterable(0, valueLength);
+        return loggable.getData().subIterable(getKeyRecordSize() + getKeyLength(), valueLength);
     }
 
     @Override
@@ -77,8 +77,8 @@ class LeafNode extends BaseLeafNode {
     }
 
     @NotNull
-    ByteIterableWithAddress getRawValue() {
-        return loggable.getData().clone(getKeyRecordSize() + getKeyLength());
+    ByteIterableWithAddress getRawValue(final int offset) {
+        return loggable.getData().clone(getKeyRecordSize() + getKeyLength() + offset);
     }
 
     private int getKeyLength() {
