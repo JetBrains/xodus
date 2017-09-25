@@ -926,8 +926,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (valueEntry == null) {
             return null;
         }
-        final ByteIterator valueIterator = valueEntry instanceof FixedLengthByteIterable ?
-            ((FixedLengthByteIterable) valueEntry).getSource().iterator() : valueEntry.iterator();
+        final ByteIterator valueIterator = valueEntry.iterator();
         return new Pair<>(LongBinding.readCompressed(valueIterator), valueIterator);
     }
 
