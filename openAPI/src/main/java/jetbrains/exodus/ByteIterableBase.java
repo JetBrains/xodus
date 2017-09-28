@@ -107,7 +107,7 @@ public abstract class ByteIterableBase implements ByteIterable {
 
     @Override
     public boolean equals(Object obj) {
-        return obj instanceof ByteIterable && compareTo((ByteIterable) obj) == 0;
+        return this == obj || obj instanceof ByteIterable && compareTo((ByteIterable) obj) == 0;
     }
 
     /**
