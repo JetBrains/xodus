@@ -120,7 +120,7 @@ public final class SortIterable extends EntityIterableDecoratorBase {
         final PersistentEntityStoreImpl store = getStore();
         final EntityIterableBase cachedPropertyIndex = store.getEntityIterableCache().putIfNotCached(propIndex);
 
-        if (store.getConfig().isDebugAllowInMemorySort()) {
+        if (propIndex.nonCachedHasFastCountAndIsEmpty() && store.getConfig().isDebugAllowInMemorySort()) {
             // if property index is much greater than source then it makes sense to sort source in-memory (XD-609)
             final long sourceSize = source.size();
             if (sourceSize == 0) {
