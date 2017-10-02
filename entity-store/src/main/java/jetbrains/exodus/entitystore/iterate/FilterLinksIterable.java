@@ -70,7 +70,7 @@ public class FilterLinksIterable extends EntityIterableDecoratorBase {
                 while (sourceIt.hasNext()) {
                     nextId = sourceIt.nextId();
                     if (nextId != null) {
-                        final PersistentEntityId targetId = store.getLinkAsEntityId(txn, store.getEntity(nextId), linkId);
+                        final PersistentEntityId targetId = store.getRawLinkAsEntityId(txn, store.getEntity(nextId), linkId);
                         if (targetId != null && getIdSet().contains(targetId)) {
                             return true;
                         }

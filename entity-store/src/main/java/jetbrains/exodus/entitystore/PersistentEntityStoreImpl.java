@@ -1197,13 +1197,18 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     public PersistentEntityId getLinkAsEntityId(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity from, int linkId) {
         PersistentEntityId resultId = txn.getCachedLink(from, linkId);
         if (resultId == null) {
-            final ByteIterable resultEntry = getRawLink(txn, from, linkId);
-            if (resultEntry != null) {
-                resultId = (PersistentEntityId) LinkValue.entryToLinkValue(resultEntry).getEntityId();
+            resultId = getRawLinkAsEntityId(txn, from, linkId);
+            if (resultId != null) {
                 txn.cacheLink(from, linkId, resultId);
             }
         }
         return resultId;
+    }
+
+    @Nullable
+    public PersistentEntityId getRawLinkAsEntityId(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity from, int linkId) {
+        final ByteIterable resultEntry = getRawLink(txn, from, linkId);
+        return resultEntry == null ? null : (PersistentEntityId) LinkValue.entryToLinkValue(resultEntry).getEntityId();
     }
 
     @Nullable
