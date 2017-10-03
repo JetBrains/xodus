@@ -58,13 +58,7 @@ class PersistentSequentialDictionary implements FlushLog.Member {
     }
 
     public int getId(@NotNull final PersistentStoreTransaction txn, @NotNull final String name) {
-        return getId(new TxnProvider() {
-            @NotNull
-            @Override
-            public PersistentStoreTransaction getTransaction() {
-                return txn;
-            }
-        }, name);
+        return getId((TxnProvider) txn, name);
     }
 
     public int getId(@NotNull final TxnProvider txnProvider, @NotNull final String name) {
@@ -89,13 +83,7 @@ class PersistentSequentialDictionary implements FlushLog.Member {
     }
 
     public int getOrAllocateId(@NotNull final PersistentStoreTransaction txn, @NotNull final String name) {
-        return getOrAllocateId(new TxnProvider() {
-            @NotNull
-            @Override
-            public PersistentStoreTransaction getTransaction() {
-                return txn;
-            }
-        }, name);
+        return getOrAllocateId((TxnProvider) txn, name);
     }
 
     public int getOrAllocateId(@NotNull final TxnProvider txnProvider, @NotNull final String name) {
@@ -128,13 +116,7 @@ class PersistentSequentialDictionary implements FlushLog.Member {
 
     @Nullable
     public String getName(@NotNull final PersistentStoreTransaction txn, final int id) {
-        return getName(new TxnProvider() {
-            @NotNull
-            @Override
-            public PersistentStoreTransaction getTransaction() {
-                return txn;
-            }
-        }, id);
+        return getName((TxnProvider) txn, id);
     }
 
     @Nullable
