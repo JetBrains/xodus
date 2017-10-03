@@ -29,14 +29,12 @@ class LeafNode extends BaseLeafNode {
     @NotNull
     private final RandomAccessLoggable loggable;
     private final int keyLength;
-    private final int valueLength;
 
     LeafNode(@NotNull final RandomAccessLoggable loggable) {
         this.loggable = loggable;
         final ByteIterableWithAddress data = loggable.getData();
         final int keyLength = data.getCompressedUnsignedInt();
         final int keyRecordSize = CompressedUnsignedLongByteIterable.getCompressedSize(keyLength);
-        valueLength = loggable.getDataLength() - keyRecordSize - keyLength;
         this.keyLength = (keyLength << 3) + keyRecordSize;
     }
 
@@ -56,7 +54,7 @@ class LeafNode extends BaseLeafNode {
 
     @Override
     public int compareValueTo(@NotNull final ByteIterable iterable) {
-        return loggable.getData().compareTo(getKeyRecordSize() + getKeyLength(), valueLength, iterable);
+        return loggable.getData().compareTo(getKeyRecordSize() + getKeyLength(), getValueLength(), iterable);
     }
 
     @Override
@@ -68,7 +66,7 @@ class LeafNode extends BaseLeafNode {
     @Override
     @NotNull
     public ByteIterable getValue() {
-        return loggable.getData().subIterable(getKeyRecordSize() + getKeyLength(), valueLength);
+        return loggable.getData().subIterable(getKeyRecordSize() + getKeyLength(), getValueLength());
     }
 
     @Override
@@ -87,6 +85,10 @@ class LeafNode extends BaseLeafNode {
 
     private int getKeyRecordSize() {
         return keyLength & 7;
+    }
+
+    private int getValueLength() {
+        return loggable.getDataLength() - getKeyRecordSize() - getKeyLength();
     }
 
     protected void doReclaim(@NotNull BTreeReclaimTraverser context, final int leafIndex) {
