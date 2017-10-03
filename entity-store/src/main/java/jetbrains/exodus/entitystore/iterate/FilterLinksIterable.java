@@ -26,7 +26,7 @@ public class FilterLinksIterable extends EntityIterableDecoratorBase {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
                 return new FilterLinksIterable(txn,
-                        Integer.valueOf((String) parameters[0]), (EntityIterableBase) parameters[1], (EntityIterable) parameters[2]);
+                    Integer.valueOf((String) parameters[0]), (EntityIterableBase) parameters[1], (EntityIterable) parameters[2]);
             }
         });
     }
@@ -70,7 +70,7 @@ public class FilterLinksIterable extends EntityIterableDecoratorBase {
                 while (sourceIt.hasNext()) {
                     nextId = sourceIt.nextId();
                     if (nextId != null) {
-                        final PersistentEntityId targetId = store.getRawLinkAsEntityId(txn, store.getEntity(nextId), linkId);
+                        final PersistentEntityId targetId = store.getRawLinkAsEntityId(txn, (PersistentEntityId) nextId, linkId);
                         if (targetId != null && getIdSet().contains(targetId)) {
                             return true;
                         }

@@ -105,7 +105,7 @@ public class PersistentEntity implements Entity, TxnProvider {
     public ByteIterable getRawProperty(@NotNull final String propertyName) {
         final PersistentStoreTransaction txn = getTransaction();
         final int propertyId = store.getPropertyId(txn, propertyName, false);
-        return propertyId < 0 ? null : store.getRawProperty(txn, this, propertyId);
+        return propertyId < 0 ? null : store.getRawProperty(txn, id, propertyId);
     }
 
     @Override

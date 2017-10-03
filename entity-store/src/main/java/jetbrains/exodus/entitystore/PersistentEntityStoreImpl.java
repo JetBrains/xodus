@@ -671,15 +671,15 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     public PropertyValue getPropertyValue(@NotNull final PersistentStoreTransaction txn,
                                           @NotNull final PersistentEntity entity,
                                           final int propertyId) {
-        final ByteIterable entry = getRawProperty(txn, entity, propertyId);
+        final ByteIterable entry = getRawProperty(txn, entity.getId(), propertyId);
         return entry != null ? propertyTypes.entryToPropertyValue(entry) : null;
     }
 
     @Nullable
     public ByteIterable getRawProperty(@NotNull final PersistentStoreTransaction txn,
-                                       @NotNull final PersistentEntity entity,
+                                       @NotNull final PersistentEntityId entityId,
                                        final int propertyId) {
-        return getRawValue(txn, entity, propertyId, propertyDataGetter);
+        return getRawValue(txn, entityId, propertyId, propertyDataGetter);
     }
 
     public boolean setProperty(@NotNull final PersistentStoreTransaction txn,
@@ -691,13 +691,13 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (valueType.getBinding() == ComparableSetBinding.BINDING && ((ComparableSet) value).isEmpty()) {
             return deleteProperty(txn, entity, propertyName);
         }
+        final PersistentEntityId entityId = entity.getId();
         final int propertyId = getPropertyId(txn, propertyName, true);
-        final ByteIterable oldValueEntry = getRawProperty(txn, entity, propertyId);
+        final ByteIterable oldValueEntry = getRawProperty(txn, entityId, propertyId);
         final Comparable oldValue = oldValueEntry == null ? null : propertyTypes.entryToPropertyValue(oldValueEntry).getData();
         if (value.equals(oldValue)) { // value is not null by contract
             return false;
         }
-        final PersistentEntityId entityId = entity.getId();
         getPropertiesTable(txn, entityId.getTypeId()).put(
             txn, entityId.getLocalId(), PropertyTypes.propertyValueToEntry(propValue), oldValueEntry, propertyId, valueType);
         txn.propertyChanged(entityId, propertyId, oldValue, value);
@@ -710,15 +710,15 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (propertyId < 0) {
             return false;
         }
-        final ByteIterable oldValue = getRawProperty(txn, entity, propertyId);
+        final PersistentEntityId id = entity.getId();
+        final ByteIterable oldValue = getRawProperty(txn, id, propertyId);
         if (oldValue == null) {
             return false;
         }
-        final EntityId id = entity.getId();
         final PropertyValue propValue = propertyTypes.entryToPropertyValue(oldValue);
         getPropertiesTable(txn, id.getTypeId()).delete(txn, id.getLocalId(),
             oldValue, propertyId, propValue.getType());
-        txn.propertyChanged((PersistentEntityId) id, propertyId, propValue.getData(), null);
+        txn.propertyChanged(id, propertyId, propValue.getData(), null);
 
         return true;
     }
@@ -922,7 +922,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (blobId < 0) {
             return null;
         }
-        final ByteIterable valueEntry = getRawValue(txn, entity, blobId, blobDataGetter);
+        final ByteIterable valueEntry = getRawValue(txn, entity.getId(), blobId, blobDataGetter);
         if (valueEntry == null) {
             return null;
         }
@@ -1168,7 +1168,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             target = txn.getEntity(target.getId());
         }
 
-        final ByteIterable valueEntry = getRawLink(txn, from, linkId);
+        final ByteIterable valueEntry = getRawLink(txn, fromId, linkId);
         if (valueEntry != null) {
             final PersistentEntity oldTarget = getEntity(LinkValue.entryToLinkValue(valueEntry).getEntityId());
             if (oldTarget.equals(target)) {
@@ -1197,7 +1197,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     public PersistentEntityId getLinkAsEntityId(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity from, int linkId) {
         PersistentEntityId resultId = txn.getCachedLink(from, linkId);
         if (resultId == null) {
-            resultId = getRawLinkAsEntityId(txn, from, linkId);
+            resultId = getRawLinkAsEntityId(txn, from.getId(), linkId);
             if (resultId != null) {
                 txn.cacheLink(from, linkId, resultId);
             }
@@ -1206,25 +1206,26 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     @Nullable
-    public PersistentEntityId getRawLinkAsEntityId(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity from, int linkId) {
-        final ByteIterable resultEntry = getRawLink(txn, from, linkId);
+    public PersistentEntityId getRawLinkAsEntityId(@NotNull final PersistentStoreTransaction txn,
+                                                   @NotNull final PersistentEntityId fromId,
+                                                   final int linkId) {
+        final ByteIterable resultEntry = getRawLink(txn, fromId, linkId);
         return resultEntry == null ? null : (PersistentEntityId) LinkValue.entryToLinkValue(resultEntry).getEntityId();
     }
 
     @Nullable
     private ByteIterable getRawLink(@NotNull final PersistentStoreTransaction txn,
-                                    @NotNull final PersistentEntity from,
+                                    @NotNull final PersistentEntityId fromId,
                                     final int linkId) {
-        return getRawValue(txn, from, linkId, linkDataGetter);
+        return getRawValue(txn, fromId, linkId, linkDataGetter);
     }
 
     @Nullable
     private ByteIterable getRawValue(@NotNull final PersistentStoreTransaction txn,
-                                     @NotNull final Entity entity,
+                                     @NotNull final EntityId entityId,
                                      final int propertyId,
                                      @NotNull final DataGetter dataGetter) {
-        final EntityId fromId = entity.getId();
-        return dataGetter.getUpToDateEntry(txn, fromId.getTypeId(), new PropertyKey(fromId.getLocalId(), propertyId));
+        return dataGetter.getUpToDateEntry(txn, entityId.getTypeId(), new PropertyKey(entityId.getLocalId(), propertyId));
     }
 
     @NotNull
