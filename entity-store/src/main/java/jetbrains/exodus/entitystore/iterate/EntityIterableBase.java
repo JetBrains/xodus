@@ -102,7 +102,7 @@ public abstract class EntityIterableBase implements EntityIterable {
     private EntityIterableHandle cachedHandle;
     private Object origin;
     @NotNull
-    protected TxnGetterStategy txnGetter = TxnGetterStategy.DEFAULT;
+    protected TxnGetterStrategy txnGetter = TxnGetterStrategy.DEFAULT;
 
     protected EntityIterableBase(@Nullable final PersistentStoreTransaction txn) {
         if (txn == null) {
@@ -446,7 +446,7 @@ public abstract class EntityIterableBase implements EntityIterable {
     }
 
     public boolean isThreadSafe() {
-        return txnGetter == TxnGetterStategy.DEFAULT;
+        return txnGetter == TxnGetterStrategy.DEFAULT;
     }
 
     public boolean isCachedInstance() {

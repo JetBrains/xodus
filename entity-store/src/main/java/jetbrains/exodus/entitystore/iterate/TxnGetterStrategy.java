@@ -18,9 +18,9 @@ package jetbrains.exodus.entitystore.iterate;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import org.jetbrains.annotations.NotNull;
 
-public interface TxnGetterStategy {
+public interface TxnGetterStrategy {
 
-    TxnGetterStategy DEFAULT = new TxnGetterStategy() {
+    TxnGetterStrategy DEFAULT = new TxnGetterStrategy() {
         @Override
         public PersistentStoreTransaction getTxn(@NotNull final EntityIterableBase iterable) {
             return iterable.getStore().getAndCheckCurrentTransaction();

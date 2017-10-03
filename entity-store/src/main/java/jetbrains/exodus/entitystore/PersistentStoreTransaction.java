@@ -50,7 +50,7 @@ import java.util.List;
 import java.util.Set;
 
 @SuppressWarnings({"RawUseOfParameterizedType", "rawtypes"})
-public class PersistentStoreTransaction implements StoreTransaction, TxnGetterStategy {
+public class PersistentStoreTransaction implements StoreTransaction, TxnGetterStrategy {
     private static final Logger logger = LoggerFactory.getLogger(PersistentStoreTransaction.class);
 
     enum TransactionType {
