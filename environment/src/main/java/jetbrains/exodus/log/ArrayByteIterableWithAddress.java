@@ -23,6 +23,8 @@ import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.util.ByteIterableUtil;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Arrays;
+
 class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
 
     @NotNull
@@ -142,8 +144,7 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
 
     private static class SubIterable extends ByteIterableBase {
 
-        private final int offset;
-        private byte[] bytesUnsafe;
+        private int offset;
 
         SubIterable(@NotNull final byte[] bytes, final int offset, final int length) {
             this.bytes = bytes;
@@ -192,15 +193,11 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
 
         @Override
         public byte[] getBytesUnsafe() {
-            if (bytesUnsafe == null) {
-                if (offset == 0) {
-                    bytesUnsafe = bytes;
-                } else {
-                    bytesUnsafe = new byte[length];
-                    System.arraycopy(bytes, offset, bytesUnsafe, 0, length);
-                }
+            if (offset > 0) {
+                bytes = Arrays.copyOfRange(bytes, offset, offset + length);
+                offset = 0;
             }
-            return bytesUnsafe;
+            return bytes;
         }
 
         private byte[] getRawBytes() {
