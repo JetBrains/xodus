@@ -302,12 +302,12 @@ public class PatriciaCursorDecorator implements ITreeCursor {
                         final byte[] noDupKeyBytes = noDupKey.getBytesUnsafe();
                         if (ByteIterableUtil.compare(srcKeyBytes, keyLength, noDupKeyBytes, keyLength) == 0) {
                             // skip separator
-                            final int noDupKeyLength = noDupKey.getLength();
+                            final int noDupKeyLength = noDupKey.getLength() - keyLength - 1;
                             final int cmp = ByteIterableUtil.compare(noDupKeyBytes, noDupKeyLength, keyLength + 1, value.getBytesUnsafe(), valueLength);
                             if (cmp >= 0) {
                                 keyBytes = noDupKeyBytes;
                                 this.keyLength = keyLength;
-                                this.valueLength = noDupKeyLength - keyLength - 1;
+                                this.valueLength = noDupKeyLength;
                                 cursorToClose = patriciaCursor;
                                 patriciaCursor = cursor;
                                 nextKeyLength = UNKNOWN; // forget computed next pair

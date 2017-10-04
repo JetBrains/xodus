@@ -74,7 +74,7 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
     @Override
     public int compareTo(final int offset, final int len, @NotNull final ByteIterable right) {
         final int absoluteOffset = start + offset;
-        return ByteIterableUtil.compare(bytes, absoluteOffset + len, absoluteOffset, right.getBytesUnsafe(), right.getLength());
+        return ByteIterableUtil.compare(bytes, len, absoluteOffset, right.getBytesUnsafe(), right.getLength());
     }
 
     @Override
@@ -150,7 +150,7 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
 
         @Override
         public int compareTo(ByteIterable right) {
-            return ByteIterableUtil.compare(bytes, offset + length, offset, right.getBytesUnsafe(), right.getLength());
+            return ByteIterableUtil.compare(bytes, length, offset, right.getBytesUnsafe(), right.getLength());
         }
 
         @Override
