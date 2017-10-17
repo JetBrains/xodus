@@ -100,6 +100,12 @@ public class StoreImpl implements Store {
         return false;
     }
 
+    public boolean putNotifyNoCursors(@NotNull final Transaction txn,
+                                      @NotNull final ByteIterable key,
+                                      @NotNull final ByteIterable value) {
+        return EnvironmentImpl.throwIfReadonly(txn, "Can't put in read-only transaction").getMutableTree(this).put(key, value);
+    }
+
     @Override
     public void putRight(@NotNull final Transaction txn,
                          @NotNull final ByteIterable key,

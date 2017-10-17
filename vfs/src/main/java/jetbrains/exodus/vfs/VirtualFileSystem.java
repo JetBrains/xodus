@@ -309,20 +309,23 @@ public class VirtualFileSystem {
     @Nullable
     public File deleteFile(@NotNull final Transaction txn, @NotNull final String path) {
         final ArrayByteIterable key = StringBinding.stringToEntry(path);
+        final ByteIterable fileMetadata;
         try (Cursor cursor = pathnames.openCursor(txn)) {
-            final ByteIterable value = cursor.getSearchKey(key);
-            if (value != null) {
-                final File result = new File(path, value);
-                // at first delete contents
-                try (ClusterIterator iterator = new ClusterIterator(this, txn, result)) {
-                    while (iterator.hasCluster()) {
-                        iterator.deleteCurrent();
-                        iterator.moveToNext();
-                    }
-                }
+            fileMetadata = cursor.getSearchKey(key);
+            if (fileMetadata != null) {
                 cursor.deleteCurrent();
-                return result;
             }
+        }
+        if (fileMetadata != null) {
+            final File result = new File(path, fileMetadata);
+            // at first delete contents
+            try (ClusterIterator iterator = new ClusterIterator(this, txn, result)) {
+                while (iterator.hasCluster()) {
+                    iterator.deleteCurrent();
+                    iterator.moveToNext();
+                }
+            }
+            return result;
         }
         return null;
     }

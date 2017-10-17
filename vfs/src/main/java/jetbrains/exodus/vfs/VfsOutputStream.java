@@ -16,6 +16,7 @@
 package jetbrains.exodus.vfs;
 
 import jetbrains.exodus.env.Store;
+import jetbrains.exodus.env.StoreImpl;
 import jetbrains.exodus.env.Transaction;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -146,7 +147,7 @@ class VfsOutputStream extends OutputStream {
 
     private void flushCurrentCluster() {
         if (isOutputClusterDirty) {
-            contents.put(txn, ClusterKey.toByteIterable(fd, currentClusterNumber),
+            ((StoreImpl) contents).putNotifyNoCursors(txn, ClusterKey.toByteIterable(fd, currentClusterNumber),
                 Cluster.writeCluster(
                     outputCluster, vfs.getClusterConverter(), outputClusterSize, vfs.getConfig().getAccumulateChangesInRAM()));
             if (clusterFlushTrigger != null) {
