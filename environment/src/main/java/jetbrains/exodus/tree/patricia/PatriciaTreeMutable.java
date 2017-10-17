@@ -111,7 +111,6 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
             }
             node = mutableChild;
         }
-        TreeCursorMutable.notifyCursors(this);
         return result;
     }
 
@@ -166,7 +165,6 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
             }
             node = mutableChild;
         }
-        TreeCursorMutable.notifyCursors(this);
     }
 
     @Override
@@ -220,17 +218,12 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
         }
         ++size;
         mutateUp(stack, mutableNode);
-        TreeCursorMutable.notifyCursors(this);
         return true;
     }
 
     @Override
     public boolean delete(@NotNull final ByteIterable key) {
-        if (deleteImpl(key)) {
-            TreeCursorMutable.notifyCursors(this);
-            return true;
-        }
-        return false;
+        return deleteImpl(key);
     }
 
     @Override

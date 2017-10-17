@@ -122,8 +122,6 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         if (newSibling != null) {
             root = new InternalPageMutable(this, root, newSibling);
         }
-
-        TreeCursorMutable.notifyCursors(this);
     }
 
     @Override
@@ -138,20 +136,12 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
             root = new InternalPageMutable(this, root, newSibling);
         }
 
-        if (result[0]) {
-            TreeCursorMutable.notifyCursors(this);
-        }
-
         return result[0];
     }
 
     @Override
     public boolean delete(@NotNull ByteIterable key) {
-        if (deleteImpl(key, null)) {
-            TreeCursorMutable.notifyCursors(this);
-            return true;
-        }
-        return false;
+        return deleteImpl(key, null);
     }
 
     @Override
@@ -167,6 +157,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         return leafStream;
     }
 
+    // for test only!!!
     protected boolean delete(@NotNull ByteIterable key, @Nullable ByteIterable value) {
         if (deleteImpl(key, value)) {
             TreeCursorMutable.notifyCursors(this);

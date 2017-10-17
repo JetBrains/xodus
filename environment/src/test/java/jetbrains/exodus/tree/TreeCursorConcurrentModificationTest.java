@@ -70,6 +70,7 @@ public abstract class TreeCursorConcurrentModificationTest extends TreeBaseTest 
 
     protected void deleteImpl(@NotNull final ByteIterable key) {
         assertTrue(tm.delete(key));
+        TreeCursorMutable.notifyCursors(tm);
     }
 
 }

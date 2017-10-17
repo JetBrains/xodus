@@ -57,8 +57,7 @@ final class PatriciaTreeWithDuplicatesMutable extends PatriciaTreeWithDuplicates
     @Override
     @Nullable
     public Iterable<ITreeCursorMutable> getOpenCursors() {
-        throw new UnsupportedOperationException();
-        // return getTreeNoDuplicates().getOpenCursors();
+        return getTreeNoDuplicates().getOpenCursors();
     }
 
     @Override
@@ -114,9 +113,6 @@ final class PatriciaTreeWithDuplicatesMutable extends PatriciaTreeWithDuplicates
                 wasDeleted = true;
                 value = cursor.getNext() ? cursor.getValue() : null;
             }
-        }
-        if (wasDeleted) {
-            TreeCursorMutable.notifyCursors(getTreeNoDuplicates());
         }
         return wasDeleted;
     }

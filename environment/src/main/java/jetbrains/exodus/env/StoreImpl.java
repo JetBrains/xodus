@@ -21,6 +21,8 @@ import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import jetbrains.exodus.tree.ITree;
+import jetbrains.exodus.tree.ITreeMutable;
+import jetbrains.exodus.tree.TreeCursorMutable;
 import jetbrains.exodus.tree.TreeMetaInfo;
 import jetbrains.exodus.tree.btree.BTree;
 import jetbrains.exodus.tree.btree.BTreeBalancePolicy;
@@ -90,21 +92,33 @@ public class StoreImpl implements Store {
     public boolean put(@NotNull final Transaction txn,
                        @NotNull final ByteIterable key,
                        @NotNull final ByteIterable value) {
-        return EnvironmentImpl.throwIfReadonly(txn, "Can't put in read-only transaction").getMutableTree(this).put(key, value);
+        final ITreeMutable mutableTree = EnvironmentImpl.throwIfReadonly(txn, "Can't put in read-only transaction").getMutableTree(this);
+        if (mutableTree.put(key, value)) {
+            TreeCursorMutable.notifyCursors(mutableTree);
+            return true;
+        }
+        return false;
     }
 
     @Override
     public void putRight(@NotNull final Transaction txn,
                          @NotNull final ByteIterable key,
                          @NotNull final ByteIterable value) {
-        EnvironmentImpl.throwIfReadonly(txn, "Can't put in read-only transaction").getMutableTree(this).putRight(key, value);
+        final ITreeMutable mutableTree = EnvironmentImpl.throwIfReadonly(txn, "Can't put in read-only transaction").getMutableTree(this);
+        mutableTree.putRight(key, value);
+        TreeCursorMutable.notifyCursors(mutableTree);
     }
 
     @Override
     public boolean add(@NotNull final Transaction txn,
                        @NotNull final ByteIterable key,
                        @NotNull final ByteIterable value) {
-        return EnvironmentImpl.throwIfReadonly(txn, "Can't add in read-only transaction").getMutableTree(this).add(key, value);
+        final ITreeMutable mutableTree = EnvironmentImpl.throwIfReadonly(txn, "Can't add in read-only transaction").getMutableTree(this);
+        if (mutableTree.add(key, value)) {
+            TreeCursorMutable.notifyCursors(mutableTree);
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -120,7 +134,12 @@ public class StoreImpl implements Store {
     @Override
     public boolean delete(@NotNull final Transaction txn,
                           @NotNull final ByteIterable key) {
-        return EnvironmentImpl.throwIfReadonly(txn, "Can't delete in read-only transaction").getMutableTree(this).delete(key);
+        final ITreeMutable mutableTree = EnvironmentImpl.throwIfReadonly(txn, "Can't delete in read-only transaction").getMutableTree(this);
+        if (mutableTree.delete(key)) {
+            TreeCursorMutable.notifyCursors(mutableTree);
+            return true;
+        }
+        return false;
     }
 
     @Override
