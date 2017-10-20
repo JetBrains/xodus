@@ -459,6 +459,15 @@ public final class EnvironmentConfig extends AbstractConfig {
      */
     public static final String MANAGEMENT_ENABLED = "exodus.managementEnabled";
 
+    /**
+     * If is set to {@code true} then exposed JMX managed beans cannot have operations.
+     * Default value is {@code true}.
+     * <p>Mutable at runtime: no
+     *
+     * @see #MANAGEMENT_ENABLED
+     */
+    public static final String MANAGEMENT_OPERATIONS_RESTRICTED = "exodus.management.operationsRestricted";
+
     public EnvironmentConfig() {
         this(ConfigurationStrategy.SYSTEM_PROPERTY);
     }
@@ -507,7 +516,8 @@ public final class EnvironmentConfig extends AbstractConfig {
             new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
             new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 1000),
             new Pair(GC_TRANSACTION_TIMEOUT, 1000),
-            new Pair(MANAGEMENT_ENABLED, true)
+            new Pair(MANAGEMENT_ENABLED, true),
+            new Pair(MANAGEMENT_OPERATIONS_RESTRICTED, true)
         }, strategy);
     }
 
@@ -1714,5 +1724,28 @@ public final class EnvironmentConfig extends AbstractConfig {
      */
     public EnvironmentConfig setManagementEnabled(final boolean managementEnabled) {
         return setSetting(MANAGEMENT_ENABLED, managementEnabled);
+    }
+
+    /**
+     * If is set to {@code true} then exposed JMX managed beans cannot have operations.
+     * Default value is {@code true}.
+     * <p>Mutable at runtime: no
+     *
+     * @return {@code true} if exposed JMX managed beans cannot have operations.
+     * @see #isManagementEnabled()
+     */
+    public boolean getManagementOperationsRestricted() {
+        return (Boolean) getSetting(MANAGEMENT_OPERATIONS_RESTRICTED);
+    }
+
+    /**
+     * If {@linkplain #isManagementEnabled()} then set {@code false} in order to expose operations with JMX managed
+     * beans in addition to attributes.
+     *
+     * @param operationsRestricted {@code false} if JMX managed beans should expose operations in addition to attributes
+     * @return this {@code EnvironmentConfig} instance
+     */
+    public EnvironmentConfig setManagementOperationsRestricted(final boolean operationsRestricted) {
+        return setSetting(MANAGEMENT_OPERATIONS_RESTRICTED, operationsRestricted);
     }
 }

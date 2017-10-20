@@ -23,7 +23,7 @@ import org.jetbrains.annotations.NotNull;
 public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBean {
 
     @NotNull
-    private final EnvironmentImpl env;
+    final EnvironmentImpl env;
     @NotNull
     private final jetbrains.exodus.env.EnvironmentConfig config;
 
@@ -331,12 +331,6 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     @Override
     public void setGcFilesDeletionDelay(int delay) {
         config.setGcFilesDeletionDelay(delay);
-    }
-
-    @Override
-    public void close() {
-        env.close();
-        super.close();
     }
 
     public static String getObjectName(@NotNull final Environment env) {
