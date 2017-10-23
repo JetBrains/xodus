@@ -273,8 +273,9 @@ internal class Reflect(directory: File) {
      */
     internal fun traverse(dumpUtilizationToFile: String? = null): Int {
         val usedSpace = TreeMap<Long, Long?>()
+        val usedSpacePerStore = TreeMap<String, Long?>()
         print("Analysing meta tree loggables... ")
-        fetchUsedSpace(env.metaTree.addressIterator(), usedSpace)
+        fetchUsedSpace("meta tree", env.metaTree.addressIterator(), usedSpace, usedSpacePerStore)
         val names = env.computeInReadonlyTransaction { txn -> env.getAllStoreNames(txn) }
         env.executeInReadonlyTransaction { txn ->
             if (env.storeExists(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, txn)) {
@@ -294,7 +295,7 @@ internal class Reflect(directory: File) {
                     var storeSize = 0L
                     store.openCursor(txn).forEach { ++storeSize }
                     val tree = (txn as TransactionBase).getTree(store)
-                    fetchUsedSpace(tree.addressIterator(), usedSpace)
+                    fetchUsedSpace(name, tree.addressIterator(), usedSpace, usedSpacePerStore)
                     if (tree.size != storeSize) {
                         logger.error { "Stored size (${tree.size}) isn't equal to actual size ($storeSize)" }
                     }
@@ -307,6 +308,8 @@ internal class Reflect(directory: File) {
         }
         println()
         spaceInfo(usedSpace.entries)
+        println()
+        perStoreSpaceInfo(usedSpacePerStore.entries)
         dumpUtilizationToFile?.run {
             PrintWriter(dumpUtilizationToFile).use { out ->
                 usedSpace.entries.map { "${it.key} ${it.value}" }.forEach { out.println(it) }
@@ -406,12 +409,16 @@ internal class Reflect(directory: File) {
         spaceInfo(storedSpace.entries)
     }
 
-    private fun fetchUsedSpace(itr: LongIterator, usedSpace: TreeMap<Long, Long?>) {
+    private fun fetchUsedSpace(name: String, itr: LongIterator,
+                               usedSpace: TreeMap<Long, Long?>,
+                               usedSpacePerStore: TreeMap<String, Long?>) {
         itr.forEach {
             try {
                 val loggable = log.read(it)
                 val fileAddress = log.getFileAddress(it)
-                usedSpace.put(fileAddress, (usedSpace[fileAddress] ?: 0L) + loggable.length().toLong())
+                val dataLength = loggable.length().toLong()
+                usedSpace.put(fileAddress, (usedSpace[fileAddress] ?: 0L) + dataLength)
+                usedSpacePerStore.put(name, (usedSpacePerStore[name] ?: 0L) + dataLength)
                 val type = loggable.type.toInt()
                 if (type > MAX_VALID_LOGGABLE_TYPE) {
                     logger.error("Wrong loggable type: " + type)
@@ -435,6 +442,16 @@ internal class Reflect(directory: File) {
                 }
                 println("Used bytes in file " + LogUtil.getLogFilename(address) + msg)
             }
+        }
+    }
+
+    private fun perStoreSpaceInfo(usedSpace: Iterable<Map.Entry<String, Long?>>) {
+        for ((name, usedBytes) in usedSpace.sortedBy { -(it.value ?: 0) }) {
+            println(if (usedBytes == null) {
+                "Used bytes for store $name unknown"
+            } else {
+                String.format("Used bytes for store\t%110s\t%8.2fKB", name, usedBytes.toDouble() / 1024)
+            })
         }
     }
 }
