@@ -17,6 +17,8 @@ package jetbrains.exodus.env
 
 import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ExodusException
+import jetbrains.exodus.bindings.IntegerBinding
+import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap
 import jetbrains.exodus.core.dataStructures.hash.LinkedHashSet
 import jetbrains.exodus.gc.GarbageCollector
@@ -48,6 +50,7 @@ fun main(args: Array<String>) {
     var traverse = false
     var copy = false
     var utilizationInfo = false
+    var persistentEntityStoreInfo = false
     val files2Clean = LinkedHashSet<String>()
     for (arg in args) {
         if (arg.startsWith('-')) {
@@ -58,6 +61,7 @@ fun main(args: Array<String>) {
                 "t" -> traverse = true
                 "c" -> copy = true
                 "u" -> utilizationInfo = true
+                "p" -> persistentEntityStoreInfo = true
                 else -> {
                     if (arg.startsWith("-cl")) {
                         files2Clean.add(arg.substring(3))
@@ -92,7 +96,7 @@ fun main(args: Array<String>) {
         }
         if (!hasOptions) {
             reflect.gatherLogStats()
-            exitProcess(reflect.traverse(dumpUtilizationToFile))
+            exitProcess(reflect.traverse(dumpUtilizationToFile, persistentEntityStoreInfo))
         } else {
             if (validateRoots) {
                 reflect.roots()
@@ -101,7 +105,7 @@ fun main(args: Array<String>) {
                 reflect.gatherLogStats()
             }
             if (traverse) {
-                exitProcess(reflect.traverse(dumpUtilizationToFile))
+                exitProcess(reflect.traverse(dumpUtilizationToFile, persistentEntityStoreInfo))
             }
             if (copy) {
                 reflect.copy(File(envPath2))
@@ -126,6 +130,7 @@ internal fun printUsage() {
     println("  -d<file name>   Dump utilization to a file (can be used with the '-t' option)")
     println("  -c              Copy actual root to a new environment (environment path 2 is mandatory)")
     println("  -u              display stored Utilization")
+    println("  -p              print PersistentEntityStore tables usage (must be used with the '-t' option)")
     println("  -cl<file name>  CLean particular file before any reflection")
     exitProcess(1)
 }
@@ -271,7 +276,7 @@ internal class Reflect(directory: File) {
     /**
      * @return exit code 0 if there were no problems traversing the database
      */
-    internal fun traverse(dumpUtilizationToFile: String? = null): Int {
+    internal fun traverse(dumpUtilizationToFile: String? = null, dumpPersistentEntityStoreInfo: Boolean = false): Int {
         val usedSpace = TreeMap<Long, Long?>()
         val usedSpacePerStore = TreeMap<String, Long?>()
         print("Analysing meta tree loggables... ")
@@ -309,7 +314,7 @@ internal class Reflect(directory: File) {
         println()
         spaceInfo(usedSpace.entries)
         println()
-        perStoreSpaceInfo(usedSpacePerStore.entries)
+        perStoreSpaceInfo(usedSpacePerStore, dumpPersistentEntityStoreInfo)
         dumpUtilizationToFile?.run {
             PrintWriter(dumpUtilizationToFile).use { out ->
                 usedSpace.entries.map { "${it.key} ${it.value}" }.forEach { out.println(it) }
@@ -445,12 +450,48 @@ internal class Reflect(directory: File) {
         }
     }
 
-    private fun perStoreSpaceInfo(usedSpace: Iterable<Map.Entry<String, Long?>>) {
+    private fun perStoreSpaceInfo(usedSpacePerStore: TreeMap<String, Long?>, dumpPersistentEntityStoreInfo: Boolean) {
+        if (dumpPersistentEntityStoreInfo) {
+            val replacements = mutableMapOf<String, String?>()
+            try {
+                env.executeInTransaction { txn ->
+                    val store = env.openStore("teamsysstore.entity.types", StoreConfig.USE_EXISTING, txn)
+                    store.openCursor(txn).forEach {
+                        val name = StringBinding.entryToString(key)
+                        val id = IntegerBinding.compressedEntryToInt(value)
+                        replacements["teamsysstore.links#$id"] = "links for $name"
+                        replacements["teamsysstore.blobs#$id"] = "blobs for $name"
+                        replacements["teamsysstore.links#$id#reverse"] = "reverse links for $name"
+                        replacements["teamsysstore.properties#$id"] = "props for $name"
+                        replacements["teamsysstore.entities#$id"] = "entities of $name"
+                    }
+                }
+            } catch (_: Throwable) {
+            }
+            printPerStoreSpaceInfo(usedSpacePerStore.entries) { name ->
+                var replacement = replacements[name]
+                if (replacement == null) {
+                    val hashIndex = name.lastIndexOf('#')
+                    if (hashIndex >= 0) {
+                        replacement = replacements[name.substring(0, hashIndex)]
+                        if (replacement != null) {
+                            replacement = "${name.substring(hashIndex + 1)} for $replacement"
+                        }
+                    }
+                }
+                replacement
+            }
+        } else {
+            printPerStoreSpaceInfo(usedSpacePerStore.entries)
+        }
+    }
+
+    private fun printPerStoreSpaceInfo(usedSpace: Iterable<Map.Entry<String, Long?>>, replacement: (String) -> String? = { it }) {
         for ((name, usedBytes) in usedSpace.sortedBy { -(it.value ?: 0) }) {
             println(if (usedBytes == null) {
                 "Used bytes for store $name unknown"
             } else {
-                String.format("Used bytes for store\t%110s\t%8.2fKB", name, usedBytes.toDouble() / 1024)
+                String.format("Used bytes for store\t%110s\t%8.2fKB", replacement(name) ?: name, usedBytes.toDouble() / 1024)
             })
         }
     }
