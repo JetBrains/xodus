@@ -132,11 +132,11 @@ public final class EntityIterableCache {
     }
 
     public long getCachedCount(@NotNull final EntityIterableBase it) {
-        if (isDispatcherThread()) {
-            return it.getOrCreateCachedInstance(it.getTransaction()).size();
-        }
         final EntityIterableHandle handle = it.getHandle();
         @Nullable final Long result = getCachedCount(handle);
+        if (result == null && isDispatcherThread()) {
+            return it.getOrCreateCachedInstance(it.getTransaction()).size();
+        }
         if (it.isThreadSafe() && !isCachingQueueFull()) {
             new EntityIterableAsyncInstantiation(handle, it, false).queue(Priority.normal);
         }
