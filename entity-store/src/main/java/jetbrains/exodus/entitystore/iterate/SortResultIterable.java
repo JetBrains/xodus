@@ -41,6 +41,16 @@ public class SortResultIterable extends EntityIterableDecoratorBase {
     }
 
     @Override
+    public long getRoughCount() {
+        return source.getRoughCount();
+    }
+
+    @Override
+    public long getRoughSize() {
+        return source.getRoughSize();
+    }
+
+    @Override
     public boolean contains(@NotNull Entity entity) {
         return source.contains(entity);
     }

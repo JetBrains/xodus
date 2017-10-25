@@ -101,6 +101,16 @@ public final class SortIterable extends EntityIterableDecoratorBase {
     }
 
     @Override
+    public long getRoughCount() {
+        return source.getRoughCount();
+    }
+
+    @Override
+    public long getRoughSize() {
+        return source.getRoughSize();
+    }
+
+    @Override
     protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
         int count = 0;
         final EntityIterator sorted = new EntityTypeFilteredIterator(source, sourceTypeId);

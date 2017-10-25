@@ -54,6 +54,16 @@ public final class EntityReverseIterable extends EntityIterableDecoratorBase {
     }
 
     @Override
+    public long getRoughCount() {
+        return source.getRoughCount();
+    }
+
+    @Override
+    public long getRoughSize() {
+        return source.getRoughSize();
+    }
+
+    @Override
     @NotNull
     public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
         return source.getOrCreateCachedInstance(txn).getReverseIteratorImpl(txn);
