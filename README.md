@@ -95,7 +95,7 @@ To assemble JARs and skip running tests, run:
 
 ## Find out More
 - [Xodus wiki](https://github.com/JetBrains/xodus/wiki)
-- [Report an issue](http://xodus.myjetbrains.com/youtrack)
+- [Report an issue](https://youtrack.jetbrains.com/issues/XD)
 - [Stack Overflow](http://stackoverflow.com/questions/tagged/xodus)
 - [Check out the latest builds](https://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build)
 - [Observe development in Upsource](https://upsource.jetbrains.com/Xodus/view)
