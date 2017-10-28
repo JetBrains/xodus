@@ -56,10 +56,6 @@ final class TransactionSet {
         }
     }
 
-    boolean contains(@NotNull final TransactionBase txn) {
-        return getCurrent().contains(new Snapshot(txn, 0));
-    }
-
     void remove(@NotNull final TransactionBase txn) {
         final Snapshot snapshot = new Snapshot(txn, 0);
         for (; ; ) {

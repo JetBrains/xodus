@@ -46,39 +46,25 @@ public class ReadWriteTransaction extends TransactionBase {
 
     ReadWriteTransaction(@NotNull final EnvironmentImpl env,
                          @Nullable final Runnable beginHook,
-                         final boolean isExclusive,
-                         final boolean cloneMeta) {
-        super(env, isExclusive);
-        mutableTrees = new TreeMap<>();
-        removedStores = new LongHashMap<>();
-        createdStores = new HashMapDecorator<>();
-        this.beginHook = new Runnable() {
-            @Override
-            public void run() {
-                final MetaTree currentMetaTree = env.getMetaTree();
-                setMetaTree(cloneMeta ? currentMetaTree.getClone() : currentMetaTree);
-                env.registerTransaction(ReadWriteTransaction.this);
-                if (beginHook != null) {
-                    beginHook.run();
-                }
-            }
-        };
-        replayCount = 0;
-        setExclusive(isExclusive() | env.shouldTransactionBeExclusive(this));
-        env.holdNewestSnapshotBy(this);
-        env.getStatistics().getStatisticsItem(TRANSACTIONS).incTotal();
+                         final boolean isExclusive) {
+        this(env, env.getMetaTree(), beginHook, isExclusive);
+        if (beginHook != null) {
+            beginHook.run();
+        }
     }
 
-    ReadWriteTransaction(@NotNull final TransactionBase origin, @Nullable final Runnable beginHook) {
-        super(origin.getEnvironment(), false);
+    ReadWriteTransaction(@NotNull final EnvironmentImpl env,
+                         @NotNull final MetaTree metaTree,
+                         @Nullable final Runnable beginHook,
+                         final boolean isExclusive) {
+        super(env, isExclusive);
+        this.beginHook = beginHook;
         mutableTrees = new TreeMap<>();
         removedStores = new LongHashMap<>();
         createdStores = new HashMapDecorator<>();
-        final EnvironmentImpl env = getEnvironment();
-        this.beginHook = getWrappedBeginHook(beginHook);
         replayCount = 0;
-        setMetaTree(origin.getMetaTree());
-        setExclusive(env.shouldTransactionBeExclusive(this));
+        setMetaTree(metaTree);
+        setExclusive(isExclusive || env.shouldTransactionBeExclusive(this));
         env.acquireTransaction(this);
         env.registerTransaction(this);
         env.getStatistics().getStatisticsItem(TRANSACTIONS).incTotal();
@@ -99,7 +85,12 @@ public class ReadWriteTransaction extends TransactionBase {
     @Override
     public boolean commit() {
         checkIsFinished();
-        return getEnvironment().commitTransaction(this, false);
+        EnvironmentImpl env = getEnvironment();
+        if (env.flushTransaction(this, false)) {
+            env.finishTransaction(this);
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -124,26 +115,21 @@ public class ReadWriteTransaction extends TransactionBase {
     @Override
     public void revert() {
         checkIsFinished();
-        if (isReadonly()) {
-            throw new ExodusException("Attempt ot revert read-only transaction");
-        }
         final long oldRoot = getMetaTree().root;
         final boolean wasExclusive = isExclusive();
         final EnvironmentImpl env = getEnvironment();
-        if (isIdempotent()) {
-            env.holdNewestSnapshotBy(this, false);
-        } else {
+        if (!isIdempotent()) {
             doRevert();
-            if (wasExclusive || !env.shouldTransactionBeExclusive(this)) {
-                env.holdNewestSnapshotBy(this, false);
-            } else {
+            if (!wasExclusive && env.shouldTransactionBeExclusive(this)) {
                 env.releaseTransaction(this);
                 setExclusive(true);
-                env.holdNewestSnapshotBy(this);
+                env.acquireTransaction(this);
             }
         }
-        if (!env.isRegistered(this)) {
-            throw new ExodusException("Transaction should remain registered after revert");
+        setMetaTree(env.getMetaTree());
+        env.registerTransaction(this);
+        if (beginHook != null) {
+            beginHook.run();
         }
         if (!checkVersion(oldRoot)) {
             clearImmutableTrees();
@@ -222,8 +208,7 @@ public class ReadWriteTransaction extends TransactionBase {
         return createdStores.containsKey(name);
     }
 
-
-    Iterable<ExpiredLoggableInfo>[] doCommit(@NotNull final MetaTree[] out) {
+    Iterable<ExpiredLoggableInfo>[] doCommit() {
         final Set<Map.Entry<Integer, ITreeMutable>> entries = mutableTrees.entrySet();
         final Set<Map.Entry<Long, Pair<String, ITree>>> removedEntries = removedStores.entrySet();
         final int size = entries.size() + removedEntries.size();
@@ -250,7 +235,7 @@ public class ReadWriteTransaction extends TransactionBase {
         clearImmutableTrees();
         mutableTrees.clear();
         expiredLoggables[i] = last = metaTreeMutable.getExpiredLoggables();
-        out[0] = MetaTree.saveMetaTree(metaTreeMutable, getEnvironment(), last);
+        setMetaTree(MetaTree.saveMetaTree(metaTreeMutable, getEnvironment(), last));
         return expiredLoggables;
     }
 
@@ -299,12 +284,6 @@ public class ReadWriteTransaction extends TransactionBase {
         result.addAll(createdStores.keySet());
         Collections.sort(result);
         return result;
-    }
-
-    @Nullable
-    @Override
-    Runnable getBeginHook() {
-        return beginHook;
     }
 
     private void doRevert() {

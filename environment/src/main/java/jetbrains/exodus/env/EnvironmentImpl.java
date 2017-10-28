@@ -40,7 +40,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static jetbrains.exodus.env.EnvironmentStatistics.Type.*;
 
@@ -57,7 +56,7 @@ public class EnvironmentImpl implements Environment {
     @NotNull
     private final EnvironmentConfig ec;
     private BTreeBalancePolicy balancePolicy;
-    private MetaTree metaTree;
+    private volatile MetaTree metaTree;
     private final AtomicInteger structureId;
     @NotNull
     private final TransactionSet txns;
@@ -67,8 +66,6 @@ public class EnvironmentImpl implements Environment {
     private final EnvironmentSettingsListener envSettingsListener;
     private final GarbageCollector gc;
     private final Object commitLock = new Object();
-    private final ReentrantReadWriteLock.ReadLock metaReadLock;
-    private final ReentrantReadWriteLock.WriteLock metaWriteLock;
     private final ReentrantTransactionDispatcher txnDispatcher;
     private final ReentrantTransactionDispatcher roTxnDispatcher;
     @NotNull
@@ -105,10 +102,6 @@ public class EnvironmentImpl implements Environment {
         ec.addChangedSettingsListener(envSettingsListener);
 
         gc = new GarbageCollector(this);
-
-        ReentrantReadWriteLock metaLock = new ReentrantReadWriteLock();
-        metaReadLock = metaLock.readLock();
-        metaWriteLock = metaLock.writeLock();
 
         txnDispatcher = new ReentrantTransactionDispatcher(ec.getEnvMaxParallelTxns());
         roTxnDispatcher = new ReentrantTransactionDispatcher(ec.getEnvMaxParallelReadonlyTxns());
@@ -188,25 +181,25 @@ public class EnvironmentImpl implements Environment {
     @Override
     @NotNull
     public TransactionBase beginTransaction() {
-        return beginTransaction(null, false, false);
+        return beginTransaction(null, false);
     }
 
     @Override
     @NotNull
     public TransactionBase beginTransaction(final Runnable beginHook) {
-        return beginTransaction(beginHook, false, false);
+        return beginTransaction(beginHook, false);
     }
 
     @NotNull
     @Override
     public Transaction beginExclusiveTransaction() {
-        return beginTransaction(null, true, false);
+        return beginTransaction(null, true);
     }
 
     @NotNull
     @Override
     public Transaction beginExclusiveTransaction(Runnable beginHook) {
-        return beginTransaction(beginHook, true, false);
+        return beginTransaction(beginHook, true);
     }
 
     @NotNull
@@ -227,7 +220,7 @@ public class EnvironmentImpl implements Environment {
         if (ec.getEnvIsReadonly()) {
             throw new ReadonlyTransactionException("Can't start GC transaction on read-only Environment");
         }
-        return new ReadWriteTransaction(this, null, ec.getGcUseExclusiveTransaction(), true) {
+        return new ReadWriteTransaction(this, metaTree.getClone(), null, ec.getGcUseExclusiveTransaction()) {
 
             @Override
             boolean isGCTransaction() {
@@ -310,18 +303,13 @@ public class EnvironmentImpl implements Environment {
                 final int roPermits = roTxnDispatcher.acquireExclusiveTransaction(currentThread);// wait for and stop all read-only transactions
                 try {
                     synchronized (commitLock) {
-                        metaWriteLock.lock();
-                        try {
-                            gc.clear();
-                            log.clear();
-                            invalidateStoreGetCache();
-                            throwableOnCommit = null;
-                            final Pair<MetaTree, Integer> meta = MetaTree.create(this);
-                            metaTree = meta.getFirst();
-                            structureId.set(meta.getSecond());
-                        } finally {
-                            metaWriteLock.unlock();
-                        }
+                        gc.clear();
+                        log.clear();
+                        invalidateStoreGetCache();
+                        throwableOnCommit = null;
+                        final Pair<MetaTree, Integer> meta = MetaTree.create(this);
+                        metaTree = meta.getFirst();
+                        structureId.set(meta.getSecond());
                     }
                 } finally {
                     roTxnDispatcher.releaseTransaction(currentThread, roPermits);
@@ -427,12 +415,7 @@ public class EnvironmentImpl implements Environment {
     }
 
     public long getAllStoreCount() {
-        metaReadLock.lock();
-        try {
-            return metaTree.getAllStoreCount();
-        } finally {
-            metaReadLock.unlock();
-        }
+        return metaTree.getAllStoreCount();
     }
 
     @Override
@@ -498,11 +481,11 @@ public class EnvironmentImpl implements Environment {
     }
 
     @NotNull
-    protected TransactionBase beginTransaction(Runnable beginHook, boolean exclusive, boolean cloneMeta) {
+    protected TransactionBase beginTransaction(Runnable beginHook, boolean exclusive) {
         checkIsOperative();
         return ec.getEnvIsReadonly() ?
             new ReadonlyTransaction(this, beginHook) :
-            new ReadWriteTransaction(this, beginHook, exclusive, cloneMeta);
+            new ReadWriteTransaction(this, beginHook, exclusive);
     }
 
     long getDiskUsage() {
@@ -554,15 +537,6 @@ public class EnvironmentImpl implements Environment {
         };
     }
 
-    @SuppressWarnings("OverlyNestedMethod")
-    boolean commitTransaction(@NotNull final ReadWriteTransaction txn, final boolean forceCommit) {
-        if (flushTransaction(txn, forceCommit)) {
-            finishTransaction(txn);
-            return true;
-        }
-        return false;
-    }
-
     boolean flushTransaction(@NotNull final ReadWriteTransaction txn, final boolean forceCommit) {
         checkIfTransactionCreatedAgainstThis(txn);
 
@@ -588,7 +562,6 @@ public class EnvironmentImpl implements Environment {
             }
             checkIsOperative();
             if (!txn.checkVersion(metaTree.root)) {
-                // meta lock not needed 'cause write can only occur in another commit lock
                 return false;
             }
             if (wasUpSaved) {
@@ -599,19 +572,13 @@ public class EnvironmentImpl implements Environment {
             try {
                 initialHighAddress = log.getHighAddress();
                 try {
-                    final MetaTree[] tree = new MetaTree[1];
-                    expiredLoggables = txn.doCommit(tree);
+                    expiredLoggables = txn.doCommit();
                     // there is a temptation to postpone I/O in order to reduce number of writes to storage device,
                     // but it's quite difficult to resolve all possible inconsistencies afterwards,
                     // so think twice before removing the following line
                     log.flush();
-                    metaWriteLock.lock();
-                    try {
-                        txn.setMetaTree(metaTree = tree[0]);
-                        txn.executeCommitHook();
-                    } finally {
-                        metaWriteLock.unlock();
-                    }
+                    metaTree = txn.getMetaTree();
+                    txn.executeCommitHook();
                     resultingHighAddress = log.approveHighAddress();
                 } catch (Throwable t) { // pokemon exception handling to decrease try/catch block overhead
                     loggerError("Failed to flush transaction", t);
@@ -639,26 +606,6 @@ public class EnvironmentImpl implements Environment {
         statistics.getStatisticsItem(FLUSHED_TRANSACTIONS).incTotal();
 
         return true;
-    }
-
-    MetaTree holdNewestSnapshotBy(@NotNull final TransactionBase txn) {
-        return holdNewestSnapshotBy(txn, true);
-    }
-
-    MetaTree holdNewestSnapshotBy(@NotNull final TransactionBase txn, final boolean acquireTxn) {
-        if (acquireTxn) {
-            acquireTransaction(txn);
-        }
-        final Runnable beginHook = txn.getBeginHook();
-        metaReadLock.lock();
-        try {
-            if (beginHook != null) {
-                beginHook.run();
-            }
-            return metaTree;
-        } finally {
-            metaReadLock.unlock();
-        }
     }
 
     MetaTree getMetaTree() {
@@ -731,11 +678,6 @@ public class EnvironmentImpl implements Environment {
         txns.add(txn);
     }
 
-    boolean isRegistered(@NotNull final ReadWriteTransaction txn) {
-        checkIfTransactionCreatedAgainstThis(txn);
-        return txns.contains(txn);
-    }
-
     int activeTransactions() {
         return txns.size();
     }
@@ -781,12 +723,7 @@ public class EnvironmentImpl implements Environment {
         synchronized (commitLock) {
             log.setHighAddress(highAddress);
             final Pair<MetaTree, Integer> meta = MetaTree.create(this);
-            metaWriteLock.lock();
-            try {
-                metaTree = meta.getFirst();
-            } finally {
-                metaWriteLock.unlock();
-            }
+            metaTree = meta.getFirst();
         }
     }
 
