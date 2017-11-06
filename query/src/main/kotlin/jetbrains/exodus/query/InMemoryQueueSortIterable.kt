@@ -16,6 +16,7 @@
 package jetbrains.exodus.query
 
 import jetbrains.exodus.entitystore.Entity
+import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.kotlin.notNull
 import java.util.*
 
@@ -24,12 +25,23 @@ abstract class InMemoryQueueSortIterable(source: Iterable<Entity>, comparator: C
     abstract fun createQueue(unsorted: Collection<Entity>): Queue<Entity>
 
     override fun iterator(): MutableIterator<Entity> {
-        val list = mutableListOf<Entity>()
-        source.forEach { list.add(it) }
+        val collection: Collection<Entity>
+        if (source is EntityIterable) {
+            collection = object : AbstractCollection<Entity>() {
+                override val size: Int
+                    get() = source.size().toInt()
 
+                override fun iterator(): MutableIterator<Entity> {
+                    return source.iterator()
+                }
+            }
+        } else {
+            collection = mutableListOf()
+            source.forEach { collection.add(it) }
+        }
         return object : MutableIterator<Entity> {
 
-            private val queue = createQueue(list)
+            private val queue = createQueue(collection)
 
             override fun hasNext(): Boolean {
                 return queue.isNotEmpty()
