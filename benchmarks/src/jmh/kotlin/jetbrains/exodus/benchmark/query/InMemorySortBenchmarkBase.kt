@@ -24,11 +24,10 @@ import jetbrains.exodus.util.Random
 import org.junit.rules.TemporaryFolder
 
 open class InMemorySortBenchmarkBase {
-    var sum: Int = 0
     lateinit var store: PersistentEntityStoreImpl
     lateinit var temporaryFolder: TemporaryFolder
 
-    val comparator = compareBy<Entity> { it.getProperty("int") }
+    private val comparator = compareBy<Entity> { it.getProperty("int") }
 
     fun setup() {
         temporaryFolder = TemporaryFolder()
@@ -36,15 +35,12 @@ open class InMemorySortBenchmarkBase {
         store = PersistentEntityStores.newInstance(temporaryFolder.newFolder("data").absolutePath)
 
         val rnd = Random()
-        sum = store.computeInTransaction {
-            var sum = 0
+        store.computeInTransaction {
             val txn = it as PersistentStoreTransaction
-            repeat(15000, {
+            repeat(50000, {
                 val value = Math.abs(rnd.nextInt())
                 txn.newEntity("Issue").setProperty("int", value)
-                sum += value
             })
-            sum
         }
     }
 
@@ -80,11 +76,8 @@ open class InMemorySortBenchmarkBase {
     private fun testSort(sortFun: (it: Iterable<Entity>) -> SortEngine.InMemorySortIterable): Long {
         return store.computeInTransaction {
             val sorted = sortFun(it.getAll("Issue"))
-            var sum = 0L
-            for (entity in sorted) {
-                sum += entity.id.localId
-            }
-            sum
+            // sum of ids of least 100 entities
+            sorted.take(100).map { it.id.localId }.sum()
         }
     }
 }
