@@ -23,11 +23,18 @@ import org.junit.Test
 
 class InMemorySortTest : EntityStoreTestBase() {
 
+    var sum: Int = 0
+
+    val comparator = compareBy<Entity> { it.getProperty("int") }
+
     override fun setUp() {
         super.setUp()
         val rnd = Random()
+        sum = 0
         repeat(15000, {
-            storeTransaction.newEntity("Issue").setProperty("int", Math.abs(rnd.nextInt()))
+            val value = Math.abs(rnd.nextInt())
+            storeTransaction.newEntity("Issue").setProperty("int", value)
+            sum += value
         })
         storeTransaction.flush()
     }
@@ -35,50 +42,50 @@ class InMemorySortTest : EntityStoreTestBase() {
     @Test
     fun testMergeSort() {
         testSort(storeTransaction.getAll("Issue"),
-                { InMemoryMergeSortIterable(it, compareBy { it.getProperty("int") }) })
+                { InMemoryMergeSortIterable(it, comparator) })
     }
 
     @Test
     fun testMergeSortWithArrayList() {
         testSort(storeTransaction.getAll("Issue"),
-                { InMemoryMergeSortIterableWithArrayList(it, compareBy { it.getProperty("int") }) })
+                { InMemoryMergeSortIterableWithArrayList(it, comparator) })
     }
 
     @Test
     fun testTimSort() {
         testSort(storeTransaction.getAll("Issue"),
-                { InMemoryTimSortIterable(it, compareBy { it.getProperty("int") }) })
+                { InMemoryTimSortIterable(it, comparator) })
     }
 
     @Test
     fun testQuickSort() {
         testSort(storeTransaction.getAll("Issue"),
-                { InMemoryQuickSortIterable(it, compareBy { it.getProperty("int") }) })
+                { InMemoryQuickSortIterable(it, comparator) })
     }
 
     @Test
     fun testHeapSort() {
         testSort(storeTransaction.getAll("Issue"),
-                { InMemoryHeapSortIterable(it, compareBy { it.getProperty("int") }) })
+                { InMemoryHeapSortIterable(it, comparator) })
     }
 
     @Test
     fun testKeapSort() {
         testSort(storeTransaction.getAll("Issue"),
-                { InMemoryKeapSortIterable(it, compareBy { it.getProperty("int") }) })
+                { InMemoryKeapSortIterable(it, comparator) })
     }
 
-    companion object {
-
-        fun testSort(it: Iterable<Entity>, sortFun: (it: Iterable<Entity>) -> SortEngine.InMemorySortIterable) {
-            val sorted = sortFun(it)
-            var prev: Entity? = null
-            sorted.forEach {
-                prev?.apply {
-                    Assert.assertTrue(sorted.comparator.compare(this, it) <= 0)
-                }
-                prev = it
+    private fun testSort(it: Iterable<Entity>, sortFun: (it: Iterable<Entity>) -> SortEngine.InMemorySortIterable) {
+        val sorted = sortFun(it)
+        var prev: Entity? = null
+        var sum = 0
+        sorted.forEach {
+            prev?.apply {
+                Assert.assertTrue(sorted.comparator.compare(this, it) <= 0)
             }
+            sum += it.getProperty("int") as Int
+            prev = it
         }
+        Assert.assertEquals(this.sum, sum)
     }
 }
