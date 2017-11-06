@@ -21,6 +21,7 @@ sourceCompatibility = 1.8
 
 dependencies {
     jmh project(':environment')
+    jmh project(':query')
     // the following dependency is necessary for running benchmarks in IntelliJ using ide-jmh-plugin
     jmh "org.openjdk.jmh:jmh-generator-annprocess:$jmhVersion"
     jmh group: 'junit', name: 'junit', version: '4.12'
