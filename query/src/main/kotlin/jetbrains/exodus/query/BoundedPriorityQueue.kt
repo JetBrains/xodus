@@ -2,9 +2,8 @@ package jetbrains.exodus.query
 
 import java.util.*
 
-class BoundedPriorityQueue<E>(private val capacity: Int, comparator: Comparator<in E>) : AbstractQueue<E>() {
+class BoundedPriorityQueue<E>(private val capacity: Int, val comparator: Comparator<in E>) : AbstractQueue<E>() {
     private val queue = PriorityQueue(capacity, comparator)
-    private val comparator = Collections.reverseOrder(comparator)
 
     override val size: Int
         get() = queue.size
@@ -13,19 +12,23 @@ class BoundedPriorityQueue<E>(private val capacity: Int, comparator: Comparator<
 
     override fun offer(e: E): Boolean {
         if (queue.size >= capacity) {
-            if (comparator.compare(e, peek()) < 1) {
+            if (comparator.compare(e, queue.peek()) < 1) {
                 return false
             }
 
-            poll()
+            queue.poll()
         }
 
-        return queue.offer(e)
+        val result = queue.offer(e)
+        if (!result) {
+            queue.offer(e)
+        }
+        return result
     }
 
     override fun poll(): E? = queue.poll()
 
     override fun peek(): E? = queue.peek()
 
-    override fun iterator() = queue.iterator() // TODO: reverse?
+    override fun iterator() = queue.iterator()
 }
