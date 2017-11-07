@@ -89,4 +89,13 @@ public class InMemorySortBenchmark extends InMemorySortBenchmarkBase {
     public long testKeapSort() {
         return super.testKeapSort();
     }
+
+    @Benchmark
+    @BenchmarkMode(Mode.SingleShotTime)
+    @Warmup(iterations = WARMUP_ITERATIONS)
+    @Measurement(iterations = MEASUREMENT_ITERATIONS)
+    @Fork(FORKS)
+    public long testBoundedSort() {
+        return super.testBoundedSort();
+    }
 }

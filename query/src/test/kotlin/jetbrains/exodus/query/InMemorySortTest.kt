@@ -75,6 +75,12 @@ class InMemorySortTest : EntityStoreTestBase() {
                 { InMemoryKeapSortIterable(it, comparator) })
     }
 
+    @Test
+    fun testBoundedSort() {
+        testSort(storeTransaction.getAll("Issue"),
+                { InMemoryBoundedHeapSortIterable(15000, it, comparator) })
+    }
+
     private fun testSort(it: Iterable<Entity>, sortFun: (it: Iterable<Entity>) -> SortEngine.InMemorySortIterable) {
         val sorted = sortFun(it)
         var prev: Entity? = null

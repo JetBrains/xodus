@@ -73,6 +73,10 @@ open class InMemorySortBenchmarkBase {
         return testSort({ InMemoryKeapSortIterable(it, comparator) })
     }
 
+    open fun testBoundedSort(): Long {
+        return testSort({ InMemoryBoundedHeapSortIterable(100, it, comparator) })
+    }
+
     private fun testSort(sortFun: (it: Iterable<Entity>) -> SortEngine.InMemorySortIterable): Long {
         return store.computeInTransaction {
             val sorted = sortFun(it.getAll("Issue"))
