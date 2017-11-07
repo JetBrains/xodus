@@ -438,10 +438,10 @@ public final class SortIterable extends EntityIterableDecoratorBase {
                         return 0;
                     }
                     if (propValue1 == null) {
-                        return 1;
+                        return -1;
                     }
                     if (propValue2 == null) {
-                        return -1;
+                        return 1;
                     }
                     return propValue2.compareTo(propValue1);
                 }
