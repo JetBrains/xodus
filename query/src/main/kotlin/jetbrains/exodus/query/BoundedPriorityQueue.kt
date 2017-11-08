@@ -19,6 +19,7 @@ import com.github.penemue.keap.PriorityQueue
 import java.util.*
 
 class BoundedPriorityQueue<E>(private val capacity: Int, val comparator: Comparator<in E>) : AbstractQueue<E>() {
+
     private val queue = PriorityQueue(capacity, comparator)
 
     override val size: Int
@@ -31,18 +32,13 @@ class BoundedPriorityQueue<E>(private val capacity: Int, val comparator: Compara
             if (comparator.compare(e, queue.peek()) < 1) {
                 return false
             }
-
             queue.pollRaw()
         }
 
-        val result = queue.offer(e)
-        if (!result) {
-            queue.offer(e)
-        }
-        return result
+        return queue.offer(e)
     }
 
-    override fun poll(): E? = queue.poll()
+    override fun poll(): E? = queue.pollRaw()
 
     override fun peek(): E? = queue.peek()
 
