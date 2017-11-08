@@ -16,6 +16,7 @@
 package jetbrains.exodus.util
 
 import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache
+import jetbrains.exodus.system.JVMConstants
 
 class StringInterner private constructor(size: Int = StringInterner.INTERNER_SIZE) {
 
@@ -31,7 +32,7 @@ class StringInterner private constructor(size: Int = StringInterner.INTERNER_SIZ
         if (cached != null) {
             return cached
         }
-        val copy = if (IS_JAVA8) s else s + "" // to avoid large cached substrings
+        val copy = if (JVMConstants.IS_JAVA8_OR_HIGHER) s else s + "" // to avoid large cached substrings
         cache.cacheObject(copy, copy)
         return copy
     }
@@ -52,7 +53,6 @@ class StringInterner private constructor(size: Int = StringInterner.INTERNER_SIZ
 
         private const val NUMBER_OF_GENERATIONS = 3
         private val INTERNER_SIZE = Integer.getInteger("exodus.util.stringInternerCacheSize", 15991 * NUMBER_OF_GENERATIONS)
-        private val IS_JAVA8 = System.getProperty("java.version").run { !startsWith("1.7") }
         private val DEFAULT_INTERNER = StringInterner()
 
         @JvmStatic
