@@ -24,14 +24,14 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.PriorityQueue;
 
-@Deprecated
 @SuppressWarnings({"AssignmentToCollectionOrArrayFieldFromParameter"})
-public class MergeSortedIterable extends EntityIterableBase {
-
+public class MergeSortedIterableWithValueGetter extends EntityIterableBase {
     @NotNull
     private final List<EntityIterable> sorted;
     @NotNull
-    private final Comparator<Entity> comparator;
+    private final ComparableGetter valueGetter;
+    @NotNull
+    private final Comparator<Comparable> comparator;
 
     static {
         /*
@@ -45,21 +45,29 @@ public class MergeSortedIterable extends EntityIterableBase {
                 for (int i = 0; i < size; i++) {
                     sorted.add((EntityIterable) parameters[i + 1]);
                 }
-                return new MergeSortedIterable(txn, sorted, new Comparator<Entity>() {
+                return new MergeSortedIterableWithValueGetter(txn, sorted, new ComparableGetter() {
                     @Override
-                    public int compare(Entity o1, Entity o2) {
-                        return o1.getId().compareTo(o2.getId());
+                    public Comparable select(Entity entity) {
+                        return entity.getId();
+                    }
+                }, new Comparator<Comparable>() {
+                    @SuppressWarnings("unchecked")
+                    @Override
+                    public int compare(Comparable o1, Comparable o2) {
+                        return o1.compareTo(o2);
                     }
                 });
             }
         });
     }
 
-    public MergeSortedIterable(@Nullable final PersistentStoreTransaction txn,
-                               @NotNull final List<EntityIterable> sorted,
-                               @NotNull final Comparator<Entity> comparator) {
+    public MergeSortedIterableWithValueGetter(@Nullable final PersistentStoreTransaction txn,
+                                              @NotNull final List<EntityIterable> sorted,
+                                              @NotNull final ComparableGetter valueGetter,
+                                              @NotNull final Comparator<Comparable> comparator) {
         super(txn);
         this.sorted = sorted;
+        this.valueGetter = valueGetter;
         this.comparator = comparator;
     }
 
@@ -95,7 +103,7 @@ public class MergeSortedIterable extends EntityIterableBase {
     @Override
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
-        return new EntityIterableHandleBase(getStore(), MergeSortedIterable.getType()) {
+        return new EntityIterableHandleBase(getStore(), MergeSortedIterableWithValueGetter.getType()) {
             @Override
             public boolean isMatchedLinkAdded(@NotNull EntityId source, @NotNull EntityId target, int linkId) {
                 return false;
@@ -133,13 +141,11 @@ public class MergeSortedIterable extends EntityIterableBase {
 
         @SuppressWarnings({"ObjectAllocationInLoop"})
         private MergeSortedIterator() {
-            super(MergeSortedIterable.this);
+            super(MergeSortedIterableWithValueGetter.this);
             queue = new PriorityQueue<>(sorted.size(), new Comparator<EntityWithSource>() {
                 @Override
                 public int compare(EntityWithSource o1, EntityWithSource o2) {
-                    final Entity e1 = getEntity(o1.id);
-                    final Entity e2 = getEntity(o2.id);
-                    return comparator.compare(e1, e2);
+                    return comparator.compare(o1.value, o2.value);
                 }
             });
             for (final EntityIterable it : sorted) {
@@ -164,7 +170,7 @@ public class MergeSortedIterable extends EntityIterableBase {
             final EntityId result = pair.id;
             final EntityIterator i = pair.source;
             if (i.hasNext()) {
-                queue.offer(new EntityWithSource(i.nextId(), i));
+                queue.offer(new EntityWithSource(i.nextId(), i, pair.value));
             }
             return result;
         }
@@ -173,14 +179,19 @@ public class MergeSortedIterable extends EntityIterableBase {
 
             private final EntityId id;
             private final EntityIterator source;
+            private final Comparable value;
 
             private EntityWithSource(EntityId id, EntityIterator source) {
                 this.id = id;
                 this.source = source;
+                this.value = valueGetter.select(getEntity(id));
+            }
+
+            private EntityWithSource(EntityId id, EntityIterator source, Comparable value) {
+                this.id = id;
+                this.source = source;
+                this.value = value;
             }
         }
-
-
     }
-
 }
