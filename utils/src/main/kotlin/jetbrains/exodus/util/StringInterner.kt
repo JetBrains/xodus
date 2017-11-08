@@ -22,7 +22,7 @@ class StringInterner private constructor(size: Int = StringInterner.INTERNER_SIZ
     private val cache: ConcurrentObjectCache<String, String>
 
     init {
-        cache = ConcurrentObjectCache<String, String>(size, NUMBER_OF_GENERATIONS)
+        cache = ConcurrentObjectCache(size, NUMBER_OF_GENERATIONS)
     }
 
     fun doIntern(s: String?): String? {
