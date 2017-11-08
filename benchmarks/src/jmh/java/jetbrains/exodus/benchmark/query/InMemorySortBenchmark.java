@@ -59,6 +59,15 @@ public class InMemorySortBenchmark extends InMemorySortBenchmarkBase {
     @Warmup(iterations = WARMUP_ITERATIONS)
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
+    public long testMergeSortWithValueGetter() {
+        return super.testMergeSortWithValueGetter();
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.SingleShotTime)
+    @Warmup(iterations = WARMUP_ITERATIONS)
+    @Measurement(iterations = MEASUREMENT_ITERATIONS)
+    @Fork(FORKS)
     public long testTimSort() {
         return super.testTimSort();
     }

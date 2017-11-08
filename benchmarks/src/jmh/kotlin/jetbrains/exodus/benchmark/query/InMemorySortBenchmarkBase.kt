@@ -15,19 +15,19 @@
  */
 package jetbrains.exodus.benchmark.query
 
-import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
-import jetbrains.exodus.entitystore.PersistentEntityStores
-import jetbrains.exodus.entitystore.PersistentStoreTransaction
+import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.query.*
 import jetbrains.exodus.util.Random
 import org.junit.rules.TemporaryFolder
+import java.util.*
 
 open class InMemorySortBenchmarkBase {
     lateinit var store: PersistentEntityStoreImpl
     lateinit var temporaryFolder: TemporaryFolder
 
     private val comparator = compareBy<Entity> { it.getProperty("int") }
+    private val valueGetter = ComparableGetter { it.getProperty("int") }
+    private val valueComparator = Comparator<Comparable<Any>> { o1, o2 -> o1.compareTo(o2) }
 
     fun setup() {
         temporaryFolder = TemporaryFolder()
@@ -50,34 +50,38 @@ open class InMemorySortBenchmarkBase {
     }
 
     open fun testMergeSort(): Long {
-        return testSort({ InMemoryMergeSortIterable(it, comparator) })
+        return testSort { InMemoryMergeSortIterable(it, comparator) }
     }
 
     open fun testMergeSortWithArrayList(): Long {
-        return testSort({ InMemoryMergeSortIterableWithArrayList(it, comparator) })
+        return testSort { InMemoryMergeSortIterableWithArrayList(it, comparator) }
+    }
+
+    open fun testMergeSortWithValueGetter(): Long {
+        return testSort { InMemoryMergeSortIterableWithValueGetter(it, valueGetter, valueComparator) }
     }
 
     open fun testTimSort(): Long {
-        return testSort({ InMemoryTimSortIterable(it, comparator) })
+        return testSort { InMemoryTimSortIterable(it, comparator) }
     }
 
     open fun testQuickSort(): Long {
-        return testSort({ InMemoryQuickSortIterable(it, comparator) })
+        return testSort { InMemoryQuickSortIterable(it, comparator) }
     }
 
     open fun testHeapSort(): Long {
-        return testSort({ InMemoryHeapSortIterable(it, comparator) })
+        return testSort { InMemoryHeapSortIterable(it, comparator) }
     }
 
     open fun testKeapSort(): Long {
-        return testSort({ InMemoryKeapSortIterable(it, comparator) })
+        return testSort { InMemoryKeapSortIterable(it, comparator) }
     }
 
     open fun testBoundedSort(): Long {
-        return testSort({ InMemoryBoundedHeapSortIterable(100, it, comparator) })
+        return testSort { InMemoryBoundedHeapSortIterable(100, it, comparator) }
     }
 
-    private fun testSort(sortFun: (it: Iterable<Entity>) -> SortEngine.InMemorySortIterable): Long {
+    private fun testSort(sortFun: (it: Iterable<Entity>) -> Iterable<Entity>): Long {
         return store.computeInTransaction {
             val sorted = sortFun(it.getAll("Issue"))
             // sum of ids of least 100 entities

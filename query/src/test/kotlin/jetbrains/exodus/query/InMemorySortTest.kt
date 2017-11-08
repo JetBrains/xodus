@@ -15,17 +15,21 @@
  */
 package jetbrains.exodus.query
 
+import jetbrains.exodus.entitystore.ComparableGetter
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityStoreTestBase
 import jetbrains.exodus.util.Random
 import org.junit.Assert
 import org.junit.Test
+import java.util.*
 
 class InMemorySortTest : EntityStoreTestBase() {
 
     var sum: Int = 0
 
     val comparator = compareBy<Entity> { it.getProperty("int") }
+    val valueGetter = ComparableGetter { it.getProperty("int") }
+    val valueComparator = Comparator<Comparable<Any>> { o1, o2 -> o1.compareTo(o2) }
 
     override fun setUp() {
         super.setUp()
@@ -43,6 +47,12 @@ class InMemorySortTest : EntityStoreTestBase() {
     fun testMergeSort() {
         testSort(storeTransaction.getAll("Issue"),
                 { InMemoryMergeSortIterable(it, comparator) })
+    }
+
+    @Test
+    fun testMergeSortWithValueGetter() {
+        testSort(storeTransaction.getAll("Issue"),
+                { InMemoryMergeSortIterableWithValueGetter(it, valueGetter, valueComparator) }, valueGetter, valueComparator)
     }
 
     @Test
@@ -88,6 +98,20 @@ class InMemorySortTest : EntityStoreTestBase() {
         sorted.forEach {
             prev?.apply {
                 Assert.assertTrue(sorted.comparator.compare(this, it) <= 0)
+            }
+            sum += it.getProperty("int") as Int
+            prev = it
+        }
+        Assert.assertEquals(this.sum, sum)
+    }
+
+    private fun testSort(it: Iterable<Entity>, sortFun: (it: Iterable<Entity>) -> Iterable<Entity>, valueGetter: ComparableGetter, comparator: Comparator<Comparable<Any>>) {
+        val sorted = sortFun(it)
+        var prev: Entity? = null
+        var sum = 0
+        sorted.forEach {
+            prev?.apply {
+                Assert.assertTrue(comparator.compare(valueGetter.select(this), valueGetter.select(it)) <= 0)
             }
             sum += it.getProperty("int") as Int
             prev = it
