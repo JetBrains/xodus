@@ -555,6 +555,7 @@ public interface StoreTransaction {
      * @see EntityIterable#isSortResult()
      * @see EntityIterable#asSortResult()
      */
+    @Deprecated
     @NotNull
     EntityIterable mergeSorted(@NotNull final List<EntityIterable> sorted,
                                @NotNull final Comparator<Entity> comparator);
