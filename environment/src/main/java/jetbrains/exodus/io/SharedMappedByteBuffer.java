@@ -15,10 +15,9 @@
  */
 package jetbrains.exodus.io;
 
+import jetbrains.exodus.util.SafeByteBufferCleaner;
 import jetbrains.exodus.util.SharedRandomAccessFile;
 import org.jetbrains.annotations.NotNull;
-import sun.misc.Cleaner;
-import sun.nio.ch.DirectBuffer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -48,13 +47,7 @@ final class SharedMappedByteBuffer implements AutoCloseable {
     @Override
     public void close() {
         if (clients.decrementAndGet() < 0) {
-            // TODO: implement more platform-independent buffer cleaning
-            if (buffer instanceof DirectBuffer) {
-                final Cleaner cleaner = ((DirectBuffer) buffer).cleaner();
-                if (cleaner != null) {
-                    cleaner.clean();
-                }
-            }
+            SafeByteBufferCleaner.INSTANCE.clean(buffer);
         }
     }
 }
