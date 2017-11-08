@@ -48,7 +48,7 @@ object SafeByteBufferCleaner {
         try {
             doPrivileged {
                 if (JVMConstants.IS_JAVA9_OR_HIGHER && invokeCleanerMethod != null) {
-                    // JKK9 or higher
+                    // JDK9 or higher
                     try {
                         invokeCleanerMethod.invoke(theUnsafe, buffer)
                         return@doPrivileged
@@ -63,7 +63,7 @@ object SafeByteBufferCleaner {
                     // for Android 4.1 try to call ((MappedByteBufferAdapter)buffer).free()
                     dbbFreeMethod?.invoke(buffer)
                 } else {
-                    // JKK8 or lower
+                    // JDK8 or lower
                     if (dbbCleanerMethod != null && cleanMethod != null) {
                         // cleaner = ((DirectByteBuffer)buffer).cleaner()
                         val cleaner = dbbCleanerMethod.invoke(buffer)
