@@ -64,9 +64,14 @@ public class HumanReadablePresentationTests extends EntityStoreTestBase {
         checkIterable(new EntitiesWithLinkSortedIterable(txn, 0, 1, 2, 3), "Entities with link 0 1");
         checkIterable(new SingleEntityIterable(txn, new PersistentEntityId(0, 1)), "Single entity 0 1");
         //noinspection ComparatorMethodParameterNotUsed
-        checkIterable(new MergeSortedIterable(txn, new ArrayList<EntityIterable>(), new Comparator<Entity>() {
+        checkIterable(new MergeSortedIterableWithValueGetter(txn, new ArrayList<EntityIterable>(), new ComparableGetter() {
             @Override
-            public int compare(Entity o1, Entity o2) {
+            public Comparable select(Entity entity) {
+                return null;
+            }
+        }, new Comparator<Comparable>() {
+            @Override
+            public int compare(Comparable o1, Comparable o2) {
                 return 0;
             }
         }), "Merge sorted iterables 0");

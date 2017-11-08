@@ -534,6 +534,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     @Override
+    @Deprecated
     @NotNull
     public EntityIterable mergeSorted(@NotNull final List<EntityIterable> sorted,
                                       @NotNull final Comparator<Entity> comparator) {
@@ -547,6 +548,22 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             }
         }
         return filtered == null ? EntityIterableBase.EMPTY : new MergeSortedIterable(this, filtered, comparator);
+    }
+
+    @NotNull
+    public EntityIterable mergeSorted(@NotNull final List<EntityIterable> sorted,
+                                      @NotNull ComparableGetter valueGetter,
+                                      @NotNull final Comparator<Comparable> comparator) {
+        List<EntityIterable> filtered = null;
+        for (final EntityIterable it : sorted) {
+            if (it != EntityIterableBase.EMPTY) {
+                if (filtered == null) {
+                    filtered = new ArrayList<>();
+                }
+                filtered.add(it);
+            }
+        }
+        return filtered == null ? EntityIterableBase.EMPTY : new MergeSortedIterableWithValueGetter(this, filtered, valueGetter, comparator);
     }
 
     @Override
