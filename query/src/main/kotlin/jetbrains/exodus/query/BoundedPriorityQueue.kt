@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.query
 
+import com.github.penemue.keap.PriorityQueue
 import java.util.*
 
 class BoundedPriorityQueue<E>(private val capacity: Int, val comparator: Comparator<in E>) : AbstractQueue<E>() {
@@ -31,7 +32,7 @@ class BoundedPriorityQueue<E>(private val capacity: Int, val comparator: Compara
                 return false
             }
 
-            queue.poll()
+            queue.pollRaw()
         }
 
         val result = queue.offer(e)
