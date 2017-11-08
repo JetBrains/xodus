@@ -69,9 +69,9 @@ public class HumanReadablePresentationTests extends EntityStoreTestBase {
             public Comparable select(Entity entity) {
                 return null;
             }
-        }, new Comparator<Comparable>() {
+        }, new Comparator<Comparable<Object>>() {
             @Override
-            public int compare(Comparable o1, Comparable o2) {
+            public int compare(Comparable<Object> o1, Comparable<Object> o2) {
                 return 0;
             }
         }), "Merge sorted iterables 0");

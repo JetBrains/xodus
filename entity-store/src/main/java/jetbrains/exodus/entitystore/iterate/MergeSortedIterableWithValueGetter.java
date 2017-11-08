@@ -31,7 +31,7 @@ public class MergeSortedIterableWithValueGetter extends EntityIterableBase {
     @NotNull
     private final ComparableGetter valueGetter;
     @NotNull
-    private final Comparator<Comparable> comparator;
+    private final Comparator<Comparable<Object>> comparator;
 
     static {
         /*
@@ -50,10 +50,10 @@ public class MergeSortedIterableWithValueGetter extends EntityIterableBase {
                     public Comparable select(Entity entity) {
                         return entity.getId();
                     }
-                }, new Comparator<Comparable>() {
+                }, new Comparator<Comparable<Object>>() {
                     @SuppressWarnings("unchecked")
                     @Override
-                    public int compare(Comparable o1, Comparable o2) {
+                    public int compare(Comparable<Object> o1, Comparable<Object> o2) {
                         return o1.compareTo(o2);
                     }
                 });
@@ -64,7 +64,7 @@ public class MergeSortedIterableWithValueGetter extends EntityIterableBase {
     public MergeSortedIterableWithValueGetter(@Nullable final PersistentStoreTransaction txn,
                                               @NotNull final List<EntityIterable> sorted,
                                               @NotNull final ComparableGetter valueGetter,
-                                              @NotNull final Comparator<Comparable> comparator) {
+                                              @NotNull final Comparator<Comparable<Object>> comparator) {
         super(txn);
         this.sorted = sorted;
         this.valueGetter = valueGetter;
@@ -143,6 +143,7 @@ public class MergeSortedIterableWithValueGetter extends EntityIterableBase {
         private MergeSortedIterator() {
             super(MergeSortedIterableWithValueGetter.this);
             queue = new PriorityQueue<>(sorted.size(), new Comparator<EntityWithSource>() {
+                @SuppressWarnings("unchecked")
                 @Override
                 public int compare(EntityWithSource o1, EntityWithSource o2) {
                     return comparator.compare(o1.value, o2.value);

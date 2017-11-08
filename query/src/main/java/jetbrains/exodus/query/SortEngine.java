@@ -37,15 +37,15 @@ public class SortEngine {
     private static final int MAX_ENUM_COUNT_TO_SORT_LINKS = Integer.getInteger("jetbrains.exodus.query.maxEnumCountToSortLinks", 2048);
     private static final int MIN_ENTRIES_TO_SORT_LINKS = Integer.getInteger("jetbrains.exodus.query.minEntriesToSortLinks", 16);
 
-    private static final Comparator<Comparable> PROPERTY_VALUE_COMPARATOR = new Comparator<Comparable>() {
+    private static final Comparator<Comparable<Object>> PROPERTY_VALUE_COMPARATOR = new Comparator<Comparable<Object>>() {
         @Override
-        public int compare(Comparable o1, Comparable o2) {
+        public int compare(Comparable<Object> o1, Comparable<Object> o2) {
             return SortEngine.compareNullableComparables(o1, o2);
         }
     };
-    private static final Comparator<Comparable> REVERSE_PROPERTY_VALUE_COMPARATOR = new Comparator<Comparable>() {
+    private static final Comparator<Comparable<Object>> REVERSE_PROPERTY_VALUE_COMPARATOR = new Comparator<Comparable<Object>>() {
         @Override
-        public int compare(Comparable o1, Comparable o2) {
+        public int compare(Comparable<Object> o1, Comparable<Object> o2) {
             return SortEngine.compareNullableComparables(o2, o1);
         }
     };
@@ -119,9 +119,7 @@ public class SortEngine {
         if (source == null) {
             source = getAllEntities(entityType, mmd);
         }
-        final Comparator<Entity> cmp = toComparator(valueGetter);
-        final Comparator<Entity> adjustedCmp = ascending ? cmp : new ReverseComparator(cmp);
-        return sortInMemory(source, adjustedCmp);
+        return sortInMemory(source, valueGetter, ascending);
     }
 
     @SuppressWarnings({"OverlyLongMethod", "OverlyNestedMethod"})
@@ -236,11 +234,7 @@ public class SortEngine {
         if (source == null) {
             source = getAllEntities(entityType, mmd);
         }
-        return sortInMemory(source,
-                ascending
-                        ? toComparator(valueGetter)
-                        : new ReverseComparator(toComparator(valueGetter))
-        );
+        return sortInMemory(source, valueGetter, ascending);
     }
 
     protected Iterable<Entity> sort(Iterable<Entity> source, Comparator<Entity> comparator, boolean ascending) {
@@ -248,11 +242,29 @@ public class SortEngine {
     }
 
     protected Iterable<Entity> sortInMemory(Iterable<Entity> source, Comparator<Entity> comparator) {
-        return new InMemoryMergeSortIterable(source, comparator);
+        if (source instanceof SortEngine.InMemorySortIterable) {
+            final SortEngine.InMemorySortIterable merged = (SortEngine.InMemorySortIterable) source;
+            return new InMemoryMergeSortIterable(source, new SortEngine.MergedComparator(merged.comparator, comparator));
+        } else {
+            return new InMemoryMergeSortIterable(source, comparator);
+        }
+    }
+
+    protected Iterable<Entity> sortInMemory(Iterable<Entity> source, ComparableGetter valueGetter, boolean ascending) {
+        if (source instanceof SortEngine.InMemorySortIterable) {
+            final SortEngine.InMemorySortIterable merged = (SortEngine.InMemorySortIterable) source;
+            final Comparator<Entity> comparator = new SortEngine.MergedComparator(merged.comparator, ascending
+                    ? toComparator(valueGetter)
+                    : new ReverseComparator(toComparator(valueGetter))
+            );
+            return new InMemoryMergeSortIterable(source, comparator);
+        } else {
+            return new InMemoryMergeSortIterableWithValueGetter(source, valueGetter, caseInsensitiveComparator(ascending));
+        }
     }
 
     @NotNull
-    private Comparator<Comparable> caseInsensitiveComparator(boolean ascending) {
+    private Comparator<Comparable<Object>> caseInsensitiveComparator(boolean ascending) {
         return ascending ? PROPERTY_VALUE_COMPARATOR : REVERSE_PROPERTY_VALUE_COMPARATOR;
     }
 
@@ -282,7 +294,7 @@ public class SortEngine {
         return queryEngine.wrap(it);
     }
 
-    private EntityIterableBase mergeSorted(EntityMetaData emd, IterableGetter sorted, final ComparableGetter valueGetter, final Comparator<Comparable> comparator) {
+    private EntityIterableBase mergeSorted(EntityMetaData emd, IterableGetter sorted, final ComparableGetter valueGetter, final Comparator<Comparable<Object>> comparator) {
         EntityIterableBase result;
         if (!(emd.hasSubTypes())) {
             result = sorted.getIterable(emd.getType());
@@ -397,14 +409,8 @@ public class SortEngine {
         protected final Comparator<Entity> comparator;
 
         protected InMemorySortIterable(@NotNull final Iterable<Entity> source, @NotNull final Comparator<Entity> comparator) {
-            if (source instanceof SortEngine.InMemorySortIterable) {
-                final SortEngine.InMemorySortIterable merged = (SortEngine.InMemorySortIterable) source;
-                this.source = merged.source;
-                this.comparator = new SortEngine.MergedComparator(merged.comparator, comparator);
-            } else {
-                this.source = source;
-                this.comparator = comparator;
-            }
+            this.source = source;
+            this.comparator = comparator;
         }
     }
 }
