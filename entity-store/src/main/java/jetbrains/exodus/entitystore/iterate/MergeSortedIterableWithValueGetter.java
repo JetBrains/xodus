@@ -171,7 +171,7 @@ public class MergeSortedIterableWithValueGetter extends EntityIterableBase {
             final EntityId result = pair.id;
             final EntityIterator i = pair.source;
             if (i.hasNext()) {
-                queue.offer(new EntityWithSource(i.nextId(), i, pair.value));
+                queue.offer(new EntityWithSource(i.nextId(), i));
             }
             return result;
         }
@@ -186,12 +186,6 @@ public class MergeSortedIterableWithValueGetter extends EntityIterableBase {
                 this.id = id;
                 this.source = source;
                 this.value = valueGetter.select(getEntity(id));
-            }
-
-            private EntityWithSource(EntityId id, EntityIterator source, Comparable value) {
-                this.id = id;
-                this.source = source;
-                this.value = value;
             }
         }
     }
