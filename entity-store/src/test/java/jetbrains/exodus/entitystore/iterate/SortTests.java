@@ -265,7 +265,7 @@ public class SortTests extends EntityStoreTestBase {
         issue.setProperty("created", System.currentTimeMillis());
         txn.flush();
         final EntityIterableBase sortedByCreated =
-            (EntityIterableBase) txn.sort("Issue", "created", txn.find("Issue", "description", "description"), true);
+                (EntityIterableBase) txn.sort("Issue", "created", txn.find("Issue", "description", "description"), true);
         for (; ; ) {
             Assert.assertTrue(sortedByCreated.iterator().hasNext());
             Thread.yield();

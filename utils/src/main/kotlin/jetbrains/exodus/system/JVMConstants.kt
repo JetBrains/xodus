@@ -26,7 +26,7 @@ object JVMConstants {
     val JAVA_MINOR_VERSION: Int
     val IS_JAVA8_OR_HIGHER: Boolean
     val IS_JAVA9_OR_HIGHER: Boolean
-
+    val IS_ANDROID = System.getProperty("java.vendor").contains("Android")
 
     init {
         val st = StringTokenizer(JAVA_SPEC_VERSION, ".")

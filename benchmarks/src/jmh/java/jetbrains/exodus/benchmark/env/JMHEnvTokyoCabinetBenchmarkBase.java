@@ -18,10 +18,7 @@ package jetbrains.exodus.benchmark.env;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.benchmark.TokyoCabinetBenchmark;
 import jetbrains.exodus.env.*;
-import jetbrains.exodus.io.FileDataReader;
-import jetbrains.exodus.io.FileDataWriter;
 import jetbrains.exodus.log.Log;
-import jetbrains.exodus.log.LogConfig;
 import org.jetbrains.annotations.NotNull;
 import org.junit.rules.TemporaryFolder;
 import org.openjdk.jmh.annotations.Level;
@@ -45,7 +42,7 @@ abstract class JMHEnvTokyoCabinetBenchmarkBase {
         temporaryFolder = new TemporaryFolder();
         temporaryFolder.create();
         final File testsDirectory = temporaryFolder.newFolder("data");
-        env = Environments.newInstance(LogConfig.create(new FileDataReader(testsDirectory, 16), new FileDataWriter(testsDirectory)));
+        env = Environments.newInstance(testsDirectory, new EnvironmentConfig().setLogFileSize(32768));
         store = env.computeInTransaction(new TransactionalComputable<Store>() {
             @Override
             public Store compute(@NotNull Transaction txn) {

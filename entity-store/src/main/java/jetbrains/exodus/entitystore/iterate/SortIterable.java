@@ -427,7 +427,7 @@ public final class SortIterable extends EntityIterableDecoratorBase {
                     if (propValue2 == null) {
                         return -1;
                     }
-                    return propValue1.compareTo(propValue2);
+                    return doCompare(propValue1, propValue2);
                 }
             } : new Comparator() {
                 @Override
@@ -443,7 +443,7 @@ public final class SortIterable extends EntityIterableDecoratorBase {
                     if (propValue2 == null) {
                         return -1;
                     }
-                    return propValue2.compareTo(propValue1);
+                    return doCompare(propValue2, propValue1);
                 }
             });
             final ListIterator<IdValuePair> i = pairs.listIterator();
@@ -476,6 +476,16 @@ public final class SortIterable extends EntityIterableDecoratorBase {
         @Override
         public Comparable currentValue() {
             return currentValue;
+        }
+
+        private int doCompare(Comparable c1, Comparable c2) {
+            if (c1 == null) {
+                return 1;
+            }
+            if (c2 == null) {
+                return -1;
+            }
+            return c1 instanceof String ? ((String) c1).compareToIgnoreCase((String) c2) : c1.compareTo(c2);
         }
     }
 
