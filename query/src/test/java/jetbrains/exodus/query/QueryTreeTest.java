@@ -21,8 +21,6 @@ import jetbrains.exodus.entitystore.EntityStoreTestBase;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import org.junit.Assert;
 
-import java.util.Comparator;
-
 import static jetbrains.exodus.query.metadata.AssociationEndCardinality._0_1;
 import static jetbrains.exodus.query.metadata.MetaBuilder.*;
 
@@ -218,16 +216,16 @@ public class QueryTreeTest extends EntityStoreTestBase {
         Assert.assertEquals(tree, clone);
         tree = ((UnaryNode) tree).getChild();
         Assert.assertEquals(new Minus(NodeFactory.all(), ((UnaryNode) tree).getChild().getClone()), getOptimizedTree(tree));
-        Comparator<Entity> comparator = new Comparator<Entity>() {
+        ComparableGetter valueGetter = new ComparableGetter() {
             @Override
-            public int compare(Entity o1, Entity o2) {
-                return SortEngine.compareNullableComparables(o1.getProperty("i"), o2.getProperty("i"));
+            public Comparable select(Entity entity) {
+                return entity.getProperty("i");
             }
         };
-        GenericSort genericSort = new GenericSort(concat, comparator, true);
+        ComparableGetterSort genericSort = ComparableGetterSort.create(concat, valueGetter, true);
         for (int i = 0; i < 4; i++) {
             Assert.assertEquals(getAnalyzedSortCount(genericSort), i + 1);
-            genericSort = new GenericSort(genericSort, comparator, true);
+            genericSort = new ComparableGetterSort(genericSort, valueGetter, true);
         }
         Assert.assertEquals(getAnalyzedSortCount(genericSort), 4);
     }

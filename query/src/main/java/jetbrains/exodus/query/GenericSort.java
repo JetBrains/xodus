@@ -23,6 +23,7 @@ import java.util.Comparator;
 
 import static jetbrains.exodus.query.Utils.safe_equals;
 
+@Deprecated
 public class GenericSort extends Sort {
     private final Comparator<Entity> cmp;
 
