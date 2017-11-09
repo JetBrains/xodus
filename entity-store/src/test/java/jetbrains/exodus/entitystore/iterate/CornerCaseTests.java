@@ -30,13 +30,9 @@ public class CornerCaseTests extends EntityStoreTestBase {
         final PersistentEntityStoreImpl store = getEntityStore();
         EntityStoreSharedAsyncProcessor asyncProcessor = store.getAsyncProcessor();
         asyncProcessor.waitForJobs(100);
-        asyncProcessor.finish();
         store.getConfig().setCachingDisabled(true);
         for (int i = 0; i < 100; i++) {
             try {
-                if (i == 81) {
-                    System.out.println("hohoho");
-                }
                 store.executeInTransaction(new StoreTransactionalExecutable() {
                     @Override
                     public void execute(@NotNull StoreTransaction txn) {
@@ -49,6 +45,7 @@ public class CornerCaseTests extends EntityStoreTestBase {
                         addSubsystem(project, txn.newEntity("Subsystem"), "s2");
                         Assert.assertEquals("s1", doSort(txn, project).getFirst().getProperty("name"));
                         Assert.assertEquals("Unknown", doSort(txn, project).getLast().getProperty("name"));
+                        txn.revert();
                     }
                 });
             } catch (Throwable t) {
