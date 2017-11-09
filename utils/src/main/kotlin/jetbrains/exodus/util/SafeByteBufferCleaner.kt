@@ -27,7 +27,7 @@ object SafeByteBufferCleaner {
     private val invokeCleanerMethod = doPrivileged {
         try {
             UnsafeHolder.unsafeClass.getDeclaredMethod("invokeCleaner", ByteBuffer::class.java).apply { isAccessible = true }
-        } catch (e: NoSuchMethodException) {
+        } catch (t: Throwable) {
             null
         }
     }
@@ -38,7 +38,7 @@ object SafeByteBufferCleaner {
         if (dbbCleanerMethod == null) null else {
             try {
                 dbbCleanerMethod.returnType.getDeclaredMethod("clean").apply { isAccessible = true }
-            } catch (e: NoSuchMethodException) {
+            } catch (t: Throwable) {
                 null
             }
         }
@@ -93,7 +93,7 @@ object SafeByteBufferCleaner {
     private fun getDirectByteBufferMethod(name: String): Method? {
         return try {
             directByteBufferClass.getMethod(name).apply { isAccessible = true }
-        } catch (e: NoSuchMethodException) {
+        } catch (t: Throwable) {
             null
         }
     }
