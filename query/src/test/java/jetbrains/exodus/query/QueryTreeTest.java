@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.query;
 
+import jetbrains.exodus.entitystore.ComparableGetter;
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.EntityStoreTestBase;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
@@ -106,17 +107,17 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testGenericSort() throws Exception {
-        GenericSort genericSort = new GenericSort(concat, new Comparator<Entity>() {
+        ComparableGetterSort sortNode = new ComparableGetterSort(concat, new ComparableGetter() {
             @Override
-            public int compare(Entity o1, Entity o2) {
-                return SortEngine.compareNullableComparables(o1.getProperty("i"), o2.getProperty("i"));
+            public Comparable select(Entity entity) {
+                return entity.getProperty("i");
             }
         }, true);
-        Assert.assertEquals(genericSort, genericSort.getClone());
-        Assert.assertEquals(4, QueryUtil.getSize(instantiate(genericSort)));
-        Assert.assertEquals(4, QueryUtil.getSize(instantiate(new And(genericSort, NodeFactory.all()))));
-        Assert.assertFalse(genericSort.equals(propertyEqual));
-        Assert.assertFalse(propertyEqual.equals(genericSort));
+        Assert.assertEquals(sortNode, sortNode.getClone());
+        Assert.assertEquals(4, QueryUtil.getSize(instantiate(sortNode)));
+        Assert.assertEquals(4, QueryUtil.getSize(instantiate(new And(sortNode, NodeFactory.all()))));
+        Assert.assertFalse(sortNode.equals(propertyEqual));
+        Assert.assertFalse(propertyEqual.equals(sortNode));
     }
 
     public void testSortByLinkProperty() throws Exception {
