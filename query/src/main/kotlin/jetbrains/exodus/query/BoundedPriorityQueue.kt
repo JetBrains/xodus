@@ -18,29 +18,40 @@ package jetbrains.exodus.query
 import com.github.penemue.keap.PriorityQueue
 import java.util.*
 
-class BoundedPriorityQueue<E>(private val capacity: Int, val comparator: Comparator<in E>) : AbstractQueue<E>() {
+class BoundedPriorityQueue<E>(private val capacity: Int, private val comparator: Comparator<in E>) : AbstractQueue<E>() {
 
-    private val queue = PriorityQueue(capacity, comparator)
+    private val maxHeap = PriorityQueue(capacity, Comparator<E> { o1, o2 -> comparator.compare(o2, o1) })
+    private var minHeap: PriorityQueue<E>? = null
 
     override val size: Int
-        get() = queue.size
+        get() = getMinHeap().size
 
     override fun add(element: E) = offer(element)
 
     override fun offer(e: E): Boolean {
-        if (queue.size >= capacity) {
-            if (comparator.compare(e, queue.peek()) < 1) {
+        if (maxHeap.size >= capacity) {
+            if (comparator.compare(e, maxHeap.peek()) > 0) {
                 return false
             }
-            queue.pollRaw()
+            maxHeap.pollRaw()
         }
 
-        return queue.offer(e)
+        return maxHeap.offer(e)
     }
 
-    override fun poll(): E? = queue.pollRaw()
+    override fun poll(): E? = getMinHeap().pollRaw()
 
-    override fun peek(): E? = queue.peek()
+    override fun peek(): E? = getMinHeap().peek()
 
-    override fun iterator() = queue.iterator()
+    override fun iterator() = getMinHeap().iterator()
+
+    private fun getMinHeap(): PriorityQueue<E> {
+        var minHeap: PriorityQueue<E>? = this.minHeap
+        if (minHeap == null) {
+            minHeap = PriorityQueue(comparator)
+            maxHeap.forEach { minHeap!!.offer(it) }
+            this.minHeap = minHeap
+        }
+        return minHeap
+    }
 }

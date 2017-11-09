@@ -23,22 +23,27 @@ import org.junit.Assert
 import org.junit.Test
 import java.util.*
 
+private const val PAGE_SIZE = 100
+
 class InMemorySortTest : EntityStoreTestBase() {
 
-    var sum: Int = 0
+    private var sum: Int = 0
 
-    val comparator = compareBy<Entity> { it.getProperty("int") }
-    val valueGetter = ComparableGetter { it.getProperty("int") }
-    val valueComparator = Comparator<Comparable<Any>> { o1, o2 -> o1.compareTo(o2) }
+    private val comparator = compareBy<Entity> { it.getProperty("int") }
+    private val valueGetter = ComparableGetter { it.getProperty("int") }
+    private val valueComparator = Comparator<Comparable<Any>> { o1, o2 -> o1.compareTo(o2) }
 
     override fun setUp() {
         super.setUp()
         val rnd = Random()
         sum = 0
+        repeat(PAGE_SIZE, {
+            storeTransaction.newEntity("Issue").setProperty("int", it)
+            sum += it
+        })
         repeat(15000, {
-            val value = Math.abs(rnd.nextInt())
+            val value = Math.abs(rnd.nextInt(Int.MAX_VALUE - PAGE_SIZE) + PAGE_SIZE)
             storeTransaction.newEntity("Issue").setProperty("int", value)
-            sum += value
         })
         storeTransaction.flush()
     }
@@ -88,14 +93,14 @@ class InMemorySortTest : EntityStoreTestBase() {
     @Test
     fun testBoundedSort() {
         testSort(storeTransaction.getAll("Issue"),
-                { InMemoryBoundedHeapSortIterable(15000, it, comparator) })
+                { InMemoryBoundedHeapSortIterable(PAGE_SIZE, it, comparator) })
     }
 
     private fun testSort(it: Iterable<Entity>, sortFun: (it: Iterable<Entity>) -> SortEngine.InMemorySortIterable) {
         val sorted = sortFun(it)
         var prev: Entity? = null
         var sum = 0
-        sorted.forEach {
+        sorted.take(PAGE_SIZE).forEach {
             prev?.apply {
                 Assert.assertTrue(sorted.comparator.compare(this, it) <= 0)
             }
@@ -109,7 +114,7 @@ class InMemorySortTest : EntityStoreTestBase() {
         val sorted = sortFun(it)
         var prev: Entity? = null
         var sum = 0
-        sorted.forEach {
+        sorted.take(PAGE_SIZE).forEach {
             prev?.apply {
                 Assert.assertTrue(comparator.compare(valueGetter.select(this), valueGetter.select(it)) <= 0)
             }
