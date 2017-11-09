@@ -34,7 +34,7 @@ open class InMemorySortBenchmarkBase {
         temporaryFolder.create()
         store = PersistentEntityStores.newInstance(temporaryFolder.newFolder("data").absolutePath)
 
-        val rnd = Random()
+        val rnd = Random(5566)
         store.computeInTransaction {
             val txn = it as PersistentStoreTransaction
             repeat(50000, {
