@@ -264,11 +264,6 @@ public class SortEngine {
     }
 
     @NotNull
-    private Comparator<Comparable<Object>> caseInsensitiveComparator(boolean ascending) {
-        return ascending ? PROPERTY_VALUE_COMPARATOR : REVERSE_PROPERTY_VALUE_COMPARATOR;
-    }
-
-    @NotNull
     private ComparableGetter propertyGetter(final String propertyName) {
         return new ComparableGetter() {
             @Override
@@ -340,6 +335,11 @@ public class SortEngine {
         }
         //noinspection unchecked
         return c1 instanceof String ? ((String) c1).compareToIgnoreCase((String) c2) : c1.compareTo(c2);
+    }
+
+    @NotNull
+    private static Comparator<Comparable<Object>> caseInsensitiveComparator(boolean ascending) {
+        return ascending ? PROPERTY_VALUE_COMPARATOR : REVERSE_PROPERTY_VALUE_COMPARATOR;
     }
 
     private static Comparator<Entity> toComparator(final ComparableGetter selector) {
