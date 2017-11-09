@@ -319,38 +319,6 @@ public class SortTests extends EntityStoreTestBase {
         sortByTwoColumns(false, false);
     }
 
-    public void testSubsystemsSort() {
-        getEntityStore().getConfig().setCachingDisabled(true);
-        for (int i = 0; i < 100; i++) {
-            try {
-                final PersistentStoreTransaction txn = getStoreTransaction();
-                Entity defaultSubsystem = txn.newEntity("Subsystem");
-                Entity project = txn.newEntity("Project");
-                project.setLink("defaultSubsystem", defaultSubsystem);
-                addSubsystem(project, defaultSubsystem, "Unknown");
-                addSubsystem(project, txn.newEntity("Subsystem"), "s3");
-                addSubsystem(project, txn.newEntity("Subsystem"), "s1");
-                addSubsystem(project, txn.newEntity("Subsystem"), "s2");
-                Assert.assertEquals("s1", doSort(txn, project).getFirst().getProperty("name"));
-                Assert.assertEquals("Unknown", doSort(txn, project).getLast().getProperty("name"));
-                txn.revert();
-            } catch (Throwable t) {
-                System.out.println("Failed at iteration " +  i);
-                throw t;
-            }
-        }
-    }
-
-    private EntityIterable doSort(PersistentStoreTransaction txn, Entity project) {
-        return txn.sort("Subsystem", "name", project.getLinks("subsystems"), true).asSortResult();
-    }
-
-    private void addSubsystem(Entity project, Entity subsystem, String name) {
-        subsystem.setProperty("name", name);
-        project.addLink("subsystems", subsystem);
-        subsystem.setLink("parent", project);
-    }
-
     private void sortByTwoColumns(boolean stable, boolean asc) {
         final StoreTransaction txn = getStoreTransaction();
         final int count = 5000;
