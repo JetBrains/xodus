@@ -46,12 +46,9 @@ class BoundedPriorityQueue<E>(private val capacity: Int, private val comparator:
     override fun iterator() = getMinHeap().iterator()
 
     private fun getMinHeap(): PriorityQueue<E> {
-        var minHeap: PriorityQueue<E>? = this.minHeap
         if (minHeap == null) {
-            minHeap = PriorityQueue(comparator)
-            maxHeap.forEach { minHeap!!.offer(it) }
-            this.minHeap = minHeap
+            minHeap = PriorityQueue(maxHeap, comparator)
         }
-        return minHeap
+        return minHeap as PriorityQueue<E>
     }
 }
