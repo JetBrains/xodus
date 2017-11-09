@@ -15,12 +15,17 @@
  */
 package jetbrains.exodus.query
 
+import jetbrains.exodus.entitystore.ComparableGetter
 import jetbrains.exodus.entitystore.Entity
 import java.util.*
 
-abstract class InMemoryQueueSortIterable(source: Iterable<Entity>, comparator: Comparator<Entity>)
-    : SortEngine.InMemorySortIterable(source, comparator), InMemoryQueueSortIterableMixin {
+class InMemoryHeapSortIterableWithValueGetter(override val source: Iterable<Entity>,
+                                              private val valueGetter: ComparableGetter,
+                                              private val valueComparator: Comparator<Comparable<Any>>) : InMemoryQueueSortIterableMixin {
 
-    override val source: Iterable<Entity>
-        get() = super.source
+    override fun createQueue(unsorted: Collection<Entity>): Queue<Entity> {
+        val result = PriorityMap(unsorted.size, valueComparator, valueGetter)
+        unsorted.forEach { result.offer(it) }
+        return result
+    }
 }

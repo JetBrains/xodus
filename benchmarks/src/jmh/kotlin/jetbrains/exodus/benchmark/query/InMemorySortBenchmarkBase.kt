@@ -73,12 +73,26 @@ open class InMemorySortBenchmarkBase {
         return testSort { InMemoryHeapSortIterable(it, comparator) }
     }
 
+    open fun testHeapSortWithValueGetter(): Long {
+        return testSort { InMemoryHeapSortIterableWithValueGetter(it, valueGetter, valueComparator) }
+    }
+
     open fun testKeapSort(): Long {
         return testSort { InMemoryKeapSortIterable(it, comparator) }
     }
 
     open fun testBoundedSort(): Long {
         return testSort { InMemoryBoundedHeapSortIterable(100, it, comparator) }
+    }
+
+    open fun testNoSort(): Long {
+        return store.computeInTransaction {
+            val sum = it.getAll("Issue").sumBy { it.getProperty("int") as Int }
+            if (Math.abs(sum) < 100) {
+                throw IndexOutOfBoundsException()
+            }
+            it.getAll("Issue").take(100).map { it.id.localId }.sum()
+        }
     }
 
     private fun testSort(sortFun: (it: Iterable<Entity>) -> Iterable<Entity>): Long {

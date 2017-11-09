@@ -15,7 +15,5 @@
  */
 package jetbrains.exodus.entitystore;
 
-public interface ComparableGetter {
-
-    Comparable select(final Entity entity);
+public interface ComparableGetter extends Selector<Entity> {
 }

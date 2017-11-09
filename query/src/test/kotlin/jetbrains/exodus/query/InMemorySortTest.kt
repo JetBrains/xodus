@@ -85,6 +85,12 @@ class InMemorySortTest : EntityStoreTestBase() {
     }
 
     @Test
+    fun testHeapSortWithValueGetter() {
+        testSort(storeTransaction.getAll("Issue"),
+                { InMemoryHeapSortIterableWithValueGetter(it, valueGetter, valueComparator) }, valueGetter, valueComparator)
+    }
+
+    @Test
     fun testKeapSort() {
         testSort(storeTransaction.getAll("Issue"),
                 { InMemoryKeapSortIterable(it, comparator) })
