@@ -235,6 +235,30 @@ public final class SortIterable extends EntityIterableDecoratorBase {
         return result;
     }
 
+    private static int comparePropertyValues(@NotNull final IdValuePair c1, @NotNull final IdValuePair c2) {
+        final Comparable propValue1 = c1.propValue;
+        final Comparable propValue2 = c2.propValue;
+        int result;
+        if (propValue1 == null && propValue2 == null) {
+            result = 0;
+        } else if (propValue1 == null) {
+            result = 1;
+        } else if (propValue2 == null) {
+            result = -1;
+        } else {
+            result = propValue1 instanceof String ?
+                ((String) propValue1).compareToIgnoreCase((String) propValue2) : propValue1.compareTo(propValue2);
+        }
+        if (result == 0) {
+            if (c1.localId < c2.localId) {
+                result = -1;
+            } else if (c1.localId > c2.localId) {
+                result = 1;
+            }
+        }
+        return result;
+    }
+
     private final class StableSortIterator extends NonDisposableEntityIterator implements PropertyValueIterator {
 
         @NotNull
@@ -416,34 +440,16 @@ public final class SortIterable extends EntityIterableDecoratorBase {
             Arrays.sort(array, ascending ? new Comparator() {
                 @Override
                 public int compare(final Object o1, final Object o2) {
-                    final Comparable propValue1 = ((IdValuePair) o1).propValue;
-                    final Comparable propValue2 = ((IdValuePair) o2).propValue;
-                    if (propValue1 == null && propValue2 == null) {
-                        return 0;
-                    }
-                    if (propValue1 == null) {
-                        return 1;
-                    }
-                    if (propValue2 == null) {
-                        return -1;
-                    }
-                    return doCompare(propValue1, propValue2);
+                    final IdValuePair pair1 = (IdValuePair) o1;
+                    final IdValuePair pair2 = (IdValuePair) o2;
+                    return comparePropertyValues(pair1, pair2);
                 }
             } : new Comparator() {
                 @Override
                 public int compare(final Object o1, final Object o2) {
-                    final Comparable propValue1 = ((IdValuePair) o1).propValue;
-                    final Comparable propValue2 = ((IdValuePair) o2).propValue;
-                    if (propValue1 == null && propValue2 == null) {
-                        return 0;
-                    }
-                    if (propValue1 == null) {
-                        return 1;
-                    }
-                    if (propValue2 == null) {
-                        return -1;
-                    }
-                    return doCompare(propValue2, propValue1);
+                    final IdValuePair pair1 = (IdValuePair) o1;
+                    final IdValuePair pair2 = (IdValuePair) o2;
+                    return comparePropertyValues(pair2, pair1);
                 }
             });
             final ListIterator<IdValuePair> i = pairs.listIterator();
@@ -476,16 +482,6 @@ public final class SortIterable extends EntityIterableDecoratorBase {
         @Override
         public Comparable currentValue() {
             return currentValue;
-        }
-
-        private int doCompare(Comparable c1, Comparable c2) {
-            if (c1 == null) {
-                return 1;
-            }
-            if (c2 == null) {
-                return -1;
-            }
-            return c1 instanceof String ? ((String) c1).compareToIgnoreCase((String) c2) : c1.compareTo(c2);
         }
     }
 
