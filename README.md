@@ -43,6 +43,9 @@ Read more about [managing dependencies](https://github.com/JetBrains/xodus/wiki/
 There are three different ways to deal with data, which results in three different API layers: [Environments](https://github.com/JetBrains/xodus/wiki/Environments), [Entity Stores](https://github.com/JetBrains/xodus/wiki/Entity-Stores) and [Virtual File Systems](https://github.com/JetBrains/xodus/wiki/Virtual-File-Systems).
  
 ### Environments
+
+Add dependency on `org.jetbrains.xodus:xodus-environment:1.0.6`.
+
 ```java
 final Environment env = Environments.newInstance("/home/me/.myAppData");
 env.executeInTransaction(new TransactionalExecutable() {
@@ -55,6 +58,9 @@ env.executeInTransaction(new TransactionalExecutable() {
 env.close();
 ```
 ### Entity Stores
+
+Add dependency on `org.jetbrains.xodus:xodus-entity-store:1.0.6`.
+
 ```java
 final PersistentEntityStore entityStore = PersistentEntityStores.newInstance("/home/me/.myAppData");
 entityStore.executeInTransaction(new StoreTransactionalExecutable() {
@@ -67,6 +73,9 @@ entityStore.executeInTransaction(new StoreTransactionalExecutable() {
 entityStore.close();
 ```
 ### Virtual File Systems
+
+Add dependency on `org.jetbrains.xodus:xodus-vfs:1.0.6`.
+
 ```java
 final Environment env = Environments.newInstance("/home/me/.myAppData");
 final VirtualFileSystem vfs = new VirtualFileSystem(env);
