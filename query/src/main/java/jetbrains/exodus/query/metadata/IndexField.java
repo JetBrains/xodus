@@ -20,7 +20,7 @@ public interface IndexField {
     /**
      * True for property, false for link
      *
-     * @return
+     * @return value flag
      */
     boolean isProperty();
 
