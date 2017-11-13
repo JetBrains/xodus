@@ -15,8 +15,16 @@
  */
 package jetbrains.exodus.entitystore;
 
+/**
+ * {@code Selector} is a generic interface for property getter functions for Entity.
+ */
 public interface ComparableGetter extends Selector<Entity> {
 
+    /**
+     * Returns value for given object
+     *
+     * @return value
+     */
     @Override
     Comparable select(final Entity key);
 }
