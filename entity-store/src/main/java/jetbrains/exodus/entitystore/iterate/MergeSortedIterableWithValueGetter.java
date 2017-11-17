@@ -185,7 +185,11 @@ public class MergeSortedIterableWithValueGetter extends EntityIterableBase {
             private EntityWithSource(EntityId id, EntityIterator source) {
                 this.id = id;
                 this.source = source;
-                this.value = valueGetter.select(getEntity(id));
+                if (id == null) {
+                    this.value = null;
+                } else {
+                    this.value = valueGetter.select(getEntity(id));
+                }
             }
         }
     }
