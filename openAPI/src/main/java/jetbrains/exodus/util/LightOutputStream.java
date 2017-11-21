@@ -124,10 +124,6 @@ public class LightOutputStream extends OutputStream {
         return buf;
     }
 
-    public int getBufferLength() {
-        return len;
-    }
-
     public void ensureCapacity(int requiredCapacity) {
         final int bufLen = buf.length;
         if (bufLen < requiredCapacity) {

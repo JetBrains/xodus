@@ -205,7 +205,7 @@ public abstract class ByteIterableBase implements ByteIterable {
             output.write(firstByte);
             fillBytes(it, output);
             bytes = output.getBufferBytes();
-            length = output.getBufferLength();
+            length = output.size();
         }
     }
 }
