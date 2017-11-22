@@ -17,7 +17,11 @@ package jetbrains.exodus.env;
 
 import jetbrains.exodus.*;
 import jetbrains.exodus.core.dataStructures.Pair;
+import jetbrains.exodus.crypto.StreamCipher;
+import jetbrains.exodus.crypto.StreamCipherProvider;
+import jetbrains.exodus.util.HexUtil;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 
@@ -69,6 +73,32 @@ public final class EnvironmentConfig extends AbstractConfig {
      * @see #MEMORY_USAGE
      */
     public static final String MEMORY_USAGE_PERCENTAGE = "exodus.memoryUsagePercentage";
+
+    /**
+     * Defines id of {@linkplain StreamCipherProvider} which will be used to encrypt the database. Default value is
+     * {@code null}, which means that the database won't be encrypted. The setting cannot be changed for existing databases.
+     * Default value is {@code null}.
+     * <p>Mutable at runtime: no
+     *
+     * @see #CIPHER_KEY
+     * @see StreamCipher
+     * @see StreamCipherProvider
+     */
+    public static final String CIPHER_ID = "exodus.cipherId";
+
+    /**
+     * Defines the key which will be used to encrypt the database. The key is expected to be a hex string representing
+     * a byte array which is passed to {@linkplain StreamCipher#init(byte[], long)}. Is applicable only if
+     * {@linkplain #CIPHER_ID} is not {@code null}. The setting cannot be changed for existing databases.
+     * Default value is {@code null}.
+     * <p>Mutable at runtime: no
+     *
+     * @see #CIPHER_ID
+     * @see StreamCipher
+     * @see StreamCipher#init(byte[], long)
+     * @see StreamCipherProvider
+     */
+    public static final String CIPHER_KEY = "exodus.cipherKey";
 
     /**
      * If is set to {@code true} forces file system's fsync call after each committed or flushed transaction. By default,
@@ -581,6 +611,74 @@ public final class EnvironmentConfig extends AbstractConfig {
      */
     public EnvironmentConfig setMemoryUsagePercentage(final int memoryUsagePercentage) {
         return setSetting(MEMORY_USAGE_PERCENTAGE, memoryUsagePercentage);
+    }
+
+    /**
+     * Returns id of {@linkplain StreamCipherProvider} which will be used to encrypt the database. Default value is
+     * {@code null}, which means that the database won't be encrypted. The setting cannot be changed for existing databases.
+     * Default value is {@code null}.
+     * <p>Mutable at runtime: no
+     *
+     * @see StreamCipher
+     * @see StreamCipherProvider
+     */
+    @Nullable
+    public String getCipherId() {
+        return (String) getSetting(CIPHER_ID);
+    }
+
+    /**
+     * Sets id of {@linkplain StreamCipherProvider} which will be used to encrypt the database. Default value is
+     * {@code null}, which means that the database won't be encrypted. The setting cannot be changed for existing databases.
+     * Default value is {@code null}.
+     * <p>Mutable at runtime: no
+     *
+     * @param id id of {@linkplain StreamCipherProvider}
+     * @return this {@code EnvironmentConfig} instance
+     * @see StreamCipher
+     * @see StreamCipherProvider
+     */
+    public EnvironmentConfig setCipherId(final String id) {
+        return setSetting(CIPHER_ID, id);
+    }
+
+    /**
+     * Returns the key which will be used to encrypt the database or {@code null} for no encryption. Is applicable
+     * only if* {@linkplain #getCipherId()} returns not {@code null}. Default value is {@code null}.
+     * <p>Mutable at runtime: no
+     *
+     * @see #getCipherId()
+     * @see StreamCipher
+     * @see StreamCipher#init(byte[], long)
+     * @see StreamCipherProvider
+     */
+    @Nullable
+    public byte[] getCipherKey() {
+        return (byte[]) getSetting(CIPHER_KEY);
+    }
+
+    /**
+     * Sets the key which will be used to encrypt the database. The key is expected to be a hex string representing
+     * a byte array which is passed to {@linkplain StreamCipher#init(byte[], long)}. Is applicable only if
+     * {@linkplain #getCipherId()} returns not {@code null}. The setting cannot be changed for existing databases.
+     * Default value is {@code null}.
+     * <p>Mutable at runtime: no
+     *
+     * @param cipherKey hex string representing сшзрук лун
+     * @return this {@code EnvironmentConfig} instance
+     * @see #setCipherId(String)
+     * @see StreamCipher
+     * @see StreamCipher#init(byte[], long)
+     * @see StreamCipherProvider
+     */
+    public EnvironmentConfig setCipherKey(final String cipherKey) {
+        if (cipherKey == null) {
+            return (EnvironmentConfig) removeSetting(CIPHER_KEY);
+        }
+        if ((cipherKey.length() & 1) == 1) {
+            throw new InvalidSettingException("Odd length of hex representation of cipher key");
+        }
+        return setSetting(CIPHER_KEY, HexUtil.stringToByteArray(cipherKey));
     }
 
     /**

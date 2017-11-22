@@ -17,6 +17,7 @@ package jetbrains.exodus;
 
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
+import jetbrains.exodus.util.StringHashMap;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 
@@ -46,7 +47,7 @@ public abstract class AbstractConfig {
     private final Set<ConfigSettingChangeListener> listeners;
 
     protected AbstractConfig(@NotNull final Pair<String, Object>[] props, @NotNull final ConfigurationStrategy strategy) {
-        settings = new HashMap<>();
+        settings = new StringHashMap<>();
         listeners = Collections.newSetFromMap(new ConcurrentHashMap<ConfigSettingChangeListener, Boolean>());
         for (final Pair<String, Object> prop : props) {
             final String propName = prop.getFirst();
@@ -97,6 +98,11 @@ public abstract class AbstractConfig {
                 }
             }
         }
+        return this;
+    }
+
+    public AbstractConfig removeSetting(@NotNull final String key) {
+        settings.remove(key);
         return this;
     }
 
