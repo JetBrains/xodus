@@ -22,7 +22,7 @@ import org.bouncycastle.crypto.engines.Salsa20Engine
 import org.bouncycastle.crypto.params.KeyParameter
 import org.bouncycastle.crypto.params.ParametersWithIV
 
-const val SALSA20_CIPHER_ID = "jetbrains.exodus.crypto.streamciphers.Salsa20StreamCipher"
+const val SALSA20_CIPHER_ID = "jetbrains.exodus.crypto.streamciphers.Salsa20StreamCipherProvider"
 
 @Suppress("unused")
 class Salsa20StreamCipherProvider : StreamCipherProvider() {
