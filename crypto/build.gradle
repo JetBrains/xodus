@@ -1,0 +1,5 @@
+dependencies {
+    compile 'org.bouncycastle:bcpg-jdk15on:1.58'
+    compile project(':openAPI')
+    testCompile project(':openAPI').sourceSets.test.output
+}
