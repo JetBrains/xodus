@@ -122,6 +122,13 @@ subprojects {
             from project.sourceSets.main.kotlin
         }
 
+        dokka {
+            jdkVersion = 7
+            packageOptions {
+                reportUndocumented = false
+            }
+        }
+
         task dokkaJavadoc(type: org.jetbrains.dokka.gradle.DokkaTask) {
             outputFormat = 'javadoc'
             outputDirectory = "$buildDir/javadoc"
