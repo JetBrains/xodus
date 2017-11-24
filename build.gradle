@@ -130,12 +130,6 @@ subprojects {
             compile 'io.github.microutils:kotlin-logging:1.4.1'
         }
 
-        tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
-            kotlinOptions {
-                jvmTarget = sourceCompatibility
-            }
-        }
-
         sourceJar {
             from project.sourceSets.main.kotlin
         }
