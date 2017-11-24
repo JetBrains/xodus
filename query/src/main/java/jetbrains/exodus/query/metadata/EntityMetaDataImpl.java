@@ -172,10 +172,8 @@ public class EntityMetaDataImpl implements EntityMetaData {
         externalAssociationEnds.addAll(ends);
     }
 
-    /**
+    /*
      * For backward compatibility
-     *
-     * @param ends
      */
     public void setAssociationEnds(@NotNull Collection<AssociationEndMetaData> ends) {
         externalAssociationEnds = new HashSet<>();

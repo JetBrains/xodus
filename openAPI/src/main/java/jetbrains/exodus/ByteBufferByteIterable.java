@@ -68,7 +68,7 @@ public class ByteBufferByteIterable implements ByteIterable {
 
     /**
      * @return nothing since unconditionally throws {@link UnsupportedOperationException}.
-     * @throws UnsupportedOperationException
+     * @throws UnsupportedOperationException always since this operation is unsupported
      */
     @Override
     public byte[] getBytesUnsafe() {

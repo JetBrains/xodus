@@ -56,7 +56,7 @@ public interface EntityMetaData {
     /**
      * Own indexes only
      *
-     * @return
+     * @return set of own indices
      */
     @NotNull
     Set<Index> getOwnIndexes();
@@ -64,7 +64,7 @@ public interface EntityMetaData {
     /**
      * Indexes, including inheritors
      *
-     * @return
+     * @return set of all indices
      */
     @NotNull
     Set<Index> getIndexes();
@@ -72,7 +72,7 @@ public interface EntityMetaData {
     /**
      * Indexes for given field, including inheritors
      *
-     * @return
+     * @return set of indices for given field
      */
     @NotNull
     Set<Index> getIndexes(String field);

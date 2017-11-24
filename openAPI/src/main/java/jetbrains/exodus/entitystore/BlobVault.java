@@ -151,7 +151,7 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
      * @param blobHandle blob handle
      * @param txn        {@linkplain Transaction} instance
      * @return string content of blob identified by specified blob handle
-     * @throws IOException
+     * @throws IOException if something went wrong
      */
     @Nullable
     public final String getStringContent(final long blobHandle, @NotNull final Transaction txn) throws IOException {

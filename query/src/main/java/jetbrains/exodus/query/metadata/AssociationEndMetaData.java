@@ -22,32 +22,12 @@ public interface AssociationEndMetaData extends MemberMetaData {
     @NotNull
     EntityMetaData getOppositeEntityMetaData();
 
-    /**
-     * Cascade delete association target entity
-     *
-     * @return
-     */
     boolean getCascadeDelete();
 
-    /**
-     * Remove association with target on entity delete
-     *
-     * @return
-     */
     boolean getClearOnDelete();
 
-    /**
-     * Target cascade delete association target entity
-     *
-     * @return
-     */
     boolean getTargetCascadeDelete();
 
-    /**
-     * Target remove association with target on entity delete
-     *
-     * @return
-     */
     boolean getTargetClearOnDelete();
 
     @NotNull

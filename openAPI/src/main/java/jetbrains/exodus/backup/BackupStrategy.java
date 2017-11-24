@@ -41,7 +41,7 @@ public abstract class BackupStrategy {
     /**
      * Backup pre-processing procedure. E.g., {@link jetbrains.exodus.env.Environment} turns database GC off before backup.
      *
-     * @throws Exception
+     * @throws Exception if something went wrong
      */
     public void beforeBackup() throws Exception {
     }
@@ -51,7 +51,7 @@ public abstract class BackupStrategy {
     /**
      * Backup postprocessing procedure. E.g., {@link jetbrains.exodus.env.Environment} turns database GC on after backup.
      *
-     * @throws Exception
+     * @throws Exception if something went wrong
      */
     public void afterBackup() throws Exception {
     }
