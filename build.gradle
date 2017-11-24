@@ -73,7 +73,7 @@ subprojects {
         testCompile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.21'
     }
 
-    // tests of most subprojects run with database encryption turn on
+    // tests for most of sub-projects run with database encryption turned on
     if (!(project.name in ['benchmarks', 'compress', 'crypto', 'openAPI', 'samples', 'utils'])) {
         test {
             systemProperty 'exodus.cipherId', 'jetbrains.exodus.crypto.streamciphers.Salsa20StreamCipherProvider'
@@ -128,6 +128,12 @@ subprojects {
         dependencies {
             compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
             compile 'io.github.microutils:kotlin-logging:1.4.1'
+        }
+
+        tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
+            kotlinOptions {
+                jvmTarget = sourceCompatibility
+            }
         }
 
         sourceJar {
