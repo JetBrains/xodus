@@ -15,13 +15,24 @@
  */
 package jetbrains.exodus.crypto
 
+import jetbrains.exodus.InvalidSettingException
+import jetbrains.exodus.util.HexUtil
 import java.io.InputStream
 import java.io.OutputStream
 
-fun newCipher(id: String): StreamCipher = (StreamCipherProvider.getProvider(id) ?:
-        throw ExodusCryptoException("Failed to load StreamCipherProvider with id = $id")).newCipher()
+fun newCipherProvider(cipherId: String) = StreamCipherProvider.getProvider(cipherId) ?:
+        throw ExodusCryptoException("Failed to load StreamCipherProvider with id = $cipherId")
+
+fun newCipher(cipherId: String): StreamCipher = newCipherProvider(cipherId).newCipher()
 
 fun StreamCipher.with(key: ByteArray, iv: Long) = this.also { it.init(key, iv) }
+
+fun toBinaryKey(cipherKey: String): ByteArray {
+    if (cipherKey.length and 1 == 1) {
+        throw InvalidSettingException("Odd length of hex representation of cipher key")
+    }
+    return HexUtil.stringToByteArray(cipherKey)
+}
 
 infix fun OutputStream.encryptBy(cipher: StreamCipher) = StreamCipherOutputStream(this, cipher)
 

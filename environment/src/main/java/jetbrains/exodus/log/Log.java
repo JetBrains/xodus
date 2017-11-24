@@ -18,6 +18,8 @@ package jetbrains.exodus.log;
 import jetbrains.exodus.*;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.core.dataStructures.skiplists.LongSkipList;
+import jetbrains.exodus.crypto.EnvKryptKt;
+import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.io.*;
 import jetbrains.exodus.util.DeferredIO;
 import jetbrains.exodus.util.IdGenerator;
@@ -741,7 +743,7 @@ public final class Log implements Closeable {
         if (node == null) {
             BlockNotFoundException.raise("Address is out of log space, underflow", this, address);
         }
-        final long leftBound = node.getKey();
+        @SuppressWarnings("ConstantConditions") final long leftBound = node.getKey();
         final Block block = reader.getBlock(leftBound);
         final long fileSize = getFileSize(leftBound);
         if (leftBound + fileSize <= address) {
@@ -751,6 +753,10 @@ public final class Log implements Closeable {
             BlockNotFoundException.raise(this, address);
         }
         final int readBytes = block.read(output, address - leftBound, output.length);
+        final StreamCipherProvider cipherProvider = config.getCipherProvider();
+        if (cipherProvider != null) {
+            EnvKryptKt.cryptBlocksMutable(cipherProvider, config.getCipherKey(), address, output, 0, readBytes);
+        }
         notifyReadBytes(output, readBytes);
         return readBytes;
     }

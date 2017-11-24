@@ -17,9 +17,9 @@ package jetbrains.exodus.env;
 
 import jetbrains.exodus.*;
 import jetbrains.exodus.core.dataStructures.Pair;
+import jetbrains.exodus.crypto.KryptKt;
 import jetbrains.exodus.crypto.StreamCipher;
 import jetbrains.exodus.crypto.StreamCipherProvider;
-import jetbrains.exodus.util.HexUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -506,6 +506,8 @@ public final class EnvironmentConfig extends AbstractConfig {
         //noinspection unchecked
         super(new Pair[]{
             new Pair(MEMORY_USAGE_PERCENTAGE, 50),
+            new Pair(CIPHER_ID, null),
+            new Pair(CIPHER_KEY, null),
             new Pair(LOG_DURABLE_WRITE, false),
             new Pair(LOG_FILE_SIZE, 8192L),
             new Pair(LOG_LOCK_TIMEOUT, 0L),
@@ -654,7 +656,12 @@ public final class EnvironmentConfig extends AbstractConfig {
      */
     @Nullable
     public byte[] getCipherKey() {
-        return (byte[]) getSetting(CIPHER_KEY);
+        Object cipherKey = getSetting(CIPHER_KEY);
+        if (cipherKey instanceof String) {
+            cipherKey = KryptKt.toBinaryKey((String) cipherKey);
+            setSetting(CIPHER_KEY, cipherKey);
+        }
+        return (byte[]) cipherKey;
     }
 
     /**
@@ -675,10 +682,7 @@ public final class EnvironmentConfig extends AbstractConfig {
         if (cipherKey == null) {
             return (EnvironmentConfig) removeSetting(CIPHER_KEY);
         }
-        if ((cipherKey.length() & 1) == 1) {
-            throw new InvalidSettingException("Odd length of hex representation of cipher key");
-        }
-        return setSetting(CIPHER_KEY, HexUtil.stringToByteArray(cipherKey));
+        return setSetting(CIPHER_KEY, KryptKt.toBinaryKey(cipherKey));
     }
 
     /**

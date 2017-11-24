@@ -73,6 +73,18 @@ subprojects {
         testCompile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.21'
     }
 
+    // tests of most subprojects run with database encryption turn on
+    if (!(project.name in ['benchmarks', 'compress', 'crypto', 'openAPI', 'samples', 'utils'])) {
+        test {
+            systemProperty 'exodus.cipherId', 'jetbrains.exodus.crypto.streamciphers.Salsa20StreamCipherProvider'
+            systemProperty 'exodus.cipherKey', '000102030405060708090a0b0c0d0e0f'
+            // {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15}
+        }
+        dependencies {
+            testCompile project(':crypto')
+        }
+    }
+
     tasks.withType(JavaCompile) {
         options.encoding = 'UTF-8'
     }

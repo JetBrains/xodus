@@ -48,7 +48,10 @@ public class FailoverForkTests extends EntityStoreTestBase {
 
     private void startAndKillProc() throws Exception {
         logger.info("Preparing to start a process...");
-        forked = ForkSupportIO.create(getProcessRunner(), new String[]{}, new String[]{}).start();
+        final String cipherId = System.getProperty("exodus.cipherId");
+        final String[] jvmArgs = cipherId == null ? new String[0] :
+            new String[]{"-Dexodus.cipherId=" + cipherId, "-Dexodus.cipherKey=" + System.getProperty("exodus.cipherKey")};
+        forked = ForkSupportIO.create(getProcessRunner(), jvmArgs, new String[]{}).start();
         logger.info("Process started, PID = " + forked.getPID());
         childFolderLocation = forked.readString();
         logger.info("Forked process said: " + childFolderLocation);
@@ -72,7 +75,7 @@ public class FailoverForkTests extends EntityStoreTestBase {
     /**
      * copied from EntityTest.testCreateSingleEntity. Sorry for copypasting, any ideas on how to reuse?
      */
-    public void testCreateSingleEntity() throws Exception {
+    public void testCreateSingleEntity() {
         StoreTransaction txn = getStoreTransaction();
         Entity entity = txn.newEntity("Issue");
         txn.flush();

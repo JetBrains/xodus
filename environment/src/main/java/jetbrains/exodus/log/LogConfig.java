@@ -16,6 +16,7 @@
 package jetbrains.exodus.log;
 
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.env.EnvironmentConfig;
 import jetbrains.exodus.io.DataReader;
 import jetbrains.exodus.io.DataWriter;
@@ -49,6 +50,8 @@ public class LogConfig {
     private boolean clearInvalidLog;
     private long syncPeriod;
     private boolean fullFileReadonly;
+    private StreamCipherProvider cipherProvider;
+    private byte[] cipherKey;
 
     public LogConfig() {
     }
@@ -247,6 +250,24 @@ public class LogConfig {
 
     public LogConfig setFullFileReadonly(boolean fullFileReadonly) {
         this.fullFileReadonly = fullFileReadonly;
+        return this;
+    }
+
+    public StreamCipherProvider getCipherProvider() {
+        return cipherProvider;
+    }
+
+    public LogConfig setCipherProvider(StreamCipherProvider cipherProvider) {
+        this.cipherProvider = cipherProvider;
+        return this;
+    }
+
+    public byte[] getCipherKey() {
+        return cipherKey;
+    }
+
+    public LogConfig setCipherKey(byte[] cipherKey) {
+        this.cipherKey = cipherKey;
         return this;
     }
 

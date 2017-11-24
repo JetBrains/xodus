@@ -22,12 +22,10 @@ import jetbrains.exodus.io.inMemory.Memory;
 import jetbrains.exodus.io.inMemory.MemoryDataReader;
 import jetbrains.exodus.io.inMemory.MemoryDataWriter;
 
-import java.io.IOException;
-
 public class LogRecoveryTestInMemory extends LogRecoveryTest {
 
     @Override
-    protected Pair<DataReader, DataWriter> createRW() throws IOException {
+    protected Pair<DataReader, DataWriter> createRW() {
         Memory memory = new Memory();
         return new Pair<DataReader, DataWriter>(new MemoryDataReader(memory), new MemoryDataWriter(memory));
     }

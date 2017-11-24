@@ -17,6 +17,8 @@ package jetbrains.exodus.log;
 
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.InvalidSettingException;
+import jetbrains.exodus.crypto.EnvKryptKt;
+import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.io.DataWriter;
 import jetbrains.exodus.io.TransactionalDataWriter;
 import org.jetbrains.annotations.NotNull;
@@ -27,13 +29,14 @@ import java.util.ArrayList;
 class BufferedDataWriter implements TransactionalDataWriter {
 
     @NotNull
-    private final Log log;
-    @NotNull
     private final LogCache logCache;
     @NotNull
     private final DataWriter child;
     @NotNull
     private MutablePage currentPage;
+    @Nullable
+    private final StreamCipherProvider cipherProvider;
+    private final byte[] cipherKey;
     private final int pageSize;
     private int count;
 
@@ -41,14 +44,15 @@ class BufferedDataWriter implements TransactionalDataWriter {
                                @NotNull final DataWriter child,
                                @NotNull final byte[] page,
                                final long pageAddress) {
-        this.log = log;
         logCache = log.cache;
         this.child = child;
         currentPage = new MutablePage(null, page, pageAddress);
+        cipherProvider = log.getConfig().getCipherProvider();
+        cipherKey = log.getConfig().getCipherKey();
         pageSize = log.getCachePageSize();
         if (pageSize != page.length) {
-            throw new InvalidSettingException("Configured bytes size doesn't match actual bytes size, pageSize = " +
-                pageSize + ", actual bytes size = " + page.length);
+            throw new InvalidSettingException("Configured page size doesn't match actual page size, pageSize = " +
+                pageSize + ", actual page size = " + page.length);
         }
     }
 
@@ -127,8 +131,15 @@ class BufferedDataWriter implements TransactionalDataWriter {
                 previousPage = previousPage.previousPage;
             } while (previousPage != null);
             for (final MutablePage mutablePage : fullPages) {
+                final byte[] bytes = mutablePage.bytes;
                 final int off = mutablePage.flushedCount;
-                child.write(mutablePage.bytes, off, pageSize - off);
+                final int len = pageSize - off;
+                if (cipherProvider == null) {
+                    child.write(bytes, off, len);
+                } else {
+                    child.write(EnvKryptKt.cryptBlocksImmutable(
+                        cipherProvider, cipherKey, mutablePage.pageAddress, bytes, off, len), 0, len);
+                }
             }
             currentPage.previousPage = null;
         }
@@ -156,7 +167,14 @@ class BufferedDataWriter implements TransactionalDataWriter {
         final int committedCount = currentPage.committedCount;
         final int flushedCount = currentPage.flushedCount;
         if (committedCount > flushedCount) {
-            child.write(currentPage.bytes, flushedCount, committedCount - flushedCount);
+            final byte[] bytes = currentPage.bytes;
+            final int len = committedCount - flushedCount;
+            if (cipherProvider == null) {
+                child.write(bytes, flushedCount, len);
+            } else {
+                child.write(EnvKryptKt.cryptBlocksImmutable(
+                    cipherProvider, cipherKey, currentPage.pageAddress, bytes, flushedCount, len), 0, len);
+            }
             currentPage.flushedCount = committedCount;
         }
     }

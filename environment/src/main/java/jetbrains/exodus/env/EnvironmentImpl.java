@@ -20,6 +20,7 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Pair;
+import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.env.management.EnvironmentConfigWithOperations;
 import jetbrains.exodus.gc.GarbageCollector;
 import jetbrains.exodus.gc.UtilizationProfile;
@@ -90,6 +91,11 @@ public class EnvironmentImpl implements Environment {
     @Nullable
     private final StuckTransactionMonitor stuckTxnMonitor;
 
+    @Nullable
+    private final StreamCipherProvider streamCipherProvider;
+    @Nullable
+    private final byte[] cipherKey;
+
     @SuppressWarnings({"ThisEscapedInObjectConstruction"})
     EnvironmentImpl(@NotNull final Log log, @NotNull final EnvironmentConfig ec) {
         this.log = log;
@@ -129,6 +135,9 @@ public class EnvironmentImpl implements Environment {
         throwableOnClose = null;
 
         stuckTxnMonitor = (transactionTimeout() > 0) ? new StuckTransactionMonitor(this) : null;
+
+        streamCipherProvider = log.getConfig().getCipherProvider();
+        cipherKey = log.getConfig().getCipherKey();
 
         if (logger.isInfoEnabled()) {
             logger.info("Exodus environment created: " + log.getLocation());
@@ -291,6 +300,16 @@ public class EnvironmentImpl implements Environment {
     @Nullable
     public String getStuckTransactionMonitorMessage() {
         return stuckTxnMonitor == null ? null : stuckTxnMonitor.getErrorMessage();
+    }
+
+    @Nullable
+    public StreamCipherProvider getStreamCipherProvider() {
+        return streamCipherProvider;
+    }
+
+    @Nullable
+    public byte[] getCipherKey() {
+        return cipherKey;
     }
 
     @Override
