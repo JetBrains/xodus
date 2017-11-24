@@ -664,7 +664,7 @@ public final class EnvironmentConfig extends AbstractConfig {
      * Default value is {@code null}.
      * <p>Mutable at runtime: no
      *
-     * @param cipherKey hex string representing сшзрук лун
+     * @param cipherKey hex string representing cipher key
      * @return this {@code EnvironmentConfig} instance
      * @see #setCipherId(String)
      * @see StreamCipher
