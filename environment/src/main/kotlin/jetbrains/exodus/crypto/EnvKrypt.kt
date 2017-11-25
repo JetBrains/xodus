@@ -63,7 +63,9 @@ private fun cryptBlocksImpl(cipherProvider: StreamCipherProvider,
     while (len > 0) {
         val offsetInBlock = inputOff % LogUtil.LOG_BLOCK_ALIGNMENT
         val blockLen = minOf(LogUtil.LOG_BLOCK_ALIGNMENT - offsetInBlock, len)
-        val cipher = cipherProvider.newCipher().apply { init(cipherKey, addr.asHashedIV()) }
+        val cipher = cipherProvider.newCipher().apply {
+            init(cipherKey, (addr / LogUtil.LOG_BLOCK_ALIGNMENT).asHashedIV())
+        }
         // if offset is not the left bound of a block then the cipher should skip some bytes
         if (offsetInBlock > 0) {
             repeat(offsetInBlock, {
