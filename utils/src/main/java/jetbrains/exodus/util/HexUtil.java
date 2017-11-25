@@ -17,8 +17,6 @@ package jetbrains.exodus.util;
 
 import org.jetbrains.annotations.NotNull;
 
-import java.io.ByteArrayOutputStream;
-
 public final class HexUtil {
 
     private HexUtil() {
@@ -41,18 +39,25 @@ public final class HexUtil {
     }
 
     public static byte[] stringToByteArray(@NotNull final String str) {
-        final ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        int i = 0;
-        while (i < str.length()) {
-            char c = str.charAt(i);
-            int b = Character.digit(c, 16) << 4;
-            if (i < str.length() - 1) {
-                c = str.charAt(++i);
-                b |= Character.digit(c, 16);
-            }
-            stream.write(b);
-            ++i;
+        final int strLen = str.length();
+        if ((strLen & 1) == 1) {
+            throw new IllegalArgumentException("Add hex string length");
         }
-        return stream.toByteArray();
+        final byte[] result = new byte[strLen / 2];
+        int i = 0;
+        int j = 0;
+        while (i < strLen) {
+            result[j++] = (byte) ((hexChar(str.charAt(i)) << 4) | hexChar(str.charAt(i + 1)));
+            i += 2;
+        }
+        return result;
+    }
+
+    private static int hexChar(final char c) {
+        final int result = Character.digit(c, 16);
+        if (result < 0 || result > 15) {
+            throw new IllegalArgumentException("Bad hex character: " + c);
+        }
+        return result;
     }
 }
