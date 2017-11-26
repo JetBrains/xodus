@@ -41,7 +41,7 @@ public final class HexUtil {
     public static byte[] stringToByteArray(@NotNull final String str) {
         final int strLen = str.length();
         if ((strLen & 1) == 1) {
-            throw new IllegalArgumentException("Add hex string length");
+            throw new IllegalArgumentException("Odd hex string length");
         }
         final byte[] result = new byte[strLen / 2];
         int i = 0;
@@ -56,7 +56,7 @@ public final class HexUtil {
     private static int hexChar(final char c) {
         final int result = Character.digit(c, 16);
         if (result < 0 || result > 15) {
-            throw new IllegalArgumentException("Bad hex character: " + c);
+            throw new IllegalArgumentException("Bad hex digit: " + c);
         }
         return result;
     }
