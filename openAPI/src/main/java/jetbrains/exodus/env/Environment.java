@@ -17,6 +17,8 @@ package jetbrains.exodus.env;
 
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.backup.Backupable;
+import jetbrains.exodus.crypto.StreamCipher;
+import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.management.Statistics;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -324,4 +326,28 @@ public interface Environment extends Closeable, Backupable {
      */
     @NotNull
     Statistics getStatistics();
+
+    /**
+     * Returns instance of {@linkplain StreamCipherProvider} if the environment is configured to be encrypted,
+     * or {@code null}.
+     *
+     * @return instance of {@linkplain StreamCipherProvider} if the environment is configured to be encrypted,
+     * or {@code null}
+     * @see StreamCipherProvider
+     * @see EnvironmentConfig#getCipherId()
+     */
+    @Nullable
+    StreamCipherProvider getCipherProvider();
+
+    /**
+     * Returns cipher key to use for database encryption, or {@code null} if the environment is not configured
+     * to be encrypted.
+     *
+     * @return cipher key to use for database encryption, or {@code null} if the environment is not configured
+     * to be encrypted
+     * @see StreamCipher#init(byte[], long)
+     * @see EnvironmentConfig#getCipherId()
+     */
+    @Nullable
+    byte[] getCipherKey();
 }

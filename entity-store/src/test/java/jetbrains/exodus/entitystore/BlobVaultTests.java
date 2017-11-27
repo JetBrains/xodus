@@ -34,7 +34,7 @@ public class BlobVaultTests extends EntityStoreTestBase {
             txn.newEntity("E").setBlob("b", new ByteArrayInputStream("content".getBytes()));
         }
         Assert.assertTrue(txn.flush());
-        final FileSystemBlobVaultOld blobVault = (FileSystemBlobVaultOld) store.getBlobVault();
+        final FileSystemBlobVaultOld blobVault = (FileSystemBlobVaultOld) store.getBlobVault().getSourceVault();
         final File vaultLocation = blobVault.getVaultLocation();
         Assert.assertEquals(257, vaultLocation.listFiles().length); // + "version" file
         Assert.assertEquals(256, vaultLocation.listFiles(new FilenameFilter() {
@@ -65,7 +65,7 @@ public class BlobVaultTests extends EntityStoreTestBase {
             txn.newEntity("E").setBlob("b", new ByteArrayInputStream("content".getBytes()));
         }
         Assert.assertTrue(txn.flush());
-        final FileSystemBlobVault blobVault = (FileSystemBlobVault) store.getBlobVault();
+        final FileSystemBlobVault blobVault = (FileSystemBlobVault) store.getBlobVault().getSourceVault();
         final NavigableMap<Long, File> handlesToFiles = new TreeMap<>();
         for (final BackupStrategy.FileDescriptor fd : blobVault.getBackupStrategy().listFiles()) {
             final File file = fd.getFile();

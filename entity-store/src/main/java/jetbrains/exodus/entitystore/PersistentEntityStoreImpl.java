@@ -23,6 +23,8 @@ import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
+import jetbrains.exodus.crypto.EncryptedBlobVault;
+import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction.TransactionType;
 import jetbrains.exodus.entitystore.iterate.EntityFromLinkSetIterable;
 import jetbrains.exodus.entitystore.iterate.EntityFromLinksIterable;
@@ -204,7 +206,13 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
                 sequences = environment.openStore(SEQUENCES_STORE, StoreConfig.WITHOUT_DUPLICATES, txn.getEnvironmentTransaction());
                 if (blobVault == null) {
-                    setBlobVault(createDefaultFSBlobVault());
+                    BlobVault vault = createDefaultFSBlobVault();
+                    final StreamCipherProvider cipherProvider = environment.getCipherProvider();
+                    if (cipherProvider != null) {
+                        vault = new EncryptedBlobVault(
+                            vault, cipherProvider, Objects.requireNonNull(environment.getCipherKey()));
+                    }
+                    blobVault = vault;
                 }
 
                 final TwoColumnTable entityTypesTable = new TwoColumnTable(txn,
@@ -516,10 +524,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @NotNull
     public BlobVault getBlobVault() {
         return blobVault;
-    }
-
-    void setBlobVault(@NotNull final BlobVault blobVault) {
-        this.blobVault = blobVault;
     }
 
     @Override
@@ -1712,6 +1716,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
     }
 
+    @NotNull
     @Override
     public BackupStrategy getBackupStrategy() {
         return new PersistentEntityStoreBackupStrategy(this);

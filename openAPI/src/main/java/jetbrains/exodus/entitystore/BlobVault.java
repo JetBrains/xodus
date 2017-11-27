@@ -56,12 +56,22 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
     private final BlobStringsCache stringContentCache;
     private final int vaultIdentity;
 
+    protected BlobVault(@NotNull final BlobVault source) {
+        config = source.config;
+        stringContentCache = source.stringContentCache;
+        vaultIdentity = source.vaultIdentity;
+    }
+
     protected BlobVault(@NotNull final PersistentEntityStoreConfig config) {
         this.config = config;
         stringContentCache = config.isBlobStringsCacheShared() ?
             stringContentCacheCreator.getInstance() :
             new BlobStringsCache.BlobStringsCacheCreator().getInstance();
         vaultIdentity = identityGenerator.nextId();
+    }
+
+    public BlobVault getSourceVault() {
+        return this;
     }
 
     public int getIdentity() {

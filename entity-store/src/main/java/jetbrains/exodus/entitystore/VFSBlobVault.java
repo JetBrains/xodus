@@ -158,6 +158,7 @@ public class VFSBlobVault extends BlobVault {
         fs.shutdown();
     }
 
+    @NotNull
     @Override
     public BackupStrategy getBackupStrategy() {
         return BackupStrategy.EMPTY;

@@ -302,11 +302,13 @@ public class EnvironmentImpl implements Environment {
         return stuckTxnMonitor == null ? null : stuckTxnMonitor.getErrorMessage();
     }
 
+    @Override
     @Nullable
-    public StreamCipherProvider getStreamCipherProvider() {
+    public StreamCipherProvider getCipherProvider() {
         return streamCipherProvider;
     }
 
+    @Override
     @Nullable
     public byte[] getCipherKey() {
         return cipherKey;
@@ -417,6 +419,7 @@ public class EnvironmentImpl implements Environment {
         return throwableOnClose == null;
     }
 
+    @NotNull
     @Override
     public BackupStrategy getBackupStrategy() {
         return new EnvironmentBackupStrategyImpl(this);

@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.backup;
 
+import org.jetbrains.annotations.NotNull;
+
 /**
  * Something that can be backed up. {@link jetbrains.exodus.env.Environment},
  * {@link jetbrains.exodus.entitystore.PersistentEntityStore} and {@link jetbrains.exodus.entitystore.BlobVault} are
@@ -26,5 +28,6 @@ package jetbrains.exodus.backup;
  */
 public interface Backupable {
 
+    @NotNull
     BackupStrategy getBackupStrategy();
 }

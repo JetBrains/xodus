@@ -248,6 +248,7 @@ public class FileSystemBlobVaultOld extends BlobVault {
     public void close() {
     }
 
+    @NotNull
     @Override
     public BackupStrategy getBackupStrategy() {
         return new BackupStrategy() {

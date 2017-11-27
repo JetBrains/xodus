@@ -127,6 +127,7 @@ public class BackupBean implements Backupable {
         return backupException;
     }
 
+    @NotNull
     @Override
     public BackupStrategy getBackupStrategy() {
         final int targetsCount = targets.length;

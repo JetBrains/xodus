@@ -37,7 +37,7 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
                 return Math.min(super.acceptFile(file), logHighAddress - LogUtil.getAddress(file.getName()));
             }
         };
-        final BlobVault blobVault = store.getBlobVault();
+        final BlobVault blobVault = store.getBlobVault().getSourceVault();
         if (!(blobVault instanceof FileSystemBlobVault)) {
             blobVaultBackupStrategy = blobVault.getBackupStrategy();
         } else {
