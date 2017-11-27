@@ -26,6 +26,8 @@ import jetbrains.exodus.env.Cursor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Objects;
+
 @SuppressWarnings({"unchecked"})
 public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBase {
 
@@ -58,8 +60,8 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
                                  @NotNull final Comparable minValue,
                                  @NotNull final Comparable maxValue) {
         super(txn, entityTypeId, propertyId);
-        min = PropertyTypes.toLowerCase(minValue);
-        max = PropertyTypes.toLowerCase(maxValue);
+        min = Objects.requireNonNull(PropertyTypes.toLowerCase(minValue));
+        max = Objects.requireNonNull(PropertyTypes.toLowerCase(maxValue));
     }
 
     @Override
