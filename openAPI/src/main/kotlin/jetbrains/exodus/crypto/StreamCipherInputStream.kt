@@ -34,7 +34,7 @@ class StreamCipherInputStream(input: InputStream, private val cipher: StreamCiph
         val b = bytes.notNull { "Can't read into null array" }
         val read = super.read(b, off, len)
         if (read > 0) {
-            for (i in off..minOf(read, len)) {
+            for (i in off until minOf(read, len)) {
                 b[i] = cipher.crypt(b[i])
             }
         }
