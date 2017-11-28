@@ -20,8 +20,6 @@ import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Objects;
-
 import static jetbrains.exodus.query.Utils.safe_equals;
 
 public class PropertyEqual extends NodeBase {
@@ -32,7 +30,7 @@ public class PropertyEqual extends NodeBase {
 
     public PropertyEqual(String name, @Nullable Comparable value) {
         this.name = name;
-        this.value = Objects.requireNonNull(value);
+        this.value = value;
     }
 
     public String getName() {
