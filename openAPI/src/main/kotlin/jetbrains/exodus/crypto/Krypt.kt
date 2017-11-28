@@ -25,7 +25,7 @@ fun newCipherProvider(cipherId: String) = StreamCipherProvider.getProvider(ciphe
 
 fun newCipher(cipherId: String): StreamCipher = newCipherProvider(cipherId).newCipher()
 
-fun StreamCipher.with(key: ByteArray, iv: Long) = this.also { it.init(key, iv) }
+fun StreamCipher.with(key: ByteArray, iv: Long) = this.apply { init(key, iv) }
 
 fun toBinaryKey(cipherKey: String): ByteArray {
     if (cipherKey.length and 1 == 1) {
