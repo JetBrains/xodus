@@ -18,18 +18,24 @@ package jetbrains.exodus.query;
 
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.query.metadata.ModelMetaData;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.Objects;
 
 import static jetbrains.exodus.query.Utils.safe_equals;
 
 public class PropertyRange extends NodeBase {
+
     private final String name;
+    @NotNull
     private final Comparable min;
+    @NotNull
     private final Comparable max;
 
-    public PropertyRange(String name, Comparable min, Comparable max) {
+    public PropertyRange(String name, @NotNull Comparable min, @NotNull Comparable max) {
         this.name = name;
-        this.min = min;
-        this.max = max;
+        this.min = Objects.requireNonNull(min);
+        this.max = Objects.requireNonNull(max);
     }
 
     @Override
@@ -40,8 +46,8 @@ public class PropertyRange extends NodeBase {
 
     PropertyRange merge(PropertyRange range) {
         return new PropertyRange(name,
-                min.compareTo(range.min) < 0 ? range.min : min,
-                max.compareTo(range.max) < 0 ? max : range.max
+            min.compareTo(range.min) < 0 ? range.min : min,
+            max.compareTo(range.max) < 0 ? max : range.max
         );
     }
 

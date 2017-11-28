@@ -18,16 +18,21 @@ package jetbrains.exodus.query;
 
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.query.metadata.ModelMetaData;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.Objects;
 
 import static jetbrains.exodus.query.Utils.safe_equals;
 
 public class PropertyEqual extends NodeBase {
+
     private final String name;
+    @NotNull
     private final Comparable value;
 
-    public PropertyEqual(String name, Comparable value) {
+    public PropertyEqual(String name, @NotNull Comparable value) {
         this.name = name;
-        this.value = value;
+        this.value = Objects.requireNonNull(value);
     }
 
     public String getName() {
