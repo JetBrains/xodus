@@ -33,6 +33,8 @@ public interface VirtualFileDescriptor {
     @NotNull
     InputStream getInputStream() throws IOException;
 
+    boolean shouldCloseStream();
+
     long getFileSize();
 
     long getTimeStamp();

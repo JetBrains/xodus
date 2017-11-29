@@ -29,6 +29,8 @@ import java.util.*
 import java.util.zip.GZIPInputStream
 
 object ArchiveBackupableFactory : KLogging() {
+    private val separators = charArrayOf('\\', '/')
+
     fun newBackupable(file: File, gzip: Boolean) = Backupable {
         val stream = if (gzip) {
             GZIPInputStream(FileInputStream(file))
@@ -63,7 +65,9 @@ object ArchiveBackupableFactory : KLogging() {
                     entry = archive.nextEntry
                 }
                 return entry?.let {
-                    ArchiveEntryFileDescriptor(archive, it).also {
+                    val entryName = it.name
+                    val (path, name) = parseEntryPath(entryName)
+                    ArchiveEntryFileDescriptor(archive, it, path, name).also {
                         entry = null
                     }
                 } ?: throw NoSuchElementException()
@@ -73,23 +77,43 @@ object ArchiveBackupableFactory : KLogging() {
         }
     }
 
+    private fun parseEntryPath(entryName: String): Pair<String, String> {
+        val separatorIndex = entryName.lastIndexOfAny(separators)
+        val path: String
+        val name: String
+        if (separatorIndex >= 0) {
+            path = entryName.substring(0, separatorIndex + 1)
+            name = entryName.substring(separatorIndex + 1, entryName.length)
+        } else {
+            path = ""
+            name = entryName
+        }
+        return Pair(path, name)
+    }
+
     private class ArchiveEntryFileDescriptor(val archive: ArchiveInputStream,
                                              val entry: ArchiveEntry,
+                                             val _path: String,
+                                             val _name: String,
                                              val size: Long = entry.size) : VirtualFileDescriptor {
-        override fun getPath() = entry.name // TODO
+        val canBeEncrypted = "version" != _name && "xd.lck" != _name
 
-        override fun getName() = entry.name
+        override fun getPath() = _path
 
-        override fun hasContent() = !entry.isDirectory
+        override fun getName() = _name
+
+        override fun hasContent() = !entry.isDirectory && !_path.startsWith("textindex")
 
         override fun getFileSize() = size
 
-        override fun canBeEncrypted() = "version" != entry.name
+        override fun canBeEncrypted() = canBeEncrypted
 
         override fun getTimeStamp() = entry.lastModifiedDate.time
 
         override fun getInputStream() = archive
 
-        override fun copy(acceptedSize: Long) = ArchiveEntryFileDescriptor(archive, entry, acceptedSize)
+        override fun shouldCloseStream() = false
+
+        override fun copy(acceptedSize: Long) = ArchiveEntryFileDescriptor(archive, entry, _path, _name, acceptedSize)
     }
 }

@@ -136,6 +136,11 @@ public abstract class BackupStrategy {
         }
 
         @Override
+        public boolean shouldCloseStream() {
+            return true;
+        }
+
+        @Override
         @NotNull
         public String getName() {
             return file.getName();

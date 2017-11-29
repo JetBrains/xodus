@@ -82,7 +82,7 @@ fun getFileIV(fd: VirtualFileDescriptor): Pair<Long, Boolean> {
             }
         }
     }
-    throw IllegalArgumentException()
+    throw IllegalArgumentException("Bad virtual file descriptor ${fd.path} ${fd.name}")
 }
 
 private val NO_IV = 0L to false
@@ -100,7 +100,8 @@ private fun appendFile(out: ScytaleEngine, fd: VirtualFileDescriptor, fileSize: 
     }
     val header = FileHeader(fd.path, fd.name, fileSize, fd.timeStamp, iv.first, iv.second, canBeEncrypted)
     out.put(header)
-    fd.inputStream.use { input ->
+    val input = fd.inputStream
+    try {
         var totalRead: Long = 0
         while (totalRead < fileSize) {
             val buffer = out.alloc() // new buffer must be employed until chunk is processed
@@ -113,6 +114,10 @@ private fun appendFile(out: ScytaleEngine, fd: VirtualFileDescriptor, fileSize: 
                 out.put(FileChunk(header, read, buffer))
                 totalRead += read
             }
+        }
+    } finally {
+        if (fd.shouldCloseStream()) {
+            input.close()
         }
     }
 }
