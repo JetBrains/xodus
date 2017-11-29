@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.backup.BackupStrategy;
+import jetbrains.exodus.backup.VirtualFileDescriptor;
 import org.junit.Assert;
 
 import java.io.ByteArrayInputStream;
@@ -67,8 +68,8 @@ public class BlobVaultTests extends EntityStoreTestBase {
         Assert.assertTrue(txn.flush());
         final FileSystemBlobVault blobVault = (FileSystemBlobVault) store.getBlobVault().getSourceVault();
         final NavigableMap<Long, File> handlesToFiles = new TreeMap<>();
-        for (final BackupStrategy.FileDescriptor fd : blobVault.getBackupStrategy().listFiles()) {
-            final File file = fd.getFile();
+        for (final VirtualFileDescriptor fd : blobVault.getBackupStrategy().listFiles()) {
+            final File file = ((BackupStrategy.FileDescriptorImpl) fd).getFile();
             if (file.isFile() && !file.getName().equals(FileSystemBlobVaultOld.VERSION_FILE)) {
                 final long handle = blobVault.getBlobHandleByFile(file);
                 Assert.assertFalse(handlesToFiles.containsKey(handle));

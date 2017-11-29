@@ -34,16 +34,16 @@ class ScytaleEngine(
         val timeout = 200L
     }
 
-    val inputQueue = ArrayBlockingQueue<EncryptMessage>(inputQueueSize)
-    val outputQueue = ArrayBlockingQueue<EncryptMessage>(outputQueueSize)
-    val bufferAllocator = ByteArraySpinAllocator(bufferSize, inputQueueSize + outputQueueSize + 4)
+    private val inputQueue = ArrayBlockingQueue<EncryptMessage>(inputQueueSize)
+    private val outputQueue = ArrayBlockingQueue<EncryptMessage>(outputQueueSize)
+    private val bufferAllocator = ByteArraySpinAllocator(bufferSize, inputQueueSize + outputQueueSize + 4)
 
     @Volatile
-    var producerFinished = false
+    private var producerFinished = false
     @Volatile
-    var consumerFinished = false
+    private var consumerFinished = false
     @Volatile
-    var cancelled = false
+    private var cancelled = false
     @Volatile
     var error: Throwable? = null
 

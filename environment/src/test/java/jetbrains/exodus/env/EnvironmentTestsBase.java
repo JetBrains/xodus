@@ -18,6 +18,7 @@ package jetbrains.exodus.env;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.TestUtil;
+import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.execution.Job;
@@ -90,7 +91,7 @@ public class EnvironmentTestsBase {
             for (final File file : IOUtil.listFiles(root)) {
                 final long fileSize = file.length();
                 if (file.isFile() && fileSize != 0) {
-                    CompressBackupUtil.archiveFile(tarGz, "", file, fileSize);
+                    CompressBackupUtil.archiveFile(tarGz, new BackupStrategy.FileDescriptorImpl(file, ""), fileSize);
                 }
             }
             tarGz.close();

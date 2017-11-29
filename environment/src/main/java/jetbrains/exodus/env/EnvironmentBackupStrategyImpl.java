@@ -16,6 +16,7 @@
 package jetbrains.exodus.env;
 
 import jetbrains.exodus.backup.BackupStrategy;
+import jetbrains.exodus.backup.VirtualFileDescriptor;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.util.IOUtil;
 import org.jetbrains.annotations.NotNull;
@@ -40,16 +41,17 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
     }
 
     @Override
-    public Iterable<FileDescriptor> listFiles() {
-        return new Iterable<FileDescriptor>() {
+    public Iterable<VirtualFileDescriptor> listFiles() {
+        return new Iterable<VirtualFileDescriptor>() {
 
             private final File[] files = IOUtil.listFiles(new File(environment.getLog().getLocation()));
             private int i = 0;
-            private FileDescriptor next;
+            private VirtualFileDescriptor next;
 
+            @NotNull
             @Override
-            public Iterator<FileDescriptor> iterator() {
-                return new Iterator<FileDescriptor>() {
+            public Iterator<VirtualFileDescriptor> iterator() {
+                return new Iterator<VirtualFileDescriptor>() {
 
                     @Override
                     public boolean hasNext() {
@@ -61,7 +63,7 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
                             if (file.isFile()) {
                                 final long fileSize = file.length();
                                 if (fileSize != 0 && file.getName().endsWith(LogUtil.LOG_FILE_EXTENSION)) {
-                                    next = new FileDescriptor(file, "", fileSize);
+                                    next = new FileDescriptorImpl(file, "", fileSize);
                                     return true;
                                 }
                             }
@@ -70,11 +72,11 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
                     }
 
                     @Override
-                    public FileDescriptor next() {
+                    public VirtualFileDescriptor next() {
                         if (!hasNext()) {
                             throw new NoSuchElementException();
                         }
-                        final FileDescriptor result = next;
+                        final VirtualFileDescriptor result = next;
                         next = null;
                         return result;
                     }

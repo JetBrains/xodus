@@ -31,11 +31,13 @@ fun main(args: Array<String>) {
     var targetPath: String? = null
     var key: ByteArray? = null
     var compress = false
+    var gzip = false
     var overwirte = false
 
     for (arg in args) {
         if (arg.startsWith('-')) {
             when (arg.toLowerCase().substring(1)) {
+                "g" -> gzip = true
                 "z" -> compress = true
                 "o" -> overwirte = true
                 else -> {
@@ -79,11 +81,15 @@ fun main(args: Array<String>) {
         }
     }
 
-    if (source.isDirectory && compress) {
+    val backupable = if (source.isDirectory) {
         val env = Reflect.openEnvironment(source)
-        val store = PersistentEntityStoreImpl(env, "ignored")
+        PersistentEntityStoreImpl(env, "ignored")
+    } else {
+        ArchiveBackupableFactory.newBackupable(source, gzip)
+    }
+    if (compress) {
         val archive = TarArchiveOutputStream(GZIPOutputStream(BufferedOutputStream(FileOutputStream(target))))
-        encryptBackupable(key, store, archive)
+        encryptBackupable(key, backupable, archive)
     }
 }
 

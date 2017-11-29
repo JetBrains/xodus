@@ -16,10 +16,10 @@
 package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.backup.BackupStrategy;
+import jetbrains.exodus.backup.VirtualFileDescriptor;
 import jetbrains.exodus.log.LogUtil;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.File;
 import java.util.Iterator;
 
 public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
@@ -33,7 +33,7 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
         final long logHighAddress = backupTxn.getEnvironmentTransaction().getHighAddress();
         environmentBackupStrategy = new BackupStrategyDecorator(store.getEnvironment().getBackupStrategy()) {
             @Override
-            public long acceptFile(@NotNull final File file) {
+            public long acceptFile(@NotNull final VirtualFileDescriptor file) {
                 return Math.min(super.acceptFile(file), logHighAddress - LogUtil.getAddress(file.getName()));
             }
         };
@@ -45,12 +45,13 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
             final long lastUsedHandle = store.getSequence(backupTxn, PersistentEntityStoreImpl.BLOB_HANDLES_SEQUENCE).loadValue(backupTxn);
             blobVaultBackupStrategy = new BackupStrategyDecorator(blobVault.getBackupStrategy()) {
                 @Override
-                public long acceptFile(@NotNull final File file) {
+                public long acceptFile(@NotNull final VirtualFileDescriptor file) {
                     //noinspection AccessStaticViaInstance
-                    if (!file.isFile() || file.getName().equals(fsBlobVault.VERSION_FILE)) {
+                    if (!file.hasContent() || file.getName().equals(fsBlobVault.VERSION_FILE)) {
                         return super.acceptFile(file);
                     }
-                    if (fsBlobVault.getBlobHandleByFile(file) > lastUsedHandle) {
+                    // TODO: improve this?
+                    if ((file instanceof FileDescriptorImpl) && fsBlobVault.getBlobHandleByFile(((FileDescriptorImpl)file).getFile()) > lastUsedHandle) {
                         return -1L;
                     }
                     return super.acceptFile(file);
@@ -66,13 +67,14 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
     }
 
     @Override
-    public Iterable<FileDescriptor> listFiles() {
-        return new Iterable<FileDescriptor>() {
+    public Iterable<VirtualFileDescriptor> listFiles() {
+        return new Iterable<VirtualFileDescriptor>() {
+            @NotNull
             @Override
-            public Iterator<FileDescriptor> iterator() {
-                return new Iterator<FileDescriptor>() {
+            public Iterator<VirtualFileDescriptor> iterator() {
+                return new Iterator<VirtualFileDescriptor>() {
 
-                    private Iterator<FileDescriptor> filesIterator = environmentBackupStrategy.listFiles().iterator();
+                    private Iterator<VirtualFileDescriptor> filesIterator = environmentBackupStrategy.listFiles().iterator();
                     private boolean environmentListed = false;
 
                     @Override
@@ -88,7 +90,7 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
                     }
 
                     @Override
-                    public FileDescriptor next() {
+                    public VirtualFileDescriptor next() {
                         return filesIterator.next();
                     }
 
@@ -112,8 +114,8 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
     }
 
     @Override
-    public long acceptFile(@NotNull final File file) {
-        return LogUtil.isLogFile(file) ? environmentBackupStrategy.acceptFile(file) : blobVaultBackupStrategy.acceptFile(file);
+    public long acceptFile(@NotNull final VirtualFileDescriptor file) {
+        return LogUtil.isLogFileName(file.getName()) ? environmentBackupStrategy.acceptFile(file) : blobVaultBackupStrategy.acceptFile(file);
     }
 
     private static class BackupStrategyDecorator extends BackupStrategy {
@@ -131,7 +133,7 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
         }
 
         @Override
-        public Iterable<FileDescriptor> listFiles() {
+        public Iterable<VirtualFileDescriptor> listFiles() {
             return decorated.listFiles();
         }
 
@@ -146,7 +148,7 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
         }
 
         @Override
-        public long acceptFile(@NotNull File file) {
+        public long acceptFile(@NotNull VirtualFileDescriptor file) {
             return decorated.acceptFile(file);
         }
     }

@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.backup.BackupStrategy;
+import jetbrains.exodus.backup.VirtualFileDescriptor;
 import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.env.Environment;
@@ -254,17 +255,18 @@ public class FileSystemBlobVaultOld extends BlobVault {
         return new BackupStrategy() {
 
             @Override
-            public Iterable<FileDescriptor> listFiles() {
-                return new Iterable<FileDescriptor>() {
+            public Iterable<VirtualFileDescriptor> listFiles() {
+                return new Iterable<VirtualFileDescriptor>() {
+                    @NotNull
                     @Override
-                    public Iterator<FileDescriptor> iterator() {
-                        final Deque<FileDescriptor> queue = new LinkedList<>();
-                        queue.add(new FileDescriptor(location, blobsDirectory + File.separator));
-                        return new Iterator<FileDescriptor>() {
+                    public Iterator<VirtualFileDescriptor> iterator() {
+                        final Deque<FileDescriptorImpl> queue = new LinkedList<>();
+                        queue.add(new FileDescriptorImpl(location, blobsDirectory + File.separator));
+                        return new Iterator<VirtualFileDescriptor>() {
                             int i = 0;
                             int n = 0;
                             File[] files;
-                            FileDescriptor next;
+                            FileDescriptorImpl next;
                             String currentPrefix;
 
                             @Override
@@ -276,15 +278,15 @@ public class FileSystemBlobVaultOld extends BlobVault {
                                     final File file = files[i++];
                                     final String name = file.getName();
                                     if (file.isDirectory()) {
-                                        queue.push(new FileDescriptor(file, currentPrefix + file.getName() + File.separator));
+                                        queue.push(new FileDescriptorImpl(file, currentPrefix + file.getName() + File.separator));
                                     } else if (file.isFile()) {
                                         final long fileSize = file.length();
                                         if (fileSize == 0) continue;
                                         if (name.endsWith(blobExtension)) {
-                                            next = new FileDescriptor(file, currentPrefix, fileSize);
+                                            next = new FileDescriptorImpl(file, currentPrefix, fileSize);
                                             return true;
                                         } else if (name.equalsIgnoreCase(VERSION_FILE)) {
-                                            next = new FileDescriptor(file, currentPrefix, fileSize, false);
+                                            next = new FileDescriptorImpl(file, currentPrefix, fileSize, false);
                                             return true;
                                         }
                                     } else if (file.exists()) {
@@ -295,7 +297,7 @@ public class FileSystemBlobVaultOld extends BlobVault {
                                 if (queue.isEmpty()) {
                                     return false;
                                 }
-                                final FileDescriptor fd = queue.pop();
+                                final FileDescriptorImpl fd = queue.pop();
                                 files = IOUtil.listFiles(fd.getFile());
                                 currentPrefix = fd.getPath();
                                 i = 0;
@@ -305,11 +307,11 @@ public class FileSystemBlobVaultOld extends BlobVault {
                             }
 
                             @Override
-                            public FileDescriptor next() {
+                            public FileDescriptorImpl next() {
                                 if (!hasNext()) {
                                     throw new NoSuchElementException();
                                 }
-                                final FileDescriptor result = next;
+                                final FileDescriptorImpl result = next;
                                 next = null;
                                 return result;
                             }

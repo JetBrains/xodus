@@ -19,6 +19,7 @@ import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.backup.BackupBean;
 import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.backup.Backupable;
+import jetbrains.exodus.backup.VirtualFileDescriptor;
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.core.execution.JobProcessor;
 import jetbrains.exodus.core.execution.JobProcessorExceptionHandler;
@@ -107,7 +108,7 @@ public class BackupTests extends EntityStoreTestBase {
                         }
 
                         @Override
-                        public Iterable<FileDescriptor> listFiles() {
+                        public Iterable<VirtualFileDescriptor> listFiles() {
                             return storeBackupStrategy.listFiles();
                         }
 
@@ -122,7 +123,7 @@ public class BackupTests extends EntityStoreTestBase {
                         }
 
                         @Override
-                        public long acceptFile(@NotNull File file) {
+                        public long acceptFile(@NotNull VirtualFileDescriptor file) {
                             return storeBackupStrategy.acceptFile(file);
                         }
                     };
@@ -203,11 +204,11 @@ public class BackupTests extends EntityStoreTestBase {
                         }
                     });
                     final FileSystemBlobVault blobVault = (FileSystemBlobVault) newStore.getBlobVault().getSourceVault();
-                    for (final BackupStrategy.FileDescriptor fd : blobVault.getBackupStrategy().listFiles()) {
-                        final File file = fd.getFile();
+                    for (final VirtualFileDescriptor fd : blobVault.getBackupStrategy().listFiles()) {
+                        final File file = ((BackupStrategy.FileDescriptorImpl) fd).getFile();
                         if (file.isFile() && !file.getName().equals(FileSystemBlobVaultOld.VERSION_FILE)) {
-                            assertTrue("" + blobVault.getBlobHandleByFile(fd.getFile()) + " > " + lastUsedBlobHandle[0],
-                                blobVault.getBlobHandleByFile(fd.getFile()) <= lastUsedBlobHandle[0]);
+                            assertTrue("" + blobVault.getBlobHandleByFile(file) + " > " + lastUsedBlobHandle[0],
+                                    blobVault.getBlobHandleByFile(file) <= lastUsedBlobHandle[0]);
                         }
                     }
                 } finally {

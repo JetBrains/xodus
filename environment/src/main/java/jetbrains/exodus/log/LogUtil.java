@@ -92,8 +92,12 @@ public final class LogUtil {
     }
 
     public static boolean isLogFile(@NotNull final File file) {
+        return isLogFileName(file.getName());
+    }
+
+    public static boolean isLogFileName(@NotNull final String name) {
         try {
-            getAddress(file.getName());
+            getAddress(name);
             return true;
         } catch (ExodusException e) {
             return false;

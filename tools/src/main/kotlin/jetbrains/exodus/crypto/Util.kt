@@ -15,13 +15,14 @@
  */
 package jetbrains.exodus.crypto
 
+import jetbrains.exodus.ExodusException
 import jetbrains.exodus.backup.BackupStrategy
 import jetbrains.exodus.backup.Backupable
+import jetbrains.exodus.backup.VirtualFileDescriptor
 import jetbrains.exodus.crypto.streamciphers.SALSA20_CIPHER_ID
 import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.log.LogUtil.LOG_FILE_EXTENSION
 import org.apache.commons.compress.archivers.ArchiveOutputStream
-import java.io.FileInputStream
 
 fun encryptBackupable(key: ByteArray, source: Backupable, archive: ArchiveOutputStream) {
     val strategy = source.backupStrategy
@@ -29,8 +30,15 @@ fun encryptBackupable(key: ByteArray, source: Backupable, archive: ArchiveOutput
 
     val scytale = ScytaleEngine(ArchiveEncryptListenerFactory.newListener(archive), newCipherProvider(SALSA20_CIPHER_ID), key)
 
-    archive.use {
-        scytale.encryptFiles(strategy)
+    try {
+        archive.use {
+            scytale.encryptFiles(strategy)
+        }
+    } catch (t: Throwable) {
+        strategy.onError(t);
+        throw ExodusException.toExodusException(t, "Encrypted backup failed")
+    } finally {
+        strategy.afterBackup()
     }
 }
 
@@ -41,8 +49,8 @@ fun ScytaleEngine.encryptFiles(strategy: BackupStrategy) {
             if (strategy.isInterrupted) {
                 break
             }
-            if (descriptor.file.isFile) {
-                val fileSize = Math.min(descriptor.fileSize, strategy.acceptFile(descriptor.file))
+            if (descriptor.hasContent()) {
+                val fileSize = Math.min(descriptor.fileSize, strategy.acceptFile(descriptor))
                 if (fileSize > 0L) {
                     appendFile(it, descriptor, fileSize)
                 }
@@ -52,8 +60,8 @@ fun ScytaleEngine.encryptFiles(strategy: BackupStrategy) {
     }
 }
 
-fun getFileIV(fd: BackupStrategy.FileDescriptor): Pair<Long, Boolean> {
-    val name = fd.file.name
+fun getFileIV(fd: VirtualFileDescriptor): Pair<Long, Boolean> {
+    val name = fd.name
     if (name.endsWith(LOG_FILE_EXTENSION)) {
         return LogUtil.getAddress(name) to true
     }
@@ -79,11 +87,9 @@ fun getFileIV(fd: BackupStrategy.FileDescriptor): Pair<Long, Boolean> {
 
 private val NO_IV = 0L to false
 
-private fun appendFile(out: ScytaleEngine, fd: BackupStrategy.FileDescriptor, fileSize: Long) {
-    val source = fd.file
-
-    if (!source.isFile) {
-        throw IllegalArgumentException("Provided source is not a file: " + source.absolutePath)
+private fun appendFile(out: ScytaleEngine, fd: VirtualFileDescriptor, fileSize: Long) {
+    if (!fd.hasContent()) {
+        throw IllegalArgumentException("Provided source is not a file: " + fd.path)
     }
 
     val canBeEncrypted = fd.canBeEncrypted()
@@ -92,9 +98,9 @@ private fun appendFile(out: ScytaleEngine, fd: BackupStrategy.FileDescriptor, fi
     } else {
         NO_IV
     }
-    val header = FileHeader(fd.path, source.name, fileSize, source.lastModified(), iv.first, iv.second, canBeEncrypted)
+    val header = FileHeader(fd.path, fd.name, fileSize, fd.timeStamp, iv.first, iv.second, canBeEncrypted)
     out.put(header)
-    FileInputStream(source).use { input ->
+    fd.inputStream.use { input ->
         var totalRead: Long = 0
         while (totalRead < fileSize) {
             val buffer = out.alloc() // new buffer must be employed until chunk is processed

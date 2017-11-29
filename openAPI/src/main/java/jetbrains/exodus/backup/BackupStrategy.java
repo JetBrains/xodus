@@ -18,11 +18,14 @@ package jetbrains.exodus.backup;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collections;
 
 /**
  * Describes how a backup file should be cooked by {@link BackupBean}. Only listed by
- * {@link #listFiles()} and accepted by {@link #acceptFile(File)} files are put into backup file with defined
+ * {@link #listFiles()} and accepted by {@link #acceptFile(VirtualFileDescriptor)} files are put into backup file with defined
  * pre- ({@link #beforeBackup()}) and postprocessing ({@link #afterBackup()}).
  *
  * @see Backupable
@@ -33,7 +36,7 @@ public abstract class BackupStrategy {
     public static final BackupStrategy EMPTY = new BackupStrategy() {
 
         @Override
-        public Iterable<FileDescriptor> listFiles() {
+        public Iterable<VirtualFileDescriptor> listFiles() {
             return Collections.emptyList();
         }
     };
@@ -46,7 +49,7 @@ public abstract class BackupStrategy {
     public void beforeBackup() throws Exception {
     }
 
-    public abstract Iterable<FileDescriptor> listFiles();
+    public abstract Iterable<VirtualFileDescriptor> listFiles();
 
     /**
      * Backup postprocessing procedure. E.g., {@link jetbrains.exodus.env.Environment} turns database GC on after backup.
@@ -79,14 +82,14 @@ public abstract class BackupStrategy {
      * @return the length of specified file that should be put into backup, minimum is taken between the actual
      * file size and the value returned. If the method returns a less than one value the file won't be put into backup.
      */
-    public long acceptFile(@NotNull File file) {
+    public long acceptFile(@NotNull VirtualFileDescriptor file) {
         return Long.MAX_VALUE;
     }
 
     /**
      * Descriptor of a file to be put into backup file.
      */
-    public static class FileDescriptor {
+    public static class FileDescriptorImpl implements VirtualFileDescriptor {
 
         @NotNull
         private final File file;
@@ -95,21 +98,22 @@ public abstract class BackupStrategy {
         private final long fileSize;
         private final boolean canBeEncrypted;
 
-        public FileDescriptor(@NotNull final File file, @NotNull final String path, final long fileSize, final boolean canBeEncrypted) {
+        public FileDescriptorImpl(@NotNull final File file, @NotNull final String path, final long fileSize, final boolean canBeEncrypted) {
             this.file = file;
             this.path = path;
             this.fileSize = fileSize;
             this.canBeEncrypted = canBeEncrypted;
         }
 
-        public FileDescriptor(@NotNull final File file, @NotNull final String path, final long fileSize) {
+        public FileDescriptorImpl(@NotNull final File file, @NotNull final String path, final long fileSize) {
             this(file, path, fileSize, true);
         }
 
-        public FileDescriptor(@NotNull final File file, @NotNull final String path) {
+        public FileDescriptorImpl(@NotNull final File file, @NotNull final String path) {
             this(file, path, file.length());
         }
 
+        @Override
         @NotNull
         public String getPath() {
             return path;
@@ -120,12 +124,41 @@ public abstract class BackupStrategy {
             return file;
         }
 
+        @Override
+        public long getTimeStamp() {
+            return file.lastModified();
+        }
+
+        @Override
+        @NotNull
+        public InputStream getInputStream() throws IOException {
+            return new FileInputStream(file);
+        }
+
+        @Override
+        @NotNull
+        public String getName() {
+            return file.getName();
+        }
+
+        @Override
+        public boolean hasContent() {
+            return file.isFile();
+        }
+
+        @Override
         public long getFileSize() {
             return fileSize;
         }
 
+        @Override
         public boolean canBeEncrypted() {
             return canBeEncrypted;
+        }
+
+        @Override
+        public VirtualFileDescriptor copy(long acceptedSize) {
+            return new FileDescriptorImpl(file, path, acceptedSize, canBeEncrypted);
         }
     }
 }
