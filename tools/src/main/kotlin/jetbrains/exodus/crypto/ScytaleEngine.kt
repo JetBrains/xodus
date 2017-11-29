@@ -47,55 +47,70 @@ class ScytaleEngine(
     @Volatile
     var error: Throwable? = null
 
-    private val producer = Thread({
-        try {
-            val cipher = cipherProvider.newCipher()
-            var offset = 0
-            var blockAddress = 0L
-            while (!cancelled && error == null) {
-                inputQueue.poll(timeout, TimeUnit.MILLISECONDS)?.let {
-                    when (it) {
-                        is FileHeader -> {
-                            offset = 0
-                            blockAddress = it.handle / LogUtil.LOG_BLOCK_ALIGNMENT
-                            cipher.init(key, blockAddress.asHashedIV())
+    private val statefulProducer = object : Runnable {
+        private val cipher = cipherProvider.newCipher()
+        private var offset = 0
+        private var blockAddress = 0L
+
+        override fun run() {
+            try {
+                while (!cancelled && error == null) {
+                    inputQueue.poll(timeout, TimeUnit.MILLISECONDS)?.let {
+                        when (it) {
+                            is FileHeader -> {
+                                offset = 0
+                                blockAddress = it.handle / LogUtil.LOG_BLOCK_ALIGNMENT
+                                cipher.init(key, blockAddress.asHashedIV())
+                            }
+                            is FileChunk -> encryptChunk(it)
+                            is EndChunk -> Unit
+                            else -> throw IllegalArgumentException()
                         }
-                        is FileChunk -> {
-                            val header = it.header
-                            if (header.canBeEncrypted) {
-                                val data = it.data
-                                for (i in 0 until it.size) {
-                                    offset++
-                                    data[i] = cipher.crypt(data[i])
-                                    if (header.chunkedIV) {
-                                        offset++
-                                        if (offset == LogUtil.LOG_BLOCK_ALIGNMENT) {
-                                            offset == 0
-                                            blockAddress++
-                                            cipher.init(key, blockAddress.asHashedIV())
-                                        }
-                                    }
-                                }
+                        while (!outputQueue.offer(it, timeout, TimeUnit.MILLISECONDS)) {
+                            if (cancelled || error != null) {
+                                return
                             }
                         }
-                        is EndChunk -> {
-                        }
-                        else -> throw IllegalArgumentException()
+                    } ?: if (producerFinished) {
+                        return
                     }
-                    while (!outputQueue.offer(it, timeout, TimeUnit.MILLISECONDS)) {
-                        if (cancelled || error != null) {
-                            return@Thread
-                        }
-                    }
-                } ?: if (producerFinished) {
-                    return@Thread
+                }
+            } catch (t: Throwable) {
+                producerFinished = true
+                error = t
+            }
+        }
+
+        private fun encryptChunk(it: FileChunk) {
+            if (it.header.canBeEncrypted) {
+                val data = it.data
+                if (it.header.chunkedIV) {
+                    blockEncrypt(it.size, data)
+                } else {
+                    encrypt(it.size, data)
                 }
             }
-        } catch (t: Throwable) {
-            producerFinished = true
-            error = t
         }
-    }, "xodus encrypt " + hashCode())
+
+        private fun encrypt(size: Int, data: ByteArray) {
+            for (i in 0 until size) {
+                data[i] = cipher.crypt(data[i])
+            }
+        }
+
+        private fun blockEncrypt(size: Int, data: ByteArray) {
+            for (i in 0 until size) {
+                data[i] = cipher.crypt(data[i])
+                if (offset++ == LogUtil.LOG_BLOCK_ALIGNMENT) {
+                    offset == 0
+                    blockAddress++
+                    cipher.init(key, blockAddress.asHashedIV())
+                }
+            }
+        }
+    }
+
+    private val producer = Thread(statefulProducer, "xodus encrypt " + hashCode())
 
     private val consumer = Thread({
         try {
