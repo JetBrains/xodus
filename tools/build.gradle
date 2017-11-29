@@ -4,6 +4,7 @@ plugins {
 
 dependencies {
     compile project(':sshd')
+    compile project(':crypto')
     compile 'com.hierynomus:sshj:0.19.1'
 }
 

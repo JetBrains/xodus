@@ -171,49 +171,53 @@ internal class Reflect(directory: File) {
             }
             println()
         }
+
+        fun openEnvironment(directory: File): EnvironmentImpl {
+            val files = LogUtil.listFiles(directory)
+            files.sortWith(Comparator { left, right ->
+                val cmp = LogUtil.getAddress(left.name) - LogUtil.getAddress(right.name)
+                if (cmp < 0) -1 else if (cmp > 0) 1 else 0
+            })
+            val filesLength = files.size
+            if (filesLength == 0) {
+                throw ExodusException("No database files found at $directory")
+            }
+            logger.info { "Files found: $filesLength" }
+
+            var maxFileSize = 0L
+            files.forEachIndexed { i, f ->
+                val length = f.length()
+                if (i < filesLength - 1) {
+                    if (length % LogUtil.LOG_BLOCK_ALIGNMENT != 0L) {
+                        throw ExodusException("Length of non-last file ${f.name}  is badly aligned: $length")
+                    }
+                }
+                maxFileSize = Math.max(maxFileSize, length)
+            }
+            logger.info { "Maximum file length: $maxFileSize" }
+
+            val pageSize = if (maxFileSize % DEFAULT_PAGE_SIZE == 0L || filesLength == 1) DEFAULT_PAGE_SIZE else LogUtil.LOG_BLOCK_ALIGNMENT
+            logger.info { "Computed page size: $pageSize" }
+
+            val reader = FileDataReader(directory, 16)
+            val writer = FileDataWriter(directory)
+            val config = EnvironmentConfig().setLogCachePageSize(pageSize).setGcEnabled(false)
+            if (config.logFileSize == EnvironmentConfig.DEFAULT.logFileSize) {
+                val fileSizeInKB = if (files.size > 1)
+                    (maxFileSize + pageSize - 1) / pageSize * pageSize / LogUtil.LOG_BLOCK_ALIGNMENT else
+                    EnvironmentConfig.DEFAULT.logFileSize
+                config.logFileSize = fileSizeInKB
+            }
+
+            return Environments.newInstance(LogConfig.create(reader, writer), config) as EnvironmentImpl
+        }
     }
 
     private val env: EnvironmentImpl
     private val log: Log
 
     init {
-        val files = LogUtil.listFiles(directory)
-        files.sortWith(Comparator { left, right ->
-            val cmp = LogUtil.getAddress(left.name) - LogUtil.getAddress(right.name)
-            if (cmp < 0) -1 else if (cmp > 0) 1 else 0
-        })
-        val filesLength = files.size
-        if (filesLength == 0) {
-            throw ExodusException("No database files found at $directory")
-        }
-        logger.info { "Files found: $filesLength" }
-
-        var maxFileSize = 0L
-        files.forEachIndexed { i, f ->
-            val length = f.length()
-            if (i < filesLength - 1) {
-                if (length % LogUtil.LOG_BLOCK_ALIGNMENT != 0L) {
-                    throw ExodusException("Length of non-last file ${f.name}  is badly aligned: $length")
-                }
-            }
-            maxFileSize = Math.max(maxFileSize, length)
-        }
-        logger.info { "Maximum file length: $maxFileSize" }
-
-        val pageSize = if (maxFileSize % DEFAULT_PAGE_SIZE == 0L || filesLength == 1) DEFAULT_PAGE_SIZE else LogUtil.LOG_BLOCK_ALIGNMENT
-        logger.info { "Computed page size: $pageSize" }
-
-        val reader = FileDataReader(directory, 16)
-        val writer = FileDataWriter(directory)
-        val config = EnvironmentConfig().setLogCachePageSize(pageSize).setGcEnabled(false)
-        if (config.logFileSize == EnvironmentConfig.DEFAULT.logFileSize) {
-            val fileSizeInKB = if (files.size > 1)
-                (maxFileSize + pageSize - 1) / pageSize * pageSize / LogUtil.LOG_BLOCK_ALIGNMENT else
-                EnvironmentConfig.DEFAULT.logFileSize
-            config.logFileSize = fileSizeInKB
-        }
-
-        env = Environments.newInstance(LogConfig.create(reader, writer), config) as EnvironmentImpl
+        env = openEnvironment(directory)
         log = env.log
     }
 

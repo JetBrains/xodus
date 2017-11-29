@@ -26,4 +26,13 @@ public class ByteArraySpinAllocator extends SpinAllocator<byte[]> {
         }, null);
     }
 
+    public ByteArraySpinAllocator(final int readBufferSize, final int maxAllocations) {
+        super(new ICreator<byte[]>() {
+            @Override
+            public byte[] createInstance() {
+                return new byte[readBufferSize];
+            }
+        }, null, maxAllocations);
+    }
+
 }

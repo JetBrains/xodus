@@ -93,11 +93,17 @@ public abstract class BackupStrategy {
         @NotNull
         private final String path;
         private final long fileSize;
+        private final boolean canBeEncrypted;
 
-        public FileDescriptor(@NotNull final File file, @NotNull final String path, final long fileSize) {
+        public FileDescriptor(@NotNull final File file, @NotNull final String path, final long fileSize, final boolean canBeEncrypted) {
             this.file = file;
             this.path = path;
             this.fileSize = fileSize;
+            this.canBeEncrypted = canBeEncrypted;
+        }
+
+        public FileDescriptor(@NotNull final File file, @NotNull final String path, final long fileSize) {
+            this(file, path, fileSize, true);
         }
 
         public FileDescriptor(@NotNull final File file, @NotNull final String path) {
@@ -116,6 +122,10 @@ public abstract class BackupStrategy {
 
         public long getFileSize() {
             return fileSize;
+        }
+
+        public boolean canBeEncrypted() {
+            return canBeEncrypted;
         }
     }
 }

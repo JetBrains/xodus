@@ -280,8 +280,11 @@ public class FileSystemBlobVaultOld extends BlobVault {
                                     } else if (file.isFile()) {
                                         final long fileSize = file.length();
                                         if (fileSize == 0) continue;
-                                        if (name.endsWith(blobExtension) || name.equalsIgnoreCase(VERSION_FILE)) {
+                                        if (name.endsWith(blobExtension)) {
                                             next = new FileDescriptor(file, currentPrefix, fileSize);
+                                            return true;
+                                        } else if (name.equalsIgnoreCase(VERSION_FILE)) {
+                                            next = new FileDescriptor(file, currentPrefix, fileSize, false);
                                             return true;
                                         }
                                     } else if (file.exists()) {
