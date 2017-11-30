@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.crypto
 
+import jetbrains.exodus.crypto.streamciphers.SALSA20_CIPHER_ID
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
 import jetbrains.exodus.env.Reflect
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
@@ -81,15 +82,26 @@ fun main(args: Array<String>) {
         }
     }
 
-    val backupable = if (source.isDirectory) {
+    val input = if (source.isDirectory) {
         val env = Reflect.openEnvironment(source)
         PersistentEntityStoreImpl(env, "ignored")
     } else {
         ArchiveBackupableFactory.newBackupable(source, gzip)
     }
-    if (compress) {
-        val archive = TarArchiveOutputStream(GZIPOutputStream(BufferedOutputStream(FileOutputStream(target))))
-        encryptBackupable(key, backupable, archive)
+
+    var archive: TarArchiveOutputStream? = null
+    val output = if (compress) {
+        archive = TarArchiveOutputStream(GZIPOutputStream(BufferedOutputStream(FileOutputStream(target))))
+        ArchiveEncryptListenerFactory.newListener(archive)
+    } else {
+        target.mkdir()
+        DirectoryEncryptListenerFactory.newListener(target)
+    }
+
+    try {
+        ScytaleEngine(output, newCipherProvider(SALSA20_CIPHER_ID), key).encryptBackupable(input)
+    } finally {
+        archive?.close()
     }
 }
 

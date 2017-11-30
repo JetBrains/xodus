@@ -19,21 +19,15 @@ import jetbrains.exodus.ExodusException
 import jetbrains.exodus.backup.BackupStrategy
 import jetbrains.exodus.backup.Backupable
 import jetbrains.exodus.backup.VirtualFileDescriptor
-import jetbrains.exodus.crypto.streamciphers.SALSA20_CIPHER_ID
 import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.log.LogUtil.LOG_FILE_EXTENSION
-import org.apache.commons.compress.archivers.ArchiveOutputStream
 
-fun encryptBackupable(key: ByteArray, source: Backupable, archive: ArchiveOutputStream) {
+fun ScytaleEngine.encryptBackupable(source: Backupable) {
     val strategy = source.backupStrategy
     strategy.beforeBackup()
 
-    val scytale = ScytaleEngine(ArchiveEncryptListenerFactory.newListener(archive), newCipherProvider(SALSA20_CIPHER_ID), key)
-
     try {
-        archive.use {
-            scytale.encryptFiles(strategy)
-        }
+        encryptFiles(strategy)
     } catch (t: Throwable) {
         strategy.onError(t);
         throw ExodusException.toExodusException(t, "Encrypted backup failed")
