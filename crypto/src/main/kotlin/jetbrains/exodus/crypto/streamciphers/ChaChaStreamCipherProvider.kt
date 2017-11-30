@@ -18,25 +18,33 @@ package jetbrains.exodus.crypto.streamciphers
 import jetbrains.exodus.crypto.StreamCipher
 import jetbrains.exodus.crypto.StreamCipherProvider
 import jetbrains.exodus.crypto.toByteArray
-import org.bouncycastle.crypto.engines.Salsa20Engine
+import org.bouncycastle.crypto.engines.ChaCha7539Engine
 import org.bouncycastle.crypto.params.KeyParameter
 import org.bouncycastle.crypto.params.ParametersWithIV
 
-const val SALSA20_CIPHER_ID = "jetbrains.exodus.crypto.streamciphers.Salsa20StreamCipherProvider"
+const val CHACHA_CIPHER_ID = "jetbrains.exodus.crypto.streamciphers.ChaChaStreamCipherProvider"
 
+// ChaCha initialization vector is 12 bytes
+private const val CHACHA_IV_SIZE = 12
+
+/**
+ * ChaCha stream cipher with 20 rounds. Respects [RFC-7539](https://tools.ietf.org/html/rfc7539 RFC-7539).
+ */
 @Suppress("unused")
-class Salsa20StreamCipherProvider : StreamCipherProvider() {
+class ChaChaStreamCipherProvider : StreamCipherProvider() {
 
-    override fun getId() = SALSA20_CIPHER_ID
+    override fun getId() = CHACHA_CIPHER_ID
 
     override fun newCipher(): StreamCipher = Salsa20StreamCipher()
 
     private class Salsa20StreamCipher : StreamCipher {
 
-        private lateinit var engine: Salsa20Engine
+        private lateinit var engine: ChaCha7539Engine
 
         override fun init(key: ByteArray, iv: Long) {
-            this.engine = Salsa20Engine().apply { init(true, ParametersWithIV(KeyParameter(key), iv.toByteArray())) }
+            this.engine = ChaCha7539Engine().apply {
+                init(true, ParametersWithIV(KeyParameter(key), iv.toByteArray(CHACHA_IV_SIZE)))
+            }
         }
 
         override fun crypt(b: Byte): Byte {

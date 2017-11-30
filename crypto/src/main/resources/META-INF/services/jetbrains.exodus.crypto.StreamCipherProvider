@@ -1,1 +1,2 @@
 jetbrains.exodus.crypto.streamciphers.Salsa20StreamCipherProvider
+jetbrains.exodus.crypto.streamciphers.ChaChaStreamCipherProvider

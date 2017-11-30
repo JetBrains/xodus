@@ -76,8 +76,8 @@ subprojects {
     // tests for most of sub-projects run with database encryption turned on
     if (!(project.name in ['benchmarks', 'compress', 'crypto', 'openAPI', 'samples', 'utils'])) {
         test {
-            systemProperty 'exodus.cipherId', 'jetbrains.exodus.crypto.streamciphers.Salsa20StreamCipherProvider'
-            systemProperty 'exodus.cipherKey', '000102030405060708090a0b0c0d0e0f'
+            systemProperty 'exodus.cipherId', 'jetbrains.exodus.crypto.streamciphers.ChaChaStreamCipherProvider'
+            systemProperty 'exodus.cipherKey', '000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f'
             // {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15}
         }
         dependencies {

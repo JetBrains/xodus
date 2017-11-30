@@ -15,24 +15,11 @@
  */
 package jetbrains.exodus.crypto
 
-const val LONG_BYTES = java.lang.Long.SIZE / java.lang.Byte.SIZE
+import jetbrains.exodus.crypto.streamciphers.CHACHA_CIPHER_ID
 
-/**
- * Converts `Long` initialization vector to a `ByteArray` of size 8.
- */
-fun Long.toByteArray(): ByteArray {
-    return toByteArray(LONG_BYTES)
-}
+class ChaChaStreamCipherTest : StreamCipherTest() {
 
-/**
- * Converts `Long` initialization vector to a `ByteArray` of specified `size`.
- */
-fun Long.toByteArray(size: Int): ByteArray {
-    val result = ByteArray(size)
-    var l = this
-    repeat(size, {
-        result[it] = (l and 0xff).toByte()
-        l = l shr java.lang.Byte.SIZE
-    })
-    return result
+    override fun createCipher(): StreamCipher {
+        return newCipher(CHACHA_CIPHER_ID)
+    }
 }
