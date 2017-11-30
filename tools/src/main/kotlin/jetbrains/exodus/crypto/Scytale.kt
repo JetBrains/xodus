@@ -107,5 +107,9 @@ fun main(args: Array<String>) {
 
 private fun printUsage() {
     println("Usage: Scytale [options] source target key")
-    println("Source can be archive or file")
+    println("Source can be archive or folder")
+    println("Options:")
+    println("  -g              use gzip compression when opening archive")
+    println("  -z              make target an archive")
+    println("  -o              overwrite target archive or folder")
 }
