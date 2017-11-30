@@ -96,7 +96,7 @@ object ArchiveBackupableFactory : KLogging() {
                                              val _path: String,
                                              val _name: String,
                                              val size: Long = entry.size) : VirtualFileDescriptor {
-        val canBeEncrypted = "version" != _name && "xd.lck" != _name
+        private val canBeEncrypted = "version" != _name && "xd.lck" != _name
 
         override fun getPath() = _path
 
