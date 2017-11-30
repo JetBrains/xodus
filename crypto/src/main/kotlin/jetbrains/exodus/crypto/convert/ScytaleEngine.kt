@@ -13,8 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.crypto
+package jetbrains.exodus.crypto.convert
 
+import jetbrains.exodus.crypto.StreamCipherProvider
+import jetbrains.exodus.crypto.asHashedIV
 import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.util.ByteArraySpinAllocator
 import mu.KLogging
@@ -26,6 +28,7 @@ class ScytaleEngine(
         private val listener: EncryptListener,
         private val cipherProvider: StreamCipherProvider,
         private val key: ByteArray,
+        private val blockAlignment: Int = LogUtil.LOG_BLOCK_ALIGNMENT,
         bufferSize: Int = 1024 * 1024,  // 1MB
         inputQueueSize: Int = 40,
         outputQueueSize: Int = 40
@@ -59,7 +62,7 @@ class ScytaleEngine(
                         when (it) {
                             is FileHeader -> {
                                 offset = 0
-                                blockAddress = it.handle / LogUtil.LOG_BLOCK_ALIGNMENT
+                                blockAddress = it.handle / blockAlignment
                                 cipher.init(key, blockAddress.asHashedIV())
                             }
                             is FileChunk -> encryptChunk(it)
@@ -101,7 +104,7 @@ class ScytaleEngine(
         private fun blockEncrypt(size: Int, data: ByteArray) {
             for (i in 0 until size) {
                 data[i] = cipher.crypt(data[i])
-                if (offset++ == LogUtil.LOG_BLOCK_ALIGNMENT) {
+                if (++offset == blockAlignment) {
                     offset == 0
                     blockAddress++
                     cipher.init(key, blockAddress.asHashedIV())

@@ -13,24 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.crypto
+package jetbrains.exodus.crypto.convert
 
-interface EncryptMessage
-
-data class FileHeader(
-        val path: String,
-        val name: String,
-        val size: Long,
-        val timestamp: Long,
-        val handle: Long,
-        val chunkedIV: Boolean,
-        val canBeEncrypted: Boolean
-) : EncryptMessage
-
-class FileChunk(
-        val header: FileHeader,
-        val size: Int,
-        val data: ByteArray
-) : EncryptMessage
-
-object EndChunk : EncryptMessage
+interface EncryptListener {
+    fun onFile(header: FileHeader)
+    fun onFileEnd(header: FileHeader)
+    fun onData(size: Int, data: ByteArray)
+}

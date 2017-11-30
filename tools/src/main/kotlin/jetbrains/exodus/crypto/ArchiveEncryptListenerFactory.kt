@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.crypto
 
+import jetbrains.exodus.crypto.convert.EncryptListener
+import jetbrains.exodus.crypto.convert.FileHeader
 import mu.KLogging
 import org.apache.commons.compress.archivers.ArchiveOutputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry

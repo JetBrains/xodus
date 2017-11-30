@@ -19,7 +19,6 @@ import jetbrains.exodus.util.LightOutputStream
 import org.junit.Assert
 import org.junit.Test
 import java.io.ByteArrayInputStream
-import kotlin.experimental.xor
 
 open class StreamCipherTest {
 
@@ -70,18 +69,3 @@ val RENAT_GILFANOV = """
            Так сказал мне один старик, высохшею губою
            под грохот токарных станков мусоля патрон «Казбека».
            «Стена сохранит то, что стерлось из памяти человека».""".trimIndent()
-
-private class TrivialStreamCipher : StreamCipher {
-
-    private lateinit var key: ByteArray
-    private var iv: Int = 0
-
-    override fun init(key: ByteArray, iv: Long) {
-        this.key = key
-        this.iv = iv.toInt() xor (iv shr 32).toInt()
-    }
-
-    override fun crypt(b: Byte): Byte {
-        return b xor key[(iv++ and 0x7fffffff).rem(key.size)]
-    }
-}
