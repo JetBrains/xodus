@@ -137,6 +137,13 @@ subprojects {
             }
         }
 
+        compileTestKotlin {
+            kotlinOptions {
+                languageVersion = '1.1'
+                apiVersion = '1.1'
+            }
+        }
+
         sourceJar {
             from project.sourceSets.main.kotlin
         }
