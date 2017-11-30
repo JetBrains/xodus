@@ -130,6 +130,13 @@ subprojects {
             compile 'io.github.microutils:kotlin-logging:1.4.1'
         }
 
+        compileKotlin {
+            kotlinOptions {
+                languageVersion = '1.1'
+                apiVersion = '1.1'
+            }
+        }
+
         sourceJar {
             from project.sourceSets.main.kotlin
         }
