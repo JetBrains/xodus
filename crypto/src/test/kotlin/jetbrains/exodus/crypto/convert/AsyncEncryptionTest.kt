@@ -19,6 +19,7 @@ import jetbrains.exodus.crypto.RENAT_GILFANOV
 import jetbrains.exodus.crypto.newCipherProvider
 import jetbrains.exodus.crypto.streamciphers.SALSA20_CIPHER_ID
 import jetbrains.exodus.crypto.toBinaryKey
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class AsyncEncryptionTest {
@@ -35,7 +36,10 @@ class AsyncEncryptionTest {
 
         val decrypted = encryptStringByteByByte(encrypted, false)
 
-        println(String(decrypted))
+        String(decrypted).let {
+            println(it)
+            assertEquals(RENAT_GILFANOV, it)
+        }
     }
 
     @Test
@@ -48,7 +52,10 @@ class AsyncEncryptionTest {
 
         val decrypted = encryptStringByteByByte(encrypted, true)
 
-        println(String(decrypted))
+        String(decrypted).let {
+            println(it)
+            assertEquals(RENAT_GILFANOV, it)
+        }
     }
 
     private fun encryptStringByteByByte(data: ByteArray, chunked: Boolean): ByteArray {
