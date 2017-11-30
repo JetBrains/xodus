@@ -105,7 +105,7 @@ class ScytaleEngine(
             for (i in 0 until size) {
                 data[i] = cipher.crypt(data[i])
                 if (++offset == blockAlignment) {
-                    offset == 0
+                    offset = 0
                     blockAddress++
                     cipher.init(key, blockAddress.asHashedIV())
                 }

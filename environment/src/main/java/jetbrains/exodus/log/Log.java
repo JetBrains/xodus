@@ -755,7 +755,7 @@ public final class Log implements Closeable {
         final int readBytes = block.read(output, address - leftBound, output.length);
         final StreamCipherProvider cipherProvider = config.getCipherProvider();
         if (cipherProvider != null) {
-            EnvKryptKt.cryptBlocksMutable(cipherProvider, config.getCipherKey(), address, output, 0, readBytes);
+            EnvKryptKt.cryptBlocksMutable(cipherProvider, config.getCipherKey(), address, output, 0, readBytes, LogUtil.LOG_BLOCK_ALIGNMENT);
         }
         notifyReadBytes(output, readBytes);
         return readBytes;

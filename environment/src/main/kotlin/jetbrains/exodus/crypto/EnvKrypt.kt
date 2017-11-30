@@ -15,10 +15,8 @@
  */
 package jetbrains.exodus.crypto
 
-import jetbrains.exodus.log.LogUtil
-
 /**
- * Crypts byte array in-place by blocks of length `LogUtil.LOG_BLOCK_ALIGNMENT`.
+ * Crypts byte array in-place by blocks of length `alignment`.
  * Can be applied only to byte arrays which cannot be re-used for reading.
  */
 fun cryptBlocksMutable(cipherProvider: StreamCipherProvider,
@@ -26,26 +24,28 @@ fun cryptBlocksMutable(cipherProvider: StreamCipherProvider,
                        address: Long,
                        bytes: ByteArray,
                        offset: Int,
-                       length: Int) {
-    cryptBlocksImpl(cipherProvider, cipherKey, address, bytes, offset, length, bytes, offset)
+                       length: Int,
+                       alignment: Int) {
+    cryptBlocksImpl(cipherProvider, cipherKey, address, bytes, offset, length, bytes, offset, alignment)
 }
 
 /**
- * Crypts immutable byte array by blocks of length `LogUtil.LOG_BLOCK_ALIGNMENT`.
+ * Crypts immutable byte array by blocks of length `alignment`.
  */
 fun cryptBlocksImmutable(cipherProvider: StreamCipherProvider,
                          cipherKey: ByteArray,
                          address: Long,
                          bytes: ByteArray,
                          offset: Int,
-                         length: Int): ByteArray {
+                         length: Int,
+                         alignment: Int): ByteArray {
     return ByteArray(length).also {
-        cryptBlocksImpl(cipherProvider, cipherKey, address, bytes, offset, length, it, 0)
+        cryptBlocksImpl(cipherProvider, cipherKey, address, bytes, offset, length, it, 0, alignment)
     }
 }
 
 /**
- * Crypts byte array by blocks of length `LogUtil.LOG_BLOCK_ALIGNMENT`.
+ * Crypts byte array by blocks of length `alignment`.
  */
 private fun cryptBlocksImpl(cipherProvider: StreamCipherProvider,
                             cipherKey: ByteArray,
@@ -54,17 +54,18 @@ private fun cryptBlocksImpl(cipherProvider: StreamCipherProvider,
                             inputOffset: Int,
                             length: Int,
                             output: ByteArray,
-                            outputOffset: Int) {
-    var addr = ((address + inputOffset) / LogUtil.LOG_BLOCK_ALIGNMENT) * LogUtil.LOG_BLOCK_ALIGNMENT
+                            outputOffset: Int,
+                            alignment: Int) {
+    var addr = ((address + inputOffset) / alignment) * alignment
     var inputOff = inputOffset
     var len = length
     var outputOff = outputOffset
 
     while (len > 0) {
-        val offsetInBlock = inputOff % LogUtil.LOG_BLOCK_ALIGNMENT
-        val blockLen = minOf(LogUtil.LOG_BLOCK_ALIGNMENT - offsetInBlock, len)
+        val offsetInBlock = inputOff % alignment
+        val blockLen = minOf(alignment - offsetInBlock, len)
         val cipher = cipherProvider.newCipher().apply {
-            init(cipherKey, (addr / LogUtil.LOG_BLOCK_ALIGNMENT).asHashedIV())
+            init(cipherKey, (addr / alignment).asHashedIV())
         }
         // if offset is not the left bound of a block then the cipher should skip some bytes
         if (offsetInBlock > 0) {
@@ -75,7 +76,7 @@ private fun cryptBlocksImpl(cipherProvider: StreamCipherProvider,
         repeat(blockLen, {
             output[outputOff++] = cipher.crypt(input[inputOff++])
         })
-        addr += LogUtil.LOG_BLOCK_ALIGNMENT
+        addr += alignment
         len -= blockLen
     }
 }

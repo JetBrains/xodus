@@ -16,15 +16,19 @@
 package jetbrains.exodus.crypto.convert
 
 import jetbrains.exodus.crypto.RENAT_GILFANOV
+import jetbrains.exodus.crypto.cryptBlocksImmutable
 import jetbrains.exodus.crypto.newCipherProvider
 import jetbrains.exodus.crypto.streamciphers.SALSA20_CIPHER_ID
 import jetbrains.exodus.crypto.toBinaryKey
+import jetbrains.exodus.util.HexUtil
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class AsyncEncryptionTest {
     val salsa get() = newCipherProvider(SALSA20_CIPHER_ID)
     val key get() = toBinaryKey("0102030405060708090A0B0C0D0E0F10")
+    val address = 1214L
+    val alignment = 512
 
     @Test
     fun testCipherAsync() {
@@ -46,9 +50,13 @@ class AsyncEncryptionTest {
     fun testCipherAsyncChunked() {
         val data = RENAT_GILFANOV.toByteArray()
 
+        val encryptedInPlace = cryptBlocksImmutable(salsa, key, address, data, 0, data.size, alignment)
+
         val encrypted = encryptStringByteByByte(data, true)
 
         println(String(encrypted))
+
+        assertEquals(HexUtil.byteArrayToString(encryptedInPlace), HexUtil.byteArrayToString(encrypted))
 
         val decrypted = encryptStringByteByByte(encrypted, true)
 
@@ -61,7 +69,7 @@ class AsyncEncryptionTest {
     private fun encryptStringByteByByte(data: ByteArray, chunked: Boolean): ByteArray {
         val encrypted = ByteArray(data.size)
 
-        ScytaleEngine(makeListener(encrypted), salsa, key, 128, 1024).use { engine ->
+        ScytaleEngine(makeListener(encrypted), salsa, key, alignment, 1024).use { engine ->
             engine.start()
 
             val header = makeDummyHeader(data.size, chunked)
@@ -97,5 +105,5 @@ class AsyncEncryptionTest {
     }
 
     private fun makeDummyHeader(size: Int, chunked: Boolean)
-            = FileHeader("", "", size.toLong(), 0, 1122, chunked, true)
+            = FileHeader("", "", size.toLong(), 0, address, chunked, true)
 }

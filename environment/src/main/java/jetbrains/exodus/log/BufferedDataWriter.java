@@ -138,7 +138,7 @@ class BufferedDataWriter implements TransactionalDataWriter {
                     child.write(bytes, off, len);
                 } else {
                     child.write(EnvKryptKt.cryptBlocksImmutable(
-                        cipherProvider, cipherKey, mutablePage.pageAddress, bytes, off, len), 0, len);
+                        cipherProvider, cipherKey, mutablePage.pageAddress, bytes, off, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
                 }
             }
             currentPage.previousPage = null;
@@ -173,7 +173,7 @@ class BufferedDataWriter implements TransactionalDataWriter {
                 child.write(bytes, flushedCount, len);
             } else {
                 child.write(EnvKryptKt.cryptBlocksImmutable(
-                    cipherProvider, cipherKey, currentPage.pageAddress, bytes, flushedCount, len), 0, len);
+                    cipherProvider, cipherKey, currentPage.pageAddress, bytes, flushedCount, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
             }
             currentPage.flushedCount = committedCount;
         }
