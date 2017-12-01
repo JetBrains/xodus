@@ -13,10 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.crypto
+package jetbrains.exodus.crypto.convert
 
-import jetbrains.exodus.crypto.convert.EncryptListener
-import jetbrains.exodus.crypto.convert.FileHeader
 import mu.KLogging
 import org.apache.commons.compress.archivers.ArchiveOutputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
