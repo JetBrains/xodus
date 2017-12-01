@@ -16,6 +16,7 @@
 package jetbrains.exodus.crypto
 
 import jetbrains.exodus.crypto.convert.*
+import jetbrains.exodus.crypto.streamciphers.CHACHA_CIPHER_ID
 import jetbrains.exodus.crypto.streamciphers.SALSA20_CIPHER_ID
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
 import jetbrains.exodus.env.Reflect
@@ -35,6 +36,7 @@ fun main(args: Array<String>) {
     var compress = false
     var gzip = false
     var overwirte = false
+    var type = "chacha"
 
     for (arg in args) {
         if (arg.startsWith('-')) {
@@ -54,6 +56,8 @@ fun main(args: Array<String>) {
                 targetPath = arg
             } else if (key == null) {
                 key = toBinaryKey(arg)
+            } else {
+                type = arg.toLowerCase()
                 break
             }
         }
@@ -62,6 +66,15 @@ fun main(args: Array<String>) {
     if (sourcePath == null || targetPath == null || key == null) {
         printUsage()
         return
+    }
+
+    val cipherId = when (type) {
+        "salsa" -> SALSA20_CIPHER_ID
+        "chacha" -> CHACHA_CIPHER_ID
+        else -> {
+            println("Unknown cipher id: $type")
+            return
+        }
     }
 
     val source = File(sourcePath)
@@ -100,15 +113,16 @@ fun main(args: Array<String>) {
     }
 
     try {
-        ScytaleEngine(output, newCipherProvider(SALSA20_CIPHER_ID), key).encryptBackupable(input)
+        ScytaleEngine(output,  newCipherProvider(cipherId), key).encryptBackupable(input)
     } finally {
         archive?.close()
     }
 }
 
 private fun printUsage() {
-    println("Usage: Scytale [options] source target key")
+    println("Usage: Scytale [options] source target key [cipher]")
     println("Source can be archive or folder")
+    println("Cipher can be 'Salsa' or 'ChaCha', 'ChaCha' is default")
     println("Options:")
     println("  -g              use gzip compression when opening archive")
     println("  -z              make target an archive")
