@@ -29,7 +29,7 @@ object ArchiveEncryptListenerFactory : KLogging() {
             is TarArchiveOutputStream -> {
                 object : EncryptListener {
                     override fun onFile(header: FileHeader) {
-                        logger.info { "Start file $header" }
+                        logger.debug { "Start file $header" }
                         val entry = TarArchiveEntry(header.path + header.name)
                         entry.size = header.size
                         entry.setModTime(header.timestamp)
@@ -48,7 +48,7 @@ object ArchiveEncryptListenerFactory : KLogging() {
             is ZipArchiveOutputStream -> {
                 object : EncryptListener {
                     override fun onFile(header: FileHeader) {
-                        logger.info { "Start file $header" }
+                        logger.debug { "Start file $header" }
                         val entry = ZipArchiveEntry(header.path + header.name)
                         entry.size = header.size
                         entry.time = header.timestamp
