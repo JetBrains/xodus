@@ -35,9 +35,9 @@ class ChaChaStreamCipherProvider : StreamCipherProvider() {
 
     override fun getId() = CHACHA_CIPHER_ID
 
-    override fun newCipher(): StreamCipher = Salsa20StreamCipher()
+    override fun newCipher(): StreamCipher = ChaChaStreamCipher()
 
-    private class Salsa20StreamCipher : StreamCipher {
+    private class ChaChaStreamCipher : StreamCipher {
 
         private lateinit var engine: ChaCha7539Engine
 
