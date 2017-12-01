@@ -60,10 +60,11 @@ fun getFileIV(fd: VirtualFileDescriptor): Pair<Long, Boolean> {
         return LogUtil.getAddress(name) to true
     }
     val path = fd.path
-    if (path.startsWith("blobs")) { // TODO: improve this naming hacks in favor of BackupStrategy?
+    val blobsLocation = path.indexOf("blobs")
+    if (blobsLocation > 0) { // TODO: improve this naming hacks in favor of BackupStrategy?
         val blobExtensionStart = name.indexOf(".")
         if (blobExtensionStart == 2 || blobExtensionStart == 1) {
-            val tokens = path.substring(5 until path.length).split("\\", "/").filter { it.isNotEmpty() }.asReversed()
+            val tokens = path.substring(blobsLocation + 5 until path.length).split("\\", "/").filter { it.isNotEmpty() }.asReversed()
             try {
                 var result = Integer.parseInt(name.substring(0, blobExtensionStart), 16).toLong()
                 var shift = 0
