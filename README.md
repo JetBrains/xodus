@@ -51,7 +51,7 @@ final Environment env = Environments.newInstance("/home/me/.myAppData");
 env.executeInTransaction(new TransactionalExecutable() {
     @Override
     public void execute(@NotNull final Transaction txn) {
-        final Store store = env.openStore("Messages", StoreConfig.WITHOUT_DUPLICATES, txn)
+        final Store store = env.openStore("Messages", StoreConfig.WITHOUT_DUPLICATES, txn);
         store.put(txn, StringBinding.stringToEntry("Hello"), StringBinding.stringToEntry("World!"));
     }
 });
