@@ -102,7 +102,7 @@ object ArchiveBackupableFactory : KLogging() {
 
         override fun getName() = _name
 
-        override fun hasContent() = !entry.isDirectory && !_path.startsWith("textindex")
+        override fun hasContent() = !entry.isDirectory
 
         override fun getFileSize() = size
 
