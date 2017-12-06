@@ -91,7 +91,7 @@ public class EnvironmentTestsBase {
             for (final File file : IOUtil.listFiles(root)) {
                 final long fileSize = file.length();
                 if (file.isFile() && fileSize != 0) {
-                    CompressBackupUtil.archiveFile(tarGz, new BackupStrategy.FileDescriptorImpl(file, ""), fileSize);
+                    CompressBackupUtil.archiveFile(tarGz, new BackupStrategy.FileDescriptor(file, ""), fileSize);
                 }
             }
             tarGz.close();

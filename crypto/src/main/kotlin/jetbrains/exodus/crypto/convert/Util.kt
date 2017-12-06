@@ -39,7 +39,7 @@ fun ScytaleEngine.encryptBackupable(source: Backupable) {
 fun ScytaleEngine.encryptFiles(strategy: BackupStrategy) {
     start()
     use {
-        for (descriptor in strategy.listFiles()) {
+        for (descriptor in strategy.contents) {
             if (strategy.isInterrupted) {
                 break
             }

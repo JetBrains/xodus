@@ -146,7 +146,7 @@ public class BackupBean implements Backupable {
             }
 
             @Override
-            public Iterable<VirtualFileDescriptor> listFiles() {
+            public Iterable<VirtualFileDescriptor> getContents() {
                 return new Iterable<VirtualFileDescriptor>() {
                     @NotNull
                     @Override
@@ -157,7 +157,7 @@ public class BackupBean implements Backupable {
                             private VirtualFileDescriptor next = null;
                             private int i = 0;
                             @NotNull
-                            private Iterator<VirtualFileDescriptor> it = EMPTY.listFiles().iterator();
+                            private Iterator<VirtualFileDescriptor> it = EMPTY.getContents().iterator();
 
                             @Override
                             public boolean hasNext() {
@@ -184,7 +184,7 @@ public class BackupBean implements Backupable {
                                         if (i >= targetsCount) {
                                             return next;
                                         }
-                                        it = wrapped[i++].listFiles().iterator();
+                                        it = wrapped[i++].getContents().iterator();
                                     }
                                     next = it.next();
                                 }

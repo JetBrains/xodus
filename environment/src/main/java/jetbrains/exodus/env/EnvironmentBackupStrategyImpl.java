@@ -41,7 +41,7 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
     }
 
     @Override
-    public Iterable<VirtualFileDescriptor> listFiles() {
+    public Iterable<VirtualFileDescriptor> getContents() {
         return new Iterable<VirtualFileDescriptor>() {
 
             private final File[] files = IOUtil.listFiles(new File(environment.getLog().getLocation()));
@@ -63,7 +63,7 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
                             if (file.isFile()) {
                                 final long fileSize = file.length();
                                 if (fileSize != 0 && file.getName().endsWith(LogUtil.LOG_FILE_EXTENSION)) {
-                                    next = new FileDescriptorImpl(file, "", fileSize);
+                                    next = new FileDescriptor(file, "", fileSize);
                                     return true;
                                 }
                             }

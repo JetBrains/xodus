@@ -135,7 +135,7 @@ public class CompressBackupUtil {
                         new BufferedOutputStream(new FileOutputStream(target))));
             }
             try (ArchiveOutputStream aos = archive) {
-                for (final VirtualFileDescriptor fd : strategy.listFiles()) {
+                for (final VirtualFileDescriptor fd : strategy.getContents()) {
                     if (strategy.isInterrupted()) {
                         break;
                     }
@@ -226,7 +226,7 @@ public class CompressBackupUtil {
                 doTar(pathInArchive + source.getName() + File.separator, file, tarOut);
             }
         } else {
-            archiveFile(tarOut, new BackupStrategy.FileDescriptorImpl(source, pathInArchive), source.length());
+            archiveFile(tarOut, new BackupStrategy.FileDescriptor(source, pathInArchive), source.length());
         }
     }
 

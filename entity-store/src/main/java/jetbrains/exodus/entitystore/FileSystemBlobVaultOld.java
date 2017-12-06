@@ -255,18 +255,18 @@ public class FileSystemBlobVaultOld extends BlobVault {
         return new BackupStrategy() {
 
             @Override
-            public Iterable<VirtualFileDescriptor> listFiles() {
+            public Iterable<VirtualFileDescriptor> getContents() {
                 return new Iterable<VirtualFileDescriptor>() {
                     @NotNull
                     @Override
                     public Iterator<VirtualFileDescriptor> iterator() {
-                        final Deque<FileDescriptorImpl> queue = new LinkedList<>();
-                        queue.add(new FileDescriptorImpl(location, blobsDirectory + File.separator));
+                        final Deque<FileDescriptor> queue = new LinkedList<>();
+                        queue.add(new FileDescriptor(location, blobsDirectory + File.separator));
                         return new Iterator<VirtualFileDescriptor>() {
                             int i = 0;
                             int n = 0;
                             File[] files;
-                            FileDescriptorImpl next;
+                            FileDescriptor next;
                             String currentPrefix;
 
                             @Override
@@ -278,15 +278,15 @@ public class FileSystemBlobVaultOld extends BlobVault {
                                     final File file = files[i++];
                                     final String name = file.getName();
                                     if (file.isDirectory()) {
-                                        queue.push(new FileDescriptorImpl(file, currentPrefix + file.getName() + File.separator));
+                                        queue.push(new FileDescriptor(file, currentPrefix + file.getName() + File.separator));
                                     } else if (file.isFile()) {
                                         final long fileSize = file.length();
                                         if (fileSize == 0) continue;
                                         if (name.endsWith(blobExtension)) {
-                                            next = new FileDescriptorImpl(file, currentPrefix, fileSize);
+                                            next = new FileDescriptor(file, currentPrefix, fileSize);
                                             return true;
                                         } else if (name.equalsIgnoreCase(VERSION_FILE)) {
-                                            next = new FileDescriptorImpl(file, currentPrefix, fileSize, false);
+                                            next = new FileDescriptor(file, currentPrefix, fileSize, false);
                                             return true;
                                         }
                                     } else if (file.exists()) {
@@ -297,7 +297,7 @@ public class FileSystemBlobVaultOld extends BlobVault {
                                 if (queue.isEmpty()) {
                                     return false;
                                 }
-                                final FileDescriptorImpl fd = queue.pop();
+                                final FileDescriptor fd = queue.pop();
                                 files = IOUtil.listFiles(fd.getFile());
                                 currentPrefix = fd.getPath();
                                 i = 0;
@@ -307,11 +307,11 @@ public class FileSystemBlobVaultOld extends BlobVault {
                             }
 
                             @Override
-                            public FileDescriptorImpl next() {
+                            public FileDescriptor next() {
                                 if (!hasNext()) {
                                     throw new NoSuchElementException();
                                 }
-                                final FileDescriptorImpl result = next;
+                                final FileDescriptor result = next;
                                 next = null;
                                 return result;
                             }

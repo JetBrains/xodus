@@ -108,8 +108,8 @@ public class BackupTests extends EntityStoreTestBase {
                         }
 
                         @Override
-                        public Iterable<VirtualFileDescriptor> listFiles() {
-                            return storeBackupStrategy.listFiles();
+                        public Iterable<VirtualFileDescriptor> getContents() {
+                            return storeBackupStrategy.getContents();
                         }
 
                         @Override
@@ -204,8 +204,8 @@ public class BackupTests extends EntityStoreTestBase {
                         }
                     });
                     final FileSystemBlobVault blobVault = (FileSystemBlobVault) newStore.getBlobVault().getSourceVault();
-                    for (final VirtualFileDescriptor fd : blobVault.getBackupStrategy().listFiles()) {
-                        final File file = ((BackupStrategy.FileDescriptorImpl) fd).getFile();
+                    for (final VirtualFileDescriptor fd : blobVault.getBackupStrategy().getContents()) {
+                        final File file = ((BackupStrategy.FileDescriptor) fd).getFile();
                         if (file.isFile() && !file.getName().equals(FileSystemBlobVaultOld.VERSION_FILE)) {
                             assertTrue("" + blobVault.getBlobHandleByFile(file) + " > " + lastUsedBlobHandle[0],
                                     blobVault.getBlobHandleByFile(file) <= lastUsedBlobHandle[0]);

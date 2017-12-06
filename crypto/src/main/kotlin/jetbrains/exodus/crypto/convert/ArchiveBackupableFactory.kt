@@ -39,7 +39,7 @@ object ArchiveBackupableFactory : KLogging() {
         }
         val archive = ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(stream))
         object : BackupStrategy() {
-            override fun listFiles() = object : MutableIterable<VirtualFileDescriptor> {
+            override fun getContents() = object : MutableIterable<VirtualFileDescriptor> {
                 override fun iterator() = newArchiveIterator(archive)
             }
 

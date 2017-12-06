@@ -51,7 +51,7 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
                         return super.acceptFile(file);
                     }
                     // TODO: improve this?
-                    if ((file instanceof FileDescriptorImpl) && fsBlobVault.getBlobHandleByFile(((FileDescriptorImpl)file).getFile()) > lastUsedHandle) {
+                    if ((file instanceof FileDescriptor) && fsBlobVault.getBlobHandleByFile(((FileDescriptor)file).getFile()) > lastUsedHandle) {
                         return -1L;
                     }
                     return super.acceptFile(file);
@@ -67,14 +67,14 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
     }
 
     @Override
-    public Iterable<VirtualFileDescriptor> listFiles() {
+    public Iterable<VirtualFileDescriptor> getContents() {
         return new Iterable<VirtualFileDescriptor>() {
             @NotNull
             @Override
             public Iterator<VirtualFileDescriptor> iterator() {
                 return new Iterator<VirtualFileDescriptor>() {
 
-                    private Iterator<VirtualFileDescriptor> filesIterator = environmentBackupStrategy.listFiles().iterator();
+                    private Iterator<VirtualFileDescriptor> filesIterator = environmentBackupStrategy.getContents().iterator();
                     private boolean environmentListed = false;
 
                     @Override
@@ -84,7 +84,7 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
                                 return false;
                             }
                             environmentListed = true;
-                            filesIterator = blobVaultBackupStrategy.listFiles().iterator();
+                            filesIterator = blobVaultBackupStrategy.getContents().iterator();
                         }
                         return true;
                     }
@@ -133,8 +133,8 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
         }
 
         @Override
-        public Iterable<VirtualFileDescriptor> listFiles() {
-            return decorated.listFiles();
+        public Iterable<VirtualFileDescriptor> getContents() {
+            return decorated.getContents();
         }
 
         @Override

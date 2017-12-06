@@ -68,8 +68,8 @@ public class BlobVaultTests extends EntityStoreTestBase {
         Assert.assertTrue(txn.flush());
         final FileSystemBlobVault blobVault = (FileSystemBlobVault) store.getBlobVault().getSourceVault();
         final NavigableMap<Long, File> handlesToFiles = new TreeMap<>();
-        for (final VirtualFileDescriptor fd : blobVault.getBackupStrategy().listFiles()) {
-            final File file = ((BackupStrategy.FileDescriptorImpl) fd).getFile();
+        for (final VirtualFileDescriptor fd : blobVault.getBackupStrategy().getContents()) {
+            final File file = ((BackupStrategy.FileDescriptor) fd).getFile();
             if (file.isFile() && !file.getName().equals(FileSystemBlobVaultOld.VERSION_FILE)) {
                 final long handle = blobVault.getBlobHandleByFile(file);
                 Assert.assertFalse(handlesToFiles.containsKey(handle));
