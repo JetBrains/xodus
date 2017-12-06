@@ -30,6 +30,7 @@ import java.util.zip.GZIPOutputStream
 fun main(args: Array<String>) {
     if (args.size < 2) {
         printUsage()
+        return
     }
     var sourcePath: String? = null
     var targetPath: String? = null
