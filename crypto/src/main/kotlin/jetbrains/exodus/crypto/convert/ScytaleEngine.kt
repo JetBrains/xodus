@@ -62,7 +62,11 @@ class ScytaleEngine(
                         when (it) {
                             is FileHeader -> {
                                 offset = 0
-                                blockAddress = it.handle / blockAlignment
+                                blockAddress = if (it.chunkedIV) {
+                                    it.handle / blockAlignment
+                                } else {
+                                    it.handle
+                                }
                                 cipher.init(key, blockAddress.asHashedIV())
                             }
                             is FileChunk -> encryptChunk(it)
