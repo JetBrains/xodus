@@ -27,6 +27,7 @@ import org.junit.Test
 class AsyncEncryptionTest {
     val salsa get() = newCipherProvider(SALSA20_CIPHER_ID)
     val key get() = toBinaryKey("0102030405060708090A0B0C0D0E0F10")
+    val basicIV = 314159262718281828L
     val address = 1214L
     val alignment = 512
 
@@ -50,7 +51,7 @@ class AsyncEncryptionTest {
     fun testCipherAsyncChunked() {
         val data = RENAT_GILFANOV.toByteArray()
 
-        val encryptedInPlace = cryptBlocksImmutable(salsa, key, address, data, 0, data.size, alignment)
+        val encryptedInPlace = cryptBlocksImmutable(salsa, key, basicIV, address, data, 0, data.size, alignment)
 
         val encrypted = encryptStringByteByByte(data, true)
 
@@ -69,7 +70,7 @@ class AsyncEncryptionTest {
     private fun encryptStringByteByByte(data: ByteArray, chunked: Boolean): ByteArray {
         val encrypted = ByteArray(data.size)
 
-        ScytaleEngine(makeListener(encrypted), salsa, key, alignment, 1024).use { engine ->
+        ScytaleEngine(makeListener(encrypted), salsa, key, basicIV, alignment, 1024).use { engine ->
             engine.start()
 
             val header = makeDummyHeader(data.size, chunked)

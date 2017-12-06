@@ -81,6 +81,7 @@ public final class EnvironmentConfig extends AbstractConfig {
      * <p>Mutable at runtime: no
      *
      * @see #CIPHER_KEY
+     * @see #CIPHER_BASIC_IV
      * @see StreamCipher
      * @see StreamCipherProvider
      */
@@ -94,11 +95,28 @@ public final class EnvironmentConfig extends AbstractConfig {
      * <p>Mutable at runtime: no
      *
      * @see #CIPHER_ID
+     * @see #CIPHER_BASIC_IV
      * @see StreamCipher
      * @see StreamCipher#init(byte[], long)
      * @see StreamCipherProvider
      */
     public static final String CIPHER_KEY = "exodus.cipherKey";
+
+    /**
+     * Defines basic IV (initialization vector) which will be used to encrypt the database. Basic IV is expected to be
+     * random (pseudo-random) and unique long value. Basic IV is used to calculate relative IVs which are passed to
+     * {@linkplain StreamCipher#init(byte[], long)}. Is applicable only if {@linkplain #CIPHER_ID} is not {@code null}.
+     * The setting cannot be changed for existing databases.
+     * Default value is {@code 0L}.
+     * <p>Mutable at runtime: no
+     *
+     * @see #CIPHER_ID
+     * @see #CIPHER_KEY
+     * @see StreamCipher
+     * @see StreamCipher#init(byte[], long)
+     * @see StreamCipherProvider
+     */
+    public static final String CIPHER_BASIC_IV = "exodus.cipherBasicIV";
 
     /**
      * If is set to {@code true} forces file system's fsync call after each committed or flushed transaction. By default,
@@ -508,6 +526,7 @@ public final class EnvironmentConfig extends AbstractConfig {
             new Pair(MEMORY_USAGE_PERCENTAGE, 50),
             new Pair(CIPHER_ID, null),
             new Pair(CIPHER_KEY, null),
+            new Pair(CIPHER_BASIC_IV, 0L),
             new Pair(LOG_DURABLE_WRITE, false),
             new Pair(LOG_FILE_SIZE, 8192L),
             new Pair(LOG_LOCK_TIMEOUT, 0L),
@@ -621,6 +640,9 @@ public final class EnvironmentConfig extends AbstractConfig {
      * Default value is {@code null}.
      * <p>Mutable at runtime: no
      *
+     * @return id of {@linkplain StreamCipherProvider} which will be used to encrypt the database
+     * @see #getCipherKey()
+     * @see #getCipherBasicIV()
      * @see StreamCipher
      * @see StreamCipherProvider
      */
@@ -637,6 +659,8 @@ public final class EnvironmentConfig extends AbstractConfig {
      *
      * @param id id of {@linkplain StreamCipherProvider}
      * @return this {@code EnvironmentConfig} instance
+     * @see #setCipherKey(String)
+     * @see #setCipherBasicIV(long)
      * @see StreamCipher
      * @see StreamCipherProvider
      */
@@ -649,7 +673,9 @@ public final class EnvironmentConfig extends AbstractConfig {
      * only if* {@linkplain #getCipherId()} returns not {@code null}. Default value is {@code null}.
      * <p>Mutable at runtime: no
      *
+     * @return the key which will be used to encrypt the database or {@code null} for no encryption
      * @see #getCipherId()
+     * @see #getCipherBasicIV()
      * @see StreamCipher
      * @see StreamCipher#init(byte[], long)
      * @see StreamCipherProvider
@@ -674,6 +700,7 @@ public final class EnvironmentConfig extends AbstractConfig {
      * @param cipherKey hex string representing cipher key
      * @return this {@code EnvironmentConfig} instance
      * @see #setCipherId(String)
+     * @see #setCipherBasicIV(long)
      * @see StreamCipher
      * @see StreamCipher#init(byte[], long)
      * @see StreamCipherProvider
@@ -683,6 +710,45 @@ public final class EnvironmentConfig extends AbstractConfig {
             return (EnvironmentConfig) removeSetting(CIPHER_KEY);
         }
         return setSetting(CIPHER_KEY, KryptKt.toBinaryKey(cipherKey));
+    }
+
+    /**
+     * Returns basic IV (initialization vector) which will be used to encrypt the database. Basic IV is expected to be
+     * random (pseudo-random) and unique long value. Basic IV is used to calculate relative IVs which are passed to
+     * {@linkplain StreamCipher#init(byte[], long)}. Is applicable only if {@linkplain #CIPHER_ID} is not {@code null}.
+     * The setting cannot be changed for existing databases.
+     * Default value is {@code 0L}.
+     * <p>Mutable at runtime: no
+     *
+     * @return basic IV (initialization vector) which will be used to encrypt the database
+     * @see #getCipherId()
+     * @see #getCipherKey()
+     * @see StreamCipher
+     * @see StreamCipher#init(byte[], long)
+     * @see StreamCipherProvider
+     */
+    public long getCipherBasicIV() {
+        return (long) getSetting(CIPHER_BASIC_IV);
+    }
+
+    /**
+     * Sets basic IV (initialization vector) which will be used to encrypt the database. Basic IV is expected to be
+     * random (pseudo-random) and unique long value. Basic IV is used to calculate relative IVs which are passed to
+     * {@linkplain StreamCipher#init(byte[], long)}. Is applicable only if {@linkplain #CIPHER_ID} is not {@code null}.
+     * The setting cannot be changed for existing databases.
+     * Default value is {@code 0L}.
+     * <p>Mutable at runtime: no
+     *
+     * @param basicIV basic IV (initialization vector) which will be used to encrypt the database
+     * @return this {@code EnvironmentConfig} instance
+     * @see #setCipherId(String)
+     * @see #setCipherKey(String)
+     * @see StreamCipher
+     * @see StreamCipher#init(byte[], long)
+     * @see StreamCipherProvider
+     */
+    public EnvironmentConfig setCipherBasicIV(final long basicIV) {
+        return setSetting(CIPHER_BASIC_IV, basicIV);
     }
 
     /**

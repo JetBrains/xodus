@@ -52,6 +52,7 @@ public class LogConfig {
     private boolean fullFileReadonly;
     private StreamCipherProvider cipherProvider;
     private byte[] cipherKey;
+    private long cipherBasicIV;
 
     public LogConfig() {
     }
@@ -268,6 +269,15 @@ public class LogConfig {
 
     public LogConfig setCipherKey(byte[] cipherKey) {
         this.cipherKey = cipherKey;
+        return this;
+    }
+
+    public long getCipherBasicIV() {
+        return cipherBasicIV;
+    }
+
+    public LogConfig setCipherBasicIV(long basicIV) {
+        this.cipherBasicIV = basicIV;
         return this;
     }
 

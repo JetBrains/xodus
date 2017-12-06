@@ -346,8 +346,18 @@ public interface Environment extends Closeable, Backupable {
      * @return cipher key to use for database encryption, or {@code null} if the environment is not configured
      * to be encrypted
      * @see StreamCipher#init(byte[], long)
-     * @see EnvironmentConfig#getCipherId()
+     * @see EnvironmentConfig#getCipherKey()
      */
     @Nullable
     byte[] getCipherKey();
+
+    /**
+     * Returns cipher basic IV (initialization vector) to use for database encryption.
+     *
+     * @return cipher basic IV (initialization vector) to use for database encryption
+     * to be encrypted
+     * @see StreamCipher#init(byte[], long)
+     * @see EnvironmentConfig#getCipherBasicIV()
+     */
+    long getCipherBasicIV();
 }

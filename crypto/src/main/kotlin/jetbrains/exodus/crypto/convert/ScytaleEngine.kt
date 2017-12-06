@@ -28,6 +28,7 @@ class ScytaleEngine(
         private val listener: EncryptListener,
         private val cipherProvider: StreamCipherProvider,
         private val key: ByteArray,
+        private val basicIV: Long,
         private val blockAlignment: Int = LogUtil.LOG_BLOCK_ALIGNMENT,
         bufferSize: Int = 1024 * 1024,  // 1MB
         inputQueueSize: Int = 40,
@@ -53,7 +54,7 @@ class ScytaleEngine(
     private val statefulProducer = object : Runnable {
         private val cipher = cipherProvider.newCipher()
         private var offset = 0
-        private var blockAddress = 0L
+        private var iv = 0L
 
         override fun run() {
             try {
@@ -62,12 +63,12 @@ class ScytaleEngine(
                         when (it) {
                             is FileHeader -> {
                                 offset = 0
-                                blockAddress = if (it.chunkedIV) {
+                                iv = basicIV + if (it.chunkedIV) {
                                     it.handle / blockAlignment
                                 } else {
                                     it.handle
                                 }
-                                cipher.init(key, blockAddress.asHashedIV())
+                                cipher.init(key, iv.asHashedIV())
                             }
                             is FileChunk -> encryptChunk(it)
                             is EndChunk -> Unit
@@ -110,8 +111,7 @@ class ScytaleEngine(
                 data[i] = cipher.crypt(data[i])
                 if (++offset == blockAlignment) {
                     offset = 0
-                    blockAddress++
-                    cipher.init(key, blockAddress.asHashedIV())
+                    cipher.init(key, (++iv).asHashedIV())
                 }
             }
         }

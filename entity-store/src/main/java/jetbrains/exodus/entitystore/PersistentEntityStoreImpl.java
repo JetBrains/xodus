@@ -209,8 +209,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     BlobVault vault = createDefaultFSBlobVault();
                     final StreamCipherProvider cipherProvider = environment.getCipherProvider();
                     if (cipherProvider != null) {
-                        vault = new EncryptedBlobVault(
-                            vault, cipherProvider, Objects.requireNonNull(environment.getCipherKey()));
+                        vault = new EncryptedBlobVault(vault, cipherProvider,
+                            Objects.requireNonNull(environment.getCipherKey()), environment.getCipherBasicIV());
                     }
                     blobVault = vault;
                 }

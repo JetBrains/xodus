@@ -121,7 +121,8 @@ public final class Environments {
             setSyncPeriod(ec.getLogSyncPeriod()).
             setFullFileReadonly(ec.isLogFullFileReadonly()).
             setCipherProvider(ec.getCipherId() == null ? null : KryptKt.newCipherProvider(ec.getCipherId())).
-            setCipherKey(ec.getCipherKey()));
+            setCipherKey(ec.getCipherKey()).
+            setCipherBasicIV(ec.getCipherBasicIV()));
     }
 
     @NotNull

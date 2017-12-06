@@ -37,6 +37,7 @@ class BufferedDataWriter implements TransactionalDataWriter {
     @Nullable
     private final StreamCipherProvider cipherProvider;
     private final byte[] cipherKey;
+    private final long cipherBasicIV;
     private final int pageSize;
     private int count;
 
@@ -49,6 +50,7 @@ class BufferedDataWriter implements TransactionalDataWriter {
         currentPage = new MutablePage(null, page, pageAddress);
         cipherProvider = log.getConfig().getCipherProvider();
         cipherKey = log.getConfig().getCipherKey();
+        cipherBasicIV = log.getConfig().getCipherBasicIV();
         pageSize = log.getCachePageSize();
         if (pageSize != page.length) {
             throw new InvalidSettingException("Configured page size doesn't match actual page size, pageSize = " +
@@ -137,8 +139,8 @@ class BufferedDataWriter implements TransactionalDataWriter {
                 if (cipherProvider == null) {
                     child.write(bytes, off, len);
                 } else {
-                    child.write(EnvKryptKt.cryptBlocksImmutable(
-                        cipherProvider, cipherKey, mutablePage.pageAddress, bytes, off, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
+                    child.write(EnvKryptKt.cryptBlocksImmutable(cipherProvider, cipherKey, cipherBasicIV,
+                        mutablePage.pageAddress, bytes, off, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
                 }
             }
             currentPage.previousPage = null;
@@ -172,8 +174,8 @@ class BufferedDataWriter implements TransactionalDataWriter {
             if (cipherProvider == null) {
                 child.write(bytes, flushedCount, len);
             } else {
-                child.write(EnvKryptKt.cryptBlocksImmutable(
-                    cipherProvider, cipherKey, currentPage.pageAddress, bytes, flushedCount, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
+                child.write(EnvKryptKt.cryptBlocksImmutable(cipherProvider, cipherKey, cipherBasicIV,
+                    currentPage.pageAddress, bytes, flushedCount, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
             }
             currentPage.flushedCount = committedCount;
         }

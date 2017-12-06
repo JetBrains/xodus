@@ -96,6 +96,7 @@ public class LogRecoveryTest extends EnvironmentTestsBase {
         env.close();
         final StreamCipherProvider cipherProvider = env.getCipherProvider();
         final byte[] cipherKey = env.getCipherKey();
+        final long cipherBasicIV = env.getCipherBasicIV();
         env = null;
 
         final long size = reader.getBlock(0).length();
@@ -103,7 +104,8 @@ public class LogRecoveryTest extends EnvironmentTestsBase {
         writer.close();
 
         // only 'max' first loggables should remain
-        final LogConfig config = LogConfig.create(reader, writer).setCipherProvider(cipherProvider).setCipherKey(cipherKey);
+        final LogConfig config = LogConfig.create(reader, writer).
+            setCipherProvider(cipherProvider).setCipherKey(cipherKey).setCipherBasicIV(cipherBasicIV);
         final Log newLog = Environments.newLogInstance(config);
         assertLoggableTypes(max, newLog.getLoggableIterator(0), seq);
     }

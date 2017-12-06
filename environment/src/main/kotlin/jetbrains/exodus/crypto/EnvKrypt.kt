@@ -21,12 +21,13 @@ package jetbrains.exodus.crypto
  */
 fun cryptBlocksMutable(cipherProvider: StreamCipherProvider,
                        cipherKey: ByteArray,
+                       basicIV: Long,
                        address: Long,
                        bytes: ByteArray,
                        offset: Int,
                        length: Int,
                        alignment: Int) {
-    cryptBlocksImpl(cipherProvider, cipherKey, address, bytes, offset, length, bytes, offset, alignment)
+    cryptBlocksImpl(cipherProvider, cipherKey, basicIV, address, bytes, offset, length, bytes, offset, alignment)
 }
 
 /**
@@ -34,13 +35,14 @@ fun cryptBlocksMutable(cipherProvider: StreamCipherProvider,
  */
 fun cryptBlocksImmutable(cipherProvider: StreamCipherProvider,
                          cipherKey: ByteArray,
+                         basicIV: Long,
                          address: Long,
                          bytes: ByteArray,
                          offset: Int,
                          length: Int,
                          alignment: Int): ByteArray {
     return ByteArray(length).also {
-        cryptBlocksImpl(cipherProvider, cipherKey, address, bytes, offset, length, it, 0, alignment)
+        cryptBlocksImpl(cipherProvider, cipherKey, basicIV, address, bytes, offset, length, it, 0, alignment)
     }
 }
 
@@ -49,6 +51,7 @@ fun cryptBlocksImmutable(cipherProvider: StreamCipherProvider,
  */
 private fun cryptBlocksImpl(cipherProvider: StreamCipherProvider,
                             cipherKey: ByteArray,
+                            basicIV: Long,
                             address: Long,
                             input: ByteArray,
                             inputOffset: Int,
@@ -56,7 +59,7 @@ private fun cryptBlocksImpl(cipherProvider: StreamCipherProvider,
                             output: ByteArray,
                             outputOffset: Int,
                             alignment: Int) {
-    var addr = ((address + inputOffset) / alignment) * alignment
+    var iv = basicIV + ((address + inputOffset) / alignment)
     var inputOff = inputOffset
     var len = length
     var outputOff = outputOffset
@@ -65,7 +68,7 @@ private fun cryptBlocksImpl(cipherProvider: StreamCipherProvider,
         val offsetInBlock = inputOff % alignment
         val blockLen = minOf(alignment - offsetInBlock, len)
         val cipher = cipherProvider.newCipher().apply {
-            init(cipherKey, (addr / alignment).asHashedIV())
+            init(cipherKey, iv.asHashedIV())
         }
         // if offset is not the left bound of a block then the cipher should skip some bytes
         if (offsetInBlock > 0) {
@@ -76,7 +79,7 @@ private fun cryptBlocksImpl(cipherProvider: StreamCipherProvider,
         repeat(blockLen, {
             output[outputOff++] = cipher.crypt(input[inputOff++])
         })
-        addr += alignment
+        ++iv
         len -= blockLen
     }
 }

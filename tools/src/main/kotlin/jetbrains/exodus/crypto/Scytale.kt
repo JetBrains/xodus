@@ -24,6 +24,7 @@ import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.lang.Long.parseLong
 import java.util.zip.GZIPOutputStream
 
 fun main(args: Array<String>) {
@@ -33,9 +34,10 @@ fun main(args: Array<String>) {
     var sourcePath: String? = null
     var targetPath: String? = null
     var key: ByteArray? = null
+    var basicIV: Long? = null
     var compress = false
     var gzip = false
-    var overwirte = false
+    var overwrite = false
     var type = "chacha"
 
     for (arg in args) {
@@ -43,7 +45,7 @@ fun main(args: Array<String>) {
             when (arg.toLowerCase().substring(1)) {
                 "g" -> gzip = true
                 "z" -> compress = true
-                "o" -> overwirte = true
+                "o" -> overwrite = true
                 else -> {
                     printUsage()
                     return
@@ -56,6 +58,8 @@ fun main(args: Array<String>) {
                 targetPath = arg
             } else if (key == null) {
                 key = toBinaryKey(arg)
+            } else if (basicIV == null) {
+                basicIV = parseIV(arg)
             } else {
                 type = arg.toLowerCase()
                 break
@@ -63,7 +67,7 @@ fun main(args: Array<String>) {
         }
     }
 
-    if (sourcePath == null || targetPath == null || key == null) {
+    if (sourcePath == null || targetPath == null || key == null || basicIV == null) {
         printUsage()
         return
     }
@@ -86,7 +90,7 @@ fun main(args: Array<String>) {
     }
 
     if (target.exists()) {
-        if (!overwirte) {
+        if (!overwrite) {
             println("File exists: ${target.absolutePath}")
             return
         }
@@ -113,14 +117,21 @@ fun main(args: Array<String>) {
     }
 
     try {
-        ScytaleEngine(output,  newCipherProvider(cipherId), key).encryptBackupable(input)
+        ScytaleEngine(output, newCipherProvider(cipherId), key, basicIV).encryptBackupable(input)
     } finally {
         archive?.close()
     }
 }
 
+private fun parseIV(arg: String): Long {
+    if (arg.startsWith("0x")) {
+        return parseLong(arg.substring(2), 16)
+    }
+    return parseLong(arg)
+}
+
 private fun printUsage() {
-    println("Usage: Scytale [options] source target key [cipher]")
+    println("Usage: Scytale [options] source target key basicIV [cipher]")
     println("Source can be archive or folder")
     println("Cipher can be 'Salsa' or 'ChaCha', 'ChaCha' is default")
     println("Options:")

@@ -95,6 +95,7 @@ public class EnvironmentImpl implements Environment {
     private final StreamCipherProvider streamCipherProvider;
     @Nullable
     private final byte[] cipherKey;
+    private final long cipherBasicIV;
 
     @SuppressWarnings({"ThisEscapedInObjectConstruction"})
     EnvironmentImpl(@NotNull final Log log, @NotNull final EnvironmentConfig ec) {
@@ -136,8 +137,10 @@ public class EnvironmentImpl implements Environment {
 
         stuckTxnMonitor = (transactionTimeout() > 0) ? new StuckTransactionMonitor(this) : null;
 
-        streamCipherProvider = log.getConfig().getCipherProvider();
-        cipherKey = log.getConfig().getCipherKey();
+        final LogConfig logConfig = log.getConfig();
+        streamCipherProvider = logConfig.getCipherProvider();
+        cipherKey = logConfig.getCipherKey();
+        cipherBasicIV = logConfig.getCipherBasicIV();
 
         if (logger.isInfoEnabled()) {
             logger.info("Exodus environment created: " + log.getLocation());
@@ -312,6 +315,11 @@ public class EnvironmentImpl implements Environment {
     @Nullable
     public byte[] getCipherKey() {
         return cipherKey;
+    }
+
+    @Override
+    public long getCipherBasicIV() {
+        return cipherBasicIV;
     }
 
     @Override

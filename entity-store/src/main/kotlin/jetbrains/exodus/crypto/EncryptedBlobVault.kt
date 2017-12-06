@@ -25,7 +25,8 @@ import java.io.InputStream
 
 class EncryptedBlobVault(private val decorated: BlobVault,
                          private val cipherProvider: StreamCipherProvider,
-                         private val cipherKey: ByteArray) : BlobVault(decorated) {
+                         private val cipherKey: ByteArray,
+                         private val cipherBasicIV: Long) : BlobVault(decorated) {
 
     override fun getSourceVault() = decorated
 
@@ -70,5 +71,5 @@ class EncryptedBlobVault(private val decorated: BlobVault,
     override fun close() = decorated.close()
 
     private fun newCipher(blobHandle: Long) =
-            cipherProvider.newCipher().apply { init(cipherKey, (-blobHandle).asHashedIV()) }
+            cipherProvider.newCipher().apply { init(cipherKey, (cipherBasicIV - blobHandle).asHashedIV()) }
 }
