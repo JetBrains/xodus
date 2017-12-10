@@ -1739,10 +1739,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (isEmptyOrInPlaceBlobHandle(blobHandle)) {
             return;
         }
-        if (!txn.isBlobPreserved(blobHandle)) {
-            txn.deleteBlob(blobHandle);
-            txn.deferBlobDeletion(blobHandle);
-        }
+        txn.deleteBlob(blobHandle);
+        txn.deferBlobDeletion(blobHandle);
     }
 
     private interface DataGetter {
