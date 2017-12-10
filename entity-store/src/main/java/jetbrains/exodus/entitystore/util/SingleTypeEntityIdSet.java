@@ -18,6 +18,7 @@ package jetbrains.exodus.entitystore.util;
 import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
+import jetbrains.exodus.core.dataStructures.hash.PackedLongHashSet;
 import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.PersistentEntityId;
 import jetbrains.exodus.entitystore.iterate.EntityIdSet;
@@ -30,7 +31,7 @@ class SingleTypeEntityIdSet implements EntityIdSet {
 
     private final int singleTypeId;
     @NotNull
-    private final LongSet singleTypeLocalIds = new LongHashSet(100, 3);
+    private final LongSet singleTypeLocalIds = new PackedLongHashSet();
     private boolean holdsNull;
 
     SingleTypeEntityIdSet(@Nullable final EntityId id) {
@@ -63,7 +64,7 @@ class SingleTypeEntityIdSet implements EntityIdSet {
             singleTypeLocalIds.add(localId);
             return this;
         } else {
-            final LongHashSet moreLocalIds = new LongHashSet(100, 3);
+            final LongSet moreLocalIds = new PackedLongHashSet();
             moreLocalIds.add(localId);
             return new MultiTypeEntityIdSet(typeId, moreLocalIds, singleTypeId, singleTypeLocalIds, holdsNull);
         }

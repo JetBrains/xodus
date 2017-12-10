@@ -19,8 +19,8 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.core.dataStructures.Priority;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
-import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
+import jetbrains.exodus.core.dataStructures.hash.PackedLongHashSet;
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.core.execution.JobProcessorAdapter;
 import jetbrains.exodus.env.*;
@@ -65,7 +65,7 @@ public final class GarbageCollector {
     public GarbageCollector(@NotNull final EnvironmentImpl env) {
         this.env = env;
         ec = env.getEnvironmentConfig();
-        pendingFilesToDelete = new LongHashSet();
+        pendingFilesToDelete = new PackedLongHashSet();
         deletionQueue = new ConcurrentLinkedQueue<>();
         utilizationProfile = new UtilizationProfile(env, this);
         cleaner = new BackgroundCleaner(this);
@@ -74,7 +74,8 @@ public final class GarbageCollector {
         env.getLog().addNewFileListener(new NewFileListener() {
             @Override
             public void fileCreated(long fileAddress) {
-                ++newFiles;
+                final int newFiles = GarbageCollector.this.newFiles + 1;
+                GarbageCollector.this.newFiles = newFiles;
                 utilizationProfile.estimateTotalBytes();
                 if (!cleaner.isCleaning() && newFiles > ec.getGcFilesInterval() && isTooMuchFreeSpace()) {
                     wake();
@@ -95,7 +96,7 @@ public final class GarbageCollector {
     public void setCleanerJobProcessor(@NotNull final JobProcessorAdapter processor) {
         cleaner.getJobProcessor().queue(new Job() {
             @Override
-            protected void execute() throws Throwable {
+            protected void execute() {
                 cleaner.setJobProcessor(processor);
             }
         }, Priority.highest);
@@ -272,7 +273,7 @@ public final class GarbageCollector {
         if (!fragmentedFiles.hasNext()) {
             return true;
         }
-        final LongSet cleanedFiles = new LongHashSet();
+        final LongSet cleanedFiles = new PackedLongHashSet();
         final ReadWriteTransaction txn;
         try {
             txn = useRegularTxn ? (ReadWriteTransaction) env.beginTransaction() : env.beginGCTransaction();
@@ -326,7 +327,7 @@ public final class GarbageCollector {
                     } else {
                         DeferredIO.getJobProcessor().queueIn(new Job() {
                             @Override
-                            protected void execute() throws Throwable {
+                            protected void execute() {
                                 for (final Long file : cleanedFiles) {
                                     deletionQueue.offer(file);
                                 }
@@ -363,7 +364,7 @@ public final class GarbageCollector {
             final Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(fileAddress);
             while (loggables.hasNext()) {
                 final RandomAccessLoggable loggable = loggables.next();
-                if (loggable.getAddress() >= nextFileAddress) {
+                if (loggable == null || loggable.getAddress() >= nextFileAddress) {
                     break;
                 }
                 final int structureId = loggable.getStructureId();

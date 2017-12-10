@@ -15,10 +15,7 @@
  */
 package jetbrains.exodus.entitystore.util;
 
-import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
-import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
-import jetbrains.exodus.core.dataStructures.hash.LongIterator;
-import jetbrains.exodus.core.dataStructures.hash.LongSet;
+import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.PersistentEntityId;
 import jetbrains.exodus.entitystore.iterate.EntityIdSet;
@@ -53,7 +50,7 @@ class MultiTypeEntityIdSet implements EntityIdSet {
     public EntityIdSet add(final int typeId, final long localId) {
         LongSet localIds = set.get(typeId);
         if (localIds == null) {
-            localIds = new LongHashSet(100, 3);
+            localIds = new PackedLongHashSet();
             set.put(typeId, localIds);
         }
         localIds.add(localId);

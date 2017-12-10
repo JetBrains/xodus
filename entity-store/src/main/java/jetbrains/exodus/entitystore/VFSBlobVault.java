@@ -213,7 +213,7 @@ public class VFSBlobVault extends BlobVault {
 
     @NotNull
     private static LongSet loadAllBlobs(@NotNull final PersistentEntityStoreImpl store, @NotNull final PersistentStoreTransaction txn) {
-        final LongSet result = new LongHashSet();
+        final LongSet result = new PackedLongHashSet();
         final Transaction envTxn = txn.getEnvironmentTransaction();
         try (Cursor entityTypesCursor = store.getEntityTypesTable().getSecondIndexCursor(envTxn)) {
             while (entityTypesCursor.getNext()) {

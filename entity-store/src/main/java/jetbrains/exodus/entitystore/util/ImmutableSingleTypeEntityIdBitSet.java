@@ -15,9 +15,9 @@
  */
 package jetbrains.exodus.entitystore.util;
 
-import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
+import jetbrains.exodus.core.dataStructures.hash.PackedLongHashSet;
 import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.PersistentEntityId;
 import jetbrains.exodus.entitystore.iterate.EntityIdSet;
@@ -156,7 +156,7 @@ public class ImmutableSingleTypeEntityIdBitSet implements SortedEntityIdSet {
     @Override
     public LongSet getTypeSetSnapshot(int typeId) {
         if (typeId == singleTypeId) {
-            LongHashSet result = new LongHashSet(size);
+            final LongSet result = new PackedLongHashSet();
             int next = data.nextSetBit(0);
             while (next != -1) {
                 result.add(next + min);

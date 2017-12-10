@@ -17,7 +17,11 @@ package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.backup.VirtualFileDescriptor;
-import jetbrains.exodus.core.dataStructures.hash.*;
+import jetbrains.exodus.core.dataStructures.LongArrayList;
+import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
+import jetbrains.exodus.core.dataStructures.hash.LongIterator;
+import jetbrains.exodus.core.dataStructures.hash.LongSet;
+import jetbrains.exodus.core.dataStructures.hash.ObjectProcedureThrows;
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.env.Transaction;
@@ -197,7 +201,7 @@ public class FileSystemBlobVaultOld extends BlobVault {
         }
         // if there are deferred blobs to delete then defer their deletion
         if (deferredBlobsToDelete != null) {
-            final LongSet copy = new LongHashSet();
+            final LongArrayList copy = new LongArrayList(deferredBlobsToDelete.size());
             final LongIterator it = deferredBlobsToDelete.iterator();
             while (it.hasNext()) {
                 copy.add(it.nextLong());
@@ -208,10 +212,10 @@ public class FileSystemBlobVaultOld extends BlobVault {
                 public void run() {
                     DeferredIO.getJobProcessor().queueIn(new Job() {
                         @Override
-                        protected void execute() throws Throwable {
-                            final LongIterator it = copy.iterator();
-                            while (it.hasNext()) {
-                                delete(it.nextLong());
+                        protected void execute() {
+                            final long[] blobHandles = copy.getInstantArray();
+                            for (int i = 0; i < copy.size(); ++i) {
+                                delete(blobHandles[i]);
                             }
                         }
 
