@@ -82,7 +82,7 @@ class PackedLongHashSet : AbstractSet<Long>(), LongSet {
             }
 
             override fun remove() {
-                throw UnsupportedOperationException()
+                remove(longs[i - 1])
             }
 
             override fun hasNext(): Boolean {
