@@ -37,3 +37,5 @@ fun toBinaryKey(cipherKey: String): ByteArray {
 infix fun OutputStream.encryptBy(cipher: StreamCipher) = StreamCipherOutputStream(this, cipher)
 
 infix fun InputStream.decryptBy(cipher: StreamCipher) = StreamCipherInputStream(this, cipher)
+
+internal fun StreamCipher.cryptAsInt(b: Byte) = this.crypt(b).toInt() and 0xff

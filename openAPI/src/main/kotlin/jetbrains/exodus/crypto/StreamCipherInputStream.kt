@@ -22,7 +22,7 @@ import java.io.InputStream
 class StreamCipherInputStream(input: InputStream, private val cipher: StreamCipher) : FilterInputStream(input) {
 
     override fun read(): Int {
-        return cipher.crypt(super.read().toByte()).toInt()
+        return cipher.cryptAsInt(super.read().toByte())
     }
 
     override fun read(bytes: ByteArray?): Int {

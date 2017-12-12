@@ -23,14 +23,14 @@ import java.io.OutputStream
 class StreamCipherOutputStream(output: OutputStream, private val cipher: StreamCipher) : FilterOutputStream(output) {
 
     override fun write(b: Int) {
-        super.write(cipher.crypt(b.toByte()).toInt())
+        super.write(cipher.cryptAsInt(b.toByte()))
     }
 
     override fun write(bytes: ByteArray?) {
-        bytes.notNull { "Can't write null array" }.forEach { super.write(cipher.crypt(it).toInt()) }
+        bytes.notNull { "Can't write null array" }.forEach { super.write(cipher.cryptAsInt(it)) }
     }
 
     override fun write(bytes: ByteArray?, off: Int, len: Int) {
-        bytes.notNull { "Can't write null array" }.drop(off).take(len).forEach { super.write(cipher.crypt(it).toInt()) }
+        bytes.notNull { "Can't write null array" }.drop(off).take(len).forEach { super.write(cipher.cryptAsInt(it)) }
     }
 }
