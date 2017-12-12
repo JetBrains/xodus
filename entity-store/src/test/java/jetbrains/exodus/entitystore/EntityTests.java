@@ -34,7 +34,7 @@ import java.util.Date;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 
-@SuppressWarnings({"RawUseOfParameterizedType"})
+@SuppressWarnings({"RawUseOfParameterizedType", "ConstantConditions"})
 public class EntityTests extends EntityStoreTestBase {
 
     @Override
@@ -48,7 +48,7 @@ public class EntityTests extends EntityStoreTestBase {
         };
     }
 
-    public void testCreateSingleEntity() throws Exception {
+    public void testCreateSingleEntity() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity entity = txn.newEntity("Issue");
         final EntityIterable all = txn.getAll("Issue");
@@ -59,7 +59,7 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertTrue(entity.getId().getLocalId() >= 0);
     }
 
-    public void testCreateSingleEntity2() throws Exception {
+    public void testCreateSingleEntity2() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity entity = txn.newEntity("Issue");
         txn.flush();
@@ -74,7 +74,7 @@ public class EntityTests extends EntityStoreTestBase {
         }
     }
 
-    public void testEntityIdToString() throws Exception {
+    public void testEntityIdToString() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity entity = txn.newEntity("Issue");
         txn.flush();
@@ -82,7 +82,7 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertEquals(entity, txn.getEntity(txn.toEntityId(representation)));
     }
 
-    public void testCreateTwoEntitiesInTransaction() throws Exception {
+    public void testCreateTwoEntitiesInTransaction() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity entity1 = txn.newEntity("Issue");
         final Entity entity2 = txn.newEntity("Issue");
@@ -95,7 +95,7 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertTrue(entity2.getId().getLocalId() > entity1.getId().getLocalId());
     }
 
-    public void testCreateTwoEntitiesInTwoTransactions() throws Exception {
+    public void testCreateTwoEntitiesInTwoTransactions() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity entity1 = txn.newEntity("Issue");
         txn.flush();
@@ -109,7 +109,7 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertTrue(entity2.getId().getLocalId() > entity1.getId().getLocalId());
     }
 
-    public void testCreateAndGetSingleEntity() throws Exception {
+    public void testCreateAndGetSingleEntity() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity entity = txn.newEntity("Issue");
         txn.flush();
@@ -120,7 +120,7 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertEquals(entity.getId(), sameEntity.getId());
     }
 
-    public void testRawProperty() throws Exception {
+    public void testRawProperty() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity entity = txn.newEntity("Issue");
         entity.setProperty("description", "it doesn't work");
@@ -144,7 +144,7 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertEquals("it works", getEntityStore().getPropertyTypes().entryToPropertyValue(rawValue).getData());
     }
 
-    public void testIntProperty() throws Exception {
+    public void testIntProperty() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity entity = txn.newEntity("Issue");
         entity.setProperty("size", 100);
@@ -159,7 +159,7 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertEquals(-100, entity.getProperty("minus_size"));
     }
 
-    public void testLongProperty() throws Exception {
+    public void testLongProperty() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity entity = txn.newEntity("Issue");
         entity.setProperty("length", 0x10000ffffL);
@@ -172,7 +172,7 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertEquals(0x10000ffffL, entity.getProperty("length"));
     }
 
-    public void testStringProperty() throws Exception {
+    public void testStringProperty() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity entity = txn.newEntity("Issue");
         entity.setProperty("description", "This is a test issue");
@@ -185,7 +185,7 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertEquals("This is a test issue", entity.getProperty("description"));
     }
 
-    public void testDoubleProperty() throws Exception {
+    public void testDoubleProperty() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity entity = txn.newEntity("Issue");
         entity.setProperty("hitRate", 0.123456789);
@@ -198,7 +198,7 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertEquals(0.123456789, entity.getProperty("hitRate"));
     }
 
-    public void testDateProperty() throws Exception {
+    public void testDateProperty() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity entity = txn.newEntity("Issue");
         final Date date = new Date();
@@ -215,7 +215,7 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertTrue(new Date().getTime() >= (Long) dateProp);
     }
 
-    public void testBooleanProperty() throws Exception {
+    public void testBooleanProperty() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity entity = txn.newEntity("Issue");
         entity.setProperty("ready", true);
@@ -236,7 +236,7 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertEquals(false, entity.getProperty("ready"));
     }
 
-    public void testHeterogeneousProperties() throws Exception {
+    public void testHeterogeneousProperties() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity entity = txn.newEntity("Issue");
         entity.setProperty("description", "This is a test issue");
@@ -488,7 +488,7 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertFalse(wereExceptions[0]);
     }
 
-    public void testOverwriteProperty() throws Exception {
+    public void testOverwriteProperty() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity entity = txn.newEntity("Issue");
         entity.setProperty("description", "This is a test issue");
@@ -503,7 +503,7 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertEquals(100, entity.getProperty("description"));
     }
 
-    public void testDeleteProperty() throws Exception {
+    public void testDeleteProperty() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity issue = txn.newEntity("Issue");
         issue.setProperty("description", "This is a test issue");
@@ -578,6 +578,22 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertEquals("абвгдеёжзийклмнопрстуфхкцчшщъыьэюя", issue.getBlobString("description"));
     }
 
+    public void testLargeBlobString() {
+        StringBuilder builder = new StringBuilder();
+        final int blobStringSize = 100000;
+        for (int i = 0; i < blobStringSize; ++i) {
+            builder.append(' ');
+        }
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        final PersistentEntity issue = txn.newEntity("Issue");
+        issue.setBlobString("blank", builder.toString());
+        txn.flush();
+        final String blank = issue.getBlobString("blank");
+        for (int i = 0; i < blobStringSize; ++i) {
+            Assert.assertEquals(' ', blank.charAt(i));
+        }
+    }
+
     public void testReadingWithoutTransaction() throws Exception {
         StoreTransaction txn = getStoreTransaction();
         txn.getAll("Issue");
@@ -635,7 +651,7 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertEquals(2, (int) txn.getAll("Issue").size());
     }
 
-    public void testRenameEntityType() throws Exception {
+    public void testRenameEntityType() {
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 10; ++i) {
             txn.newEntity("Issue");
@@ -735,7 +751,7 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertTrue(itsOk[0]);
     }
 
-    public void testAsciiUTFDecodingBenchmark() throws IOException {
+    public void testAsciiUTFDecodingBenchmark() {
         final String s = "This is sample ASCII string of not that great size, but large enough to use in the benchmark";
         TestUtil.time("Constructing string from data input", new Runnable() {
             @Override
@@ -888,7 +904,7 @@ public class EntityTests extends EntityStoreTestBase {
         setOrAddPhantomLink(true);
     }
 
-    private void setOrAddPhantomLink(final boolean setLink) throws InterruptedException {
+    private void setOrAddPhantomLink(final boolean setLink) {
         final PersistentEntityStoreImpl store = getEntityStore();
 
         store.getEnvironment().getEnvironmentConfig().setGcEnabled(false);
@@ -910,7 +926,7 @@ public class EntityTests extends EntityStoreTestBase {
         final Semaphore deleted = new Semaphore(0);
         DeferredIO.getJobProcessor().queue(new Job() {
             @Override
-            protected void execute() throws Throwable {
+            protected void execute() {
                 store.executeInTransaction(new StoreTransactionalExecutable() {
                     @Override
                     public void execute(@NotNull StoreTransaction txn) {
