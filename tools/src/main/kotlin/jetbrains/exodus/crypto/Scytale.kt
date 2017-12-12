@@ -42,7 +42,7 @@ fun main(args: Array<String>) {
     var type = "chacha"
 
     for (arg in args) {
-        if (arg.startsWith('-')) {
+        if (arg.startsWith('-') && arg.length < 3) {
             when (arg.toLowerCase().substring(1)) {
                 "g" -> gzip = true
                 "z" -> compress = true
