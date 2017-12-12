@@ -172,7 +172,7 @@ internal class Reflect(directory: File) {
             println()
         }
 
-        fun openEnvironment(directory: File): EnvironmentImpl {
+        fun openEnvironment(directory: File, readonly: Boolean = false): EnvironmentImpl {
             val files = LogUtil.listFiles(directory)
             files.sortWith(Comparator { left, right ->
                 val cmp = LogUtil.getAddress(left.name) - LogUtil.getAddress(right.name)
@@ -201,7 +201,7 @@ internal class Reflect(directory: File) {
 
             val reader = FileDataReader(directory, 16)
             val writer = FileDataWriter(directory)
-            val config = EnvironmentConfig().setLogCachePageSize(pageSize).setGcEnabled(false)
+            val config = EnvironmentConfig().setLogCachePageSize(pageSize).setGcEnabled(false).setEnvIsReadonly(readonly)
             if (config.logFileSize == EnvironmentConfig.DEFAULT.logFileSize) {
                 val fileSizeInKB = if (files.size > 1)
                     (maxFileSize + pageSize - 1) / pageSize * pageSize / LogUtil.LOG_BLOCK_ALIGNMENT else

@@ -102,7 +102,7 @@ fun main(args: Array<String>) {
     }
 
     val input = if (source.isDirectory) {
-        val env = Reflect.openEnvironment(source)
+        val env = Reflect.openEnvironment(source, !overwrite)
         PersistentEntityStoreImpl(env, "ignored")
     } else {
         ArchiveBackupableFactory.newBackupable(source, gzip)
