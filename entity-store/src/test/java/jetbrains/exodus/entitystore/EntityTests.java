@@ -578,9 +578,10 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertEquals("абвгдеёжзийклмнопрстуфхкцчшщъыьэюя", issue.getBlobString("description"));
     }
 
+    @TestFor(issues = "JT-44824")
     public void testLargeBlobString() {
         StringBuilder builder = new StringBuilder();
-        final int blobStringSize = 100000;
+        final int blobStringSize = 80000;
         for (int i = 0; i < blobStringSize; ++i) {
             builder.append(' ');
         }
