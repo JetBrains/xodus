@@ -50,7 +50,8 @@ public class FailoverForkTests extends EntityStoreTestBase {
         logger.info("Preparing to start a process...");
         final String cipherId = System.getProperty("exodus.cipherId");
         final String[] jvmArgs = cipherId == null ? new String[0] :
-            new String[]{"-Dexodus.cipherId=" + cipherId, "-Dexodus.cipherKey=" + System.getProperty("exodus.cipherKey")};
+            new String[]{"-Dexodus.cipherId=" + cipherId, "-Dexodus.cipherKey=" + System.getProperty("exodus.cipherKey"),
+                "-Dexodus.cipherBasicIV=" + System.getProperty("exodus.cipherBasicIV")};
         forked = ForkSupportIO.create(getProcessRunner(), jvmArgs, new String[]{}).start();
         logger.info("Process started, PID = " + forked.getPID());
         childFolderLocation = forked.readString();
