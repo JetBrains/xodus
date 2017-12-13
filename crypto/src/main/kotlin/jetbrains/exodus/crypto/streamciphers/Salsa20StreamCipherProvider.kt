@@ -16,27 +16,25 @@
 package jetbrains.exodus.crypto.streamciphers
 
 import jetbrains.exodus.crypto.StreamCipher
-import jetbrains.exodus.crypto.StreamCipherProvider
 import jetbrains.exodus.crypto.toByteArray
 import org.bouncycastle.crypto.engines.Salsa20Engine
-import org.bouncycastle.crypto.params.KeyParameter
 import org.bouncycastle.crypto.params.ParametersWithIV
 
 const val SALSA20_CIPHER_ID = "jetbrains.exodus.crypto.streamciphers.Salsa20StreamCipherProvider"
 
 @Suppress("unused")
-class Salsa20StreamCipherProvider : StreamCipherProvider() {
+class Salsa20StreamCipherProvider : KeyAwareStreamCipherProvider() {
 
     override fun getId() = SALSA20_CIPHER_ID
 
-    override fun newCipher(): StreamCipher = Salsa20StreamCipher()
+    override fun newCipher(): StreamCipher = Salsa20StreamCipher(this)
 
-    private class Salsa20StreamCipher : StreamCipher {
+    private class Salsa20StreamCipher(provider: Salsa20StreamCipherProvider) : KeyAwareStreamCipher(provider) {
 
         private lateinit var engine: Salsa20Engine
 
         override fun init(key: ByteArray, iv: Long) {
-            this.engine = Salsa20Engine().apply { init(true, ParametersWithIV(KeyParameter(key), iv.toByteArray())) }
+            this.engine = Salsa20Engine().apply { init(true, ParametersWithIV(getKeyParameter(key), iv.toByteArray())) }
         }
 
         override fun crypt(b: Byte): Byte {
