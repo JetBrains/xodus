@@ -18,7 +18,6 @@ package jetbrains.exodus.vfs;
 import jetbrains.exodus.env.Transaction;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.IOException;
 import java.io.InputStream;
 
 public class VfsInputStream extends InputStream {
@@ -45,7 +44,7 @@ public class VfsInputStream extends InputStream {
     }
 
     @Override
-    public int read() throws IOException {
+    public int read() {
         while (true) {
             final Cluster current = clusterIterator.getCurrent();
             if (current == null) {
@@ -59,7 +58,7 @@ public class VfsInputStream extends InputStream {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         clusterIterator.close();
     }
 

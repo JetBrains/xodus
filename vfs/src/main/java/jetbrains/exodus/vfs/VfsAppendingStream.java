@@ -20,7 +20,6 @@ import jetbrains.exodus.env.Store;
 import jetbrains.exodus.env.Transaction;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.IOException;
 import java.io.OutputStream;
 
 class VfsAppendingStream extends OutputStream {
@@ -77,7 +76,7 @@ class VfsAppendingStream extends OutputStream {
     }
 
     @Override
-    public void write(int b) throws IOException {
+    public void write(int b) {
         if (position == outputCluster.length) {
             flushCurrentCluster();
             allocNextCluster(vfs.getConfig().getClusteringStrategy().getNextClusterSize(position));

@@ -347,6 +347,7 @@ public class VirtualFileSystem {
     public Iterable<File> getFiles(@NotNull final Transaction txn) {
         try (Cursor cursor = pathnames.openCursor(txn)) {
             return new Iterable<File>() {
+                @NotNull
                 @Override
                 public Iterator<File> iterator() {
                     return new Iterator<File>() {
