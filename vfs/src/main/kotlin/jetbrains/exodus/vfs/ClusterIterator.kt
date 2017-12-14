@@ -36,7 +36,9 @@ internal class ClusterIterator @JvmOverloads constructor(private val vfs: Virtua
                 file: File) : this(vfs, txn, file.descriptor)
 
     init {
-        seek(position)
+        if (position >= 0L) {
+            seek(position)
+        }
         isClosed = false
     }
 
@@ -58,7 +60,7 @@ internal class ClusterIterator @JvmOverloads constructor(private val vfs: Virtua
             } else {
                 current = readCluster(it)
                 adjustCurrentCluster()
-                val currentCluster = this.current
+                val currentCluster = current
                 if (currentCluster != null) {
                     currentCluster.startingPosition = currentCluster.clusterNumber * firstClusterSize
                 }
@@ -89,6 +91,42 @@ internal class ClusterIterator @JvmOverloads constructor(private val vfs: Virtua
                 }
             }
         }
+    }
+
+    fun size(): Long {
+        var result = 0L
+        val cs = vfs.config.clusteringStrategy
+        if (cs.isLinear) {
+            val clusterSize = cs.firstClusterSize.toLong()
+            // if clustering strategy is linear we can try to navigate to the last file cluster
+            if ((cursor.getSearchKeyRange(ClusterKey.toByteIterable(fd + 1, 0L)) != null && cursor.prev) ||
+                    cursor.prev) {
+                val clusterKey = ClusterKey(cursor.key)
+                if (clusterKey.descriptor == fd) {
+                    return clusterKey.clusterNumber * clusterSize + readCluster(cursor.value).getSize()
+                }
+            }
+            seek(0L)
+            // if clustering strategy is linear we can avoid reading cluster size for each cluster
+            var previous: Cluster? = null
+            while (hasCluster()) {
+                if (previous != null) {
+                    result += clusterSize
+                }
+                previous = current
+                moveToNext()
+            }
+            if (previous != null) {
+                result += previous.getSize().toLong()
+            }
+        } else {
+            seek(0L)
+            while (hasCluster()) {
+                result += current.notNull.getSize().toLong()
+                moveToNext()
+            }
+        }
+        return result
     }
 
     fun hasCluster() = current != null

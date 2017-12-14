@@ -449,14 +449,23 @@ public class VfsStreamsTests extends VfsTestsBase {
         config.setClusteringStrategy(strategy);
         vfs = new VirtualFileSystem(getEnvironment(), config);
         final Transaction txn = env.beginTransaction();
+        final byte[] bytes = RENAT_GILFANOV.getBytes(UTF_8);
         final File file0 = vfs.createFile(txn, "file0");
-        final OutputStream outputStream = vfs.appendFile(txn, file0);
-        outputStream.write(RENAT_GILFANOV.getBytes(UTF_8));
-        outputStream.close();
-        final InputStream inputStream = vfs.readFile(txn, file0);
-        final String actualRead = streamAsString(inputStream);
-        Assert.assertEquals(RENAT_GILFANOV, actualRead);
-        inputStream.close();
+        final OutputStream outputStream0 = vfs.appendFile(txn, file0);
+        outputStream0.write(bytes);
+        outputStream0.close();
+        final File file1 = vfs.createFile(txn, "file1");
+        final OutputStream outputStream1 = vfs.appendFile(txn, file1);
+        outputStream1.write(bytes);
+        outputStream1.close();
+        final InputStream inputStream0 = vfs.readFile(txn, file0);
+        Assert.assertEquals(RENAT_GILFANOV, streamAsString(inputStream0));
+        inputStream0.close();
+        final InputStream inputStream1 = vfs.readFile(txn, file1);
+        Assert.assertEquals(RENAT_GILFANOV, streamAsString(inputStream1));
+        inputStream1.close();
+        Assert.assertEquals((long) bytes.length, vfs.getFileLength(txn, file0));
+        Assert.assertEquals((long) bytes.length, vfs.getFileLength(txn, file1));
         txn.commit();
     }
 
