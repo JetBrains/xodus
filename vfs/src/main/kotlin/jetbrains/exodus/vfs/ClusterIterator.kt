@@ -78,10 +78,11 @@ internal class ClusterIterator @JvmOverloads constructor(private val vfs: Virtua
                 while (current != null) {
                     // if cluster size is equal to max cluster size, then all further cluster will have that size,
                     // so we don't need to load their size
+                    val notNullCluster = current.notNull
                     if (clusterSize < maxClusterSize) {
-                        clusterSize = current.notNull.getSize().toLong()
+                        clusterSize = notNullCluster.getSize().toLong()
                     }
-                    current!!.startingPosition = startingPosition
+                    notNullCluster.startingPosition = startingPosition
                     if (pos < clusterSize) {
                         break
                     }
