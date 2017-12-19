@@ -277,7 +277,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 return result;
             }
         });
-        if (!config.getRefactoringSkipAll()) {
+        if (!config.getRefactoringSkipAll() && !environment.getEnvironmentConfig().getEnvIsReadonly()) {
             applyRefactorings(fromScratch); // this method includes refactorings that could be clustered into separate txns
         }
         executeInTransaction(new StoreTransactionalExecutable() {
