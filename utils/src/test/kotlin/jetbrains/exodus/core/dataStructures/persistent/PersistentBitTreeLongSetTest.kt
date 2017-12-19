@@ -20,7 +20,7 @@ import org.junit.Assert
 import org.junit.Test
 import java.util.*
 
-class PersistentBitTreeLongSetTest {
+open class PersistentBitTreeLongSetTest {
 
     @Test
     fun testEmpty() {
@@ -31,6 +31,23 @@ class PersistentBitTreeLongSetTest {
         Assert.assertFalse(set.beginRead().contains(3))
         Assert.assertEquals(0, set.beginRead().size().toLong())
         Assert.assertFalse(set.beginRead().longIterator().hasNext())
+    }
+
+    @Test
+    fun testClear() {
+        val set = createSet()
+        set.write {
+            for (i in 0L..99999L) {
+                add(i)
+            }
+        }
+        Assert.assertEquals(100000, set.read { size() })
+        set.write {
+            clear()
+        }
+        Assert.assertEquals(0, set.read { size() })
+        Assert.assertFalse(set.read { longIterator().hasNext() })
+        Assert.assertFalse(set.read { reverseLongIterator().hasNext() })
     }
 
     @Test
@@ -120,12 +137,8 @@ class PersistentBitTreeLongSetTest {
         Assert.assertFalse(read.contains(3))
         Assert.assertEquals(2, read.size().toLong())
 
-        var root: Any? = (write1 as PersistentBitTreeLongSet.MutableSet).root
         write1.add(3)
-        Assert.assertFalse(write1.root === root)
-        root = (write2 as PersistentBitTreeLongSet.MutableSet).root
         write2.add(-2)
-        Assert.assertFalse(write2.root === root)
         Assert.assertTrue(write1.endWrite())
         Assert.assertFalse(write2.endWrite())
         read = set.beginRead()
@@ -225,7 +238,7 @@ class PersistentBitTreeLongSetTest {
         Assert.assertEquals(0, source.beginRead().size().toLong())
     }
 
-    protected fun createSet(): PersistentLongSet {
+    protected open fun createSet(): PersistentLongSet {
         return PersistentBitTreeLongSet()
     }
 

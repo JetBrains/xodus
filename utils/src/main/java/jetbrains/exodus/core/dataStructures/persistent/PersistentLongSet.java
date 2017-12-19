@@ -44,6 +44,8 @@ public interface PersistentLongSet {
 
         boolean remove(long key);
 
+        void clear();
+
         boolean endWrite();
     }
 }

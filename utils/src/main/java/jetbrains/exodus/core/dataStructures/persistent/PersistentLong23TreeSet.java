@@ -118,6 +118,11 @@ public class PersistentLong23TreeSet implements PersistentLongSet {
         }
 
         @Override
+        public void clear() {
+            map.setRoot(null);
+        }
+
+        @Override
         public boolean endWrite() {
             return map.endWrite();
         }

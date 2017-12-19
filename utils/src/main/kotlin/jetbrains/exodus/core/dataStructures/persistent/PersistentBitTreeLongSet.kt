@@ -87,10 +87,8 @@ class PersistentBitTreeLongSet : PersistentLongSet {
                                                    private val mask: Int,
                                                    private val baseSet: PersistentBitTreeLongSet) : PersistentLongSet.MutableSet {
 
-        val root: AbstractPersistent23Tree.RootNode<Entry>? get() = mutableSet.root
-
         private fun getEntryByIndex(index: Long): Entry? {
-            val root = root ?: return null
+            val root = mutableSet.root ?: return null
             return root.getByWeight(index)
         }
 
@@ -153,6 +151,11 @@ class PersistentBitTreeLongSet : PersistentLongSet {
                 mutableSet.add(copy)
             }
             return true
+        }
+
+        override fun clear() {
+            mutableSet.root = null
+            size = 0
         }
 
         override fun endWrite(): Boolean {
