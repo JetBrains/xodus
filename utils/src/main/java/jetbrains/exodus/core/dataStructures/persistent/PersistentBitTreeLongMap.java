@@ -33,7 +33,7 @@ public class PersistentBitTreeLongMap<V> implements PersistentLongMap<V> {
     private final Root<V> root;
 
     public PersistentBitTreeLongMap() {
-        this.root = new Root<V>(new Persistent23Tree<Entry>(), 0);
+        this.root = new Root<>(new Persistent23Tree<Entry>(), 0);
     }
 
     private PersistentBitTreeLongMap(Root<V> root) {
@@ -47,7 +47,7 @@ public class PersistentBitTreeLongMap<V> implements PersistentLongMap<V> {
 
     @Override
     public PersistentLongMap<V> getClone() {
-        return new PersistentBitTreeLongMap<V>(root.getClone());
+        return new PersistentBitTreeLongMap<>(root.getClone());
     }
 
     @Override
@@ -110,7 +110,7 @@ public class PersistentBitTreeLongMap<V> implements PersistentLongMap<V> {
             if (index == -1) {
                 throw new IllegalStateException("unexpected empty entry");
             }
-            return new LongMapEntry<V>(index + (entry.index << BITS_PER_ENTRY), (V) entry.data[index]);
+            return new LongMapEntry<>(index + (entry.index << BITS_PER_ENTRY), (V) entry.data[index]);
         }
 
         @NotNull
@@ -121,7 +121,7 @@ public class PersistentBitTreeLongMap<V> implements PersistentLongMap<V> {
 
         @Override
         public Iterator<PersistentLongMap.Entry<V>> reverseIterator() {
-            return new ReverseItemIterator<V>(map);
+            return new ReverseItemIterator<>(map);
         }
 
         @Override
@@ -209,7 +209,7 @@ public class PersistentBitTreeLongMap<V> implements PersistentLongMap<V> {
             if (index == -1) {
                 throw new IllegalStateException("unexpected empty entry");
             }
-            return new LongMapEntry<V>(index + (entry.index << BITS_PER_ENTRY), (V) entry.data[index]);
+            return new LongMapEntry<>(index + (entry.index << BITS_PER_ENTRY), (V) entry.data[index]);
         }
 
         @NotNull
@@ -220,7 +220,7 @@ public class PersistentBitTreeLongMap<V> implements PersistentLongMap<V> {
 
         @Override
         public Iterator<PersistentLongMap.Entry<V>> reverseIterator() {
-            return new ReverseItemIterator<V>(mutableMap);
+            return new ReverseItemIterator<>(mutableMap);
         }
 
         @Override

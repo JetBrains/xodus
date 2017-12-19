@@ -35,7 +35,7 @@ public class PersistentLong23TreeMap<V> implements PersistentLongMap<V> {
 
     @Override
     public PersistentLongMap.ImmutableMap<V> beginRead() {
-        return new ImmutableMap<V>(set.getRoot());
+        return new ImmutableMap<>(set.getRoot());
     }
 
     @Override
@@ -45,7 +45,7 @@ public class PersistentLong23TreeMap<V> implements PersistentLongMap<V> {
 
     @Override
     public PersistentLongMap.MutableMap<V> beginWrite() {
-        return new MutableMap<V>(set);
+        return new MutableMap<>(set);
     }
 
     @Deprecated
