@@ -45,6 +45,21 @@ inline fun <V> PersistentLongMap<V>.writeFinally(block: PersistentLongMap.Mutabl
     }
 }
 
+inline fun <R> PersistentLongSet.read(block: PersistentLongSet.ImmutableSet.() -> R): R {
+    return beginRead().block()
+}
+
+inline fun PersistentLongSet.write(block: PersistentLongSet.MutableSet.() -> Unit): Boolean {
+    val mutableMap = beginWrite()
+    mutableMap.block()
+    return mutableMap.endWrite()
+}
+
+inline fun PersistentLongSet.writeFinally(block: PersistentLongSet.MutableSet.() -> Unit) {
+    while (!write(block)) {
+    }
+}
+
 inline fun <K, R> PersistentHashSet<K>.read(block: PersistentHashSet.ImmutablePersistentHashSet<K>.() -> R): R {
     return beginRead().block()
 }
