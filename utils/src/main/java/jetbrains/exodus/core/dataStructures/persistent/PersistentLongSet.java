@@ -18,6 +18,7 @@ package jetbrains.exodus.core.dataStructures.persistent;
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 
 public interface PersistentLongSet {
+
     ImmutableSet beginRead();
 
     PersistentLongSet getClone();
@@ -25,9 +26,12 @@ public interface PersistentLongSet {
     MutableSet beginWrite();
 
     interface ImmutableSet {
+
         boolean contains(long key);
 
         LongIterator longIterator();
+
+        LongIterator reverseLongIterator();
 
         boolean isEmpty();
 
@@ -35,6 +39,7 @@ public interface PersistentLongSet {
     }
 
     interface MutableSet extends ImmutableSet {
+
         void add(long key);
 
         boolean remove(long key);

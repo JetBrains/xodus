@@ -63,9 +63,15 @@ public class PersistentLong23TreeSet implements PersistentLongSet {
         public LongIterator longIterator() {
             return new IteratorImpl(iterator());
         }
+
+        @Override
+        public LongIterator reverseLongIterator() {
+            return new IteratorImpl(reverseIterator());
+        }
     }
 
     protected static class MutableSet implements PersistentLongSet.MutableSet {
+
         private final PersistentLong23TreeMap.MutableMap<Boolean> map;
 
         MutableSet(Persistent23Tree<PersistentLongMap.Entry<Boolean>> set) {
@@ -75,6 +81,11 @@ public class PersistentLong23TreeSet implements PersistentLongSet {
         @Override
         public LongIterator longIterator() {
             return new IteratorImpl(map.iterator());
+        }
+
+        @Override
+        public LongIterator reverseLongIterator() {
+            return new IteratorImpl(map.reverseIterator());
         }
 
         @Override

@@ -41,8 +41,36 @@ class PersistentBitTreeLongSetTest {
             write.add(i)
         }
         write.endWrite()
-        val iterator = set.beginRead().longIterator()
+        var iterator = set.beginRead().longIterator()
         for (i in 0L..99999L) {
+            Assert.assertTrue(iterator.hasNext())
+            Assert.assertEquals(i, iterator.nextLong())
+        }
+        Assert.assertFalse(iterator.hasNext())
+        iterator = set.beginWrite().longIterator()
+        for (i in 0L..99999L) {
+            Assert.assertTrue(iterator.hasNext())
+            Assert.assertEquals(i, iterator.nextLong())
+        }
+        Assert.assertFalse(iterator.hasNext())
+    }
+
+    @Test
+    fun testReverseLongIterator() {
+        val set = createSet()
+        val write = set.beginWrite()
+        for (i in 0L..99999L) {
+            write.add(i)
+        }
+        write.endWrite()
+        var iterator = set.beginRead().reverseLongIterator()
+        for (i in 99999L downTo 0L) {
+            Assert.assertTrue(iterator.hasNext())
+            Assert.assertEquals(i, iterator.nextLong())
+        }
+        Assert.assertFalse(iterator.hasNext())
+        iterator = set.beginWrite().reverseLongIterator()
+        for (i in 99999L downTo 0L) {
             Assert.assertTrue(iterator.hasNext())
             Assert.assertEquals(i, iterator.nextLong())
         }
