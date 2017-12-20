@@ -33,6 +33,10 @@ public interface PersistentLongSet {
 
         LongIterator reverseLongIterator();
 
+        LongIterator tailLongIterator(long key);
+
+        LongIterator tailReverseLongIterator(long key);
+
         boolean isEmpty();
 
         int size();

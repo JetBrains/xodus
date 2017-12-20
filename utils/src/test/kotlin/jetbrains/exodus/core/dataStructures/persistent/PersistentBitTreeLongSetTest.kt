@@ -35,12 +35,7 @@ open class PersistentBitTreeLongSetTest {
 
     @Test
     fun testClear() {
-        val set = createSet()
-        set.write {
-            for (i in 0L..99999L) {
-                add(i)
-            }
-        }
+        val set = createFilledSet()
         Assert.assertEquals(100000, set.read { size() })
         set.write {
             clear()
@@ -52,46 +47,97 @@ open class PersistentBitTreeLongSetTest {
 
     @Test
     fun testLongIterator() {
-        val set = createSet()
-        val write = set.beginWrite()
-        for (i in 0L..99999L) {
-            write.add(i)
+        val set = createFilledSet()
+        set.read {
+            val iterator = longIterator()
+            for (i in 0L..99999L) {
+                Assert.assertTrue(iterator.hasNext())
+                Assert.assertEquals(i, iterator.nextLong())
+            }
+            Assert.assertFalse(iterator.hasNext())
         }
-        write.endWrite()
-        var iterator = set.beginRead().longIterator()
-        for (i in 0L..99999L) {
-            Assert.assertTrue(iterator.hasNext())
-            Assert.assertEquals(i, iterator.nextLong())
+        set.write {
+            val iterator = longIterator()
+            for (i in 0L..99999L) {
+                Assert.assertTrue(iterator.hasNext())
+                Assert.assertEquals(i, iterator.nextLong())
+            }
+            Assert.assertFalse(iterator.hasNext())
         }
-        Assert.assertFalse(iterator.hasNext())
-        iterator = set.beginWrite().longIterator()
-        for (i in 0L..99999L) {
-            Assert.assertTrue(iterator.hasNext())
-            Assert.assertEquals(i, iterator.nextLong())
-        }
-        Assert.assertFalse(iterator.hasNext())
     }
 
     @Test
     fun testReverseLongIterator() {
-        val set = createSet()
-        val write = set.beginWrite()
-        for (i in 0L..99999L) {
-            write.add(i)
+        val set = createFilledSet()
+        set.read {
+            val iterator = reverseLongIterator()
+            for (i in 99999L downTo 0L) {
+                Assert.assertTrue(iterator.hasNext())
+                Assert.assertEquals(i, iterator.nextLong())
+            }
+            Assert.assertFalse(iterator.hasNext())
         }
-        write.endWrite()
-        var iterator = set.beginRead().reverseLongIterator()
-        for (i in 99999L downTo 0L) {
-            Assert.assertTrue(iterator.hasNext())
-            Assert.assertEquals(i, iterator.nextLong())
+        set.write {
+            val iterator = reverseLongIterator()
+            for (i in 99999L downTo 0L) {
+                Assert.assertTrue(iterator.hasNext())
+                Assert.assertEquals(i, iterator.nextLong())
+            }
+            Assert.assertFalse(iterator.hasNext())
         }
-        Assert.assertFalse(iterator.hasNext())
-        iterator = set.beginWrite().reverseLongIterator()
-        for (i in 99999L downTo 0L) {
-            Assert.assertTrue(iterator.hasNext())
-            Assert.assertEquals(i, iterator.nextLong())
+    }
+
+    @Test
+    fun testTailLongIterator() {
+        val set = createFilledSet()
+        set.read {
+            for (i in 0L..99999L step 777) {
+                val it = tailLongIterator(i)
+                for (j in i..99999L) {
+                    Assert.assertTrue(it.hasNext())
+                    Assert.assertEquals(j, it.nextLong())
+                }
+                Assert.assertFalse(it.hasNext())
+            }
         }
-        Assert.assertFalse(iterator.hasNext())
+        set.write {
+            for (i in 0L..99999L step 777) {
+                val it = tailLongIterator(i)
+                for (j in i..99999L) {
+                    Assert.assertTrue(it.hasNext())
+                    Assert.assertEquals(j, it.nextLong())
+                }
+                Assert.assertFalse(it.hasNext())
+            }
+        }
+    }
+
+    @Test
+    fun testTailReverseLongIterator() {
+        val set = createFilledSet()
+        set.read {
+            for (i in 0L..99999L step 777) {
+                val it = tailReverseLongIterator(i)
+                for (j in 99999L downTo i) {
+                    if (!it.hasNext()) {
+                        println("i = $i, j = $j")
+                    }
+                    Assert.assertTrue(it.hasNext())
+                    Assert.assertEquals(j, it.nextLong())
+                }
+                Assert.assertFalse(it.hasNext())
+            }
+        }
+        set.write {
+            for (i in 0L..99999L step 777) {
+                val it = tailReverseLongIterator(i)
+                for (j in 99999L downTo i) {
+                    Assert.assertTrue(it.hasNext())
+                    Assert.assertEquals(j, it.nextLong())
+                }
+                Assert.assertFalse(it.hasNext())
+            }
+        }
     }
 
     @Test
@@ -239,7 +285,17 @@ open class PersistentBitTreeLongSetTest {
     }
 
     protected open fun createSet(): PersistentLongSet {
-        return PersistentBitTreeLongSet()
+        return PersistentBitTreeLongSet(7)
+    }
+
+    private fun createFilledSet(): PersistentLongSet {
+        return createSet().apply {
+            write {
+                for (i in 0L..99999L) {
+                    add(i)
+                }
+            }
+        }
     }
 
     companion object {

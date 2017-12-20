@@ -18,6 +18,8 @@ package jetbrains.exodus.core.dataStructures.persistent
 import jetbrains.exodus.core.dataStructures.hash.LongIterator
 import java.util.*
 
+private const val BITS_PER_ENTRY = 10
+
 class PersistentBitTreeLongSet : PersistentLongSet {
 
     private val root: Root
@@ -40,7 +42,7 @@ class PersistentBitTreeLongSet : PersistentLongSet {
     }
 
     override fun beginRead(): PersistentLongSet.ImmutableSet {
-        return ImmutableSet(root.map.beginRead(), root.size, mask)
+        return ImmutableSet(root.map.beginRead(), root.size, bitsPerEntry, mask)
     }
 
     override fun getClone(): PersistentLongSet {
@@ -48,11 +50,12 @@ class PersistentBitTreeLongSet : PersistentLongSet {
     }
 
     override fun beginWrite(): PersistentLongSet.MutableSet {
-        return MutableSet(root.map.beginWrite(), root.size, mask, this)
+        return MutableSet(root.map.beginWrite(), root.size, bitsPerEntry, mask, this)
     }
 
     private class ImmutableSet internal constructor(private val map: AbstractPersistent23Tree<Entry>,
                                                     private val size: Int,
+                                                    private val bitsPerEntry: Int,
                                                     private val mask: Int) : PersistentLongSet.ImmutableSet {
 
         private fun getEntryByIndex(index: Long): Entry? {
@@ -61,16 +64,25 @@ class PersistentBitTreeLongSet : PersistentLongSet {
         }
 
         override fun contains(key: Long): Boolean {
-            val entry = getEntryByIndex(getEntryIndex(key))
+            val entry = getEntryByIndex(key shr bitsPerEntry)
             return entry != null && entry.bits.get(key.toInt() and mask)
         }
 
         override fun longIterator(): LongIterator {
-            return ItemIterator(map.iterator())
+            return ItemIterator(map.iterator(), bitsPerEntry)
         }
 
         override fun reverseLongIterator(): LongIterator {
-            return ItemIterator(map.reverseIterator(), isReversed = true)
+            return ItemIterator(map.reverseIterator(), bitsPerEntry, isReversed = true)
+        }
+
+        override fun tailLongIterator(key: Long): LongIterator {
+            return skipTail(ItemIterator(map.tailIterator(getEntryByIndex(key shr bitsPerEntry)), bitsPerEntry), key)
+        }
+
+        override fun tailReverseLongIterator(key: Long): LongIterator {
+            return skipTail(ItemIterator(map.tailReverseIterator(
+                    getEntryByIndex(key shr bitsPerEntry)), bitsPerEntry, isReversed = true), key)
         }
 
         override fun isEmpty(): Boolean {
@@ -84,6 +96,7 @@ class PersistentBitTreeLongSet : PersistentLongSet {
 
     internal class MutableSet internal constructor(private val mutableSet: Persistent23Tree.MutableTree<Entry>,
                                                    private var size: Int,
+                                                   private val bitsPerEntry: Int,
                                                    private val mask: Int,
                                                    private val baseSet: PersistentBitTreeLongSet) : PersistentLongSet.MutableSet {
 
@@ -93,16 +106,25 @@ class PersistentBitTreeLongSet : PersistentLongSet {
         }
 
         override fun contains(key: Long): Boolean {
-            val entry = getEntryByIndex(getEntryIndex(key))
+            val entry = getEntryByIndex(key shr bitsPerEntry)
             return entry != null && entry.bits.get(key.toInt() and mask)
         }
 
         override fun longIterator(): LongIterator {
-            return ItemIterator(mutableSet.iterator())
+            return ItemIterator(mutableSet.iterator(), bitsPerEntry)
         }
 
         override fun reverseLongIterator(): LongIterator {
-            return ItemIterator(mutableSet.reverseIterator(), isReversed = true)
+            return ItemIterator(mutableSet.reverseIterator(), bitsPerEntry, isReversed = true)
+        }
+
+        override fun tailLongIterator(key: Long): LongIterator {
+            return skipTail(ItemIterator(mutableSet.tailIterator(getEntryByIndex(key shr bitsPerEntry)), bitsPerEntry), key)
+        }
+
+        override fun tailReverseLongIterator(key: Long): LongIterator {
+            return skipTail(ItemIterator(mutableSet.tailReverseIterator(
+                    getEntryByIndex(key shr bitsPerEntry)), bitsPerEntry, isReversed = true), key)
         }
 
         override fun isEmpty(): Boolean {
@@ -114,7 +136,7 @@ class PersistentBitTreeLongSet : PersistentLongSet {
         }
 
         override fun add(key: Long) {
-            val index = getEntryIndex(key)
+            val index = key shr bitsPerEntry
             var entry = getEntryByIndex(index)
             val bitIndex = key.toInt() and mask
             if (entry == null) {
@@ -135,7 +157,7 @@ class PersistentBitTreeLongSet : PersistentLongSet {
         }
 
         override fun remove(key: Long): Boolean {
-            val index = getEntryIndex(key)
+            val index = key shr bitsPerEntry
             val entry = getEntryByIndex(index) ?: return false
             val bitIndex = key.toInt() and mask
             if (entry.bits.get(bitIndex)) {
@@ -199,6 +221,7 @@ class PersistentBitTreeLongSet : PersistentLongSet {
     }
 
     private open class ItemIterator internal constructor(private val iterator: Iterator<Entry>,
+                                                         private val bitsPerEntry: Int,
                                                          private val isReversed: Boolean = false) : LongIterator {
 
         private lateinit var currentEntry: Entry
@@ -229,7 +252,7 @@ class PersistentBitTreeLongSet : PersistentLongSet {
                 val nextIndex = nextBit(entry)
                 if (nextIndex != -1) {
                     currentEntry = entry
-                    currentEntryBase = entry.index shl BITS_PER_ENTRY
+                    currentEntryBase = entry.index shl bitsPerEntry
                     next = nextIndex
                     return true
                 }
@@ -248,15 +271,6 @@ class PersistentBitTreeLongSet : PersistentLongSet {
             } else {
                 bits.nextSetBit(if (fromBit == Int.MAX_VALUE) 0 else fromBit)
             }
-        }
-    }
-
-    companion object {
-
-        private val BITS_PER_ENTRY = 10
-
-        private fun getEntryIndex(value: Long): Long {
-            return value shr BITS_PER_ENTRY
         }
     }
 }

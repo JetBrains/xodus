@@ -68,6 +68,16 @@ public class PersistentLong23TreeSet implements PersistentLongSet {
         public LongIterator reverseLongIterator() {
             return new IteratorImpl(reverseIterator());
         }
+
+        @Override
+        public LongIterator tailLongIterator(long key) {
+            return new IteratorImpl(tailEntryIterator(key));
+        }
+
+        @Override
+        public LongIterator tailReverseLongIterator(long key) {
+            return new IteratorImpl(tailReverseEntryIterator(key));
+        }
     }
 
     protected static class MutableSet implements PersistentLongSet.MutableSet {
@@ -86,6 +96,16 @@ public class PersistentLong23TreeSet implements PersistentLongSet {
         @Override
         public LongIterator reverseLongIterator() {
             return new IteratorImpl(map.reverseIterator());
+        }
+
+        @Override
+        public LongIterator tailLongIterator(long key) {
+            return new IteratorImpl(map.tailEntryIterator(key));
+        }
+
+        @Override
+        public LongIterator tailReverseLongIterator(long key) {
+            return new IteratorImpl(map.tailReverseEntryIterator(key));
         }
 
         @Override
