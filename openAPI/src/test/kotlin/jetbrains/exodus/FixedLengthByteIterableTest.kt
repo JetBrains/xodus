@@ -13,24 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus;
+package jetbrains.exodus
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.Assert
+import org.junit.Test
 
-public class FixedLengthByteIterableTest {
+class FixedLengthByteIterableTest {
 
     @Test
-    public void test() {
-        final FixedLengthByteIterable it = new FixedLengthByteIterable(new ArrayByteIterable(
-                new byte[]{(byte) 1, (byte) 2, (byte) 3}
-        ), 0, 1);
-        ByteIterator itr = it.iterator();
-        Assert.assertTrue(itr.hasNext());
-        Assert.assertEquals((byte) 1, itr.next());
-        Assert.assertFalse(itr.hasNext());
-        itr = it.iterator();
-        itr.skip(1);
-        Assert.assertFalse(itr.hasNext());
+    fun test() {
+        val it = FixedLengthByteIterable(ArrayByteIterable(
+                byteArrayOf(1.toByte(), 2.toByte(), 3.toByte())
+        ), 0, 1)
+        var itr = it.iterator()
+        Assert.assertTrue(itr.hasNext())
+        Assert.assertEquals(1.toByte().toLong(), itr.next().toLong())
+        Assert.assertFalse(itr.hasNext())
+        itr = it.iterator()
+        itr.skip(1)
+        Assert.assertFalse(itr.hasNext())
     }
 }
