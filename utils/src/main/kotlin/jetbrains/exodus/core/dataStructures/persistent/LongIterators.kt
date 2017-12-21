@@ -29,9 +29,7 @@ private class SkipLessThanLongIterator(private val source: LongIterator, private
 
     override fun next() = nextLong()
 
-    override fun remove() {
-        throw UnsupportedOperationException()
-    }
+    override fun remove() = throw UnsupportedOperationException()
 
     fun fetchNext(): Long? {
         while (source.hasNext()) {
