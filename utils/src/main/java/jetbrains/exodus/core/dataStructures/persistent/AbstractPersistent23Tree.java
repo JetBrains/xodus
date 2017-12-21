@@ -143,7 +143,7 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
      * @param key key
      * @return iterator
      */
-    public Iterator<K> tailIterator(final K key) {
+    public Iterator<K> tailIterator(@NotNull final K key) {
         return new Iterator<K>() {
 
             private Stack<TreePos<K>> stack;
@@ -307,7 +307,7 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
      * @param key key
      * @return iterator
      */
-    public Iterator<K> tailReverseIterator(final K key) {
+    public Iterator<K> tailReverseIterator(@NotNull final K key) {
         return new Iterator<K>() {
 
             private Stack<TreePosRev<K>> stack;
