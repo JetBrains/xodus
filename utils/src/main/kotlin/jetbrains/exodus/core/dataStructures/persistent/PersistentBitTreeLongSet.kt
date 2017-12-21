@@ -77,12 +77,15 @@ class PersistentBitTreeLongSet : PersistentLongSet {
         }
 
         override fun tailLongIterator(key: Long): LongIterator {
-            return skipTail(ItemIterator(map.tailIterator(getEntryByIndex(key shr bitsPerEntry)), bitsPerEntry), key)
+            val entry = getEntryByIndex(key shr bitsPerEntry)
+            return if (entry == null) LongIterator.EMPTY else
+                skipTail(ItemIterator(map.tailIterator(entry), bitsPerEntry), key)
         }
 
         override fun tailReverseLongIterator(key: Long): LongIterator {
-            return skipTail(ItemIterator(map.tailReverseIterator(
-                    getEntryByIndex(key shr bitsPerEntry)), bitsPerEntry, isReversed = true), key)
+            val entry = getEntryByIndex(key shr bitsPerEntry)
+            return if (entry == null) LongIterator.EMPTY else
+                skipTail(ItemIterator(map.tailReverseIterator(entry), bitsPerEntry, isReversed = true), key)
         }
 
         override fun isEmpty(): Boolean {
@@ -119,12 +122,15 @@ class PersistentBitTreeLongSet : PersistentLongSet {
         }
 
         override fun tailLongIterator(key: Long): LongIterator {
-            return skipTail(ItemIterator(mutableSet.tailIterator(getEntryByIndex(key shr bitsPerEntry)), bitsPerEntry), key)
+            val entry = getEntryByIndex(key shr bitsPerEntry)
+            return if (entry == null) LongIterator.EMPTY else
+                skipTail(ItemIterator(mutableSet.tailIterator(entry), bitsPerEntry), key)
         }
 
         override fun tailReverseLongIterator(key: Long): LongIterator {
-            return skipTail(ItemIterator(mutableSet.tailReverseIterator(
-                    getEntryByIndex(key shr bitsPerEntry)), bitsPerEntry, isReversed = true), key)
+            val entry = getEntryByIndex(key shr bitsPerEntry)
+            return if (entry == null) LongIterator.EMPTY else
+                skipTail(ItemIterator(mutableSet.tailReverseIterator(entry), bitsPerEntry, isReversed = true), key)
         }
 
         override fun isEmpty(): Boolean {
