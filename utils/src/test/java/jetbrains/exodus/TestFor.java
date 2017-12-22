@@ -42,4 +42,11 @@ public @interface TestFor {
      * @return issue IDs
      */
     @NotNull String[] issues() default {};
+
+    /**
+     * Binds test with a single issue
+     *
+     * @return issue ID
+     */
+    @NotNull String issue() default "";
 }
