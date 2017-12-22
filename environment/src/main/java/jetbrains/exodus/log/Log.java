@@ -19,6 +19,7 @@ import jetbrains.exodus.*;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import jetbrains.exodus.crypto.EnvKryptKt;
+import jetbrains.exodus.crypto.InvalidCipherParametersException;
 import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.io.*;
 import jetbrains.exodus.util.DeferredIO;
@@ -152,7 +153,9 @@ public final class Log implements Closeable {
             } catch (ExodusException e) { // if an exception is thrown then last loggable wasn't read correctly
                 logger.error("Exception on Log recovery. Approved high address = " + approvedHighAddress, e);
             }
-            setHighAddress(approvedHighAddress);
+            if (approvedHighAddress < lastFileAddress || approvedHighAddress > highAddress) {
+                throw new InvalidCipherParametersException();
+            }
             this.approvedHighAddress = approvedHighAddress;
         }
         flush(true);
@@ -273,10 +276,14 @@ public final class Log implements Closeable {
         final DataWriter baseWriter = config.getWriter();
         if (blockAddrs.isEmpty()) {
             this.highAddress = 0;
+            approvedHighAddress = 0;
             setBufferedWriter(createEmptyBufferedWriter(baseWriter));
         } else {
             final long oldHighPageAddress = getHighPageAddress();
             this.highAddress = highAddress;
+            if (highAddress < approvedHighAddress) {
+                approvedHighAddress = highAddress;
+            }
             final long highPageAddress = getHighPageAddress();
             if (oldHighPageAddress != highPageAddress || !bufferedWriter.tryAndUpdateHighAddress(highAddress)) {
                 final int highPageSize = (int) (highAddress - highPageAddress);
@@ -287,6 +294,10 @@ public final class Log implements Closeable {
                 setBufferedWriter(createBufferedWriter(baseWriter, highPageAddress, highPageContent, highPageSize));
             }
         }
+    }
+
+    public long getApprovedHighAddress() {
+        return approvedHighAddress;
     }
 
     public long approveHighAddress() {
@@ -503,6 +514,9 @@ public final class Log implements Closeable {
                 if (loggable.getType() == type) {
                     return loggable;
                 }
+                if (loggable.getAddress() + loggable.length() == approvedHighAddress) {
+                    break;
+                }
             }
         }
         return null;
@@ -529,6 +543,9 @@ public final class Log implements Closeable {
                 }
                 if (loggable.getType() == type) {
                     result = loggable;
+                }
+                if (loggable.getAddress() + loggable.length() == approvedHighAddress) {
+                    break;
                 }
             }
         }
@@ -613,7 +630,7 @@ public final class Log implements Closeable {
         cache.clear();
         reader.clear();
         setBufferedWriter(createEmptyBufferedWriter(bufferedWriter.getChildWriter()));
-        highAddress = 0;
+        highAddress = approvedHighAddress = 0;
     }
 
     public void removeFile(final long address) {

@@ -25,13 +25,10 @@ import org.junit.Test;
 import java.io.IOException;
 
 public class EnvironmentRecoveryTest extends EnvironmentTestsBase {
+
     private int[] SEQ;
-
     private int A;
-
     private int B;
-
-    private int C;
 
     @Override
     public void setUp() throws Exception {
@@ -42,7 +39,6 @@ public class EnvironmentRecoveryTest extends EnvironmentTestsBase {
                 BTreeBase.BOTTOM_ROOT, BTreeBase.LEAF, BTreeBase.LEAF, BTreeBase.BOTTOM_ROOT, DatabaseRoot.DATABASE_ROOT_TYPE};
         A = SEQ.length - 5;
         B = SEQ.length - 10;
-        C = 2;
     }
 
     @Test
@@ -102,12 +98,12 @@ public class EnvironmentRecoveryTest extends EnvironmentTestsBase {
 
     @Test
     public void testLastLoggableIncomplete11() throws IOException {
-        cutAndCheckLastLoggableIncomplete(5, C); // recovery should create same empty environment
+        cutAndCheckLastLoggableIncomplete(5, B); // recovery should create same empty environment
     }
 
     @Test
     public void testLastLoggableIncomplete12() throws IOException {
-        cutAndCheckLastLoggableIncomplete(0, C); // recovery should create same empty environment
+        cutAndCheckLastLoggableIncomplete(0, B); // recovery should create same empty environment
     }
 
     @Test
@@ -133,7 +129,7 @@ public class EnvironmentRecoveryTest extends EnvironmentTestsBase {
         writer.openOrCreateBlock(fileSize, 0);
         writer.close();
         env = newEnvironmentInstance(LogConfig.create(reader, writer).setFileSize(env.getEnvironmentConfig().getLogFileSize())); // recovery pending
-        assertLoggableTypes(C, env.getLog().getLoggableIterator(0), SEQ);
+        assertLoggableTypes(B, env.getLog().getLoggableIterator(0), SEQ);
     }
 
     private void cutAndCheckLastLoggableIncomplete(int cutAt, int max) {

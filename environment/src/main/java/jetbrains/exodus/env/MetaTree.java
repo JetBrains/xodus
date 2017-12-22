@@ -21,6 +21,7 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.core.dataStructures.Pair;
+import jetbrains.exodus.crypto.InvalidCipherParametersException;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.*;
 import jetbrains.exodus.tree.btree.BTree;
@@ -35,6 +36,8 @@ import java.util.List;
 
 final class MetaTree {
 
+    private static final int EMPTY_LOG_BOUND = 5;
+
     final ITree tree;
     final long root;
     final long highAddress;
@@ -47,9 +50,9 @@ final class MetaTree {
 
     static Pair<MetaTree, Integer> create(@NotNull final EnvironmentImpl env) {
         final Log log = env.getLog();
-        Loggable rootLoggable = log.getLastLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);
-        if (rootLoggable != null) {
-            do {
+        if (log.getApprovedHighAddress() > EMPTY_LOG_BOUND) {
+            Loggable rootLoggable = log.getLastLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);
+            while (rootLoggable != null) {
                 final DatabaseRoot dbRoot = new DatabaseRoot(rootLoggable);
                 final long root = dbRoot.getAddress();
                 if (dbRoot.isValid()) {
@@ -72,12 +75,14 @@ final class MetaTree {
                 }
                 // continue recovery
                 rootLoggable = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, root);
-            } while (rootLoggable != null);
+            }
             // "abnormal program termination", "blue screen of doom"
             // Something quite strange with the database: it is not empty, but no valid
             // root has found. We can't just reset the database and lose all the contents,
             // we should have a chance to investigate the case. So failing...
-            throw new ExodusException("Database is not empty, but no valid root found");
+            //
+            // It's extremely likely the database was ciphered with different/unknown cipher parameters.
+            throw new InvalidCipherParametersException();
         }
         // no roots found: the database is empty
         log.setHighAddress(0);
