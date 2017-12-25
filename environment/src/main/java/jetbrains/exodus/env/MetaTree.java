@@ -82,6 +82,7 @@ final class MetaTree {
             // we should have a chance to investigate the case. So failing...
             //
             // It's extremely likely the database was ciphered with different/unknown cipher parameters.
+            log.close();
             throw new InvalidCipherParametersException();
         }
         // no roots found: the database is empty

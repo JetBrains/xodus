@@ -154,6 +154,7 @@ public final class Log implements Closeable {
                 logger.error("Exception on Log recovery. Approved high address = " + approvedHighAddress, e);
             }
             if (approvedHighAddress < lastFileAddress || approvedHighAddress > highAddress) {
+                close();
                 throw new InvalidCipherParametersException();
             }
             this.approvedHighAddress = approvedHighAddress;
