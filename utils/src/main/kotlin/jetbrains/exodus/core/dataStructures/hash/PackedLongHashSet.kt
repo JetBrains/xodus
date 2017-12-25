@@ -18,11 +18,12 @@ package jetbrains.exodus.core.dataStructures.hash
 import java.lang.Long.SIZE
 import java.util.*
 
-private const val LONG_BITS: Long = SIZE.toLong()
+private const val LONG_BITS: Int = SIZE
+private const val LONG_BITS_LOG: Int = 6
 
 class PackedLongHashSet : AbstractSet<Long>(), LongSet {
 
-    private val map = LongHashMap<Long>(40, 2f)
+    private val map = LongHashMap<Long>(50)
     private var count: Int = 0
 
     override val size: Int
@@ -32,13 +33,13 @@ class PackedLongHashSet : AbstractSet<Long>(), LongSet {
 
     override fun contains(element: Long): Boolean {
         val v = map[element.key]
-        return v != null && v and (1L shl element.bit) != 0L
+        return v != null && v and masks[element.bit] != 0L
     }
 
     override fun add(element: Long): Boolean {
         val key = element.key
         val bit = element.bit
-        val mask = 1L shl bit
+        val mask = masks[bit]
         val v = map[key]
         if (v == null) {
             map[key] = mask
@@ -56,7 +57,7 @@ class PackedLongHashSet : AbstractSet<Long>(), LongSet {
     override fun remove(element: Long): Boolean {
         val key = element.key
         val bit = element.bit
-        val mask = 1L shl bit
+        val mask = masks[bit]
         var v = map[key]
         if (v == null || v and mask == 0L) {
             return false
@@ -99,13 +100,13 @@ class PackedLongHashSet : AbstractSet<Long>(), LongSet {
         return LongArray(count).apply {
             var i = 0
             map.forEach {
-                val base = it.key * LONG_BITS
-                var mask = 1L
-                for (j in 0 until LONG_BITS.toInt()) {
-                    if (it.value and mask != 0L) {
+                val base = it.key shl LONG_BITS_LOG
+                val value = it.value
+                @Suppress("LoopToCallChain")
+                for (j in 0 until LONG_BITS) {
+                    if (value and masks[j] != 0L) {
                         this[i++] = base + j
                     }
-                    mask = mask shl 1
                 }
             }
         }
@@ -113,8 +114,16 @@ class PackedLongHashSet : AbstractSet<Long>(), LongSet {
 
     companion object {
 
-        private val Long.key: Long get() = this / LONG_BITS
+        private val masks = LongArray(LONG_BITS).apply {
+            var mask = 1L
+            for (i in 0 until LONG_BITS) {
+                this[i] = mask
+                mask = mask shl 1
+            }
+        }
 
-        private val Long.bit: Int get() = (this % LONG_BITS).toInt()
+        private val Long.key: Long get() = this shr LONG_BITS_LOG
+
+        private val Long.bit: Int get() = (this and (LONG_BITS - 1).toLong()).toInt()
     }
 }
