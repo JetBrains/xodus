@@ -25,11 +25,25 @@ import org.apache.commons.compress.archivers.ArchiveStreamFactory
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileInputStream
+import java.io.InputStream
 import java.util.*
 import java.util.zip.GZIPInputStream
 
 object ArchiveBackupableFactory : KLogging() {
     private val separators = charArrayOf('\\', '/')
+
+    fun newBackupable(stream:InputStream) = Backupable {
+        val archive = ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(stream))
+        object : BackupStrategy() {
+            override fun getContents() = object : MutableIterable<VirtualFileDescriptor> {
+                override fun iterator() = newArchiveIterator(archive)
+            }
+
+            override fun afterBackup() {
+                archive.close()
+            }
+        }
+    }
 
     fun newBackupable(file: File, gzip: Boolean) = Backupable {
         val stream = if (gzip) {
