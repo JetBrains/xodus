@@ -30,6 +30,7 @@ import org.junit.Assert
 import org.junit.Test
 import java.io.File
 
+private const val ENTRIES = 1000
 private val expectedException = InvalidCipherParametersException::class.java
 
 class InvalidCipherParametersTest {
@@ -40,7 +41,6 @@ class InvalidCipherParametersTest {
         val dir = TestUtil.createTempDir()
         Assert.assertEquals(createEnvironment(dir, null, null, null),
                 openEnvironment(dir, null, null, null))
-
     }
 
     @TestFor(issue = "XD-666")
@@ -50,7 +50,7 @@ class InvalidCipherParametersTest {
         Assert.assertEquals(createEnvironment(dir, null, null, null),
                 openEnvironment(dir, CHACHA_CIPHER_ID,
                         "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0, expectedException))
-
+        //openEnvironment(dir, null, null, null)
     }
 
     @TestFor(issue = "XD-666")
@@ -96,11 +96,10 @@ class InvalidCipherParametersTest {
 // create environment with specified cipher parameters
 private fun createEnvironment(dir: File, cipherId: String?, cipherKey: String?, basicIV: Long?): Long {
     val ec = newEnvironmentConfig(cipherId, cipherKey, basicIV)
-    ec.isGcEnabled = false
+    ec.gcStartIn = 10
     Environments.newInstance(dir, ec).use { env ->
         val store = env.computeInTransaction { txn -> env.openStore("NaturalInteger", StoreConfig.WITHOUT_DUPLICATES, txn) }
-        // 10000 database roots
-        for (i in 1..1000) {
+        for (i in 0 until ENTRIES) {
             env.executeInTransaction({ txn ->
                 store.put(txn, IntegerBinding.intToCompressedEntry(i), StringBinding.stringToEntry(i.toString(10)))
             })
@@ -116,15 +115,22 @@ private fun openEnvironment(dir: File, cipherId: String?, cipherKey: String?, ba
     val ec = newEnvironmentConfig(cipherId, cipherKey, basicIV)
     if (exceptionClass == null) {
         Environments.newInstance(dir, ec).use { env ->
+            val store = env.computeInTransaction { txn -> env.openStore("NaturalInteger", StoreConfig.WITHOUT_DUPLICATES, txn) }
+            env.executeInReadonlyTransaction { txn ->
+                for (i in 0 until ENTRIES) {
+                    Assert.assertEquals(StringBinding.stringToEntry(i.toString(10)),
+                            store.get(txn, IntegerBinding.intToCompressedEntry(i)))
+                }
+                Assert.assertNull(store.get(txn, IntegerBinding.intToCompressedEntry(ENTRIES)))
+            }
             return (env as EnvironmentImpl).log.highAddress
         }
     } else {
         TestUtil.runWithExpectedException({
             Environments.newInstance(dir, ec)
         }, exceptionClass)
-        var result = 0L
-        dir.listFiles { _, name -> name.endsWith(LogUtil.LOG_FILE_EXTENSION) }.forEach { result += it.length() }
-        return result
+        val highFile = dir.list { _, name -> name.endsWith(LogUtil.LOG_FILE_EXTENSION) }.apply { sortDescending() }[0]
+        return LogUtil.getAddress(highFile) + File(dir, highFile).length()
     }
 }
 
