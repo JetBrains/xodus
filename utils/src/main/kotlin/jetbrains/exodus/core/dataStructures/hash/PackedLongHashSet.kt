@@ -22,7 +22,7 @@ private const val LONG_BITS: Long = SIZE.toLong()
 
 class PackedLongHashSet : AbstractSet<Long>(), LongSet {
 
-    private val map = LongHashMap<Long>()
+    private val map = LongHashMap<Long>(40, 2f)
     private var count: Int = 0
 
     override val size: Int
