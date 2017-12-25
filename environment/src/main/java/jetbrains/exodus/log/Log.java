@@ -321,7 +321,9 @@ public final class Log implements Closeable {
         final LongIterator files = blockAddrs.getFilesFrom(fileAddress);
         if (files.hasNext()) {
             final long result = files.nextLong();
-            if (result > fileAddress) return result;
+            if (result != fileAddress) {
+                throw new ExodusException("There is no file by address " + fileAddress);
+            }
             if (files.hasNext()) {
                 return files.nextLong();
             }
