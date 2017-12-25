@@ -94,7 +94,7 @@ class AsyncEncryptionTest {
 
         override fun onFileEnd(header: FileHeader) = Unit
 
-        override fun onData(size: Int, data: ByteArray) {
+        override fun onData(header: FileHeader, size: Int, data: ByteArray) {
             val start = index
             val end = start + size
             if (end > output.size) {

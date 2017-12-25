@@ -41,7 +41,7 @@ object DirectoryEncryptListenerFactory : KLogging() {
                 fileOut?.close() ?: throw IllegalStateException("No file in progress")
             }
 
-            override fun onData(size: Int, data: ByteArray) {
+            override fun onData(header: FileHeader, size: Int, data: ByteArray) {
                 fileOut?.write(data, 0, size) ?: throw IllegalStateException("No file in progress")
             }
         }

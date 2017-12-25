@@ -40,7 +40,7 @@ object ArchiveEncryptListenerFactory : KLogging() {
                         archive.closeArchiveEntry()
                     }
 
-                    override fun onData(size: Int, data: ByteArray) {
+                    override fun onData(header: FileHeader, size: Int, data: ByteArray) {
                         archive.write(data, 0, size)
                     }
                 }
@@ -59,7 +59,7 @@ object ArchiveEncryptListenerFactory : KLogging() {
                         archive.closeArchiveEntry()
                     }
 
-                    override fun onData(size: Int, data: ByteArray) {
+                    override fun onData(header: FileHeader, size: Int, data: ByteArray) {
                         archive.write(data, 0, size)
                     }
                 }

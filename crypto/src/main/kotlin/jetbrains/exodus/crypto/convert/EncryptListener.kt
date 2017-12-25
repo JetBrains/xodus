@@ -18,5 +18,5 @@ package jetbrains.exodus.crypto.convert
 interface EncryptListener {
     fun onFile(header: FileHeader)
     fun onFileEnd(header: FileHeader)
-    fun onData(size: Int, data: ByteArray)
+    fun onData(header: FileHeader, size: Int, data: ByteArray)
 }

@@ -137,7 +137,7 @@ class ScytaleEngine(
                             if (current != null && current != it.header) {
                                 throw Throwable("Invalid chunk with header " + it.header.path)
                             } else {
-                                listener.onData(it.size, it.data)
+                                listener.onData(it.header, it.size, it.data)
                                 bufferAllocator.dispose(it.data)
                             }
                         }
