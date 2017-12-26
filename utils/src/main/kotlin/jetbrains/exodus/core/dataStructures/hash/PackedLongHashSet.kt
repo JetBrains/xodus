@@ -23,7 +23,7 @@ private const val LONG_BITS_LOG: Int = 6
 
 class PackedLongHashSet : AbstractSet<Long>(), LongSet {
 
-    private val map = LongHashMap<Long>(50)
+    private val map = LongHashMap<BitsHolder>(20)
     private var count: Int = 0
 
     override val size: Int
@@ -33,7 +33,7 @@ class PackedLongHashSet : AbstractSet<Long>(), LongSet {
 
     override fun contains(element: Long): Boolean {
         val v = map[element.key]
-        return v != null && v and masks[element.bit] != 0L
+        return v != null && v.bits and masks[element.bit] != 0L
     }
 
     override fun add(element: Long): Boolean {
@@ -42,14 +42,14 @@ class PackedLongHashSet : AbstractSet<Long>(), LongSet {
         val mask = masks[bit]
         val v = map[key]
         if (v == null) {
-            map[key] = mask
+            map[key] = BitsHolder(mask)
             ++count
             return true
         }
-        if (v and mask != 0L) {
+        if (v.bits and mask != 0L) {
             return false
         }
-        map[key] = v xor mask
+        v.bits = v.bits xor mask
         ++count
         return true
     }
@@ -58,15 +58,14 @@ class PackedLongHashSet : AbstractSet<Long>(), LongSet {
         val key = element.key
         val bit = element.bit
         val mask = masks[bit]
-        var v = map[key]
-        if (v == null || v and mask == 0L) {
+        val v = map[key] ?: return false
+        val bits = v.bits
+        if (bits and mask == 0L) {
             return false
         }
-        v = v xor mask
-        if (v == 0L) {
+        v.bits = bits xor mask
+        if (v.bits == 0L) {
             map.remove(key)
-        } else {
-            map[key] = v
         }
         --count
         return true
@@ -101,7 +100,7 @@ class PackedLongHashSet : AbstractSet<Long>(), LongSet {
             var i = 0
             map.forEach {
                 val base = it.key shl LONG_BITS_LOG
-                val value = it.value
+                val value = it.value.bits
                 @Suppress("LoopToCallChain")
                 for (j in 0 until LONG_BITS) {
                     if (value and masks[j] != 0L) {
@@ -111,6 +110,8 @@ class PackedLongHashSet : AbstractSet<Long>(), LongSet {
             }
         }
     }
+
+    private class BitsHolder(var bits: Long = 0L)
 
     companion object {
 
