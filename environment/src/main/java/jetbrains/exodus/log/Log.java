@@ -47,7 +47,7 @@ public final class Log implements Closeable {
     private final long created;
     @NotNull
     private final String location;
-    private final LogFileSet blockAddrs;
+    private final LogFileSet fileAddresses;
     final LogCache cache;
 
     private volatile boolean isClosing;
@@ -94,7 +94,7 @@ public final class Log implements Closeable {
             throw new InvalidSettingException("File size should be a multiple of cache page size.");
         }
         fileLengthBound = fileLength;
-        blockAddrs = new LogFileSet(fileLength);
+        fileAddresses = new LogFileSet(fileLength);
         reader = config.getReader();
         reader.setLog(this);
         location = reader.getLocation();
@@ -122,7 +122,7 @@ public final class Log implements Closeable {
         approvedHighAddress = 0;
 
         final DataWriter baseWriter = config.getWriter();
-        final Long lastFileAddress = blockAddrs.getMaximum();
+        final Long lastFileAddress = fileAddresses.getMaximum();
         if (lastFileAddress == null) {
             setBufferedWriter(createEmptyBufferedWriter(baseWriter));
         } else {
@@ -187,11 +187,11 @@ public final class Log implements Closeable {
                     throw new ExodusException(clearLogReason);
                 }
                 logger.error("Clearing log due to: " + clearLogReason);
-                blockAddrs.clear();
+                fileAddresses.clear();
                 reader.clear();
                 break;
             }
-            blockAddrs.add(address);
+            fileAddresses.add(address);
         }
     }
 
@@ -221,7 +221,7 @@ public final class Log implements Closeable {
     }
 
     public long getNumberOfFiles() {
-        return blockAddrs.size();
+        return fileAddresses.size();
     }
 
     /**
@@ -230,7 +230,7 @@ public final class Log implements Closeable {
      * @return array of file addresses.
      */
     public long[] getAllFileAddresses() {
-        return blockAddrs.getArray();
+        return fileAddresses.getArray();
     }
 
     public long getHighAddress() {
@@ -257,7 +257,7 @@ public final class Log implements Closeable {
         bufferedWriter.close();
         final LongArrayList blocksToDelete = new LongArrayList();
         long blockToTruncate = -1L;
-        for (final long blockAddress : blockAddrs.getArray()) {
+        for (final long blockAddress : fileAddresses.getArray()) {
             if (blockAddress <= highAddress) {
                 blockToTruncate = blockAddress;
                 break;
@@ -275,7 +275,7 @@ public final class Log implements Closeable {
 
         // update buffered writer
         final DataWriter baseWriter = config.getWriter();
-        if (blockAddrs.isEmpty()) {
+        if (fileAddresses.isEmpty()) {
             this.highAddress = 0;
             approvedHighAddress = 0;
             setBufferedWriter(createEmptyBufferedWriter(baseWriter));
@@ -306,7 +306,7 @@ public final class Log implements Closeable {
     }
 
     public long getLowAddress() {
-        final Long result = blockAddrs.getMinimum();
+        final Long result = fileAddresses.getMinimum();
         return result == null ? Loggable.NULL_ADDRESS : result;
     }
 
@@ -319,7 +319,7 @@ public final class Log implements Closeable {
     }
 
     public long getNextFileAddress(final long fileAddress) {
-        final LongIterator files = blockAddrs.getFilesFrom(fileAddress);
+        final LongIterator files = fileAddresses.getFilesFrom(fileAddress);
         if (files.hasNext()) {
             final long result = files.nextLong();
             if (result != fileAddress) {
@@ -338,17 +338,17 @@ public final class Log implements Closeable {
 
     public boolean hasAddress(final long address) {
         final long fileAddress = getFileAddress(address);
-        final LongIterator files = blockAddrs.getFilesFrom(fileAddress);
+        final LongIterator files = fileAddresses.getFilesFrom(fileAddress);
         if (!files.hasNext()) {
             return false;
         }
         final long leftBound = files.nextLong();
-        return leftBound + getFileSize(leftBound) > address;
+        return leftBound == fileAddress && leftBound + getFileSize(leftBound) > address;
     }
 
     public boolean hasAddressRange(final long from, final long to) {
         long fileAddress = getFileAddress(from);
-        final LongIterator files = blockAddrs.getFilesFrom(fileAddress);
+        final LongIterator files = fileAddresses.getFilesFrom(fileAddress);
         do {
             if (!files.hasNext() || files.nextLong() != fileAddress) {
                 return false;
@@ -505,7 +505,7 @@ public final class Log implements Closeable {
      */
     @Nullable
     public Loggable getFirstLoggableOfType(final int type) {
-        final LongIterator files = blockAddrs.getFilesFrom(0);
+        final LongIterator files = fileAddresses.getFilesFrom(0);
         while (files.hasNext()) {
             final long fileAddress = files.nextLong();
             final Iterator<RandomAccessLoggable> it = getLoggableIterator(fileAddress);
@@ -534,7 +534,7 @@ public final class Log implements Closeable {
     @Nullable
     public Loggable getLastLoggableOfType(final int type) {
         Loggable result = null;
-        for (final long fileAddress : blockAddrs.getArray()) {
+        for (final long fileAddress : fileAddresses.getArray()) {
             if (result != null) {
                 break;
             }
@@ -563,7 +563,7 @@ public final class Log implements Closeable {
      */
     public Loggable getLastLoggableOfTypeBefore(final int type, final long beforeAddress) {
         Loggable result = null;
-        for (final long fileAddress : blockAddrs.getArray()) {
+        for (final long fileAddress : fileAddresses.getArray()) {
             if (result != null) {
                 break;
             }
@@ -612,9 +612,7 @@ public final class Log implements Closeable {
         reader.close();
         bufferedWriter.close();
         release();
-        synchronized (blockAddrs) {
-            blockAddrs.clear();
-        }
+        fileAddresses.clear();
     }
 
     public boolean isClosing() {
@@ -627,9 +625,7 @@ public final class Log implements Closeable {
 
     public void clear() {
         bufferedWriter.close();
-        synchronized (blockAddrs) {
-            blockAddrs.clear();
-        }
+        fileAddresses.clear();
         cache.clear();
         reader.clear();
         setBufferedWriter(createEmptyBufferedWriter(bufferedWriter.getChildWriter()));
@@ -652,7 +648,7 @@ public final class Log implements Closeable {
             // remove physical file
             reader.removeBlock(address, rbt);
             // remove address of file of the list
-            blockAddrs.remove(address);
+            fileAddresses.remove(address);
             // clear cache
             for (long offset = 0; offset < fileLengthBound; offset += cachePageSize) {
                 cache.removePage(this, address + offset);
@@ -710,7 +706,7 @@ public final class Log implements Closeable {
     /**
      * For tests only!!!
      */
-    public static synchronized void invalidateSharedCache() {
+    public static void invalidateSharedCache() {
         synchronized (Log.class) {
             sharedCache = null;
         }
@@ -723,7 +719,7 @@ public final class Log implements Closeable {
     @SuppressWarnings("ConstantConditions")
     int readBytes(final byte[] output, final long address) {
         final long fileAddress = getFileAddress(address);
-        final LongIterator files = blockAddrs.getFilesFrom(fileAddress);
+        final LongIterator files = fileAddresses.getFilesFrom(fileAddress);
         if (files.hasNext()) {
             final long leftBound = files.nextLong();
             final long fileSize = getFileSize(leftBound);
@@ -738,10 +734,10 @@ public final class Log implements Closeable {
                 notifyReadBytes(output, readBytes);
                 return readBytes;
             }
-            if (fileAddress < blockAddrs.getMinimum()) {
+            if (fileAddress < fileAddresses.getMinimum()) {
                 BlockNotFoundException.raise("Address is out of log space, underflow", this, address);
             }
-            if (fileAddress >= blockAddrs.getMaximum()) {
+            if (fileAddress >= fileAddresses.getMaximum()) {
                 BlockNotFoundException.raise("Address is out of log space, overflow", this, address);
             }
         }
@@ -857,9 +853,9 @@ public final class Log implements Closeable {
         if (!bufferedWriter.isOpen()) {
             final long fileAddress = getFileAddress(result);
             bufferedWriter.openOrCreateBlock(fileAddress, getLastFileLength());
-            final boolean fileCreated = !blockAddrs.contains(fileAddress);
+            final boolean fileCreated = !fileAddresses.contains(fileAddress);
             if (fileCreated) {
-                blockAddrs.add(fileAddress);
+                fileAddresses.add(fileAddress);
             }
             if (fileCreated) {
                 // fsync the directory to ensure we will find the log file in the directory after system crash
@@ -905,10 +901,7 @@ public final class Log implements Closeable {
 
             bufferedWriter.close();
             if (config.isFullFileReadonly()) {
-                final Long lastFile;
-                synchronized (blockAddrs) {
-                    lastFile = blockAddrs.getMaximum();
-                }
+                final Long lastFile = fileAddresses.getMaximum();
                 if (lastFile != null) {
                     reader.getBlock(lastFile).setReadOnly();
                 }
