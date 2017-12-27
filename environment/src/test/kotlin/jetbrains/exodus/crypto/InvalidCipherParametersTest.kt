@@ -106,8 +106,12 @@ class InvalidCipherParametersTest {
 private fun createEnvironment(dir: File, cipherId: String?, cipherKey: String?, basicIV: Long?): Long {
     val ec = newEnvironmentConfig(cipherId, cipherKey, basicIV)
     ec.gcStartIn = 10
+    ec.gcFilesDeletionDelay = 0
     Environments.newInstance(dir, ec).use { env ->
-        val store = env.computeInTransaction { txn -> env.openStore("NaturalInteger", StoreConfig.WITHOUT_DUPLICATES, txn) }
+        val store = env.computeInTransaction { txn ->
+            env.openStore(
+                    "NaturalInteger", StoreConfig.WITHOUT_DUPLICATES, txn)
+        }
         for (i in 0 until ENTRIES) {
             env.executeInTransaction({ txn ->
                 store.put(txn, IntegerBinding.intToCompressedEntry(i), StringBinding.stringToEntry(i.toString(10)))
@@ -124,7 +128,10 @@ private fun openEnvironment(dir: File, cipherId: String?, cipherKey: String?, ba
     val ec = newEnvironmentConfig(cipherId, cipherKey, basicIV)
     if (exceptionClass == null) {
         Environments.newInstance(dir, ec).use { env ->
-            val store = env.computeInTransaction { txn -> env.openStore("NaturalInteger", StoreConfig.WITHOUT_DUPLICATES, txn) }
+            val store = env.computeInTransaction { txn ->
+                env.openStore(
+                        "NaturalInteger", StoreConfig.USE_EXISTING, txn)
+            }
             env.executeInReadonlyTransaction { txn ->
                 for (i in 0 until ENTRIES) {
                     Assert.assertEquals(StringBinding.stringToEntry(i.toString(10)),
