@@ -23,6 +23,7 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.io.FilenameFilter;
 
+@SuppressWarnings("WeakerAccess")
 public final class LogUtil {
 
     public static final int LOG_BLOCK_ALIGNMENT = 1024; // log files are aligned by kilobytes
@@ -36,7 +37,7 @@ public final class LogUtil {
         @Override
         public boolean accept(File dir, String name) {
             return name.length() == LogUtil.LOG_FILE_NAME_WITH_EXT_LENGTH &&
-                    name.endsWith(LogUtil.LOG_FILE_EXTENSION);
+                name.endsWith(LogUtil.LOG_FILE_EXTENSION);
         }
     };
 
@@ -62,14 +63,12 @@ public final class LogUtil {
             throw new ExodusException("Starting address of a log file is badly aligned: " + address);
         }
         address /= LOG_BLOCK_ALIGNMENT;
-        final char[] alphabet = LOG_FILE_NAME_ALPHABET;
         char[] name = new char[LOG_FILE_NAME_WITH_EXT_LENGTH];
         for (int i = 1; i <= LOG_FILE_NAME_LENGTH; i++) {
-            name[LOG_FILE_NAME_LENGTH - i] = alphabet[(int) (address & 0x1f)];
+            name[LOG_FILE_NAME_LENGTH - i] = LOG_FILE_NAME_ALPHABET[(int) (address & 0x1f)];
             address >>= 5;
         }
-        char[] ext = LOG_FILE_EXTENSION_CHARS;
-        System.arraycopy(ext, 0, name, LOG_FILE_NAME_LENGTH, LOG_FILE_EXTENSION_LENGTH);
+        System.arraycopy(LOG_FILE_EXTENSION_CHARS, 0, name, LOG_FILE_NAME_LENGTH, LOG_FILE_EXTENSION_LENGTH);
         return new String(name);
     }
 
@@ -78,11 +77,10 @@ public final class LogUtil {
         if (length != LOG_FILE_NAME_WITH_EXT_LENGTH || !logFilename.endsWith(LOG_FILE_EXTENSION)) {
             throw new ExodusException("Invalid log file name: " + logFilename);
         }
-        final IntHashMap<Integer> idx = ALPHA_INDEXES;
         long address = 0;
         for (int i = 0; i < LOG_FILE_NAME_LENGTH; ++i) {
             final char c = logFilename.charAt(i);
-            final Integer integer = idx.get(c);
+            final Integer integer = ALPHA_INDEXES.get(c);
             if (integer == null) {
                 throw new ExodusException("Invalid log file name: " + logFilename);
             }
@@ -91,6 +89,7 @@ public final class LogUtil {
         return address * LOG_BLOCK_ALIGNMENT;
     }
 
+    @SuppressWarnings("unused")
     public static boolean isLogFile(@NotNull final File file) {
         return isLogFileName(file.getName());
     }
