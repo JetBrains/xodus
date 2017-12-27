@@ -18,15 +18,14 @@ package jetbrains.exodus.log
 import jetbrains.exodus.core.dataStructures.hash.LongIterator
 import jetbrains.exodus.core.dataStructures.persistent.PersistentBitTreeLongSet
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLongSet
-import jetbrains.exodus.core.dataStructures.persistent.read
-import jetbrains.exodus.core.dataStructures.persistent.writeFinally
+import java.util.concurrent.atomic.AtomicReference
 
 private const val BITS_PER_ENTRY = 7
 
 internal class LogFileSet(private val fileSize: Long) {
 
     // file key is aligned file address, i.e. file address divided by fileSize
-    private val fileKeys = PersistentBitTreeLongSet(BITS_PER_ENTRY)
+    private val fileKeys: AtomicReference<PersistentLongSet> = AtomicReference(PersistentBitTreeLongSet(BITS_PER_ENTRY))
 
     fun size() = current.size()
 
@@ -41,27 +40,14 @@ internal class LogFileSet(private val fileSize: Long) {
      */
     val array: LongArray
         get() {
-            var result: LongArray? = null
-            forEachIndexed { fileAddress, i ->
-                val r = result ?: LongArray(size())
-                r[i] = fileAddress
-                result = r
+            val current = current
+            val result = LongArray(current.size())
+            val it = current.reverseLongIterator()
+            for (i in 0 until result.size) {
+                result[i] = it.nextLong().keyToAddress
             }
-            return result ?: LongArray(0)
+            return result
         }
-
-    /**
-     * Applies a function for all files, the newer first
-     */
-    fun forEachIndexed(block: PersistentLongSet.ImmutableSet.(Long, Int) -> Unit) {
-        fileKeys.read {
-            val it = reverseLongIterator()
-            var i = 0
-            while (it.hasNext()) {
-                block(it.nextLong().keyToAddress, i++)
-            }
-        }
-    }
 
     fun contains(fileAddress: Long) = current.contains(fileAddress.addressToKey)
 
@@ -78,13 +64,25 @@ internal class LogFileSet(private val fileSize: Long) {
                 override fun remove() = throw UnsupportedOperationException()
             }
 
-    fun clear() = fileKeys.writeFinally { clear() }
+    fun clear() = writeFinally { clear() }
 
-    fun add(fileAddress: Long) = fileKeys.writeFinally { add(fileAddress.addressToKey) }
+    fun add(fileAddress: Long) = writeFinally { add(fileAddress.addressToKey) }
 
-    fun remove(fileAddress: Long) = fileKeys.writeFinally { remove(fileAddress.addressToKey) }
+    fun remove(fileAddress: Long) = writeFinally { remove(fileAddress.addressToKey) }
 
-    private val current: PersistentLongSet.ImmutableSet get() = fileKeys.beginRead()
+    private fun <T> writeFinally(block: PersistentLongSet.MutableSet.() -> T): T {
+        var result: T
+        do {
+            val thisSet = fileKeys.get()
+            val newSet = thisSet.clone
+            val mutableSet = newSet.beginWrite()
+            result = mutableSet.block()
+            mutableSet.endWrite()
+        } while (!fileKeys.compareAndSet(thisSet, newSet))
+        return result
+    }
+
+    private val current: PersistentLongSet.ImmutableSet get() = fileKeys.get().beginRead()
 
     private val Long.keyToAddress: Long get() = this * fileSize
 
