@@ -259,15 +259,17 @@ public final class EntityIterableCache {
 
         private final boolean isConsistent;
         private final long startTime;
+        private final long cachingTimeout;
         private EntityIterableCacheAdapter localCache;
 
         private CachingCancellingPolicy(final boolean isConsistent) {
             this.isConsistent = isConsistent;
             startTime = System.currentTimeMillis();
+            cachingTimeout = config.getEntityIterableCacheCachingTimeout();
         }
 
         private boolean isOverdue(final long currentMillis) {
-            return currentMillis - startTime > config.getEntityIterableCacheCachingTimeout();
+            return currentMillis - startTime > cachingTimeout;
         }
 
         private void setLocalCache(@NotNull final EntityIterableCacheAdapter localCache) {
