@@ -127,6 +127,12 @@ final class CursorImpl implements Cursor {
     }
 
     @Override
+    public boolean isMutable() {
+        checkTreeCursor();
+        return treeCursor.isMutable();
+    }
+
+    @Override
     public void close() {
         if (isClosed) {
             throw new ExodusException("Cursor is already closed");
