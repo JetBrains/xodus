@@ -150,7 +150,8 @@ public abstract class EntityIteratorBase implements EntityIterator {
 
     @Override
     public boolean shouldBeDisposed() {
-        return true;
+        final Cursor cursor = this.cursor;
+        return cursor != null && cursor.isMutable();
     }
 
     @Override
