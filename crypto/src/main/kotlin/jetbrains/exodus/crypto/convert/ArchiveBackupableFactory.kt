@@ -22,6 +22,8 @@ import mu.KLogging
 import org.apache.commons.compress.archivers.ArchiveEntry
 import org.apache.commons.compress.archivers.ArchiveInputStream
 import org.apache.commons.compress.archivers.ArchiveStreamFactory
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
+import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileInputStream
@@ -32,8 +34,11 @@ import java.util.zip.GZIPInputStream
 object ArchiveBackupableFactory : KLogging() {
     private val separators = charArrayOf('\\', '/')
 
-    fun newBackupable(stream:InputStream) = Backupable {
-        val archive = ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(stream))
+    @Suppress("unused")
+    fun newBackupable(stream: InputStream, gzip: Boolean) = Backupable {
+        val archive = if (gzip) TarArchiveInputStream(GzipCompressorInputStream(BufferedInputStream(stream))) else
+            ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(stream))
+
         object : BackupStrategy() {
             override fun getContents() = object : MutableIterable<VirtualFileDescriptor> {
                 override fun iterator() = newArchiveIterator(archive)
