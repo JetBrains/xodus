@@ -227,6 +227,16 @@ public interface Cursor extends Closeable {
     int count();
 
     /**
+     * Cursor is mutable if it is created in a transaction which has dirty (not flushed/committed) modifications.
+     * Mutable cursors automatically pick up changes made using {@linkplain Store#add(Transaction, ByteIterable, ByteIterable)},
+     * {@linkplain Store#put(Transaction, ByteIterable, ByteIterable)} and {@linkplain Store#delete(Transaction, ByteIterable)}
+     * methods.
+     *
+     * @return {@code true} if cursor is mutable
+     */
+    boolean isMutable();
+
+    /**
      * This method should always be called as immediately as possible to avoid unnecessary performance degradation.
      */
     void close();
