@@ -16,6 +16,7 @@
 package jetbrains.exodus.env;
 
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.core.dataStructures.decorators.HashMapDecorator;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.TreeMetaInfo;
@@ -23,6 +24,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Base class for transactions.
@@ -36,6 +38,8 @@ public abstract class TransactionBase implements Transaction {
     private MetaTree metaTree;
     @NotNull
     private final IntHashMap<ITree> immutableTrees;
+    @NotNull
+    private final Map<Object, Object> userObjects;
     @Nullable
     private final Throwable trace;
     private final long created; // created is the ticks when the txn was actually created (constructed)
@@ -51,6 +55,7 @@ public abstract class TransactionBase implements Transaction {
         this.isExclusive = isExclusive;
         wasCreatedExclusive = isExclusive;
         immutableTrees = new IntHashMap<>();
+        userObjects = new HashMapDecorator<>();
         trace = env.transactionTimeout() > 0 ? new Throwable() : null;
         created = System.currentTimeMillis();
         started = created;
@@ -98,6 +103,17 @@ public abstract class TransactionBase implements Transaction {
     @Override
     public boolean isFinished() {
         return isFinished;
+    }
+
+    @Override
+    @Nullable
+    public Object getUserObject(@NotNull final Object key) {
+        return userObjects.get(key);
+    }
+
+    @Override
+    public void setUserObject(@NotNull final Object key, @NotNull final Object value) {
+        userObjects.put(key, value);
     }
 
     @NotNull

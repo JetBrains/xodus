@@ -180,4 +180,22 @@ public interface Transaction {
      * @see #abort()
      */
     boolean isFinished();
+
+    /**
+     * Returns an user object identified by the specified key and bound to the transaction, or {@code null} if no
+     * object is bound to the transaction by the specified key.
+     *
+     * @param key a key identifying the user object
+     * @return an user object identified by the specified key and bound to the transaction
+     */
+    @Nullable
+    Object getUserObject(@NotNull final Object key);
+
+    /**
+     * Bind an user object ({@code value}) identified by a key to the transaction.
+     *
+     * @param key   a key identifying the user object
+     * @param value user object bound to the transaction
+     */
+    void setUserObject(@NotNull final Object key, @NotNull final Object value);
 }
