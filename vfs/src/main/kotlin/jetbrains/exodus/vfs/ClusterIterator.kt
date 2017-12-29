@@ -22,7 +22,7 @@ import jetbrains.exodus.kotlin.notNull
 import java.io.Closeable
 
 internal class ClusterIterator @JvmOverloads constructor(private val vfs: VirtualFileSystem,
-                                                         txn: Transaction,
+                                                         private val txn: Transaction,
                                                          private val fd: Long,
                                                          position: Long = 0L) : Closeable {
     private val cursor: Cursor = vfs.contents.openCursor(txn)
@@ -166,9 +166,13 @@ internal class ClusterIterator @JvmOverloads constructor(private val vfs: Virtua
         if (clusterKey.descriptor != fd) {
             current = null
         } else {
-            val cancellingPolicyProvider = vfs.cancellingPolicyProvider
-            if (cancellingPolicyProvider != null) {
-                val cancellingPolicy = cancellingPolicyProvider.policy
+            val provider = vfs.cancellingPolicyProvider
+            if (provider != null) {
+                var cancellingPolicy = txn.getUserObject(provider) as IOCancellingPolicy?
+                if (cancellingPolicy == null) {
+                    cancellingPolicy = provider.policy
+                    txn.setUserObject(provider, cancellingPolicy)
+                }
                 if (cancellingPolicy.needToCancel()) {
                     cancellingPolicy.doCancel()
                 }
