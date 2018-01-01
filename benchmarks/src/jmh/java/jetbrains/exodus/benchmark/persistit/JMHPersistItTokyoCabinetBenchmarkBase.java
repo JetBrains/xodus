@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2017 JetBrains s.r.o.
+ * Copyright 2010 - 2018 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,6 @@ import com.persistit.Persistit;
 import com.persistit.Volume;
 import com.persistit.exception.PersistitException;
 import com.persistit.logging.Slf4jAdapter;
-import java.io.IOException;
-import java.util.Properties;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.benchmark.TokyoCabinetBenchmark;
 import org.jetbrains.annotations.NotNull;
@@ -29,6 +27,9 @@ import org.junit.rules.TemporaryFolder;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.TearDown;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.Properties;
 
 abstract class JMHPersistItTokyoCabinetBenchmarkBase {
 

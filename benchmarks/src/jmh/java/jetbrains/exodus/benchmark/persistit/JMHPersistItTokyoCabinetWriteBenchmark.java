@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2017 JetBrains s.r.o.
+ * Copyright 2010 - 2018 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,24 +17,13 @@ package jetbrains.exodus.benchmark.persistit;
 
 import com.persistit.Exchange;
 import com.persistit.exception.PersistitException;
+import jetbrains.exodus.ByteIterable;
+import org.openjdk.jmh.annotations.*;
+
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
-import jetbrains.exodus.ByteIterable;
-import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.Fork;
-import org.openjdk.jmh.annotations.Level;
-import org.openjdk.jmh.annotations.Measurement;
-import org.openjdk.jmh.annotations.Mode;
-import org.openjdk.jmh.annotations.OutputTimeUnit;
-import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
-import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.Warmup;
 
-import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.FORKS;
-import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.MEASUREMENT_ITERATIONS;
-import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.WARMUP_ITERATIONS;
+import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.*;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
