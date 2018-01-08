@@ -276,7 +276,13 @@ public final class GarbageCollector {
         final LongSet cleanedFiles = new PackedLongHashSet();
         final ReadWriteTransaction txn;
         try {
-            txn = useRegularTxn ? (ReadWriteTransaction) env.beginTransaction() : env.beginGCTransaction();
+            final TransactionBase tx = useRegularTxn ? env.beginTransaction() : env.beginGCTransaction();
+            // tx can be read-only, so we should manually finish it (see XD-667)
+            if (tx.isReadonly()) {
+                tx.abort();
+                return false;
+            }
+            txn = (ReadWriteTransaction) tx;
         } catch (TransactionAcquireTimeoutException ignore) {
             return false;
         }
