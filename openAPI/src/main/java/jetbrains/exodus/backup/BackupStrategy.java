@@ -50,25 +50,22 @@ public abstract class BackupStrategy {
     public void beforeBackup() throws Exception {
     }
 
-    public abstract Iterable<VirtualFileDescriptor> getContents();
-
-    @Deprecated
-    public Iterable<FileDescriptor> listFiles() {
-        final Iterable<VirtualFileDescriptor> contents = getContents();
-        return new Iterable<FileDescriptor>() {
+    public Iterable<VirtualFileDescriptor> getContents() {
+        final Iterable<FileDescriptor> contents = listFiles();
+        return new Iterable<VirtualFileDescriptor>() {
             @NotNull
             @Override
-            public Iterator<FileDescriptor> iterator() {
-                final Iterator<VirtualFileDescriptor> sourceItr = contents.iterator();
-                return new Iterator<FileDescriptor>() {
+            public Iterator<VirtualFileDescriptor> iterator() {
+                final Iterator<FileDescriptor> sourceItr = contents.iterator();
+                return new Iterator<VirtualFileDescriptor>() {
                     @Override
                     public boolean hasNext() {
                         return sourceItr.hasNext();
                     }
 
                     @Override
-                    public FileDescriptor next() {
-                        return ((FileDescriptor) sourceItr.next());
+                    public VirtualFileDescriptor next() {
+                        return sourceItr.next();
                     }
 
                     @Override
@@ -78,6 +75,11 @@ public abstract class BackupStrategy {
                 };
             }
         };
+    }
+
+    @Deprecated
+    public Iterable<FileDescriptor> listFiles() {
+        return Collections.emptyList();
     }
 
     /**

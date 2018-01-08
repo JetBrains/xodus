@@ -36,18 +36,11 @@ object ArchiveBackupableFactory : KLogging() {
 
     @Suppress("unused")
     fun newBackupable(stream: InputStream, gzip: Boolean) = Backupable {
-        val archive = if (gzip) TarArchiveInputStream(GzipCompressorInputStream(BufferedInputStream(stream))) else
+        newArchiveBackupStrategy(if (gzip) {
+            TarArchiveInputStream(GzipCompressorInputStream(BufferedInputStream(stream)))
+        } else {
             ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(stream))
-
-        object : BackupStrategy() {
-            override fun getContents() = object : MutableIterable<VirtualFileDescriptor> {
-                override fun iterator() = newArchiveIterator(archive)
-            }
-
-            override fun afterBackup() {
-                archive.close()
-            }
-        }
+        })
     }
 
     fun newBackupable(file: File, gzip: Boolean) = Backupable {
@@ -57,7 +50,11 @@ object ArchiveBackupableFactory : KLogging() {
             FileInputStream(file)
         }
         val archive = ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(stream))
-        object : BackupStrategy() {
+        newArchiveBackupStrategy(archive)
+    }
+
+    private fun newArchiveBackupStrategy(archive: ArchiveInputStream): BackupStrategy {
+        return object : BackupStrategy() {
             override fun getContents() = object : MutableIterable<VirtualFileDescriptor> {
                 override fun iterator() = newArchiveIterator(archive)
             }
