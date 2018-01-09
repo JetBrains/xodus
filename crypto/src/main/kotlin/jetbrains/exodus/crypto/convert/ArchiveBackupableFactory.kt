@@ -32,11 +32,11 @@ object ArchiveBackupableFactory : KLogging() {
     private val separators = charArrayOf('\\', '/')
 
     fun newBackupable(stream: InputStream, gzip: Boolean) = Backupable {
-        newArchiveBackupStrategy(if (gzip) {
-            ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(GZIPInputStream(stream)))
+        newArchiveBackupStrategy(ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(if (gzip) {
+            GZIPInputStream(stream)
         } else {
-            ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(stream))
-        })
+            stream
+        })))
     }
 
     fun newBackupable(file: File, gzip: Boolean) = newBackupable(file.inputStream(), gzip)
