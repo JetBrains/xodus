@@ -22,11 +22,8 @@ import mu.KLogging
 import org.apache.commons.compress.archivers.ArchiveEntry
 import org.apache.commons.compress.archivers.ArchiveInputStream
 import org.apache.commons.compress.archivers.ArchiveStreamFactory
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
-import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
 import java.io.BufferedInputStream
 import java.io.File
-import java.io.FileInputStream
 import java.io.InputStream
 import java.util.*
 import java.util.zip.GZIPInputStream
@@ -37,21 +34,13 @@ object ArchiveBackupableFactory : KLogging() {
     @Suppress("unused")
     fun newBackupable(stream: InputStream, gzip: Boolean) = Backupable {
         newArchiveBackupStrategy(if (gzip) {
-            TarArchiveInputStream(GzipCompressorInputStream(BufferedInputStream(stream)))
+            ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(GZIPInputStream(stream)))
         } else {
             ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(stream))
         })
     }
 
-    fun newBackupable(file: File, gzip: Boolean) = Backupable {
-        val stream = if (gzip) {
-            GZIPInputStream(FileInputStream(file))
-        } else {
-            FileInputStream(file)
-        }
-        val archive = ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(stream))
-        newArchiveBackupStrategy(archive)
-    }
+    fun newBackupable(file: File, gzip: Boolean) = newBackupable(file.inputStream(), gzip)
 
     private fun newArchiveBackupStrategy(archive: ArchiveInputStream): BackupStrategy {
         return object : BackupStrategy() {
