@@ -31,7 +31,6 @@ import java.util.zip.GZIPInputStream
 object ArchiveBackupableFactory : KLogging() {
     private val separators = charArrayOf('\\', '/')
 
-    @Suppress("unused")
     fun newBackupable(stream: InputStream, gzip: Boolean) = Backupable {
         newArchiveBackupStrategy(if (gzip) {
             ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(GZIPInputStream(stream)))
