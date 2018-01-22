@@ -21,6 +21,7 @@ import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.env.TransactionBase
 import jetbrains.exodus.kotlin.notNull
 import java.io.Closeable
+import java.lang.ref.WeakReference
 
 internal class ClusterIterator @JvmOverloads constructor(private val vfs: VirtualFileSystem,
                                                          private val txn: Transaction,
@@ -170,10 +171,12 @@ internal class ClusterIterator @JvmOverloads constructor(private val vfs: Virtua
         } else {
             val provider = vfs.cancellingPolicyProvider
             if (provider != null) {
-                var cancellingPolicy = txn.getUserObject(provider) as IOCancellingPolicy?
+                // TODO: remove WeakReference here when ExodusIndexInput checks VfsInputStream transaction state
+                @Suppress("UNCHECKED_CAST")
+                var cancellingPolicy: IOCancellingPolicy? = (txn.getUserObject(provider) as WeakReference<IOCancellingPolicy?>?)?.get()
                 if (cancellingPolicy == null) {
                     cancellingPolicy = provider.policy
-                    txn.setUserObject(provider, cancellingPolicy)
+                    txn.setUserObject(provider, WeakReference(cancellingPolicy))
                 }
                 if (cancellingPolicy.needToCancel()) {
                     cancellingPolicy.doCancel()
