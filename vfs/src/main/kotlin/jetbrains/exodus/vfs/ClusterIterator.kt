@@ -18,6 +18,7 @@ package jetbrains.exodus.vfs
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.env.Cursor
 import jetbrains.exodus.env.Transaction
+import jetbrains.exodus.env.TransactionBase
 import jetbrains.exodus.kotlin.notNull
 import java.io.Closeable
 
@@ -36,6 +37,7 @@ internal class ClusterIterator @JvmOverloads constructor(private val vfs: Virtua
                 file: File) : this(vfs, txn, file.descriptor)
 
     init {
+        (txn as TransactionBase).checkIsFinished()
         if (position >= 0L) {
             seek(position)
         }

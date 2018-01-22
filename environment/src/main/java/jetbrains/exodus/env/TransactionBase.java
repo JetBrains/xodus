@@ -130,6 +130,12 @@ public abstract class TransactionBase implements Transaction {
         return result;
     }
 
+    public void checkIsFinished() {
+        if (isFinished) {
+            throw new ExodusException("Transaction is already finished");
+        }
+    }
+
     @NotNull
     Thread getCreatingThread() {
         return creatingThread;
@@ -212,12 +218,6 @@ public abstract class TransactionBase implements Transaction {
 
     protected void setExclusive(final boolean isExclusive) {
         this.isExclusive = isExclusive;
-    }
-
-    protected void checkIsFinished() {
-        if (isFinished) {
-            throw new ExodusException("Transaction is already finished");
-        }
     }
 
     protected void setIsFinished() {
