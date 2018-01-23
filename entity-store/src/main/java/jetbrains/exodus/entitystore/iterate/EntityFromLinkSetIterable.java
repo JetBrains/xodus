@@ -21,6 +21,7 @@ import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.tables.LinkValue;
 import jetbrains.exodus.entitystore.tables.PropertyKey;
+import jetbrains.exodus.entitystore.util.EntityIdSetFactory;
 import jetbrains.exodus.env.Cursor;
 import org.jetbrains.annotations.NotNull;
 
@@ -41,7 +42,7 @@ public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
                     linkNames.put(Integer.valueOf((String) parameters[4 + i]), null);
                 }
                 PersistentEntityId entityId = new PersistentEntityId(Integer.valueOf((String) parameters[0]),
-                        Long.valueOf((String) parameters[1]));
+                    Long.valueOf((String) parameters[1]));
                 List<String> entityLinkNames = store.getLinkNames(txn, new PersistentEntity(store, entityId));
                 for (String linkName : entityLinkNames) {
                     int linkId = store.getLinkId(txn, linkName, false);
@@ -160,15 +161,19 @@ public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
     }
 
     private class LinksIterator extends EntityFromLinkSetIteratorBase {
+
         private boolean hasNext;
         private boolean hasNextValid;
         private int currentPropId;
+        private EntityId nextId;
+        private EntityIdSet idSet;
 
         private LinksIterator(@NotNull final Cursor index,
                               @NotNull final ByteIterable key) {
             super(EntityFromLinkSetIterable.this);
             setCursor(index);
             hasNextValid = index.getSearchKeyRange(key) == null;
+            idSet = EntityIdSetFactory.newSet();
         }
 
         @Override
@@ -194,20 +199,18 @@ public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
         protected EntityId nextIdImpl() {
             if (hasNextImpl()) {
                 explain(getType());
-                final LinkValue value = LinkValue.entryToLinkValue(getCursor().getValue());
-                final EntityId result = value.getEntityId();
                 if (getCursor().getNext()) {
                     hasNextValid = false;
                 } else {
                     hasNext = false;
                 }
-                return result;
+                return nextId;
             }
             return null;
         }
 
         private boolean hasNextProp() {
-            Cursor index = getCursor();
+            final Cursor index = getCursor();
             do {
                 final PropertyKey prop = PropertyKey.entryToPropertyKey(index.getKey());
                 if (prop.getEntityLocalId() != entityId.getLocalId()) {
@@ -215,8 +218,14 @@ public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
                 }
                 final int propId = prop.getPropertyId();
                 if (linkNames.containsKey(propId)) {
-                    currentPropId = propId;
-                    return true;
+                    final LinkValue value = LinkValue.entryToLinkValue(getCursor().getValue());
+                    final EntityId result = value.getEntityId();
+                    if (!idSet.contains(result)) {
+                        nextId = result;
+                        idSet = idSet.add(result);
+                        currentPropId = propId;
+                        return true;
+                    }
                 }
             } while (index.getNext());
             return false;
