@@ -78,4 +78,8 @@ public class VfsInputStream extends InputStream {
         }
         return skipped;
     }
+
+    public boolean isObsolete() {
+        return clusterIterator.isObsolete();
+    }
 }

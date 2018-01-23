@@ -29,7 +29,6 @@ public class ExodusIndexInput extends IndexInput {
     private final ExodusDirectory directory;
     @NotNull
     private final File file;
-    @NotNull
     private VfsInputStream input;
     private long currentPosition;
 
@@ -44,13 +43,14 @@ public class ExodusIndexInput extends IndexInput {
         super("ExodusDirectory IndexInput for " + name);
         this.directory = directory;
         this.file = directory.openExistingFile(name, true);
-        input = directory.getVfs().readFile(directory.getEnvironment().getAndCheckCurrentTransaction(), file, currentPosition);
         this.currentPosition = currentPosition;
+        getInput();
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         input.close();
+        input = null;
     }
 
     @Override
@@ -59,7 +59,7 @@ public class ExodusIndexInput extends IndexInput {
     }
 
     @Override
-    public void seek(long pos) throws IOException {
+    public void seek(long pos) {
         if (pos != currentPosition) {
             if (pos > currentPosition) {
                 final ClusteringStrategy clusteringStrategy = directory.getVfs().getConfig().getClusteringStrategy();
@@ -67,14 +67,14 @@ public class ExodusIndexInput extends IndexInput {
                 final int clusterSize = clusteringStrategy.getFirstClusterSize();
                 if ((!clusteringStrategy.isLinear() ||
                     (currentPosition % clusterSize) + bytesToSkip < clusterSize) // or we are within single cluster
-                    && input.skip(bytesToSkip) == bytesToSkip) {
+                    && getInput().skip(bytesToSkip) == bytesToSkip) {
                     currentPosition = pos;
                     return;
                 }
             }
-            input.close();
-            input = directory.getVfs().readFile(directory.getEnvironment().getAndCheckCurrentTransaction(), file, pos);
+            close();
             currentPosition = pos;
+            getInput();
         }
     }
 
@@ -84,9 +84,10 @@ public class ExodusIndexInput extends IndexInput {
     }
 
     @Override
-    public byte readByte() throws IOException {
+    public byte readByte() {
+        final byte result = (byte) getInput().read();
         ++currentPosition;
-        return (byte) input.read();
+        return result;
     }
 
     @Override
@@ -94,7 +95,7 @@ public class ExodusIndexInput extends IndexInput {
         if (len == 1) {
             b[offset] = readByte();
         } else {
-            currentPosition += input.read(b, offset, len);
+            currentPosition += getInput().read(b, offset, len);
         }
     }
 
@@ -102,5 +103,13 @@ public class ExodusIndexInput extends IndexInput {
     @Override
     public final Object clone() {
         return new ExodusIndexInput(directory, file.getPath(), currentPosition);
+    }
+
+    @NotNull
+    private VfsInputStream getInput() {
+        if (input == null || input.isObsolete()) {
+            input = directory.getVfs().readFile(directory.getEnvironment().getAndCheckCurrentTransaction(), file, currentPosition);
+        }
+        return input;
     }
 }
