@@ -15,8 +15,10 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.TestFor;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.entitystore.iterate.EntityIteratorWithPropId;
+import org.junit.Assert;
 
 import java.util.Set;
 
@@ -70,5 +72,30 @@ public class EntityFromLinkSetTests extends EntityStoreTestBase {
 
             getEntityStore().getAsyncProcessor().waitForJobs(100);
         }
+    }
+
+    @TestFor(issues = "XD-669")
+    public void testCached() {
+        final StoreTransaction txn = getStoreTransaction();
+        final Entity i1 = txn.newEntity("Issue");
+        final Entity i2 = txn.newEntity("Issue");
+        final Entity i3 = txn.newEntity("Issue");
+
+        i3.addLink("dup", i1);
+        i3.addLink("hup", i1);
+        i3.addLink("hup", i2);
+        txn.flush();
+
+        final Set<String> names = new HashSet<>(2);
+        names.add("dup");
+        names.add("hup");
+
+        final EntityIterable links = i3.getLinks(names);
+        Assert.assertEquals(2, links.size());
+        int i = 0;
+        for (Entity link : links) {
+            ++i;
+        }
+        Assert.assertEquals(2, i);
     }
 }
