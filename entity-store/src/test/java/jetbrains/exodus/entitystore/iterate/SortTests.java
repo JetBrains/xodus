@@ -279,7 +279,7 @@ public class SortTests extends EntityStoreTestBase {
     }
 
     @TestFor(issues = "XD-609")
-    public void testSortTinySourceWithLargeIndex() throws InterruptedException {
+    public void testSortTinySourceWithLargeIndex() {
         // switch in-memory sort on
         getEntityStore().getConfig().setDebugAllowInMemorySort(true);
 
@@ -300,6 +300,37 @@ public class SortTests extends EntityStoreTestBase {
         Assert.assertEquals("9", sorted.getLast().getProperty("body"));
         Assert.assertEquals("0", sorted.getFirst().getProperty("body"));
         Assert.assertEquals("0", txn.sort("Issue", "no prop", sorted, true).getFirst().getProperty("body"));
+        System.out.println("Sorting took " + (System.currentTimeMillis() - start));
+    }
+
+    @TestFor(issues = "XD-670")
+    public void testSortTinySourceWithNullPropsWithLargeIndex() {
+        // switch in-memory sort on
+        getEntityStore().getConfig().setDebugAllowInMemorySort(true);
+
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        final int count = 50000;
+        for (int i = 0; i < 5; ++i) {
+            txn.newEntity("Issue").setProperty("hasComment", true);
+        }
+        for (int i = 0; i < count; ++i) {
+            final Entity issue = txn.newEntity("Issue");
+            issue.setProperty("body", i / 5000);
+            if (i % 5000 == 0) {
+                issue.setProperty("hasComment", true);
+            }
+        }
+        txn.flush();
+        System.out.println("Sorting started");
+        final long start = System.currentTimeMillis();
+        final EntityIterableBase unsorted = txn.findWithProp("Issue", "hasComment");
+        EntityIterable sorted;
+        sorted = txn.sort("Issue", "body", unsorted, true);
+        Assert.assertNull(sorted.getLast().getProperty("body"));
+        Assert.assertEquals(0, sorted.getFirst().getProperty("body"));
+        Assert.assertEquals(0, txn.sort("Issue", "no prop", sorted, true).getFirst().getProperty("body"));
+        sorted = txn.sort("Issue", "body", unsorted, false);
+        Assert.assertNotNull(sorted.getFirst().getProperty("body"));
         System.out.println("Sorting took " + (System.currentTimeMillis() - start));
     }
 
