@@ -157,7 +157,7 @@ public class EntityIdArrayCachedInstanceIterableFactory {
                             return makeSingleTypeSortedIterable(txn, source, it, typeIds, localIds, min, max);
                         } else {
                             return new MultiTypeSortedEntityIdArrayCachedInstanceIterable(
-                                    txn, source, typeIds.toArray(), localIds.toArray(), it.toSet()
+                                txn, source, typeIds.toArray(), localIds.toArray(), it.toSet()
                             );
                         }
                     } else {
@@ -165,7 +165,7 @@ public class EntityIdArrayCachedInstanceIterableFactory {
                             return makeSingleTypeUnsortedIterable(txn, source, it, typeIds, localIds, min, max);
                         } else {
                             return new MultiTypeUnsortedEntityIdArrayCachedInstanceIterable(
-                                    txn, source, typeIds.toArray(), localIds.toArray(), it.toSet()
+                                txn, source, typeIds.toArray(), localIds.toArray(), it.toSet()
                             );
                         }
                     }
@@ -181,8 +181,8 @@ public class EntityIdArrayCachedInstanceIterableFactory {
 
     @NotNull
     private static CachedInstanceIterable makeSingleTypeSortedIterable(
-            @NotNull PersistentStoreTransaction txn, @NotNull EntityIterableBase source, @NotNull EntityIteratorBase it,
-            IntArrayList typeIds, LongArrayList localIds, long min, long max
+        @NotNull PersistentStoreTransaction txn, @NotNull EntityIterableBase source, @NotNull EntityIteratorBase it,
+        IntArrayList typeIds, LongArrayList localIds, long min, long max
     ) {
         final int typeId = typeIds.get(0);
         if (typeId != NULL_TYPE_ID) {
@@ -191,11 +191,14 @@ public class EntityIdArrayCachedInstanceIterableFactory {
                 if (min >= 0) {
                     final long range = max - min + 1;
                     if (range < Integer.MAX_VALUE
-                            && range <= ((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length)) {
+                        && range <= ((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length)) {
                         final SortedEntityIdSet set = new ImmutableSingleTypeEntityIdBitSet(
-                                typeId, localIds.getInstantArray(), length
+                            typeId, localIds.getInstantArray(), length
                         );
-                        return new SingleTypeSortedSetEntityIdCachedInstanceIterable(txn, source, typeId, set);
+                        // if there are no duplicates in localIds
+                        if (set.count() == length) {
+                            return new SingleTypeSortedSetEntityIdCachedInstanceIterable(txn, source, typeId, set);
+                        }
                     }
                 }
             }
@@ -205,11 +208,11 @@ public class EntityIdArrayCachedInstanceIterableFactory {
 
     @NotNull
     private static CachedInstanceIterable makeSingleTypeUnsortedIterable(
-            @NotNull PersistentStoreTransaction txn, @NotNull EntityIterableBase source, @NotNull EntityIteratorBase it,
-            IntArrayList typeIds, LongArrayList localIds, long min, long max
+        @NotNull PersistentStoreTransaction txn, @NotNull EntityIterableBase source, @NotNull EntityIteratorBase it,
+        IntArrayList typeIds, LongArrayList localIds, long min, long max
     ) {
         return new SingleTypeUnsortedEntityIdArrayCachedInstanceIterable(
-                txn, source, typeIds.get(0), localIds.toArray(), it.toSet(), min, max
+            txn, source, typeIds.get(0), localIds.toArray(), it.toSet(), min, max
         );
     }
 
@@ -221,7 +224,7 @@ public class EntityIdArrayCachedInstanceIterableFactory {
             if (min >= 0) {
                 final long range = localIds[length - 1] - min + 1;
                 if (range < Integer.MAX_VALUE
-                        && range <= ((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length)) {
+                    && range <= ((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length)) {
                     return new ImmutableSingleTypeEntityIdBitSet(typeId, localIds, length);
                 }
             }

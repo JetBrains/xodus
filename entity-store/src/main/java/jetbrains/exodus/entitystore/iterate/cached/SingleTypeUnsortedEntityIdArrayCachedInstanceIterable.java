@@ -71,11 +71,14 @@ public class SingleTypeUnsortedEntityIdArrayCachedInstanceIterable extends Cache
                 if (min >= 0) {
                     final long range = max - min + 1;
                     if (range < Integer.MAX_VALUE
-                            && range <= ((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length)) {
+                        && range <= ((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length)) {
                         final SortedEntityIdSet set = new ImmutableSingleTypeEntityIdBitSet(
-                                typeId, localIds, length
+                            typeId, localIds, length
                         );
-                        return new SingleTypeSortedSetEntityIdCachedInstanceIterable(txnGetter.getTxn(this), getSource(), typeId, set);
+                        // if there are no duplicates in localIds
+                        if (set.count() == length) {
+                            return new SingleTypeSortedSetEntityIdCachedInstanceIterable(txnGetter.getTxn(this), getSource(), typeId, set);
+                        }
                     }
                 }
             }
@@ -138,10 +141,8 @@ public class SingleTypeUnsortedEntityIdArrayCachedInstanceIterable extends Cache
                 if (min >= 0) {
                     final long range = max - min + 1;
                     if (range < Integer.MAX_VALUE
-                            && range <= ((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length)) {
-                        return new ImmutableSingleTypeEntityIdBitSet(
-                                typeId, min, max, new LongArrayIterator(localIds), length
-                        );
+                        && range <= ((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length)) {
+                        return new ImmutableSingleTypeEntityIdBitSet(typeId, min, max, new LongArrayIterator(localIds));
                     }
                 }
             }
