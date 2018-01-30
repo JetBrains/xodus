@@ -103,6 +103,7 @@ subprojects {
         includeEmptyDirs false
         from javadoc.destinationDir
     }
+    javadoc.failOnError = false
     // work around for Java 8 javadoc which is too strict
     if (JavaVersion.current().isJava8Compatible()) {
         tasks.withType(Javadoc) {
