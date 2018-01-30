@@ -44,13 +44,14 @@ public class ExodusIndexInput extends IndexInput {
         this.directory = directory;
         this.file = directory.openExistingFile(name, true);
         this.currentPosition = currentPosition;
-        getInput();
     }
 
     @Override
     public void close() {
-        input.close();
-        input = null;
+        if (input != null) {
+            input.close();
+            input = null;
+        }
     }
 
     @Override
