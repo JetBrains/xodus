@@ -137,17 +137,7 @@ public class ThreadJobProcessor extends JobProcessorQueueAdapter {
                     }
                     processor.afterProcessingJob(job);
                 } catch (Throwable t) {
-                    if (exceptionHandler != null) {
-                        try {
-                            exceptionHandler.handle(this, job, t);
-                        } catch (Throwable tt) {
-                            //noinspection CallToPrintStackTrace
-                            t.printStackTrace();
-                        }
-                    } else {
-                        //noinspection CallToPrintStackTrace
-                        t.printStackTrace();
-                    }
+                    handleThrowable(job, exceptionHandler, t);
                 }
             }
         }

@@ -151,16 +151,20 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
             Thread.currentThread().interrupt();
             return;
         }
-        if (!isFinished()) {
-            if (jobsQueued) {
-                final Job job;
-                try (Guard ignored = queue.lock()) {
-                    job = queue.pop();
+        try {
+            if (!isFinished()) {
+                if (jobsQueued) {
+                    final Job job;
+                    try (Guard ignored = queue.lock()) {
+                        job = queue.pop();
+                    }
+                    doExecuteJob(job);
+                } else {
+                    doTimedJobs();
                 }
-                doExecuteJob(job);
-            } else {
-                doTimedJobs();
             }
+        } catch (Throwable t) {
+            handleThrowable(null, getExceptionHandler(), t);
         }
     }
 
@@ -172,7 +176,7 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
     protected void doTimedJobs() {
         final Collection<Job> outdatedJobs = new ArrayList<>();
         final long currentTimePriority = Long.MAX_VALUE - System.currentTimeMillis();
-        final int count;
+        int count;
         try (Guard ignored = timeQueue.lock()) {
             Pair<Long, Job> pair = timeQueue.peekPair();
             while (pair != null && pair.getFirst() >= currentTimePriority) {
@@ -189,7 +193,7 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
                 break;
             }
             doExecuteJob(job);
-            --outdatedJobsCount;
+            outdatedJobsCount = --count;
         }
     }
 

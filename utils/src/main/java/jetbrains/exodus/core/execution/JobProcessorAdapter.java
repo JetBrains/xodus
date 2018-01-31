@@ -220,19 +220,23 @@ public abstract class JobProcessorAdapter implements JobProcessor {
                     }
                     processor.afterProcessingJob(job);
                 } catch (Throwable t) {
-                    if (exceptionHandler != null) {
-                        try {
-                            exceptionHandler.handle(this, job, t);
-                        } catch (Throwable tt) {
-                            //noinspection CallToPrintStackTrace
-                            t.printStackTrace();
-                        }
-                    } else {
-                        //noinspection CallToPrintStackTrace
-                        t.printStackTrace();
-                    }
+                    handleThrowable(job, exceptionHandler, t);
                 }
             }
+        }
+    }
+
+    void handleThrowable(Job job, JobProcessorExceptionHandler exceptionHandler, Throwable t) {
+        if (exceptionHandler != null) {
+            try {
+                exceptionHandler.handle(this, job, t);
+            } catch (Throwable tt) {
+                //noinspection CallToPrintStackTrace
+                t.printStackTrace();
+            }
+        } else {
+            //noinspection CallToPrintStackTrace
+            t.printStackTrace();
         }
     }
 
