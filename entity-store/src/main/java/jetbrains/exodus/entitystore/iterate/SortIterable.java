@@ -202,13 +202,13 @@ public final class SortIterable extends EntityIterableDecoratorBase {
             }
 
             @Override
-            public boolean isMatchedPropertyChanged(final int typeId,
+            public boolean isMatchedPropertyChanged(@NotNull EntityId id,
                                                     final int propertyId,
                                                     @Nullable final Comparable oldValue,
                                                     @Nullable final Comparable newValue) {
-                return sourceTypeId == typeId &&
-                    (decorated.isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue) ||
-                        propIndex.getHandle().isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue));
+                return sourceTypeId == id.getTypeId() &&
+                    (decorated.isMatchedPropertyChanged(id, propertyId, oldValue, newValue) ||
+                        propIndex.getHandle().isMatchedPropertyChanged(id, propertyId, oldValue, newValue));
             }
         };
     }

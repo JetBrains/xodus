@@ -155,8 +155,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     @Override
     public boolean isIdempotent() {
         return getEnvironmentTransaction().isIdempotent() &&
-            (blobStreams == null || blobStreams.isEmpty()) &&
-            (blobFiles == null || blobFiles.isEmpty());
+                (blobStreams == null || blobStreams.isEmpty()) &&
+                (blobFiles == null || blobFiles.isEmpty());
     }
 
     @Override
@@ -246,7 +246,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             final int entityTypeId = store.getEntityTypeId(this, entityType, true);
             final long entityLocalId = store.getEntitiesSequence(this, entityTypeId).increment();
             store.getEntitiesTable(this, entityTypeId).putRight(
-                txn, LongBinding.longToCompressedEntry(entityLocalId), ZERO_VERSION_ENTRY);
+                    txn, LongBinding.longToCompressedEntry(entityLocalId), ZERO_VERSION_ENTRY);
             final PersistentEntityId id = new PersistentEntityId(entityTypeId, entityLocalId);
             // update iterables' cache
             new EntityAddedHandleCheckerImpl(this, id, mutableCache(), mutatedInTxn).updateCache();
@@ -502,7 +502,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             return rightOrder;
         }
         return new SortIterable(this, findWithPropSortedByValue(
-            entityType, propertyName), (EntityIterableBase) rightOrder, entityTypeId, propertyId, ascending);
+                entityType, propertyName), (EntityIterableBase) rightOrder, entityTypeId, propertyId, ascending);
     }
 
     @Override
@@ -513,7 +513,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                                     @NotNull final String linkName,
                                     @NotNull final EntityIterable rightOrder) {
         final EntityIterable result = new SortIndirectIterable(this, store, entityType,
-            ((EntityIterableBase) sortedLinks).getSource(), linkName, (EntityIterableBase) rightOrder, null, null);
+                ((EntityIterableBase) sortedLinks).getSource(), linkName, (EntityIterableBase) rightOrder, null, null);
         return isMultiple ? result.distinct() : result;
     }
 
@@ -527,7 +527,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                                     @NotNull final String oppositeEntityType,
                                     @NotNull final String oppositeLinkName) {
         final EntityIterable result = new SortIndirectIterable(this, store, entityType,
-            ((EntityIterableBase) sortedLinks).getSource(), linkName, (EntityIterableBase) rightOrder, oppositeEntityType, oppositeLinkName);
+                ((EntityIterableBase) sortedLinks).getSource(), linkName, (EntityIterableBase) rightOrder, oppositeEntityType, oppositeLinkName);
         return isMultiple ? result.distinct() : result;
     }
 
@@ -753,8 +753,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                          @Nullable final Comparable newValue) {
         final PropertyId propId = new PropertyId(id, propertyId);
         propsCache.remove(propId);
-        new PropertyChangedHandleCheckerImpl(this, id.getTypeId(), id.getLocalId(), propertyId,
-            oldValue, newValue, mutableCache(), mutatedInTxn).updateCache();
+        new PropertyChangedHandleCheckerImpl(this, id, propertyId,
+                oldValue, newValue, mutableCache(), mutatedInTxn).updateCache();
     }
 
     void linkAdded(@NotNull final PersistentEntityId sourceId,
@@ -952,7 +952,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     @SuppressWarnings("unchecked")
     public static <T> T getUpdatable(
-        @NotNull final HandleChecker handleChecker, @NotNull final EntityIterableHandle handle, @NotNull final Class<T> handleType
+            @NotNull final HandleChecker handleChecker, @NotNull final EntityIterableHandle handle, @NotNull final Class<T> handleType
     ) {
         final HandleCheckerAdapter checker = (HandleCheckerAdapter) handleChecker;
         Updatable instance = checker.get(handle);
@@ -975,7 +975,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                     handlePart = "";
                 }
                 logger.error("Iterable doesn't match expected class " + handleType.getName()
-                    + ", handle = " + handle + ", found = " + instance.getClass().getName() + handlePart);
+                        + ", handle = " + handle + ", found = " + instance.getClass().getName() + handlePart);
             }
         }
         return null;
@@ -983,8 +983,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     private static <V> ObjectCacheBase<PropertyId, V> createObjectCache(final int size) {
         return size == 0 ?
-            new FakeObjectCache<PropertyId, V>() :
-            new TransactionObjectCache<V>(size);
+                new FakeObjectCache<PropertyId, V>() :
+                new TransactionObjectCache<V>(size);
     }
 
     abstract static class HandleCheckerAdapter implements HandleChecker {
@@ -1131,7 +1131,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         public boolean checkHandle(@NotNull final EntityIterableHandle handle) {
             return handle.isMatchedEntityDeleted(id)
-                && !handle.onEntityDeleted(this);
+                    && !handle.onEntityDeleted(this);
         }
     }
 
@@ -1147,7 +1147,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         public boolean checkHandle(@NotNull final EntityIterableHandle handle) {
             return handle.isMatchedEntityAdded(id)
-                && !handle.onEntityAdded(this);
+                    && !handle.onEntityAdded(this);
         }
     }
 
@@ -1217,7 +1217,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         public boolean checkHandle(@NotNull EntityIterableHandle handle) {
             return handle.isMatchedLinkAdded(sourceId, targetId, linkId)
-                && !handle.onLinkAdded(this);
+                    && !handle.onLinkAdded(this);
         }
     }
 
@@ -1233,14 +1233,13 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         public boolean checkHandle(@NotNull EntityIterableHandle handle) {
             return handle.isMatchedLinkDeleted(sourceId, targetId, linkId)
-                && !handle.onLinkDeleted(this);
+                    && !handle.onLinkDeleted(this);
         }
     }
 
     private static final class PropertyChangedHandleCheckerImpl extends HandleCheckerAdapter implements PropertyChangedHandleChecker {
 
-        private final int entityTypeId;
-        private final long localId;
+        private final EntityId id;
         private final int propertyId;
         @Nullable
         private final Comparable oldValue;
@@ -1248,7 +1247,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         private final Comparable newValue;
 
         private PropertyChangedHandleCheckerImpl(@NotNull PersistentStoreTransaction txn,
-                                                 int entityTypeId, long localId, int propertyId,
+                                                 EntityId id, int propertyId,
                                                  @Nullable Comparable oldValue, @Nullable Comparable newValue,
                                                  @NotNull EntityIterableCacheAdapterMutable mutatedInTxn,
                                                  @NotNull List<Updatable> mutableCache) {
@@ -1256,8 +1255,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             if (oldValue == null && newValue == null) {
                 throw new IllegalArgumentException("Either oldValue or newValue should be not null");
             }
-            this.entityTypeId = entityTypeId;
-            this.localId = localId;
+            this.id = id;
             this.propertyId = propertyId;
             this.oldValue = oldValue;
             this.newValue = newValue;
@@ -1270,12 +1268,12 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         @Override
         public int getTypeId() {
-            return entityTypeId;
+            return id.getTypeId();
         }
 
         @Override
         public long getLocalId() {
-            return localId;
+            return id.getLocalId();
         }
 
         @Nullable
@@ -1292,8 +1290,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         @Override
         public boolean checkHandle(@NotNull EntityIterableHandle handle) {
-            return handle.isMatchedPropertyChanged(entityTypeId, propertyId, oldValue, newValue)
-                && !handle.onPropertyChanged(this);
+            return handle.isMatchedPropertyChanged(id, propertyId, oldValue, newValue)
+                    && !handle.onPropertyChanged(this);
         }
 
         @Override
@@ -1304,7 +1302,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             PropertyChangedHandleCheckerImpl that = (PropertyChangedHandleCheckerImpl) obj;
 
             if (propertyId != that.propertyId) return false;
-            if (entityTypeId != that.entityTypeId) return false;
+            if (!id.equals(that.id)) return false;
             //noinspection SimplifiableIfStatement
             if (newValue != null ? !newValue.equals(that.newValue) : that.newValue != null) return false;
             return !(oldValue != null ? !oldValue.equals(that.oldValue) : that.oldValue != null);
@@ -1312,7 +1310,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         @Override
         public int hashCode() {
-            int result = entityTypeId;
+            int result = id.hashCode();
             result = 31 * result + propertyId;
             result = 31 * result + (oldValue != null ? oldValue.hashCode() : 0);
             result = 31 * result + (newValue != null ? newValue.hashCode() : 0);

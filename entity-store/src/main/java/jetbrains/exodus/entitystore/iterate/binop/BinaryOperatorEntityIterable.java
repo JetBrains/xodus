@@ -233,14 +233,14 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
             }
 
             @Override
-            public boolean isMatchedPropertyChanged(final int typeId,
+            public boolean isMatchedPropertyChanged(@NotNull EntityId id,
                                                     final int propertyId,
                                                     @Nullable final Comparable oldValue,
                                                     @Nullable final Comparable newValue) {
                 final int entityTypeId = getEntityTypeId();
-                return (entityTypeId < 0 || entityTypeId == typeId) &&
-                    (iterable1.getHandle().isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue)
-                        || iterable2.getHandle().isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue));
+                return (entityTypeId < 0 || entityTypeId == id.getTypeId()) &&
+                    (iterable1.getHandle().isMatchedPropertyChanged(id, propertyId, oldValue, newValue)
+                        || iterable2.getHandle().isMatchedPropertyChanged(id, propertyId, oldValue, newValue));
             }
 
             @Override

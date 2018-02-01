@@ -54,7 +54,7 @@ public abstract class ConstantEntityIterableHandle extends EntityIterableHandleB
     }
 
     @Override
-    public boolean isMatchedPropertyChanged(final int typeId,
+    public boolean isMatchedPropertyChanged(@NotNull final EntityId id,
                                             final int propertyId,
                                             @Nullable final Comparable oldValue,
                                             @Nullable final Comparable newValue) {

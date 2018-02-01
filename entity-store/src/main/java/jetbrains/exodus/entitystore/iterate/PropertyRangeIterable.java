@@ -131,11 +131,11 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
             }
 
             @Override
-            public boolean isMatchedPropertyChanged(final int typeId,
+            public boolean isMatchedPropertyChanged(@NotNull final EntityId id,
                                                     final int propId,
                                                     @Nullable final Comparable oldValue,
                                                     @Nullable final Comparable newValue) {
-                return propertyId == propId && entityTypeId == typeId && (isRangeAffected(oldValue) || isRangeAffected(newValue));
+                return propertyId == propId && entityTypeId == id.getTypeId() && (isRangeAffected(oldValue) || isRangeAffected(newValue));
             }
 
             private boolean isRangeAffected(@Nullable final Comparable value) {

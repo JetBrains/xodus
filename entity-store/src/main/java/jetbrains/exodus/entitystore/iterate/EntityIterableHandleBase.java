@@ -120,7 +120,7 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
     }
 
     @Override
-    public boolean isMatchedPropertyChanged(final int typeId,
+    public boolean isMatchedPropertyChanged(@NotNull EntityId id,
                                             final int propertyId,
                                             @Nullable final Comparable oldValue,
                                             @Nullable final Comparable newValue) {

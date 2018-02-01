@@ -38,7 +38,7 @@ public interface EntityIterableHandle {
 
     boolean isMatchedLinkDeleted(@NotNull EntityId source, @NotNull EntityId target, int linkId);
 
-    boolean isMatchedPropertyChanged(int entityType, int propertyId,
+    boolean isMatchedPropertyChanged(@NotNull EntityId id, int propertyId,
                                      @Nullable Comparable oldValue, @Nullable Comparable newValue);
 
     boolean onEntityAdded(@NotNull EntityAddedOrDeletedHandleChecker handleChecker);

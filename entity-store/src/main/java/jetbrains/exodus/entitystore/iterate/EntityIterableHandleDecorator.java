@@ -78,11 +78,11 @@ public class EntityIterableHandleDecorator extends EntityIterableHandleBase {
     }
 
     @Override
-    public boolean isMatchedPropertyChanged(final int typeId,
+    public boolean isMatchedPropertyChanged(@NotNull EntityId id,
                                             int propertyId,
                                             @Nullable final Comparable oldValue,
                                             @Nullable final Comparable newValue) {
-        return decorated.isMatchedPropertyChanged(typeId, propertyId, oldValue, newValue);
+        return decorated.isMatchedPropertyChanged(id, propertyId, oldValue, newValue);
     }
 
     @Override

@@ -160,11 +160,11 @@ public final class PropertiesIterable extends EntityIterableBase {
         }
 
         @Override
-        public boolean isMatchedPropertyChanged(final int typeId,
+        public boolean isMatchedPropertyChanged(@NotNull final EntityId id,
                                                 final int propertyId,
                                                 @Nullable final Comparable oldValue,
                                                 @Nullable final Comparable newValue) {
-            return PropertiesIterable.this.propertyId == propertyId && entityTypeId == typeId;
+            return PropertiesIterable.this.propertyId == propertyId && entityTypeId == id.getTypeId();
         }
 
         @Override
