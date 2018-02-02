@@ -1,3 +1,5 @@
+# <img src="https://raw.githubusercontent.com/wiki/jetbrains/xodus/xodus.png" width=160>
+
 The [VirtualFileSystem](https://github.com/JetBrains/xodus/blob/master/vfs/src/main/java/jetbrains/exodus/vfs/VirtualFileSystem.java) lets you deal with data in terms of [files](https://github.com/JetBrains/xodus/blob/master/vfs/src/main/java/jetbrains/exodus/vfs/File.java), input, and output streams. `VirtualFileSystem` works over an [Environment](https://github.com/JetBrains/xodus/blob/master/openAPI/src/main/java/jetbrains/exodus/env/Environment.java) instance:
 ```java
 final Environment env = Environments.newInstance("/home/me/.myAppData");

@@ -1,4 +1,4 @@
-# JetBrains Xodus
+# <img src="https://raw.githubusercontent.com/wiki/jetbrains/xodus/xodus.png" width=160>
 
 [![official JetBrains project](http://jb.gg/badges/official.svg)](https://confluence.jetbrains.com/display/ALL/JetBrains+on+GitHub)
 [![TeamCity (build status)](https://img.shields.io/teamcity/http/teamcity.jetbrains.com/s/Xodus_Build.svg)](http://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build&guest=1)

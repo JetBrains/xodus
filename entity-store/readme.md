@@ -1,3 +1,5 @@
+# <img src="https://raw.githubusercontent.com/wiki/jetbrains/xodus/xodus.png" width=160>
+
 The **Entity Stores** layer is designed to access data as [entities](https://github.com/JetBrains/xodus/blob/master/openAPI/src/main/java/jetbrains/exodus/entitystore/Entity.java) with attributes and links. Use a [transaction](https://github.com/JetBrains/xodus/blob/master/openAPI/src/main/java/jetbrains/exodus/entitystore/StoreTransaction.java) to create, modify, read and query data. Transactions are quite similar to [those](https://github.com/JetBrains/xodus/blob/master/openAPI/src/main/java/jetbrains/exodus/env/Transaction.java) on the **Environments** layer, though the **Entity Store** API is much richer in terms of querying data. The API and the implementation live in the _jetbrains.exodus.entitystore_ package.
 
 [PersistentEntityStore](https://github.com/JetBrains/xodus/wiki/Entity-Stores#persistententitystore)

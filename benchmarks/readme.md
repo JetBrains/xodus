@@ -1,15 +1,12 @@
-[JMH Gradle Plugin](https://github.com/melix/jmh-gradle-plugin) is used to build and run benchmarks.
-Benchmark results are obtained on a PC running under Windows 7 with Intel(R) Core(TM) i7-3770 3.4 GHz CPU
-and 64-bit OpenJDK build 1.8.0_131-1-ojdkbuild-b11 with the following parameters: `-Xms1g -Xmx1g`.
-To get results in your environment, run in the project root directory:
+# <img src="https://raw.githubusercontent.com/wiki/jetbrains/xodus/xodus.png" width=160>
+
+[JMH Gradle Plugin](https://github.com/melix/jmh-gradle-plugin) is used to build and run benchmarks. Benchmark results are obtained on a PC running under Windows 7 with Intel(R) Core(TM) i7-3770 3.4 GHz CPU and 64-bit OpenJDK build 1.8.0_131-1-ojdkbuild-b11 with the following parameters: `-Xms1g -Xmx1g`. To get results in your environment, run in the project root directory:
 
     ./gradlew clean jar jmh
 
 #### Tokyo Cabinet Benchmark
 
-[Tokyo Cabinet Benchmark](http://fallabs.com/tokyocabinet/benchmark.pdf) is useful for comparing the
-performance of key/value storages. For one million 8-char string keys ('00000000', '00000001', etc.) and
-values equal to the keys, four operations are measured:
+[Tokyo Cabinet Benchmark](http://fallabs.com/tokyocabinet/benchmark.pdf) is useful for comparing the performance of key/value storages. For one million 8-char string keys ('00000000', '00000001', etc.) and values equal to the keys, four operations are measured:
 
 1. writing all key/value pairs in ascending order;
 2. writing all key/value pairs in random order;
@@ -64,6 +61,4 @@ The same results in table form:
 <tr><th><a href="https://github.com/pbeaman/persistit">Akiban PersistIt</a></th><td>1.316</td><td>0.857</td><td>1.763</td><td>0.632</td></tr>
 </table>
 
-Results for [BerkeleyDb JE](http://www.oracle.com/us/products/database/berkeley-db/je/overview/index.html) are
-obtained in a similar environment as above (another JRE used), but the code of benchmark cannot be distributed
-under [Apache 2.0 License](http://www.apache.org/licenses/LICENSE-2.0.html).
+Results for [BerkeleyDb JE](http://www.oracle.com/us/products/database/berkeley-db/je/overview/index.html) are obtained in a similar environment as above (another JRE used), but the code of benchmark cannot be distributed under [Apache 2.0 License](http://www.apache.org/licenses/LICENSE-2.0.html).
