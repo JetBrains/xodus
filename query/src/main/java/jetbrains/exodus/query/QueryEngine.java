@@ -20,7 +20,6 @@ import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.EntityIterable;
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
-import jetbrains.exodus.entitystore.iterate.EntityIteratorBase;
 import jetbrains.exodus.entitystore.iterate.SingleEntityIterable;
 import jetbrains.exodus.query.metadata.AssociationEndMetaData;
 import jetbrains.exodus.query.metadata.EntityMetaData;
@@ -230,20 +229,11 @@ public class QueryEngine {
                 final TreeKeepingEntityIterable r = (TreeKeepingEntityIterable) right;
                 if (l.getInstance() == r.getInstance() && leftType.equals(r.getEntityType())) {
                     return new TreeKeepingEntityIterable(r.getInstance(), leftType, new Concat(l.getTree(), r.getTree()),
-                            l.annotatedTree, r.annotatedTree, this);
+                        l.annotatedTree, r.annotatedTree, this);
                 }
             }
         }
-        String staticType = null;
-        if (left instanceof StaticTypedEntityIterable) {
-            final String leftType = ((StaticTypedEntityIterable) left).getEntityType();
-            if (right instanceof StaticTypedEntityIterable) {
-                final String rightType = ((StaticTypedEntityIterable) right).getEntityType();
-                if (leftType.equals(rightType)) {
-                    staticType = rightType;
-                }
-            }
-        }
+        final String staticType = retrieveStaticType(left, right);
         right = instantiateAndAdjust(right);
         left = instantiateAndAdjust(left);
         final Iterable<Entity> result = concatNonTrees(left, right);
@@ -267,16 +257,7 @@ public class QueryEngine {
                 }
             }
         }
-        String staticType = null;
-        if (left instanceof StaticTypedEntityIterable) {
-            final String leftType = ((StaticTypedEntityIterable) left).getEntityType();
-            if (right instanceof StaticTypedEntityIterable) {
-                final String rightType = ((StaticTypedEntityIterable) right).getEntityType();
-                if (leftType.equals(rightType)) {
-                    staticType = rightType;
-                }
-            }
-        }
+        final String staticType = retrieveStaticType(left, right);
         right = instantiateAndAdjust(right);
         left = instantiateAndAdjust(left);
         final Iterable<Entity> result = excludeNonTrees(left, right);
@@ -299,29 +280,12 @@ public class QueryEngine {
                         if (aemd != null) {
                             final String resultType = aemd.getOppositeEntityMetaData().getType();
                             return new StaticTypedIterableDecorator(resultType,
-                                    selectDistinctImpl((EntityIterableBase) it, linkName), this);
+                                selectDistinctImpl((EntityIterableBase) it, linkName), this);
                         }
                     }
                 }
             } else if (isPersistentIterable(it)) {
-                final EntityIterableBase eit = (EntityIterableBase) it;
-                final EntityIteratorBase iterator = (EntityIteratorBase) eit.getSource().iterator();
-                try {
-                    if (!(iterator.hasNext())) {
-                        return EntityIterableBase.EMPTY;
-                    }
-                    final Entity next = iterator.next();
-                    if (next == null) {
-                        return EntityIterableBase.EMPTY;
-                    }
-                    final String entityType = next.getType();
-                    final EntityMetaData emd = mmd.getEntityMetaData(entityType);
-                    if (emd != null) {
-                        return selectDistinctImpl(eit, linkName);
-                    }
-                } finally {
-                    iterator.disposeIfShouldBe();
-                }
+                return selectDistinctImpl((EntityIterableBase) it, linkName);
             }
         }
         return inMemorySelectDistinct(it, linkName);
@@ -343,29 +307,12 @@ public class QueryEngine {
                         if (aemd != null) {
                             final String resultType = aemd.getOppositeEntityMetaData().getType();
                             return new StaticTypedIterableDecorator(resultType,
-                                    selectManyDistinctImpl((EntityIterableBase) it, linkName), this);
+                                selectManyDistinctImpl((EntityIterableBase) it, linkName), this);
                         }
                     }
                 }
             } else if (isPersistentIterable(it)) {
-                final EntityIterableBase eit = (EntityIterableBase) it;
-                final EntityIteratorBase iterator = (EntityIteratorBase) eit.getSource().iterator();
-                try {
-                    if (!(iterator.hasNext())) {
-                        return EntityIterableBase.EMPTY;
-                    }
-                    final Entity next = iterator.next();
-                    if (next == null) {
-                        return EntityIterableBase.EMPTY;
-                    }
-                    final String entityType = next.getType();
-                    EntityMetaData emd = mmd.getEntityMetaData(entityType);
-                    if (emd != null) {
-                        return selectManyDistinctImpl(eit, linkName);
-                    }
-                } finally {
-                    iterator.disposeIfShouldBe();
-                }
+                return selectManyDistinctImpl((EntityIterableBase) it, linkName);
             }
         }
         return inMemorySelectManyDistinct(it, linkName);
@@ -471,5 +418,18 @@ public class QueryEngine {
 
     public static boolean isGetAllTree(final StaticTypedEntityIterable tree) {
         return tree instanceof TreeKeepingEntityIterable && ((TreeKeepingEntityIterable) tree).getTree() instanceof GetAll;
+    }
+
+    private static String retrieveStaticType(Iterable<Entity> left, Iterable<Entity> right) {
+        if (left instanceof StaticTypedEntityIterable) {
+            final String leftType = ((StaticTypedEntityIterable) left).getEntityType();
+            if (right instanceof StaticTypedEntityIterable) {
+                final String rightType = ((StaticTypedEntityIterable) right).getEntityType();
+                if (leftType.equals(rightType)) {
+                    return rightType;
+                }
+            }
+        }
+        return null;
     }
 }
