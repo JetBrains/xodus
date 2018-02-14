@@ -1759,8 +1759,24 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private class LinkDataGetter implements DataGetter {
 
         @Override
-        public ByteIterable getUpToDateEntry(@NotNull final PersistentStoreTransaction txn, int typeId, PropertyKey key) {
-            return getLinksTable(txn, typeId).get(txn.getEnvironmentTransaction(), PropertyKey.propertyKeyToEntry(key));
+        public ByteIterable getUpToDateEntry(@NotNull final PersistentStoreTransaction txn,
+                                             final int typeId,
+                                             @NotNull final PropertyKey key) {
+            return getTable(txn, typeId).get(txn.getEnvironmentTransaction(), PropertyKey.propertyKeyToEntry(key));
+        }
+
+        @NotNull
+        private Pair<Integer, TwoColumnTable> lastUsedTable = new Pair<>(Integer.MIN_VALUE, null);
+
+        private TwoColumnTable getTable(@NotNull final PersistentStoreTransaction txn,
+                                        final int typeId) {
+            final Pair<Integer, TwoColumnTable> lastUsedTable = this.lastUsedTable;
+            if (lastUsedTable.getFirst() == typeId) {
+                return lastUsedTable.getSecond();
+            }
+            final TwoColumnTable result = getLinksTable(txn, typeId);
+            this.lastUsedTable = new Pair<>(typeId, result);
+            return result;
         }
     }
 
