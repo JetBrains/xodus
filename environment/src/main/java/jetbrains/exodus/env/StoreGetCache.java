@@ -39,32 +39,37 @@ class StoreGetCache {
 
     @Nullable
     ByteIterable tryKey(final long treeRootAddress, @NotNull final ByteIterable key) {
-        final ValueEntry ve = cache.tryKey(cacheKey(treeRootAddress, key));
-        return ve == null || ve.treeRootAddress != treeRootAddress || !ve.key.equals(key) ? null : ve.value;
+        final int keyHashCode = key.hashCode();
+        final ValueEntry ve = cache.tryKey(treeRootAddress ^ keyHashCode);
+        return ve == null || ve.treeRootAddress != treeRootAddress ||
+            ve.keyHashCode != keyHashCode || !ve.key.equals(key) ? null : ve.value;
     }
 
     void cacheObject(final long treeRootAddress, @NotNull final ByteIterable key, @NotNull final ArrayByteIterable value) {
-        cache.cacheObject(cacheKey(treeRootAddress, key), new ValueEntry(treeRootAddress, key, value));
+        final int keyHashCode = key.hashCode();
+        cache.cacheObject(treeRootAddress ^ keyHashCode, new ValueEntry(treeRootAddress, keyHashCode, key, value));
     }
 
     float hitRate() {
         return cache.hitRate();
     }
 
-    private static long cacheKey(final long treeRootAddress, @NotNull final ByteIterable key) {
-        return treeRootAddress ^ key.hashCode();
-    }
 
     private static class ValueEntry {
 
         private final long treeRootAddress;
+        private final int keyHashCode;
         @NotNull
         private final ByteIterable key;
         @NotNull
         private final ArrayByteIterable value;
 
-        ValueEntry(final long treeRootAddress, @NotNull final ByteIterable key, @NotNull final ArrayByteIterable value) {
+        ValueEntry(final long treeRootAddress,
+                   final int keyHashCode,
+                   @NotNull final ByteIterable key,
+                   @NotNull final ArrayByteIterable value) {
             this.treeRootAddress = treeRootAddress;
+            this.keyHashCode = keyHashCode;
             this.key = key;
             this.value = value;
         }
