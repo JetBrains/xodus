@@ -265,17 +265,18 @@ public class SortTests extends EntityStoreTestBase {
         issue.setProperty("created", System.currentTimeMillis());
         txn.flush();
         final EntityIterableBase sortedByCreated =
-                (EntityIterableBase) txn.sort("Issue", "created", txn.find("Issue", "description", "description"), true);
-        for (; ; ) {
+            (EntityIterableBase) txn.sort("Issue", "created", txn.find("Issue", "description", "description"), true);
+        for (int i = 0; i < 10000000; ++i) {
             Assert.assertTrue(sortedByCreated.iterator().hasNext());
             Thread.yield();
             if (sortedByCreated.isCached()) {
-                break;
+                issue.setProperty("description", "new description");
+                txn.flush();
+                Assert.assertFalse(sortedByCreated.iterator().hasNext());
+                return;
             }
         }
-        issue.setProperty("description", "new description");
-        txn.flush();
-        Assert.assertFalse(sortedByCreated.iterator().hasNext());
+        Assert.assertTrue("EntityIterable wasn't cached", false);
     }
 
     @TestFor(issues = "XD-609")
