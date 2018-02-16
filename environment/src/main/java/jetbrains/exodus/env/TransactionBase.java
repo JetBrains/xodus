@@ -48,6 +48,8 @@ public abstract class TransactionBase implements Transaction {
     private final boolean wasCreatedExclusive;
     private boolean isFinished;
     private int acquiredPermits;
+    private int storeGetCacheAttempts;
+    private int storeGetCacheHits;
 
     public TransactionBase(@NotNull final EnvironmentImpl env, final boolean isExclusive) {
         this.env = env;
@@ -60,6 +62,7 @@ public abstract class TransactionBase implements Transaction {
         created = System.currentTimeMillis();
         started = created;
         isFinished = false;
+        storeGetCacheAttempts = storeGetCacheHits = 0;
     }
 
     @Override
@@ -205,6 +208,22 @@ public abstract class TransactionBase implements Transaction {
 
     void setAcquiredPermits(final int acquiredPermits) {
         this.acquiredPermits = acquiredPermits;
+    }
+
+    int getStoreGetCacheAttempts() {
+        return storeGetCacheAttempts;
+    }
+
+    int getStoreGetCacheHits() {
+        return storeGetCacheHits;
+    }
+
+    void incStoreGetCacheAttempts() {
+        ++storeGetCacheAttempts;
+    }
+
+    void incStoreGetCacheHits() {
+        ++storeGetCacheHits;
     }
 
     @Nullable
