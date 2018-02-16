@@ -1,5 +1,5 @@
 buildscript {
-    ext.kotlinVersion = '1.2.0'
+    ext.kotlinVersion = '1.2.21'
     ext.dokkaVersion = '0.9.15'
     repositories { jcenter() }
     dependencies {
@@ -125,14 +125,14 @@ subprojects {
     }
     compileKotlin {
         kotlinOptions {
-            languageVersion = '1.1'
-            apiVersion = '1.1'
+            languageVersion = '1.2'
+            apiVersion = '1.2'
         }
     }
     compileTestKotlin {
         kotlinOptions {
-            languageVersion = '1.1'
-            apiVersion = '1.1'
+            languageVersion = '1.2'
+            apiVersion = '1.2'
         }
     }
     sourceJar {
