@@ -61,7 +61,6 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
         MutableNode node = root;
         MutableNode prev = null;
         byte prevFirstByte = (byte) 0;
-        boolean result = false;
         while (true) {
             final long matchResult = node.matchesKeySequence(it);
             final int matchingLength = NodeBase.MatchResult.getMatchingLength(matchResult);
@@ -78,17 +77,16 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
                     prev.setChild(prevFirstByte, prefix);
                 }
                 ++size;
-                result = true;
-                break;
+                return true;
             }
             if (!it.hasNext()) {
                 final ByteIterable oldValue = node.getValue();
                 node.setValue(value);
                 if (oldValue == null) {
                     ++size;
-                    result = true;
+                    return true;
                 }
-                break;
+                return !oldValue.equals(value);
             }
             final byte nextByte = it.next();
             final NodeBase child = node.getChild(this, nextByte);
@@ -100,8 +98,7 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
                     node.setValue(value);
                 }
                 ++size;
-                result = true;
-                break;
+                return true;
             }
             prev = node;
             prevFirstByte = nextByte;
@@ -111,7 +108,6 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
             }
             node = mutableChild;
         }
-        return result;
     }
 
     @Override

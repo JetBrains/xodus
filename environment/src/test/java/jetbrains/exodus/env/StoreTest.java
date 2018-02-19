@@ -595,11 +595,15 @@ public class StoreTest extends EnvironmentTestsBase {
         final EnvironmentImpl env = getEnvironment();
         Transaction txn = env.beginTransaction();
         final Store store = env.openStore("store", config, txn);
-        store.put(txn, getKey(), getValue());
+        assertTrue(store.put(txn, getKey(), getValue()));
         txn.commit();
         assertNotNullStringValue(store, getKey(), "value");
         txn = env.beginTransaction();
-        store.put(txn, getKey(), getValue2());
+        assertTrue(store.put(txn, getKey(), getValue2()));
+        txn.commit();
+        txn = env.beginTransaction();
+        // TODO: review the following when we no longer need meta-tree cloning
+        assertEquals(!config.prefixing, store.put(txn, getKey(), getValue2()));
         txn.commit();
         assertNotNullStringValue(store, getKey(), "value2");
     }
