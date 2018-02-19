@@ -27,7 +27,6 @@ import jetbrains.exodus.core.execution.JobProcessor;
 import jetbrains.exodus.core.execution.JobProcessorExceptionHandler;
 import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor;
 import org.jetbrains.annotations.NotNull;
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.File;
@@ -36,6 +35,8 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.SecureRandom;
 import java.util.Arrays;
+
+import static org.junit.Assert.*;
 
 public class StoreTest extends EnvironmentTestsBase {
 
@@ -85,7 +86,7 @@ public class StoreTest extends EnvironmentTestsBase {
         });
         try {
             openStoreAutoCommit("store", StoreConfig.USE_EXISTING);
-            Assert.fail("Exception on open removed db is not thrown!");
+            fail("Exception on open removed db is not thrown!");
         } catch (Exception ex) {
             // ignore
         }
@@ -106,7 +107,7 @@ public class StoreTest extends EnvironmentTestsBase {
 
         try {
             openStoreAutoCommit("store", StoreConfig.USE_EXISTING);
-            Assert.fail("Exception on open removed db is not thrown!");
+            fail("Exception on open removed db is not thrown!");
         } catch (Exception ex) {
             // ignore
         }
@@ -168,7 +169,7 @@ public class StoreTest extends EnvironmentTestsBase {
                 sameNameStore.put(txn, getKey2(), getValue2());
             }
         });
-        Assert.assertNotNull(store[0]);
+        assertNotNull(store[0]);
         assertNotNullStringValue(store[0], getKey(), "value");
         assertNotNullStringValue(store[0], getKey2(), "value2");
     }
@@ -180,7 +181,7 @@ public class StoreTest extends EnvironmentTestsBase {
             @Override
             public void execute(@NotNull Transaction txn) {
                 final Store store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn);
-                Assert.assertTrue(env.storeExists(store.getName(), txn));
+                assertTrue(env.storeExists(store.getName(), txn));
             }
         });
     }
@@ -204,12 +205,12 @@ public class StoreTest extends EnvironmentTestsBase {
             @Override
             public void execute(@NotNull final Transaction txn) {
                 try (Cursor cursor = store.openCursor(txn)) {
-                    Assert.assertTrue(cursor.getSearchBoth(StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0")));
-                    Assert.assertTrue(cursor.deleteCurrent());
-                    Assert.assertFalse(cursor.getSearchBoth(StringBinding.stringToEntry("x"), StringBinding.stringToEntry("x")));
-                    Assert.assertFalse(cursor.deleteCurrent());
-                    Assert.assertTrue(cursor.getSearchBoth(StringBinding.stringToEntry("1"), StringBinding.stringToEntry("1")));
-                    Assert.assertTrue(cursor.deleteCurrent());
+                    assertTrue(cursor.getSearchBoth(StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0")));
+                    assertTrue(cursor.deleteCurrent());
+                    assertFalse(cursor.getSearchBoth(StringBinding.stringToEntry("x"), StringBinding.stringToEntry("x")));
+                    assertFalse(cursor.deleteCurrent());
+                    assertTrue(cursor.getSearchBoth(StringBinding.stringToEntry("1"), StringBinding.stringToEntry("1")));
+                    assertTrue(cursor.deleteCurrent());
                 }
             }
         });
@@ -236,11 +237,11 @@ public class StoreTest extends EnvironmentTestsBase {
             }
         });
         try {
-            Assert.assertEquals(content, env.computeInReadonlyTransaction(new TransactionalComputable<String>() {
+            assertEquals(content, env.computeInReadonlyTransaction(new TransactionalComputable<String>() {
                 @Override
                 public String compute(@NotNull Transaction txn) {
                     final ByteIterable value = store.get(txn, StringBinding.stringToEntry("winged"));
-                    Assert.assertNotNull(value);
+                    assertNotNull(value);
                     try {
                         return new String(value.getBytesUnsafe(), 0, value.getLength(), "UTF-8");
                     } catch (UnsupportedEncodingException e) {
@@ -272,7 +273,7 @@ public class StoreTest extends EnvironmentTestsBase {
                 return env.openStore("Messages", StoreConfig.WITHOUT_DUPLICATES, txn, true);
             }
         });
-        Assert.assertNotNull(store);
+        assertNotNull(store);
         final int cachePageSize = env.getEnvironmentConfig().getLogCachePageSize();
         final StringBuilder builder = new StringBuilder();
         for (int i = 0; i < cachePageSize; ++i) {
@@ -285,7 +286,7 @@ public class StoreTest extends EnvironmentTestsBase {
                 store.put(txn, StringBinding.stringToEntry(key), StringBinding.stringToEntry(""));
             }
         });
-        Assert.assertNull(env.computeInTransaction(new TransactionalComputable<ByteIterable>() {
+        assertNull(env.computeInTransaction(new TransactionalComputable<ByteIterable>() {
             @Override
             public ByteIterable compute(@NotNull final Transaction txn) {
                 return store.get(txn, StringBinding.stringToEntry(key.substring(0, cachePageSize - 1) + '1'));
@@ -303,7 +304,7 @@ public class StoreTest extends EnvironmentTestsBase {
                 return env.openStore("Whatever", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn, true);
             }
         });
-        Assert.assertNotNull(store);
+        assertNotNull(store);
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
@@ -314,34 +315,19 @@ public class StoreTest extends EnvironmentTestsBase {
         env.executeInReadonlyTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
-                try (Cursor cursor = store.openCursor(txn)) {
-                    Assert.assertTrue(cursor.getPrev());
-                    Assert.assertEquals(1, IntegerBinding.entryToInt(cursor.getKey()));
-                    Assert.assertTrue(cursor.getPrev());
-                    Assert.assertEquals(0, IntegerBinding.entryToInt(cursor.getKey()));
-                }
+                assert_XD_608_1_0(txn, store);
             }
         });
         env.executeInReadonlyTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
-                try (Cursor cursor = store.openCursor(txn)) {
-                    Assert.assertNotNull(cursor.getSearchKey(IntegerBinding.intToEntry(0)));
-                    Assert.assertEquals(0, IntegerBinding.entryToInt(cursor.getKey()));
-                    Assert.assertTrue(cursor.getNext());
-                    Assert.assertEquals(1, IntegerBinding.entryToInt(cursor.getKey()));
-                }
+                assert_XD_608_0_0_1(txn, store);
             }
         });
         env.executeInReadonlyTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
-                try (Cursor cursor = store.openCursor(txn)) {
-                    Assert.assertNotNull(cursor.getSearchKey(IntegerBinding.intToEntry(1)));
-                    Assert.assertEquals(1, IntegerBinding.entryToInt(cursor.getKey()));
-                    Assert.assertTrue(cursor.getPrev());
-                    Assert.assertEquals(0, IntegerBinding.entryToInt(cursor.getKey()));
-                }
+                assert_XD_608_0_1(txn, store);
             }
         });
     }
@@ -356,32 +342,44 @@ public class StoreTest extends EnvironmentTestsBase {
                 return env.openStore("Whatever", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn, true);
             }
         });
-        Assert.assertNotNull(store);
+        assertNotNull(store);
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
                 store.put(txn, IntegerBinding.intToEntry(0), IntegerBinding.intToEntry(0));
                 store.put(txn, IntegerBinding.intToEntry(1), IntegerBinding.intToEntry(1));
-                try (Cursor cursor = store.openCursor(txn)) {
-                    Assert.assertTrue(cursor.getPrev());
-                    Assert.assertEquals(1, IntegerBinding.entryToInt(cursor.getKey()));
-                    Assert.assertTrue(cursor.getPrev());
-                    Assert.assertEquals(0, IntegerBinding.entryToInt(cursor.getKey()));
-                }
-                try (Cursor cursor = store.openCursor(txn)) {
-                    Assert.assertNotNull(cursor.getSearchKey(IntegerBinding.intToEntry(0)));
-                    Assert.assertEquals(0, IntegerBinding.entryToInt(cursor.getKey()));
-                    Assert.assertTrue(cursor.getNext());
-                    Assert.assertEquals(1, IntegerBinding.entryToInt(cursor.getKey()));
-                }
-                try (Cursor cursor = store.openCursor(txn)) {
-                    Assert.assertNotNull(cursor.getSearchKey(IntegerBinding.intToEntry(1)));
-                    Assert.assertEquals(1, IntegerBinding.entryToInt(cursor.getKey()));
-                    Assert.assertTrue(cursor.getPrev());
-                    Assert.assertEquals(0, IntegerBinding.entryToInt(cursor.getKey()));
-                }
+                assert_XD_608_1_0(txn, store);
+                assert_XD_608_0_0_1(txn, store);
+                assert_XD_608_0_1(txn, store);
             }
         });
+    }
+
+    private void assert_XD_608_1_0(@NotNull Transaction txn, Store store) {
+        try (Cursor cursor = store.openCursor(txn)) {
+            assertTrue(cursor.getPrev());
+            assertEquals(1, IntegerBinding.entryToInt(cursor.getKey()));
+            assertTrue(cursor.getPrev());
+            assertEquals(0, IntegerBinding.entryToInt(cursor.getKey()));
+        }
+    }
+
+    private void assert_XD_608_0_1(@NotNull Transaction txn, Store store) {
+        try (Cursor cursor = store.openCursor(txn)) {
+            assertNotNull(cursor.getSearchKey(IntegerBinding.intToEntry(1)));
+            assertEquals(1, IntegerBinding.entryToInt(cursor.getKey()));
+            assertTrue(cursor.getPrev());
+            assertEquals(0, IntegerBinding.entryToInt(cursor.getKey()));
+        }
+    }
+
+    private void assert_XD_608_0_0_1(@NotNull Transaction txn, Store store) {
+        try (Cursor cursor = store.openCursor(txn)) {
+            assertNotNull(cursor.getSearchKey(IntegerBinding.intToEntry(0)));
+            assertEquals(0, IntegerBinding.entryToInt(cursor.getKey()));
+            assertTrue(cursor.getNext());
+            assertEquals(1, IntegerBinding.entryToInt(cursor.getKey()));
+        }
     }
 
     @Test
@@ -394,7 +392,7 @@ public class StoreTest extends EnvironmentTestsBase {
                 return env.openStore("Whatever", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn, true);
             }
         });
-        Assert.assertNotNull(store);
+        assertNotNull(store);
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
@@ -404,9 +402,9 @@ public class StoreTest extends EnvironmentTestsBase {
                 store.put(txn, IntegerBinding.intToEntry(512), IntegerBinding.intToEntry(512));
                 store.put(txn, IntegerBinding.intToEntry(521), IntegerBinding.intToEntry(521));
                 try (Cursor cursor = store.openCursor(txn)) {
-                    Assert.assertNotNull(cursor.getSearchKey(IntegerBinding.intToEntry(256)));
-                    Assert.assertTrue(cursor.getPrev());
-                    Assert.assertEquals(0, IntegerBinding.entryToInt(cursor.getKey()));
+                    assertNotNull(cursor.getSearchKey(IntegerBinding.intToEntry(256)));
+                    assertTrue(cursor.getPrev());
+                    assertEquals(0, IntegerBinding.entryToInt(cursor.getKey()));
                 }
             }
         });
@@ -414,9 +412,9 @@ public class StoreTest extends EnvironmentTestsBase {
             @Override
             public void execute(@NotNull final Transaction txn) {
                 try (Cursor cursor = store.openCursor(txn)) {
-                    Assert.assertNotNull(cursor.getSearchKey(IntegerBinding.intToEntry(256)));
-                    Assert.assertTrue(cursor.getPrev());
-                    Assert.assertEquals(0, IntegerBinding.entryToInt(cursor.getKey()));
+                    assertNotNull(cursor.getSearchKey(IntegerBinding.intToEntry(256)));
+                    assertTrue(cursor.getPrev());
+                    assertEquals(0, IntegerBinding.entryToInt(cursor.getKey()));
                 }
             }
         });
@@ -432,50 +430,47 @@ public class StoreTest extends EnvironmentTestsBase {
                 return env.openStore("Whatever", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn, true);
             }
         });
-        Assert.assertNotNull(store);
+        assertNotNull(store);
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
                 for (int i = 0; i < 512; ++i) {
                     store.put(txn, IntegerBinding.intToEntry(i), IntegerBinding.intToEntry(i));
                 }
-                try (Cursor cursor = store.openCursor(txn)) {
-                    for (int i = 0; i < 511; ++i) {
-                        Assert.assertTrue(cursor.getNext());
-                        Assert.assertEquals(i, IntegerBinding.entryToInt(cursor.getKey()));
-                        Assert.assertTrue(cursor.getNext());
-                        Assert.assertTrue(cursor.getPrev());
-                    }
-                }
+                assert_XD_614(txn, store);
             }
         });
         env.executeInReadonlyTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
-                try (Cursor cursor = store.openCursor(txn)) {
-                    for (int i = 0; i < 511; ++i) {
-                        Assert.assertTrue(cursor.getNext());
-                        Assert.assertEquals(i, IntegerBinding.entryToInt(cursor.getKey()));
-                        Assert.assertTrue(cursor.getNext());
-                        Assert.assertTrue(cursor.getPrev());
-                    }
-                }
+                assert_XD_614(txn, store);
             }
         });
+    }
+
+    private void assert_XD_614(@NotNull Transaction txn, Store store) {
+        try (Cursor cursor = store.openCursor(txn)) {
+            for (int i = 0; i < 511; ++i) {
+                assertTrue(cursor.getNext());
+                assertEquals(i, IntegerBinding.entryToInt(cursor.getKey()));
+                assertTrue(cursor.getNext());
+                assertTrue(cursor.getPrev());
+            }
+        }
     }
 
     @Test
     @TestFor(issues = "XD-601")
     public void testXD_601_by_Thorsten_Schemm() {
         env.getEnvironmentConfig().setGcEnabled(false);
-        Assert.assertTrue(new HashSet<>(Arrays.asList(XD_601_KEYS)).size() == XD_601_KEYS.length);
+        assertTrue(new HashSet<>(Arrays.asList(XD_601_KEYS)).size() == XD_601_KEYS.length);
         final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
             @Override
             public Store compute(@NotNull Transaction txn) {
                 return env.openStore("Messages", StoreConfig.WITHOUT_DUPLICATES, txn, true);
             }
         });
-        Assert.assertNotNull(store);
+        assertNotNull(store);
         for (int i = 0; i < XD_601_KEYS.length; i++) {
             final ByteIterable nextKey = StringBinding.stringToEntry(XD_601_KEYS[i]);
             final ByteIterable nextValue = StringBinding.stringToEntry(Integer.toString(i));
@@ -485,7 +480,7 @@ public class StoreTest extends EnvironmentTestsBase {
                     return store.count(txn);
                 }
             });
-            Assert.assertEquals(storeCount, i);
+            assertEquals(storeCount, i);
             if (storeCount != i) {
                 System.out.println("unexpected store count:  " + storeCount + " at " + i);
             }
@@ -500,14 +495,14 @@ public class StoreTest extends EnvironmentTestsBase {
                 env.executeInReadonlyTransaction(new TransactionalExecutable() {
                     @Override
                     public void execute(@NotNull final Transaction txn) {
-                        Assert.assertNotNull(store.get(txn, nextKey));
+                        assertNotNull(store.get(txn, nextKey));
                     }
                 });
             }
             env.executeInTransaction(new TransactionalExecutable() {
                 @Override
                 public void execute(@NotNull final Transaction txn) {
-                    Assert.assertTrue(store.put(txn, nextKey, nextValue));
+                    assertTrue(store.put(txn, nextKey, nextValue));
                 }
             });
         }
@@ -657,7 +652,7 @@ public class StoreTest extends EnvironmentTestsBase {
         for (int i = 0; i < count; ++i) {
             processor.queue(new Job() {
                 @Override
-                protected void execute() throws Throwable {
+                protected void execute() {
                     env.executeInTransaction(new TransactionalExecutable() {
                         @Override
                         public void execute(@NotNull final Transaction txn) {
@@ -679,21 +674,21 @@ public class StoreTest extends EnvironmentTestsBase {
         }
         processor.waitForJobs(10);
         processor.finish();
-        Assert.assertEquals(count, keys.size());
+        assertEquals(count, keys.size());
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
                 final long[] longs = keys.toLongArray();
                 for (long key : longs) {
-                    Assert.assertEquals(getValue(), store.get(txn, LongBinding.longToCompressedEntry(key)));
+                    assertEquals(getValue(), store.get(txn, LongBinding.longToCompressedEntry(key)));
                 }
                 Arrays.sort(longs);
                 try (Cursor cursor = store.openCursor(txn)) {
                     int i = 0;
                     while (cursor.getNext()) {
-                        Assert.assertEquals(longs[i++], LongBinding.compressedEntryToLong(cursor.getKey()));
+                        assertEquals(longs[i++], LongBinding.compressedEntryToLong(cursor.getKey()));
                     }
-                    Assert.assertEquals(count, i);
+                    assertEquals(count, i);
                 }
             }
         });
