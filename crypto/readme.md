@@ -1,11 +1,9 @@
 # <img src="https://raw.githubusercontent.com/wiki/jetbrains/xodus/xodus.png" width=160>
 
-<!--
 [Overview](https://github.com/JetBrains/xodus/Database-Encryption#overview)
 <br>[Working with Encrypted Database](https://github.com/JetBrains/xodus/Database-Encryption#working-with-encrypted-database)
 <br>[Encrypting Existing Database](https://github.com/JetBrains/xodus/Database-Encryption#encrypting-existing-database)
 <br>[Using Custom Cipher Implementations](https://github.com/JetBrains/xodus/Database-Encryption#using-custom-cipher-implementations)
--->
 
 ## Overview
 
