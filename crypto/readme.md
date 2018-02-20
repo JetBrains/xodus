@@ -29,7 +29,8 @@ Both built-in implementations (Salsa20 and ChaCha20) are provided by the
 
 If you are ok about using built-in Salsa20 or ChaCha20, then depend your application of the
 [xodus-crypto jar](https://search.maven.org/#search%7Cga%7C1%7Cxodus-crypto). Otherwise you have to
-provide your own implementation (see [Using Custom Encryption Algorithms](https://github.com/JetBrains/xodus/Database-Encryption#using-custom-encryption-algorithms)).
+provide your own cipher implementation (see 
+[Using Custom Cipher Implementations](https://github.com/JetBrains/xodus/wiki/Database-Encryption#using-custom-cipher-implementations)).
 When opening/creating a database your application should configure <i>cipher id</i>, <i>cipher key</i> and
 <i>cipher basic IV</i> ([initialization vector](https://en.wikipedia.org/wiki/Initialization_vector)).
 Opening a database can look like the following:
