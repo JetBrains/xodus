@@ -95,6 +95,8 @@ Options:
 E.g., to encrypt the database located at `/Users/me/.myAppData` using ChaCha20 cipher and the same parameters
 as in the sample above, run:
 
-        ./java -jar xodus-tools.jar scytale -o /Users/me/.myAppData /Users/me/.myAppData 000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f 314159262718281828 
+    ./java -jar xodus-tools.jar scytale /Users/me/.myAppData /Users/me/.myAppData/encrypted 000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f 314159262718281828
+        
+Encrypted database will be put at `/Users/me/.myAppData/encrypted`.
 
 ## Using Custom Cipher Implementations
