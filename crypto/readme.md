@@ -60,6 +60,12 @@ ChaCha20 accepts only 256-bit keys. Basic IV is expected to be random (pseudo-ra
 long value. Basic IV is used to calculate relative IVs which are passed to
 `StreamCipher.init(byte[], long)`.
 
+To work with encrypted [Entity Store](https://github.com/JetBrains/xodus/wiki/Entity-Stores) or
+[Virtual File System](https://github.com/JetBrains/xodus/wiki/Virtual-File-Systems) nothing special is
+needed. Just use an instance of `Environment`, opened with cipher parameters like in the sample above,
+to create an instance of `PersistentEntityStore` or `VirtualFileSystem`. Blob files will be encrypted
+as well as `.xd` files.
+
 All cipher parameters cannot be changed during the life of the database. If your application opens
 plain (not encrypted) database with some cipher parameters, or if it opens encrypted database without
 cipher parameters, or if it opens encrypted database with different cipher parameters, then
