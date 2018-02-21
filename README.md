@@ -2,7 +2,7 @@
 
 [![official JetBrains project](http://jb.gg/badges/official.svg)](https://confluence.jetbrains.com/display/ALL/JetBrains+on+GitHub)
 [![TeamCity (build status)](https://img.shields.io/teamcity/http/teamcity.jetbrains.com/s/Xodus_Build.svg)](http://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build&guest=1)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.jetbrains.xodus/xodus-openAPI/badge.svg)](http://search.maven.org/#search%7Cga%7C1%7Corg.jetbrains.xodus)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.jetbrains.xodus/xodus-openAPI/badge.svg)](http://search.maven.org/#search%7Cga%7C1%7Corg.jetbrains.xodus%20-dnq%20-time)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
 ![Repository Size](https://reposs.herokuapp.com/?path=JetBrains/xodus)
 ![Pure Java + Kotlin](https://img.shields.io/badge/100%25-java%2bkotlin-orange.svg)
@@ -29,13 +29,13 @@ To start using Xodus, define dependencies:
 <dependency>
     <groupId>org.jetbrains.xodus</groupId>
     <artifactId>xodus-openAPI</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
 </dependency>
 ```
 ```groovy
 // in Gradle project
 dependencies {
-    compile 'org.jetbrains.xodus:xodus-openAPI:1.1.0'
+    compile 'org.jetbrains.xodus:xodus-openAPI:1.2.0'
 }
 ```
 Read more about [managing dependencies](https://github.com/JetBrains/xodus/wiki/Managing-Dependencies).
@@ -44,7 +44,7 @@ There are three different ways to deal with data, which results in three differe
  
 ### Environments
 
-Add dependency on `org.jetbrains.xodus:xodus-environment:1.1.0`.
+Add dependency on `org.jetbrains.xodus:xodus-environment:1.2.0`.
 
 ```java
 final Environment env = Environments.newInstance("/home/me/.myAppData");
@@ -59,7 +59,7 @@ env.close();
 ```
 ### Entity Stores
 
-Add dependency on `org.jetbrains.xodus:xodus-entity-store:1.1.0`.
+Add dependency on `org.jetbrains.xodus:xodus-entity-store:1.2.0`.
 
 ```java
 final PersistentEntityStore entityStore = PersistentEntityStores.newInstance("/home/me/.myAppData");
@@ -74,7 +74,7 @@ entityStore.close();
 ```
 ### Virtual File Systems
 
-Add dependency on `org.jetbrains.xodus:xodus-vfs:1.1.0`.
+Add dependency on `org.jetbrains.xodus:xodus-vfs:1.2.0`.
 
 ```java
 final Environment env = Environments.newInstance("/home/me/.myAppData");
