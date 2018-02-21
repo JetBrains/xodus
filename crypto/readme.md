@@ -3,7 +3,7 @@
 [Overview](https://github.com/JetBrains/xodus/wiki/Database-Encryption#overview)
 <br>[Working with Encrypted Database](https://github.com/JetBrains/xodus/wiki/Database-Encryption#working-with-encrypted-database)
 <br>[Encrypting Existing Database](https://github.com/JetBrains/xodus/wiki/Database-Encryption#encrypting-existing-database)
-<br>[Using Custom Cipher Implementations](https://github.com/JetBrains/xodus/wiki/Database-Encryption#using-custom-cipher-implementations)
+<br>[Custom Cipher Implementations](https://github.com/JetBrains/xodus/wiki/Database-Encryption#custom-cipher-implementations)
 
 ## Overview
 
@@ -30,7 +30,7 @@ Both built-in implementations (Salsa20 and ChaCha20) are provided by the
 If you are ok about using built-in Salsa20 or ChaCha20, then depend your application of the
 [xodus-crypto jar](https://search.maven.org/#search%7Cga%7C1%7Cxodus-crypto). Otherwise you have to
 provide your own cipher implementation (see 
-[Using Custom Cipher Implementations](https://github.com/JetBrains/xodus/wiki/Database-Encryption#using-custom-cipher-implementations)).
+[Custom Cipher Implementations](https://github.com/JetBrains/xodus/wiki/Database-Encryption#custom-cipher-implementations)).
 When opening/creating a database your application should configure <i>cipher id</i>, <i>cipher key</i> and
 <i>cipher basic IV</i> ([initialization vector](https://en.wikipedia.org/wiki/Initialization_vector)).
 Opening a database can look like the following:
@@ -100,4 +100,26 @@ as in the sample above, run:
         
 Encrypted database will be put at `/Users/me/.myAppData/encrypted`.
 
-## Using Custom Cipher Implementations
+## Custom Cipher Implementations
+
+In terms of [Service Provider Interfaces](https://en.wikipedia.org/wiki/Service_provider_interface)
+custom cipher implementations are <i>services</i>. A custom cipher implementation should define
+implementations of the `StreamCipherProvider` abstract class and the `StreamCipher` interface.
+`StreamCipherProvider` is used to create instances of `StreamCipher` initialized with a key
+and IV. Any `StreamCipherProvider` implementation is discoverable by its id. This id can be an
+arbitrary string, but it's recommended to use the fully qualified name of the
+`StreamCipherProvider` implementation as id.
+
+To plug your custom cipher, fully qualified name of the `StreamCipherProvider` implementation
+should be listed in the `META-INF/services/jetbrains.exodus.crypto.StreamCipherProvider` file
+in your application jar or any jar in its CLASSPATH. E.g., the contents of
+the `META-INF/services/jetbrains.exodus.crypto.StreamCipherProvider` file in
+`xodus-crypto.jar` is the following:
+
+```text
+jetbrains.exodus.crypto.streamciphers.Salsa20StreamCipherProvider
+jetbrains.exodus.crypto.streamciphers.ChaChaStreamCipherProvider
+```   
+
+So if your application depends on `xodus-crypto.jar`, it will be able to use Salsa20 or
+ChaCha20 ciphers for database encryption.
