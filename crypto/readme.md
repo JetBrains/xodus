@@ -11,7 +11,7 @@ As of version 1.2.0 Xodus supports database encryption. Implementations of algor
 symmetric [stream ciphers](https://en.wikipedia.org/wiki/Stream_cipher) can be used.
 
 Xodus supports two algorithms out-of-the-box: [Salsa20](https://en.wikipedia.org/wiki/Salsa20) and
-[ChaCha20](https://en.wikipedia.org/wiki/Salsa20#ChaCha_variant). Salsa20 is one of two the best  
+[ChaCha20](https://en.wikipedia.org/wiki/Salsa20#ChaCha_variant). Salsa20 is one of two the best
 algorithms (along with [Rabbit](https://en.wikipedia.org/wiki/Rabbit_(cipher))) submitted to the
 [eSTREAM](https://en.wikipedia.org/wiki/ESTREAM) project in "profile 1" (<i>Stream ciphers for
 software applications with high throughput requirements</i>).
