@@ -54,7 +54,7 @@ class StreamCipherInputStream(input: InputStream, private val cipherGetter: () -
     override fun reset() {
         super.reset()
         cipher = cipherGetter()
-        // skip readLimit bytes
+        // skip savedPosition bytes
         repeat(savedPosition, {
             cipher.crypt(0)
         })
