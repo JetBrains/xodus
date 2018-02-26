@@ -36,7 +36,7 @@ class EncryptedBlobVault(private val decorated: BlobVault,
 
     override fun getContent(blobHandle: Long, txn: Transaction): InputStream? {
         return decorated.getContent(blobHandle, txn)?.run {
-            StreamCipherInputStream(this, newCipher(blobHandle))
+            StreamCipherInputStream(this, { newCipher(blobHandle) })
         }
     }
 
@@ -49,13 +49,14 @@ class EncryptedBlobVault(private val decorated: BlobVault,
                             deferredBlobsToDelete: LongSet?,
                             txn: Transaction) {
         val streams = LongHashMap<InputStream>()
-        blobStreams?.forEach { streams[it.key] = StreamCipherInputStream(it.value, newCipher(it.key)) }
+        blobStreams?.forEach { streams[it.key] = StreamCipherInputStream(it.value, { newCipher(it.key) }) }
         var openFiles: MutableList<InputStream>? = null
         try {
             if (blobFiles != null && blobFiles.isNotEmpty()) {
                 openFiles = mutableListOf()
                 blobFiles.forEach {
-                    streams[it.key] = StreamCipherInputStream(FileInputStream(it.value).also { openFiles?.add(it) }, newCipher(it.key))
+                    streams[it.key] = StreamCipherInputStream(
+                            FileInputStream(it.value).also { openFiles?.add(it) }, { newCipher(it.key) })
                 }
             }
             decorated.flushBlobs(streams, null, deferredBlobsToDelete, txn)

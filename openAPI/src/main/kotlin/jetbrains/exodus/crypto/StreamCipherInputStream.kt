@@ -16,13 +16,22 @@
 package jetbrains.exodus.crypto
 
 import jetbrains.exodus.kotlin.notNull
+import java.io.BufferedInputStream
 import java.io.FilterInputStream
 import java.io.InputStream
 
-class StreamCipherInputStream(input: InputStream, private val cipher: StreamCipher) : FilterInputStream(input) {
+class StreamCipherInputStream(input: InputStream, private val cipherGetter: () -> StreamCipher) : FilterInputStream(input.asBuffered) {
+
+    private var cipher: StreamCipher = cipherGetter()
+    private var position = 0
+    private var savedPosition = 0
+
+    init {
+        mark(Int.MAX_VALUE)
+    }
 
     override fun read(): Int {
-        return cipher.cryptAsInt(super.read().toByte())
+        return cipher.cryptAsInt(super.read().toByte()).apply { ++position }
     }
 
     override fun read(bytes: ByteArray?): Int {
@@ -34,10 +43,32 @@ class StreamCipherInputStream(input: InputStream, private val cipher: StreamCiph
         val b = bytes.notNull { "Can't read into null array" }
         val read = super.read(b, off, len)
         if (read > 0) {
-            for (i in off until minOf(read, len)) {
+            for (i in off until read) {
                 b[i] = cipher.crypt(b[i])
             }
+            position += read
         }
         return read
+    }
+
+    override fun reset() {
+        super.reset()
+        cipher = cipherGetter()
+        // skip readLimit bytes
+        repeat(savedPosition, {
+            cipher.crypt(0)
+        })
+        position = savedPosition
+    }
+
+    override fun mark(readlimit: Int) {
+        super.mark(readlimit)
+        savedPosition = position
+    }
+
+    companion object {
+
+        private val InputStream.asBuffered: InputStream
+            get() = this as? BufferedInputStream ?: BufferedInputStream(this)
     }
 }

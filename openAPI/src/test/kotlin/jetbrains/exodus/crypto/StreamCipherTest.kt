@@ -34,7 +34,7 @@ open class StreamCipherTest {
             it.write(RENAT_GILFANOV)
         }
         val baseInputStream = ByteArrayInputStream(baseOutputStream.bufferBytes, 0, baseOutputStream.size())
-        val cipherInputStream = baseInputStream decryptBy createCipher().init()
+        val cipherInputStream = baseInputStream decryptBy { createCipher().init() }
         Assert.assertEquals(RENAT_GILFANOV, cipherInputStream.reader().readText())
     }
 
