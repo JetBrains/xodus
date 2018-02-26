@@ -410,6 +410,12 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertEquals("my body2", entity.getBlobString("body2"));
     }
 
+    @TestFor(issues = "XD-675")
+    public void testBlobFiles2() throws Exception {
+        getEntityStore().getConfig().setMaxInPlaceBlobSize(0);
+        testBlobFiles();
+    }
+
     public void testBlobOverwrite() throws Exception {
         final StoreTransaction txn = getStoreTransaction();
         txn.flush();
