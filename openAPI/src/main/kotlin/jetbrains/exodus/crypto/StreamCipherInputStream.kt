@@ -43,7 +43,7 @@ class StreamCipherInputStream(input: InputStream, private val cipherGetter: () -
         val b = bytes.notNull { "Can't read into null array" }
         val read = super.read(b, off, len)
         if (read > 0) {
-            for (i in off until read) {
+            for (i in off until read + off) {
                 b[i] = cipher.crypt(b[i])
             }
             position += read
