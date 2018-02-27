@@ -328,6 +328,7 @@ public final class SortIterable extends EntityIterableDecoratorBase {
         private final LongSet rightOrder;
         private LongIterator rightOrderIt;
         private boolean hasNull;
+        private boolean rightOrderEmpty;
 
         private NonStableSortIterator(@NotNull final PersistentStoreTransaction txn,
                                       @NotNull final EntityIterator propIterator) {
@@ -336,14 +337,16 @@ public final class SortIterable extends EntityIterableDecoratorBase {
             final EntityIdSet sourceSet = source.toSet(txn);
             hasNull = sourceSet.contains(null);
             rightOrder = sourceSet.getTypeSetSnapshot(sourceTypeId);
+            rightOrderEmpty = rightOrder.isEmpty();
             nextId = null;
         }
 
         @Override
         protected boolean hasNextImpl() {
-            while (!rightOrder.isEmpty() && propIterator.hasNext()) {
+            while (!rightOrderEmpty && propIterator.hasNext()) {
                 final EntityId nextId = propIterator.nextId();
                 if (nextId != null && rightOrder.remove(nextId.getLocalId())) {
+                    rightOrderEmpty = rightOrder.isEmpty();
                     this.nextId = nextId;
                     return true;
                 }
