@@ -485,24 +485,24 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             throw new NullPointerException("Can't create cached instance for EMPTY iterable");
         }
+        final EntityIterableCache cache = store.getEntityIterableCache();
+        final boolean canBeCached = cache.isCachingDisabled && canBeCached();
         CachedInstanceIterable cached = null;
-        final PersistentEntityStoreConfig config = store.getConfig();
-        final boolean canBeCached = !config.isCachingDisabled() && canBeCached();
         if (canBeCached) {
             cached = txn.getCachedInstance(this);
         }
         if (cached == null || cached.getHandle().isExpired()) {
             cached = createCachedInstance(txn);
-            if (canBeReordered() && !config.isReorderingDisabled() && !cached.isSortedById()) {
+            if (canBeReordered() && !store.getConfig().isReorderingDisabled() && !cached.isSortedById()) {
                 cached = cached.orderById();
             }
             if (canBeCached) {
                 txn.addCachedInstance(cached);
             } else {
-                store.getEntityIterableCache().setCachedCount(getHandle(), cached.size());
+                cache.setCachedCount(getHandle(), cached.size());
             }
         } else if (forceCount) {
-            store.getEntityIterableCache().setCachedCount(getHandle(), cached.size());
+            cache.setCachedCount(getHandle(), cached.size());
         }
         return cached;
     }
