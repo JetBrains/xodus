@@ -50,7 +50,7 @@ final class MetaTree {
 
     static Pair<MetaTree, Integer> create(@NotNull final EnvironmentImpl env) {
         final Log log = env.getLog();
-        if (log.getApprovedHighAddress() > EMPTY_LOG_BOUND) {
+        if (log.getHighAddress() > EMPTY_LOG_BOUND) {
             Loggable rootLoggable = log.getLastLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);
             while (rootLoggable != null) {
                 final DatabaseRoot dbRoot = new DatabaseRoot(rootLoggable);
