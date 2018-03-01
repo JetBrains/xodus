@@ -486,7 +486,7 @@ public abstract class EntityIterableBase implements EntityIterable {
             throw new NullPointerException("Can't create cached instance for EMPTY iterable");
         }
         final EntityIterableCache cache = store.getEntityIterableCache();
-        final boolean canBeCached = cache.isCachingDisabled && canBeCached();
+        final boolean canBeCached = !cache.isCachingDisabled && canBeCached();
         CachedInstanceIterable cached = null;
         if (canBeCached) {
             cached = txn.getCachedInstance(this);

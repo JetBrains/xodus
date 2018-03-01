@@ -13,28 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore;
+package jetbrains.exodus.entitystore
 
-import jetbrains.exodus.ConfigSettingChangeListener;
-import org.jetbrains.annotations.NotNull;
+import jetbrains.exodus.ConfigSettingChangeListener
 
-import java.util.Map;
+internal class PersistentEntityStoreSettingsListener(private val store: PersistentEntityStoreImpl) : ConfigSettingChangeListener.Adapter() {
 
-class PersistentEntityStoreSettingsListener extends ConfigSettingChangeListener.Adapter {
-
-    @NotNull
-    private final PersistentEntityStoreImpl store;
-
-    PersistentEntityStoreSettingsListener(@NotNull final PersistentEntityStoreImpl store) {
-        this.store = store;
-    }
-
-
-    @Override
-    public void afterSettingChanged(@NotNull String key, @NotNull Object value, @NotNull Map<String, Object> context) {
-        if (PersistentEntityStoreConfig.CACHING_DISABLED.equals(key)) {
+    override fun afterSettingChanged(key: String, value: Any, context: Map<String, Any>) {
+        if (PersistentEntityStoreConfig.CACHING_DISABLED == key) {
             // if caching is switched on/off then clear EntityIterableCache
-            store.getEntityIterableCache().clear();
+            store.entityIterableCache.clear()
+            store.entityIterableCache.isCachingDisabled = store.config.isCachingDisabled
         }
     }
 }

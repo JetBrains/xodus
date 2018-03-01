@@ -46,6 +46,7 @@ public final class EntityIterableCache {
     private ObjectCacheBase<Object, Long> iterableCountsCache;
     @NotNull
     final EntityStoreSharedAsyncProcessor processor;
+    // the value is updated by PersistentEntityStoreSettingsListener
     public boolean isCachingDisabled;
 
     public EntityIterableCache(@NotNull final PersistentEntityStoreImpl store) {
@@ -336,7 +337,6 @@ public final class EntityIterableCache {
             final EntityIterableCache cache = cacheRef.get();
             if (cache != null) {
                 cache.cacheAdapter.adjustHitRate();
-                cache.isCachingDisabled = cache.config.isCachingDisabled();
             }
         }
     }
