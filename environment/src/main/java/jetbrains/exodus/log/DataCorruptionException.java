@@ -18,7 +18,7 @@ package jetbrains.exodus.log;
 import jetbrains.exodus.ExodusException;
 import org.jetbrains.annotations.NotNull;
 
-class DataCorruptionException extends ExodusException {
+public class DataCorruptionException extends ExodusException {
 
     DataCorruptionException(@NotNull final String message) {
         super(message);

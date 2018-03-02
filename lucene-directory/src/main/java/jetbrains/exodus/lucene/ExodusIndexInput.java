@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.lucene;
 
+import jetbrains.exodus.log.DataCorruptionException;
 import jetbrains.exodus.vfs.ClusteringStrategy;
 import jetbrains.exodus.vfs.File;
 import jetbrains.exodus.vfs.VfsInputStream;
@@ -86,9 +87,15 @@ public class ExodusIndexInput extends IndexInput {
 
     @Override
     public byte readByte() {
-        final byte result = (byte) getInput().read();
-        ++currentPosition;
-        return result;
+        while (true) {
+            try {
+                final byte result = (byte) getInput().read();
+                ++currentPosition;
+                return result;
+            } catch (DataCorruptionException e) {
+                handleFalseDataCorruption(e);
+            }
+        }
     }
 
     @Override
@@ -96,7 +103,14 @@ public class ExodusIndexInput extends IndexInput {
         if (len == 1) {
             b[offset] = readByte();
         } else {
-            currentPosition += getInput().read(b, offset, len);
+            while (true) {
+                try {
+                    currentPosition += getInput().read(b, offset, len);
+                    return;
+                } catch (DataCorruptionException e) {
+                    handleFalseDataCorruption(e);
+                }
+            }
         }
     }
 
@@ -112,5 +126,14 @@ public class ExodusIndexInput extends IndexInput {
             input = directory.getVfs().readFile(directory.getEnvironment().getAndCheckCurrentTransaction(), file, currentPosition);
         }
         return input;
+    }
+
+    private void handleFalseDataCorruption(DataCorruptionException e) {
+        // we use this dummy synchronized statement, since we don't want TransactionBase.isFinished to be a volatile field
+        synchronized (directory) {
+            if (!input.isObsolete()) {
+                throw e;
+            }
+        }
     }
 }
