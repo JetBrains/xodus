@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
-import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.env.Cursor;
 import org.jetbrains.annotations.NotNull;
@@ -72,21 +71,16 @@ public abstract class EntityIteratorBase implements EntityIterator {
 
     @Override
     public final boolean hasNext() {
-        try {
-            if (finished) {
-                return false;
-            }
-            checkDisposed();
-            final boolean result = hasNextImpl();
-            if (!result) {
-                finished = true;
-                disposeIfShouldBe();
-            }
-            return result;
-        } catch (ExodusException e) {
-            disposeIfShouldBe();
-            throw e;
+        if (finished) {
+            return false;
         }
+        checkDisposed();
+        final boolean result = hasNextImpl();
+        if (!result) {
+            finished = true;
+            disposeIfShouldBe();
+        }
+        return result;
     }
 
     @Override
@@ -109,34 +103,24 @@ public abstract class EntityIteratorBase implements EntityIterator {
             return false;
         }
         checkDisposed();
-        try {
-            while (number-- > 0 && hasNextImpl()) {
-                nextIdImpl();
-            }
-            return hasNextImpl();
-        } catch (ExodusException e) {
-            disposeIfShouldBe();
-            throw e;
+        while (number-- > 0 && hasNextImpl()) {
+            nextIdImpl();
         }
+        return hasNextImpl();
     }
 
     @Override
     @Nullable
     public EntityId nextId() {
         throwNoSuchElementExceptionIfNecessary();
-        try {
-            if ((++nextIdCounter & 0x1ff) == 0) {
-                // do not check QueryCancellingPolicy too often
-                final QueryCancellingPolicy cancellingPolicy = getQueryCancellingPolicy();
-                if (cancellingPolicy != QueryCancellingPolicy.NONE && cancellingPolicy.needToCancel()) {
-                    cancellingPolicy.doCancel();
-                }
+        if ((++nextIdCounter & 0x1ff) == 0) {
+            // do not check QueryCancellingPolicy too often
+            final QueryCancellingPolicy cancellingPolicy = getQueryCancellingPolicy();
+            if (cancellingPolicy != QueryCancellingPolicy.NONE && cancellingPolicy.needToCancel()) {
+                cancellingPolicy.doCancel();
             }
-            return nextIdImpl();
-        } catch (ExodusException e) {
-            disposeIfShouldBe();
-            throw e;
         }
+        return nextIdImpl();
     }
 
     @Nullable
