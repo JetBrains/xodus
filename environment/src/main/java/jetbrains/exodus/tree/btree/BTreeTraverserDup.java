@@ -27,8 +27,9 @@ class BTreeTraverserDup extends BTreeTraverser {
 
     @Override
     public boolean canMoveDown() {
-        // TODO: simplify, optimize
-        return currentPos < currentNode.size && (super.canMoveDown() || (currentPos >= 0 && currentNode.getKey(currentPos).isDup()));
+        final int currentPos = this.currentPos;
+        final BasePage currentNode = this.currentNode;
+        return currentPos < currentNode.size && (!currentNode.isBottom() || (currentPos >= 0 && currentNode.getKey(currentPos).isDup()));
     }
 
     @Override
