@@ -56,7 +56,7 @@ class EncryptedBlobVault(private val decorated: BlobVault,
                 openFiles = mutableListOf()
                 blobFiles.forEach {
                     streams[it.key] = StreamCipherInputStream(
-                            FileInputStream(it.value).also { openFiles?.add(it) }, { newCipher(it.key) })
+                            FileInputStream(it.value).also { openFiles.add(it) }, { newCipher(it.key) })
                 }
             }
             decorated.flushBlobs(streams, null, deferredBlobsToDelete, txn)
