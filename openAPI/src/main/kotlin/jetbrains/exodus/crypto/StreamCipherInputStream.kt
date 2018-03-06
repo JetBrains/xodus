@@ -20,15 +20,13 @@ import java.io.BufferedInputStream
 import java.io.FilterInputStream
 import java.io.InputStream
 
-class StreamCipherInputStream(input: InputStream, private val cipherGetter: () -> StreamCipher) : FilterInputStream(input.asBuffered) {
+val InputStream.asBuffered: InputStream get() = this as? BufferedInputStream ?: BufferedInputStream(this)
+
+class StreamCipherInputStream(input: InputStream, private val cipherGetter: () -> StreamCipher) : FilterInputStream(input) {
 
     private var cipher: StreamCipher = cipherGetter()
     private var position = 0
     private var savedPosition = 0
-
-    init {
-        mark(Int.MAX_VALUE)
-    }
 
     override fun read(): Int {
         return cipher.cryptAsInt(super.read().toByte()).apply { ++position }
@@ -64,11 +62,5 @@ class StreamCipherInputStream(input: InputStream, private val cipherGetter: () -
     override fun mark(readlimit: Int) {
         super.mark(readlimit)
         savedPosition = position
-    }
-
-    companion object {
-
-        private val InputStream.asBuffered: InputStream
-            get() = this as? BufferedInputStream ?: BufferedInputStream(this)
     }
 }
