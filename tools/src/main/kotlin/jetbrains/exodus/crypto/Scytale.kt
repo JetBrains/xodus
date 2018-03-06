@@ -90,7 +90,7 @@ fun main(args: Array<String>) {
         return
     }
 
-    if (target.exists()) {
+    if (target.exists() && target.list().isNotEmpty()) {
         if (!overwrite) {
             println("File exists: ${target.absolutePath}")
             return
