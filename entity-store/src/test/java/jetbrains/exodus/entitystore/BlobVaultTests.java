@@ -15,8 +15,10 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.TestFor;
 import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.backup.VirtualFileDescriptor;
+import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 
 import java.io.ByteArrayInputStream;
@@ -81,5 +83,22 @@ public class BlobVaultTests extends EntityStoreTestBase {
         Assert.assertEquals(0L, min);
         final long max = handlesToFiles.descendingKeySet().iterator().next();
         Assert.assertEquals((long) (count - 1), max);
+    }
+
+    @TestFor(issues = "XD-679")
+    public void testSaveReadStream() {
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        final PersistentEntityStoreImpl store = getEntityStore();
+        store.getConfig().setMaxInPlaceBlobSize(0);
+        final PersistentEntity e = txn.newEntity("E");
+        e.setBlobString("c", "content");
+        Assert.assertEquals("content", e.getBlobString("c"));
+        txn.flush();
+        store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final StoreTransaction txn) {
+                Assert.assertEquals("content", e.getBlobString("c"));
+            }
+        });
     }
 }
