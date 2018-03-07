@@ -94,7 +94,7 @@ subprojects {
         minHeapSize = '1g'
         maxHeapSize = '1g'
         //jvmArgs = ['-ea', '-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=2808']
-        testLogging.showStandardStreams = true
+        //testLogging.showStandardStreams = true
     }
 
     task javadocJar(type: Jar, dependsOn: javadoc) {
@@ -116,6 +116,7 @@ subprojects {
         duplicatesStrategy 'exclude'
         includeEmptyDirs false
         from project.sourceSets.main.java
+        from project.sourceSets.main.kotlin
     }
 
     // configuring projects with Kotlin sources
@@ -134,9 +135,6 @@ subprojects {
             languageVersion = '1.2'
             apiVersion = '1.2'
         }
-    }
-    sourceJar {
-        from project.sourceSets.main.kotlin
     }
     dokka {
         jdkVersion = 7
