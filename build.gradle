@@ -9,7 +9,8 @@ buildscript {
 }
 
 plugins {
-    id "com.github.hierynomus.license" version "0.14.0"
+    id 'com.github.hierynomus.license' version '0.14.0'
+    id 'io.codearte.nexus-staging' version '0.11.0'
 }
 
 group = 'org.jetbrains.xodus'
@@ -163,6 +164,14 @@ subprojects {
 
     afterEvaluate { project ->
         if (shouldDeploy(project)) {
+
+            nexusStaging {
+                username = mavenPublishUsername
+                password = mavenPublishPassword
+                delayBetweenRetriesInMillis = 30000
+                stagingProfileId = "89ee7caa6631c4"
+            }
+
             uploadArchives {
                 repositories {
                     mavenDeployer {
@@ -177,7 +186,7 @@ subprojects {
                             name 'Xodus'
                             description 'Xodus is pure Java transactional schema-less embedded database'
                             packaging 'jar'
-                            url 'http://jetbrains.github.io/xodus'
+                            url 'https://github.com/JetBrains/xodus'
 
                             scm {
                                 url 'https://github.com/JetBrains/xodus'
