@@ -25,6 +25,7 @@ import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.lang.Long.parseLong
+import java.util.concurrent.atomic.AtomicLong
 import java.util.zip.GZIPOutputStream
 
 fun main(args: Array<String>) {
@@ -39,6 +40,7 @@ fun main(args: Array<String>) {
     var compress = false
     var gzip = false
     var overwrite = false
+    var verbose = false
     var type = "chacha"
 
     for (arg in args) {
@@ -47,6 +49,7 @@ fun main(args: Array<String>) {
                 "g" -> gzip = true
                 "z" -> compress = true
                 "o" -> overwrite = true
+                "v" -> verbose = true
                 else -> {
                     printUsage()
                     return
@@ -90,14 +93,20 @@ fun main(args: Array<String>) {
         return
     }
 
-    if (target.exists() && target.list().isNotEmpty()) {
-        if (!overwrite) {
-            println("File exists: ${target.absolutePath}")
-            return
-        }
-        if (!target.deleteRecursively()) {
-            println("File cannot be fully deleted: ${target.absolutePath}")
-            return
+    if (target.exists()) {
+        target.list()?.let {
+            if (!overwrite) {
+                println("File exists: ${target.absolutePath}")
+                return
+            }
+            if (!target.deleteRecursively()) {
+                println("File cannot be fully deleted: ${target.absolutePath}")
+                return
+            }
+        } ?: target.let {
+            if (!overwrite) {
+                println("Invalid file: ${target.absolutePath}")
+            }
         }
     }
 
@@ -117,8 +126,31 @@ fun main(args: Array<String>) {
         DirectoryEncryptListenerFactory.newListener(target)
     }
 
+    val finalOutput = if (verbose) {
+        val bytesWritten = AtomicLong()
+
+        object : EncryptListener {
+            override fun onFile(header: FileHeader) {
+                output.onFile(header)
+                println(header.path + header.name)
+            }
+
+            override fun onFileEnd(header: FileHeader) {
+                output.onFileEnd(header)
+                println(String.format("MB written: %.2f", bytesWritten.get().toFloat() / (1024 * 1024)))
+            }
+
+            override fun onData(header: FileHeader, size: Int, data: ByteArray) {
+                output.onData(header, size, data)
+                bytesWritten.addAndGet(size.toLong())
+            }
+        }
+    } else {
+        output
+    }
+
     try {
-        ScytaleEngine(output, newCipherProvider(cipherId), key, basicIV).encryptBackupable(input)
+        ScytaleEngine(finalOutput, newCipherProvider(cipherId), key, basicIV).encryptBackupable(input)
     } finally {
         archive?.close()
     }
@@ -137,6 +169,7 @@ private fun printUsage() {
     println("Cipher can be 'Salsa' or 'ChaCha', 'ChaCha' is default")
     println("Options:")
     println("  -g              use gzip compression when opening archive")
+    println("  -v              print verbose progress messages")
     println("  -z              make target an archive")
     println("  -o              overwrite target archive or folder")
 }
