@@ -94,14 +94,17 @@ fun main(args: Array<String>) {
     }
 
     if (target.exists()) {
-        target.list()?.let {
-            if (!overwrite) {
-                println("File exists: ${target.absolutePath}")
-                return
-            }
-            if (!target.deleteRecursively()) {
-                println("File cannot be fully deleted: ${target.absolutePath}")
-                return
+        val files = target.list()
+        files?.let {
+            if (files.isNotEmpty()) {
+                if (!overwrite) {
+                    println("File exists: ${target.absolutePath}")
+                    return
+                }
+                if (!target.deleteRecursively()) {
+                    println("File cannot be fully deleted: ${target.absolutePath}")
+                    return
+                }
             }
         } ?: target.let {
             if (!overwrite) {
