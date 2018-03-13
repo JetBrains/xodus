@@ -48,6 +48,11 @@ public final class DistinctIterable extends EntityIterableDecoratorBase {
     // canBeReordered is true because sorted iterator is already sorted and unsorted iterator actually performs reordering
 
     @Override
+    public @NotNull EntityIterable distinct() {
+        return this;
+    }
+
+    @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
         return new EntityIteratorFixingDecorator(this, isSortedById() ?
