@@ -72,7 +72,7 @@ public final class EntityIterableCache {
         cacheAdapter.clear();
         final int cacheSize = config.getEntityIterableCacheSize();
         deferredIterablesCache = new ConcurrentObjectCache<>(cacheSize);
-        iterableCountsCache = new ConcurrentObjectCache<>(cacheSize * 2);
+        iterableCountsCache = new ConcurrentObjectCache<>(cacheSize * 4);
     }
 
     /**
@@ -141,7 +141,8 @@ public final class EntityIterableCache {
             return it.getOrCreateCachedInstance(it.getTransaction()).size();
         }
         if (it.isThreadSafe() && !isCachingQueueFull()) {
-            new EntityIterableAsyncInstantiation(handle, it, false).queue(Priority.normal);
+            new EntityIterableAsyncInstantiation(handle, it, false).queue(
+                result == null ? Priority.normal : Priority.below_normal);
         }
         return result == null ? -1 : result;
     }
@@ -216,7 +217,7 @@ public final class EntityIterableCache {
         }
 
         @Override
-        protected void execute() throws Throwable {
+        protected void execute() {
             final long started;
             if (isCachingQueueFull() || cancellingPolicy.isOverdue(started = System.currentTimeMillis())) {
                 return;
