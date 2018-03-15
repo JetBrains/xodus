@@ -15,7 +15,13 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
+import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
+import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
 import jetbrains.exodus.entitystore.*;
+import jetbrains.exodus.entitystore.tables.LinkValue;
+import jetbrains.exodus.entitystore.tables.PropertyKey;
+import jetbrains.exodus.env.Cursor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -51,16 +57,16 @@ public class FilterLinksIterable extends EntityIterableDecoratorBase {
     @NotNull
     @Override
     public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
-        return new EntityIteratorFixingDecorator(this, new NonDisposableEntityIterator(this) {
+        return new EntityIteratorFixingDecorator(this, new EntityIteratorBase(this) {
 
             @NotNull
             private final EntityIteratorBase sourceIt = (EntityIteratorBase) source.iterator();
+            @NotNull
+            private final IntHashMap<Cursor> usedCursors = new IntHashMap<>(6, 2.f);
             @Nullable
             private EntityId nextId = PersistentEntityId.EMPTY_ID;
             @Nullable
             private EntityIdSet idSet = null;
-            @NotNull
-            private final PersistentEntityStoreImpl store = FilterLinksIterable.this.getStore();
 
             @Override
             protected boolean hasNextImpl() {
@@ -70,9 +76,20 @@ public class FilterLinksIterable extends EntityIterableDecoratorBase {
                 while (sourceIt.hasNext()) {
                     nextId = sourceIt.nextId();
                     if (nextId != null) {
-                        final PersistentEntityId targetId = store.getRawLinkAsEntityId(txn, (PersistentEntityId) nextId, linkId);
-                        if (targetId != null && getIdSet().contains(targetId)) {
-                            return true;
+                        final int typeId = nextId.getTypeId();
+                        Cursor cursor = usedCursors.get(typeId);
+                        if (cursor == null) {
+                            cursor = getStore().getLinksFirstIndexCursor(txn, typeId);
+                            usedCursors.put(typeId, cursor);
+                        }
+                        final ByteIterable keyEntry = PropertyKey.propertyKeyToEntry(new PropertyKey(nextId.getLocalId(), linkId));
+                        final ByteIterable value = cursor.getSearchKey(keyEntry);
+                        if (value != null) {
+                            final LinkValue linkValue = LinkValue.entryToLinkValue(value);
+                            final EntityId targetId = linkValue.getEntityId();
+                            if (getIdSet().contains(targetId)) {
+                                return true;
+                            }
                         }
                     }
                 }
@@ -84,6 +101,18 @@ public class FilterLinksIterable extends EntityIterableDecoratorBase {
                 final EntityId result = nextId;
                 nextId = PersistentEntityId.EMPTY_ID;
                 return result;
+            }
+
+            @Override
+            public boolean dispose() {
+                sourceIt.disposeIfShouldBe();
+                return super.dispose() && usedCursors.forEachValue(new ObjectProcedure<Cursor>() {
+                    @Override
+                    public boolean execute(final Cursor object) {
+                        object.close();
+                        return true;
+                    }
+                });
             }
 
             @NotNull
