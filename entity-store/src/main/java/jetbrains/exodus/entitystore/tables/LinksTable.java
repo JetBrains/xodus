@@ -6,13 +6,9 @@ import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.env.*;
-import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 
 public final class LinksTable extends TwoColumnTable {
-    @NonNls
-    private static final String ALL_LINKS_IDX = "#all_links_idx";
-
     private final Store allLinksIndex;
 
     public LinksTable(@NotNull PersistentStoreTransaction txn, @NotNull String name, @NotNull StoreConfig config) {
@@ -20,7 +16,7 @@ public final class LinksTable extends TwoColumnTable {
         PersistentEntityStoreImpl store = txn.getStore();
         final Transaction envTxn = txn.getEnvironmentTransaction();
         final Environment env = store.getEnvironment();
-        allLinksIndex = env.openStore(name + ALL_LINKS_IDX, StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, envTxn);
+        allLinksIndex = env.openStore(name + ALL_IDX, StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, envTxn);
         store.trackTableCreation(allLinksIndex, txn);
     }
 

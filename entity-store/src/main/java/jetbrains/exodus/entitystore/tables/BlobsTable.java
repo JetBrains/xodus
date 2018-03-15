@@ -21,14 +21,10 @@ import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.env.*;
-import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public final class BlobsTable extends Table {
-
-    @NonNls
-    private static final String ALL_PROPS_IDX = "#all_idx";
 
     private final Store primaryStore;
     private final Store allBlobsIndex;
@@ -40,7 +36,7 @@ public final class BlobsTable extends Table {
         final Transaction envTxn = txn.getEnvironmentTransaction();
         final Environment env = store.getEnvironment();
         primaryStore = env.openStore(name, primaryConfig, envTxn);
-        allBlobsIndex = env.openStore(name + ALL_PROPS_IDX, StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, envTxn);
+        allBlobsIndex = env.openStore(name + ALL_IDX, StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, envTxn);
         store.trackTableCreation(primaryStore, txn);
         store.trackTableCreation(allBlobsIndex, txn);
     }
