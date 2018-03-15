@@ -23,6 +23,7 @@ import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
+import jetbrains.exodus.core.dataStructures.hash.IntHashSet;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction.TransactionType;
@@ -108,8 +109,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private OpenTablesCache entitiesTables;
     @NotNull
     private OpenTablesCache propertiesTables;
-    @NotNull
-    private OpenTablesCache linksTables;
+    @NotNull OpenTablesCache linksTables;
     @NotNull
     private OpenTablesCache blobsTables;
     @NotNull
@@ -125,6 +125,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     private final DataGetter propertyDataGetter;
     private final DataGetter linkDataGetter;
+    private final DataGetter nonDebugLinkDataGetter = new LinkDataGetter();
     private final DataGetter blobDataGetter;
 
     @NotNull
@@ -174,7 +175,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         entityIdCache = new ConcurrentObjectCache<>(ENTITY_ID_CACHE_SIZE);
         explainer = new Explainer(config.isExplainOn());
         propertyDataGetter = new PropertyDataGetter();
-        linkDataGetter = config.isDebugLinkDataGetter() ? new DebugLinkDataGetter() : new LinkDataGetter();
+        linkDataGetter = config.isDebugLinkDataGetter() ? new DebugLinkDataGetter() : nonDebugLinkDataGetter;
         blobDataGetter = new BlobDataGetter();
         allSequences = new HashMap<>();
         entitiesSequences = new IntHashMap<>();
@@ -252,7 +253,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     @NotNull
                     @Override
                     public Table createTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-                        return new TwoColumnTable(txn,
+                        return new LinksTable(txn,
                             namingRulez.getLinksTableName(entityTypeId), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING);
                     }
                 });
@@ -322,7 +323,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             }
             if (fromScratch || Settings.get(internalSettings, "refactorMakeLinkTablesConsistent() applied") == null || config.getRefactoringHeavyLinks()) {
                 if (!fromScratch) {
-                    refactorings.refactorMakeLinkTablesConsistent();
+                    refactorings.refactorMakeLinkTablesConsistent(internalSettings);
                 }
                 Settings.set(internalSettings, "refactorMakeLinkTablesConsistent() applied", "y");
             }
@@ -337,6 +338,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     refactorings.refactorRemoveHistoryStores();
                 }
                 Settings.set(internalSettings, "Entities history deleted", "y");
+            }
+            if (fromScratch || Settings.get(internalSettings, "Link null-indices present") == null) {
+                if (!fromScratch) {
+                    refactorings.refactorCreateNullLinkIndices();
+                }
+                Settings.set(internalSettings, "Link null-indices present", "y");
             }
             if (blobVault instanceof VFSBlobVault && new File(location, BLOBS_DIR).exists()) {
                 try {
@@ -817,6 +824,11 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return getLinksTable(txn, entityTypeId).getSecondIndexCursor(txn.getEnvironmentTransaction());
     }
 
+    @NotNull
+    public Cursor getEntityWithLinkCursor(@NotNull final PersistentStoreTransaction txn, int entityTypeId) {
+        return getLinksTable(txn, entityTypeId).getAllLinksIndex().openCursor(txn.getEnvironmentTransaction());
+    }
+
     /**
      * Clears all properties of specified entity.
      *
@@ -1134,7 +1146,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     @NotNull final PersistentEntity from,
                     @NotNull PersistentEntity target,
                     final int linkId) {
-        final EntityId fromId = from.getId();
+        final PersistentEntityId fromId = from.getId();
         final int entityTypeId = fromId.getTypeId();
         final long entityLocalId = fromId.getLocalId();
         final PropertyKey linkKey = new PropertyKey(entityLocalId, linkId);
@@ -1145,8 +1157,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             target = txn.getEntity(target.getId());
         }
 
+        final ByteIterable existingValue = nonDebugLinkDataGetter.getUpToDateEntry(txn, entityTypeId, linkKey); // there can be duplicates
         if (!getLinksTable(txn, entityTypeId).put(txn.getEnvironmentTransaction(),
-            PropertyKey.propertyKeyToEntry(linkKey), LinkValue.linkValueToEntry(linkValue))) {
+            entityLocalId, LinkValue.linkValueToEntry(linkValue), existingValue == null, linkId)) {
             return false;
         }
 
@@ -1163,8 +1176,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final PersistentEntityId fromId = from.getId();
         final int entityTypeId = fromId.getTypeId();
         final long entityLocalId = fromId.getLocalId();
-        final ByteIterable keyEntry = PropertyKey.propertyKeyToEntry(new PropertyKey(entityLocalId, linkId));
-        final TwoColumnTable links = getLinksTable(txn, entityTypeId);
+        final LinksTable links = getLinksTable(txn, entityTypeId);
         boolean oldTargetDeleted = false;
 
         // check if the target is already deleted
@@ -1172,13 +1184,13 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             target = txn.getEntity(target.getId());
         }
 
-        final ByteIterable valueEntry = getRawLink(txn, fromId, linkId);
-        if (valueEntry != null) {
-            final PersistentEntity oldTarget = getEntity(LinkValue.entryToLinkValue(valueEntry).getEntityId());
+        final ByteIterable oldValue = getRawLink(txn, fromId, linkId);
+        if (oldValue != null) {
+            final PersistentEntity oldTarget = getEntity(LinkValue.entryToLinkValue(oldValue).getEntityId());
             if (oldTarget.equals(target)) {
                 return false;
             }
-            links.delete(envTxn, keyEntry, valueEntry);
+            links.delete(envTxn, entityLocalId, oldValue, target == null, linkId);
             txn.linkDeleted(fromId, oldTarget.getId(), linkId);
             oldTargetDeleted = true;
         }
@@ -1186,7 +1198,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             return oldTargetDeleted;
         }
         final LinkValue linkValue = new LinkValue(target.getId(), linkId);
-        links.put(envTxn, keyEntry, LinkValue.linkValueToEntry(linkValue));
+        links.put(envTxn, entityLocalId, LinkValue.linkValueToEntry(linkValue), oldValue == null, linkId);
         txn.linkAdded(fromId, target.getId(), linkId);
         return true;
     }
@@ -1242,18 +1254,42 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return new EntityFromLinkSetIterable(txn, from.getId(), linkNames);
     }
 
-    boolean deleteLink(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity from, final int linkId, @NotNull final PersistentEntity to) {
-        return deleteLink(txn, from, linkId, to.getId());
+    boolean deleteLinkInternal(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity from, final int linkId, @NotNull final PersistentEntity to) {
+        final boolean result = deleteLinkInternal(txn, from, linkId, to.getId());
+        if (result) {
+            final PersistentEntityId fromId = from.getId();
+            final long entityLocalId = fromId.getLocalId();
+            final PropertyKey linkKey = new PropertyKey(entityLocalId, linkId);
+            final int entityTypeId = fromId.getTypeId();
+            final ByteIterable remainingValue = nonDebugLinkDataGetter.getUpToDateEntry(txn, entityTypeId, linkKey);
+            if (remainingValue == null) {
+                getLinksTable(txn, entityTypeId).deleteAllIndex(txn.getEnvironmentTransaction(), linkId, entityLocalId);
+            }
+        }
+        return result;
     }
 
-    boolean deleteLink(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity from, int linkId, @NotNull final PersistentEntityId toId) {
+    @SuppressWarnings("ConstantConditions")
+    void deleteAllLinks(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity from, final int linkId, @NotNull final EntityIterableBase existing) {
+        final EntityIterator itr = existing.iterator();
+        boolean deleted = false;
+        while (itr.hasNext()) {
+            deleted |= deleteLinkInternal(txn, from, linkId, (PersistentEntityId) itr.nextId());
+        }
+        if (deleted) {
+            final PersistentEntityId fromId = from.getId();
+            getLinksTable(txn, fromId.getTypeId()).deleteAllIndex(txn.getEnvironmentTransaction(), linkId, fromId.getLocalId());
+        }
+    }
+
+    private boolean deleteLinkInternal(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity from, int linkId, @NotNull final PersistentEntityId toId) {
         final PersistentEntityId fromId = from.getId();
         final int entityTypeId = fromId.getTypeId();
         final long entityLocalId = fromId.getLocalId();
         final PropertyKey linkKey = new PropertyKey(entityLocalId, linkId);
         final LinkValue linkValue = new LinkValue(toId, linkId);
         final Transaction envTxn = txn.getEnvironmentTransaction();
-        final TwoColumnTable links = getLinksTable(txn, entityTypeId);
+        final LinksTable links = getLinksTable(txn, entityTypeId);
 
         if (links.delete(envTxn, PropertyKey.propertyKeyToEntry(linkKey), LinkValue.linkValueToEntry(linkValue))) {
             txn.linkDeleted(fromId, toId, linkId);
@@ -1370,7 +1406,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final int entityTypeId = id.getTypeId();
         final long entityLocalId = id.getLocalId();
         final Transaction envTxn = txn.getEnvironmentTransaction();
-        final TwoColumnTable links = getLinksTable(txn, entityTypeId);
+        final LinksTable links = getLinksTable(txn, entityTypeId);
+        final IntHashSet deletedLinks = new IntHashSet();
         try (Cursor cursor = links.getFirstIndexCursor(envTxn)) {
             for (boolean success = cursor.getSearchKeyRange(PropertyKey.propertyKeyToEntry(new PropertyKey(entityLocalId, 0))) != null;
                  success; success = cursor.getNext()) {
@@ -1381,12 +1418,17 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
                 final ByteIterable valueEntry = cursor.getValue();
                 if (links.delete(envTxn, keyEntry, valueEntry)) {
-                    if (getLinkName(txn, key.getPropertyId()) != null) {
+                    int linkId = key.getPropertyId();
+                    if (getLinkName(txn, linkId) != null) {
+                        deletedLinks.add(linkId);
                         final LinkValue linkValue = LinkValue.entryToLinkValue(valueEntry);
                         txn.linkDeleted(entity.getId(), (PersistentEntityId) linkValue.getEntityId(), linkValue.getLinkId());
                     }
                 }
             }
+        }
+        for (Integer linkId: deletedLinks) {
+            links.deleteAllIndex(envTxn, linkId, entityLocalId);
         }
     }
 
@@ -1671,8 +1713,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     @NotNull
-    public TwoColumnTable getLinksTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-        return (TwoColumnTable) linksTables.get(txn, entityTypeId);
+    public LinksTable getLinksTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
+        return (LinksTable) linksTables.get(txn, entityTypeId);
     }
 
     @NotNull
@@ -1766,15 +1808,15 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
 
         @NotNull
-        private Pair<Integer, TwoColumnTable> lastUsedTable = new Pair<>(Integer.MIN_VALUE, null);
+        private Pair<Integer, LinksTable> lastUsedTable = new Pair<>(Integer.MIN_VALUE, null);
 
         private TwoColumnTable getTable(@NotNull final PersistentStoreTransaction txn,
                                         final int typeId) {
-            final Pair<Integer, TwoColumnTable> lastUsedTable = this.lastUsedTable;
+            final Pair<Integer, LinksTable> lastUsedTable = this.lastUsedTable;
             if (lastUsedTable.getFirst() == typeId) {
                 return lastUsedTable.getSecond();
             }
-            final TwoColumnTable result = getLinksTable(txn, typeId);
+            final LinksTable result = getLinksTable(txn, typeId);
             this.lastUsedTable = new Pair<>(typeId, result);
             return result;
         }

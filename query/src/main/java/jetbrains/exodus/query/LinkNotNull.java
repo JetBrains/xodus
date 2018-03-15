@@ -17,9 +17,8 @@ package jetbrains.exodus.query;
 
 
 import jetbrains.exodus.entitystore.Entity;
-import jetbrains.exodus.entitystore.EntityIterable;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
-import jetbrains.exodus.query.metadata.*;
+import jetbrains.exodus.query.metadata.ModelMetaData;
 
 import static jetbrains.exodus.query.Utils.safe_equals;
 
@@ -34,27 +33,6 @@ public class LinkNotNull extends NodeBase {
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData) {
         queryEngine.assertOperational();
         final PersistentStoreTransaction txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
-        if (metaData != null) {
-            EntityMetaData emd = metaData.getEntityMetaData(entityType);
-            if (emd != null) {
-                AssociationEndMetaData aemd = emd.getAssociationEndMetaData(name);
-                if (aemd != null) {
-                    AssociationMetaData amd = aemd.getAssociationMetaData();
-                    if (amd.getType() != AssociationType.Directed) {
-                        emd = aemd.getOppositeEntityMetaData();
-                        aemd = amd.getOppositeEnd(aemd);
-                        final String oppositeLinkName = aemd.getName();
-                        EntityIterable result = txn.findWithLinks(entityType, name, emd.getType(), oppositeLinkName);
-                        for (final String subType : emd.getAllSubTypes()) {
-                            result = result.union(txn.findWithLinks(entityType, name, subType, oppositeLinkName));
-                        }
-                        // NB! findWithLinks(entityType, name, emd.getType(), oppositeLinkName) can return duplicates,
-                        // so please do not remove .distinct()
-                        return result.distinct();
-                    }
-                }
-            }
-        }
         return txn.findWithLinks(entityType, name);
     }
 

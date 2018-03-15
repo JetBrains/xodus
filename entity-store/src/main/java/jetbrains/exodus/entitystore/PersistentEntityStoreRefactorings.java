@@ -20,6 +20,8 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.bindings.*;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.*;
+import jetbrains.exodus.core.dataStructures.persistent.PersistentLong23TreeSet;
+import jetbrains.exodus.core.dataStructures.persistent.PersistentLongSet;
 import jetbrains.exodus.entitystore.tables.*;
 import jetbrains.exodus.env.*;
 import org.jetbrains.annotations.NotNull;
@@ -94,24 +96,24 @@ final class PersistentEntityStoreRefactorings {
                         logger.info("Refactoring creating null-value property indices for [" + entityType + ']');
                     }
                     safeExecuteRefactoringForEntityType(entityType,
-                        new StoreTransactionalExecutable() {
-                            @Override
-                            public void execute(@NotNull final StoreTransaction tx) {
-                                final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
-                                final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
-                                final PropertiesTable props = store.getPropertiesTable(txn, entityTypeId);
-                                final Store allPropsIndex = props.getAllPropsIndex();
-                                final Cursor cursor = store.getPrimaryPropertyIndexCursor(txn, entityTypeId);
-                                final Transaction envTxn = txn.getEnvironmentTransaction();
-                                while (cursor.getNext()) {
-                                    PropertyKey propertyKey = PropertyKey.entryToPropertyKey(cursor.getKey());
-                                    allPropsIndex.put(envTxn,
-                                        IntegerBinding.intToCompressedEntry(propertyKey.getPropertyId()),
-                                        LongBinding.longToCompressedEntry(propertyKey.getEntityLocalId()));
+                            new StoreTransactionalExecutable() {
+                                @Override
+                                public void execute(@NotNull final StoreTransaction tx) {
+                                    final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
+                                    final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
+                                    final PropertiesTable props = store.getPropertiesTable(txn, entityTypeId);
+                                    final Store allPropsIndex = props.getAllPropsIndex();
+                                    final Cursor cursor = store.getPrimaryPropertyIndexCursor(txn, entityTypeId);
+                                    final Transaction envTxn = txn.getEnvironmentTransaction();
+                                    while (cursor.getNext()) {
+                                        PropertyKey propertyKey = PropertyKey.entryToPropertyKey(cursor.getKey());
+                                        allPropsIndex.put(envTxn,
+                                                IntegerBinding.intToCompressedEntry(propertyKey.getPropertyId()),
+                                                LongBinding.longToCompressedEntry(propertyKey.getEntityLocalId()));
+                                    }
+                                    cursor.close();
                                 }
-                                cursor.close();
                             }
-                        }
                     );
                 }
             }
@@ -128,24 +130,108 @@ final class PersistentEntityStoreRefactorings {
                         logger.info("Refactoring creating null-value blob indices for [" + entityType + ']');
                     }
                     safeExecuteRefactoringForEntityType(entityType,
-                        new StoreTransactionalExecutable() {
-                            @Override
-                            public void execute(@NotNull final StoreTransaction tx) {
-                                final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
-                                final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
-                                final BlobsTable blobs = store.getBlobsTable(txn, entityTypeId);
-                                final Store allBlobsIndex = blobs.getAllBlobsIndex();
-                                final Transaction envTxn = txn.getEnvironmentTransaction();
-                                final Cursor cursor = blobs.getPrimaryIndex().openCursor(envTxn);
-                                while (cursor.getNext()) {
-                                    PropertyKey propertyKey = PropertyKey.entryToPropertyKey(cursor.getKey());
-                                    allBlobsIndex.put(envTxn,
-                                        IntegerBinding.intToCompressedEntry(propertyKey.getPropertyId()),
-                                        LongBinding.longToCompressedEntry(propertyKey.getEntityLocalId()));
+                            new StoreTransactionalExecutable() {
+                                @Override
+                                public void execute(@NotNull final StoreTransaction tx) {
+                                    final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
+                                    final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
+                                    final BlobsTable blobs = store.getBlobsTable(txn, entityTypeId);
+                                    final Store allBlobsIndex = blobs.getAllBlobsIndex();
+                                    final Transaction envTxn = txn.getEnvironmentTransaction();
+                                    final Cursor cursor = blobs.getPrimaryIndex().openCursor(envTxn);
+                                    while (cursor.getNext()) {
+                                        PropertyKey propertyKey = PropertyKey.entryToPropertyKey(cursor.getKey());
+                                        allBlobsIndex.put(envTxn,
+                                                IntegerBinding.intToCompressedEntry(propertyKey.getPropertyId()),
+                                                LongBinding.longToCompressedEntry(propertyKey.getEntityLocalId()));
+                                    }
+                                    cursor.close();
                                 }
-                                cursor.close();
                             }
-                        }
+                    );
+                }
+            }
+        });
+    }
+
+    void refactorCreateNullLinkIndices() {
+        store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final StoreTransaction tx) {
+                final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
+                for (final String entityType : store.getEntityTypes(txn)) {
+                    if (logger.isInfoEnabled()) {
+                        logger.info("Refactoring creating null-value link indices for [" + entityType + ']');
+                    }
+                    safeExclusiveExecuteRefactoringForEntityType(entityType,
+                            new StoreTransactionalExecutable() {
+                                @Override
+                                public void execute(@NotNull final StoreTransaction tx) {
+                                    final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
+                                    final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
+                                    LinksTable links = store.getLinksTable(txn, entityTypeId);
+                                    final Store allLinksIndex = links.getAllLinksIndex();
+                                    final Transaction envTxn = txn.getEnvironmentTransaction();
+                                    if (allLinksIndex.count(envTxn) > 0) {
+                                        if (logger.isWarnEnabled()) {
+                                            logger.warn("Refactoring creating null-value link indices looped for [" + entityType + ']');
+                                        }
+                                        envTxn.getEnvironment().truncateStore(allLinksIndex.getName(), envTxn);
+                                        store.linksTables.remove(entityTypeId);
+                                        links = store.getLinksTable(txn, entityTypeId);
+                                    }
+                                    final Transaction readonlySnapshot = envTxn.getReadonlySnapshot();
+                                    try {
+                                        final Cursor cursor = links.getSecondIndexCursor(readonlySnapshot);
+                                        final long total = links.getSecondaryCount(readonlySnapshot);
+                                        long done = 0;
+                                        int prevLinkId = -1;
+                                        int linkId = -1;
+                                        PersistentLongSet.MutableSet idSet = new PersistentLong23TreeSet().beginWrite();
+                                        final String format = "done %4.1f%% for " + entityType;
+                                        while (cursor.getNext()) {
+                                            final PropertyKey linkKey = PropertyKey.entryToPropertyKey(cursor.getValue());
+                                            linkId = linkKey.getPropertyId();
+                                            final long entityLocalId = linkKey.getEntityLocalId();
+                                            idSet.add(entityLocalId);
+                                            if (prevLinkId != linkId) {
+                                                if (prevLinkId == -1) {
+                                                    prevLinkId = linkId;
+                                                } else {
+                                                    if (linkId < prevLinkId) {
+                                                        throw new IllegalStateException("Unsorted index");
+                                                    }
+                                                    done = dumpSetAndFlush(format, allLinksIndex, txn, total, done, prevLinkId, idSet);
+                                                    prevLinkId = linkId;
+                                                    linkId = -1;
+                                                }
+                                            }
+                                        }
+                                        if (linkId != -1) {
+                                            dumpSetAndFlush(format, allLinksIndex, txn, total, done, linkId, idSet);
+                                        }
+                                        cursor.close();
+                                    } finally {
+                                        readonlySnapshot.abort();
+                                    }
+                                }
+
+                                private long dumpSetAndFlush(String format, Store allLinksIndex, PersistentStoreTransaction txn, double total, long done, int prevLinkId, PersistentLongSet.MutableSet idSet) {
+                                    final LongIterator itr = idSet.longIterator();
+                                    while (itr.hasNext()) {
+                                        allLinksIndex.putRight(txn.getEnvironmentTransaction(), IntegerBinding.intToCompressedEntry(prevLinkId), LongBinding.longToCompressedEntry(itr.next()));
+                                        done++;
+                                        if (done % 10000 == 0 && logger.isInfoEnabled()) {
+                                            logger.info(String.format(format, ((double) done * 100) / total));
+                                        }
+                                        if (done % 100000 == 0 && !txn.flush()) {
+                                            throw new IllegalStateException("cannot flush");
+                                        }
+                                    }
+                                    idSet.clear();
+                                    return done;
+                                }
+                            }
                     );
                 }
             }
@@ -164,7 +250,7 @@ final class PersistentEntityStoreRefactorings {
                         public void run() {
                             final Transaction envTxn = txn.getEnvironmentTransaction();
                             final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
-                            final TwoColumnTable linksTable = store.getLinksTable(txn, entityTypeId);
+                            final LinksTable linksTable = store.getLinksTable(txn, entityTypeId);
 
                             final long primaryCount = linksTable.getPrimaryCount(envTxn);
                             if (primaryCount != 0L && linksTable.getSecondaryCount(envTxn) == 0L) {
@@ -186,7 +272,7 @@ final class PersistentEntityStoreRefactorings {
         });
     }
 
-    void refactorMakeLinkTablesConsistent() {
+    void refactorMakeLinkTablesConsistent(final Store internalSettings) {
         store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
             @Override
             public void execute(@NotNull final StoreTransaction tx) {
@@ -201,7 +287,7 @@ final class PersistentEntityStoreRefactorings {
                             final Collection<Pair<ByteIterable, ByteIterable>> redundantLinks = new ArrayList<>();
                             final Collection<Pair<ByteIterable, ByteIterable>> deleteLinks = new ArrayList<>();
                             final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
-                            final TwoColumnTable linksTable = store.getLinksTable(txn, entityTypeId);
+                            final LinksTable linksTable = store.getLinksTable(txn, entityTypeId);
                             final Transaction envTxn = txn.getEnvironmentTransaction();
                             final LongSet all = new PackedLongHashSet();
                             final LongSet linkFilter = new PackedLongHashSet();
@@ -331,6 +417,7 @@ final class PersistentEntityStoreRefactorings {
                                     }
                                 }
                             }
+                            Settings.delete(internalSettings, "Link null-indices present"); // reset link null indices
                         }
                     });
                 }
@@ -381,7 +468,7 @@ final class PersistentEntityStoreRefactorings {
                                 for (final long localId : localIds) {
                                     final PropertyValue propValue = entitiesToValues.get(localId);
                                     for (final ByteIterable secondaryKey : PropertiesTable.createSecondaryKeys(
-                                        propertyTypes, PropertyTypes.propertyValueToEntry(propValue), propValue.getType())) {
+                                            propertyTypes, PropertyTypes.propertyValueToEntry(propValue), propValue.getType())) {
                                         final ByteIterable secondaryValue = LongBinding.longToCompressedEntry(localId);
                                         if (valueCursor == null || !valueCursor.getSearchBoth(secondaryKey, secondaryValue)) {
                                             missingPairs.add(new Pair<>(propId, new Pair<>(secondaryKey, secondaryValue)));
@@ -562,6 +649,16 @@ final class PersistentEntityStoreRefactorings {
     }
 
     private void safeExecuteRefactoringForEntityType(@NotNull final String entityType,
+                                                     @NotNull final StoreTransactionalExecutable executable) {
+        try {
+            store.executeInTransaction(executable);
+        } catch (Throwable t) {
+            logger.error("Failed to execute refactoring for entity type: " + entityType, t);
+            throwJVMError(t);
+        }
+    }
+
+    private void safeExclusiveExecuteRefactoringForEntityType(@NotNull final String entityType,
                                                      @NotNull final StoreTransactionalExecutable executable) {
         try {
             store.executeInTransaction(executable);
