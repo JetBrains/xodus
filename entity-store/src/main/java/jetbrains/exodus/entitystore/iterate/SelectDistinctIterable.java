@@ -136,7 +136,7 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
         private SelectDistinctIterator(@NotNull final PersistentStoreTransaction txn) {
             super(SelectDistinctIterable.this);
             sourceIt = (EntityIteratorBase) source.iterator();
-            usedCursors = new IntHashMap<>();
+            usedCursors = new IntHashMap<>(6, 2.f);
             iterated = EntityIdSetFactory.newSet();
             nextId = null;
             this.txn = txn;

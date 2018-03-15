@@ -133,7 +133,7 @@ public class SelectManyDistinctIterable extends EntityIterableDecoratorBase {
         private SelectManyDistinctIterator(@NotNull final PersistentStoreTransaction txn) {
             super(SelectManyDistinctIterable.this);
             sourceIt = (EntityIteratorBase) source.iterator();
-            usedCursors = new IntHashMap<>();
+            usedCursors = new IntHashMap<>(6, 2.f);
             usedIds = null;
             this.txn = txn;
         }
