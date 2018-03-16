@@ -30,12 +30,14 @@ final class CursorImpl implements Cursor {
     private final StoreImpl store;
     @NotNull
     private final TransactionBase txn;
+    private final long txnHighAddress;
     private ITreeCursor treeCursor;
-    private volatile boolean isClosed;
+    private boolean isClosed;
 
     CursorImpl(@NotNull final StoreImpl store, @NotNull final TransactionBase txn) {
         this.store = store;
         this.txn = txn;
+        this.txnHighAddress = txn.getHighAddress();
         treeCursor = null;
         isClosed = false;
     }
@@ -146,7 +148,7 @@ final class CursorImpl implements Cursor {
     @Override
     public boolean deleteCurrent() {
         final ReadWriteTransaction txn = EnvironmentImpl.throwIfReadonly(this.txn,
-                "Can't delete a key/value pair of cursor in read-only transaction");
+            "Can't delete a key/value pair of cursor in read-only transaction");
         if (treeCursor == null) {
             treeCursor = txn.getMutableTree(store).openCursor();
         } else {
@@ -167,6 +169,9 @@ final class CursorImpl implements Cursor {
     private void checkTreeCursor() {
         if (treeCursor == null) {
             treeCursor = txn.getTree(store).openCursor();
+        }
+        if (txnHighAddress != txn.getHighAddress()) {
+            throw new ExodusException("Cursor holds an obsolete database snapshot. Check if txn.flush() or txn.commit() is called.");
         }
     }
 }
