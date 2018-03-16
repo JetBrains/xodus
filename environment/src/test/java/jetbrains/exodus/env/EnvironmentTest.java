@@ -43,6 +43,8 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import static jetbrains.exodus.env.EnvironmentStatistics.Type.*;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 public class EnvironmentTest extends EnvironmentTestsBase {
 
@@ -56,7 +58,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     @Test
     public void testStatisticsBytesWritten() {
         testEmptyEnvironment();
-        Assert.assertTrue(env.getStatistics().getStatisticsItem(BYTES_WRITTEN).getTotal() > 0L);
+        assertTrue(env.getStatistics().getStatisticsItem(BYTES_WRITTEN).getTotal() > 0L);
     }
 
     @Test
@@ -71,25 +73,25 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     public void testStatisticsTransactions() {
         testCreateSingleStore();
         final EnvironmentStatistics statistics = env.getStatistics();
-        Assert.assertTrue(statistics.getStatisticsItem(TRANSACTIONS).getTotal() > 0L);
-        Assert.assertTrue(statistics.getStatisticsItem(FLUSHED_TRANSACTIONS).getTotal() > 0L);
+        assertTrue(statistics.getStatisticsItem(TRANSACTIONS).getTotal() > 0L);
+        assertTrue(statistics.getStatisticsItem(FLUSHED_TRANSACTIONS).getTotal() > 0L);
     }
 
     @Test
     public void testStatisticsItemNames() {
         testStatisticsTransactions();
         final EnvironmentStatistics statistics = env.getStatistics();
-        Assert.assertNotNull(statistics.getStatisticsItem(BYTES_WRITTEN));
-        Assert.assertNotNull(statistics.getStatisticsItem(BYTES_READ));
-        Assert.assertNotNull(statistics.getStatisticsItem(BYTES_MOVED_BY_GC));
-        Assert.assertNotNull(statistics.getStatisticsItem(TRANSACTIONS));
-        Assert.assertNotNull(statistics.getStatisticsItem(READONLY_TRANSACTIONS));
-        Assert.assertNotNull(statistics.getStatisticsItem(ACTIVE_TRANSACTIONS));
-        Assert.assertNotNull(statistics.getStatisticsItem(FLUSHED_TRANSACTIONS));
-        Assert.assertNotNull(statistics.getStatisticsItem(DISK_USAGE));
-        Assert.assertNotNull(statistics.getStatisticsItem(UTILIZATION_PERCENT));
-        Assert.assertNotNull(statistics.getStatisticsItem(LOG_CACHE_HIT_RATE));
-        Assert.assertNotNull(statistics.getStatisticsItem(STORE_GET_CACHE_HIT_RATE));
+        assertNotNull(statistics.getStatisticsItem(BYTES_WRITTEN));
+        assertNotNull(statistics.getStatisticsItem(BYTES_READ));
+        assertNotNull(statistics.getStatisticsItem(BYTES_MOVED_BY_GC));
+        assertNotNull(statistics.getStatisticsItem(TRANSACTIONS));
+        assertNotNull(statistics.getStatisticsItem(READONLY_TRANSACTIONS));
+        assertNotNull(statistics.getStatisticsItem(ACTIVE_TRANSACTIONS));
+        assertNotNull(statistics.getStatisticsItem(FLUSHED_TRANSACTIONS));
+        assertNotNull(statistics.getStatisticsItem(DISK_USAGE));
+        assertNotNull(statistics.getStatisticsItem(UTILIZATION_PERCENT));
+        assertNotNull(statistics.getStatisticsItem(LOG_CACHE_HIT_RATE));
+        assertNotNull(statistics.getStatisticsItem(STORE_GET_CACHE_HIT_RATE));
     }
 
     @Test
@@ -97,26 +99,26 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         final Store store = openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES);
         final Log log = getLog();
         Loggable l = log.getFirstLoggableOfType(BTreeBase.BOTTOM_ROOT);
-        Assert.assertNotNull(l);
+        assertNotNull(l);
         Assert.assertEquals(0L, l.getAddress());
         l = log.getLastLoggableOfType(BTreeBase.BOTTOM_ROOT);
-        Assert.assertNotNull(l);
+        assertNotNull(l);
         Assert.assertEquals(40L, l.getAddress());
         l = log.getLastLoggableOfTypeBefore(BTreeBase.BOTTOM_ROOT, l.getAddress());
-        Assert.assertNotNull(l);
+        assertNotNull(l);
         Assert.assertEquals(12L, l.getAddress());
         l = log.getLastLoggableOfTypeBefore(BTreeBase.BOTTOM_ROOT, l.getAddress());
-        Assert.assertNotNull(l);
+        assertNotNull(l);
         Assert.assertEquals(0L, l.getAddress());
         l = log.getLastLoggableOfTypeBefore(BTreeBase.BOTTOM_ROOT, l.getAddress());
         Assert.assertNull(l);
         l = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, Long.MAX_VALUE);
-        Assert.assertNotNull(l);
+        assertNotNull(l);
         Assert.assertEquals(48L, l.getAddress());
         l = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, l.getAddress());
-        Assert.assertNotNull(l);
+        assertNotNull(l);
         l = log.getFirstLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);
-        Assert.assertNotNull(l);
+        assertNotNull(l);
     }
 
     @Test
@@ -149,7 +151,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             public void execute(@NotNull final Transaction txn) {
                 final StoreImpl store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn);
                 store.put(txn, StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0"));
-                Assert.assertTrue(store.exists(txn, StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0")));
+                assertTrue(store.exists(txn, StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0")));
                 final Throwable[] th = {null};
                 // asynchronously clear the environment
                 try {
@@ -169,10 +171,10 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                     latch.acquire();
                 } catch (InterruptedException ignore) {
                     Thread.currentThread().interrupt();
-                    Assert.assertTrue(false);
+                    assertTrue(false);
                 }
                 Assert.assertNull(th[0]);
-                Assert.assertTrue(store.exists(txn, StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0")));
+                assertTrue(store.exists(txn, StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0")));
             }
         });
         latch.acquire();
@@ -454,7 +456,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                 store.put(txn, StringBinding.stringToEntry("key2"), StringBinding.stringToEntry("A2"));
                 store.put(txn, StringBinding.stringToEntry("key1"), StringBinding.stringToEntry("B1"));
                 final ByteIterable value1 = store.get(txn, StringBinding.stringToEntry("key1"));
-                Assert.assertNotNull(value1);
+                assertNotNull(value1);
                 Assert.assertEquals("B1", StringBinding.entryToString(value1));
             }
         });
@@ -463,7 +465,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             @Override
             public void execute(@NotNull final Transaction txn) {
                 final ByteIterable value1 = store.get(txn, StringBinding.stringToEntry("key1"));
-                Assert.assertNotNull(value1);
+                assertNotNull(value1);
                 Assert.assertEquals("B1", StringBinding.entryToString(value1));
             }
         });
@@ -520,7 +522,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                 }
             }));
             reopenedEnv.close();
-            Assert.assertTrue(new File(tempDir, LogUtil.getLogFilename(0)).renameTo(new File(tempDir, LogUtil.getLogFilename(0x1000000))));
+            assertTrue(new File(tempDir, LogUtil.getLogFilename(0)).renameTo(new File(tempDir, LogUtil.getLogFilename(0x1000000))));
         } finally {
             IOUtil.deleteRecursively(tempDir);
         }
@@ -557,8 +559,37 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                     } catch (InterruptedException ignore) {
                     }
                     while (cursor.getNext()) {
-                        Assert.assertNotNull(cursor.getKey());
-                        Assert.assertNotNull(cursor.getValue());
+                        assertNotNull(cursor.getKey());
+                        assertNotNull(cursor.getValue());
+                    }
+                }
+            }
+        });
+    }
+
+    @Test(expected = ExodusException.class)
+    @TestFor(issues = "XD-682")
+    public void cursorOnFlushedTxn() {
+        final Store store = openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES);
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                for (int i = 0; i < 10000; ++i) {
+                    store.put(txn, IntegerBinding.intToEntry(i), StringBinding.stringToEntry(Integer.toString(i)));
+                }
+            }
+        });
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                try (Cursor cursor = store.openCursor(txn)) {
+                    int i = 0;
+                    while (cursor.getNext()) {
+                        Assert.assertEquals(i++, IntegerBinding.entryToInt(cursor.getKey()));
+                        if (i % 1000 == 0) {
+                            store.put(txn, IntegerBinding.intToEntry(i), StringBinding.stringToEntry(Integer.toString(i - 1)));
+                            assertTrue(txn.flush());
+                        }
                     }
                 }
             }
@@ -617,7 +648,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                             final Store store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn);
                             for (int i = 0; i < 10000; ++i) {
                                 final ByteIterable bi = store.get(txn, IntegerBinding.intToEntry(i));
-                                Assert.assertNotNull(bi);
+                                assertNotNull(bi);
                                 Assert.assertEquals(i, IntegerBinding.entryToInt(bi));
                             }
                         } finally {
