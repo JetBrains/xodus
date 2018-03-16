@@ -567,15 +567,16 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         });
     }
 
-    @Test(expected = ExodusException.class)
+    @Test
     @TestFor(issues = "XD-682")
     public void cursorOnFlushedTxn() {
         final Store store = openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES);
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
-                for (int i = 0; i < 10000; ++i) {
-                    store.put(txn, IntegerBinding.intToEntry(i), StringBinding.stringToEntry(Integer.toString(i)));
+                store.put(txn, IntegerBinding.intToEntry(0), StringBinding.stringToEntry(Integer.toString(0)));
+                store.put(txn, IntegerBinding.intToEntry(1), StringBinding.stringToEntry(Integer.toString(1)));
+                for (int i = 0; i < 2; ++i) {
                 }
             }
         });
@@ -583,14 +584,34 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             @Override
             public void execute(@NotNull Transaction txn) {
                 try (Cursor cursor = store.openCursor(txn)) {
-                    int i = 0;
-                    while (cursor.getNext()) {
-                        Assert.assertEquals(i++, IntegerBinding.entryToInt(cursor.getKey()));
-                        if (i % 1000 == 0) {
-                            store.put(txn, IntegerBinding.intToEntry(i), StringBinding.stringToEntry(Integer.toString(i - 1)));
-                            assertTrue(txn.flush());
+                    assertTrue(cursor.getNext());
+                    Assert.assertEquals(0, IntegerBinding.entryToInt(cursor.getKey()));
+                    store.put(txn, IntegerBinding.intToEntry(2), StringBinding.stringToEntry(Integer.toString(2)));
+                    assertTrue(txn.flush());
+                    TestUtil.runWithExpectedException(new Runnable() {
+                        @Override
+                        public void run() {
+                            cursor.getNext();
                         }
-                    }
+                    }, ExodusException.class);
+                    TestUtil.runWithExpectedException(new Runnable() {
+                        @Override
+                        public void run() {
+                            cursor.getPrev();
+                        }
+                    }, ExodusException.class);
+                    TestUtil.runWithExpectedException(new Runnable() {
+                        @Override
+                        public void run() {
+                            cursor.getKey();
+                        }
+                    }, ExodusException.class);
+                    TestUtil.runWithExpectedException(new Runnable() {
+                        @Override
+                        public void run() {
+                            cursor.getValue();
+                        }
+                    }, ExodusException.class);
                 }
             }
         });
