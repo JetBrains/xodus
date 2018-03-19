@@ -1142,7 +1142,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
         // check if the target is already deleted
         if (config.isDebugTestLinkedEntities()) {
-            target = txn.getEntity(target.getId());
+            target = getEntityAssertPhantomLink(txn, target.getId());
         }
 
         if (!getLinksTable(txn, entityTypeId).put(txn.getEnvironmentTransaction(),
@@ -1169,7 +1169,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
         // check if the target is already deleted
         if (target != null && config.isDebugTestLinkedEntities()) {
-            target = txn.getEntity(target.getId());
+            target = getEntityAssertPhantomLink(txn, target.getId());
         }
 
         final ByteIterable valueEntry = getRawLink(txn, fromId, linkId);
@@ -1743,6 +1743,14 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         txn.deferBlobDeletion(blobHandle);
     }
 
+    private PersistentEntity getEntityAssertPhantomLink(@NotNull final PersistentStoreTransaction txn, @NotNull final EntityId id) {
+        final int version = getLastVersion(txn, id);
+        if (version < 0) {
+            throw new PhantomLinkException(getEntityType(txn, id.getTypeId()));
+        }
+        return new PersistentEntity(this, (PersistentEntityId) id);
+    }
+
     private interface DataGetter {
 
         ByteIterable getUpToDateEntry(@NotNull PersistentStoreTransaction txn, int typeId, PropertyKey key);
@@ -1816,6 +1824,13 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             synchronized (PersistentEntityStoreImpl.this.tableCreationLog) {
                 tableCreationLog.remove(this);
             }
+        }
+    }
+
+    private static class PhantomLinkException extends EntityRemovedInDatabaseException {
+
+        private PhantomLinkException(String entityType) {
+            super(entityType);
         }
     }
 }
