@@ -1827,10 +1827,4 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
     }
 
-    private static class PhantomLinkException extends EntityRemovedInDatabaseException {
-
-        private PhantomLinkException(String entityType) {
-            super(entityType);
-        }
-    }
 }
