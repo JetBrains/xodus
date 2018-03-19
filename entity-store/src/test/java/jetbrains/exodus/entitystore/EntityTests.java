@@ -976,7 +976,7 @@ public class EntityTests extends EntityStoreTestBase {
                     }
                 });
             }
-        }, EntityRemovedInDatabaseException.class);
+        }, PhantomLinkException.class);
         Assert.assertEquals(2, i[0]);
         store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
             @Override
