@@ -49,8 +49,7 @@ abstract class BasePage implements Dumpable {
         throw new UnsupportedOperationException();
     }
 
-    @NotNull
-    protected ILeafNode getMinKey() {
+    @NotNull ILeafNode getMinKey() {
         if (size <= 0) {
             throw new ArrayIndexOutOfBoundsException("Page is empty.");
         }
@@ -58,13 +57,39 @@ abstract class BasePage implements Dumpable {
         return getKey(0);
     }
 
-    @NotNull
-    protected ILeafNode getMaxKey() {
+    @NotNull ILeafNode getMaxKey() {
         if (size <= 0) {
             throw new ArrayIndexOutOfBoundsException("Page is empty.");
         }
 
         return getKey(size - 1);
+    }
+
+    boolean isInPageRange(@NotNull final ByteIterable key, @Nullable final ByteIterable value) {
+        final ILeafNode maxKey = getMaxKey();
+        int cmp = maxKey.getKey().compareTo(key);
+        if (cmp < 0) {
+            return false;
+        }
+        if (cmp == 0 && value != null) {
+            @Nullable final ByteIterable maxValue = maxKey.getValue();
+            if (maxValue == null || maxValue.compareTo(value) < 0) {
+                return false;
+            }
+        }
+        if (size == 1) {
+            return true;
+        }
+        final ILeafNode minKey = getMinKey();
+        cmp = minKey.getKey().compareTo(key);
+        if (cmp > 0) {
+            return false;
+        }
+        if (cmp == 0 && value != null) {
+            @Nullable final ByteIterable minValue = minKey.getValue();
+            return minValue != null && minValue.compareTo(value) <= 0;
+        }
+        return true;
     }
 
     @NotNull
@@ -105,5 +130,4 @@ abstract class BasePage implements Dumpable {
     static void indent(PrintStream out, int level) {
         for (int i = 0; i < level; i++) out.print(" ");
     }
-
 }

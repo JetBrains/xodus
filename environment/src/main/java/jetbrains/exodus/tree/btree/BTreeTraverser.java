@@ -28,13 +28,9 @@ import java.util.NoSuchElementException;
 class BTreeTraverser implements TreeTraverser {
     @NotNull
     protected TreePos[] stack = new TreePos[8];
-
     protected int top = 0;
-
     protected BasePage currentNode;
-
     protected ILeafNode node = ILeafNode.EMPTY;
-
     protected int currentPos;
 
     BTreeTraverser(@NotNull BasePage currentNode) {
@@ -228,8 +224,12 @@ class BTreeTraverser implements TreeTraverser {
     }
 
     private boolean doMoveTo(@NotNull ByteIterable key, @Nullable ByteIterable value, boolean rangeSearch) {
-        BasePage bottomNode = top == 0 ? currentNode : stack[0].node; // the most bottom node, ignoring lower bound
-        final ILeafNode result = bottomNode.find(this, 0, key, value, rangeSearch);
+        final ILeafNode result;
+        if (top == 0 || currentNode.isInPageRange(key, value)) {
+            result = currentNode.find(this, top, key, value, rangeSearch);
+        } else {
+            result = stack[0].node.find(this, 0, key, value, rangeSearch);
+        }
         if (result == null) {
             return false;
         }

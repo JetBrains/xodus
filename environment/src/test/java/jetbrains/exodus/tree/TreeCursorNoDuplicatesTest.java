@@ -144,7 +144,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
         Cursor c = getTreeMutable().openCursor();
 
         for (int i = 0; i < s; i++) {
-            assertEquals(value("v" + i), c.getSearchKey(key(i)));
+            assertEquals("v" + i, value("v" + i), c.getSearchKey(key(i)));
             assertEquals(c.getValue(), value("v" + i));
             assertEquals(c.getKey(), key(i));
         }
