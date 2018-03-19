@@ -193,7 +193,6 @@ final class PersistentEntityStoreRefactorings {
                                             final PropertyKey linkKey = PropertyKey.entryToPropertyKey(cursor.getValue());
                                             linkId = linkKey.getPropertyId();
                                             final long entityLocalId = linkKey.getEntityLocalId();
-                                            idSet.add(entityLocalId);
                                             if (prevLinkId != linkId) {
                                                 if (prevLinkId == -1) {
                                                     prevLinkId = linkId;
@@ -206,6 +205,7 @@ final class PersistentEntityStoreRefactorings {
                                                     linkId = -1;
                                                 }
                                             }
+                                            idSet.add(entityLocalId);
                                         }
                                         if (linkId != -1) {
                                             dumpSetAndFlush(format, allLinksIndex, txn, total, done, linkId, idSet);
