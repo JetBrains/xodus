@@ -107,7 +107,7 @@ To assemble JARs and skip running tests, run:
 - [Report an issue](https://youtrack.jetbrains.com/issues/XD)
 - [Stack Overflow](http://stackoverflow.com/questions/tagged/xodus)
 - [Data definition and queries Kotlin DSL over Xodus](https://github.com/JetBrains/xodus-dnq)
-- [EntityStore browser](https://github.com/lehvolk/xodus-entity-browser)
+- [EntityStore browser](https://github.com/JetBrains/xodus-entity-browser)
 - [Check out the latest builds](https://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build)
 - [Observe development in Upsource](https://upsource.jetbrains.com/Xodus/view)
 - <a href="mailto:xodus-feedback@jetbrains.com">Ask questions by e-mail</a>
