@@ -207,8 +207,8 @@ final class PersistentEntityStoreRefactorings {
                                             }
                                             idSet.add(entityLocalId);
                                         }
-                                        if (linkId != -1) {
-                                            dumpSetAndFlush(format, allLinksIndex, txn, total, done, linkId, idSet);
+                                        if (prevLinkId != -1) {
+                                            dumpSetAndFlush(format, allLinksIndex, txn, total, done, prevLinkId, idSet);
                                         }
                                         cursor.close();
                                     } finally {
