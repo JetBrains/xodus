@@ -22,7 +22,7 @@ internal object Utils {
     @JvmStatic
     val unionSubtypes = java.lang.Boolean.getBoolean("jetbrains.exodus.query.unionSubtypesResults")
     @JvmStatic
-    val reduceUnionsOfLinksDepth = java.lang.Integer.getInteger("jetbrains.exodus.query.reduceUnionsOfLinksDepth", 0)
+    val reduceUnionsOfLinksDepth: Int = java.lang.Integer.getInteger("jetbrains.exodus.query.reduceUnionsOfLinksDepth", Int.MAX_VALUE)
 
     @JvmStatic
     fun safe_equals(left: Any?, right: Any?) = if (left != null) left == right else right == null
