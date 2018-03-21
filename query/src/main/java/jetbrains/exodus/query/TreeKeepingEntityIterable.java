@@ -166,7 +166,7 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
         Iterable<Entity> result = ast.instantiate(entityType, queryEngine, mmd);
         if (!(emd == null || ast.polymorphic())) {
             for (String subType : emd.getSubTypes()) {
-                if (Utils.unionSubtypes()) {
+                if (Utils.getUnionSubtypes()) {
                     // union returns sorted by id results provided its operands are sorted by id
                     result = queryEngine.unionAdjusted(result, instantiateForWholeHierarchy(subType, ast));
                 } else {

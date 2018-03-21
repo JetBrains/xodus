@@ -115,6 +115,10 @@ public abstract class BinaryOperator extends NodeBase {
         }
     }
 
+    int getDepth() {
+        return depth;
+    }
+
     /*package*/
     @Override
     public StringBuilder getHandle(StringBuilder sb) {

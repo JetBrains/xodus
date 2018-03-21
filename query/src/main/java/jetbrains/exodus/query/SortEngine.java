@@ -279,7 +279,7 @@ public class SortEngine {
         final EntityMetaData emd = mmd.getEntityMetaData(entityType);
         if (emd != null) {
             for (String subType : emd.getSubTypes()) {
-                if (Utils.unionSubtypes()) {
+                if (Utils.getUnionSubtypes()) {
                     it = ((EntityIterable) getAllEntities(subType, mmd)).union(it);
                 } else {
                     it = ((EntityIterable) getAllEntities(subType, mmd)).concat(it);
