@@ -23,8 +23,7 @@ import java.lang.Integer.max
 abstract class BinaryOperator internal constructor(private var left: NodeBase, private var right: NodeBase) : NodeBase() {
 
     private var children: MutableList<NodeBase>? = null
-    internal var depth: Int = 0
-        private set
+    protected var depth: Int = 0
 
     init {
         this.left = NodeBase.getUnderRoot(left)
