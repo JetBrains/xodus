@@ -16,6 +16,7 @@
 package jetbrains.exodus.query;
 
 
+import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 import jetbrains.exodus.util.StringInterner;
@@ -44,7 +45,7 @@ public abstract class NodeBase {
     }
 
     public NodeBase replaceChild(NodeBase child, NodeBase newChild) {
-        throw new RuntimeException(getClass() + ": can't replace child.");
+        throw new ExodusException(getClass() + ": can't replace child.");
     }
 
     public abstract Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData);
@@ -145,7 +146,7 @@ public abstract class NodeBase {
         return false;
     }
 
-    protected boolean matchChildren(NodeBase node, NodeBase.MatchContext ctx) {
+    boolean matchChildren(NodeBase node, NodeBase.MatchContext ctx) {
         return true;
     }
 
@@ -267,8 +268,8 @@ public abstract class NodeBase {
 
         private NodeBase getNode(Wildcard wildcard) {
             return nodes == null ?
-                    null :
-                    nodes.get(wildcard);
+                null :
+                nodes.get(wildcard);
         }
 
         private void putNode(Wildcard wildcard, NodeBase node) {
@@ -280,8 +281,8 @@ public abstract class NodeBase {
 
         private NodeBase getLeave(ConversionWildcard wildcard) {
             return leaves == null ?
-                    null :
-                    leaves.get(wildcard);
+                null :
+                leaves.get(wildcard);
         }
 
         private void putLeave(ConversionWildcard wildcard, NodeBase node) {

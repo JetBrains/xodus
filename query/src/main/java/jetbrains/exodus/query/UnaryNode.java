@@ -59,7 +59,7 @@ public abstract class UnaryNode extends NodeBase {
     }
 
     @Override
-    protected boolean matchChildren(NodeBase node, NodeBase.MatchContext ctx) {
+    boolean matchChildren(NodeBase node, NodeBase.MatchContext ctx) {
         return child.match(((UnaryNode) node).child, ctx);
     }
 }
