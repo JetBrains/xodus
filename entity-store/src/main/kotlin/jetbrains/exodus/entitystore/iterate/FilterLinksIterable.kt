@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore.iterate
 
+import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.tables.LinkValue
@@ -51,8 +52,7 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
                             cursor = store.getLinksFirstIndexCursor(txn, typeId)
                             usedCursors[typeId] = cursor
                         }
-                        val keyEntry = PropertyKey.propertyKeyToEntry(PropertyKey(id.localId, linkId))
-                        val value = cursor.getSearchKey(keyEntry)
+                        val value = searchForId(cursor, id)
                         if (value != null) {
                             val linkValue = LinkValue.entryToLinkValue(value)
                             val targetId = linkValue.entityId
@@ -63,6 +63,16 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
                     }
                 }
                 return false
+            }
+
+            private fun searchForId(cursor: Cursor, id: EntityId): ByteIterable? {
+                if (cursor.next) {
+                    val propertyKey = PropertyKey.entryToPropertyKey(cursor.key)
+                    if (propertyKey.entityLocalId == id.localId && propertyKey.propertyId == linkId) {
+                        return cursor.value
+                    }
+                }
+                return cursor.getSearchKey(PropertyKey.propertyKeyToEntry(PropertyKey(id.localId, linkId)))
             }
 
             override fun nextIdImpl(): EntityId? {
