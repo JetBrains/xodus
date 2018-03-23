@@ -378,7 +378,11 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
         }
 
         public void apply(@NotNull final EntityIterableHandle source) {
-            ((EntityIterableHandleHash) source.getIdentity()).forEachByte(new ByteConsumer() {
+            apply((EntityIterableHandleHash) source.getIdentity());
+        }
+
+        public void apply(@NotNull final EntityIterableHandleHash sourceHash) {
+            sourceHash.forEachByte(new ByteConsumer() {
                 @Override
                 public void accept(final byte b) {
                     apply(b);
