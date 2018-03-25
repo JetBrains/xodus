@@ -129,8 +129,8 @@ public class EnvironmentStatistics extends MBeanBase implements EnvironmentStati
     }
 
     @Override
-    public String getStuckTransactionMonitorMessage() {
-        return env.getStuckTransactionMonitorMessage();
+    public int getStuckTransactionCount() {
+        return env.getStuckTransactionCount();
     }
 
     private long getTotal(@NotNull final Type statisticsName) {

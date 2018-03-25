@@ -29,12 +29,12 @@ internal class StuckTransactionMonitor(private val env: EnvironmentImpl) : Job()
         queueThis()
     }
 
-    var errorMessage: String? = null
+    var stuckTxnCount: Int = 0
         private set
 
     override fun execute() {
         if (env.isOpen) {
-            val prevErrorMessage = errorMessage
+            var stuckTxnCount = 0
             try {
                 val transactionTimeout = env.transactionTimeout()
                 if (transactionTimeout != 0) {
@@ -51,15 +51,12 @@ internal class StuckTransactionMonitor(private val env: EnvironmentImpl) : Job()
                             ps.writer().write(errorHeader)
                             trace.printStackTrace(ps)
                             logger.error(errorHeader, trace)
-                            errorMessage = out.toString(Charsets.UTF_8.name())
+                            ++stuckTxnCount
                         }
                     }
                 }
             } finally {
-                // if error message didn't change then clear it
-                if (prevErrorMessage === errorMessage) {
-                    errorMessage = null
-                }
+                this.stuckTxnCount = stuckTxnCount
                 queueThis()
             }
         }

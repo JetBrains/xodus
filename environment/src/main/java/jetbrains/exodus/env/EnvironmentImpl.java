@@ -300,9 +300,8 @@ public class EnvironmentImpl implements Environment {
         }
     }
 
-    @Nullable
-    public String getStuckTransactionMonitorMessage() {
-        return stuckTxnMonitor == null ? null : stuckTxnMonitor.getErrorMessage();
+    public int getStuckTransactionCount() {
+        return stuckTxnMonitor == null ? 0 : stuckTxnMonitor.getStuckTxnCount();
     }
 
     @Override

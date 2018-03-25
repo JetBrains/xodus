@@ -53,5 +53,5 @@ public interface EnvironmentStatisticsMBean {
 
     String getStoreGetCacheHitRate();
 
-    String getStuckTransactionMonitorMessage();
+    int getStuckTransactionCount();
 }
