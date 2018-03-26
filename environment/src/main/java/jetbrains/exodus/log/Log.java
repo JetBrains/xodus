@@ -18,6 +18,7 @@ package jetbrains.exodus.log;
 import jetbrains.exodus.*;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
+import jetbrains.exodus.core.dataStructures.persistent.PersistentLongSet;
 import jetbrains.exodus.crypto.EnvKryptKt;
 import jetbrains.exodus.crypto.InvalidCipherParametersException;
 import jetbrains.exodus.crypto.StreamCipherProvider;
@@ -823,6 +824,14 @@ public final class Log implements Closeable {
             alignment = cachePageSize;
         }
         return highAddress - alignment; // aligned address
+    }
+
+    public PersistentLongSet.ImmutableSet getFileSnapshot() {
+        return fileAddresses.getCurrent();
+    }
+
+    public LongIterator getFilesFrom(PersistentLongSet.ImmutableSet snapshot, Long fileAddress) {
+        return fileAddresses.getFilesFrom(snapshot, fileAddress);
     }
 
     /**

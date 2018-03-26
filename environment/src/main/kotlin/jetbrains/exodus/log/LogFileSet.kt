@@ -51,24 +51,29 @@ internal class LogFileSet(private val fileSize: Long) {
 
     fun contains(fileAddress: Long) = current.contains(fileAddress.addressToKey)
 
-    fun getFilesFrom(fileAddress: Long = 0L): LongIterator =
-            object : LongIterator {
-                val it = if (fileAddress == 0L) current.longIterator() else current.tailLongIterator(fileAddress.addressToKey)
+    fun getFilesFrom(fileAddress: Long = 0L): LongIterator = getFilesFrom(current, fileAddress)
 
-                override fun next() = nextLong()
+    fun getFilesFrom(snapshot: PersistentLongSet.ImmutableSet, fileAddress: Long = 0L): LongIterator {
+        return object : LongIterator {
+            val it = if (fileAddress == 0L) snapshot.longIterator() else snapshot.tailLongIterator(fileAddress.addressToKey)
 
-                override fun hasNext() = it.hasNext()
+            override fun next() = nextLong()
 
-                override fun nextLong() = it.nextLong().keyToAddress
+            override fun hasNext() = it.hasNext()
 
-                override fun remove() = throw UnsupportedOperationException()
-            }
+            override fun nextLong() = it.nextLong().keyToAddress
+
+            override fun remove() = throw UnsupportedOperationException()
+        }
+    }
 
     fun clear() = writeFinally { clear() }
 
     fun add(fileAddress: Long) = writeFinally { add(fileAddress.addressToKey) }
 
     fun remove(fileAddress: Long) = writeFinally { remove(fileAddress.addressToKey) }
+
+    val current: PersistentLongSet.ImmutableSet get() = fileKeys.get().beginRead()
 
     private fun <T> writeFinally(block: PersistentLongSet.MutableSet.() -> T): T {
         var result: T
@@ -81,8 +86,6 @@ internal class LogFileSet(private val fileSize: Long) {
         } while (!fileKeys.compareAndSet(thisSet, newSet))
         return result
     }
-
-    private val current: PersistentLongSet.ImmutableSet get() = fileKeys.get().beginRead()
 
     private val Long.keyToAddress: Long get() = this * fileSize
 

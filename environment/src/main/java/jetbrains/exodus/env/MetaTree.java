@@ -21,6 +21,7 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.core.dataStructures.Pair;
+import jetbrains.exodus.core.dataStructures.persistent.PersistentLongSet;
 import jetbrains.exodus.crypto.InvalidCipherParametersException;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.*;
@@ -41,11 +42,13 @@ final class MetaTree {
     final ITree tree;
     final long root;
     final long highAddress;
+    private final PersistentLongSet.ImmutableSet fileSnapshot;
 
-    private MetaTree(final ITree tree, long root, long highAddress) {
+    private MetaTree(final ITree tree, long root, long highAddress, PersistentLongSet.ImmutableSet fileSnapshot) {
         this.tree = tree;
         this.root = root;
         this.highAddress = highAddress;
+        this.fileSnapshot = fileSnapshot;
     }
 
     static Pair<MetaTree, Integer> create(@NotNull final EnvironmentImpl env) {
@@ -64,7 +67,7 @@ final class MetaTree {
                         final BTree metaTree = env.loadMetaTree(dbRoot.getRootAddress());
                         if (metaTree != null) {
                             cloneTree(metaTree); // try to traverse meta tree
-                            return new Pair<>(new MetaTree(metaTree, root, validHighAddress), dbRoot.getLastStructureId());
+                            return new Pair<>(new MetaTree(metaTree, root, validHighAddress, log.getFileSnapshot()), dbRoot.getLastStructureId());
                         }
                     } catch (ExodusException e) {
                         EnvironmentImpl.loggerError("Failed to recover to valid root" +
@@ -92,7 +95,7 @@ final class MetaTree {
         final long root = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
             DatabaseRoot.asByteIterable(rootAddress, EnvironmentImpl.META_TREE_ID));
         log.flush();
-        return new Pair<>(new MetaTree(resultTree, root, log.getHighAddress()), EnvironmentImpl.META_TREE_ID);
+        return new Pair<>(new MetaTree(resultTree, root, log.getHighAddress(), log.getFileSnapshot()), EnvironmentImpl.META_TREE_ID);
     }
 
     LongIterator addressIterator() {
@@ -139,7 +142,7 @@ final class MetaTree {
      * @param expired  expired loggables (database root to be added)
      * @return database root loggable which is read again from the log.
      */
-    @Nullable
+    @NotNull
     static MetaTree saveMetaTree(@NotNull final ITreeMutable metaTree,
                                  @NotNull final EnvironmentImpl env,
                                  @NotNull final Collection<ExpiredLoggableInfo> expired) {
@@ -151,7 +154,7 @@ final class MetaTree {
         final BTree resultTree = env.loadMetaTree(newMetaTreeAddress);
         final RandomAccessLoggable dbRootLoggable = log.read(dbRootAddress);
         expired.add(new ExpiredLoggableInfo(dbRootLoggable));
-        return new MetaTree(resultTree, dbRootAddress, dbRootAddress + dbRootLoggable.length());
+        return new MetaTree(resultTree, dbRootAddress, dbRootAddress + dbRootLoggable.length(), log.getFileSnapshot());
     }
 
     long getAllStoreCount() {
@@ -198,7 +201,7 @@ final class MetaTree {
     }
 
     MetaTree getClone() {
-        return new MetaTree(cloneTree(tree), root, highAddress);
+        return new MetaTree(cloneTree(tree), root, highAddress, fileSnapshot);
     }
 
     static boolean isStringKey(final ArrayByteIterable key) {
