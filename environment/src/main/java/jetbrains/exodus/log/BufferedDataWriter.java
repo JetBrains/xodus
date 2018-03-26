@@ -222,13 +222,13 @@ class BufferedDataWriter implements TransactionalDataWriter {
     @Override
     public byte[] getHighPage(final long alignedAddress) {
         MutablePage currentPage = this.currentPage;
-        do {
-            final long highPageAddress = currentPage.pageAddress;
-            if (alignedAddress == highPageAddress) {
-                return currentPage.bytes;
-            }
-            currentPage = currentPage.previousPage;
-        } while (currentPage != null);
+        final long highPageAddress = currentPage.pageAddress;
+        if (alignedAddress == highPageAddress) {
+            return currentPage.bytes;
+        }
+        if (currentPage.previousPage != null) {
+            throw new IllegalStateException("can't read from unconfirmed log");
+        }
         return null;
     }
 
