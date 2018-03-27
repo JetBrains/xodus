@@ -654,7 +654,7 @@ public final class Log implements Closeable {
         }
     }
 
-    private void sync() {
+    public void sync() {
         if (!config.isFsyncSuppressed()) {
             baseWriter.sync();
             lastSyncTicks = System.currentTimeMillis();
