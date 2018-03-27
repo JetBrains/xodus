@@ -32,7 +32,7 @@ class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
             val ids = EntityIdSetIterable(txn)
             if (isUnionOfLinks(linkNames, ids)) {
                 val all = txn.getAll(entityType) as EntityIterableBase
-                val cached = txn.getStickyObject(all.handle) as? EntityIterableBase
+                val cached = txn.getStickyObjectSafe(all.handle) as? EntityIterableBase
                 return queryEngine.adjustEntityIterable((cached ?: all).findLinks(ids, linkNames.first()))
             }
         }

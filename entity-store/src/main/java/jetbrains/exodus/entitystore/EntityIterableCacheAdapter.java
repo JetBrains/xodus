@@ -116,8 +116,14 @@ class EntityIterableCacheAdapter {
         cache.adjustHitRate();
     }
 
+    @Nullable
+    Updatable getStickyObjectSafe(@NotNull EntityIterableHandle handle) {
+        return stickyObjects.get(handle);
+    }
+
+    @NotNull
     Updatable getStickyObject(@NotNull final EntityIterableHandle handle) {
-        Updatable result = stickyObjects.get(handle);
+        Updatable result = getStickyObjectSafe(handle);
         if (result == null) {
             throw new IllegalStateException("Sticky object not found");
         }
