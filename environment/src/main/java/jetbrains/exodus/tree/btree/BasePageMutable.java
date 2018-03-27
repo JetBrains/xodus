@@ -119,7 +119,7 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
         final Log log = tree.log;
         if (flag == ReclaimFlag.PRESERVE) {
             // there is a chance to update the flag to RECLAIM
-            if (log.getHighAddress() % log.getFileSize() == 0) {
+            if (log.getWrittenHighAddress() % log.getFileSize() == 0) {
                 // page will be exactly on file border
                 flag = ReclaimFlag.RECLAIM;
             } else {

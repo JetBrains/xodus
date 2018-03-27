@@ -86,7 +86,7 @@ class MutableNode extends NodeBase {
             @Override
             public NodeChildrenIterator iterator() {
                 return children.isEmpty() ?
-                    new EmptyNodeChildrenIterator() : new MutableNodeChildrenIterator(MutableNode.this, children);
+                        new EmptyNodeChildrenIterator() : new MutableNodeChildrenIterator(MutableNode.this, children);
             }
         };
     }
@@ -227,8 +227,8 @@ class MutableNode extends NodeBase {
             suffixKey = keySequence.subIterable(prefixLength + 1, suffixLength);
         }
         final MutableNode suffix = new MutableNode(suffixKey, value,
-            // copy children of this node to the suffix one
-            children);
+                // copy children of this node to the suffix one
+                children);
         prefix.setChild(nextByte, suffix);
         return prefix;
     }
@@ -242,7 +242,7 @@ class MutableNode extends NodeBase {
         final NodeBase child = ref.getNode(tree);
         value = child.value;
         keySequence = new CompoundByteIterable(new ByteIterable[]{
-            keySequence, SingleByteIterable.getIterable(ref.firstByte), child.keySequence});
+                keySequence, SingleByteIterable.getIterable(ref.firstByte), child.keySequence});
         copyChildrenFrom(child);
     }
 
@@ -325,7 +325,7 @@ class MutableNode extends NodeBase {
             return result;
         }
         // Tree is saved with several loggables. Is it saved in a single file?
-        final boolean singleFile = log.isLastFileAddress(startAddress);
+        final boolean singleFile = log.isLastWrittenFileAddress(startAddress);
         final int pos; // where the offset info will be inserted
         if (!singleFile) {
             pos = 1;
@@ -340,12 +340,12 @@ class MutableNode extends NodeBase {
             iterables[2] = mainIterable;
         }
         type += PatriciaTreeBase.ROOT_BIT_WITH_BACKREF;
-        iterables[pos] = CompressedUnsignedLongByteIterable.getIterable(log.getHighAddress() - startAddress);
+        iterables[pos] = CompressedUnsignedLongByteIterable.getIterable(log.getWrittenHighAddress() - startAddress);
         final ByteIterable data = new CompoundByteIterable(iterables, pos + 2);
         result = singleFile ? log.writeContinuously(type, structureId, data) : log.tryWrite(type, structureId, data);
         if (result < 0) {
             if (!singleFile) {
-                iterables[pos] = CompressedUnsignedLongByteIterable.getIterable(log.getHighAddress() - startAddress);
+                iterables[pos] = CompressedUnsignedLongByteIterable.getIterable(log.getWrittenHighAddress() - startAddress);
                 result = log.writeContinuously(type, structureId, new CompoundByteIterable(iterables, pos + 2));
                 if (result >= 0) {
                     return result;

@@ -19,6 +19,7 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.crypto.EnvKryptKt;
 import jetbrains.exodus.crypto.StreamCipherProvider;
+import jetbrains.exodus.io.DataReader;
 import jetbrains.exodus.io.DataWriter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -28,9 +29,13 @@ import java.util.ArrayList;
 class BufferedDataWriter implements DataWriter {
 
     @NotNull
+    private final Log log;
+    @NotNull
     private final LogCache logCache;
     @NotNull
     private final DataWriter child;
+    @NotNull
+    private final DataReader reader;
     @NotNull
     private final LastPage initialPage;
     @NotNull
@@ -40,16 +45,22 @@ class BufferedDataWriter implements DataWriter {
     private final byte[] cipherKey;
     private final long cipherBasicIV;
     private final int pageSize;
+    @NotNull
+    private final LogFileSetMutable fileSetMutable;
 
     private long highAddress;
     private int count;
 
     BufferedDataWriter(@NotNull final Log log,
                        @NotNull final DataWriter child,
+                       @NotNull final DataReader reader,
                        @NotNull final LastPage page) {
+        this.log = log;
         logCache = log.cache;
+        this.fileSetMutable = page.logFileSet.beginWrite();
         this.initialPage = page;
         this.child = child;
+        this.reader = reader;
         this.highAddress = page.highAddress;
         final boolean validInitialPage = page.count >= 0;
         pageSize = log.getCachePageSize();
@@ -70,6 +81,11 @@ class BufferedDataWriter implements DataWriter {
     @Override
     public boolean isOpen() {
         return child.isOpen();
+    }
+
+    @NotNull
+    LogFileSetMutable getFileSetMutable() {
+        return fileSetMutable;
     }
 
     void write(byte b) {
@@ -209,12 +225,46 @@ class BufferedDataWriter implements DataWriter {
     @NotNull
     LastPage getUpdatedPage() {
         final MutablePage currentPage = this.currentPage;
-        return new LastPage(currentPage.bytes, currentPage.pageAddress, currentPage.committedCount, highAddress, highAddress);
+        final LogFileSetImmutable fileSetImmutable = fileSetMutable.endWrite();
+        return new LastPage(currentPage.bytes, currentPage.pageAddress, currentPage.committedCount, highAddress, highAddress, fileSetImmutable);
     }
 
     private MutablePage allocNewPage() {
         MutablePage currentPage = this.currentPage;
         return this.currentPage = new MutablePage(currentPage, logCache.allocPage(), currentPage.pageAddress + pageSize, 0);
+    }
+
+    public byte getByte(long address) {
+        final int offset = ((int) address) & (pageSize - 1);
+        final long pageAddress = address - offset;
+        final byte[] page = getWrittenPage(pageAddress);
+        if (page != null) {
+            return page[offset];
+        }
+
+        // slow path: unconfirmed file saved to disk, read byte from it
+        final long fileAddress = log.getFileAddress(address);
+        if (!fileSetMutable.contains(fileAddress)) {
+            BlockNotFoundException.raise("Address is out of log space, underflow", log, address);
+        }
+        byte[] output = new byte[1];
+
+        reader.getBlock(fileAddress).read(output, address - fileAddress, 1);
+
+        return output[0];
+    }
+
+    // warning: this method is O(N), where N is number of added pages
+    private byte[] getWrittenPage(long alignedAddress) {
+        MutablePage currentPage = this.currentPage;
+        do {
+            final long highPageAddress = currentPage.pageAddress;
+            if (alignedAddress == highPageAddress) {
+                return currentPage.bytes;
+            }
+            currentPage = currentPage.previousPage;
+        } while (currentPage != null);
+        return null;
     }
 
     private static class MutablePage {

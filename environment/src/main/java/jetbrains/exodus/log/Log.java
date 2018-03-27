@@ -52,7 +52,6 @@ public final class Log implements Closeable {
     private final long created;
     @NotNull
     private final String location;
-    private final LogFileSet fileAddresses;
     final LogCache cache;
 
     private volatile boolean isClosing;
@@ -100,12 +99,14 @@ public final class Log implements Closeable {
             throw new InvalidSettingException("File size should be a multiple of cache page size.");
         }
         fileLengthBound = fileLength;
-        fileAddresses = new LogFileSet(fileLength);
+        final LogFileSetMutable fileSetMutable = new LogFileSetMutable(fileLength);
         reader = config.getReader();
         reader.setLog(this);
         location = reader.getLocation();
 
-        checkLogConsistency();
+        checkLogConsistency(fileSetMutable);
+
+        final LogFileSetImmutable fileSetImmutable = fileSetMutable.endWrite();
 
         newFileListeners = new ArrayList<>(2);
         readBytesListeners = new ArrayList<>(2);
@@ -114,29 +115,29 @@ public final class Log implements Closeable {
         final boolean nonBlockingCache = config.isNonBlockingCache();
         if (memoryUsage != 0) {
             cache = config.isSharedCache() ?
-                getSharedCache(memoryUsage, cachePageSize, nonBlockingCache) :
-                new SeparateLogCache(memoryUsage, cachePageSize, nonBlockingCache);
+                    getSharedCache(memoryUsage, cachePageSize, nonBlockingCache) :
+                    new SeparateLogCache(memoryUsage, cachePageSize, nonBlockingCache);
         } else {
             final int memoryUsagePercentage = config.getMemoryUsagePercentage();
             cache = config.isSharedCache() ?
-                getSharedCache(memoryUsagePercentage, cachePageSize, nonBlockingCache) :
-                new SeparateLogCache(memoryUsagePercentage, cachePageSize, nonBlockingCache);
+                    getSharedCache(memoryUsagePercentage, cachePageSize, nonBlockingCache) :
+                    new SeparateLogCache(memoryUsagePercentage, cachePageSize, nonBlockingCache);
         }
         DeferredIO.getJobProcessor();
         isClosing = false;
 
-        final Long lastFileAddress = fileAddresses.getMaximum();
+        final Long lastFileAddress = fileSetMutable.getMaximum();
         updateLogIdentity();
         if (lastFileAddress == null) {
-            lastPage = new AtomicReference<>(LastPage.EMPTY);
+            lastPage = new AtomicReference<>(new LastPage(fileSize));
         } else {
             final long currentHighAddress = lastFileAddress + reader.getBlock(lastFileAddress).length();
             final long highPageAddress = getHighPageAddress(currentHighAddress);
             final byte[] highPageContent = new byte[cachePageSize];
-            final LastPage tmpLastPage = new LastPage(highPageContent, highPageAddress, cachePageSize, currentHighAddress, currentHighAddress);
+            final LastPage tmpLastPage = new LastPage(highPageContent, highPageAddress, cachePageSize, currentHighAddress, currentHighAddress, fileSetImmutable);
             this.lastPage = new AtomicReference<>(tmpLastPage); // TODO: this is a hack to provide readBytes below with high address (for determining last file length)
             final int highPageSize = currentHighAddress == 0 ? 0 : readBytes(highPageContent, highPageAddress);
-            final LastPage lastPageContent = new LastPage(highPageContent, highPageAddress, highPageSize, currentHighAddress, currentHighAddress);
+            final LastPage lastPageContent = new LastPage(highPageContent, highPageAddress, highPageSize, currentHighAddress, currentHighAddress, fileSetImmutable);
             this.lastPage.set(lastPageContent);
             // here we should check whether last loggable is written correctly
             final Iterator<RandomAccessLoggable> lastFileLoggables = new LoggableIterator(this, lastFileAddress);
@@ -169,7 +170,7 @@ public final class Log implements Closeable {
         sync();
     }
 
-    private void checkLogConsistency() {
+    private void checkLogConsistency(LogFileSetMutable fileSetMutable) {
         final Block[] blocks = reader.getBlocks();
         for (int i = 0; i < blocks.length; ++i) {
             final Block block = blocks[i];
@@ -184,21 +185,21 @@ public final class Log implements Closeable {
             if (clearLogReason == null && address != getFileAddress(address)) {
                 if (!config.isClearInvalidLog()) {
                     throw new ExodusException("Unexpected file address " +
-                        LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileSize));
+                            LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileSize));
                 }
                 clearLogReason = "Unexpected file address " +
-                    LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileSize);
+                        LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileSize);
             }
             if (clearLogReason != null) {
                 if (!config.isClearInvalidLog()) {
                     throw new ExodusException(clearLogReason);
                 }
                 logger.error("Clearing log due to: " + clearLogReason);
-                fileAddresses.clear();
+                fileSetMutable.clear();
                 reader.clear();
                 break;
             }
-            fileAddresses.add(address);
+            fileSetMutable.add(address);
         }
     }
 
@@ -228,7 +229,7 @@ public final class Log implements Closeable {
     }
 
     public long getNumberOfFiles() {
-        return fileAddresses.size();
+        return lastPage.get().logFileSet.size();
     }
 
     /**
@@ -237,7 +238,7 @@ public final class Log implements Closeable {
      * @return array of file addresses.
      */
     public long[] getAllFileAddresses() {
-        return fileAddresses.getArray();
+        return lastPage.get().logFileSet.getArray();
     }
 
     public long getHighAddress() {
@@ -245,14 +246,17 @@ public final class Log implements Closeable {
     }
 
     @SuppressWarnings({"OverlyLongMethod"})
-    public void setHighAddress(final long highAddress) {
-        final long currentHighAddress = this.getHighAddress();
-        if (highAddress > currentHighAddress) {
+    public LastPage setHighAddress(final long highAddress) {
+        final LastPage lastPageContent = this.lastPage.get();
+
+        if (highAddress > lastPageContent.highAddress) {
             throw new ExodusException("Only can decrease high address");
         }
-        if (highAddress == currentHighAddress) {
-            return;
+        if (highAddress == lastPageContent.highAddress) {
+            return lastPageContent;
         }
+
+        final LogFileSetMutable fileSetMutable = lastPageContent.logFileSet.beginWrite();
 
         // begin of test-only code
         final LogTestConfig testConfig = this.testConfig;
@@ -265,7 +269,7 @@ public final class Log implements Closeable {
         closeWriter();
         final LongArrayList blocksToDelete = new LongArrayList();
         long blockToTruncate = -1L;
-        for (final long blockAddress : fileAddresses.getArray()) {
+        for (final long blockAddress : fileSetMutable.getArray()) {
             if (blockAddress <= highAddress) {
                 blockToTruncate = blockAddress;
                 break;
@@ -275,33 +279,44 @@ public final class Log implements Closeable {
 
         // truncate log
         for (int i = 0; i < blocksToDelete.size(); ++i) {
-            removeFile(blocksToDelete.get(i));
+            removeFile(blocksToDelete.get(i), RemoveBlockType.Delete, fileSetMutable);
         }
         if (blockToTruncate >= 0) {
             truncateFile(blockToTruncate, highAddress - blockToTruncate);
         }
 
         updateLogIdentity();
-        if (fileAddresses.isEmpty()) {
-            this.lastPage.set(LastPage.EMPTY);
+        final LastPage writtenLastPage;
+        if (fileSetMutable.isEmpty()) {
+            writtenLastPage = new LastPage(fileSize);
+            this.lastPage.set(writtenLastPage);
         } else {
-            final LastPage lastPageContent = this.lastPage.get();
             final long oldHighPageAddress = getHighPageAddress(lastPageContent.highAddress);
             long approvedHighAddress = lastPageContent.approvedHighAddress;
             if (highAddress < approvedHighAddress) {
                 approvedHighAddress = highAddress;
             }
             final long highPageAddress = getHighPageAddress(highAddress);
-            if (oldHighPageAddress != highPageAddress || !tryAndUpdateLastPage(lastPageContent, highAddress, approvedHighAddress)) {
-                final int highPageSize = (int) (highAddress - highPageAddress);
-                final byte[] highPageContent = new byte[cachePageSize];
-                if (highPageSize > 0 && readBytes(highPageContent, highPageAddress) < highPageSize) {
-                    throw new ExodusException("Can't read expected high page bytes");
+            final LogFileSetImmutable fileSetImmutable = fileSetMutable.endWrite();
+            if (oldHighPageAddress != highPageAddress) {
+                final LastPage updated = tryAndUpdateLastPage(lastPageContent, highAddress, approvedHighAddress, fileSetImmutable);
+                if (updated == null) {
+                    final int highPageSize = (int) (highAddress - highPageAddress);
+                    final byte[] highPageContent = new byte[cachePageSize];
+                    if (highPageSize > 0 && readBytes(highPageContent, highPageAddress) < highPageSize) {
+                        throw new ExodusException("Can't read expected high page bytes");
+                    }
+                    writtenLastPage = new LastPage(highPageContent, highPageAddress, highPageSize, highAddress, approvedHighAddress, fileSetImmutable);
+                    this.lastPage.set(writtenLastPage);
+                } else {
+                    writtenLastPage = updated;
                 }
-                this.lastPage.set(new LastPage(highPageContent, highPageAddress, highPageSize, highAddress, approvedHighAddress));
+            } else {
+                writtenLastPage = lastPageContent;
             }
         }
         this.bufferedWriter = null;
+        return writtenLastPage;
     }
 
     private void closeWriter() {
@@ -311,17 +326,18 @@ public final class Log implements Closeable {
         baseWriter.close();
     }
 
-    private boolean tryAndUpdateLastPage(LastPage pageContent, long highAddress, long approvedHighAddress) {
+    private LastPage tryAndUpdateLastPage(LastPage pageContent, long highAddress, long approvedHighAddress, LogFileSetImmutable fileSet) {
         int count = (int) (highAddress - pageContent.pageAddress);
         if (count < 0 || count > cachePageSize) {
-            return false;
+            return null;
         }
-        lastPage.set(pageContent.withResize(count, highAddress, approvedHighAddress));
-        return true;
+        final LastPage result = pageContent.withResize(count, highAddress, approvedHighAddress, fileSet);
+        lastPage.set(result);
+        return result;
     }
 
     public long beginWrite() {
-        BufferedDataWriter writer = new BufferedDataWriter(this, baseWriter, this.lastPage.get());
+        BufferedDataWriter writer = new BufferedDataWriter(this, baseWriter, reader, this.lastPage.get());
         this.bufferedWriter = writer;
         return writer.getHighAddress();
     }
@@ -334,7 +350,7 @@ public final class Log implements Closeable {
         return ensureWriter().getHighAddress();
     }
 
-    public long endWrite() {
+    public LastPage endWrite() {
         final BufferedDataWriter writer = ensureWriter();
         final LastPage initialPage = writer.getInitialPage();
         final LastPage updatedPage = writer.getUpdatedPage();
@@ -342,7 +358,7 @@ public final class Log implements Closeable {
             throw new ExodusException("write start/finish mismatch");
         }
         bufferedWriter = null;
-        return updatedPage.approvedHighAddress;
+        return updatedPage;
     }
 
     public long getApprovedHighAddress() {
@@ -350,7 +366,7 @@ public final class Log implements Closeable {
     }
 
     public long getLowAddress() {
-        final Long result = fileAddresses.getMinimum();
+        final Long result = lastPage.get().logFileSet.getMinimum();
         return result == null ? Loggable.NULL_ADDRESS : result;
     }
 
@@ -363,7 +379,7 @@ public final class Log implements Closeable {
     }
 
     public long getNextFileAddress(final long fileAddress) {
-        final LongIterator files = fileAddresses.getFilesFrom(fileAddress);
+        final LongIterator files = lastPage.get().logFileSet.getFilesFrom(fileAddress);
         if (files.hasNext()) {
             final long result = files.nextLong();
             if (result != fileAddress) {
@@ -380,9 +396,13 @@ public final class Log implements Closeable {
         return getFileAddress(address) == getHighFileAddress();
     }
 
+    public boolean isLastWrittenFileAddress(final long address) {
+        return getFileAddress(address) == getWrittenHighAddress();
+    }
+
     public boolean hasAddress(final long address) {
         final long fileAddress = getFileAddress(address);
-        final LongIterator files = fileAddresses.getFilesFrom(fileAddress);
+        final LongIterator files = lastPage.get().logFileSet.getFilesFrom(fileAddress);
         if (!files.hasNext()) {
             return false;
         }
@@ -392,7 +412,7 @@ public final class Log implements Closeable {
 
     public boolean hasAddressRange(final long from, final long to) {
         long fileAddress = getFileAddress(from);
-        final LongIterator files = fileAddresses.getFilesFrom(fileAddress);
+        final LongIterator files = lastPage.get().logFileSet.getFilesFrom(fileAddress);
         do {
             if (!files.hasNext() || files.nextLong() != fileAddress) {
                 return false;
@@ -461,6 +481,11 @@ public final class Log implements Closeable {
     @NotNull
     public RandomAccessLoggable read(final DataIterator it) {
         return read(it, it.getHighAddress());
+    }
+
+    public byte getWrittenLoggableType(final long address) {
+        final byte writtenByte = ensureWriter().getByte(address);
+        return (byte) (writtenByte ^ 0x80);
     }
 
     @NotNull
@@ -553,7 +578,7 @@ public final class Log implements Closeable {
      */
     @Nullable
     public Loggable getFirstLoggableOfType(final int type) {
-        final LongIterator files = fileAddresses.getFilesFrom(0);
+        final LongIterator files = lastPage.get().logFileSet.getFilesFrom(0);
         final long approvedHighAddress = getApprovedHighAddress();
         while (files.hasNext()) {
             final long fileAddress = files.nextLong();
@@ -584,7 +609,7 @@ public final class Log implements Closeable {
     public Loggable getLastLoggableOfType(final int type) {
         Loggable result = null;
         final long approvedHighAddress = getApprovedHighAddress();
-        for (final long fileAddress : fileAddresses.getArray()) {
+        for (final long fileAddress : lastPage.get().logFileSet.getArray()) {
             if (result != null) {
                 break;
             }
@@ -613,7 +638,7 @@ public final class Log implements Closeable {
      */
     public Loggable getLastLoggableOfTypeBefore(final int type, final long beforeAddress) {
         Loggable result = null;
-        for (final long fileAddress : fileAddresses.getArray()) {
+        for (final long fileAddress : lastPage.get().logFileSet.getArray()) {
             if (result != null) {
                 break;
             }
@@ -667,8 +692,8 @@ public final class Log implements Closeable {
         sync();
         reader.close();
         closeWriter();
+        lastPage.set(new LastPage(fileSize));
         release();
-        fileAddresses.clear();
     }
 
     public boolean isClosing() {
@@ -681,19 +706,23 @@ public final class Log implements Closeable {
 
     public void clear() {
         closeWriter();
-        fileAddresses.clear();
         cache.clear();
         reader.clear();
-        this.lastPage.set(LastPage.EMPTY);
+        this.lastPage.set(new LastPage(fileSize));
         this.bufferedWriter = null;
         updateLogIdentity();
     }
 
+    // for tests only
     public void removeFile(final long address) {
-        removeFile(address, RemoveBlockType.Delete);
+        removeFile(address, RemoveBlockType.Delete, null);
     }
 
     public void removeFile(final long address, @NotNull final RemoveBlockType rbt) {
+        removeFile(address, rbt, null);
+    }
+
+    public void removeFile(final long address, @NotNull final RemoveBlockType rbt, @Nullable final LogFileSetMutable logFileSetMutable) {
         final RemoveFileListener[] listeners;
         synchronized (removeFileListeners) {
             listeners = removeFileListeners.toArray(new RemoveFileListener[removeFileListeners.size()]);
@@ -705,7 +734,11 @@ public final class Log implements Closeable {
             // remove physical file
             reader.removeBlock(address, rbt);
             // remove address of file of the list
-            fileAddresses.remove(address);
+            if (logFileSetMutable != null) {
+                logFileSetMutable.remove(address);
+            } else {
+                // TODO
+            }
             // clear cache
             for (long offset = 0; offset < fileLengthBound; offset += cachePageSize) {
                 cache.removePage(this, address + offset);
@@ -718,7 +751,7 @@ public final class Log implements Closeable {
     }
 
     @NotNull
-    BufferedDataWriter ensureWriter() {
+    public BufferedDataWriter ensureWriter() {
         final BufferedDataWriter writer = this.bufferedWriter;
         if (writer == null) {
             throw new ExodusException("write not in progress");
@@ -786,7 +819,7 @@ public final class Log implements Closeable {
     @SuppressWarnings("ConstantConditions")
     int readBytes(final byte[] output, final long address) {
         final long fileAddress = getFileAddress(address);
-        final LongIterator files = fileAddresses.getFilesFrom(fileAddress);
+        final LongIterator files = lastPage.get().logFileSet.getFilesFrom(fileAddress);
         if (files.hasNext()) {
             final long leftBound = files.nextLong();
             final long fileSize = getFileSize(leftBound);
@@ -796,15 +829,15 @@ public final class Log implements Closeable {
                 final StreamCipherProvider cipherProvider = config.getCipherProvider();
                 if (cipherProvider != null) {
                     EnvKryptKt.cryptBlocksMutable(cipherProvider, config.getCipherKey(), config.getCipherBasicIV(),
-                        address, output, 0, readBytes, LogUtil.LOG_BLOCK_ALIGNMENT);
+                            address, output, 0, readBytes, LogUtil.LOG_BLOCK_ALIGNMENT);
                 }
                 notifyReadBytes(output, readBytes);
                 return readBytes;
             }
-            if (fileAddress < fileAddresses.getMinimum()) {
+            if (fileAddress < lastPage.get().logFileSet.getMinimum()) {
                 BlockNotFoundException.raise("Address is out of log space, underflow", this, address);
             }
-            if (fileAddress >= fileAddresses.getMaximum()) {
+            if (fileAddress >= lastPage.get().logFileSet.getMaximum()) {
                 BlockNotFoundException.raise("Address is out of log space, overflow", this, address);
             }
         }
@@ -875,12 +908,8 @@ public final class Log implements Closeable {
         return highAddress - alignment; // aligned address
     }
 
-    public PersistentLongSet.ImmutableSet getFileSnapshot() {
-        return fileAddresses.getCurrent();
-    }
-
     public LongIterator getFilesFrom(PersistentLongSet.ImmutableSet snapshot, Long fileAddress) {
-        return fileAddresses.getFilesFrom(snapshot, fileAddress);
+        return lastPage.get().logFileSet.getFilesFrom(snapshot, fileAddress);
     }
 
     /**
@@ -912,9 +941,9 @@ public final class Log implements Closeable {
         if (!writer.isOpen()) {
             final long fileAddress = getFileAddress(result);
             writer.openOrCreateBlock(fileAddress, writer.getLastWrittenFileLength(fileLengthBound));
-            final boolean fileCreated = !fileAddresses.contains(fileAddress);
+            final boolean fileCreated = !writer.getFileSetMutable().contains(fileAddress);
             if (fileCreated) {
-                fileAddresses.add(fileAddress);
+                writer.getFileSetMutable().add(fileAddress);
             }
             if (fileCreated) {
                 // fsync the directory to ensure we will find the log file in the directory after system crash
@@ -960,7 +989,7 @@ public final class Log implements Closeable {
 
             baseWriter.close();
             if (config.isFullFileReadonly()) {
-                final Long lastFile = fileAddresses.getMaximum();
+                final Long lastFile = writer.getFileSetMutable().getMaximum();
                 if (lastFile != null) {
                     Block block = reader.getBlock(lastFile);
                     if (block.length() < fileSize) {

@@ -31,7 +31,7 @@ public final class NullLoggable extends RandomAccessLoggableImpl {
         return PROTOTYPE;
     }
 
-    static boolean isNullLoggable(final byte type) {
+    public static boolean isNullLoggable(final byte type) {
         return type == TYPE;
     }
 

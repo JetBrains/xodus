@@ -124,8 +124,8 @@ public class EnvironmentImpl implements Environment {
         statistics = new EnvironmentStatistics(this);
         if (ec.isManagementEnabled()) {
             configMBean = ec.getManagementOperationsRestricted() ?
-                new jetbrains.exodus.env.management.EnvironmentConfig(this) :
-                new EnvironmentConfigWithOperations(this);
+                    new jetbrains.exodus.env.management.EnvironmentConfig(this) :
+                    new EnvironmentConfigWithOperations(this);
             // if we don't gather statistics then we should not expose corresponding managed bean
             statisticsMBean = ec.getEnvGatherStatistics() ? new jetbrains.exodus.env.management.EnvironmentStatistics(this) : null;
         } else {
@@ -531,8 +531,8 @@ public class EnvironmentImpl implements Environment {
     protected TransactionBase beginTransaction(Runnable beginHook, boolean exclusive, boolean cloneMeta) {
         checkIsOperative();
         return ec.getEnvIsReadonly() ?
-            new ReadonlyTransaction(this, beginHook) :
-            new ReadWriteTransaction(this, beginHook, exclusive, cloneMeta);
+                new ReadonlyTransaction(this, beginHook) :
+                new ReadWriteTransaction(this, beginHook, exclusive, cloneMeta);
     }
 
     long getDiskUsage() {
@@ -556,7 +556,7 @@ public class EnvironmentImpl implements Environment {
     boolean shouldTransactionBeExclusive(@NotNull final ReadWriteTransaction txn) {
         final int replayCount = txn.getReplayCount();
         return replayCount >= ec.getEnvTxnReplayMaxCount() ||
-            System.currentTimeMillis() - txn.getCreated() >= ec.getEnvTxnReplayTimeout();
+                System.currentTimeMillis() - txn.getCreated() >= ec.getEnvTxnReplayTimeout();
     }
 
     /**
@@ -632,13 +632,14 @@ public class EnvironmentImpl implements Environment {
                     final MetaTree.Proto[] tree = new MetaTree.Proto[1];
                     expiredLoggables = txn.doCommit(tree);
                     final long highAddress = log.getWrittenHighAddress();
-                    final PersistentLongSet.ImmutableSet fileSnapshot = log.getFileSnapshot();
                     // there is a temptation to postpone I/O in order to reduce number of writes to storage device,
                     // but it's quite difficult to resolve all possible inconsistencies afterwards,
                     // so think twice before removing the following line
                     log.flush();
                     metaWriteLock.lock();
-                    resultingHighAddress = log.endWrite();
+                    final LastPage writtenLastPage = log.endWrite();
+                    final PersistentLongSet.ImmutableSet fileSnapshot = writtenLastPage.logFileSet.getCurrent();
+                    resultingHighAddress = writtenLastPage.approvedHighAddress;
                     try {
                         final MetaTree.Proto proto = tree[0];
                         txn.setMetaTree(metaTree = proto.instantiate(this, highAddress, fileSnapshot));

@@ -65,12 +65,12 @@ final class BTreeDupMutable extends BTreeMutable {
         final byte type = rootPage.isBottom() ? BTreeBase.LEAF_DUP_BOTTOM_ROOT : BTreeBase.LEAF_DUP_INTERNAL_ROOT;
         final ByteIterable keyIterable = CompressedUnsignedLongByteIterable.getIterable(key.getLength());
         ByteIterable sizeIterable;
-        long startAddress = log.getHighAddress(); // remember high address before saving the data
+        long startAddress = log.getWrittenHighAddress(); // remember high address before saving the data
         final ByteIterable rootDataIterable = rootPage.getData();
         ByteIterable[] iterables;
         long result;
         final boolean canRetry;
-        if (log.isLastFileAddress(startAddress)) {
+        if (log.isLastWrittenFileAddress(startAddress)) {
             sizeIterable = CompressedUnsignedLongByteIterable.getIterable(size << 1);
             iterables = new ByteIterable[]{keyIterable, key, sizeIterable, rootDataIterable};
             result = log.tryWrite(type, structureId, new CompoundByteIterable(iterables));
@@ -83,19 +83,19 @@ final class BTreeDupMutable extends BTreeMutable {
         } else {
             canRetry = true;
         }
-        if (NullLoggable.isNullLoggable(log.read(startAddress))) {
+        if (NullLoggable.isNullLoggable(log.getWrittenLoggableType(startAddress))) {
             final long lengthBound = log.getFileLengthBound();
             startAddress += (lengthBound - startAddress % lengthBound);
         }
         sizeIterable = CompressedUnsignedLongByteIterable.getIterable((size << 1) + 1);
         final ByteIterable offsetIterable =
-            CompressedUnsignedLongByteIterable.getIterable(log.getHighAddress() - startAddress);
+                CompressedUnsignedLongByteIterable.getIterable(log.getWrittenHighAddress() - startAddress);
         iterables = new ByteIterable[]{keyIterable, key, sizeIterable, offsetIterable, rootDataIterable};
         final ByteIterable data = new CompoundByteIterable(iterables);
         result = canRetry ? log.tryWrite(type, structureId, data) : log.writeContinuously(type, structureId, data);
         if (result < 0) {
             if (canRetry) {
-                iterables[3] = CompressedUnsignedLongByteIterable.getIterable(log.getHighAddress() - startAddress);
+                iterables[3] = CompressedUnsignedLongByteIterable.getIterable(log.getWrittenHighAddress() - startAddress);
                 result = log.writeContinuously(type, structureId, new CompoundByteIterable(iterables));
 
                 if (result < 0) {

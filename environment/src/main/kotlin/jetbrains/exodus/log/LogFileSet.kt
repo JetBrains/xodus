@@ -18,15 +18,15 @@ package jetbrains.exodus.log
 import jetbrains.exodus.core.dataStructures.hash.LongIterator
 import jetbrains.exodus.core.dataStructures.persistent.PersistentBitTreeLongSet
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLongSet
-import java.util.concurrent.atomic.AtomicReference
 
 private const val BITS_PER_ENTRY = 7
 
-internal class LogFileSet(private val fileSize: Long) {
-
-    // file key is aligned file address, i.e. file address divided by fileSize
-    private val fileKeys: AtomicReference<PersistentLongSet> = AtomicReference(PersistentBitTreeLongSet(BITS_PER_ENTRY))
-
+internal open class LogFileSetImmutable @JvmOverloads constructor(
+        val fileSize: Long,
+        val set: PersistentLongSet = PersistentBitTreeLongSet(BITS_PER_ENTRY),
+        // file key is aligned file address, i.e. file address divided by fileSize
+        val current: PersistentLongSet.ImmutableSet = set.beginRead()
+) {
     fun size() = current.size()
 
     val isEmpty get() = current.isEmpty
@@ -67,27 +67,31 @@ internal class LogFileSet(private val fileSize: Long) {
         }
     }
 
-    fun clear() = writeFinally { clear() }
-
-    fun add(fileAddress: Long) = writeFinally { add(fileAddress.addressToKey) }
-
-    fun remove(fileAddress: Long) = writeFinally { remove(fileAddress.addressToKey) }
-
-    val current: PersistentLongSet.ImmutableSet get() = fileKeys.get().beginRead()
-
-    private fun <T> writeFinally(block: PersistentLongSet.MutableSet.() -> T): T {
-        var result: T
-        do {
-            val thisSet = fileKeys.get()
-            val newSet = thisSet.clone
-            val mutableSet = newSet.beginWrite()
-            result = mutableSet.block()
-            mutableSet.endWrite()
-        } while (!fileKeys.compareAndSet(thisSet, newSet))
-        return result
+    fun beginWrite(): LogFileSetMutable {
+        val set = this.set.clone
+        return LogFileSetMutable(fileSize, set, set.beginWrite())
     }
 
-    private val Long.keyToAddress: Long get() = this * fileSize
+    protected val Long.keyToAddress: Long get() = this * fileSize
 
-    private val Long.addressToKey: Long get() = this / fileSize
+    protected val Long.addressToKey: Long get() = this / fileSize
+}
+
+internal class LogFileSetMutable @JvmOverloads constructor(
+        fileSize: Long,
+        set: PersistentLongSet = PersistentBitTreeLongSet(BITS_PER_ENTRY),
+        private val mutable: PersistentLongSet.MutableSet = set.beginWrite()
+) : LogFileSetImmutable(fileSize, set, mutable) {
+
+
+    fun clear() = mutable.clear()
+
+    fun add(fileAddress: Long) = mutable.add(fileAddress.addressToKey)
+
+    fun remove(fileAddress: Long) = mutable.remove(fileAddress.addressToKey)
+
+    fun endWrite(): LogFileSetImmutable {
+        mutable.endWrite()
+        return LogFileSetImmutable(fileSize, set.clone)
+    }
 }

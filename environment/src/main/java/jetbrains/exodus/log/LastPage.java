@@ -2,39 +2,42 @@ package jetbrains.exodus.log;
 
 import org.jetbrains.annotations.NotNull;
 
-class LastPage {
-    static final LastPage EMPTY = new LastPage();
-
+public class LastPage {
     @NotNull
     final byte[] bytes;
-    final long pageAddress;
-    final int count;
+    public final long pageAddress;
+    public final int count;
 
-    final long highAddress;
-    final long approvedHighAddress;
+    public final long highAddress;
+    public final long approvedHighAddress;
+
+    @NotNull
+    public final LogFileSetImmutable logFileSet;
 
     // empty
-    private LastPage() {
+    LastPage(final long fileSize) {
         this.bytes = new byte[0];
         this.pageAddress = 0;
         this.count = -1;
         this.highAddress = this.approvedHighAddress = 0;
+        this.logFileSet = new LogFileSetImmutable(fileSize);
     }
 
     // non-empty
-    LastPage(@NotNull byte[] bytes, long pageAddress, int count, long highAddress, long approvedHighAddress) {
+    LastPage(@NotNull byte[] bytes, long pageAddress, int count, long highAddress, long approvedHighAddress, @NotNull final LogFileSetImmutable logFileSet) {
         this.bytes = bytes;
         this.pageAddress = pageAddress;
         this.count = count;
         this.highAddress = highAddress;
         this.approvedHighAddress = approvedHighAddress;
+        this.logFileSet = logFileSet;
     }
 
     LastPage withApprovedAddress(long updatedApprovedHighAddress) {
-        return new LastPage(bytes, pageAddress, count, highAddress, updatedApprovedHighAddress);
+        return new LastPage(bytes, pageAddress, count, highAddress, updatedApprovedHighAddress, logFileSet);
     }
 
-    LastPage withResize(int updatedCount, long updatedHighAddress, long updatedApprovedHighAddress) {
-        return new LastPage(bytes, pageAddress, updatedCount, updatedHighAddress, updatedApprovedHighAddress);
+    LastPage withResize(int updatedCount, long updatedHighAddress, long updatedApprovedHighAddress, @NotNull final LogFileSetImmutable logFileSet) {
+        return new LastPage(bytes, pageAddress, updatedCount, updatedHighAddress, updatedApprovedHighAddress, logFileSet);
     }
 }
