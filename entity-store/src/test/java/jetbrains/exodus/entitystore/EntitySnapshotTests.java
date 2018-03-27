@@ -15,6 +15,17 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.core.execution.Job;
+import jetbrains.exodus.core.execution.JobProcessor;
+import jetbrains.exodus.core.execution.JobProcessorExceptionHandler;
+import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor;
+import jetbrains.exodus.env.EnvironmentConfig;
+import jetbrains.exodus.env.EnvironmentImpl;
+import org.jetbrains.annotations.NotNull;
+import org.junit.Assert;
+
+import java.lang.reflect.InvocationTargetException;
+
 public class EntitySnapshotTests extends EntityStoreTestBase {
 
     @Override
@@ -91,7 +102,7 @@ public class EntitySnapshotTests extends EntityStoreTestBase {
         }
     }
 
-    /*public void testConcurrentPutJetPassLike() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+    public void testConcurrentPutJetPassLike() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         getEntityStore().getConfig().setCachingDisabled(true);
         final EnvironmentImpl environment = (EnvironmentImpl) getEntityStore().getEnvironment();
         final EnvironmentConfig config = environment.getEnvironmentConfig();
@@ -139,5 +150,5 @@ public class EntitySnapshotTests extends EntityStoreTestBase {
                 }
             }
         });
-    }*/
+    }
 }
