@@ -39,6 +39,8 @@ public interface EntityMetaData {
 
     boolean hasSubTypes();
 
+    boolean isAbstract();
+
     Collection<String> getSubTypes();
 
     Collection<String> getAllSubTypes();
