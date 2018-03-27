@@ -92,6 +92,10 @@ abstract class BasePage implements Dumpable {
         return true;
     }
 
+    protected boolean isDupKey(int index) {
+        return getKey(index).isDup();
+    }
+
     @NotNull
     protected abstract BaseLeafNode getKey(int index);
 

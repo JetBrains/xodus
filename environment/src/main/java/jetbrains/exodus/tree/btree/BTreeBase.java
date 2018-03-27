@@ -166,6 +166,11 @@ public abstract class BTreeBase implements ITree {
         }
     }
 
+    protected boolean isDupKey(final long address) {
+        final byte type = getLoggable(address).getType();
+        return type == LEAF_DUP_BOTTOM_ROOT || type == LEAF_DUP_INTERNAL_ROOT;
+    }
+
     int compareLeafToKey(final long address, @NotNull final ByteIterable key) {
         final RandomAccessLoggable loggable = getLoggable(address);
         final ByteIterableWithAddress data = loggable.getData();

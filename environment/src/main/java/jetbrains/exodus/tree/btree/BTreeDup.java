@@ -101,4 +101,9 @@ final class BTreeDup extends BTreeBase {
             throw new IllegalArgumentException("Unexpected loggable type " + loggable.getType() + " at address " + loggable.getAddress());
         }
     }
+
+    @Override
+    protected boolean isDupKey(long address) {
+        return false;
+    }
 }
