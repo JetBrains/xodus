@@ -20,18 +20,19 @@ import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.crypto.EnvKryptKt;
 import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.io.DataWriter;
-import jetbrains.exodus.io.TransactionalDataWriter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 
-class BufferedDataWriter implements TransactionalDataWriter {
+class BufferedDataWriter implements DataWriter {
 
     @NotNull
     private final LogCache logCache;
     @NotNull
     private final DataWriter child;
+    @NotNull
+    private final LastPage initialPage;
     @NotNull
     private MutablePage currentPage;
     @Nullable
@@ -39,43 +40,31 @@ class BufferedDataWriter implements TransactionalDataWriter {
     private final byte[] cipherKey;
     private final long cipherBasicIV;
     private final int pageSize;
+
+    private long highAddress;
     private int count;
-
-    private BufferedDataWriter(@NotNull final Log log,
-                               @NotNull final DataWriter child,
-                               @NotNull final byte[] page,
-                               final long pageAddress) {
-        logCache = log.cache;
-        this.child = child;
-        currentPage = new MutablePage(null, page, pageAddress);
-        cipherProvider = log.getConfig().getCipherProvider();
-        cipherKey = log.getConfig().getCipherKey();
-        cipherBasicIV = log.getConfig().getCipherBasicIV();
-        pageSize = log.getCachePageSize();
-        if (pageSize != page.length) {
-            throw new InvalidSettingException("Configured page size doesn't match actual page size, pageSize = " +
-                pageSize + ", actual page size = " + page.length);
-        }
-    }
-
-    BufferedDataWriter(@NotNull final Log log,
-                       @NotNull final DataWriter child) {
-        this(log, child, log.cache.allocPage(), 0L);
-    }
 
     BufferedDataWriter(@NotNull final Log log,
                        @NotNull final DataWriter child,
-                       final long highPageAddress,
-                       final byte[] highPageContent,
-                       final int highPageSize) {
-        this(log, child, highPageContent, highPageAddress);
-        currentPage.setPageSize(highPageSize);
-    }
-
-
-    @Override
-    public DataWriter getChildWriter() {
-        return child;
+                       @NotNull final LastPage page) {
+        logCache = log.cache;
+        this.initialPage = page;
+        this.child = child;
+        this.highAddress = page.highAddress;
+        final boolean validInitialPage = page.count >= 0;
+        pageSize = log.getCachePageSize();
+        if (validInitialPage) {
+            if (pageSize != page.bytes.length) {
+                throw new InvalidSettingException("Configured page size doesn't match actual page size, pageSize = " +
+                        pageSize + ", actual page size = " + page.bytes.length);
+            }
+            currentPage = new MutablePage(null, page.bytes, page.pageAddress, page.count);
+        } else {
+            currentPage = new MutablePage(null, logCache.allocPage(), page.pageAddress, 0);
+        }
+        cipherProvider = log.getConfig().getCipherProvider();
+        cipherKey = log.getConfig().getCipherKey();
+        cipherBasicIV = log.getConfig().getCipherBasicIV();
     }
 
     @Override
@@ -83,8 +72,7 @@ class BufferedDataWriter implements TransactionalDataWriter {
         return child.isOpen();
     }
 
-    @Override
-    public void write(byte b) {
+    void write(byte b) {
         final int count = this.count;
         MutablePage currentPage = this.currentPage;
         final int writtenCount = currentPage.writtenCount;
@@ -120,8 +108,7 @@ class BufferedDataWriter implements TransactionalDataWriter {
         this.count = count;
     }
 
-    @Override
-    public void commit() {
+    void commit() {
         count = 0;
         final MutablePage currentPage = this.currentPage;
         currentPage.committedCount = currentPage.writtenCount;
@@ -140,28 +127,14 @@ class BufferedDataWriter implements TransactionalDataWriter {
                     child.write(bytes, off, len);
                 } else {
                     child.write(EnvKryptKt.cryptBlocksImmutable(cipherProvider, cipherKey, cipherBasicIV,
-                        mutablePage.pageAddress, bytes, off, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
+                            mutablePage.pageAddress, bytes, off, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
                 }
             }
             currentPage.previousPage = null;
         }
     }
 
-    @Override
-    public void rollback() {
-        count = 0;
-        MutablePage currentPage = this.currentPage;
-        MutablePage previousPage = currentPage.previousPage;
-        while (previousPage != null) {
-            currentPage = previousPage;
-            previousPage = previousPage.previousPage;
-        }
-        currentPage.writtenCount = currentPage.committedCount;
-        this.currentPage = currentPage;
-    }
-
-    @Override
-    public void flush() {
+    void flush() {
         if (count > 0) {
             throw new IllegalStateException("Can't flush uncommitted writer: " + count);
         }
@@ -175,7 +148,7 @@ class BufferedDataWriter implements TransactionalDataWriter {
                 child.write(bytes, flushedCount, len);
             } else {
                 child.write(EnvKryptKt.cryptBlocksImmutable(cipherProvider, cipherKey, cipherBasicIV,
-                    currentPage.pageAddress, bytes, flushedCount, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
+                        currentPage.pageAddress, bytes, flushedCount, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
             }
             currentPage.flushedCount = committedCount;
         }
@@ -183,7 +156,7 @@ class BufferedDataWriter implements TransactionalDataWriter {
 
     @Override
     public void sync() {
-        child.sync();
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -193,10 +166,7 @@ class BufferedDataWriter implements TransactionalDataWriter {
 
     @Override
     public void close() {
-        if (count > 0) {
-            throw new IllegalStateException("Can't close uncommitted writer " + count);
-        }
-        child.close();
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -206,12 +176,12 @@ class BufferedDataWriter implements TransactionalDataWriter {
 
     @Override
     public boolean lock(long timeout) {
-        return child.lock(timeout);
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public boolean release() {
-        return child.release();
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -219,36 +189,32 @@ class BufferedDataWriter implements TransactionalDataWriter {
         return child.lockInfo();
     }
 
-    @Override
-    public byte[] getHighPage(final long alignedAddress) {
-        MutablePage currentPage = this.currentPage;
-        final long highPageAddress = currentPage.pageAddress;
-        if (alignedAddress == highPageAddress) {
-            return currentPage.bytes;
-        }
-        if (currentPage.previousPage != null) {
-            throw new IllegalStateException("can't read from unconfirmed log");
-        }
-        return null;
+    long getHighAddress() {
+        return highAddress;
     }
 
-    @Override
-    public boolean tryAndUpdateHighAddress(long highAddress) {
-        if (count > 0) {
-            throw new IllegalStateException("Can't update high address for uncommitted writer: " + count);
-        }
+    void incHighAddress(long delta) {
+        this.highAddress += delta;
+    }
+
+    long getLastWrittenFileLength(long fileLengthBound) {
+        return getHighAddress() % fileLengthBound;
+    }
+
+    @NotNull
+    LastPage getInitialPage() {
+        return initialPage;
+    }
+
+    @NotNull
+    LastPage getUpdatedPage() {
         final MutablePage currentPage = this.currentPage;
-        final int committed = (int) (highAddress - currentPage.pageAddress);
-        if (committed < 0 || committed > pageSize) {
-            return false;
-        }
-        currentPage.setPageSize(committed);
-        return true;
+        return new LastPage(currentPage.bytes, currentPage.pageAddress, currentPage.committedCount, highAddress, highAddress);
     }
 
     private MutablePage allocNewPage() {
         MutablePage currentPage = this.currentPage;
-        return this.currentPage = new MutablePage(currentPage, logCache.allocPage(), currentPage.pageAddress + pageSize);
+        return this.currentPage = new MutablePage(currentPage, logCache.allocPage(), currentPage.pageAddress + pageSize, 0);
     }
 
     private static class MutablePage {
@@ -262,15 +228,11 @@ class BufferedDataWriter implements TransactionalDataWriter {
         int committedCount;
         int writtenCount;
 
-        MutablePage(@Nullable final MutablePage previousPage, @NotNull final byte[] page, final long pageAddress) {
+        MutablePage(@Nullable final MutablePage previousPage, @NotNull final byte[] page, final long pageAddress, final int count) {
             this.previousPage = previousPage;
             this.bytes = page;
             this.pageAddress = pageAddress;
-            setPageSize(0);
-        }
-
-        void setPageSize(final int pageSize) {
-            flushedCount = committedCount = writtenCount = pageSize;
+            flushedCount = committedCount = writtenCount = count;
         }
     }
 }

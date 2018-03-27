@@ -39,9 +39,11 @@ public class LogTests extends LogTestsBase {
         initLog(6); // file size must be multiple of 3 to avoid alignment
         final long logFileSizeInBytes = getLog().getFileSize() * 1024;
         for (int i = 0; i < 100; ++i) {
+            log.beginWrite();
             for (int j = 0; j < logFileSizeInBytes; ++j) {
                 Assert.assertEquals(3 * (j + i * logFileSizeInBytes), getLog().write(DUMMY_LOGGABLE));
             }
+            log.endWrite();
             Assert.assertEquals(3 * (i + 1), (int) getLog().getNumberOfFiles()); // each DUMMY_LOGGABLE takes 2 bytes
         }
     }
@@ -52,9 +54,11 @@ public class LogTests extends LogTestsBase {
 
         final Loggable emptyLoggable = NullLoggable.create();
 
+        getLog().beginWrite();
         for (int i = 0; i < 1024; ++i) {
             getLog().write(emptyLoggable);
         }
+        getLog().endWrite();
         closeLog();
         initLog(1);
     }
@@ -62,18 +66,24 @@ public class LogTests extends LogTestsBase {
     @Test
     public void testWrite2() throws IOException {
         initLog(111); // file size must be multiple of 2 to avoid alignment
+        getLog().beginWrite();
         for (int j = 0; j < 111 * 1024; ++j) {
             Assert.assertEquals(3 * j, (int) getLog().write(DUMMY_LOGGABLE));
         }
+        getLog().flush();
+        getLog().endWrite();
         Assert.assertEquals(3, (int) getLog().getNumberOfFiles()); // each DUMMY_LOGGABLE takes 2 bytes
     }
 
     @Test
     public void testRemoveFile() throws IOException {
         initLog(1);
+        getLog().beginWrite();
         for (int j = 0; j < 1024 * 99; ++j) {
             getLog().write(NullLoggable.create());
         }
+        getLog().flush();
+        getLog().endWrite();
         getLog().removeFile(0);
         getLog().removeFile(1024);
         getLog().removeFile(8192);
@@ -84,9 +94,12 @@ public class LogTests extends LogTestsBase {
     @Test
     public void testRemoveFileInvalidAddress() throws IOException {
         initLog(1);
+        getLog().beginWrite();
         for (int j = 0; j < 1024 * 10; ++j) {
             getLog().write(NullLoggable.create());
         }
+        getLog().flush();
+        getLog().endWrite();
         TestUtil.runWithExpectedException(new Runnable() {
             @Override
             public void run() {
@@ -98,9 +111,12 @@ public class LogTests extends LogTestsBase {
     @Test
     public void testRemoveFileNonexistentAddress() throws IOException {
         initLog(1);
+        getLog().beginWrite();
         for (int j = 0; j < 1024 * 10; ++j) {
             getLog().write(NullLoggable.create());
         }
+        getLog().flush();
+        getLog().endWrite();
         TestUtil.runWithExpectedException(new Runnable() {
             @Override
             public void run() {
@@ -112,30 +128,36 @@ public class LogTests extends LogTestsBase {
     @Test
     public void testPaddingWithNulls() throws IOException {
         initLog(1);
+        getLog().beginWrite();
         for (int i = 0; i < 100; ++i) {
             getLog().write(DUMMY_LOGGABLE);
             getLog().padWithNulls();
             Assert.assertEquals(i + 1, (int) getLog().getNumberOfFiles());
         }
+        getLog().endWrite();
     }
 
     @Test
     public void testWriteNulls() throws IOException {
         initLog(1);
+        log.beginWrite();
         for (int j = 0; j < 1024 * 99; ++j) {
             getLog().write(NullLoggable.create());
         }
+        log.endWrite();
         Assert.assertEquals(99, (int) getLog().getNumberOfFiles()); // null loggable should take only one byte
     }
 
     @Test
     public void testAutoAlignment() throws IOException {
         initLog(1);
+        log.beginWrite();
         for (int i = 0; i < 1023; ++i) {
             getLog().write(NullLoggable.create());
         }
         // here auto-alignment should happen
         final long dummyAddress = getLog().write(DUMMY_LOGGABLE);
+        getLog().endWrite();
         Assert.assertEquals(2, (int) getLog().getNumberOfFiles());
         // despite the fact that DUMMY_LOGGABLE size + 1023 nulls should result in 1025 bytes,
         // we should actually get 1026 (one kb + 2) due to automatic alignment
@@ -148,7 +170,9 @@ public class LogTests extends LogTestsBase {
     public void testWriteReadSameAddress() throws IOException {
         initLog(1);
         for (int i = 0; i < 100; ++i) {
+            getLog().beginWrite();
             final long dummyAddress = getLog().write(DUMMY_LOGGABLE);
+            getLog().endWrite();
             Assert.assertEquals((long) (i * 3), dummyAddress);
             Assert.assertEquals(dummyAddress, getLog().read(dummyAddress).getAddress());
         }
@@ -161,23 +185,34 @@ public class LogTests extends LogTestsBase {
         TestUtil.runWithExpectedException(new Runnable() {
             @Override
             public void run() {
-                getLog().write(ONE_KB_LOGGABLE);
+                try {
+                    log.beginWrite();
+                    getLog().write(ONE_KB_LOGGABLE);
+                } catch (Throwable t) {
+                    getLog().abortWrite();
+                    throw t;
+                }
             }
         }, TooBigLoggableException.class);
     }
 
     @Test
     public void testReadUnknownLoggableType() throws IOException {
+        getLog().beginWrite();
         getLog().write(DUMMY_LOGGABLE);
+        getLog().endWrite();
         getLog().read(0);
     }
 
     @Test
     public void testSetHighAddress() {
         final int loggablesCount = 350000; // enough number to make sure two files will be created
+        getLog().beginWrite();
         for (int i = 0; i < loggablesCount; ++i) {
             getLog().write(DUMMY_LOGGABLE);
         }
+        getLog().flush();
+        getLog().endWrite();
         getLog().setHighAddress(3);
         final Iterator<RandomAccessLoggable> loggablesIterator = getLog().getLoggableIterator(0);
         loggablesIterator.next();
@@ -187,9 +222,11 @@ public class LogTests extends LogTestsBase {
     @Test
     public void testSetHighAddress2() {
         final int loggablesCount = 350000; // enough number to make sure two files will be created
+        getLog().beginWrite();
         for (int i = 0; i < loggablesCount; ++i) {
             getLog().write(DUMMY_LOGGABLE);
         }
+        getLog().endWrite();
         getLog().setHighAddress(0);
         Assert.assertFalse(getLog().getLoggableIterator(0).hasNext());
     }
@@ -197,10 +234,14 @@ public class LogTests extends LogTestsBase {
     @Test
     @TestFor(issues = "XD-317")
     public void testSetHighAddress_XD_317() {
+        getLog().beginWrite();
         getLog().write(DUMMY_LOGGABLE);
+        getLog().endWrite();
         getLog().setHighAddress(0);
         Assert.assertFalse(getLog().getLoggableIterator(0).hasNext());
+        getLog().beginWrite();
         getLog().write(NullLoggable.create());
+        getLog().endWrite();
         final Iterator<RandomAccessLoggable> it = getLog().getLoggableIterator(0);
         Assert.assertTrue(it.hasNext());
         Assert.assertTrue(NullLoggable.isNullLoggable(it.next()));
@@ -280,10 +321,12 @@ public class LogTests extends LogTestsBase {
     public void testAllLoggablesIterator() throws IOException {
         initLog(4, 1024 * 4);
         final int count = 10;
+        getLog().beginWrite();
         for (int i = 0; i < count; ++i) {
-            getLog().write((byte) 127, Loggable.NO_STRUCTURE_ID, CompressedUnsignedLongByteIterable.getIterable(i));
+            writeData(CompressedUnsignedLongByteIterable.getIterable(i));
         }
         getLog().flush();
+        getLog().endWrite();
         final Iterator<RandomAccessLoggable> it = getLog().getLoggableIterator(0);
         int i = 0;
         while (it.hasNext()) {
@@ -295,13 +338,19 @@ public class LogTests extends LogTestsBase {
         Assert.assertEquals(count, i);
     }
 
+    private long writeData(ByteIterable iterable) {
+        return getLog().write((byte) 127, Loggable.NO_STRUCTURE_ID, iterable);
+    }
+
     @Test
     public void testAllRandomAccessLoggablesIterator() throws IOException {
         initLog(4, 1024 * 4);
         final int count = 10;
+        getLog().beginWrite();
         for (int i = 0; i < count; ++i) {
-            getLog().write((byte) 127, Loggable.NO_STRUCTURE_ID, CompressedUnsignedLongByteIterable.getIterable(i));
+            writeData(CompressedUnsignedLongByteIterable.getIterable(i));
         }
+        getLog().endWrite();
         final Iterator<RandomAccessLoggable> it = getLog().getLoggableIterator(0);
         int i = 0;
         while (it.hasNext()) {
@@ -316,9 +365,11 @@ public class LogTests extends LogTestsBase {
     @Test
     public void testClearInvalidLog() throws IOException {
         initLog(2);
+        getLog().beginWrite();
         for (int i = 0; i < 2048; ++i) {
             getLog().write(DUMMY_LOGGABLE);
         }
+        getLog().endWrite();
         closeLog();
         try {
             initLog(1);
@@ -331,9 +382,12 @@ public class LogTests extends LogTestsBase {
     @Test
     public void testClearInvalidLog2() throws IOException {
         initLog(2);
+        getLog().beginWrite();
         for (int i = 0; i < 2048; ++i) {
             getLog().write(DUMMY_LOGGABLE);
         }
+        getLog().flush();
+        getLog().endWrite();
         closeLog();
         initLog(new LogConfig().setFileSize(1).setClearInvalidLog(true));
     }
@@ -342,7 +396,10 @@ public class LogTests extends LogTestsBase {
         initLog(fileSize, pageSize);
         final int count = 50000;
         for (int i = 0; i < count; ++i) {
-            final long addr = getLog().write((byte) 127, Loggable.NO_STRUCTURE_ID, CompressedUnsignedLongByteIterable.getIterable(i));
+            log.beginWrite();
+            final long addr = writeData(CompressedUnsignedLongByteIterable.getIterable(i));
+            getLog().flush();
+            log.endWrite();
             Assert.assertEquals(i, (int) CompressedUnsignedLongByteIterable.getLong(getLog().read(addr).getData()));
         }
     }
@@ -351,9 +408,11 @@ public class LogTests extends LogTestsBase {
         initLog(fileSize, pageSize);
         final int count = 50000;
         final LongArrayList addrs = new LongArrayList();
+        log.beginWrite();
         for (int i = 0; i < count; ++i) {
-            addrs.add(getLog().write((byte) 127, Loggable.NO_STRUCTURE_ID, CompressedUnsignedLongByteIterable.getIterable(i)));
+            addrs.add(writeData(CompressedUnsignedLongByteIterable.getIterable(i)));
         }
+        log.endWrite();
         for (int i = 0; i < count; ++i) {
             Assert.assertEquals(i, (int) CompressedUnsignedLongByteIterable.getLong(getLog().read(addrs.get(i)).getData()));
         }
@@ -363,9 +422,11 @@ public class LogTests extends LogTestsBase {
         initLog(fileSize, pageSize);
         final int count = 50000;
         final LongHashMap<Integer> addrs = new LongHashMap<>();
+        log.beginWrite();
         for (int i = 0; i < count; ++i) {
-            addrs.put(getLog().write((byte) 127, Loggable.NO_STRUCTURE_ID, CompressedUnsignedLongByteIterable.getIterable(i)), valueOf(i));
+            addrs.put(writeData(CompressedUnsignedLongByteIterable.getIterable(i)), valueOf(i));
         }
+        log.endWrite();
         for (Long addr : addrs.keySet()) {
             Assert.assertEquals((int) addrs.get(addr), (int) CompressedUnsignedLongByteIterable.getLong(getLog().read(addr).getData()));
             getLog().read(addr);

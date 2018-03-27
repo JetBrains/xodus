@@ -96,8 +96,9 @@ abstract class LogCache {
     @NotNull
     protected byte[] readFullPage(Log log, long pageAddress) {
         final byte[] page = allocPage();
-        if (log.readBytes(page, pageAddress) != pageSize) {
-            throw new ExodusException("Can't read full bytes from log [" + log.getLocation() + "] with address " + pageAddress);
+        final int bytesRead = log.readBytes(page, pageAddress);
+        if (bytesRead != pageSize) {
+            throw new ExodusException("Can't read full bytes from log [" + log.getLocation() + "] with address " + pageAddress + " read: " + bytesRead);
         }
         return page;
     }

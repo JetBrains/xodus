@@ -26,4 +26,9 @@ public class ExpiredLoggableInfo {
         this.address = loggable.getAddress();
         this.length = loggable.length();
     }
+
+    public ExpiredLoggableInfo(long address, int length) {
+        this.address = address;
+        this.length = length;
+    }
 }

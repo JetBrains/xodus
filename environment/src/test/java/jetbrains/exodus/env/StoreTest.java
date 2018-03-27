@@ -27,7 +27,6 @@ import jetbrains.exodus.core.execution.JobProcessor;
 import jetbrains.exodus.core.execution.JobProcessorExceptionHandler;
 import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor;
 import org.jetbrains.annotations.NotNull;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -255,13 +254,11 @@ public class StoreTest extends EnvironmentTestsBase {
         }
     }
 
-    @Ignore
     @Test
     public void testConcurrentPutLikeJetPassBTree() {
         concurrentPutLikeJetPass(StoreConfig.WITHOUT_DUPLICATES);
     }
 
-    @Ignore
     @Test
     public void testConcurrentPutLikeJetPassPatricia() {
         concurrentPutLikeJetPass(StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING);

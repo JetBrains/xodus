@@ -20,6 +20,7 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Pair;
+import jetbrains.exodus.core.dataStructures.persistent.PersistentLongSet;
 import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.env.management.EnvironmentConfigWithOperations;
 import jetbrains.exodus.gc.GarbageCollector;
@@ -626,22 +627,25 @@ public class EnvironmentImpl implements Environment {
             final LogConfig config = log.getConfig();
             config.setFsyncSuppressed(isGcTransaction);
             try {
-                initialHighAddress = log.getHighAddress();
+                initialHighAddress = log.beginWrite();
                 try {
-                    final MetaTree[] tree = new MetaTree[1];
+                    final MetaTree.Proto[] tree = new MetaTree.Proto[1];
                     expiredLoggables = txn.doCommit(tree);
+                    final long highAddress = log.getWrittenHighAddress();
+                    final PersistentLongSet.ImmutableSet fileSnapshot = log.getFileSnapshot();
                     // there is a temptation to postpone I/O in order to reduce number of writes to storage device,
                     // but it's quite difficult to resolve all possible inconsistencies afterwards,
                     // so think twice before removing the following line
                     log.flush();
                     metaWriteLock.lock();
+                    resultingHighAddress = log.endWrite();
                     try {
-                        txn.setMetaTree(metaTree = tree[0]);
+                        final MetaTree.Proto proto = tree[0];
+                        txn.setMetaTree(metaTree = proto.instantiate(this, highAddress, fileSnapshot));
                         txn.executeCommitHook();
                     } finally {
                         metaWriteLock.unlock();
                     }
-                    resultingHighAddress = log.approveHighAddress();
                 } catch (Throwable t) { // pokemon exception handling to decrease try/catch block overhead
                     loggerError("Failed to flush transaction", t);
                     try {
@@ -733,12 +737,12 @@ public class EnvironmentImpl implements Environment {
             final boolean hasDuplicates = metaInfo.hasDuplicates();
             if (hasDuplicates != config.duplicates) {
                 throw new ExodusException("Attempt to open store '" + name + "' with duplicates = " +
-                    config.duplicates + " while it was created with duplicates =" + hasDuplicates);
+                        config.duplicates + " while it was created with duplicates =" + hasDuplicates);
             }
             if (metaInfo.isKeyPrefixing() != config.prefixing) {
                 if (!config.prefixing) {
                     throw new ExodusException("Attempt to open store '" + name +
-                        "' with prefixing = false while it was created with prefixing = true");
+                            "' with prefixing = false while it was created with prefixing = true");
                 }
                 // if we're trying to open existing store with prefixing which actually wasn't created as store
                 // with prefixing due to lack of the PatriciaTree feature, then open store with existing config
@@ -888,7 +892,7 @@ public class EnvironmentImpl implements Environment {
     private void reportAliveTransactions(final boolean debug) {
         if (transactionTimeout() == 0) {
             String stacksUnavailable = "Transactions stack traces are not available, " +
-                "set \'" + EnvironmentConfig.ENV_MONITOR_TXNS_TIMEOUT + " > 0\'";
+                    "set \'" + EnvironmentConfig.ENV_MONITOR_TXNS_TIMEOUT + " > 0\'";
             if (debug) {
                 logger.debug(stacksUnavailable);
             } else {
@@ -964,8 +968,8 @@ public class EnvironmentImpl implements Environment {
             while (true) {
                 executable.execute(txn);
                 if (txn.isReadonly() || // txn can be read-only if Environment is in read-only mode
-                    txn.isFinished() || // txn can be finished if, e.g., it was aborted within executable
-                    txn.flush()) {
+                        txn.isFinished() || // txn can be finished if, e.g., it was aborted within executable
+                        txn.flush()) {
                     break;
                 }
                 txn.revert();
@@ -981,8 +985,8 @@ public class EnvironmentImpl implements Environment {
             while (true) {
                 final T result = computable.compute(txn);
                 if (txn.isReadonly() || // txn can be read-only if Environment is in read-only mode
-                    txn.isFinished() || // txn can be finished if, e.g., it was aborted within computable
-                    txn.flush()) {
+                        txn.isFinished() || // txn can be finished if, e.g., it was aborted within computable
+                        txn.flush()) {
                     return result;
                 }
                 txn.revert();

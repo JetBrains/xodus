@@ -91,10 +91,18 @@ final class MetaTree {
         // no roots found: the database is empty
         log.setHighAddress(0);
         final ITree resultTree = getEmptyMetaTree(env);
-        final long rootAddress = resultTree.getMutableCopy().save();
-        final long root = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
-            DatabaseRoot.asByteIterable(rootAddress, EnvironmentImpl.META_TREE_ID));
-        log.flush();
+        final long root;
+        log.beginWrite();
+        try {
+            final long rootAddress = resultTree.getMutableCopy().save();
+            root = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
+                    DatabaseRoot.asByteIterable(rootAddress, EnvironmentImpl.META_TREE_ID));
+            log.flush();
+            log.endWrite();
+        } catch (Throwable t) {
+            log.abortWrite(); // rollback log state
+            throw new ExodusException("Can't init meta tree in log", t);
+        }
         return new Pair<>(new MetaTree(resultTree, root, log.getHighAddress(), log.getFileSnapshot()), EnvironmentImpl.META_TREE_ID);
     }
 
@@ -143,18 +151,16 @@ final class MetaTree {
      * @return database root loggable which is read again from the log.
      */
     @NotNull
-    static MetaTree saveMetaTree(@NotNull final ITreeMutable metaTree,
-                                 @NotNull final EnvironmentImpl env,
-                                 @NotNull final Collection<ExpiredLoggableInfo> expired) {
+    static MetaTree.Proto saveMetaTree(@NotNull final ITreeMutable metaTree,
+                                       @NotNull final EnvironmentImpl env,
+                                       @NotNull final Collection<ExpiredLoggableInfo> expired) {
         final long newMetaTreeAddress = metaTree.save();
         final Log log = env.getLog();
         final int lastStructureId = env.getLastStructureId();
         final long dbRootAddress = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
             DatabaseRoot.asByteIterable(newMetaTreeAddress, lastStructureId));
-        final BTree resultTree = env.loadMetaTree(newMetaTreeAddress);
-        final RandomAccessLoggable dbRootLoggable = log.read(dbRootAddress);
-        expired.add(new ExpiredLoggableInfo(dbRootLoggable));
-        return new MetaTree(resultTree, dbRootAddress, dbRootAddress + dbRootLoggable.length(), log.getFileSnapshot());
+        expired.add(new ExpiredLoggableInfo(dbRootAddress, (int) (log.getWrittenHighAddress() - dbRootAddress)));
+        return new MetaTree.Proto(newMetaTreeAddress, dbRootAddress);
     }
 
     long getAllStoreCount() {
@@ -227,5 +233,19 @@ final class MetaTree {
                 return new DataIterator(log, address);
             }
         };
+    }
+
+    static class Proto {
+        final long address;
+        final long root;
+
+        private Proto(long address, long root) {
+            this.address = address;
+            this.root = root;
+        }
+
+        MetaTree instantiate(EnvironmentImpl env, long highAddress, PersistentLongSet.ImmutableSet fileSnapshot) {
+            return new MetaTree(env.loadMetaTree(address), root, highAddress, fileSnapshot);
+        }
     }
 }

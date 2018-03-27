@@ -22,7 +22,10 @@ import jetbrains.exodus.core.dataStructures.persistent.PersistentLongSet;
 import jetbrains.exodus.crypto.EnvKryptKt;
 import jetbrains.exodus.crypto.InvalidCipherParametersException;
 import jetbrains.exodus.crypto.StreamCipherProvider;
-import jetbrains.exodus.io.*;
+import jetbrains.exodus.io.Block;
+import jetbrains.exodus.io.DataReader;
+import jetbrains.exodus.io.DataWriter;
+import jetbrains.exodus.io.RemoveBlockType;
 import jetbrains.exodus.util.DeferredIO;
 import jetbrains.exodus.util.IdGenerator;
 import org.jetbrains.annotations.NotNull;
@@ -34,6 +37,7 @@ import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 @SuppressWarnings({"JavaDoc"})
 public final class Log implements Closeable {
@@ -54,9 +58,11 @@ public final class Log implements Closeable {
     private volatile boolean isClosing;
 
     private int logIdentity;
-    @SuppressWarnings("NullableProblems")
     @NotNull
-    private TransactionalDataWriter bufferedWriter;
+    private final DataWriter baseWriter;
+    private final AtomicReference<LastPage> lastPage;
+    @Nullable
+    private volatile BufferedDataWriter bufferedWriter;
     /**
      * Last ticks when the sync operation was performed.
      */
@@ -77,8 +83,6 @@ public final class Log implements Closeable {
      */
     private final long fileSize;
     private final long fileLengthBound; // and in bytes
-    private long highAddress;
-    private long approvedHighAddress; // high address approved on a higher layer (by Environment transactions)
 
     @Nullable
     private LogTestConfig testConfig;
@@ -86,6 +90,7 @@ public final class Log implements Closeable {
     @SuppressWarnings({"OverlyLongMethod", "ThisEscapedInObjectConstruction", "OverlyCoupledMethod"})
     public Log(@NotNull final LogConfig config) {
         this.config = config;
+        baseWriter = config.getWriter();
         tryLock();
         created = System.currentTimeMillis();
         fileSize = config.getFileSize();
@@ -119,19 +124,20 @@ public final class Log implements Closeable {
         }
         DeferredIO.getJobProcessor();
         isClosing = false;
-        highAddress = 0;
-        approvedHighAddress = 0;
 
-        final DataWriter baseWriter = config.getWriter();
         final Long lastFileAddress = fileAddresses.getMaximum();
+        updateLogIdentity();
         if (lastFileAddress == null) {
-            setBufferedWriter(createEmptyBufferedWriter(baseWriter));
+            lastPage = new AtomicReference<>(LastPage.EMPTY);
         } else {
-            highAddress = lastFileAddress + reader.getBlock(lastFileAddress).length();
-            final long highPageAddress = getHighPageAddress();
+            final long currentHighAddress = lastFileAddress + reader.getBlock(lastFileAddress).length();
+            final long highPageAddress = getHighPageAddress(currentHighAddress);
             final byte[] highPageContent = new byte[cachePageSize];
-            setBufferedWriter(createBufferedWriter(baseWriter, highPageAddress,
-                highPageContent, highAddress == 0 ? 0 : readBytes(highPageContent, highPageAddress)));
+            final LastPage tmpLastPage = new LastPage(highPageContent, highPageAddress, cachePageSize, currentHighAddress, currentHighAddress);
+            this.lastPage = new AtomicReference<>(tmpLastPage); // TODO: this is a hack to provide readBytes below with high address (for determining last file length)
+            final int highPageSize = currentHighAddress == 0 ? 0 : readBytes(highPageContent, highPageAddress);
+            final LastPage lastPageContent = new LastPage(highPageContent, highPageAddress, highPageSize, currentHighAddress, currentHighAddress);
+            this.lastPage.set(lastPageContent);
             // here we should check whether last loggable is written correctly
             final Iterator<RandomAccessLoggable> lastFileLoggables = new LoggableIterator(this, lastFileAddress);
             long approvedHighAddress = lastFileAddress;
@@ -154,13 +160,13 @@ public final class Log implements Closeable {
             } catch (ExodusException e) { // if an exception is thrown then last loggable wasn't read correctly
                 logger.error("Exception on Log recovery. Approved high address = " + approvedHighAddress, e);
             }
-            if (approvedHighAddress < lastFileAddress || approvedHighAddress > highAddress) {
+            if (approvedHighAddress < lastFileAddress || approvedHighAddress > currentHighAddress) {
                 close();
                 throw new InvalidCipherParametersException();
             }
-            this.approvedHighAddress = approvedHighAddress;
+            this.lastPage.set(lastPageContent.withApprovedAddress(approvedHighAddress));
         }
-        flush(true);
+        sync();
     }
 
     private void checkLogConsistency() {
@@ -235,15 +241,16 @@ public final class Log implements Closeable {
     }
 
     public long getHighAddress() {
-        return highAddress;
+        return this.lastPage.get().highAddress;
     }
 
     @SuppressWarnings({"OverlyLongMethod"})
     public void setHighAddress(final long highAddress) {
-        if (highAddress > this.highAddress) {
+        final long currentHighAddress = this.getHighAddress();
+        if (highAddress > currentHighAddress) {
             throw new ExodusException("Only can decrease high address");
         }
-        if (highAddress == this.highAddress) {
+        if (highAddress == currentHighAddress) {
             return;
         }
 
@@ -255,7 +262,7 @@ public final class Log implements Closeable {
         // end of test-only code
 
         // at first, remove all files which are higher than highAddress
-        bufferedWriter.close();
+        closeWriter();
         final LongArrayList blocksToDelete = new LongArrayList();
         long blockToTruncate = -1L;
         for (final long blockAddress : fileAddresses.getArray()) {
@@ -274,36 +281,72 @@ public final class Log implements Closeable {
             truncateFile(blockToTruncate, highAddress - blockToTruncate);
         }
 
-        // update buffered writer
-        final DataWriter baseWriter = config.getWriter();
+        updateLogIdentity();
         if (fileAddresses.isEmpty()) {
-            this.highAddress = 0;
-            approvedHighAddress = 0;
-            setBufferedWriter(createEmptyBufferedWriter(baseWriter));
+            this.lastPage.set(LastPage.EMPTY);
         } else {
-            final long oldHighPageAddress = getHighPageAddress();
-            this.highAddress = highAddress;
+            final LastPage lastPageContent = this.lastPage.get();
+            final long oldHighPageAddress = getHighPageAddress(lastPageContent.highAddress);
+            long approvedHighAddress = lastPageContent.approvedHighAddress;
             if (highAddress < approvedHighAddress) {
                 approvedHighAddress = highAddress;
             }
-            final long highPageAddress = getHighPageAddress();
-            if (oldHighPageAddress != highPageAddress || !bufferedWriter.tryAndUpdateHighAddress(highAddress)) {
+            final long highPageAddress = getHighPageAddress(highAddress);
+            if (oldHighPageAddress != highPageAddress || !tryAndUpdateLastPage(lastPageContent, highAddress, approvedHighAddress)) {
                 final int highPageSize = (int) (highAddress - highPageAddress);
                 final byte[] highPageContent = new byte[cachePageSize];
                 if (highPageSize > 0 && readBytes(highPageContent, highPageAddress) < highPageSize) {
                     throw new ExodusException("Can't read expected high page bytes");
                 }
-                setBufferedWriter(createBufferedWriter(baseWriter, highPageAddress, highPageContent, highPageSize));
+                this.lastPage.set(new LastPage(highPageContent, highPageAddress, highPageSize, highAddress, approvedHighAddress));
             }
         }
+        this.bufferedWriter = null;
+    }
+
+    private void closeWriter() {
+        if (bufferedWriter != null) {
+            throw new IllegalStateException("Can't close uncommitted writer");
+        }
+        baseWriter.close();
+    }
+
+    private boolean tryAndUpdateLastPage(LastPage pageContent, long highAddress, long approvedHighAddress) {
+        int count = (int) (highAddress - pageContent.pageAddress);
+        if (count < 0 || count > cachePageSize) {
+            return false;
+        }
+        lastPage.set(pageContent.withResize(count, highAddress, approvedHighAddress));
+        return true;
+    }
+
+    public long beginWrite() {
+        BufferedDataWriter writer = new BufferedDataWriter(this, baseWriter, this.lastPage.get());
+        this.bufferedWriter = writer;
+        return writer.getHighAddress();
+    }
+
+    public void abortWrite() {
+        this.bufferedWriter = null;
+    }
+
+    public long getWrittenHighAddress() {
+        return ensureWriter().getHighAddress();
+    }
+
+    public long endWrite() {
+        final BufferedDataWriter writer = ensureWriter();
+        final LastPage initialPage = writer.getInitialPage();
+        final LastPage updatedPage = writer.getUpdatedPage();
+        if (!lastPage.compareAndSet(initialPage, updatedPage)) {
+            throw new ExodusException("write start/finish mismatch");
+        }
+        bufferedWriter = null;
+        return updatedPage.approvedHighAddress;
     }
 
     public long getApprovedHighAddress() {
-        return approvedHighAddress;
-    }
-
-    public long approveHighAddress() {
-        return approvedHighAddress = highAddress;
+        return lastPage.get().approvedHighAddress;
     }
 
     public long getLowAddress() {
@@ -316,7 +359,7 @@ public final class Log implements Closeable {
     }
 
     public long getHighFileAddress() {
-        return getFileAddress(highAddress);
+        return getFileAddress(getHighAddress());
     }
 
     public long getNextFileAddress(final long fileAddress) {
@@ -364,7 +407,7 @@ public final class Log implements Closeable {
         if (!isLastFileAddress(fileAddress)) {
             return fileLengthBound;
         }
-        final long highAddress = this.highAddress;
+        final long highAddress = getHighAddress();
         final long result = highAddress % fileLengthBound;
         if (result == 0 && highAddress != fileAddress) {
             return fileLengthBound;
@@ -373,7 +416,11 @@ public final class Log implements Closeable {
     }
 
     byte[] getHighPage(long alignedAddress) {
-        return bufferedWriter.getHighPage(alignedAddress);
+        final LastPage lastPage = this.lastPage.get();
+        if (lastPage.pageAddress == alignedAddress && lastPage.count >= 0) {
+            return lastPage.bytes;
+        }
+        return null;
     }
 
     public byte[] getCachedPage(final long pageAddress) {
@@ -442,7 +489,7 @@ public final class Log implements Closeable {
         final long dataAddress = it.getHighAddress();
         if (dataLength > 0 && it.availableInCurrentPage(dataLength)) {
             return new RandomAccessLoggableAndArrayByteIterable(
-                address, type, structureId, dataAddress, it.getCurrentPage(), it.getOffset(), dataLength);
+                    address, type, structureId, dataAddress, it.getCurrentPage(), it.getOffset(), dataLength);
         }
         final RandomAccessByteIterable data = new RandomAccessByteIterable(dataAddress, this);
         return new RandomAccessLoggableImpl(address, type, data, dataLength, structureId);
@@ -507,6 +554,7 @@ public final class Log implements Closeable {
     @Nullable
     public Loggable getFirstLoggableOfType(final int type) {
         final LongIterator files = fileAddresses.getFilesFrom(0);
+        final long approvedHighAddress = getApprovedHighAddress();
         while (files.hasNext()) {
             final long fileAddress = files.nextLong();
             final Iterator<RandomAccessLoggable> it = getLoggableIterator(fileAddress);
@@ -535,6 +583,7 @@ public final class Log implements Closeable {
     @Nullable
     public Loggable getLastLoggableOfType(final int type) {
         Loggable result = null;
+        final long approvedHighAddress = getApprovedHighAddress();
         for (final long fileAddress : fileAddresses.getArray()) {
             if (result != null) {
                 break;
@@ -590,7 +639,7 @@ public final class Log implements Closeable {
     }
 
     public boolean isImmutableFile(final long fileAddress) {
-        return fileAddress + fileLengthBound <= approvedHighAddress;
+        return fileAddress + fileLengthBound <= getApprovedHighAddress();
     }
 
     public void flush() {
@@ -598,10 +647,16 @@ public final class Log implements Closeable {
     }
 
     public void flush(boolean forceSync) {
-        final TransactionalDataWriter bufferedWriter = this.bufferedWriter;
-        bufferedWriter.flush();
-        if ((forceSync || config.isDurableWrite()) && !config.isFsyncSuppressed()) {
-            bufferedWriter.sync();
+        final BufferedDataWriter writer = ensureWriter();
+        writer.flush();
+        if (forceSync || config.isDurableWrite()) {
+            sync();
+        }
+    }
+
+    private void sync() {
+        if (!config.isFsyncSuppressed()) {
+            baseWriter.sync();
             lastSyncTicks = System.currentTimeMillis();
         }
     }
@@ -609,9 +664,9 @@ public final class Log implements Closeable {
     @Override
     public void close() {
         isClosing = true;
-        flush(true);
+        sync();
         reader.close();
-        bufferedWriter.close();
+        closeWriter();
         release();
         fileAddresses.clear();
     }
@@ -621,16 +676,17 @@ public final class Log implements Closeable {
     }
 
     public void release() {
-        bufferedWriter.release();
+        baseWriter.release();
     }
 
     public void clear() {
-        bufferedWriter.close();
+        closeWriter();
         fileAddresses.clear();
         cache.clear();
         reader.clear();
-        setBufferedWriter(createEmptyBufferedWriter(bufferedWriter.getChildWriter()));
-        highAddress = approvedHighAddress = 0;
+        this.lastPage.set(LastPage.EMPTY);
+        this.bufferedWriter = null;
+        updateLogIdentity();
     }
 
     public void removeFile(final long address) {
@@ -661,6 +717,15 @@ public final class Log implements Closeable {
         }
     }
 
+    @NotNull
+    BufferedDataWriter ensureWriter() {
+        final BufferedDataWriter writer = this.bufferedWriter;
+        if (writer == null) {
+            throw new ExodusException("write not in progress");
+        }
+        return writer;
+    }
+
     private void truncateFile(final long address, final long length) {
         // truncate physical file
         reader.truncateBlock(address, length);
@@ -680,7 +745,8 @@ public final class Log implements Closeable {
      * if we started reading by address it definitely should finish within current file.
      */
     void padWithNulls() {
-        long bytesToWrite = fileLengthBound - getLastFileLength();
+        final BufferedDataWriter writer = ensureWriter();
+        long bytesToWrite = fileLengthBound - writer.getLastWrittenFileLength(fileLengthBound);
         if (bytesToWrite == 0L) {
             throw new ExodusException("Nothing to pad");
         }
@@ -688,15 +754,15 @@ public final class Log implements Closeable {
             final byte[] cachedTailPage = LogCache.getCachedTailPage(cachePageSize);
             if (cachedTailPage != null) {
                 do {
-                    bufferedWriter.write(cachedTailPage, 0, cachePageSize);
+                    writer.write(cachedTailPage, 0, cachePageSize);
                     bytesToWrite -= cachePageSize;
-                    highAddress += cachePageSize;
+                    writer.incHighAddress(cachePageSize);
                 } while (bytesToWrite >= cachePageSize);
             }
         }
         if (bytesToWrite == 0) {
-            bufferedWriter.commit();
-            createNewFileIfNecessary();
+            writer.commit();
+            closeFullFileFileIfNecessary(writer);
         } else {
             while (bytesToWrite-- > 0) {
                 writeContinuously(NullLoggable.create());
@@ -789,36 +855,19 @@ public final class Log implements Closeable {
     private static void checkCachePageSize(final int pageSize, @NotNull final LogCache result) {
         if (result.pageSize != pageSize) {
             throw new ExodusException("SharedLogCache was created with page size " + result.pageSize +
-                " and then requested with page size " + pageSize + ". EnvironmentConfig.LOG_CACHE_PAGE_SIZE was set manually.");
+                    " and then requested with page size " + pageSize + ". EnvironmentConfig.LOG_CACHE_PAGE_SIZE was set manually.");
         }
     }
 
     private void tryLock() {
         final long lockTimeout = config.getLockTimeout();
-        final DataWriter writer = config.getWriter();
-        if (!writer.lock(lockTimeout)) {
+        if (!baseWriter.lock(lockTimeout)) {
             throw new ExodusException("Can't acquire environment lock after " +
-                lockTimeout + " ms.\n\n Lock owner info: \n" + writer.lockInfo());
+                    lockTimeout + " ms.\n\n Lock owner info: \n" + baseWriter.lockInfo());
         }
     }
 
-    @NotNull
-    private TransactionalDataWriter createEmptyBufferedWriter(final DataWriter writer) {
-        notifyFileCreated(0);
-        //return new BufferedDataWriter(cachePageSize, config.getWriteBufferSize(), writer);
-        return new BufferedDataWriter(this, writer);
-    }
-
-    private TransactionalDataWriter createBufferedWriter(final DataWriter writer,
-                                                         final long highPageAddress,
-                                                         final byte[] highPageContent,
-                                                         final int highPageSize) {
-        //return new BufferedDataWriter(cachePageSize, config.getWriteBufferSize(), writer, highPageAddress, highPageContent, highPageSize);
-        return new BufferedDataWriter(this, writer, highPageAddress, highPageContent, highPageSize);
-    }
-
-    private long getHighPageAddress() {
-        final long highAddress = this.highAddress;
+    long getHighPageAddress(final long highAddress) {
         int alignment = ((int) highAddress) & (cachePageSize - 1);
         if (alignment == 0 && highAddress > 0) {
             alignment = cachePageSize;
@@ -846,7 +895,9 @@ public final class Log implements Closeable {
     }
 
     public long writeContinuously(final byte type, final int structureId, final ByteIterable data) {
-        final long result = highAddress;
+        final BufferedDataWriter writer = ensureWriter();
+
+        final long result = writer.getHighAddress();
 
         // begin of test-only code
         final LogTestConfig testConfig = this.testConfig;
@@ -858,17 +909,16 @@ public final class Log implements Closeable {
         }
         // end of test-only code
 
-        final TransactionalDataWriter bufferedWriter = this.bufferedWriter;
-        if (!bufferedWriter.isOpen()) {
+        if (!writer.isOpen()) {
             final long fileAddress = getFileAddress(result);
-            bufferedWriter.openOrCreateBlock(fileAddress, getLastFileLength());
+            writer.openOrCreateBlock(fileAddress, writer.getLastWrittenFileLength(fileLengthBound));
             final boolean fileCreated = !fileAddresses.contains(fileAddress);
             if (fileCreated) {
                 fileAddresses.add(fileAddress);
             }
             if (fileCreated) {
                 // fsync the directory to ensure we will find the log file in the directory after system crash
-                bufferedWriter.syncDirectory();
+                writer.syncDirectory();
                 notifyFileCreated(fileAddress);
             }
         }
@@ -876,7 +926,7 @@ public final class Log implements Closeable {
         final boolean isNull = NullLoggable.isNullLoggable(type);
         int recordLength = 1;
         if (isNull) {
-            bufferedWriter.write((byte) (type ^ 0x80));
+            writer.write((byte) (type ^ 0x80));
         } else {
             final ByteIterable structureIdIterable = CompressedUnsignedLongByteIterable.getIterable(structureId);
             final int dataLength = data.getLength();
@@ -884,35 +934,39 @@ public final class Log implements Closeable {
             recordLength += structureIdIterable.getLength();
             recordLength += dataLengthIterable.getLength();
             recordLength += dataLength;
-            if (recordLength > fileLengthBound - getLastFileLength()) {
+            if (recordLength > fileLengthBound - writer.getLastWrittenFileLength(fileLengthBound)) {
                 return -1L;
             }
-            bufferedWriter.write((byte) (type ^ 0x80));
-            writeByteIterable(bufferedWriter, structureIdIterable);
-            writeByteIterable(bufferedWriter, dataLengthIterable);
+            writer.write((byte) (type ^ 0x80));
+            writeByteIterable(writer, structureIdIterable);
+            writeByteIterable(writer, dataLengthIterable);
             if (dataLength > 0) {
-                writeByteIterable(bufferedWriter, data);
+                writeByteIterable(writer, data);
             }
 
         }
-        bufferedWriter.commit();
-        highAddress += recordLength;
-        createNewFileIfNecessary();
+        writer.commit();
+        writer.incHighAddress(recordLength);
+        closeFullFileFileIfNecessary(writer);
         return result;
     }
 
-    private void createNewFileIfNecessary() {
-        final boolean shouldCreateNewFile = getLastFileLength() == 0;
+    private void closeFullFileFileIfNecessary(BufferedDataWriter writer) {
+        final boolean shouldCreateNewFile = writer.getLastWrittenFileLength(fileLengthBound) == 0;
         if (shouldCreateNewFile) {
             // Don't forget to fsync the old file before closing it, otherwise will get a corrupted DB in the case of a
             // system failure:
             flush(true);
 
-            bufferedWriter.close();
+            baseWriter.close();
             if (config.isFullFileReadonly()) {
                 final Long lastFile = fileAddresses.getMaximum();
                 if (lastFile != null) {
-                    reader.getBlock(lastFile).setReadOnly();
+                    Block block = reader.getBlock(lastFile);
+                    if (block.length() < fileSize) {
+                        throw new IllegalStateException("file too short");
+                    }
+                    block.setReadOnly();
                 }
             }
         } else if (System.currentTimeMillis() > lastSyncTicks + config.getSyncPeriod()) {
@@ -955,7 +1009,7 @@ public final class Log implements Closeable {
      * @param iterable byte iterable to write.
      * @return
      */
-    private static void writeByteIterable(final TransactionalDataWriter writer, final ByteIterable iterable) {
+    private static void writeByteIterable(final BufferedDataWriter writer, final ByteIterable iterable) {
         final int length = iterable.getLength();
         if (iterable instanceof ArrayByteIterable) {
             final byte[] bytes = iterable.getBytesUnsafe();
@@ -975,12 +1029,7 @@ public final class Log implements Closeable {
         }
     }
 
-    private long getLastFileLength() {
-        return highAddress % fileLengthBound;
-    }
-
-    private void setBufferedWriter(@NotNull final TransactionalDataWriter bufferedWriter) {
-        this.bufferedWriter = bufferedWriter;
+    private void updateLogIdentity() {
         logIdentity = identityGenerator.nextId();
     }
 }

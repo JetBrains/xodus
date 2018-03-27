@@ -223,7 +223,7 @@ public class ReadWriteTransaction extends TransactionBase {
     }
 
 
-    Iterable<ExpiredLoggableInfo>[] doCommit(@NotNull final MetaTree[] out) {
+    Iterable<ExpiredLoggableInfo>[] doCommit(@NotNull final MetaTree.Proto[] out) {
         final Set<Map.Entry<Integer, ITreeMutable>> entries = mutableTrees.entrySet();
         final Set<Map.Entry<Long, Pair<String, ITree>>> removedEntries = removedStores.entrySet();
         final int size = entries.size() + removedEntries.size();
