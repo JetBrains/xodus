@@ -61,7 +61,7 @@ public final class Log implements Closeable {
     private final DataWriter baseWriter;
     private final AtomicReference<LogTip> tip;
     @Nullable
-    private volatile BufferedDataWriter bufferedWriter;
+    private BufferedDataWriter bufferedWriter;
     /**
      * Last ticks when the sync operation was performed.
      */
