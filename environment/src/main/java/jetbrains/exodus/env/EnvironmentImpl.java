@@ -671,6 +671,7 @@ public class EnvironmentImpl implements Environment {
                 } catch (Throwable t) { // pokemon exception handling to decrease try/catch block overhead
                     loggerError("Failed to flush transaction", t);
                     try {
+                        log.abortWrite();
                         log.setHighAddress(logTip, initialHighAddress);
                         //log.approveHighAddress();
                     } catch (Throwable th) {

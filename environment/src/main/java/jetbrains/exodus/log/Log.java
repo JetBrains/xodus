@@ -251,7 +251,9 @@ public final class Log implements Closeable {
             throw new ExodusException("Only can decrease high address");
         }
         if (highAddress == logTip.highAddress) {
-            this.bufferedWriter = null; // just abort a potential write in progress
+            if (bufferedWriter != null) {
+                throw new IllegalStateException("Unexpected write in progress");
+            }
             return logTip;
         }
 
@@ -315,7 +317,7 @@ public final class Log implements Closeable {
 
     private void closeWriter() {
         if (bufferedWriter != null) {
-            throw new IllegalStateException("Can't close uncommitted writer");
+            throw new IllegalStateException("Unexpected write in progress");
         }
         baseWriter.close();
     }
