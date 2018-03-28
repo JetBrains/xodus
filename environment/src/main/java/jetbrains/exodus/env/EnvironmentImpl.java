@@ -523,9 +523,9 @@ public class EnvironmentImpl implements Environment {
             try {
                 log.forgetFiles(files);
                 log.endWrite();
-            } catch (Throwable t) { // pokemon exception handling to decrease try/catch block overhead
+            } catch (Throwable t) {
                 log.abortWrite();
-                loggerError("Failed to flush transaction", t);
+                throw ExodusException.toExodusException(t, "Failed to forget files in log");
             }
         }
         for (long file : files) {
