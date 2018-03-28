@@ -18,6 +18,8 @@ package jetbrains.exodus.log;
 import org.jetbrains.annotations.NotNull;
 
 public class LogTip {
+    private static final byte[] NO_BYTES = new byte[0];
+
     @NotNull
     final byte[] bytes;
     public final long pageAddress;
@@ -36,7 +38,7 @@ public class LogTip {
 
     // fake page for closed log "residual state" info
     LogTip(final long fileSize, final long pageAddress, final long highAddress) {
-        this.bytes = new byte[0];
+        this.bytes = NO_BYTES;
         this.pageAddress = pageAddress;
         this.count = -1;
         this.highAddress = this.approvedHighAddress = highAddress;
