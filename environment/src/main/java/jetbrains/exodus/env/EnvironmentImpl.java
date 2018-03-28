@@ -647,7 +647,7 @@ public class EnvironmentImpl implements Environment {
             final LogConfig config = log.getConfig();
             config.setFsyncSuppressed(isGcTransaction);
             try {
-                final LastPage logTip = log.beginWrite();
+                final LogTip logTip = log.beginWrite();
                 initialHighAddress = logTip.highAddress;
                 try {
                     final MetaTree.Proto[] tree = new MetaTree.Proto[1];
@@ -658,9 +658,9 @@ public class EnvironmentImpl implements Environment {
                     // so think twice before removing the following line
                     log.flush();
                     metaWriteLock.lock();
-                    final LastPage writtenLastPage = log.endWrite();
-                    final PersistentLongSet.ImmutableSet fileSnapshot = writtenLastPage.logFileSet.getCurrent();
-                    resultingHighAddress = writtenLastPage.approvedHighAddress;
+                    final LogTip updatedTip = log.endWrite();
+                    final PersistentLongSet.ImmutableSet fileSnapshot = updatedTip.logFileSet.getCurrent();
+                    resultingHighAddress = updatedTip.approvedHighAddress;
                     try {
                         final MetaTree.Proto proto = tree[0];
                         txn.setMetaTree(metaTree = proto.instantiate(this, highAddress, fileSnapshot));

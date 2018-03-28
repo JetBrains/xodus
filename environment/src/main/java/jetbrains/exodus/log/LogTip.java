@@ -17,7 +17,7 @@ package jetbrains.exodus.log;
 
 import org.jetbrains.annotations.NotNull;
 
-public class LastPage {
+public class LogTip {
     @NotNull
     final byte[] bytes;
     public final long pageAddress;
@@ -30,12 +30,12 @@ public class LastPage {
     public final LogFileSetImmutable logFileSet;
 
     // empty
-    LastPage(final long fileSize) {
+    LogTip(final long fileSize) {
         this(fileSize, 0, 0);
     }
 
     // fake page for closed log "residual state" info
-    LastPage(final long fileSize, final long pageAddress, final long highAddress) {
+    LogTip(final long fileSize, final long pageAddress, final long highAddress) {
         this.bytes = new byte[0];
         this.pageAddress = pageAddress;
         this.count = -1;
@@ -44,7 +44,7 @@ public class LastPage {
     }
 
     // non-empty
-    LastPage(@NotNull byte[] bytes, long pageAddress, int count, long highAddress, long approvedHighAddress, @NotNull final LogFileSetImmutable logFileSet) {
+    LogTip(@NotNull byte[] bytes, long pageAddress, int count, long highAddress, long approvedHighAddress, @NotNull final LogFileSetImmutable logFileSet) {
         this.bytes = bytes;
         this.pageAddress = pageAddress;
         this.count = count;
@@ -53,11 +53,11 @@ public class LastPage {
         this.logFileSet = logFileSet;
     }
 
-    LastPage withApprovedAddress(long updatedApprovedHighAddress) {
-        return new LastPage(bytes, pageAddress, count, highAddress, updatedApprovedHighAddress, logFileSet);
+    LogTip withApprovedAddress(long updatedApprovedHighAddress) {
+        return new LogTip(bytes, pageAddress, count, highAddress, updatedApprovedHighAddress, logFileSet);
     }
 
-    LastPage withResize(int updatedCount, long updatedHighAddress, long updatedApprovedHighAddress, @NotNull final LogFileSetImmutable logFileSet) {
-        return new LastPage(bytes, pageAddress, updatedCount, updatedHighAddress, updatedApprovedHighAddress, logFileSet);
+    LogTip withResize(int updatedCount, long updatedHighAddress, long updatedApprovedHighAddress, @NotNull final LogFileSetImmutable logFileSet) {
+        return new LogTip(bytes, pageAddress, updatedCount, updatedHighAddress, updatedApprovedHighAddress, logFileSet);
     }
 }

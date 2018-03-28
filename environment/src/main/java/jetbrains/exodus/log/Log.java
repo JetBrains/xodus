@@ -59,7 +59,7 @@ public final class Log implements Closeable {
     private int logIdentity;
     @NotNull
     private final DataWriter baseWriter;
-    private final AtomicReference<LastPage> lastPage;
+    private final AtomicReference<LogTip> tip;
     @Nullable
     private volatile BufferedDataWriter bufferedWriter;
     /**
@@ -129,16 +129,16 @@ public final class Log implements Closeable {
         final Long lastFileAddress = fileSetMutable.getMaximum();
         updateLogIdentity();
         if (lastFileAddress == null) {
-            lastPage = new AtomicReference<>(new LastPage(fileSize));
+            tip = new AtomicReference<>(new LogTip(fileSize));
         } else {
             final long currentHighAddress = lastFileAddress + reader.getBlock(lastFileAddress).length();
             final long highPageAddress = getHighPageAddress(currentHighAddress);
             final byte[] highPageContent = new byte[cachePageSize];
-            final LastPage tmpLastPage = new LastPage(highPageContent, highPageAddress, cachePageSize, currentHighAddress, currentHighAddress, fileSetImmutable);
-            this.lastPage = new AtomicReference<>(tmpLastPage); // TODO: this is a hack to provide readBytes below with high address (for determining last file length)
+            final LogTip tmpTip = new LogTip(highPageContent, highPageAddress, cachePageSize, currentHighAddress, currentHighAddress, fileSetImmutable);
+            this.tip = new AtomicReference<>(tmpTip); // TODO: this is a hack to provide readBytes below with high address (for determining last file length)
             final int highPageSize = currentHighAddress == 0 ? 0 : readBytes(highPageContent, highPageAddress);
-            final LastPage lastPageContent = new LastPage(highPageContent, highPageAddress, highPageSize, currentHighAddress, currentHighAddress, fileSetImmutable);
-            this.lastPage.set(lastPageContent);
+            final LogTip proposedTip = new LogTip(highPageContent, highPageAddress, highPageSize, currentHighAddress, currentHighAddress, fileSetImmutable);
+            this.tip.set(proposedTip);
             // here we should check whether last loggable is written correctly
             final Iterator<RandomAccessLoggable> lastFileLoggables = new LoggableIterator(this, lastFileAddress);
             long approvedHighAddress = lastFileAddress;
@@ -165,7 +165,7 @@ public final class Log implements Closeable {
                 close();
                 throw new InvalidCipherParametersException();
             }
-            this.lastPage.set(lastPageContent.withApprovedAddress(approvedHighAddress));
+            this.tip.set(proposedTip.withApprovedAddress(approvedHighAddress));
         }
         sync();
     }
@@ -229,7 +229,7 @@ public final class Log implements Closeable {
     }
 
     public long getNumberOfFiles() {
-        return lastPage.get().logFileSet.size();
+        return tip.get().logFileSet.size();
     }
 
     /**
@@ -238,15 +238,15 @@ public final class Log implements Closeable {
      * @return array of file addresses.
      */
     public long[] getAllFileAddresses() {
-        return lastPage.get().logFileSet.getArray();
+        return tip.get().logFileSet.getArray();
     }
 
     public long getHighAddress() {
-        return this.lastPage.get().highAddress;
+        return this.tip.get().highAddress;
     }
 
     @SuppressWarnings({"OverlyLongMethod"})
-    public LastPage setHighAddress(final LastPage logTip, final long highAddress) {
+    public LogTip setHighAddress(final LogTip logTip, final long highAddress) {
         if (highAddress > logTip.highAddress) {
             throw new ExodusException("Only can decrease high address");
         }
@@ -284,10 +284,10 @@ public final class Log implements Closeable {
             truncateFile(blockToTruncate, highAddress - blockToTruncate);
         }
 
-        final LastPage updatedTip;
+        final LogTip updatedTip;
         if (fileSetMutable.isEmpty()) {
             updateLogIdentity();
-            updatedTip = new LastPage(fileSize);
+            updatedTip = new LogTip(fileSize);
         } else {
             final long oldHighPageAddress = logTip.pageAddress;
             long approvedHighAddress = logTip.approvedHighAddress;
@@ -305,7 +305,7 @@ public final class Log implements Closeable {
                 if (highPageSize > 0 && readBytes(highPageContent, highPageAddress) < highPageSize) {
                     throw new ExodusException("Can't read expected high page bytes");
                 }
-                updatedTip = new LastPage(highPageContent, highPageAddress, highPageSize, highAddress, approvedHighAddress, fileSetImmutable);
+                updatedTip = new LogTip(highPageContent, highPageAddress, highPageSize, highAddress, approvedHighAddress, fileSetImmutable);
             }
         }
         compareAndSetTip(logTip, updatedTip);
@@ -320,14 +320,14 @@ public final class Log implements Closeable {
         baseWriter.close();
     }
 
-    public LastPage getTip() {
-        return lastPage.get();
+    public LogTip getTip() {
+        return tip.get();
     }
 
-    public LastPage beginWrite() {
-        BufferedDataWriter writer = new BufferedDataWriter(this, baseWriter, reader, this.lastPage.get());
+    public LogTip beginWrite() {
+        BufferedDataWriter writer = new BufferedDataWriter(this, baseWriter, reader, this.tip.get());
         this.bufferedWriter = writer;
-        return writer.getInitialPage();
+        return writer.getStartingTip();
     }
 
     public void abortWrite() {
@@ -338,27 +338,27 @@ public final class Log implements Closeable {
         return ensureWriter().getHighAddress();
     }
 
-    public LastPage endWrite() {
+    public LogTip endWrite() {
         final BufferedDataWriter writer = ensureWriter();
-        final LastPage initialPage = writer.getInitialPage();
-        final LastPage updatedPage = writer.getUpdatedPage();
-        compareAndSetTip(initialPage, updatedPage);
+        final LogTip logTip = writer.getStartingTip();
+        final LogTip updatedTip = writer.getUpdatedTip();
+        compareAndSetTip(logTip, updatedTip);
         bufferedWriter = null;
-        return updatedPage;
+        return updatedTip;
     }
 
-    private void compareAndSetTip(final LastPage logTip, final LastPage updatedTip) {
-        if (!lastPage.compareAndSet(logTip, updatedTip)) {
+    private void compareAndSetTip(final LogTip logTip, final LogTip updatedTip) {
+        if (!tip.compareAndSet(logTip, updatedTip)) {
             throw new ExodusException("write start/finish mismatch");
         }
     }
 
     public long getApprovedHighAddress() {
-        return lastPage.get().approvedHighAddress;
+        return tip.get().approvedHighAddress;
     }
 
     public long getLowAddress() {
-        final Long result = lastPage.get().logFileSet.getMinimum();
+        final Long result = tip.get().logFileSet.getMinimum();
         return result == null ? Loggable.NULL_ADDRESS : result;
     }
 
@@ -371,7 +371,7 @@ public final class Log implements Closeable {
     }
 
     public long getNextFileAddress(final long fileAddress) {
-        final LongIterator files = lastPage.get().logFileSet.getFilesFrom(fileAddress);
+        final LongIterator files = tip.get().logFileSet.getFilesFrom(fileAddress);
         if (files.hasNext()) {
             final long result = files.nextLong();
             if (result != fileAddress) {
@@ -394,7 +394,7 @@ public final class Log implements Closeable {
 
     public boolean hasAddress(final long address) {
         final long fileAddress = getFileAddress(address);
-        final LongIterator files = lastPage.get().logFileSet.getFilesFrom(fileAddress);
+        final LongIterator files = tip.get().logFileSet.getFilesFrom(fileAddress);
         if (!files.hasNext()) {
             return false;
         }
@@ -404,7 +404,7 @@ public final class Log implements Closeable {
 
     public boolean hasAddressRange(final long from, final long to) {
         long fileAddress = getFileAddress(from);
-        final LongIterator files = lastPage.get().logFileSet.getFilesFrom(fileAddress);
+        final LongIterator files = tip.get().logFileSet.getFilesFrom(fileAddress);
         do {
             if (!files.hasNext() || files.nextLong() != fileAddress) {
                 return false;
@@ -428,9 +428,9 @@ public final class Log implements Closeable {
     }
 
     byte[] getHighPage(long alignedAddress) {
-        final LastPage lastPage = this.lastPage.get();
-        if (lastPage.pageAddress == alignedAddress && lastPage.count >= 0) {
-            return lastPage.bytes;
+        final LogTip tip = this.tip.get();
+        if (tip.pageAddress == alignedAddress && tip.count >= 0) {
+            return tip.bytes;
         }
         return null;
     }
@@ -570,7 +570,7 @@ public final class Log implements Closeable {
      */
     @Nullable
     public Loggable getFirstLoggableOfType(final int type) {
-        final LongIterator files = lastPage.get().logFileSet.getFilesFrom(0);
+        final LongIterator files = tip.get().logFileSet.getFilesFrom(0);
         final long approvedHighAddress = getApprovedHighAddress();
         while (files.hasNext()) {
             final long fileAddress = files.nextLong();
@@ -601,7 +601,7 @@ public final class Log implements Closeable {
     public Loggable getLastLoggableOfType(final int type) {
         Loggable result = null;
         final long approvedHighAddress = getApprovedHighAddress();
-        for (final long fileAddress : lastPage.get().logFileSet.getArray()) {
+        for (final long fileAddress : tip.get().logFileSet.getArray()) {
             if (result != null) {
                 break;
             }
@@ -630,7 +630,7 @@ public final class Log implements Closeable {
      */
     public Loggable getLastLoggableOfTypeBefore(final int type, final long beforeAddress) {
         Loggable result = null;
-        for (final long fileAddress : lastPage.get().logFileSet.getArray()) {
+        for (final long fileAddress : tip.get().logFileSet.getArray()) {
             if (result != null) {
                 break;
             }
@@ -680,12 +680,12 @@ public final class Log implements Closeable {
 
     @Override
     public void close() {
-        final LastPage logTip = this.lastPage.get();
+        final LogTip logTip = this.tip.get();
         isClosing = true;
         sync();
         reader.close();
         closeWriter();
-        compareAndSetTip(logTip, new LastPage(fileSize, logTip.pageAddress, logTip.highAddress));
+        compareAndSetTip(logTip, new LogTip(fileSize, logTip.pageAddress, logTip.highAddress));
         release();
     }
 
@@ -697,12 +697,12 @@ public final class Log implements Closeable {
         baseWriter.release();
     }
 
-    public LastPage clear() {
-        final LastPage logTip = this.lastPage.get();
+    public LogTip clear() {
+        final LogTip logTip = this.tip.get();
         closeWriter();
         cache.clear();
         reader.clear();
-        final LastPage updatedTip = new LastPage(fileSize);
+        final LogTip updatedTip = new LogTip(fileSize);
         compareAndSetTip(logTip, updatedTip);
         this.bufferedWriter = null;
         updateLogIdentity();
@@ -827,7 +827,7 @@ public final class Log implements Closeable {
     @SuppressWarnings("ConstantConditions")
     int readBytes(final byte[] output, final long address) {
         final long fileAddress = getFileAddress(address);
-        final LongIterator files = lastPage.get().logFileSet.getFilesFrom(fileAddress);
+        final LongIterator files = tip.get().logFileSet.getFilesFrom(fileAddress);
         if (files.hasNext()) {
             final long leftBound = files.nextLong();
             final long fileSize = getFileSize(leftBound);
@@ -842,10 +842,10 @@ public final class Log implements Closeable {
                 notifyReadBytes(output, readBytes);
                 return readBytes;
             }
-            if (fileAddress < lastPage.get().logFileSet.getMinimum()) {
+            if (fileAddress < tip.get().logFileSet.getMinimum()) {
                 BlockNotFoundException.raise("Address is out of log space, underflow", this, address);
             }
-            if (fileAddress >= lastPage.get().logFileSet.getMaximum()) {
+            if (fileAddress >= tip.get().logFileSet.getMaximum()) {
                 BlockNotFoundException.raise("Address is out of log space, overflow", this, address);
             }
         }
@@ -917,7 +917,7 @@ public final class Log implements Closeable {
     }
 
     public LongIterator getFilesFrom(PersistentLongSet.ImmutableSet snapshot, Long fileAddress) {
-        return lastPage.get().logFileSet.getFilesFrom(snapshot, fileAddress);
+        return tip.get().logFileSet.getFilesFrom(snapshot, fileAddress);
     }
 
     /**

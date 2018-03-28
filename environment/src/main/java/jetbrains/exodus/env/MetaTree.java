@@ -53,7 +53,7 @@ final class MetaTree {
 
     static Pair<MetaTree, Integer> create(@NotNull final EnvironmentImpl env) {
         final Log log = env.getLog();
-        LastPage logTip = log.beginWrite();
+        LogTip logTip = log.beginWrite();
         if (logTip.highAddress > EMPTY_LOG_BOUND) {
             Loggable rootLoggable = log.getLastLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);
             while (rootLoggable != null) {
@@ -62,11 +62,11 @@ final class MetaTree {
                 if (dbRoot.isValid()) {
                     try {
                         final long validHighAddress = root + dbRoot.length();
-                        final LastPage lastPage = log.setHighAddress(logTip, validHighAddress);
+                        final LogTip updatedTip = log.setHighAddress(logTip, validHighAddress);
                         final BTree metaTree = env.loadMetaTree(dbRoot.getRootAddress());
                         if (metaTree != null) {
                             cloneTree(metaTree); // try to traverse meta tree
-                            return new Pair<>(new MetaTree(metaTree, root, validHighAddress, lastPage.logFileSet.getCurrent()), dbRoot.getLastStructureId());
+                            return new Pair<>(new MetaTree(metaTree, root, validHighAddress, updatedTip.logFileSet.getCurrent()), dbRoot.getLastStructureId());
                         }
                     } catch (ExodusException e) {
                         log.abortWrite();
@@ -94,18 +94,18 @@ final class MetaTree {
         final ITree resultTree = getEmptyMetaTree(env);
         final long root;
         log.beginWrite();
-        final LastPage writtenLastPage;
+        final LogTip createdTip;
         try {
             final long rootAddress = resultTree.getMutableCopy().save();
             root = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
                     DatabaseRoot.asByteIterable(rootAddress, EnvironmentImpl.META_TREE_ID));
             log.flush();
-            writtenLastPage = log.endWrite();
+            createdTip = log.endWrite();
         } catch (Throwable t) {
             log.abortWrite(); // rollback log state
             throw new ExodusException("Can't init meta tree in log", t);
         }
-        return new Pair<>(new MetaTree(resultTree, root, writtenLastPage.highAddress, writtenLastPage.logFileSet.getCurrent()), EnvironmentImpl.META_TREE_ID);
+        return new Pair<>(new MetaTree(resultTree, root, createdTip.highAddress, createdTip.logFileSet.getCurrent()), EnvironmentImpl.META_TREE_ID);
     }
 
     LongIterator addressIterator() {

@@ -38,7 +38,7 @@ class BufferedDataWriter {
     @NotNull
     private final DataReader reader;
     @NotNull
-    private final LastPage initialPage;
+    private final LogTip initialPage;
     @Nullable
     private final StreamCipherProvider cipherProvider;
     private final byte[] cipherKey;
@@ -56,7 +56,7 @@ class BufferedDataWriter {
     BufferedDataWriter(@NotNull final Log log,
                        @NotNull final DataWriter child,
                        @NotNull final DataReader reader,
-                       @NotNull final LastPage page) {
+                       @NotNull final LogTip page) {
         this.log = log;
         logCache = log.cache;
         this.fileSetMutable = page.logFileSet.beginWrite();
@@ -184,15 +184,15 @@ class BufferedDataWriter {
     }
 
     @NotNull
-    LastPage getInitialPage() {
+    LogTip getStartingTip() {
         return initialPage;
     }
 
     @NotNull
-    LastPage getUpdatedPage() {
+    LogTip getUpdatedTip() {
         final MutablePage currentPage = this.currentPage;
         final LogFileSetImmutable fileSetImmutable = fileSetMutable.endWrite();
-        return new LastPage(currentPage.bytes, currentPage.pageAddress, currentPage.committedCount, highAddress, highAddress, fileSetImmutable);
+        return new LogTip(currentPage.bytes, currentPage.pageAddress, currentPage.committedCount, highAddress, highAddress, fileSetImmutable);
     }
 
     byte getByte(long address) {
