@@ -213,8 +213,7 @@ public class LogTests extends LogTestsBase {
             getLog().write(DUMMY_LOGGABLE);
         }
         getLog().flush();
-        getLog().endWrite();
-        getLog().setHighAddress(3);
+        getLog().setHighAddress(getLog().endWrite(), 3);
         final Iterator<RandomAccessLoggable> loggablesIterator = getLog().getLoggableIterator(0);
         loggablesIterator.next();
         Assert.assertFalse(loggablesIterator.hasNext());
@@ -227,8 +226,7 @@ public class LogTests extends LogTestsBase {
         for (int i = 0; i < loggablesCount; ++i) {
             getLog().write(DUMMY_LOGGABLE);
         }
-        getLog().endWrite();
-        getLog().setHighAddress(0);
+        getLog().setHighAddress(getLog().endWrite(), 0);
         Assert.assertFalse(getLog().getLoggableIterator(0).hasNext());
     }
 
@@ -237,8 +235,7 @@ public class LogTests extends LogTestsBase {
     public void testSetHighAddress_XD_317() {
         getLog().beginWrite();
         getLog().write(DUMMY_LOGGABLE);
-        getLog().endWrite();
-        getLog().setHighAddress(0);
+        getLog().setHighAddress(getLog().endWrite(), 0);
         Assert.assertFalse(getLog().getLoggableIterator(0).hasNext());
         getLog().beginWrite();
         getLog().write(NullLoggable.create());

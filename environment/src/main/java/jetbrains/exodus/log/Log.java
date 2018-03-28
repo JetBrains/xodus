@@ -246,18 +246,16 @@ public final class Log implements Closeable {
     }
 
     @SuppressWarnings({"OverlyLongMethod"})
-    public LastPage setHighAddress(final long highAddress) {
-        final LastPage lastPageContent = this.lastPage.get();
-
-        if (highAddress > lastPageContent.highAddress) {
+    public LastPage setHighAddress(final LastPage logTip, final long highAddress) {
+        if (highAddress > logTip.highAddress) {
             throw new ExodusException("Only can decrease high address");
         }
-        if (highAddress == lastPageContent.highAddress) {
+        if (highAddress == logTip.highAddress) {
             this.bufferedWriter = null; // just abort a potential write in progress
-            return lastPageContent;
+            return logTip;
         }
 
-        final LogFileSetMutable fileSetMutable = lastPageContent.logFileSet.beginWrite();
+        final LogFileSetMutable fileSetMutable = logTip.logFileSet.beginWrite();
 
         // begin of test-only code
         final LogTestConfig testConfig = this.testConfig;
@@ -286,13 +284,13 @@ public final class Log implements Closeable {
             truncateFile(blockToTruncate, highAddress - blockToTruncate);
         }
 
-        final LastPage writtenLastPage;
+        final LastPage updatedTip;
         if (fileSetMutable.isEmpty()) {
             updateLogIdentity();
-            writtenLastPage = new LastPage(fileSize);
+            updatedTip = new LastPage(fileSize);
         } else {
-            final long oldHighPageAddress = lastPageContent.pageAddress;
-            long approvedHighAddress = lastPageContent.approvedHighAddress;
+            final long oldHighPageAddress = logTip.pageAddress;
+            long approvedHighAddress = logTip.approvedHighAddress;
             if (highAddress < approvedHighAddress) {
                 approvedHighAddress = highAddress;
             }
@@ -300,19 +298,19 @@ public final class Log implements Closeable {
             final LogFileSetImmutable fileSetImmutable = fileSetMutable.endWrite();
             final int highPageSize = (int) (highAddress - highPageAddress);
             if (oldHighPageAddress == highPageAddress) {
-                writtenLastPage = lastPageContent.withResize(highPageSize, highAddress, approvedHighAddress, fileSetImmutable);
+                updatedTip = logTip.withResize(highPageSize, highAddress, approvedHighAddress, fileSetImmutable);
             } else {
                 updateLogIdentity();
                 final byte[] highPageContent = new byte[cachePageSize];
                 if (highPageSize > 0 && readBytes(highPageContent, highPageAddress) < highPageSize) {
                     throw new ExodusException("Can't read expected high page bytes");
                 }
-                writtenLastPage = new LastPage(highPageContent, highPageAddress, highPageSize, highAddress, approvedHighAddress, fileSetImmutable);
+                updatedTip = new LastPage(highPageContent, highPageAddress, highPageSize, highAddress, approvedHighAddress, fileSetImmutable);
             }
         }
-        this.lastPage.set(writtenLastPage);
+        compareAndSetTip(logTip, updatedTip);
         this.bufferedWriter = null;
-        return writtenLastPage;
+        return updatedTip;
     }
 
     private void closeWriter() {
@@ -322,10 +320,14 @@ public final class Log implements Closeable {
         baseWriter.close();
     }
 
-    public long beginWrite() {
+    public LastPage getTip() {
+        return lastPage.get();
+    }
+
+    public LastPage beginWrite() {
         BufferedDataWriter writer = new BufferedDataWriter(this, baseWriter, reader, this.lastPage.get());
         this.bufferedWriter = writer;
-        return writer.getHighAddress();
+        return writer.getInitialPage();
     }
 
     public void abortWrite() {
@@ -340,11 +342,15 @@ public final class Log implements Closeable {
         final BufferedDataWriter writer = ensureWriter();
         final LastPage initialPage = writer.getInitialPage();
         final LastPage updatedPage = writer.getUpdatedPage();
-        if (!lastPage.compareAndSet(initialPage, updatedPage)) {
-            throw new ExodusException("write start/finish mismatch");
-        }
+        compareAndSetTip(initialPage, updatedPage);
         bufferedWriter = null;
         return updatedPage;
+    }
+
+    private void compareAndSetTip(final LastPage logTip, final LastPage updatedTip) {
+        if (!lastPage.compareAndSet(logTip, updatedTip)) {
+            throw new ExodusException("write start/finish mismatch");
+        }
     }
 
     public long getApprovedHighAddress() {
@@ -674,12 +680,12 @@ public final class Log implements Closeable {
 
     @Override
     public void close() {
+        final LastPage logTip = this.lastPage.get();
         isClosing = true;
         sync();
         reader.close();
         closeWriter();
-        final LastPage page = this.lastPage.get();
-        lastPage.set(new LastPage(fileSize, page.pageAddress, page.highAddress));
+        compareAndSetTip(logTip, new LastPage(fileSize, logTip.pageAddress, logTip.highAddress));
         release();
     }
 
@@ -691,13 +697,16 @@ public final class Log implements Closeable {
         baseWriter.release();
     }
 
-    public void clear() {
+    public LastPage clear() {
+        final LastPage logTip = this.lastPage.get();
         closeWriter();
         cache.clear();
         reader.clear();
-        this.lastPage.set(new LastPage(fileSize));
+        final LastPage updatedTip = new LastPage(fileSize);
+        compareAndSetTip(logTip, updatedTip);
         this.bufferedWriter = null;
         updateLogIdentity();
+        return updatedTip;
     }
 
     // for tests only

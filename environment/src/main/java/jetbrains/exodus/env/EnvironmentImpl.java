@@ -104,7 +104,10 @@ public class EnvironmentImpl implements Environment {
         this.log = log;
         this.ec = ec;
         applyEnvironmentSettings(log.getLocation(), ec);
-        final Pair<MetaTree, Integer> meta = MetaTree.create(this);
+        final Pair<MetaTree, Integer> meta;
+        synchronized (commitLock) {
+            meta = MetaTree.create(this);
+        }
         metaTree = meta.getFirst();
         structureId = new AtomicInteger(meta.getSecond());
         txns = new TransactionSet();
@@ -644,7 +647,8 @@ public class EnvironmentImpl implements Environment {
             final LogConfig config = log.getConfig();
             config.setFsyncSuppressed(isGcTransaction);
             try {
-                initialHighAddress = log.beginWrite();
+                final LastPage logTip = log.beginWrite();
+                initialHighAddress = logTip.highAddress;
                 try {
                     final MetaTree.Proto[] tree = new MetaTree.Proto[1];
                     expiredLoggables = txn.doCommit(tree);
@@ -667,7 +671,7 @@ public class EnvironmentImpl implements Environment {
                 } catch (Throwable t) { // pokemon exception handling to decrease try/catch block overhead
                     loggerError("Failed to flush transaction", t);
                     try {
-                        log.setHighAddress(initialHighAddress);
+                        log.setHighAddress(logTip, initialHighAddress);
                         //log.approveHighAddress();
                     } catch (Throwable th) {
                         throwableOnCommit = t; // inoperative on failing to update high address
@@ -830,7 +834,7 @@ public class EnvironmentImpl implements Environment {
 
     void setHighAddress(final long highAddress) {
         synchronized (commitLock) {
-            log.setHighAddress(highAddress);
+            log.setHighAddress(log.getTip(), highAddress);
             final Pair<MetaTree, Integer> meta = MetaTree.create(this);
             metaWriteLock.lock();
             try {

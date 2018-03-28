@@ -53,7 +53,8 @@ final class MetaTree {
 
     static Pair<MetaTree, Integer> create(@NotNull final EnvironmentImpl env) {
         final Log log = env.getLog();
-        if (log.getHighAddress() > EMPTY_LOG_BOUND) {
+        LastPage logTip = log.beginWrite();
+        if (logTip.highAddress > EMPTY_LOG_BOUND) {
             Loggable rootLoggable = log.getLastLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);
             while (rootLoggable != null) {
                 final DatabaseRoot dbRoot = new DatabaseRoot(rootLoggable);
@@ -61,18 +62,20 @@ final class MetaTree {
                 if (dbRoot.isValid()) {
                     try {
                         final long validHighAddress = root + dbRoot.length();
-                        final LastPage lastPage = log.setHighAddress(validHighAddress);
+                        final LastPage lastPage = log.setHighAddress(logTip, validHighAddress);
                         final BTree metaTree = env.loadMetaTree(dbRoot.getRootAddress());
                         if (metaTree != null) {
                             cloneTree(metaTree); // try to traverse meta tree
                             return new Pair<>(new MetaTree(metaTree, root, validHighAddress, lastPage.logFileSet.getCurrent()), dbRoot.getLastStructureId());
                         }
                     } catch (ExodusException e) {
+                        log.abortWrite();
                         EnvironmentImpl.loggerError("Failed to recover to valid root" +
                                 LogUtil.getWrongAddressErrorMessage(dbRoot.getAddress(), env.getEnvironmentConfig().getLogFileSize()), e);
                         // XD-449: try next database root if we failed to traverse whole MetaTree
                         // TODO: this check should become obsolete after XD-334 is implemented
                     }
+                    logTip = log.beginWrite(); // write is completed either by successful setHighAddress or by abortWrite
                 }
                 // continue recovery
                 rootLoggable = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, root);
@@ -87,7 +90,7 @@ final class MetaTree {
             throw new InvalidCipherParametersException();
         }
         // no roots found: the database is empty
-        log.setHighAddress(0);
+        log.setHighAddress(logTip, 0);
         final ITree resultTree = getEmptyMetaTree(env);
         final long root;
         log.beginWrite();
