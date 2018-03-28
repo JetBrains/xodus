@@ -45,7 +45,7 @@ class BufferedDataWriter {
     private final long cipherBasicIV;
     private final int pageSize;
     @NotNull
-    private final LogFileSetMutable fileSetMutable;
+    private final LogFileSet.Mutable fileSetMutable;
 
     // mutable state
     @NotNull
@@ -81,7 +81,7 @@ class BufferedDataWriter {
     }
 
     @NotNull
-    LogFileSetMutable getFileSetMutable() {
+    LogFileSet.Mutable getFileSetMutable() {
         return fileSetMutable;
     }
 
@@ -191,7 +191,7 @@ class BufferedDataWriter {
     @NotNull
     LogTip getUpdatedTip() {
         final MutablePage currentPage = this.currentPage;
-        final LogFileSetImmutable fileSetImmutable = fileSetMutable.endWrite();
+        final LogFileSet.Immutable fileSetImmutable = fileSetMutable.endWrite();
         return new LogTip(currentPage.bytes, currentPage.pageAddress, currentPage.committedCount, highAddress, highAddress, fileSetImmutable);
     }
 

@@ -99,14 +99,14 @@ public final class Log implements Closeable {
             throw new InvalidSettingException("File size should be a multiple of cache page size.");
         }
         fileLengthBound = fileLength;
-        final LogFileSetMutable fileSetMutable = new LogFileSetMutable(fileLength);
+        final LogFileSet.Mutable fileSetMutable = new LogFileSet.Immutable(fileLength).beginWrite();
         reader = config.getReader();
         reader.setLog(this);
         location = reader.getLocation();
 
         checkLogConsistency(fileSetMutable);
 
-        final LogFileSetImmutable fileSetImmutable = fileSetMutable.endWrite();
+        final LogFileSet.Immutable fileSetImmutable = fileSetMutable.endWrite();
 
         newFileListeners = new ArrayList<>(2);
         readBytesListeners = new ArrayList<>(2);
@@ -170,7 +170,7 @@ public final class Log implements Closeable {
         sync();
     }
 
-    private void checkLogConsistency(LogFileSetMutable fileSetMutable) {
+    private void checkLogConsistency(LogFileSet.Mutable fileSetMutable) {
         final Block[] blocks = reader.getBlocks();
         for (int i = 0; i < blocks.length; ++i) {
             final Block block = blocks[i];
@@ -257,7 +257,7 @@ public final class Log implements Closeable {
             return logTip;
         }
 
-        final LogFileSetMutable fileSetMutable = logTip.logFileSet.beginWrite();
+        final LogFileSet.Mutable fileSetMutable = logTip.logFileSet.beginWrite();
 
         // begin of test-only code
         final LogTestConfig testConfig = this.testConfig;
@@ -297,7 +297,7 @@ public final class Log implements Closeable {
                 approvedHighAddress = highAddress;
             }
             final long highPageAddress = getHighPageAddress(highAddress);
-            final LogFileSetImmutable fileSetImmutable = fileSetMutable.endWrite();
+            final LogFileSet.Immutable fileSetImmutable = fileSetMutable.endWrite();
             final int highPageSize = (int) (highAddress - highPageAddress);
             if (oldHighPageAddress == highPageAddress) {
                 updatedTip = logTip.withResize(highPageSize, highAddress, approvedHighAddress, fileSetImmutable);
@@ -719,7 +719,7 @@ public final class Log implements Closeable {
     }
 
     public void forgetFiles(long[] files) {
-        LogFileSetMutable fileSetMutable = ensureWriter().getFileSetMutable();
+        LogFileSet.Mutable fileSetMutable = ensureWriter().getFileSetMutable();
         for (long file : files) {
             fileSetMutable.remove(file);
         }
@@ -734,7 +734,7 @@ public final class Log implements Closeable {
         removeFile(address, rbt, null);
     }
 
-    public void removeFile(final long address, @NotNull final RemoveBlockType rbt, @Nullable final LogFileSetMutable logFileSetMutable) {
+    public void removeFile(final long address, @NotNull final RemoveBlockType rbt, @Nullable final LogFileSet.Mutable logFileSetMutable) {
         final RemoveFileListener[] listeners;
         synchronized (removeFileListeners) {
             listeners = removeFileListeners.toArray(new RemoveFileListener[removeFileListeners.size()]);

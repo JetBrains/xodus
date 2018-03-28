@@ -29,7 +29,7 @@ public class LogTip {
     public final long approvedHighAddress;
 
     @NotNull
-    public final LogFileSetImmutable logFileSet;
+    public final LogFileSet.Immutable logFileSet;
 
     // empty
     LogTip(final long fileSize) {
@@ -42,11 +42,11 @@ public class LogTip {
         this.pageAddress = pageAddress;
         this.count = -1;
         this.highAddress = this.approvedHighAddress = highAddress;
-        this.logFileSet = new LogFileSetImmutable(fileSize); // no files
+        this.logFileSet = new LogFileSet.Immutable(fileSize); // no files
     }
 
     // non-empty
-    LogTip(@NotNull byte[] bytes, long pageAddress, int count, long highAddress, long approvedHighAddress, @NotNull final LogFileSetImmutable logFileSet) {
+    LogTip(@NotNull byte[] bytes, long pageAddress, int count, long highAddress, long approvedHighAddress, @NotNull final LogFileSet.Immutable logFileSet) {
         this.bytes = bytes;
         this.pageAddress = pageAddress;
         this.count = count;
@@ -59,7 +59,7 @@ public class LogTip {
         return new LogTip(bytes, pageAddress, count, highAddress, updatedApprovedHighAddress, logFileSet);
     }
 
-    LogTip withResize(int updatedCount, long updatedHighAddress, long updatedApprovedHighAddress, @NotNull final LogFileSetImmutable logFileSet) {
+    LogTip withResize(int updatedCount, long updatedHighAddress, long updatedApprovedHighAddress, @NotNull final LogFileSet.Immutable logFileSet) {
         return new LogTip(bytes, pageAddress, updatedCount, updatedHighAddress, updatedApprovedHighAddress, logFileSet);
     }
 }

@@ -21,12 +21,10 @@ import jetbrains.exodus.core.dataStructures.persistent.PersistentLongSet
 
 private const val BITS_PER_ENTRY = 7
 
-internal open class LogFileSetImmutable @JvmOverloads constructor(
-        val fileSize: Long,
-        val set: PersistentLongSet = PersistentBitTreeLongSet(BITS_PER_ENTRY),
-        // file key is aligned file address, i.e. file address divided by fileSize
-        val current: PersistentLongSet.ImmutableSet = set.beginRead()
-) {
+// file key is aligned file address, i.e. file address divided by fileSize
+internal sealed class LogFileSet(val fileSize: Long, val set: PersistentLongSet) {
+    protected abstract val current: PersistentLongSet.ImmutableSet
+
     fun size() = current.size()
 
     val isEmpty get() = current.isEmpty
@@ -67,31 +65,39 @@ internal open class LogFileSetImmutable @JvmOverloads constructor(
         }
     }
 
-    fun beginWrite(): LogFileSetMutable {
-        val set = this.set.clone
-        return LogFileSetMutable(fileSize, set, set.beginWrite())
-    }
+    fun beginWrite() = Mutable(fileSize, set.clone)
 
     protected val Long.keyToAddress: Long get() = this * fileSize
 
     protected val Long.addressToKey: Long get() = this / fileSize
-}
 
-internal class LogFileSetMutable @JvmOverloads constructor(
-        fileSize: Long,
-        set: PersistentLongSet = PersistentBitTreeLongSet(BITS_PER_ENTRY),
+    internal class Immutable @JvmOverloads constructor(
+            fileSize: Long,
+            set: PersistentLongSet = PersistentBitTreeLongSet(BITS_PER_ENTRY)
+    ) : LogFileSet(fileSize, set) {
+        private val immutable: PersistentLongSet.ImmutableSet = set.beginRead()
+
+        public override val current: PersistentLongSet.ImmutableSet
+            get() = immutable
+    }
+
+    internal class Mutable(fileSize: Long, set: PersistentLongSet) : LogFileSet(fileSize, set) {
         private val mutable: PersistentLongSet.MutableSet = set.beginWrite()
-) : LogFileSetImmutable(fileSize, set, mutable) {
 
+        override val current: PersistentLongSet.ImmutableSet
+            get() = mutable
 
-    fun clear() = mutable.clear()
+        fun clear() = mutable.clear()
 
-    fun add(fileAddress: Long) = mutable.add(fileAddress.addressToKey)
+        fun add(fileAddress: Long) = mutable.add(fileAddress.addressToKey)
 
-    fun remove(fileAddress: Long) = mutable.remove(fileAddress.addressToKey)
+        fun remove(fileAddress: Long) = mutable.remove(fileAddress.addressToKey)
 
-    fun endWrite(): LogFileSetImmutable {
-        mutable.endWrite()
-        return LogFileSetImmutable(fileSize, set.clone)
+        fun endWrite(): Immutable {
+            if (!mutable.endWrite()) {
+                throw IllegalStateException("File set can't be updated")
+            }
+            return Immutable(fileSize, set.clone)
+        }
     }
 }
