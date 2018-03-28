@@ -110,9 +110,11 @@ public class EnvironmentRecoveryTest extends EnvironmentTestsBase {
     public void testLastLoggableIncomplete13() throws IOException {
         Log log = env.getLog();
         final long fileSize = env.getEnvironmentConfig().getLogFileSize() * 1024;
+        log.beginWrite();
         for (int i = 0; i < fileSize; ++i) {
             log.write(NullLoggable.create());
         }
+        log.endWrite();
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull Transaction txn) {
