@@ -53,7 +53,7 @@ final class MetaTree {
 
     static Pair<MetaTree, Integer> create(@NotNull final EnvironmentImpl env) {
         final Log log = env.getLog();
-        LogTip logTip = log.beginWrite();
+        LogTip logTip = log.getTip();
         if (logTip.highAddress > EMPTY_LOG_BOUND) {
             Loggable rootLoggable = log.getLastLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);
             while (rootLoggable != null) {
@@ -68,14 +68,14 @@ final class MetaTree {
                             cloneTree(metaTree); // try to traverse meta tree
                             return new Pair<>(new MetaTree(metaTree, root, validHighAddress, updatedTip.logFileSet.getCurrent()), dbRoot.getLastStructureId());
                         }
+                        logTip = updatedTip;
                     } catch (ExodusException e) {
-                        log.abortWrite();
+                        logTip = log.getTip();
                         EnvironmentImpl.loggerError("Failed to recover to valid root" +
                                 LogUtil.getWrongAddressErrorMessage(dbRoot.getAddress(), env.getEnvironmentConfig().getLogFileSize()), e);
                         // XD-449: try next database root if we failed to traverse whole MetaTree
                         // TODO: this check should become obsolete after XD-334 is implemented
                     }
-                    logTip = log.beginWrite(); // write is completed either by successful setHighAddress or by abortWrite
                 }
                 // continue recovery
                 rootLoggable = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, root);
