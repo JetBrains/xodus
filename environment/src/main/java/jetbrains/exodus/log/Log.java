@@ -786,7 +786,7 @@ public final class Log implements Closeable {
             final byte[] cachedTailPage = LogCache.getCachedTailPage(cachePageSize);
             if (cachedTailPage != null) {
                 do {
-                    writer.write(cachedTailPage, 0, cachePageSize);
+                    writer.write(cachedTailPage, cachePageSize);
                     bytesToWrite -= cachePageSize;
                     writer.incHighAddress(cachePageSize);
                 } while (bytesToWrite >= cachePageSize);
@@ -937,7 +937,7 @@ public final class Log implements Closeable {
         }
         // end of test-only code
 
-        if (!writer.isOpen()) {
+        if (!baseWriter.isOpen()) {
             final long fileAddress = getFileAddress(result);
             writer.openOrCreateBlock(fileAddress, writer.getLastWrittenFileLength(fileLengthBound));
             final boolean fileCreated = !writer.getFileSetMutable().contains(fileAddress);
@@ -946,7 +946,7 @@ public final class Log implements Closeable {
             }
             if (fileCreated) {
                 // fsync the directory to ensure we will find the log file in the directory after system crash
-                writer.syncDirectory();
+                baseWriter.syncDirectory();
                 notifyFileCreated(fileAddress);
             }
         }
@@ -1044,10 +1044,10 @@ public final class Log implements Closeable {
             if (length == 1) {
                 writer.write(bytes[0]);
             } else {
-                writer.write(bytes, 0, length);
+                writer.write(bytes, length);
             }
         } else if (length >= 3) {
-            writer.write(iterable.getBytesUnsafe(), 0, length);
+            writer.write(iterable.getBytesUnsafe(), length);
         } else {
             final ByteIterator iterator = iterable.iterator();
             writer.write(iterator.next());

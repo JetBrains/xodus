@@ -26,8 +26,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 
-class BufferedDataWriter implements DataWriter {
+class BufferedDataWriter {
 
+    // immutable state
     @NotNull
     private final Log log;
     @NotNull
@@ -38,8 +39,6 @@ class BufferedDataWriter implements DataWriter {
     private final DataReader reader;
     @NotNull
     private final LastPage initialPage;
-    @NotNull
-    private MutablePage currentPage;
     @Nullable
     private final StreamCipherProvider cipherProvider;
     private final byte[] cipherKey;
@@ -48,6 +47,9 @@ class BufferedDataWriter implements DataWriter {
     @NotNull
     private final LogFileSetMutable fileSetMutable;
 
+    // mutable state
+    @NotNull
+    private MutablePage currentPage;
     private long highAddress;
     private int count;
 
@@ -78,11 +80,6 @@ class BufferedDataWriter implements DataWriter {
         cipherBasicIV = log.getConfig().getCipherBasicIV();
     }
 
-    @Override
-    public boolean isOpen() {
-        return child.isOpen();
-    }
-
     @NotNull
     LogFileSetMutable getFileSetMutable() {
         return fileSetMutable;
@@ -103,8 +100,8 @@ class BufferedDataWriter implements DataWriter {
         this.count = count + 1;
     }
 
-    @Override
-    public void write(byte[] b, int off, int len) throws ExodusException {
+    void write(byte[] b, int len) throws ExodusException {
+        int off = 0;
         final int count = this.count + len;
         MutablePage currentPage = this.currentPage;
         while (len > 0) {
@@ -170,39 +167,8 @@ class BufferedDataWriter implements DataWriter {
         }
     }
 
-    @Override
-    public void sync() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void syncDirectory() {
-        child.syncDirectory();
-    }
-
-    @Override
-    public void close() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void openOrCreateBlock(long address, long length) {
+    void openOrCreateBlock(long address, long length) {
         child.openOrCreateBlock(address, length);
-    }
-
-    @Override
-    public boolean lock(long timeout) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean release() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public String lockInfo() {
-        return child.lockInfo();
     }
 
     long getHighAddress() {
@@ -229,12 +195,7 @@ class BufferedDataWriter implements DataWriter {
         return new LastPage(currentPage.bytes, currentPage.pageAddress, currentPage.committedCount, highAddress, highAddress, fileSetImmutable);
     }
 
-    private MutablePage allocNewPage() {
-        MutablePage currentPage = this.currentPage;
-        return this.currentPage = new MutablePage(currentPage, logCache.allocPage(), currentPage.pageAddress + pageSize, 0);
-    }
-
-    public byte getByte(long address) {
+    byte getByte(long address) {
         final int offset = ((int) address) & (pageSize - 1);
         final long pageAddress = address - offset;
         final byte[] page = getWrittenPage(pageAddress);
@@ -265,6 +226,11 @@ class BufferedDataWriter implements DataWriter {
             currentPage = currentPage.previousPage;
         } while (currentPage != null);
         return null;
+    }
+
+    private MutablePage allocNewPage() {
+        MutablePage currentPage = this.currentPage;
+        return this.currentPage = new MutablePage(currentPage, logCache.allocPage(), currentPage.pageAddress + pageSize, 0);
     }
 
     private static class MutablePage {
