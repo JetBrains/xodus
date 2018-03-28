@@ -286,9 +286,9 @@ public final class Log implements Closeable {
             truncateFile(blockToTruncate, highAddress - blockToTruncate);
         }
 
-        updateLogIdentity();
         final LastPage writtenLastPage;
         if (fileSetMutable.isEmpty()) {
+            updateLogIdentity();
             writtenLastPage = new LastPage(fileSize);
         } else {
             final long oldHighPageAddress = lastPageContent.pageAddress;
@@ -302,6 +302,7 @@ public final class Log implements Closeable {
             if (oldHighPageAddress == highPageAddress) {
                 writtenLastPage = lastPageContent.withResize(highPageSize, highAddress, approvedHighAddress, fileSetImmutable);
             } else {
+                updateLogIdentity();
                 final byte[] highPageContent = new byte[cachePageSize];
                 if (highPageSize > 0 && readBytes(highPageContent, highPageAddress) < highPageSize) {
                     throw new ExodusException("Can't read expected high page bytes");
