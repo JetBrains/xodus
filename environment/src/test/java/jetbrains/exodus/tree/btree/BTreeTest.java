@@ -39,7 +39,7 @@ public class BTreeTest extends BTreeTestBase {
 
         checkTree(getTreeMutable(), s).run();
 
-        long rootAddress = tm.save();
+        long rootAddress = saveTree();
 
         checkTree(getTreeMutable(), s).run();
 
@@ -60,7 +60,7 @@ public class BTreeTest extends BTreeTestBase {
 
         checkTree(getTreeMutable(), s).run();
 
-        long rootAddress = tm.save();
+        long rootAddress = saveTree();
 
         checkTree(getTreeMutable(), s).run();
 
@@ -81,7 +81,7 @@ public class BTreeTest extends BTreeTestBase {
 
         checkTree(getTreeMutable(), s).run();
 
-        long rootAddress = tm.save();
+        long rootAddress = saveTree();
 
         checkTree(getTreeMutable(), s).run();
 
@@ -107,7 +107,7 @@ public class BTreeTest extends BTreeTestBase {
 
         checkTree(getTreeMutable(), s).run();
 
-        long rootAddress = tm.save();
+        long rootAddress = saveTree();
 
         checkTree(getTreeMutable(), s).run();
 
@@ -137,7 +137,7 @@ public class BTreeTest extends BTreeTestBase {
 
         checkTree(getTreeMutable(), "vv", 100).run();
 
-        long rootAddress = tm.save();
+        long rootAddress = saveTree();
 
         checkTree(getTreeMutable(), "vv", 100).run();
 
@@ -173,7 +173,7 @@ public class BTreeTest extends BTreeTestBase {
 
         assertMatchesIterator(tm, l);
 
-        long rootAddress = tm.save();
+        long rootAddress = saveTree();
 
         assertMatchesIterator(tm, l);
 
@@ -191,7 +191,7 @@ public class BTreeTest extends BTreeTestBase {
             getTreeMutable().put(kv(i, "v" + i));
         }
 
-        long rootAddress = tm.save();
+        long rootAddress = saveTree();
         tm = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, true, 1).getMutableCopy();
 
         checkTree(getTreeMutable(), 100).run();
@@ -208,7 +208,7 @@ public class BTreeTest extends BTreeTestBase {
         Assert.assertEquals(0, tm.getSize());
         assertMatchesIterator(tm, Collections.<INode>emptyList());
 
-        rootAddress = tm.save();
+        rootAddress = saveTree();
 
         reopen();
 

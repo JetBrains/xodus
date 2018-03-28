@@ -28,14 +28,14 @@ public class BTreeNoDuplicatesExpiredAddressesTest extends BTreeTestBase {
     @Test
     public void testAdd() throws IOException {
         tm = new BTreeEmpty(log, false, 1).getMutableCopy();
-        long address = tm.save();
+        long address = saveTree();
         checkExpiredAddress(tm, 0, "Expired: none");
 
         t = new BTree(log, address, false, 1);
         tm = getTree().getMutableCopy();
         getTreeMutable().put(kv(0, "value"));
         checkExpiredAddress(tm, 1, "Expired: root");
-        tm.save();
+        saveTree();
     }
 
     @Test
@@ -44,13 +44,13 @@ public class BTreeNoDuplicatesExpiredAddressesTest extends BTreeTestBase {
         getTreeMutable().put(kv(0, "value"));
         getTreeMutable().put(kv(1, "value2"));
         checkExpiredAddress(tm, 0, "Expired: none");
-        long address = tm.save();
+        long address = saveTree();
 
         t = new BTree(log, address, false, 1);
         tm = getTree().getMutableCopy();
         getTreeMutable().put(kv(0, "value2"));
         checkExpiredAddress(tm, 2, "Expired: root, value");
-        tm.save();
+        saveTree();
     }
 
     @Test
@@ -59,19 +59,19 @@ public class BTreeNoDuplicatesExpiredAddressesTest extends BTreeTestBase {
         INode leafNode = kv(0, "value");
         getTreeMutable().put(leafNode);
         checkExpiredAddress(tm, 0, "Expired: none");
-        long address = tm.save();
+        long address = saveTree();
 
         t = new BTree(log, address, false, 1);
         tm = getTree().getMutableCopy();
         tm.delete(leafNode.getKey());
         checkExpiredAddress(tm, 2, "Expired: root, value");
-        tm.save();
+        saveTree();
     }
 
     @Test
     public void testBulkAdd() throws IOException {
         tm = new BTreeEmpty(log, false, 1).getMutableCopy();
-        long address = tm.save();
+        long address = saveTree();
 
         checkExpiredAddress(tm, 0, "Expired: none");
 
@@ -81,7 +81,7 @@ public class BTreeNoDuplicatesExpiredAddressesTest extends BTreeTestBase {
             getTreeMutable().put(kv(i, "value"));
         }
         checkExpiredAddress(tm, 1, "Expired: root");
-        tm.save();
+        saveTree();
     }
 
     @Test
@@ -91,7 +91,7 @@ public class BTreeNoDuplicatesExpiredAddressesTest extends BTreeTestBase {
             getTreeMutable().put(kv(i, "value"));
         }
         checkExpiredAddress(tm, 0, "Expired: none");
-        long address = tm.save();
+        long address = saveTree();
 
         t = new BTree(log, address, false, 1);
         tm = getTree().getMutableCopy();
@@ -100,7 +100,7 @@ public class BTreeNoDuplicatesExpiredAddressesTest extends BTreeTestBase {
         }
 
         checkExpiredAddress(tm, countNodes(getTreeMutable()), "Expired: root, 1000 values + internal nodes");
-        tm.save();
+        saveTree();
     }
 
     @Test
@@ -112,7 +112,7 @@ public class BTreeNoDuplicatesExpiredAddressesTest extends BTreeTestBase {
             getTreeMutable().put(leafNode[i]);
         }
         checkExpiredAddress(tm, 0, "Expired: none");
-        long address = tm.save();
+        long address = saveTree();
 
         t = new BTree(log, address, false, 1);
         tm = getTree().getMutableCopy();
@@ -121,7 +121,7 @@ public class BTreeNoDuplicatesExpiredAddressesTest extends BTreeTestBase {
             tm.delete(leafNode[i].getKey());
         }
         checkExpiredAddress(tm, addresses, "Expired: root, 1000 values + internal nodes");
-        tm.save();
+        saveTree();
     }
 
     public void checkExpiredAddress(ITreeMutable tree, long expectedAddresses, String message) {

@@ -57,7 +57,7 @@ public class BTreeCursorNoDuplicatesTest extends TreeCursorNoDuplicatesTest {
         };
 
         genNextDup.run();
-        long a = getTreeMutable().save();
+        long a = saveTree();
         genNextDup.run();
         reopen();
         genNextDup.setTree(openTree(a, true));

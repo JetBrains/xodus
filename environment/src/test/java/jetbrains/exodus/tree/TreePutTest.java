@@ -35,7 +35,7 @@ public abstract class TreePutTest extends TreeBaseTest {
     @Test
     public void testTrivialGet() {
         tm = createMutableTree(false, 1);
-        final long address = tm.save();
+        final long address = saveTree();
         t = openTree(address, false);
         assertEquals(null, t.get(key(1)));
     }
@@ -124,7 +124,7 @@ public abstract class TreePutTest extends TreeBaseTest {
     public void testPutReopen() throws IOException {
         tm = createMutableTree(false, 1);
         tm.put(key("1"), value("1"));
-        final long address = tm.save();
+        final long address = saveTree();
 
         reopen();
 
@@ -136,7 +136,7 @@ public abstract class TreePutTest extends TreeBaseTest {
     public void testPutReopen2() throws IOException {
         tm = createMutableTree(false, 1);
         tm.put(key("11"), value("1"));
-        final long address = tm.save();
+        final long address = saveTree();
 
         reopen();
 
@@ -149,7 +149,7 @@ public abstract class TreePutTest extends TreeBaseTest {
         tm = createMutableTree(false, 1);
         tm.put(key("1"), value("1"));
         tm.put(key("2"), value("1"));
-        final long address = tm.save();
+        final long address = saveTree();
 
         reopen();
 
@@ -163,7 +163,7 @@ public abstract class TreePutTest extends TreeBaseTest {
         tm = createMutableTree(false, 1);
         tm.put(key("1"), value("1"));
         tm.put(key("2"), value("1"));
-        long address = tm.save();
+        long address = saveTree();
 
         reopen();
 
@@ -173,7 +173,7 @@ public abstract class TreePutTest extends TreeBaseTest {
 
         tm = t.getMutableCopy();
         tm.put(key("2"), value("2"));
-        address = tm.save();
+        address = saveTree();
 
         reopen();
 
@@ -221,11 +221,11 @@ public abstract class TreePutTest extends TreeBaseTest {
         for (int i = 0; i < count; ++i) {
             tm.putRight(IntegerBinding.intToCompressedEntry(i), IntegerBinding.intToCompressedEntry(i));
             if (i % 32 == 0) {
-                final long address = tm.save();
+                final long address = saveTree();
                 tm = openTree(address, false).getMutableCopy();
             }
         }
-        final long address = tm.save();
+        final long address = saveTree();
         tm = openTree(address, false).getMutableCopy();
         final ITreeCursor cursor = tm.openCursor();
         for (int i = 0; i < count; ++i) {
@@ -265,7 +265,7 @@ public abstract class TreePutTest extends TreeBaseTest {
         final long count = 17;
         for (long i = 0; i < count; ++i) {
             tm.putRight(LongBinding.longToCompressedEntry(i), LongBinding.longToCompressedEntry(i));
-            final long address = tm.save();
+            final long address = saveTree();
             reopen();
             tm = openTree(address, false).getMutableCopy();
         }
@@ -278,7 +278,7 @@ public abstract class TreePutTest extends TreeBaseTest {
         final int count = 33;
         for (int i = 0; i < count; ++i) {
             tm.putRight(IntegerBinding.intToCompressedEntry(i), IntegerBinding.intToCompressedEntry(i));
-            final long address = tm.save();
+            final long address = saveTree();
             reopen();
             tm = openTree(address, false).getMutableCopy();
         }
@@ -296,7 +296,7 @@ public abstract class TreePutTest extends TreeBaseTest {
             assertEquals(true, tm.add(key(key.toString()), value(Integer.toString(i))));
         }
 
-        long address = tm.save();
+        long address = saveTree();
         reopen();
         t = openTree(address, false);
 
@@ -358,7 +358,7 @@ public abstract class TreePutTest extends TreeBaseTest {
             }
         });
 
-        final long address = tm.save();
+        final long address = saveTree();
         reopen();
         t = openTree(address, false);
 
@@ -394,7 +394,7 @@ public abstract class TreePutTest extends TreeBaseTest {
             }
         });
 
-        final long address = tm.save();
+        final long address = saveTree();
         reopen();
         t = openTree(address, false);
 
@@ -433,7 +433,7 @@ public abstract class TreePutTest extends TreeBaseTest {
             }
         });
 
-        final long address = tm.save();
+        final long address = saveTree();
         reopen();
         t = openTree(address, false);
 
@@ -488,7 +488,7 @@ public abstract class TreePutTest extends TreeBaseTest {
             }
         });
 
-        final long address = tm.save();
+        final long address = saveTree();
         System.out.println("Log size: " + tm.getLog().getHighAddress());
         reopen();
         t = openTree(address, false);

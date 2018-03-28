@@ -36,7 +36,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
             getTreeMutable().put(kv(i, "v" + i));
         }
 
-        return tm.save();
+        return saveTree();
     }
 
     private long initDup(int p, int u) {
@@ -48,7 +48,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
             }
         }
 
-        return tm.save();
+        return saveTree();
     }
 
     @Test
@@ -57,7 +57,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
 
         getTreeMutable().put(kv(0, "nothing"));
 
-        long rootAddress = tm.save();
+        long rootAddress = saveTree();
         t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, false, 1);
 
         final ByteIterable key = key(0);
@@ -95,7 +95,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         getTreeMutable().put(kv(5, "rambling"));
         getTreeMutable().put(kv(6, "plumbing"));
 
-        long rootAddress = tm.save();
+        long rootAddress = saveTree();
         t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, false, 1);
 
         final ByteIterable key = key(0);
@@ -107,7 +107,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         tm = getTree().getMutableCopy();
 
         tm.delete(key(1));
-        rootAddress = tm.save();
+        rootAddress = saveTree();
 
         tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, false, 1))).getMutableCopy();
 
@@ -131,13 +131,13 @@ public class BTreeReclaimTest extends BTreeTestBase {
         getTreeMutable().put(kv(0, "nothing"));
         getTreeMutable().put(kv(1, "something"));
 
-        long rootAddress = tm.save();
+        long rootAddress = saveTree();
         tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, false, 1))).getMutableCopy();
 
         tm.delete(key(0));
         tm.delete(key(1));
 
-        rootAddress = tm.save();
+        rootAddress = saveTree();
         tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, false, 1))).getMutableCopy();
 
         final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(rootAddress);
@@ -166,7 +166,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
             isAffected(log.read(address), key, (BTreeTraverser) addressIterator.getTraverser());
         }
 
-        rootAddress = tm.save();
+        rootAddress = saveTree();
 
         checkTree(tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, false, 1))).getMutableCopy(), p).run();
     }
@@ -198,7 +198,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
             assertAffected(log.read(address), page, (BTreeTraverser) addressIterator.getTraverser());
         }
 
-        rootAddress = tm.save();
+        rootAddress = saveTree();
 
         checkTree(tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, false, 1))).getMutableCopy(), p).run();
     }
@@ -230,7 +230,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
             }
         }
 
-        rootAddress = tm.save();
+        rootAddress = saveTree();
 
         checkTree(tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, true, 1))).getMutableCopy(), p, u).run();
     }
@@ -252,7 +252,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         tm.delete(key);
         tm.delete(key(6));
         getTreeMutable().put(key(6), value("v6#0"));
-        rootAddress = tm.save();
+        rootAddress = saveTree();
 
         tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, true, 1))).getMutableCopy();
 
@@ -275,7 +275,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
             }
         }
 
-        /* rootAddress = tm.save();
+        /* rootAddress = saveTree();
         checkTree(tm = (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), true, 1)).getMutableCopy(), p, u).run(); */
     }
 

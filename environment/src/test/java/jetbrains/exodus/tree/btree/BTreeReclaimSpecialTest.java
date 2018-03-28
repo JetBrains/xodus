@@ -52,7 +52,7 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
             tm.put(key, v(i));
         }
         log.beginWrite();
-        long saved = tm.save();
+        long saved = saveTree();
         log.endWrite();
         reloadMutableTree(saved);
         Assert.assertEquals(4, log.getNumberOfFiles());
@@ -62,7 +62,7 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
         Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(log.getFileAddress(fileSize * 2));
         tm.reclaim(loggables.next(), loggables); // reclaim third file
         log.beginWrite();
-        saved = tm.save();
+        saved = saveTree();
         log.endWrite();
         reloadMutableTree(saved);
         log.forgetFile(fileSize * 2);
@@ -70,7 +70,7 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
         loggables = log.getLoggableIterator(log.getFileAddress(fileSize));
         tm.reclaim(loggables.next(), loggables); // reclaim second file
         log.beginWrite();
-        saved = tm.save();
+        saved = saveTree();
         log.endWrite();
         reloadMutableTree(saved);
         Assert.assertTrue(log.getNumberOfFiles() > 2); // make sure that some files were added
@@ -87,13 +87,13 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
         tm.put(key("k"), value("v0"));
         tm.put(key("k"), value("v1"));
         log.beginWrite();
-        long firstAddress = tm.save();
+        long firstAddress = saveTree();
         log.endWrite();
         reloadMutableTree(firstAddress);
         tm.put(key("k"), value("v2"));
         tm.put(key("k"), value("v3"));
         log.beginWrite();
-        tm.save();
+        saveTree();
         log.endWrite();
         Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(0);
         tm.reclaim(loggables.next(), loggables);

@@ -69,7 +69,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
         };
 
         initial.run();
-        long a = tm.save();
+        long a = saveTree();
         initial.run();
         reopen();
         initial.setTree(openTree(a, true));
@@ -95,7 +95,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
         };
 
         count.run();
-        long a = tm.save();
+        long a = saveTree();
         count.run();
         reopen();
         count.setTree(openTree(a, true));
@@ -120,7 +120,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
         };
 
         getNext.run();
-        long a = tm.save();
+        long a = saveTree();
         getNext.run();
         reopen();
         getNext.setTree(openTree(a, true));
@@ -148,7 +148,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
         };
 
         getNextDup.run();
-        long a = tm.save();
+        long a = saveTree();
         getNextDup.run();
         reopen();
         getNextDup.setTree(openTree(a, true));
@@ -187,7 +187,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
         };
 
         getNextNoDup.run();
-        long a = tm.save();
+        long a = saveTree();
         getNextNoDup.run();
         reopen();
         getNextNoDup.setTree(openTree(a, true));
@@ -232,7 +232,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
         };
 
         getSearchKey.run();
-        long a = tm.save();
+        long a = saveTree();
         getSearchKey.run();
         reopen();
         getSearchKey.setTree(openTree(a, true));
@@ -262,7 +262,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
         };
 
         getSearchBoth.run();
-        long a = tm.save();
+        long a = saveTree();
         getSearchBoth.run();
         reopen();
         getSearchBoth.setTree(openTree(a, true));
@@ -285,7 +285,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
         };
 
         getSearchKeyRange.run();
-        long a = tm.save();
+        long a = saveTree();
         getSearchKeyRange.run();
         reopen();
         getSearchKeyRange.setTree(openTree(a, true));
@@ -321,7 +321,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
         };
 
         getSearchKeyRange.run();
-        long a = tm.save();
+        long a = saveTree();
         getSearchKeyRange.run();
         reopen();
         getSearchKeyRange.setTree(openTree(a, true));
@@ -354,7 +354,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
         };
 
         getSearchKeyRange.run();
-        long a = tm.save();
+        long a = saveTree();
         getSearchKeyRange.run();
         reopen();
         getSearchKeyRange.setTree(openTree(a, true));
@@ -400,7 +400,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
         };
 
         getSearchBothRange.run();
-        long a = tm.save();
+        long a = saveTree();
         getSearchBothRange.run();
         reopen();
         getSearchBothRange.setTree(openTree(a, true));
@@ -439,7 +439,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
         };
 
         getSearchBothRange.run();
-        long a = tm.save();
+        long a = saveTree();
         getSearchBothRange.run();
         reopen();
         getSearchBothRange.setTree(openTree(a, true));
@@ -470,7 +470,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
         };
 
         getSearchKeyRange.run();
-        long a = tm.save();
+        long a = saveTree();
         getSearchKeyRange.run();
         reopen();
         getSearchKeyRange.setTree(openTree(a, true));
@@ -496,7 +496,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
         };
 
         getPrev.run();
-        long a = tm.save();
+        long a = saveTree();
         getPrev.run();
         reopen();
         getPrev.setTree(openTree(a, true));
@@ -532,7 +532,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
         };
 
         getPrev.run();
-        long a = tm.save();
+        long a = saveTree();
         getPrev.run();
         reopen();
         getPrev.setTree(openTree(a, true));

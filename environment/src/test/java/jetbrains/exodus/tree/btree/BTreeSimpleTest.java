@@ -34,7 +34,7 @@ public class BTreeSimpleTest extends BTreeTestBase {
 
         checkEmptyTree(tm);
 
-        long address = tm.save();
+        long address = saveTree();
 
         reopen();
         t = new BTree(log, address, true, 1);
@@ -64,7 +64,7 @@ public class BTreeSimpleTest extends BTreeTestBase {
         valueEquals("vadim", tm.get(key("1")));
 
         // save
-        long newRootAddress = tm.save();
+        long newRootAddress = saveTree();
         valueEquals("vadim", tm.get(key("1")));
 
         // get

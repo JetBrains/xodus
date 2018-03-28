@@ -30,7 +30,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
     public BTreeBalancePolicy policy = new BTreeBalancePolicy(10);
 
     private BTreeMutable refresh() {
-        long a = tm.save();
+        long a = saveTree();
         t = new BTree(log, policy, a, false, 1);
         tm = getTree().getMutableCopy();
         return getTreeMutable();
@@ -56,7 +56,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
             getTreeMutable().put(kv(i, "v" + i));
         }
 
-        long a = tm.save();
+        long a = saveTree();
         tm = new BTree(log, new BTreeBalancePolicy(4), a, false, 1).getMutableCopy();
 
         dump(getTreeMutable());
@@ -77,7 +77,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
             getTreeMutable().put(kv(i, "v" + i));
         }
 
-        long a = tm.save();
+        long a = saveTree();
         tm = new BTree(log, new BTreeBalancePolicy(4), a, false, 1).getMutableCopy();
 
         dump(getTreeMutable());
@@ -109,7 +109,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         }
         dump(getTreeMutable());
 
-        long a = tm.save();
+        long a = saveTree();
         tm = new BTree(log, new BTreeBalancePolicy(16), a, false, 1).getMutableCopy();
 
         for (int i = 0; i < 64; i++) {
@@ -135,7 +135,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         assertEquals(0, tm.getSize());
         assertEquals(null, tm.get(key(1)));
 
-        long a = tm.save();
+        long a = saveTree();
 
         reopen();
 
@@ -158,7 +158,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         assertEquals(0, tm.getSize());
         assertEquals(null, tm.get(key(1)));
 
-        long a = tm.save();
+        long a = saveTree();
 
         reopen();
 
@@ -296,7 +296,11 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
 
     @Test
     public void testGetNextEmpty() {
-        tm = new BTree(log, new BTreeEmpty(log, true, 1).getMutableCopy().save(), true, 1).getMutableCopy();
+        BTreeMutable copy = new BTreeEmpty(log, true, 1).getMutableCopy();
+        log.beginWrite();
+        long address = copy.save();
+        log.endWrite();
+        tm = new BTree(log, address, true, 1).getMutableCopy();
         assertTrue(tm.isEmpty());
         assertEquals(0, tm.getSize());
         assertFalse(tm.openCursor().getNext());
@@ -318,7 +322,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
             assertEquals(5000 - i - 1, tm.getSize());
 /*
             if (i % 100 == 0) {
-                long a = tm.save();
+                long a = saveTree();
                 tm = (BTreeMutable) new BTree(log, a, true).getMutableCopy();
                 //c = tm.openCursor();
             }
@@ -327,7 +331,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
             i++;
         }
 
-        long a = tm.save();
+        long a = saveTree();
         tm = new BTree(log, a, true, 1).getMutableCopy();
 
         assertTrue(tm.isEmpty());
@@ -341,7 +345,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
             getTreeMutable().put(kv(i, "v" + i));
         }
 
-        long a = tm.save();
+        long a = saveTree();
 
         tm = new BTree(log, a, true, 1).getMutableCopy();
     }

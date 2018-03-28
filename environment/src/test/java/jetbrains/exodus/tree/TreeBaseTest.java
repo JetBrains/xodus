@@ -263,6 +263,13 @@ public abstract class TreeBaseTest {
         };
     }
 
+    public long saveTree() {
+        log.beginWrite();
+        long result = tm.save();
+        log.endWrite();
+        return result;
+    }
+
     public void dump(ITree t) {
         /*t.dump(System.out, new INode.ToString() {
             @Override

@@ -38,7 +38,7 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
         assertEquals(0, tm.getSize());
         assertEquals(null, tm.get(key(1)));
 
-        long a = tm.save();
+        long a = saveTree();
         reopen();
         t = openTree(a, false);
 
@@ -54,7 +54,7 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
         tm.put(key("11"), value("11"));
         tm.put(key("111"), value("111"));
 
-        long a = tm.save();
+        long a = saveTree();
         reopen();
         t = openTree(a, false);
 
@@ -70,7 +70,7 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
         assertEquals(1, tm.getSize());
         assertEquals(null, tm.get(key("11")));
 
-        a = tm.save();
+        a = saveTree();
         reopen();
         t = openTree(a, false);
 
@@ -92,7 +92,7 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
 
         assertEquals(5, tm.getSize());
 
-        long a = tm.save();
+        long a = saveTree();
         tm = openTree(a, false).getMutableCopy();
 
         System.out.println("Orig-----------------------");
@@ -108,7 +108,7 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
         dump(getTreeMutable());
         writeItems(tm);
 
-        a = tm.save();
+        a = saveTree();
 
         assertEquals(2, tm.getSize());
         System.out.println("After delete and save-----------------------");
@@ -132,7 +132,7 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
         writeItems(tm);
 
         assertEquals(0, tm.getSize());
-        a = tm.save();
+        a = saveTree();
         t = openTree(a, false);
 
         assertTrue(t.isEmpty());
@@ -159,7 +159,7 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
         assertEquals(0, tm.getSize());
         assertEquals(null, tm.get(key(1)));
 
-        long a = tm.save();
+        long a = saveTree();
         reopen();
         t = openTree(a, false);
 
@@ -194,7 +194,7 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
         assertEquals(0, tm.getSize());
         assertEquals(null, tm.get(key(1)));
 
-        long a = tm.save();
+        long a = saveTree();
         reopen();
         t = openTree(a, false);
 
@@ -223,7 +223,7 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
             }
         });
 
-        long address = tm.save();
+        long address = saveTree();
         reopen();
         t = openTree(address, false);
 
@@ -238,7 +238,7 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
             }
         });
 
-        address = tm.save();
+        address = saveTree();
         reopen();
         t = openTree(address, false);
 

@@ -61,7 +61,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
             }
         };
         check(tm, getNext);
-        long a = getTreeMutable().save();
+        long a = saveTree();
         check(tm, getNext);
         reopen();
         t = openTree(a, false);
@@ -82,7 +82,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
         assertEquals(value("v5"), c.getSearchKey(key(5)));
         assertFalse(c.getNext());
 
-        long a = getTreeMutable().save();
+        long a = saveTree();
         c = getTreeMutable().openCursor();
         assertEquals(value("v5"), c.getSearchKey(key(5)));
         assertFalse(c.getNext());
@@ -116,7 +116,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
             }
         };
         check(tm, getNext);
-        long a = getTreeMutable().save();
+        long a = saveTree();
         check(tm, getNext);
         reopen();
         t = openTree(a, true);
@@ -132,7 +132,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
             }
         };
         check(tm, getNextNoDup);
-        long a = getTreeMutable().save();
+        long a = saveTree();
         check(tm, getNextNoDup);
         reopen();
         t = openTree(a, true);
@@ -169,7 +169,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     public void testGetSearchBoth2() throws IOException {
         tm = createMutableTree(false, 1);
         tm.put(kv("1", "2"));
-        final long address = tm.save();
+        final long address = saveTree();
         final ITreeCursor cursor = openTree(address, false).openCursor();
         assertFalse(cursor.getSearchBoth(key("1"), value("1")));
     }
@@ -300,7 +300,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
                 return c.getPrev();
             }
         };
-        long a = getTreeMutable().save();
+        long a = saveTree();
         reopen();
         t = openTree(a, false);
         check(t, getPrev);
@@ -376,7 +376,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
             tm.put(key(key), value);
             keys.add(key);
         }
-        /*final long address = tm.save();
+        /*final long address = saveTree();
         reopen();
         final ITree t = openTree(address, false);*/
         testCursorOrder(keys);

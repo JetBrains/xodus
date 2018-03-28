@@ -29,7 +29,7 @@ public class PatriciaReclaimTest extends PatriciaTestBase {
         tm.put(kv("aabc", "aabc"));
         tm.put(kv("aac", "aac"));
         tm.put(kv("aacd", "aacd"));
-        final long a = tm.save();
+        final long a = saveTree();
         t = openTree(a, false);
         tm = t.getMutableCopy();
         final Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(0);
@@ -43,14 +43,14 @@ public class PatriciaReclaimTest extends PatriciaTestBase {
         tm.put(kv("aaa", "0"));
         tm.put(kv("abbaa", "1"));
         tm.put(kv("aca", "3")); // should be reclaimed
-        long a = tm.save();
+        long a = saveTree();
         t = openTree(a, false);
         tm = t.getMutableCopy();
         tm.delete(key("abbaa"));
         tm.put(kv("abbab", "2"));
         tm.put(kv("abbba", "5"));
         assertMatches(tm, RM("a", N('a', "a", "0"), NM('b', "b", NM('a', "b", "2"), NM('b', "a", "5")), N('c', "a", "3")));
-        a = tm.save();
+        a = saveTree();
         t = openTree(a, false);
         tm = t.getMutableCopy();
         final Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(0);
@@ -63,13 +63,13 @@ public class PatriciaReclaimTest extends PatriciaTestBase {
         tm = createMutableTree(false, 1);
         tm.put(kv("aaab", "aaab"));
         tm.put(kv("aaac", "aaac"));
-        long a = tm.save();
+        long a = saveTree();
         t = openTree(a, false);
         tm = t.getMutableCopy();
         assertMatches(tm, RM("aaa", N('b', "", "aaab"), N('c', "", "aaac")));
         tm.put(kv("aabb", "aabb"));
         long secondAddress = a + log.read(a).length();
-        a = tm.save();
+        a = saveTree();
         t = openTree(a, false);
         tm = t.getMutableCopy();
         Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(0);

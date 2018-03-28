@@ -28,8 +28,10 @@ public class BTreeStructureIdTest extends BTreeTestBase {
     public void testStructureIdSaveEmpty() {
         BTreeMutable firstTree = new BTreeEmpty(log, false, 1).getMutableCopy();
         BTreeMutable secondTree = new BTreeEmpty(log, false, 2).getMutableCopy();
+        log.beginWrite();
         long first = firstTree.save();
         long second = secondTree.save();
+        log.endWrite();
         assertContains(1, first);
         assertContains(2, second);
         assertStructureIdNotEqual(first, second);
@@ -45,8 +47,10 @@ public class BTreeStructureIdTest extends BTreeTestBase {
         }
         checkTree(firstTree, 100).run();
         checkTree(secondTree, 100).run();
+        log.beginWrite();
         long first = firstTree.save();
         long second = secondTree.save();
+        log.endWrite();
         assertContains(42, first);
         assertContains(142, second);
         assertStructureIdNotEqual(first, second);
@@ -62,8 +66,10 @@ public class BTreeStructureIdTest extends BTreeTestBase {
                 secondTree.put(kv(i, duplicate("v", j)));
             }
         }
+        log.beginWrite();
         long first = firstTree.save();
         long second = secondTree.save();
+        log.endWrite();
         assertContains(42, first);
         assertContains(142, second);
         assertStructureIdNotEqual(first, second);
@@ -79,8 +85,10 @@ public class BTreeStructureIdTest extends BTreeTestBase {
         }
         checkTree(firstTree, 100).run();
         checkTree(secondTree, 100).run();
+        log.beginWrite();
         long first = firstTree.save();
         long second = secondTree.save();
+        log.endWrite();
         assertContains(42, first);
         assertContains(142, second);
         assertStructureIdNotEqual(first, second);
@@ -92,8 +100,10 @@ public class BTreeStructureIdTest extends BTreeTestBase {
         }
         checkTree(firstTree, "vvv", 100).run();
         checkTree(secondTree, "vvv", 100).run();
+        log.beginWrite();
         first = firstTree.save();
         second = secondTree.save();
+        log.endWrite();
         assertContains(42, first);
         assertContains(142, second);
         assertStructureIdNotEqual(first, second);
