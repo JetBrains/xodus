@@ -83,6 +83,7 @@ public class LogTests extends LogTestsBase {
             getLog().write(NullLoggable.create());
         }
         getLog().flush();
+        log.forgetFiles(new long[]{0, 1024, 8192, 32768});
         getLog().endWrite();
         getLog().removeFile(0);
         getLog().removeFile(1024);
@@ -132,7 +133,7 @@ public class LogTests extends LogTestsBase {
         for (int i = 0; i < 100; ++i) {
             getLog().write(DUMMY_LOGGABLE);
             getLog().padWithNulls();
-            Assert.assertEquals(i + 1, (int) getLog().getNumberOfFiles());
+            Assert.assertEquals(i + 1, getLog().ensureWriter().getFileSetMutable().size());
         }
         getLog().endWrite();
     }

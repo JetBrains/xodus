@@ -47,7 +47,9 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
         Assert.assertEquals(2, log.getNumberOfFiles());
         createStore("corrupted", 160);
         Assert.assertEquals(4, log.getNumberOfFiles());
-        log.removeFile(2 * log.getFileSize() * LogUtil.LOG_BLOCK_ALIGNMENT);
+        final long fileAddress = 2 * log.getFileSize() * LogUtil.LOG_BLOCK_ALIGNMENT;
+        log.forgetFile(fileAddress);
+        log.removeFile(fileAddress);
         final StoreImpl store = openStoreAutoCommit("store");
         final Iterator<RandomAccessLoggable> itr = log.getLoggableIterator(startAddress);
         final TransactionBase txn = env.beginTransaction();

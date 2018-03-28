@@ -700,6 +700,20 @@ public final class Log implements Closeable {
     }
 
     // for tests only
+    public void forgetFile(long address) {
+        beginWrite();
+        forgetFiles(new long[]{address});
+        endWrite();
+    }
+
+    public void forgetFiles(long[] files) {
+        LogFileSetMutable fileSetMutable = ensureWriter().getFileSetMutable();
+        for (long file : files) {
+            fileSetMutable.remove(file);
+        }
+    }
+
+    // for tests only
     public void removeFile(final long address) {
         removeFile(address, RemoveBlockType.Delete, null);
     }
@@ -722,8 +736,6 @@ public final class Log implements Closeable {
             // remove address of file of the list
             if (logFileSetMutable != null) {
                 logFileSetMutable.remove(address);
-            } else {
-                // TODO
             }
             // clear cache
             for (long offset = 0; offset < fileLengthBound; offset += cachePageSize) {

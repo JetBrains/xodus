@@ -25,6 +25,7 @@ import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.env.management.EnvironmentConfigWithOperations;
 import jetbrains.exodus.gc.GarbageCollector;
 import jetbrains.exodus.gc.UtilizationProfile;
+import jetbrains.exodus.io.RemoveBlockType;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.TreeMetaInfo;
 import jetbrains.exodus.tree.btree.BTree;
@@ -513,6 +514,22 @@ public class EnvironmentImpl implements Environment {
             if (isOpen()) {
                 getLog().sync();
             }
+        }
+    }
+
+    public void removeFiles(final long[] files, @NotNull final RemoveBlockType rbt) {
+        synchronized (commitLock) {
+            log.beginWrite();
+            try {
+                log.forgetFiles(files);
+                log.endWrite();
+            } catch (Throwable t) { // pokemon exception handling to decrease try/catch block overhead
+                log.abortWrite();
+                loggerError("Failed to flush transaction", t);
+            }
+        }
+        for (long file : files) {
+            log.removeFile(file, rbt);
         }
     }
 

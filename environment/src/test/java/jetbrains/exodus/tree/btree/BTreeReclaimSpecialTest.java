@@ -39,9 +39,11 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
     @Test
     public void testStartAddress() {
         final long fileSize = log.getFileSize() * LogUtil.LOG_BLOCK_ALIGNMENT;
+        log.beginWrite();
         for (long l = 1; l < fileSize; ++l) { // fill all file except for one byte with nulls
             log.write(NullLoggable.create());
         }
+        log.endWrite();
         Assert.assertEquals(1, log.getNumberOfFiles());
         Assert.assertTrue(log.getHighAddress() < fileSize);
         tm = new BTreeEmpty(log, true, 1).getMutableCopy();
@@ -49,17 +51,30 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
         for (int i = 0; i <= COUNT; i++) {
             tm.put(key, v(i));
         }
-        reloadMutableTree(tm.save());
+        log.beginWrite();
+        long saved = tm.save();
+        log.endWrite();
+        reloadMutableTree(saved);
         Assert.assertEquals(4, log.getNumberOfFiles());
-        log.removeFile(0); // emulate gc of first file
+        final long address = 0L;
+        log.forgetFile(address);
+        log.removeFile(address); // emulate gc of first file
         Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(log.getFileAddress(fileSize * 2));
         tm.reclaim(loggables.next(), loggables); // reclaim third file
-        reloadMutableTree(tm.save());
+        log.beginWrite();
+        saved = tm.save();
+        log.endWrite();
+        reloadMutableTree(saved);
+        log.forgetFile(fileSize * 2);
         log.removeFile(fileSize * 2); // remove reclaimed file
         loggables = log.getLoggableIterator(log.getFileAddress(fileSize));
         tm.reclaim(loggables.next(), loggables); // reclaim second file
-        reloadMutableTree(tm.save());
+        log.beginWrite();
+        saved = tm.save();
+        log.endWrite();
+        reloadMutableTree(saved);
         Assert.assertTrue(log.getNumberOfFiles() > 2); // make sure that some files were added
+        log.forgetFile(fileSize);
         log.removeFile(fileSize); // remove reclaimed file
         try (ITreeCursor cursor = tm.openCursor()) {
             Assert.assertTrue(cursor.getNext()); // access minimum key
@@ -71,11 +86,15 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
         tm = new BTreeEmpty(log, true, 1).getMutableCopy();
         tm.put(key("k"), value("v0"));
         tm.put(key("k"), value("v1"));
+        log.beginWrite();
         long firstAddress = tm.save();
+        log.endWrite();
         reloadMutableTree(firstAddress);
         tm.put(key("k"), value("v2"));
         tm.put(key("k"), value("v3"));
+        log.beginWrite();
         tm.save();
+        log.endWrite();
         Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(0);
         tm.reclaim(loggables.next(), loggables);
         loggables = log.getLoggableIterator(firstAddress);

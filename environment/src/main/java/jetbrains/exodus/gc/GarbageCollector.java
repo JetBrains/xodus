@@ -184,9 +184,8 @@ public final class GarbageCollector {
             // in order to avoid data loss, it's necessary to make sure that any GC transaction is flushed
             // to underlying storage device before any file is deleted
             env.flushAndSync();
-            for (final long file : filesToDelete.toArray()) {
-                removeFile(file);
-            }
+            RemoveBlockType rbt = ec.getGcRenameFiles() ? RemoveBlockType.Rename : RemoveBlockType.Delete;
+            env.removeFiles(filesToDelete.toArray(), rbt);
         }
     }
 
@@ -241,9 +240,11 @@ public final class GarbageCollector {
     void testDeletePendingFiles() {
         final long[] files = pendingFilesToDelete.toLongArray();
         boolean aFileWasDeleted = false;
+        long[] currentFile = new long[1];
         for (final long file : files) {
             utilizationProfile.removeFile(file);
-            getLog().removeFile(file, ec.getGcRenameFiles() ? RemoveBlockType.Rename : RemoveBlockType.Delete);
+            currentFile[0] = file;
+            env.removeFiles(currentFile, ec.getGcRenameFiles() ? RemoveBlockType.Rename : RemoveBlockType.Delete);
             aFileWasDeleted = true;
         }
         if (aFileWasDeleted) {
@@ -388,9 +389,5 @@ public final class GarbageCollector {
             logger.error("cleanFile(" + LogUtil.getLogFilename(fileAddress) + ')', e);
             throw e;
         }
-    }
-
-    private void removeFile(final long file) {
-        getLog().removeFile(file, ec.getGcRenameFiles() ? RemoveBlockType.Rename : RemoveBlockType.Delete);
     }
 }
