@@ -85,7 +85,11 @@ final class BTreeDupMutable extends BTreeMutable {
         }
         if (NullLoggable.isNullLoggable(log.getWrittenLoggableType(startAddress))) {
             final long lengthBound = log.getFileLengthBound();
-            startAddress += (lengthBound - startAddress % lengthBound);
+            final long alignment = startAddress % lengthBound;
+            startAddress += (lengthBound - alignment);
+            if (log.getWrittenHighAddress() < startAddress) {
+                throw new IllegalStateException("Address alignment underflow: start address " + startAddress + ", alignment " + alignment);
+            }
         }
         sizeIterable = CompressedUnsignedLongByteIterable.getIterable((size << 1) + 1);
         final ByteIterable offsetIterable =
