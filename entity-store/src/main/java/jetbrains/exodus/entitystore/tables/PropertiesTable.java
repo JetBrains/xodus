@@ -37,8 +37,6 @@ public final class PropertiesTable extends Table {
 
     @NonNls
     private static final String PROP_VALUE_IDX = "#value_idx";
-    @NonNls
-    private static final String ALL_PROPS_IDX = "#all_idx";
 
     @NotNull
     private final PersistentEntityStoreImpl store;
@@ -53,7 +51,7 @@ public final class PropertiesTable extends Table {
         final Transaction envTxn = txn.getEnvironmentTransaction();
         final Environment env = store.getEnvironment();
         primaryStore = env.openStore(name, primaryConfig, envTxn);
-        allPropsIndex = env.openStore(name + ALL_PROPS_IDX, StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, envTxn);
+        allPropsIndex = env.openStore(name + ALL_IDX, StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, envTxn);
         store.trackTableCreation(primaryStore, txn);
         store.trackTableCreation(allPropsIndex, txn);
         valueIndexes = new IntHashMap<>();

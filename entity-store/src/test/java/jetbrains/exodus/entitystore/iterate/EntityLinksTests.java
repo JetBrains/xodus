@@ -271,8 +271,7 @@ public class EntityLinksTests extends EntityStoreTestBase {
         testAddAndIterateLinks();
         final StoreTransaction txn = getStoreTransaction();
         Assert.assertEquals(0, (int) txn.findWithLinks("Issue", "issue").size());
-        Assert.assertEquals(10, (int) txn.findWithLinks("Issue", "comment").size());
-        Assert.assertEquals(1, (int) txn.findWithLinks("Issue", "comment").distinct().size());
+        Assert.assertEquals(1, (int) txn.findWithLinks("Issue", "comment").size());
     }
 
     public void testFindWithLinks2() throws Exception {
