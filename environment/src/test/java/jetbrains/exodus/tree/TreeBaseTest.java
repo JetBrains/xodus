@@ -266,6 +266,7 @@ public abstract class TreeBaseTest {
     public long saveTree() {
         log.beginWrite();
         long result = tm.save();
+        log.flush();
         log.endWrite();
         return result;
     }

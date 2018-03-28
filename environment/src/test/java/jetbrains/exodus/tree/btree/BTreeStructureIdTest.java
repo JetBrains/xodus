@@ -31,6 +31,7 @@ public class BTreeStructureIdTest extends BTreeTestBase {
         log.beginWrite();
         long first = firstTree.save();
         long second = secondTree.save();
+        log.flush();
         log.endWrite();
         assertContains(1, first);
         assertContains(2, second);
@@ -50,6 +51,7 @@ public class BTreeStructureIdTest extends BTreeTestBase {
         log.beginWrite();
         long first = firstTree.save();
         long second = secondTree.save();
+        log.flush();
         log.endWrite();
         assertContains(42, first);
         assertContains(142, second);
@@ -69,6 +71,7 @@ public class BTreeStructureIdTest extends BTreeTestBase {
         log.beginWrite();
         long first = firstTree.save();
         long second = secondTree.save();
+        log.flush();
         log.endWrite();
         assertContains(42, first);
         assertContains(142, second);
@@ -88,6 +91,7 @@ public class BTreeStructureIdTest extends BTreeTestBase {
         log.beginWrite();
         long first = firstTree.save();
         long second = secondTree.save();
+        log.flush();
         log.endWrite();
         assertContains(42, first);
         assertContains(142, second);
@@ -103,6 +107,7 @@ public class BTreeStructureIdTest extends BTreeTestBase {
         log.beginWrite();
         first = firstTree.save();
         second = secondTree.save();
+        log.flush();
         log.endWrite();
         assertContains(42, first);
         assertContains(142, second);

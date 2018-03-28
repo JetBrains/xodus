@@ -50,9 +50,7 @@ public class BTreeSpecificCursorDuplicatesTest extends BTreeTestBase {
         };
 
         getDups.run();
-        log.beginWrite();
-        long a = getTreeMutable().save();
-        log.endWrite();
+        long a = saveTree();
         getDups.run();
         reopen();
         getDups.setTree(openTree(a, true));

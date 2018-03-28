@@ -299,6 +299,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         BTreeMutable copy = new BTreeEmpty(log, true, 1).getMutableCopy();
         log.beginWrite();
         long address = copy.save();
+        log.flush();
         log.endWrite();
         tm = new BTree(log, address, true, 1).getMutableCopy();
         assertTrue(tm.isEmpty());

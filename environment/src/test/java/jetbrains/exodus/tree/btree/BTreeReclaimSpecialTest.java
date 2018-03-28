@@ -43,6 +43,7 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
         for (long l = 1; l < fileSize; ++l) { // fill all file except for one byte with nulls
             log.write(NullLoggable.create());
         }
+        log.flush();
         log.endWrite();
         Assert.assertEquals(1, log.getNumberOfFiles());
         Assert.assertTrue(log.getHighAddress() < fileSize);
@@ -51,9 +52,7 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
         for (int i = 0; i <= COUNT; i++) {
             tm.put(key, v(i));
         }
-        log.beginWrite();
         long saved = saveTree();
-        log.endWrite();
         reloadMutableTree(saved);
         Assert.assertEquals(4, log.getNumberOfFiles());
         final long address = 0L;
@@ -61,17 +60,13 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
         log.removeFile(address); // emulate gc of first file
         Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(log.getFileAddress(fileSize * 2));
         tm.reclaim(loggables.next(), loggables); // reclaim third file
-        log.beginWrite();
         saved = saveTree();
-        log.endWrite();
         reloadMutableTree(saved);
         log.forgetFile(fileSize * 2);
         log.removeFile(fileSize * 2); // remove reclaimed file
         loggables = log.getLoggableIterator(log.getFileAddress(fileSize));
         tm.reclaim(loggables.next(), loggables); // reclaim second file
-        log.beginWrite();
         saved = saveTree();
-        log.endWrite();
         reloadMutableTree(saved);
         Assert.assertTrue(log.getNumberOfFiles() > 2); // make sure that some files were added
         log.forgetFile(fileSize);
@@ -86,15 +81,11 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
         tm = new BTreeEmpty(log, true, 1).getMutableCopy();
         tm.put(key("k"), value("v0"));
         tm.put(key("k"), value("v1"));
-        log.beginWrite();
         long firstAddress = saveTree();
-        log.endWrite();
         reloadMutableTree(firstAddress);
         tm.put(key("k"), value("v2"));
         tm.put(key("k"), value("v3"));
-        log.beginWrite();
         saveTree();
-        log.endWrite();
         Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(0);
         tm.reclaim(loggables.next(), loggables);
         loggables = log.getLoggableIterator(firstAddress);
