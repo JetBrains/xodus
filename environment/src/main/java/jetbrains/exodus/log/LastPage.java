@@ -16,11 +16,16 @@ public class LastPage {
 
     // empty
     LastPage(final long fileSize) {
+        this(fileSize, 0, 0);
+    }
+
+    // fake page for closed log "residual state" info
+    LastPage(final long fileSize, final long pageAddress, final long highAddress) {
         this.bytes = new byte[0];
-        this.pageAddress = 0;
+        this.pageAddress = pageAddress;
         this.count = -1;
-        this.highAddress = this.approvedHighAddress = 0;
-        this.logFileSet = new LogFileSetImmutable(fileSize);
+        this.highAddress = this.approvedHighAddress = highAddress;
+        this.logFileSet = new LogFileSetImmutable(fileSize); // no files
     }
 
     // non-empty

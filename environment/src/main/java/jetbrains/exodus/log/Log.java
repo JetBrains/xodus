@@ -253,6 +253,7 @@ public final class Log implements Closeable {
             throw new ExodusException("Only can decrease high address");
         }
         if (highAddress == lastPageContent.highAddress) {
+            this.bufferedWriter = null; // just abort a potential write in progress
             return lastPageContent;
         }
 
@@ -289,32 +290,26 @@ public final class Log implements Closeable {
         final LastPage writtenLastPage;
         if (fileSetMutable.isEmpty()) {
             writtenLastPage = new LastPage(fileSize);
-            this.lastPage.set(writtenLastPage);
         } else {
-            final long oldHighPageAddress = getHighPageAddress(lastPageContent.highAddress);
+            final long oldHighPageAddress = lastPageContent.pageAddress;
             long approvedHighAddress = lastPageContent.approvedHighAddress;
             if (highAddress < approvedHighAddress) {
                 approvedHighAddress = highAddress;
             }
             final long highPageAddress = getHighPageAddress(highAddress);
             final LogFileSetImmutable fileSetImmutable = fileSetMutable.endWrite();
-            if (oldHighPageAddress != highPageAddress) {
-                final LastPage updated = tryAndUpdateLastPage(lastPageContent, highAddress, approvedHighAddress, fileSetImmutable);
-                if (updated == null) {
-                    final int highPageSize = (int) (highAddress - highPageAddress);
-                    final byte[] highPageContent = new byte[cachePageSize];
-                    if (highPageSize > 0 && readBytes(highPageContent, highPageAddress) < highPageSize) {
-                        throw new ExodusException("Can't read expected high page bytes");
-                    }
-                    writtenLastPage = new LastPage(highPageContent, highPageAddress, highPageSize, highAddress, approvedHighAddress, fileSetImmutable);
-                    this.lastPage.set(writtenLastPage);
-                } else {
-                    writtenLastPage = updated;
-                }
+            final int highPageSize = (int) (highAddress - highPageAddress);
+            if (oldHighPageAddress == highPageAddress) {
+                writtenLastPage = lastPageContent.withResize(highPageSize, highAddress, approvedHighAddress, fileSetImmutable);
             } else {
-                writtenLastPage = lastPageContent;
+                final byte[] highPageContent = new byte[cachePageSize];
+                if (highPageSize > 0 && readBytes(highPageContent, highPageAddress) < highPageSize) {
+                    throw new ExodusException("Can't read expected high page bytes");
+                }
+                writtenLastPage = new LastPage(highPageContent, highPageAddress, highPageSize, highAddress, approvedHighAddress, fileSetImmutable);
             }
         }
+        this.lastPage.set(writtenLastPage);
         this.bufferedWriter = null;
         return writtenLastPage;
     }
@@ -324,16 +319,6 @@ public final class Log implements Closeable {
             throw new IllegalStateException("Can't close uncommitted writer");
         }
         baseWriter.close();
-    }
-
-    private LastPage tryAndUpdateLastPage(LastPage pageContent, long highAddress, long approvedHighAddress, LogFileSetImmutable fileSet) {
-        int count = (int) (highAddress - pageContent.pageAddress);
-        if (count < 0 || count > cachePageSize) {
-            return null;
-        }
-        final LastPage result = pageContent.withResize(count, highAddress, approvedHighAddress, fileSet);
-        lastPage.set(result);
-        return result;
     }
 
     public long beginWrite() {
@@ -692,7 +677,8 @@ public final class Log implements Closeable {
         sync();
         reader.close();
         closeWriter();
-        lastPage.set(new LastPage(fileSize));
+        final LastPage page = this.lastPage.get();
+        lastPage.set(new LastPage(fileSize, page.pageAddress, page.highAddress));
         release();
     }
 
