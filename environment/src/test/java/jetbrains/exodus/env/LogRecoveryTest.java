@@ -107,7 +107,7 @@ public class LogRecoveryTest extends EnvironmentTestsBase {
         final LogConfig config = LogConfig.create(reader, writer).
             setCipherProvider(cipherProvider).setCipherKey(cipherKey).setCipherBasicIV(cipherBasicIV);
         final Log newLog = Environments.newLogInstance(config);
-        newLog.setHighAddress(newLog.getTip(), newLog.getApprovedHighAddress());
+        newLog.setHighAddress(newLog.getTip(), newLog.getTip().approvedHighAddress);
         assertLoggableTypes(max, newLog.getLoggableIterator(0), seq);
     }
 

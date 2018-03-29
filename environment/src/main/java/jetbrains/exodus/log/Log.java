@@ -228,7 +228,7 @@ public final class Log implements Closeable {
     }
 
     public long getNumberOfFiles() {
-        return tip.get().logFileSet.size();
+        return getTip().logFileSet.size();
     }
 
     /**
@@ -237,11 +237,11 @@ public final class Log implements Closeable {
      * @return array of file addresses.
      */
     public long[] getAllFileAddresses() {
-        return tip.get().logFileSet.getArray();
+        return getTip().logFileSet.getArray();
     }
 
     public long getHighAddress() {
-        return this.tip.get().highAddress;
+        return getTip().highAddress;
     }
 
     @SuppressWarnings({"OverlyLongMethod"})
@@ -326,7 +326,7 @@ public final class Log implements Closeable {
     }
 
     public LogTip beginWrite() {
-        BufferedDataWriter writer = new BufferedDataWriter(this, baseWriter, reader, this.tip.get());
+        BufferedDataWriter writer = new BufferedDataWriter(this, baseWriter, reader, getTip());
         this.bufferedWriter = writer;
         return writer.getStartingTip();
     }
@@ -354,12 +354,8 @@ public final class Log implements Closeable {
         }
     }
 
-    public long getApprovedHighAddress() {
-        return tip.get().approvedHighAddress;
-    }
-
     public long getLowAddress() {
-        final Long result = tip.get().logFileSet.getMinimum();
+        final Long result = getTip().logFileSet.getMinimum();
         return result == null ? Loggable.NULL_ADDRESS : result;
     }
 
@@ -372,7 +368,7 @@ public final class Log implements Closeable {
     }
 
     public long getNextFileAddress(final long fileAddress) {
-        final LongIterator files = tip.get().logFileSet.getFilesFrom(fileAddress);
+        final LongIterator files = getTip().logFileSet.getFilesFrom(fileAddress);
         if (files.hasNext()) {
             final long result = files.nextLong();
             if (result != fileAddress) {
@@ -385,8 +381,8 @@ public final class Log implements Closeable {
         return Loggable.NULL_ADDRESS;
     }
 
-    public boolean isLastFileAddress(final long address) {
-        return getFileAddress(address) == getHighFileAddress();
+    public boolean isLastFileAddress(final long address, final LogTip logTip) {
+        return getFileAddress(address) == getFileAddress(logTip.highAddress);
     }
 
     public boolean isLastWrittenFileAddress(final long address) {
@@ -395,32 +391,38 @@ public final class Log implements Closeable {
 
     public boolean hasAddress(final long address) {
         final long fileAddress = getFileAddress(address);
-        final LongIterator files = tip.get().logFileSet.getFilesFrom(fileAddress);
+        final LogTip logTip = getTip();
+        final LongIterator files = logTip.logFileSet.getFilesFrom(fileAddress);
         if (!files.hasNext()) {
             return false;
         }
         final long leftBound = files.nextLong();
-        return leftBound == fileAddress && leftBound + getFileSize(leftBound) > address;
+        return leftBound == fileAddress && leftBound + getFileSize(leftBound, logTip) > address;
     }
 
     public boolean hasAddressRange(final long from, final long to) {
         long fileAddress = getFileAddress(from);
-        final LongIterator files = tip.get().logFileSet.getFilesFrom(fileAddress);
+        final LogTip logTip = getTip();
+        final LongIterator files = logTip.logFileSet.getFilesFrom(fileAddress);
         do {
             if (!files.hasNext() || files.nextLong() != fileAddress) {
                 return false;
             }
-            fileAddress += getFileSize(fileAddress);
+            fileAddress += getFileSize(fileAddress, logTip);
         } while (fileAddress > from && fileAddress <= to);
         return true;
     }
 
-    public long getFileSize(long fileAddress) {
+    public long getFileSize(final long fileAddress) {
+        return getFileSize(fileAddress, getTip());
+    }
+
+    public long getFileSize(final long fileAddress, final LogTip logTip) {
         // readonly files (not last ones) all have the same size
-        if (!isLastFileAddress(fileAddress)) {
+        if (!isLastFileAddress(fileAddress, logTip)) {
             return fileLengthBound;
         }
-        final long highAddress = getHighAddress();
+        final long highAddress = logTip.highAddress;
         final long result = highAddress % fileLengthBound;
         if (result == 0 && highAddress != fileAddress) {
             return fileLengthBound;
@@ -429,7 +431,7 @@ public final class Log implements Closeable {
     }
 
     byte[] getHighPage(long alignedAddress) {
-        final LogTip tip = this.tip.get();
+        final LogTip tip = getTip();
         if (tip.pageAddress == alignedAddress && tip.count >= 0) {
             return tip.bytes;
         }
@@ -571,8 +573,9 @@ public final class Log implements Closeable {
      */
     @Nullable
     public Loggable getFirstLoggableOfType(final int type) {
-        final LongIterator files = tip.get().logFileSet.getFilesFrom(0);
-        final long approvedHighAddress = getApprovedHighAddress();
+        final LogTip logTip = getTip();
+        final LongIterator files = logTip.logFileSet.getFilesFrom(0);
+        final long approvedHighAddress = logTip.approvedHighAddress;
         while (files.hasNext()) {
             final long fileAddress = files.nextLong();
             final Iterator<RandomAccessLoggable> it = getLoggableIterator(fileAddress);
@@ -601,8 +604,9 @@ public final class Log implements Closeable {
     @Nullable
     public Loggable getLastLoggableOfType(final int type) {
         Loggable result = null;
-        final long approvedHighAddress = getApprovedHighAddress();
-        for (final long fileAddress : tip.get().logFileSet.getArray()) {
+        final LogTip logTip = getTip();
+        final long approvedHighAddress = logTip.approvedHighAddress;
+        for (final long fileAddress : logTip.logFileSet.getArray()) {
             if (result != null) {
                 break;
             }
@@ -629,9 +633,9 @@ public final class Log implements Closeable {
      * @param type type of loggable.
      * @return loggable or null if it doesn't exists.
      */
-    public Loggable getLastLoggableOfTypeBefore(final int type, final long beforeAddress) {
+    public Loggable getLastLoggableOfTypeBefore(final int type, final long beforeAddress, final LogTip logTip) {
         Loggable result = null;
-        for (final long fileAddress : tip.get().logFileSet.getArray()) {
+        for (final long fileAddress : logTip.logFileSet.getArray()) {
             if (result != null) {
                 break;
             }
@@ -657,7 +661,7 @@ public final class Log implements Closeable {
     }
 
     public boolean isImmutableFile(final long fileAddress) {
-        return fileAddress + fileLengthBound <= getApprovedHighAddress();
+        return fileAddress + fileLengthBound <= getTip().approvedHighAddress;
     }
 
     public void flush() {
@@ -681,7 +685,7 @@ public final class Log implements Closeable {
 
     @Override
     public void close() {
-        final LogTip logTip = this.tip.get();
+        final LogTip logTip = getTip();
         isClosing = true;
         sync();
         reader.close();
@@ -699,7 +703,7 @@ public final class Log implements Closeable {
     }
 
     public LogTip clear() {
-        final LogTip logTip = this.tip.get();
+        final LogTip logTip = getTip();
         closeWriter();
         cache.clear();
         reader.clear();
@@ -828,10 +832,11 @@ public final class Log implements Closeable {
     @SuppressWarnings("ConstantConditions")
     int readBytes(final byte[] output, final long address) {
         final long fileAddress = getFileAddress(address);
-        final LongIterator files = tip.get().logFileSet.getFilesFrom(fileAddress);
+        final LogTip logTip = getTip();
+        final LongIterator files = logTip.logFileSet.getFilesFrom(fileAddress);
         if (files.hasNext()) {
             final long leftBound = files.nextLong();
-            final long fileSize = getFileSize(leftBound);
+            final long fileSize = getFileSize(leftBound, logTip);
             if (leftBound == fileAddress && fileAddress + fileSize > address) {
                 final Block block = reader.getBlock(fileAddress);
                 final int readBytes = block.read(output, address - fileAddress, output.length);
@@ -843,10 +848,10 @@ public final class Log implements Closeable {
                 notifyReadBytes(output, readBytes);
                 return readBytes;
             }
-            if (fileAddress < tip.get().logFileSet.getMinimum()) {
+            if (fileAddress < logTip.logFileSet.getMinimum()) {
                 BlockNotFoundException.raise("Address is out of log space, underflow", this, address);
             }
-            if (fileAddress >= tip.get().logFileSet.getMaximum()) {
+            if (fileAddress >= logTip.logFileSet.getMaximum()) {
                 BlockNotFoundException.raise("Address is out of log space, overflow", this, address);
             }
         }

@@ -74,7 +74,7 @@ final class MetaTree {
                     }
                 }
                 // continue recovery
-                rootLoggable = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, root);
+                rootLoggable = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, root, logTip);
             }
             // "abnormal program termination", "blue screen of doom"
             // Something quite strange with the database: it is not empty, but no valid
