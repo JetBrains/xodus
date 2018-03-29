@@ -21,7 +21,6 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.core.dataStructures.Pair;
-import jetbrains.exodus.core.dataStructures.persistent.PersistentLongSet;
 import jetbrains.exodus.crypto.InvalidCipherParametersException;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.*;
@@ -41,14 +40,12 @@ final class MetaTree {
 
     final ITree tree;
     final long root;
-    final long highAddress;
-    private final PersistentLongSet.ImmutableSet fileSnapshot;
+    final LogTip logTip;
 
-    private MetaTree(final ITree tree, long root, long highAddress, PersistentLongSet.ImmutableSet fileSnapshot) {
+    private MetaTree(final ITree tree, long root, LogTip logTip) {
         this.tree = tree;
         this.root = root;
-        this.highAddress = highAddress;
-        this.fileSnapshot = fileSnapshot;
+        this.logTip = logTip;
     }
 
     static Pair<MetaTree, Integer> create(@NotNull final EnvironmentImpl env) {
@@ -61,12 +58,11 @@ final class MetaTree {
                 final long root = dbRoot.getAddress();
                 if (dbRoot.isValid()) {
                     try {
-                        final long validHighAddress = root + dbRoot.length();
-                        final LogTip updatedTip = log.setHighAddress(logTip, validHighAddress);
-                        final BTree metaTree = env.loadMetaTree(dbRoot.getRootAddress());
+                        final LogTip updatedTip = log.setHighAddress(logTip, root + dbRoot.length());
+                        final BTree metaTree = env.loadMetaTree(dbRoot.getRootAddress(), updatedTip);
                         if (metaTree != null) {
                             cloneTree(metaTree); // try to traverse meta tree
-                            return new Pair<>(new MetaTree(metaTree, root, validHighAddress, updatedTip.logFileSet.getCurrent()), dbRoot.getLastStructureId());
+                            return new Pair<>(new MetaTree(metaTree, root, updatedTip), dbRoot.getLastStructureId());
                         }
                         logTip = updatedTip;
                     } catch (ExodusException e) {
@@ -105,7 +101,7 @@ final class MetaTree {
             log.abortWrite(); // rollback log state
             throw new ExodusException("Can't init meta tree in log", t);
         }
-        return new Pair<>(new MetaTree(resultTree, root, createdTip.highAddress, createdTip.logFileSet.getCurrent()), EnvironmentImpl.META_TREE_ID);
+        return new Pair<>(new MetaTree(resultTree, root, createdTip), EnvironmentImpl.META_TREE_ID);
     }
 
     LongIterator addressIterator() {
@@ -122,8 +118,7 @@ final class MetaTree {
     }
 
     long getRootAddress(final int structureId) {
-        final ITree rememberedTree = tree;
-        final ByteIterable value = rememberedTree.get(LongBinding.longToCompressedEntry(structureId));
+        final ByteIterable value = tree.get(LongBinding.longToCompressedEntry(structureId));
         return value == null ? Loggable.NULL_ADDRESS : CompressedUnsignedLongByteIterable.getLong(value);
     }
 
@@ -209,7 +204,7 @@ final class MetaTree {
     }
 
     MetaTree getClone() {
-        return new MetaTree(cloneTree(tree), root, highAddress, fileSnapshot);
+        return new MetaTree(cloneTree(tree), root, logTip);
     }
 
     static boolean isStringKey(final ArrayByteIterable key) {
@@ -246,8 +241,8 @@ final class MetaTree {
             this.root = root;
         }
 
-        MetaTree instantiate(EnvironmentImpl env, long highAddress, PersistentLongSet.ImmutableSet fileSnapshot) {
-            return new MetaTree(env.loadMetaTree(address), root, highAddress, fileSnapshot);
+        MetaTree instantiate(EnvironmentImpl env, LogTip logTip) {
+            return new MetaTree(env.loadMetaTree(address, logTip), root, logTip);
         }
     }
 }

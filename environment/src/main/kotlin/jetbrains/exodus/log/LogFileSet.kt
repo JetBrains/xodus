@@ -49,20 +49,16 @@ internal sealed class LogFileSet(val fileSize: Long, val set: PersistentLongSet)
 
     fun contains(fileAddress: Long) = current.contains(fileAddress.addressToKey)
 
-    fun getFilesFrom(fileAddress: Long = 0L): LongIterator = getFilesFrom(current, fileAddress)
+    fun getFilesFrom(fileAddress: Long = 0L): LongIterator = object : LongIterator {
+        val it = if (fileAddress == 0L) current.longIterator() else current.tailLongIterator(fileAddress.addressToKey)
 
-    fun getFilesFrom(snapshot: PersistentLongSet.ImmutableSet, fileAddress: Long = 0L): LongIterator {
-        return object : LongIterator {
-            val it = if (fileAddress == 0L) snapshot.longIterator() else snapshot.tailLongIterator(fileAddress.addressToKey)
+        override fun next() = nextLong()
 
-            override fun next() = nextLong()
+        override fun hasNext() = it.hasNext()
 
-            override fun hasNext() = it.hasNext()
+        override fun nextLong() = it.nextLong().keyToAddress
 
-            override fun nextLong() = it.nextLong().keyToAddress
-
-            override fun remove() = throw UnsupportedOperationException()
-        }
+        override fun remove() = throw UnsupportedOperationException()
     }
 
     fun beginWrite() = Mutable(fileSize, set.clone)

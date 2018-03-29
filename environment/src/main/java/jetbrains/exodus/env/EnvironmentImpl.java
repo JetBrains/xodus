@@ -20,7 +20,6 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Pair;
-import jetbrains.exodus.core.dataStructures.persistent.PersistentLongSet;
 import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.env.management.EnvironmentConfigWithOperations;
 import jetbrains.exodus.gc.GarbageCollector;
@@ -593,8 +592,8 @@ public class EnvironmentImpl implements Environment {
      * @return tree instance or null if the address is not valid.
      */
     @Nullable
-    BTree loadMetaTree(final long rootAddress) {
-        if (rootAddress < 0 || rootAddress >= log.getHighAddress()) return null;
+    BTree loadMetaTree(final long rootAddress, final LogTip logTip) {
+        if (rootAddress < 0 || rootAddress >= logTip.highAddress) return null;
         return new BTree(log, getBTreeBalancePolicy(), rootAddress, false, META_TREE_ID) {
             @NotNull
             @Override
@@ -652,18 +651,16 @@ public class EnvironmentImpl implements Environment {
                 try {
                     final MetaTree.Proto[] tree = new MetaTree.Proto[1];
                     expiredLoggables = txn.doCommit(tree);
-                    final long highAddress = log.getWrittenHighAddress();
                     // there is a temptation to postpone I/O in order to reduce number of writes to storage device,
                     // but it's quite difficult to resolve all possible inconsistencies afterwards,
                     // so think twice before removing the following line
                     log.flush();
                     metaWriteLock.lock();
                     final LogTip updatedTip = log.endWrite();
-                    final PersistentLongSet.ImmutableSet fileSnapshot = updatedTip.logFileSet.getCurrent();
                     resultingHighAddress = updatedTip.approvedHighAddress;
                     try {
                         final MetaTree.Proto proto = tree[0];
-                        txn.setMetaTree(metaTree = proto.instantiate(this, highAddress, fileSnapshot));
+                        txn.setMetaTree(metaTree = proto.instantiate(this, updatedTip));
                         txn.executeCommitHook();
                     } finally {
                         metaWriteLock.unlock();
