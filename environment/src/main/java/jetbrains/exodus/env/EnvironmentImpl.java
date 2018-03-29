@@ -655,11 +655,11 @@ public class EnvironmentImpl implements Environment {
                     // but it's quite difficult to resolve all possible inconsistencies afterwards,
                     // so think twice before removing the following line
                     log.flush();
+                    final MetaTree.Proto proto = tree[0];
                     metaWriteLock.lock();
-                    final LogTip updatedTip = log.endWrite();
-                    resultingHighAddress = updatedTip.approvedHighAddress;
                     try {
-                        final MetaTree.Proto proto = tree[0];
+                        final LogTip updatedTip = log.endWrite();
+                        resultingHighAddress = updatedTip.approvedHighAddress;
                         txn.setMetaTree(metaTree = proto.instantiate(this, updatedTip));
                         txn.executeCommitHook();
                     } finally {
