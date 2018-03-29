@@ -272,7 +272,7 @@ public class PersistentEntity implements Entity, TxnProvider {
         if (linkId < 0) {
             return false;
         }
-        return store.deleteLink(txn, this, linkId, (PersistentEntity) target);
+        return store.deleteLinkInternal(txn, this, linkId, (PersistentEntity) target);
     }
 
     @Override
@@ -283,10 +283,7 @@ public class PersistentEntity implements Entity, TxnProvider {
         if (linkId < 0) {
             return;
         }
-        final EntityIterator itr = store.getLinks(txn, this, linkId).iterator();
-        while (itr.hasNext()) {
-            store.deleteLink(txn, this, linkId, (PersistentEntityId) itr.nextId());
-        }
+        store.deleteAllLinks(txn, this, linkId, store.getLinks(txn, this, linkId));
     }
 
     @Override

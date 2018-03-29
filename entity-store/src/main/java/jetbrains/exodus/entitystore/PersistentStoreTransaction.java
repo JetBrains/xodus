@@ -604,6 +604,12 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         mutableCache().registerStickyObject(handle, object);
     }
 
+    @Nullable
+    public Updatable getStickyObjectSafe(@NotNull final EntityIterableHandle handle) {
+        return getLocalCache().getStickyObjectSafe(handle);
+    }
+
+    @NotNull
     public Updatable getStickyObject(@NotNull final EntityIterableHandle handle) {
         return getLocalCache().getStickyObject(handle);
     }

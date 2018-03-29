@@ -156,6 +156,11 @@ final class BTreeDupMutable extends BTreeMutable {
     }
 
     @Override
+    protected boolean isDupKey(long address) {
+        return false;
+    }
+
+    @Override
     @NotNull
     protected BaseLeafNodeMutable createMutableLeaf(@NotNull ByteIterable key, @NotNull ByteIterable value) {
         return new DupLeafNodeMutable(key, this);

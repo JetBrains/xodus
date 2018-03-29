@@ -36,6 +36,7 @@ public class EntityMetaDataImpl implements EntityMetaData {
     private Set<String> interfaces = new LinkedHashSetDecorator<>();
     private Runnable initializer = null;
     private boolean removeOrphan = true;
+    private boolean isAbstract = false;
     private Set<String> subTypes = new LinkedHashSetDecorator<>();
     private List<String> thisAndSuperTypes = Collections.emptyList();
     private Set<AssociationEndMetaData> externalAssociationEnds = null;
@@ -116,6 +117,15 @@ public class EntityMetaDataImpl implements EntityMetaData {
     }
 
     @Override
+    public boolean isAbstract() {
+        return isAbstract;
+    }
+
+    public void setAbstract(boolean anAbstract) {
+        isAbstract = anAbstract;
+    }
+
+    @Override
     public Collection<String> getSubTypes() {
         return subTypes;
     }
@@ -165,6 +175,10 @@ public class EntityMetaDataImpl implements EntityMetaData {
 
     public void setRemoveOrphan(boolean removeOrphan) {
         this.removeOrphan = removeOrphan;
+    }
+
+    public void setIsAbstract(boolean anAbstract) {
+        isAbstract = anAbstract;
     }
 
     public void setAssociationEndsMetaData(@NotNull Collection<AssociationEndMetaData> ends) {

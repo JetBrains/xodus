@@ -113,6 +113,11 @@ abstract class BasePageImmutable extends BasePage {
     }
 
     @Override
+    protected boolean isDupKey(int index) {
+        return getTree().isDupKey(getKeyAddress(index));
+    }
+
+    @Override
     protected boolean isMutable() {
         return false;
     }
