@@ -1,0 +1,33 @@
+kotlin {
+    experimental {
+        coroutines 'enable'
+    }
+}
+
+dependencies {
+    compile project(':environment')
+    compile project(':entity-store')
+    
+    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.22.5'
+    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:0.22.5'
+    compile 'software.amazon.awssdk:s3:2.0.0-preview-9'
+
+    testCompile project(':environment').sourceSets.test.output
+    testCompile project(':utils').sourceSets.test.output
+    testCompile 'io.findify:s3mock_2.12:0.2.5'
+
+    compileKotlin {
+        kotlinOptions {
+            jvmTarget = '1.8'
+            languageVersion = '1.2'
+            apiVersion = '1.2'
+        }
+    }
+    compileTestKotlin {
+        kotlinOptions {
+            jvmTarget = '1.8'
+            languageVersion = '1.2'
+            apiVersion = '1.2'
+        }
+    }
+}

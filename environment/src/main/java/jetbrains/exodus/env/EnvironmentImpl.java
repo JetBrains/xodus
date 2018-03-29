@@ -68,9 +68,9 @@ public class EnvironmentImpl implements Environment {
     private StoreGetCache storeGetCache;
     private final EnvironmentSettingsListener envSettingsListener;
     private final GarbageCollector gc;
-    private final Object commitLock = new Object();
+    final Object commitLock = new Object();
     private final ReentrantReadWriteLock.ReadLock metaReadLock;
-    private final ReentrantReadWriteLock.WriteLock metaWriteLock;
+    final ReentrantReadWriteLock.WriteLock metaWriteLock;
     private final ReentrantTransactionDispatcher txnDispatcher;
     private final ReentrantTransactionDispatcher roTxnDispatcher;
     @NotNull
@@ -660,7 +660,7 @@ public class EnvironmentImpl implements Environment {
                     try {
                         final LogTip updatedTip = log.endWrite();
                         resultingHighAddress = updatedTip.approvedHighAddress;
-                        txn.setMetaTree(metaTree = proto.instantiate(this, updatedTip));
+                        txn.setMetaTree(metaTree = MetaTree.create(this, updatedTip, proto));
                         txn.executeCommitHook();
                     } finally {
                         metaWriteLock.unlock();
@@ -716,6 +716,11 @@ public class EnvironmentImpl implements Environment {
 
     MetaTree getMetaTree() {
         return metaTree;
+    }
+
+    // unsafe
+    void setMetaTree(MetaTree metaTree) {
+        this.metaTree = metaTree;
     }
 
     /**

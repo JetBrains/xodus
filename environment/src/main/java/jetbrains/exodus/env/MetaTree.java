@@ -104,6 +104,14 @@ final class MetaTree {
         return new Pair<>(new MetaTree(resultTree, root, createdTip), EnvironmentImpl.META_TREE_ID);
     }
 
+    static MetaTree create(@NotNull final EnvironmentImpl env, @NotNull final LogTip logTip, @NotNull final MetaTreePrototype prototype) {
+        return new MetaTree(
+                env.loadMetaTree(prototype.treeAddress(), logTip),
+                prototype.rootAddress(),
+                logTip
+        );
+    }
+
     LongIterator addressIterator() {
         return tree.addressIterator();
     }
@@ -232,17 +240,23 @@ final class MetaTree {
         };
     }
 
-    static class Proto {
+    static class Proto implements MetaTreePrototype {
         final long address;
         final long root;
 
-        private Proto(long address, long root) {
+        Proto(long address, long root) {
             this.address = address;
             this.root = root;
         }
 
-        MetaTree instantiate(EnvironmentImpl env, LogTip logTip) {
-            return new MetaTree(env.loadMetaTree(address, logTip), root, logTip);
+        @Override
+        public long treeAddress() {
+            return address;
+        }
+
+        @Override
+        public long rootAddress() {
+            return root;
         }
     }
 }

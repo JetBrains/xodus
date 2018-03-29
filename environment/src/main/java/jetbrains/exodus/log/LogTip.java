@@ -46,7 +46,7 @@ public class LogTip {
     }
 
     // non-empty
-    LogTip(@NotNull byte[] bytes, long pageAddress, int count, long highAddress, long approvedHighAddress, @NotNull final LogFileSet.Immutable logFileSet) {
+    public LogTip(@NotNull byte[] bytes, long pageAddress, int count, long highAddress, long approvedHighAddress, @NotNull final LogFileSet.Immutable logFileSet) {
         this.bytes = bytes;
         this.pageAddress = pageAddress;
         this.count = count;

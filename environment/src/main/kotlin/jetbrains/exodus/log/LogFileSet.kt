@@ -22,7 +22,7 @@ import jetbrains.exodus.core.dataStructures.persistent.PersistentLongSet
 private const val BITS_PER_ENTRY = 7
 
 // file key is aligned file address, i.e. file address divided by fileSize
-internal sealed class LogFileSet(val fileSize: Long, val set: PersistentLongSet) {
+sealed class LogFileSet(val fileSize: Long, val set: PersistentLongSet) {
     protected abstract val current: PersistentLongSet.ImmutableSet
 
     fun size() = current.size()
@@ -67,7 +67,7 @@ internal sealed class LogFileSet(val fileSize: Long, val set: PersistentLongSet)
 
     protected val Long.addressToKey: Long get() = this / fileSize
 
-    internal class Immutable @JvmOverloads constructor(
+    class Immutable @JvmOverloads constructor(
             fileSize: Long,
             set: PersistentLongSet = PersistentBitTreeLongSet(BITS_PER_ENTRY)
     ) : LogFileSet(fileSize, set) {
@@ -77,7 +77,7 @@ internal sealed class LogFileSet(val fileSize: Long, val set: PersistentLongSet)
             get() = immutable
     }
 
-    internal class Mutable(fileSize: Long, set: PersistentLongSet) : LogFileSet(fileSize, set) {
+    class Mutable(fileSize: Long, set: PersistentLongSet) : LogFileSet(fileSize, set) {
         private val mutable: PersistentLongSet.MutableSet = set.beginWrite()
 
         override val current: PersistentLongSet.ImmutableSet

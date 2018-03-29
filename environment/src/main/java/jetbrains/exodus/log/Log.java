@@ -331,7 +331,7 @@ public final class Log implements Closeable {
         return writer.getStartingTip();
     }
 
-    public void abortWrite() {
+    public void abortWrite() { // any log rollbacks must be done via setHighAddress only
         this.bufferedWriter = null;
     }
 
@@ -348,10 +348,11 @@ public final class Log implements Closeable {
         return updatedTip;
     }
 
-    private void compareAndSetTip(final LogTip logTip, final LogTip updatedTip) {
+    public LogTip compareAndSetTip(final LogTip logTip, final LogTip updatedTip) {
         if (!tip.compareAndSet(logTip, updatedTip)) {
             throw new ExodusException("write start/finish mismatch");
         }
+        return updatedTip;
     }
 
     public long getLowAddress() {
@@ -790,7 +791,7 @@ public final class Log implements Closeable {
      * loggable can begin in one file and end in another. Also, this simplifies reading algorithm:
      * if we started reading by address it definitely should finish within current file.
      */
-    void padWithNulls() {
+    public void padWithNulls() {
         final BufferedDataWriter writer = ensureWriter();
         long bytesToWrite = fileLengthBound - writer.getLastWrittenFileLength(fileLengthBound);
         if (bytesToWrite == 0L) {
