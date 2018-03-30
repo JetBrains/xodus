@@ -45,6 +45,7 @@ import java.net.URI
 
 class LogReplicationTest {
     companion object: KLogging() {
+        const val port = 8001
         const val openFiles = 16
         const val host = "127.0.0.1"
         const val bucket = "logfiles"
@@ -71,9 +72,9 @@ class LogReplicationTest {
             IOUtil.deleteRecursively(targetLogDir)
         }
 
-        val port = 8001
-        api = S3Mock.Builder().withPort(port).withFileBackend(sourceLogDir.parentFile.absolutePath).build()
-        api.start()
+        api = S3Mock.Builder().withPort(port).withFileBackend(sourceLogDir.parentFile.absolutePath).build().apply {
+            start()
+        }
 
         val region = Region.US_WEST_2
         val httpClient = NettySdkHttpClientFactory.builder().build().createHttpClient()
@@ -104,10 +105,10 @@ class LogReplicationTest {
     @Ignore
     @Test
     fun testSimple() {
-        val sourceLog = sourceLogDir.createLog(4L) {
+        val sourceLog = sourceLogDir.createLog(fileSize = 4L, releaseLock = true) {
             cachePageSize = 1024
         }
-        val targetLog = targetLogDir.createLog(4L) {
+        val targetLog = targetLogDir.createLog(fileSize = 4L) {
             cachePageSize = 1024
         }
 
@@ -135,23 +136,30 @@ class LogReplicationTest {
             Assert.assertEquals(127, l.type.toLong())
             Assert.assertEquals(1, l.dataLength.toLong())
         }
-        Assert.assertEquals(count.toLong(), i.toLong())
 
-        sourceLog.close()
-        targetLog.close()
+        try {
+            Assert.assertEquals(count.toLong(), i.toLong())
+        } finally {
+            sourceLog.close()
+            targetLog.close()
+        }
     }
 
     private fun Log.writeData(iterable: ByteIterable): Long {
         return write(127.toByte(), Loggable.NO_STRUCTURE_ID, iterable)
     }
 
-    private fun File.createLog(fileSize: Long, modifyConfig: LogConfig.() -> Unit = {}): Log {
+    private fun File.createLog(fileSize: Long, releaseLock: Boolean = false, modifyConfig: LogConfig.() -> Unit = {}): Log {
         return with(LogConfig().setFileSize(fileSize)) {
             val (reader, writer) = this@createLog.createLogRW()
             setReader(reader)
             setWriter(writer)
             modifyConfig()
-            Log(this)
+            Log(this).also {
+                if (releaseLock) { // s3mock can't open xd.lck on Windows otherwise
+                    writer.release()
+                }
+            }
         }
     }
 
