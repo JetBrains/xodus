@@ -81,4 +81,29 @@ class BlobVaultTests : EntityStoreTestBase() {
         txn.flush()
         store.executeInReadonlyTransaction { Assert.assertEquals("content", e.getBlobString("c")) }
     }
+
+    @TestFor(issues = ["XD-688"])
+    fun testBlobsMetaInfo() {
+        val store = entityStore
+        val txn = storeTransaction
+        store.config.maxInPlaceBlobSize = 0
+        for (i in 0 until 3) {
+            txn.newEntity("E").setBlobString("content", buildString { repeat(i + 1, { append(' ') }) })
+        }
+        txn.flush()
+        val infos = store.getExternalBlobsInfo(txn).iterator()
+        Assert.assertTrue(infos.hasNext())
+        var next = infos.next()
+        Assert.assertEquals(0L, next.first)
+        Assert.assertEquals(3L, next.second)
+        Assert.assertTrue(infos.hasNext())
+        next = infos.next()
+        Assert.assertEquals(1L, next.first)
+        Assert.assertEquals(4L, next.second)
+        Assert.assertTrue(infos.hasNext())
+        next = infos.next()
+        Assert.assertEquals(2L, next.first)
+        Assert.assertEquals(5L, next.second)
+        Assert.assertFalse(infos.hasNext())
+    }
 }

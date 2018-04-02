@@ -62,26 +62,14 @@ public class VFSBlobVault extends BlobVault {
     }
 
     public void setContent(long blobHandle, @NotNull InputStream content, @NotNull final Transaction txn) throws Exception {
-        OutputStream blobOutput = null;
-        try {
-            blobOutput = fs.writeFile(txn, blobHandle);
+        try (OutputStream blobOutput = fs.writeFile(txn, blobHandle)) {
             IOUtil.copyStreams(content, blobOutput, bufferAllocator);
-        } finally {
-            if (blobOutput != null) {
-                blobOutput.close();
-            }
         }
     }
 
     public void setContent(long blobHandle, @NotNull File file, @NotNull final Transaction txn) throws Exception {
-        OutputStream blobOutput = null;
-        try {
-            blobOutput = fs.writeFile(txn, blobHandle);
+        try (OutputStream blobOutput = fs.writeFile(txn, blobHandle)) {
             IOUtil.copyStreams(new FileInputStream(file), blobOutput, bufferAllocator);
-        } finally {
-            if (blobOutput != null) {
-                blobOutput.close();
-            }
         }
     }
 
@@ -200,14 +188,8 @@ public class VFSBlobVault extends BlobVault {
             throw new VfsException("Can't import blob without a transaction");
         }
         fs.createFile(txn, blobHandle, "blob." + blobHandle);
-        OutputStream blobOutput = null;
-        try {
-            blobOutput = fs.writeFile(txn, blobHandle);
+        try (OutputStream blobOutput = fs.writeFile(txn, blobHandle)) {
             IOUtil.copyStreams(content, blobOutput, bufferAllocator);
-        } finally {
-            if (blobOutput != null) {
-                blobOutput.close();
-            }
         }
     }
 

@@ -55,7 +55,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private static final Logger logger = LoggerFactory.getLogger(PersistentEntityStoreImpl.class);
 
     @NonNls
-    static final String BLOBS_DIR = "blobs";
+    private static final String BLOBS_DIR = "blobs";
     @NonNls
     static final String BLOBS_EXTENSION = ".blob";
     @NonNls
@@ -68,8 +68,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @NotNull
     private static final ByteArrayInputStream EMPTY_INPUT_STREAM = new ByteArrayInputStream(new byte[0]);
-    @NotNull
-    private static final String EMPTY_STRING = "";
 
     private final int hashCode;
     @NotNull
@@ -113,6 +111,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @NotNull
     private OpenTablesCache blobsTables;
     @NotNull
+    private Store blobsMetaInfo;
+    @NotNull
     private Store internalSettings;
     @NotNull
     private Store sequences;
@@ -149,7 +149,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
     };
 
-    public PersistentEntityStoreImpl(@NotNull final Environment environment, @NotNull final String name) throws Exception {
+    public PersistentEntityStoreImpl(@NotNull final Environment environment, @NotNull final String name) {
         this(environment, null, name);
     }
 
@@ -205,7 +205,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             @Override
             public Boolean compute(@NotNull StoreTransaction tx) {
                 final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
-                sequences = environment.openStore(SEQUENCES_STORE, StoreConfig.WITHOUT_DUPLICATES, txn.getEnvironmentTransaction());
+                final Transaction envTxn = txn.getEnvironmentTransaction();
+                sequences = environment.openStore(SEQUENCES_STORE, StoreConfig.WITHOUT_DUPLICATES, envTxn);
                 if (blobVault == null) {
                     BlobVault vault = createDefaultFSBlobVault();
                     final StreamCipherProvider cipherProvider = environment.getCipherProvider();
@@ -265,13 +266,15 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                             namingRulez.getBlobsTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES);
                     }
                 });
+                blobsMetaInfo = environment.openStore(namingRulez.getBlobsMetaInfoTable(),
+                    StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, envTxn);
                 final String internalSettingsName = namingRulez.getInternalSettingsName();
                 final Store settings = environment.openStore(internalSettingsName,
-                    StoreConfig.WITHOUT_DUPLICATES, txn.getEnvironmentTransaction(), false);
+                    StoreConfig.WITHOUT_DUPLICATES, envTxn, false);
                 final boolean result = settings == null;
                 if (result) {
-                    internalSettings = environment.openStore(internalSettingsName,
-                        StoreConfig.WITHOUT_DUPLICATES, txn.getEnvironmentTransaction(), true);
+                    internalSettings = environment.openStore(
+                        internalSettingsName, StoreConfig.WITHOUT_DUPLICATES, envTxn, true);
                 } else {
                     internalSettings = settings;
                 }
@@ -912,7 +915,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
         final long blobHandle = blobStream.getFirst();
         if (blobHandle == EMPTY_BLOB_HANDLE) {
-            result = EMPTY_STRING;
+            result = "";
         } else {
             try {
                 final InputStream stream = blobStream.getSecond();
@@ -975,6 +978,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             (ByteArraySizedInputStream) stream : blobVault.cloneStream(stream, true);
         final long blobHandle = createBlobHandle(txn, entity, blobName, copy, copy.size());
         if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
+            setBlobLength(txn, blobHandle, copy.size());
             txn.addBlob(blobHandle, copy);
         }
     }
@@ -991,6 +995,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final long blobHandle = createBlobHandle(txn, entity, blobName,
             size > config.getMaxInPlaceBlobSize() ? null : blobVault.cloneStream(new FileInputStream(file), true), size);
         if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
+            setBlobLength(txn, blobHandle, length);
             txn.addBlob(blobHandle, file);
         }
     }
@@ -1009,6 +1014,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             final ByteArraySizedInputStream copy = new ByteArraySizedInputStream(memCopy.toByteArray(), 0, streamSize);
             final long blobHandle = createBlobHandle(txn, entity, blobName, copy, streamSize);
             if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
+                setBlobLength(txn, blobHandle, copy.size());
                 txn.addBlob(blobHandle, copy);
             }
         }
@@ -1068,7 +1074,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
         blobs.delete(envTxn, entityLocalId, blobId);
         deleteObsoleteBlobHandle(LongBinding.compressedEntryToLong(value), txn);
-
         return true;
     }
 
@@ -1427,7 +1432,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
             }
         }
-        for (Integer linkId: deletedLinks) {
+        for (Integer linkId : deletedLinks) {
             links.deleteAllIndex(envTxn, linkId, entityLocalId);
         }
     }
@@ -1722,6 +1727,66 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return (BlobsTable) blobsTables.get(txn, entityTypeId);
     }
 
+    long getBlobLength(@NotNull final PersistentStoreTransaction txn, final long blobHandle) {
+        final ByteIterable resultEntry = blobsMetaInfo.get(
+            txn.getEnvironmentTransaction(), LongBinding.longToCompressedEntry(blobHandle));
+        return resultEntry == null ? 0L : LongBinding.compressedEntryToLong(resultEntry);
+    }
+
+    void setBlobLength(@NotNull final PersistentStoreTransaction txn, final long blobHandle, final long length) {
+        final ArrayByteIterable keyEntry = LongBinding.longToCompressedEntry(blobHandle);
+        final Transaction envTxn = txn.getEnvironmentTransaction();
+        if (length == 0L) {
+            blobsMetaInfo.delete(envTxn, keyEntry);
+        } else {
+            blobsMetaInfo.put(envTxn, keyEntry, LongBinding.longToCompressedEntry(length));
+        }
+    }
+
+    public Iterable<Pair<Long, Long>> getExternalBlobsInfo(@NotNull final PersistentStoreTransaction txn) {
+        return new Iterable<Pair<Long, Long>>() {
+            @NotNull
+            @Override
+            public Iterator<Pair<Long, Long>> iterator() {
+                return new Iterator<Pair<Long, Long>>() {
+                    final Cursor cursor = blobsMetaInfo.openCursor(txn.getEnvironmentTransaction());
+                    Pair<Long, Long> next = null;
+                    boolean hasMore = true;
+
+                    @Override
+                    public void remove() {
+                        throw new UnsupportedOperationException();
+                    }
+
+                    @Override
+                    public boolean hasNext() {
+                        if (hasMore) {
+                            if (next == null) {
+                                if (cursor.getNext()) {
+                                    next = new Pair<>(
+                                        LongBinding.compressedEntryToLong(cursor.getKey()),
+                                        LongBinding.compressedEntryToLong(cursor.getValue()));
+                                } else {
+                                    cursor.close();
+                                    hasMore = false;
+                                }
+                            }
+                        }
+                        return hasMore;
+                    }
+
+                    @Override
+                    public Pair<Long, Long> next() {
+                        if (!hasNext()) return null;
+                        final Pair<Long, Long> result = next;
+                        next = null;
+                        return result;
+                    }
+                };
+            }
+        };
+    }
+
     @Override
     @NotNull
     public EntityStoreSharedAsyncProcessor getAsyncProcessor() {
@@ -1781,6 +1846,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (isEmptyOrInPlaceBlobHandle(blobHandle)) {
             return;
         }
+        setBlobLength(txn, blobHandle, 0L);
         txn.deleteBlob(blobHandle);
         txn.deferBlobDeletion(blobHandle);
     }

@@ -49,6 +49,8 @@ final class StoreNamingRules {
     @NonNls
     private static final String BLOBS_TABLE_PREFIX = "blobs";
     @NonNls
+    private static final String BLOBS_META_INFO = "blobsMetaInfo";
+    @NonNls
     private static final String INTERNAL_SETTINGS = "----internal.settings----";
 
     @NotNull
@@ -119,12 +121,16 @@ final class StoreNamingRules {
     }
 
     @NotNull
-    public String getBlobsTableName(final int entityTypeId) {
+    String getBlobsTableName(final int entityTypeId) {
         return getFQName(BLOBS_TABLE_PREFIX, entityTypeId);
     }
 
+    String getBlobsMetaInfoTable() {
+        return getFQName(BLOBS_META_INFO);
+    }
+
     @NotNull
-    public String getInternalSettingsName() {
+    String getInternalSettingsName() {
         return getFQName(INTERNAL_SETTINGS);
     }
 
