@@ -83,7 +83,7 @@ final class BTreeDupMutable extends BTreeMutable {
         } else {
             canRetry = true;
         }
-        if (NullLoggable.isNullLoggable(log.getWrittenLoggableType(startAddress))) {
+        if (!log.isLastWrittenFileAddress(startAddress) && NullLoggable.isNullLoggable(log.getWrittenLoggableType(startAddress))) {
             final long lengthBound = log.getFileLengthBound();
             final long alignment = startAddress % lengthBound;
             startAddress += (lengthBound - alignment);
