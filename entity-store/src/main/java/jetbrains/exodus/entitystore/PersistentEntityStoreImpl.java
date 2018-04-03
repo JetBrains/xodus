@@ -69,7 +69,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @NotNull
     private static final ByteArrayInputStream EMPTY_INPUT_STREAM = new ByteArrayInputStream(new byte[0]);
 
-    private static final boolean ENABLE_BLOB_FILE_LENGTHS = Boolean.getBoolean("jetbrains.exodus.entitystore.enableBlobFileLengths");
+    static boolean ENABLE_BLOB_FILE_LENGTHS = Boolean.getBoolean("jetbrains.exodus.entitystore.enableBlobFileLengths");
 
     private final int hashCode;
     @NotNull
