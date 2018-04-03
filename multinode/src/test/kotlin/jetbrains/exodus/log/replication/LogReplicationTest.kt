@@ -31,7 +31,10 @@ import jetbrains.exodus.util.IOUtil
 import kotlinx.coroutines.experimental.future.await
 import kotlinx.coroutines.experimental.runBlocking
 import mu.KLogging
-import org.junit.*
+import org.junit.After
+import org.junit.Assert
+import org.junit.Before
+import org.junit.Test
 import software.amazon.awssdk.core.AwsRequestOverrideConfig
 import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
 import software.amazon.awssdk.core.client.builder.ClientAsyncHttpConfiguration
@@ -105,7 +108,6 @@ class LogReplicationTest {
     }
 
     @Test
-    @Ignore
     fun testSimple() {
         val sourceLog = sourceLogDir.createLog(fileSize = 4L, releaseLock = true) {
             cachePageSize = 1024

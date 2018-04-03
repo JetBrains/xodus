@@ -24,9 +24,9 @@ import software.amazon.awssdk.utils.FunctionalUtils.invokeSafely
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousFileChannel
 import java.nio.channels.CompletionHandler
-import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
+import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
@@ -35,6 +35,7 @@ class FileAsyncHandler(private val path: Path, private val lastPageStart: Long, 
     @Volatile
     private var response: GetObjectResponse? = null
     private val lastPageWritten = AtomicInteger()
+    private val writeInProgressLock = Semaphore(1)
 
     override fun responseReceived(response: GetObjectResponse) {
         this.response = response
@@ -47,20 +48,14 @@ class FileAsyncHandler(private val path: Path, private val lastPageStart: Long, 
     }
 
     override fun exceptionOccurred(throwable: Throwable) {
-        try {
-            invokeSafely { close() }
-        } finally {
-            invokeSafely { Files.delete(path) }
-        }
+        close()
     }
 
-    override fun complete(): WriteResult? {
-        if (::fileChannel.isInitialized) {
-            invokeSafely { fileChannel.close() }
-        }
+    override fun complete(): WriteResult {
+        writeInProgressLock.acquire()
         return response?.let {
             WriteResult(it.contentLength(), lastPageWritten.get())
-        }
+        } ?: throw IllegalStateException("Response not set")
     }
 
 
@@ -70,6 +65,7 @@ class FileAsyncHandler(private val path: Path, private val lastPageStart: Long, 
 
     private fun close() {
         if (::fileChannel.isInitialized) {
+            fileChannel.force(false)
             invokeSafely { fileChannel.close() }
         }
     }
@@ -91,8 +87,6 @@ class FileAsyncHandler(private val path: Path, private val lastPageStart: Long, 
     private inner class FileSubscriber : Subscriber<ByteBuffer> {
 
         @Volatile
-        private var writeInProgress = false
-        @Volatile
         private var closeOnLastWrite = false
         private val position = AtomicLong()
         private lateinit var subscription: Subscription
@@ -103,7 +97,7 @@ class FileAsyncHandler(private val path: Path, private val lastPageStart: Long, 
         }
 
         override fun onNext(byteBuffer: ByteBuffer) {
-            writeInProgress = true
+            writeInProgressLock.acquire()
             fileChannel.write(byteBuffer, position.get(), byteBuffer, object : CompletionHandler<Int, ByteBuffer> {
                 override fun completed(result: Int, attachment: ByteBuffer) {
                     if (result > 0) {
@@ -111,18 +105,22 @@ class FileAsyncHandler(private val path: Path, private val lastPageStart: Long, 
                         updateLastPage(writtenLength, attachment)
                         synchronized(this@FileSubscriber) {
                             // TODO: this can be replaced by AtomicInteger FSM
-                            if (closeOnLastWrite) {
-                                close()
-                            } else {
-                                subscription.request(1)
+                            try {
+                                if (closeOnLastWrite) {
+                                    close()
+                                } else {
+                                    subscription.request(1)
+                                }
+                            } finally {
+                                writeInProgressLock.release()
                             }
-                            writeInProgress = false
                         }
                     }
                 }
 
                 override fun failed(exc: Throwable, attachment: ByteBuffer) {
                     subscription.cancel()
+                    close()
                 }
             })
 
@@ -134,7 +132,7 @@ class FileAsyncHandler(private val path: Path, private val lastPageStart: Long, 
 
         override fun onComplete() {
             synchronized(this) {
-                if (writeInProgress) {
+                if (!writeInProgressLock.tryAcquire()) {
                     closeOnLastWrite = true
                 } else {
                     close()
