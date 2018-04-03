@@ -355,6 +355,14 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     throw ExodusException.toEntityStoreException(e);
                 }
             }
+            if (blobVault instanceof FileSystemBlobVaultOld) {
+                if (fromScratch || Settings.get(internalSettings, "Blob file lengths cached") == null) {
+                    if (!fromScratch) {
+                        refactorings.refactorBlobFileLengths();
+                    }
+                    Settings.set(internalSettings, "Blob file lengths cached", "y");
+                }
+            }
         } finally {
             environment.resumeGC();
         }
