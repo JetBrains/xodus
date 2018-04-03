@@ -176,7 +176,7 @@ final class PersistentEntityStoreRefactorings {
                                     while (cursor.getNext()) {
                                         final long blobHandle = LongBinding.compressedEntryToLong(cursor.getValue());
                                         if (!PersistentEntityStoreImpl.isEmptyOrInPlaceBlobHandle(blobHandle)) {
-                                            store.setBlobLength(txn, blobHandle, blobVault.getSize(blobHandle, envTxn));
+                                            store.setBlobFileLength(txn, blobHandle, blobVault.getSize(blobHandle, envTxn));
                                         }
                                     }
                                 }

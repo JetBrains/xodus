@@ -92,7 +92,7 @@ class BlobVaultTests : EntityStoreTestBase() {
             txn.newEntity("E").setBlobString("content", buildString { repeat(i, { append(' ') }) })
         }
         txn.flush()
-        val infos = store.getExternalBlobsInfo(txn).iterator()
+        val infos = store.getBlobFileLengths(txn).iterator()
         Assert.assertTrue(infos.hasNext())
         var next = infos.next()
         Assert.assertEquals(0L, next.first)
@@ -111,7 +111,7 @@ class BlobVaultTests : EntityStoreTestBase() {
     @TestFor(issues = ["XD-688"])
     fun testBlobLengthIsNonNegative() {
         TestUtil.runWithExpectedException({
-            entityStore.setBlobLength(storeTransaction, 0L, -1)
+            entityStore.setBlobFileLength(storeTransaction, 0L, -1)
         }, IllegalArgumentException::class.java)
     }
 
@@ -120,9 +120,9 @@ class BlobVaultTests : EntityStoreTestBase() {
         testBlobsLengths()
         val store = entityStore
         val txn = storeTransaction
-        store.deleteBlobLength(txn, 0L)
-        store.deleteBlobLength(txn, 1L)
-        val infos = store.getExternalBlobsInfo(txn).iterator()
+        store.deleteBlobFileLength(txn, 0L)
+        store.deleteBlobFileLength(txn, 1L)
+        val infos = store.getBlobFileLengths(txn).iterator()
         Assert.assertTrue(infos.hasNext())
         val next = infos.next()
         Assert.assertEquals(2L, next.first)

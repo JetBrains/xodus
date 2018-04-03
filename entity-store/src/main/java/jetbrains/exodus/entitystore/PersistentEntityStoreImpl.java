@@ -111,7 +111,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @NotNull
     private OpenTablesCache blobsTables;
     @NotNull
-    private Store blobsMetaInfo;
+    private Store blobFileLengths;
     @NotNull
     private Store internalSettings;
     @NotNull
@@ -266,7 +266,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                             namingRulez.getBlobsTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES);
                     }
                 });
-                blobsMetaInfo = environment.openStore(namingRulez.getBlobsMetaInfoTable(),
+                blobFileLengths = environment.openStore(namingRulez.getBlobFileLengthsTable(),
                     StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, envTxn);
                 final String internalSettingsName = namingRulez.getInternalSettingsName();
                 final Store settings = environment.openStore(internalSettingsName,
@@ -986,7 +986,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             (ByteArraySizedInputStream) stream : blobVault.cloneStream(stream, true);
         final long blobHandle = createBlobHandle(txn, entity, blobName, copy, copy.size());
         if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
-            setBlobLength(txn, blobHandle, copy.size());
+            setBlobFileLength(txn, blobHandle, copy.size());
             txn.addBlob(blobHandle, copy);
         }
     }
@@ -1003,7 +1003,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final long blobHandle = createBlobHandle(txn, entity, blobName,
             size > config.getMaxInPlaceBlobSize() ? null : blobVault.cloneStream(new FileInputStream(file), true), size);
         if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
-            setBlobLength(txn, blobHandle, length);
+            setBlobFileLength(txn, blobHandle, length);
             txn.addBlob(blobHandle, file);
         }
     }
@@ -1022,7 +1022,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             final ByteArraySizedInputStream copy = new ByteArraySizedInputStream(memCopy.toByteArray(), 0, streamSize);
             final long blobHandle = createBlobHandle(txn, entity, blobName, copy, streamSize);
             if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
-                setBlobLength(txn, blobHandle, copy.size());
+                setBlobFileLength(txn, blobHandle, copy.size());
                 txn.addBlob(blobHandle, copy);
             }
         }
@@ -1735,33 +1735,33 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return (BlobsTable) blobsTables.get(txn, entityTypeId);
     }
 
-    long getBlobLength(@NotNull final PersistentStoreTransaction txn, final long blobHandle) {
-        final ByteIterable resultEntry = blobsMetaInfo.get(
+    long getBlobFileLength(@NotNull final PersistentStoreTransaction txn, final long blobHandle) {
+        final ByteIterable resultEntry = blobFileLengths.get(
             txn.getEnvironmentTransaction(), LongBinding.longToCompressedEntry(blobHandle));
         return resultEntry == null ? 0L : LongBinding.compressedEntryToLong(resultEntry);
     }
 
-    void setBlobLength(@NotNull final PersistentStoreTransaction txn, final long blobHandle, final long length) {
+    void setBlobFileLength(@NotNull final PersistentStoreTransaction txn, final long blobHandle, final long length) {
         if (length < 0) {
             throw new IllegalArgumentException("length < 0");
         }
-        blobsMetaInfo.put(txn.getEnvironmentTransaction(),
+        blobFileLengths.put(txn.getEnvironmentTransaction(),
             LongBinding.longToCompressedEntry(blobHandle), LongBinding.longToCompressedEntry(length));
 
     }
 
-    void deleteBlobLength(@NotNull final PersistentStoreTransaction txn, final long blobHandle) {
-        blobsMetaInfo.delete(txn.getEnvironmentTransaction(), LongBinding.longToCompressedEntry(blobHandle));
+    void deleteBlobFileLength(@NotNull final PersistentStoreTransaction txn, final long blobHandle) {
+        blobFileLengths.delete(txn.getEnvironmentTransaction(), LongBinding.longToCompressedEntry(blobHandle));
     }
 
 
-    public Iterable<Pair<Long, Long>> getExternalBlobsInfo(@NotNull final PersistentStoreTransaction txn) {
+    public Iterable<Pair<Long, Long>> getBlobFileLengths(@NotNull final PersistentStoreTransaction txn) {
         return new Iterable<Pair<Long, Long>>() {
             @NotNull
             @Override
             public Iterator<Pair<Long, Long>> iterator() {
                 return new Iterator<Pair<Long, Long>>() {
-                    final Cursor cursor = blobsMetaInfo.openCursor(txn.getEnvironmentTransaction());
+                    final Cursor cursor = blobFileLengths.openCursor(txn.getEnvironmentTransaction());
                     Pair<Long, Long> next = null;
                     boolean hasMore = true;
 
@@ -1858,7 +1858,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (isEmptyOrInPlaceBlobHandle(blobHandle)) {
             return;
         }
-        deleteBlobLength(txn, blobHandle);
+        deleteBlobFileLength(txn, blobHandle);
         txn.deleteBlob(blobHandle);
         txn.deferBlobDeletion(blobHandle);
     }
