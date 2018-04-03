@@ -1850,7 +1850,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (isEmptyOrInPlaceBlobHandle(blobHandle)) {
             return;
         }
-        setBlobLength(txn, blobHandle, 0L);
+        deleteBlobLength(txn, blobHandle);
         txn.deleteBlob(blobHandle);
         txn.deferBlobDeletion(blobHandle);
     }
