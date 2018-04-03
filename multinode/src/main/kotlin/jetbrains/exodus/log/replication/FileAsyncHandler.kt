@@ -48,7 +48,7 @@ class FileAsyncHandler(private val path: Path, private val lastPageStart: Long, 
 
     override fun exceptionOccurred(throwable: Throwable) {
         try {
-            invokeSafely { fileChannel.close() }
+            invokeSafely { close() }
         } finally {
             invokeSafely { Files.delete(path) }
         }
@@ -66,6 +66,12 @@ class FileAsyncHandler(private val path: Path, private val lastPageStart: Long, 
 
     private fun open(path: Path): AsynchronousFileChannel {
         return AsynchronousFileChannel.open(path, StandardOpenOption.WRITE, StandardOpenOption.CREATE_NEW)
+    }
+
+    private fun close() {
+        if (::fileChannel.isInitialized) {
+            invokeSafely { fileChannel.close() }
+        }
     }
 
     private fun ByteBuffer.copyBytes(output: ByteArray, offset: Int, length: Int) {
@@ -148,12 +154,6 @@ class FileAsyncHandler(private val path: Path, private val lastPageStart: Long, 
                 val length = (minOf(lastPage.size.toLong(), writtenLength) - offset).toInt()
                 attachment.copyBytes(lastPage, offset, length)
                 lastPageWritten.addAndGet(length)
-            }
-        }
-
-        private fun close() {
-            if (::fileChannel.isInitialized) {
-                invokeSafely { fileChannel.close() }
             }
         }
 
