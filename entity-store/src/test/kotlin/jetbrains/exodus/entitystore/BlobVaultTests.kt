@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore
 
 import jetbrains.exodus.TestFor
+import jetbrains.exodus.TestUtil
 import jetbrains.exodus.backup.BackupStrategy
 import org.junit.Assert
 import java.io.ByteArrayInputStream
@@ -83,12 +84,12 @@ class BlobVaultTests : EntityStoreTestBase() {
     }
 
     @TestFor(issues = ["XD-688"])
-    fun testBlobsMetaInfo() {
+    fun testBlobsLengths() {
         val store = entityStore
         val txn = storeTransaction
         store.config.maxInPlaceBlobSize = 0
-        for (i in 0 until 3) {
-            txn.newEntity("E").setBlobString("content", buildString { repeat(i + 1, { append(' ') }) })
+        for (i in 1..3) {
+            txn.newEntity("E").setBlobString("content", buildString { repeat(i, { append(' ') }) })
         }
         txn.flush()
         val infos = store.getExternalBlobsInfo(txn).iterator()
@@ -102,6 +103,28 @@ class BlobVaultTests : EntityStoreTestBase() {
         Assert.assertEquals(4L, next.second)
         Assert.assertTrue(infos.hasNext())
         next = infos.next()
+        Assert.assertEquals(2L, next.first)
+        Assert.assertEquals(5L, next.second)
+        Assert.assertFalse(infos.hasNext())
+    }
+
+    @TestFor(issues = ["XD-688"])
+    fun testBlobLengthIsNonNegative() {
+        TestUtil.runWithExpectedException({
+            entityStore.setBlobLength(storeTransaction, 0L, -1)
+        }, IllegalArgumentException::class.java)
+    }
+
+    @TestFor(issues = ["XD-688"])
+    fun testDeleteBlobLength() {
+        testBlobsLengths()
+        val store = entityStore
+        val txn = storeTransaction
+        store.deleteBlobLength(txn, 0L)
+        store.deleteBlobLength(txn, 1L)
+        val infos = store.getExternalBlobsInfo(txn).iterator()
+        Assert.assertTrue(infos.hasNext())
+        val next = infos.next()
         Assert.assertEquals(2L, next.first)
         Assert.assertEquals(5L, next.second)
         Assert.assertFalse(infos.hasNext())

@@ -1734,14 +1734,18 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     void setBlobLength(@NotNull final PersistentStoreTransaction txn, final long blobHandle, final long length) {
-        final ArrayByteIterable keyEntry = LongBinding.longToCompressedEntry(blobHandle);
-        final Transaction envTxn = txn.getEnvironmentTransaction();
-        if (length == 0L) {
-            blobsMetaInfo.delete(envTxn, keyEntry);
-        } else {
-            blobsMetaInfo.put(envTxn, keyEntry, LongBinding.longToCompressedEntry(length));
+        if (length < 0) {
+            throw new IllegalArgumentException("length < 0");
         }
+        blobsMetaInfo.put(txn.getEnvironmentTransaction(),
+            LongBinding.longToCompressedEntry(blobHandle), LongBinding.longToCompressedEntry(length));
+
     }
+
+    void deleteBlobLength(@NotNull final PersistentStoreTransaction txn, final long blobHandle) {
+        blobsMetaInfo.delete(txn.getEnvironmentTransaction(), LongBinding.longToCompressedEntry(blobHandle));
+    }
+
 
     public Iterable<Pair<Long, Long>> getExternalBlobsInfo(@NotNull final PersistentStoreTransaction txn) {
         return new Iterable<Pair<Long, Long>>() {
