@@ -18,6 +18,7 @@ package jetbrains.exodus.log.replication
 import io.findify.s3mock.S3Mock
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.TestUtil
+import jetbrains.exodus.env.replication.ReplicationDelta
 import jetbrains.exodus.io.DataReader
 import jetbrains.exodus.io.DataWriter
 import jetbrains.exodus.io.FileDataReader
@@ -30,7 +31,10 @@ import jetbrains.exodus.util.IOUtil
 import kotlinx.coroutines.experimental.future.await
 import kotlinx.coroutines.experimental.runBlocking
 import mu.KLogging
-import org.junit.*
+import org.junit.After
+import org.junit.Assert
+import org.junit.Before
+import org.junit.Test
 import software.amazon.awssdk.core.AwsRequestOverrideConfig
 import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
 import software.amazon.awssdk.core.client.builder.ClientAsyncHttpConfiguration
@@ -42,9 +46,10 @@ import software.amazon.awssdk.services.s3.model.ListBucketsRequest
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest
 import java.io.File
 import java.net.URI
+import java.nio.file.Paths
 
 class LogReplicationTest {
-    companion object: KLogging() {
+    companion object : KLogging() {
         const val port = 8001
         const val openFiles = 16
         const val host = "127.0.0.1"
@@ -102,7 +107,6 @@ class LogReplicationTest {
         }
     }
 
-    @Ignore
     @Test
     fun testSimple() {
         val sourceLog = sourceLogDir.createLog(fileSize = 4L, releaseLock = true) {
@@ -127,6 +131,12 @@ class LogReplicationTest {
         runBlocking {
             doDebug(s3)
         }
+
+        LogAppender.appendLog(
+                targetLog,
+                ReplicationDelta(0, sourceLog.highAddress, sourceLog.fileSize, sourceLog.allFileAddresses),
+                S3FileFactory(s3, Paths.get(targetLog.location), bucket, extraHost)
+        )()
 
         val it = targetLog.getLoggableIterator(0)
         var i = 0

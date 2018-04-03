@@ -21,9 +21,9 @@ data class ReplicationDelta(
         override val startAddress: Long,
         override val highAddress: Long,
         override val fileSize: Long,
-        val metaTreeAddress: Long,
-        val rootAddress: Long,
-        override val files: LongArray
+        override val files: LongArray,
+        private val metaTreeAddress: Long = -1,
+        private val rootAddress: Long = -1
 ) : EnvironmentReplicationDelta {
     override fun treeAddress() = metaTreeAddress
 

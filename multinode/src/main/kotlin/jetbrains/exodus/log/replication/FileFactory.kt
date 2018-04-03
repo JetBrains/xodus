@@ -15,7 +15,9 @@
  */
 package jetbrains.exodus.log.replication
 
+import jetbrains.exodus.log.Log
+
 interface FileFactory {
 
-    fun fetchFile(address: Long, lastPage: ByteArray?): WriteResult
+    fun fetchFile(log: Log, address: Long, expectedLength: Long, lastPage: ByteArray?): WriteResult
 }

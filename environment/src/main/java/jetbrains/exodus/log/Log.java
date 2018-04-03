@@ -915,7 +915,7 @@ public final class Log implements Closeable {
         }
     }
 
-    long getHighPageAddress(final long highAddress) {
+    public long getHighPageAddress(final long highAddress) {
         int alignment = ((int) highAddress) & (cachePageSize - 1);
         if (alignment == 0 && highAddress > 0) {
             alignment = cachePageSize;
