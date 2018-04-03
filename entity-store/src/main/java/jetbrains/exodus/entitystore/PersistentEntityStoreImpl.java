@@ -69,6 +69,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @NotNull
     private static final ByteArrayInputStream EMPTY_INPUT_STREAM = new ByteArrayInputStream(new byte[0]);
 
+    private static final boolean ENABLE_BLOB_FILE_LENGTHS = Boolean.getBoolean("jetbrains.exodus.entitystore.enableBlobFileLengths");
+
     private final int hashCode;
     @NotNull
     private final PersistentEntityStoreConfig config;
@@ -355,7 +357,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     throw ExodusException.toEntityStoreException(e);
                 }
             }
-            if (blobVault instanceof FileSystemBlobVaultOld) {
+            if (ENABLE_BLOB_FILE_LENGTHS && blobVault instanceof FileSystemBlobVaultOld) {
                 if (fromScratch || Settings.get(internalSettings, "Blob file lengths cached") == null) {
                     if (!fromScratch) {
                         refactorings.refactorBlobFileLengths();
@@ -1745,13 +1747,17 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (length < 0) {
             throw new IllegalArgumentException("length < 0");
         }
-        blobFileLengths.put(txn.getEnvironmentTransaction(),
-            LongBinding.longToCompressedEntry(blobHandle), LongBinding.longToCompressedEntry(length));
+        if (ENABLE_BLOB_FILE_LENGTHS) {
+            blobFileLengths.put(txn.getEnvironmentTransaction(),
+                LongBinding.longToCompressedEntry(blobHandle), LongBinding.longToCompressedEntry(length));
+        }
 
     }
 
     void deleteBlobFileLength(@NotNull final PersistentStoreTransaction txn, final long blobHandle) {
-        blobFileLengths.delete(txn.getEnvironmentTransaction(), LongBinding.longToCompressedEntry(blobHandle));
+        if (ENABLE_BLOB_FILE_LENGTHS) {
+            blobFileLengths.delete(txn.getEnvironmentTransaction(), LongBinding.longToCompressedEntry(blobHandle));
+        }
     }
 
 
