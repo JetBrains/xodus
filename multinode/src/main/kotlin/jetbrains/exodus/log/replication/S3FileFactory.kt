@@ -30,14 +30,17 @@ class S3FileFactory(
 ) : FileFactory {
 
     override fun fetchFile(log: Log, address: Long, expectedLength: Long, lastPage: ByteArray?): WriteResult {
-        if (expectedLength < 0 || expectedLength > log.fileLengthBound) {
+        if (expectedLength < 0L || expectedLength > log.fileLengthBound) {
             throw IllegalArgumentException("Incorrect expected length specified")
+        }
+        if (expectedLength == 0L) {
+            return WriteResult(0, 0)
         }
         val filename = LogUtil.getLogFilename(address)
         // if target log is appended in the meantime, ignore appended bytes thanks to S3 API Range header support
         // https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35
         return s3.getObject(
-                GetObjectRequest.builder().range("bytes=0-$expectedLength")
+                GetObjectRequest.builder().range("bytes=0-${expectedLength - 1}")
                         .requestOverrideConfig(requestOverrideConfig).bucket(bucket).key(filename).build(),
                 FileAsyncHandler(dir.resolve(filename), lastPage?.let {
                     log.getHighPageAddress(expectedLength) // this is intentional, aligns last page within file
