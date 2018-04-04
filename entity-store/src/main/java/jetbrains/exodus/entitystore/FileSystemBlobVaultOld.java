@@ -54,6 +54,8 @@ public class FileSystemBlobVaultOld extends BlobVault {
     private final File location;
     private final BlobHandleGenerator blobHandleGenerator;
     private final int version;
+    @Nullable
+    private BlobVaultSizeFunction vaultSizeFunction;
 
     /**
      * Blob size is calculated by inspecting directory files only on first request
@@ -61,20 +63,20 @@ public class FileSystemBlobVaultOld extends BlobVault {
      */
     private final AtomicLong size;
 
-    public FileSystemBlobVaultOld(@NotNull final PersistentEntityStoreConfig config,
-                                  @NotNull final String parentDirectory,
-                                  @NotNull final String blobsDirectory,
-                                  @NotNull final String blobExtension,
-                                  @NotNull final BlobHandleGenerator blobHandleGenerator) throws IOException {
+    FileSystemBlobVaultOld(@NotNull final PersistentEntityStoreConfig config,
+                           @NotNull final String parentDirectory,
+                           @NotNull final String blobsDirectory,
+                           @NotNull final String blobExtension,
+                           @NotNull final BlobHandleGenerator blobHandleGenerator) throws IOException {
         this(config, parentDirectory, blobsDirectory, blobExtension, blobHandleGenerator, EXPECTED_VERSION);
     }
 
-    protected FileSystemBlobVaultOld(@NotNull final PersistentEntityStoreConfig config,
-                                     @NotNull final String parentDirectory,
-                                     @NotNull final String blobsDirectory,
-                                     @NotNull final String blobExtension,
-                                     @NotNull final BlobHandleGenerator blobHandleGenerator,
-                                     final int expectedVersion) throws IOException {
+    FileSystemBlobVaultOld(@NotNull final PersistentEntityStoreConfig config,
+                           @NotNull final String parentDirectory,
+                           @NotNull final String blobsDirectory,
+                           @NotNull final String blobExtension,
+                           @NotNull final BlobHandleGenerator blobHandleGenerator,
+                           final int expectedVersion) throws IOException {
         super(config);
         this.blobsDirectory = blobsDirectory;
         this.blobExtension = blobExtension;
@@ -93,9 +95,7 @@ public class FileSystemBlobVaultOld extends BlobVault {
                 throw new UnexpectedBlobVaultVersionException("Unexpected FileSystemBlobVault version: " + version);
             }
         } else {
-            final File[] files = location.listFiles();
-            final boolean hasFiles = files != null && files.length > 0;
-            if (!hasFiles) {
+            if (isEmptyDir(location)) {
                 version = expectedVersion;
             } else {
                 version = EXPECTED_VERSION;
@@ -122,7 +122,7 @@ public class FileSystemBlobVaultOld extends BlobVault {
         return blobHandleGenerator.nextHandle(txn);
     }
 
-    public void setContent(final long blobHandle, @NotNull final InputStream content) throws Exception {
+    private void setContent(final long blobHandle, @NotNull final InputStream content) throws Exception {
         final File location = getBlobLocation(blobHandle, false);
         setContentImpl(content, location);
         if (size.get() != UNKNOWN_SIZE) {
@@ -130,7 +130,7 @@ public class FileSystemBlobVaultOld extends BlobVault {
         }
     }
 
-    public void setContent(final long blobHandle, @NotNull final File file) throws Exception {
+    private void setContent(final long blobHandle, @NotNull final File file) throws Exception {
         final File location = getBlobLocation(blobHandle, false);
         if (!file.renameTo(location)) {
             try (FileInputStream content = new FileInputStream(file)) {
@@ -238,7 +238,7 @@ public class FileSystemBlobVaultOld extends BlobVault {
     public long size() {
         long result = size.get();
         if (result == UNKNOWN_SIZE) {
-            result = calculateBlobSize();
+            result = vaultSizeFunction == null ? calculateBlobVaultSize() : vaultSizeFunction.getBlobVaultSize();
             size.set(result);
         }
         return result;
@@ -359,24 +359,22 @@ public class FileSystemBlobVaultOld extends BlobVault {
         return result;
     }
 
-    protected final String getBlobExtension() {
+    final String getBlobExtension() {
         return blobExtension;
+    }
+
+    void setVaultSizeFunction(@Nullable final BlobVaultSizeFunction vaultSizeFunction) {
+        this.vaultSizeFunction = vaultSizeFunction;
     }
 
     private void setContentImpl(@NotNull final InputStream content,
                                 @NotNull final File location) throws IOException {
-        OutputStream blobOutput = null;
-        try {
-            blobOutput = new BufferedOutputStream(new FileOutputStream(location));
+        try (OutputStream blobOutput = new BufferedOutputStream(new FileOutputStream(location))) {
             IOUtil.copyStreams(content, blobOutput, bufferAllocator);
-        } finally {
-            if (blobOutput != null) {
-                blobOutput.close();
-            }
         }
     }
 
-    private long calculateBlobSize() {
+    private long calculateBlobVaultSize() {
         return IOUtil.getDirectorySize(location, blobExtension, true);
     }
 
@@ -386,9 +384,20 @@ public class FileSystemBlobVaultOld extends BlobVault {
             return false;
         }
         final File dir = file.getParentFile();
-        if (dir != null && location.compareTo(dir) != 0 && dir.listFiles().length == 0) {
+        if (dir != null && location.compareTo(dir) != 0 && isEmptyDir(dir)) {
             deleteRecursively(dir);
         }
         return true;
+    }
+
+    private static boolean isEmptyDir(@NotNull final File dir) {
+        final File[] files = dir.listFiles();
+        return files != null && files.length == 0;
+    }
+
+
+    public interface BlobVaultSizeFunction {
+
+        long getBlobVaultSize();
     }
 }

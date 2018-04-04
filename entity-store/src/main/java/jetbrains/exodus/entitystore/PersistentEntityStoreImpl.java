@@ -37,6 +37,7 @@ import jetbrains.exodus.env.*;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.management.Statistics;
 import jetbrains.exodus.util.ByteArraySizedInputStream;
+import jetbrains.exodus.util.IOUtil;
 import jetbrains.exodus.util.LightByteArrayOutputStream;
 import jetbrains.exodus.util.UTFUtil;
 import org.jetbrains.annotations.NonNls;
@@ -85,7 +86,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @NotNull
     private final StoreNamingRules namingRulez;
-    @Nullable
     private BlobVault blobVault;
 
     @NotNull
@@ -400,6 +400,22 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 if (file.exists()) {
                     logger.error("Redundant blob file: " + file);
                 }
+            }
+            if (ENABLE_BLOB_FILE_LENGTHS) {
+                blobVault.setVaultSizeFunction(new FileSystemBlobVaultOld.BlobVaultSizeFunction() {
+                    @Override
+                    public long getBlobVaultSize() {
+                        final long blockSize = IOUtil.getBlockSize();
+                        long result = 0;
+                        try (Cursor cursor = blobFileLengths.openCursor(getAndCheckCurrentTransaction().getEnvironmentTransaction())) {
+                            while (cursor.getNext()) {
+                                final long fileLength = LongBinding.compressedEntryToLong(cursor.getValue());
+                                result += (Math.max(fileLength, 1L) + blockSize - 1) / blockSize * blockSize;
+                            }
+                        }
+                        return result;
+                    }
+                });
             }
             return blobVault;
         } catch (IOException e) {
