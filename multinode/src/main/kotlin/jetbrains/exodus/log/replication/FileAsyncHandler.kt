@@ -24,6 +24,7 @@ import software.amazon.awssdk.utils.FunctionalUtils.invokeSafely
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousFileChannel
 import java.nio.channels.CompletionHandler
+import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.util.concurrent.Semaphore
@@ -48,7 +49,11 @@ class FileAsyncHandler(private val path: Path, private val lastPageStart: Long, 
     }
 
     override fun exceptionOccurred(throwable: Throwable) {
-        close()
+        try {
+            close()
+        } finally {
+            invokeSafely { Files.delete(path) }
+        }
     }
 
     override fun complete(): WriteResult {
