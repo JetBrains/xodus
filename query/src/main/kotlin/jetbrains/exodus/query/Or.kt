@@ -27,7 +27,7 @@ class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
 
     override fun instantiate(entityType: String, queryEngine: QueryEngine, metaData: ModelMetaData): Iterable<Entity> {
         if (!analyzed && depth >= Utils.reduceUnionsOfLinksDepth) {
-            val linkNames = HashSet<String>()
+            val linkNames = hashSetOf<String>()
             val txn = queryEngine.persistentStore.andCheckCurrentTransaction
             val ids = EntityIdSetIterable(txn)
             if (isUnionOfLinks(linkNames, ids)) {
