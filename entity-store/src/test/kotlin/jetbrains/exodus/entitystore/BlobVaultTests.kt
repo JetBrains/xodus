@@ -84,7 +84,7 @@ class BlobVaultTests : EntityStoreTestBase() {
     }
 
     @TestFor(issues = ["XD-688"])
-    fun testBlobsLengths() {
+    fun testBlobsFileLengths() {
         PersistentEntityStoreImpl.ENABLE_BLOB_FILE_LENGTHS = true
         val store = entityStore
         val txn = storeTransaction
@@ -110,15 +110,15 @@ class BlobVaultTests : EntityStoreTestBase() {
     }
 
     @TestFor(issues = ["XD-688"])
-    fun testBlobLengthIsNonNegative() {
+    fun testBlobFileLengthIsNonNegative() {
         TestUtil.runWithExpectedException({
             entityStore.setBlobFileLength(storeTransaction, 0L, -1)
         }, IllegalArgumentException::class.java)
     }
 
     @TestFor(issues = ["XD-688"])
-    fun testDeleteBlobLength() {
-        testBlobsLengths()
+    fun testDeleteBlobFileLength() {
+        testBlobsFileLengths()
         val store = entityStore
         val txn = storeTransaction
         store.deleteBlobFileLength(txn, 0L)
@@ -129,5 +129,20 @@ class BlobVaultTests : EntityStoreTestBase() {
         Assert.assertEquals(2L, next.first)
         Assert.assertEquals(5L, next.second)
         Assert.assertFalse(infos.hasNext())
+    }
+
+    @TestFor(issues = ["XD-688"])
+    fun testBlobFileLengthsFrom() {
+        testBlobsFileLengths()
+        val store = entityStore
+        val txn = storeTransaction
+        store.deleteBlobFileLength(txn, 1L)
+        val infos = store.getBlobFileLengths(txn, 1L).iterator()
+        Assert.assertTrue(infos.hasNext())
+        val next = infos.next()
+        Assert.assertEquals(2L, next.first)
+        Assert.assertEquals(5L, next.second)
+        Assert.assertFalse(infos.hasNext())
+        Assert.assertEquals(2L, store.blobFileCount(txn))
     }
 }

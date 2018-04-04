@@ -1760,49 +1760,17 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
     }
 
+    public long blobFileCount(@NotNull final PersistentStoreTransaction txn) {
+        return blobFileLengths.count(txn.getEnvironmentTransaction());
+    }
 
     public Iterable<Pair<Long, Long>> getBlobFileLengths(@NotNull final PersistentStoreTransaction txn) {
-        return new Iterable<Pair<Long, Long>>() {
-            @NotNull
-            @Override
-            public Iterator<Pair<Long, Long>> iterator() {
-                return new Iterator<Pair<Long, Long>>() {
-                    final Cursor cursor = blobFileLengths.openCursor(txn.getEnvironmentTransaction());
-                    Pair<Long, Long> next = null;
-                    boolean hasMore = true;
+        return getBlobFileLengths(txn, 0L);
+    }
 
-                    @Override
-                    public void remove() {
-                        throw new UnsupportedOperationException();
-                    }
-
-                    @Override
-                    public boolean hasNext() {
-                        if (hasMore) {
-                            if (next == null) {
-                                if (cursor.getNext()) {
-                                    next = new Pair<>(
-                                        LongBinding.compressedEntryToLong(cursor.getKey()),
-                                        LongBinding.compressedEntryToLong(cursor.getValue()));
-                                } else {
-                                    cursor.close();
-                                    hasMore = false;
-                                }
-                            }
-                        }
-                        return hasMore;
-                    }
-
-                    @Override
-                    public Pair<Long, Long> next() {
-                        if (!hasNext()) return null;
-                        final Pair<Long, Long> result = next;
-                        next = null;
-                        return result;
-                    }
-                };
-            }
-        };
+    public Iterable<Pair<Long, Long>> getBlobFileLengths(@NotNull final PersistentStoreTransaction txn,
+                                                         final long fromHandle) {
+        return new BlobFileLengthsIterable(txn, fromHandle);
     }
 
     @Override
@@ -1953,4 +1921,75 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
     }
 
+    private class BlobFileLengthsIterable implements Iterable<Pair<Long, Long>> {
+        @NotNull
+        private final PersistentStoreTransaction txn;
+        private final long fromHandle;
+
+        BlobFileLengthsIterable(@NotNull PersistentStoreTransaction txn, final long fromHandle) {
+            this.txn = txn;
+            this.fromHandle = fromHandle;
+        }
+
+        @NotNull
+        @Override
+        public Iterator iterator() {
+            return new Iterator();
+        }
+
+        private class Iterator implements java.util.Iterator<Pair<Long, Long>> {
+
+            final Cursor cursor;
+            Pair<Long, Long> next;
+            boolean hasMore;
+
+            public Iterator() {
+                cursor = blobFileLengths.openCursor(txn.getEnvironmentTransaction());
+                if (fromHandle == 0L) {
+                    hasMore = true;
+                    next = null;
+                } else {
+                    hasMore = cursor.getSearchKeyRange(LongBinding.longToCompressedEntry(fromHandle)) != null;
+                    if (hasMore) {
+                        next = newNext();
+                    }
+                }
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public boolean hasNext() {
+                if (hasMore) {
+                    if (next == null) {
+                        if (cursor.getNext()) {
+                            next = newNext();
+                        } else {
+                            cursor.close();
+                            hasMore = false;
+                        }
+                    }
+                }
+                return hasMore;
+            }
+
+            @Override
+            public Pair<Long, Long> next() {
+                if (!hasNext()) return null;
+                final Pair<Long, Long> result = next;
+                next = null;
+                return result;
+            }
+
+            @NotNull
+            private Pair<Long, Long> newNext() {
+                return new Pair<>(
+                    LongBinding.compressedEntryToLong(cursor.getKey()),
+                    LongBinding.compressedEntryToLong(cursor.getValue()));
+            }
+        }
+    }
 }
