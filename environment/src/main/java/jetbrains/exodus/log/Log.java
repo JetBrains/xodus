@@ -244,8 +244,13 @@ public final class Log implements Closeable {
         return getTip().highAddress;
     }
 
-    @SuppressWarnings({"OverlyLongMethod"})
+
     public LogTip setHighAddress(final LogTip logTip, final long highAddress) {
+        return setHighAddress(logTip, highAddress, null);
+    }
+
+    @SuppressWarnings({"OverlyLongMethod"})
+    public LogTip setHighAddress(final LogTip logTip, final long highAddress, final LogFileSet fileSet) {
         if (highAddress > logTip.highAddress) {
             throw new ExodusException("Only can decrease high address");
         }
@@ -269,7 +274,7 @@ public final class Log implements Closeable {
         closeWriter();
         final LongArrayList blocksToDelete = new LongArrayList();
         long blockToTruncate = -1L;
-        for (final long blockAddress : fileSetMutable.getArray()) {
+        for (final long blockAddress : (fileSet == null ? fileSetMutable : fileSet).getArray()) {
             if (blockAddress <= highAddress) {
                 blockToTruncate = blockAddress;
                 break;

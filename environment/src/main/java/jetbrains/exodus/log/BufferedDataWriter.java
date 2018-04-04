@@ -26,7 +26,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 
-class BufferedDataWriter {
+public class BufferedDataWriter {
 
     // immutable state
     @NotNull
@@ -81,7 +81,7 @@ class BufferedDataWriter {
     }
 
     @NotNull
-    LogFileSet.Mutable getFileSetMutable() {
+    public LogFileSet.Mutable getFileSetMutable() {
         return fileSetMutable;
     }
 
