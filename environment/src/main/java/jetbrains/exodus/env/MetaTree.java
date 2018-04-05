@@ -54,9 +54,14 @@ final class MetaTree {
         if (logTip.highAddress > EMPTY_LOG_BOUND) {
             Loggable rootLoggable = log.getLastLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);
             while (rootLoggable != null) {
-                final DatabaseRoot dbRoot = new DatabaseRoot(rootLoggable);
-                final long root = dbRoot.getAddress();
-                if (dbRoot.isValid()) {
+                final long root = rootLoggable.getAddress();
+                // work around XD-692: load database root in try-catch block
+                DatabaseRoot dbRoot = null;
+                try {
+                    dbRoot = new DatabaseRoot(rootLoggable);
+                } catch (ExodusException ignore) {
+                }
+                if (dbRoot != null && dbRoot.isValid()) {
                     try {
                         final LogTip updatedTip = log.setHighAddress(logTip, root + dbRoot.length());
                         final BTree metaTree = env.loadMetaTree(dbRoot.getRootAddress(), updatedTip);
@@ -68,7 +73,7 @@ final class MetaTree {
                     } catch (ExodusException e) {
                         logTip = log.getTip();
                         EnvironmentImpl.loggerError("Failed to recover to valid root" +
-                                LogUtil.getWrongAddressErrorMessage(dbRoot.getAddress(), env.getEnvironmentConfig().getLogFileSize()), e);
+                            LogUtil.getWrongAddressErrorMessage(dbRoot.getAddress(), env.getEnvironmentConfig().getLogFileSize()), e);
                         // XD-449: try next database root if we failed to traverse whole MetaTree
                         // TODO: this check should become obsolete after XD-334 is implemented
                     }
@@ -94,7 +99,7 @@ final class MetaTree {
         try {
             final long rootAddress = resultTree.getMutableCopy().save();
             root = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
-                    DatabaseRoot.asByteIterable(rootAddress, EnvironmentImpl.META_TREE_ID));
+                DatabaseRoot.asByteIterable(rootAddress, EnvironmentImpl.META_TREE_ID));
             log.flush();
             createdTip = log.endWrite();
         } catch (Throwable t) {
@@ -106,9 +111,9 @@ final class MetaTree {
 
     static MetaTree create(@NotNull final EnvironmentImpl env, @NotNull final LogTip logTip, @NotNull final MetaTreePrototype prototype) {
         return new MetaTree(
-                env.loadMetaTree(prototype.treeAddress(), logTip),
-                prototype.rootAddress(),
-                logTip
+            env.loadMetaTree(prototype.treeAddress(), logTip),
+            prototype.rootAddress(),
+            logTip
         );
     }
 
@@ -144,7 +149,7 @@ final class MetaTree {
         final long treeRootAddress = treeMutable.save();
         final int structureId = treeMutable.getStructureId();
         out.put(LongBinding.longToCompressedEntry(structureId),
-                CompressedUnsignedLongByteIterable.getIterable(treeRootAddress));
+            CompressedUnsignedLongByteIterable.getIterable(treeRootAddress));
     }
 
     /**
@@ -163,7 +168,7 @@ final class MetaTree {
         final Log log = env.getLog();
         final int lastStructureId = env.getLastStructureId();
         final long dbRootAddress = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
-                DatabaseRoot.asByteIterable(newMetaTreeAddress, lastStructureId));
+            DatabaseRoot.asByteIterable(newMetaTreeAddress, lastStructureId));
         expired.add(new ExpiredLoggableInfo(dbRootAddress, (int) (log.getWrittenHighAddress() - dbRootAddress)));
         return new MetaTree.Proto(newMetaTreeAddress, dbRootAddress);
     }
