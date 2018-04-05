@@ -56,8 +56,7 @@ public class BufferedDataWriter {
     BufferedDataWriter(@NotNull final Log log,
                        @NotNull final DataWriter child,
                        @NotNull final DataReader reader,
-                       @NotNull final LogTip page,
-                       final boolean doNotCrypt) {
+                       @NotNull final LogTip page) {
         this.log = log;
         logCache = log.cache;
         this.fileSetMutable = page.logFileSet.beginWrite();
@@ -76,15 +75,9 @@ public class BufferedDataWriter {
         } else {
             currentPage = new MutablePage(null, logCache.allocPage(), page.pageAddress, 0);
         }
-        if (doNotCrypt) {
-            cipherProvider = null;
-            cipherKey = null;
-            cipherBasicIV = 0;
-        } else {
-            cipherProvider = log.getConfig().getCipherProvider();
-            cipherKey = log.getConfig().getCipherKey();
-            cipherBasicIV = log.getConfig().getCipherBasicIV();
-        }
+        cipherProvider = log.getConfig().getCipherProvider();
+        cipherKey = log.getConfig().getCipherKey();
+        cipherBasicIV = log.getConfig().getCipherBasicIV();
     }
 
     @NotNull
@@ -200,6 +193,10 @@ public class BufferedDataWriter {
 
     public void setLastPageWritten(int lastPageWritten) {
         currentPage.setCounts(lastPageWritten);
+    }
+
+    public int getLastPageWritten() {
+        return currentPage.writtenCount;
     }
 
     long getLastWrittenFileLength(long fileLengthBound) {

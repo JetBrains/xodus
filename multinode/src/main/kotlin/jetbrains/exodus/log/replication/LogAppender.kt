@@ -91,8 +91,6 @@ object LogAppender : KLogging() {
                 fileSize
             }
 
-            log.ensureWriter().fileSetMutable.add(file)
-
             val useLastPage = atLastFile && expectedLength != fileSize
             val created = fileFactory.fetchFile(log, file, expectedLength, useLastPage)
 
@@ -102,11 +100,6 @@ object LogAppender : KLogging() {
 
             if (useLastPage && (delta.highAddress - log.getHighPageAddress(delta.highAddress) != created.lastPageWritten.toLong())) {
                 throw IllegalStateException("Fetched unexpected last page bytes")
-            }
-
-            log.ensureWriter().apply {
-                incHighAddress(expectedLength)
-                setLastPageWritten(created.lastPageWritten)
             }
 
             if (atLastFile) {

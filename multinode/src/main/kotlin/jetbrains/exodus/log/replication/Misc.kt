@@ -15,9 +15,18 @@
  */
 package jetbrains.exodus.log.replication
 
-import jetbrains.exodus.log.Log
+import java.nio.ByteBuffer
 
-interface FileFactory {
+fun ByteBuffer.copyBytes(output: ByteArray, offset: Int, length: Int) {
+    if (hasArray()) {
+        System.arraycopy(
+                array(),
+                arrayOffset() + position(),
+                output,
+                offset,
+                length
+        )
+    }
 
-    fun fetchFile(log: Log, address: Long, expectedLength: Long, finalFile: Boolean): WriteResult
+    asReadOnlyBuffer().get(output, offset, length)
 }

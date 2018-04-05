@@ -81,20 +81,6 @@ class FileAsyncHandler(
         }
     }
 
-    private fun ByteBuffer.copyBytes(output: ByteArray, offset: Int, length: Int) {
-        if (hasArray()) {
-            System.arraycopy(
-                    array(),
-                    arrayOffset() + position(),
-                    output,
-                    offset,
-                    length
-            )
-        }
-
-        asReadOnlyBuffer().get(output, offset, length)
-    }
-
     private inner class FileSubscriber : Subscriber<ByteBuffer> {
 
         @Volatile

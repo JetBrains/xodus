@@ -331,11 +331,7 @@ public final class Log implements Closeable {
     }
 
     public LogTip beginWrite() {
-        return beginWrite(false);
-    }
-
-    public LogTip beginWrite(final boolean doNotCrypt) {
-        BufferedDataWriter writer = new BufferedDataWriter(this, baseWriter, reader, getTip(), doNotCrypt);
+        BufferedDataWriter writer = new BufferedDataWriter(this, baseWriter, reader, getTip());
         this.bufferedWriter = writer;
         return writer.getStartingTip();
     }
@@ -986,7 +982,7 @@ public final class Log implements Closeable {
         return result;
     }
 
-    public long writeContinuously(final byte[] data, final int count, final boolean doNotCrypt) {
+    public long writeContinuously(final byte[] data, final int count) {
         final BufferedDataWriter writer = ensureWriter();
 
         final long result = beforeWrite(writer);

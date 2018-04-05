@@ -19,11 +19,9 @@ import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogUtil
 import software.amazon.awssdk.core.AwsRequestOverrideConfig
 import software.amazon.awssdk.services.s3.S3AsyncClient
-import java.nio.file.Path
 
-class S3FileFactory(
+class S3ToWriterFileFactory(
         override val s3: S3AsyncClient,
-        val dir: Path,
         override val bucket: String,
         override val requestOverrideConfig: AwsRequestOverrideConfig? = null
 ) : S3FactoryBoilerplate {
@@ -31,23 +29,38 @@ class S3FileFactory(
     override fun fetchFile(log: Log, address: Long, expectedLength: Long, finalFile: Boolean): WriteResult {
         if (checkPreconditions(log, expectedLength)) return WriteResult.empty
 
-        log.ensureWriter().fileSetMutable.add(address)
+        val handler = BufferQueueAsyncHandler()
 
-        val filename = LogUtil.getLogFilename(address)
+        val request = getRemoteFile(expectedLength, LogUtil.getLogFilename(address), handler)
+        val queue = handler.queue
+        val subscription = handler.subscription
 
-        val handler = if (finalFile) {
-            // this is intentional, aligns last page within file
-            val lastPageStart = log.getHighPageAddress(expectedLength)
-            FileAsyncHandler(dir.resolve(filename), lastPageStart, log.ensureWriter().allocLastPage(address + lastPageStart))
-        } else {
-            FileAsyncHandler(dir.resolve(filename), 0, null)
-        }
+        var written = 0L
 
-        return getRemoteFile(expectedLength, filename, handler).get().also {
-            log.ensureWriter().apply {
-                incHighAddress(it.written)
-                lastPageWritten = it.lastPageWritten
+        while(true) {
+            val buffer = queue.take()
+            if (buffer === BufferQueueAsyncHandler.finish) {
+                break
             }
+            val count = buffer.remaining()
+            val output = ByteArray(count)
+            buffer.get(output)
+            if (log.writeContinuously(output, count) < 0) {
+                throw IllegalStateException("Cannot write full file")
+            }
+            written += count
+            subscription.request(1)
         }
+
+        val response = request.get()
+        if (response.contentLength() != written) {
+            throw IllegalStateException("Write length mismatch")
+        }
+
+        if(finalFile) { // whole files are flushed automatically
+            log.flush(true)
+        }
+
+        return WriteResult(written, log.ensureWriter().lastPageWritten)
     }
 }
