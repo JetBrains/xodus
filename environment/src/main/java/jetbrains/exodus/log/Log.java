@@ -344,6 +344,12 @@ public final class Log implements Closeable {
         this.bufferedWriter = null;
     }
 
+    public void revertWrite(final LogTip logTip) {
+        final LogFileSet.Mutable fileSet = ensureWriter().getFileSetMutable();
+        abortWrite();
+        setHighAddress(logTip, logTip.highAddress, fileSet);
+    }
+
     public long getWrittenHighAddress() {
         return ensureWriter().getHighAddress();
     }

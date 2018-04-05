@@ -52,9 +52,7 @@ object LogAppender : KLogging() {
                 }
             }
         } catch (t: Throwable) {
-            val fileSet = log.ensureWriter().fileSetMutable
-            log.abortWrite()
-            log.setHighAddress(currentTip, currentTip.highAddress, fileSet) // rollback potential padding and created files
+            log.revertWrite(currentTip) // rollback potential padding and created files
 
             throw ExodusException.toExodusException(t, "Failed to replicate log")
         }

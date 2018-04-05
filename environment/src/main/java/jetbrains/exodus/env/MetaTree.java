@@ -86,7 +86,7 @@ final class MetaTree {
             throw new InvalidCipherParametersException();
         }
         // no roots found: the database is empty
-        log.setHighAddress(logTip, 0);
+        logTip = log.setHighAddress(logTip, 0);
         final ITree resultTree = getEmptyMetaTree(env);
         final long root;
         log.beginWrite();
@@ -98,7 +98,7 @@ final class MetaTree {
             log.flush();
             createdTip = log.endWrite();
         } catch (Throwable t) {
-            log.abortWrite(); // rollback log state
+            log.revertWrite(logTip);
             throw new ExodusException("Can't init meta tree in log", t);
         }
         return new Pair<>(new MetaTree(resultTree, root, createdTip), EnvironmentImpl.META_TREE_ID);
