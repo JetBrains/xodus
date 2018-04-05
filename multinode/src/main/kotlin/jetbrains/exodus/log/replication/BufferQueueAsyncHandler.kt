@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicReference
 // async handler which exposes a queue for sequential writing of response data on caller thread
 class BufferQueueAsyncHandler : AsyncResponseHandler<GetObjectResponse, GetObjectResponse> {
     companion object {
-        val finish = ByteBuffer.allocate(0)
+        val finish: ByteBuffer = ByteBuffer.allocate(0)
     }
 
     private val subscriber = AtomicReference<QueueSubscriber>()
