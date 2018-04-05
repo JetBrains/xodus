@@ -154,6 +154,11 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
+    public int getEntityIterableCacheCountsCacheSize() {
+        return config.getEntityIterableCacheCountsCacheSize();
+    }
+
+    @Override
     public int getEntityIterableCacheThreadCount() {
         return config.getEntityIterableCacheThreadCount();
     }
@@ -166,6 +171,16 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     @Override
     public void setEntityIterableCacheCachingTimeout(long cachingTimeout) {
         config.setEntityIterableCacheCachingTimeout(cachingTimeout);
+    }
+
+    @Override
+    public long getEntityIterableCacheCountsCachingTimeout() {
+        return config.getEntityIterableCacheCountsCachingTimeout();
+    }
+
+    @Override
+    public void setEntityIterableCacheCountsCachingTimeout(long cachingTimeout) {
+        config.setEntityIterableCacheCountsCachingTimeout(cachingTimeout);
     }
 
     @Override

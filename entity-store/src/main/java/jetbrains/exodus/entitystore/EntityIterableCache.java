@@ -79,7 +79,7 @@ public final class EntityIterableCache {
         cacheAdapter.clear();
         final int cacheSize = config.getEntityIterableCacheSize();
         deferredIterablesCache = new ConcurrentObjectCache<>(cacheSize);
-        iterableCountsCache = new ConcurrentObjectCache<>(cacheSize * 4);
+        iterableCountsCache = new ConcurrentObjectCache<>(config.getEntityIterableCacheCountsCacheSize());
     }
 
     /**
@@ -286,7 +286,8 @@ public final class EntityIterableCache {
         private CachingCancellingPolicy(final boolean isConsistent) {
             this.isConsistent = isConsistent;
             startTime = System.currentTimeMillis();
-            cachingTimeout = config.getEntityIterableCacheCachingTimeout();
+            cachingTimeout = isConsistent ?
+                config.getEntityIterableCacheCachingTimeout() : config.getEntityIterableCacheCountsCachingTimeout();
         }
 
         private boolean isOverdue(final long currentMillis) {

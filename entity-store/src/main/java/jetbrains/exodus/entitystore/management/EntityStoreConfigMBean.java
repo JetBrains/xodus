@@ -67,11 +67,17 @@ public interface EntityStoreConfigMBean {
 
     int getEntityIterableCacheSize();
 
+    int getEntityIterableCacheCountsCacheSize();
+
     int getEntityIterableCacheThreadCount();
 
     long getEntityIterableCacheCachingTimeout();
 
     void setEntityIterableCacheCachingTimeout(long cachingTimeout);
+
+    long getEntityIterableCacheCountsCachingTimeout();
+
+    void setEntityIterableCacheCountsCachingTimeout(long cachingTimeout);
 
     int getEntityIterableCacheDeferredDelay();
 
