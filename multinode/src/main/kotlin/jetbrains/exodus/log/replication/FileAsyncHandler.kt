@@ -31,7 +31,13 @@ import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
-class FileAsyncHandler(private val path: Path, private val lastPageStart: Long, private val lastPage: ByteArray?) : AsyncResponseHandler<GetObjectResponse, WriteResult> {
+// async handler which writes data to the filesystem and copies last written bytes to "last page" if provided
+// performs fsync on file end
+class FileAsyncHandler(
+        private val path: Path,
+        private val lastPageStart: Long = 0,
+        private val lastPage: ByteArray? = null
+) : AsyncResponseHandler<GetObjectResponse, WriteResult> {
     private lateinit var fileChannel: AsynchronousFileChannel
     @Volatile
     private var response: GetObjectResponse? = null

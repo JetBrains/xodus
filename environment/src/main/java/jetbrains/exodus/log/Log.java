@@ -331,7 +331,11 @@ public final class Log implements Closeable {
     }
 
     public LogTip beginWrite() {
-        BufferedDataWriter writer = new BufferedDataWriter(this, baseWriter, reader, getTip());
+        return beginWrite(false);
+    }
+
+    public LogTip beginWrite(final boolean doNotCrypt) {
+        BufferedDataWriter writer = new BufferedDataWriter(this, baseWriter, reader, getTip(), doNotCrypt);
         this.bufferedWriter = writer;
         return writer.getStartingTip();
     }
@@ -946,31 +950,7 @@ public final class Log implements Closeable {
     public long writeContinuously(final byte type, final int structureId, final ByteIterable data) {
         final BufferedDataWriter writer = ensureWriter();
 
-        final long result = writer.getHighAddress();
-
-        // begin of test-only code
-        final LogTestConfig testConfig = this.testConfig;
-        if (testConfig != null) {
-            final long maxHighAddress = testConfig.getMaxHighAddress();
-            if (maxHighAddress >= 0 && result >= maxHighAddress) {
-                throw new ExodusException("Can't write more than " + maxHighAddress);
-            }
-        }
-        // end of test-only code
-
-        if (!baseWriter.isOpen()) {
-            final long fileAddress = getFileAddress(result);
-            writer.openOrCreateBlock(fileAddress, writer.getLastWrittenFileLength(fileLengthBound));
-            final boolean fileCreated = !writer.getFileSetMutable().contains(fileAddress);
-            if (fileCreated) {
-                writer.getFileSetMutable().add(fileAddress);
-            }
-            if (fileCreated) {
-                // fsync the directory to ensure we will find the log file in the directory after system crash
-                baseWriter.syncDirectory();
-                notifyFileCreated(fileAddress);
-            }
-        }
+        final long result = beforeWrite(writer);
 
         final boolean isNull = NullLoggable.isNullLoggable(type);
         int recordLength = 1;
@@ -997,6 +977,52 @@ public final class Log implements Closeable {
         writer.commit();
         writer.incHighAddress(recordLength);
         closeFullFileFileIfNecessary(writer);
+        return result;
+    }
+
+    public long writeContinuously(final byte[] data, final int count, final boolean doNotCrypt) {
+        final BufferedDataWriter writer = ensureWriter();
+
+        final long result = beforeWrite(writer);
+
+        if (count > fileLengthBound - writer.getLastWrittenFileLength(fileLengthBound)) {
+            return -1L; // protect file overflow
+        }
+
+        writer.write(data, count);
+
+        writer.commit();
+        writer.incHighAddress(count);
+        closeFullFileFileIfNecessary(writer);
+        return result;
+    }
+
+    private long beforeWrite(BufferedDataWriter writer) {
+        final long result = writer.getHighAddress();
+
+        // begin of test-only code
+        final LogTestConfig testConfig = this.testConfig;
+        if (testConfig != null) {
+            final long maxHighAddress = testConfig.getMaxHighAddress();
+            if (maxHighAddress >= 0 && result >= maxHighAddress) {
+                throw new ExodusException("Can't write more than " + maxHighAddress);
+            }
+        }
+        // end of test-only code
+
+        if (!baseWriter.isOpen()) {
+            final long fileAddress = getFileAddress(result);
+            writer.openOrCreateBlock(fileAddress, writer.getLastWrittenFileLength(fileLengthBound));
+            final boolean fileCreated = !writer.getFileSetMutable().contains(fileAddress);
+            if (fileCreated) {
+                writer.getFileSetMutable().add(fileAddress);
+            }
+            if (fileCreated) {
+                // fsync the directory to ensure we will find the log file in the directory after system crash
+                baseWriter.syncDirectory();
+                notifyFileCreated(fileAddress);
+            }
+        }
         return result;
     }
 

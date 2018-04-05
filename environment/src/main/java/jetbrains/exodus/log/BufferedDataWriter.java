@@ -56,7 +56,8 @@ public class BufferedDataWriter {
     BufferedDataWriter(@NotNull final Log log,
                        @NotNull final DataWriter child,
                        @NotNull final DataReader reader,
-                       @NotNull final LogTip page) {
+                       @NotNull final LogTip page,
+                       final boolean doNotCrypt) {
         this.log = log;
         logCache = log.cache;
         this.fileSetMutable = page.logFileSet.beginWrite();
@@ -75,14 +76,32 @@ public class BufferedDataWriter {
         } else {
             currentPage = new MutablePage(null, logCache.allocPage(), page.pageAddress, 0);
         }
-        cipherProvider = log.getConfig().getCipherProvider();
-        cipherKey = log.getConfig().getCipherKey();
-        cipherBasicIV = log.getConfig().getCipherBasicIV();
+        if (doNotCrypt) {
+            cipherProvider = null;
+            cipherKey = null;
+            cipherBasicIV = 0;
+        } else {
+            cipherProvider = log.getConfig().getCipherProvider();
+            cipherKey = log.getConfig().getCipherKey();
+            cipherBasicIV = log.getConfig().getCipherBasicIV();
+        }
     }
 
     @NotNull
     public LogFileSet.Mutable getFileSetMutable() {
         return fileSetMutable;
+    }
+
+    public void setHighAddress(long highAddress) {
+        this.highAddress = highAddress;
+    }
+
+    public byte[] allocLastPage(long pageAddress) {
+        byte[] result = logCache.allocPage();
+
+        currentPage = new MutablePage(null, result, pageAddress, 0);
+
+        return result;
     }
 
     void write(byte b) {
@@ -175,8 +194,12 @@ public class BufferedDataWriter {
         return highAddress;
     }
 
-    void incHighAddress(long delta) {
+    public void incHighAddress(long delta) {
         this.highAddress += delta;
+    }
+
+    public void setLastPageWritten(int lastPageWritten) {
+        currentPage.setCounts(lastPageWritten);
     }
 
     long getLastWrittenFileLength(long fileLengthBound) {
@@ -248,6 +271,10 @@ public class BufferedDataWriter {
             this.previousPage = previousPage;
             this.bytes = page;
             this.pageAddress = pageAddress;
+            flushedCount = committedCount = writtenCount = count;
+        }
+
+        void setCounts(final int count) {
             flushedCount = committedCount = writtenCount = count;
         }
     }

@@ -19,32 +19,28 @@ import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogUtil
 import software.amazon.awssdk.core.AwsRequestOverrideConfig
 import software.amazon.awssdk.services.s3.S3AsyncClient
-import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import java.nio.file.Path
 
 class S3FileFactory(
-        private val s3: S3AsyncClient,
-        private val dir: Path,
-        private val bucket: String,
-        private val requestOverrideConfig: AwsRequestOverrideConfig? = null
-) : FileFactory {
+        override val s3: S3AsyncClient,
+        val dir: Path,
+        override val bucket: String,
+        override val requestOverrideConfig: AwsRequestOverrideConfig? = null
+) : S3FactoryBoilerplate {
 
-    override fun fetchFile(log: Log, address: Long, expectedLength: Long, lastPage: ByteArray?): WriteResult {
-        if (expectedLength < 0L || expectedLength > log.fileLengthBound) {
-            throw IllegalArgumentException("Incorrect expected length specified")
-        }
-        if (expectedLength == 0L) {
-            return WriteResult(0, 0)
-        }
+    override fun fetchFile(log: Log, address: Long, expectedLength: Long, useLastPage: Boolean): WriteResult {
+        if (checkPreconditions(log, expectedLength)) return WriteResult.empty
+
         val filename = LogUtil.getLogFilename(address)
-        // if target log is appended in the meantime, ignore appended bytes thanks to S3 API Range header support
-        // https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35
-        return s3.getObject(
-                GetObjectRequest.builder().range("bytes=0-${expectedLength - 1}")
-                        .requestOverrideConfig(requestOverrideConfig).bucket(bucket).key(filename).build(),
-                FileAsyncHandler(dir.resolve(filename), lastPage?.let {
-                    log.getHighPageAddress(expectedLength) // this is intentional, aligns last page within file
-                } ?: 0, lastPage)
-        ).get()
+
+        val handler = if (useLastPage) {
+            // this is intentional, aligns last page within file
+            val lastPageStart = log.getHighPageAddress(expectedLength)
+            FileAsyncHandler(dir.resolve(filename), lastPageStart, log.ensureWriter().allocLastPage(address + lastPageStart))
+        } else {
+            FileAsyncHandler(dir.resolve(filename), 0, null)
+        }
+
+        return getRemoteFile(expectedLength, filename, handler)
     }
 }

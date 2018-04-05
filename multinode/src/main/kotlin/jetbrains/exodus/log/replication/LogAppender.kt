@@ -18,7 +18,6 @@ package jetbrains.exodus.log.replication
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.env.replication.ReplicationDelta
 import jetbrains.exodus.log.Log
-import jetbrains.exodus.log.LogFileSet
 import jetbrains.exodus.log.LogTip
 import mu.KLogging
 import org.jetbrains.annotations.NotNull
@@ -45,23 +44,11 @@ object LogAppender : KLogging() {
                     // current file has been deleted, just pad it with nulls to respect log constraints
                     log.padWithNulls()
                 }
-                log.abortWrite() // even if we did padWithNulls, the file is not truncated by this abortWrite
 
-                val lastPage = ByteArray(log.cachePageSize)
-                val fileSet = currentTip.logFileSet.beginWrite()
+                writeFiles(log, currentTip, delta, fileFactory)
 
-                val lastFileWrite = writeFiles(log, currentTip, delta, fileFactory, lastPage, fileSet)
-
-                val count = lastFileWrite.lastPageWritten
-                val result = LogTip(
-                        lastPage,
-                        highAddress - count,
-                        count,
-                        highAddress, highAddress,
-                        fileSet.endWrite()
-                )
                 return {
-                    log.compareAndSetTip(currentTip, result)
+                    log.endWrite()
                 }
             }
         } catch (t: Throwable) {
@@ -83,10 +70,8 @@ object LogAppender : KLogging() {
             log: Log,
             currentTip: LogTip,
             delta: ReplicationDelta,
-            fileFactory: FileFactory,
-            lastPage: ByteArray,
-            fileSet: LogFileSet.Mutable
-    ): WriteResult {
+            fileFactory: FileFactory
+    ) {
         val fileSize = log.fileSize
 
         val lastFile = log.getFileAddress(delta.highAddress)
@@ -108,8 +93,10 @@ object LogAppender : KLogging() {
                 fileSize
             }
 
+            log.ensureWriter().fileSetMutable.add(file)
+
             val useLastPage = atLastFile && expectedLength != fileSize
-            val created = fileFactory.fetchFile(log, file, expectedLength, lastPage.takeIf { useLastPage })
+            val created = fileFactory.fetchFile(log, file, expectedLength, useLastPage)
 
             if (created.written != expectedLength) {
                 throw IllegalStateException("Fetched unexpected bytes")
@@ -119,12 +106,17 @@ object LogAppender : KLogging() {
                 throw IllegalStateException("Fetched unexpected last page bytes")
             }
 
-            fileSet.add(file)
+            log.ensureWriter().apply {
+                incHighAddress(expectedLength)
+                setLastPageWritten(created.lastPageWritten)
+            }
 
             if (atLastFile) {
                 lastFileWrite = created
             }
         }
-        return lastFileWrite ?: throw IllegalArgumentException("Last file is not provided")
+        if (lastFileWrite == null) {
+            throw IllegalArgumentException("Last file is not provided")
+        }
     }
 }

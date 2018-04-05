@@ -112,7 +112,7 @@ class LogReplicationTest {
         val sourceLog = sourceLogDir.createLog(fileSize = 4L, releaseLock = true) {
             cachePageSize = 1024
         }
-        val targetLog = targetLogDir.createLog(fileSize = 4L) {
+        var targetLog = targetLogDir.createLog(fileSize = 4L) {
             cachePageSize = 1024
         }
 
@@ -138,6 +138,20 @@ class LogReplicationTest {
                 S3FileFactory(s3, Paths.get(targetLog.location), bucket, extraHost)
         )()
 
+        sourceLog.close()
+
+        // check log with cache
+        checkLog(targetLog, count)
+
+        targetLog = targetLogDir.createLog(fileSize = 4L) {
+            cachePageSize = 1024
+        }
+
+        // check log without cache
+        checkLog(targetLog, count)
+    }
+
+    private fun checkLog(targetLog: Log, count: Int) {
         val it = targetLog.getLoggableIterator(0)
         var i = 0
         while (it.hasNext()) {
@@ -150,7 +164,6 @@ class LogReplicationTest {
         try {
             Assert.assertEquals(count.toLong(), i.toLong())
         } finally {
-            sourceLog.close()
             targetLog.close()
         }
     }
