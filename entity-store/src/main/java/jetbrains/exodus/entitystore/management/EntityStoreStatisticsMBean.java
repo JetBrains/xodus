@@ -23,6 +23,20 @@ public interface EntityStoreStatisticsMBean {
 
     long getNumberOfCachingJobs();
 
+    long getTotalCachingJobsEnqueued();
+
+    long getTotalCachingJobsStarted();
+
+    long getTotalCachingJobsInterrupted();
+
+    long getTotalCachingJobsNotStarted();
+
+    long getTotalCachingCountJobs();
+
+    long getTotalEntityIterableCacheHits();
+
+    long getTotalEntityIterableCacheMisses();
+
     float getEntityIterableCacheHitRate();
 
     float getBlobStringsCacheHitRate();

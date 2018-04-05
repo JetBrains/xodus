@@ -41,6 +41,8 @@ public final class EntityIterableCache {
     @NotNull
     private EntityIterableCacheAdapter cacheAdapter;
     @NotNull
+    private final EntityIterableCacheStatistics stats;
+    @NotNull
     private ObjectCacheBase<Object, Long> deferredIterablesCache;
     @NotNull
     private ObjectCacheBase<Object, Long> iterableCountsCache;
@@ -53,6 +55,7 @@ public final class EntityIterableCache {
         this.store = store;
         config = store.getConfig();
         cacheAdapter = new EntityIterableCacheAdapter(config);
+        stats = new EntityIterableCacheStatistics();
         clear();
         processor = new EntityStoreSharedAsyncProcessor(config.getEntityIterableCacheThreadCount());
         processor.start();
@@ -62,6 +65,10 @@ public final class EntityIterableCache {
 
     public float hitRate() {
         return cacheAdapter.hitRate();
+    }
+
+    public EntityIterableCacheStatistics getStats() {
+        return stats;
     }
 
     public int count() {
@@ -94,10 +101,13 @@ public final class EntityIterableCache {
         if (cached != null) {
             if (!cached.getHandle().isExpired()) {
                 txn.localCacheHit();
+                stats.incTotalHits();
                 return cached;
             }
             localCache.remove(handle);
         }
+
+        stats.incTotalMisses();
 
         if (txn.isMutable() || !txn.isCurrent() || !txn.isCachingRelevant()) {
             return it;
@@ -195,6 +205,10 @@ public final class EntityIterableCache {
             this.handle = handle;
             cancellingPolicy = new CachingCancellingPolicy(isConsistent && handle.isConsistent());
             setProcessor(processor);
+            stats.incTotalJobsEnqueued();
+            if (!isConsistent) {
+                stats.incTotalCountJobs();
+            }
         }
 
         @Override
@@ -220,9 +234,11 @@ public final class EntityIterableCache {
         protected void execute() {
             final long started;
             if (isCachingQueueFull() || cancellingPolicy.isOverdue(started = System.currentTimeMillis())) {
+                stats.incTotalJobsNotStarted();
                 return;
             }
             Thread.yield();
+            stats.incTotalJobsStarted();
             store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
                 @Override
                 public void execute(@NotNull final StoreTransaction tx) {
@@ -249,6 +265,7 @@ public final class EntityIterableCache {
                         logger.error(action + " failed with ReadonlyTransactionException. Re-queueing...");
                         queue(Priority.below_normal);
                     } catch (TooLongEntityIterableInstantiationException e) {
+                        stats.incTotalJobsInterrupted();
                         if (logger.isInfoEnabled()) {
                             final String action = cancellingPolicy.isConsistent ? "Caching" : "Caching (inconsistent)";
                             logger.info(action + " forcedly stopped, " + e.reason.message + ": " + getStringPresentation(handle));
