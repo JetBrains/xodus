@@ -150,7 +150,8 @@ public interface Entity extends Comparable<Entity> {
     List<String> getPropertyNames();
 
     /**
-     * Gets value of blob with specified name as {@linkplain InputStream}. The {@code InputStream} should be closed.
+     * Gets value of blob with specified name as {@linkplain InputStream}. You are not required to and should not close
+     * the input stream that is returned by the method.
      *
      * @param blobName name of the blob
      * @return blob stream, or {@code null} if the blob is not set
