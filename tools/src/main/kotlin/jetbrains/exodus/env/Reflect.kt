@@ -135,7 +135,7 @@ internal fun printUsage() {
     exitProcess(1)
 }
 
-internal class Reflect(directory: File) {
+class Reflect(directory: File) {
 
     companion object : KLogging() {
 
@@ -284,7 +284,7 @@ internal class Reflect(directory: File) {
         val usedSpace = TreeMap<Long, Long?>()
         val usedSpacePerStore = TreeMap<String, Long?>()
         print("Analysing meta tree loggables... ")
-        fetchUsedSpace("meta tree", env.metaTree.addressIterator(), usedSpace, usedSpacePerStore)
+        fetchUsedSpace("meta tree", env.metaTreeInternal.addressIterator(), usedSpace, usedSpacePerStore)
         val names = env.computeInReadonlyTransaction { txn -> env.getAllStoreNames(txn) }
         env.executeInReadonlyTransaction { txn ->
             if (env.storeExists(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, txn)) {
