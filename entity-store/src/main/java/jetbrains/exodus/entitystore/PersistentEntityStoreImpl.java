@@ -407,14 +407,23 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     @Override
                     public long getBlobVaultSize() {
                         final long blockSize = IOUtil.getBlockSize();
-                        long result = 0;
-                        try (Cursor cursor = blobFileLengths.openCursor(getAndCheckCurrentTransaction().getEnvironmentTransaction())) {
-                            while (cursor.getNext()) {
-                                final long fileLength = LongBinding.compressedEntryToLong(cursor.getValue());
-                                result += (Math.max(fileLength, 1L) + blockSize - 1) / blockSize * blockSize;
-                            }
+                        final Environment env = environment;
+                        if (env.isOpen()) {
+                            return env.computeInReadonlyTransaction(new TransactionalComputable<Long>() {
+                                @Override
+                                public Long compute(@NotNull final Transaction txn) {
+                                    long result = 0;
+                                    try (Cursor cursor = blobFileLengths.openCursor(txn)) {
+                                        while (cursor.getNext()) {
+                                            final long fileLength = LongBinding.compressedEntryToLong(cursor.getValue());
+                                            result += (Math.max(fileLength, 1L) + blockSize - 1) / blockSize * blockSize;
+                                        }
+                                    }
+                                    return result;
+                                }
+                            });
                         }
-                        return result;
+                        return 0L;
                     }
                 });
             }
