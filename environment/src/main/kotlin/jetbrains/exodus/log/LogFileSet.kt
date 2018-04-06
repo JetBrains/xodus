@@ -37,15 +37,22 @@ sealed class LogFileSet(val fileSize: Long, val set: PersistentLongSet) {
      * Array of files' addresses in reverse order: the newer files first
      */
     val array: LongArray
-        get() {
-            val current = current
-            val result = LongArray(current.size())
-            val it = current.reverseLongIterator()
-            for (i in 0 until result.size) {
-                result[i] = it.nextLong().keyToAddress
-            }
-            return result
+        get() = getFiles(reversed = true)
+
+    @JvmOverloads
+    fun getFiles(reversed: Boolean = false): LongArray {
+        val current = current
+        val result = LongArray(current.size())
+        val it = if (reversed) {
+            current.reverseLongIterator()
+        } else {
+            current.longIterator()
         }
+        for (i in 0 until result.size) {
+            result[i] = it.nextLong().keyToAddress
+        }
+        return result
+    }
 
     fun contains(fileAddress: Long) = current.contains(fileAddress.addressToKey)
 

@@ -17,6 +17,7 @@ package jetbrains.exodus.log.replication
 
 import jetbrains.exodus.env.replication.ReplicationDelta
 import org.junit.Assert
+import org.junit.Ignore
 import org.junit.Test
 
 class EmptyLogReplicationTest : ReplicationBaseTest() {
@@ -27,10 +28,11 @@ class EmptyLogReplicationTest : ReplicationBaseTest() {
 
         val count = 10
         writeToLog(sourceLog, count)
-        Assert.assertEquals(1, sourceLog.allFileAddresses.size)
+        val sourceFiles = sourceLog.tip.allFiles
+        Assert.assertEquals(1, sourceFiles.size)
 
         targetLog.appendLog(
-                ReplicationDelta(1, 0, sourceLog.highAddress, sourceLog.fileSize, sourceLog.allFileAddresses)
+                ReplicationDelta(1, 0, sourceLog.highAddress, sourceLog.fileSize, sourceFiles)
         )
 
         sourceLog.close()
@@ -46,16 +48,19 @@ class EmptyLogReplicationTest : ReplicationBaseTest() {
         checkLog(targetLog, count)
     }
 
+    @Ignore
+    @Test
     fun `should append changes in few files`() {
         var (sourceLog, targetLog) = newLogs()
 
         val count = 1000
         writeToLog(sourceLog, count)
 
-        Assert.assertTrue(sourceLog.allFileAddresses.size > 1)
+        val sourceFiles = sourceLog.tip.allFiles
+        Assert.assertTrue(sourceFiles.size > 1)
 
         targetLog.appendLog(
-                ReplicationDelta(1, 0, sourceLog.highAddress, sourceLog.fileSize, sourceLog.allFileAddresses)
+                ReplicationDelta(1, 0, sourceLog.highAddress, sourceLog.fileSize, sourceFiles)
         )
 
         sourceLog.close()

@@ -37,7 +37,8 @@ class NotEmptyLogReplicationTest : ReplicationBaseTest() {
         targetLogDir.also { db.unzipTo(it) }
     }
 
-//    @Test
+    @Ignore
+    @Test
     fun `should append changes in one file`() {
         var (sourceLog, targetLog) = newLogs()
         val startAddress = sourceLog.highAddress
@@ -45,7 +46,7 @@ class NotEmptyLogReplicationTest : ReplicationBaseTest() {
         val count = 1
         writeToLog(sourceLog, count)
 
-        assertEquals(2, sourceLog.allFileAddresses.size)
+        assertEquals(2, sourceLog.tip.allFiles.size)
 
         targetLog.appendLog(
                 ReplicationDelta(
@@ -70,14 +71,15 @@ class NotEmptyLogReplicationTest : ReplicationBaseTest() {
         checkLog(targetLog, count, startAddress)
     }
 
-//    @Test
+    @Ignore
+    @Test
     fun `should append few files to log`() {
         var (sourceLog, targetLog) = newLogs()
         val startAddress = sourceLog.highAddress
 
         val count = 400
         writeToLog(sourceLog, count)
-        Assert.assertTrue(sourceLog.allFileAddresses.size > 1)
+        Assert.assertTrue(sourceLog.tip.allFiles.size > 1)
 
         targetLog.appendLog(
                 ReplicationDelta(
@@ -112,12 +114,12 @@ class NotEmptyLogReplicationTest : ReplicationBaseTest() {
                         sourceLog.highAddress - 1,
                         sourceLog.highAddress,
                         sourceLog.fileSize,
-                        longArrayOf(sourceLog.allFileAddresses.first())
+                        longArrayOf(sourceLog.tip.allFiles.first())
                 )
         )
     }
 
-//    @Test(expected = IllegalArgumentException::class)
+    @Test(expected = IllegalArgumentException::class)
     fun `should not be able to decrease highAddress`() {
         val (sourceLog, targetLog) = newLogs()
 
@@ -127,60 +129,9 @@ class NotEmptyLogReplicationTest : ReplicationBaseTest() {
                         sourceLog.highAddress,
                         sourceLog.highAddress - 10,
                         sourceLog.fileSize,
-                        longArrayOf(sourceLog.allFileAddresses.first())
+                        longArrayOf(sourceLog.tip.allFiles.first())
                 )
         )
-    }
-
-    @Test
-    fun `should truncate log if incoming files is empty`() {
-        val (sourceLog, targetLog) = newLogs()
-
-        targetLog.appendLog(
-                ReplicationDelta(
-                        1,
-                        sourceLog.highAddress,
-                        sourceLog.highAddress - 10,
-                        sourceLog.fileSize,
-                        longArrayOf()
-                )
-        )
-
-        assertEquals(sourceLog.highAddress - 10, targetLog.highAddress)
-    }
-
-//    @Test
-    fun `should truncate log if incoming files is smaller then start address`() {
-        var (sourceLog, targetLog) = newLogs()
-        val startAddress = sourceLog.highAddress
-        val count = 10
-        writeToLog(sourceLog, count)
-
-        assertEquals(2, sourceLog.allFileAddresses.size)
-
-        targetLog.appendLog(
-                ReplicationDelta(
-                        1,
-                        startAddress,
-                        sourceLog.highAddress,
-                        sourceLog.fileSize,
-                        sourceLog.allFileAddresses // smaller then start address
-                )
-        )
-
-        assertEquals(sourceLog.highAddress, targetLog.highAddress)
-        sourceLog.close()
-
-        // check log with cache
-        checkLog(targetLog, count, startAddress)
-
-        targetLog = targetLogDir.createLog(fileSize = 4L) {
-            cachePageSize = 1024
-        }
-
-        // check log without cache
-        checkLog(targetLog, count, startAddress)
-
     }
 
     private fun File.unzipTo(restoreDir: File) {

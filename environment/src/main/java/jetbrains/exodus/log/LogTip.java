@@ -64,6 +64,10 @@ public class LogTip {
         return new LogTip(bytes, pageAddress, updatedCount, updatedHighAddress, updatedApprovedHighAddress, logFileSet);
     }
 
+    public long[] getAllFiles() {
+        return logFileSet.getFiles();
+    }
+
     public LongIterator getFilesFrom(final long highAddress) {
         return logFileSet.getFilesFrom(highAddress);
     }

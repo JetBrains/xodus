@@ -30,6 +30,9 @@ object LogAppender : KLogging() {
             checkPreconditions(log, currentTip, delta)
 
             val highAddress = delta.highAddress
+            if (highAddress < delta.startAddress) {
+                throw IllegalArgumentException("Cannot decrease high address")
+            }
             if (delta.files.isEmpty()) {
                 // truncate log
                 log.abortWrite()
@@ -75,10 +78,10 @@ object LogAppender : KLogging() {
 
         var lastFileWrite: WriteResult? = null
 
-        var prevAddress = log.getNextFileAddress(currentTip.highAddress)
+        var prevAddress = log.getFileAddress(currentTip.highAddress)
 
         for (file in delta.files) {
-            if (file <= prevAddress) {
+            if (prevAddress != 0L && file <= prevAddress) {
                 throw IllegalStateException("Incorrect file order")
             }
             prevAddress = file
