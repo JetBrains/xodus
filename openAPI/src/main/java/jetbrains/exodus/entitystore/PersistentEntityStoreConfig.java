@@ -287,6 +287,8 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
      */
     public static final String MANAGEMENT_ENABLED = "exodus.entityStore.managementEnabled";
 
+    public static final String REPLICATOR = "exodus.entityStore.replicator";
+
     private static final int MAX_DEFAULT_ENTITY_ITERABLE_CACHE_SIZE = 4096;
 
     public PersistentEntityStoreConfig() {
@@ -582,6 +584,14 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
 
     public PersistentEntityStoreConfig setManagementEnabled(final boolean managementEnabled) {
         return setSetting(MANAGEMENT_ENABLED, managementEnabled);
+    }
+
+    public PersistentEntityStoreConfig setStoreReplicator(final PersistentEntityStoreReplicator replicator) {
+        return setSetting(REPLICATOR, replicator);
+    }
+
+    public PersistentEntityStoreReplicator getStoreReplicator() {
+        return (PersistentEntityStoreReplicator) getSetting(REPLICATOR);
     }
 
     private static int defaultEntityIterableCacheSize() {

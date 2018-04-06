@@ -20,10 +20,9 @@ import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.bindings.*;
 import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache;
 import jetbrains.exodus.core.dataStructures.Pair;
+import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
-import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
-import jetbrains.exodus.core.dataStructures.hash.IntHashSet;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction.TransactionType;
@@ -172,6 +171,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         PersistentEntityStores.adjustEnvironmentConfigForEntityStore(environment.getEnvironmentConfig());
         this.name = name;
         location = environment.getLocation();
+
+        final PersistentEntityStoreReplicator replicator = config.getStoreReplicator();
+        if (replicator != null) {
+            replicate(replicator, environment, blobVault);
+        }
+
         namingRulez = new StoreNamingRules(name);
         iterableCache = new EntityIterableCache(this);
         entityIdCache = new ConcurrentObjectCache<>(ENTITY_ID_CACHE_SIZE);
@@ -210,13 +215,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 final Transaction envTxn = txn.getEnvironmentTransaction();
                 sequences = environment.openStore(SEQUENCES_STORE, StoreConfig.WITHOUT_DUPLICATES, envTxn);
                 if (blobVault == null) {
-                    BlobVault vault = createDefaultFSBlobVault();
-                    final StreamCipherProvider cipherProvider = environment.getCipherProvider();
-                    if (cipherProvider != null) {
-                        vault = new EncryptedBlobVault(vault, cipherProvider,
-                            Objects.requireNonNull(environment.getCipherKey()), environment.getCipherBasicIV());
-                    }
-                    blobVault = vault;
+                    blobVault = initBlobVault();
                 }
 
                 final TwoColumnTable entityTypesTable = new TwoColumnTable(txn,
@@ -292,6 +291,16 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 preloadTables((PersistentStoreTransaction) txn); // pre-load tables for all entity types to avoid lazy load of the tables
             }
         });
+    }
+
+    private BlobVault initBlobVault() {
+        BlobVault vault = createDefaultFSBlobVault();
+        final StreamCipherProvider cipherProvider = environment.getCipherProvider();
+        if (cipherProvider != null) {
+            vault = new EncryptedBlobVault(vault, cipherProvider,
+                    Objects.requireNonNull(environment.getCipherKey()), environment.getCipherBasicIV());
+        }
+        return vault;
     }
 
     private void applyRefactorings(final boolean fromScratch) {
@@ -430,6 +439,71 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             return blobVault;
         } catch (IOException e) {
             throw ExodusException.toExodusException(e);
+        }
+    }
+
+    private void replicate(PersistentEntityStoreReplicator replicator, @NotNull final Environment environment, @Nullable BlobVault blobVault) {
+        if (blobVault != null) {
+            throw new UnsupportedOperationException("Can only replicate default blob valut");
+        }
+
+        final long highBlobHandle = computeInReadonlyTransaction(new StoreTransactionalComputable<Long>() {
+            @Override
+            public Long compute(@NotNull StoreTransaction tx) {
+                final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
+                final Transaction envTxn = txn.getEnvironmentTransaction();
+                final Store sequencesStore = environment.openStore(
+                        SEQUENCES_STORE, StoreConfig.WITHOUT_DUPLICATES, envTxn, false
+                );
+                final long result;
+                if (sequencesStore == null) {
+                    result = -1;
+                } else {
+                    final ByteIterable value = sequencesStore.get(envTxn, PersistentSequence.sequenceNameToEntry(BLOB_HANDLES_SEQUENCE));
+                    result = value == null ? -1 : LongBinding.compressedEntryToLong(value);
+                }
+                return result;
+            }
+        });
+
+        replicator.replicateEnvironment(environment);
+
+        if (Settings.get(internalSettings, "Blob file lengths cached") == null) {
+            throw new IllegalStateException("Cannot replicate blobs without serialized blob list");
+        } else {
+            ENABLE_BLOB_FILE_LENGTHS = true;
+        }
+
+        final List<Pair<Long, Long>> blobsToReplicate = computeInReadonlyTransaction(new StoreTransactionalComputable<List<Pair<Long, Long>>>() {
+            @Override
+            public List<Pair<Long, Long>> compute(@NotNull StoreTransaction tx) {
+                final List<Pair<Long, Long>> result = new ArrayList<>();
+                try (Cursor cursor = blobFileLengths.openCursor(getAndCheckCurrentTransaction().getEnvironmentTransaction())) {
+                    final ByteIterable foundBlob = cursor.getSearchKeyRange(LongBinding.longToCompressedEntry(highBlobHandle));
+                    if (foundBlob != null) {
+                        do {
+                            final long blobHandle = LongBinding.compressedEntryToLong(cursor.getKey());
+                            if (blobHandle > highBlobHandle) {
+                                final long fileLength = LongBinding.compressedEntryToLong(cursor.getValue());
+                                result.add(new Pair<>(blobHandle, fileLength));
+                            }
+                        } while (cursor.getNext());
+                    }
+                }
+                return result;
+            }
+        });
+
+        if (!blobsToReplicate.isEmpty()) {
+            if (logger.isInfoEnabled()) {
+                logger.info("Will replicate " + blobsToReplicate.size() + "blobs higher than " + highBlobHandle);
+            }
+
+            final BlobVault vault = initBlobVault();
+
+            replicator.replicateBlobVault(vault, blobsToReplicate);
+
+            this.blobVault = vault;
         }
     }
 

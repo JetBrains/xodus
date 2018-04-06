@@ -78,6 +78,11 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
         return vaultIdentity;
     }
 
+    @NotNull
+    public File getBlobLocation(long blobHandle) {
+        throw new UnsupportedOperationException("Non-file based vault");
+    }
+
     /**
      * Returns binary content of blob identified by specified blob handle as {@linkplain InputStream}.
      *

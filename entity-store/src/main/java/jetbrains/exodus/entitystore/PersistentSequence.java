@@ -94,7 +94,7 @@ public class PersistentSequence implements Sequence, FlushLog.Member {
         return value == null ? -1 : LongBinding.compressedEntryToLong(value);
     }
 
-    private static ArrayByteIterable sequenceNameToEntry(@NotNull final String sequenceName) {
+    static ArrayByteIterable sequenceNameToEntry(@NotNull final String sequenceName) {
         try {
             return new ArrayByteIterable(sequenceName.getBytes(UTF8));
         } catch (final UnsupportedEncodingException e) {
