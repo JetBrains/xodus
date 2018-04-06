@@ -134,7 +134,7 @@ class LogReplicationTest {
 
         LogAppender.appendLog(
                 targetLog,
-                ReplicationDelta(0, sourceLog.highAddress, sourceLog.fileSize, sourceLog.allFileAddresses),
+                ReplicationDelta(0, 0, sourceLog.highAddress, sourceLog.fileSize, sourceLog.allFileAddresses),
                 S3FileFactory(s3, Paths.get(targetLog.location), bucket, extraHost)
         )()
 
