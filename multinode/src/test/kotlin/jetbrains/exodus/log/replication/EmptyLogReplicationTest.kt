@@ -17,7 +17,6 @@ package jetbrains.exodus.log.replication
 
 import jetbrains.exodus.env.replication.ReplicationDelta
 import org.junit.Assert
-import org.junit.Ignore
 import org.junit.Test
 
 class EmptyLogReplicationTest : ReplicationBaseTest() {

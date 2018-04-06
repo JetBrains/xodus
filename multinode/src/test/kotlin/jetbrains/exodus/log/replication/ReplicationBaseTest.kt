@@ -204,7 +204,8 @@ abstract class ReplicationBaseTest {
     }
 
     fun Log.filesDelta(startAddress: Long): LongArray {
-        return allFileAddresses.filter { it >= startAddress }.toLongArray()
+        val index = allFileAddresses.firstOrNull { it >= startAddress } ?: return allFileAddresses
+        return allFileAddresses.copyOfRange(index.toInt() - 1, allFileAddresses.size)
     }
 
 
