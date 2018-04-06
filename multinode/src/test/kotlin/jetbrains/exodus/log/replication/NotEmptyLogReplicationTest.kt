@@ -12,7 +12,6 @@ import java.io.File
 import java.io.FileOutputStream
 
 
-@Ignore
 class NotEmptyLogReplicationTest : ReplicationBaseTest() {
 
     private val db = File(NotEmptyLogReplicationTest::class.java.getResource("/logfiles.zip").toURI())
@@ -23,7 +22,7 @@ class NotEmptyLogReplicationTest : ReplicationBaseTest() {
         targetLogDir.also { db.unzipTo(it) }
     }
 
-    @Test
+//    @Test
     fun `should append changes in one file`() {
         var (sourceLog, targetLog) = newLogs()
         val startAddress = sourceLog.highAddress
@@ -56,7 +55,7 @@ class NotEmptyLogReplicationTest : ReplicationBaseTest() {
         checkLog(targetLog, count, startAddress)
     }
 
-    @Test
+//    @Test
     fun `should append few files to log`() {
         var (sourceLog, targetLog) = newLogs()
         val startAddress = sourceLog.highAddress
@@ -103,7 +102,7 @@ class NotEmptyLogReplicationTest : ReplicationBaseTest() {
         )
     }
 
-    @Test(expected = IllegalArgumentException::class)
+//    @Test(expected = IllegalArgumentException::class)
     fun `should not be able to decrease highAddress`() {
         val (sourceLog, targetLog) = newLogs()
 
@@ -135,7 +134,7 @@ class NotEmptyLogReplicationTest : ReplicationBaseTest() {
         assertEquals(sourceLog.highAddress - 10, targetLog.highAddress)
     }
 
-    @Test
+//    @Test
     fun `should truncate log if incoming files is smaller then start address`() {
         var (sourceLog, targetLog) = newLogs()
         val startAddress = sourceLog.highAddress

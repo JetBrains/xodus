@@ -20,7 +20,6 @@ import org.junit.Assert
 import org.junit.Ignore
 import org.junit.Test
 
-@Ignore
 class EmptyLogReplicationTest : ReplicationBaseTest() {
 
     @Test
@@ -48,7 +47,6 @@ class EmptyLogReplicationTest : ReplicationBaseTest() {
         checkLog(targetLog, count)
     }
 
-    @Test
     fun `should append changes in few files`() {
         var (sourceLog, targetLog) = newLogs()
 
