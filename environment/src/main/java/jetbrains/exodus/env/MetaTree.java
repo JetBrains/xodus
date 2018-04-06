@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env.replication
+package jetbrains.exodus.env;
 
-import jetbrains.exodus.log.replication.LogReplicationDelta
+import jetbrains.exodus.log.LogTip;
 
-interface EnvironmentReplicationDelta : LogReplicationDelta {
-    val metaTreeAddress: Long
-    val rootAddress: Long
+public interface MetaTree extends MetaTreePrototype {
+    LogTip getLogTip();
 }

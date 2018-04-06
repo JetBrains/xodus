@@ -55,7 +55,7 @@ public class ReadWriteTransaction extends TransactionBase {
         this.beginHook = new Runnable() {
             @Override
             public void run() {
-                final MetaTree currentMetaTree = env.getMetaTree();
+                final MetaTreeImpl currentMetaTree = env.getMetaTreeInternal();
                 setMetaTree(cloneMeta ? currentMetaTree.getClone() : currentMetaTree);
                 env.registerTransaction(ReadWriteTransaction.this);
                 if (beginHook != null) {
@@ -223,7 +223,7 @@ public class ReadWriteTransaction extends TransactionBase {
     }
 
 
-    Iterable<ExpiredLoggableInfo>[] doCommit(@NotNull final MetaTree.Proto[] out) {
+    Iterable<ExpiredLoggableInfo>[] doCommit(@NotNull final MetaTreeImpl.Proto[] out) {
         final Set<Map.Entry<Integer, ITreeMutable>> entries = mutableTrees.entrySet();
         final Set<Map.Entry<Long, Pair<String, ITree>>> removedEntries = removedStores.entrySet();
         final int size = entries.size() + removedEntries.size();
@@ -233,24 +233,24 @@ public class ReadWriteTransaction extends TransactionBase {
         final ITreeMutable metaTreeMutable = getMetaTree().tree.getMutableCopy();
         for (final Map.Entry<Long, Pair<String, ITree>> entry : removedEntries) {
             final Pair<String, ITree> value = entry.getValue();
-            MetaTree.removeStore(metaTreeMutable, value.getFirst(), entry.getKey());
+            MetaTreeImpl.removeStore(metaTreeMutable, value.getFirst(), entry.getKey());
             expiredLoggables[i++] = TreeMetaInfo.getTreeLoggables(value.getSecond());
         }
         removedStores.clear();
         for (final Map.Entry<String, TreeMetaInfo> entry : createdStores.entrySet()) {
-            MetaTree.addStore(metaTreeMutable, entry.getKey(), entry.getValue());
+            MetaTreeImpl.addStore(metaTreeMutable, entry.getKey(), entry.getValue());
         }
         createdStores.clear();
         final Collection<ExpiredLoggableInfo> last;
         for (final Map.Entry<Integer, ITreeMutable> entry : entries) {
             final ITreeMutable treeMutable = entry.getValue();
             expiredLoggables[i++] = treeMutable.getExpiredLoggables();
-            MetaTree.saveTree(metaTreeMutable, treeMutable);
+            MetaTreeImpl.saveTree(metaTreeMutable, treeMutable);
         }
         clearImmutableTrees();
         mutableTrees.clear();
         expiredLoggables[i] = last = metaTreeMutable.getExpiredLoggables();
-        out[0] = MetaTree.saveMetaTree(metaTreeMutable, getEnvironment(), last);
+        out[0] = MetaTreeImpl.saveMetaTree(metaTreeMutable, getEnvironment(), last);
         return expiredLoggables;
     }
 

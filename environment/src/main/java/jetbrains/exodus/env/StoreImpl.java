@@ -189,7 +189,7 @@ public class StoreImpl implements Store {
         }
     }
 
-    ITree openImmutableTree(@NotNull final MetaTree metaTree) {
+    ITree openImmutableTree(@NotNull final MetaTreeImpl metaTree) {
         final int structureId = getStructureId();
         final long upToDateRootAddress = metaTree.getRootAddress(structureId);
         final boolean hasDuplicates = metaInfo.hasDuplicates();

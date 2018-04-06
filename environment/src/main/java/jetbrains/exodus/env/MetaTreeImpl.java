@@ -34,7 +34,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-final class MetaTree {
+final class MetaTreeImpl implements MetaTree {
 
     private static final int EMPTY_LOG_BOUND = 5;
 
@@ -42,13 +42,13 @@ final class MetaTree {
     final long root;
     final LogTip logTip;
 
-    private MetaTree(final ITree tree, long root, LogTip logTip) {
+    private MetaTreeImpl(final ITree tree, long root, LogTip logTip) {
         this.tree = tree;
         this.root = root;
         this.logTip = logTip;
     }
 
-    static Pair<MetaTree, Integer> create(@NotNull final EnvironmentImpl env) {
+    static Pair<MetaTreeImpl, Integer> create(@NotNull final EnvironmentImpl env) {
         final Log log = env.getLog();
         LogTip logTip = log.getTip();
         if (logTip.highAddress > EMPTY_LOG_BOUND) {
@@ -67,7 +67,7 @@ final class MetaTree {
                         final BTree metaTree = env.loadMetaTree(dbRoot.getRootAddress(), updatedTip);
                         if (metaTree != null) {
                             cloneTree(metaTree); // try to traverse meta tree
-                            return new Pair<>(new MetaTree(metaTree, root, updatedTip), dbRoot.getLastStructureId());
+                            return new Pair<>(new MetaTreeImpl(metaTree, root, updatedTip), dbRoot.getLastStructureId());
                         }
                         logTip = updatedTip;
                     } catch (ExodusException e) {
@@ -106,15 +106,30 @@ final class MetaTree {
             log.revertWrite(logTip);
             throw new ExodusException("Can't init meta tree in log", t);
         }
-        return new Pair<>(new MetaTree(resultTree, root, createdTip), EnvironmentImpl.META_TREE_ID);
+        return new Pair<>(new MetaTreeImpl(resultTree, root, createdTip), EnvironmentImpl.META_TREE_ID);
     }
 
-    static MetaTree create(@NotNull final EnvironmentImpl env, @NotNull final LogTip logTip, @NotNull final MetaTreePrototype prototype) {
-        return new MetaTree(
+    static MetaTreeImpl create(@NotNull final EnvironmentImpl env, @NotNull final LogTip logTip, @NotNull final MetaTreePrototype prototype) {
+        return new MetaTreeImpl(
             env.loadMetaTree(prototype.treeAddress(), logTip),
             prototype.rootAddress(),
             logTip
         );
+    }
+
+    @Override
+    public LogTip getLogTip() {
+        return logTip;
+    }
+
+    @Override
+    public long treeAddress() {
+        return tree.getRootAddress();
+    }
+
+    @Override
+    public long rootAddress() {
+        return root;
     }
 
     LongIterator addressIterator() {
@@ -161,16 +176,16 @@ final class MetaTree {
      * @return database root loggable which is read again from the log.
      */
     @NotNull
-    static MetaTree.Proto saveMetaTree(@NotNull final ITreeMutable metaTree,
-                                       @NotNull final EnvironmentImpl env,
-                                       @NotNull final Collection<ExpiredLoggableInfo> expired) {
+    static MetaTreeImpl.Proto saveMetaTree(@NotNull final ITreeMutable metaTree,
+                                           @NotNull final EnvironmentImpl env,
+                                           @NotNull final Collection<ExpiredLoggableInfo> expired) {
         final long newMetaTreeAddress = metaTree.save();
         final Log log = env.getLog();
         final int lastStructureId = env.getLastStructureId();
         final long dbRootAddress = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
             DatabaseRoot.asByteIterable(newMetaTreeAddress, lastStructureId));
         expired.add(new ExpiredLoggableInfo(dbRootAddress, (int) (log.getWrittenHighAddress() - dbRootAddress)));
-        return new MetaTree.Proto(newMetaTreeAddress, dbRootAddress);
+        return new MetaTreeImpl.Proto(newMetaTreeAddress, dbRootAddress);
     }
 
     long getAllStoreCount() {
@@ -216,8 +231,8 @@ final class MetaTree {
         return null;
     }
 
-    MetaTree getClone() {
-        return new MetaTree(cloneTree(tree), root, logTip);
+    MetaTreeImpl getClone() {
+        return new MetaTreeImpl(cloneTree(tree), root, logTip);
     }
 
     static boolean isStringKey(final ArrayByteIterable key) {

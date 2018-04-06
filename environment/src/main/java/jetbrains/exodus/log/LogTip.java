@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.log;
 
+import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import org.jetbrains.annotations.NotNull;
 
 public class LogTip {
@@ -61,5 +62,9 @@ public class LogTip {
 
     LogTip withResize(int updatedCount, long updatedHighAddress, long updatedApprovedHighAddress, @NotNull final LogFileSet.Immutable logFileSet) {
         return new LogTip(bytes, pageAddress, updatedCount, updatedHighAddress, updatedApprovedHighAddress, logFileSet);
+    }
+
+    public LongIterator getFilesFrom(final long highAddress) {
+        return logFileSet.getFilesFrom(highAddress);
     }
 }

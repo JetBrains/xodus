@@ -37,7 +37,7 @@ fun EnvironmentImpl.reopenMetaTree(proto: MetaTreePrototype, rollbackTo: LogTip,
         executeInMetaWriteLock {
             // confirm log inside of meta tree lock
             logTip = confirm().also {
-                metaTree = MetaTree.create(this, it, proto)
+                metaTreeInternal = MetaTreeImpl.create(this, it, proto)
             }
         }
     } catch (t: Throwable) {

@@ -16,6 +16,7 @@
 package jetbrains.exodus.env.replication
 
 import jetbrains.exodus.env.EnvironmentImpl
+import jetbrains.exodus.env.MetaTreePrototype
 import jetbrains.exodus.env.executeInCommitLock
 import jetbrains.exodus.env.reopenMetaTree
 import jetbrains.exodus.log.replication.FileFactory
@@ -24,12 +25,16 @@ import jetbrains.exodus.log.replication.LogAppender
 object EnvironmentAppender {
 
     @JvmStatic
-    fun appendEnvironment(env: EnvironmentImpl, delta: ReplicationDelta, fileFactory: FileFactory) {
+    fun appendEnvironment(env: EnvironmentImpl, delta: EnvironmentReplicationDelta, fileFactory: FileFactory) {
         env.executeInCommitLock {
             val logTip = env.log.beginWrite()
             val confirm = LogAppender.appendLog(env.log, delta, fileFactory, logTip)
 
-            env.reopenMetaTree(delta, logTip, confirm)
+            env.reopenMetaTree(object : MetaTreePrototype {
+                override fun treeAddress() = delta.metaTreeAddress
+
+                override fun rootAddress() = delta.rootAddress
+            }, logTip, confirm)
         }
     }
 }

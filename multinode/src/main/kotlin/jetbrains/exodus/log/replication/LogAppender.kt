@@ -16,7 +16,6 @@
 package jetbrains.exodus.log.replication
 
 import jetbrains.exodus.ExodusException
-import jetbrains.exodus.env.replication.ReplicationDelta
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogTip
 import mu.KLogging
@@ -26,7 +25,7 @@ object LogAppender : KLogging() {
 
     @JvmStatic
     @JvmOverloads
-    fun appendLog(log: Log, delta: ReplicationDelta, fileFactory: FileFactory, currentTip: LogTip = log.beginWrite()): () -> LogTip {
+    fun appendLog(log: Log, delta: LogReplicationDelta, fileFactory: FileFactory, currentTip: LogTip = log.beginWrite()): () -> LogTip {
         try {
             checkPreconditions(log, currentTip, delta)
 
@@ -58,7 +57,7 @@ object LogAppender : KLogging() {
         }
     }
 
-    private fun checkPreconditions(log: @NotNull Log, currentTip: LogTip, delta: ReplicationDelta) {
+    private fun checkPreconditions(log: @NotNull Log, currentTip: LogTip, delta: LogReplicationDelta) {
         if (delta.startAddress != currentTip.highAddress || delta.fileSize != log.fileSize) {
             throw IllegalArgumentException("Non-matching replication delta")
         }
@@ -67,7 +66,7 @@ object LogAppender : KLogging() {
     private fun writeFiles(
             log: Log,
             currentTip: LogTip,
-            delta: ReplicationDelta,
+            delta: LogReplicationDelta,
             fileFactory: FileFactory
     ) {
         val fileSize = log.fileSize

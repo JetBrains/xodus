@@ -18,17 +18,14 @@ package jetbrains.exodus.env.replication
 import java.util.*
 
 data class ReplicationDelta(
+        val id: Long,
         override val startAddress: Long,
         override val highAddress: Long,
         override val fileSize: Long,
         override val files: LongArray,
-        private val metaTreeAddress: Long = -1,
-        private val rootAddress: Long = -1
+        override val metaTreeAddress: Long = -1,
+        override val rootAddress: Long = -1
 ) : EnvironmentReplicationDelta {
-    override fun treeAddress() = metaTreeAddress
-
-    override fun rootAddress() = rootAddress
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is ReplicationDelta) return false

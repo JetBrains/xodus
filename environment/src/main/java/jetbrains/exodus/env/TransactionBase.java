@@ -35,7 +35,7 @@ public abstract class TransactionBase implements Transaction {
     private final EnvironmentImpl env;
     @NotNull
     private final Thread creatingThread;
-    private MetaTree metaTree;
+    private MetaTreeImpl metaTree;
     @NotNull
     private final IntHashMap<ITree> immutableTrees;
     @NotNull
@@ -142,11 +142,11 @@ public abstract class TransactionBase implements Transaction {
     }
 
     @NotNull
-    MetaTree getMetaTree() {
+    MetaTreeImpl getMetaTree() {
         return metaTree;
     }
 
-    void setMetaTree(@NotNull final MetaTree metaTree) {
+    void setMetaTree(@NotNull final MetaTreeImpl metaTree) {
         checkIsFinished();
         this.metaTree = metaTree;
     }
@@ -229,7 +229,7 @@ public abstract class TransactionBase implements Transaction {
             @Override
             public void run() {
                 final EnvironmentImpl env = getEnvironment();
-                setMetaTree(env.getMetaTree());
+                setMetaTree(env.getMetaTreeInternal());
                 env.registerTransaction(TransactionBase.this);
                 if (beginHook != null) {
                     beginHook.run();

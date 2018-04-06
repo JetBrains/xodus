@@ -59,7 +59,7 @@ public class EnvironmentImpl implements Environment {
     @NotNull
     private final EnvironmentConfig ec;
     private BTreeBalancePolicy balancePolicy;
-    private MetaTree metaTree;
+    private MetaTreeImpl metaTree;
     private final AtomicInteger structureId;
     @NotNull
     private final TransactionSet txns;
@@ -103,9 +103,9 @@ public class EnvironmentImpl implements Environment {
         this.log = log;
         this.ec = ec;
         applyEnvironmentSettings(log.getLocation(), ec);
-        final Pair<MetaTree, Integer> meta;
+        final Pair<MetaTreeImpl, Integer> meta;
         synchronized (commitLock) {
-            meta = MetaTree.create(this);
+            meta = MetaTreeImpl.create(this);
         }
         metaTree = meta.getFirst();
         structureId = new AtomicInteger(meta.getSecond());
@@ -348,7 +348,7 @@ public class EnvironmentImpl implements Environment {
                             log.clear();
                             invalidateStoreGetCache();
                             throwableOnCommit = null;
-                            final Pair<MetaTree, Integer> meta = MetaTree.create(this);
+                            final Pair<MetaTreeImpl, Integer> meta = MetaTreeImpl.create(this);
                             metaTree = meta.getFirst();
                             structureId.set(meta.getSecond());
                         } finally {
@@ -649,18 +649,18 @@ public class EnvironmentImpl implements Environment {
                 final LogTip logTip = log.beginWrite();
                 initialHighAddress = logTip.highAddress;
                 try {
-                    final MetaTree.Proto[] tree = new MetaTree.Proto[1];
+                    final MetaTreeImpl.Proto[] tree = new MetaTreeImpl.Proto[1];
                     expiredLoggables = txn.doCommit(tree);
                     // there is a temptation to postpone I/O in order to reduce number of writes to storage device,
                     // but it's quite difficult to resolve all possible inconsistencies afterwards,
                     // so think twice before removing the following line
                     log.flush();
-                    final MetaTree.Proto proto = tree[0];
+                    final MetaTreeImpl.Proto proto = tree[0];
                     metaWriteLock.lock();
                     try {
                         final LogTip updatedTip = log.endWrite();
                         resultingHighAddress = updatedTip.approvedHighAddress;
-                        txn.setMetaTree(metaTree = MetaTree.create(this, updatedTip, proto));
+                        txn.setMetaTree(metaTree = MetaTreeImpl.create(this, updatedTip, proto));
                         txn.executeCommitHook();
                     } finally {
                         metaWriteLock.unlock();
@@ -692,11 +692,11 @@ public class EnvironmentImpl implements Environment {
         return true;
     }
 
-    MetaTree holdNewestSnapshotBy(@NotNull final TransactionBase txn) {
+    MetaTreeImpl holdNewestSnapshotBy(@NotNull final TransactionBase txn) {
         return holdNewestSnapshotBy(txn, true);
     }
 
-    MetaTree holdNewestSnapshotBy(@NotNull final TransactionBase txn, final boolean acquireTxn) {
+    MetaTreeImpl holdNewestSnapshotBy(@NotNull final TransactionBase txn, final boolean acquireTxn) {
         if (acquireTxn) {
             acquireTransaction(txn);
         }
@@ -712,12 +712,16 @@ public class EnvironmentImpl implements Environment {
         }
     }
 
-    MetaTree getMetaTree() {
+    public MetaTree getMetaTree() {
+        return metaTree;
+    }
+
+    MetaTreeImpl getMetaTreeInternal() {
         return metaTree;
     }
 
     // unsafe
-    void setMetaTree(MetaTree metaTree) {
+    void setMetaTreeInternal(MetaTreeImpl metaTree) {
         this.metaTree = metaTree;
     }
 
@@ -836,7 +840,7 @@ public class EnvironmentImpl implements Environment {
     void setHighAddress(final long highAddress) {
         synchronized (commitLock) {
             log.setHighAddress(log.getTip(), highAddress);
-            final Pair<MetaTree, Integer> meta = MetaTree.create(this);
+            final Pair<MetaTreeImpl, Integer> meta = MetaTreeImpl.create(this);
             metaWriteLock.lock();
             try {
                 metaTree = meta.getFirst();

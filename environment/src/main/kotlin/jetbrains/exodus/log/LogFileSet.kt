@@ -49,6 +49,7 @@ sealed class LogFileSet(val fileSize: Long, val set: PersistentLongSet) {
 
     fun contains(fileAddress: Long) = current.contains(fileAddress.addressToKey)
 
+    // if address is inside of a file, the file containing it must be included as well if present
     fun getFilesFrom(fileAddress: Long = 0L): LongIterator = object : LongIterator {
         val it = if (fileAddress == 0L) current.longIterator() else current.tailLongIterator(fileAddress.addressToKey)
 
