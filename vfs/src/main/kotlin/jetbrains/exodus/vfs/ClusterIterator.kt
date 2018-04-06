@@ -22,11 +22,21 @@ import jetbrains.exodus.env.TransactionBase
 import jetbrains.exodus.kotlin.notNull
 import java.io.Closeable
 
+// the ley for transaction's user object containing instance of IOCancellingPolicy
+private const val CANCELLING_POLICY_KEY = "CP_KEY"
+
 internal class ClusterIterator @JvmOverloads constructor(private val vfs: VirtualFileSystem,
                                                          private val txn: Transaction,
                                                          private val fd: Long,
                                                          position: Long = 0L) : Closeable {
     private val cursor: Cursor = vfs.contents.openCursor(txn)
+    private val cancellingPolicy: IOCancellingPolicy? by lazy {
+        vfs.cancellingPolicyProvider?.run {
+            txn.getUserObject(CANCELLING_POLICY_KEY) as IOCancellingPolicy? ?: policy.apply {
+                txn.setUserObject(CANCELLING_POLICY_KEY, this)
+            }
+        }
+    }
     var current: Cluster? = null
         private set
     var isClosed: Boolean = false
@@ -170,15 +180,9 @@ internal class ClusterIterator @JvmOverloads constructor(private val vfs: Virtua
         if (clusterKey.descriptor != fd) {
             current = null
         } else {
-            val provider = vfs.cancellingPolicyProvider
-            if (provider != null) {
-                var cancellingPolicy = txn.getUserObject(provider) as IOCancellingPolicy?
-                if (cancellingPolicy == null) {
-                    cancellingPolicy = provider.policy
-                    txn.setUserObject(provider, cancellingPolicy)
-                }
-                if (cancellingPolicy.needToCancel()) {
-                    cancellingPolicy.doCancel()
+            cancellingPolicy?.run {
+                if (needToCancel()) {
+                    doCancel()
                 }
             }
             current.notNull.clusterNumber = clusterKey.clusterNumber
