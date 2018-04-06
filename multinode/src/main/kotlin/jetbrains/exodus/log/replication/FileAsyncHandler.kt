@@ -94,24 +94,22 @@ class FileAsyncHandler(
         }
 
         override fun onNext(byteBuffer: ByteBuffer) {
+            // TODO: try to replace lock with AtomicInteger FSM
             writeInProgressLock.acquire()
             fileChannel.write(byteBuffer, position.get(), byteBuffer, object : CompletionHandler<Int, ByteBuffer> {
                 override fun completed(result: Int, attachment: ByteBuffer) {
-                    if (result > 0) {
-                        val writtenLength = result.toLong()
-                        updateLastPage(writtenLength, attachment)
-                        synchronized(this@FileSubscriber) {
-                            // TODO: this can be replaced by AtomicInteger FSM
-                            try {
-                                if (closeOnLastWrite) {
-                                    close()
-                                } else {
-                                    subscription.request(1)
-                                }
-                            } finally {
-                                writeInProgressLock.release()
+                    try {
+                        if (result > 0) {
+                            val writtenLength = result.toLong()
+                            updateLastPage(writtenLength, attachment)
+                            if (closeOnLastWrite) {
+                                close()
+                            } else {
+                                subscription.request(1)
                             }
                         }
+                    } finally {
+                        writeInProgressLock.release()
                     }
                 }
 
@@ -128,11 +126,13 @@ class FileAsyncHandler(
         }
 
         override fun onComplete() {
-            synchronized(this) {
-                if (!writeInProgressLock.tryAcquire()) {
-                    closeOnLastWrite = true
-                } else {
+            if (!writeInProgressLock.tryAcquire()) {
+                closeOnLastWrite = true
+            } else {
+                try {
                     close()
+                } finally {
+                    writeInProgressLock.release()
                 }
             }
         }
