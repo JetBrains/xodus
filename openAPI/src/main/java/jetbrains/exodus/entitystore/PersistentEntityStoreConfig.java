@@ -287,6 +287,12 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
      */
     public static final String MANAGEMENT_ENABLED = "exodus.entityStore.managementEnabled";
 
+    /**
+     * If set to some value different from {@code null}, delegate replication to corresponding external service of provided value.
+     * <p>Mutable at runtime: no
+     *
+     * @see PersistentEntityStoreReplicator
+     */
     public static final String REPLICATOR = "exodus.entityStore.replicator";
 
     private static final int MAX_DEFAULT_ENTITY_ITERABLE_CACHE_SIZE = 4096;
@@ -327,7 +333,8 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
             new Pair(TRANSACTION_LINKS_CACHE_SIZE, 1024),
             new Pair(TRANSACTION_BLOB_STRINGS_CACHE_SIZE, 256),
             new Pair(GATHER_STATISTICS, true),
-            new Pair(MANAGEMENT_ENABLED, true)
+            new Pair(MANAGEMENT_ENABLED, true),
+            new Pair(REPLICATOR, null)
         }, strategy);
     }
 
