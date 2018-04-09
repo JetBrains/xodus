@@ -73,8 +73,13 @@ class MetaServerHandler(val store: PersistentEntityStoreImpl) : SimpleChannelInb
     override fun channelRead0(ctx: ChannelHandlerContext, msg: Any) {
         if (msg is HttpRequest) {
             val decoder = QueryStringDecoder(msg.uri())
-            when (decoder.path()) {
-                "/v1/delta/acquire" -> {
+            val path = decoder.path()
+            if (msg.method() != HttpMethod.POST) {
+                respondEmpty(ctx, HttpResponseStatus.BAD_REQUEST)
+                return
+            }
+            when {
+                path.endsWith("/v1/delta/acquire") -> {
                     val from = decoder.parameters()["fromAddress"].toLongSafe(ctx)
                     if (from >= 0) {
                         val env = store.environment as EnvironmentImpl
@@ -96,7 +101,7 @@ class MetaServerHandler(val store: PersistentEntityStoreImpl) : SimpleChannelInb
                     }
                     return
                 }
-                "/v1/delta/release" -> {
+                path.endsWith("/v1/delta/release") -> {
                     val id = decoder.parameters()["id"].toLongSafe(ctx)
                     if (id >= 0) {
                         gcTransactions[id]?.let {
