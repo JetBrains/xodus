@@ -55,7 +55,7 @@ abstract class ReplicationBaseTest {
 
     val targetLogDir by lazy { newTmpFile() }
 
-    protected lateinit var api: S3Mock
+    private lateinit var api: S3Mock
     protected lateinit var s3: S3AsyncClient
     protected lateinit var extraHost: AwsRequestOverrideConfig
 
@@ -188,8 +188,12 @@ abstract class ReplicationBaseTest {
         LogAppender.appendLog(
                 this,
                 delta,
-                S3FileFactory(s3, Paths.get(location), bucket, extraHost)
+                makeFileFactory()
         )()
+    }
+
+    protected open fun Log.makeFileFactory(): FileFactory {
+        return S3FileFactory(s3, Paths.get(location), bucket, extraHost)
     }
 
     fun writeToLog(sourceLog: Log, count: Long, startIndex: Long = 0) {

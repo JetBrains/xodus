@@ -19,7 +19,7 @@ import jetbrains.exodus.env.replication.ReplicationDelta
 import org.junit.Assert
 import org.junit.Test
 
-class EmptyLogReplicationTest : ReplicationBaseTest() {
+open class EmptyLogReplicationTest : ReplicationBaseTest() {
 
     @Test
     fun `should append changes in one file`() {

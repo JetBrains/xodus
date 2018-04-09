@@ -25,8 +25,7 @@ import org.junit.Test
 import java.io.File
 import java.io.FileOutputStream
 
-
-class NotEmptyLogReplicationTest : ReplicationBaseTest() {
+open class NotEmptyLogReplicationTest : ReplicationBaseTest() {
 
     private val db = File(NotEmptyLogReplicationTest::class.java.getResource("/logfiles.zip").toURI())
 
