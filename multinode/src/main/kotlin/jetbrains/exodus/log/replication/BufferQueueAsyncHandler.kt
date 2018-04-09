@@ -34,7 +34,7 @@ class BufferQueueAsyncHandler : AsyncResponseHandler<GetObjectResponse, GetObjec
 
     private val subscriber = AtomicReference<QueueSubscriber>()
     private val subscriptionFuture = CompletableFuture<Subscription>()
-    val queue = ArrayBlockingQueue<ByteBuffer>(1)
+    val queue = ArrayBlockingQueue<ByteBuffer>(2)
 
     @Volatile
     private var response: GetObjectResponse? = null
@@ -45,7 +45,10 @@ class BufferQueueAsyncHandler : AsyncResponseHandler<GetObjectResponse, GetObjec
         this.response = response
     }
 
-    override fun exceptionOccurred(t: Throwable) = Unit
+    override fun exceptionOccurred(t: Throwable) {
+        queue.add(finish)
+        subscriptionFuture.completeExceptionally(t)
+    }
 
     override fun onStream(publisher: Publisher<ByteBuffer>) {
         val sub = QueueSubscriber()
@@ -84,7 +87,6 @@ class BufferQueueAsyncHandler : AsyncResponseHandler<GetObjectResponse, GetObjec
 
         override fun onError(t: Throwable) {
             subscription.cancel()
-            subscriptionFuture.completeExceptionally(t)
         }
     }
 }
