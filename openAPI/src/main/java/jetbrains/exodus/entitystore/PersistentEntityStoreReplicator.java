@@ -20,7 +20,7 @@ import jetbrains.exodus.env.Environment;
 
 import java.util.List;
 
-interface PersistentEntityStoreReplicator {
+public interface PersistentEntityStoreReplicator {
     void replicateEnvironment(Environment environment);
 
     void replicateBlobVault(BlobVault vault, List<Pair<Long, Long>> blobsToReplicate);
