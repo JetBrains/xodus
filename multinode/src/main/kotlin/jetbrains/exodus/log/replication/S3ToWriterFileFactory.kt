@@ -26,18 +26,18 @@ class S3ToWriterFileFactory(
         override val requestOverrideConfig: AwsRequestOverrideConfig? = null
 ) : S3FactoryBoilerplate {
 
-    override fun fetchFile(log: Log, address: Long, expectedLength: Long, finalFile: Boolean): WriteResult {
-        if (checkPreconditions(log, expectedLength)) return WriteResult.empty
+    override fun fetchFile(log: Log, address: Long, startingLength: Long, expectedLength: Long, finalFile: Boolean): WriteResult {
+        if (checkPreconditions(log, expectedLength, startingLength)) return WriteResult.empty
 
         val handler = BufferQueueAsyncHandler()
 
-        val request = getRemoteFile(expectedLength, LogUtil.getLogFilename(address), handler)
+        val request = getRemoteFile(expectedLength, startingLength, LogUtil.getLogFilename(address), handler)
         val queue = handler.queue
         val subscription = handler.subscription
 
         var written = 0L
 
-        while(true) {
+        while (true) {
             val buffer = queue.take()
             if (buffer === BufferQueueAsyncHandler.finish) {
                 break
@@ -57,10 +57,10 @@ class S3ToWriterFileFactory(
             throw IllegalStateException("Write length mismatch")
         }
 
-        if(finalFile) { // whole files are flushed automatically
+        if (finalFile) { // whole files are flushed automatically
             log.flush(true)
         }
 
-        return WriteResult(written, log.ensureWriter().lastPageWritten)
+        return WriteResult(written, log.ensureWriter().lastPageLength)
     }
 }

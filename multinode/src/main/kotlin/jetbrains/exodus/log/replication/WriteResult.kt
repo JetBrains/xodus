@@ -17,9 +17,9 @@ package jetbrains.exodus.log.replication
 
 data class WriteResult(
         val written: Long,
-        val lastPageWritten: Int
+        val lastPageLength: Int
 ) {
     companion object {
-        val empty = WriteResult(written = 0, lastPageWritten = 0)
+        val empty = WriteResult(written = 0, lastPageLength = 0)
     }
 }

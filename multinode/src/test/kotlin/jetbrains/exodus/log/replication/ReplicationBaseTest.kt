@@ -99,22 +99,24 @@ abstract class ReplicationBaseTest {
         targetLogDir.delete()
     }
 
-    protected fun checkLog(log: Log, highAddress:Long, count: Int, startAddress: Long = 0) {
+    protected fun checkLog(log: Log, highAddress: Long, count: Long, startAddress: Long = 0, startIndex: Long = 0) {
         log.use {
             assertEquals(highAddress, log.highAddress)
             val loggables = log.getLoggableIterator(startAddress)
-            var i = 0
+            var i = startIndex
             while (loggables.hasNext()) {
                 val loggable = loggables.next()
                 if (!NullLoggable.isNullLoggable(loggable)) { // padding possible
                     assertEquals(127, loggable.type.toInt())
-                    val expectedLength = CompressedUnsignedLongByteIterable.getIterable(i.toLong()).length
+                    val value = CompressedUnsignedLongByteIterable.getLong(loggable.data)
+                    val expectedLength = CompressedUnsignedLongByteIterable.getIterable(i).length
+                    assertEquals(i, value)
                     assertEquals(expectedLength, loggable.dataLength) // length increases since `i` is part of payload
                     i++
                 }
             }
 
-            assertEquals(count.toLong(), i.toLong())
+            assertEquals(count, i - startIndex)
         }
     }
 
@@ -190,9 +192,9 @@ abstract class ReplicationBaseTest {
         )()
     }
 
-    fun writeToLog(sourceLog: Log, count: Int) {
+    fun writeToLog(sourceLog: Log, count: Long, startIndex: Long = 0) {
         sourceLog.beginWrite()
-        for (i in 0 until count) {
+        for (i in startIndex until count + startIndex) {
             sourceLog.writeData(CompressedUnsignedLongByteIterable.getIterable(i.toLong()))
         }
         sourceLog.flush()

@@ -19,5 +19,5 @@ import jetbrains.exodus.log.Log
 
 interface FileFactory {
 
-    fun fetchFile(log: Log, address: Long, expectedLength: Long, finalFile: Boolean): WriteResult
+    fun fetchFile(log: Log, address: Long, startingLength: Long, expectedLength: Long, finalFile: Boolean): WriteResult
 }

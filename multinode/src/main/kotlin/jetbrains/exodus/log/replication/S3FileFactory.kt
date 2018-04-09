@@ -28,25 +28,36 @@ class S3FileFactory(
         override val requestOverrideConfig: AwsRequestOverrideConfig? = null
 ) : S3FactoryBoilerplate {
 
-    override fun fetchFile(log: Log, address: Long, expectedLength: Long, finalFile: Boolean): WriteResult {
-        if (checkPreconditions(log, expectedLength)) return WriteResult.empty
+    override fun fetchFile(log: Log, address: Long, startingLength: Long, expectedLength: Long, finalFile: Boolean): WriteResult {
+        if (checkPreconditions(log, expectedLength, startingLength)) return WriteResult.empty
 
         log.ensureWriter().fileSetMutable.add(address)
 
         val filename = LogUtil.getLogFilename(address)
 
+        val file = dir.resolve(filename)
         val handler = if (finalFile) {
             // this is intentional, aligns last page within file
             val lastPageStart = log.getHighPageAddress(expectedLength)
-            FileAsyncHandler(dir.resolve(filename), lastPageStart, log.ensureWriter().allocLastPage(address + lastPageStart))
+            FileAsyncHandler(
+                    file,
+                    startingLength,
+                    lastPageStart,
+                    log.ensureWriter().allocLastPage(address + lastPageStart)
+            )
         } else {
-            FileAsyncHandler(dir.resolve(filename), 0, null)
+            FileAsyncHandler(
+                    file,
+                    startingLength,
+                    0,
+                    null
+            )
         }
 
-        return getRemoteFile(expectedLength, filename, handler).get().also {
+        return getRemoteFile(expectedLength, startingLength, filename, handler).get().also {
             log.ensureWriter().apply {
                 incHighAddress(it.written)
-                lastPageWritten = it.lastPageWritten
+                lastPageLength = it.lastPageLength
             }
         }
     }

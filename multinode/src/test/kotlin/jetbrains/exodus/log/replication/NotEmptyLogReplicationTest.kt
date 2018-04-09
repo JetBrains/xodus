@@ -21,7 +21,6 @@ import org.apache.commons.compress.archivers.zip.ZipFile
 import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Test
 import java.io.File
 import java.io.FileOutputStream
@@ -37,14 +36,14 @@ class NotEmptyLogReplicationTest : ReplicationBaseTest() {
         targetLogDir.also { db.unzipTo(it) }
     }
 
-    @Ignore
     @Test
     fun `should append changes in one file`() {
         var (sourceLog, targetLog) = newLogs()
         val startAddress = sourceLog.highAddress
 
-        val count = 1
-        writeToLog(sourceLog, count)
+        val count = 1L
+        val startIndex = 1000L
+        writeToLog(sourceLog, count, startIndex)
 
         assertEquals(2, sourceLog.tip.allFiles.size)
 
@@ -62,24 +61,24 @@ class NotEmptyLogReplicationTest : ReplicationBaseTest() {
         sourceLog.close()
 
         // check log with cache
-        checkLog(targetLog, highAddress, count, startAddress)
+        checkLog(targetLog, highAddress, count, startAddress, startIndex)
 
         targetLog = targetLogDir.createLog(fileSize = 4L) {
             cachePageSize = 1024
         }
 
         // check log without cache
-        checkLog(targetLog, highAddress, count, startAddress)
+        checkLog(targetLog, highAddress, startIndex + count)
     }
 
-    @Ignore
     @Test
     fun `should append few files to log`() {
         var (sourceLog, targetLog) = newLogs()
         val startAddress = sourceLog.highAddress
 
-        val count = 400
-        writeToLog(sourceLog, count)
+        val count = 400L
+        val startIndex = 1000L
+        writeToLog(sourceLog, count, startIndex)
         Assert.assertTrue(sourceLog.tip.allFiles.size > 1)
 
         val highAddress = sourceLog.highAddress
@@ -96,14 +95,14 @@ class NotEmptyLogReplicationTest : ReplicationBaseTest() {
         sourceLog.close()
 
         // check log with cache
-        checkLog(targetLog, highAddress, count, startAddress)
+        checkLog(targetLog, highAddress, count, startAddress, startIndex)
 
         targetLog = targetLogDir.createLog(fileSize = 4L) {
             cachePageSize = 1024
         }
 
         // check log without cache
-        checkLog(targetLog, highAddress, count, startAddress)
+        checkLog(targetLog, highAddress, startIndex + count)
     }
 
     @Test(expected = IllegalArgumentException::class)

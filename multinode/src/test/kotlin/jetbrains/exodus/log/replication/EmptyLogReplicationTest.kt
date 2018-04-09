@@ -25,7 +25,7 @@ class EmptyLogReplicationTest : ReplicationBaseTest() {
     fun `should append changes in one file`() {
         var (sourceLog, targetLog) = newLogs()
 
-        val count = 10
+        val count = 10L
         writeToLog(sourceLog, count)
         val sourceFiles = sourceLog.tip.allFiles
         Assert.assertEquals(1, sourceFiles.size)
@@ -52,7 +52,7 @@ class EmptyLogReplicationTest : ReplicationBaseTest() {
     fun `should append changes in few files`() {
         var (sourceLog, targetLog) = newLogs()
 
-        val count = 1000
+        val count = 1000L
         writeToLog(sourceLog, count)
 
         val sourceFiles = sourceLog.tip.allFiles

@@ -28,17 +28,17 @@ interface S3FactoryBoilerplate : FileFactory {
     val bucket: String
     val requestOverrideConfig: AwsRequestOverrideConfig?
 
-    fun <T> getRemoteFile(length: Long, name: String, handler: AsyncResponseHandler<GetObjectResponse, T>): CompletableFuture<T> {
+    fun <T> getRemoteFile(length: Long, startingLength: Long, name: String, handler: AsyncResponseHandler<GetObjectResponse, T>): CompletableFuture<T> {
         // if target log is appended in the meantime, ignore appended bytes thanks to S3 API Range header support
         // https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35
         return s3.getObject(
-                GetObjectRequest.builder().range("bytes=0-${length - 1}")
+                GetObjectRequest.builder().range("bytes=$startingLength-${length - 1}")
                         .requestOverrideConfig(requestOverrideConfig).bucket(bucket).key(name).build(), handler
         )
     }
 
-    fun checkPreconditions(log: Log, expectedLength: Long): Boolean {
-        if (expectedLength < 0L || expectedLength > log.fileLengthBound) {
+    fun checkPreconditions(log: Log, expectedLength: Long, startingLength: Long): Boolean {
+        if (expectedLength < startingLength || expectedLength > log.fileLengthBound) {
             throw IllegalArgumentException("Incorrect expected length specified")
         }
         if (expectedLength == 0L) {

@@ -81,8 +81,13 @@ object LogAppender : KLogging() {
         var prevAddress = log.getFileAddress(currentTip.highAddress)
 
         for (file in delta.files) {
-            if (prevAddress != 0L && file <= prevAddress) {
+            if (file < prevAddress) {
                 throw IllegalStateException("Incorrect file order")
+            }
+            val startingLength = if (file == prevAddress) {
+                currentTip.highAddress - prevAddress
+            } else {
+                0L
             }
             prevAddress = file
 
@@ -94,13 +99,13 @@ object LogAppender : KLogging() {
             }
 
             val useLastPage = atLastFile && expectedLength != fileSize
-            val created = fileFactory.fetchFile(log, file, expectedLength, useLastPage)
+            val created = fileFactory.fetchFile(log, file, startingLength, expectedLength, useLastPage)
 
-            if (created.written != expectedLength) {
+            if (created.written != (expectedLength - startingLength)) {
                 throw IllegalStateException("Fetched unexpected bytes")
             }
 
-            if (useLastPage && (delta.highAddress - log.getHighPageAddress(delta.highAddress) != created.lastPageWritten.toLong())) {
+            if (useLastPage && (delta.highAddress - log.getHighPageAddress(delta.highAddress) != created.lastPageLength.toLong())) {
                 throw IllegalStateException("Fetched unexpected last page bytes")
             }
 

@@ -89,11 +89,14 @@ public class BufferedDataWriter {
         this.highAddress = highAddress;
     }
 
-    public byte[] allocLastPage(long pageAddress) {
-        byte[] result = logCache.allocPage();
+    public MutablePage allocLastPage(long pageAddress) {
+        MutablePage result = currentPage;
+        if (pageAddress == result.pageAddress) {
+            return result;
+        }
 
-        currentPage = new MutablePage(null, result, pageAddress, 0);
-
+        result = new MutablePage(null, logCache.allocPage(), pageAddress, 0);
+        currentPage = result;
         return result;
     }
 
@@ -191,11 +194,11 @@ public class BufferedDataWriter {
         this.highAddress += delta;
     }
 
-    public void setLastPageWritten(int lastPageWritten) {
-        currentPage.setCounts(lastPageWritten);
+    public void setLastPageLength(int lastPageLength) {
+        currentPage.setCounts(lastPageLength);
     }
 
-    public int getLastPageWritten() {
+    public int getLastPageLength() {
         return currentPage.writtenCount;
     }
 
@@ -253,7 +256,7 @@ public class BufferedDataWriter {
         return this.currentPage = new MutablePage(currentPage, logCache.allocPage(), currentPage.pageAddress + pageSize, 0);
     }
 
-    private static class MutablePage {
+    public static class MutablePage {
 
         @Nullable
         MutablePage previousPage;
@@ -269,6 +272,14 @@ public class BufferedDataWriter {
             this.bytes = page;
             this.pageAddress = pageAddress;
             flushedCount = committedCount = writtenCount = count;
+        }
+
+        public byte[] getBytes() {
+            return bytes;
+        }
+
+        public int getCount() {
+            return writtenCount;
         }
 
         void setCounts(final int count) {

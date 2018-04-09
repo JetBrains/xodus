@@ -17,16 +17,19 @@ package jetbrains.exodus.log.replication
 
 import java.nio.ByteBuffer
 
-fun ByteBuffer.copyBytes(output: ByteArray, offset: Int, length: Int) {
+fun ByteBuffer.copyBytes(skip: Int, output: ByteArray, offset: Int, length: Int) {
     if (hasArray()) {
         System.arraycopy(
                 array(),
-                arrayOffset() + position(),
+                arrayOffset() + position() + skip,
                 output,
                 offset,
                 length
         )
     }
 
-    asReadOnlyBuffer().get(output, offset, length)
+    asReadOnlyBuffer().let { ro ->
+        ro.position(ro.position() + skip)
+        ro.get(output, offset, length)
+    }
 }

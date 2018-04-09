@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.log.replication
 
+import jetbrains.exodus.log.BufferedDataWriter
 import org.reactivestreams.Publisher
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
@@ -35,13 +36,16 @@ import java.util.concurrent.atomic.AtomicLong
 // performs fsync on file end
 class FileAsyncHandler(
         private val path: Path,
+        private val startingLength: Long,
         private val lastPageStart: Long = 0,
-        private val lastPage: ByteArray? = null
+        private val lastPage: BufferedDataWriter.MutablePage? = null
 ) : AsyncResponseHandler<GetObjectResponse, WriteResult> {
+    private val lastPageStartingLength = lastPage?.count ?: 0
+
     private lateinit var fileChannel: AsynchronousFileChannel
     @Volatile
     private var response: GetObjectResponse? = null
-    private val lastPageWritten = AtomicInteger()
+    private val lastPageLength = AtomicInteger()
     private val writeInProgressLock = Semaphore(1)
 
     override fun responseReceived(response: GetObjectResponse) {
@@ -49,7 +53,7 @@ class FileAsyncHandler(
     }
 
     override fun onStream(publisher: Publisher<ByteBuffer>) {
-        lastPageWritten.set(0)
+        lastPageLength.set(lastPageStartingLength)
         fileChannel = invokeSafely<AsynchronousFileChannel> { open(path) }
         publisher.subscribe(FileSubscriber())
     }
@@ -65,13 +69,17 @@ class FileAsyncHandler(
     override fun complete(): WriteResult {
         writeInProgressLock.acquire()
         return response?.let {
-            WriteResult(it.contentLength(), lastPageWritten.get())
+            WriteResult(it.contentLength(), lastPageLength.get())
         } ?: throw IllegalStateException("Response not set")
     }
 
 
     private fun open(path: Path): AsynchronousFileChannel {
-        return AsynchronousFileChannel.open(path, StandardOpenOption.WRITE, StandardOpenOption.CREATE_NEW)
+        return AsynchronousFileChannel.open(path, StandardOpenOption.WRITE, if (startingLength > 0) {
+            StandardOpenOption.WRITE
+        } else {
+            StandardOpenOption.CREATE_NEW
+        })
     }
 
     private fun close() {
@@ -85,7 +93,7 @@ class FileAsyncHandler(
 
         @Volatile
         private var closeOnLastWrite = false
-        private val position = AtomicLong()
+        private val position = AtomicLong(startingLength)
         private lateinit var subscription: Subscription
 
         override fun onSubscribe(s: Subscription) {
@@ -108,6 +116,8 @@ class FileAsyncHandler(
                                 subscription.request(1)
                             }
                         }
+                    } catch (t: Throwable) {
+                        subscription.cancel()
                     } finally {
                         writeInProgressLock.release()
                     }
@@ -145,10 +155,19 @@ class FileAsyncHandler(
                     throw IllegalStateException("Unexpected buffer state")
                 }
                 val startPosition = endPosition - writtenLength
-                val offset = maxOf(0, startPosition - lastPageStart).toInt()
-                val length = (minOf(lastPage.size.toLong(), writtenLength) - offset).toInt()
-                attachment.copyBytes(lastPage, offset, length)
-                lastPageWritten.addAndGet(length)
+                val skip: Int
+                val offset: Int
+                if (startPosition < lastPageStart) {
+                    skip = (lastPageStart - startPosition).toInt()
+                    offset = 0
+                } else {
+                    offset = (startPosition - lastPageStart).toInt()
+                    skip = 0
+                }
+                val bytes = lastPage.bytes
+                val length = minOf(bytes.size.toLong() - offset, writtenLength - skip).toInt()
+                attachment.copyBytes(skip, bytes, offset, length)
+                lastPageLength.addAndGet(length)
             }
         }
 
