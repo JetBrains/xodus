@@ -17,7 +17,6 @@ package jetbrains.exodus.log.replication
 
 import jetbrains.exodus.env.replication.ReplicationDelta
 import org.junit.Assert
-import org.junit.Ignore
 import org.junit.Test
 
 class EmptyLogReplicationTest : ReplicationBaseTest() {
@@ -31,24 +30,24 @@ class EmptyLogReplicationTest : ReplicationBaseTest() {
         val sourceFiles = sourceLog.tip.allFiles
         Assert.assertEquals(1, sourceFiles.size)
 
+        val highAddress = sourceLog.highAddress
         targetLog.appendLog(
-                ReplicationDelta(1, 0, sourceLog.highAddress, sourceLog.fileSize, sourceFiles)
+                ReplicationDelta(1, 0, highAddress, sourceLog.fileLengthBound, sourceFiles)
         )
 
         sourceLog.close()
 
         // check log with cache
-        checkLog(targetLog, count)
+        checkLog(targetLog, highAddress, count)
 
         targetLog = targetLogDir.createLog(fileSize = 4L) {
             cachePageSize = 1024
         }
 
         // check log without cache
-        checkLog(targetLog, count)
+        checkLog(targetLog, highAddress, count)
     }
 
-    @Ignore
     @Test
     fun `should append changes in few files`() {
         var (sourceLog, targetLog) = newLogs()
@@ -59,21 +58,22 @@ class EmptyLogReplicationTest : ReplicationBaseTest() {
         val sourceFiles = sourceLog.tip.allFiles
         Assert.assertTrue(sourceFiles.size > 1)
 
+        val highAddress = sourceLog.highAddress
         targetLog.appendLog(
-                ReplicationDelta(1, 0, sourceLog.highAddress, sourceLog.fileSize, sourceFiles)
+                ReplicationDelta(1, 0, highAddress, sourceLog.fileLengthBound, sourceFiles)
         )
 
         sourceLog.close()
 
         // check log with cache
-        checkLog(targetLog, count)
+        checkLog(targetLog, highAddress, count)
 
         targetLog = targetLogDir.createLog(fileSize = 4L) {
             cachePageSize = 1024
         }
 
         // check log without cache
-        checkLog(targetLog, count)
+        checkLog(targetLog, highAddress, count)
     }
 
 }

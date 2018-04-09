@@ -61,7 +61,7 @@ object LogAppender : KLogging() {
     }
 
     private fun checkPreconditions(log: @NotNull Log, currentTip: LogTip, delta: LogReplicationDelta) {
-        if (delta.startAddress != currentTip.highAddress || delta.fileSize != log.fileSize) {
+        if (delta.startAddress != currentTip.highAddress || delta.fileLengthBound != log.fileLengthBound) {
             throw IllegalArgumentException("Non-matching replication delta")
         }
     }
@@ -72,7 +72,7 @@ object LogAppender : KLogging() {
             delta: LogReplicationDelta,
             fileFactory: FileFactory
     ) {
-        val fileSize = log.fileSize
+        val fileSize = log.fileLengthBound
 
         val lastFile = log.getFileAddress(delta.highAddress)
 

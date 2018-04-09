@@ -86,7 +86,7 @@ class MetaServerHandler(val store: PersistentEntityStoreImpl) : SimpleChannelInb
                         val result = ReplicationDelta(
                                 startAddress = from,
                                 highAddress = tip.highAddress,
-                                fileSize = env.log.fileSize,
+                                fileLengthBound = env.log.fileLengthBound,
                                 files = tip.getFilesFrom(from).asSequence().toList().toLongArray(),
                                 metaTreeAddress = metaTree.treeAddress(),
                                 rootAddress = metaTree.rootAddress(),

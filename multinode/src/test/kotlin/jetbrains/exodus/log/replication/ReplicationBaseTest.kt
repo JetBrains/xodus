@@ -21,10 +21,7 @@ import jetbrains.exodus.TestUtil
 import jetbrains.exodus.env.replication.ReplicationDelta
 import jetbrains.exodus.io.FileDataReader
 import jetbrains.exodus.io.FileDataWriter
-import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
-import jetbrains.exodus.log.Log
-import jetbrains.exodus.log.LogConfig
-import jetbrains.exodus.log.Loggable
+import jetbrains.exodus.log.*
 import jetbrains.exodus.util.IOUtil
 import kotlinx.coroutines.experimental.future.await
 import kotlinx.coroutines.experimental.runBlocking
@@ -102,17 +99,21 @@ abstract class ReplicationBaseTest {
         targetLogDir.delete()
     }
 
-    protected fun checkLog(targetLog: Log, count: Int, startAddress: Long = 0) {
-        val it = targetLog.getLoggableIterator(startAddress)
-        var i = 0
-        while (it.hasNext()) {
-            val loggable = it.next()
-            assertEquals((4 * i++).toLong(), loggable.address)
-            assertEquals(127, loggable.type.toLong())
-            assertEquals(1, loggable.dataLength.toLong())
-        }
+    protected fun checkLog(log: Log, highAddress:Long, count: Int, startAddress: Long = 0) {
+        log.use {
+            assertEquals(highAddress, log.highAddress)
+            val loggables = log.getLoggableIterator(startAddress)
+            var i = 0
+            while (loggables.hasNext()) {
+                val loggable = loggables.next()
+                if (!NullLoggable.isNullLoggable(loggable)) { // padding possible
+                    assertEquals(127, loggable.type.toInt())
+                    val expectedLength = CompressedUnsignedLongByteIterable.getIterable(i.toLong()).length
+                    assertEquals(expectedLength, loggable.dataLength) // length increases since `i` is part of payload
+                    i++
+                }
+            }
 
-        targetLog.use {
             assertEquals(count.toLong(), i.toLong())
         }
     }

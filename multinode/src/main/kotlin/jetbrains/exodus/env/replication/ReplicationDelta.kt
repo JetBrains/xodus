@@ -21,7 +21,7 @@ data class ReplicationDelta(
         val id: Long,
         override val startAddress: Long,
         override val highAddress: Long,
-        override val fileSize: Long,
+        override val fileLengthBound: Long,
         override val files: LongArray,
         override val metaTreeAddress: Long = -1,
         override val rootAddress: Long = -1
@@ -32,7 +32,7 @@ data class ReplicationDelta(
 
         if (startAddress != other.startAddress) return false
         if (highAddress != other.highAddress) return false
-        if (fileSize != other.fileSize) return false
+        if (fileLengthBound != other.fileLengthBound) return false
         if (metaTreeAddress != other.metaTreeAddress) return false
         if (rootAddress != other.rootAddress) return false
         if (!Arrays.equals(files, other.files)) return false
@@ -43,7 +43,7 @@ data class ReplicationDelta(
     override fun hashCode(): Int {
         var result = startAddress.hashCode()
         result = 31 * result + highAddress.hashCode()
-        result = 31 * result + fileSize.hashCode()
+        result = 31 * result + fileLengthBound.hashCode()
         result = 31 * result + metaTreeAddress.hashCode()
         result = 31 * result + rootAddress.hashCode()
         result = 31 * result + Arrays.hashCode(files)

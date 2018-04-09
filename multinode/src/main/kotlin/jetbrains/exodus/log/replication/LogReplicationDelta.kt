@@ -18,6 +18,6 @@ package jetbrains.exodus.log.replication
 interface LogReplicationDelta {
     val startAddress: Long
     val highAddress: Long
-    val fileSize: Long
+    val fileLengthBound: Long
     val files: LongArray
 }

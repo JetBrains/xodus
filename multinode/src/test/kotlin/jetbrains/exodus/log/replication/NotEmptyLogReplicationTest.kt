@@ -48,12 +48,13 @@ class NotEmptyLogReplicationTest : ReplicationBaseTest() {
 
         assertEquals(2, sourceLog.tip.allFiles.size)
 
+        val highAddress = sourceLog.highAddress
         targetLog.appendLog(
                 ReplicationDelta(
                         1,
                         startAddress,
-                        sourceLog.highAddress,
-                        sourceLog.fileSize,
+                        highAddress,
+                        sourceLog.fileLengthBound,
                         sourceLog.filesDelta(startAddress)
                 )
         )
@@ -61,14 +62,14 @@ class NotEmptyLogReplicationTest : ReplicationBaseTest() {
         sourceLog.close()
 
         // check log with cache
-        checkLog(targetLog, count, startAddress)
+        checkLog(targetLog, highAddress, count, startAddress)
 
         targetLog = targetLogDir.createLog(fileSize = 4L) {
             cachePageSize = 1024
         }
 
         // check log without cache
-        checkLog(targetLog, count, startAddress)
+        checkLog(targetLog, highAddress, count, startAddress)
     }
 
     @Ignore
@@ -81,12 +82,13 @@ class NotEmptyLogReplicationTest : ReplicationBaseTest() {
         writeToLog(sourceLog, count)
         Assert.assertTrue(sourceLog.tip.allFiles.size > 1)
 
+        val highAddress = sourceLog.highAddress
         targetLog.appendLog(
                 ReplicationDelta(
                         1,
                         startAddress,
-                        sourceLog.highAddress,
-                        sourceLog.fileSize,
+                        highAddress,
+                        sourceLog.fileLengthBound,
                         sourceLog.filesDelta(startAddress)
                 )
         )
@@ -94,14 +96,14 @@ class NotEmptyLogReplicationTest : ReplicationBaseTest() {
         sourceLog.close()
 
         // check log with cache
-        checkLog(targetLog, count, startAddress)
+        checkLog(targetLog, highAddress, count, startAddress)
 
         targetLog = targetLogDir.createLog(fileSize = 4L) {
             cachePageSize = 1024
         }
 
         // check log without cache
-        checkLog(targetLog, count, startAddress)
+        checkLog(targetLog, highAddress, count, startAddress)
     }
 
     @Test(expected = IllegalArgumentException::class)
@@ -113,7 +115,7 @@ class NotEmptyLogReplicationTest : ReplicationBaseTest() {
                         1,
                         sourceLog.highAddress - 1,
                         sourceLog.highAddress,
-                        sourceLog.fileSize,
+                        sourceLog.fileLengthBound,
                         longArrayOf(sourceLog.tip.allFiles.first())
                 )
         )
@@ -128,7 +130,7 @@ class NotEmptyLogReplicationTest : ReplicationBaseTest() {
                         1,
                         sourceLog.highAddress,
                         sourceLog.highAddress - 10,
-                        sourceLog.fileSize,
+                        sourceLog.fileLengthBound,
                         longArrayOf(sourceLog.tip.allFiles.first())
                 )
         )
