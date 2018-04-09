@@ -105,6 +105,10 @@ object LogAppender : KLogging() {
                 throw IllegalStateException("Fetched unexpected bytes")
             }
 
+            if (created.written == 0L) {
+                return
+            }
+
             if (useLastPage && (delta.highAddress - log.getHighPageAddress(delta.highAddress) != created.lastPageLength.toLong())) {
                 throw IllegalStateException("Fetched unexpected last page bytes")
             }

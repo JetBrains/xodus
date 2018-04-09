@@ -41,7 +41,7 @@ interface S3FactoryBoilerplate : FileFactory {
         if (expectedLength < startingLength || expectedLength > log.fileLengthBound) {
             throw IllegalArgumentException("Incorrect expected length specified")
         }
-        if (expectedLength == 0L) {
+        if (expectedLength == startingLength) {
             return true
         }
         return false
