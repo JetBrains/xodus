@@ -99,6 +99,7 @@ object LogAppender : KLogging() {
             }
 
             val useLastPage = atLastFile && expectedLength != fileSize
+            log.ensureWriter().setHighAddress(file) // jump to the file
             val created = fileFactory.fetchFile(log, file, startingLength, expectedLength, useLastPage)
 
             if (created.written != (expectedLength - startingLength)) {
