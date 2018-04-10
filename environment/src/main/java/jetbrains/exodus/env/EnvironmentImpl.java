@@ -718,8 +718,11 @@ public class EnvironmentImpl implements Environment {
     }
 
     public MetaTree getMetaTree() {
-        synchronized (metaReadLock) {
+        metaReadLock.lock();
+        try {
             return metaTree;
+        } finally {
+            metaReadLock.unlock();
         }
     }
 
