@@ -35,7 +35,8 @@ public class FileDataWriter extends AbstractDataWriter {
 
     @NotNull
     private final File dir;
-    private final FileChannel dirChannel;
+    @Nullable
+    private FileChannel dirChannel;
     @NotNull
     private final LockingManager lockingManager;
     @Nullable
@@ -51,8 +52,10 @@ public class FileDataWriter extends AbstractDataWriter {
         FileChannel channel = null;
         try {
             channel = FileChannel.open(dir.toPath());
+            // try to force as XD-698 requires
+            channel.force(false);
         } catch (IOException e) {
-            logger.warn("Can't open directory channel. Log directory fsync won't be performed.");
+            warnCantFsyncDirectory();
         }
         dirChannel = channel;
         lockingManager = new LockingManager(dir, lockId);
@@ -141,12 +144,19 @@ public class FileDataWriter extends AbstractDataWriter {
 
     @Override
     public void syncDirectory() {
+        FileChannel dirChannel = this.dirChannel;
         if (dirChannel != null) {
             try {
                 dirChannel.force(false);
             } catch (IOException e) {
-                throw new ExodusException("Cannot fsync directory", e);
+                // just warn as XD-698 requires
+                warnCantFsyncDirectory();
+                this.dirChannel = null;
             }
         }
+    }
+
+    private static void warnCantFsyncDirectory() {
+        logger.warn("Can't open directory channel. Log directory fsync won't be performed.");
     }
 }
