@@ -34,6 +34,8 @@ import java.io.UncheckedIOException
 import java.nio.ByteBuffer
 import java.util.concurrent.CompletableFuture
 
+internal val noBytes = ByteArray(size = 0)
+
 internal val sdkRequestContext = SdkRequestContext.builder().build()
 
 fun SdkAsyncHttpClient.postRequest(path: String, params: Map<String, String>, host: String, port: Int = 8062): ByteArray {
@@ -95,7 +97,7 @@ internal object EmptyRequestProvider : SdkHttpRequestProvider {
     override fun subscribe(s: Subscriber<in ByteBuffer>) {
         s.onSubscribe(object : Subscription {
             override fun request(n: Long) {
-                s.onNext(ByteBuffer.wrap(S3Replicator.noBytes))
+                s.onNext(ByteBuffer.wrap(noBytes))
                 s.onComplete()
             }
 

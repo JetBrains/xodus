@@ -41,13 +41,12 @@ class S3Replicator(
         val requestOverrideConfig: AwsRequestOverrideConfig? = null
 ) : PersistentEntityStoreReplicator {
     companion object : KLogging() {
-        val noBytes = ByteArray(size = 0)
-        val objectMapper = ObjectMapper().apply {
+        private val objectMapper = ObjectMapper().apply {
             configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true)
             registerModule(KotlinModule())
         }
-        val deltaReader: ObjectReader = objectMapper.readerFor(ReplicationDelta::class.java)
-        val okReader: ObjectReader = objectMapper.readerFor(MetaServerHandler.OK::class.java)
+        internal val deltaReader: ObjectReader = objectMapper.readerFor(ReplicationDelta::class.java)
+        internal val okReader: ObjectReader = objectMapper.readerFor(MetaServerHandler.OK::class.java)
     }
 
     override fun replicateEnvironment(environment: Environment) {

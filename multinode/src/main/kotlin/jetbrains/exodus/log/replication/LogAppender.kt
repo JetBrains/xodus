@@ -80,6 +80,8 @@ object LogAppender : KLogging() {
 
         var prevAddress = log.getFileAddress(currentTip.highAddress)
 
+        var allWritten = 0L
+
         for (file in delta.files) {
             if (file < prevAddress) {
                 throw IllegalStateException("Incorrect file order")
@@ -112,6 +114,8 @@ object LogAppender : KLogging() {
                 return
             }
 
+            allWritten += created.written
+
             if (useLastPage && (delta.highAddress - log.getHighPageAddress(delta.highAddress) != created.lastPageLength.toLong())) {
                 throw IllegalStateException("Fetched unexpected last page bytes")
             }
@@ -123,5 +127,6 @@ object LogAppender : KLogging() {
         if (lastFileWrite == null) {
             throw IllegalArgumentException("Last file is not provided")
         }
+        logger.info { "Appended $allWritten bytes to log at ${log.location}" }
     }
 }
