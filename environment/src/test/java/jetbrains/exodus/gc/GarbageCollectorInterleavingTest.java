@@ -31,7 +31,7 @@ public class GarbageCollectorInterleavingTest extends EnvironmentTestsBase {
         set1KbFileWithoutGC();
 
         final Log log = env.getLog();
-        final long fileSize = log.getFileSize() * 1024;
+        final long fileSize = log.getFileLengthBound();
 
         fill("updateSameKey");
         Assert.assertEquals(1L, log.getNumberOfFiles());

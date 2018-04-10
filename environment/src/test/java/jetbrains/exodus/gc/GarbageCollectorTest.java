@@ -21,7 +21,6 @@ import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.log.Log;
-import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
@@ -47,7 +46,7 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
         Assert.assertEquals(2, log.getNumberOfFiles());
         createStore("corrupted", 160);
         Assert.assertEquals(4, log.getNumberOfFiles());
-        final long fileAddress = 2 * log.getFileSize() * LogUtil.LOG_BLOCK_ALIGNMENT;
+        final long fileAddress = 2 * log.getFileLengthBound();
         log.forgetFile(fileAddress);
         log.removeFile(fileAddress);
         final StoreImpl store = openStoreAutoCommit("store");

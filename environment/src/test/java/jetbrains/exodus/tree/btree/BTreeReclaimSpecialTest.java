@@ -17,7 +17,6 @@ package jetbrains.exodus.tree.btree;
 
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.log.LogConfig;
-import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.log.NullLoggable;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import jetbrains.exodus.tree.ITreeCursor;
@@ -38,7 +37,7 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
 
     @Test
     public void testStartAddress() {
-        final long fileSize = log.getFileSize() * LogUtil.LOG_BLOCK_ALIGNMENT;
+        final long fileSize = log.getFileLengthBound();
         log.beginWrite();
         for (long l = 1; l < fileSize; ++l) { // fill all file except for one byte with nulls
             log.write(NullLoggable.create());

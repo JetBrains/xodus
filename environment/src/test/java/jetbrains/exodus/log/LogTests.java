@@ -35,9 +35,9 @@ public class LogTests extends LogTestsBase {
     private static final Loggable ONE_KB_LOGGABLE = createOneKbLoggable();
 
     @Test
-    public void testWrite() throws IOException {
+    public void testWrite() {
         initLog(6); // file size must be multiple of 3 to avoid alignment
-        final long logFileSizeInBytes = getLog().getFileSize() * 1024;
+        final long logFileSizeInBytes = getLog().getFileLengthBound();
         for (int i = 0; i < 100; ++i) {
             log.beginWrite();
             for (int j = 0; j < logFileSizeInBytes; ++j) {
