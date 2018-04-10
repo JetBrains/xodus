@@ -151,12 +151,12 @@ public class FileDataWriter extends AbstractDataWriter {
             } catch (IOException e) {
                 // just warn as XD-698 requires
                 warnCantFsyncDirectory();
-                this.dirChannel = null;
             }
         }
     }
 
-    private static void warnCantFsyncDirectory() {
+    private void warnCantFsyncDirectory() {
+        this.dirChannel = null;
         logger.warn("Can't open directory channel. Log directory fsync won't be performed.");
     }
 }
