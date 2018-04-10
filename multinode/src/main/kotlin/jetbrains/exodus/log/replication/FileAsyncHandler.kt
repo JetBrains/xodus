@@ -47,6 +47,8 @@ class FileAsyncHandler(
     private var response: GetObjectResponse? = null
     private val lastPageLength = AtomicInteger()
     private val writeInProgressLock = Semaphore(1)
+    @Volatile
+    private var error: Throwable? = null
 
     override fun responseReceived(response: GetObjectResponse) {
         this.response = response
@@ -60,19 +62,22 @@ class FileAsyncHandler(
 
     override fun exceptionOccurred(throwable: Throwable) {
         try {
+            writeInProgressLock.acquire()
+            error = throwable
             close()
         } finally {
+            writeInProgressLock.release()
             invokeSafely { Files.delete(path) }
         }
     }
 
     override fun complete(): WriteResult {
         writeInProgressLock.acquire()
+        error?.let { throw it }
         return response?.let {
             WriteResult(it.contentLength(), lastPageLength.get())
         } ?: throw IllegalStateException("Response not set")
     }
-
 
     private fun open(path: Path): AsynchronousFileChannel {
         return AsynchronousFileChannel.open(path, StandardOpenOption.WRITE, if (startingLength > 0) {
@@ -117,6 +122,7 @@ class FileAsyncHandler(
                             }
                         }
                     } catch (t: Throwable) {
+                        error = t
                         subscription.cancel()
                     } finally {
                         writeInProgressLock.release()

@@ -16,23 +16,16 @@
 package jetbrains.exodus.log.replication
 
 import jetbrains.exodus.env.replication.ReplicationDelta
-import jetbrains.exodus.util.IOUtil
-import org.apache.commons.compress.archivers.zip.ZipFile
 import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
-import java.io.File
-import java.io.FileOutputStream
 
 open class NotEmptyLogReplicationTest : ReplicationBaseTest() {
-
-    private val db = File(NotEmptyLogReplicationTest::class.java.getResource("/logfiles.zip").toURI())
-
     @Before
     fun setupLogs() {
-        sourceLogDir.also { db.unzipTo(it) }
-        targetLogDir.also { db.unzipTo(it) }
+        sourceLogDir.also { preparedDB.unzipTo(it) }
+        targetLogDir.also { preparedDB.unzipTo(it) }
     }
 
     @Test
@@ -132,21 +125,5 @@ open class NotEmptyLogReplicationTest : ReplicationBaseTest() {
                         longArrayOf(sourceLog.tip.allFiles.first())
                 )
         )
-    }
-
-    private fun File.unzipTo(restoreDir: File) {
-        ZipFile(this).use { zipFile ->
-            val zipEntries = zipFile.entries
-            while (zipEntries.hasMoreElements()) {
-                val zipEntry = zipEntries.nextElement()
-                val entryFile = File(restoreDir, zipEntry.name)
-                if (zipEntry.isDirectory) {
-                    entryFile.mkdirs()
-                } else {
-                    entryFile.parentFile.mkdirs()
-                    FileOutputStream(entryFile).use { target -> zipFile.getInputStream(zipEntry).use { `in` -> IOUtil.copyStreams(`in`, target, IOUtil.BUFFER_ALLOCATOR) } }
-                }
-            }
-        }
     }
 }

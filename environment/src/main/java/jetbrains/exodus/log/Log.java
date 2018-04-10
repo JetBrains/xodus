@@ -790,6 +790,7 @@ public final class Log implements Closeable {
     private void truncateFile(final long address, final long length) {
         // truncate physical file
         reader.truncateBlock(address, length);
+        baseWriter.openOrCreateBlock(address, length);
         // clear cache
         for (long offset = length - (length % cachePageSize); offset < fileLengthBound; offset += cachePageSize) {
             cache.removePage(this, address + offset);

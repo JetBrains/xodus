@@ -67,6 +67,7 @@ final class MetaTreeImpl implements MetaTree {
                         final BTree metaTree = env.loadMetaTree(dbRoot.getRootAddress(), updatedTip);
                         if (metaTree != null) {
                             cloneTree(metaTree); // try to traverse meta tree
+                            log.sync(); // flush potential file truncation
                             return new Pair<>(new MetaTreeImpl(metaTree, root, updatedTip), dbRoot.getLastStructureId());
                         }
                         logTip = updatedTip;
