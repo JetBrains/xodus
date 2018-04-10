@@ -21,6 +21,7 @@ import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.crypto.StreamCipherProvider;
+import jetbrains.exodus.entitystore.MetaServer;
 import jetbrains.exodus.env.management.EnvironmentConfigWithOperations;
 import jetbrains.exodus.gc.GarbageCollector;
 import jetbrains.exodus.gc.UtilizationProfile;
@@ -374,6 +375,10 @@ public class EnvironmentImpl implements Environment {
             if (!isOpen()) {
                 return;
             }
+        }
+        final MetaServer metaServer = getEnvironmentConfig().getMetaServer();
+        if (metaServer != null) {
+            metaServer.stop(this);
         }
         if (configMBean != null) {
             configMBean.unregister();

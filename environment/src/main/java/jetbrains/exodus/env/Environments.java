@@ -16,6 +16,7 @@
 package jetbrains.exodus.env;
 
 import jetbrains.exodus.crypto.KryptKt;
+import jetbrains.exodus.entitystore.MetaServer;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogConfig;
 import org.jetbrains.annotations.NotNull;
@@ -134,6 +135,10 @@ public final class Environments {
     @NotNull
     static <T extends EnvironmentImpl> T prepare(@NotNull final T env) {
         env.getGC().getUtilizationProfile().load();
+        final MetaServer metaServer = env.getEnvironmentConfig().getMetaServer();
+        if (metaServer != null) {
+            metaServer.start(env);
+        }
         return env;
     }
 }

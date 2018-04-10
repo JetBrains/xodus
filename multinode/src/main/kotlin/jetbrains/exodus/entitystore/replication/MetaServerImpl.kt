@@ -24,14 +24,16 @@ import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.handler.codec.http.*
 import io.netty.util.AsciiString
-import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
+import jetbrains.exodus.entitystore.MetaServer
+import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.replication.ReplicationDelta
 import java.util.concurrent.ConcurrentHashMap
 
-class MetaServer(port: Int, val store: PersistentEntityStoreImpl) {
+class MetaServerImpl(port: Int) : AutoCloseable, MetaServer {
     private val group = NioEventLoopGroup()
     private val channelHolder: ChannelFuture
+    internal val environments: MutableMap<String, EnvironmentImpl> = ConcurrentHashMap()
 
     init {
         val bootstrap = ServerBootstrap()
@@ -42,7 +44,7 @@ class MetaServer(port: Int, val store: PersistentEntityStoreImpl) {
                         ch.pipeline().apply {
                             addLast("encoder", HttpResponseEncoder())
                             addLast("decoder", HttpRequestDecoder(4096, 8192, 8192, false))
-                            addLast("handler", MetaServerHandler(store))
+                            addLast("handler", MetaServerHandler(this@MetaServerImpl))
                         }
                     }
                 })
@@ -51,13 +53,21 @@ class MetaServer(port: Int, val store: PersistentEntityStoreImpl) {
         channelHolder = bootstrap.bind(port).sync()
     }
 
-    fun close() {
+    override fun start(environment: Environment) {
+        environments[environment.location] = environment as EnvironmentImpl
+    }
+
+    override fun stop(environment: Environment) {
+        environments.remove(environment.location)
+    }
+
+    override fun close() {
         group.shutdownGracefully()
         channelHolder.channel().closeFuture().sync()
     }
 }
 
-class MetaServerHandler(val store: PersistentEntityStoreImpl) : SimpleChannelInboundHandler<Any>() {
+class MetaServerHandler(val server: MetaServerImpl) : SimpleChannelInboundHandler<Any>() {
     companion object {
         private val applicationJson = AsciiString("application/json; charset=UTF-8")
         private val serverName = AsciiString("Xodus")
@@ -81,8 +91,22 @@ class MetaServerHandler(val store: PersistentEntityStoreImpl) : SimpleChannelInb
             when {
                 path.endsWith("/v1/delta/acquire") -> {
                     val from = decoder.parameters()["fromAddress"].toLongSafe(ctx)
-                    if (from >= 0) {
-                        val env = store.environment as EnvironmentImpl
+                    val env = decoder.parameters()["location"].getString().let {
+                        if (it == null) {
+                            if (server.environments.size == 1) {
+                                server.environments.entries.first().value
+                            } else {
+                                null
+                            }
+                        } else {
+                            server.environments[it]
+                        }
+                    }
+                    if (env == null) {
+                        respondEmpty(ctx)
+                        return
+                    }
+                    if (from >= 0 ) {
                         val gcTransaction = GcTransaction(env)
                         gcTransactions[gcTransaction.id] = gcTransaction
                         gcTransaction.start()
@@ -129,6 +153,13 @@ class MetaServerHandler(val store: PersistentEntityStoreImpl) : SimpleChannelInb
         }
         respondEmpty(ctx, HttpResponseStatus.BAD_REQUEST)
         return -1
+    }
+
+    private fun List<String>?.getString(): String? {
+        if (this != null && isNotEmpty()) {
+            return this[0]
+        }
+        return null
     }
 
     private fun respond(request: HttpRequest, ctx: ChannelHandlerContext, payload: Any) {
