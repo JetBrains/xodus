@@ -47,7 +47,7 @@ public final class UtilizationProfile {
         this.env = env;
         this.gc = gc;
         log = env.getLog();
-        fileSize = log.getFileSize() * 1024L;
+        fileSize = log.getFileLengthBound();
         filesUtilization = new LongHashMap<>();
         log.addNewFileListener(new NewFileListener() {
             @Override

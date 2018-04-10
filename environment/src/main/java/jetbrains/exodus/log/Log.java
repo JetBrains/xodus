@@ -93,7 +93,7 @@ public final class Log implements Closeable {
         created = System.currentTimeMillis();
         fileSize = config.getFileSize();
         cachePageSize = config.getCachePageSize();
-        final long fileLength = fileSize * 1024;
+        final long fileLength = fileSize * 1024L;
         if (fileLength % cachePageSize != 0) {
             throw new InvalidSettingException("File size should be a multiple of cache page size.");
         }
@@ -217,12 +217,15 @@ public final class Log implements Closeable {
     }
 
     /**
-     * @return size of single log file in kilobytes.
+     * @return size of a single log file in kilobytes.
      */
-    public long getFileSize() {
+    long getFileSize() {
         return fileSize;
     }
 
+    /**
+     * @return size of a single log file in bytes.
+     */
     public long getFileLengthBound() {
         return fileLengthBound;
     }
