@@ -16,12 +16,14 @@
 package jetbrains.exodus.log.replication
 
 import jetbrains.exodus.env.replication.ReplicationDelta
+import mu.KLogging
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
+import java.io.File
 
 class SpecialLogReplicationTest : ReplicationBaseTest() {
-    companion object {
+    companion object : KLogging() {
         val fileSize = 4L // KB
     }
 
@@ -61,8 +63,16 @@ class SpecialLogReplicationTest : ReplicationBaseTest() {
 
         sourceLog.close()
 
-        // check log with cache
-        checkLog(targetLog, highAddress, 1000L)
+        try {
+            // check log with cache
+            checkLog(targetLog, highAddress, 1000L)
+        } catch (t: Throwable) {
+            logger.error { "Dump target log directory:" }
+            File(targetLog.location).walkTopDown().forEach {
+                logger.error { "${it.name} (size = ${it.length()})" }
+            }
+            throw t
+        }
 
         targetLog = targetLogDir.createLog(fileSize = 4L) {
             cachePageSize = 1024
