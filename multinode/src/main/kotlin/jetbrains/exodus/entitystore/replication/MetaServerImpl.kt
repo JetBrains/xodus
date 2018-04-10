@@ -106,11 +106,11 @@ class MetaServerHandler(val server: MetaServerImpl) : SimpleChannelInboundHandle
                         respondEmpty(ctx)
                         return
                     }
-                    if (from >= 0 ) {
+                    if (from >= 0) {
                         val gcTransaction = GcTransaction(env)
                         gcTransactions[gcTransaction.id] = gcTransaction
                         gcTransaction.start()
-                        val metaTree = env.metaTree // TODO: fix possible race condition
+                        val metaTree = env.metaTree // TODO: fix possible race condition?
                         val tip = metaTree.logTip
                         val result = ReplicationDelta(
                                 startAddress = from,

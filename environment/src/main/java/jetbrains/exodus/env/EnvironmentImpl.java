@@ -718,7 +718,9 @@ public class EnvironmentImpl implements Environment {
     }
 
     public MetaTree getMetaTree() {
-        return metaTree;
+        synchronized (metaReadLock) {
+            return metaTree;
+        }
     }
 
     MetaTreeImpl getMetaTreeInternal() {
