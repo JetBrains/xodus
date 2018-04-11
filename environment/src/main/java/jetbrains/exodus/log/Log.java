@@ -550,7 +550,7 @@ public final class Log implements Closeable {
         long result = writeContinuously(type, structureId, data);
         if (result < 0) {
             // rollback loggable and pad last file with nulls
-            padWithNulls();
+            doPadWithNulls();
         }
         return result;
     }
@@ -571,7 +571,7 @@ public final class Log implements Closeable {
         long result = writeContinuously(type, structureId, data);
         if (result < 0) {
             // rollback loggable and pad last file with nulls
-            padWithNulls();
+            doPadWithNulls();
             result = writeContinuously(type, structureId, data);
             if (result < 0) {
                 throw new TooBigLoggableException();
@@ -807,6 +807,11 @@ public final class Log implements Closeable {
      * if we started reading by address it definitely should finish within current file.
      */
     public void padWithNulls() {
+        beforeWrite(ensureWriter());
+        doPadWithNulls();
+    }
+
+    void doPadWithNulls() {
         final BufferedDataWriter writer = ensureWriter();
         long bytesToWrite = fileLengthBound - writer.getLastWrittenFileLength(fileLengthBound);
         if (bytesToWrite == 0L) {

@@ -132,7 +132,7 @@ public class LogTests extends LogTestsBase {
         getLog().beginWrite();
         for (int i = 0; i < 100; ++i) {
             getLog().write(DUMMY_LOGGABLE);
-            getLog().padWithNulls();
+            getLog().doPadWithNulls();
             Assert.assertEquals(i + 1, getLog().ensureWriter().getFileSetMutable().size());
         }
         getLog().endWrite();
