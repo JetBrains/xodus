@@ -17,6 +17,7 @@ package jetbrains.exodus.log.replication
 
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogUtil
+import mu.KLogging
 import software.amazon.awssdk.core.AwsRequestOverrideConfig
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import java.nio.file.Path
@@ -27,6 +28,7 @@ class S3FileFactory(
         override val bucket: String,
         override val requestOverrideConfig: AwsRequestOverrideConfig? = null
 ) : S3FactoryBoilerplate {
+    companion object: KLogging()
 
     override fun fetchFile(log: Log, address: Long, startingLength: Long, expectedLength: Long, finalFile: Boolean): WriteResult {
         if (checkPreconditions(log, expectedLength, startingLength)) return WriteResult.empty
@@ -34,6 +36,8 @@ class S3FileFactory(
         log.ensureWriter().fileSetMutable.add(address)
 
         val filename = LogUtil.getLogFilename(address)
+
+        logger.debug { "Fetch file at $filename" }
 
         val file = dir.resolve(filename)
         val handler = if (finalFile) {
