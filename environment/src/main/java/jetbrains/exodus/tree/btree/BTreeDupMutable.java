@@ -92,7 +92,7 @@ final class BTreeDupMutable extends BTreeMutable {
                 if (log.getWrittenHighAddress() < startAddress) {
                     throw new IllegalStateException("Address alignment underflow: start address " + startAddress + ", alignment " + alignment);
                 }
-            } else if (writtenType > BTreeBase.DUP_LEAF) {
+            } else if (writtenType < 0 || writtenType > BTreeBase.DUP_LEAF) {
                 throw new IllegalStateException("Unknown written loggable type: " + writtenType);
             }
         }
