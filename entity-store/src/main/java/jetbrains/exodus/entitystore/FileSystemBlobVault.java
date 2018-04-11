@@ -34,7 +34,7 @@ public class FileSystemBlobVault extends FileSystemBlobVaultOld {
 
     @NotNull
     @Override
-    protected File getBlobLocation(long blobHandle, boolean readonly) {
+    public File getBlobLocation(long blobHandle, boolean readonly) {
         if (blobHandle < 256) {
             return super.getBlobLocation(blobHandle, readonly);
         }

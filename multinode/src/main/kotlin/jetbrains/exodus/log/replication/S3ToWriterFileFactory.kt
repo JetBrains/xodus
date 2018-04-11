@@ -24,7 +24,7 @@ class S3ToWriterFileFactory(
         override val s3: S3AsyncClient,
         override val bucket: String,
         override val requestOverrideConfig: AwsRequestOverrideConfig? = null
-) : S3FactoryBoilerplate {
+) : S3FactoryBoilerplate, FileFactory {
 
     override fun fetchFile(log: Log, address: Long, startingLength: Long, expectedLength: Long, finalFile: Boolean): WriteResult {
         if (checkPreconditions(log, expectedLength, startingLength)) return WriteResult.empty

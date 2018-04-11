@@ -336,8 +336,29 @@ public class FileSystemBlobVaultOld extends BlobVault {
         return getBlobLocation(blobHandle, true);
     }
 
+    public String getBlobKey(long blobHandle) {
+        String file;
+        final List<String> files = new ArrayList<>(8);
+        while (true) {
+            file = Integer.toHexString((int) (blobHandle & 0xff));
+            if (blobHandle <= 0xff) {
+                break;
+            }
+            files.add(file);
+            blobHandle >>= 8;
+        }
+        files.add(file);
+        final StringBuilder dir = new StringBuilder(blobsDirectory);
+        for (ListIterator iterator = files.listIterator(files.size()); iterator.hasPrevious(); ) {
+            dir.append(File.separator);
+            dir.append(iterator.previous());
+        }
+        dir.append(blobExtension);
+        return dir.toString();
+    }
+
     @NotNull
-    protected File getBlobLocation(long blobHandle, boolean readonly) {
+    public File getBlobLocation(long blobHandle, boolean readonly) {
         File dir = location;
         String file;
         while (true) {
@@ -352,7 +373,8 @@ public class FileSystemBlobVaultOld extends BlobVault {
             //noinspection ResultOfMethodCallIgnored
             dir.mkdirs();
         }
-        final File result = new File(dir, file + blobExtension);
+        final String path = file + blobExtension;
+        final File result = new File(dir, path);
         if (!readonly && result.exists()) {
             throw new EntityStoreException("Can't update existing blob file: " + result);
         }

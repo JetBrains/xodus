@@ -27,8 +27,8 @@ class S3FileFactory(
         val dir: Path,
         override val bucket: String,
         override val requestOverrideConfig: AwsRequestOverrideConfig? = null
-) : S3FactoryBoilerplate {
-    companion object: KLogging()
+) : S3FactoryBoilerplate, FileFactory {
+    companion object : KLogging()
 
     override fun fetchFile(log: Log, address: Long, startingLength: Long, expectedLength: Long, finalFile: Boolean): WriteResult {
         if (checkPreconditions(log, expectedLength, startingLength)) return WriteResult.empty
@@ -50,12 +50,7 @@ class S3FileFactory(
                     log.ensureWriter().allocLastPage(address + lastPageStart)
             )
         } else {
-            FileAsyncHandler(
-                    file,
-                    startingLength,
-                    0,
-                    null
-            )
+            FileAsyncHandler(file, startingLength)
         }
 
         return getRemoteFile(expectedLength, startingLength, filename, handler).get().also {

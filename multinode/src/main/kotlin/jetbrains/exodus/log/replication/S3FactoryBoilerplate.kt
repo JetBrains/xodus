@@ -23,7 +23,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import software.amazon.awssdk.services.s3.model.GetObjectResponse
 import java.util.concurrent.CompletableFuture
 
-interface S3FactoryBoilerplate : FileFactory {
+interface S3FactoryBoilerplate {
     val s3: S3AsyncClient
     val bucket: String
     val requestOverrideConfig: AwsRequestOverrideConfig?

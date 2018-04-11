@@ -21,11 +21,14 @@ import com.fasterxml.jackson.databind.ObjectReader
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import jetbrains.exodus.core.dataStructures.Pair
 import jetbrains.exodus.entitystore.BlobVault
+import jetbrains.exodus.entitystore.FileSystemBlobVaultOld
 import jetbrains.exodus.entitystore.PersistentEntityStoreReplicator
 import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.replication.EnvironmentAppender
 import jetbrains.exodus.env.replication.ReplicationDelta
+import jetbrains.exodus.log.replication.FileAsyncHandler
+import jetbrains.exodus.log.replication.S3FactoryBoilerplate
 import jetbrains.exodus.log.replication.S3FileFactory
 import mu.KLogging
 import software.amazon.awssdk.core.AwsRequestOverrideConfig
@@ -36,10 +39,10 @@ import java.nio.file.Paths
 class S3Replicator(
         val metaServer: String,
         val httpClient: SdkAsyncHttpClient,
-        val s3: S3AsyncClient,
-        val bucket: String,
-        val requestOverrideConfig: AwsRequestOverrideConfig? = null
-) : PersistentEntityStoreReplicator {
+        override val s3: S3AsyncClient,
+        override val bucket: String,
+        override val requestOverrideConfig: AwsRequestOverrideConfig? = null
+) : PersistentEntityStoreReplicator, S3FactoryBoilerplate {
     companion object : KLogging() {
         private val objectMapper = ObjectMapper().apply {
             configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true)
@@ -86,6 +89,31 @@ class S3Replicator(
     }
 
     override fun replicateBlobVault(vault: BlobVault, blobsToReplicate: MutableList<Pair<Long, Long>>) {
-        // TODO
+        if (vault !is FileSystemBlobVaultOld) {
+            throw UnsupportedOperationException("Cannot replicate non-file blob vault")
+        }
+
+        blobsToReplicate.forEach {
+            val file = vault.getBlobLocation(it.first, false)
+            val length = it.second
+
+            try {
+                val handler = FileAsyncHandler(
+                        file.toPath(),
+                        0
+                )
+
+                val blobKey = vault.getBlobKey(it.first)
+                logger.info { "Copy blob file ${file.path}, key: $blobKey" }
+                getRemoteFile(length, 0, blobKey, handler).get().let {
+                    if (it.written != length) {
+                        throw IllegalStateException("Invalid file, received ${it.written} bytes instead of $length")
+                    }
+                }
+            } catch (t: Throwable) {
+                logger.warn(t) { "Cannot replicate file" }
+                file.delete()
+            }
+        }
     }
 }

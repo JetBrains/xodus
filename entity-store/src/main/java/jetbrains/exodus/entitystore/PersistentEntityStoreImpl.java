@@ -473,12 +473,16 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             @Override
             public List<Pair<Long, Long>> compute(@NotNull StoreTransaction tx) {
                 final String internalSettingsName = namingRulez.getInternalSettingsName();
+                final Transaction envTxn = ((PersistentStoreTransaction) tx).getEnvironmentTransaction();
                 final Store settings = environment.openStore(internalSettingsName,
-                        StoreConfig.WITHOUT_DUPLICATES, ((PersistentStoreTransaction) tx).getEnvironmentTransaction(), false);
-                if (settings == null) {
+                        StoreConfig.WITHOUT_DUPLICATES, envTxn, false);
+                final Store blobFileLengths = environment.openStore(namingRulez.getBlobFileLengthsTable(),
+                        StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, envTxn, false);
+
+                if (settings == null || blobFileLengths == null) {
                     return Collections.emptyList();
                 }
-                if (Settings.get(internalSettings, "Blob file lengths cached") == null) {
+                if (Settings.get(settings, "Blob file lengths cached") == null) {
                     throw new IllegalStateException("Cannot replicate blobs without serialized blob list");
                 } else {
                     ENABLE_BLOB_FILE_LENGTHS = true;
@@ -502,10 +506,17 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         });
         if (!blobsToReplicate.isEmpty()) {
             if (logger.isInfoEnabled()) {
-                logger.info("Will replicate " + blobsToReplicate.size() + "blobs higher than " + highBlobHandle);
+                logger.info("Will replicate " + blobsToReplicate.size() + " blobs higher than " + highBlobHandle);
             }
 
-            final BlobVault vault = initBlobVault();
+            final BlobVault vault = computeInReadonlyTransaction(new StoreTransactionalComputable<BlobVault>() {
+                @Override
+                public BlobVault compute(@NotNull StoreTransaction txn) {
+                    sequences = environment.openStore(SEQUENCES_STORE, StoreConfig.WITHOUT_DUPLICATES,
+                            ((PersistentStoreTransaction) txn).getEnvironmentTransaction());
+                    return initBlobVault();
+                }
+            });
 
             replicator.replicateBlobVault(vault, blobsToReplicate);
 
