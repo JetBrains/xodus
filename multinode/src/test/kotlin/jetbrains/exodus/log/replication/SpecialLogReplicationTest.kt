@@ -22,7 +22,7 @@ import org.junit.Before
 import org.junit.Test
 import java.io.File
 
-class SpecialLogReplicationTest : ReplicationBaseTest() {
+open class SpecialLogReplicationTest : ReplicationBaseTest() {
     companion object : KLogging() {
         val fileSize = 4L // KB
     }
