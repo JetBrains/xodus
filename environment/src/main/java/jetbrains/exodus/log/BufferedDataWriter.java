@@ -219,12 +219,16 @@ public class BufferedDataWriter {
         return new LogTip(currentPage.bytes, currentPage.pageAddress, currentPage.committedCount, highAddress, highAddress, fileSetImmutable);
     }
 
-    byte getByte(long address) {
+    byte getByte(long address, byte max) {
         final int offset = ((int) address) & (pageSize - 1);
         final long pageAddress = address - offset;
         final MutablePage page = getWrittenPage(pageAddress);
         if (page != null) {
-            return page.bytes[offset];
+            final byte result = (byte) (page.bytes[offset] ^ 0x80);
+            if (result < 0 || result > max) {
+                throw new IllegalStateException("Unknown written page loggable type: " + result);
+            }
+            return result;
         }
 
         // slow path: unconfirmed file saved to disk, read byte from it
@@ -236,7 +240,11 @@ public class BufferedDataWriter {
 
         reader.getBlock(fileAddress).read(output, address - fileAddress, 1);
 
-        return output[0];
+        final byte result = (byte) (output[0] ^ 0x80);
+        if (result < 0 || result > max) {
+            throw new IllegalStateException("Unknown written file loggable type: " + result);
+        }
+        return result;
     }
 
     // warning: this method is O(N), where N is number of added pages

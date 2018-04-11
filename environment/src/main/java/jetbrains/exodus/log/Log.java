@@ -493,9 +493,8 @@ public final class Log implements Closeable {
         return read(it, it.getHighAddress());
     }
 
-    public byte getWrittenLoggableType(final long address) {
-        final byte writtenByte = ensureWriter().getByte(address);
-        return (byte) (writtenByte ^ 0x80);
+    public byte getWrittenLoggableType(final long address, final byte max) {
+        return ensureWriter().getByte(address, max);
     }
 
     @NotNull
