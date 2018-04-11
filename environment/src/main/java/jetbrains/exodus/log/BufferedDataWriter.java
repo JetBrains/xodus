@@ -19,6 +19,7 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.crypto.EnvKryptKt;
 import jetbrains.exodus.crypto.StreamCipherProvider;
+import jetbrains.exodus.io.Block;
 import jetbrains.exodus.io.DataReader;
 import jetbrains.exodus.io.DataWriter;
 import org.jetbrains.annotations.NotNull;
@@ -236,11 +237,21 @@ public class BufferedDataWriter {
         if (!fileSetMutable.contains(fileAddress)) {
             BlockNotFoundException.raise("Address is out of log space, underflow", log, address);
         }
-        byte[] output = new byte[1];
 
-        reader.getBlock(fileAddress).read(output, address - fileAddress, 1);
+        final byte[] output = new byte[pageSize];
 
-        final byte result = (byte) (output[0] ^ 0x80);
+        final Block block = reader.getBlock(fileAddress);
+        final int readBytes = block.read(output, pageAddress - fileAddress, output.length);
+
+        if (readBytes < offset) {
+            throw new ExodusException("Can't read expected page bytes");
+        }
+
+        if (cipherProvider != null) {
+            EnvKryptKt.cryptBlocksMutable(cipherProvider, cipherKey, cipherBasicIV, address, output, 0, readBytes, LogUtil.LOG_BLOCK_ALIGNMENT);
+        }
+
+        final byte result = (byte) (output[offset] ^ 0x80);
         if (result < 0 || result > max) {
             throw new IllegalStateException("Unknown written file loggable type: " + result);
         }
