@@ -172,7 +172,7 @@ public final class EnvironmentConfig extends AbstractConfig {
      * On cache miss, LogCache at first tries to check if there is corresponding mapped byte buffer and copies
      * cache page from the buffer, otherwise reads the page from {@linkplain java.io.RandomAccessFile}. If is set to
      * {@code false} then LogCache always reads {@linkplain java.io.RandomAccessFile} on cache miss.
-     * Default value is {@code true}.
+     * Default value was {@code true} before version {@code 1.2.3}. As of {@code 1.2.3}, default value is {@code false}.
      * <p>Mutable at runtime: no
      *
      * @see #LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD
@@ -540,7 +540,7 @@ public final class EnvironmentConfig extends AbstractConfig {
                 new Pair(LOG_LOCK_ID, null),
                 new Pair(LOG_CACHE_PAGE_SIZE, 64 * 1024),
                 new Pair(LOG_CACHE_OPEN_FILES, 500),
-                new Pair(LOG_CACHE_USE_NIO, true),
+            new Pair(LOG_CACHE_USE_NIO, false),
                 new Pair(LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD, 1_000_000_000L), // ~1GB
                 new Pair(LOG_CACHE_SHARED, true),
                 new Pair(LOG_CACHE_NON_BLOCKING, true),
@@ -918,7 +918,7 @@ public final class EnvironmentConfig extends AbstractConfig {
      * On cache miss, LogCache at first tries to check if there is corresponding mapped byte buffer and copies
      * cache page from the buffer, otherwise reads the page from {@linkplain java.io.RandomAccessFile}. If is set to
      * {@code false} then LogCache always reads {@linkplain java.io.RandomAccessFile} on cache miss.
-     * Default value is {@code true}.
+     * Default value was {@code true} before version {@code 1.2.3}. As of {@code 1.2.3}, default value is {@code false}.
      * <p>Mutable at runtime: no
      *
      * @return {@code true} mapping of .xd files in memory is allowed
@@ -933,7 +933,7 @@ public final class EnvironmentConfig extends AbstractConfig {
      * On cache miss, LogCache at first tries to check if there is corresponding mapped byte buffer and copies
      * cache page from the buffer, otherwise reads the page from {@linkplain java.io.RandomAccessFile}. If is set to
      * {@code false} then LogCache always reads {@linkplain java.io.RandomAccessFile} on cache miss.
-     * Default value is {@code true}.
+     * Default value was {@code true} before version {@code 1.2.3}. As of {@code 1.2.3}, default value is {@code false}.
      * <p>Mutable at runtime: no
      *
      * @param useNio {@code true} is using NIO is allowed
