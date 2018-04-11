@@ -87,6 +87,10 @@ public class BufferedDataWriter {
 
     public void setHighAddress(long highAddress) {
         this.highAddress = highAddress;
+        if (highAddress % log.getFileLengthBound() != 0) {
+            throw new IllegalArgumentException("Can only set aligned address");
+        }
+        allocLastPage(highAddress);
     }
 
     public MutablePage allocLastPage(long pageAddress) {
