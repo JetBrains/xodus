@@ -401,7 +401,7 @@ public final class Log implements Closeable {
     }
 
     public boolean isLastWrittenFileAddress(final long address) {
-        return getFileAddress(address) == getWrittenHighAddress();
+        return getFileAddress(address) == getFileAddress(getWrittenHighAddress());
     }
 
     public boolean hasAddress(final long address) {
