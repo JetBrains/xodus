@@ -125,6 +125,6 @@ object LogAppender : KLogging() {
         if (lastFileWrite == null) {
             throw IllegalArgumentException("Last file is not provided")
         }
-        logger.info { "Appended $allWritten bytes to log at ${log.location}" }
+        logger.debug { "Appended $allWritten bytes to log at ${log.location}" }
     }
 }
