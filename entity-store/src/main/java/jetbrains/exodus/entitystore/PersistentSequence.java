@@ -37,13 +37,15 @@ public class PersistentSequence implements Sequence, FlushLog.Member {
     private final ArrayByteIterable idKeyEntry;
     private final String name;
     private final AtomicLong val;
-    private final AtomicLong lastSavedValue = new AtomicLong(-1);
+    private final AtomicLong lastSavedValue;
 
     public PersistentSequence(@NotNull final PersistentStoreTransaction txn, @NotNull final Store store, @NotNull final String name) {
         this.store = store;
         this.name = name;
         idKeyEntry = sequenceNameToEntry(name);
-        val = new AtomicLong(loadValue(txn));
+        final long savedValue = loadValue(txn);
+        val = new AtomicLong(savedValue);
+        lastSavedValue = new AtomicLong(savedValue);
     }
 
     public String getName() {
