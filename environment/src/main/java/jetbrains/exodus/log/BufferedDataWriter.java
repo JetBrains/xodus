@@ -222,9 +222,9 @@ public class BufferedDataWriter {
     byte getByte(long address) {
         final int offset = ((int) address) & (pageSize - 1);
         final long pageAddress = address - offset;
-        final byte[] page = getWrittenPage(pageAddress);
+        final MutablePage page = getWrittenPage(pageAddress);
         if (page != null) {
-            return page[offset];
+            return page.bytes[offset];
         }
 
         // slow path: unconfirmed file saved to disk, read byte from it
@@ -240,12 +240,12 @@ public class BufferedDataWriter {
     }
 
     // warning: this method is O(N), where N is number of added pages
-    private byte[] getWrittenPage(long alignedAddress) {
+    private MutablePage getWrittenPage(long alignedAddress) {
         MutablePage currentPage = this.currentPage;
         do {
             final long highPageAddress = currentPage.pageAddress;
             if (alignedAddress == highPageAddress) {
-                return currentPage.bytes;
+                return currentPage;
             }
             currentPage = currentPage.previousPage;
         } while (currentPage != null);
