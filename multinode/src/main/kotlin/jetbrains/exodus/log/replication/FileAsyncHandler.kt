@@ -130,6 +130,7 @@ class FileAsyncHandler(
                 }
 
                 override fun failed(exc: Throwable, attachment: ByteBuffer) {
+                    error = exc
                     subscription.cancel()
                     close()
                 }
