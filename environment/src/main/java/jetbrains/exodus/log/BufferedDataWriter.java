@@ -248,12 +248,12 @@ public class BufferedDataWriter {
         }
 
         if (cipherProvider != null) {
-            EnvKryptKt.cryptBlocksMutable(cipherProvider, cipherKey, cipherBasicIV, address, output, 0, readBytes, LogUtil.LOG_BLOCK_ALIGNMENT);
+            EnvKryptKt.cryptBlocksMutable(cipherProvider, cipherKey, cipherBasicIV, pageAddress, output, 0, readBytes, LogUtil.LOG_BLOCK_ALIGNMENT);
         }
 
         final byte result = (byte) (output[offset] ^ 0x80);
         if (result < 0 || result > max) {
-            throw new IllegalStateException("Unknown written file loggable type: " + result);
+            throw new IllegalStateException("Unknown written file loggable type: " + result + ", address: " + address);
         }
         return result;
     }
