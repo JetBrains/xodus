@@ -31,9 +31,8 @@ class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
             val txn = queryEngine.persistentStore.andCheckCurrentTransaction
             val ids = EntityIdSetIterable(txn)
             if (isUnionOfLinks(linkNames, ids)) {
-                val all = txn.getAll(entityType) as EntityIterableBase
-                val cached = txn.getStickyObjectSafe(all.handle) as? EntityIterableBase
-                return queryEngine.adjustEntityIterable((cached ?: all).findLinks(ids, linkNames.first()))
+                return queryEngine.adjustEntityIterable(
+                        (queryEngine.instantiateGetAll(txn, entityType) as EntityIterableBase).source.findLinks(ids, linkNames.first()))
             }
         }
         return queryEngine.unionAdjusted(left.instantiate(entityType, queryEngine, metaData), right.instantiate(entityType, queryEngine, metaData))
