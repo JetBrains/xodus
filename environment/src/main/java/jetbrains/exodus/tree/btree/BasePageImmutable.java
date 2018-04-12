@@ -29,6 +29,8 @@ abstract class BasePageImmutable extends BasePage {
     protected final ByteIterableWithAddress data;
     long dataAddress;
     byte keyAddressLen;
+    private ILeafNode minKey = null;
+    private ILeafNode maxKey = null;
 
     /**
      * Create empty page
@@ -78,6 +80,18 @@ abstract class BasePageImmutable extends BasePage {
         } else {
             dataAddress = itr.getAddress();
         }
+    }
+
+    @Override
+    @NotNull ILeafNode getMinKey() {
+        if (minKey != null) return minKey;
+        return minKey = super.getMinKey();
+    }
+
+    @Override
+    @NotNull ILeafNode getMaxKey() {
+        if (maxKey != null) return maxKey;
+        return maxKey = super.getMaxKey();
     }
 
     @Override
