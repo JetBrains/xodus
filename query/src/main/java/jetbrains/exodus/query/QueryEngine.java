@@ -19,6 +19,7 @@ package jetbrains.exodus.query;
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.EntityIterable;
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
+import jetbrains.exodus.entitystore.StoreTransaction;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.iterate.SingleEntityIterable;
 import jetbrains.exodus.query.metadata.AssociationEndMetaData;
@@ -409,7 +410,11 @@ public class QueryEngine {
     }
 
     public EntityIterable instantiateGetAll(@NotNull final String entityType) {
-        return getPersistentStore().getAndCheckCurrentTransaction().getAll(entityType);
+        return instantiateGetAll(getPersistentStore().getAndCheckCurrentTransaction(), entityType);
+    }
+
+    public EntityIterable instantiateGetAll(@NotNull final StoreTransaction txn, @NotNull final String entityType) {
+        return txn.getAll(entityType);
     }
 
     public static boolean isEmptyIterable(Iterable<Entity> it) {
