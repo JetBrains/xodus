@@ -128,7 +128,7 @@ public final class Log implements Closeable {
         final Long lastFileAddress = fileSetMutable.getMaximum();
         updateLogIdentity();
         if (lastFileAddress == null) {
-            tip = new AtomicReference<>(new LogTip(fileSize));
+            tip = new AtomicReference<>(new LogTip(fileLengthBound));
         } else {
             final long currentHighAddress = lastFileAddress + reader.getBlock(lastFileAddress).length();
             final long highPageAddress = getHighPageAddress(currentHighAddress);
@@ -296,7 +296,7 @@ public final class Log implements Closeable {
         final LogTip updatedTip;
         if (fileSetMutable.isEmpty()) {
             updateLogIdentity();
-            updatedTip = new LogTip(fileSize);
+            updatedTip = new LogTip(fileLengthBound);
         } else {
             final long oldHighPageAddress = logTip.pageAddress;
             long approvedHighAddress = logTip.approvedHighAddress;
@@ -704,7 +704,7 @@ public final class Log implements Closeable {
         sync();
         reader.close();
         closeWriter();
-        compareAndSetTip(logTip, new LogTip(fileSize, logTip.pageAddress, logTip.highAddress));
+        compareAndSetTip(logTip, new LogTip(fileLengthBound, logTip.pageAddress, logTip.highAddress));
         release();
     }
 
@@ -721,7 +721,7 @@ public final class Log implements Closeable {
         closeWriter();
         cache.clear();
         reader.clear();
-        final LogTip updatedTip = new LogTip(fileSize);
+        final LogTip updatedTip = new LogTip(fileLengthBound);
         compareAndSetTip(logTip, updatedTip);
         this.bufferedWriter = null;
         updateLogIdentity();

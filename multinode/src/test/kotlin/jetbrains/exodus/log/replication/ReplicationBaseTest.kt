@@ -33,6 +33,7 @@ import software.amazon.awssdk.core.AwsRequestOverrideConfig
 import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
 import software.amazon.awssdk.core.client.builder.ClientAsyncHttpConfiguration
 import software.amazon.awssdk.core.regions.Region
+import software.amazon.awssdk.http.async.SdkAsyncHttpClient
 import software.amazon.awssdk.http.nio.netty.NettySdkHttpClientFactory
 import software.amazon.awssdk.services.s3.S3AdvancedConfiguration
 import software.amazon.awssdk.services.s3.S3AsyncClient
@@ -56,6 +57,7 @@ abstract class ReplicationBaseTest {
     val targetLogDir by lazy { newTmpFile() }
 
     private lateinit var api: S3Mock
+    protected lateinit var httpClient: SdkAsyncHttpClient
     protected lateinit var s3: S3AsyncClient
     protected lateinit var extraHost: AwsRequestOverrideConfig
 
@@ -72,7 +74,7 @@ abstract class ReplicationBaseTest {
             start()
         }
 
-        val httpClient = NettySdkHttpClientFactory.builder().build().createHttpClient()
+        httpClient = NettySdkHttpClientFactory.builder().build().createHttpClient()
 
         extraHost = AwsRequestOverrideConfig.builder().header("Host", "$host:$port").build()
 

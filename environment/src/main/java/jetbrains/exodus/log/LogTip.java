@@ -33,17 +33,17 @@ public class LogTip {
     final LogFileSet.Immutable logFileSet;
 
     // empty
-    LogTip(final long fileSize) {
-        this(fileSize, 0, 0);
+    LogTip(final long fileLengthBound) {
+        this(fileLengthBound, 0, 0);
     }
 
     // fake page for closed log "residual state" info
-    LogTip(final long fileSize, final long pageAddress, final long highAddress) {
+    LogTip(final long fileLengthBound, final long pageAddress, final long highAddress) {
         this.bytes = NO_BYTES;
         this.pageAddress = pageAddress;
         this.count = -1;
         this.highAddress = this.approvedHighAddress = highAddress;
-        this.logFileSet = new LogFileSet.Immutable(fileSize); // no files
+        this.logFileSet = new LogFileSet.Immutable(fileLengthBound); // no files
     }
 
     // non-empty

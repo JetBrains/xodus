@@ -40,6 +40,7 @@ import java.nio.file.Paths
 class S3Replicator(
         val metaServer: String,
         val httpClient: SdkAsyncHttpClient,
+        private val metaPort: Int = 8062,
         override val s3: S3AsyncClient,
         override val bucket: String,
         override val requestOverrideConfig: AwsRequestOverrideConfig? = null
@@ -64,7 +65,7 @@ class S3Replicator(
                 "/v1/delta/acquire",
                 mapOf("fromAddress" to from.toString()),
                 metaServer,
-                8062
+                metaPort
         )
 
         val delta = deltaReader.readValue<ReplicationDelta>(result, 0, result.size)

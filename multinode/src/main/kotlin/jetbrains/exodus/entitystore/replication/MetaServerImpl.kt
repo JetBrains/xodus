@@ -30,7 +30,7 @@ import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.replication.ReplicationDelta
 import java.util.concurrent.ConcurrentHashMap
 
-class MetaServerImpl(port: Int) : AutoCloseable, MetaServer {
+class MetaServerImpl @JvmOverloads constructor(port: Int = 8062) : AutoCloseable, MetaServer {
     private val group = NioEventLoopGroup()
     private val channelHolder: ChannelFuture
     internal val environments: MutableMap<String, EnvironmentImpl> = ConcurrentHashMap()

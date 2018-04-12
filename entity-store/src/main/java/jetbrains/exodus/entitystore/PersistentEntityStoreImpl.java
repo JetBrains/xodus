@@ -473,7 +473,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final EnvironmentReplicationDelta delta = replicator.replicateEnvironment(environment);
 
         try {
-            replicateBlobs(replicator, delta, highBlobHandle);
+            if (highBlobHandle >= 0) {
+                replicateBlobs(replicator, delta, highBlobHandle);
+            }
         } finally {
             replicator.endReplication(delta);
         }

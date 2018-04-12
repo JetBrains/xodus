@@ -40,6 +40,11 @@ public final class Environments {
     }
 
     @NotNull
+    public static Environment newInstance(@NotNull final Log log, @NotNull final EnvironmentConfig ec) {
+        return prepare(new EnvironmentImpl(log, ec));
+    }
+
+    @NotNull
     public static Environment newInstance(@NotNull final String dir, @NotNull final EnvironmentConfig ec) {
         return prepare(new EnvironmentImpl(newLogInstance(new File(dir), ec), ec));
     }
@@ -108,22 +113,22 @@ public final class Environments {
             config.setMemoryUsagePercentage(ec.getMemoryUsagePercentage());
         }
         return newLogInstance(config.setFileSize(ec.getLogFileSize()).
-            setLockTimeout(ec.getLogLockTimeout()).
-            setLockId(ec.getLogLockId()).
-            setCachePageSize(ec.getLogCachePageSize()).
-            setCacheOpenFilesCount(ec.getLogCacheOpenFilesCount()).
-            setCacheUseNio(ec.getLogCacheUseNio()).
-            setCacheFreePhysicalMemoryThreshold(ec.getLogCacheFreePhysicalMemoryThreshold()).
-            setDurableWrite(ec.getLogDurableWrite()).
-            setSharedCache(ec.isLogCacheShared()).
-            setNonBlockingCache(ec.isLogCacheNonBlocking()).
-            setCleanDirectoryExpected(ec.isLogCleanDirectoryExpected()).
-            setClearInvalidLog(ec.isLogClearInvalid()).
-            setSyncPeriod(ec.getLogSyncPeriod()).
-            setFullFileReadonly(ec.isLogFullFileReadonly()).
-            setCipherProvider(ec.getCipherId() == null ? null : KryptKt.newCipherProvider(ec.getCipherId())).
-            setCipherKey(ec.getCipherKey()).
-            setCipherBasicIV(ec.getCipherBasicIV()));
+                setLockTimeout(ec.getLogLockTimeout()).
+                setLockId(ec.getLogLockId()).
+                setCachePageSize(ec.getLogCachePageSize()).
+                setCacheOpenFilesCount(ec.getLogCacheOpenFilesCount()).
+                setCacheUseNio(ec.getLogCacheUseNio()).
+                setCacheFreePhysicalMemoryThreshold(ec.getLogCacheFreePhysicalMemoryThreshold()).
+                setDurableWrite(ec.getLogDurableWrite()).
+                setSharedCache(ec.isLogCacheShared()).
+                setNonBlockingCache(ec.isLogCacheNonBlocking()).
+                setCleanDirectoryExpected(ec.isLogCleanDirectoryExpected()).
+                setClearInvalidLog(ec.isLogClearInvalid()).
+                setSyncPeriod(ec.getLogSyncPeriod()).
+                setFullFileReadonly(ec.isLogFullFileReadonly()).
+                setCipherProvider(ec.getCipherId() == null ? null : KryptKt.newCipherProvider(ec.getCipherId())).
+                setCipherKey(ec.getCipherKey()).
+                setCipherBasicIV(ec.getCipherBasicIV()));
     }
 
     @NotNull
