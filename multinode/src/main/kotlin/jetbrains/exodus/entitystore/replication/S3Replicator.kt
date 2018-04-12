@@ -71,7 +71,7 @@ class S3Replicator(
         logger.info { "Replication delta acquired: $delta" }
 
         val sourceEncrypted = delta.encrypted
-        val targetEncrypted = environment.cipherKey != null
+        val targetEncrypted = environment.cipherProvider != null
 
         val factory: FileFactory = if (sourceEncrypted == targetEncrypted) {
             S3FileFactory(s3, Paths.get(environment.location), bucket, requestOverrideConfig)
