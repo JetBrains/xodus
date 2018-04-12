@@ -74,7 +74,7 @@ final class MetaTreeImpl implements MetaTree {
                     } catch (ExodusException e) {
                         logTip = log.getTip();
                         EnvironmentImpl.loggerError("Failed to recover to valid root" +
-                            LogUtil.getWrongAddressErrorMessage(dbRoot.getAddress(), env.getEnvironmentConfig().getLogFileSize()), e);
+                            LogUtil.getWrongAddressErrorMessage(dbRoot.getAddress(), env.getEnvironmentConfig().getLogFileSize() * 1024L), e);
                         // XD-449: try next database root if we failed to traverse whole MetaTree
                         // TODO: this check should become obsolete after XD-334 is implemented
                     }

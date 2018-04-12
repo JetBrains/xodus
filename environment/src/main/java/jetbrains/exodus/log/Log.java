@@ -77,10 +77,9 @@ public final class Log implements Closeable {
      */
     private final int cachePageSize;
     /**
-     * Size of a single file of the log in kilobytes.
+     * Size of a single file of the log in bytes.
      */
-    private final long fileSize;
-    private final long fileLengthBound; // and in bytes
+    private final long fileLengthBound;
 
     @Nullable
     private LogTestConfig testConfig;
@@ -91,9 +90,8 @@ public final class Log implements Closeable {
         baseWriter = config.getWriter();
         tryLock();
         created = System.currentTimeMillis();
-        fileSize = config.getFileSize();
         cachePageSize = config.getCachePageSize();
-        final long fileLength = fileSize * 1024L;
+        final long fileLength = config.getFileSize() * 1024L;
         if (fileLength % cachePageSize != 0) {
             throw new InvalidSettingException("File size should be a multiple of cache page size.");
         }
@@ -150,7 +148,7 @@ public final class Log implements Closeable {
                         final ByteIteratorWithAddress data = loggable.getData().iterator();
                         for (int i = 0; i < dataLength; ++i) {
                             if (!data.hasNext()) {
-                                throw new ExodusException("Can't read loggable fully" + LogUtil.getWrongAddressErrorMessage(data.getAddress(), fileSize));
+                                throw new ExodusException("Can't read loggable fully" + LogUtil.getWrongAddressErrorMessage(data.getAddress(), fileLengthBound));
                             }
                             data.next();
                         }
@@ -178,16 +176,16 @@ public final class Log implements Closeable {
             String clearLogReason = null;
             // if it is not the last file and its size is not as expected
             if (blockLength > fileLengthBound || (i < blocks.length - 1 && blockLength != fileLengthBound)) {
-                clearLogReason = "Unexpected file length" + LogUtil.getWrongAddressErrorMessage(address, fileSize);
+                clearLogReason = "Unexpected file length" + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound);
             }
             // if the file address is not a multiple of fileLengthBound
             if (clearLogReason == null && address != getFileAddress(address)) {
                 if (!config.isClearInvalidLog()) {
                     throw new ExodusException("Unexpected file address " +
-                            LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileSize));
+                            LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound));
                 }
                 clearLogReason = "Unexpected file address " +
-                        LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileSize);
+                        LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound);
             }
             if (clearLogReason != null) {
                 if (!config.isClearInvalidLog()) {
@@ -214,13 +212,6 @@ public final class Log implements Closeable {
     @NotNull
     public String getLocation() {
         return location;
-    }
-
-    /**
-     * @return size of a single log file in kilobytes.
-     */
-    long getFileSize() {
-        return fileSize;
     }
 
     /**
@@ -1048,7 +1039,7 @@ public final class Log implements Closeable {
                 final Long lastFile = writer.getFileSetMutable().getMaximum();
                 if (lastFile != null) {
                     Block block = reader.getBlock(lastFile);
-                    if (block.length() < fileSize) {
+                    if (block.length() < fileLengthBound) {
                         throw new IllegalStateException("file too short");
                     }
                     block.setReadOnly();

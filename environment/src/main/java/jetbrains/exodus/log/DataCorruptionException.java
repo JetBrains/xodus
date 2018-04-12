@@ -24,13 +24,13 @@ public class DataCorruptionException extends ExodusException {
         super(message);
     }
 
-    private DataCorruptionException(@NotNull final String message, final long address, final long fileSize) {
-        this(message + LogUtil.getWrongAddressErrorMessage(address, fileSize));
+    private DataCorruptionException(@NotNull final String message, final long address, final long fileLengthBound) {
+        this(message + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound));
     }
 
     static void raise(@NotNull final String message, @NotNull final Log log, final long address) {
         checkLogIsClosing(log);
-        throw new DataCorruptionException(message, address, log.getFileSize());
+        throw new DataCorruptionException(message, address, log.getFileLengthBound());
     }
 
     static void checkLogIsClosing(@NotNull final Log log) {

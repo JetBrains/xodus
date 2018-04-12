@@ -19,13 +19,13 @@ import org.jetbrains.annotations.NotNull;
 
 class BlockNotFoundException extends DataCorruptionException {
 
-    private BlockNotFoundException(final String message, final long address, final long fileSize) {
-        super(message + LogUtil.getWrongAddressErrorMessage(address, fileSize));
+    private BlockNotFoundException(final String message, final long address, final long fileLengthBound) {
+        super(message + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound));
     }
 
     static void raise(@NotNull final String message, @NotNull final Log log, final long address) {
         checkLogIsClosing(log);
-        throw new BlockNotFoundException(message, address, log.getFileSize());
+        throw new BlockNotFoundException(message, address, log.getFileLengthBound());
     }
 
     static void raise(@NotNull final Log log, final long address) {
