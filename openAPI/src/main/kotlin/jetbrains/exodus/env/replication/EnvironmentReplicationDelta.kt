@@ -18,6 +18,7 @@ package jetbrains.exodus.env.replication
 import jetbrains.exodus.log.replication.LogReplicationDelta
 
 interface EnvironmentReplicationDelta : LogReplicationDelta {
+    val id: Long
     val metaTreeAddress: Long
     val rootAddress: Long
     val encrypted: Boolean

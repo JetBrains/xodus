@@ -18,7 +18,7 @@ package jetbrains.exodus.env.replication
 import java.util.*
 
 data class ReplicationDelta(
-        val id: Long,
+        override val id: Long,
         override val startAddress: Long,
         override val highAddress: Long,
         override val fileLengthBound: Long,

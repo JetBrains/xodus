@@ -22,10 +22,10 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule
 import jetbrains.exodus.core.dataStructures.Pair
 import jetbrains.exodus.entitystore.BlobVault
 import jetbrains.exodus.entitystore.FileSystemBlobVaultOld
-import jetbrains.exodus.entitystore.PersistentEntityStoreReplicator
 import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.replication.EnvironmentAppender
+import jetbrains.exodus.env.replication.EnvironmentReplicationDelta
 import jetbrains.exodus.env.replication.ReplicationDelta
 import jetbrains.exodus.log.replication.FileAsyncHandler
 import jetbrains.exodus.log.replication.S3FactoryBoilerplate
@@ -52,7 +52,7 @@ class S3Replicator(
         internal val okReader: ObjectReader = objectMapper.readerFor(MetaServerHandler.OK::class.java)
     }
 
-    override fun replicateEnvironment(environment: Environment) {
+    override fun replicateEnvironment(environment: Environment): EnvironmentReplicationDelta {
         if (environment !is EnvironmentImpl) {
             throw UnsupportedOperationException("Cannot replicate custom environment")
         }
@@ -71,24 +71,11 @@ class S3Replicator(
 
         val factory = S3FileFactory(s3, Paths.get(environment.location), bucket, requestOverrideConfig)
 
-        try {
-            EnvironmentAppender.appendEnvironment(environment, delta, factory)
-        } finally {
-            val maybeOk = httpClient.postRequest(
-                    "/v1/delta/release",
-                    mapOf("id" to delta.id.toString()),
-                    metaServer,
-                    8062
-            )
-            okReader.readValue<MetaServerHandler.OK>(maybeOk, 0, maybeOk.size).apply {
-                if (ok) {
-                    logger.info { "Replication delta #${delta.id} released" }
-                }
-            }
-        }
+        EnvironmentAppender.appendEnvironment(environment, delta, factory)
+        return delta
     }
 
-    override fun replicateBlobVault(vault: BlobVault, blobsToReplicate: MutableList<Pair<Long, Long>>) {
+    override fun replicateBlobVault(delta: EnvironmentReplicationDelta, vault: BlobVault, blobsToReplicate: List<Pair<Long, Long>>) {
         if (vault !is FileSystemBlobVaultOld) {
             throw UnsupportedOperationException("Cannot replicate non-file blob vault")
         }
@@ -113,6 +100,20 @@ class S3Replicator(
             } catch (t: Throwable) {
                 logger.warn(t) { "Cannot replicate file" }
                 file.delete()
+            }
+        }
+    }
+
+    override fun endReplication(delta: EnvironmentReplicationDelta) {
+        val maybeOk = httpClient.postRequest(
+                "/v1/delta/release",
+                mapOf("id" to delta.id.toString()),
+                metaServer,
+                8062
+        )
+        okReader.readValue<MetaServerHandler.OK>(maybeOk, 0, maybeOk.size).apply {
+            if (ok) {
+                logger.info { "Replication delta #${delta.id} released" }
             }
         }
     }

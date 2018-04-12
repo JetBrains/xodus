@@ -13,15 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore;
+package jetbrains.exodus.entitystore.replication
 
-import jetbrains.exodus.core.dataStructures.Pair;
-import jetbrains.exodus.env.Environment;
+import jetbrains.exodus.core.dataStructures.Pair
+import jetbrains.exodus.entitystore.BlobVault
+import jetbrains.exodus.env.Environment
+import jetbrains.exodus.env.replication.EnvironmentReplicationDelta
 
-import java.util.List;
+interface PersistentEntityStoreReplicator {
+    fun replicateEnvironment(environment: Environment): EnvironmentReplicationDelta
 
-public interface PersistentEntityStoreReplicator {
-    void replicateEnvironment(Environment environment);
+    fun replicateBlobVault(delta: EnvironmentReplicationDelta, vault: BlobVault, blobsToReplicate: List<Pair<Long, Long>>)
 
-    void replicateBlobVault(BlobVault vault, List<Pair<Long, Long>> blobsToReplicate);
+    fun endReplication(delta: EnvironmentReplicationDelta)
 }

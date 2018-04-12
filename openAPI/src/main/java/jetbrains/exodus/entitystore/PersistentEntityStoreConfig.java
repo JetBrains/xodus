@@ -19,6 +19,7 @@ import jetbrains.exodus.AbstractConfig;
 import jetbrains.exodus.ConfigSettingChangeListener;
 import jetbrains.exodus.ConfigurationStrategy;
 import jetbrains.exodus.core.dataStructures.Pair;
+import jetbrains.exodus.entitystore.replication.PersistentEntityStoreReplicator;
 import jetbrains.exodus.env.Environment;
 import org.jetbrains.annotations.NotNull;
 

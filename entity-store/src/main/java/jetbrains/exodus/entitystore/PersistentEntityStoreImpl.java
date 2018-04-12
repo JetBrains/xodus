@@ -32,8 +32,10 @@ import jetbrains.exodus.entitystore.iterate.EntityFromLinksIterable;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.management.EntityStoreConfig;
 import jetbrains.exodus.entitystore.management.EntityStoreStatistics;
+import jetbrains.exodus.entitystore.replication.PersistentEntityStoreReplicator;
 import jetbrains.exodus.entitystore.tables.*;
 import jetbrains.exodus.env.*;
+import jetbrains.exodus.env.replication.EnvironmentReplicationDelta;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.management.Statistics;
 import jetbrains.exodus.util.ByteArraySizedInputStream;
@@ -186,7 +188,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
         final PersistentEntityStoreReplicator replicator = config.getStoreReplicator();
         if (replicator != null) {
-            replicate(replicator, environment, blobVault);
+            replicate(replicator, blobVault);
         }
 
         init();
@@ -443,7 +445,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
     }
 
-    private void replicate(PersistentEntityStoreReplicator replicator, @NotNull final Environment environment, @Nullable BlobVault blobVault) {
+    private void replicate(@NotNull PersistentEntityStoreReplicator replicator, @Nullable BlobVault blobVault) {
         if (blobVault != null) {
             throw new UnsupportedOperationException("Can only replicate default blob valut");
         }
@@ -467,8 +469,16 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             }
         });
 
-        replicator.replicateEnvironment(environment);
+        final EnvironmentReplicationDelta delta = replicator.replicateEnvironment(environment);
 
+        try {
+            replicateBlobs(replicator, delta, highBlobHandle);
+        } finally {
+            replicator.endReplication(delta);
+        }
+    }
+
+    private void replicateBlobs(@NotNull PersistentEntityStoreReplicator replicator, @NotNull EnvironmentReplicationDelta delta, final long highBlobHandle) {
         final List<Pair<Long, Long>> blobsToReplicate = computeInReadonlyTransaction(new StoreTransactionalComputable<List<Pair<Long, Long>>>() {
             @Override
             public List<Pair<Long, Long>> compute(@NotNull StoreTransaction tx) {
@@ -518,7 +528,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
             });
 
-            replicator.replicateBlobVault(vault, blobsToReplicate);
+            replicator.replicateBlobVault(delta, vault, blobsToReplicate);
 
             this.blobVault = vault;
         }
