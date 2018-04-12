@@ -21,6 +21,7 @@ import jetbrains.exodus.entitystore.tables.LinkValue
 import jetbrains.exodus.entitystore.tables.PropertyKey
 import jetbrains.exodus.entitystore.util.EntityIdSetFactory
 import jetbrains.exodus.env.Cursor
+import jetbrains.exodus.util.LightOutputStream
 
 class FilterLinksIterable(txn: PersistentStoreTransaction,
                           private val linkId: Int,
@@ -34,6 +35,8 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
 
             private val sourceIt = source.iterator() as EntityIteratorBase
             private val usedCursors = IntHashMap<Cursor>(6, 2f)
+            private val auxStream = LightOutputStream()
+            private val auxArray = IntArray(8)
             private val idSet by lazy { entities.toSet(txn) }
             private var nextId: EntityId? = PersistentEntityId.EMPTY_ID
 
@@ -51,7 +54,8 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
                             cursor = store.getLinksFirstIndexCursor(txn, typeId)
                             usedCursors[typeId] = cursor
                         }
-                        val value = cursor.getSearchKey(PropertyKey.propertyKeyToEntry(PropertyKey(id.localId, linkId)))
+                        val value = cursor.getSearchKey(
+                                PropertyKey.propertyKeyToEntry(auxStream, auxArray, id.localId, linkId))
                         if (value != null) {
                             val linkValue = LinkValue.entryToLinkValue(value)
                             val targetId = linkValue.entityId

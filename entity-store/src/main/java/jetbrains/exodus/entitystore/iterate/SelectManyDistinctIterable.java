@@ -23,6 +23,7 @@ import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.tables.LinkValue;
 import jetbrains.exodus.entitystore.tables.PropertyKey;
 import jetbrains.exodus.env.Cursor;
+import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -39,7 +40,7 @@ public class SelectManyDistinctIterable extends EntityIterableDecoratorBase {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
                 return new SelectManyDistinctIterable(txn,
-                        (EntityIterableBase) parameters[1], Integer.valueOf((String) parameters[0]));
+                    (EntityIterableBase) parameters[1], Integer.valueOf((String) parameters[0]));
             }
         });
     }
@@ -126,6 +127,10 @@ public class SelectManyDistinctIterable extends EntityIterableDecoratorBase {
         private final EntityIteratorBase sourceIt;
         @NotNull
         private final IntHashMap<Cursor> usedCursors;
+        @NotNull
+        private final LightOutputStream auxStream;
+        @NotNull
+        private final int[] auxArray;
         private Set<EntityId> usedIds;
         @NotNull
         private final PersistentStoreTransaction txn;
@@ -134,6 +139,8 @@ public class SelectManyDistinctIterable extends EntityIterableDecoratorBase {
             super(SelectManyDistinctIterable.this);
             sourceIt = (EntityIteratorBase) source.iterator();
             usedCursors = new IntHashMap<>(6, 2.f);
+            auxStream = new LightOutputStream();
+            auxArray = new int[8];
             usedIds = null;
             this.txn = txn;
         }
@@ -165,7 +172,8 @@ public class SelectManyDistinctIterable extends EntityIterableDecoratorBase {
                         usedCursors.put(typeId, cursor);
                     }
                     final long sourceLocalId = nextId.getLocalId();
-                    ByteIterable value = cursor.getSearchKey(PropertyKey.propertyKeyToEntry(new PropertyKey(sourceLocalId, linkId)));
+                    ByteIterable value = cursor.getSearchKey(
+                        PropertyKey.propertyKeyToEntry(auxStream, auxArray, sourceLocalId, linkId));
                     if (value == null) {
                         usedIds.add(null);
                     } else {

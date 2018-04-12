@@ -49,14 +49,23 @@ public final class PropertyKey {
     }
 
     public static ArrayByteIterable propertyKeyToEntry(@NotNull final PropertyKey object) {
-        final LightOutputStream output = new LightOutputStream(7);
-        writePropertyKey(output, object);
+        return propertyKeyToEntry(new LightOutputStream(7), new int[8], object.entityLocalId, object.propertyId);
+    }
+
+    public static ArrayByteIterable propertyKeyToEntry(final LightOutputStream output,
+                                                       @NotNull final int[] bytes,
+                                                       final long localId,
+                                                       final int propertyId) {
+        output.clear();
+        writePropertyKey(output, bytes, localId, propertyId);
         return output.asArrayByteIterable();
     }
 
-    public static void writePropertyKey(@NotNull final LightOutputStream output, @NotNull final PropertyKey object) {
-        final int[] bytes = new int[8];
-        LongBinding.writeCompressed(output, object.entityLocalId, bytes);
-        IntegerBinding.writeCompressed(output, object.propertyId, bytes);
+    private static void writePropertyKey(@NotNull final LightOutputStream output,
+                                         @NotNull final int[] bytes,
+                                         final long localId,
+                                         final int propertyId) {
+        LongBinding.writeCompressed(output, localId, bytes);
+        IntegerBinding.writeCompressed(output, propertyId, bytes);
     }
 }
