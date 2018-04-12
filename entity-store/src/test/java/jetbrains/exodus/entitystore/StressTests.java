@@ -63,7 +63,10 @@ public class StressTests extends EntityStoreTestBase {
     }
 
     public void test_xd_347_like() {
-        final PersistentEntityStoreImpl store = getEntityStore();
+        xd_347_like(getEntityStore(), 300);
+    }
+
+    static void xd_347_like(PersistentEntityStoreImpl store, int count) {
         final List<Entity> issues = store.computeInTransaction(new StoreTransactionalComputable<List<Entity>>() {
             @Override
             public List<Entity> compute(@NotNull final StoreTransaction txn) {
@@ -77,8 +80,7 @@ public class StressTests extends EntityStoreTestBase {
                 return result;
             }
         });
-        final Random rnd = new Random();
-        final int count = 300;
+        final Random rnd = new Random(346);
         for (int i = 0; i < count; ++i) {
             store.executeInTransaction(new StoreTransactionalExecutable() {
                 @Override
