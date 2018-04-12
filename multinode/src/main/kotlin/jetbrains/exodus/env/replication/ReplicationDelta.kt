@@ -23,6 +23,7 @@ data class ReplicationDelta(
         override val highAddress: Long,
         override val fileLengthBound: Long,
         override val files: LongArray,
+        override val encrypted: Boolean = false,
         override val metaTreeAddress: Long = -1,
         override val rootAddress: Long = -1
 ) : EnvironmentReplicationDelta {

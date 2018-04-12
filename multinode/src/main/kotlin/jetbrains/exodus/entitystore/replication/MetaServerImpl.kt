@@ -119,6 +119,7 @@ class MetaServerHandler(val server: MetaServerImpl) : SimpleChannelInboundHandle
                                 files = tip.getFilesFrom(from).asSequence().toList().toLongArray(),
                                 metaTreeAddress = metaTree.treeAddress(),
                                 rootAddress = metaTree.rootAddress(),
+                                encrypted = env.cipherKey != null,
                                 id = gcTransaction.id
                         )
                         respond(msg, ctx, result)
