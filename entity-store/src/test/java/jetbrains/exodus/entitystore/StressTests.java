@@ -85,11 +85,9 @@ public class StressTests extends EntityStoreTestBase {
             store.executeInTransaction(new StoreTransactionalExecutable() {
                 @Override
                 public void execute(@NotNull final StoreTransaction txn) {
-                    long now = 1523557655L;
                     for (int j = 0; j < 100; ++j) {
-                        issues.get(rnd.nextInt(issues.size())).setProperty("created", now);
-                        issues.get(rnd.nextInt(issues.size())).setProperty("updated", now);
-                        now++;
+                        issues.get(rnd.nextInt(issues.size())).setProperty("created", System.currentTimeMillis());
+                        issues.get(rnd.nextInt(issues.size())).setProperty("updated", System.currentTimeMillis());
                     }
                 }
             });
