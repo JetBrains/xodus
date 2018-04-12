@@ -135,9 +135,9 @@ class S3Replicator(
                         val count = buffer.remaining()
                         val output = ByteArray(count)
                         buffer.get(output)
+                        subscription.request(1)
                         stream.write(output)
                         written += count
-                        subscription.request(1)
                     }
 
                     stream.flush()
