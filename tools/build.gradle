@@ -5,7 +5,23 @@ plugins {
 dependencies {
     compile project(':sshd')
     compile project(':crypto')
+    compile project(':multinode')
     compile 'com.hierynomus:sshj:0.19.1'
+
+    compileKotlin {
+        kotlinOptions {
+            jvmTarget = '1.8'
+            languageVersion = '1.2'
+            apiVersion = '1.2'
+        }
+    }
+    compileTestKotlin {
+        kotlinOptions {
+            jvmTarget = '1.8'
+            languageVersion = '1.2'
+            apiVersion = '1.2'
+        }
+    }
 }
 
 //Shadow jar is a self-contained archive with all dependencies packed
