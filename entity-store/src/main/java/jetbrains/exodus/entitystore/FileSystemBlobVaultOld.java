@@ -37,7 +37,7 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class FileSystemBlobVaultOld extends BlobVault {
+public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVault {
 
     protected static final Logger logger = LoggerFactory.getLogger("FileSystemBlobVault");
 

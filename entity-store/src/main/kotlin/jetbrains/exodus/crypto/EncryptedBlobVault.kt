@@ -18,15 +18,18 @@ package jetbrains.exodus.crypto
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap
 import jetbrains.exodus.core.dataStructures.hash.LongSet
 import jetbrains.exodus.entitystore.BlobVault
+import jetbrains.exodus.entitystore.DiskBasedBlobVault
+import jetbrains.exodus.entitystore.FileSystemBlobVaultOld
 import jetbrains.exodus.env.Transaction
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
+import java.io.OutputStream
 
-class EncryptedBlobVault(private val decorated: BlobVault,
+class EncryptedBlobVault(private val decorated: FileSystemBlobVaultOld,
                          private val cipherProvider: StreamCipherProvider,
                          private val cipherKey: ByteArray,
-                         private val cipherBasicIV: Long) : BlobVault(decorated) {
+                         private val cipherBasicIV: Long) : BlobVault(decorated), DiskBasedBlobVault {
 
     override fun getSourceVault() = decorated
 
@@ -38,6 +41,14 @@ class EncryptedBlobVault(private val decorated: BlobVault,
         return decorated.getContent(blobHandle, txn)?.run {
             StreamCipherInputStream(this, { newCipher(blobHandle) })
         }
+    }
+
+    override fun getBlobLocation(blobHandle: Long, readonly: Boolean): File {
+        return decorated.getBlobLocation(blobHandle, readonly)
+    }
+
+    override fun getBlobKey(blobHandle: Long): String {
+        return decorated.getBlobKey(blobHandle)
     }
 
     override fun getSize(blobHandle: Long, txn: Transaction) = decorated.getSize(blobHandle, txn)
@@ -71,6 +82,10 @@ class EncryptedBlobVault(private val decorated: BlobVault,
     override fun nextHandle(txn: Transaction) = decorated.nextHandle(txn)
 
     override fun close() = decorated.close()
+
+    fun wrapOutputStream(blobHandle: Long, output: OutputStream): StreamCipherOutputStream {
+        return StreamCipherOutputStream(output, newCipher(blobHandle))
+    }
 
     private fun newCipher(blobHandle: Long) =
             cipherProvider.newCipher().apply { init(cipherKey, (cipherBasicIV - blobHandle).asHashedIV()) }

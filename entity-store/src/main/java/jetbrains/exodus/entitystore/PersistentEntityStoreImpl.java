@@ -297,13 +297,14 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     private BlobVault initBlobVault() {
-        BlobVault vault = createDefaultFSBlobVault();
+        final FileSystemBlobVaultOld fsVault = createDefaultFSBlobVault();
+        BlobVault result = fsVault;
         final StreamCipherProvider cipherProvider = environment.getCipherProvider();
         if (cipherProvider != null) {
-            vault = new EncryptedBlobVault(vault, cipherProvider,
+            result = new EncryptedBlobVault(fsVault, cipherProvider,
                     Objects.requireNonNull(environment.getCipherKey()), environment.getCipherBasicIV());
         }
-        return vault;
+        return result;
     }
 
     private void applyRefactorings(final boolean fromScratch) {
@@ -383,7 +384,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
     }
 
-    private BlobVault createDefaultFSBlobVault() {
+    private FileSystemBlobVaultOld createDefaultFSBlobVault() {
         try {
             FileSystemBlobVaultOld blobVault;
             final PersistentSequenceBlobHandleGenerator.PersistentSequenceGetter persistentSequenceGetter =

@@ -20,20 +20,21 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.ObjectReader
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import jetbrains.exodus.core.dataStructures.Pair
+import jetbrains.exodus.crypto.EncryptedBlobVault
 import jetbrains.exodus.entitystore.BlobVault
-import jetbrains.exodus.entitystore.FileSystemBlobVaultOld
+import jetbrains.exodus.entitystore.DiskBasedBlobVault
 import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.replication.EnvironmentAppender
 import jetbrains.exodus.env.replication.EnvironmentReplicationDelta
 import jetbrains.exodus.env.replication.ReplicationDelta
-import jetbrains.exodus.log.replication.FileAsyncHandler
-import jetbrains.exodus.log.replication.S3FactoryBoilerplate
-import jetbrains.exodus.log.replication.S3FileFactory
+import jetbrains.exodus.log.replication.*
 import mu.KLogging
 import software.amazon.awssdk.core.AwsRequestOverrideConfig
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient
 import software.amazon.awssdk.services.s3.S3AsyncClient
+import java.io.BufferedOutputStream
+import java.io.FileOutputStream
 import java.nio.file.Paths
 
 class S3Replicator(
@@ -69,32 +70,83 @@ class S3Replicator(
         val delta = deltaReader.readValue<ReplicationDelta>(result, 0, result.size)
         logger.info { "Replication delta acquired: $delta" }
 
-        val factory = S3FileFactory(s3, Paths.get(environment.location), bucket, requestOverrideConfig)
+        val sourceEncrypted = delta.encrypted
+        val targetEncrypted = environment.cipherKey != null
+
+        val factory: FileFactory = if (sourceEncrypted == targetEncrypted) {
+            S3FileFactory(s3, Paths.get(environment.location), bucket, requestOverrideConfig)
+        } else {
+            if (!targetEncrypted) {
+                throw UnsupportedOperationException("Un-encrypt log is not supported")
+            }
+
+            S3ToWriterFileFactory(s3, bucket, requestOverrideConfig) // writer respects encryption
+        }
 
         EnvironmentAppender.appendEnvironment(environment, delta, factory)
         return delta
     }
 
     override fun replicateBlobVault(delta: EnvironmentReplicationDelta, vault: BlobVault, blobsToReplicate: List<Pair<Long, Long>>) {
-        if (vault !is FileSystemBlobVaultOld) {
+        if (vault !is DiskBasedBlobVault) {
             throw UnsupportedOperationException("Cannot replicate non-file blob vault")
         }
 
+        val sourceEncrypted = delta.encrypted
+        val targetEncrypted = vault is EncryptedBlobVault
+
         blobsToReplicate.forEach {
-            val file = vault.getBlobLocation(it.first, false)
+            val handle = it.first
             val length = it.second
 
-            try {
-                val handler = FileAsyncHandler(
-                        file.toPath(),
-                        0
-                )
+            val blobKey = vault.getBlobKey(handle)
+            val file = vault.getBlobLocation(handle, false)
+            logger.info { "Copy blob file ${file.path}, key: $blobKey" }
 
-                val blobKey = vault.getBlobKey(it.first)
-                logger.info { "Copy blob file ${file.path}, key: $blobKey" }
-                getRemoteFile(length, 0, blobKey, handler).get().let {
-                    if (it.written != length) {
-                        throw IllegalStateException("Invalid file, received ${it.written} bytes instead of $length")
+            try {
+                if (sourceEncrypted == targetEncrypted) {
+                    getRemoteFile(
+                            length = length,
+                            startingLength = 0,
+                            name = blobKey,
+                            handler = FileAsyncHandler(path = file.toPath(), startingLength = 0)
+                    ).get().written
+                } else {
+                    if (vault !is EncryptedBlobVault) {
+                        throw UnsupportedOperationException("Un-encrypt blobs is not supported")
+                    }
+
+                    val fileStream = FileOutputStream(file)
+                    val stream = vault.wrapOutputStream(handle, BufferedOutputStream(fileStream))
+
+                    val handler = BufferQueueAsyncHandler()
+
+                    val request = getRemoteFile(length = length, startingLength = 0, name = blobKey, handler = handler)
+                    val queue = handler.queue
+                    val subscription = handler.subscription
+
+                    var written = 0L
+
+                    while (true) {
+                        val buffer = queue.take()
+                        if (buffer === BufferQueueAsyncHandler.finish) {
+                            break
+                        }
+                        val count = buffer.remaining()
+                        val output = ByteArray(count)
+                        buffer.get(output)
+                        stream.write(output)
+                        written += count
+                        subscription.request(1)
+                    }
+
+                    stream.flush()
+                    fileStream.fd.sync()
+
+                    request.get().contentLength()
+                }.let {
+                    if (it != length) {
+                        throw IllegalStateException("Invalid file, received $it bytes instead of $length")
                     }
                 }
             } catch (t: Throwable) {
