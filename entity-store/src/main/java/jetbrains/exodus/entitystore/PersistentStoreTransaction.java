@@ -175,6 +175,12 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (!isReadonly()) {
             apply();
             return doCommit();
+        } else if (txn.isExclusive()) {
+            // don't forget to release transaction permit
+            // if txn has not already been aborted in execute()
+            if (this == store.getCurrentTransaction()) {
+                abort();
+            }
         }
         return true;
     }

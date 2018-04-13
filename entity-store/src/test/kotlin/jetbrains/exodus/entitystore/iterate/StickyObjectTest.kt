@@ -65,8 +65,32 @@ class StickyObjectTest : EntityStoreTestBase() {
             it.registerStickyObject(all.handle, MyUpdatableEntityIdSortedSetCachedInstanceIterable(it, all))
             it.newEntity("Issue")
         }
+        checkStickyIssues()
+    }
+
+    fun testAllOfTypeIterableReadOnly() {
+        transactional {
+            it.newEntity("Issue")
+        }
+        try {
+            entityStore.environment.environmentConfig.envIsReadonly = true
+            transactionalExclusive {
+                val all = makeIterable(it)
+                it.registerStickyObject(all.handle, MyUpdatableEntityIdSortedSetCachedInstanceIterable(it, all))
+            }
+        } finally {
+            entityStore.environment.environmentConfig.envIsReadonly = false
+        }
+        transactional {
+            it.newEntity("Issue")
+        }
+        // TODO checkStickyIssues()
+    }
+
+    private fun checkStickyIssues() {
         transactional {
             val all = makeIterable(it)
+            it.getStickyObject(all.handle) as MyUpdatableEntityIdSortedSetCachedInstanceIterable
             Assert.assertEquals(2, all.size())
             it.newEntity("Issue")
             Assert.assertEquals(3, all.size())

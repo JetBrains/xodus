@@ -25,8 +25,8 @@ public class ReadonlyTransaction extends TransactionBase {
     @Nullable
     private final Runnable beginHook;
 
-    public ReadonlyTransaction(@NotNull final EnvironmentImpl env, @Nullable final Runnable beginHook) {
-        super(env, false);
+    public ReadonlyTransaction(@NotNull final EnvironmentImpl env, final  boolean exclusive, @Nullable final Runnable beginHook) {
+        super(env, exclusive);
         this.beginHook = getWrappedBeginHook(beginHook);
         env.holdNewestSnapshotBy(this);
         env.getStatistics().getStatisticsItem(READONLY_TRANSACTIONS).incTotal();
@@ -68,7 +68,10 @@ public class ReadonlyTransaction extends TransactionBase {
 
     @Override
     public boolean commit() {
-        throw new ReadonlyTransactionException();
+        if (!isExclusive()) {
+            throw new ReadonlyTransactionException();
+        }
+        return true;
     }
 
     @Override

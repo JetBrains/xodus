@@ -236,7 +236,7 @@ public class EnvironmentImpl implements Environment {
     @Override
     public TransactionBase beginReadonlyTransaction(final Runnable beginHook) {
         checkIsOperative();
-        return new ReadonlyTransaction(this, beginHook);
+        return new ReadonlyTransaction(this, false, beginHook);
     }
 
     @NotNull
@@ -555,7 +555,7 @@ public class EnvironmentImpl implements Environment {
     protected TransactionBase beginTransaction(Runnable beginHook, boolean exclusive, boolean cloneMeta) {
         checkIsOperative();
         return ec.getEnvIsReadonly() ?
-                new ReadonlyTransaction(this, beginHook) :
+                new ReadonlyTransaction(this, exclusive, beginHook) :
                 new ReadWriteTransaction(this, beginHook, exclusive, cloneMeta);
     }
 
