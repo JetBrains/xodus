@@ -16,8 +16,8 @@ plugins {
 group = 'org.jetbrains.xodus'
 version = hasProperty('xodusVersion') ? project.xodusVersion : ''
 def isSnapshot = version.endsWith('SNAPSHOT')
-def mavenPublishUrl = hasProperty('mavenPublishUrl') ? project.mavenPublishUrl : 'http://repository.jetbrains.com/xodus'
-def mavenPublishUsername = hasProperty('mavenPublishUsername') ? project.mavenPublishUsername : 'xodus'
+def mavenPublishUrl = hasProperty('mavenPublishUrl') ? project.mavenPublishUrl : ''
+def mavenPublishUsername = hasProperty('mavenPublishUsername') ? project.mavenPublishUsername : ''
 def mavenPublishPassword = hasProperty('mavenPublishPassword') ? project.mavenPublishPassword : ''
 def signingKeyId = hasProperty('signingKeyId') ? project.signingKeyId : ''
 def signingPassword = hasProperty('signingPassword') ? project.signingPassword : ''
