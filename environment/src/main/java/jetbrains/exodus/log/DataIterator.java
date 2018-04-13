@@ -23,6 +23,8 @@ public final class DataIterator extends ByteIterator {
 
     @NotNull
     private final Log log;
+    private final int cachePageSize;
+    private final long pageAddressMask;
     private long pageAddress;
     private byte[] page;
     private int offset;
@@ -34,9 +36,11 @@ public final class DataIterator extends ByteIterator {
 
     public DataIterator(@NotNull final Log log, final long startAddress) {
         this.log = log;
+        cachePageSize = log.getCachePageSize();
+        pageAddressMask = ~((long) (cachePageSize - 1));
         pageAddress = -1L;
         if (startAddress >= 0) {
-            checkPage(startAddress);
+            checkPageSafe(startAddress);
         }
     }
 
@@ -46,7 +50,7 @@ public final class DataIterator extends ByteIterator {
             return false;
         }
         if (offset >= length) {
-            checkPage(getHighAddress());
+            checkPageSafe(getHighAddress());
             return hasNext();
         }
         return true;
@@ -71,7 +75,7 @@ public final class DataIterator extends ByteIterator {
             if (offset < length) {
                 break;
             }
-            checkPage(getHighAddress());
+            checkPageSafe(getHighAddress());
         }
         return skipped;
     }
@@ -86,28 +90,28 @@ public final class DataIterator extends ByteIterator {
         return result;
     }
 
-    public void checkPage(final long highAddress) {
-        final int cachePageSize = log.getCachePageSize();
-        final int offset = ((int) highAddress) & (cachePageSize - 1);
-        final long pageAddress = highAddress - offset;
+    public void checkPage(final long address) {
+        final long pageAddress = address & pageAddressMask;
         if (this.pageAddress != pageAddress) {
-            try {
-                page = log.cache.getPage(log, pageAddress);
-                this.pageAddress = pageAddress;
-            } catch (BlockNotFoundException e) {
-                this.pageAddress = -1L;
-                page = null;
+            page = log.cache.getPage(log, pageAddress);
+            this.pageAddress = pageAddress;
+        }
+        length = cachePageSize;
+        offset = (int) (address - pageAddress);
+    }
+
+    private void checkPageSafe(final long address) {
+        try {
+            checkPage(address);
+            final long pageAddress = address & pageAddressMask;
+            length = (int) Math.min(log.getHighAddress() - pageAddress, cachePageSize);
+            if (length > offset) {
                 return;
             }
+        } catch (BlockNotFoundException ignore) {
         }
-        final int len = (int) Math.min(log.getHighAddress() - pageAddress, (long) cachePageSize);
-        if (len <= offset) { // offset is >= 0 for sure
-            this.pageAddress = -1L;
-            page = null;
-            return;
-        }
-        this.length = len;
-        this.offset = offset;
+        pageAddress = -1L;
+        page = null;
     }
 
     byte[] getCurrentPage() {
