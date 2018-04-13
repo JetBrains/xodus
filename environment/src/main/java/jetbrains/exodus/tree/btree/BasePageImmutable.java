@@ -76,7 +76,7 @@ abstract class BasePageImmutable extends BasePage {
         if (size > 0) {
             final int next = itr.next();
             dataAddress = itr.getAddress();
-            loadAddressLengths(next);
+            loadAddressLengths(next, itr);
         } else {
             dataAddress = itr.getAddress();
         }
@@ -99,12 +99,12 @@ abstract class BasePageImmutable extends BasePage {
         return dataAddress;
     }
 
-    ByteIterator getDataIterator(final int offset) {
+    ByteIterator getDataIterator() {
         return dataAddress == Loggable.NULL_ADDRESS ?
-            ByteIterable.EMPTY_ITERATOR : data.iterator((int) (dataAddress - data.getDataAddress() + offset));
+            ByteIterable.EMPTY_ITERATOR : data.iterator((int) (dataAddress - data.getDataAddress()));
     }
 
-    protected void loadAddressLengths(final int length) {
+    protected void loadAddressLengths(final int length, final ByteIterator it) {
         checkAddressLength(keyAddressLen = (byte) length);
     }
 

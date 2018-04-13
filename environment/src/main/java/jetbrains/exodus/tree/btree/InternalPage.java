@@ -37,9 +37,8 @@ class InternalPage extends BasePageImmutable {
     }
 
     @Override
-    protected void loadAddressLengths(final int length) {
-        super.loadAddressLengths(length);
-        final ByteIterator it = getDataIterator(0);
+    protected void loadAddressLengths(final int length, final ByteIterator it) {
+        super.loadAddressLengths(length, it);
         it.skip(size * keyAddressLen);
         checkAddressLength(childAddressLen = it.next());
     }
