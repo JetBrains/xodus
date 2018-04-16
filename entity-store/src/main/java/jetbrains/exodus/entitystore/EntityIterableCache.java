@@ -152,7 +152,7 @@ public final class EntityIterableCache {
         }
         if (it.isThreadSafe() && !isCachingQueueFull()) {
             new EntityIterableAsyncInstantiation(handle, it, false).queue(
-                result == null ? Priority.normal : Priority.below_normal);
+                    result == null ? Priority.normal : Priority.below_normal);
         }
         return result == null ? -1 : result;
     }
@@ -181,11 +181,6 @@ public final class EntityIterableCache {
             return true;
         }
         return false;
-    }
-
-    private String getStringPresentation(@NotNull final EntityIterableHandle handle) {
-        return config.getEntityIterableCacheUseHumanReadable() ?
-            EntityIterableBase.getHumanReadablePresentation(handle) : handle.toString();
     }
 
     @SuppressWarnings({"EqualsAndHashcode"})
@@ -256,7 +251,7 @@ public final class EntityIterableCache {
                             final long cachedIn = System.currentTimeMillis() - started;
                             if (cachedIn > 1000) {
                                 String action = cancellingPolicy.isConsistent ? "Cached" : "Cached (inconsistent)";
-                                logger.info(action + " in " + cachedIn + " ms, handle=" + getStringPresentation(handle));
+                                logger.info(action + " in " + cachedIn + " ms, handle=" + getStringPresentation(config, handle));
                             }
                         }
                     } catch (ReadonlyTransactionException rte) {
@@ -268,7 +263,7 @@ public final class EntityIterableCache {
                         stats.incTotalJobsInterrupted();
                         if (logger.isInfoEnabled()) {
                             final String action = cancellingPolicy.isConsistent ? "Caching" : "Caching (inconsistent)";
-                            logger.info(action + " forcedly stopped, " + e.reason.message + ": " + getStringPresentation(handle));
+                            logger.info(action + " forcedly stopped, " + e.reason.message + ": " + getStringPresentation(config, handle));
                         }
                     }
                 }
@@ -287,7 +282,7 @@ public final class EntityIterableCache {
             this.isConsistent = isConsistent;
             startTime = System.currentTimeMillis();
             cachingTimeout = isConsistent ?
-                config.getEntityIterableCacheCachingTimeout() : config.getEntityIterableCacheCountsCachingTimeout();
+                    config.getEntityIterableCacheCachingTimeout() : config.getEntityIterableCacheCountsCachingTimeout();
         }
 
         private boolean isOverdue(final long currentMillis) {
@@ -358,5 +353,10 @@ public final class EntityIterableCache {
                 cache.cacheAdapter.adjustHitRate();
             }
         }
+    }
+
+    public static String getStringPresentation(@NotNull final PersistentEntityStoreConfig config, @NotNull final EntityIterableHandle handle) {
+        return config.getEntityIterableCacheUseHumanReadable() ?
+                EntityIterableBase.getHumanReadablePresentation(handle) : handle.toString();
     }
 }

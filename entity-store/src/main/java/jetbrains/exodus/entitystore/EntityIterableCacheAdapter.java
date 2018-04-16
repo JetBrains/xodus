@@ -26,6 +26,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.lang.ref.SoftReference;
 
+import static jetbrains.exodus.entitystore.EntityIterableCache.getStringPresentation;
+
 class EntityIterableCacheAdapter {
 
     @NotNull
@@ -125,7 +127,7 @@ class EntityIterableCacheAdapter {
     Updatable getStickyObject(@NotNull final EntityIterableHandle handle) {
         Updatable result = getStickyObjectSafe(handle);
         if (result == null) {
-            throw new IllegalStateException("Sticky object not found");
+            throw new IllegalStateException("Sticky object not found, handle: " + getStringPresentation(config, handle));
         }
         return result;
     }
