@@ -719,8 +719,13 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final StoreTransaction txn = beginExclusiveTransaction();
         try {
             executable.execute(txn);
-        } finally {
             txn.commit();
+        } finally {
+            // don't forget to release transaction permit
+            // if txn has not already been aborted in execute()
+            if (txn == getCurrentTransaction()) {
+                txn.abort();
+            }
         }
     }
 
@@ -730,7 +735,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         try {
             executable.execute(txn);
         } finally {
-            // if txn has not already been aborted in execute()
             if (txn == getCurrentTransaction()) {
                 txn.abort();
             }
@@ -763,9 +767,13 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     public <T> T computeInExclusiveTransaction(@NotNull final StoreTransactionalComputable<T> computable) {
         final StoreTransaction txn = beginExclusiveTransaction();
         try {
-            return computable.compute(txn);
-        } finally {
+            final T result = computable.compute(txn);
             txn.commit();
+            return result;
+        } finally {
+            if (txn == getCurrentTransaction()) {
+                txn.abort();
+            }
         }
     }
 

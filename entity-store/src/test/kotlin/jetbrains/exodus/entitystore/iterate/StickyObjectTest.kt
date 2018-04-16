@@ -84,7 +84,7 @@ class StickyObjectTest : EntityStoreTestBase() {
         transactional {
             it.newEntity("Issue")
         }
-        // TODO checkStickyIssues()
+        checkStickyIssues()
     }
 
     private fun checkStickyIssues() {

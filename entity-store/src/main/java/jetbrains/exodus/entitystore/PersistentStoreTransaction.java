@@ -30,11 +30,9 @@ import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.core.execution.SharedTimer;
 import jetbrains.exodus.entitystore.iterate.*;
-import jetbrains.exodus.env.Environment;
-import jetbrains.exodus.env.EnvironmentImpl;
-import jetbrains.exodus.env.Store;
-import jetbrains.exodus.env.Transaction;
+import jetbrains.exodus.env.*;
 import jetbrains.exodus.util.StringBuilderSpinAllocator;
+import kotlin.jvm.functions.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -176,11 +174,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             apply();
             return doCommit();
         } else if (txn.isExclusive()) {
-            // don't forget to release transaction permit
-            // if txn has not already been aborted in execute()
-            if (this == store.getCurrentTransaction()) {
-                abort();
-            }
+            applyExclusiveTransactionCaches();
         }
         return true;
     }
@@ -217,6 +211,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (!isReadonly()) {
             apply();
             return doFlush();
+        } else if (txn.isExclusive()) {
+            applyExclusiveTransactionCaches();
         }
         return true;
     }
@@ -904,17 +900,35 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             @Override
             public void run() {
                 log.flushed();
-                if (mutableCache != null) { // mutableCache can be null if only blobs are modified
-                    final EntityIterableCache entityIterableCache = store.getEntityIterableCache();
-                    for (final Updatable it : mutatedInTxn) {
-                        it.endUpdate(PersistentStoreTransaction.this);
-                    }
-                    if (!entityIterableCache.compareAndSetCacheAdapter(localCache, mutableCache.endWrite())) {
-                        throw new EntityStoreException("This exception should never be thrown");
-                    }
+                final EntityIterableCacheAdapterMutable cache = PersistentStoreTransaction.this.mutableCache;
+                if (cache != null) { // mutableCache can be null if only blobs are modified
+                    applyAtomicCaches(cache);
                 }
             }
         });
+    }
+
+    private void applyAtomicCaches(@NotNull EntityIterableCacheAdapterMutable cache) {
+        final EntityIterableCache entityIterableCache = store.getEntityIterableCache();
+        for (final Updatable it : mutatedInTxn) {
+            it.endUpdate(PersistentStoreTransaction.this);
+        }
+        if (!entityIterableCache.compareAndSetCacheAdapter(localCache, cache.endWrite())) {
+            throw new EntityStoreException("This exception should never be thrown");
+        }
+    }
+
+    private void applyExclusiveTransactionCaches() {
+        final EntityIterableCacheAdapterMutable cache = this.mutableCache;
+        if (cache != null) {
+            UnsafeKt.executeInMetaWriteLock((EnvironmentImpl) store.getEnvironment(), new Function0<Object>() {
+                @Override
+                public Object invoke() {
+                    applyAtomicCaches(cache);
+                    return null;
+                }
+            });
+        }
     }
 
     private Runnable getRevertCachesBeginHook() {
