@@ -86,6 +86,9 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
 
     override fun getHandleImpl(): EntityIterableHandle {
         return object : EntityIterableHandleDecorator(store, EntityIterableType.FILTER_LINKS, source.handle) {
+            private val linkIds = EntityIterableHandleBase.mergeFieldIds(intArrayOf(linkId), decorated.linkIds)
+
+            override fun getLinkIds() = linkIds
 
             override fun toString(builder: StringBuilder) {
                 super.toString(builder)
@@ -103,15 +106,19 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
                 hash.applyDelimiter()
                 hash.apply(entities.handle)
             }
+
+            override fun isMatchedLinkAdded(source: EntityId, target: EntityId, linkId: Int): Boolean {
+                return linkId == this@FilterLinksIterable.linkId || decorated.isMatchedLinkAdded(source, target, linkId)
+            }
+
+            override fun isMatchedLinkDeleted(source: EntityId, target: EntityId, linkId: Int): Boolean {
+                return linkId == this@FilterLinksIterable.linkId || decorated.isMatchedLinkDeleted(source, target, linkId)
+            }
         }
     }
 
     override fun isSortedById(): Boolean {
         return source.isSortedById
-    }
-
-    override fun canBeCached(): Boolean {
-        return false
     }
 
     companion object {

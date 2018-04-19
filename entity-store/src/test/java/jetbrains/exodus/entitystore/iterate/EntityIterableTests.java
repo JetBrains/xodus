@@ -371,6 +371,7 @@ public class EntityIterableTests extends EntityStoreTestBase {
     public void testFindLinks() {
         final PersistentStoreTransaction txn = getStoreTransaction();
         createNUsers(txn, 10);
+        PersistentEntity nobody = txn.newEntity("User");
         txn.flush();
         for (int i = 0; i < 10; ++i) {
             final PersistentEntity issue = txn.newEntity("Issue");
@@ -390,6 +391,14 @@ public class EntityIterableTests extends EntityStoreTestBase {
             Assert.assertTrue(it1.hasNext());
             Assert.assertEquals(it0.nextId(), it1.nextId());
         }
+        assertEquals(6, ((EntityIterableBase) txn.getAll("Issue")).findLinks(someUsers, "author").size());
+        getEntityStore().getAsyncProcessor().waitForJobs(100);
+        assertEquals(6, ((EntityIterableBase) txn.getAll("Issue")).findLinks(someUsers, "author").size());
+        getEntityStore().getAsyncProcessor().waitForJobs(100);
+        for (Entity issue: txn.getAll("Issue")) {
+            issue.setLink("author", nobody);
+        }
+        assertEquals(0, ((EntityIterableBase) txn.getAll("Issue")).findLinks(someUsers, "author").size());
     }
 
     public void testFindLinksSingular() {
