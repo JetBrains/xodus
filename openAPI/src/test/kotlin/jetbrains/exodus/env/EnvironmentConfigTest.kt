@@ -15,9 +15,7 @@
  */
 package jetbrains.exodus.env
 
-import jetbrains.exodus.AbstractConfig
-import jetbrains.exodus.ConfigSettingChangeListener
-import jetbrains.exodus.InvalidSettingException
+import jetbrains.exodus.*
 import jetbrains.exodus.core.dataStructures.hash.HashMap
 import jetbrains.exodus.kotlin.notNull
 import org.junit.Assert
@@ -182,5 +180,11 @@ class EnvironmentConfigTest {
         val bool = settingFinished[0]
         Assert.assertNotNull(bool)
         Assert.assertTrue(bool.notNull)
+    }
+
+    @Test(expected = ExodusException::class)
+    @TestFor(issues = ["XD-704"])
+    fun mutateDefaultConfig() {
+        EnvironmentConfig.DEFAULT.isGcEnabled = false
     }
 }
