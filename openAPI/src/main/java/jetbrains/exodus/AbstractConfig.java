@@ -45,10 +45,12 @@ public abstract class AbstractConfig {
     private final Map<String, Object> settings;
     @NotNull
     private final Set<ConfigSettingChangeListener> listeners;
+    private boolean isMutable;
 
     protected AbstractConfig(@NotNull final Pair<String, Object>[] props, @NotNull final ConfigurationStrategy strategy) {
         settings = new StringHashMap<>();
         listeners = Collections.newSetFromMap(new ConcurrentHashMap<ConfigSettingChangeListener, Boolean>());
+        isMutable = true;
         for (final Pair<String, Object> prop : props) {
             final String propName = prop.getFirst();
             final Object defaultValue = prop.getSecond();
@@ -80,6 +82,7 @@ public abstract class AbstractConfig {
     }
 
     public AbstractConfig setSetting(@NotNull final String key, @NotNull final Object value) {
+        checkIsMutable();
         if (!value.equals(settings.get(key))) {
             Map<ConfigSettingChangeListener, Map<String, Object>> listenerToContext = null;
             final boolean listenersSuppressed = AbstractConfig.listenersSuppressed.get();
@@ -102,6 +105,7 @@ public abstract class AbstractConfig {
     }
 
     public AbstractConfig removeSetting(@NotNull final String key) {
+        checkIsMutable();
         settings.remove(key);
         return this;
     }
@@ -119,6 +123,7 @@ public abstract class AbstractConfig {
     }
 
     public void setSettings(@NotNull final Map<String, String> settings) throws InvalidSettingException {
+        checkIsMutable();
         final StringBuilder errorMessage = new StringBuilder();
         for (final Map.Entry<String, String> entry : settings.entrySet()) {
             final String key = entry.getKey();
@@ -158,6 +163,21 @@ public abstract class AbstractConfig {
         }
         if (errorMessage.length() > 0) {
             throw new InvalidSettingException(errorMessage.toString());
+        }
+    }
+
+    public boolean isMutable() {
+        return isMutable;
+    }
+
+    public AbstractConfig setMutable(final boolean isMutable) {
+        this.isMutable = isMutable;
+        return this;
+    }
+
+    private void checkIsMutable() {
+        if (!isMutable) {
+            throw new ExodusException("Config is immutable");
         }
     }
 

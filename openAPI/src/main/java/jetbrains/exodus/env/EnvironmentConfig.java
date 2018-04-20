@@ -54,9 +54,17 @@ import java.util.Map;
  * @see Environment#getEnvironmentConfig()
  */
 @SuppressWarnings({"WeakerAccess", "unused"})
-public final class EnvironmentConfig extends AbstractConfig {
+public class EnvironmentConfig extends AbstractConfig {
 
-    public static final EnvironmentConfig DEFAULT = new EnvironmentConfig(ConfigurationStrategy.IGNORE);
+    public static final EnvironmentConfig DEFAULT = new EnvironmentConfig(ConfigurationStrategy.IGNORE) {
+        @Override
+        public EnvironmentConfig setMutable(boolean isMutable) {
+            if (!this.isMutable() && isMutable) {
+                throw new ExodusException("Can't make EnvironmentConfig.DEFAULT mutable");
+            }
+            return super.setMutable(isMutable);
+        }
+    }.setMutable(false);
 
     /**
      * Defines absolute value of memory in bytes that can be used by the LogCache. By default, is not set.
@@ -530,53 +538,53 @@ public final class EnvironmentConfig extends AbstractConfig {
     public EnvironmentConfig(@NotNull final ConfigurationStrategy strategy) {
         //noinspection unchecked
         super(new Pair[]{
-                new Pair(MEMORY_USAGE_PERCENTAGE, 50),
-                new Pair(CIPHER_ID, null),
-                new Pair(CIPHER_KEY, null),
-                new Pair(CIPHER_BASIC_IV, 0L),
-                new Pair(LOG_DURABLE_WRITE, false),
-                new Pair(LOG_FILE_SIZE, 8192L),
-                new Pair(LOG_LOCK_TIMEOUT, 0L),
-                new Pair(LOG_LOCK_ID, null),
-                new Pair(LOG_CACHE_PAGE_SIZE, 64 * 1024),
-                new Pair(LOG_CACHE_OPEN_FILES, 500),
-                new Pair(LOG_CACHE_USE_NIO, false),
-                new Pair(LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD, 1_000_000_000L), // ~1GB
-                new Pair(LOG_CACHE_SHARED, true),
-                new Pair(LOG_CACHE_NON_BLOCKING, true),
-                new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
-                new Pair(LOG_CLEAR_INVALID, false),
-                new Pair(LOG_SYNC_PERIOD, 10000L),
-                new Pair(LOG_FULL_FILE_READ_ONLY, true),
-                new Pair(ENV_IS_READONLY, false),
-                new Pair(ENV_READONLY_EMPTY_STORES, false),
-                new Pair(ENV_STOREGET_CACHE_SIZE, 0),
-                new Pair(ENV_CLOSE_FORCEDLY, false),
-                new Pair(ENV_TXN_REPLAY_TIMEOUT, 2000L),
-                new Pair(ENV_TXN_REPLAY_MAX_COUNT, 2),
-                new Pair(ENV_TXN_DOWNGRADE_AFTER_FLUSH, true),
-                new Pair(ENV_MAX_PARALLEL_TXNS, Integer.MAX_VALUE),
-                new Pair(ENV_MAX_PARALLEL_READONLY_TXNS, Integer.MAX_VALUE),
-                new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
-                new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
-                new Pair(ENV_GATHER_STATISTICS, true),
-                new Pair(TREE_MAX_PAGE_SIZE, 128),
-                new Pair(GC_ENABLED, true),
-                new Pair(GC_START_IN, 10000),
-                new Pair(GC_MIN_UTILIZATION, 50),
-                new Pair(GC_RENAME_FILES, false),
-                new Pair(GC_MIN_FILE_AGE, 2),
-                new Pair(GC_FILES_INTERVAL, 3),
-                new Pair(GC_RUN_PERIOD, 30000),
-                new Pair(GC_UTILIZATION_FROM_SCRATCH, false),
-                new Pair(GC_UTILIZATION_FROM_FILE, ""),
-                new Pair(GC_FILES_DELETION_DELAY, 5000),
-                new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
-                new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 1000),
-                new Pair(GC_TRANSACTION_TIMEOUT, 1000),
-                new Pair(MANAGEMENT_ENABLED, true),
-                new Pair(MANAGEMENT_OPERATIONS_RESTRICTED, true),
-                new Pair(META_SERVER, null)
+            new Pair(MEMORY_USAGE_PERCENTAGE, 50),
+            new Pair(CIPHER_ID, null),
+            new Pair(CIPHER_KEY, null),
+            new Pair(CIPHER_BASIC_IV, 0L),
+            new Pair(LOG_DURABLE_WRITE, false),
+            new Pair(LOG_FILE_SIZE, 8192L),
+            new Pair(LOG_LOCK_TIMEOUT, 0L),
+            new Pair(LOG_LOCK_ID, null),
+            new Pair(LOG_CACHE_PAGE_SIZE, 64 * 1024),
+            new Pair(LOG_CACHE_OPEN_FILES, 500),
+            new Pair(LOG_CACHE_USE_NIO, false),
+            new Pair(LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD, 1_000_000_000L), // ~1GB
+            new Pair(LOG_CACHE_SHARED, true),
+            new Pair(LOG_CACHE_NON_BLOCKING, true),
+            new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
+            new Pair(LOG_CLEAR_INVALID, false),
+            new Pair(LOG_SYNC_PERIOD, 10000L),
+            new Pair(LOG_FULL_FILE_READ_ONLY, true),
+            new Pair(ENV_IS_READONLY, false),
+            new Pair(ENV_READONLY_EMPTY_STORES, false),
+            new Pair(ENV_STOREGET_CACHE_SIZE, 0),
+            new Pair(ENV_CLOSE_FORCEDLY, false),
+            new Pair(ENV_TXN_REPLAY_TIMEOUT, 2000L),
+            new Pair(ENV_TXN_REPLAY_MAX_COUNT, 2),
+            new Pair(ENV_TXN_DOWNGRADE_AFTER_FLUSH, true),
+            new Pair(ENV_MAX_PARALLEL_TXNS, Integer.MAX_VALUE),
+            new Pair(ENV_MAX_PARALLEL_READONLY_TXNS, Integer.MAX_VALUE),
+            new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
+            new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
+            new Pair(ENV_GATHER_STATISTICS, true),
+            new Pair(TREE_MAX_PAGE_SIZE, 128),
+            new Pair(GC_ENABLED, true),
+            new Pair(GC_START_IN, 10000),
+            new Pair(GC_MIN_UTILIZATION, 50),
+            new Pair(GC_RENAME_FILES, false),
+            new Pair(GC_MIN_FILE_AGE, 2),
+            new Pair(GC_FILES_INTERVAL, 3),
+            new Pair(GC_RUN_PERIOD, 30000),
+            new Pair(GC_UTILIZATION_FROM_SCRATCH, false),
+            new Pair(GC_UTILIZATION_FROM_FILE, ""),
+            new Pair(GC_FILES_DELETION_DELAY, 5000),
+            new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
+            new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 1000),
+            new Pair(GC_TRANSACTION_TIMEOUT, 1000),
+            new Pair(MANAGEMENT_ENABLED, true),
+            new Pair(MANAGEMENT_OPERATIONS_RESTRICTED, true),
+            new Pair(META_SERVER, null)
         }, strategy);
     }
 
@@ -590,6 +598,18 @@ public final class EnvironmentConfig extends AbstractConfig {
     @Override
     public EnvironmentConfig setSetting(@NotNull final String key, @NotNull final Object value) {
         return (EnvironmentConfig) super.setSetting(key, value);
+    }
+
+    /**
+     * Set {@code true} for making it possible to change settings of this {@code EnvironmentConfig} instance.
+     * {@code EnvironmentConfig.DEFAULT} is always immutable.
+     *
+     * @param isMutable {@code true} if this {@code EnvironmentConfig} instance can be mutated
+     * @return this {@code EnvironmentConfig} instance
+     */
+    @Override
+    public EnvironmentConfig setMutable(boolean isMutable) {
+        return (EnvironmentConfig) super.setMutable(isMutable);
     }
 
     /**
