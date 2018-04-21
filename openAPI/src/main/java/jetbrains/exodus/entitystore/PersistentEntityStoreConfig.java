@@ -18,6 +18,7 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.AbstractConfig;
 import jetbrains.exodus.ConfigSettingChangeListener;
 import jetbrains.exodus.ConfigurationStrategy;
+import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.entitystore.replication.PersistentEntityStoreReplicator;
 import jetbrains.exodus.env.Environment;
@@ -54,9 +55,17 @@ import java.util.Map;
  * @see PersistentEntityStore#getConfig()
  */
 @SuppressWarnings({"UnusedDeclaration", "WeakerAccess"})
-public final class PersistentEntityStoreConfig extends AbstractConfig {
+public class PersistentEntityStoreConfig extends AbstractConfig {
 
-    public static final PersistentEntityStoreConfig DEFAULT = new PersistentEntityStoreConfig(ConfigurationStrategy.IGNORE);
+    public static final PersistentEntityStoreConfig DEFAULT = new PersistentEntityStoreConfig(ConfigurationStrategy.IGNORE) {
+        @Override
+        public PersistentEntityStoreConfig setMutable(boolean isMutable) {
+            if (!this.isMutable() && isMutable) {
+                throw new ExodusException("Can't make EnvironmentConfig.DEFAULT mutable");
+            }
+            return super.setMutable(isMutable);
+        }
+    }.setMutable(false);
 
     /**
      * If is set to {@code true} then new {@linkplain PersistentEntityStore} will skip all refactorings on its creation.
@@ -342,6 +351,11 @@ public final class PersistentEntityStoreConfig extends AbstractConfig {
     @Override
     public PersistentEntityStoreConfig setSetting(@NotNull String key, @NotNull Object value) {
         return (PersistentEntityStoreConfig) super.setSetting(key, value);
+    }
+
+    @Override
+    public PersistentEntityStoreConfig setMutable(boolean isMutable) {
+        return (PersistentEntityStoreConfig) super.setMutable(isMutable);
     }
 
     public boolean getRefactoringSkipAll() {

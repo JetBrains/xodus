@@ -16,29 +16,22 @@
 package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
+import jetbrains.exodus.env.Environments;
 import org.junit.Assert;
 
 public class ReplayTest extends EntityStoreTestBase {
 
-    public static final int CACHE_SIZE = 16384;
-    public static final int CHANGES_SIZE = 500;
-
-    private int defaultCacheSize;
+    private static final int CACHE_SIZE = 16384;
+    private static final int CHANGES_SIZE = 500;
 
     @Override
-    protected void setUp() throws Exception {
-        defaultCacheSize = PersistentEntityStoreConfig.DEFAULT.getEntityIterableCacheSize();
-        PersistentEntityStoreConfig.DEFAULT.setEntityIterableCacheSize(CACHE_SIZE);
-        super.setUp();
+    protected PersistentEntityStoreImpl createStoreInternal(String dbTempFolder) {
+        return PersistentEntityStores.newInstance(
+            new PersistentEntityStoreConfig().setEntityIterableCacheSize(CACHE_SIZE),
+            Environments.newInstance(dbTempFolder), "ReplayTest");
     }
 
-    @Override
-    public void tearDown() throws Exception {
-        PersistentEntityStoreConfig.DEFAULT.setEntityIterableCacheSize(defaultCacheSize);
-        super.tearDown();
-    }
-
-    public void testPerformance() throws Exception {
+    public void testPerformance() {
         final PersistentStoreTransaction txn = getStoreTransaction();
         assertNotNull(txn);
         for (int i = 0; i < CACHE_SIZE; ++i) {
@@ -95,6 +88,6 @@ public class ReplayTest extends EntityStoreTestBase {
 
     private static EntityIterableBase findSome(final PersistentStoreTransaction txn, final int index) {
         return (EntityIterableBase) txn.find("Issue", "size", index).
-                union(txn.find("Issue", "size", CACHE_SIZE - index)).union(txn.find("Issue", "size", 12345678));
+            union(txn.find("Issue", "size", CACHE_SIZE - index)).union(txn.find("Issue", "size", 12345678));
     }
 }
