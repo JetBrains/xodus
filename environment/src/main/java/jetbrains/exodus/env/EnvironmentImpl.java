@@ -31,7 +31,6 @@ import jetbrains.exodus.tree.TreeMetaInfo;
 import jetbrains.exodus.tree.btree.BTree;
 import jetbrains.exodus.tree.btree.BTreeBalancePolicy;
 import jetbrains.exodus.util.DeferredIO;
-import jetbrains.exodus.util.IOUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -128,8 +127,8 @@ public class EnvironmentImpl implements Environment {
         statistics = new EnvironmentStatistics(this);
         if (ec.isManagementEnabled()) {
             configMBean = ec.getManagementOperationsRestricted() ?
-                    new jetbrains.exodus.env.management.EnvironmentConfig(this) :
-                    new EnvironmentConfigWithOperations(this);
+                new jetbrains.exodus.env.management.EnvironmentConfig(this) :
+                new EnvironmentConfigWithOperations(this);
             // if we don't gather statistics then we should not expose corresponding managed bean
             statisticsMBean = ec.getEnvGatherStatistics() ? new jetbrains.exodus.env.management.EnvironmentStatistics(this) : null;
         } else {
@@ -555,12 +554,12 @@ public class EnvironmentImpl implements Environment {
     protected TransactionBase beginTransaction(Runnable beginHook, boolean exclusive, boolean cloneMeta) {
         checkIsOperative();
         return ec.getEnvIsReadonly() ?
-                new ReadonlyTransaction(this, exclusive, beginHook) :
-                new ReadWriteTransaction(this, beginHook, exclusive, cloneMeta);
+            new ReadonlyTransaction(this, exclusive, beginHook) :
+            new ReadWriteTransaction(this, beginHook, exclusive, cloneMeta);
     }
 
     long getDiskUsage() {
-        return IOUtil.getDirectorySize(new File(getLocation()), LogUtil.LOG_FILE_EXTENSION, false);
+        return log.getDiskUsage();
     }
 
     void acquireTransaction(@NotNull final TransactionBase txn) {
@@ -580,7 +579,7 @@ public class EnvironmentImpl implements Environment {
     boolean shouldTransactionBeExclusive(@NotNull final ReadWriteTransaction txn) {
         final int replayCount = txn.getReplayCount();
         return replayCount >= ec.getEnvTxnReplayMaxCount() ||
-                System.currentTimeMillis() - txn.getCreated() >= ec.getEnvTxnReplayTimeout();
+            System.currentTimeMillis() - txn.getCreated() >= ec.getEnvTxnReplayTimeout();
     }
 
     /**
@@ -774,12 +773,12 @@ public class EnvironmentImpl implements Environment {
             final boolean hasDuplicates = metaInfo.hasDuplicates();
             if (hasDuplicates != config.duplicates) {
                 throw new ExodusException("Attempt to open store '" + name + "' with duplicates = " +
-                        config.duplicates + " while it was created with duplicates =" + hasDuplicates);
+                    config.duplicates + " while it was created with duplicates =" + hasDuplicates);
             }
             if (metaInfo.isKeyPrefixing() != config.prefixing) {
                 if (!config.prefixing) {
                     throw new ExodusException("Attempt to open store '" + name +
-                            "' with prefixing = false while it was created with prefixing = true");
+                        "' with prefixing = false while it was created with prefixing = true");
                 }
                 // if we're trying to open existing store with prefixing which actually wasn't created as store
                 // with prefixing due to lack of the PatriciaTree feature, then open store with existing config
@@ -929,7 +928,7 @@ public class EnvironmentImpl implements Environment {
     private void reportAliveTransactions(final boolean debug) {
         if (transactionTimeout() == 0) {
             String stacksUnavailable = "Transactions stack traces are not available, " +
-                    "set \'" + EnvironmentConfig.ENV_MONITOR_TXNS_TIMEOUT + " > 0\'";
+                "set \'" + EnvironmentConfig.ENV_MONITOR_TXNS_TIMEOUT + " > 0\'";
             if (debug) {
                 logger.debug(stacksUnavailable);
             } else {
@@ -1005,8 +1004,8 @@ public class EnvironmentImpl implements Environment {
             while (true) {
                 executable.execute(txn);
                 if (txn.isReadonly() || // txn can be read-only if Environment is in read-only mode
-                        txn.isFinished() || // txn can be finished if, e.g., it was aborted within executable
-                        txn.flush()) {
+                    txn.isFinished() || // txn can be finished if, e.g., it was aborted within executable
+                    txn.flush()) {
                     break;
                 }
                 txn.revert();
@@ -1022,8 +1021,8 @@ public class EnvironmentImpl implements Environment {
             while (true) {
                 final T result = computable.compute(txn);
                 if (txn.isReadonly() || // txn can be read-only if Environment is in read-only mode
-                        txn.isFinished() || // txn can be finished if, e.g., it was aborted within computable
-                        txn.flush()) {
+                    txn.isFinished() || // txn can be finished if, e.g., it was aborted within computable
+                    txn.flush()) {
                     return result;
                 }
                 txn.revert();
