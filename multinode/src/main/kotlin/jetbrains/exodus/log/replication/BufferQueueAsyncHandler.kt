@@ -87,6 +87,7 @@ class BufferQueueAsyncHandler : AsyncResponseHandler<GetObjectResponse, GetObjec
 
         override fun onError(t: Throwable) {
             subscription.cancel()
+            subscriptionFuture.completeExceptionally(t)
         }
     }
 }
