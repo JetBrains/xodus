@@ -72,8 +72,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @NotNull
     private static final ByteArrayInputStream EMPTY_INPUT_STREAM = new ByteArrayInputStream(new byte[0]);
 
-    static boolean ENABLE_BLOB_FILE_LENGTHS = Boolean.getBoolean("jetbrains.exodus.entitystore.enableBlobFileLengths");
-
     private final int hashCode;
     @NotNull
     private final PersistentEntityStoreConfig config;
@@ -370,8 +368,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     throw ExodusException.toEntityStoreException(e);
                 }
             }
-            ENABLE_BLOB_FILE_LENGTHS |= Settings.get(internalSettings, "Blob file lengths cached") != null;
-            if (ENABLE_BLOB_FILE_LENGTHS && blobVault instanceof FileSystemBlobVaultOld) {
+            if (blobVault instanceof FileSystemBlobVaultOld && Settings.get(internalSettings, "Blob file lengths cached") != null) {
                 if (fromScratch || Settings.get(internalSettings, "Blob file lengths cached") == null) {
                     if (!fromScratch) {
                         refactorings.refactorBlobFileLengths();
@@ -415,31 +412,29 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     logger.error("Redundant blob file: " + file);
                 }
             }
-            if (ENABLE_BLOB_FILE_LENGTHS) {
-                blobVault.setVaultSizeFunction(new FileSystemBlobVaultOld.BlobVaultSizeFunction() {
-                    @Override
-                    public long getBlobVaultSize() {
-                        final long blockSize = IOUtil.getBlockSize();
-                        final Environment env = environment;
-                        if (env.isOpen()) {
-                            return env.computeInReadonlyTransaction(new TransactionalComputable<Long>() {
-                                @Override
-                                public Long compute(@NotNull final Transaction txn) {
-                                    long result = 0;
-                                    try (Cursor cursor = blobFileLengths.openCursor(txn)) {
-                                        while (cursor.getNext()) {
-                                            final long fileLength = LongBinding.compressedEntryToLong(cursor.getValue());
-                                            result += (Math.max(fileLength, 1L) + blockSize - 1) / blockSize * blockSize;
-                                        }
+            blobVault.setVaultSizeFunction(new FileSystemBlobVaultOld.BlobVaultSizeFunction() {
+                @Override
+                public long getBlobVaultSize() {
+                    final long blockSize = IOUtil.getBlockSize();
+                    final Environment env = environment;
+                    if (env.isOpen()) {
+                        return env.computeInReadonlyTransaction(new TransactionalComputable<Long>() {
+                            @Override
+                            public Long compute(@NotNull final Transaction txn) {
+                                long result = 0;
+                                try (Cursor cursor = blobFileLengths.openCursor(txn)) {
+                                    while (cursor.getNext()) {
+                                        final long fileLength = LongBinding.compressedEntryToLong(cursor.getValue());
+                                        result += (Math.max(fileLength, 1L) + blockSize - 1) / blockSize * blockSize;
                                     }
-                                    return result;
                                 }
-                            });
-                        }
-                        return 0L;
+                                return result;
+                            }
+                        });
                     }
-                });
-            }
+                    return 0L;
+                }
+            });
             return blobVault;
         } catch (IOException e) {
             throw ExodusException.toExodusException(e);
@@ -497,8 +492,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
                 if (Settings.get(settings, "Blob file lengths cached") == null) {
                     throw new IllegalStateException("Cannot replicate blobs without serialized blob list");
-                } else {
-                    ENABLE_BLOB_FILE_LENGTHS = true;
                 }
 
                 final List<Pair<Long, Long>> result = new ArrayList<>();
@@ -1885,17 +1878,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (length < 0) {
             throw new IllegalArgumentException("length < 0");
         }
-        if (ENABLE_BLOB_FILE_LENGTHS) {
-            blobFileLengths.put(txn.getEnvironmentTransaction(),
-                    LongBinding.longToCompressedEntry(blobHandle), LongBinding.longToCompressedEntry(length));
-        }
-
+        blobFileLengths.put(txn.getEnvironmentTransaction(),
+            LongBinding.longToCompressedEntry(blobHandle), LongBinding.longToCompressedEntry(length));
     }
 
     void deleteBlobFileLength(@NotNull final PersistentStoreTransaction txn, final long blobHandle) {
-        if (ENABLE_BLOB_FILE_LENGTHS) {
-            blobFileLengths.delete(txn.getEnvironmentTransaction(), LongBinding.longToCompressedEntry(blobHandle));
-        }
+        blobFileLengths.delete(txn.getEnvironmentTransaction(), LongBinding.longToCompressedEntry(blobHandle));
     }
 
     public long blobFileCount(@NotNull final PersistentStoreTransaction txn) {

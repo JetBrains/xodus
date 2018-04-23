@@ -86,7 +86,6 @@ class BlobVaultTests : EntityStoreTestBase() {
 
     @TestFor(issues = ["XD-688"])
     fun testBlobsFileLengths() {
-        PersistentEntityStoreImpl.ENABLE_BLOB_FILE_LENGTHS = true
         val store = entityStore
         val txn = storeTransaction
         store.config.maxInPlaceBlobSize = 0
