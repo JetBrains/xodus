@@ -37,10 +37,11 @@ class StoreReplicationTest : ReplicationBaseTest() {
         private const val basicIV = 314159262718281828L
         private const val logFileSize = 4L
         private const val logCachePageSize = 1024
+        private const val port = 8062
 
         private fun environmentConfigWithMetaServer(): EnvironmentConfig {
             return EnvironmentConfig().apply {
-                metaServer = MetaServerImpl()
+                metaServer = MetaServerImpl(port = port)
             }
         }
 
@@ -77,7 +78,7 @@ class StoreReplicationTest : ReplicationBaseTest() {
 
     @Test
     fun replicate() {
-        val sourceLog = sourceLogDir.createLog(logFileSize) {
+        val sourceLog = sourceLogDir.createLog(logFileSize, releaseLock = true) {
             cipherProvider = null
             cipherKey = null
             cipherBasicIV = 0
@@ -86,7 +87,7 @@ class StoreReplicationTest : ReplicationBaseTest() {
 
         val sourceConfig = environmentConfigWithMetaServer()
         val sourceStore = PersistentEntityStoreImpl(Environments.newInstance(sourceLog, sourceConfig), storeName).apply {
-            //config.maxInPlaceBlobSize = 0
+            // config.maxInPlaceBlobSize = 0
         }
 
         sourceStore.createNIssues(100)
@@ -106,6 +107,7 @@ class StoreReplicationTest : ReplicationBaseTest() {
         val storeConfig = PersistentEntityStoreConfig().apply {
             storeReplicator = S3Replicator(
                     metaServer = host,
+                    metaPort = port,
                     httpClient = httpClient,
                     s3 = s3,
                     bucket = bucket,
