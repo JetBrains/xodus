@@ -25,9 +25,7 @@ import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
 import jetbrains.exodus.env.EnvironmentConfig
 import jetbrains.exodus.env.Environments
 import jetbrains.exodus.log.replication.ReplicationBaseTest
-import org.junit.After
 import org.junit.Assert
-import org.junit.Before
 import org.junit.Test
 
 class StoreReplicationTest : ReplicationBaseTest() {
@@ -37,16 +35,6 @@ class StoreReplicationTest : ReplicationBaseTest() {
         const val basicIV = 314159262718281828L
         const val logFileSize = 4L
         const val logCachePageSize = 1024
-    }
-
-    @Before
-    fun enableBlobLengths() {
-        System.setProperty("jetbrains.exodus.entitystore.enableBlobFileLengths", "true")
-    }
-
-    @After
-    fun disableBlobLengths() {
-        System.setProperty("jetbrains.exodus.entitystore.enableBlobFileLengths", "false ")
     }
 
     @Test
