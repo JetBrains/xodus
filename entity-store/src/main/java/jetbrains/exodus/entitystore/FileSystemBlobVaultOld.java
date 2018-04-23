@@ -350,7 +350,7 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
         files.add(file);
         final StringBuilder dir = new StringBuilder(blobsDirectory);
         for (ListIterator iterator = files.listIterator(files.size()); iterator.hasPrevious(); ) {
-            dir.append(File.separator);
+            dir.append('/');
             dir.append(iterator.previous());
         }
         dir.append(blobExtension);

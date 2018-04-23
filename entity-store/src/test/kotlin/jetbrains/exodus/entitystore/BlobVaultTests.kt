@@ -34,7 +34,7 @@ class BlobVaultTests : EntityStoreTestBase() {
         }
         Assert.assertTrue(txn.flush())
         val blobVault = store.blobVault.sourceVault as FileSystemBlobVaultOld
-        Assert.assertEquals("blobs${File.separator}2${File.separator}0.blob", blobVault.getBlobKey(512))
+        Assert.assertEquals("blobs/2/0.blob", blobVault.getBlobKey(512))
         val vaultLocation = blobVault.vaultLocation
         Assert.assertEquals(257, vaultLocation.listFiles()!!.size.toLong()) // + "version" file
         Assert.assertEquals(256, vaultLocation.listFiles { _, name -> name.endsWith(PersistentEntityStoreImpl.BLOBS_EXTENSION) }!!.size.toLong())

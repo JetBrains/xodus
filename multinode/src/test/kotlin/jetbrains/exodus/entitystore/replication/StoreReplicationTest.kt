@@ -87,7 +87,7 @@ class StoreReplicationTest : ReplicationBaseTest() {
 
         val sourceConfig = environmentConfigWithMetaServer()
         val sourceStore = PersistentEntityStoreImpl(Environments.newInstance(sourceLog, sourceConfig), storeName).apply {
-            // config.maxInPlaceBlobSize = 0
+            config.maxInPlaceBlobSize = 0
         }
 
         sourceStore.createNIssues(100)
