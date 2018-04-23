@@ -29,12 +29,50 @@ import org.junit.Assert
 import org.junit.Test
 
 class StoreReplicationTest : ReplicationBaseTest() {
+
     companion object {
-        val cipherKey = "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f".reversed()
-        const val storeName = "thestore"
-        const val basicIV = 314159262718281828L
-        const val logFileSize = 4L
-        const val logCachePageSize = 1024
+
+        private val cipherKey = "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f".reversed()
+        private const val storeName = "thestore"
+        private const val basicIV = 314159262718281828L
+        private const val logFileSize = 4L
+        private const val logCachePageSize = 1024
+
+        private fun environmentConfigWithMetaServer(): EnvironmentConfig {
+            return EnvironmentConfig().apply {
+                metaServer = MetaServerImpl()
+            }
+        }
+
+        private fun environmentConfigEncrypted(): EnvironmentConfig {
+            return EnvironmentConfig().also {
+                it.cipherId = ChaChaStreamCipherProvider::class.java.name
+                it.setCipherKey(cipherKey)
+                it.cipherBasicIV = basicIV
+                it.envIsReadonly = true
+                it.logFileSize = logFileSize
+                it.logCachePageSize = logCachePageSize
+            }
+        }
+
+        private fun PersistentEntityStoreImpl.createNIssues(n: Int) {
+            executeInTransaction { txn ->
+                (1..n).forEach {
+                    val issue = txn.newEntity("Issue")
+                    issue.setBlobString("description", "Issue with id ${issue.id}")
+                }
+            }
+        }
+
+        private fun PersistentEntityStoreImpl.checkIssues(expectedCount: Long) {
+            executeInReadonlyTransaction {
+                val allIssues = it.getAll("Issue")
+                Assert.assertEquals(expectedCount, allIssues.size())
+                allIssues.forEach { issue ->
+                    Assert.assertEquals("Issue with id ${issue.id}", issue.getBlobString("description"))
+                }
+            }
+        }
     }
 
     @Test
@@ -46,43 +84,23 @@ class StoreReplicationTest : ReplicationBaseTest() {
             cachePageSize = 1024
         }
 
-        val environmentConfig = EnvironmentConfig().apply {
-            metaServer = MetaServerImpl()
+        val sourceConfig = environmentConfigWithMetaServer()
+        val sourceStore = PersistentEntityStoreImpl(Environments.newInstance(sourceLog, sourceConfig), storeName).apply {
+            //config.maxInPlaceBlobSize = 0
         }
-        val sourceStore = PersistentEntityStoreImpl(Environments.newInstance(sourceLog, environmentConfig), storeName)
 
-        sourceStore.executeInTransaction { txn ->
-            (1..100).forEach {
-                txn.newEntity("Issue")
-            }
-        }
+        sourceStore.createNIssues(100)
 
         val output = DirectoryEncryptListenerFactory.newListener(targetLogDir)
         ScytaleEngine(output, ChaChaStreamCipherProvider(), toBinaryKey(cipherKey), basicIV).encryptBackupable(sourceStore)
 
-        sourceStore.executeInTransaction { txn ->
-            (1..100).forEach {
-                txn.newEntity("Issue")
-            }
-        }
+        sourceStore.createNIssues(100)
 
-        val targetEnvironmentConfig = EnvironmentConfig().also {
-            it.cipherId = ChaChaStreamCipherProvider::class.java.name
-            it.setCipherKey(cipherKey)
-            it.cipherBasicIV = basicIV
-            it.envIsReadonly = true
-            it.logFileSize = logFileSize
-            it.logCachePageSize = logCachePageSize
-        }
+        val targetConfig = environmentConfigEncrypted()
 
-        var targetStore = PersistentEntityStoreImpl(PersistentEntityStoreConfig(), Environments.newInstance(targetLogDir, targetEnvironmentConfig), null, storeName)
-
-        try {
-            targetStore.executeInReadonlyTransaction {
-                Assert.assertEquals(100, it.getAll("Issue").size())
-            }
-        } finally {
-            targetStore.close()
+        PersistentEntityStoreImpl(PersistentEntityStoreConfig(),
+                Environments.newInstance(targetLogDir, targetConfig), null, storeName).use {
+            it.checkIssues(100L)
         }
 
         val storeConfig = PersistentEntityStoreConfig().apply {
@@ -95,10 +113,9 @@ class StoreReplicationTest : ReplicationBaseTest() {
             )
         }
 
-        targetStore = PersistentEntityStoreImpl(storeConfig, Environments.newInstance(targetLogDir, targetEnvironmentConfig), null, storeName)
-
-        targetStore.executeInReadonlyTransaction {
-            Assert.assertEquals(200, it.getAll("Issue").size())
+        PersistentEntityStoreImpl(storeConfig,
+                Environments.newInstance(targetLogDir, targetConfig), null, storeName).use {
+            it.checkIssues(200L)
         }
     }
 }
