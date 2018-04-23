@@ -18,7 +18,6 @@ package jetbrains.exodus.entitystore.replication
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.ObjectReader
-import com.fasterxml.jackson.module.kotlin.KotlinModule
 import jetbrains.exodus.core.dataStructures.Pair
 import jetbrains.exodus.crypto.EncryptedBlobVault
 import jetbrains.exodus.entitystore.BlobVault
@@ -48,7 +47,6 @@ class S3Replicator(
     companion object : KLogging() {
         private val objectMapper = ObjectMapper().apply {
             configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true)
-            registerModule(KotlinModule())
         }
         internal val deltaReader: ObjectReader = objectMapper.readerFor(ReplicationDelta::class.java)
         internal val okReader: ObjectReader = objectMapper.readerFor(MetaServerHandler.OK::class.java)

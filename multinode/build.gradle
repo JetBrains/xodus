@@ -7,16 +7,13 @@ kotlin {
 dependencies {
     compile project(':environment')
     compile project(':entity-store')
-
-    compile "org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion"
-    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.22.5'
-    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:0.22.5'
     compile 'software.amazon.awssdk:s3:2.0.0-preview-9'
-    compile 'com.fasterxml.jackson.module:jackson-module-kotlin:2.9.3'
 
     testCompile project(':environment').sourceSets.test.output
     testCompile project(':utils').sourceSets.test.output
     testCompile 'io.findify:s3mock_2.12:0.2.5'
+    testCompile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.22.5'
+    testCompile 'org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:0.22.5'
 
     compileKotlin {
         kotlinOptions {

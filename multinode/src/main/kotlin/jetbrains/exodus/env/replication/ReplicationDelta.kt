@@ -15,16 +15,27 @@
  */
 package jetbrains.exodus.env.replication
 
+import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonProperty
 import java.util.*
 
-data class ReplicationDelta(
+// avoid com.fasterxml.jackson.module.kotlin.KotlinModule because it requires kotlin-reflect
+data class ReplicationDelta @JsonCreator constructor(
+        @JsonProperty("name")
         override val id: Long,
+        @JsonProperty("startAddress")
         override val startAddress: Long,
+        @JsonProperty("highAddress")
         override val highAddress: Long,
+        @JsonProperty("fileLengthBound")
         override val fileLengthBound: Long,
+        @JsonProperty("files")
         override val files: LongArray,
+        @JsonProperty("encrypted")
         override val encrypted: Boolean = false,
+        @JsonProperty("metaTreeAddress")
         override val metaTreeAddress: Long = -1,
+        @JsonProperty("rootAddress")
         override val rootAddress: Long = -1
 ) : EnvironmentReplicationDelta {
     override fun equals(other: Any?): Boolean {
