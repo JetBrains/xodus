@@ -160,7 +160,7 @@ class S3Replicator(
                 "/v1/delta/release",
                 mapOf("id" to delta.id.toString()),
                 metaServer,
-                8062
+                metaPort
         )
         okReader.readValue<MetaServerHandler.OK>(maybeOk, 0, maybeOk.size).apply {
             if (ok) {
