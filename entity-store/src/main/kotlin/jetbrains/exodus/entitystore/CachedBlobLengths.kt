@@ -43,8 +43,10 @@ class CachedBlobLengths(private val env: Environment,
 
     override fun getBlobSize(blobHandle: Long, txn: Transaction): Long {
         return if (env.isOpen) {
-            adjustToBlockSize(blobFileLengths.get(txn, blobHandle.toEntry)?.toLength ?: 0L)
-        } else 0L
+            blobFileLengths.get(txn, blobHandle.toEntry)?.toLength ?: 0L
+        } else {
+            0L
+        }
     }
 
     private fun adjustToBlockSize(fileLength: Long): Long = (Math.max(fileLength, 1L) + blockSize - 1) / blockSize * blockSize

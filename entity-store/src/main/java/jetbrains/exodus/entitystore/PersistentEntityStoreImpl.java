@@ -1855,11 +1855,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return (BlobsTable) blobsTables.get(txn, entityTypeId);
     }
 
-    long getBlobFileLength(@NotNull final PersistentStoreTransaction txn, final long blobHandle) {
-        final Long result = getBlobFileLength(blobHandle, txn.getEnvironmentTransaction());
-        return result == null ? 0L : result;
-    }
-
     public Long getBlobFileLength(long blobHandle, Transaction txn) {
         final ByteIterable resultEntry = blobFileLengths.get(txn, LongBinding.longToCompressedEntry(blobHandle));
         return resultEntry == null ? null : LongBinding.compressedEntryToLong(resultEntry);
