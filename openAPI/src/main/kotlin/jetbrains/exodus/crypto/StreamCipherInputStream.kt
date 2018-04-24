@@ -29,7 +29,11 @@ class StreamCipherInputStream(input: InputStream, private val cipherGetter: () -
     private var savedPosition = 0
 
     override fun read(): Int {
-        return cipher.cryptAsInt(super.read().toByte()).apply { ++position }
+        val b = super.read()
+        if (b == -1) {
+            return -1
+        }
+        return cipher.cryptAsInt(b.toByte()).apply { ++position }
     }
 
     override fun read(bytes: ByteArray?): Int {
