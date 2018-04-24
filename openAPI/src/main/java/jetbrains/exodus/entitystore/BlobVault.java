@@ -22,11 +22,10 @@ import jetbrains.exodus.env.Transaction;
 import jetbrains.exodus.util.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 
 /**
  * {@code BlobVault} is base class describing interface to <a href="https://en.wikipedia.org/wiki/Binary_large_object">
@@ -45,6 +44,7 @@ import java.io.InputStream;
  * @see BlobHandleGenerator
  */
 public abstract class BlobVault implements BlobHandleGenerator, Backupable {
+    protected static final Logger logger = LoggerFactory.getLogger("BlobVault");
 
     private static final int READ_BUFFER_SIZE = 0x4000;
     static final ByteArraySpinAllocator bufferAllocator = new ByteArraySpinAllocator(READ_BUFFER_SIZE);
@@ -174,6 +174,9 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
         result = stringContentCache.tryKey(this, blobHandle);
         if (result == null) {
             final InputStream content = getContent(blobHandle, txn);
+            if (content == null) {
+                logger.error("Blob string not found: " + getBlobLocation(blobHandle), new FileNotFoundException());
+            }
             result = content == null ? null : UTFUtil.readUTF(content);
             if (result != null && result.length() <= config.getBlobStringsCacheMaxValueSize()) {
                 if (stringContentCache.getObject(this, blobHandle) == null) {

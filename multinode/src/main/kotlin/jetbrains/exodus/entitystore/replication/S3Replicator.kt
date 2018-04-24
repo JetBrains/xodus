@@ -141,7 +141,7 @@ class S3Replicator(
     internal fun replicateBlob(handle: Long, length: Long, vault: DiskBasedBlobVault, sourceEncrypted: Boolean, targetEncrypted: Boolean): File? {
         val blobKey = vault.getBlobKey(handle)
         val file = vault.getBlobLocation(handle, false)
-        logger.info { "Copy blob file ${file.path}, key: $blobKey" }
+        logger.debug { "Copy blob file ${file.path}, key: $blobKey" }
 
         try {
             if (sourceEncrypted == targetEncrypted) {

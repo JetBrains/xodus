@@ -22,10 +22,8 @@ import jetbrains.exodus.crypto.EncryptedBlobVault
 import jetbrains.exodus.entitystore.BlobVault
 import jetbrains.exodus.entitystore.DiskBasedBlobVault
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
-import jetbrains.exodus.entitystore.VaultSizeFunctions
 import jetbrains.exodus.env.Transaction
 import java.io.File
-import java.io.FileInputStream
 import java.io.InputStream
 
 class S3BlobVault(
@@ -33,8 +31,6 @@ class S3BlobVault(
         val store: PersistentEntityStoreImpl,
         val replicator: S3Replicator
 ) : BlobVault(store.config), DiskBasedBlobVault {
-
-    private lateinit var sizeFunctions: VaultSizeFunctions
     override fun getBackupStrategy(): BackupStrategy = BackupStrategy.EMPTY
 
     override fun getContent(blobHandle: Long, txn: Transaction): InputStream? {
@@ -42,7 +38,7 @@ class S3BlobVault(
         if (result == null) {
             store.getBlobFileLength(blobHandle, txn)?.let { length ->
                 replicator.replicateBlob(blobHandle, length, delegate, replicator.sourceEncrypted, delegate is EncryptedBlobVault)?.let {
-                    result = FileInputStream(it)
+                    result = delegate.getContent(blobHandle, txn)
                 }
             }
         }
@@ -50,7 +46,7 @@ class S3BlobVault(
     }
 
     // TODO: get the size from blobs table everywhere
-    override fun getSize(blobHandle: Long, txn: Transaction): Long = sizeFunctions.getBlobSize(blobHandle, txn)
+    override fun getSize(blobHandle: Long, txn: Transaction): Long = store.getBlobFileLength(blobHandle, txn) ?: 0L
 
     override fun getBlobKey(blobHandle: Long): String {
         return delegate.getBlobKey(blobHandle)
@@ -64,7 +60,7 @@ class S3BlobVault(
     }
 
     override fun size(): Long {
-        return sizeFunctions.blobVaultSize
+        return delegate.size()
     }
 
     override fun requiresTxn(): Boolean = false
@@ -83,10 +79,6 @@ class S3BlobVault(
 
     override fun close() {
         delegate.close() // TODO?
-    }
-
-    override fun setSizeFunctions(sizeFunction: VaultSizeFunctions?) {
-        this.sizeFunctions = sizeFunction!!
     }
 
     private fun readOnly(): Nothing = throw UnsupportedOperationException("vault is read-only")

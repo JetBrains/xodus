@@ -74,6 +74,7 @@ public class VFSBlobVault extends BlobVault {
     }
 
     @Override
+    @NotNull
     public InputStream getContent(long blobHandle, @NotNull final Transaction txn) {
         return fs.readFile(txn, blobHandle);
     }

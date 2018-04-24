@@ -294,7 +294,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private void initBasicStores(Transaction envTxn) {
         sequences = environment.openStore(SEQUENCES_STORE, StoreConfig.WITHOUT_DUPLICATES, envTxn);
         blobFileLengths = environment.openStore(namingRulez.getBlobFileLengthsTable(),
-            StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, envTxn);
+                StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, envTxn);
     }
 
     private BlobVault initBlobVault() {
@@ -1014,8 +1014,15 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (blobHandle == EMPTY_BLOB_HANDLE) {
             return EMPTY_INPUT_STREAM;
         }
-        final InputStream result = blobStream.getSecond();
-        return result != null ? result : blobVault.getContent(blobHandle, txn.getEnvironmentTransaction());
+        InputStream result = blobStream.getSecond();
+        if (result != null) {
+            return result;
+        }
+        result = blobVault.getContent(blobHandle, txn.getEnvironmentTransaction());
+        if (result == null) {
+            logger.error("Blob string not found: " + blobVault.getBlobLocation(blobHandle), new FileNotFoundException());
+        }
+        return result;
     }
 
     @Nullable
@@ -1863,7 +1870,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             throw new IllegalArgumentException("length < 0");
         }
         blobFileLengths.put(txn.getEnvironmentTransaction(),
-            LongBinding.longToCompressedEntry(blobHandle), LongBinding.longToCompressedEntry(length));
+                LongBinding.longToCompressedEntry(blobHandle), LongBinding.longToCompressedEntry(length));
     }
 
     void deleteBlobFileLength(@NotNull final PersistentStoreTransaction txn, final long blobHandle) {

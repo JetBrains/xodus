@@ -148,7 +148,6 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
         try {
             return new FileInputStream(getBlobLocation(blobHandle));
         } catch (FileNotFoundException e) {
-            logger.error("File not found", e);
             return null;
         }
     }
@@ -381,8 +380,7 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
         return result;
     }
 
-    @Override
-    public void setSizeFunctions(@Nullable final VaultSizeFunctions sizeFunction) {
+    void setSizeFunctions(@Nullable final VaultSizeFunctions sizeFunction) {
         this.sizeFunctions = sizeFunction;
     }
 

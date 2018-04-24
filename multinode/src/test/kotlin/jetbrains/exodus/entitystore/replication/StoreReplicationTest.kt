@@ -31,7 +31,7 @@ import jetbrains.exodus.log.replication.ReplicationBaseTest
 import org.junit.Assert
 import org.junit.Test
 
-class StoreReplicationTest : ReplicationBaseTest() {
+open class StoreReplicationTest : ReplicationBaseTest() {
 
     companion object {
 
@@ -79,6 +79,8 @@ class StoreReplicationTest : ReplicationBaseTest() {
         }
     }
 
+    open val lazyBlobs: Boolean get() = false
+
     @Test
     fun replicate() {
         createEncryptReplicate(port++, cipherKey)
@@ -123,7 +125,8 @@ class StoreReplicationTest : ReplicationBaseTest() {
                     httpClient = httpClient,
                     s3 = s3,
                     bucket = bucket,
-                    requestOverrideConfig = extraHost
+                    requestOverrideConfig = extraHost,
+                    lazyBlobs = lazyBlobs
             )
         }
 

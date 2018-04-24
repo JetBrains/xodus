@@ -13,26 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore;
+package jetbrains.exodus.entitystore.replication
 
-import jetbrains.exodus.env.Transaction;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+class LazyBlobStoreReplicationTest : StoreReplicationTest() {
 
-import java.io.File;
-import java.io.InputStream;
-
-public interface DiskBasedBlobVault {
-
-    File getBlobLocation(long blobHandle);
-
-    File getBlobLocation(long blobHandle, boolean readonly);
-
-    String getBlobKey(long blobHandle);
-
-    @Nullable InputStream getContent(long blobHandle, @NotNull Transaction txn);
-
-    long size();
-
-    void close();
+    override val lazyBlobs: Boolean get() = true
 }
