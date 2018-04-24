@@ -296,13 +296,17 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     private BlobVault initBlobVault() {
         final FileSystemBlobVaultOld fsVault = createDefaultFSBlobVault();
-        BlobVault result = fsVault;
+        DiskBasedBlobVault result = fsVault;
         final StreamCipherProvider cipherProvider = environment.getCipherProvider();
         if (cipherProvider != null) {
             result = new EncryptedBlobVault(fsVault, cipherProvider,
                     Objects.requireNonNull(environment.getCipherKey()), environment.getCipherBasicIV());
         }
-        return result;
+        final PersistentEntityStoreReplicator replicator = config.getStoreReplicator();
+        if (replicator != null) {
+            result = replicator.decorateBlobVault(result, this);
+        }
+        return (BlobVault) result; // TODO: improve this
     }
 
     private void applyRefactorings(final boolean fromScratch) {
@@ -412,7 +416,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     logger.error("Redundant blob file: " + file);
                 }
             }
-            blobVault.setVaultSizeFunction(new FileSystemBlobVaultOld.BlobVaultSizeFunction() {
+            blobVault.setVaultSizeFunction(new BlobVaultSizeFunction() {
                 @Override
                 public long getBlobVaultSize() {
                     final long blockSize = IOUtil.getBlockSize();
@@ -511,10 +515,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             }
         });
         if (!blobsToReplicate.isEmpty()) {
-            if (logger.isInfoEnabled()) {
-                logger.info("Will replicate " + blobsToReplicate.size() + " blobs higher than " + highBlobHandle);
-            }
-
             final BlobVault vault = computeInReadonlyTransaction(new StoreTransactionalComputable<BlobVault>() {
                 @Override
                 public BlobVault compute(@NotNull StoreTransaction txn) {
@@ -1869,9 +1869,13 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     long getBlobFileLength(@NotNull final PersistentStoreTransaction txn, final long blobHandle) {
-        final ByteIterable resultEntry = blobFileLengths.get(
-                txn.getEnvironmentTransaction(), LongBinding.longToCompressedEntry(blobHandle));
-        return resultEntry == null ? 0L : LongBinding.compressedEntryToLong(resultEntry);
+        final Long result = getBlobFileLength(blobHandle, txn.getEnvironmentTransaction());
+        return result == null ? 0L : result;
+    }
+
+    public Long getBlobFileLength(long blobHandle, Transaction txn) {
+        final ByteIterable resultEntry = blobFileLengths.get(txn, LongBinding.longToCompressedEntry(blobHandle));
+        return resultEntry == null ? null : LongBinding.compressedEntryToLong(resultEntry);
     }
 
     void setBlobFileLength(@NotNull final PersistentStoreTransaction txn, final long blobHandle, final long length) {

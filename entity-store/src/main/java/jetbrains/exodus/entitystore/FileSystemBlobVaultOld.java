@@ -381,12 +381,13 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
         return result;
     }
 
-    final String getBlobExtension() {
-        return blobExtension;
+    @Override
+    public void setVaultSizeFunction(@Nullable final BlobVaultSizeFunction vaultSizeFunction) {
+        this.vaultSizeFunction = vaultSizeFunction;
     }
 
-    void setVaultSizeFunction(@Nullable final BlobVaultSizeFunction vaultSizeFunction) {
-        this.vaultSizeFunction = vaultSizeFunction;
+    final String getBlobExtension() {
+        return blobExtension;
     }
 
     private void setContentImpl(@NotNull final InputStream content,
@@ -415,11 +416,5 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
     private static boolean isEmptyDir(@NotNull final File dir) {
         final File[] files = dir.listFiles();
         return files != null && files.length == 0;
-    }
-
-
-    public interface BlobVaultSizeFunction {
-
-        long getBlobVaultSize();
     }
 }

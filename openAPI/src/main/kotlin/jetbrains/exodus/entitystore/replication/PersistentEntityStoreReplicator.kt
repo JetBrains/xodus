@@ -17,6 +17,8 @@ package jetbrains.exodus.entitystore.replication
 
 import jetbrains.exodus.core.dataStructures.Pair
 import jetbrains.exodus.entitystore.BlobVault
+import jetbrains.exodus.entitystore.DiskBasedBlobVault
+import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.replication.EnvironmentReplicationDelta
 
@@ -24,6 +26,8 @@ interface PersistentEntityStoreReplicator {
     fun replicateEnvironment(environment: Environment): EnvironmentReplicationDelta
 
     fun replicateBlobVault(delta: EnvironmentReplicationDelta, vault: BlobVault, blobsToReplicate: List<Pair<Long, Long>>)
+
+    fun decorateBlobVault(vault: DiskBasedBlobVault, store: PersistentEntityStore): DiskBasedBlobVault
 
     fun endReplication(delta: EnvironmentReplicationDelta)
 }

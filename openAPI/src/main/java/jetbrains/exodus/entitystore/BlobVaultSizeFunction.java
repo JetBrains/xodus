@@ -15,24 +15,7 @@
  */
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.env.Transaction;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+public interface BlobVaultSizeFunction {
 
-import java.io.File;
-import java.io.InputStream;
-
-public interface DiskBasedBlobVault {
-
-    File getBlobLocation(long blobHandle);
-
-    File getBlobLocation(long blobHandle, boolean readonly);
-
-    String getBlobKey(long blobHandle);
-
-    void setVaultSizeFunction(@Nullable final BlobVaultSizeFunction vaultSizeFunction);
-
-    @Nullable InputStream getContent(long blobHandle, @NotNull Transaction txn);
-
-    void close();
+    long getBlobVaultSize();
 }
