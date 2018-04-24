@@ -28,7 +28,7 @@ import java.net.URL;
 public class EntityBlobTests extends EntityStoreTestBase {
     @Override
     protected String[] casesThatDontNeedExplicitTxn() {
-        return new String[]{"testEntityStoreClear2"};
+        return new String[]{"testEntityStoreClear"};
     }
 
     public void testInPlaceBlobs() throws Exception {
@@ -231,7 +231,7 @@ public class EntityBlobTests extends EntityStoreTestBase {
     }
 
     @TestFor(issues = "XD-531")
-    public void testEntityStoreClear2() {
+    public void testEntityStoreClear() {
         final PersistentEntityStoreImpl store = getEntityStore();
         store.getConfig().setMaxInPlaceBlobSize(0);
         store.executeInTransaction(new StoreTransactionalExecutable() {
