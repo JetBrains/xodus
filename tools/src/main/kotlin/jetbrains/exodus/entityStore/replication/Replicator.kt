@@ -15,8 +15,8 @@
  */
 package jetbrains.exodus.entityStore.replication
 
-import jetbrains.exodus.entitystore.PersistentEntityStoreConfig
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
+import jetbrains.exodus.entitystore.newPersistentEntityStoreConfig
 import jetbrains.exodus.entitystore.replication.S3Replicator
 import jetbrains.exodus.env.Reflect
 import software.amazon.awssdk.core.auth.AwsCredentials
@@ -63,7 +63,7 @@ fun main(args: Array<String>) {
     )
     val environment = Reflect.openEnvironment(File(args[6]), true)
     println("Log tip: " + environment.log.tip.highAddress)
-    val config = PersistentEntityStoreConfig().setStoreReplicator(replicator)
+    val config = newPersistentEntityStoreConfig { storeReplicator = replicator }
     val store = PersistentEntityStoreImpl(config, environment, null, args[5])
 
     Runtime.getRuntime().addShutdownHook(thread(start = false) {

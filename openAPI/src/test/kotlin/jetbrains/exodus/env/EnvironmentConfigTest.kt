@@ -67,8 +67,9 @@ class EnvironmentConfigTest {
     fun testListenerMethodsOrdering() {
         val oldValue = 1L
         val newValue = 2L
-        val ec = EnvironmentConfig()
-        ec.memoryUsage = oldValue
+        val ec = newEnvironmentConfig {
+            memoryUsage = oldValue
+        }
 
         ec.addChangedSettingsListener(object : ConfigSettingChangeListener {
             override fun beforeSettingChanged(key: String, value: Any, context: Map<String, Any>) {
@@ -108,8 +109,9 @@ class EnvironmentConfigTest {
     fun testListenerInvokedWithContext() {
         val oldValue = 1L
         val newValue = 2L
-        val ec = EnvironmentConfig()
-        ec.memoryUsage = oldValue
+        val ec = newEnvironmentConfig {
+            memoryUsage = oldValue
+        }
 
         ec.addChangedSettingsListener(object : ConfigSettingChangeListener {
 

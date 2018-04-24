@@ -201,14 +201,17 @@ class Reflect(directory: File) {
 
             val reader = FileDataReader(directory, 16)
             val writer = FileDataWriter(directory)
-            val config = EnvironmentConfig().setLogCachePageSize(pageSize).setGcEnabled(false).setEnvIsReadonly(readonly)
-            if (config.logFileSize == EnvironmentConfig.DEFAULT.logFileSize) {
-                val fileSizeInKB = if (files.size > 1)
-                    (maxFileSize + pageSize - 1) / pageSize * pageSize / LogUtil.LOG_BLOCK_ALIGNMENT else
-                    EnvironmentConfig.DEFAULT.logFileSize
-                config.logFileSize = fileSizeInKB
+            val config = newEnvironmentConfig {
+                logCachePageSize = pageSize
+                isGcEnabled = false
+                envIsReadonly = readonly
+                if (logFileSize == EnvironmentConfig.DEFAULT.logFileSize) {
+                    val fileSizeInKB = if (files.size > 1)
+                        (maxFileSize + pageSize - 1) / pageSize * pageSize / LogUtil.LOG_BLOCK_ALIGNMENT else
+                        EnvironmentConfig.DEFAULT.logFileSize
+                    logFileSize = fileSizeInKB
+                }
             }
-
             return Environments.newInstance(LogConfig.create(reader, writer), config) as EnvironmentImpl
         }
     }
@@ -495,7 +498,8 @@ class Reflect(directory: File) {
             println(if (usedBytes == null) {
                 "Used bytes for store $name unknown"
             } else {
-                String.format("Used bytes for store\t%110s\t%8.2fKB", replacement(name) ?: name, usedBytes.toDouble() / 1024)
+                String.format("Used bytes for store\t%110s\t%8.2fKB", replacement(name)
+                        ?: name, usedBytes.toDouble() / 1024)
             })
         }
     }
