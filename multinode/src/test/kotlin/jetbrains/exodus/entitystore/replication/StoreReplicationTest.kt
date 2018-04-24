@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore.replication
 
+import jetbrains.exodus.crypto.InvalidCipherParametersException
 import jetbrains.exodus.crypto.convert.DirectoryEncryptListenerFactory
 import jetbrains.exodus.crypto.convert.ScytaleEngine
 import jetbrains.exodus.crypto.convert.encryptBackupable
@@ -22,8 +23,10 @@ import jetbrains.exodus.crypto.streamciphers.ChaChaStreamCipherProvider
 import jetbrains.exodus.crypto.toBinaryKey
 import jetbrains.exodus.entitystore.PersistentEntityStoreConfig
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
+import jetbrains.exodus.entitystore.newPersistentEntityStoreConfig
 import jetbrains.exodus.env.EnvironmentConfig
 import jetbrains.exodus.env.Environments
+import jetbrains.exodus.env.newEnvironmentConfig
 import jetbrains.exodus.log.replication.ReplicationBaseTest
 import org.junit.Assert
 import org.junit.Test
@@ -37,22 +40,22 @@ class StoreReplicationTest : ReplicationBaseTest() {
         private const val basicIV = 314159262718281828L
         private const val logFileSize = 4L
         private const val logCachePageSize = 1024
-        private const val port = 8062
+        private var port = 8062
 
-        private fun environmentConfigWithMetaServer(): EnvironmentConfig {
-            return EnvironmentConfig().apply {
+        private fun environmentConfigWithMetaServer(port: Int): EnvironmentConfig {
+            return newEnvironmentConfig {
                 metaServer = MetaServerImpl(port = port)
             }
         }
 
         private fun environmentConfigEncrypted(): EnvironmentConfig {
-            return EnvironmentConfig().also {
-                it.cipherId = ChaChaStreamCipherProvider::class.java.name
-                it.setCipherKey(cipherKey)
-                it.cipherBasicIV = basicIV
-                it.envIsReadonly = true
-                it.logFileSize = logFileSize
-                it.logCachePageSize = logCachePageSize
+            return newEnvironmentConfig {
+                cipherId = ChaChaStreamCipherProvider::class.java.name
+                setCipherKey(Companion.cipherKey)
+                cipherBasicIV = basicIV
+                envIsReadonly = true
+                logFileSize = Companion.logFileSize
+                logCachePageSize = Companion.logCachePageSize
             }
         }
 
@@ -65,10 +68,10 @@ class StoreReplicationTest : ReplicationBaseTest() {
             }
         }
 
-        private fun PersistentEntityStoreImpl.checkIssues(expectedCount: Long) {
+        private fun PersistentEntityStoreImpl.checkIssues(expectedCount: Int) {
             executeInReadonlyTransaction {
                 val allIssues = it.getAll("Issue")
-                Assert.assertEquals(expectedCount, allIssues.size())
+                Assert.assertEquals(expectedCount.toLong(), allIssues.size())
                 allIssues.forEach { issue ->
                     Assert.assertEquals("Issue with id ${issue.id}", issue.getBlobString("description"))
                 }
@@ -78,33 +81,42 @@ class StoreReplicationTest : ReplicationBaseTest() {
 
     @Test
     fun replicate() {
+        createEncryptReplicate(port++, cipherKey)
+    }
+
+    @Test
+    fun replicateEncryptedWithDifferentKey() {
+        try {
+            createEncryptReplicate(port++, cipherKey.reversed())
+            Assert.assertTrue(false)
+        } catch (e: InvalidCipherParametersException) {
+            // norm
+        }
+    }
+
+    private fun createEncryptReplicate(port: Int, cipherKey: String) {
         val sourceLog = sourceLogDir.createLog(logFileSize, releaseLock = true) {
             cipherProvider = null
-            cipherKey = null
+            this.cipherKey = null
             cipherBasicIV = 0
             cachePageSize = 1024
         }
 
-        val sourceConfig = environmentConfigWithMetaServer()
+        val sourceConfig = environmentConfigWithMetaServer(port)
         val sourceStore = PersistentEntityStoreImpl(Environments.newInstance(sourceLog, sourceConfig), storeName).apply {
             config.maxInPlaceBlobSize = 0
         }
 
-        sourceStore.createNIssues(100)
+        val batchCount = 100
+        val iterations = 5
+
+        sourceStore.createNIssues(batchCount)
 
         val output = DirectoryEncryptListenerFactory.newListener(targetLogDir)
         ScytaleEngine(output, ChaChaStreamCipherProvider(), toBinaryKey(cipherKey), basicIV).encryptBackupable(sourceStore)
 
-        sourceStore.createNIssues(100)
-
         val targetConfig = environmentConfigEncrypted()
-
-        PersistentEntityStoreImpl(PersistentEntityStoreConfig(),
-                Environments.newInstance(targetLogDir, targetConfig), null, storeName).use {
-            it.checkIssues(100L)
-        }
-
-        val storeConfig = PersistentEntityStoreConfig().apply {
+        val storeConfig = newPersistentEntityStoreConfig {
             storeReplicator = S3Replicator(
                     metaServer = host,
                     metaPort = port,
@@ -115,9 +127,19 @@ class StoreReplicationTest : ReplicationBaseTest() {
             )
         }
 
-        PersistentEntityStoreImpl(storeConfig,
-                Environments.newInstance(targetLogDir, targetConfig), null, storeName).use {
-            it.checkIssues(200L)
+        (1..iterations).forEach { i ->
+
+            sourceStore.createNIssues(batchCount)
+
+            PersistentEntityStoreImpl(PersistentEntityStoreConfig.DEFAULT,
+                    Environments.newInstance(targetLogDir, targetConfig), null, storeName).use {
+                it.checkIssues(batchCount * i)
+            }
+
+            PersistentEntityStoreImpl(storeConfig,
+                    Environments.newInstance(targetLogDir, targetConfig), null, storeName).use {
+                it.checkIssues(batchCount * (i + 1))
+            }
         }
     }
 }
