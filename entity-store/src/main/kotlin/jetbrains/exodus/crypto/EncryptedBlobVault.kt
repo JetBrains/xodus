@@ -18,9 +18,9 @@ package jetbrains.exodus.crypto
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap
 import jetbrains.exodus.core.dataStructures.hash.LongSet
 import jetbrains.exodus.entitystore.BlobVault
-import jetbrains.exodus.entitystore.BlobVaultSizeFunction
 import jetbrains.exodus.entitystore.DiskBasedBlobVault
 import jetbrains.exodus.entitystore.FileSystemBlobVaultOld
+import jetbrains.exodus.entitystore.VaultSizeFunctions
 import jetbrains.exodus.env.Transaction
 import java.io.File
 import java.io.FileInputStream
@@ -84,8 +84,8 @@ class EncryptedBlobVault(private val decorated: FileSystemBlobVaultOld,
 
     override fun close() = decorated.close()
 
-    override fun setVaultSizeFunction(vaultSizeFunction: BlobVaultSizeFunction?) {
-        decorated.setVaultSizeFunction(vaultSizeFunction)
+    override fun setSizeFunctions(sizeFunction: VaultSizeFunctions?) {
+        decorated.setSizeFunctions(sizeFunction)
     }
 
     fun wrapOutputStream(blobHandle: Long, output: OutputStream): StreamCipherOutputStream {

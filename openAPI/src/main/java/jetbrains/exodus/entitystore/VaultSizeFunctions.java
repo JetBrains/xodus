@@ -15,7 +15,12 @@
  */
 package jetbrains.exodus.entitystore;
 
-public interface BlobVaultSizeFunction {
+import jetbrains.exodus.env.Transaction;
+import org.jetbrains.annotations.NotNull;
+
+public interface VaultSizeFunctions {
 
     long getBlobVaultSize();
+
+    long getBlobSize(final long blobHandle, @NotNull final Transaction txn);
 }

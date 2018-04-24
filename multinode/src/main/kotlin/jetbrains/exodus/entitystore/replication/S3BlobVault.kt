@@ -19,7 +19,10 @@ import jetbrains.exodus.backup.BackupStrategy
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap
 import jetbrains.exodus.core.dataStructures.hash.LongSet
 import jetbrains.exodus.crypto.EncryptedBlobVault
-import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.BlobVault
+import jetbrains.exodus.entitystore.DiskBasedBlobVault
+import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
+import jetbrains.exodus.entitystore.VaultSizeFunctions
 import jetbrains.exodus.env.Transaction
 import java.io.File
 import java.io.FileInputStream
@@ -31,7 +34,7 @@ class S3BlobVault(
         val replicator: S3Replicator
 ) : BlobVault(store.config), DiskBasedBlobVault {
 
-    private lateinit var vaultSizeFunction: BlobVaultSizeFunction
+    private lateinit var sizeFunctions: VaultSizeFunctions
     override fun getBackupStrategy(): BackupStrategy = BackupStrategy.EMPTY
 
     override fun getContent(blobHandle: Long, txn: Transaction): InputStream? {
@@ -47,7 +50,7 @@ class S3BlobVault(
     }
 
     // TODO: get the size from blobs table everywhere
-    override fun getSize(blobHandle: Long, txn: Transaction): Long = store.getBlobFileLength(blobHandle, txn) ?: 0L
+    override fun getSize(blobHandle: Long, txn: Transaction): Long = sizeFunctions.getBlobSize(blobHandle, txn)
 
     override fun getBlobKey(blobHandle: Long): String {
         return delegate.getBlobKey(blobHandle)
@@ -61,7 +64,7 @@ class S3BlobVault(
     }
 
     override fun size(): Long {
-        return vaultSizeFunction.blobVaultSize
+        return sizeFunctions.blobVaultSize
     }
 
     override fun requiresTxn(): Boolean = false
@@ -82,8 +85,8 @@ class S3BlobVault(
         delegate.close() // TODO?
     }
 
-    override fun setVaultSizeFunction(vaultSizeFunction: BlobVaultSizeFunction?) {
-        this.vaultSizeFunction = vaultSizeFunction!!
+    override fun setSizeFunctions(sizeFunction: VaultSizeFunctions?) {
+        this.sizeFunctions = sizeFunction!!
     }
 
     private fun readOnly(): Nothing = throw UnsupportedOperationException("vault is read-only")

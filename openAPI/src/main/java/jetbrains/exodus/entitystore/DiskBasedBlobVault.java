@@ -30,7 +30,7 @@ public interface DiskBasedBlobVault {
 
     String getBlobKey(long blobHandle);
 
-    void setVaultSizeFunction(@Nullable final BlobVaultSizeFunction vaultSizeFunction);
+    void setSizeFunctions(@Nullable final VaultSizeFunctions sizeFunction);
 
     @Nullable InputStream getContent(long blobHandle, @NotNull Transaction txn);
 

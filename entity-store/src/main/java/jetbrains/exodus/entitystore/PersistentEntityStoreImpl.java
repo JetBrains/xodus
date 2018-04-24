@@ -39,7 +39,6 @@ import jetbrains.exodus.env.replication.EnvironmentReplicationDelta;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.management.Statistics;
 import jetbrains.exodus.util.ByteArraySizedInputStream;
-import jetbrains.exodus.util.IOUtil;
 import jetbrains.exodus.util.LightByteArrayOutputStream;
 import jetbrains.exodus.util.UTFUtil;
 import org.jetbrains.annotations.NonNls;
@@ -214,7 +213,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             public Boolean compute(@NotNull StoreTransaction tx) {
                 final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
                 final Transaction envTxn = txn.getEnvironmentTransaction();
-                sequences = environment.openStore(SEQUENCES_STORE, StoreConfig.WITHOUT_DUPLICATES, envTxn);
+                initBasicStores(envTxn);
                 if (blobVault == null) {
                     blobVault = initBlobVault();
                 }
@@ -268,8 +267,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                                 namingRulez.getBlobsTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES);
                     }
                 });
-                blobFileLengths = environment.openStore(namingRulez.getBlobFileLengthsTable(),
-                        StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, envTxn);
                 final String internalSettingsName = namingRulez.getInternalSettingsName();
                 final Store settings = environment.openStore(internalSettingsName,
                         StoreConfig.WITHOUT_DUPLICATES, envTxn, false);
@@ -292,6 +289,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 preloadTables((PersistentStoreTransaction) txn); // pre-load tables for all entity types to avoid lazy load of the tables
             }
         });
+    }
+
+    private void initBasicStores(Transaction envTxn) {
+        sequences = environment.openStore(SEQUENCES_STORE, StoreConfig.WITHOUT_DUPLICATES, envTxn);
+        blobFileLengths = environment.openStore(namingRulez.getBlobFileLengthsTable(),
+            StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, envTxn);
     }
 
     private BlobVault initBlobVault() {
@@ -416,29 +419,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     logger.error("Redundant blob file: " + file);
                 }
             }
-            blobVault.setVaultSizeFunction(new BlobVaultSizeFunction() {
-                @Override
-                public long getBlobVaultSize() {
-                    final long blockSize = IOUtil.getBlockSize();
-                    final Environment env = environment;
-                    if (env.isOpen()) {
-                        return env.computeInReadonlyTransaction(new TransactionalComputable<Long>() {
-                            @Override
-                            public Long compute(@NotNull final Transaction txn) {
-                                long result = 0;
-                                try (Cursor cursor = blobFileLengths.openCursor(txn)) {
-                                    while (cursor.getNext()) {
-                                        final long fileLength = LongBinding.compressedEntryToLong(cursor.getValue());
-                                        result += (Math.max(fileLength, 1L) + blockSize - 1) / blockSize * blockSize;
-                                    }
-                                }
-                                return result;
-                            }
-                        });
-                    }
-                    return 0L;
-                }
-            });
+            blobVault.setSizeFunctions(new CachedBlobLengths(environment, blobFileLengths));
             return blobVault;
         } catch (IOException e) {
             throw ExodusException.toExodusException(e);
@@ -518,8 +499,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             final BlobVault vault = computeInReadonlyTransaction(new StoreTransactionalComputable<BlobVault>() {
                 @Override
                 public BlobVault compute(@NotNull StoreTransaction txn) {
-                    sequences = environment.openStore(SEQUENCES_STORE, StoreConfig.WITHOUT_DUPLICATES,
-                            ((PersistentStoreTransaction) txn).getEnvironmentTransaction());
+                    initBasicStores(((PersistentStoreTransaction) txn).getEnvironmentTransaction());
                     return initBlobVault();
                 }
             });

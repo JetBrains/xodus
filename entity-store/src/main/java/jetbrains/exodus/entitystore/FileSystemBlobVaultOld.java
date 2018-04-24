@@ -55,7 +55,7 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
     private final BlobHandleGenerator blobHandleGenerator;
     private final int version;
     @Nullable
-    private BlobVaultSizeFunction vaultSizeFunction;
+    private VaultSizeFunctions sizeFunctions;
 
     /**
      * Blob size is calculated by inspecting directory files only on first request
@@ -155,7 +155,7 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
 
     @Override
     public long getSize(long blobHandle, @NotNull Transaction txn) {
-        return getBlobLocation(blobHandle).length();
+        return sizeFunctions == null ? getBlobLocation(blobHandle).length() : sizeFunctions.getBlobSize(blobHandle, txn);
     }
 
     public boolean delete(final long blobHandle) {
@@ -238,7 +238,7 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
     public long size() {
         long result = size.get();
         if (result == UNKNOWN_SIZE) {
-            result = vaultSizeFunction == null ? calculateBlobVaultSize() : vaultSizeFunction.getBlobVaultSize();
+            result = sizeFunctions == null ? calculateBlobVaultSize() : sizeFunctions.getBlobVaultSize();
             size.set(result);
         }
         return result;
@@ -382,8 +382,8 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
     }
 
     @Override
-    public void setVaultSizeFunction(@Nullable final BlobVaultSizeFunction vaultSizeFunction) {
-        this.vaultSizeFunction = vaultSizeFunction;
+    public void setSizeFunctions(@Nullable final VaultSizeFunctions sizeFunction) {
+        this.sizeFunctions = sizeFunction;
     }
 
     final String getBlobExtension() {
