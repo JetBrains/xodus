@@ -52,6 +52,10 @@ class S3BlobVault(
         return delegate.getBlobKey(blobHandle)
     }
 
+    override fun getBlobLocation(blobHandle: Long): File {
+        return delegate.getBlobLocation(blobHandle)
+    }
+
     override fun getBlobLocation(blobHandle: Long, readonly: Boolean): File {
         if (!readonly) {
             readOnly()
