@@ -204,7 +204,7 @@ final class PersistentEntityStoreRefactorings {
                                 final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
                                 final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
                                 LinksTable links = store.getLinksTable(txn, entityTypeId);
-                                final Store allLinksIndex = links.getAllLinksIndex();
+                                Store allLinksIndex = links.getAllLinksIndex();
                                 final Transaction envTxn = txn.getEnvironmentTransaction();
                                 if (allLinksIndex.count(envTxn) > 0) {
                                     if (logger.isWarnEnabled()) {
@@ -213,6 +213,7 @@ final class PersistentEntityStoreRefactorings {
                                     envTxn.getEnvironment().truncateStore(allLinksIndex.getName(), envTxn);
                                     store.linksTables.remove(entityTypeId);
                                     links = store.getLinksTable(txn, entityTypeId);
+                                    allLinksIndex = links.getAllLinksIndex();
                                 }
                                 final Transaction readonlySnapshot = envTxn.getReadonlySnapshot();
                                 try {
