@@ -127,6 +127,7 @@ public class StoreTest extends EnvironmentTestsBase {
         assertNotNullStringValues(store, "value", "value2");
     }
 
+    @TestFor(issues = "XD-705")
     @Test
     public void testCloseCursorTwice() {
         final Store store = openStoreAutoCommit("store", StoreConfig.WITH_DUPLICATES);
@@ -135,12 +136,7 @@ public class StoreTest extends EnvironmentTestsBase {
             public void execute(@NotNull final Transaction txn) {
                 final Cursor cursor = store.openCursor(txn);
                 cursor.close();
-                TestUtil.runWithExpectedException(new Runnable() {
-                    @Override
-                    public void run() {
-                        cursor.close();
-                    }
-                }, ExodusException.class);
+                cursor.close();
             }
         });
     }

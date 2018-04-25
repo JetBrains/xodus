@@ -136,13 +136,12 @@ final class CursorImpl implements Cursor {
 
     @Override
     public void close() {
-        if (isClosed) {
-            throw new ExodusException("Cursor is already closed");
+        if (!isClosed) {
+            isClosed = true;
+            if (treeCursor != null) {
+                treeCursor.close();
+            }
         }
-        if (treeCursor != null) {
-            treeCursor.close();
-        }
-        isClosed = true;
     }
 
     @Override
