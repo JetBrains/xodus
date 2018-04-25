@@ -18,14 +18,10 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.entitystore.iterate.EntityIterableHandleBase;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.regex.Pattern;
-
 public class PersistentEntityId implements EntityId {
 
     @NotNull
     public static final PersistentEntityId EMPTY_ID = new PersistentEntityId(0, 0);
-
-    private static final Pattern ID_SPLIT_PATTERN = Pattern.compile("-");
 
     private final int entityTypeId;
     private final long entityLocalId;
@@ -108,24 +104,7 @@ public class PersistentEntityId implements EntityId {
     }
 
     public static EntityId toEntityId(@NotNull final CharSequence representation) {
-        final String[] idParts = ID_SPLIT_PATTERN.split(representation);
-        final int partsCount = idParts.length;
-        if (partsCount != 2) {
-            throw new IllegalArgumentException("Invalid structure of entity id");
-        }
-        final int entityTypeId = Integer.parseInt(idParts[0]);
-        final long entityLocalId = Long.parseLong(idParts[1]);
-        return new PersistentEntityId(entityTypeId, entityLocalId);
-    }
-
-    public static EntityId toEntityId(@NotNull final String representation, @NotNull final PersistentEntityStoreImpl store) {
-        EntityId result = store.getCachedEntityId(representation);
-        if (result != null) {
-            return result;
-        }
-        result = toEntityId(representation);
-        store.cacheEntityId(representation, result);
-        return result;
+        return EntityIdCache.getEntityId(representation);
     }
 
     @Override

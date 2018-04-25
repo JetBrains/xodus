@@ -108,7 +108,7 @@ class Interop(private val rhinoCommand: RhinoCommand,
 
     fun getEntity(id: String): Entity {
         val store = store.notNull
-        return store.getEntity(PersistentEntityId.toEntityId(id, store))
+        return store.getEntity(PersistentEntityId.toEntityId(id))
     }
 
     internal fun newLine(): Interop = output.print("\n\r").run { flushOutput() }

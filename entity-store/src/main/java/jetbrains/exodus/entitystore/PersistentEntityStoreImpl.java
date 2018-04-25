@@ -18,7 +18,6 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.*;
 import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.bindings.*;
-import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
@@ -66,7 +65,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private static final String SEQUENCES_STORE = "sequences";
     private static final long EMPTY_BLOB_HANDLE = Long.MAX_VALUE;
     private static final long IN_PLACE_BLOB_HANDLE = EMPTY_BLOB_HANDLE - 1;
-    private static final int ENTITY_ID_CACHE_SIZE = 2047;
 
     @NotNull
     private static final ByteArrayInputStream EMPTY_INPUT_STREAM = new ByteArrayInputStream(new byte[0]);
@@ -120,8 +118,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @NotNull
     private final EntityIterableCache iterableCache;
-    @NotNull
-    private final ConcurrentObjectCache<String, EntityId> entityIdCache; // this cache doesn't need snapshot isolation
     private Explainer explainer;
 
     private final DataGetter propertyDataGetter;
@@ -174,7 +170,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
         namingRulez = new StoreNamingRules(name);
         iterableCache = new EntityIterableCache(this);
-        entityIdCache = new ConcurrentObjectCache<>(ENTITY_ID_CACHE_SIZE);
         explainer = new Explainer(config.isExplainOn());
         propertyDataGetter = new PropertyDataGetter();
         linkDataGetter = config.isDebugLinkDataGetter() ? new DebugLinkDataGetter() : nonDebugLinkDataGetter;
@@ -770,15 +765,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @NotNull
     public EntityIterableCache getEntityIterableCache() {
         return iterableCache;
-    }
-
-    @Nullable
-    public EntityId getCachedEntityId(@NotNull final String representation) {
-        return entityIdCache.tryKey(representation);
-    }
-
-    public void cacheEntityId(@NotNull final String representation, @NotNull final EntityId id) {
-        entityIdCache.cacheObject(representation, id);
     }
 
     @Nullable

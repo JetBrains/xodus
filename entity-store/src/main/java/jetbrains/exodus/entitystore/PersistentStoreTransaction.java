@@ -569,7 +569,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     @Override
     @NotNull
     public EntityId toEntityId(@NotNull final String representation) {
-        return PersistentEntityId.toEntityId(representation, store);
+        return PersistentEntityId.toEntityId(representation);
     }
 
     @Override
