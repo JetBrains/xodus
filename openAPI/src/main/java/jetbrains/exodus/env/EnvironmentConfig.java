@@ -311,6 +311,15 @@ public class EnvironmentConfig extends AbstractConfig {
     public static final String ENV_TXN_DOWNGRADE_AFTER_FLUSH = "exodus.env.txn.downgradeAfterFlush";
 
     /**
+     * If is set to {@code true} then any write operation can be performed only in the thread which
+     * the transaction was created in. Default value is {@code false}.
+     * <p>Mutable at runtime: yes
+     *
+     * @see Transaction
+     */
+    public static final String ENV_TXN_SINGLE_THREAD_WRITES = "exodus.env.txn.singleThreadWrites";
+
+    /**
      * Defines the number of {@linkplain Transaction transactions} that can be started in parallel. By default it is
      * unlimited.
      * <p>Mutable at runtime: no
@@ -563,6 +572,7 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(ENV_TXN_REPLAY_TIMEOUT, 2000L),
             new Pair(ENV_TXN_REPLAY_MAX_COUNT, 2),
             new Pair(ENV_TXN_DOWNGRADE_AFTER_FLUSH, true),
+            new Pair(ENV_TXN_SINGLE_THREAD_WRITES, false),
             new Pair(ENV_MAX_PARALLEL_TXNS, Integer.MAX_VALUE),
             new Pair(ENV_MAX_PARALLEL_READONLY_TXNS, Integer.MAX_VALUE),
             new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
@@ -1314,6 +1324,32 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public EnvironmentConfig setEnvTxnDowngradeAfterFlush(final boolean downgrade) {
         return setSetting(ENV_TXN_DOWNGRADE_AFTER_FLUSH, downgrade);
+    }
+
+    /**
+     * If is set to {@code true} then any write operation can be performed only in the thread which
+     * the transaction was created in. Default value is {@code false}.
+     * <p>Mutable at runtime: yes
+     *
+     * @return {@code true} if any write operation can be performed only in the thread which
+     * the transaction was created in
+     * @see Transaction
+     */
+    public boolean getEnvTxnSingleThreadWrites() {
+        return (Boolean) getSetting(ENV_TXN_SINGLE_THREAD_WRITES);
+    }
+
+    /**
+     * If is set to {@code true} then any write operation can be performed only in the thread which
+     * the transaction was created in. Default value is {@code false}.
+     * <p>Mutable at runtime: yes
+     *
+     * @param singleThreadWrites {@code true} then any write operation can be performed only in the thread which
+     *                           the transaction was created in
+     * @return this {@code EnvironmentConfig} instance
+     */
+    public EnvironmentConfig setEnvTxnSingleThreadWrites(final boolean singleThreadWrites) {
+        return setSetting(ENV_TXN_SINGLE_THREAD_WRITES, singleThreadWrites);
     }
 
     /**

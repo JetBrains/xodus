@@ -179,6 +179,16 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
+    public boolean getEnvTxnSingleThreadWrites() {
+        return config.getEnvTxnSingleThreadWrites();
+    }
+
+    @Override
+    public void setEnvTxnSingleThreadWrites(final boolean singleThreadWrites) {
+        config.setEnvTxnSingleThreadWrites(singleThreadWrites);
+    }
+
+    @Override
     public int getEnvMaxParallelTxns() {
         return config.getEnvMaxParallelTxns();
     }

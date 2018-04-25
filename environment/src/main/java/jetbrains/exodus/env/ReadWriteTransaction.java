@@ -263,9 +263,11 @@ public class ReadWriteTransaction extends TransactionBase {
     @NotNull
     ITreeMutable getMutableTree(@NotNull final StoreImpl store) {
         checkIsFinished();
-        final Thread creatingThread = getCreatingThread();
-        if (!creatingThread.equals(Thread.currentThread())) {
-            throw new ExodusException("Can't create mutable tree in a thread different from the one which transaction was created in");
+        if (getEnvironment().getEnvironmentConfig().getEnvTxnSingleThreadWrites()) {
+            final Thread creatingThread = getCreatingThread();
+            if (!creatingThread.equals(Thread.currentThread())) {
+                throw new ExodusException("Can't create mutable tree in a thread different from the one which transaction was created in");
+            }
         }
         final int structureId = store.getStructureId();
         ITreeMutable result = mutableTrees.get(structureId);
