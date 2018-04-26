@@ -97,8 +97,10 @@ public class StatisticsItem implements SharedTimer.ExpirablePeriodicTask {
         if (total > lastAdjustedTotal) {
             final long currentTime = System.currentTimeMillis();
             synchronized (statisticsRef) {
-                if (total > lastAdjustedTotal) {
-                    mean = (mean + (((double) (((total - lastAdjustedTotal)) * 1000L)) / ((double) (currentTime - lastAdjustTime)))) / 2;
+                final long totalDelta = total - lastAdjustedTotal;
+                final long timeDelta = currentTime - lastAdjustTime;
+                if (totalDelta > 0L && timeDelta > 0L) {
+                    mean = (mean * 15 + (((double) (totalDelta * 1000L)) / ((double) (timeDelta)))) / 16;
                     lastAdjustTime = currentTime;
                     lastAdjustedTotal = total;
                 }
