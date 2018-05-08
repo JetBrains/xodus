@@ -316,12 +316,12 @@ public class EntityMetaDataImpl implements EntityMetaData {
                     for (final EntityMetaData emd : mmd.getEntitiesMetaData()) {
                         for (final AssociationEndMetaData aemd : emd.getAssociationEndsMetaData()) {
                             if (type.equals(aemd.getOppositeEntityMetaData().getType())) {
-                                collectLink(emd, aemd);
+                                collectLink(result, emd, aemd);
                             } else {
                                 // if there are references to super type
                                 Collection<String> associationEndSubtypes = aemd.getOppositeEntityMetaData().getAllSubTypes();
                                 if (associationEndSubtypes.contains(type)) {
-                                    collectLink(emd, aemd);
+                                    collectLink(result, emd, aemd);
                                 }
                             }
                         }
@@ -332,16 +332,17 @@ public class EntityMetaDataImpl implements EntityMetaData {
         }
     }
 
-    private void collectLink(EntityMetaData emd, AssociationEndMetaData aemd) {
+    private void collectLink(Map<String, Set<String>> incomingAssociations, EntityMetaData emd, AssociationEndMetaData aemd) {
         final String associationName = aemd.getName();
-        addIncomingAssociation(emd.getType(), associationName);
+        addIncomingAssociation(incomingAssociations, emd.getType(), associationName);
         //seems like we'll add them after in any case
 //        for (final String subtype : emd.getSubTypes()) {
 //            addIncomingAssociation(subtype, associationName);
 //        }
     }
 
-    private void addIncomingAssociation(@NotNull final String type, @NotNull final String associationName) {
+    private void addIncomingAssociation(@NotNull final Map<String, Set<String>> incomingAssociations,
+                                        @NotNull final String type, @NotNull final String associationName) {
         Set<String> links = incomingAssociations.get(type);
         if (links == null) {
             links = new HashSet<>();
@@ -450,8 +451,8 @@ public class EntityMetaDataImpl implements EntityMetaData {
                         result = new Ends();
                     } else {
                         result = new Ends(
-                            new HashMap<String, AssociationEndMetaData>(externalAssociationEnds.size()),
-                            new LinkedHashSetDecorator<String>());
+                                new HashMap<String, AssociationEndMetaData>(externalAssociationEnds.size()),
+                                new LinkedHashSetDecorator<String>());
                         for (final AssociationEndMetaData aemd : externalAssociationEnds) {
                             result.associationEnds.put(aemd.getName(), aemd);
                             if (aemd.getAssociationEndType() == AssociationEndType.ChildEnd) {
