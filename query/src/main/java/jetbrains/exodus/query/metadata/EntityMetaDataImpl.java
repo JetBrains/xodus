@@ -312,7 +312,7 @@ public class EntityMetaDataImpl implements EntityMetaData {
         if (incomingAssociations == null) {
             synchronized (this) {
                 if (incomingAssociations == null) {
-                    incomingAssociations = new HashMapDecorator<>();
+                    final HashMapDecorator<String, Set<String>> result = new HashMapDecorator<>();
                     for (final EntityMetaData emd : mmd.getEntitiesMetaData()) {
                         for (final AssociationEndMetaData aemd : emd.getAssociationEndsMetaData()) {
                             if (type.equals(aemd.getOppositeEntityMetaData().getType())) {
@@ -326,6 +326,7 @@ public class EntityMetaDataImpl implements EntityMetaData {
                             }
                         }
                     }
+                    this.incomingAssociations = result;
                 }
             }
         }
@@ -395,18 +396,19 @@ public class EntityMetaDataImpl implements EntityMetaData {
         if (fieldToIndexes == null) {
             synchronized (this) {
                 if (fieldToIndexes == null) {
-                    fieldToIndexes = new HashMap<>();
+                    final HashMap<String, Set<Index>> result = new HashMap<>();
                     // build prop to ownIndexes map
                     for (Index index : getIndexes()) {
                         for (IndexField f : index.getFields()) {
-                            Set<Index> fieldIndexes = fieldToIndexes.get(f.getName());
+                            Set<Index> fieldIndexes = this.fieldToIndexes.get(f.getName());
                             if (fieldIndexes == null) {
                                 fieldIndexes = new HashSet<>();
-                                fieldToIndexes.put(f.getName(), fieldIndexes);
+                                this.fieldToIndexes.put(f.getName(), fieldIndexes);
                             }
                             fieldIndexes.add(index);
                         }
                     }
+                    this.fieldToIndexes = result;
                 }
             }
         }
