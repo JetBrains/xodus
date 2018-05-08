@@ -400,10 +400,10 @@ public class EntityMetaDataImpl implements EntityMetaData {
                     // build prop to ownIndexes map
                     for (Index index : getIndexes()) {
                         for (IndexField f : index.getFields()) {
-                            Set<Index> fieldIndexes = this.fieldToIndexes.get(f.getName());
+                            Set<Index> fieldIndexes = result.get(f.getName());
                             if (fieldIndexes == null) {
                                 fieldIndexes = new HashSet<>();
-                                this.fieldToIndexes.put(f.getName(), fieldIndexes);
+                                result.put(f.getName(), fieldIndexes);
                             }
                             fieldIndexes.add(index);
                         }
