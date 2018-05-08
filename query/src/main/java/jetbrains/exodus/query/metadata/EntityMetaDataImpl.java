@@ -374,10 +374,10 @@ public class EntityMetaDataImpl implements EntityMetaData {
     }
 
     private void updateIndexes() {
-        if (indexes == null) {
-
+        if (indexes == null || fieldToIndexes == null) {
             synchronized (this) {
-                if (indexes == null) {
+                Set<Index> currentIndexes = indexes;
+                if (currentIndexes == null) {
                     final Set<Index> result = new HashSet<>();
                     // add indexes of super types
                     for (String t : getThisAndSuperTypes()) {
@@ -388,17 +388,13 @@ public class EntityMetaDataImpl implements EntityMetaData {
                             }
                         }
                     }
-                    indexes = copySet(result);
+                    currentIndexes = copySet(result);
+                    indexes = currentIndexes;
                 }
-            }
-        }
-
-        if (fieldToIndexes == null) {
-            synchronized (this) {
                 if (fieldToIndexes == null) {
                     final HashMap<String, Set<Index>> result = new HashMap<>();
                     // build prop to ownIndexes map
-                    for (Index index : indexes) {
+                    for (Index index : currentIndexes) {
                         for (IndexField f : index.getFields()) {
                             Set<Index> fieldIndexes = result.get(f.getName());
                             if (fieldIndexes == null) {
