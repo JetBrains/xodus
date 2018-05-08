@@ -45,10 +45,10 @@ public class EntityMetaDataImpl implements EntityMetaData {
     private Set<String> requiredProperties = Collections.emptySet();
     private Set<String> requiredIfProperties = Collections.emptySet();
 
-    private Map<String, Set<Index>> fieldToIndexes = null;
+    private volatile Map<String, Set<Index>> fieldToIndexes = null;
     private volatile Set<Index> indexes = null;
-    private List<String> allSubTypes = null;
-    private Map<String, Set<String>> incomingAssociations = null;
+    private volatile List<String> allSubTypes = null;
+    private volatile Map<String, Set<String>> incomingAssociations = null;
     private volatile Ends ends = null;
 
     public EntityMetaDataImpl() {
