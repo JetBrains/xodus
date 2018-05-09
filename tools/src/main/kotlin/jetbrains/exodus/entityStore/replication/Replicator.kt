@@ -31,20 +31,45 @@ import java.net.URI
 import kotlin.concurrent.thread
 
 fun main(args: Array<String>) {
-    if (args.size < 7) {
-        printUsage()
-        return
-    }
-
     val region = Region.US_WEST_2
     val factory = NettySdkHttpClientFactory.builder().build()
     val httpClient = factory.createHttpClient()
 
-    val bucket = args[0]
-    val host = args[1]
-    val port = Integer.parseInt(args[2])
-    val accessKey = args[3]
-    val secretKey = args[4]
+    var bucket: String? = null
+    var host: String? = null
+    var port = 9000
+    var accessKey: String? = null
+    var secretKey: String? = null
+    var location: String? = null
+    var persistentStoreName: String? = null
+
+    var i = 0
+    while (i < args.size) {
+        val arg = args[i]
+        if (arg.startsWith('-') && arg.length < 3) {
+            when (arg.toLowerCase().substring(1)) {
+                "b" -> bucket = args[++i]
+                "h" -> host = args[++i]
+                "p" -> port = Integer.parseInt(args[++i])
+                "a" -> accessKey = args[++i]
+                "s" -> secretKey = args[++i]
+                "l" -> location = args[++i]
+                "n" -> persistentStoreName = args[++i]
+                else -> {
+                    printUsage()
+                    System.exit(1)
+                    return
+                }
+            }
+        }
+        i++
+    }
+
+    if (bucket == null || host == null || accessKey == null || secretKey == null || location == null || persistentStoreName == null) {
+        printUsage()
+        System.exit(1)
+        return
+    }
 
     val s3 = S3AsyncClient.builder()
             .asyncHttpConfiguration(
@@ -61,10 +86,10 @@ fun main(args: Array<String>) {
             s3 = s3,
             bucket = bucket
     )
-    val environment = Reflect.openEnvironment(File(args[6]), true)
+    val environment = Reflect.openEnvironment(File(location), true)
     println("Log tip: " + environment.log.tip.highAddress)
     val config = newPersistentEntityStoreConfig { storeReplicator = replicator }
-    val store = PersistentEntityStoreImpl(config, environment, null, args[5])
+    val store = PersistentEntityStoreImpl(config, environment, null, persistentStoreName)
 
     Runtime.getRuntime().addShutdownHook(thread(start = false) {
         println("closing...")
@@ -74,5 +99,5 @@ fun main(args: Array<String>) {
 }
 
 internal fun printUsage() {
-    println("Usage: Replicator <bucket> <host> <port> <accessKey> <secretKey> <persistentStoreName> <path>")
+    println("Usage: Replicator -b <bucket> -h <host> -p <port> -a <accessKey> -s <secretKey> -n <persistentStoreName> -l <location>")
 }
