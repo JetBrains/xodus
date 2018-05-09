@@ -33,7 +33,7 @@ class S3ToWriterFileFactory(
 
         val request = getRemoteFile(expectedLength, startingLength, LogUtil.getLogFilename(address), handler)
         val queue = handler.queue
-        val subscription = handler.subscription
+        val subscription = handler.waitForSubscription(request)
 
         var written = 0L
 

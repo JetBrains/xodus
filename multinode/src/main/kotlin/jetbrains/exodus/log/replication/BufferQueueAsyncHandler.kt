@@ -24,11 +24,14 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse
 import java.nio.ByteBuffer
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicReference
 
 // async handler which exposes a queue for sequential writing of response data on caller thread
 class BufferQueueAsyncHandler : AsyncResponseHandler<GetObjectResponse, GetObjectResponse> {
     companion object {
+        private const val waitForSubscriptionInterval = 20L
         val finish: ByteBuffer = ByteBuffer.allocate(0)
     }
 
@@ -39,7 +42,20 @@ class BufferQueueAsyncHandler : AsyncResponseHandler<GetObjectResponse, GetObjec
     @Volatile
     private var response: GetObjectResponse? = null
 
-    val subscription: Subscription get() = subscriptionFuture.get()
+    fun waitForSubscription(forObject: CompletableFuture<GetObjectResponse>, maxMillis: Long = 30000): Subscription {
+        var remaining = maxMillis
+        while (remaining > 0) {
+            try {
+                return subscriptionFuture.get(waitForSubscriptionInterval, TimeUnit.MILLISECONDS)
+            } catch (t: TimeoutException) {
+                remaining -= waitForSubscriptionInterval
+                if (forObject.isCompletedExceptionally) {
+                    forObject.get()
+                }
+            }
+        }
+        throw TimeoutException()
+    }
 
     override fun responseReceived(response: GetObjectResponse) {
         this.response = response

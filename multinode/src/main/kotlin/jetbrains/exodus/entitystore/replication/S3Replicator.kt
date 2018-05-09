@@ -163,7 +163,7 @@ class S3Replicator(
 
                 val request = getRemoteFile(length = length, startingLength = 0, name = blobKey, handler = handler)
                 val queue = handler.queue
-                val subscription = handler.subscription
+                val subscription = handler.waitForSubscription(request)
 
                 var written = 0L
 
@@ -192,7 +192,7 @@ class S3Replicator(
         } catch (t: Throwable) {
             logger.warn(t) { "Cannot replicate file" }
             file.delete()
-            return null
+            throw RuntimeException(t)
         }
 
         return file

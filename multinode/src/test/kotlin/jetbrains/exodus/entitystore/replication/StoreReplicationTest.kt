@@ -86,6 +86,13 @@ open class StoreReplicationTest : ReplicationBaseTest() {
         createEncryptReplicate(port++, cipherKey)
     }
 
+    @Test(expected = RuntimeException::class)
+    fun replicateMissingBlob() {
+        createEncryptReplicate(port++, cipherKey) {
+            it.blobVault.getBlobLocation(120).delete() // spoil blob vault
+        }
+    }
+
     @Test
     fun replicateEncryptedWithDifferentKey() {
         try {
@@ -96,7 +103,7 @@ open class StoreReplicationTest : ReplicationBaseTest() {
         }
     }
 
-    private fun createEncryptReplicate(port: Int, cipherKey: String) {
+    private fun createEncryptReplicate(port: Int, cipherKey: String, doStuff: (PersistentEntityStoreImpl) -> Unit = {}) {
         val sourceLog = sourceLogDir.createLog(logFileSize, releaseLock = true) {
             cipherProvider = null
             this.cipherKey = null
@@ -133,6 +140,9 @@ open class StoreReplicationTest : ReplicationBaseTest() {
         (1..iterations).forEach { i ->
 
             sourceStore.createNIssues(batchCount)
+            if (i == 1) {
+                doStuff(sourceStore)
+            }
 
             PersistentEntityStoreImpl(PersistentEntityStoreConfig.DEFAULT,
                     Environments.newInstance(targetLogDir, targetConfig), null, storeName).use {
