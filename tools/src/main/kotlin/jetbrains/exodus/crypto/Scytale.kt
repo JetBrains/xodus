@@ -27,11 +27,11 @@ import java.io.FileOutputStream
 import java.lang.Long.parseLong
 import java.util.concurrent.atomic.AtomicLong
 import java.util.zip.GZIPOutputStream
+import kotlin.system.exitProcess
 
 fun main(args: Array<String>) {
     if (args.size < 2) {
         printUsage()
-        return
     }
     var sourcePath: String? = null
     var targetPath: String? = null
@@ -52,7 +52,6 @@ fun main(args: Array<String>) {
                 "v" -> verbose = true
                 else -> {
                     printUsage()
-                    return
                 }
             }
         } else {
@@ -73,15 +72,13 @@ fun main(args: Array<String>) {
 
     if (sourcePath == null || targetPath == null || key == null || basicIV == null) {
         printUsage()
-        return
     }
 
     val cipherId = when (type) {
         "salsa" -> SALSA20_CIPHER_ID
         "chacha" -> CHACHA_CIPHER_ID
         else -> {
-            println("Unknown cipher id: $type")
-            return
+            abort("Unknown cipher id: $type")
         }
     }
 
@@ -89,8 +86,7 @@ fun main(args: Array<String>) {
     val target = File(targetPath)
 
     if (!source.exists()) {
-        println("File not found: ${source.absolutePath}")
-        return
+        abort("File not found: ${source.absolutePath}")
     }
 
     if (target.exists()) {
@@ -98,12 +94,10 @@ fun main(args: Array<String>) {
         files?.let {
             if (files.isNotEmpty()) {
                 if (!overwrite) {
-                    println("File exists: ${target.absolutePath}")
-                    return
+                    abort("File exists: ${target.absolutePath}")
                 }
                 if (!target.deleteRecursively()) {
-                    println("File cannot be fully deleted: ${target.absolutePath}")
-                    return
+                    abort("File cannot be fully deleted: ${target.absolutePath}")
                 }
             }
         } ?: target.let {
@@ -166,7 +160,7 @@ private fun parseIV(arg: String): Long {
     return parseLong(arg)
 }
 
-private fun printUsage() {
+private fun printUsage(): Nothing {
     println("Usage: Scytale [options] source target key basicIV [cipher]")
     println("Source can be archive or folder")
     println("Cipher can be 'Salsa' or 'ChaCha', 'ChaCha' is default")
@@ -175,4 +169,10 @@ private fun printUsage() {
     println("  -v              print verbose progress messages")
     println("  -z              make target an archive")
     println("  -o              overwrite target archive or folder")
+    exitProcess(1)
+}
+
+private fun abort(message: String): Nothing {
+    println(message)
+    exitProcess(1)
 }
