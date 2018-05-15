@@ -33,6 +33,14 @@ task wrapper(type: Wrapper) {
 
 defaultTasks 'assemble'
 
+// Use nexus-staging-plugin to workaround https://issues.sonatype.org/browse/OSSRH-5454
+nexusStaging {
+    username = mavenPublishUsername
+    password = mavenPublishPassword
+    delayBetweenRetriesInMillis = 30000
+    stagingProfileId = "89ee7caa6631c4"
+}
+
 subprojects {
     apply plugin: 'license'
     apply plugin: 'java'
@@ -164,14 +172,6 @@ subprojects {
 
     afterEvaluate { project ->
         if (shouldDeploy(project)) {
-
-            nexusStaging {
-                username = mavenPublishUsername
-                password = mavenPublishPassword
-                delayBetweenRetriesInMillis = 30000
-                stagingProfileId = "89ee7caa6631c4"
-            }
-
             uploadArchives {
                 repositories {
                     mavenDeployer {
