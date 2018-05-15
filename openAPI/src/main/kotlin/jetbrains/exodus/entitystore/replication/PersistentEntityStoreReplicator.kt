@@ -23,7 +23,9 @@ import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.replication.EnvironmentReplicationDelta
 
 interface PersistentEntityStoreReplicator {
-    fun replicateEnvironment(environment: Environment): EnvironmentReplicationDelta
+    fun beginReplication(environment: Environment): EnvironmentReplicationDelta
+
+    fun replicateEnvironment(delta: EnvironmentReplicationDelta, environment: Environment)
 
     fun replicateBlobVault(delta: EnvironmentReplicationDelta, vault: BlobVault, blobsToReplicate: List<Pair<Long, Long>>)
 

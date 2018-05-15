@@ -59,7 +59,7 @@ class S3Replicator(
     @Volatile
     var sourceEncrypted: Boolean = false
 
-    override fun replicateEnvironment(environment: Environment): EnvironmentReplicationDelta {
+    override fun beginReplication(environment: Environment): EnvironmentReplicationDelta {
         if (environment !is EnvironmentImpl) {
             throw UnsupportedOperationException("Cannot replicate custom environment")
         }
@@ -76,6 +76,10 @@ class S3Replicator(
         val delta = deltaReader.readValue<ReplicationDelta>(result, 0, result.size)
         logger.info { "Replication delta acquired: $delta" }
 
+        return delta
+    }
+
+    override fun replicateEnvironment(delta: EnvironmentReplicationDelta, environment: Environment) {
         sourceEncrypted = delta.encrypted
         val targetEncrypted = environment.cipherProvider != null
 
@@ -89,8 +93,7 @@ class S3Replicator(
             S3ToWriterFileFactory(s3, bucket, requestOverrideConfig) // writer respects encryption
         }
 
-        EnvironmentAppender.appendEnvironment(environment, delta, factory)
-        return delta
+        EnvironmentAppender.appendEnvironment(environment as EnvironmentImpl, delta, factory)
     }
 
     override fun replicateBlobVault(delta: EnvironmentReplicationDelta, vault: BlobVault, blobsToReplicate: List<Pair<Long, Long>>) {
