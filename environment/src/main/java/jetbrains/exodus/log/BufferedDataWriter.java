@@ -87,7 +87,7 @@ public class BufferedDataWriter {
     }
 
     public void setHighAddress(long highAddress) {
-        allocLastPage(log.getHighPageAddress(highAddress));
+        allocLastPage(highAddress - (((int) highAddress) & (log.getCachePageSize() - 1))); // don't alloc full page
         this.highAddress = highAddress;
     }
 

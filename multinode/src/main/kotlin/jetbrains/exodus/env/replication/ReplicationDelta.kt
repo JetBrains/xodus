@@ -17,6 +17,7 @@ package jetbrains.exodus.env.replication
 
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonProperty
+import jetbrains.exodus.log.LogUtil
 import java.util.*
 
 // avoid com.fasterxml.jackson.module.kotlin.KotlinModule because it requires kotlin-reflect
@@ -60,5 +61,9 @@ data class ReplicationDelta @JsonCreator constructor(
         result = 31 * result + rootAddress.hashCode()
         result = 31 * result + Arrays.hashCode(files)
         return result
+    }
+
+    override fun toString(): String {
+        return "ReplicationDelta(id=$id, startAddress=$startAddress, highAddress=$highAddress, fileLengthBound=$fileLengthBound, files=${files.map { LogUtil.getLogFilename(it) }}, encrypted=$encrypted, metaTreeAddress=$metaTreeAddress, rootAddress=$rootAddress)"
     }
 }
