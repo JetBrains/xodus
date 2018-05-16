@@ -56,7 +56,7 @@ public abstract class TransactionBase implements Transaction {
         wasCreatedExclusive = isExclusive;
         immutableTrees = new IntHashMap<>();
         userObjects = new HashMapDecorator<>();
-        trace = (env.transactionTimeout() > 0 || env.transactionExpirationTimeout() > 0) ? new Throwable() : null;
+        trace = env.transactionTimeout() > 0 ? new Throwable() : null;
         created = System.currentTimeMillis();
         started = created;
         isFinished = false;

@@ -726,7 +726,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     private EnvironmentImpl createAndCloseEnvironment() throws IOException {
         final Pair<DataReader, DataWriter> rw = createRW();
         final EnvironmentImpl env = newEnvironmentInstance(
-            LogConfig.create(rw.getFirst(), rw.getSecond()), new EnvironmentConfig().setGcUtilizationFromScratch(true));
+            LogConfig.create(rw.getFirst(), rw.getSecond()), new EnvironmentConfig().setGcUtilizationFromScratch(true).setEnvMonitorTxnsExpirationTimeout(0));
         env.close();
         return env;
     }

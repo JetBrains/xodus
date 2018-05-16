@@ -37,10 +37,20 @@ internal class StuckTransactionMonitor(private val env: EnvironmentImpl) : Job()
             var stuckTxnCount = 0
             try {
                 env.transactionTimeout().forEachExpiredTransaction {
-                    ++stuckTxnCount
+                    val trace = it.trace
+                    if (trace != null) {
+                        val creatingThread = it.creatingThread
+                        val out = ByteArrayOutputStream()
+                        val ps = PrintStream(out)
+                        val errorHeader = "Transaction timed out: created at ${Date(it.startTime)}, thread = $creatingThread(${creatingThread.id})"
+                        ps.writer().write(errorHeader)
+                        trace.printStackTrace(ps)
+                        logger.error(errorHeader, trace)
+                        ++stuckTxnCount
+                    }
                 }
                 env.transactionExpirationTimeout().forEachExpiredTransaction {
-                    env.finishTransaction(this)
+                    env.finishTransaction(it)
                 }
             } finally {
                 this.stuckTxnCount = stuckTxnCount
@@ -53,22 +63,13 @@ internal class StuckTransactionMonitor(private val env: EnvironmentImpl) : Job()
         processor.queueIn(this, env.environmentConfig.envMonitorTxnsCheckFreq.toLong())
     }
 
-    private fun Int.forEachExpiredTransaction(callback: TransactionBase.() -> Unit) {
+    private fun Int.forEachExpiredTransaction(callback: (TransactionBase) -> Unit) {
         if (this != 0) {
             val timeBound = System.currentTimeMillis() - this
             env.forEachActiveTransaction {
                 val txn = it as TransactionBase
-                val trace = txn.trace
-                val created = txn.startTime
-                if (trace != null && created < timeBound) {
-                    val creatingThread = txn.creatingThread
-                    val out = ByteArrayOutputStream()
-                    val ps = PrintStream(out)
-                    val errorHeader = "Transaction timed out: created at ${Date(created)}, thread = $creatingThread(${creatingThread.id})"
-                    ps.writer().write(errorHeader)
-                    trace.printStackTrace(ps)
-                    logger.error(errorHeader, trace)
-                    callback.invoke(txn)
+                if (txn.startTime < timeBound) {
+                    callback(it)
                 }
             }
         }
