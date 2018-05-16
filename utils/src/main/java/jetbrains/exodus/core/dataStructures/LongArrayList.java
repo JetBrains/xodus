@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.core.dataStructures;
 
+import java.util.Arrays;
+
 public class LongArrayList implements Cloneable {
 
     private long[] data;
@@ -93,6 +95,10 @@ public class LongArrayList implements Cloneable {
             if (element == data[i]) return i;
         }
         return -1;
+    }
+
+    public void sort() {
+        Arrays.sort(data, 0, size);
     }
 
     @Override

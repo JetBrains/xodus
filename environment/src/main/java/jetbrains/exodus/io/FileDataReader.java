@@ -16,6 +16,7 @@
 package jetbrains.exodus.io;
 
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.env.EnvironmentConfig;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
@@ -28,10 +29,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 @SuppressWarnings({"PackageVisibleField", "ClassEscapesDefinedScope"})
 public class FileDataReader implements DataReader {
@@ -71,13 +69,33 @@ public class FileDataReader implements DataReader {
 
     @Override
     public Iterable<Block> getBlocks() {
-        final File[] files = LogUtil.listFiles(dir);
-        final ArrayList<Block> result = new ArrayList<>(files.length);
-        for (final File file : files) {
-            result.add(getBlock(LogUtil.getAddress(file.getName())));
-        }
-        sortBlocks(result);
-        return result;
+        final LongArrayList files = LogUtil.listFileAddresses(dir);
+        files.sort();
+        return new Iterable<Block>() {
+            @NotNull
+            @Override
+            public Iterator<Block> iterator() {
+                return new Iterator<Block>() {
+                    int index = 0;
+                    final int size = files.size();
+
+                    @Override
+                    public boolean hasNext() {
+                        return index < size;
+                    }
+
+                    @Override
+                    public Block next() {
+                        return getBlock(files.get(index++));
+                    }
+
+                    @Override
+                    public void remove() {
+                        throw new UnsupportedOperationException();
+                    }
+                };
+            }
+        };
     }
 
     @Override

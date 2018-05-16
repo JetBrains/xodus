@@ -16,6 +16,7 @@
 package jetbrains.exodus.log;
 
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.util.IOUtil;
 import org.jetbrains.annotations.NotNull;
@@ -31,9 +32,7 @@ public final class LogUtil {
     public static final int LOG_FILE_EXTENSION_LENGTH = 3;
     public static final int LOG_FILE_NAME_WITH_EXT_LENGTH = LOG_FILE_NAME_LENGTH + LOG_FILE_EXTENSION_LENGTH;
     public static final String LOG_FILE_EXTENSION = ".xd";
-    private static final char[] LOG_FILE_EXTENSION_CHARS = LOG_FILE_EXTENSION.toCharArray();
-
-    private static final FilenameFilter LOG_FILE_NAME_FILTER = new FilenameFilter() {
+    public static final FilenameFilter LOG_FILE_NAME_FILTER = new FilenameFilter() {
         @Override
         public boolean accept(File dir, String name) {
             return name.length() == LogUtil.LOG_FILE_NAME_WITH_EXT_LENGTH &&
@@ -41,6 +40,7 @@ public final class LogUtil {
         }
     };
 
+    private static final char[] LOG_FILE_EXTENSION_CHARS = LOG_FILE_EXTENSION.toCharArray();
     private static final char[] LOG_FILE_NAME_ALPHABET = "0123456789abcdefghijklmnopqrstuv".toCharArray();
     private static final IntHashMap<Integer> ALPHA_INDEXES;
 
@@ -106,6 +106,16 @@ public final class LogUtil {
     @NotNull
     public static File[] listFiles(@NotNull final File directory) {
         return IOUtil.listFiles(directory, LOG_FILE_NAME_FILTER);
+    }
+
+    @NotNull
+    public static LongArrayList listFileAddresses(@NotNull final File directory) {
+        final File[] files = IOUtil.listFiles(directory, LOG_FILE_NAME_FILTER);
+        final LongArrayList result = new LongArrayList(files.length);
+        for (final File file : files) {
+            result.add(getAddress(file.getName()));
+        }
+        return result;
     }
 
     public static String getWrongAddressErrorMessage(final long address, final long fileSize /* in Kb */) {
