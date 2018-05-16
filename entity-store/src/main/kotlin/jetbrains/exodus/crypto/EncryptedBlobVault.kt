@@ -43,6 +43,10 @@ class EncryptedBlobVault(private val decorated: FileSystemBlobVaultOld,
         }
     }
 
+    override fun getBlobLocation(blobHandle: Long): File {
+        return decorated.getBlobLocation(blobHandle)
+    }
+
     override fun getBlobLocation(blobHandle: Long, readonly: Boolean): File {
         return decorated.getBlobLocation(blobHandle, readonly)
     }
