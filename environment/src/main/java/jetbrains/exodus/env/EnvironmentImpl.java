@@ -139,7 +139,7 @@ public class EnvironmentImpl implements Environment {
         throwableOnCommit = null;
         throwableOnClose = null;
 
-        stuckTxnMonitor = (transactionTimeout() > 0) ? new StuckTransactionMonitor(this) : null;
+        stuckTxnMonitor = (transactionTimeout() > 0 || transactionExpirationTimeout() > 0) ? new StuckTransactionMonitor(this) : null;
 
         final LogConfig logConfig = log.getConfig();
         streamCipherProvider = logConfig.getCipherProvider();
@@ -587,6 +587,13 @@ public class EnvironmentImpl implements Environment {
      */
     int transactionTimeout() {
         return ec.getEnvMonitorTxnsTimeout();
+    }
+
+    /**
+     * @return expiration timeout for a transaction in milliseconds, or 0 if no timeout is configured
+     */
+    int transactionExpirationTimeout() {
+        return ec.getEnvMonitorTxnsExpirationTimeout();
     }
 
     /**

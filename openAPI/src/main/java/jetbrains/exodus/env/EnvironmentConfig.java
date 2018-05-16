@@ -25,6 +25,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Specifies settings of {@linkplain Environment}. Default settings are specified by {@linkplain #DEFAULT} which
@@ -354,6 +355,19 @@ public class EnvironmentConfig extends AbstractConfig {
     public static final String ENV_MONITOR_TXNS_TIMEOUT = "exodus.env.monitorTxns.timeout";
 
     /**
+     * Defines {@linkplain Transaction} expiration timeout in milliseconds. If transaction doesn't finish in this timeout then
+     * it is forced to be finished. Default value is {@code 8} hours. {@code 0} value means that no expiration for a
+     * {@linkplain Transaction} is defined. In that case, no monitor of stuck
+     * transactions is started. Otherwise it is started for each {@linkplain Environment}, though consuming only a
+     * single {@linkplain Thread} amongst all environments created within a single class loader.
+     * <p>Mutable at runtime: no
+     *
+     * @see Transaction
+     * @see #ENV_MONITOR_TXNS_CHECK_FREQ
+     */
+    public static final String ENV_MONITOR_TXNS_EXPIRATION_TIMEOUT = "exodus.env.monitorTxns.expirationTimeout";
+
+    /**
      * If {@linkplain #ENV_MONITOR_TXNS_TIMEOUT} is non-zero then stuck transactions monitor starts and checks
      * {@linkplain Environment}'s transactions with this frequency (period) specified in milliseconds.
      * Default value is {@code 60000}, one minute.
@@ -576,6 +590,7 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(ENV_MAX_PARALLEL_TXNS, Integer.MAX_VALUE),
             new Pair(ENV_MAX_PARALLEL_READONLY_TXNS, Integer.MAX_VALUE),
             new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
+            new Pair(ENV_MONITOR_TXNS_EXPIRATION_TIMEOUT, (int) TimeUnit.HOURS.toMillis(8)),
             new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
             new Pair(ENV_GATHER_STATISTICS, true),
             new Pair(TREE_MAX_PAGE_SIZE, 128),
@@ -1437,6 +1452,42 @@ public class EnvironmentConfig extends AbstractConfig {
     }
 
     /**
+     * Defines {@linkplain Transaction} expiration timeout in milliseconds. If transaction doesn't finish in this timeout then
+     * it is forced to be finished. Default value is {@code 8} hours. {@code 0} value means that no expiration for a
+     * {@linkplain Transaction} is defined. Otherwise it is started for each {@linkplain Environment}, though consuming only a
+     * single {@linkplain Thread} amongst all environments created within a single class loader.
+     * <p>Mutable at runtime: no
+     *
+     * @return expiration timeout of a {@linkplain Transaction} in milliseconds
+     * @see #getEnvMonitorTxnsCheckFreq()
+     */
+    public int getEnvMonitorTxnsExpirationTimeout() {
+        return (Integer) getSetting(ENV_MONITOR_TXNS_EXPIRATION_TIMEOUT);
+    }
+
+    /**
+     * Defines {@linkplain Transaction} expiration timeout in milliseconds. If transaction doesn't finish in this timeout then
+     * it is forced to be finished. Default value is {@code 8} hours. {@code 0} value means that no expiration for a
+     * {@linkplain Transaction} is defined. Otherwise it is started for each {@linkplain Environment}, though consuming only a
+     * single {@linkplain Thread} amongst all environments created within a single class loader.
+     * <p>Mutable at runtime: no
+     *
+     * @param timeout timeout of a {@linkplain Transaction} in milliseconds
+     * @return this {@code EnvironmentConfig} instance
+     * @see #setEnvMonitorTxnsCheckFreq(int)
+     */
+    public EnvironmentConfig setEnvMonitorTxnsExpirationTimeout(final int timeout) {
+        if (timeout != 0 && timeout < 1000) {
+            throw new InvalidSettingException("Transaction timeout should be greater than a second");
+        }
+        setSetting(ENV_MONITOR_TXNS_EXPIRATION_TIMEOUT, timeout);
+        if (timeout > 0 && timeout < getEnvMonitorTxnsCheckFreq()) {
+            setEnvMonitorTxnsCheckFreq(timeout);
+        }
+        return this;
+    }
+
+    /**
      * If {@linkplain #ENV_MONITOR_TXNS_TIMEOUT} is non-zero then stuck transactions monitor starts and checks
      * {@linkplain Environment}'s transactions with this frequency (period) specified in milliseconds.
      * Default value is {@code 60000}, one minute.
@@ -1458,6 +1509,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * @param freq frequency (period) in milliseconds of checking stuck transactions
      * @return this {@code EnvironmentConfig} instance
      * @see #setEnvMonitorTxnsTimeout(int)
+     * @see #setEnvMonitorTxnsExpirationTimeout(int)
      */
     public EnvironmentConfig setEnvMonitorTxnsCheckFreq(final int freq) {
         return setSetting(ENV_MONITOR_TXNS_CHECK_FREQ, freq);

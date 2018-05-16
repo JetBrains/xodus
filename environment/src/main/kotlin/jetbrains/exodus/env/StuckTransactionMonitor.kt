@@ -36,24 +36,11 @@ internal class StuckTransactionMonitor(private val env: EnvironmentImpl) : Job()
         if (env.isOpen) {
             var stuckTxnCount = 0
             try {
-                val transactionTimeout = env.transactionTimeout()
-                if (transactionTimeout != 0) {
-                    val creationTimeBound = System.currentTimeMillis() - transactionTimeout
-                    env.forEachActiveTransaction {
-                        val txn = it as TransactionBase
-                        val trace = txn.trace
-                        val created = txn.startTime
-                        if (trace != null && created < creationTimeBound) {
-                            val creatingThread = txn.creatingThread
-                            val out = ByteArrayOutputStream()
-                            val ps = PrintStream(out)
-                            val errorHeader = "Transaction timed out: created at ${Date(created)}, thread = $creatingThread(${creatingThread.id})"
-                            ps.writer().write(errorHeader)
-                            trace.printStackTrace(ps)
-                            logger.error(errorHeader, trace)
-                            ++stuckTxnCount
-                        }
-                    }
+                env.transactionTimeout().forEachExpiredTransaction {
+                    ++stuckTxnCount
+                }
+                env.transactionExpirationTimeout().forEachExpiredTransaction {
+                    env.finishTransaction(this)
                 }
             } finally {
                 this.stuckTxnCount = stuckTxnCount
@@ -64,6 +51,27 @@ internal class StuckTransactionMonitor(private val env: EnvironmentImpl) : Job()
 
     private fun queueThis() {
         processor.queueIn(this, env.environmentConfig.envMonitorTxnsCheckFreq.toLong())
+    }
+
+    private fun Int.forEachExpiredTransaction(callback: TransactionBase.() -> Unit) {
+        if (this != 0) {
+            val timeBound = System.currentTimeMillis() - this
+            env.forEachActiveTransaction {
+                val txn = it as TransactionBase
+                val trace = txn.trace
+                val created = txn.startTime
+                if (trace != null && created < timeBound) {
+                    val creatingThread = txn.creatingThread
+                    val out = ByteArrayOutputStream()
+                    val ps = PrintStream(out)
+                    val errorHeader = "Transaction timed out: created at ${Date(created)}, thread = $creatingThread(${creatingThread.id})"
+                    ps.writer().write(errorHeader)
+                    trace.printStackTrace(ps)
+                    logger.error(errorHeader, trace)
+                    callback.invoke(txn)
+                }
+            }
+        }
     }
 
     companion object : KLogging()
