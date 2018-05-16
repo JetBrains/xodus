@@ -18,7 +18,6 @@ package jetbrains.exodus.io.inMemory
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.DataReader
-import jetbrains.exodus.io.FileDataReader
 import jetbrains.exodus.io.RemoveBlockType
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogUtil
@@ -28,10 +27,12 @@ import org.jetbrains.annotations.NotNull
 open class MemoryDataReader(private val memory: Memory) : DataReader {
     companion object : KLogging()
 
+    private val memoryBlocks get() = memory.allBlocks.asSequence()
+
     override fun getBlocks(): Iterable<Block> {
-        val result = memory.allBlocks.asSequence().map { MemoryBlock(it) }.toList()
-        FileDataReader.sortBlocks(result)
-        return result
+        return memoryBlocks.sortedBy {
+            it.address
+        }.map { MemoryBlock(it) }.asIterable()
     }
 
     override fun removeBlock(blockAddress: Long, @NotNull rbt: RemoveBlockType) {

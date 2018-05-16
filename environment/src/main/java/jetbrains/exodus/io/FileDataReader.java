@@ -37,14 +37,7 @@ public class FileDataReader implements DataReader {
     private static final Logger logger = LoggerFactory.getLogger(FileDataReader.class);
 
     private static final String DELETED_FILE_EXTENSION = ".del";
-
-    private static final Comparator<Block> BLOCK_COMPARATOR = new Comparator<Block>() {
-        @Override
-        public int compare(Block o1, Block o2) {
-            return Long.compare(o1.getAddress(), o2.getAddress());
-        }
-    };
-
+    
     @NotNull
     private final File dir;
     private final boolean useNio;
@@ -166,10 +159,6 @@ public class FileDataReader implements DataReader {
     @Override
     public FileBlock getBlock(final long address) {
         return new FileBlock(address);
-    }
-
-    public static void sortBlocks(List<Block> result) {
-        Collections.sort(result, BLOCK_COMPARATOR);
     }
 
     private void removeFileFromFileCache(@NotNull final File file) {
