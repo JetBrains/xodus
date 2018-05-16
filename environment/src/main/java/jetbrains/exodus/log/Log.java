@@ -168,14 +168,19 @@ public final class Log implements Closeable {
     }
 
     private void checkLogConsistency(LogFileSet.Mutable fileSetMutable) {
-        final Block[] blocks = reader.getBlocks();
-        for (int i = 0; i < blocks.length; ++i) {
-            final Block block = blocks[i];
+        final Iterator<Block> blockIterator = reader.getBlocks().iterator();
+        if (!blockIterator.hasNext()) {
+            return;
+        }
+        boolean hasNext;
+        do {
+            final Block block = blockIterator.next();
             final long address = block.getAddress();
             final long blockLength = block.length();
             String clearLogReason = null;
             // if it is not the last file and its size is not as expected
-            if (blockLength > fileLengthBound || (i < blocks.length - 1 && blockLength != fileLengthBound)) {
+            hasNext = blockIterator.hasNext();
+            if (blockLength > fileLengthBound || (hasNext && blockLength != fileLengthBound)) {
                 clearLogReason = "Unexpected file length" + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound);
             }
             // if the file address is not a multiple of fileLengthBound
@@ -197,7 +202,7 @@ public final class Log implements Closeable {
                 break;
             }
             fileSetMutable.add(address);
-        }
+        } while (hasNext);
     }
 
     @NotNull

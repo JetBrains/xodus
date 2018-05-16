@@ -28,8 +28,10 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
 
 @SuppressWarnings({"PackageVisibleField", "ClassEscapesDefinedScope"})
 public class FileDataReader implements DataReader {
@@ -37,6 +39,13 @@ public class FileDataReader implements DataReader {
     private static final Logger logger = LoggerFactory.getLogger(FileDataReader.class);
 
     private static final String DELETED_FILE_EXTENSION = ".del";
+
+    private static final Comparator<Block> BLOCK_COMPARATOR = new Comparator<Block>() {
+        @Override
+        public int compare(Block o1, Block o2) {
+            return Long.compare(o1.getAddress(), o2.getAddress());
+        }
+    };
 
     @NotNull
     private final File dir;
@@ -61,11 +70,11 @@ public class FileDataReader implements DataReader {
     }
 
     @Override
-    public Block[] getBlocks() {
+    public Iterable<Block> getBlocks() {
         final File[] files = LogUtil.listFiles(dir);
-        final Block[] result = new Block[files.length];
+        final ArrayList<Block> result = new ArrayList<>(files.length);
         for (int i = 0; i < files.length; ++i) {
-            result[i] = getBlock(LogUtil.getAddress(files[i].getName()));
+            result.set(i, getBlock(LogUtil.getAddress(files[i].getName())));
         }
         sortBlocks(result);
         return result;
@@ -141,19 +150,8 @@ public class FileDataReader implements DataReader {
         return new FileBlock(address);
     }
 
-    public static void sortBlocks(Block[] result) {
-        Arrays.sort(result, new Comparator<Block>() {
-            @Override
-            public int compare(Block o1, Block o2) {
-                if (o1.getAddress() < o2.getAddress()) {
-                    return -1;
-                }
-                if (o1.getAddress() > o2.getAddress()) {
-                    return 1;
-                }
-                return 0;
-            }
-        });
+    public static void sortBlocks(List<Block> result) {
+        Collections.sort(result, BLOCK_COMPARATOR);
     }
 
     private void removeFileFromFileCache(@NotNull final File file) {
@@ -170,7 +168,7 @@ public class FileDataReader implements DataReader {
     private static boolean renameFile(@NotNull final File file) {
         final String name = file.getName();
         return file.renameTo(new File(file.getParent(),
-            name.substring(0, name.indexOf(LogUtil.LOG_FILE_EXTENSION)) + DELETED_FILE_EXTENSION));
+                name.substring(0, name.indexOf(LogUtil.LOG_FILE_EXTENSION)) + DELETED_FILE_EXTENSION));
     }
 
     private static void setWritable(@NotNull final File file) {
@@ -199,7 +197,7 @@ public class FileDataReader implements DataReader {
                 try (SharedRandomAccessFile f = SharedOpenFilesCache.getInstance().getCachedFile(this)) {
                     if (useNio &&
                             /* only read-only (immutable) files can be mapped */
-                        ((log != null && log.isImmutableFile(address)) || (log == null && !canWrite()))) {
+                            ((log != null && log.isImmutableFile(address)) || (log == null && !canWrite()))) {
                         try {
                             try (SharedMappedByteBuffer mappedBuffer = SharedMappedFilesCache.getInstance().getFileBuffer(f)) {
                                 final ByteBuffer buffer = mappedBuffer.getBuffer();

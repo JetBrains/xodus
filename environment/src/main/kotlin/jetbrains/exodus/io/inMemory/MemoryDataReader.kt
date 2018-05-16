@@ -28,8 +28,8 @@ import org.jetbrains.annotations.NotNull
 open class MemoryDataReader(private val memory: Memory) : DataReader {
     companion object : KLogging()
 
-    override fun getBlocks(): Array<Block> {
-        val result = memory.allBlocks.asSequence().map { MemoryBlock(it) }.toList().toTypedArray<Block>()
+    override fun getBlocks(): Iterable<Block> {
+        val result = memory.allBlocks.asSequence().map { MemoryBlock(it) }.toList()
         FileDataReader.sortBlocks(result)
         return result
     }

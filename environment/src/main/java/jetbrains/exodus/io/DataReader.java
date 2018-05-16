@@ -27,7 +27,7 @@ public interface DataReader {
     /**
      * @return array of blocks sorted by address.
      */
-    Block[] getBlocks();
+    Iterable<Block> getBlocks();
 
     void removeBlock(long blockAddress, @NotNull RemoveBlockType rbt);
 
