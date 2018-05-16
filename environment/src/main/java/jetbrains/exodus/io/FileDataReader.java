@@ -73,8 +73,8 @@ public class FileDataReader implements DataReader {
     public Iterable<Block> getBlocks() {
         final File[] files = LogUtil.listFiles(dir);
         final ArrayList<Block> result = new ArrayList<>(files.length);
-        for (int i = 0; i < files.length; ++i) {
-            result.set(i, getBlock(LogUtil.getAddress(files[i].getName())));
+        for (final File file : files) {
+            result.add(getBlock(LogUtil.getAddress(file.getName())));
         }
         sortBlocks(result);
         return result;
