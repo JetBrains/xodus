@@ -40,7 +40,7 @@ public final class SharedOpenFilesCache {
         cache = new ObjectCache<>(openFiles);
     }
 
-    static void setSize(final int cacheSize) {
+    public static void setSize(final int cacheSize) {
         if (cacheSize <= 0) {
             throw new IllegalArgumentException("Cache size must be a positive integer value");
         }

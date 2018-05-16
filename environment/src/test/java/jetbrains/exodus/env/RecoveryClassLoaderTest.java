@@ -83,7 +83,7 @@ public class RecoveryClassLoaderTest {
     private static final Runnable OPEN_ENVIRONMENT = new Runnable() {
         @Override
         public void run() {
-            env = Environments.newInstance(cfg = LogConfig.create(new FileDataReader(testsDirectory[0], 16), new FileDataWriter(testsDirectory[0])));
+            env = Environments.newInstance(cfg = LogConfig.create(new FileDataReader(testsDirectory[0]), new FileDataWriter(testsDirectory[0])));
         }
     };
 

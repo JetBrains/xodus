@@ -63,7 +63,7 @@ class LogTestsBase {
     }
 
     protected Pair<DataReader, DataWriter> createLogRW() {
-        return new Pair<DataReader, DataWriter>(new FileDataReader(logDirectory, 16), new FileDataWriter(logDirectory));
+        return new Pair<DataReader, DataWriter>(new FileDataReader(logDirectory), new FileDataWriter(logDirectory));
     }
 
     void initLog(final long fileSize) {

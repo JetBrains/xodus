@@ -17,7 +17,6 @@ package jetbrains.exodus.io;
 
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
-import jetbrains.exodus.env.EnvironmentConfig;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.util.SharedRandomAccessFile;
@@ -29,7 +28,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.Iterator;
 
 @SuppressWarnings({"PackageVisibleField", "ClassEscapesDefinedScope"})
 public class FileDataReader implements DataReader {
@@ -40,24 +39,12 @@ public class FileDataReader implements DataReader {
 
     @NotNull
     private final File dir;
-    private final boolean useNio;
+    private boolean useNio;
     @Nullable
     private Log log;
 
-    public FileDataReader(@NotNull final File dir, final int openFiles) {
-        this(dir, openFiles, true, EnvironmentConfig.DEFAULT.getLogCacheFreePhysicalMemoryThreshold());
-    }
-
-    public FileDataReader(@NotNull final File dir,
-                          final int openFiles,
-                          final boolean useNio,
-                          final long freePhysicalMemoryThreshold) {
+    public FileDataReader(@NotNull final File dir) {
         this.dir = dir;
-        this.useNio = useNio;
-        SharedOpenFilesCache.setSize(openFiles);
-        if (useNio) {
-            SharedMappedFilesCache.createInstance(freePhysicalMemoryThreshold);
-        }
     }
 
     @Override
@@ -129,9 +116,13 @@ public class FileDataReader implements DataReader {
         }
     }
 
-    @Override
     public void setLog(@NotNull Log log) {
         this.log = log;
+    }
+
+    public void useNio(final long freePhysicalMemoryThreshold) {
+        useNio = true;
+        SharedMappedFilesCache.createInstance(freePhysicalMemoryThreshold);
     }
 
     @Override
@@ -187,7 +178,7 @@ public class FileDataReader implements DataReader {
     private static boolean renameFile(@NotNull final File file) {
         final String name = file.getName();
         return file.renameTo(new File(file.getParent(),
-                name.substring(0, name.indexOf(LogUtil.LOG_FILE_EXTENSION)) + DELETED_FILE_EXTENSION));
+            name.substring(0, name.indexOf(LogUtil.LOG_FILE_EXTENSION)) + DELETED_FILE_EXTENSION));
     }
 
     private static void setWritable(@NotNull final File file) {
@@ -215,8 +206,8 @@ public class FileDataReader implements DataReader {
             try {
                 try (SharedRandomAccessFile f = SharedOpenFilesCache.getInstance().getCachedFile(this)) {
                     if (useNio &&
-                            /* only read-only (immutable) files can be mapped */
-                            ((log != null && log.isImmutableFile(address)) || (log == null && !canWrite()))) {
+                        /* only read-only (immutable) files can be mapped */
+                        ((log != null && log.isImmutableFile(address)) || (log == null && !canWrite()))) {
                         try {
                             try (SharedMappedByteBuffer mappedBuffer = SharedMappedFilesCache.getInstance().getFileBuffer(f)) {
                                 final ByteBuffer buffer = mappedBuffer.getBuffer();

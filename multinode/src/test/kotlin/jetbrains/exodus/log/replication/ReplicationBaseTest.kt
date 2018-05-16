@@ -21,6 +21,7 @@ import jetbrains.exodus.TestUtil
 import jetbrains.exodus.env.replication.ReplicationDelta
 import jetbrains.exodus.io.FileDataReader
 import jetbrains.exodus.io.FileDataWriter
+import jetbrains.exodus.io.SharedOpenFilesCache
 import jetbrains.exodus.log.*
 import jetbrains.exodus.util.IOUtil
 import kotlinx.coroutines.experimental.future.await
@@ -140,7 +141,9 @@ abstract class ReplicationBaseTest {
         }
     }
 
-    protected fun File.createLogRW() = Pair(FileDataReader(this, openFiles), FileDataWriter(this))
+    protected fun File.createLogRW() = Pair(FileDataReader(this), FileDataWriter(this)).apply {
+        SharedOpenFilesCache.setSize(openFiles)
+    }
 
     protected fun newTmpFile(): File {
         return File(TestUtil.createTempDir(), bucket).also {
@@ -201,7 +204,7 @@ abstract class ReplicationBaseTest {
     fun writeToLog(sourceLog: Log, count: Long, startIndex: Long = 0) {
         sourceLog.beginWrite()
         for (i in startIndex until count + startIndex) {
-            sourceLog.writeData(CompressedUnsignedLongByteIterable.getIterable(i.toLong()))
+            sourceLog.writeData(CompressedUnsignedLongByteIterable.getIterable(i))
         }
         sourceLog.flush()
         sourceLog.endWrite()

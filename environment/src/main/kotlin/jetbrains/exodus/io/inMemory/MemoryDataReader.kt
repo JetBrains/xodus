@@ -19,7 +19,6 @@ import jetbrains.exodus.ExodusException
 import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.DataReader
 import jetbrains.exodus.io.RemoveBlockType
-import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogUtil
 import mu.KLogging
 import org.jetbrains.annotations.NotNull
@@ -61,10 +60,6 @@ open class MemoryDataReader(private val memory: Memory) : DataReader {
 
     override fun close() {
         // nothing to do
-    }
-
-    override fun setLog(@NotNull log: Log) {
-        // we don't need Log here
     }
 
     override fun getLocation(): String {

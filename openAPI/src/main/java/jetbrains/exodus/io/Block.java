@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.io;
 
+// TODO: document
 public interface Block {
 
     long getAddress();

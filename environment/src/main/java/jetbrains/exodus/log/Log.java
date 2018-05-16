@@ -21,10 +21,7 @@ import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import jetbrains.exodus.crypto.EnvKryptKt;
 import jetbrains.exodus.crypto.InvalidCipherParametersException;
 import jetbrains.exodus.crypto.StreamCipherProvider;
-import jetbrains.exodus.io.Block;
-import jetbrains.exodus.io.DataReader;
-import jetbrains.exodus.io.DataWriter;
-import jetbrains.exodus.io.RemoveBlockType;
+import jetbrains.exodus.io.*;
 import jetbrains.exodus.util.DeferredIO;
 import jetbrains.exodus.util.IdGenerator;
 import org.jetbrains.annotations.NotNull;
@@ -98,7 +95,9 @@ public final class Log implements Closeable {
         fileLengthBound = fileLength;
         final LogFileSet.Mutable fileSetMutable = new LogFileSet.Immutable(fileLength).beginWrite();
         reader = config.getReader();
-        reader.setLog(this);
+        if (reader instanceof FileDataReader) {
+            ((FileDataReader) reader).setLog(this);
+        }
         location = reader.getLocation();
 
         checkLogConsistency(fileSetMutable);

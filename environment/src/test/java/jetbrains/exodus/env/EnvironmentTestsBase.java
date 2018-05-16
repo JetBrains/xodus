@@ -136,7 +136,7 @@ public class EnvironmentTestsBase {
             throw new IOException("Failed to create directory for tests.");
         }
         return new Pair<DataReader, DataWriter>(
-            new FileDataReader(testsDirectory, 16),
+            new FileDataReader(testsDirectory),
             new FileDataWriter(testsDirectory)
         );
     }

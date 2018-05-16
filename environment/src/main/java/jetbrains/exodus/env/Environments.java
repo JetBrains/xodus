@@ -17,6 +17,7 @@ package jetbrains.exodus.env;
 
 import jetbrains.exodus.crypto.KryptKt;
 import jetbrains.exodus.entitystore.MetaServer;
+import jetbrains.exodus.io.SharedOpenFilesCache;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogConfig;
 import org.jetbrains.annotations.NotNull;
@@ -133,7 +134,7 @@ public final class Environments {
 
     @NotNull
     public static Log newLogInstance(@NotNull final LogConfig config) {
-        // In order to avoid XD-96, we need to load the DatabaseRoot class before creating Log instance
+        SharedOpenFilesCache.setSize(config.getCacheOpenFilesCount());
         return new Log(config);
     }
 

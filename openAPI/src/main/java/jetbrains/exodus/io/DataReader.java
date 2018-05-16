@@ -15,9 +15,9 @@
  */
 package jetbrains.exodus.io;
 
-import jetbrains.exodus.log.Log;
 import org.jetbrains.annotations.NotNull;
 
+// TODO: document
 public interface DataReader {
 
     String getLocation();
@@ -38,6 +38,4 @@ public interface DataReader {
     void clear();
 
     void close();
-
-    void setLog(@NotNull final Log log);
 }

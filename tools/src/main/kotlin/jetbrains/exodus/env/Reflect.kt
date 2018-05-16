@@ -199,7 +199,7 @@ class Reflect(directory: File) {
             val pageSize = if (maxFileSize % DEFAULT_PAGE_SIZE == 0L || filesLength == 1) DEFAULT_PAGE_SIZE else LogUtil.LOG_BLOCK_ALIGNMENT
             logger.info { "Computed page size: $pageSize" }
 
-            val reader = FileDataReader(directory, 16)
+            val reader = FileDataReader(directory)
             val writer = FileDataWriter(directory)
             val config = newEnvironmentConfig {
                 logCachePageSize = pageSize

@@ -115,8 +115,11 @@ public class LogConfig {
 
     public DataReader getReader() {
         if (reader == null) {
-            reader = new FileDataReader(checkDirectory(dir),
-                    getCacheOpenFilesCount(), getCacheUseNio(), getCacheFreePhysicalMemoryThreshold());
+            final FileDataReader reader = new FileDataReader(checkDirectory(dir));
+            if (getCacheUseNio()) {
+                reader.useNio(getCacheFreePhysicalMemoryThreshold());
+            }
+            this.reader = reader;
         }
         return reader;
     }

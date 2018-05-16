@@ -704,7 +704,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             subfolders.put(subfolder, child);
         }
         return new Pair<DataReader, DataWriter>(
-            new FileDataReader(child, 16),
+            new FileDataReader(child),
             new FileDataWriter(child)
         );
     }

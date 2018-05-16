@@ -19,6 +19,7 @@ import jetbrains.exodus.ExodusException;
 
 import java.io.Closeable;
 
+// TODO: document
 public interface DataWriter extends Closeable {
 
     boolean isOpen();
