@@ -13,159 +13,132 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.io.inMemory;
+package jetbrains.exodus.io.inMemory
 
-import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.core.dataStructures.LongObjectCache;
-import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
-import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
-import jetbrains.exodus.log.LogUtil;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import jetbrains.exodus.ExodusException
+import jetbrains.exodus.core.dataStructures.LongObjectCache
+import jetbrains.exodus.core.dataStructures.hash.LongHashMap
+import jetbrains.exodus.log.LogUtil
+import java.io.File
+import java.io.IOException
+import java.io.RandomAccessFile
 
-import java.io.File;
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.util.Collection;
-import java.util.Map;
+open class Memory {
+    private var lastBlock: Block? = null
+    private val data = LongHashMap<Block>()
+    private val removedBlocks = LongObjectCache<Block>(100)
 
-public class Memory {
-    @Nullable
-    private Block lastBlock;
-    @NotNull
-    private final LongHashMap<Block> data = new LongHashMap<>();
-    @SuppressWarnings({"MismatchedQueryAndUpdateOfCollection"})
-    @NotNull
-    private final LongObjectCache<Block> removedBlocks = new LongObjectCache<>(100);
+    internal val allBlocks: Collection<Block>
+        get() = data.values
 
-    protected Collection<Block> getAllBlocks() {
-        return data.values();
-    }
-
-    protected Block getBlockData(long address) {
-        synchronized (data) {
-            return data.get(address);
+    internal fun getBlockData(address: Long): Block {
+        synchronized(data) {
+            return data.get(address)
         }
     }
 
-    protected Block getOrCreateBlockData(long address, long length) {
-        Block block;
-        synchronized (data) {
-            block = data.get(address);
-            if (block == null) {
-                final int initialSize = lastBlock == null ?
-                        2048 :
-                        lastBlock.getSize();
-                lastBlock = block = new Block(address, initialSize);
-                data.put(address, lastBlock);
-            } else {
-                if (block.getSize() != length) {
-                    block.setSize(length);
+    internal fun getOrCreateBlockData(address: Long, length: Long): Block {
+        return synchronized(data) {
+            data.get(address)?.also {
+                if (it.size.toLong() != length) {
+                    it.setSize(length)
                 }
-                lastBlock = block;
+                lastBlock = it
+            } ?: run {
+                val block = Block(address, lastBlock?.size ?: 2048)
+                lastBlock = block
+                data[address] = lastBlock
+                block
             }
         }
-        return block;
     }
 
-    protected boolean removeBlock(final long blockAddress) {
-        final Block removed;
-        synchronized (data) {
-            removed = data.remove(blockAddress);
+    internal fun removeBlock(blockAddress: Long): Boolean {
+        val removed = synchronized(data) {
+            data.remove(blockAddress)
         }
-        final boolean result = removed != null;
+        val result = removed != null
         if (result) {
-            synchronized (data) {
-                removedBlocks.cacheObject(blockAddress, removed);
+            synchronized(data) {
+                removedBlocks.cacheObject(blockAddress, removed)
             }
         }
-        return result;
+        return result
     }
 
-    protected void clear() {
-        synchronized (data) {
-            data.clear();
-        }
-    }
-
-    public void dump(@NotNull final File location) {
-        location.mkdirs();
-        final ObjectProcedure<Map.Entry<Long, Block>> saver = new ObjectProcedure<Map.Entry<Long, Block>>() {
-            @Override
-            public boolean execute(Map.Entry<Long, Block> object) {
-                try {
-                    final File dest = new File(location, LogUtil.getLogFilename(object.getKey()));
-                    final RandomAccessFile output = new RandomAccessFile(dest, "rw");
-                    final Block block = object.getValue();
-                    output.write(block.getData(), 0, block.getSize());
-                    output.close();
-                    // output.getChannel().force(false);
-                } catch (IOException e) {
-                    throw new ExodusException(e);
-                }
-                return true;
-            }
-        };
-        synchronized (data) {
-            data.forEachEntry(saver);
-            removedBlocks.forEachEntry(saver);
+    internal fun clear() {
+        synchronized(data) {
+            data.clear()
         }
     }
 
-    static final class Block {
-
-        private final long address;
-        private int size;
-        private byte[] data;
-
-        Block(long address, int initialSize) {
-            this.address = address;
-            data = new byte[initialSize];
-        }
-
-        public long getAddress() {
-            return address;
-        }
-
-        public int getSize() {
-            return size;
-        }
-
-        public byte[] getData() {
-            return data;
-        }
-
-        public void setSize(long size) {
-            this.size = (int) size;
-        }
-
-        public void write(byte[] b, int off, int len) {
-            final int newSize = size + len;
-            ensureCapacity(newSize);
-            System.arraycopy(b, off, data, size, len);
-            size = newSize;
-        }
-
-        public int read(final byte[] output, long position, int count) {
-            final long maxRead;
-            if (position < 0 || (maxRead = size - position) < 0) {
-                throw new ExodusException("Block index out of range");
+    fun dump(location: File) {
+        location.mkdirs()
+        val saver = { key: Long, block: Block ->
+            try {
+                val dest = File(location, LogUtil.getLogFilename(key))
+                val output = RandomAccessFile(dest, "rw")
+                output.write(block.data, 0, block.size)
+                output.close()
+                // output.getChannel().force(false);
+            } catch (e: IOException) {
+                throw ExodusException(e)
             }
-            if (maxRead < count) {
-                count = (int) maxRead;
+        }
+        synchronized(data) {
+            data.forEach(saver)
+            removedBlocks.forEachEntry { entry ->
+                saver(entry.key, entry.value)
+                true
             }
-            System.arraycopy(data, (int) position, output, 0, count);
-            return count;
+        }
+    }
+
+    internal class Block(val address: Long, initialSize: Int) {
+        var size: Int = 0
+            private set
+        var data: ByteArray
+            private set
+
+        init {
+            data = ByteArray(initialSize)
         }
 
-        public void ensureCapacity(int minCapacity) {
-            int oldCapacity = data.length;
+        fun setSize(size: Long) {
+            this.size = size.toInt()
+        }
+
+        fun write(b: ByteArray, off: Int, len: Int) {
+            val newSize = size + len
+            ensureCapacity(newSize)
+            System.arraycopy(b, off, data, size, len)
+            size = newSize
+        }
+
+        fun read(output: ByteArray, position: Long, count: Int): Int {
+            var result = count
+            if (position < 0) {
+                throw ExodusException("Block index out of range, underflow")
+            }
+            val maxRead = size - position
+            if (maxRead < 0) {
+                throw ExodusException("Block index out of range")
+            }
+            if (maxRead < result) {
+                result = maxRead.toInt()
+            }
+            System.arraycopy(data, position.toInt(), output, 0, result)
+            return result
+        }
+
+        fun ensureCapacity(minCapacity: Int) {
+            val oldCapacity = data.size
             if (minCapacity > oldCapacity) {
-                byte[] oldData = data;
-                int newCapacity = oldCapacity * 3 / 2 + 1;
-                if (newCapacity < minCapacity) newCapacity = minCapacity;
-                data = new byte[newCapacity];
-                System.arraycopy(oldData, 0, data, 0, oldCapacity);
+                val oldData = data
+                var newCapacity = oldCapacity * 3 / 2 + 1
+                if (newCapacity < minCapacity) newCapacity = minCapacity
+                data = ByteArray(newCapacity)
+                System.arraycopy(oldData, 0, data, 0, oldCapacity)
             }
         }
     }

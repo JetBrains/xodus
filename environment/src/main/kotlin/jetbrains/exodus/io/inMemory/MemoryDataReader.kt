@@ -13,113 +13,75 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.io.inMemory;
+package jetbrains.exodus.io.inMemory
 
-import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.io.Block;
-import jetbrains.exodus.io.DataReader;
-import jetbrains.exodus.io.FileDataReader;
-import jetbrains.exodus.io.RemoveBlockType;
-import jetbrains.exodus.log.Log;
-import jetbrains.exodus.log.LogUtil;
-import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import jetbrains.exodus.ExodusException
+import jetbrains.exodus.io.Block
+import jetbrains.exodus.io.DataReader
+import jetbrains.exodus.io.FileDataReader
+import jetbrains.exodus.io.RemoveBlockType
+import jetbrains.exodus.log.Log
+import jetbrains.exodus.log.LogUtil
+import mu.KLogging
+import org.jetbrains.annotations.NotNull
 
-import java.util.Collection;
+open class MemoryDataReader(private val memory: Memory) : DataReader {
+    companion object : KLogging()
 
-public class MemoryDataReader implements DataReader {
-
-    private static final Logger logger = LoggerFactory.getLogger(MemoryDataReader.class);
-
-    @NotNull
-    private final Memory data;
-
-    public MemoryDataReader(@NotNull Memory data) {
-        this.data = data;
+    override fun getBlocks(): Array<Block> {
+        val result = memory.allBlocks.asSequence().map { MemoryBlock(it) }.toList().toTypedArray<Block>()
+        FileDataReader.sortBlocks(result)
+        return result
     }
 
-    @Override
-    public Block[] getBlocks() {
-        final Collection<Memory.Block> blocks = data.getAllBlocks();
-        final Block[] result = new Block[blocks.size()];
-        int i = 0;
-        for (final Memory.Block block : blocks) {
-            result[i++] = new MemoryBlock(block);
+    override fun removeBlock(blockAddress: Long, @NotNull rbt: RemoveBlockType) {
+        if (!memory.removeBlock(blockAddress)) {
+            throw ExodusException("There is no memory block by address $blockAddress")
         }
-        FileDataReader.sortBlocks(result);
-        return result;
+        logger.info { "Deleted file " + LogUtil.getLogFilename(blockAddress) }
     }
 
-    @Override
-    public void removeBlock(final long blockAddress, @NotNull final RemoveBlockType rbt) {
-        if (!data.removeBlock(blockAddress)) {
-            throw new ExodusException("There is no memory block by address " + blockAddress);
-        }
-        if (logger.isInfoEnabled()) {
-            logger.info("Deleted file " + LogUtil.getLogFilename(blockAddress));
-        }
+    override fun truncateBlock(blockAddress: Long, length: Long) {
+        memory.getOrCreateBlockData(blockAddress, length)
+        logger.info { "Truncated file " + LogUtil.getLogFilename(blockAddress) }
     }
 
-    @Override
-    public void truncateBlock(long blockAddress, long length) {
-        data.getOrCreateBlockData(blockAddress, length);
-        if (logger.isInfoEnabled()) {
-            logger.info("Truncated file " + LogUtil.getLogFilename(blockAddress));
-        }
+    override fun clear() {
+        memory.clear()
     }
 
-    @Override
-    public void clear() {
-        data.clear();
-    }
-
-    @Override
-    public void close() {
+    override fun close() {
         // nothing to do
     }
 
-    @Override
-    public void setLog(@NotNull Log log) {
+    override fun setLog(@NotNull log: Log) {
         // we don't need Log here
     }
 
-    @Override
-    public String getLocation() {
-        return data.toString();
+    override fun getLocation(): String {
+        return memory.toString()
     }
 
-    @Override
-    public Block getBlock(long address) {
-        return new MemoryBlock(data.getBlockData(address));
+    override fun getBlock(address: Long): Block {
+        return MemoryBlock(memory.getBlockData(address))
     }
 
-    private static final class MemoryBlock implements Block {
-        @NotNull
-        private final Memory.Block data;
+    private class MemoryBlock constructor(private val data: Memory.Block) : Block {
 
-        private MemoryBlock(@NotNull Memory.Block data) {
-            this.data = data;
+        override fun getAddress(): Long {
+            return data.address
         }
 
-        @Override
-        public long getAddress() {
-            return data.getAddress();
+        override fun length(): Long {
+            return data.size.toLong()
         }
 
-        @Override
-        public long length() {
-            return data.getSize();
+        override fun read(output: ByteArray, position: Long, count: Int): Int {
+            return data.read(output, position, count)
         }
 
-        @Override
-        public int read(final byte[] output, long position, int count) {
-            return data.read(output, position, count);
-        }
-
-        @Override
-        public boolean setReadOnly() {
-            return false;
+        override fun setReadOnly(): Boolean {
+            return false
         }
     }
 }

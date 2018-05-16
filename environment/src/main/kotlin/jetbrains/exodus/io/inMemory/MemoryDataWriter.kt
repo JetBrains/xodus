@@ -13,54 +13,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.io.inMemory;
+package jetbrains.exodus.io.inMemory
 
-import jetbrains.exodus.io.AbstractDataWriter;
-import org.jetbrains.annotations.NotNull;
+import jetbrains.exodus.io.AbstractDataWriter
 
-public class MemoryDataWriter extends AbstractDataWriter {
+open class MemoryDataWriter(private val memory: Memory) : AbstractDataWriter() {
+    private var closed = false
+    private lateinit var data: Memory.Block
 
-    @NotNull
-    private final Memory memory;
-    private Memory.Block data;
-
-    public MemoryDataWriter(@NotNull Memory memory) {
-        data = null;
-        this.memory = memory;
+    override fun write(b: ByteArray, off: Int, len: Int) {
+        checkClosed()
+        data.write(b, off, len)
     }
 
-    @Override
-    public void write(byte[] b, int off, int len) {
-        data.write(b, off, len);
+    override fun lock(timeout: Long): Boolean {
+        return true
     }
 
-    @Override
-    public boolean lock(long timeout) {
-        return true;
+    override fun release(): Boolean {
+        return true
     }
 
-    @Override
-    public boolean release() {
-        return true;
+    override fun lockInfo(): String? {
+        return null
     }
 
-    @Override
-    public String lockInfo() {
-        return null;
+    override fun syncImpl() {}
+
+    override fun closeImpl() {
+        closed = true
     }
 
-    @Override
-    protected void syncImpl() {
+    override fun openOrCreateBlockImpl(address: Long, length: Long) {
+        data = memory.getOrCreateBlockData(address, length)
+        closed = false
     }
 
-    @Override
-    protected void closeImpl() {
-        data = null;
+    private fun checkClosed() {
+        if (closed) {
+            throw IllegalStateException("Already closed")
+        }
     }
-
-    @Override
-    protected void openOrCreateBlockImpl(final long address, final long length) {
-        data = memory.getOrCreateBlockData(address, length);
-    }
-
 }
