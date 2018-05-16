@@ -20,20 +20,26 @@ import jetbrains.exodus.core.execution.ThreadJobProcessorPool
 import mu.KLogging
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
+import java.lang.ref.WeakReference
 import java.util.*
 
-internal class StuckTransactionMonitor(private val env: EnvironmentImpl) : Job() {
+internal class StuckTransactionMonitor(env: EnvironmentImpl) : Job() {
+
+    private val envRef: WeakReference<EnvironmentImpl> = WeakReference(env)
 
     init {
         processor = ThreadJobProcessorPool.getOrCreateJobProcessor("Exodus shared stuck transaction monitor")
-        queueThis()
+        queueThis(env)
     }
 
     var stuckTxnCount: Int = 0
         private set
 
+    private val env: EnvironmentImpl? get() = envRef.get()
+
     override fun execute() {
-        if (env.isOpen) {
+        val env = this.env
+        if (env != null && env.isOpen) {
             var stuckTxnCount = 0
             try {
                 env.transactionTimeout().forEachExpiredTransaction {
@@ -54,19 +60,19 @@ internal class StuckTransactionMonitor(private val env: EnvironmentImpl) : Job()
                 }
             } finally {
                 this.stuckTxnCount = stuckTxnCount
-                queueThis()
+                queueThis(env)
             }
         }
     }
 
-    private fun queueThis() {
+    private fun queueThis(env: EnvironmentImpl) {
         processor.queueIn(this, env.environmentConfig.envMonitorTxnsCheckFreq.toLong())
     }
 
     private fun Int.forEachExpiredTransaction(callback: (TransactionBase) -> Unit) {
         if (this != 0) {
             val timeBound = System.currentTimeMillis() - this
-            env.forEachActiveTransaction {
+            env?.forEachActiveTransaction {
                 val txn = it as TransactionBase
                 if (txn.startTime < timeBound) {
                     callback(it)

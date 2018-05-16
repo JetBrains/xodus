@@ -472,7 +472,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     }
 
     @Test
-    @TestFor(issues = "XD-594")
+    @TestFor(issues = {"XD-594", "XD-717"})
     public void leakingEnvironment() throws Exception {
         tearDown();
         final WeakReference<Environment> envRef = new WeakReference<Environment>(createAndCloseEnvironment());
@@ -726,7 +726,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     private EnvironmentImpl createAndCloseEnvironment() throws IOException {
         final Pair<DataReader, DataWriter> rw = createRW();
         final EnvironmentImpl env = newEnvironmentInstance(
-            LogConfig.create(rw.getFirst(), rw.getSecond()), new EnvironmentConfig().setGcUtilizationFromScratch(true).setEnvMonitorTxnsExpirationTimeout(0));
+            LogConfig.create(rw.getFirst(), rw.getSecond()), new EnvironmentConfig().setGcUtilizationFromScratch(true));
         env.close();
         return env;
     }
