@@ -29,6 +29,8 @@ public interface DataReader {
      */
     Iterable<Block> getBlocks();
 
+    Iterable<Block> getBlocks(long fromAddress);
+
     void removeBlock(long blockAddress, @NotNull RemoveBlockType rbt);
 
     void truncateBlock(long blockAddress, long length);

@@ -35,6 +35,14 @@ open class MemoryDataReader(private val memory: Memory) : DataReader {
         }.map { MemoryBlock(it) }.asIterable()
     }
 
+    override fun getBlocks(fromAddress: Long): Iterable<Block> {
+        return memoryBlocks.filter {
+            it.address >= fromAddress
+        }.sortedBy {
+            it.address
+        }.map { MemoryBlock(it) }.asIterable()
+    }
+
     override fun removeBlock(blockAddress: Long, @NotNull rbt: RemoveBlockType) {
         if (!memory.removeBlock(blockAddress)) {
             throw ExodusException("There is no memory block by address $blockAddress")

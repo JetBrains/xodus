@@ -37,7 +37,7 @@ public class FileDataReader implements DataReader {
     private static final Logger logger = LoggerFactory.getLogger(FileDataReader.class);
 
     private static final String DELETED_FILE_EXTENSION = ".del";
-    
+
     @NotNull
     private final File dir;
     private final boolean useNio;
@@ -64,31 +64,14 @@ public class FileDataReader implements DataReader {
     public Iterable<Block> getBlocks() {
         final LongArrayList files = LogUtil.listFileAddresses(dir);
         files.sort();
-        return new Iterable<Block>() {
-            @NotNull
-            @Override
-            public Iterator<Block> iterator() {
-                return new Iterator<Block>() {
-                    int index = 0;
-                    final int size = files.size();
+        return toBlocks(files);
+    }
 
-                    @Override
-                    public boolean hasNext() {
-                        return index < size;
-                    }
-
-                    @Override
-                    public Block next() {
-                        return getBlock(files.get(index++));
-                    }
-
-                    @Override
-                    public void remove() {
-                        throw new UnsupportedOperationException();
-                    }
-                };
-            }
-        };
+    @Override
+    public Iterable<Block> getBlocks(long fromAddress) {
+        final LongArrayList files = LogUtil.listFileAddresses(fromAddress, dir);
+        files.sort();
+        return toBlocks(files);
     }
 
     @Override
@@ -170,6 +153,35 @@ public class FileDataReader implements DataReader {
         } catch (IOException e) {
             throw new ExodusException(e);
         }
+    }
+
+    @NotNull
+    private Iterable<Block> toBlocks(final LongArrayList files) {
+        return new Iterable<Block>() {
+            @NotNull
+            @Override
+            public Iterator<Block> iterator() {
+                return new Iterator<Block>() {
+                    int index = 0;
+                    final int size = files.size();
+
+                    @Override
+                    public boolean hasNext() {
+                        return index < size;
+                    }
+
+                    @Override
+                    public Block next() {
+                        return getBlock(files.get(index++));
+                    }
+
+                    @Override
+                    public void remove() {
+                        throw new UnsupportedOperationException();
+                    }
+                };
+            }
+        };
     }
 
     private static boolean renameFile(@NotNull final File file) {

@@ -110,10 +110,23 @@ public final class LogUtil {
 
     @NotNull
     public static LongArrayList listFileAddresses(@NotNull final File directory) {
-        final File[] files = IOUtil.listFiles(directory, LOG_FILE_NAME_FILTER);
+        final File[] files = listFiles(directory);
         final LongArrayList result = new LongArrayList(files.length);
         for (final File file : files) {
             result.add(getAddress(file.getName()));
+        }
+        return result;
+    }
+
+    @NotNull
+    public static LongArrayList listFileAddresses(final long fromAddress, @NotNull final File directory) {
+        final File[] files = listFiles(directory);
+        final LongArrayList result = new LongArrayList();
+        for (final File file : files) {
+            final long address = getAddress(file.getName());
+            if (address >= fromAddress) {
+                result.add(address);
+            }
         }
         return result;
     }
