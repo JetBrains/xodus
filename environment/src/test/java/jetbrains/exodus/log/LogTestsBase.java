@@ -78,9 +78,7 @@ class LogTestsBase {
         if (log == null) {
             synchronized (this) {
                 if (log == null) {
-                    config.setReader(reader);
-                    config.setWriter(writer);
-                    log = new Log(config);
+                    log = new Log(config.setReaderWriter(reader, writer));
                 }
             }
         }

@@ -21,6 +21,9 @@ import jetbrains.exodus.crypto.KryptKt;
 import jetbrains.exodus.crypto.StreamCipher;
 import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.entitystore.MetaServer;
+import jetbrains.exodus.io.DataReader;
+import jetbrains.exodus.io.DataReaderWriterProvider;
+import jetbrains.exodus.io.DataWriter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -243,6 +246,18 @@ public class EnvironmentConfig extends AbstractConfig {
      * <p>Mutable at runtime: no
      */
     public static final String LOG_FULL_FILE_READ_ONLY = "exodus.log.fullFileReadonly";
+
+    /**
+     * Defines fully-qualified name of the {@linkplain DataReaderWriterProvider} service provider interface implementation which
+     * will be used to create {@linkplain DataReader} and {@linkplain DataWriter} instances. This setting can be used
+     * to customize storageL define in-memory one, in-cloud, etc.
+     * Default value is {@code "jetbrains.exodus.io.FileDataReaderWriterProvider"} which means that file system must be
+     * used as a storage. Several settings are applicable only to FileDataReaderWriterProvider used:
+     * {@linkplain #LOG_DURABLE_WRITE}, {@linkplain #LOG_SYNC_PERIOD}, {@linkplain #LOG_CACHE_OPEN_FILES},
+     * {@linkplain #LOG_FULL_FILE_READ_ONLY}, {@linkplain #LOG_CACHE_USE_NIO}, {@linkplain #LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD}.
+     * <p>Mutable at runtime: no
+     */
+    public static final String LOG_DATA_READER_WRITER_PROVIDER = "exodus.log.readerWriterProvider";
 
     /**
      * If is set to {@code true} then the {@linkplain Environment} instance is read-only. Default value is {@code false}.
@@ -579,6 +594,7 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(LOG_CLEAR_INVALID, false),
             new Pair(LOG_SYNC_PERIOD, 10000L),
             new Pair(LOG_FULL_FILE_READ_ONLY, true),
+            new Pair(LOG_DATA_READER_WRITER_PROVIDER, "jetbrains.exodus.io.FileDataReaderWriterProvider"),
             new Pair(ENV_IS_READONLY, false),
             new Pair(ENV_READONLY_EMPTY_STORES, false),
             new Pair(ENV_STOREGET_CACHE_SIZE, 0),
@@ -1155,6 +1171,39 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public EnvironmentConfig setFullFileReadonly(final boolean readonly) {
         return setSetting(LOG_FULL_FILE_READ_ONLY, readonly);
+    }
+
+    /**
+     * Returns fully-qualified name of the {@linkplain DataReaderWriterProvider} service provide interface implementation which
+     * will be used to create {@linkplain DataReader} and {@linkplain DataWriter} instances. This setting can be used
+     * to customize storageL define in-memory one, in-cloud, etc.
+     * Default value is {@code "jetbrains.exodus.io.FileDataReaderWriterProvider"} which means that file system must be
+     * used as a storage. Several settings are applicable only to FileDataReaderWriterProvider used:
+     * {@linkplain #LOG_DURABLE_WRITE}, {@linkplain #LOG_SYNC_PERIOD}, {@linkplain #LOG_CACHE_OPEN_FILES},
+     * {@linkplain #LOG_FULL_FILE_READ_ONLY}, {@linkplain #LOG_CACHE_USE_NIO}, {@linkplain #LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD}.
+     * <p>Mutable at runtime: no
+     *
+     * @return fully-qualified name of the {@linkplain DataReaderWriterProvider} service provide interface implementation
+     */
+    public String getLogDataReaderWriterProvider() {
+        return (String) getSetting(LOG_DATA_READER_WRITER_PROVIDER);
+    }
+
+    /**
+     * Sets fully-qualified name of the {@linkplain DataReaderWriterProvider} service provide interface implementation which
+     * will be used to create {@linkplain DataReader} and {@linkplain DataWriter} instances. This setting can be used
+     * to customize storageL define in-memory one, in-cloud, etc.
+     * Default value is {@code "jetbrains.exodus.io.FileDataReaderWriterProvider"} which means that file system must be
+     * used as a storage. Several settings are applicable only to FileDataReaderWriterProvider used:
+     * {@linkplain #LOG_DURABLE_WRITE}, {@linkplain #LOG_SYNC_PERIOD}, {@linkplain #LOG_CACHE_OPEN_FILES},
+     * {@linkplain #LOG_FULL_FILE_READ_ONLY}, {@linkplain #LOG_CACHE_USE_NIO}, {@linkplain #LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD}.
+     * <p>Mutable at runtime: no
+     *
+     * @param provider fully-qualified name of the {@linkplain DataReaderWriterProvider} service provide interface implementation
+     * @return this {@code EnvironmentConfig} instance
+     */
+    public EnvironmentConfig setLogDataReaderWriterProvider(@NotNull final String provider) {
+        return setSetting(LOG_DATA_READER_WRITER_PROVIDER, provider);
     }
 
     /**

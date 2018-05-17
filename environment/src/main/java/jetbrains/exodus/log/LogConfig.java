@@ -15,22 +15,21 @@
  */
 package jetbrains.exodus.log;
 
-import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.InvalidSettingException;
+import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.env.EnvironmentConfig;
 import jetbrains.exodus.io.DataReader;
+import jetbrains.exodus.io.DataReaderWriterProvider;
 import jetbrains.exodus.io.DataWriter;
-import jetbrains.exodus.io.FileDataReader;
-import jetbrains.exodus.io.FileDataWriter;
 import org.jetbrains.annotations.NotNull;
-
-import java.io.File;
 
 public class LogConfig {
 
     private static final int DEFAULT_FILE_SIZE = 1024; // in kilobytes
 
-    private File dir;
+    private String location;
+    private String readerWriterProvider;
     private long fileSize;
     private long lockTimeout;
     private String lockId;
@@ -57,8 +56,13 @@ public class LogConfig {
     public LogConfig() {
     }
 
-    public LogConfig setDir(@NotNull final File dir) {
-        this.dir = dir;
+    public LogConfig setLocation(@NotNull final String location) {
+        this.location = location;
+        return this;
+    }
+
+    public LogConfig setReaderWriterProvider(@NotNull final String provider) {
+        readerWriterProvider = provider;
         return this;
     }
 
@@ -115,15 +119,12 @@ public class LogConfig {
 
     public DataReader getReader() {
         if (reader == null) {
-            final FileDataReader reader = new FileDataReader(checkDirectory(dir));
-            if (getCacheUseNio()) {
-                reader.useNio(getCacheFreePhysicalMemoryThreshold());
-            }
-            this.reader = reader;
+            createReaderWriter();
         }
         return reader;
     }
 
+    @Deprecated
     public LogConfig setReader(@NotNull final DataReader reader) {
         this.reader = reader;
         return this;
@@ -131,12 +132,20 @@ public class LogConfig {
 
     public DataWriter getWriter() {
         if (writer == null) {
-            writer = new FileDataWriter(checkDirectory(dir), getLockId());
+            createReaderWriter();
         }
         return writer;
     }
 
+    @Deprecated
     public LogConfig setWriter(@NotNull final DataWriter writer) {
+        this.writer = writer;
+        return this;
+    }
+
+    public LogConfig setReaderWriter(@NotNull final DataReader reader,
+                                     @NotNull final DataWriter writer) {
+        this.reader = reader;
         this.writer = writer;
         return this;
     }
@@ -222,6 +231,10 @@ public class LogConfig {
         return this;
     }
 
+    public boolean isCleanDirectoryExpected() {
+        return cleanDirectoryExpected;
+    }
+
     public LogConfig setCleanDirectoryExpected(boolean cleanDirectoryExpected) {
         this.cleanDirectoryExpected = cleanDirectoryExpected;
         return this;
@@ -285,22 +298,20 @@ public class LogConfig {
     }
 
     public static LogConfig create(@NotNull final DataReader reader, @NotNull final DataWriter writer) {
-        return new LogConfig().setReader(reader).setWriter(writer);
+        return new LogConfig().setReaderWriter(reader, writer);
     }
 
-    private File checkDirectory(@NotNull final File directory) {
-        if (directory.isFile()) {
-            throw new ExodusException("A directory is required: " + directory);
+    private void createReaderWriter() {
+        final DataReaderWriterProvider provider = DataReaderWriterProvider.getProvider(readerWriterProvider);
+        if (provider == null) {
+            throw new InvalidSettingException("Unknown DataReaderWriterProvider: " + readerWriterProvider);
         }
-        if (directory.exists()) {
-            if (cleanDirectoryExpected && LogUtil.listFiles(directory).length > 0) {
-                throw new ExodusException("Clean directory expected (log configured to be newly created only)");
-            }
-        } else {
-            if (!directory.mkdirs()) {
-                throw new ExodusException("Failed to create directory: " + directory);
-            }
+        final String location = this.location;
+        if (location == null) {
+            throw new InvalidSettingException("Location for DataReader and DataWriter is not specified");
         }
-        return directory;
+        Pair<DataReader, DataWriter> readerWriter = provider.newReaderWriter(location);
+        reader = readerWriter.getFirst();
+        writer = readerWriter.getSecond();
     }
 }

@@ -1,0 +1,2 @@
+jetbrains.exodus.io.FileDataReaderWriterProvider
+jetbrains.exodus.io.inMemory.MemoryDataReaderWriterProvider

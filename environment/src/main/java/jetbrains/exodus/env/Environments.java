@@ -102,7 +102,7 @@ public final class Environments {
 
     @NotNull
     public static Log newLogInstance(@NotNull final File dir, @NotNull final EnvironmentConfig ec) {
-        return newLogInstance(new LogConfig().setDir(dir), ec);
+        return newLogInstance(new LogConfig().setLocation(dir.getPath()), ec);
     }
 
     @NotNull
@@ -113,7 +113,8 @@ public final class Environments {
         } else {
             config.setMemoryUsagePercentage(ec.getMemoryUsagePercentage());
         }
-        return newLogInstance(config.setFileSize(ec.getLogFileSize()).
+        return newLogInstance(config.setReaderWriterProvider(ec.getLogDataReaderWriterProvider()).
+            setFileSize(ec.getLogFileSize()).
                 setLockTimeout(ec.getLogLockTimeout()).
                 setLockId(ec.getLogLockId()).
                 setCachePageSize(ec.getLogCachePageSize()).

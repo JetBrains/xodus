@@ -130,8 +130,7 @@ abstract class ReplicationBaseTest {
     protected fun File.createLog(fileSize: Long, releaseLock: Boolean = false, modifyConfig: LogConfig.() -> Unit = {}): Log {
         return with(LogConfig().setFileSize(fileSize)) {
             val (reader, writer) = this@createLog.createLogRW()
-            this.reader = reader
-            this.writer = writer
+            setReaderWriter(reader, writer)
             modifyConfig()
             Log(this).also {
                 if (releaseLock) { // s3mock can't open xd.lck on Windows otherwise

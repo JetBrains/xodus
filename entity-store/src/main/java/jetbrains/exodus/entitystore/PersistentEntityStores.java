@@ -29,7 +29,6 @@ public final class PersistentEntityStores {
     @NonNls
     private static final String DEFAULT_NAME = "persistentEntityStore";
     private static final int STORE_GET_CACHE_SIZE = 65536;
-    private static final int TREE_NODES_CACHE_SIZE = 0;
 
     private PersistentEntityStores() {
     }

@@ -17,6 +17,8 @@ package jetbrains.exodus.tree;
 
 import jetbrains.exodus.*;
 import jetbrains.exodus.bindings.LongBinding;
+import jetbrains.exodus.env.EnvironmentConfig;
+import jetbrains.exodus.env.Environments;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogConfig;
 import jetbrains.exodus.tree.btree.LeafNodeKV;
@@ -79,12 +81,12 @@ public abstract class TreeBaseTest {
 
     private void createLog() {
         LogConfig config = createLogConfig();
-        config.setDir(tempFolder);
-        log = new Log(config);
+        config.setLocation(tempFolder.getPath());
+        log = Environments.newLogInstance(config);
     }
 
     protected LogConfig createLogConfig() {
-        return new LogConfig().setNonBlockingCache(true);
+        return new LogConfig().setNonBlockingCache(true).setReaderWriterProvider(EnvironmentConfig.DEFAULT.getLogDataReaderWriterProvider());
     }
 
     @After

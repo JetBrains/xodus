@@ -46,8 +46,6 @@ public final class Log implements Closeable {
     @NotNull
     private final LogConfig config;
     private final long created;
-    @NotNull
-    private final String location;
     final LogCache cache;
 
     private volatile boolean isClosing;
@@ -98,7 +96,6 @@ public final class Log implements Closeable {
         if (reader instanceof FileDataReader) {
             ((FileDataReader) reader).setLog(this);
         }
-        location = reader.getLocation();
 
         checkLogConsistency(fileSetMutable);
 
@@ -171,6 +168,9 @@ public final class Log implements Closeable {
         if (!blockIterator.hasNext()) {
             return;
         }
+        if (config.isCleanDirectoryExpected()) {
+            throw new ExodusException("Clean log is expected");
+        }
         boolean hasNext;
         do {
             final Block block = blockIterator.next();
@@ -215,7 +215,7 @@ public final class Log implements Closeable {
 
     @NotNull
     public String getLocation() {
-        return location;
+        return reader.getLocation();
     }
 
     /**
