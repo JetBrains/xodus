@@ -241,7 +241,7 @@ public class BufferedDataWriter {
         final byte[] output = new byte[pageSize];
 
         final Block block = reader.getBlock(fileAddress);
-        final int readBytes = block.read(output, pageAddress - fileAddress, output.length);
+        final int readBytes = block.read(output, pageAddress - fileAddress, 0, output.length);
 
         if (readBytes < offset) {
             throw new ExodusException("Can't read expected page bytes");

@@ -22,7 +22,7 @@ public interface Block {
 
     long length();
 
-    int read(byte[] output, long position, int count);
+    int read(byte[] output, long position, int offset, int count);
 
     boolean setReadOnly();
 }

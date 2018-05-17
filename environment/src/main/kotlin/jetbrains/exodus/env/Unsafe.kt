@@ -16,7 +16,11 @@
 package jetbrains.exodus.env
 
 import jetbrains.exodus.ExodusException
+import jetbrains.exodus.io.Block
+import jetbrains.exodus.log.BlockDataIterator
 import jetbrains.exodus.log.LogTip
+import jetbrains.exodus.log.Loggable
+import jetbrains.exodus.log.LoggableIterator
 import kotlin.concurrent.withLock
 
 fun <T> EnvironmentImpl.executeInCommitLock(action: () -> T): T {
@@ -47,4 +51,68 @@ fun EnvironmentImpl.reopenMetaTree(proto: MetaTreePrototype, rollbackTo: LogTip,
         }
         throw ExodusException.toExodusException(t, "Failed to reopen MetaTree")
     }
+}
+
+// advance to some root loggable
+internal fun EnvironmentImpl.tryUpdate(): Pair<DatabaseRoot, LogTip>? {
+    val tip = log.tip
+    val fileSet = tip.fileSetCopy
+    val addedBlocks = log.config.reader.getBlocks(tip.highAddress)
+    val itr = addedBlocks.iterator()
+    if (!itr.hasNext()) {
+        return null
+    }
+    val lastBlock: Block
+    val highAddress: Long
+    while (true) {
+        val block = itr.next()
+        val blockAddress = block.address
+        fileSet.add(blockAddress)
+        if (!itr.hasNext()) {
+            highAddress = blockAddress + block.length()
+            lastBlock = block
+            break
+        }
+    }
+    // create loggable
+    // update "last page"
+    val lastBlockAddress = lastBlock.address
+    val startAddress = maxOf(tip.highAddress, lastBlockAddress)
+    if (startAddress > lastBlockAddress + log.fileLengthBound) {
+        throw IllegalStateException("Log truncated abnormally, aborting")
+    }
+    val dataIterator = BlockDataIterator(log, lastBlock, startAddress)
+    val loggables = LoggableIterator(log, dataIterator)
+    val type = DatabaseRoot.DATABASE_ROOT_TYPE
+    var lastRoot: Loggable? = null
+    while (loggables.hasNext()) {
+        val loggable = loggables.next()
+        if (loggable == null || loggable.address >= lastBlockAddress + log.fileLengthBound) {
+            break
+        }
+        if (loggable.type == type) {
+            lastRoot = loggable
+        }
+        val expectedDataLength = loggable.dataLength.toLong()
+        if (dataIterator.skip(expectedDataLength) < expectedDataLength) {
+            return null
+        }
+        val loggableEnd = loggable.address + loggable.length()
+        if (loggableEnd != dataIterator.address) {
+            return null
+        }
+        if (loggableEnd == highAddress) {
+            break
+        }
+    }
+    if (lastRoot == null) {
+        return null
+    }
+    try {
+        return DatabaseRoot(lastRoot) to with(dataIterator) {
+            LogTip(lastPage, lastPageAddress, lastPageCount, highAddress, highAddress, fileSet.endWrite())
+        }
+    } catch (ignore: ExodusException) {
+    }
+    return null
 }

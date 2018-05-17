@@ -20,4 +20,14 @@ import jetbrains.exodus.ByteIterator;
 public abstract class ByteIteratorWithAddress extends ByteIterator {
 
     public abstract long getAddress();
+
+    public abstract int getOffset();
+
+    boolean availableInCurrentPage(final int bytes) {
+        return false;
+    }
+
+    byte[] getCurrentPage() {
+        throw new UnsupportedOperationException();
+    }
 }

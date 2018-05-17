@@ -15,11 +15,10 @@
  */
 package jetbrains.exodus.log;
 
-import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.bindings.LongBinding;
 import org.jetbrains.annotations.NotNull;
 
-public final class DataIterator extends ByteIterator {
+public final class DataIterator extends ByteIteratorWithAddress {
 
     @NotNull
     private final Log log;
@@ -50,7 +49,7 @@ public final class DataIterator extends ByteIterator {
             return false;
         }
         if (offset >= length) {
-            checkPageSafe(getHighAddress());
+            checkPageSafe(getAddress());
             return hasNext();
         }
         return true;
@@ -60,7 +59,7 @@ public final class DataIterator extends ByteIterator {
     public byte next() {
         if (!hasNext()) {
             DataCorruptionException.raise(
-                "DataIterator: no more bytes available", log, getHighAddress());
+                "DataIterator: no more bytes available", log, getAddress());
         }
         return page[offset++];
     }
@@ -75,7 +74,7 @@ public final class DataIterator extends ByteIterator {
             if (offset < length) {
                 break;
             }
-            checkPageSafe(getHighAddress());
+            checkPageSafe(getAddress());
         }
         return skipped;
     }
@@ -100,6 +99,15 @@ public final class DataIterator extends ByteIterator {
         offset = (int) (address - pageAddress);
     }
 
+    @Override
+    public long getAddress() {
+        return pageAddress + offset;
+    }
+
+    public int getOffset() {
+        return offset;
+    }
+
     private void checkPageSafe(final long address) {
         try {
             checkPage(address);
@@ -118,16 +126,8 @@ public final class DataIterator extends ByteIterator {
         return page;
     }
 
-    int getOffset() {
-        return offset;
-    }
-
     int getLength() {
         return length;
-    }
-
-    long getHighAddress() {
-        return pageAddress + offset;
     }
 
     boolean availableInCurrentPage(final int bytes) {

@@ -202,7 +202,7 @@ public class FileDataReader implements DataReader {
         }
 
         @Override
-        public int read(final byte[] output, long position, int count) {
+        public int read(final byte[] output, long position, int offset, int count) {
             try {
                 try (SharedRandomAccessFile f = SharedOpenFilesCache.getInstance().getCachedFile(this)) {
                     if (useNio &&
@@ -212,7 +212,7 @@ public class FileDataReader implements DataReader {
                             try (SharedMappedByteBuffer mappedBuffer = SharedMappedFilesCache.getInstance().getFileBuffer(f)) {
                                 final ByteBuffer buffer = mappedBuffer.getBuffer();
                                 buffer.position((int) position);
-                                buffer.get(output, 0, count);
+                                buffer.get(output, offset, count);
                                 return count;
                             }
                         } catch (Throwable t) {
@@ -223,7 +223,7 @@ public class FileDataReader implements DataReader {
                         }
                     }
                     f.seek(position);
-                    return f.read(output, 0, count);
+                    return f.read(output, offset, count);
                 }
             } catch (IOException e) {
                 throw new ExodusException("Can't read file " + getAbsolutePath(), e);

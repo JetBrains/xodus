@@ -495,8 +495,8 @@ public final class Log implements Closeable {
     }
 
     @NotNull
-    public RandomAccessLoggable read(final DataIterator it) {
-        return read(it, it.getHighAddress());
+    public RandomAccessLoggable read(final ByteIteratorWithAddress it) {
+        return read(it, it.getAddress());
     }
 
     public byte getWrittenLoggableType(final long address, final byte max) {
@@ -504,7 +504,7 @@ public final class Log implements Closeable {
     }
 
     @NotNull
-    public RandomAccessLoggable read(final DataIterator it, final long address) {
+    public RandomAccessLoggable read(final ByteIteratorWithAddress it, final long address) {
         final byte type = (byte) (it.next() ^ 0x80);
         if (NullLoggable.isNullLoggable(type)) {
             return new NullLoggable(address);
@@ -513,20 +513,20 @@ public final class Log implements Closeable {
     }
 
     /**
-     * Just like {@linkplain #read(DataIterator, long)} reads loggable which never can be a {@linkplain NullLoggable}.
+     * Just like {@linkplain #read(ByteIteratorWithAddress, long)} reads loggable which never can be a {@linkplain NullLoggable}.
      *
      * @return a loggable which is not{@linkplain NullLoggable}
      */
     @NotNull
-    public RandomAccessLoggable readNotNull(final DataIterator it, final long address) {
+    public RandomAccessLoggable readNotNull(final ByteIteratorWithAddress it, final long address) {
         return read((byte) (it.next() ^ 0x80), it, address);
     }
 
     @NotNull
-    private RandomAccessLoggable read(final byte type, final DataIterator it, final long address) {
+    private RandomAccessLoggable read(final byte type, final ByteIteratorWithAddress it, final long address) {
         final int structureId = CompressedUnsignedLongByteIterable.getInt(it);
         final int dataLength = CompressedUnsignedLongByteIterable.getInt(it);
-        final long dataAddress = it.getHighAddress();
+        final long dataAddress = it.getAddress();
         if (dataLength > 0 && it.availableInCurrentPage(dataLength)) {
             return new RandomAccessLoggableAndArrayByteIterable(
                 address, type, structureId, dataAddress, it.getCurrentPage(), it.getOffset(), dataLength);
@@ -865,7 +865,7 @@ public final class Log implements Closeable {
             final long fileSize = getFileSize(leftBound, logTip);
             if (leftBound == fileAddress && fileAddress + fileSize > address) {
                 final Block block = reader.getBlock(fileAddress);
-                final int readBytes = block.read(output, address - fileAddress, output.length);
+                final int readBytes = block.read(output, address - fileAddress, 0, output.length);
                 final StreamCipherProvider cipherProvider = config.getCipherProvider();
                 if (cipherProvider != null) {
                     EnvKryptKt.cryptBlocksMutable(cipherProvider, config.getCipherKey(), config.getCipherBasicIV(),

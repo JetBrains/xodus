@@ -80,8 +80,8 @@ open class MemoryDataReader(private val memory: Memory) : DataReader {
             return data.size.toLong()
         }
 
-        override fun read(output: ByteArray, position: Long, count: Int): Int {
-            return data.read(output, position, count)
+        override fun read(output: ByteArray, position: Long, offset: Int, count: Int): Int {
+            return data.read(output, position, offset, count)
         }
 
         override fun setReadOnly(): Boolean {

@@ -115,7 +115,7 @@ open class Memory {
             size = newSize
         }
 
-        fun read(output: ByteArray, position: Long, count: Int): Int {
+        fun read(output: ByteArray, position: Long, offset: Int, count: Int): Int {
             var result = count
             if (position < 0) {
                 throw ExodusException("Block index out of range, underflow")
@@ -127,7 +127,7 @@ open class Memory {
             if (maxRead < result) {
                 result = maxRead.toInt()
             }
-            System.arraycopy(data, position.toInt(), output, 0, result)
+            System.arraycopy(data, position.toInt(), output, offset, result)
             return result
         }
 

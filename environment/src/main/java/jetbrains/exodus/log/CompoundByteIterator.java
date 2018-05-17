@@ -60,6 +60,11 @@ class CompoundByteIterator extends ByteIteratorWithAddress {
     }
 
     @Override
+    public int getOffset() {
+        return offset;
+    }
+
+    @Override
     public byte next() {
         if (!hasNext()) {
             DataCorruptionException.raise(
