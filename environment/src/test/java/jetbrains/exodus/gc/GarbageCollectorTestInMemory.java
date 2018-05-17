@@ -38,7 +38,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
@@ -51,7 +50,7 @@ public class GarbageCollectorTestInMemory extends GarbageCollectorTest {
     private Memory memory;
 
     @Override
-    protected Pair<DataReader, DataWriter> createRW() throws IOException {
+    protected Pair<DataReader, DataWriter> createRW() {
         memory = new Memory();
         return new Pair<DataReader, DataWriter>(new MemoryDataReader(memory), new MemoryDataWriter(memory));
     }
@@ -65,22 +64,80 @@ public class GarbageCollectorTestInMemory extends GarbageCollectorTest {
 
     @Test
     public void testTextIndexLike() {
-        testTextIndexLike(true);
-    }
-
-    @Test
-    public void testTextIndexLikeWithoutExpirationChecker() {
-        testTextIndexLike(false);
+        final long started = System.currentTimeMillis();
+        prepare();
+        final Transaction txn = env.beginTransaction();
+        final Store store = env.openStore("store", getStoreConfig(false), txn);
+        final Store storeDups = env.openStore("storeDups", getStoreConfig(true), txn);
+        txn.commit();
+        try {
+            while (System.currentTimeMillis() - started < TEST_DURATION) {
+                env.executeInTransaction(new TransactionalExecutable() {
+                    @Override
+                    public void execute(@NotNull final Transaction txn) {
+                        int randomInt = rnd.nextInt() & 0x3fffffff;
+                        final int count = 4 + (randomInt) & 0x1f;
+                        for (int j = 0; j < count; randomInt += ++j) {
+                            final int intKey = randomInt & 0x3fff;
+                            final ArrayByteIterable key = IntegerBinding.intToCompressedEntry(intKey);
+                            final int valueLength = 50 + (randomInt % 100);
+                            store.put(txn, key, new ArrayByteIterable(new byte[valueLength]));
+                            storeDups.put(txn, key, IntegerBinding.intToEntry(randomInt % 32));
+                        }
+                    }
+                });
+                Thread.sleep(0);
+            }
+        } catch (Throwable t) {
+            memory.dump(new File(System.getProperty("user.home"), "dump"));
+            logger.error("User code exception: ", t);
+            Assert.fail();
+        }
     }
 
     @Test
     public void testTextIndexLikeWithDeletions() {
-        testTextIndexLikeWithDeletions(true);
-    }
+        final long started = System.currentTimeMillis();
+        prepare();
+        final Transaction txn = env.beginTransaction();
+        final Store store = env.openStore("store", getStoreConfig(false), txn);
+        final Store storeDups = env.openStore("storeDups", getStoreConfig(true), txn);
+        txn.commit();
+        try {
+            while (System.currentTimeMillis() - started < TEST_DURATION) {
+                env.executeInTransaction(new TransactionalExecutable() {
+                    @Override
+                    public void execute(@NotNull final Transaction txn) {
+                        int randomInt = rnd.nextInt() & 0x3fffffff;
+                        final int count = 4 + (randomInt) & 0x1f;
+                        for (int j = 0; j < count; randomInt += ++j) {
+                            final int intKey = randomInt & 0x3fff;
+                            final ArrayByteIterable key = IntegerBinding.intToCompressedEntry(intKey);
+                            final int valueLength = 50 + (randomInt % 100);
+                            store.put(txn, key, new ArrayByteIterable(new byte[valueLength]));
+                            storeDups.put(txn, key, IntegerBinding.intToEntry(randomInt % 32));
+                        }
+                        randomInt = (randomInt * randomInt) & 0x3fffffff;
+                        for (int j = 0; j < count / 2; randomInt += ++j) {
+                            final int intKey = randomInt & 0x3fff;
+                            final ArrayByteIterable key = IntegerBinding.intToCompressedEntry(intKey);
+                            store.delete(txn, key);
+                            try (Cursor cursor = storeDups.openCursor(txn)) {
+                                if (cursor.getSearchBoth(key, IntegerBinding.intToEntry(randomInt % 32))) {
+                                    cursor.deleteCurrent();
+                                }
+                            }
+                        }
 
-    @Test
-    public void testTextIndexLikeWithDeletionsWithoutExpirationChecker() {
-        testTextIndexLikeWithDeletions(false);
+                    }
+                });
+                Thread.sleep(0);
+            }
+        } catch (Throwable t) {
+            memory.dump(new File(System.getProperty("user.home"), "dump"));
+            logger.error("User code exception: ", t);
+            Assert.fail();
+        }
     }
 
     @Test
@@ -139,7 +196,7 @@ public class GarbageCollectorTestInMemory extends GarbageCollectorTest {
         for (int i = 1; i < processors.length; ++i) {
             processors[i].queue(new Job() {
                 @Override
-                protected void execute() throws Throwable {
+                protected void execute() {
                     try {
                         barrier.await();
                         while (System.currentTimeMillis() - started < TEST_DURATION) {
@@ -167,94 +224,13 @@ public class GarbageCollectorTestInMemory extends GarbageCollectorTest {
         if (t != null) {
             memory.dump(new File(System.getProperty("user.home"), "dump"));
             logger.error("User code exception: ", t);
-            Assert.assertTrue(false);
-        }
-    }
-
-    private void testTextIndexLike(boolean useExpirationChecker) {
-        final long started = System.currentTimeMillis();
-        prepare(useExpirationChecker);
-        final Transaction txn = env.beginTransaction();
-        final Store store = env.openStore("store", getStoreConfig(false), txn);
-        final Store storeDups = env.openStore("storeDups", getStoreConfig(true), txn);
-        txn.commit();
-        try {
-            while (System.currentTimeMillis() - started < TEST_DURATION) {
-                env.executeInTransaction(new TransactionalExecutable() {
-                    @Override
-                    public void execute(@NotNull final Transaction txn) {
-                        int randomInt = rnd.nextInt() & 0x3fffffff;
-                        final int count = 4 + (randomInt) & 0x1f;
-                        for (int j = 0; j < count; randomInt += ++j) {
-                            final int intKey = randomInt & 0x3fff;
-                            final ArrayByteIterable key = IntegerBinding.intToCompressedEntry(intKey);
-                            final int valueLength = 50 + (randomInt % 100);
-                            store.put(txn, key, new ArrayByteIterable(new byte[valueLength]));
-                            storeDups.put(txn, key, IntegerBinding.intToEntry(randomInt % 32));
-                        }
-                    }
-                });
-                Thread.sleep(0);
-            }
-        } catch (Throwable t) {
-            memory.dump(new File(System.getProperty("user.home"), "dump"));
-            logger.error("User code exception: ", t);
-            Assert.assertTrue(false);
-        }
-    }
-
-    private void testTextIndexLikeWithDeletions(boolean useExpirationChecker) {
-        final long started = System.currentTimeMillis();
-        prepare(useExpirationChecker);
-        final Transaction txn = env.beginTransaction();
-        final Store store = env.openStore("store", getStoreConfig(false), txn);
-        final Store storeDups = env.openStore("storeDups", getStoreConfig(true), txn);
-        txn.commit();
-        try {
-            while (System.currentTimeMillis() - started < TEST_DURATION) {
-                env.executeInTransaction(new TransactionalExecutable() {
-                    @Override
-                    public void execute(@NotNull final Transaction txn) {
-                        int randomInt = rnd.nextInt() & 0x3fffffff;
-                        final int count = 4 + (randomInt) & 0x1f;
-                        for (int j = 0; j < count; randomInt += ++j) {
-                            final int intKey = randomInt & 0x3fff;
-                            final ArrayByteIterable key = IntegerBinding.intToCompressedEntry(intKey);
-                            final int valueLength = 50 + (randomInt % 100);
-                            store.put(txn, key, new ArrayByteIterable(new byte[valueLength]));
-                            storeDups.put(txn, key, IntegerBinding.intToEntry(randomInt % 32));
-                        }
-                        randomInt = (randomInt * randomInt) & 0x3fffffff;
-                        for (int j = 0; j < count / 2; randomInt += ++j) {
-                            final int intKey = randomInt & 0x3fff;
-                            final ArrayByteIterable key = IntegerBinding.intToCompressedEntry(intKey);
-                            store.delete(txn, key);
-                            try (Cursor cursor = storeDups.openCursor(txn)) {
-                                if (cursor.getSearchBoth(key, IntegerBinding.intToEntry(randomInt % 32))) {
-                                    cursor.deleteCurrent();
-                                }
-                            }
-                        }
-
-                    }
-                });
-                Thread.sleep(0);
-            }
-        } catch (Throwable t) {
-            memory.dump(new File(System.getProperty("user.home"), "dump"));
-            logger.error("User code exception: ", t);
-            Assert.assertTrue(false);
+            Assert.fail();
         }
     }
 
     private void prepare() {
-        prepare(true);
-    }
-
-    private void prepare(boolean useExpirationChecker) {
         setLogFileSize(2);
         env.getEnvironmentConfig().setTreeMaxPageSize(16);
-        env.getEnvironmentConfig().setGcUseExpirationChecker(useExpirationChecker);
         reopenEnvironment();
     }
 }
