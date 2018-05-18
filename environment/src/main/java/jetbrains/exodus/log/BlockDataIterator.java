@@ -15,6 +15,9 @@
  */
 package jetbrains.exodus.log;
 
+import jetbrains.exodus.crypto.EnvKryptKt;
+import jetbrains.exodus.crypto.StreamCipher;
+import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.io.Block;
 import org.jetbrains.annotations.NotNull;
 
@@ -38,15 +41,34 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
         this.log = log;
         this.block = block;
         this.position = startAddress;
-        final long length = block.length();
-        this.end = block.getAddress() + length;
+        this.end = block.getAddress() + block.length();
         this.lastPageAddress = log.getHighPageAddress(end);
         this.lastPage = new byte[log.getCachePageSize()];
+        final LogConfig config = log.getConfig();
+        final StreamCipherProvider cipherProvider = config.getCipherProvider();
+        final InputStream baseStream;
         if (lastPageAddress == prevTip.pageAddress) {
             lastPageCount = prevTip.count;
-            System.arraycopy(prevTip.bytes, 0, lastPage, 0, prevTip.count);
+            System.arraycopy(prevTip.bytes, 0, lastPage, 0, prevTip.count); // fill with unencrypted bytes
         }
-        this.stream = new BufferedInputStream(new BlockStream(block, length, position), log.getCachePageSize());
+        if (cipherProvider != null) {
+            final long skip = position % LogUtil.LOG_BLOCK_ALIGNMENT;
+            baseStream = new BlockStream(config, block, position - skip);
+            if (skip > 0) {
+                try {
+                    final long skipped = baseStream.skip(skip);
+                    if (skipped < skip) {
+                        DataCorruptionException.raise(
+                                "DataIterator: no more bytes available", log, position - skipped);
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        } else {
+            baseStream = new BlockStream(config, block, position);
+        }
+        this.stream = new BufferedInputStream(baseStream, log.getCachePageSize());
     }
 
     @Override
@@ -66,12 +88,7 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
                 DataCorruptionException.raise(
                         "DataIterator: no more bytes available", log, position);
             }
-            final long nextPosition = position + 1;
-            // force BufferedInputStream to bulk read remaining bytes to limit Block.read invocations count on skip()
-            if (nextPosition >= lastPageAddress) {
-                stream.mark(lastPage.length);
-            }
-            position = nextPosition;
+            position++;
             return result[0];
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -112,14 +129,27 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
     }
 
     private class BlockStream extends InputStream {
+        @NotNull
+        private final LogConfig config;
         private final Block block;
-        private final long length;
+        private final boolean crypt;
         private long position;
+        private StreamCipher cipher;
+        private boolean finished = false;
 
-        BlockStream(Block block, long length, long position) {
+        BlockStream(@NotNull LogConfig config, Block block, long position) {
+            this.config = config;
             this.block = block;
-            this.length = length;
             this.position = position;
+            if (config.getCipherProvider() != null) {
+                crypt = true;
+                if (position % LogUtil.LOG_BLOCK_ALIGNMENT != 0) {
+                    finished = true;
+                }
+                cipher = makeCipher((int) (position - block.getAddress()));
+            } else {
+                crypt = false;
+            }
         }
 
         @Override
@@ -134,31 +164,42 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
 
         @Override
         public long skip(long n) {
-            final long startingPosition = position;
-            final long nextPosition = position + n;
-            final long skipLength;
-            if (nextPosition < length) {
-                position = nextPosition;
-                skipLength = n;
-            } else {
-                position = length;
-                skipLength = length - startingPosition;
+            if (finished) {
+                return -1;
             }
-            final long unreadStartAddress = lastPageAddress + lastPageCount;
-            if (nextPosition > unreadStartAddress) {
-                final long lastPageEnd = lastPageAddress + lastPage.length;
-                if (unreadStartAddress < lastPageEnd) {
-                    block.read(lastPage, unreadStartAddress - block.getAddress(), lastPageCount, (int) (lastPageEnd - unreadStartAddress));
+            if (crypt) {
+                if (position % LogUtil.LOG_BLOCK_ALIGNMENT != 0) {
+                    finished = true;
                 }
+                if (n >= LogUtil.LOG_BLOCK_ALIGNMENT) {
+                    throw new IllegalStateException("Cannot skip this much");
+                }
+                final int count = (int) n;
+                final byte[] skipped = new byte[count];
+                final int read = block.read(skipped, position - block.getAddress(), 0, count);
+                for (int i = 0; i < read; i++) {
+                    cipher.crypt(skipped[i]);
+                }
+                position += read;
+                return read;
             }
-            return skipLength;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public int read(@NotNull byte[] b, int off, int len) {
-            final int writtenLength = block.read(b, position - block.getAddress(), off, len);
-            if (writtenLength > 0) {
-                final long nextPosition = position + writtenLength;
+            if (finished) {
+                return -1;
+            }
+            final int readLength = block.read(b, position - block.getAddress(), off, len);
+            if (readLength > 0) {
+                if (crypt) {
+                    final int end = off + readLength;
+                    for (int i = off; i < end; i++) {
+                        b[i] = cipher.crypt(b[i]);
+                    }
+                }
+                final long nextPosition = position + readLength;
                 if (nextPosition > lastPageAddress) {
                     final int skip;
                     final int offset;
@@ -169,13 +210,34 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
                         offset = (int) (position - lastPageAddress);
                         skip = 0;
                     }
-                    final int length = Math.min(lastPage.length - offset, writtenLength - skip);
+                    final int length = Math.min(lastPage.length - offset, readLength - skip);
                     System.arraycopy(b, off + skip, lastPage, offset, length);
                     lastPageCount += length;
                 }
                 position = nextPosition;
             }
-            return writtenLength;
+            checkCipher();
+            return readLength;
+        }
+
+        private void checkCipher() {
+            if (crypt) {
+                if (position % LogUtil.LOG_BLOCK_ALIGNMENT != 0) {
+                    finished = true;
+                } else {
+                    final int offset = (int) (position - block.getAddress());
+                    if (offset % LogUtil.LOG_BLOCK_ALIGNMENT == 0) {
+                        cipher = makeCipher(offset);
+                    }
+                }
+            }
+        }
+
+        private StreamCipher makeCipher(final Integer offset) {
+            final StreamCipher result = config.getCipherProvider().newCipher();
+            final long iv = config.getCipherBasicIV() + ((block.getAddress() + offset) / LogUtil.LOG_BLOCK_ALIGNMENT);
+            result.init(config.getCipherKey(), EnvKryptKt.asHashedIV(iv));
+            return result;
         }
 
         @Override

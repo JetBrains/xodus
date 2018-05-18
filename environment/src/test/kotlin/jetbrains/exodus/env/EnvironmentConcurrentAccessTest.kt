@@ -16,14 +16,15 @@
 package jetbrains.exodus.env
 
 import jetbrains.exodus.bindings.StringBinding.stringToEntry
+import jetbrains.exodus.log.Log
+import jetbrains.exodus.log.LogConfig
 import jetbrains.exodus.log.ReplicatedLogTestMixin
 import jetbrains.exodus.util.IOUtil
-import junit.framework.AssertionFailedError
-import org.jetbrains.annotations.NotNull
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
+import java.io.File
 
 class EnvironmentConcurrentAccessTest : ReplicatedLogTestMixin {
     companion object {
@@ -45,14 +46,14 @@ class EnvironmentConcurrentAccessTest : ReplicatedLogTestMixin {
     @Ignore // fails with encryption
     @Test
     fun `should append changes in one file`() {
-        val sourceLog = logDir.createLog(4L, releaseLock = true) {
+        val sourceLog = logDir.createLog(4L, releaseLock = true, envConfig = envConfig) {
             cachePageSize = 1024
         }
 
         val sourceEnvironment = Environments.newInstance(sourceLog, envConfig)
         appendEnvironment(sourceEnvironment, 0)
 
-        val targetLog = logDir.createLog(4L) {
+        val targetLog = logDir.createLog(4L, envConfig = envConfig) {
             cachePageSize = 1024
         }
 
@@ -95,6 +96,24 @@ class EnvironmentConcurrentAccessTest : ReplicatedLogTestMixin {
         env.executeInTransaction { txn ->
             val store = env.openStore(storeName, StoreConfig.WITHOUT_DUPLICATES, txn)
             Assert.assertEquals(count, store.count(txn))
+        }
+    }
+
+    private fun File.createLog(
+            fileSize: Long,
+            releaseLock: Boolean = false,
+            envConfig: EnvironmentConfig,
+            modifyConfig: LogConfig.() -> Unit = {}
+    ): Log {
+        return with(LogConfig().setFileSize(fileSize)) {
+            val (reader, writer) = this@createLog.createLogRW()
+            setReaderWriter(reader, writer)
+            modifyConfig()
+            Environments.newLogInstance(this, envConfig).also {
+                if (releaseLock) { // override locking to perform readonly operations
+                    writer.release()
+                }
+            }
         }
     }
 }
