@@ -31,6 +31,7 @@ class EnvironmentConcurrentAccessTest : ReplicatedLogTestMixin {
         private const val storeName = "foobar"
         private val envConfig = EnvironmentConfig().apply {
             isManagementEnabled = false
+            logCachePageSize = 1024
         }
     }
 
@@ -46,16 +47,12 @@ class EnvironmentConcurrentAccessTest : ReplicatedLogTestMixin {
     @Ignore // fails with encryption
     @Test
     fun `should append changes in one file`() {
-        val sourceLog = logDir.createLog(4L, releaseLock = true, envConfig = envConfig) {
-            cachePageSize = 1024
-        }
+        val sourceLog = logDir.createLog(4L, releaseLock = true, envConfig = envConfig)
 
         val sourceEnvironment = Environments.newInstance(sourceLog, envConfig)
         appendEnvironment(sourceEnvironment, 0)
 
-        val targetLog = logDir.createLog(4L, envConfig = envConfig) {
-            cachePageSize = 1024
-        }
+        val targetLog = logDir.createLog(4L, envConfig = envConfig)
 
         val targetEnvironment = Environments.newInstance(targetLog, envConfig) as EnvironmentImpl
 
@@ -102,13 +99,11 @@ class EnvironmentConcurrentAccessTest : ReplicatedLogTestMixin {
     private fun File.createLog(
             fileSize: Long,
             releaseLock: Boolean = false,
-            envConfig: EnvironmentConfig,
-            modifyConfig: LogConfig.() -> Unit = {}
+            envConfig: EnvironmentConfig
     ): Log {
         return with(LogConfig().setFileSize(fileSize)) {
             val (reader, writer) = this@createLog.createLogRW()
             setReaderWriter(reader, writer)
-            modifyConfig()
             Environments.newLogInstance(this, envConfig).also {
                 if (releaseLock) { // override locking to perform readonly operations
                     writer.release()

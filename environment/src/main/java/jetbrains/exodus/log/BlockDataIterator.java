@@ -44,26 +44,11 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
         this.lastPageAddress = log.getHighPageAddress(end);
         this.lastPage = new byte[log.getCachePageSize()];
         final LogConfig config = log.getConfig();
-
         if (lastPageAddress == prevTip.pageAddress) {
             lastPageCount = prevTip.count;
             System.arraycopy(prevTip.bytes, 0, lastPage, 0, prevTip.count); // fill with unencrypted bytes
         }
-
-        final long skip = config.getCipherProvider() != null ? position % LogUtil.LOG_BLOCK_ALIGNMENT : 0;
-        this.stream = new BufferedInputStream(new BlockStream(config, block, position - skip), log.getCachePageSize());
-
-        if (skip > 0) {
-            try {
-                final long skipped = stream.skip(skip);
-                if (skipped < skip) {
-                    DataCorruptionException.raise(
-                            "DataIterator: no more bytes available", log, position - skipped);
-                }
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        this.stream = new BufferedInputStream(new BlockStream(config, block, position), log.getCachePageSize());
     }
 
     @Override
@@ -130,19 +115,24 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
         private final boolean crypt;
         private long position;
         private StreamCipher cipher;
-        private boolean finished = false;
 
         BlockStream(@NotNull LogConfig config, Block block, long position) {
             this.config = config;
             this.block = block;
-            this.position = position;
             if (config.getCipherProvider() != null) {
+                final long skip = position % LogUtil.LOG_BLOCK_ALIGNMENT;
+                this.position = position - skip; // pre-load some data to initialize cipher properly
                 crypt = true;
-                if (position % LogUtil.LOG_BLOCK_ALIGNMENT != 0) {
-                    finished = true;
+                cipher = makeCipher((int) (this.position - block.getAddress()));
+                if (skip > 0) {
+                    final long skipped = skipInternal(skip);
+                    if (skipped < skip) {
+                        DataCorruptionException.raise(
+                                "DataIterator: no more bytes available", log, position - skipped);
+                    }
                 }
-                cipher = makeCipher((int) (position - block.getAddress()));
             } else {
+                this.position = position;
                 crypt = false;
             }
         }
@@ -159,40 +149,21 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
 
         @Override
         public long skip(long n) {
-            if (finished) {
-                return -1;
-            }
-            if (crypt) {
-                if (position % LogUtil.LOG_BLOCK_ALIGNMENT != 0) {
-                    finished = true;
-                    return -1;
-                }
-                if (n >= LogUtil.LOG_BLOCK_ALIGNMENT) {
-                    throw new IllegalStateException("Cannot skip this much");
-                }
-                final int count = (int) n;
-                final byte[] skipped = new byte[count];
-                final int read = block.read(skipped, position - block.getAddress(), 0, count);
-                for (int i = 0; i < read; i++) {
-                    cipher.crypt(skipped[i]);
-                }
-                position += read;
-                return read;
-            }
             throw new UnsupportedOperationException();
         }
 
         @Override
         public int read(@NotNull byte[] b, int off, int len) {
-            if (finished) {
-                return -1;
-            }
             final int readLength = block.read(b, position - block.getAddress(), off, len);
             if (readLength > 0) {
                 if (crypt) {
                     final int end = off + readLength;
+                    long currentPosition = position;
                     for (int i = off; i < end; i++) {
                         b[i] = cipher.crypt(b[i]);
+                        currentPosition++;
+                        // TODO: optimize (find aligned position and reset cipher only on it)
+                        checkCipher(currentPosition);
                     }
                 }
                 final long nextPosition = position + readLength;
@@ -212,20 +183,24 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
                 }
                 position = nextPosition;
             }
-            checkCipher();
             return readLength;
         }
 
-        private void checkCipher() {
-            if (crypt) {
-                if (position % LogUtil.LOG_BLOCK_ALIGNMENT != 0) {
-                    finished = true;
-                } else {
-                    final int offset = (int) (position - block.getAddress());
-                    if (offset % LogUtil.LOG_BLOCK_ALIGNMENT == 0) {
-                        cipher = makeCipher(offset);
-                    }
-                }
+        private long skipInternal(long n) {
+            final int count = (int) n;
+            final byte[] skipped = new byte[count];
+            final int read = block.read(skipped, position - block.getAddress(), 0, count);
+            for (int i = 0; i < read; i++) {
+                cipher.crypt(skipped[i]);
+            }
+            position += read;
+            return read;
+        }
+
+        private void checkCipher(final long position) {
+            final int offset = (int) (position - block.getAddress());
+            if (offset % LogUtil.LOG_BLOCK_ALIGNMENT == 0) {
+                cipher = makeCipher(offset);
             }
         }
 
@@ -242,3 +217,4 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
         }
     }
 }
+
