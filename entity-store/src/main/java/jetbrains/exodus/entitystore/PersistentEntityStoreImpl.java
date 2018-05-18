@@ -35,6 +35,7 @@ import jetbrains.exodus.entitystore.replication.PersistentEntityStoreReplicator;
 import jetbrains.exodus.entitystore.tables.*;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.env.replication.EnvironmentReplicationDelta;
+import jetbrains.exodus.io.DataReaderWriterProvider;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.management.Statistics;
 import jetbrains.exodus.util.ByteArraySizedInputStream;
@@ -76,6 +77,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private final String name;
     @NotNull
     private final Environment environment;
+    @NotNull
+    private final DataReaderWriterProvider readerWriterProvider;
     @NotNull
     private final String location;
     @NotNull
@@ -169,8 +172,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         location = environment.getLocation();
 
         // if database is in-memory then never create blobs in BlobVault
-        if (environment.getEnvironmentConfig().getLogDataReaderWriterProvider().
-            equalsIgnoreCase("jetbrains.exodus.io.inMemory.MemoryDataReaderWriterProvider")) {
+        final String provider = environment.getEnvironmentConfig().getLogDataReaderWriterProvider();
+        readerWriterProvider = DataReaderWriterProvider.getProvider(provider);
+        if (readerWriterProvider.isInMemory()) {
             config.setMaxInPlaceBlobSize(Integer.MAX_VALUE);
         }
 
@@ -299,6 +303,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     private BlobVault initBlobVault() {
+        if (readerWriterProvider.isInMemory()) {
+            return new DummyBlobVault(config);
+        }
         final FileSystemBlobVaultOld fsVault = createDefaultFSBlobVault();
         DiskBasedBlobVault result = fsVault;
         final StreamCipherProvider cipherProvider = environment.getCipherProvider();

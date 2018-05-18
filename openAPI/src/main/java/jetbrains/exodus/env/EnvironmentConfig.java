@@ -251,7 +251,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * Defines fully-qualified name of the {@linkplain DataReaderWriterProvider} service provider interface implementation which
      * will be used to create {@linkplain DataReader} and {@linkplain DataWriter} instances. This setting can be used
      * to customize storageL define in-memory one, in-cloud, etc.
-     * Default value is {@code "jetbrains.exodus.io.FileDataReaderWriterProvider"} which means that file system must be
+     * Default value is {@linkplain DataReaderWriterProvider#DEFAULT_READER_WRITER_PROVIDER} which means that file system must be
      * used as a storage. Several settings are applicable only to FileDataReaderWriterProvider used:
      * {@linkplain #LOG_DURABLE_WRITE}, {@linkplain #LOG_SYNC_PERIOD}, {@linkplain #LOG_CACHE_OPEN_FILES},
      * {@linkplain #LOG_FULL_FILE_READ_ONLY}, {@linkplain #LOG_CACHE_USE_NIO}, {@linkplain #LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD}.
@@ -594,7 +594,7 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(LOG_CLEAR_INVALID, false),
             new Pair(LOG_SYNC_PERIOD, 10000L),
             new Pair(LOG_FULL_FILE_READ_ONLY, true),
-            new Pair(LOG_DATA_READER_WRITER_PROVIDER, "jetbrains.exodus.io.FileDataReaderWriterProvider"),
+            new Pair(LOG_DATA_READER_WRITER_PROVIDER, DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER),
             new Pair(ENV_IS_READONLY, false),
             new Pair(ENV_READONLY_EMPTY_STORES, false),
             new Pair(ENV_STOREGET_CACHE_SIZE, 0),
@@ -1177,7 +1177,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * Returns fully-qualified name of the {@linkplain DataReaderWriterProvider} service provide interface implementation which
      * will be used to create {@linkplain DataReader} and {@linkplain DataWriter} instances. This setting can be used
      * to customize storageL define in-memory one, in-cloud, etc.
-     * Default value is {@code "jetbrains.exodus.io.FileDataReaderWriterProvider"} which means that file system must be
+     * Default value is {@linkplain DataReaderWriterProvider#DEFAULT_READER_WRITER_PROVIDER} which means that file system must be
      * used as a storage. Several settings are applicable only to FileDataReaderWriterProvider used:
      * {@linkplain #LOG_DURABLE_WRITE}, {@linkplain #LOG_SYNC_PERIOD}, {@linkplain #LOG_CACHE_OPEN_FILES},
      * {@linkplain #LOG_FULL_FILE_READ_ONLY}, {@linkplain #LOG_CACHE_USE_NIO}, {@linkplain #LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD}.
@@ -1193,7 +1193,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * Sets fully-qualified name of the {@linkplain DataReaderWriterProvider} service provide interface implementation which
      * will be used to create {@linkplain DataReader} and {@linkplain DataWriter} instances. This setting can be used
      * to customize storageL define in-memory one, in-cloud, etc.
-     * Default value is {@code "jetbrains.exodus.io.FileDataReaderWriterProvider"} which means that file system must be
+     * Default value is {@linkplain DataReaderWriterProvider#DEFAULT_READER_WRITER_PROVIDER} which means that file system must be
      * used as a storage. Several settings are applicable only to FileDataReaderWriterProvider used:
      * {@linkplain #LOG_DURABLE_WRITE}, {@linkplain #LOG_SYNC_PERIOD}, {@linkplain #LOG_CACHE_OPEN_FILES},
      * {@linkplain #LOG_FULL_FILE_READ_ONLY}, {@linkplain #LOG_CACHE_USE_NIO}, {@linkplain #LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD}.

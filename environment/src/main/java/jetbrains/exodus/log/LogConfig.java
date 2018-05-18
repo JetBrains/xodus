@@ -302,15 +302,12 @@ public class LogConfig {
     }
 
     private void createReaderWriter() {
-        final DataReaderWriterProvider provider = DataReaderWriterProvider.getProvider(readerWriterProvider);
-        if (provider == null) {
-            throw new InvalidSettingException("Unknown DataReaderWriterProvider: " + readerWriterProvider);
-        }
         final String location = this.location;
         if (location == null) {
             throw new InvalidSettingException("Location for DataReader and DataWriter is not specified");
         }
-        Pair<DataReader, DataWriter> readerWriter = provider.newReaderWriter(location);
+        Pair<DataReader, DataWriter> readerWriter =
+            DataReaderWriterProvider.getProvider(readerWriterProvider).newReaderWriter(location);
         reader = readerWriter.getFirst();
         writer = readerWriter.getSecond();
     }

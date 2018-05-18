@@ -24,4 +24,6 @@ class MemoryDataReaderWriterProvider : DataReaderWriterProvider() {
 
     override fun newReaderWriter(location: String): Pair<DataReader, DataWriter> =
             Memory().run { Pair(MemoryDataReader(this), MemoryDataWriter(this)) }
+
+    override fun isInMemory() = true
 }

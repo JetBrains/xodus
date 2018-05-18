@@ -15,24 +15,30 @@
  */
 package jetbrains.exodus.io;
 
+import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.core.dataStructures.Pair;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.ServiceLoader;
 
 // TODO: document
 public abstract class DataReaderWriterProvider {
 
+    public static final String DEFAULT_READER_WRITER_PROVIDER = "jetbrains.exodus.io.FileDataReaderWriterProvider";
+
     public abstract Pair<DataReader, DataWriter> newReaderWriter(@NotNull final String location);
 
-    @Nullable
-    public static DataReaderWriterProvider getProvider(@NotNull final String fqName) {
+    public boolean isInMemory() {
+        return false;
+    }
+
+    @NotNull
+    public static DataReaderWriterProvider getProvider(@NotNull final String providerName) {
         for (DataReaderWriterProvider provider : ServiceLoader.load(DataReaderWriterProvider.class)) {
-            if (provider.getClass().getCanonicalName().equalsIgnoreCase(fqName)) {
+            if (provider.getClass().getCanonicalName().equalsIgnoreCase(providerName)) {
                 return provider;
             }
         }
-        return null;
+        throw new InvalidSettingException("Unknown DataReaderWriterProvider: " + providerName);
     }
 }
