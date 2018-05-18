@@ -32,6 +32,7 @@ class EnvironmentConcurrentAccessTest : ReplicatedLogTestMixin {
             isManagementEnabled = false
             logFileSize = 4L
             logCachePageSize = 1024
+            isLogCacheShared = false
         }
     }
 
