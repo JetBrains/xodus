@@ -138,11 +138,6 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
         }
 
         @Override
-        public int available() throws IOException {
-            return super.available();
-        }
-
-        @Override
         public int read() {
             throw new UnsupportedOperationException();
         }
@@ -217,4 +212,3 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
         }
     }
 }
-
