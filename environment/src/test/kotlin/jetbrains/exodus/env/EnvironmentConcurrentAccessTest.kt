@@ -30,6 +30,7 @@ class EnvironmentConcurrentAccessTest : ReplicatedLogTestMixin {
         private const val storeName = "foobar"
         private val envConfig = EnvironmentConfig().apply {
             isManagementEnabled = false
+            logFileSize = 4L
             logCachePageSize = 1024
         }
     }
@@ -50,16 +51,21 @@ class EnvironmentConcurrentAccessTest : ReplicatedLogTestMixin {
 
     @Test
     fun `should append changes in longer file`() {
-        doTest(100)
+        doTest(5)
     }
 
-    private fun doTest(multiplier: Int) {
-        val sourceLog = logDir.createLog(4L, releaseLock = true, envConfig = envConfig)
+    @Test
+    fun `should append changes in several files`() {
+        doTest(25, 3)
+    }
+
+    private fun doTest(multiplier: Int, expectedFiles: Int = 1) {
+        val sourceLog = logDir.createLog(releaseLock = true, envConfig = envConfig)
 
         val sourceEnvironment = Environments.newInstance(sourceLog, envConfig)
         appendEnvironment(sourceEnvironment, 10 * multiplier, 0)
 
-        val targetLog = logDir.createLog(4L, envConfig = envConfig)
+        val targetLog = logDir.createLog(envConfig = envConfig)
 
         val targetEnvironment = Environments.newInstance(targetLog, envConfig) as EnvironmentImpl
 
@@ -70,7 +76,7 @@ class EnvironmentConcurrentAccessTest : ReplicatedLogTestMixin {
         checkEnvironment(targetEnvironment, count = 10 * multiplier)
 
         val sourceFiles = sourceLog.tip.allFiles
-        Assert.assertEquals(1, sourceFiles.size)
+        Assert.assertEquals(expectedFiles, sourceFiles.size)
 
         Assert.assertTrue(targetEnvironment.tryUpdate())
 
@@ -104,11 +110,10 @@ class EnvironmentConcurrentAccessTest : ReplicatedLogTestMixin {
     }
 
     private fun File.createLog(
-            fileSize: Long,
             releaseLock: Boolean = false,
             envConfig: EnvironmentConfig
     ): Log {
-        return with(LogConfig().setFileSize(fileSize)) {
+        return with(LogConfig()) {
             val (reader, writer) = this@createLog.createLogRW()
             setReaderWriter(reader, writer)
             Environments.newLogInstance(this, envConfig).also {
