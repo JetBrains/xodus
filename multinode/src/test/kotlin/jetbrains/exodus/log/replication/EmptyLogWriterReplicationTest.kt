@@ -16,6 +16,7 @@
 package jetbrains.exodus.log.replication
 
 import jetbrains.exodus.log.Log
+import jetbrains.exodus.log.ReplicatedLogTestMixin.Companion.bucket
 
 class EmptyLogWriterReplicationTest: EmptyLogReplicationTest() {
 

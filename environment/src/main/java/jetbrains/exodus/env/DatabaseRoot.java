@@ -35,12 +35,15 @@ final class DatabaseRoot {
     private final boolean isValid;
 
     DatabaseRoot(@NotNull final Loggable loggable) {
+        this(loggable, loggable.getData().iterator());
+    }
+
+    DatabaseRoot(@NotNull final Loggable loggable, final ByteIterator it) {
         this.loggable = loggable;
-        final ByteIterator it = loggable.getData().iterator();
         rootAddress = CompressedUnsignedLongByteIterable.getLong(it);
         lastStructureId = CompressedUnsignedLongByteIterable.getInt(it);
         isValid = rootAddress ==
-            CompressedUnsignedLongByteIterable.getLong(it) - lastStructureId - MAGIC_DIFF;
+                CompressedUnsignedLongByteIterable.getLong(it) - lastStructureId - MAGIC_DIFF;
     }
 
     public long getAddress() {

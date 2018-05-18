@@ -42,7 +42,7 @@ final class MetaTreeImpl implements MetaTree {
     final long root;
     final LogTip logTip;
 
-    private MetaTreeImpl(final ITree tree, long root, LogTip logTip) {
+    MetaTreeImpl(final ITree tree, long root, LogTip logTip) {
         this.tree = tree;
         this.root = root;
         this.logTip = logTip;
@@ -241,7 +241,7 @@ final class MetaTreeImpl implements MetaTree {
         return key.getBytesUnsafe()[key.getLength() - 1] == 0;
     }
 
-    private static ITreeMutable cloneTree(@NotNull final ITree tree) {
+    static ITreeMutable cloneTree(@NotNull final ITree tree) {
         try (ITreeCursor cursor = tree.openCursor()) {
             final ITreeMutable result = tree.getMutableCopy();
             while (cursor.getNext()) {

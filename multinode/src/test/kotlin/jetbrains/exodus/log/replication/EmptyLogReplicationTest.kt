@@ -27,6 +27,8 @@ open class EmptyLogReplicationTest : ReplicationBaseTest() {
 
         val count = 10L
         writeToLog(sourceLog, count)
+        debugDump()
+
         val sourceFiles = sourceLog.tip.allFiles
         Assert.assertEquals(1, sourceFiles.size)
 
@@ -54,6 +56,7 @@ open class EmptyLogReplicationTest : ReplicationBaseTest() {
 
         val count = 1000L
         writeToLog(sourceLog, count)
+        debugDump()
 
         val sourceFiles = sourceLog.tip.allFiles
         Assert.assertTrue(sourceFiles.size > 1)

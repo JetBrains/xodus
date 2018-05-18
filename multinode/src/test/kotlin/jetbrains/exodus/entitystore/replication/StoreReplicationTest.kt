@@ -27,6 +27,7 @@ import jetbrains.exodus.entitystore.newPersistentEntityStoreConfig
 import jetbrains.exodus.env.EnvironmentConfig
 import jetbrains.exodus.env.Environments
 import jetbrains.exodus.env.newEnvironmentConfig
+import jetbrains.exodus.log.ReplicatedLogTestMixin.Companion.bucket
 import jetbrains.exodus.log.replication.ReplicationBaseTest
 import org.junit.Assert
 import org.junit.Test

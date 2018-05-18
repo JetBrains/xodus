@@ -17,10 +17,7 @@ package jetbrains.exodus.env
 
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.io.Block
-import jetbrains.exodus.log.BlockDataIterator
-import jetbrains.exodus.log.LogTip
-import jetbrains.exodus.log.Loggable
-import jetbrains.exodus.log.LoggableIterator
+import jetbrains.exodus.log.*
 import kotlin.concurrent.withLock
 
 fun <T> EnvironmentImpl.executeInCommitLock(action: () -> T): T {
@@ -53,11 +50,33 @@ fun EnvironmentImpl.reopenMetaTree(proto: MetaTreePrototype, rollbackTo: LogTip,
     }
 }
 
-// advance to some root loggable
-internal fun EnvironmentImpl.tryUpdate(): Pair<DatabaseRoot, LogTip>? {
+internal fun EnvironmentImpl.tryUpdate() {
     val tip = log.tip
+    log.tryUpdate(tip)?.let {
+        val updatedTip = it.second
+        executeInMetaWriteLock {
+            try {
+                log.compareAndSetTip(tip, updatedTip)
+                val root = it.first.rootAddress
+                loadMetaTree(root, updatedTip)?.let { metaTree ->
+                    metaTreeInternal = MetaTreeImpl(metaTree, root, updatedTip).also {
+                        MetaTreeImpl.cloneTree(metaTree) // try to traverse meta tree
+                    }
+                } ?: run {
+                    // Throwable class is used for exceptions to prevent stacktrace masking
+                    throwableOnCommit = Throwable("Cannot load updated meta tree")
+                }
+            } catch (t: Throwable) {
+                throwableOnCommit = Throwable("Cannot read updated meta tree", t)
+            }
+        }
+    }
+}
+
+// advance to some root loggable
+internal fun Log.tryUpdate(tip: LogTip): Pair<DatabaseRoot, LogTip>? {
     val fileSet = tip.fileSetCopy
-    val addedBlocks = log.config.reader.getBlocks(tip.highAddress)
+    val addedBlocks = config.reader.getBlocks(getFileAddress(tip.highAddress))
     val itr = addedBlocks.iterator()
     if (!itr.hasNext()) {
         return null
@@ -78,26 +97,28 @@ internal fun EnvironmentImpl.tryUpdate(): Pair<DatabaseRoot, LogTip>? {
     // update "last page"
     val lastBlockAddress = lastBlock.address
     val startAddress = maxOf(tip.highAddress, lastBlockAddress)
-    if (startAddress > lastBlockAddress + log.fileLengthBound) {
+    if (startAddress > lastBlockAddress + fileLengthBound) {
         throw IllegalStateException("Log truncated abnormally, aborting")
     }
-    val dataIterator = BlockDataIterator(log, lastBlock, startAddress)
-    val loggables = LoggableIterator(log, dataIterator)
+    val dataIterator = BlockDataIterator(this, tip, lastBlock, startAddress)
+    val loggables = LoggableIteratorUnsafe(this, dataIterator)
     val type = DatabaseRoot.DATABASE_ROOT_TYPE
-    var lastRoot: Loggable? = null
+    var lastRoot: DatabaseRoot? = null
     while (loggables.hasNext()) {
         val loggable = loggables.next()
-        if (loggable == null || loggable.address >= lastBlockAddress + log.fileLengthBound) {
+        val loggableEnd = loggable.address + loggable.length()
+        if (loggableEnd > highAddress) {
             break
         }
         if (loggable.type == type) {
-            lastRoot = loggable
+            lastRoot = DatabaseRoot(loggable, loggables.iterator)
+        } else if (!NullLoggable.isNullLoggable(loggable)) {
+            // don't skip DatabaseRoot content
+            val expectedDataLength = loggable.dataLength.toLong()
+            if (loggables.iterator.skip(expectedDataLength) < expectedDataLength) {
+                return null
+            }
         }
-        val expectedDataLength = loggable.dataLength.toLong()
-        if (dataIterator.skip(expectedDataLength) < expectedDataLength) {
-            return null
-        }
-        val loggableEnd = loggable.address + loggable.length()
         if (loggableEnd != dataIterator.address) {
             return null
         }
@@ -108,11 +129,21 @@ internal fun EnvironmentImpl.tryUpdate(): Pair<DatabaseRoot, LogTip>? {
     if (lastRoot == null) {
         return null
     }
-    try {
-        return DatabaseRoot(lastRoot) to with(dataIterator) {
-            LogTip(lastPage, lastPageAddress, lastPageCount, highAddress, highAddress, fileSet.endWrite())
-        }
-    } catch (ignore: ExodusException) {
+    return lastRoot to with(dataIterator) {
+        LogTip(lastPage, lastPageAddress, lastPageCount, highAddress, highAddress, fileSet.endWrite())
     }
-    return null
+}
+
+internal class LoggableIteratorUnsafe(private val log: Log, internal val iterator: ByteIteratorWithAddress) : Iterator<RandomAccessLoggable> {
+
+    fun getHighAddress() = iterator.address
+
+    override fun next(): RandomAccessLoggable {
+        if (!hasNext()) {
+            throw IllegalStateException()
+        }
+        return log.read(iterator)
+    }
+
+    override fun hasNext() = iterator.hasNext()
 }

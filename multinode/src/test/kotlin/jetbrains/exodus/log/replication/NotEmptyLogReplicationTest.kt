@@ -36,6 +36,7 @@ open class NotEmptyLogReplicationTest : ReplicationBaseTest() {
         val count = 1L
         val startIndex = 1000L
         writeToLog(sourceLog, count, startIndex)
+        debugDump()
 
         assertEquals(2, sourceLog.tip.allFiles.size)
 
@@ -71,6 +72,7 @@ open class NotEmptyLogReplicationTest : ReplicationBaseTest() {
         val count = 400L
         val startIndex = 1000L
         writeToLog(sourceLog, count, startIndex)
+        debugDump()
         Assert.assertTrue(sourceLog.tip.allFiles.size > 1)
 
         val highAddress = sourceLog.highAddress

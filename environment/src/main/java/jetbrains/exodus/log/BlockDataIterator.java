@@ -32,22 +32,26 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
     private final long end;
     private final BufferedInputStream stream;
 
-    private int lastPageCount = 0;
+    private int lastPageCount;
 
-    public BlockDataIterator(Log log, Block block, long startAddress) {
+    public BlockDataIterator(Log log, LogTip prevTip, Block block, long startAddress) {
         this.log = log;
         this.block = block;
         this.position = startAddress;
         final long length = block.length();
-        this.end = position + length;
+        this.end = block.getAddress() + length;
         this.lastPageAddress = log.getHighPageAddress(end);
         this.lastPage = new byte[log.getCachePageSize()];
-        this.stream = new BufferedInputStream(new BlockStream(block, length), log.getCachePageSize());
+        if (lastPageAddress == prevTip.pageAddress) {
+            lastPageCount = prevTip.count;
+            System.arraycopy(prevTip.bytes, 0, lastPage, 0, prevTip.count);
+        }
+        this.stream = new BufferedInputStream(new BlockStream(block, length, position), log.getCachePageSize());
     }
 
     @Override
     public boolean hasNext() {
-        return position < block.length();
+        return position < end;
     }
 
     @Override
@@ -110,11 +114,12 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
     private class BlockStream extends InputStream {
         private final Block block;
         private final long length;
-        private long position = 0;
+        private long position;
 
-        BlockStream(Block block, long length) {
+        BlockStream(Block block, long length, long position) {
             this.block = block;
             this.length = length;
+            this.position = position;
         }
 
         @Override

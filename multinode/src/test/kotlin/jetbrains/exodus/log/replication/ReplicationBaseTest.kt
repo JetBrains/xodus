@@ -16,19 +16,14 @@
 package jetbrains.exodus.log.replication
 
 import io.findify.s3mock.S3Mock
-import jetbrains.exodus.ByteIterable
-import jetbrains.exodus.TestUtil
 import jetbrains.exodus.env.replication.ReplicationDelta
-import jetbrains.exodus.io.FileDataReader
-import jetbrains.exodus.io.FileDataWriter
-import jetbrains.exodus.io.SharedOpenFilesCache
 import jetbrains.exodus.log.*
+import jetbrains.exodus.log.ReplicatedLogTestMixin.Companion.bucket
 import jetbrains.exodus.util.IOUtil
 import kotlinx.coroutines.experimental.future.await
 import kotlinx.coroutines.experimental.runBlocking
 import mu.KLogging
 import org.junit.After
-import org.junit.Assert.assertEquals
 import org.junit.Before
 import software.amazon.awssdk.core.AwsRequestOverrideConfig
 import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
@@ -40,17 +35,14 @@ import software.amazon.awssdk.services.s3.S3AdvancedConfiguration
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import software.amazon.awssdk.services.s3.model.ListBucketsRequest
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest
-import java.io.File
 import java.net.URI
 import java.nio.file.Paths
 
-abstract class ReplicationBaseTest {
+abstract class ReplicationBaseTest : ReplicatedLogTestMixin {
 
     companion object : KLogging() {
         const val port = 8001
-        const val openFiles = 16
         const val host = "127.0.0.1"
-        const val bucket = "logfiles"
     }
 
     val sourceLogDir by lazy { newTmpFile() }
@@ -102,53 +94,10 @@ abstract class ReplicationBaseTest {
         targetLogDir.delete()
     }
 
-    protected fun checkLog(log: Log, highAddress: Long, count: Long, startAddress: Long = 0, startIndex: Long = 0) {
-        log.use {
-            assertEquals(highAddress, log.highAddress)
-            val loggables = log.getLoggableIterator(startAddress)
-            var i = startIndex
-            while (loggables.hasNext()) {
-                val loggable = loggables.next()
-                if (!NullLoggable.isNullLoggable(loggable)) { // padding possible
-                    assertEquals(127, loggable.type.toInt())
-                    val value = CompressedUnsignedLongByteIterable.getLong(loggable.data)
-                    val expectedLength = CompressedUnsignedLongByteIterable.getIterable(i).length
-                    assertEquals(i, value)
-                    assertEquals(expectedLength, loggable.dataLength) // length increases since `i` is part of payload
-                    i++
-                }
-            }
-
-            assertEquals(count, i - startIndex)
-        }
+    fun debugDump() = runBlocking {
+        doDebug(s3)
     }
 
-    protected fun Log.writeData(iterable: ByteIterable): Long {
-        return write(127.toByte(), Loggable.NO_STRUCTURE_ID, iterable)
-    }
-
-    protected fun File.createLog(fileSize: Long, releaseLock: Boolean = false, modifyConfig: LogConfig.() -> Unit = {}): Log {
-        return with(LogConfig().setFileSize(fileSize)) {
-            val (reader, writer) = this@createLog.createLogRW()
-            setReaderWriter(reader, writer)
-            modifyConfig()
-            Log(this).also {
-                if (releaseLock) { // s3mock can't open xd.lck on Windows otherwise
-                    writer.release()
-                }
-            }
-        }
-    }
-
-    protected fun File.createLogRW() = Pair(FileDataReader(this), FileDataWriter(this)).apply {
-        SharedOpenFilesCache.setSize(openFiles)
-    }
-
-    protected fun newTmpFile(): File {
-        return File(TestUtil.createTempDir(), bucket).also {
-            it.mkdirs()
-        }
-    }
 
     protected suspend fun doDebug(s3: S3AsyncClient) {
         logger.info { "Listing buckets\n" }
@@ -200,24 +149,9 @@ abstract class ReplicationBaseTest {
         return S3FileFactory(s3, Paths.get(location), bucket, extraHost)
     }
 
-    fun writeToLog(sourceLog: Log, count: Long, startIndex: Long = 0) {
-        sourceLog.beginWrite()
-        for (i in startIndex until count + startIndex) {
-            sourceLog.writeData(CompressedUnsignedLongByteIterable.getIterable(i))
-        }
-        sourceLog.flush()
-        sourceLog.endWrite()
-
-        runBlocking {
-            doDebug(s3)
-        }
-
-    }
-
     fun Log.filesDelta(startAddress: Long): LongArray {
         return tip.getFilesFrom(startAddress).asSequence().toList().toLongArray()
     }
-
 
     fun newLogs(fileSize: Long = 4L): Pair<Log, Log> {
         val sourceLog = sourceLogDir.createLog(fileSize, releaseLock = true) {
@@ -227,9 +161,7 @@ abstract class ReplicationBaseTest {
             cachePageSize = 1024
         }
 
-        runBlocking {
-            doDebug(s3)
-        }
+        debugDump()
 
         return sourceLog to targetLog
     }

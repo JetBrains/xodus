@@ -1,6 +1,7 @@
 package jetbrains.exodus.log.replication
 
 import jetbrains.exodus.log.Log
+import jetbrains.exodus.log.ReplicatedLogTestMixin.Companion.bucket
 
 /**
  * Copyright 2010 - 2018 JetBrains s.r.o.
@@ -19,5 +20,5 @@ import jetbrains.exodus.log.Log
  */
 class SpecialLogWriterReplicationTest : SpecialLogReplicationTest() {
 
-    override fun Log.makeFileFactory(): FileFactory = S3ToWriterFileFactory(s3, ReplicationBaseTest.bucket, extraHost)
+    override fun Log.makeFileFactory(): FileFactory = S3ToWriterFileFactory(s3, bucket, extraHost)
 }

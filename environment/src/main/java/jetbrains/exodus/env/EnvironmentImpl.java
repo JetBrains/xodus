@@ -86,7 +86,7 @@ public class EnvironmentImpl implements Environment {
      * no transaction can be started or committed in that state. Once environment became inoperative,
      * it will remain inoperative forever.
      */
-    private volatile Throwable throwableOnCommit;
+    volatile Throwable throwableOnCommit;
     private Throwable throwableOnClose;
 
     @Nullable
