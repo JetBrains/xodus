@@ -50,11 +50,11 @@ fun EnvironmentImpl.reopenMetaTree(proto: MetaTreePrototype, rollbackTo: LogTip,
     }
 }
 
-internal fun EnvironmentImpl.tryUpdate() {
+internal fun EnvironmentImpl.tryUpdate(): Boolean {
     val tip = log.tip
     log.tryUpdate(tip)?.let {
         val updatedTip = it.second
-        executeInMetaWriteLock {
+        return executeInMetaWriteLock {
             try {
                 log.compareAndSetTip(tip, updatedTip)
                 val root = it.first.rootAddress
@@ -62,15 +62,19 @@ internal fun EnvironmentImpl.tryUpdate() {
                     metaTreeInternal = MetaTreeImpl(metaTree, root, updatedTip).also {
                         MetaTreeImpl.cloneTree(metaTree) // try to traverse meta tree
                     }
+                    true
                 } ?: run {
                     // Throwable class is used for exceptions to prevent stacktrace masking
                     throwableOnCommit = Throwable("Cannot load updated meta tree")
+                    false
                 }
             } catch (t: Throwable) {
                 throwableOnCommit = Throwable("Cannot read updated meta tree", t)
+                true
             }
         }
     }
+    return false
 }
 
 // advance to some root loggable

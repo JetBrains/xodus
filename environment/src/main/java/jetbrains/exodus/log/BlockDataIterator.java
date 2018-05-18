@@ -78,7 +78,14 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
     @Override
     public long skip(long bytes) {
         try {
-            long result = stream.skip(bytes);
+            long result = 0;
+            while (result < bytes) {
+                final long skipped = stream.skip(bytes - result);
+                if (skipped <= 0) {
+                    break;
+                }
+                result += skipped;
+            }
             position += result;
             return result;
         } catch (IOException e) {
@@ -144,7 +151,11 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
 
         @Override
         public long skip(long n) {
-            throw new UnsupportedOperationException();
+            if (n >= Integer.MAX_VALUE) {
+                throw new UnsupportedOperationException();
+            }
+            final byte[] skipped = new byte[(int)n]; // TODO: try to optimize it i. e. by using BufferedInputStream#mark
+            return read(skipped, 0, (int) n);
         }
 
         @Override

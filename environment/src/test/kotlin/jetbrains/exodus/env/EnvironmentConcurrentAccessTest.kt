@@ -22,7 +22,6 @@ import jetbrains.exodus.log.ReplicatedLogTestMixin
 import jetbrains.exodus.util.IOUtil
 import org.junit.Assert
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Test
 import java.io.File
 
@@ -44,55 +43,63 @@ class EnvironmentConcurrentAccessTest : ReplicatedLogTestMixin {
         }
     }
 
-    @Ignore // fails with encryption
     @Test
     fun `should append changes in one file`() {
+        doTest(1)
+    }
+
+    @Test
+    fun `should append changes in longer file`() {
+        doTest(100)
+    }
+
+    private fun doTest(multiplier: Int) {
         val sourceLog = logDir.createLog(4L, releaseLock = true, envConfig = envConfig)
 
         val sourceEnvironment = Environments.newInstance(sourceLog, envConfig)
-        appendEnvironment(sourceEnvironment, 0)
+        appendEnvironment(sourceEnvironment, 10 * multiplier, 0)
 
         val targetLog = logDir.createLog(4L, envConfig = envConfig)
 
         val targetEnvironment = Environments.newInstance(targetLog, envConfig) as EnvironmentImpl
 
-        appendEnvironment(sourceEnvironment, from = 10)
+        appendEnvironment(sourceEnvironment, count = 10 * multiplier, from = 10 * multiplier)
 
         sourceLog.sync()
 
-        checkEnvironment(targetEnvironment, count = 10)
+        checkEnvironment(targetEnvironment, count = 10 * multiplier)
 
         val sourceFiles = sourceLog.tip.allFiles
         Assert.assertEquals(1, sourceFiles.size)
 
-        targetEnvironment.tryUpdate()
+        Assert.assertTrue(targetEnvironment.tryUpdate())
 
-        checkEnvironment(targetEnvironment, count = 20)
+        checkEnvironment(targetEnvironment, count = 20 * multiplier)
 
-        appendEnvironment(sourceEnvironment, from = 20)
+        appendEnvironment(sourceEnvironment, count = 10 * multiplier, from = 20 * multiplier)
 
         sourceEnvironment.close()
 
-        targetEnvironment.tryUpdate()
+        Assert.assertTrue(targetEnvironment.tryUpdate())
 
-        checkEnvironment(targetEnvironment, count = 30)
+        checkEnvironment(targetEnvironment, count = 30 * multiplier)
 
         targetEnvironment.close()
     }
 
-    private fun appendEnvironment(env: Environment, from: Int = 0) {
+    private fun appendEnvironment(env: Environment, count: Int, from: Int) {
         env.executeInTransaction { txn ->
             val store = env.openStore(storeName, StoreConfig.WITHOUT_DUPLICATES, txn)
-            ((from + 1)..(from + 10)).forEach { i ->
+            ((from + 1)..(from + count)).forEach { i ->
                 store.put(txn, stringToEntry("key$i"), stringToEntry("value$i"))
             }
         }
     }
 
-    private fun checkEnvironment(env: Environment, count: Long) {
+    private fun checkEnvironment(env: Environment, count: Int) {
         env.executeInTransaction { txn ->
             val store = env.openStore(storeName, StoreConfig.WITHOUT_DUPLICATES, txn)
-            Assert.assertEquals(count, store.count(txn))
+            Assert.assertEquals(count, store.count(txn).toInt())
         }
     }
 
