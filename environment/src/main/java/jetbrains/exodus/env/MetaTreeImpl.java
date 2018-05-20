@@ -59,7 +59,8 @@ final class MetaTreeImpl implements MetaTree {
                 DatabaseRoot dbRoot = null;
                 try {
                     dbRoot = new DatabaseRoot(rootLoggable);
-                } catch (ExodusException ignore) {
+                } catch (ExodusException e) {
+                    EnvironmentImpl.loggerError("Failed to load database root at " + rootLoggable.getAddress(), e);
                 }
                 if (dbRoot != null && dbRoot.isValid()) {
                     try {
@@ -92,6 +93,7 @@ final class MetaTreeImpl implements MetaTree {
             throw new InvalidCipherParametersException();
         }
         // no roots found: the database is empty
+        EnvironmentImpl.loggerInfo("No roots found: the database is empty");
         logTip = log.setHighAddress(logTip, 0);
         final ITree resultTree = getEmptyMetaTree(env);
         final long root;

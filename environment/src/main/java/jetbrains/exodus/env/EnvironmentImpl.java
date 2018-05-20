@@ -146,9 +146,7 @@ public class EnvironmentImpl implements Environment {
         cipherKey = logConfig.getCipherKey();
         cipherBasicIV = logConfig.getCipherBasicIV();
 
-        if (logger.isInfoEnabled()) {
-            logger.info("Exodus environment created: " + log.getLocation());
-        }
+        loggerInfo("Exodus environment created: " + log.getLocation());
     }
 
     @Override
@@ -423,10 +421,8 @@ public class EnvironmentImpl implements Environment {
             throwableOnClose = new EnvironmentClosedException();
             throwableOnCommit = throwableOnClose;
         }
-        if (logger.isInfoEnabled()) {
-            logger.info("Store get cache hit rate: " + ObjectCacheBase.formatHitRate(storeGetCacheHitRate));
-            logger.info("Exodus log cache hit rate: " + ObjectCacheBase.formatHitRate(logCacheHitRate));
-        }
+        loggerInfo("Store get cache hit rate: " + ObjectCacheBase.formatHitRate(storeGetCacheHitRate));
+        loggerInfo("Exodus log cache hit rate: " + ObjectCacheBase.formatHitRate(logCacheHitRate));
     }
 
     @Override
@@ -893,6 +889,12 @@ public class EnvironmentImpl implements Environment {
         }
     }
 
+    static void loggerInfo(@NotNull final String message) {
+        if (logger.isInfoEnabled()) {
+            logger.info(message);
+        }
+    }
+
     private void runAllTransactionSafeTasks() {
         if (throwableOnCommit == null) {
             synchronized (txnSafeTasks) {
@@ -916,8 +918,8 @@ public class EnvironmentImpl implements Environment {
             final String errorString = "Environment[" + getLocation() + "] is active: " + txnCount + " transaction(s) not finished";
             if (!exceptionSafe) {
                 loggerError(errorString);
-            } else if (logger.isInfoEnabled()) {
-                logger.info(errorString);
+            } else {
+                loggerInfo(errorString);
             }
             if (!exceptionSafe) {
                 reportAliveTransactions(false);
