@@ -20,7 +20,7 @@ import org.junit.Before;
 public class JobProcessorWithConcurrentQueueTest extends JobProcessorTest {
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         System.setProperty(JobProcessorQueueAdapter.CONCURRENT_QUEUE_PROPERTY, "true");
     }
 }
