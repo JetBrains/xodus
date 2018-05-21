@@ -52,6 +52,7 @@ public class LogConfig {
     private StreamCipherProvider cipherProvider;
     private byte[] cipherKey;
     private long cipherBasicIV;
+    private boolean lockIgnored;
 
     public LogConfig() {
     }
@@ -85,6 +86,14 @@ public class LogConfig {
     public LogConfig setLockTimeout(long lockTimeout) {
         this.lockTimeout = lockTimeout;
         return this;
+    }
+
+    public boolean isLockIgnored() {
+        return lockIgnored;
+    }
+
+    public void setLockIgnored(boolean lockIgnored) {
+        this.lockIgnored = lockIgnored;
     }
 
     public String getLockId() {

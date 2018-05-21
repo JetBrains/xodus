@@ -32,7 +32,7 @@ class EnvironmentWatcherConcurrentAccessTest : EnvironmentConcurrentAccessTest()
     }
 
     override fun doTest(multiplier: Int, expectedFiles: Int) {
-        val sourceLog = logDir.createLog(releaseLock = true, envConfig = envConfig)
+        val sourceLog = logDir.createLog(envConfig = envConfig)
 
         val sourceEnvironment = Environments.newInstance(sourceLog, envConfig)
         appendEnvironment(sourceEnvironment, 10 * multiplier, 0)

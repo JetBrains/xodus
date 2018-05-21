@@ -933,10 +933,12 @@ public final class Log implements Closeable {
     }
 
     private void tryLock() {
-        final long lockTimeout = config.getLockTimeout();
-        if (!baseWriter.lock(lockTimeout)) {
-            throw new ExodusException("Can't acquire environment lock after " +
-                lockTimeout + " ms.\n\n Lock owner info: \n" + baseWriter.lockInfo());
+        if (!config.isLockIgnored()) {
+            final long lockTimeout = config.getLockTimeout();
+            if (!baseWriter.lock(lockTimeout)) {
+                throw new ExodusException("Can't acquire environment lock after " +
+                        lockTimeout + " ms.\n\n Lock owner info: \n" + baseWriter.lockInfo());
+            }
         }
     }
 
