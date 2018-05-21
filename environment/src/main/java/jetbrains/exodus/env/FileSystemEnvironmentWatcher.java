@@ -64,6 +64,9 @@ class FileSystemEnvironmentWatcher {
             final WatchKey watchKey;
             try {
                 watchKey = watchService.poll(20, TimeUnit.SECONDS);
+                if (watchKey == null) {
+                    continue;
+                }
             } catch (final InterruptedException e) {
                 if (logger.isWarnEnabled()) {
                     logger.warn("File watcher interrupted", e);
