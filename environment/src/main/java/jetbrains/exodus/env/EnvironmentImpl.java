@@ -25,6 +25,8 @@ import jetbrains.exodus.entitystore.MetaServer;
 import jetbrains.exodus.env.management.EnvironmentConfigWithOperations;
 import jetbrains.exodus.gc.GarbageCollector;
 import jetbrains.exodus.gc.UtilizationProfile;
+import jetbrains.exodus.io.DataReader;
+import jetbrains.exodus.io.FileDataReader;
 import jetbrains.exodus.io.RemoveBlockType;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.TreeMetaInfo;
@@ -97,6 +99,8 @@ public class EnvironmentImpl implements Environment {
     @Nullable
     private final byte[] cipherKey;
     private final long cipherBasicIV;
+    @Nullable
+    private final FileSystemEnvironmentWatcher watcher;
 
     @SuppressWarnings({"ThisEscapedInObjectConstruction"})
     EnvironmentImpl(@NotNull final Log log, @NotNull final EnvironmentConfig ec) {
@@ -147,6 +151,8 @@ public class EnvironmentImpl implements Environment {
         cipherBasicIV = logConfig.getCipherBasicIV();
 
         loggerInfo("Exodus environment created: " + log.getLocation());
+
+        watcher = ec.isWatchReadOnly() ? newWatcher(log, ec) : null;
     }
 
     @Override
@@ -372,6 +378,10 @@ public class EnvironmentImpl implements Environment {
             if (!isOpen()) {
                 return;
             }
+        }
+        final FileSystemEnvironmentWatcher watcher = this.watcher;
+        if (watcher != null) {
+            watcher.stop();
         }
         final MetaServer metaServer = getEnvironmentConfig().getMetaServer();
         if (metaServer != null) {
@@ -862,6 +872,23 @@ public class EnvironmentImpl implements Environment {
         }
     }
 
+    // for tests only
+    boolean awaitUpdate(final long fromAddress, long timeout) {
+        final int delta = 20;
+        try {
+            while (timeout >= 0) {
+                if (log.getHighAddress() > fromAddress) {
+                    return true;
+                }
+                Thread.sleep(delta);
+                timeout -= delta;
+            }
+        } catch (InterruptedException ignore) {
+            Thread.currentThread().interrupt();
+        }
+        return false;
+    }
+
     protected StoreImpl createTemporaryEmptyStore(String name) {
         return new TemporaryEmptyStore(this, name);
     }
@@ -987,6 +1014,28 @@ public class EnvironmentImpl implements Environment {
     private void invalidateStoreGetCache() {
         final int storeGetCacheSize = ec.getEnvStoreGetCacheSize();
         storeGetCache = storeGetCacheSize == 0 ? null : new StoreGetCache(storeGetCacheSize);
+    }
+
+    private FileSystemEnvironmentWatcher newWatcher(@NotNull final Log log, final @NotNull EnvironmentConfig ec) {
+        if (!ec.getEnvIsReadonly()) {
+            if (logger.isErrorEnabled()) {
+                logger.error("Cannot watch filesystem because environment is not in read-only mode");
+            }
+        } else {
+            final DataReader reader = log.getConfig().getReader();
+            if (reader instanceof FileDataReader) {
+                try {
+                    return new FileSystemEnvironmentWatcher(((FileDataReader) reader).getDir(), this);
+                } catch (IOException ignored) {
+                    return null;
+                }
+            } else {
+                if (logger.isErrorEnabled()) {
+                    logger.error("Watching non-file data reader is not supported yet");
+                }
+            }
+        }
+        return null;
     }
 
     private static void applyEnvironmentSettings(@NotNull final String location,

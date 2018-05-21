@@ -569,6 +569,8 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public static final String META_SERVER = "exodus.env.metaServer";
 
+    public static final String WATCH_READONLY = "exodus.env.watchReadOnly";
+
     public EnvironmentConfig() {
         this(ConfigurationStrategy.SYSTEM_PROPERTY);
     }
@@ -625,7 +627,8 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(GC_TRANSACTION_TIMEOUT, 1000),
             new Pair(MANAGEMENT_ENABLED, true),
             new Pair(MANAGEMENT_OPERATIONS_RESTRICTED, true),
-            new Pair(META_SERVER, null)
+            new Pair(META_SERVER, null),
+            new Pair(WATCH_READONLY, false)
         }, strategy);
     }
 
@@ -2088,5 +2091,13 @@ public class EnvironmentConfig extends AbstractConfig {
 
     public MetaServer getMetaServer() {
         return (MetaServer) getSetting(META_SERVER);
+    }
+
+    public boolean isWatchReadOnly() {
+        return (Boolean) getSetting(WATCH_READONLY);
+    }
+
+    public EnvironmentConfig setWatchReadOnly(final boolean managementEnabled) {
+        return setSetting(WATCH_READONLY, managementEnabled);
     }
 }

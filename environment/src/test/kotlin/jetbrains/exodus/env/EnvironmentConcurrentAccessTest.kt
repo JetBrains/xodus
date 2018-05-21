@@ -25,13 +25,15 @@ import org.junit.Before
 import org.junit.Test
 import java.io.File
 
-class EnvironmentConcurrentAccessTest : ReplicatedLogTestMixin {
+open class EnvironmentConcurrentAccessTest : ReplicatedLogTestMixin {
     companion object {
-        private const val storeName = "foobar"
-        private val envConfig = EnvironmentConfig().apply {
+        internal const val storeName = "foobar"
+        internal const val fileSize = 4L
+        internal const val cachePageSize = 1024
+        internal val envConfig = EnvironmentConfig().apply {
             isManagementEnabled = false
-            logFileSize = 4L
-            logCachePageSize = 1024
+            logFileSize = fileSize
+            logCachePageSize = cachePageSize
             isLogCacheShared = false
         }
     }
@@ -60,7 +62,7 @@ class EnvironmentConcurrentAccessTest : ReplicatedLogTestMixin {
         doTest(25, 3)
     }
 
-    private fun doTest(multiplier: Int, expectedFiles: Int = 1) {
+    open fun doTest(multiplier: Int, expectedFiles: Int = 1) {
         val sourceLog = logDir.createLog(releaseLock = true, envConfig = envConfig)
 
         val sourceEnvironment = Environments.newInstance(sourceLog, envConfig)
@@ -94,7 +96,7 @@ class EnvironmentConcurrentAccessTest : ReplicatedLogTestMixin {
         targetEnvironment.close()
     }
 
-    private fun appendEnvironment(env: Environment, count: Int, from: Int) {
+    protected fun appendEnvironment(env: Environment, count: Int, from: Int) {
         env.executeInTransaction { txn ->
             val store = env.openStore(storeName, StoreConfig.WITHOUT_DUPLICATES, txn)
             ((from + 1)..(from + count)).forEach { i ->
@@ -103,14 +105,14 @@ class EnvironmentConcurrentAccessTest : ReplicatedLogTestMixin {
         }
     }
 
-    private fun checkEnvironment(env: Environment, count: Int) {
+    protected fun checkEnvironment(env: Environment, count: Int) {
         env.executeInTransaction { txn ->
             val store = env.openStore(storeName, StoreConfig.WITHOUT_DUPLICATES, txn)
             Assert.assertEquals(count, store.count(txn).toInt())
         }
     }
 
-    private fun File.createLog(
+    protected fun File.createLog(
             releaseLock: Boolean = false,
             envConfig: EnvironmentConfig
     ): Log {

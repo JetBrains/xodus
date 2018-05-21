@@ -51,6 +51,12 @@ fun EnvironmentImpl.reopenMetaTree(proto: MetaTreePrototype, rollbackTo: LogTip,
 }
 
 internal fun EnvironmentImpl.tryUpdate(): Boolean {
+    return executeInCommitLock {
+        tryUpdateUnsafe()
+    }
+}
+
+private fun EnvironmentImpl.tryUpdateUnsafe(): Boolean {
     val tip = log.tip
     log.tryUpdate(tip)?.let {
         val updatedTip = it.second
@@ -78,7 +84,7 @@ internal fun EnvironmentImpl.tryUpdate(): Boolean {
 }
 
 // advance to some root loggable
-internal fun Log.tryUpdate(tip: LogTip): Pair<DatabaseRoot, LogTip>? {
+private fun Log.tryUpdate(tip: LogTip): Pair<DatabaseRoot, LogTip>? {
     val fileSet = tip.fileSetCopy
     val addedBlocks = config.reader.getBlocks(getFileAddress(tip.highAddress))
     val itr = addedBlocks.iterator()
@@ -86,28 +92,31 @@ internal fun Log.tryUpdate(tip: LogTip): Pair<DatabaseRoot, LogTip>? {
         return null
     }
     val lastBlock: Block
-    val highAddress: Long
     while (true) {
         val block = itr.next()
-        val blockAddress = block.address
-        fileSet.add(blockAddress)
+        fileSet.add(block.address)
         if (!itr.hasNext()) {
-            highAddress = blockAddress + block.length()
             lastBlock = block
             break
         }
     }
     // create loggable
     // update "last page"
+    return tryUpdate(this, lastBlock, tip, fileSet)
+}
+
+private fun tryUpdate(log: Log, lastBlock: Block, tip: LogTip, fileSet: LogFileSet.Mutable): Pair<DatabaseRoot, LogTip>? {
     val lastBlockAddress = lastBlock.address
+    val highAddress = lastBlockAddress + lastBlock.length()
     val startAddress = maxOf(tip.highAddress, lastBlockAddress)
-    if (startAddress > lastBlockAddress + fileLengthBound) {
+    if (startAddress > lastBlockAddress + log.fileLengthBound) {
         throw IllegalStateException("Log truncated abnormally, aborting")
     }
-    val dataIterator = BlockDataIterator(this, tip, lastBlock, startAddress)
-    val loggables = LoggableIteratorUnsafe(this, dataIterator)
+    val dataIterator = BlockDataIterator(log, tip, lastBlock, startAddress)
+    val loggables = LoggableIteratorUnsafe(log, dataIterator)
     val type = DatabaseRoot.DATABASE_ROOT_TYPE
     var lastRoot: DatabaseRoot? = null
+    //var currentAddress = startAddress
     while (loggables.hasNext()) {
         val loggable = loggables.next()
         val loggableEnd = loggable.address + loggable.length()
@@ -126,6 +135,7 @@ internal fun Log.tryUpdate(tip: LogTip): Pair<DatabaseRoot, LogTip>? {
         if (loggableEnd != dataIterator.address) {
             return null
         }
+        //currentAddress = loggableEnd
         if (loggableEnd == highAddress) {
             break
         }

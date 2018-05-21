@@ -47,6 +47,11 @@ public class FileDataReader implements DataReader {
         this.dir = dir;
     }
 
+    @NotNull
+    public File getDir() {
+        return dir;
+    }
+
     @Override
     public Iterable<Block> getBlocks() {
         final LongArrayList files = LogUtil.listFileAddresses(dir);
