@@ -41,7 +41,7 @@ class EnvironmentWatcherConcurrentAccessTest : EnvironmentConcurrentAccessTest()
 
         val targetEnvironment = Environments.newInstance(targetLog, envConfigWatch) as EnvironmentImpl
 
-        val start = targetEnvironment.log.highAddress
+        var start = targetEnvironment.log.highAddress
 
         checkEnvironment(targetEnvironment, count = 10 * multiplier)
 
@@ -55,6 +55,8 @@ class EnvironmentWatcherConcurrentAccessTest : EnvironmentConcurrentAccessTest()
         Assert.assertEquals(expectedFiles, sourceFiles.size)
 
         checkEnvironment(targetEnvironment, count = 20 * multiplier)
+
+        start = targetEnvironment.log.highAddress
 
         appendEnvironment(sourceEnvironment, count = 10 * multiplier, from = 20 * multiplier)
 
