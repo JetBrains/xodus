@@ -876,7 +876,7 @@ public class EnvironmentImpl implements Environment {
     boolean awaitUpdate(final long fromAddress, long timeout) {
         final int delta = 20;
         try {
-            while (timeout >= 0) {
+            while (timeout > 0) {
                 if (log.getHighAddress() > fromAddress) {
                     return true;
                 }
