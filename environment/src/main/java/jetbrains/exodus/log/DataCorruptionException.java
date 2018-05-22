@@ -28,7 +28,7 @@ public class DataCorruptionException extends ExodusException {
         this(message + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound));
     }
 
-    static void raise(@NotNull final String message, @NotNull final Log log, final long address) {
+    public static void raise(@NotNull final String message, @NotNull final Log log, final long address) {
         checkLogIsClosing(log);
         throw new DataCorruptionException(message, address, log.getFileLengthBound());
     }

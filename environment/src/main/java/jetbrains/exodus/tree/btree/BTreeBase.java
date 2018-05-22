@@ -150,7 +150,8 @@ public abstract class BTreeBase implements ITree {
     @NotNull
     protected LeafNode loadLeaf(final long address) {
         final RandomAccessLoggable loggable = getLoggable(address);
-        switch (loggable.getType()) {
+        final byte type = loggable.getType();
+        switch (type) {
             case LEAF:
             case DUP_LEAF:
                 return new LeafNode(loggable);
@@ -162,7 +163,9 @@ public abstract class BTreeBase implements ITree {
                     throw new ExodusException("Try to load leaf with duplicates, but tree is not configured to support duplicates.");
                 }
             default:
-                throw new IllegalArgumentException("Unexpected loggable type " + loggable.getType() + " at address " + loggable.getAddress());
+                DataCorruptionException.raise("Unexpected loggable type: " + type, log, address);
+                // dummy unreachable statement
+                throw new RuntimeException();
         }
     }
 

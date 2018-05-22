@@ -23,7 +23,7 @@ class BlockNotFoundException extends DataCorruptionException {
         super(message + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound));
     }
 
-    static void raise(@NotNull final String message, @NotNull final Log log, final long address) {
+    public static void raise(@NotNull final String message, @NotNull final Log log, final long address) {
         checkLogIsClosing(log);
         throw new BlockNotFoundException(message, address, log.getFileLengthBound());
     }

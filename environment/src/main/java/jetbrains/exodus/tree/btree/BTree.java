@@ -86,7 +86,9 @@ public class BTree extends BTreeBase {
                 result = new InternalPage(this, data);
                 break;
             default:
-                throw new IllegalArgumentException("Unknown loggable type [" + type + ']');
+                DataCorruptionException.raise("Unexpected loggable type: " + type, log, rootLoggable.getAddress());
+                // dummy unreachable statement
+                throw new RuntimeException();
         }
         return result;
     }
