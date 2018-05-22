@@ -34,9 +34,6 @@ class S3DataReader(
 
     companion object : KLogging()
 
-    private val fileBlocks: List<S3Block> get() = blocks.sortedBy { it._address }.toList()
-    private val folderBlocks: List<S3FolderBlock> get() = subBlocks.sortedBy { it._address }.toList()
-
     @Suppress("UNCHECKED_CAST")
     override fun getBlocks(): Iterable<Block> {
         val result = TreeSet<Block>(Comparator<Block> { o1, o2 ->
@@ -162,7 +159,7 @@ class S3DataReader(
         }
     }
 
-    private val blocks: List<S3Block>
+    private val fileBlocks: List<S3Block>
         get() {
             val builder = listObjectsBuilder().delimiter("/")
             return s3Objects(builder) { it.key().isValidAddress }
@@ -172,7 +169,7 @@ class S3DataReader(
                     .toList()
         }
 
-    private val subBlocks: List<S3FolderBlock>
+    private val folderBlocks: List<S3FolderBlock>
         get() {
             val builder = listObjectsBuilder().prefix("_")
             return s3Objects(builder) { it.key().isValidSubFolder }

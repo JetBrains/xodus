@@ -1,3 +1,18 @@
+/**
+ * Copyright 2010 - 2018 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package jetbrains.exodus.log.replication
 
 
@@ -153,28 +168,40 @@ class S3DataReaderTest {
         sourceDir.newDBFile(0)
         sourceDir.newDBFile(1, 100)
         with(newReader()) {
-            var output = ByteArray(100) { 0 }
-            getBlock(0).read(output, 0, 0, 100)
-            output.assertReadAt(0..99)
+            with(ByteArray(100) { 0 }) {
+                getBlock(0).read(this, 0, 0, 100)
+                assertReadAt(0..99)
+            }
 
-            output = ByteArray(200) { 0 }
-            getBlock(LOG_BLOCK_ALIGNMENT.toLong()).read(output, 0, 10, 100)
-            output.assertReadAt(10..109)
+            with(ByteArray(200) { 0 }) {
+                getBlock(LOG_BLOCK_ALIGNMENT.toLong()).read(this, 0, 10, 100)
+                assertReadAt(10..109)
+            }
         }
     }
 
 //    @Test
     fun `should read from partially folders`() {
-        newDBFolder(0)
-        newDBFolder(1, 100)
+        newDBFolder(0).also {
+            it.newDBFile(0)
+            it.newDBFile(1)
+            it.newDBFile(2)
+        }
+        newDBFolder(3).also {
+            it.newDBFile(3)
+            it.newDBFile(4)
+            it.newDBFile(5, 100)
+        }
         with(newReader()) {
-            var output = ByteArray(100) { 0 }
-            getBlock(0).read(output, 0, 0, 100)
-            output.assertReadAt(0..99)
+            with(ByteArray(200) { 0 }) {
+                getBlock(0).read(this, 0, 100, 200)
+                assertReadAt(100..299)
+            }
 
-            output = ByteArray(200) { 0 }
-            getBlock(LOG_BLOCK_ALIGNMENT.toLong()).read(output, 0, 10, 100)
-            output.assertReadAt(10..109)
+            with(ByteArray(400) { 0 }) {
+                getBlock(LOG_BLOCK_ALIGNMENT.toLong() * 3).read(this, 0, 100, 200)
+                assertReadAt(100..299)
+            }
         }
     }
 
@@ -196,16 +223,14 @@ class S3DataReaderTest {
         return file.name
     }
 
-    private fun newDBFolder(number: Long, size: Int = 128): String {
-        val file = sourceDir.let {
+    private fun newDBFolder(number: Long, size: Int = 128): File {
+        return sourceDir.let {
             val name = getLogFilename(LOG_BLOCK_ALIGNMENT * number).replace(".xd", "")
             File(it.absolutePath + File.separator + "_" + name).also {
                 it.mkdir()
                 it.newDBFile(LOG_BLOCK_ALIGNMENT * number, size)
-                it.newDBFile(LOG_BLOCK_ALIGNMENT * (number + 1), size)
             }
         }
-        return file.name
     }
 
     private fun newReader() = S3DataReader(s3, bucket, extraHost)
