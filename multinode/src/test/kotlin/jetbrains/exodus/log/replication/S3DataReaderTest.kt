@@ -31,9 +31,9 @@ class S3DataReaderTest {
     }
 
     private lateinit var api: S3Mock
-    protected lateinit var httpClient: SdkAsyncHttpClient
-    protected lateinit var s3: S3AsyncClient
-    protected lateinit var extraHost: AwsRequestOverrideConfig
+    private lateinit var httpClient: SdkAsyncHttpClient
+    private lateinit var s3: S3AsyncClient
+    private lateinit var extraHost: AwsRequestOverrideConfig
 
     private val sourceDir by lazy { newTmpFile() }
 
@@ -148,6 +148,45 @@ class S3DataReaderTest {
         }
     }
 
+    @Test
+    fun `should read from xd-files`() {
+        sourceDir.newDBFile(0)
+        sourceDir.newDBFile(1, 100)
+        with(newReader()) {
+            var output = ByteArray(100) { 0 }
+            getBlock(0).read(output, 0, 0, 100)
+            output.assertReadAt(0..99)
+
+            output = ByteArray(200) { 0 }
+            getBlock(LOG_BLOCK_ALIGNMENT.toLong()).read(output, 0, 10, 100)
+            output.assertReadAt(10..109)
+        }
+    }
+
+    @Test
+    fun `should read from partially folders`() {
+        newDBFolder(0)
+        newDBFolder(1, 100)
+        with(newReader()) {
+            var output = ByteArray(100) { 0 }
+            getBlock(0).read(output, 0, 0, 100)
+            output.assertReadAt(0..99)
+
+            output = ByteArray(200) { 0 }
+            getBlock(LOG_BLOCK_ALIGNMENT.toLong()).read(output, 0, 10, 100)
+            output.assertReadAt(10..109)
+        }
+    }
+
+    private fun ByteArray.assertReadAt(range: IntRange) {
+        forEachIndexed { index, byte ->
+            if (index in range) {
+                assertEquals("expected 1 at $index position", 1.toByte(), byte)
+            } else {
+                assertEquals("expected 0 at $index position", 0.toByte(), byte)
+            }
+        }
+    }
 
     private fun File.newDBFile(number: Long, size: Int = 128): String {
         val file = File(this, getLogFilename(LOG_BLOCK_ALIGNMENT * number)).also { it.createNewFile() }

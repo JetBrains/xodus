@@ -24,7 +24,7 @@ import software.amazon.awssdk.utils.FunctionalUtils.invokeSafely
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicInteger
 
-internal class ByteArrayAsyncResponseHandler<R>(val output: ByteArray, val offset: Int) : AsyncResponseHandler<R, Int> {
+internal class ByteArrayAsyncResponseHandler<R>(val output: ByteArray, private val offset: Int) : AsyncResponseHandler<R, Int> {
 
     companion object : KLogging()
 
@@ -75,7 +75,7 @@ internal class ByteArrayAsyncResponseHandler<R>(val output: ByteArray, val offse
             if (prevLength <= outputLength) {
                 val maxLength = minOf(outputLength - prevLength, length)
                 invokeSafely {
-                    byteBuffer.copyBytes(output, prevLength, maxLength)
+                    byteBuffer.copyBytes(output, offset + prevLength, maxLength)
                 }
             } else {
                 logger.warn { "Data buffer overrun, drop ${prevLength - outputLength} bytes" }
