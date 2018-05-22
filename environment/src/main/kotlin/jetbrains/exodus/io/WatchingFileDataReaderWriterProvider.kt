@@ -13,33 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.io;
+package jetbrains.exodus.io
 
-import org.jetbrains.annotations.NotNull;
+import jetbrains.exodus.core.dataStructures.Pair
+import jetbrains.exodus.env.EnvironmentImpl
 
-// TODO: document
-public interface DataReader {
+class WatchingFileDataReaderWriterProvider : DataReaderWriterProvider() {
 
-    @NotNull
-    String getLocation();
+    lateinit var env: EnvironmentImpl
 
-    @NotNull
-    Block getBlock(long address);
+    override fun isReadonly() = true
 
-    /**
-     * @return array of blocks sorted by address.
-     */
-    @NotNull
-    Iterable<Block> getBlocks();
-
-    @NotNull
-    Iterable<Block> getBlocks(long fromAddress);
-
-    void removeBlock(long blockAddress, @NotNull RemoveBlockType rbt);
-
-    void truncateBlock(long blockAddress, long length);
-
-    void clear();
-
-    void close();
+    override fun newReaderWriter(location: String): Pair<DataReader, DataWriter> {
+        val pair = FileDataReaderWriterProvider().newReaderWriter(location)
+        return Pair(WatchingFileDataReader({ env }, pair.first as FileDataReader), pair.second)
+    }
 }

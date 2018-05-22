@@ -52,6 +52,7 @@ public class FileDataReader implements DataReader {
         return dir;
     }
 
+    @NotNull
     @Override
     public Iterable<Block> getBlocks() {
         final LongArrayList files = LogUtil.listFileAddresses(dir);
@@ -59,6 +60,7 @@ public class FileDataReader implements DataReader {
         return toBlocks(files);
     }
 
+    @NotNull
     @Override
     public Iterable<Block> getBlocks(long fromAddress) {
         final LongArrayList files = LogUtil.listFileAddresses(fromAddress, dir);
@@ -81,7 +83,7 @@ public class FileDataReader implements DataReader {
 
     @Override
     public void truncateBlock(long blockAddress, long length) {
-        final FileBlock file = getBlock(blockAddress);
+        final FileBlock file = new FileBlock(blockAddress);
         removeFileFromFileCache(file);
         setWritable(file);
         try {
@@ -130,13 +132,15 @@ public class FileDataReader implements DataReader {
         SharedMappedFilesCache.createInstance(freePhysicalMemoryThreshold);
     }
 
+    @NotNull
     @Override
     public String getLocation() {
         return dir.getPath();
     }
 
+    @NotNull
     @Override
-    public FileBlock getBlock(final long address) {
+    public Block getBlock(final long address) {
         return new FileBlock(address);
     }
 

@@ -17,8 +17,7 @@ package jetbrains.exodus.log
 
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.TestUtil
-import jetbrains.exodus.io.FileDataReader
-import jetbrains.exodus.io.FileDataWriter
+import jetbrains.exodus.io.DataReaderWriterProvider
 import jetbrains.exodus.io.SharedOpenFilesCache
 import org.junit.Assert
 import java.io.File
@@ -34,9 +33,10 @@ interface ReplicatedLogTestMixin {
     }
 
     fun File.createLog(fileSize: Long, releaseLock: Boolean = false, modifyConfig: LogConfig.() -> Unit = {}): Log {
+        SharedOpenFilesCache.setSize(openFiles)
         return with(LogConfig().setFileSize(fileSize)) {
-            val (reader, writer) = this@createLog.createLogRW()
-            setReaderWriter(reader, writer)
+            setLocation(this@createLog.canonicalPath)
+            setReaderWriterProvider(DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER)
             modifyConfig()
             Log(this).also {
                 if (releaseLock) { // s3mock can't open xd.lck on Windows otherwise
@@ -44,10 +44,6 @@ interface ReplicatedLogTestMixin {
                 }
             }
         }
-    }
-
-    fun File.createLogRW() = Pair(FileDataReader(this), FileDataWriter(this)).apply {
-        SharedOpenFilesCache.setSize(openFiles)
     }
 
     fun newTmpFile(): File {

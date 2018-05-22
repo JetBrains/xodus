@@ -30,6 +30,7 @@ public class LogConfig {
 
     private String location;
     private String readerWriterProvider;
+    private DataReaderWriterProvider readerWriterProviderInstance;
     private long fileSize;
     private long lockTimeout;
     private String lockId;
@@ -310,13 +311,20 @@ public class LogConfig {
         return new LogConfig().setReaderWriter(reader, writer);
     }
 
+    @NotNull
+    public DataReaderWriterProvider getReaderWriterProvider() {
+        if (readerWriterProviderInstance == null) {
+            readerWriterProviderInstance = DataReaderWriterProvider.getProvider(readerWriterProvider);
+        }
+        return readerWriterProviderInstance;
+    }
+
     private void createReaderWriter() {
         final String location = this.location;
         if (location == null) {
             throw new InvalidSettingException("Location for DataReader and DataWriter is not specified");
         }
-        Pair<DataReader, DataWriter> readerWriter =
-            DataReaderWriterProvider.getProvider(readerWriterProvider).newReaderWriter(location);
+        Pair<DataReader, DataWriter> readerWriter = getReaderWriterProvider().newReaderWriter(location);
         reader = readerWriter.getFirst();
         writer = readerWriter.getSecond();
     }

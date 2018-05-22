@@ -25,9 +25,9 @@ import jetbrains.exodus.entitystore.MetaServer;
 import jetbrains.exodus.env.management.EnvironmentConfigWithOperations;
 import jetbrains.exodus.gc.GarbageCollector;
 import jetbrains.exodus.gc.UtilizationProfile;
-import jetbrains.exodus.io.DataReader;
-import jetbrains.exodus.io.FileDataReader;
+import jetbrains.exodus.io.DataReaderWriterProvider;
 import jetbrains.exodus.io.RemoveBlockType;
+import jetbrains.exodus.io.WatchingFileDataReaderWriterProvider;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.TreeMetaInfo;
 import jetbrains.exodus.tree.btree.BTree;
@@ -99,14 +99,18 @@ public class EnvironmentImpl implements Environment {
     @Nullable
     private final byte[] cipherKey;
     private final long cipherBasicIV;
-    @Nullable
-    private final FileSystemEnvironmentWatcher watcher;
 
     @SuppressWarnings({"ThisEscapedInObjectConstruction"})
     EnvironmentImpl(@NotNull final Log log, @NotNull final EnvironmentConfig ec) {
         this.log = log;
         this.ec = ec;
         applyEnvironmentSettings(log.getLocation(), ec);
+
+        final DataReaderWriterProvider readerWriterProvider = log.getConfig().getReaderWriterProvider();
+        if (readerWriterProvider instanceof WatchingFileDataReaderWriterProvider) {
+            ((WatchingFileDataReaderWriterProvider) readerWriterProvider).env = this;
+        }
+
         final Pair<MetaTreeImpl, Integer> meta;
         synchronized (commitLock) {
             meta = MetaTreeImpl.create(this);
@@ -151,8 +155,6 @@ public class EnvironmentImpl implements Environment {
         cipherBasicIV = logConfig.getCipherBasicIV();
 
         loggerInfo("Exodus environment created: " + log.getLocation());
-
-        watcher = ec.isWatchReadOnly() ? newWatcher(log, ec) : null;
     }
 
     @Override
@@ -378,10 +380,6 @@ public class EnvironmentImpl implements Environment {
             if (!isOpen()) {
                 return;
             }
-        }
-        final FileSystemEnvironmentWatcher watcher = this.watcher;
-        if (watcher != null) {
-            watcher.stop();
         }
         final MetaServer metaServer = getEnvironmentConfig().getMetaServer();
         if (metaServer != null) {
@@ -1014,28 +1012,6 @@ public class EnvironmentImpl implements Environment {
     private void invalidateStoreGetCache() {
         final int storeGetCacheSize = ec.getEnvStoreGetCacheSize();
         storeGetCache = storeGetCacheSize == 0 ? null : new StoreGetCache(storeGetCacheSize);
-    }
-
-    private FileSystemEnvironmentWatcher newWatcher(@NotNull final Log log, final @NotNull EnvironmentConfig ec) {
-        if (!ec.getEnvIsReadonly()) {
-            if (logger.isErrorEnabled()) {
-                logger.error("Cannot watch filesystem because environment is not in read-only mode");
-            }
-        } else {
-            final DataReader reader = log.getConfig().getReader();
-            if (reader instanceof FileDataReader) {
-                try {
-                    return new FileSystemEnvironmentWatcher(((FileDataReader) reader).getDir(), this);
-                } catch (IOException ignored) {
-                    return null;
-                }
-            } else {
-                if (logger.isErrorEnabled()) {
-                    logger.error("Watching non-file data reader is not supported yet");
-                }
-            }
-        }
-        return null;
     }
 
     private static void applyEnvironmentSettings(@NotNull final String location,

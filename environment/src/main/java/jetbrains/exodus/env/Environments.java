@@ -114,7 +114,8 @@ public final class Environments {
             config.setMemoryUsagePercentage(ec.getMemoryUsagePercentage());
         }
         config.setReaderWriterProvider(ec.getLogDataReaderWriterProvider());
-        if (ec.isWatchReadOnly() && ec.getEnvIsReadonly()) {
+        if (config.getReaderWriterProvider().isReadonly()) {
+            ec.setEnvIsReadonly(true);
             config.setLockIgnored(true);
         }
         return newLogInstance(config.

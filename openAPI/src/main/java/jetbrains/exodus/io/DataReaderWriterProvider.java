@@ -32,6 +32,10 @@ public abstract class DataReaderWriterProvider {
         return false;
     }
 
+    public boolean isReadonly() {
+        return false;
+    }
+
     @NotNull
     public static DataReaderWriterProvider getProvider(@NotNull final String providerName) {
         for (DataReaderWriterProvider provider : ServiceLoader.load(DataReaderWriterProvider.class)) {

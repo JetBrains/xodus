@@ -117,8 +117,7 @@ open class EnvironmentConcurrentAccessTest : ReplicatedLogTestMixin {
             envConfig: EnvironmentConfig
     ): Log {
         return with(LogConfig()) {
-            val (reader, writer) = this@createLog.createLogRW()
-            setReaderWriter(reader, writer)
+            setLocation(this@createLog.canonicalPath)
             Environments.newLogInstance(this, envConfig).also {
                 if (releaseLock) { // override locking to perform readonly operations
                     writer.release()

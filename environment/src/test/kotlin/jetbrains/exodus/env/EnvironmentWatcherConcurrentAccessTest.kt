@@ -26,8 +26,7 @@ class EnvironmentWatcherConcurrentAccessTest : EnvironmentConcurrentAccessTest()
             logFileSize = fileSize
             logCachePageSize = cachePageSize
             isLogCacheShared = false
-            envIsReadonly = true
-            isWatchReadOnly = true
+            logDataReaderWriterProvider = "jetbrains.exodus.io.WatchingFileDataReaderWriterProvider"
         }
     }
 
