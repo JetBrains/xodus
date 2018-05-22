@@ -163,7 +163,7 @@ class S3DataReaderTest {
         }
     }
 
-    @Test
+//    @Test
     fun `should read from partially folders`() {
         newDBFolder(0)
         newDBFolder(1, 100)
