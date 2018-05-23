@@ -26,6 +26,7 @@ import software.amazon.awssdk.services.s3.S3AsyncClient
 import software.amazon.awssdk.services.s3.model.*
 import java.util.*
 import kotlin.Comparator
+import kotlin.collections.ArrayList
 
 
 class S3DataReader(
@@ -51,7 +52,7 @@ class S3DataReader(
     override fun getLocation(): String = "s3:$bucketName"
 
     override fun removeBlock(blockAddress: Long, rbt: RemoveBlockType) {
-        val keysToDelete = LinkedList<String>()
+        val keysToDelete = ArrayList<String>()
 
         fileBlocks.filter { it.address == blockAddress }.forEach {
             keysToDelete.add(it.s3Object.key())
@@ -66,7 +67,9 @@ class S3DataReader(
                     s3.copyObject(CopyObjectRequest.builder()
                             .bucket(bucketName)
                             .requestOverrideConfig(requestOverrideConfig)
-                            .key(it)
+                            .copySource(it)
+                            .key(it.replace(".xd", ".del"))
+                            .copy()
                             .build()).get()
                 } catch (e: Exception) {
                     val msg = "failed to copy '$it' in S3"
@@ -236,7 +239,7 @@ class S3DataReader(
     }
 
     private fun s3Objects(builder: ListObjectsRequest.Builder, filter: (S3Object) -> Boolean): List<S3Object> {
-        val result = LinkedList<S3Object>()
+        val result = ArrayList<S3Object>()
         while (true) {
             val response = s3.listObjects(builder.build()).get()
             response.contents()?.let {
