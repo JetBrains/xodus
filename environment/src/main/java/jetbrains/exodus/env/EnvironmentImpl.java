@@ -108,7 +108,7 @@ public class EnvironmentImpl implements Environment {
 
         final DataReaderWriterProvider readerWriterProvider = log.getConfig().getReaderWriterProvider();
         if (readerWriterProvider instanceof WatchingFileDataReaderWriterProvider) {
-            ((WatchingFileDataReaderWriterProvider) readerWriterProvider).env = this;
+            ((WatchingFileDataReaderWriterProvider) readerWriterProvider).setEnv(this);
         }
 
         final Pair<MetaTreeImpl, Integer> meta;

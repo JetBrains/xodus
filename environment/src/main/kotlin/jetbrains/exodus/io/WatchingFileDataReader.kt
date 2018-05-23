@@ -24,7 +24,7 @@ import java.io.IOException
 import java.nio.file.*
 import java.util.concurrent.TimeUnit
 
-class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl, private val fileDataReader: FileDataReader) : DataReader {
+class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?, private val fileDataReader: FileDataReader) : DataReader {
 
     private val watchService = FileSystems.getDefault().newWatchService()
     private val watchKey = fileDataReader.dir.toPath().register(watchService, StandardWatchEventKinds.ENTRY_MODIFY)
@@ -113,14 +113,17 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl, priva
 
     private fun doUpdate(force: Boolean): Long {
         val env = envGetter()
-        if (env.tryUpdate()) {
-            if (logger.isInfoEnabled) {
-                logger.info((if (force) "Env force-updated at " else "Env updated at ") + env.location)
+        if (env != null) {
+            if (env.tryUpdate()) {
+                if (logger.isInfoEnabled) {
+                    logger.info((if (force) "Env force-updated at " else "Env updated at ") + env.location)
+                }
+                return Long.MIN_VALUE
+            } else {
+                if (logger.isInfoEnabled) {
+                    logger.info((if (force) "Can't force-update env at " else "Can't update env at ") + env.location)
+                }
             }
-            return Long.MIN_VALUE
-        }
-        if (logger.isInfoEnabled) {
-            logger.info((if (force) "Can't force-update env at " else "Can't update env at ") + env.location)
         }
         return System.currentTimeMillis()
     }

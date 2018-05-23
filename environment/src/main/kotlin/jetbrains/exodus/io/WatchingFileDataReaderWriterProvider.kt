@@ -20,7 +20,7 @@ import jetbrains.exodus.env.EnvironmentImpl
 
 class WatchingFileDataReaderWriterProvider : DataReaderWriterProvider() {
 
-    lateinit var env: EnvironmentImpl
+    var env: EnvironmentImpl? = null
 
     override fun isReadonly() = true
 
