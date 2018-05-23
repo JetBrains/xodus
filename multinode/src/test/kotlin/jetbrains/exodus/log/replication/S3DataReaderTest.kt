@@ -23,8 +23,7 @@ import jetbrains.exodus.log.LogUtil.LOG_BLOCK_ALIGNMENT
 import jetbrains.exodus.log.LogUtil.getLogFilename
 import mu.KLogging
 import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
+import org.junit.Assert.*
 import org.junit.Assume.assumeFalse
 import org.junit.Before
 import org.junit.Test
@@ -67,8 +66,7 @@ class S3DataReaderTest {
     @Before
     fun setup() {
         api = S3Mock.Builder().withPort(0).withFileBackend(sourceDir.parentFile.absolutePath).build()
-        val binding = api.start()
-        val port = binding.localAddress().port
+        val port = api.start().localAddress().port
 
         httpClient = NettySdkHttpClientFactory.builder().build().createHttpClient()
 
@@ -198,6 +196,39 @@ class S3DataReaderTest {
     }
 
     @Test
+    fun `should truncate files and folder`() {
+        assumeFalse(isWindows)
+
+        val file0 = sourceDir.newDBFile(0)
+        val file1 = sourceDir.newDBFile(1)
+        var file2: String? = null
+        newDBFolder(1).also {
+            file2 = it.newDBFile(1)
+            it.newDBFile(2)
+            it.newDBFile(3, 100)
+        }
+        with(newReader()) {
+            truncateBlock(LOG_BLOCK_ALIGNMENT.toLong(), 100)
+
+            s3Objects.let {
+                assertNotNull(it)
+                assertEquals(3, it!!.size)
+                with(it.first { it.key() == file0 }) {
+                    assertEquals(LOG_BLOCK_ALIGNMENT, size().toInt())
+                }
+
+                with(it.first { it.key() == file1 }) {
+                    assertEquals(100, size().toInt())
+                }
+
+                with(it.first { it.key() == file2!! }) {
+                    assertEquals(100, size().toInt())
+                }
+            }
+        }
+    }
+
+    @Test
     fun `should read from xd-files`() {
         sourceDir.newDBFile(0)
         sourceDir.newDBFile(1, 100)
@@ -233,7 +264,7 @@ class S3DataReaderTest {
                 assertReadAt(100..299)
             }
 
-            // should read few files in folder
+            // should read from two files in folder
             with(ByteArray(200 + LOG_BLOCK_ALIGNMENT) { 0 }) {
                 getBlock(0).read(this, 0, 100, LOG_BLOCK_ALIGNMENT)
                 assertReadAt(100..(LOG_BLOCK_ALIGNMENT + 99))
@@ -258,7 +289,8 @@ class S3DataReaderTest {
     }
 
     private fun File.newDBFile(number: Long, size: Int = LOG_BLOCK_ALIGNMENT): String {
-        return File(this, getLogFilename(LOG_BLOCK_ALIGNMENT * number)).also {
+        val prefix = if(name == bucket) "" else "$name/"
+        return prefix + File(this, getLogFilename(LOG_BLOCK_ALIGNMENT * number)).also {
             it.createNewFile()
             val path = Paths.get(it.toURI())
             Files.write(path, ByteArray(size) { 1 })

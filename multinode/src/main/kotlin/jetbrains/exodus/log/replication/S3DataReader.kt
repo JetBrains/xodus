@@ -82,7 +82,7 @@ class S3DataReader(
             }
         }
         try {
-            keysToDelete.deletes3Objects()
+            keysToDelete.deleteS3Objects()
         } catch (e: Exception) {
             val msg = "failed to delete files '${keysToDelete.joinToString()}' in S3"
             logger.error(msg, e)
@@ -97,7 +97,7 @@ class S3DataReader(
             folder.blocks.let {
                 val last = it.findLast { it.address - folder.address < length }
                 last?.truncate(length - (last.address - folder.address))
-                it.filter { it.address - folder.address >= length }.map { it.s3Object.key() }.deletes3Objects()
+                it.filter { it.address - folder.address >= length }.map { it.s3Object.key() }.deleteS3Objects()
             }
         }
     }
@@ -115,7 +115,7 @@ class S3DataReader(
             val response = s3.listObjects(builder.build()).get()
             response.contents()?.let {
                 it.filter { it.key().isValidAddress || it.key().isValidSubFolder }
-                        .map { it.key() }.deletes3Objects()
+                        .map { it.key() }.deleteS3Objects()
             }
             if (!response.isTruncated) {
                 break
@@ -289,7 +289,7 @@ class S3DataReader(
         }
     }
 
-    private fun List<String>.deletes3Objects() {
+    private fun List<String>.deleteS3Objects() {
         s3.deleteObjects(DeleteObjectsRequest.builder()
                 .requestOverrideConfig(requestOverrideConfig)
                 .delete(
