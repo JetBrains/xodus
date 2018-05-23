@@ -154,7 +154,7 @@ class S3DataReaderTest {
     }
 
     @Test
-    fun `should delete files on close`() {
+    fun `should delete files on clear`() {
         sourceDir.newDBFile(0)
         newDBFolder(1, 100)
         with(newReader()) {
