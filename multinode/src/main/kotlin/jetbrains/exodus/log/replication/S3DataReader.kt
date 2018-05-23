@@ -21,9 +21,13 @@ import jetbrains.exodus.io.DataReader
 import jetbrains.exodus.io.RemoveBlockType
 import jetbrains.exodus.log.LogUtil
 import mu.KLogging
+import org.reactivestreams.Subscriber
+import org.reactivestreams.Subscription
 import software.amazon.awssdk.core.AwsRequestOverrideConfig
+import software.amazon.awssdk.core.async.AsyncRequestProvider
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import software.amazon.awssdk.services.s3.model.*
+import java.nio.ByteBuffer
 import java.util.*
 import kotlin.Comparator
 import kotlin.collections.ArrayList
@@ -78,14 +82,7 @@ class S3DataReader(
             }
         }
         try {
-            s3.deleteObjects(DeleteObjectsRequest.builder()
-                    .requestOverrideConfig(requestOverrideConfig)
-                    .delete(
-                            Delete.builder().objects(
-                                    keysToDelete.map { ObjectIdentifier.builder().key(it).build() })
-                                    .build())
-                    .bucket(bucketName)
-                    .build()).get()
+            keysToDelete.deletes3Objects()
         } catch (e: Exception) {
             val msg = "failed to delete files '${keysToDelete.joinToString()}' in S3"
             logger.error(msg, e)
@@ -94,6 +91,15 @@ class S3DataReader(
     }
 
     override fun truncateBlock(blockAddress: Long, length: Long) {
+        fileBlocks.filter { it.address == blockAddress }.forEach { it.truncate(length) }
+
+        folderBlocks.filter { it.address == blockAddress }.forEach { folder ->
+            folder.blocks.let {
+                val last = it.findLast { it.address - folder.address < length }
+                last?.truncate(length - (last.address - folder.address))
+                it.filter { it.address - folder.address >= length }.map { it.s3Object.key() }.deletes3Objects()
+            }
+        }
     }
 
     override fun close() = s3.close()
@@ -108,16 +114,8 @@ class S3DataReader(
         while (true) {
             val response = s3.listObjects(builder.build()).get()
             response.contents()?.let {
-                s3.deleteObjects(DeleteObjectsRequest.builder()
-                        .requestOverrideConfig(requestOverrideConfig)
-                        .delete(
-                                Delete.builder().objects(
-                                        it
-                                                .filter { it.key().isValidAddress || it.key().isValidSubFolder }
-                                                .map { ObjectIdentifier.builder().key(it.key()).build() })
-                                        .build())
-                        .bucket(bucketName)
-                        .build()).get()
+                it.filter { it.key().isValidAddress || it.key().isValidSubFolder }
+                        .map { it.key() }.deletes3Objects()
             }
             if (!response.isTruncated) {
                 break
@@ -255,6 +253,53 @@ class S3DataReader(
     private fun String.toFileName() = this + LogUtil.LOG_FILE_EXTENSION
     private val String.address get() = LogUtil.getAddress(this)
     private val String.isValidAddress get() = this.length == LogUtil.LOG_FILE_NAME_WITH_EXT_LENGTH && LogUtil.isLogFileName(this)
+
+    private fun S3Block.truncate(length: Long) {
+        try {
+            val array = ByteArray(length.toInt())
+            read(array, 0, 0, length.toInt())
+            s3.putObject(PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .requestOverrideConfig(requestOverrideConfig)
+                    .key(s3Object.key())
+                    .build(), object : AsyncRequestProvider {
+
+                override fun contentLength() = length
+
+                override fun subscribe(subscriber: Subscriber<in ByteBuffer>) {
+                    subscriber.onSubscribe(
+                            object : Subscription {
+                                override fun request(n: Long) {
+                                    if (n > 0) {
+                                        subscriber.onNext(ByteBuffer.wrap(array))
+                                        subscriber.onComplete()
+                                    }
+                                }
+
+                                override fun cancel() {}
+                            }
+                    )
+                }
+
+            }).get()
+        } catch (e: Exception) {
+            val msg = "failed to update '${s3Object.key()}' in S3"
+            logger.error(msg, e)
+            throw ExodusException(msg, e)
+        }
+    }
+
+    private fun List<String>.deletes3Objects() {
+        s3.deleteObjects(DeleteObjectsRequest.builder()
+                .requestOverrideConfig(requestOverrideConfig)
+                .delete(
+                        Delete.builder().objects(
+                                map { ObjectIdentifier.builder().key(it).build() })
+                                .build())
+                .bucket(bucketName)
+                .build()).get()
+    }
+
 
     private val String.isValidSubFolder: Boolean
         get() {

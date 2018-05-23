@@ -47,7 +47,6 @@ import java.nio.file.Paths
 
 class S3DataReaderTest {
     companion object : KLogging() {
-        const val port = 8001
         const val host = "127.0.0.1"
         const val bucket = "logfiles"
     }
@@ -67,9 +66,9 @@ class S3DataReaderTest {
 
     @Before
     fun setup() {
-        api = S3Mock.Builder().withPort(port).withFileBackend(sourceDir.parentFile.absolutePath).build().apply {
-            start()
-        }
+        api = S3Mock.Builder().withPort(0).withFileBackend(sourceDir.parentFile.absolutePath).build()
+        val binding = api.start()
+        val port = binding.localAddress().port
 
         httpClient = NettySdkHttpClientFactory.builder().build().createHttpClient()
 
