@@ -169,7 +169,7 @@ class S3DataReaderTest {
         sourceDir.newDBFile(1, 100)
         with(newReader()) {
             with(ByteArray(LOG_BLOCK_ALIGNMENT) { 0 }) {
-                getBlock(0).read(this, 0, 0, LOG_BLOCK_ALIGNMENT - 1)
+                getBlock(0).read(this, 0, 0, LOG_BLOCK_ALIGNMENT)
                 assertReadAt(0..(LOG_BLOCK_ALIGNMENT - 1))
             }
 
@@ -205,6 +205,7 @@ class S3DataReaderTest {
                 assertReadAt(100..(LOG_BLOCK_ALIGNMENT + 99))
             }
 
+            // should read from few files
             with(ByteArray(4 * LOG_BLOCK_ALIGNMENT) { 0 }) {
                 getBlock(LOG_BLOCK_ALIGNMENT.toLong() * 3).read(this, 0, 100, 2 * LOG_BLOCK_ALIGNMENT)
                 assertReadAt(100..(2 * LOG_BLOCK_ALIGNMENT + 99))

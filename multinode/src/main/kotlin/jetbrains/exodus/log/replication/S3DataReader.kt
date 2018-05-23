@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.log.replication
 
+import jetbrains.exodus.ExodusException
 import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.DataReader
 import jetbrains.exodus.io.RemoveBlockType
@@ -50,11 +51,47 @@ class S3DataReader(
     override fun getLocation(): String = "s3:$bucketName"
 
     override fun removeBlock(blockAddress: Long, rbt: RemoveBlockType) {
-        // TODO
+        val keysToDelete = LinkedList<String>()
+
+        fileBlocks.filter { it.address == blockAddress }.forEach {
+            keysToDelete.add(it.s3Object.key())
+        }
+
+        folderBlocks.flatMap { it.blocks }.filter { it.address == blockAddress }.forEach {
+            keysToDelete.add(it.s3Object.key())
+        }
+        if (rbt == RemoveBlockType.Rename) {
+            keysToDelete.forEach {
+                try {
+                    s3.copyObject(CopyObjectRequest.builder()
+                            .bucket(bucketName)
+                            .requestOverrideConfig(requestOverrideConfig)
+                            .key(it)
+                            .build()).get()
+                } catch (e: Exception) {
+                    val msg = "failed to copy '$it' in S3"
+                    logger.error(msg, e)
+                    throw ExodusException(msg, e)
+                }
+            }
+        }
+        try {
+            s3.deleteObjects(DeleteObjectsRequest.builder()
+                    .requestOverrideConfig(requestOverrideConfig)
+                    .delete(
+                            Delete.builder().objects(
+                                    keysToDelete.map { ObjectIdentifier.builder().key(it).build() })
+                                    .build())
+                    .bucket(bucketName)
+                    .build()).get()
+        } catch (e: Exception) {
+            val msg = "failed to delete files '${keysToDelete.joinToString()}' in S3"
+            logger.error(msg, e)
+            throw ExodusException(msg, e)
+        }
     }
 
     override fun truncateBlock(blockAddress: Long, length: Long) {
-        TODO("not implemented")
     }
 
     override fun close() = s3.close()
@@ -87,7 +124,7 @@ class S3DataReader(
         }
     }
 
-    internal inner class S3Block(val _address: Long, private val s3Object: S3Object) : Block {
+    internal inner class S3Block(val _address: Long, internal val s3Object: S3Object) : Block {
 
         override fun getAddress() = _address
 
@@ -120,7 +157,7 @@ class S3DataReader(
 
     internal inner class S3FolderBlock(val _address: Long, private val folderName: String) : Block {
 
-        private val blocks by lazy {
+        internal val blocks by lazy {
             val builder = listObjectsBuilder().prefix("_$folderName/")
             s3Objects(builder) { it.key().isValidSubFolder }
                     .asSequence()
