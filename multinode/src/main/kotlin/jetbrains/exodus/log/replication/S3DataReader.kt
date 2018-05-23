@@ -141,18 +141,28 @@ class S3DataReader(
             if (count <= 0) {
                 return 0
             }
-            val firstIndex = blocks.indexOfFirst { it.address + it.length() >= position }
-            val lastIndex = blocks.indexOfFirst { it.address + it.length() <= position + count }
 
+            val firstIndex = blocks.indexOfFirst { (it.address - address) >= position }
+            var lastIndex = blocks.indexOfLast { (it.address - address) <= position + count }
+            if (firstIndex < 0) {
+                return 0
+            }
             val first = blocks[firstIndex]
+            if (firstIndex == lastIndex) {
+                return first.read(output, position, offset, count)
+            }
+            if (lastIndex < 0) {
+                lastIndex = blocks.size - 1
+            }
             val last = blocks[lastIndex]
+
             var written = 0
-            written += first.read(output, first.address, offset, first.length().toInt())
-            written += last.read(output, last.address, offset + count, last.length().toInt())
-            if (firstIndex + 1 > lastIndex) {
-                ((firstIndex + 1)..lastIndex).forEach {
+            written += first.read(output, position - (first.address - address), offset, first.length().toInt())
+            written += last.read(output, 0, offset + count - (last.address - address).toInt(), last.length().toInt())
+            if (firstIndex + 1 < lastIndex) {
+                ((firstIndex + 1)..(lastIndex - 1)).forEach {
                     val block = blocks[it]
-                    written += block.read(output, block.address, offset + (block.address - position).toInt(), block.length().toInt())
+                    written += block.read(output, 0, offset + (block.address - address).toInt(), block.length().toInt())
                 }
             }
             return written

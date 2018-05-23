@@ -168,9 +168,9 @@ class S3DataReaderTest {
         sourceDir.newDBFile(0)
         sourceDir.newDBFile(1, 100)
         with(newReader()) {
-            with(ByteArray(100) { 0 }) {
-                getBlock(0).read(this, 0, 0, 100)
-                assertReadAt(0..99)
+            with(ByteArray(LOG_BLOCK_ALIGNMENT) { 0 }) {
+                getBlock(0).read(this, 0, 0, LOG_BLOCK_ALIGNMENT - 1)
+                assertReadAt(0..(LOG_BLOCK_ALIGNMENT - 1))
             }
 
             with(ByteArray(200) { 0 }) {
@@ -180,7 +180,7 @@ class S3DataReaderTest {
         }
     }
 
-//    @Test
+    @Test
     fun `should read from partially folders`() {
         newDBFolder(0).also {
             it.newDBFile(0)
@@ -193,14 +193,21 @@ class S3DataReaderTest {
             it.newDBFile(5, 100)
         }
         with(newReader()) {
-            with(ByteArray(200) { 0 }) {
+            // should read from first file in folder
+            with(ByteArray(300) { 0 }) {
                 getBlock(0).read(this, 0, 100, 200)
                 assertReadAt(100..299)
             }
 
-            with(ByteArray(400) { 0 }) {
-                getBlock(LOG_BLOCK_ALIGNMENT.toLong() * 3).read(this, 0, 100, 200)
-                assertReadAt(100..299)
+            // should read few files in folder
+            with(ByteArray(200 + LOG_BLOCK_ALIGNMENT) { 0 }) {
+                getBlock(0).read(this, 0, 100, LOG_BLOCK_ALIGNMENT)
+                assertReadAt(100..(LOG_BLOCK_ALIGNMENT + 99))
+            }
+
+            with(ByteArray(4 * LOG_BLOCK_ALIGNMENT) { 0 }) {
+                getBlock(LOG_BLOCK_ALIGNMENT.toLong() * 3).read(this, 0, 100, 2 * LOG_BLOCK_ALIGNMENT)
+                assertReadAt(100..(2 * LOG_BLOCK_ALIGNMENT + 99))
             }
         }
     }
@@ -215,7 +222,7 @@ class S3DataReaderTest {
         }
     }
 
-    private fun File.newDBFile(number: Long, size: Int = 128): String {
+    private fun File.newDBFile(number: Long, size: Int = LOG_BLOCK_ALIGNMENT): String {
         val file = File(this, getLogFilename(LOG_BLOCK_ALIGNMENT * number)).also { it.createNewFile() }
         FileOutputStream(file).use {
             it.write(ByteArray(size) { 1 })
@@ -223,7 +230,7 @@ class S3DataReaderTest {
         return file.name
     }
 
-    private fun newDBFolder(number: Long, size: Int = 128): File {
+    private fun newDBFolder(number: Long, size: Int = LOG_BLOCK_ALIGNMENT): File {
         return sourceDir.let {
             val name = getLogFilename(LOG_BLOCK_ALIGNMENT * number).replace(".xd", "")
             File(it.absolutePath + File.separator + "_" + name).also {
