@@ -58,7 +58,7 @@ class S3DataReader(
             keysToDelete.add(it.s3Object.key())
         }
 
-        folderBlocks.flatMap { it.blocks }.filter { it.address == blockAddress }.forEach {
+        folderBlocks.filter { it.address == blockAddress }.flatMap { it.blocks }.forEach {
             keysToDelete.add(it.s3Object.key())
         }
         if (rbt == RemoveBlockType.Rename) {
@@ -67,9 +67,8 @@ class S3DataReader(
                     s3.copyObject(CopyObjectRequest.builder()
                             .bucket(bucketName)
                             .requestOverrideConfig(requestOverrideConfig)
-                            .copySource(it)
+                            .copySource("$bucketName/$it")
                             .key(it.replace(".xd", ".del"))
-                            .copy()
                             .build()).get()
                 } catch (e: Exception) {
                     val msg = "failed to copy '$it' in S3"

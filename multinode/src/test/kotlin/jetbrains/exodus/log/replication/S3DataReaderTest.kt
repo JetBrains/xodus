@@ -18,12 +18,14 @@ package jetbrains.exodus.log.replication
 
 import io.findify.s3mock.S3Mock
 import jetbrains.exodus.TestUtil
+import jetbrains.exodus.io.RemoveBlockType
 import jetbrains.exodus.log.LogUtil.LOG_BLOCK_ALIGNMENT
 import jetbrains.exodus.log.LogUtil.getLogFilename
 import mu.KLogging
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeFalse
 import org.junit.Before
 import org.junit.Test
 import software.amazon.awssdk.core.AwsRequestOverrideConfig
@@ -34,9 +36,14 @@ import software.amazon.awssdk.http.async.SdkAsyncHttpClient
 import software.amazon.awssdk.http.nio.netty.NettySdkHttpClientFactory
 import software.amazon.awssdk.services.s3.S3AdvancedConfiguration
 import software.amazon.awssdk.services.s3.S3AsyncClient
+import software.amazon.awssdk.services.s3.model.ListObjectsRequest
+import software.amazon.awssdk.services.s3.model.S3Object
 import java.io.File
-import java.io.FileOutputStream
 import java.net.URI
+import java.nio.channels.FileChannel
+import java.nio.file.Files
+import java.nio.file.Paths
+
 
 class S3DataReaderTest {
     companion object : KLogging() {
@@ -153,13 +160,41 @@ class S3DataReaderTest {
         }
     }
 
-//    @Test
+    @Test
     fun `should delete files on clear`() {
+        assumeFalse(isWindows)
         sourceDir.newDBFile(0)
         newDBFolder(1, 100)
         with(newReader()) {
             clear()
-            assertTrue(sourceDir.listFiles().none { it.name.endsWith(".xd") })
+            assertTrue(s3Objects?.none { it.key().endsWith(".xd") } ?: true)
+        }
+    }
+
+    @Test
+    fun `should delete files and folder for deleting blocks`() {
+        assumeFalse(isWindows)
+
+        sourceDir.newDBFile(0)
+        sourceDir.newDBFile(1)
+        newDBFolder(1)
+        with(newReader()) {
+            removeBlock(LOG_BLOCK_ALIGNMENT.toLong(), RemoveBlockType.Delete)
+            assertEquals(1, s3Objects?.size)
+        }
+    }
+
+    @Test
+    fun `should rename files and folder for renaming blocks`() {
+        assumeFalse(isWindows)
+
+        sourceDir.newDBFile(0)
+        sourceDir.newDBFile(1)
+        newDBFolder(1)
+        with(newReader()) {
+            removeBlock(LOG_BLOCK_ALIGNMENT.toLong(), RemoveBlockType.Rename)
+            assertEquals(1, s3Objects?.filter { it.key().endsWith(".xd") }?.size)
+            assertEquals(2, s3Objects?.filter { it.key().endsWith(".del") }?.size)
         }
     }
 
@@ -224,11 +259,11 @@ class S3DataReaderTest {
     }
 
     private fun File.newDBFile(number: Long, size: Int = LOG_BLOCK_ALIGNMENT): String {
-        val file = File(this, getLogFilename(LOG_BLOCK_ALIGNMENT * number)).also { it.createNewFile() }
-        FileOutputStream(file).use {
-            it.write(ByteArray(size) { 1 })
-        }
-        return file.name
+        return File(this, getLogFilename(LOG_BLOCK_ALIGNMENT * number)).also {
+            it.createNewFile()
+            val path = Paths.get(it.toURI())
+            Files.write(path, ByteArray(size) { 1 })
+        }.name
     }
 
     private fun newDBFolder(number: Long, size: Int = LOG_BLOCK_ALIGNMENT): File {
@@ -243,4 +278,20 @@ class S3DataReaderTest {
 
     private fun newReader() = S3DataReader(s3, bucket, extraHost)
 
+    private val s3Objects: List<S3Object>?
+        get() {
+            val builder = ListObjectsRequest.builder()
+                    .requestOverrideConfig(extraHost)
+                    .bucket(bucket)
+            return s3.listObjects(builder.build()).get()?.contents()
+        }
+    private val isWindows: Boolean
+        get() {
+            return try {
+                FileChannel.open(sourceDir.toPath())
+                false
+            } catch (e: Exception) {
+                true
+            }
+        }
 }
