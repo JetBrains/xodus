@@ -33,7 +33,7 @@ public class Settings {
     public static String get(@NotNull final Store settingsStore, @NotNull final String name) {
         final ByteIterable[] result = new ByteIterable[1];
         try {
-            settingsStore.getEnvironment().executeInTransaction(new TransactionalExecutable() {
+            settingsStore.getEnvironment().executeInReadonlyTransaction(new TransactionalExecutable() {
                 @Override
                 public void execute(@NotNull final Transaction txn) {
                     result[0] = settingsStore.get(txn, StringBinding.stringToEntry(name));
