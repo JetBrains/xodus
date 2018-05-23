@@ -15,7 +15,9 @@
  */
 package jetbrains.exodus.env
 
+import jetbrains.exodus.InvalidSettingException
 import org.junit.Assert
+import org.junit.Test
 
 class EnvironmentWatcherConcurrentAccessTest : EnvironmentConcurrentAccessTest() {
 
@@ -66,5 +68,17 @@ class EnvironmentWatcherConcurrentAccessTest : EnvironmentConcurrentAccessTest()
         checkEnvironment(targetEnvironment, count = 30 * multiplier)
 
         targetEnvironment.close()
+    }
+
+    @Test(expected = InvalidSettingException::class)
+    fun `unable to set watching environment to read-only mode`() {
+        val sourceLog = logDir.createLog(envConfig = envConfig)
+
+        val sourceEnvironment = Environments.newInstance(sourceLog, envConfig)
+        appendEnvironment(sourceEnvironment, 10, 0)
+
+        Environments.newInstance(logDir, envConfigWatch).use {
+            it.environmentConfig.envIsReadonly = false
+        }
     }
 }
