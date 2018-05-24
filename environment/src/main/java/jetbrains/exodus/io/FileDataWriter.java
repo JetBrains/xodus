@@ -18,6 +18,7 @@ package jetbrains.exodus.io;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.OutOfDiskSpaceException;
 import jetbrains.exodus.log.LogUtil;
+import jetbrains.exodus.system.JVMConstants;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -50,12 +51,14 @@ public class FileDataWriter extends AbstractDataWriter {
         file = null;
         dir = directory;
         FileChannel channel = null;
-        try {
-            channel = FileChannel.open(dir.toPath());
-            // try to force as XD-698 requires
-            channel.force(false);
-        } catch (IOException e) {
-            warnCantFsyncDirectory();
+        if (!JVMConstants.INSTANCE.getIS_ANDROID()) {
+            try {
+                channel = FileChannel.open(dir.toPath());
+                // try to force as XD-698 requires
+                channel.force(false);
+            } catch (IOException e) {
+                warnCantFsyncDirectory();
+            }
         }
         dirChannel = channel;
         lockingManager = new LockingManager(dir, lockId);

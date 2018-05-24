@@ -29,6 +29,8 @@ import java.nio.file.StandardOpenOption;
 /**
  * An adapter to the contents of a region of a file. Doesn't support {@link #getBytesUnsafe()} as it
  * unconditionally throws {@link UnsupportedOperationException}.
+ *
+ * Avoid using this class with Android API level less than 26.
  */
 public class FileByteIterable implements ByteIterable {
 
