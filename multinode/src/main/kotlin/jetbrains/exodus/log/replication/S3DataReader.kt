@@ -67,12 +67,15 @@ class S3DataReader(
         }
         if (rbt == RemoveBlockType.Rename) {
             keysToDelete.forEach {
+                val newName = it.replace(".xd", ".del")
+                logger.debug { "renaming block $it to $newName" }
+
                 try {
                     s3.copyObject(CopyObjectRequest.builder()
                             .bucket(bucketName)
                             .requestOverrideConfig(requestOverrideConfig)
                             .copySource("$bucketName/$it")
-                            .key(it.replace(".xd", ".del"))
+                            .key(newName)
                             .build()).get()
                 } catch (e: Exception) {
                     val msg = "failed to copy '$it' in S3"
@@ -97,6 +100,7 @@ class S3DataReader(
             folder.blocks.let {
                 val last = it.findLast { it.address - folder.address < length }
                 last?.truncate(length - (last.address - folder.address))
+
                 it.filter { it.address - folder.address >= length }.map { it.s3Object.key() }.deleteS3Objects()
             }
         }
@@ -255,6 +259,7 @@ class S3DataReader(
     private val String.isValidAddress get() = this.length == LogUtil.LOG_FILE_NAME_WITH_EXT_LENGTH && LogUtil.isLogFileName(this)
 
     private fun S3Block.truncate(length: Long) {
+        logger.debug { "truncating block at ${s3Object.key()} to $length" }
         try {
             val array = ByteArray(length.toInt())
             read(array, 0, 0, length.toInt())
@@ -283,13 +288,15 @@ class S3DataReader(
 
             }).get()
         } catch (e: Exception) {
-            val msg = "failed to update '${s3Object.key()}' in S3"
+            val msg = "failed to update ${s3Object.key()}"
             logger.error(msg, e)
             throw ExodusException(msg, e)
         }
     }
 
     private fun List<String>.deleteS3Objects() {
+        logger.info { "deleting files ${joinToString()}" }
+
         s3.deleteObjects(DeleteObjectsRequest.builder()
                 .requestOverrideConfig(requestOverrideConfig)
                 .delete(

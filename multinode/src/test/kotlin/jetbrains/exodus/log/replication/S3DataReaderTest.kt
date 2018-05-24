@@ -19,6 +19,7 @@ package jetbrains.exodus.log.replication
 import io.findify.s3mock.S3Mock
 import jetbrains.exodus.TestUtil
 import jetbrains.exodus.io.RemoveBlockType
+import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.log.LogUtil.LOG_BLOCK_ALIGNMENT
 import jetbrains.exodus.log.LogUtil.getLogFilename
 import mu.KLogging
@@ -246,6 +247,36 @@ class S3DataReaderTest {
     }
 
     @Test
+    fun `should ignore blobs and textindex folders`() {
+        sourceDir.newDBFile(0)
+        sourceDir.newDBFile(LogUtil.getLogFilename(0).replace(".xd", ".del"))
+        File(sourceDir, "blobs").also { it.mkdirs() }.newDBFile(1)
+        File(sourceDir, "textindex").also { it.mkdirs() }.newDBFile(2)
+        with(newReader()) {
+            with(blocks.toList()) {
+                assertEquals(1, size)
+                assertTrue(get(0) is S3DataReader.S3Block)
+            }
+        }
+    }
+
+    @Test
+    fun `should ignore unexpected files in partially folders`() {
+        newDBFolder(0).also {
+            it.newDBFile("_xd.xd") // some trash
+            it.newDBFile(LogUtil.getLogFilename(0).replace(".xd", ".del"))  // submitted for deletion file
+        }
+        with(newReader()) {
+            with(blocks.toList()) {
+                assertEquals(1, size)
+                val block = get(0) as S3DataReader.S3FolderBlock
+                assertEquals(1, block.blocks.size)
+                assertEquals(LOG_BLOCK_ALIGNMENT.toLong(), block.length())
+            }
+        }
+    }
+
+    @Test
     fun `should read from partially folders`() {
         newDBFolder(0).also {
             it.newDBFile(0)
@@ -289,8 +320,17 @@ class S3DataReaderTest {
     }
 
     private fun File.newDBFile(number: Long, size: Int = LOG_BLOCK_ALIGNMENT): String {
-        val prefix = if(name == bucket) "" else "$name/"
+        val prefix = if (name == bucket) "" else "$name/"
         return prefix + File(this, getLogFilename(LOG_BLOCK_ALIGNMENT * number)).also {
+            it.createNewFile()
+            val path = Paths.get(it.toURI())
+            Files.write(path, ByteArray(size) { 1 })
+        }.name
+    }
+
+    private fun File.newDBFile(fileName: String, size: Int = LOG_BLOCK_ALIGNMENT): String {
+        val prefix = if (name == bucket) "" else "$name/"
+        return prefix + File(this, fileName).also {
             it.createNewFile()
             val path = Paths.get(it.toURI())
             Files.write(path, ByteArray(size) { 1 })
