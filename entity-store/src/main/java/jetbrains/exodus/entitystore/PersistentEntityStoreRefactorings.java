@@ -156,36 +156,40 @@ final class PersistentEntityStoreRefactorings {
 
     void refactorBlobFileLengths() {
         final BlobVault blobVault = store.getBlobVault();
-        store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final StoreTransaction tx) {
-                final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
-                for (final String entityType : store.getEntityTypes(txn)) {
-                    if (logger.isInfoEnabled()) {
-                        logger.info("Refactoring blob lengths table for [" + entityType + ']');
-                    }
-                    safeExecuteRefactoringForEntityType(entityType,
-                        new StoreTransactionalExecutable() {
-                            @Override
-                            public void execute(@NotNull final StoreTransaction tx) {
-                                final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
-                                final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
-                                final BlobsTable blobs = store.getBlobsTable(txn, entityTypeId);
-                                final Transaction envTxn = txn.getEnvironmentTransaction();
-                                try (Cursor cursor = blobs.getPrimaryIndex().openCursor(envTxn)) {
-                                    while (cursor.getNext()) {
-                                        final long blobHandle = LongBinding.compressedEntryToLong(cursor.getValue());
-                                        if (!PersistentEntityStoreImpl.isEmptyOrInPlaceBlobHandle(blobHandle)) {
-                                            store.setBlobFileLength(txn, blobHandle, blobVault.getSize(blobHandle, envTxn));
+        if (blobVault instanceof DiskBasedBlobVault) {
+            final DiskBasedBlobVault diskVault = (DiskBasedBlobVault) blobVault;
+            store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
+                @Override
+                public void execute(@NotNull final StoreTransaction tx) {
+                    final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
+                    for (final String entityType : store.getEntityTypes(txn)) {
+                        if (logger.isInfoEnabled()) {
+                            logger.info("Refactoring blob lengths table for [" + entityType + ']');
+                        }
+                        safeExecuteRefactoringForEntityType(entityType,
+                            new StoreTransactionalExecutable() {
+                                @Override
+                                public void execute(@NotNull final StoreTransaction tx) {
+                                    final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
+                                    final int entityTypeId = store.getEntityTypeId(txn, entityType, false);
+                                    final BlobsTable blobs = store.getBlobsTable(txn, entityTypeId);
+                                    final Transaction envTxn = txn.getEnvironmentTransaction();
+                                    try (Cursor cursor = blobs.getPrimaryIndex().openCursor(envTxn)) {
+                                        while (cursor.getNext()) {
+                                            final long blobHandle = LongBinding.compressedEntryToLong(cursor.getValue());
+                                            if (!PersistentEntityStoreImpl.isEmptyOrInPlaceBlobHandle(blobHandle)) {
+                                                store.setBlobFileLength(txn, blobHandle,
+                                                    diskVault.getBlobLocation(blobHandle).length());
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
-                    );
+                        );
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
     void refactorCreateNullLinkIndices() {
