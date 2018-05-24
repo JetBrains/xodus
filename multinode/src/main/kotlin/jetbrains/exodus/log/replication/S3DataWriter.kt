@@ -70,14 +70,14 @@ class S3DataWriter(val s3: S3AsyncClient,
                         )
                     }
 
-                }).get(10, TimeUnit.SECONDS)
+                }).get(30, TimeUnit.SECONDS)
             }
         } catch (e: Exception) {
             val msg = "failed to update '$key' in S3"
             S3DataReader.logger.error(msg, e)
             throw ExodusException(msg, e)
         }
-        if (!currentFile.compareAndSet(file, file.copy())) {
+        if (!currentFile.compareAndSet(file, file.copy(position = file.position + file.length, length = 0))) {
             failIntegrity()
         }
     }

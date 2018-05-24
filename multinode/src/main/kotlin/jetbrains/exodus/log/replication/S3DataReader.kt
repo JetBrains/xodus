@@ -211,10 +211,10 @@ class S3DataReader(
             if (firstIndex + 1 < lastIndex) {
                 ((firstIndex + 1)..(lastIndex - 1)).forEach {
                     val block = blocks[it]
-                    written += block.read(output, 0, offset + (block.address - address).toInt(), block.length().toInt())
+                    written += block.read(output, 0, offset + (block.address - address - position).toInt(), block.length().toInt())
                 }
             }
-            written += last.read(output, 0, offset + (last.address - address).toInt(), minOf((position + count - last.address).toInt(), last.length().toInt()))
+            written += last.read(output, 0, offset + (last.address - address - position).toInt(), minOf((position + count - last.address).toInt(), last.length().toInt()))
             return written
         }
     }
