@@ -65,8 +65,8 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     public void testCreateSingleStore() {
         final Store store = openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES);
         assertLoggableTypes(getLog(), 0, BTreeBase.BOTTOM_ROOT,
-            DatabaseRoot.DATABASE_ROOT_TYPE, BTreeBase.BOTTOM_ROOT, BTreeBase.LEAF, BTreeBase.LEAF,
-            BTreeBase.BOTTOM_ROOT, DatabaseRoot.DATABASE_ROOT_TYPE);
+                DatabaseRoot.DATABASE_ROOT_TYPE, BTreeBase.BOTTOM_ROOT, BTreeBase.LEAF, BTreeBase.LEAF,
+                BTreeBase.BOTTOM_ROOT, DatabaseRoot.DATABASE_ROOT_TYPE);
     }
 
     @Test
@@ -378,7 +378,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
 
         final StoreConfig expectedConfig = StoreConfig.WITHOUT_DUPLICATES;
 
-        for (int j = 0; j < 100; j++) {
+        for (int j = 0; j < 4; j++) {
             System.out.println("Cycle " + j);
             for (int i = 0; i < 100; i++) {
                 Transaction txn = env.beginTransaction();
@@ -474,7 +474,8 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     @Test
     @TestFor(issues = {"XD-594", "XD-717"})
     public void leakingEnvironment() throws Exception {
-        tearDown();
+        cleanSubfolders();
+        super.tearDown();
         final WeakReference<Environment> envRef = new WeakReference<Environment>(createAndCloseEnvironment());
         waitForPendingFinalizers(10000);
         Assert.assertNull(envRef.get());
@@ -704,8 +705,8 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             subfolders.put(subfolder, child);
         }
         return new Pair<DataReader, DataWriter>(
-            new FileDataReader(child),
-            new FileDataWriter(child)
+                new FileDataReader(child),
+                new FileDataWriter(child)
         );
     }
 
@@ -723,10 +724,10 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         }
     }
 
-    private EnvironmentImpl createAndCloseEnvironment() throws IOException {
+    protected EnvironmentImpl createAndCloseEnvironment() throws Exception {
         final Pair<DataReader, DataWriter> rw = createRW();
         final EnvironmentImpl env = newEnvironmentInstance(
-            LogConfig.create(rw.getFirst(), rw.getSecond()), new EnvironmentConfig().setGcUtilizationFromScratch(true));
+                LogConfig.create(rw.getFirst(), rw.getSecond()), new EnvironmentConfig().setGcUtilizationFromScratch(true));
         env.close();
         return env;
     }

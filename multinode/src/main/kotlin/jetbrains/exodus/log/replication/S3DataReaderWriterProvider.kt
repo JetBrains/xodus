@@ -13,25 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.io
+package jetbrains.exodus.log.replication
 
 import jetbrains.exodus.core.dataStructures.Pair
 import jetbrains.exodus.env.Environment
-import jetbrains.exodus.env.EnvironmentImpl
+import jetbrains.exodus.io.DataReader
+import jetbrains.exodus.io.DataReaderWriterProvider
+import jetbrains.exodus.io.DataWriter
+import software.amazon.awssdk.core.AwsRequestOverrideConfig
+import software.amazon.awssdk.services.s3.S3AsyncClient
 
-class WatchingFileDataReaderWriterProvider : DataReaderWriterProvider() {
-
-    var env: EnvironmentImpl? = null
-
-    override fun isReadonly() = true
+class S3DataReaderWriterProvider @JvmOverloads constructor(
+        private val s3: S3AsyncClient,
+        private val requestOverrideConfig: AwsRequestOverrideConfig? = null) : DataReaderWriterProvider() {
+    constructor() : this(S3AsyncClient.builder().build()) // System.getProperty("exodus.s3.bucket.name")
 
     override fun onEnvironmentCreated(env: Environment) {
         super.onEnvironmentCreated(env)
-        this.env = env as EnvironmentImpl
+        if (!env.environmentConfig.logDurableWrite) {
+            throw IllegalStateException("S3 requires durable writes")
+        }
     }
 
     override fun newReaderWriter(location: String): Pair<DataReader, DataWriter> {
-        val pair = FileDataReaderWriterProvider().newReaderWriter(location)
-        return Pair(WatchingFileDataReader({ env }, pair.first as FileDataReader), pair.second)
+        return Pair(S3DataReader(s3, location, requestOverrideConfig), S3DataWriter(s3, location, requestOverrideConfig))
     }
 }

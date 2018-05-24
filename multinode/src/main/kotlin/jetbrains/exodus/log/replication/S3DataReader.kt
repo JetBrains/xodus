@@ -38,7 +38,20 @@ class S3DataReader(
         val bucketName: String,
         val requestOverrideConfig: AwsRequestOverrideConfig? = null) : DataReader {
 
-    companion object : KLogging()
+    companion object : KLogging() {
+        private const val logFileNameWithExtLength = 19
+
+        private fun decodeAddress(logFilename: String): Long {
+            if (!checkAddress(logFilename)) {
+                throw ExodusException("Invalid log file name: $logFilename")
+            }
+            return logFilename.substring(0, 16).toLong(16)
+        }
+
+        private fun checkAddress(logFilename: String): Boolean {
+            return logFilename.length == logFileNameWithExtLength && logFilename.endsWith(LogUtil.LOG_FILE_EXTENSION)
+        }
+    }
 
     @Suppress("UNCHECKED_CAST")
     override fun getBlocks(): Iterable<Block> {
@@ -100,7 +113,6 @@ class S3DataReader(
             folder.blocks.let {
                 val last = it.findLast { it.address - folder.address < length }
                 last?.truncate(length - (last.address - folder.address))
-
                 it.filter { it.address - folder.address >= length }.map { it.s3Object.key() }.deleteS3Objects()
             }
         }
@@ -109,8 +121,8 @@ class S3DataReader(
     override fun close() = s3.close()
 
     override fun getBlock(address: Long): Block {
-        logger.info { "Get block at ${LogUtil.getLogFilename(address)}" }
-        return blocks.first { it.address == address }
+        logger.debug { "Get block at ${LogUtil.getLogFilename(address)}" }
+        return blocks.firstOrNull { it.address == address } ?: NoBlock(address)
     }
 
     override fun clear() {
@@ -140,9 +152,10 @@ class S3DataReader(
             if (count <= 0) {
                 return 0
             }
+
             val range = "bytes=$position-${position + count - 1}"
 
-            logger.debug { "Request range: $range" }
+            logger.debug { "Request range: $range in file ${s3Object.key()}" }
             val written = s3.getObject(GetObjectRequest.builder()
                     .range(range)
                     .requestOverrideConfig(requestOverrideConfig)
@@ -150,10 +163,6 @@ class S3DataReader(
                     .key(s3Object.key()).build(),
                     ByteArrayAsyncResponseHandler(output, offset)
             ).get()
-
-            if (written < count) {
-                logger.debug { "Read underflow: expected $count, got $written" }
-            }
 
             return written
         }
@@ -166,7 +175,7 @@ class S3DataReader(
             s3Objects(builder) { it.key().isValidSubFolder }
                     .asSequence()
                     .map {
-                        S3Block(it.key().split("/")[1].address, it)
+                        S3Block(decodeAddress(it.key().split("/")[1]), it)
                     }
                     .sortedBy { it._address }
                     .toList()
@@ -183,14 +192,14 @@ class S3DataReader(
                 return 0
             }
 
-            val firstIndex = blocks.indexOfFirst { (it.address - address) >= position }
+            val firstIndex = blocks.indexOfFirst { (it.address - address + it.length()) >= position }
             var lastIndex = blocks.indexOfLast { (it.address - address) <= position + count }
             if (firstIndex < 0) {
                 return 0
             }
             val first = blocks[firstIndex]
             if (firstIndex == lastIndex) {
-                return first.read(output, position, offset, count)
+                return first.read(output, position - (first.address - address), offset, count)
             }
             if (lastIndex < 0) {
                 lastIndex = blocks.size - 1
@@ -199,13 +208,13 @@ class S3DataReader(
 
             var written = 0
             written += first.read(output, position - (first.address - address), offset, first.length().toInt())
-            written += last.read(output, 0, offset + count - (last.address - address).toInt(), last.length().toInt())
             if (firstIndex + 1 < lastIndex) {
                 ((firstIndex + 1)..(lastIndex - 1)).forEach {
                     val block = blocks[it]
                     written += block.read(output, 0, offset + (block.address - address).toInt(), block.length().toInt())
                 }
             }
+            written += last.read(output, 0, offset + (last.address - address).toInt(), minOf((position + count - last.address).toInt(), last.length().toInt()))
             return written
         }
     }
@@ -314,7 +323,16 @@ class S3DataReader(
             val isValidFolderName = paths[0].let {
                 it.startsWith("_") && it.drop(1).toFileName().isValidAddress
             }
-            return paths.size == 2 && paths[1].isValidAddress && isValidFolderName
+            return paths.size == 2 && checkAddress(paths[1]) && isValidFolderName
         }
 
+    class NoBlock(private val address: Long) : Block {
+        override fun getAddress() = address
+
+        override fun length() = 0L
+
+        override fun read(output: ByteArray, position: Long, offset: Int, count: Int) = 0
+
+        override fun setReadOnly() = false
+    }
 }

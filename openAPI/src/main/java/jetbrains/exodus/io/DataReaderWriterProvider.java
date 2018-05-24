@@ -17,6 +17,7 @@ package jetbrains.exodus.io;
 
 import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.core.dataStructures.Pair;
+import jetbrains.exodus.env.Environment;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ServiceLoader;
@@ -34,6 +35,9 @@ public abstract class DataReaderWriterProvider {
 
     public boolean isReadonly() {
         return false;
+    }
+
+    public void onEnvironmentCreated(@NotNull final Environment env) {
     }
 
     @NotNull

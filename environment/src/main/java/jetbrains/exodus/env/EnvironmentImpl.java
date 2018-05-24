@@ -28,7 +28,6 @@ import jetbrains.exodus.gc.GarbageCollector;
 import jetbrains.exodus.gc.UtilizationProfile;
 import jetbrains.exodus.io.DataReaderWriterProvider;
 import jetbrains.exodus.io.RemoveBlockType;
-import jetbrains.exodus.io.WatchingFileDataReaderWriterProvider;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.TreeMetaInfo;
 import jetbrains.exodus.tree.btree.BTree;
@@ -108,9 +107,7 @@ public class EnvironmentImpl implements Environment {
         applyEnvironmentSettings(log.getLocation(), ec);
 
         final DataReaderWriterProvider readerWriterProvider = log.getConfig().getReaderWriterProvider();
-        if (readerWriterProvider instanceof WatchingFileDataReaderWriterProvider) {
-            ((WatchingFileDataReaderWriterProvider) readerWriterProvider).setEnv(this);
-        }
+        readerWriterProvider.onEnvironmentCreated(this);
 
         final Pair<MetaTreeImpl, Integer> meta;
         synchronized (commitLock) {

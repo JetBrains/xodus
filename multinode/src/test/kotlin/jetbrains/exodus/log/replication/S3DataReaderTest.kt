@@ -21,7 +21,6 @@ import jetbrains.exodus.TestUtil
 import jetbrains.exodus.io.RemoveBlockType
 import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.log.LogUtil.LOG_BLOCK_ALIGNMENT
-import jetbrains.exodus.log.LogUtil.getLogFilename
 import mu.KLogging
 import org.junit.After
 import org.junit.Assert.*
@@ -43,7 +42,6 @@ import java.net.URI
 import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.Paths
-
 
 class S3DataReaderTest {
     companion object : KLogging() {
@@ -204,9 +202,9 @@ class S3DataReaderTest {
         val file1 = sourceDir.newDBFile(1)
         var file2: String? = null
         newDBFolder(1).also {
-            file2 = it.newDBFile(1)
-            it.newDBFile(2)
-            it.newDBFile(3, 100)
+            file2 = it.newPartialFile(1)
+            it.newPartialFile(2)
+            it.newPartialFile(3, 100)
         }
         with(newReader()) {
             truncateBlock(LOG_BLOCK_ALIGNMENT.toLong(), 100)
@@ -279,14 +277,14 @@ class S3DataReaderTest {
     @Test
     fun `should read from partially folders`() {
         newDBFolder(0).also {
-            it.newDBFile(0)
-            it.newDBFile(1)
-            it.newDBFile(2)
+            it.newPartialFile(0)
+            it.newPartialFile(1)
+            it.newPartialFile(2)
         }
         newDBFolder(3).also {
-            it.newDBFile(3)
-            it.newDBFile(4)
-            it.newDBFile(5, 100)
+            it.newPartialFile(3)
+            it.newPartialFile(4)
+            it.newPartialFile(5, 100)
         }
         with(newReader()) {
             // should read from first file in folder
@@ -321,7 +319,7 @@ class S3DataReaderTest {
 
     private fun File.newDBFile(number: Long, size: Int = LOG_BLOCK_ALIGNMENT): String {
         val prefix = if (name == bucket) "" else "$name/"
-        return prefix + File(this, getLogFilename(LOG_BLOCK_ALIGNMENT * number)).also {
+        return prefix + File(this, LogUtil.getLogFilename(LOG_BLOCK_ALIGNMENT * number)).also {
             it.createNewFile()
             val path = Paths.get(it.toURI())
             Files.write(path, ByteArray(size) { 1 })
@@ -337,12 +335,21 @@ class S3DataReaderTest {
         }.name
     }
 
+    private fun File.newPartialFile(number: Long, size: Int = LOG_BLOCK_ALIGNMENT): String {
+        val prefix = if (name == bucket) "" else "$name/"
+        return prefix + File(this, getPartialFileName(LOG_BLOCK_ALIGNMENT * number)).also {
+            it.createNewFile()
+            val path = Paths.get(it.toURI())
+            Files.write(path, ByteArray(size) { 1 })
+        }.name
+    }
+
     private fun newDBFolder(number: Long, size: Int = LOG_BLOCK_ALIGNMENT): File {
         return sourceDir.let {
-            val name = getLogFilename(LOG_BLOCK_ALIGNMENT * number).replace(".xd", "")
+            val name = LogUtil.getLogFilename(LOG_BLOCK_ALIGNMENT * number).replace(".xd", "")
             File(it.absolutePath + File.separator + "_" + name).also {
                 it.mkdir()
-                it.newDBFile(LOG_BLOCK_ALIGNMENT * number, size)
+                it.newPartialFile(LOG_BLOCK_ALIGNMENT * number, size)
             }
         }
     }
@@ -365,4 +372,8 @@ class S3DataReaderTest {
                 true
             }
         }
+
+    private fun getPartialFileName(address: Long): String {
+        return String.format("%016x${LogUtil.LOG_FILE_EXTENSION}", address)
+    }
 }
