@@ -17,12 +17,30 @@ package jetbrains.exodus.io
 
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.core.dataStructures.Pair
+import jetbrains.exodus.env.Environment
+import jetbrains.exodus.env.EnvironmentImpl
 import java.io.File
 
-class FileDataReaderWriterProvider : DataReaderWriterProvider() {
+open class FileDataReaderWriterProvider : DataReaderWriterProvider() {
+
+    protected var env: EnvironmentImpl? = null
 
     override fun newReaderWriter(location: String): Pair<DataReader, DataWriter> =
-            checkDirectory(location).run { Pair(FileDataReader(this), FileDataWriter(this)) }
+            checkDirectory(location).run {
+                val ec = env?.environmentConfig
+                Pair(
+                        FileDataReader(this).apply {
+                            if (ec != null && ec.logCacheUseNio) {
+                                useNio(ec.logCacheFreePhysicalMemoryThreshold)
+                            }
+                        },
+                        FileDataWriter(this, ec?.logLockId))
+            }
+
+    override fun onEnvironmentCreated(env: Environment) {
+        super.onEnvironmentCreated(env)
+        this.env = env as EnvironmentImpl
+    }
 
     companion object {
 

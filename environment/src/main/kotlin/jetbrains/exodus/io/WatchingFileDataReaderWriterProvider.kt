@@ -16,22 +16,13 @@
 package jetbrains.exodus.io
 
 import jetbrains.exodus.core.dataStructures.Pair
-import jetbrains.exodus.env.Environment
-import jetbrains.exodus.env.EnvironmentImpl
 
-class WatchingFileDataReaderWriterProvider : DataReaderWriterProvider() {
-
-    var env: EnvironmentImpl? = null
+class WatchingFileDataReaderWriterProvider : FileDataReaderWriterProvider() {
 
     override fun isReadonly() = true
 
-    override fun onEnvironmentCreated(env: Environment) {
-        super.onEnvironmentCreated(env)
-        this.env = env as EnvironmentImpl
-    }
-
     override fun newReaderWriter(location: String): Pair<DataReader, DataWriter> {
-        val pair = FileDataReaderWriterProvider().newReaderWriter(location)
+        val pair = super.newReaderWriter(location)
         return Pair(WatchingFileDataReader({ env }, pair.first as FileDataReader), pair.second)
     }
 }

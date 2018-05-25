@@ -121,11 +121,8 @@ public final class Environments {
         return newLogInstance(config.
             setFileSize(ec.getLogFileSize()).
                 setLockTimeout(ec.getLogLockTimeout()).
-                setLockId(ec.getLogLockId()).
                 setCachePageSize(ec.getLogCachePageSize()).
                 setCacheOpenFilesCount(ec.getLogCacheOpenFilesCount()).
-                setCacheUseNio(ec.getLogCacheUseNio()).
-                setCacheFreePhysicalMemoryThreshold(ec.getLogCacheFreePhysicalMemoryThreshold()).
                 setDurableWrite(ec.getLogDurableWrite()).
                 setSharedCache(ec.isLogCacheShared()).
                 setNonBlockingCache(ec.isLogCacheNonBlocking()).

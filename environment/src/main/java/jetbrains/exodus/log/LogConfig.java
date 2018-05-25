@@ -33,7 +33,6 @@ public class LogConfig {
     private DataReaderWriterProvider readerWriterProviderInstance;
     private long fileSize;
     private long lockTimeout;
-    private String lockId;
     private long memoryUsage;
     private int memoryUsagePercentage;
     private DataReader reader;
@@ -44,8 +43,6 @@ public class LogConfig {
     private boolean nonBlockingCache;
     private int cachePageSize;
     private int cacheOpenFilesCount;
-    private boolean cacheUseNio;
-    private long cacheFreePhysicalMemoryThreshold;
     private boolean cleanDirectoryExpected;
     private boolean clearInvalidLog;
     private long syncPeriod;
@@ -95,15 +92,6 @@ public class LogConfig {
 
     public void setLockIgnored(boolean lockIgnored) {
         this.lockIgnored = lockIgnored;
-    }
-
-    public String getLockId() {
-        return lockId;
-    }
-
-    public LogConfig setLockId(String lockId) {
-        this.lockId = lockId;
-        return this;
     }
 
     public long getMemoryUsage() {
@@ -217,27 +205,6 @@ public class LogConfig {
 
     public LogConfig setCacheOpenFilesCount(int cacheOpenFilesCount) {
         this.cacheOpenFilesCount = cacheOpenFilesCount;
-        return this;
-    }
-
-    public boolean getCacheUseNio() {
-        return cacheUseNio;
-    }
-
-    public LogConfig setCacheUseNio(boolean cacheUseNio) {
-        this.cacheUseNio = cacheUseNio;
-        return this;
-    }
-
-    public long getCacheFreePhysicalMemoryThreshold() {
-        if (cacheFreePhysicalMemoryThreshold == 0L) {
-            cacheFreePhysicalMemoryThreshold = EnvironmentConfig.DEFAULT.getLogCacheFreePhysicalMemoryThreshold();
-        }
-        return cacheFreePhysicalMemoryThreshold;
-    }
-
-    public LogConfig setCacheFreePhysicalMemoryThreshold(long cacheFreePhysicalMemoryThreshold) {
-        this.cacheFreePhysicalMemoryThreshold = cacheFreePhysicalMemoryThreshold;
         return this;
     }
 
