@@ -156,15 +156,14 @@ class S3DataReader(
             val range = "bytes=$position-${position + count - 1}"
 
             logger.debug { "Request range: $range in file ${s3Object.key()}" }
-            val written = s3.getObject(GetObjectRequest.builder()
+
+            return s3.getObject(GetObjectRequest.builder()
                     .range(range)
                     .requestOverrideConfig(requestOverrideConfig)
                     .bucket(bucketName)
                     .key(s3Object.key()).build(),
-                    ByteArrayAsyncResponseHandler(output, offset)
+                    ByteArrayAsyncResponseHandler<GetObjectResponse?>(output, offset)
             ).get()
-
-            return written
         }
     }
 
