@@ -213,7 +213,8 @@ class S3DataReader(
                     written += block.read(output, 0, offset + (block.address - address - position).toInt(), block.length().toInt())
                 }
             }
-            written += last.read(output, 0, offset + (last.address - address - position).toInt(), minOf((position + count - last.address).toInt(), last.length().toInt()))
+            val outputOffset = (last.address - address - position).toInt()
+            written += last.read(output, 0, offset + outputOffset, minOf(count - (last.address - address - position).toInt(), last.length().toInt()))
             return written
         }
     }
