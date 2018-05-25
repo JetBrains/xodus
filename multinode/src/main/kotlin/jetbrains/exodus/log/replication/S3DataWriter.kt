@@ -51,6 +51,7 @@ class S3DataWriter(val s3: S3AsyncClient,
                         .bucket(bucketName)
                         .requestOverrideConfig(requestOverrideConfig)
                         .key(key)
+                        .contentLength(file.length.toLong())
                         .build(), object : AsyncRequestProvider {
 
                     override fun contentLength() = file.length.toLong()

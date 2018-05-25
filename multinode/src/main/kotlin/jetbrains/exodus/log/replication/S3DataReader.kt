@@ -290,6 +290,7 @@ class S3DataReader(
                     .bucket(bucketName)
                     .requestOverrideConfig(requestOverrideConfig)
                     .key(s3Object.key())
+                    .contentLength(length)
                     .build(), object : AsyncRequestProvider {
 
                 override fun contentLength() = length
