@@ -21,12 +21,13 @@ import jetbrains.exodus.io.DataReader
 import jetbrains.exodus.io.DataReaderWriterProvider
 import jetbrains.exodus.io.DataWriter
 import software.amazon.awssdk.core.AwsRequestOverrideConfig
+import software.amazon.awssdk.core.regions.Region
 import software.amazon.awssdk.services.s3.S3AsyncClient
 
 class S3DataReaderWriterProvider @JvmOverloads constructor(
         private val s3: S3AsyncClient,
         private val requestOverrideConfig: AwsRequestOverrideConfig? = null) : DataReaderWriterProvider() {
-    constructor() : this(S3AsyncClient.builder().build()) // System.getProperty("exodus.s3.bucket.name")
+    constructor() : this(S3AsyncClient.builder().region(Region.EU_WEST_1).build()) // System.getProperty("exodus.s3.bucket.name")
 
     override fun onEnvironmentCreated(env: Environment) {
         super.onEnvironmentCreated(env)
