@@ -17,7 +17,8 @@ package jetbrains.exodus.log.replication
 
 import io.findify.s3mock.S3Mock
 import jetbrains.exodus.env.replication.ReplicationDelta
-import jetbrains.exodus.log.*
+import jetbrains.exodus.log.Log
+import jetbrains.exodus.log.ReplicatedLogTestMixin
 import jetbrains.exodus.log.ReplicatedLogTestMixin.Companion.bucket
 import jetbrains.exodus.util.IOUtil
 import kotlinx.coroutines.experimental.future.await
@@ -41,7 +42,6 @@ import java.nio.file.Paths
 abstract class ReplicationBaseTest : ReplicatedLogTestMixin {
 
     companion object : KLogging() {
-        const val port = 8001
         const val host = "127.0.0.1"
     }
 
@@ -63,9 +63,8 @@ abstract class ReplicationBaseTest : ReplicatedLogTestMixin {
             IOUtil.deleteRecursively(targetLogDir)
         }
 
-        api = S3Mock.Builder().withPort(port).withFileBackend(sourceLogDir.parentFile.absolutePath).build().apply {
-            start()
-        }
+        api = S3Mock.Builder().withPort(0).withFileBackend(sourceLogDir.parentFile.absolutePath).build()
+        val port = api.start().localAddress().port
 
         httpClient = NettySdkHttpClientFactory.builder().build().createHttpClient()
 

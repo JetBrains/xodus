@@ -72,7 +72,7 @@ public class EnvironmentTestsBase {
                 env = null;
             }
         } catch (final ExodusException e) {
-            archiveDB(env.getLocation(), getClass().getName() + '.' + System.currentTimeMillis() + ".tar.gz");
+            archiveDB(getClass().getName() + '.' + System.currentTimeMillis() + ".tar.gz");
             throw e;
         } finally {
             invalidateSharedCaches();
@@ -81,13 +81,17 @@ public class EnvironmentTestsBase {
         }
     }
 
+    protected void archiveDB(final String target) {
+        archiveDB(env.getLocation(), target);
+    }
+
     public static void archiveDB(final String location, final String target) {
         try {
             System.out.println("Dumping " + location + " to " + target);
             final File root = new File(location);
             final File targetFile = new File(target);
             TarArchiveOutputStream tarGz = new TarArchiveOutputStream(new GZIPOutputStream(
-                new BufferedOutputStream(new FileOutputStream(targetFile)), 0x1000));
+                    new BufferedOutputStream(new FileOutputStream(targetFile)), 0x1000));
             for (final File file : IOUtil.listFiles(root)) {
                 final long fileSize = file.length();
                 if (file.isFile() && fileSize != 0) {
@@ -136,8 +140,8 @@ public class EnvironmentTestsBase {
             throw new IOException("Failed to create directory for tests.");
         }
         return new Pair<DataReader, DataWriter>(
-            new FileDataReader(testsDirectory),
-            new FileDataWriter(testsDirectory)
+                new FileDataReader(testsDirectory),
+                new FileDataWriter(testsDirectory)
         );
     }
 

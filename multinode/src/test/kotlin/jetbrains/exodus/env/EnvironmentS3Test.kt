@@ -30,12 +30,12 @@ import software.amazon.awssdk.http.async.SdkAsyncHttpClient
 import software.amazon.awssdk.http.nio.netty.NettySdkHttpClientFactory
 import software.amazon.awssdk.services.s3.S3AdvancedConfiguration
 import software.amazon.awssdk.services.s3.S3AsyncClient
+import java.io.File
 import java.net.URI
 import java.time.Duration
 
 class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {
     companion object : KLogging() {
-        const val port = 8001
         const val host = "127.0.0.1"
     }
 
@@ -66,6 +66,10 @@ class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {
         logDir.delete()
     }
 
+    override fun archiveDB(target: String) {
+        EnvironmentTestsBase.archiveDB(File(logDir, "logfiles").path, target)
+    }
+
     private fun deinitMocks() {
         if (::api.isInitialized) {
             val api = api
@@ -77,11 +81,10 @@ class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {
     }
 
     private fun initMocks() {
-        api = S3Mock.Builder().withPort(port).withFileBackend(logDir.parentFile.absolutePath).build().apply {
-            start()
-        }
+        api = S3Mock.Builder().withPort(0).withFileBackend(logDir.parentFile.absolutePath).build()
+        val port = api.start().localAddress().port
 
-        httpClient = NettySdkHttpClientFactory.builder().readTimeout(Duration.ofSeconds(2)).build().createHttpClient()
+        httpClient = NettySdkHttpClientFactory.builder().readTimeout(Duration.ofSeconds(4)).build().createHttpClient()
 
         extraHost = AwsRequestOverrideConfig.builder().header("Host", "$host:$port").build()
 
