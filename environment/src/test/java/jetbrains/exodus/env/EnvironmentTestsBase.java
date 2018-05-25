@@ -77,7 +77,9 @@ public class EnvironmentTestsBase {
         } finally {
             invalidateSharedCaches();
             deleteRW();
-            processor.finish();
+            if (processor != null) {
+                processor.finish();
+            }
         }
     }
 
