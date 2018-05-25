@@ -20,8 +20,6 @@ import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.DataReader
 import jetbrains.exodus.io.RemoveBlockType
 import jetbrains.exodus.log.LogUtil
-import jetbrains.exodus.log.LogUtil.LOG_FILE_EXTENSION
-import jetbrains.exodus.log.LogUtil.LOG_FILE_NAME_WITH_EXT_LENGTH
 import mu.KLogging
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
@@ -51,7 +49,7 @@ class S3DataReader(
         }
 
         private fun checkAddress(logFilename: String): Boolean {
-            return logFilename.length == logFileNameWithExtLength && logFilename.endsWith(LOG_FILE_EXTENSION)
+            return logFilename.length == logFileNameWithExtLength && logFilename.endsWith(LogUtil.LOG_FILE_EXTENSION)
         }
     }
 
@@ -207,18 +205,17 @@ class S3DataReader(
             }
             val last = blocks[lastIndex]
 
-            var totalReaded = 0
-            val startPosition = position - (first.address - address)
-            totalReaded += first.readAndCompare(output, startPosition, offset, (first.length() - startPosition).toInt())
+            var written = 0
+            written += first.read(output, position - (first.address - address), offset, first.length().toInt())
             if (firstIndex + 1 < lastIndex) {
                 ((firstIndex + 1)..(lastIndex - 1)).forEach {
                     val block = blocks[it]
-                    totalReaded += block.readAndCompare(output, 0, offset + (block.address - address - position).toInt(), block.length().toInt())
+                    written += block.read(output, 0, offset + (block.address - address - position).toInt(), block.length().toInt())
                 }
             }
             val outputOffset = (last.address - address - position).toInt()
-            totalReaded += last.read(output, 0, offset + outputOffset, minOf(count - (last.address - address - position).toInt(), last.length().toInt()))
-            return totalReaded
+            written += last.read(output, 0, offset + outputOffset, minOf(count - (last.address - address - position).toInt(), last.length().toInt()))
+            return written
         }
     }
 
@@ -266,20 +263,9 @@ class S3DataReader(
         return result
     }
 
-    private fun String.toFileName() = this + LOG_FILE_EXTENSION
+    private fun String.toFileName() = this + LogUtil.LOG_FILE_EXTENSION
     private val String.address get() = LogUtil.getAddress(this)
-    private val String.isValidAddress get() = this.length == LOG_FILE_NAME_WITH_EXT_LENGTH && LogUtil.isLogFileName(this)
-
-
-    private fun S3Block.readAndCompare(output: ByteArray, position: Long, offset: Int, count: Int): Int {
-        return read(output, position, offset, count).also {
-            if (it < count) {
-                val msg = "try to read ${s3Object.size()} bytes from ${s3Object.key()} but get $it"
-                logger.error(msg)
-                throw ExodusException(msg)
-            }
-        }
-    }
+    private val String.isValidAddress get() = this.length == LogUtil.LOG_FILE_NAME_WITH_EXT_LENGTH && LogUtil.isLogFileName(this)
 
     private fun S3Block.truncate(length: Long) {
         logger.debug { "truncating block at ${s3Object.key()} to $length" }
