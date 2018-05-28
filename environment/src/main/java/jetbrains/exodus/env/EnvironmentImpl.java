@@ -661,6 +661,7 @@ public class EnvironmentImpl implements Environment {
             try {
                 final LogTip logTip = log.beginWrite();
                 initialHighAddress = logTip.highAddress;
+                boolean writeConfirmed = false;
                 try {
                     final MetaTreeImpl.Proto[] tree = new MetaTreeImpl.Proto[1];
                     expiredLoggables = txn.doCommit(tree);
@@ -672,6 +673,7 @@ public class EnvironmentImpl implements Environment {
                     metaWriteLock.lock();
                     try {
                         final LogTip updatedTip = log.endWrite();
+                        writeConfirmed = true;
                         resultingHighAddress = updatedTip.approvedHighAddress;
                         txn.setMetaTree(metaTree = MetaTreeImpl.create(this, updatedTip, proto));
                         txn.executeCommitHook();
@@ -680,6 +682,10 @@ public class EnvironmentImpl implements Environment {
                     }
                 } catch (Throwable t) { // pokemon exception handling to decrease try/catch block overhead
                     loggerError("Failed to flush transaction", t);
+                    if (writeConfirmed) {
+                        throwableOnCommit = t; // inoperative on failing to read meta tree
+                        throw ExodusException.toExodusException(t, "Failed to read meta tree");
+                    }
                     try {
                         log.revertWrite(logTip);
                     } catch (Throwable th) {

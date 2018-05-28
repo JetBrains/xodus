@@ -16,7 +16,6 @@
 package jetbrains.exodus.log.replication
 
 import jetbrains.exodus.core.dataStructures.Pair
-import jetbrains.exodus.env.Environment
 import jetbrains.exodus.io.DataReader
 import jetbrains.exodus.io.DataReaderWriterProvider
 import jetbrains.exodus.io.DataWriter
@@ -29,14 +28,8 @@ class S3DataReaderWriterProvider @JvmOverloads constructor(
         private val requestOverrideConfig: AwsRequestOverrideConfig? = null) : DataReaderWriterProvider() {
     constructor() : this(S3AsyncClient.builder().region(Region.EU_WEST_1).build()) // System.getProperty("exodus.s3.bucket.name")
 
-    override fun onEnvironmentCreated(env: Environment) {
-        super.onEnvironmentCreated(env)
-        if (!env.environmentConfig.logDurableWrite) {
-            throw IllegalStateException("S3 requires durable writes")
-        }
-    }
-
     override fun newReaderWriter(location: String): Pair<DataReader, DataWriter> {
-        return Pair(S3DataReader(s3, location, requestOverrideConfig), S3DataWriter(s3, location, requestOverrideConfig))
+        val writer = S3DataWriter(s3, location, requestOverrideConfig)
+        return Pair(S3DataReader(s3, location, requestOverrideConfig, writer), writer)
     }
 }

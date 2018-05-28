@@ -354,7 +354,7 @@ class S3DataReaderTest {
         }
     }
 
-    private fun newReader() = S3DataReader(s3, bucket, extraHost)
+    private fun newReader() = S3DataReader(s3, bucket, extraHost, S3DataWriter(s3, bucket, extraHost))
 
     private val s3Objects: List<S3Object>?
         get() {

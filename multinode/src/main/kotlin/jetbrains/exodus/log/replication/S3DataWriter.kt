@@ -39,7 +39,7 @@ class S3DataWriter(val s3: S3AsyncClient,
         }
     }
 
-    private val currentFile = AtomicReference<CurrentFile>()
+    internal val currentFile = AtomicReference<CurrentFile>()
 
     override fun syncImpl() {
         val file = currentFile.get()
@@ -95,6 +95,7 @@ class S3DataWriter(val s3: S3AsyncClient,
     }
 
     override fun openOrCreateBlockImpl(address: Long, length: Long) {
+        // TODO: this works incorrect for opening existing files
         if (length > Int.MAX_VALUE) {
             throw UnsupportedOperationException("File too large")
         }
@@ -121,7 +122,7 @@ class S3DataWriter(val s3: S3AsyncClient,
     // grow-only buffer suitable for atomic swaps
     // TODO: replace ByteArray with netty ByteBuf
     @Suppress("ArrayInDataClass")
-    private data class CurrentFile(
+    internal data class CurrentFile(
             val blockAddress: Long,
             val position: Int = 0,
             val length: Int = 0,
@@ -143,6 +144,19 @@ class S3DataWriter(val s3: S3AsyncClient,
 
         fun append(b: ByteArray, off: Int, len: Int) {
             System.arraycopy(b, off, buffer, length - len, len)
+        }
+
+        fun read(output: ByteArray, position: Long, totalRead: Int, count: Int, offset: Int): Int {
+            var result = totalRead
+            if (this.position <= position + result) {
+                val memoryOffset = (position + result - this.position).toInt()
+                if (memoryOffset < length) {
+                    val remaining = minOf(count - result, length - memoryOffset)
+                    System.arraycopy(buffer, memoryOffset, output, offset + result, remaining)
+                    result += remaining
+                }
+            }
+            return result
         }
     }
 }

@@ -51,11 +51,6 @@ class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {
         super.setUp()
     }
 
-    override fun createEnvironment() {
-        super.createEnvironment()
-        env.environmentConfig.logDurableWrite = true
-    }
-
     override fun createRW(): Pair<DataReader, DataWriter> {
         return S3DataReaderWriterProvider(s3, extraHost).newReaderWriter("logfiles")
     }

@@ -38,7 +38,8 @@ import kotlin.collections.ArrayList
 class S3DataReader(
         val s3: S3AsyncClient,
         val bucketName: String,
-        val requestOverrideConfig: AwsRequestOverrideConfig? = null) : DataReader {
+        val requestOverrideConfig: AwsRequestOverrideConfig? = null,
+        val writer: S3DataWriter) : DataReader {
 
     companion object : KLogging() {
         private const val logFileNameWithExtLength = 19
@@ -124,7 +125,7 @@ class S3DataReader(
 
     override fun getBlock(address: Long): Block {
         logger.debug { "Get block at ${LogUtil.getLogFilename(address)}" }
-        return blocks.firstOrNull { it.address == address } ?: NoBlock(address)
+        return blocks.firstOrNull { it.address == address } ?: InMemoryBlock(address)
     }
 
     override fun clear() {
@@ -195,30 +196,44 @@ class S3DataReader(
 
             val firstIndex = blocks.indexOfFirst { (it.address - address + it.length()) >= position }
             var lastIndex = blocks.indexOfLast { (it.address - address) <= position + count }
-            if (firstIndex < 0) {
-                return 0
-            }
-            val first = blocks[firstIndex]
-            if (firstIndex == lastIndex) {
-                return first.read(output, position - (first.address - address), offset, count)
-            }
-            if (lastIndex < 0) {
-                lastIndex = blocks.size - 1
-            }
-            val last = blocks[lastIndex]
 
-            var totalReaded = 0
-            val startPosition = position - (first.address - address)
-            totalReaded += first.readAndCompare(output, startPosition, offset, (first.length() - startPosition).toInt())
-            if (firstIndex + 1 < lastIndex) {
-                ((firstIndex + 1)..(lastIndex - 1)).forEach {
-                    val block = blocks[it]
-                    totalReaded += block.readAndCompare(output, 0, offset + (block.address - address - position).toInt(), block.length().toInt())
+            var totalRead: Int
+            if (firstIndex < 0) {
+                totalRead = 0
+            } else {
+                val first = blocks[firstIndex]
+
+                if (firstIndex == lastIndex) {
+                    totalRead = first.read(output, position - (first.address - address), offset, count)
+                } else {
+                    totalRead = 0
+                    if (lastIndex < 0) {
+                        lastIndex = blocks.size - 1
+                    }
+                    val last = blocks[lastIndex]
+
+                    val startPosition = position - (first.address - address)
+                    totalRead += first.readAndCompare(output, startPosition, offset, (first.length() - startPosition).toInt())
+                    if (firstIndex + 1 < lastIndex) {
+                        ((firstIndex + 1)..(lastIndex - 1)).forEach {
+                            val block = blocks[it]
+                            totalRead += block.readAndCompare(output, 0, offset + (block.address - address - position).toInt(), block.length().toInt())
+                        }
+                    }
+                    val outputOffset = (last.address - address - position).toInt()
+                    totalRead += last.read(output, 0, offset + outputOffset, minOf(count - (last.address - address - position).toInt(), last.length().toInt()))
                 }
             }
-            val outputOffset = (last.address - address - position).toInt()
-            totalReaded += last.read(output, 0, offset + outputOffset, minOf(count - (last.address - address - position).toInt(), last.length().toInt()))
-            return totalReaded
+
+            if (totalRead < count) {
+                writer.currentFile.get()?.let { memory ->
+                    if (memory.blockAddress == _address) {
+                        totalRead = memory.read(output, position, totalRead, count, offset)
+                    }
+                }
+            }
+
+            return totalRead
         }
     }
 
@@ -341,12 +356,21 @@ class S3DataReader(
             return paths.size == 2 && checkAddress(paths[1]) && isValidFolderName
         }
 
-    class NoBlock(private val address: Long) : Block {
+    internal inner class InMemoryBlock(private val address: Long) : Block {
         override fun getAddress() = address
 
         override fun length() = 0L
 
-        override fun read(output: ByteArray, position: Long, offset: Int, count: Int) = 0
+        override fun read(output: ByteArray, position: Long, offset: Int, count: Int): Int {
+            if (count > 0) {
+                writer.currentFile.get()?.let { memory ->
+                    if (memory.blockAddress == address) {
+                        return memory.read(output, position, 0, count, offset)
+                    }
+                }
+            }
+            return 0
+        }
 
         override fun setReadOnly() = false
     }
