@@ -35,6 +35,7 @@ import software.amazon.awssdk.http.async.SdkAsyncHttpClient
 import software.amazon.awssdk.http.nio.netty.NettySdkHttpClientFactory
 import software.amazon.awssdk.services.s3.S3AdvancedConfiguration
 import software.amazon.awssdk.services.s3.S3AsyncClient
+import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest
 import software.amazon.awssdk.services.s3.model.S3Object
 import java.io.File
@@ -52,6 +53,7 @@ class S3DataReaderTest {
     private lateinit var api: S3Mock
     private lateinit var httpClient: SdkAsyncHttpClient
     private lateinit var s3: S3AsyncClient
+    protected lateinit var s3Sync: S3Client
     private lateinit var extraHost: AwsRequestOverrideConfig
 
     private val sourceDir by lazy { newTmpFile() }
@@ -71,6 +73,12 @@ class S3DataReaderTest {
 
         extraHost = AwsRequestOverrideConfig.builder().header("Host", "$host:$port").build()
 
+        s3Sync = S3Client.builder().region(Region.US_WEST_2)
+                .endpointOverride(URI("http://$host:$port"))
+                .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build())
+                .credentialsProvider(AnonymousCredentialsProvider.create())
+                .build()
+
         s3 = S3AsyncClient.builder()
                 .asyncHttpConfiguration(
                         ClientAsyncHttpConfiguration.builder().httpClient(httpClient).build()
@@ -78,7 +86,7 @@ class S3DataReaderTest {
                 .region(Region.US_WEST_2)
                 .endpointOverride(URI("http://$host:$port"))
                 .advancedConfiguration(
-                        S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build()  // for tests only
+                        S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build()
                 )
                 .credentialsProvider(AnonymousCredentialsProvider.create())
                 .build()
@@ -354,7 +362,7 @@ class S3DataReaderTest {
         }
     }
 
-    private fun newReader() = S3DataReader(s3, bucket, extraHost, S3DataWriter(s3, bucket, extraHost))
+    private fun newReader() = S3DataReader(s3, bucket, extraHost, S3DataWriter(s3, s3Sync, bucket, extraHost))
 
     private val s3Objects: List<S3Object>?
         get() {

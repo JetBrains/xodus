@@ -30,6 +30,7 @@ import software.amazon.awssdk.http.async.SdkAsyncHttpClient
 import software.amazon.awssdk.http.nio.netty.NettySdkHttpClientFactory
 import software.amazon.awssdk.services.s3.S3AdvancedConfiguration
 import software.amazon.awssdk.services.s3.S3AsyncClient
+import software.amazon.awssdk.services.s3.S3Client
 import java.io.File
 import java.net.URI
 import java.time.Duration
@@ -44,6 +45,7 @@ class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {
     private lateinit var api: S3Mock
     protected lateinit var httpClient: SdkAsyncHttpClient
     protected lateinit var s3: S3AsyncClient
+    protected lateinit var s3Sync: S3Client
     protected lateinit var extraHost: AwsRequestOverrideConfig
 
     override fun setUp() {
@@ -52,7 +54,7 @@ class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {
     }
 
     override fun createRW(): Pair<DataReader, DataWriter> {
-        return S3DataReaderWriterProvider(s3, extraHost).newReaderWriter("logfiles")
+        return S3DataReaderWriterProvider(s3, s3Sync, extraHost).newReaderWriter("logfiles")
     }
 
     override fun tearDown() {
@@ -83,13 +85,20 @@ class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {
 
         extraHost = AwsRequestOverrideConfig.builder().header("Host", "$host:$port").build()
 
+        s3Sync = S3Client.builder().region(Region.US_WEST_2)
+                .endpointOverride(URI("http://$host:$port"))
+                .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build())
+                .credentialsProvider(AnonymousCredentialsProvider.create())
+                .build()
+
         s3 = S3AsyncClient.builder()
                 .asyncHttpConfiguration(
                         ClientAsyncHttpConfiguration.builder().httpClient(httpClient).build()
                 )
+                //.overrideConfiguration(ClientOverrideConfiguration.builder().advancedOption(AdvancedClientOption.SIGNER_PROVIDER, NoOpSignerProvider()).build())
                 .region(Region.US_WEST_2)
                 .endpointOverride(URI("http://$host:$port"))
-                .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build()) // for tests only
+                .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build())
                 .credentialsProvider(AnonymousCredentialsProvider.create())
                 .build()
     }

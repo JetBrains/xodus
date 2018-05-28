@@ -19,17 +19,16 @@ import jetbrains.exodus.ExodusException
 import jetbrains.exodus.io.AbstractDataWriter
 import jetbrains.exodus.log.LogUtil
 import mu.KLogging
-import org.reactivestreams.Subscriber
-import org.reactivestreams.Subscription
 import software.amazon.awssdk.core.AwsRequestOverrideConfig
-import software.amazon.awssdk.core.async.AsyncRequestProvider
+import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.services.s3.S3AsyncClient
+import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
-import java.nio.ByteBuffer
-import java.util.concurrent.TimeUnit
+import java.io.ByteArrayInputStream
 import java.util.concurrent.atomic.AtomicReference
 
 class S3DataWriter(val s3: S3AsyncClient,
+                   val s3Sync: S3Client,
                    val bucketName: String,
                    val requestOverrideConfig: AwsRequestOverrideConfig? = null
 ) : AbstractDataWriter() {
@@ -47,7 +46,13 @@ class S3DataWriter(val s3: S3AsyncClient,
         try {
             logger.info { "Put file of $key, length: ${file.length}" }
             if (file.length != 0) {
-                s3.putObject(PutObjectRequest.builder()
+                s3Sync.putObject(PutObjectRequest.builder()
+                        .bucket(bucketName)
+                        .requestOverrideConfig(requestOverrideConfig)
+                        .key(key)
+                        .contentLength(file.length.toLong())
+                        .build(), RequestBody.of(ByteArrayInputStream(file.buffer, 0, file.length), file.length.toLong()))
+                /*s3.putObject(PutObjectRequest.builder()
                         .bucket(bucketName)
                         .requestOverrideConfig(requestOverrideConfig)
                         .key(key)
@@ -71,7 +76,7 @@ class S3DataWriter(val s3: S3AsyncClient,
                         )
                     }
 
-                }).get(30, TimeUnit.SECONDS)
+                }).get(30, TimeUnit.SECONDS)*/
             }
         } catch (e: Exception) {
             val msg = "failed to update '$key' in S3"

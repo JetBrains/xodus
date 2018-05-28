@@ -378,7 +378,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
 
         final StoreConfig expectedConfig = StoreConfig.WITHOUT_DUPLICATES;
 
-        for (int j = 0; j < 4; j++) {
+        for (int j = 0; j < 100; j++) {
             System.out.println("Cycle " + j);
             for (int i = 0; i < 100; i++) {
                 Transaction txn = env.beginTransaction();
