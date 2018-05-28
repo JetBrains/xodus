@@ -42,49 +42,53 @@ class S3DataWriter(val s3: S3AsyncClient,
 
     override fun syncImpl() {
         val file = currentFile.get()
+        if (file.length > 0) {
+            syncFile(file)
+        }
+        if (!currentFile.compareAndSet(file, file.copy(position = file.position + file.length, length = 0))) {
+            failIntegrity()
+        }
+    }
+
+    private fun syncFile(file: CurrentFile) {
         val key = "${file.prefix}${getPartialFileName(file.blockAddress + file.position)}"
         try {
             logger.info { "Put file of $key, length: ${file.length}" }
-            if (file.length != 0) {
-                s3Sync.putObject(PutObjectRequest.builder()
-                        .bucket(bucketName)
-                        .requestOverrideConfig(requestOverrideConfig)
-                        .key(key)
-                        .contentLength(file.length.toLong())
-                        .build(), RequestBody.of(ByteArrayInputStream(file.buffer, 0, file.length), file.length.toLong()))
-                /*s3.putObject(PutObjectRequest.builder()
-                        .bucket(bucketName)
-                        .requestOverrideConfig(requestOverrideConfig)
-                        .key(key)
-                        .contentLength(file.length.toLong())
-                        .build(), object : AsyncRequestProvider {
+            s3Sync.putObject(PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .requestOverrideConfig(requestOverrideConfig)
+                    .key(key)
+                    .contentLength(file.length.toLong())
+                    .build(), RequestBody.of(ByteArrayInputStream(file.buffer, 0, file.length), file.length.toLong()))
+            /*s3.putObject(PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .requestOverrideConfig(requestOverrideConfig)
+                    .key(key)
+                    .contentLength(file.length.toLong())
+                    .build(), object : AsyncRequestProvider {
 
-                    override fun contentLength() = file.length.toLong()
+                override fun contentLength() = file.length.toLong()
 
-                    override fun subscribe(subscriber: Subscriber<in ByteBuffer>) {
-                        subscriber.onSubscribe(
-                                object : Subscription {
-                                    override fun request(n: Long) {
-                                        if (n > 0) {
-                                            subscriber.onNext(ByteBuffer.wrap(file.buffer, 0, file.length))
-                                            subscriber.onComplete()
-                                        }
+                override fun subscribe(subscriber: Subscriber<in ByteBuffer>) {
+                    subscriber.onSubscribe(
+                            object : Subscription {
+                                override fun request(n: Long) {
+                                    if (n > 0) {
+                                        subscriber.onNext(ByteBuffer.wrap(file.buffer, 0, file.length))
+                                        subscriber.onComplete()
                                     }
-
-                                    override fun cancel() {}
                                 }
-                        )
-                    }
 
-                }).get(30, TimeUnit.SECONDS)*/
-            }
+                                override fun cancel() {}
+                            }
+                    )
+                }
+
+            }).get(30, TimeUnit.SECONDS)*/
         } catch (e: Exception) {
             val msg = "failed to update '$key' in S3"
             logger.error(msg, e)
             throw ExodusException(msg, e)
-        }
-        if (!currentFile.compareAndSet(file, file.copy(position = file.position + file.length, length = 0))) {
-            failIntegrity()
         }
     }
 
@@ -117,7 +121,13 @@ class S3DataWriter(val s3: S3AsyncClient,
     override fun lockInfo(): String? = null
 
     override fun closeImpl() {
-        currentFile.set(null)
+        val file = currentFile.get()
+        if (file.length > 0) {
+            syncFile(file)
+        }
+        if (!currentFile.compareAndSet(file, null)) {
+            failIntegrity()
+        }
     }
 
     private fun failIntegrity(): Nothing {

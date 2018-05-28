@@ -235,6 +235,19 @@ class S3DataReader(
 
             return totalRead
         }
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is S3FolderBlock) return false
+
+            if (_address != other._address) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            return _address.hashCode()
+        }
     }
 
     private val fileBlocks: List<S3Block>
@@ -256,6 +269,7 @@ class S3DataReader(
                         val folderName = it.key().split("/")[0].drop(1)
                         S3FolderBlock(folderName.toFileName().address, folderName)
                     }
+                    .distinct()
                     .sortedBy { it._address }
                     .toList()
         }
@@ -273,10 +287,17 @@ class S3DataReader(
             response.contents()?.let {
                 result.addAll(it.filter(filter))
             }
-            if (!response.isTruncated) {
+            val last = response.contents()?.let {
+                if (it.isEmpty()) {
+                    return result
+                } else {
+                    it.last()
+                }
+            } ?: break
+            if (!response.isTruncated && response.nextMarker().isNullOrEmpty()) {
                 break
             }
-            builder.marker(response.marker())
+            builder.marker(last.key())
         }
         return result
     }
@@ -336,7 +357,7 @@ class S3DataReader(
     private fun List<String>.deleteS3Objects() {
         logger.info { "deleting files ${joinToString()}" }
 
-        s3.deleteObjects(DeleteObjectsRequest.builder()
+        val deleteObjectsResponse = s3.deleteObjects(DeleteObjectsRequest.builder()
                 .requestOverrideConfig(requestOverrideConfig)
                 .delete(
                         Delete.builder().objects(
@@ -344,6 +365,10 @@ class S3DataReader(
                                 .build())
                 .bucket(bucketName)
                 .build()).get()
+
+        if (deleteObjectsResponse.errors()?.isNotEmpty() == true) {
+            throw IllegalStateException("Can't delete files")
+        }
     }
 
 
