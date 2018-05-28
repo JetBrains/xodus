@@ -20,29 +20,26 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class OptimizationPlan {
-    public static final NodeBase ALL = NodeFactory.all();
-    public static final NodeBase PE2PNN = new PropertyEqualToPropertyNoNull(0);
-    public static final NodeBase LE2LNN = new LinkEqualToLinkNotNull(0);
-    public static final NodeBase MPR = new MergePropertyRanges(0);
+
+    private static final NodeBase ALL = NodeFactory.all();
+    private static final NodeBase PE2PNN = new PropertyEqualToPropertyNoNull(0);
+    private static final NodeBase LE2LNN = new LinkEqualToLinkNotNull(0);
+    private static final NodeBase MPR = new MergePropertyRanges(0);
 
     private static final NodeBase A = wildcard(0);
     private static final NodeBase B = wildcard(1);
     private static final NodeBase C = wildcard(2);
     private static final NodeBase D = wildcard(3);
 
-    public static final List<OptimizationPlan> PLANS;
+    static final List<OptimizationPlan> PLANS;
 
     /* package */ final List<OptimizationRule> rules;
-    /**
-     * true means that rules from this plan will be applied on enter during depth-first search of the QueryTree
-     */
-    public final boolean applyOnEnter;
 
     static {
-        final OptimizationPlan prepare = new OptimizationPlan(false);
-        final OptimizationPlan optimize = new OptimizationPlan(false);
-        final OptimizationPlan pushNotUpAndGenMinus = new OptimizationPlan(false);
-        final OptimizationPlan removeSingleNot = new OptimizationPlan(false);
+        final OptimizationPlan prepare = new OptimizationPlan();
+        final OptimizationPlan optimize = new OptimizationPlan();
+        final OptimizationPlan pushNotUpAndGenMinus = new OptimizationPlan();
+        final OptimizationPlan removeSingleNot = new OptimizationPlan();
 
         final List<OptimizationPlan> plans = new ArrayList<>(4);
         plans.add(prepare);
@@ -65,6 +62,8 @@ public class OptimizationPlan {
         // a & !( a & !b ) == a & b
         // needed for optimizing a \ ( a \ b ) which is a & b
         optimize.add(and(A, not(and(A, not(B)))), and(A, B));
+        // a & (a & b) == a & b
+        optimize.add(and(and(A, B), B), and(A, B));
         // for optimizing #Unassigned #Unresolved when no project is selected (if some assignee bundles differ)
         // ( ( a & b ) | c ) | ( d & b ) == ( ( a | d ) & b ) | c
         optimize.add(or(or(and(A, B), C), and(D, B)), or(and(or(A, D), B), C));
@@ -120,9 +119,8 @@ public class OptimizationPlan {
         return new Wildcard(t);
     }
 
-    public OptimizationPlan(boolean a) {
+    private OptimizationPlan() {
         rules = new ArrayList<>();
-        applyOnEnter = a;
     }
 
     /**
@@ -155,11 +153,4 @@ public class OptimizationPlan {
             rules.add(new OptimizationRule(root.getChild(), dest));
         }
     }
-
-    public static void resetAll() {
-        for (int i = 0; i < PLANS.size(); i++) {
-            PLANS.set(i, new OptimizationPlan(false));
-        }
-    }
-
 }

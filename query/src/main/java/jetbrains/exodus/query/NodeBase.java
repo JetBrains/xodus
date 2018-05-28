@@ -61,23 +61,22 @@ public abstract class NodeBase {
         while (applied) {
             applied = false;
             for (final NodeBase child : getChildren()) {
-                if (!rules.applyOnEnter) {
-                    child.optimize(sorts, rules);
-                }
-                for (OptimizationRule rule : rules.rules) {
-                    if (child.replaceIfMatches(rule)) {
-                        applied = true;
-                        break;
-                    }
-                }
-                if (applied) {
+                child.optimize(sorts, rules);
+                if (child.optimize(rules)) {
+                    applied = true;
                     break;
-                }
-                if (rules.applyOnEnter) {
-                    child.optimize(sorts, rules);
                 }
             }
         }
+    }
+
+    private boolean optimize(OptimizationPlan rules) {
+        for (OptimizationRule rule : rules.rules) {
+            if (replaceIfMatches(rule)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public void cleanSorts(Sorts sorts) {

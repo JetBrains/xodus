@@ -53,23 +53,15 @@ public class Concat extends BinaryOperator {
         boolean applied = true;
         while (applied) {
             applied = false;
-            if (!(rules.applyOnEnter)) {
-                getLeft().optimize(leftSorts, rules);
-                getRight().optimize(rightSorts, rules);
-            }
+            final NodeBase left = getLeft();
+            final NodeBase right = getRight();
+            left.optimize(leftSorts, rules);
+            right.optimize(rightSorts, rules);
             for (OptimizationRule rule : rules.rules) {
-                applied |= getLeft().replaceIfMatches(rule);
-                applied |= getRight().replaceIfMatches(rule);
+                applied = left.replaceIfMatches(rule) || right.replaceIfMatches(rule);
                 if (applied) {
                     break;
                 }
-            }
-            if (applied) {
-                continue;
-            }
-            if (rules.applyOnEnter) {
-                getLeft().optimize(leftSorts, rules);
-                getRight().optimize(rightSorts, rules);
             }
         }
     }

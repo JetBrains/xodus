@@ -17,7 +17,6 @@ package jetbrains.exodus.query;
 
 
 import jetbrains.exodus.entitystore.Entity;
-import jetbrains.exodus.entitystore.EntityIterable;
 import jetbrains.exodus.entitystore.Explainer;
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
@@ -133,18 +132,18 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
                 explained = ((SortEngine.InMemorySortIterable) explained).source;
             }
             if (explained instanceof EntityIterableBase) {
-                EntityIterable entityIterable = ((EntityIterableBase) explained).getSource();
-                if (entityIterable instanceof EntityIterableBase && entityIterable != EntityIterableBase.EMPTY) {
-                    EntityIterableBase entityIterableBase = ((EntityIterableBase) entityIterable);
+                final EntityIterableBase entityIterable = ((EntityIterableBase) explained).getSource();
+                if (entityIterable != EntityIterableBase.EMPTY) {
                     final PersistentEntityStoreImpl store = queryEngine.getPersistentStore();
-                    Explainer explainer = store.getExplainer();
-                    if (!Explainer.isExplainForcedForThread()) {
+                    final Explainer explainer = store.getExplainer();
+                    final boolean explainForcedForThread = Explainer.isExplainForcedForThread();
+                    if (!explainForcedForThread) {
                         explainer.start(origin);
                     }
-                    entityIterableBase.setOrigin(origin);
+                    entityIterable.setOrigin(origin);
                     explainer.explain(origin, Explainer.INITIAL_TREE, annotatedTree);
                     explainer.explain(origin, Explainer.OPTIMIZED_TREE, optimizedTree);
-                    if (!Explainer.isExplainForcedForThread()) {
+                    if (!explainForcedForThread) {
                         for (Entity entity : result) {
                             explainer.explain(origin, Explainer.ITERABLE_ADVANCES);
                         }
