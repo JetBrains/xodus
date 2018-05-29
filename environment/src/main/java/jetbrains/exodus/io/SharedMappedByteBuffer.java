@@ -19,12 +19,13 @@ import jetbrains.exodus.util.SafeByteBufferCleaner;
 import jetbrains.exodus.util.SharedRandomAccessFile;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.atomic.AtomicInteger;
 
-final class SharedMappedByteBuffer implements AutoCloseable {
+final class SharedMappedByteBuffer implements Closeable {
 
     @NotNull
     private final ByteBuffer buffer;
