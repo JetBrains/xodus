@@ -33,8 +33,12 @@ class S3DataWriter(val s3: S3AsyncClient,
                    val requestOverrideConfig: AwsRequestOverrideConfig? = null
 ) : AbstractDataWriter() {
     companion object : KLogging() {
-        private fun getPartialFileName(address: Long): String {
+        internal fun getPartialFileName(address: Long): String {
             return String.format("%016x${LogUtil.LOG_FILE_EXTENSION}", address)
+        }
+
+        internal fun getPartialFolderPrefix(blockAddress: Long): String {
+            return "_${LogUtil.getLogFilename(blockAddress).replace(LogUtil.LOG_FILE_EXTENSION, "")}/"
         }
     }
 
@@ -141,7 +145,7 @@ class S3DataWriter(val s3: S3AsyncClient,
             val blockAddress: Long,
             val position: Int = 0,
             val length: Int = 0,
-            val prefix: String = "_${LogUtil.getLogFilename(blockAddress).replace(LogUtil.LOG_FILE_EXTENSION, "")}/",
+            val prefix: String = getPartialFolderPrefix(blockAddress),
             val buffer: ByteArray = ByteArray(1024 * 256) // 0.25 MB by default
     ) {
 

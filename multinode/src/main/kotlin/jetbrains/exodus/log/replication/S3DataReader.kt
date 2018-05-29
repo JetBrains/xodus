@@ -33,7 +33,7 @@ import java.nio.ByteBuffer
 import java.util.*
 import kotlin.Comparator
 import kotlin.collections.ArrayList
-
+import kotlin.coroutines.experimental.buildSequence
 
 class S3DataReader(
         val s3: S3AsyncClient,
@@ -42,6 +42,8 @@ class S3DataReader(
         val writer: S3DataWriter) : DataReader {
 
     companion object : KLogging() {
+        private const val deletePackSize = 500
+
         private const val logFileNameWithExtLength = 19
 
         private fun decodeAddress(logFilename: String): Long {
@@ -75,11 +77,11 @@ class S3DataReader(
         val keysToDelete = ArrayList<String>()
 
         fileBlocks.filter { it.address == blockAddress }.forEach {
-            keysToDelete.add(it.s3Object.key())
+            keysToDelete.add(it.key)
         }
 
         folderBlocks.filter { it.address == blockAddress }.flatMap { it.blocks }.forEach {
-            keysToDelete.add(it.s3Object.key())
+            keysToDelete.add(it.key)
         }
         if (rbt == RemoveBlockType.Rename) {
             keysToDelete.forEach {
@@ -116,7 +118,12 @@ class S3DataReader(
             folder.blocks.let {
                 val last = it.findLast { it.address - folder.address < length }
                 last?.truncate(length - (last.address - folder.address))
-                it.filter { it.address - folder.address >= length }.map { it.s3Object.key() }.deleteS3Objects()
+                it.asSequence()
+                        .filter { it.address - folder.address >= length }
+                        .map { it.key }
+                        .windowed(size = deletePackSize, step = deletePackSize, partialWindows = true).forEach {
+                            it.deleteS3Objects()
+                        }
             }
         }
     }
@@ -129,27 +136,23 @@ class S3DataReader(
     }
 
     override fun clear() {
-        val builder = listObjectsBuilder()
-        while (true) {
-            val response = s3.listObjects(builder.build()).get()
-            response.contents()?.let {
-                it.filter { it.key().isValidAddress || it.key().isValidSubFolder }
-                        .map { it.key() }.deleteS3Objects()
-            }
-            if (!response.isTruncated) {
-                break
-            }
-            builder.marker(response.marker())
+        listObjects(listObjectsBuilder()).filter {
+            it.key().isValidAddress || it.key().isValidSubFolder
+        }.map {
+            it.key()
+        }.windowed(size = deletePackSize, step = deletePackSize, partialWindows = true).forEach {
+            it.deleteS3Objects()
         }
     }
 
-    internal inner class S3Block(val _address: Long, internal val s3Object: S3Object) : Block {
+    internal abstract inner class BasicS3Block(internal val _address: Long, internal val size: Long) : Block {
+        abstract val key: String
 
         override fun getAddress() = _address
 
         override fun setReadOnly() = true
 
-        override fun length(): Long = s3Object.size()
+        override fun length(): Long = size
 
         override fun read(output: ByteArray, position: Long, offset: Int, count: Int): Int {
             if (count <= 0) {
@@ -158,31 +161,29 @@ class S3DataReader(
 
             val range = "bytes=$position-${position + count - 1}"
 
-            logger.debug { "Request range: $range in file ${s3Object.key()}" }
+            logger.debug { "Request range: $range in file $key" }
 
             return s3.getObject(GetObjectRequest.builder()
                     .range(range)
                     .requestOverrideConfig(requestOverrideConfig)
                     .bucket(bucketName)
-                    .key(s3Object.key()).build(),
+                    .key(key).build(),
                     ByteArrayAsyncResponseHandler<GetObjectResponse?>(output, offset)
             ).get()
         }
     }
 
-    internal inner class S3FolderBlock(val _address: Long, private val folderName: String) : Block {
+    internal inner class S3Block(address: Long, size: Long) : BasicS3Block(address, size) {
+        override val key: String
+            get() = LogUtil.getLogFilename(_address)
+    }
 
-        internal val blocks by lazy {
-            val builder = listObjectsBuilder().prefix("_$folderName/")
-            s3Objects(builder) { it.key().isValidSubFolder }
-                    .asSequence()
-                    .map {
-                        S3Block(decodeAddress(it.key().split("/")[1]), it)
-                    }
-                    .sortedBy { it._address }
-                    .toList()
-        }
+    internal inner class S3SubBlock(address: Long, size: Long, private val parentAddress: Long) : BasicS3Block(address, size) {
+        override val key: String
+            get() = S3DataWriter.getPartialFolderPrefix(parentAddress) + S3DataWriter.getPartialFileName(_address)
+    }
 
+    internal inner class S3FolderBlock(private val _address: Long, internal val blocks: List<S3SubBlock>) : Block {
         override fun getAddress() = _address
 
         override fun setReadOnly() = true
@@ -253,9 +254,9 @@ class S3DataReader(
     private val fileBlocks: List<S3Block>
         get() {
             val builder = listObjectsBuilder().delimiter("/")
-            return s3Objects(builder) { it.key().isValidAddress }
-                    .asSequence()
-                    .map { S3Block(it.key().address, it) }
+            return listObjects(builder)
+                    .filter { it.key().isValidAddress }
+                    .map { S3Block(it.key().address, it.size()) }
                     .sortedBy { it._address }
                     .toList()
         }
@@ -263,15 +264,27 @@ class S3DataReader(
     private val folderBlocks: List<S3FolderBlock>
         get() {
             val builder = listObjectsBuilder().prefix("_")
-            return s3Objects(builder) { it.key().isValidSubFolder }
-                    .asSequence()
-                    .map {
-                        val folderName = it.key().split("/")[0].drop(1)
-                        S3FolderBlock(folderName.toFileName().address, folderName)
+            val folders = TreeMap<String, Pair<Long, MutableList<S3SubBlock>>>()
+            listObjects(builder).forEach {
+                val paths = it.key().split("/")
+                if (paths.size == 2) {
+                    val folderName = paths[0]
+                    folders[folderName]?.let { pair ->
+                        if (checkAddress(paths[1])) {
+                            pair.second.add(S3SubBlock(decodeAddress(paths[1]), it.size(), pair.first))
+                        }
+                    } ?: if (folderName.startsWith("_")) {
+                        val folderAsFileName = folderName.drop(1).toFileName()
+                        if (folderAsFileName.isValidAddress) {
+                            if (checkAddress(paths[1])) {
+                                val blockAddress = folderAsFileName.address
+                                folders[folderName] = blockAddress to mutableListOf(S3SubBlock(decodeAddress(paths[1]), it.size(), blockAddress))
+                            }
+                        }
                     }
-                    .distinct()
-                    .sortedBy { it._address }
-                    .toList()
+                }
+            }
+            return folders.values.asSequence().map { S3FolderBlock(it.first, it.second) }.toList()
         }
 
     private fun listObjectsBuilder(): ListObjectsRequest.Builder {
@@ -280,26 +293,22 @@ class S3DataReader(
                 .bucket(bucketName)
     }
 
-    private fun s3Objects(builder: ListObjectsRequest.Builder, filter: (S3Object) -> Boolean): List<S3Object> {
-        val result = ArrayList<S3Object>()
-        while (true) {
-            val response = s3.listObjects(builder.build()).get()
-            response.contents()?.let {
-                result.addAll(it.filter(filter))
-            }
-            val last = response.contents()?.let {
-                if (it.isEmpty()) {
-                    return result
-                } else {
-                    it.last()
+    private fun listObjects(builder: ListObjectsRequest.Builder): Sequence<S3Object> {
+        return buildSequence {
+            while (true) {
+                val response = s3.listObjects(builder.build()).get()
+                val contents = response.contents() ?: break
+                if (contents.isEmpty()) {
+                    break
                 }
-            } ?: break
-            if (!response.isTruncated && response.nextMarker().isNullOrEmpty()) {
-                break
+                yieldAll(contents)
+                val last = contents.last()
+                if (!response.isTruncated && response.nextMarker().isNullOrEmpty()) {
+                    break
+                }
+                builder.marker(last.key())
             }
-            builder.marker(last.key())
         }
-        return result
     }
 
     private fun String.toFileName() = this + LOG_FILE_EXTENSION
@@ -307,25 +316,25 @@ class S3DataReader(
     private val String.isValidAddress get() = this.length == LOG_FILE_NAME_WITH_EXT_LENGTH && LogUtil.isLogFileName(this)
 
 
-    private fun S3Block.readAndCompare(output: ByteArray, position: Long, offset: Int, count: Int): Int {
+    private fun BasicS3Block.readAndCompare(output: ByteArray, position: Long, offset: Int, count: Int): Int {
         return read(output, position, offset, count).also {
             if (it < count) {
-                val msg = "try to read $count bytes from ${s3Object.key()} but get $it"
+                val msg = "try to read $count bytes from $key but get $it"
                 logger.error(msg)
                 throw ExodusException(msg)
             }
         }
     }
 
-    private fun S3Block.truncate(length: Long) {
-        logger.debug { "truncating block at ${s3Object.key()} to $length" }
+    private fun BasicS3Block.truncate(length: Long) {
+        logger.debug { "truncating block at $key to $length" }
         try {
             val array = ByteArray(length.toInt())
             read(array, 0, 0, length.toInt())
             s3.putObject(PutObjectRequest.builder()
                     .bucket(bucketName)
                     .requestOverrideConfig(requestOverrideConfig)
-                    .key(s3Object.key())
+                    .key(key)
                     .contentLength(length)
                     .build(), object : AsyncRequestProvider {
 
@@ -348,7 +357,7 @@ class S3DataReader(
 
             }).get()
         } catch (e: Exception) {
-            val msg = "failed to update ${s3Object.key()}"
+            val msg = "failed to update $key"
             logger.error(msg, e)
             throw ExodusException(msg, e)
         }
@@ -378,7 +387,7 @@ class S3DataReader(
             val isValidFolderName = paths[0].let {
                 it.startsWith("_") && it.drop(1).toFileName().isValidAddress
             }
-            return paths.size == 2 && checkAddress(paths[1]) && isValidFolderName
+            return isValidFolderName && paths.size == 2 && checkAddress(paths[1])
         }
 
     internal inner class InMemoryBlock(private val address: Long) : Block {
