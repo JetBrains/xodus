@@ -19,7 +19,6 @@ import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.tryUpdate
 import jetbrains.exodus.log.LogUtil
 import mu.KLogging
-import org.jetbrains.annotations.NotNull
 import java.io.IOException
 import java.nio.file.*
 import java.util.concurrent.TimeUnit
@@ -39,9 +38,9 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?, priv
 
     override fun getBlock(address: Long) = fileDataReader.getBlock(address)
 
-    override fun getBlocks(): @NotNull MutableIterable<Block> = fileDataReader.blocks
+    override fun getBlocks() = fileDataReader.blocks
 
-    override fun getBlocks(fromAddress: Long): @NotNull MutableIterable<Block> = fileDataReader.getBlocks(fromAddress)
+    override fun getBlocks(fromAddress: Long) = fileDataReader.getBlocks(fromAddress)
 
     override fun removeBlock(blockAddress: Long, rbt: RemoveBlockType) = throw UnsupportedOperationException()
 
