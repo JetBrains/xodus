@@ -52,7 +52,9 @@ public final class Log implements Closeable {
 
     private int logIdentity;
     @NotNull
-    private final DataWriter baseWriter;
+    private final DataReader reader;
+    @NotNull
+    private final DataWriter writer;
     private final AtomicReference<LogTip> tip;
     @Nullable
     private BufferedDataWriter bufferedWriter;
@@ -60,8 +62,6 @@ public final class Log implements Closeable {
      * Last ticks when the sync operation was performed.
      */
     private long lastSyncTicks;
-    @NotNull
-    private final DataReader reader;
 
     private final List<NewFileListener> newFileListeners;
     private final List<ReadBytesListener> readBytesListeners;
@@ -82,7 +82,7 @@ public final class Log implements Closeable {
     @SuppressWarnings({"OverlyLongMethod", "ThisEscapedInObjectConstruction", "OverlyCoupledMethod"})
     public Log(@NotNull final LogConfig config) {
         this.config = config;
-        baseWriter = config.getWriter();
+        writer = config.getWriter();
         tryLock();
         created = System.currentTimeMillis();
         cachePageSize = config.getCachePageSize();
@@ -197,7 +197,7 @@ public final class Log implements Closeable {
                 }
                 logger.error("Clearing log due to: " + clearLogReason);
                 fileSetMutable.clear();
-                reader.clear();
+                writer.clear();
                 break;
             }
             fileSetMutable.add(address);
@@ -321,7 +321,7 @@ public final class Log implements Closeable {
         if (bufferedWriter != null) {
             throw new IllegalStateException("Unexpected write in progress");
         }
-        baseWriter.close();
+        writer.close();
     }
 
     public LogTip getTip() {
@@ -329,7 +329,7 @@ public final class Log implements Closeable {
     }
 
     public LogTip beginWrite() {
-        BufferedDataWriter writer = new BufferedDataWriter(this, baseWriter, reader, getTip());
+        BufferedDataWriter writer = new BufferedDataWriter(this, this.writer, reader, getTip());
         this.bufferedWriter = writer;
         return writer.getStartingTip();
     }
@@ -698,7 +698,7 @@ public final class Log implements Closeable {
 
     public void sync() {
         if (!config.isFsyncSuppressed()) {
-            baseWriter.sync();
+            writer.sync();
             lastSyncTicks = System.currentTimeMillis();
         }
     }
@@ -719,14 +719,15 @@ public final class Log implements Closeable {
     }
 
     public void release() {
-        baseWriter.release();
+        writer.release();
     }
 
     public LogTip clear() {
         final LogTip logTip = getTip();
-        closeWriter();
         cache.clear();
-        reader.clear();
+        reader.close();
+        closeWriter();
+        writer.clear();
         final LogTip updatedTip = new LogTip(fileLengthBound);
         compareAndSetTip(logTip, updatedTip);
         this.bufferedWriter = null;
@@ -795,7 +796,7 @@ public final class Log implements Closeable {
     private void truncateFile(final long address, final long length) {
         // truncate physical file
         reader.truncateBlock(address, length);
-        baseWriter.openOrCreateBlock(address, length);
+        writer.openOrCreateBlock(address, length);
         // clear cache
         for (long offset = length - (length % cachePageSize); offset < fileLengthBound; offset += cachePageSize) {
             cache.removePage(this, address + offset);
@@ -935,9 +936,9 @@ public final class Log implements Closeable {
     private void tryLock() {
         if (!config.isLockIgnored()) {
             final long lockTimeout = config.getLockTimeout();
-            if (!baseWriter.lock(lockTimeout)) {
+            if (!writer.lock(lockTimeout)) {
                 throw new ExodusException("Can't acquire environment lock after " +
-                        lockTimeout + " ms.\n\n Lock owner info: \n" + baseWriter.lockInfo());
+                    lockTimeout + " ms.\n\n Lock owner info: \n" + writer.lockInfo());
             }
         }
     }
@@ -1028,7 +1029,7 @@ public final class Log implements Closeable {
         }
         // end of test-only code
 
-        if (!baseWriter.isOpen()) {
+        if (!this.writer.isOpen()) {
             final long fileAddress = getFileAddress(result);
             writer.openOrCreateBlock(fileAddress, writer.getLastWrittenFileLength(fileLengthBound));
             final boolean fileCreated = !writer.getFileSetMutable().contains(fileAddress);
@@ -1037,7 +1038,7 @@ public final class Log implements Closeable {
             }
             if (fileCreated) {
                 // fsync the directory to ensure we will find the log file in the directory after system crash
-                baseWriter.syncDirectory();
+                this.writer.syncDirectory();
                 notifyFileCreated(fileAddress);
             }
         }
@@ -1051,7 +1052,7 @@ public final class Log implements Closeable {
             // system failure:
             flush(true);
 
-            baseWriter.close();
+            this.writer.close();
             if (config.isFullFileReadonly()) {
                 final Long lastFile = writer.getFileSetMutable().getMaximum();
                 if (lastFile != null) {

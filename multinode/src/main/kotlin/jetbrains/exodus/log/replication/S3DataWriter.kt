@@ -28,8 +28,8 @@ import java.io.ByteArrayInputStream
 import java.util.concurrent.atomic.AtomicReference
 
 class S3DataWriter(val s3: S3AsyncClient,
-                   val s3Sync: S3Client,
-                   val bucketName: String,
+                   private val s3Sync: S3Client,
+                   private val bucketName: String,
                    val requestOverrideConfig: AwsRequestOverrideConfig? = null
 ) : AbstractDataWriter() {
     companion object : KLogging() {
@@ -134,6 +134,16 @@ class S3DataWriter(val s3: S3AsyncClient,
         }
     }
 
+    override fun clearImpl() {
+        listObjects(s3, listObjectsBuilder(bucketName, requestOverrideConfig)).filter {
+            it.key().isValidAddress || it.key().isValidSubFolder
+        }.map {
+            it.key()
+        }.windowed(size = deletePackSize, step = deletePackSize, partialWindows = true).forEach {
+            it.deleteS3Objects(s3, bucketName, requestOverrideConfig)
+        }
+    }
+
     private fun failIntegrity(): Nothing {
         throw IllegalStateException("Concurrency breach")
     }
@@ -156,7 +166,7 @@ class S3DataWriter(val s3: S3AsyncClient,
             }
             var newCapacity = length + (length shr 1)
             if (newCapacity < newLength) {
-                newCapacity = newLength;
+                newCapacity = newLength
             }
             return copy(length = newLength, buffer = buffer.copyOf(newCapacity))
         }

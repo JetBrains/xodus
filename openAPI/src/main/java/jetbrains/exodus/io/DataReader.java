@@ -39,7 +39,5 @@ public interface DataReader {
 
     void truncateBlock(long blockAddress, long length);
 
-    void clear();
-
     void close();
 }

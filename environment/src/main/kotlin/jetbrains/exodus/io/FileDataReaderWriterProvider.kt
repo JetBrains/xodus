@@ -26,16 +26,20 @@ open class FileDataReaderWriterProvider : DataReaderWriterProvider() {
     protected var env: EnvironmentImpl? = null
 
     override fun newReaderWriter(location: String): Pair<DataReader, DataWriter> =
-            checkDirectory(location).run {
-                val ec = env?.environmentConfig
-                Pair(
-                        FileDataReader(this).apply {
-                            if (ec != null && ec.logCacheUseNio) {
-                                useNio(ec.logCacheFreePhysicalMemoryThreshold)
-                            }
-                        },
-                        FileDataWriter(this, ec?.logLockId))
+            Pair(newFileDataReader(location), newFileDataWriter(location))
+
+    protected open fun newFileDataReader(location: String): DataReader {
+        val ec = env?.environmentConfig
+        return FileDataReader(checkDirectory(location)).apply {
+            if (ec != null && ec.logCacheUseNio) {
+                useNio(ec.logCacheFreePhysicalMemoryThreshold)
             }
+        }
+    }
+
+    protected open fun newFileDataWriter(location: String) =
+            FileDataWriter(checkDirectory(location), env?.environmentConfig?.logLockId)
+
 
     override fun onEnvironmentCreated(env: Environment) {
         super.onEnvironmentCreated(env)
@@ -44,7 +48,8 @@ open class FileDataReaderWriterProvider : DataReaderWriterProvider() {
 
     companion object {
 
-        private fun checkDirectory(location: String): File {
+        @JvmStatic
+        protected fun checkDirectory(location: String): File {
             val directory = File(location)
             if (directory.isFile) {
                 throw ExodusException("A directory is required: $directory")

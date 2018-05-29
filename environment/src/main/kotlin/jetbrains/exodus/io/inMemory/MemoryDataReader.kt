@@ -24,6 +24,7 @@ import mu.KLogging
 import org.jetbrains.annotations.NotNull
 
 open class MemoryDataReader(private val memory: Memory) : DataReader {
+
     companion object : KLogging()
 
     private val memoryBlocks get() = memory.allBlocks.asSequence()
@@ -54,21 +55,13 @@ open class MemoryDataReader(private val memory: Memory) : DataReader {
         logger.info { "Truncated file " + LogUtil.getLogFilename(blockAddress) }
     }
 
-    override fun clear() {
-        memory.clear()
-    }
-
     override fun close() {
         // nothing to do
     }
 
-    override fun getLocation(): String {
-        return memory.toString()
-    }
+    override fun getLocation() = memory.toString()
 
-    override fun getBlock(address: Long): Block {
-        return MemoryBlock(memory.getBlockData(address))
-    }
+    override fun getBlock(address: Long): Block = MemoryBlock(memory.getBlockData(address))
 
     private class MemoryBlock constructor(private val data: Memory.Block) : Block {
 

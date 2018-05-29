@@ -15,13 +15,9 @@
  */
 package jetbrains.exodus.io
 
-class WatchingFileDataReaderWriterProvider : FileDataReaderWriterProvider() {
+import java.io.File
 
-    override fun isReadonly() = true
+class WatchingFileDataWriter(val dir: File, lockId: String? = null) : FileDataWriter(dir, lockId) {
 
-    override fun newFileDataReader(location: String) =
-            WatchingFileDataReader({ env }, super.newFileDataReader(location) as FileDataReader)
-
-    override fun newFileDataWriter(location: String) =
-            WatchingFileDataWriter(checkDirectory(location), env?.environmentConfig?.logLockId)
+    override fun clearImpl() = throw UnsupportedOperationException()
 }

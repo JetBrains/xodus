@@ -20,20 +20,20 @@ import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.DataReader
 import jetbrains.exodus.io.RemoveBlockType
 import jetbrains.exodus.log.LogUtil
-import jetbrains.exodus.log.LogUtil.LOG_FILE_EXTENSION
-import jetbrains.exodus.log.LogUtil.LOG_FILE_NAME_WITH_EXT_LENGTH
 import mu.KLogging
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
 import software.amazon.awssdk.core.AwsRequestOverrideConfig
 import software.amazon.awssdk.core.async.AsyncRequestProvider
 import software.amazon.awssdk.services.s3.S3AsyncClient
-import software.amazon.awssdk.services.s3.model.*
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest
+import software.amazon.awssdk.services.s3.model.GetObjectRequest
+import software.amazon.awssdk.services.s3.model.GetObjectResponse
+import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import java.nio.ByteBuffer
 import java.util.*
 import kotlin.Comparator
 import kotlin.collections.ArrayList
-import kotlin.coroutines.experimental.buildSequence
 
 class S3DataReader(
         val s3: S3AsyncClient,
@@ -41,22 +41,7 @@ class S3DataReader(
         val requestOverrideConfig: AwsRequestOverrideConfig? = null,
         val writer: S3DataWriter) : DataReader {
 
-    companion object : KLogging() {
-        private const val deletePackSize = 500
-
-        private const val logFileNameWithExtLength = 19
-
-        private fun decodeAddress(logFilename: String): Long {
-            if (!checkAddress(logFilename)) {
-                throw ExodusException("Invalid log file name: $logFilename")
-            }
-            return logFilename.substring(0, 16).toLong(16)
-        }
-
-        private fun checkAddress(logFilename: String): Boolean {
-            return logFilename.length == logFileNameWithExtLength && logFilename.endsWith(LOG_FILE_EXTENSION)
-        }
-    }
+    companion object : KLogging()
 
     @Suppress("UNCHECKED_CAST")
     override fun getBlocks(): Iterable<Block> {
@@ -103,7 +88,7 @@ class S3DataReader(
             }
         }
         try {
-            keysToDelete.deleteS3Objects()
+            keysToDelete.deleteS3Objects(s3, bucketName, requestOverrideConfig)
         } catch (e: Exception) {
             val msg = "failed to delete files '${keysToDelete.joinToString()}' in S3"
             logger.error(msg, e)
@@ -122,7 +107,7 @@ class S3DataReader(
                         .filter { it.address - folder.address >= length }
                         .map { it.key }
                         .windowed(size = deletePackSize, step = deletePackSize, partialWindows = true).forEach {
-                            it.deleteS3Objects()
+                            it.deleteS3Objects(s3, bucketName, requestOverrideConfig)
                         }
             }
         }
@@ -135,17 +120,8 @@ class S3DataReader(
         return blocks.firstOrNull { it.address == address } ?: InMemoryBlock(address)
     }
 
-    override fun clear() {
-        listObjects(listObjectsBuilder()).filter {
-            it.key().isValidAddress || it.key().isValidSubFolder
-        }.map {
-            it.key()
-        }.windowed(size = deletePackSize, step = deletePackSize, partialWindows = true).forEach {
-            it.deleteS3Objects()
-        }
-    }
-
     internal abstract inner class BasicS3Block(internal val _address: Long, internal val size: Long) : Block {
+
         abstract val key: String
 
         override fun getAddress() = _address
@@ -254,7 +230,7 @@ class S3DataReader(
     private val fileBlocks: List<S3Block>
         get() {
             val builder = listObjectsBuilder().delimiter("/")
-            return listObjects(builder)
+            return listObjects(s3, builder)
                     .filter { it.key().isValidAddress }
                     .map { S3Block(it.key().address, it.size()) }
                     .sortedBy { it._address }
@@ -265,7 +241,7 @@ class S3DataReader(
         get() {
             val builder = listObjectsBuilder().prefix("_")
             val folders = TreeMap<String, Pair<Long, MutableList<S3SubBlock>>>()
-            listObjects(builder).forEach {
+            listObjects(s3, builder).forEach {
                 val paths = it.key().split("/")
                 if (paths.size == 2) {
                     val folderName = paths[0]
@@ -287,34 +263,7 @@ class S3DataReader(
             return folders.values.asSequence().map { S3FolderBlock(it.first, it.second) }.toList()
         }
 
-    private fun listObjectsBuilder(): ListObjectsRequest.Builder {
-        return ListObjectsRequest.builder()
-                .requestOverrideConfig(requestOverrideConfig)
-                .bucket(bucketName)
-    }
-
-    private fun listObjects(builder: ListObjectsRequest.Builder): Sequence<S3Object> {
-        return buildSequence {
-            while (true) {
-                val response = s3.listObjects(builder.build()).get()
-                val contents = response.contents() ?: break
-                if (contents.isEmpty()) {
-                    break
-                }
-                yieldAll(contents)
-                val last = contents.last()
-                if (!response.isTruncated && response.nextMarker().isNullOrEmpty()) {
-                    break
-                }
-                builder.marker(last.key())
-            }
-        }
-    }
-
-    private fun String.toFileName() = this + LOG_FILE_EXTENSION
-    private val String.address get() = LogUtil.getAddress(this)
-    private val String.isValidAddress get() = this.length == LOG_FILE_NAME_WITH_EXT_LENGTH && LogUtil.isLogFileName(this)
-
+    private fun listObjectsBuilder() = listObjectsBuilder(bucketName, requestOverrideConfig)
 
     private fun BasicS3Block.readAndCompare(output: ByteArray, position: Long, offset: Int, count: Int): Int {
         return read(output, position, offset, count).also {
@@ -362,33 +311,6 @@ class S3DataReader(
             throw ExodusException(msg, e)
         }
     }
-
-    private fun List<String>.deleteS3Objects() {
-        logger.info { "deleting files ${joinToString()}" }
-
-        val deleteObjectsResponse = s3.deleteObjects(DeleteObjectsRequest.builder()
-                .requestOverrideConfig(requestOverrideConfig)
-                .delete(
-                        Delete.builder().objects(
-                                map { ObjectIdentifier.builder().key(it).build() })
-                                .build())
-                .bucket(bucketName)
-                .build()).get()
-
-        if (deleteObjectsResponse.errors()?.isNotEmpty() == true) {
-            throw IllegalStateException("Can't delete files")
-        }
-    }
-
-
-    private val String.isValidSubFolder: Boolean
-        get() {
-            val paths = this.split("/")
-            val isValidFolderName = paths[0].let {
-                it.startsWith("_") && it.drop(1).toFileName().isValidAddress
-            }
-            return isValidFolderName && paths.size == 2 && checkAddress(paths[1])
-        }
 
     internal inner class InMemoryBlock(private val address: Long) : Block {
         override fun getAddress() = address

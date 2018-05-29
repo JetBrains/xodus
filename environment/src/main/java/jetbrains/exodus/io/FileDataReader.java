@@ -99,19 +99,6 @@ public class FileDataReader implements DataReader {
     }
 
     @Override
-    public void clear() {
-        close();
-        for (final File file : LogUtil.listFiles(dir)) {
-            if (!file.canWrite()) {
-                setWritable(file);
-            }
-            if (file.exists() && !file.delete()) {
-                throw new ExodusException("Failed to delete " + file);
-            }
-        }
-    }
-
-    @Override
     public void close() {
         try {
             SharedOpenFilesCache.getInstance().removeDirectory(dir);

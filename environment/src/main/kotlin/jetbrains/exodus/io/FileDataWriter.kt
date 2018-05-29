@@ -26,7 +26,7 @@ import java.io.RandomAccessFile
 import java.nio.channels.ClosedChannelException
 import java.nio.channels.FileChannel
 
-class FileDataWriter @JvmOverloads constructor(private val dir: File, lockId: String? = null) : AbstractDataWriter() {
+open class FileDataWriter @JvmOverloads constructor(private val dir: File, lockId: String? = null) : AbstractDataWriter() {
 
     private var dirChannel: FileChannel? = null
     private val lockingManager: LockingManager
@@ -58,7 +58,6 @@ class FileDataWriter @JvmOverloads constructor(private val dir: File, lockId: St
             }
             throw ExodusException("Can't write", ioe)
         }
-
     }
 
     override fun lock(timeout: Long): Boolean {
@@ -88,6 +87,17 @@ class FileDataWriter @JvmOverloads constructor(private val dir: File, lockId: St
             throw ExodusException("Can't close FileDataWriter", e)
         }
 
+    }
+
+    override fun clearImpl() {
+        for (file in LogUtil.listFiles(dir)) {
+            if (!file.canWrite()) {
+                setWritable(file)
+            }
+            if (file.exists() && !file.delete()) {
+                throw ExodusException("Failed to delete $file")
+            }
+        }
     }
 
     override fun openOrCreateBlockImpl(address: Long, length: Long) {
@@ -133,6 +143,12 @@ class FileDataWriter @JvmOverloads constructor(private val dir: File, lockId: St
                 if (file.channel.isOpen) {
                     throw ExodusException(ioe)
                 }
+            }
+        }
+
+        private fun setWritable(file: File) {
+            if (file.exists() && !file.setWritable(true)) {
+                throw ExodusException("Failed to set writable " + file.absolutePath)
             }
         }
     }

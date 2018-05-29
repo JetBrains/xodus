@@ -33,6 +33,8 @@ public interface DataWriter extends Closeable {
     @Override
     void close();
 
+    void clear();
+
     void openOrCreateBlock(long address, long length);
 
     /**

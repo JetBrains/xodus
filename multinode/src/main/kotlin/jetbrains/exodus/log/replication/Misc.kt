@@ -15,7 +15,13 @@
  */
 package jetbrains.exodus.log.replication
 
+import software.amazon.awssdk.core.AwsRequestOverrideConfig
+import software.amazon.awssdk.services.s3.S3AsyncClient
+import software.amazon.awssdk.services.s3.model.*
 import java.nio.ByteBuffer
+import kotlin.coroutines.experimental.buildSequence
+
+internal const val deletePackSize = 500
 
 fun ByteBuffer.copyBytes(skip: Int, output: ByteArray, offset: Int, length: Int) {
     if (hasArray()) {
@@ -31,5 +37,48 @@ fun ByteBuffer.copyBytes(skip: Int, output: ByteArray, offset: Int, length: Int)
     asReadOnlyBuffer().let { ro ->
         ro.position(ro.position() + skip)
         ro.get(output, offset, length)
+    }
+}
+
+internal fun listObjectsBuilder(bucketName: String, requestOverrideConfig: AwsRequestOverrideConfig? = null): ListObjectsRequest.Builder {
+    return ListObjectsRequest.builder()
+            .requestOverrideConfig(requestOverrideConfig)
+            .bucket(bucketName)
+}
+
+internal fun listObjects(s3: S3AsyncClient, builder: ListObjectsRequest.Builder): Sequence<S3Object> {
+    return buildSequence {
+        while (true) {
+            val response = s3.listObjects(builder.build()).get()
+            val contents = response.contents() ?: break
+            if (contents.isEmpty()) {
+                break
+            }
+            yieldAll(contents)
+            val last = contents.last()
+            if (!response.isTruncated && response.nextMarker().isNullOrEmpty()) {
+                break
+            }
+            builder.marker(last.key())
+        }
+    }
+}
+
+internal fun List<String>.deleteS3Objects(s3: S3AsyncClient,
+                                          bucketName: String,
+                                          requestOverrideConfig: AwsRequestOverrideConfig? = null) {
+    S3DataReader.logger.info { "deleting files ${joinToString()}" }
+
+    val deleteObjectsResponse = s3.deleteObjects(DeleteObjectsRequest.builder()
+            .requestOverrideConfig(requestOverrideConfig)
+            .delete(
+                    Delete.builder().objects(
+                            map { ObjectIdentifier.builder().key(it).build() })
+                            .build())
+            .bucket(bucketName)
+            .build()).get()
+
+    if (deleteObjectsResponse.errors()?.isNotEmpty() == true) {
+        throw IllegalStateException("Can't delete files")
     }
 }

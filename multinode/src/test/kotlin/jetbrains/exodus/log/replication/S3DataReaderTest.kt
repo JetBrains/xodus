@@ -170,7 +170,7 @@ class S3DataReaderTest {
         sourceDir.newDBFile(0)
         newDBFolder(1, 100)
         with(newReader()) {
-            clear()
+            writer.clear()
             assertTrue(s3Objects?.none { it.key().endsWith(".xd") } ?: true)
         }
     }

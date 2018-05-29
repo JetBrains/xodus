@@ -47,8 +47,6 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?, priv
 
     override fun truncateBlock(blockAddress: Long, length: Long) = throw UnsupportedOperationException()
 
-    override fun clear() = throw UnsupportedOperationException()
-
     override fun close() {
         stopped = true
         watchKey.cancel()

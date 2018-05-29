@@ -18,6 +18,7 @@ package jetbrains.exodus.io.inMemory
 import jetbrains.exodus.io.AbstractDataWriter
 
 open class MemoryDataWriter(private val memory: Memory) : AbstractDataWriter() {
+
     private var closed = false
     private lateinit var data: Memory.Block
 
@@ -30,19 +31,17 @@ open class MemoryDataWriter(private val memory: Memory) : AbstractDataWriter() {
         return true
     }
 
-    override fun release(): Boolean {
-        return true
-    }
+    override fun release() = true
 
-    override fun lockInfo(): String? {
-        return null
-    }
+    override fun lockInfo(): String? = null
 
     override fun syncImpl() {}
 
     override fun closeImpl() {
         closed = true
     }
+
+    override fun clearImpl() = memory.clear()
 
     override fun openOrCreateBlockImpl(address: Long, length: Long) {
         data = memory.getOrCreateBlockData(address, length)
