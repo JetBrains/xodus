@@ -19,6 +19,7 @@ import jetbrains.exodus.ExodusException
 import jetbrains.exodus.OutOfDiskSpaceException
 import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.system.JVMConstants
+import jetbrains.exodus.util.SharedRandomAccessFile
 import mu.KLogging
 import java.io.File
 import java.io.IOException
@@ -28,9 +29,40 @@ import java.nio.channels.FileChannel
 
 open class FileDataWriter @JvmOverloads constructor(private val dir: File, lockId: String? = null) : AbstractDataWriter() {
 
+    companion object : KLogging() {
+
+        private const val DELETED_FILE_EXTENSION = ".del"
+
+        private fun renameFile(file: File): Boolean {
+            val name = file.name
+            return file.renameTo(File(file.parent,
+                    name.substring(0, name.indexOf(LogUtil.LOG_FILE_EXTENSION)) + DELETED_FILE_EXTENSION))
+        }
+
+        private fun forceSync(file: RandomAccessFile) {
+            try {
+                val channel = file.channel
+                channel.force(false)
+            } catch (e: ClosedChannelException) {
+                // ignore
+            } catch (ioe: IOException) {
+                if (file.channel.isOpen) {
+                    throw ExodusException(ioe)
+                }
+            }
+        }
+
+        private fun setWritable(file: File) {
+            if (file.exists() && !file.setWritable(true)) {
+                throw ExodusException("Failed to set writable " + file.absolutePath)
+            }
+        }
+    }
+
     private var dirChannel: FileChannel? = null
     private val lockingManager: LockingManager
     private var file: RandomAccessFile? = null
+    private var useNio = false
 
     init {
         file = null
@@ -86,7 +118,6 @@ open class FileDataWriter @JvmOverloads constructor(private val dir: File, lockI
         } catch (e: IOException) {
             throw ExodusException("Can't close FileDataWriter", e)
         }
-
     }
 
     override fun clearImpl() {
@@ -112,7 +143,6 @@ open class FileDataWriter @JvmOverloads constructor(private val dir: File, lockI
         } catch (ioe: IOException) {
             throw ExodusException(ioe)
         }
-
     }
 
     override fun syncDirectory() {
@@ -126,30 +156,49 @@ open class FileDataWriter @JvmOverloads constructor(private val dir: File, lockI
         }
     }
 
+    override fun removeBlock(blockAddress: Long, rbt: RemoveBlockType) {
+        val file = File(dir, LogUtil.getLogFilename(blockAddress))
+        removeFileFromFileCache(file)
+        setWritable(file)
+        val deleted = if (rbt == RemoveBlockType.Delete) file.delete() else renameFile(file)
+        if (!deleted) {
+            throw ExodusException("Failed to delete " + file.absolutePath)
+        } else if (FileDataReader.logger.isInfoEnabled) {
+            FileDataReader.logger.info("Deleted file " + file.absolutePath)
+        }
+    }
+
+    override fun truncateBlock(blockAddress: Long, length: Long) {
+        val file = File(dir, LogUtil.getLogFilename(blockAddress))
+        removeFileFromFileCache(file)
+        setWritable(file)
+        try {
+            SharedRandomAccessFile(file, "rw").use { f -> f.setLength(length) }
+            if (FileDataReader.logger.isInfoEnabled) {
+                FileDataReader.logger.info("Truncated file " + file.absolutePath + " to length = " + length)
+            }
+        } catch (e: IOException) {
+            throw ExodusException("Failed to truncate file " + file.absolutePath, e)
+        }
+    }
+
+    internal fun useNio() {
+        useNio = true
+    }
+
     private fun warnCantFsyncDirectory() {
         this.dirChannel = null
         logger.warn("Can't open directory channel. Log directory fsync won't be performed.")
     }
 
-    companion object : KLogging() {
-
-        private fun forceSync(file: RandomAccessFile) {
-            try {
-                val channel = file.channel
-                channel.force(false)
-            } catch (e: ClosedChannelException) {
-                // ignore
-            } catch (ioe: IOException) {
-                if (file.channel.isOpen) {
-                    throw ExodusException(ioe)
-                }
+    private fun removeFileFromFileCache(file: File) {
+        try {
+            SharedOpenFilesCache.getInstance().removeFile(file)
+            if (useNio) {
+                SharedMappedFilesCache.getInstance().removeFileBuffer(file)
             }
-        }
-
-        private fun setWritable(file: File) {
-            if (file.exists() && !file.setWritable(true)) {
-                throw ExodusException("Failed to set writable " + file.absolutePath)
-            }
+        } catch (e: IOException) {
+            throw ExodusException(e)
         }
     }
 }

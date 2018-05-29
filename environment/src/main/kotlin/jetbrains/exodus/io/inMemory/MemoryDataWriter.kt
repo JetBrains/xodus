@@ -15,9 +15,16 @@
  */
 package jetbrains.exodus.io.inMemory
 
+import jetbrains.exodus.ExodusException
 import jetbrains.exodus.io.AbstractDataWriter
+import jetbrains.exodus.io.RemoveBlockType
+import jetbrains.exodus.log.LogUtil
+import mu.KLogging
+import org.jetbrains.annotations.NotNull
 
 open class MemoryDataWriter(private val memory: Memory) : AbstractDataWriter() {
+
+    companion object : KLogging()
 
     private var closed = false
     private lateinit var data: Memory.Block
@@ -25,6 +32,18 @@ open class MemoryDataWriter(private val memory: Memory) : AbstractDataWriter() {
     override fun write(b: ByteArray, off: Int, len: Int) {
         checkClosed()
         data.write(b, off, len)
+    }
+
+    override fun removeBlock(blockAddress: Long, @NotNull rbt: RemoveBlockType) {
+        if (!memory.removeBlock(blockAddress)) {
+            throw ExodusException("There is no memory block by address $blockAddress")
+        }
+        logger.info { "Deleted file " + LogUtil.getLogFilename(blockAddress) }
+    }
+
+    override fun truncateBlock(blockAddress: Long, length: Long) {
+        memory.getOrCreateBlockData(blockAddress, length)
+        logger.info { "Truncated file " + LogUtil.getLogFilename(blockAddress) }
     }
 
     override fun lock(timeout: Long): Boolean {

@@ -13,15 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.io
+package jetbrains.exodus.log.replication
 
-import java.io.File
+import java.util.concurrent.atomic.AtomicReference
 
-class WatchingFileDataWriter(val dir: File, lockId: String? = null) : FileDataWriter(dir, lockId) {
+internal interface S3DataReaderOrWriter : S3FactoryBoilerplate {
 
-    override fun removeBlock(blockAddress: Long, rbt: RemoveBlockType) = throw UnsupportedOperationException()
-
-    override fun truncateBlock(blockAddress: Long, length: Long) = throw UnsupportedOperationException()
-
-    override fun clearImpl() = throw UnsupportedOperationException()
+    val currentFile: AtomicReference<S3DataWriter.CurrentFile>
 }
+
+internal fun S3DataReaderOrWriter.listObjectsBuilder() = listObjectsBuilder(bucket, requestOverrideConfig)

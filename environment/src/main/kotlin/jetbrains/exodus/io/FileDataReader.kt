@@ -19,12 +19,13 @@ import jetbrains.exodus.ExodusException
 import jetbrains.exodus.core.dataStructures.LongArrayList
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogUtil
-import jetbrains.exodus.util.SharedRandomAccessFile
 import mu.KLogging
 import java.io.File
 import java.io.IOException
 
-class FileDataReader(val dir: File) : DataReader {
+class FileDataReader(val dir: File) : DataReader, KLogging() {
+
+    companion object : KLogging()
 
     private var useNio: Boolean = false
     private var log: Log? = null
@@ -41,32 +42,7 @@ class FileDataReader(val dir: File) : DataReader {
         return toBlocks(files)
     }
 
-    override fun removeBlock(blockAddress: Long, rbt: RemoveBlockType) {
-        val file = File(dir, LogUtil.getLogFilename(blockAddress))
-        removeFileFromFileCache(file)
-        setWritable(file)
-        val deleted = if (rbt == RemoveBlockType.Delete) file.delete() else renameFile(file)
-        if (!deleted) {
-            throw ExodusException("Failed to delete " + file.absolutePath)
-        } else if (logger.isInfoEnabled) {
-            logger.info("Deleted file " + file.absolutePath)
-        }
-    }
 
-    override fun truncateBlock(blockAddress: Long, length: Long) {
-        val file = FileBlock(blockAddress)
-        removeFileFromFileCache(file)
-        setWritable(file)
-        try {
-            SharedRandomAccessFile(file, "rw").use { f -> f.setLength(length) }
-            if (logger.isInfoEnabled) {
-                logger.info("Truncated file " + file.absolutePath + " to length = " + length)
-            }
-        } catch (e: IOException) {
-            throw ExodusException("Failed to truncate file " + file.absolutePath, e)
-        }
-
-    }
 
     override fun close() {
         try {
@@ -77,7 +53,6 @@ class FileDataReader(val dir: File) : DataReader {
         } catch (e: IOException) {
             throw ExodusException("Can't close all files", e)
         }
-
     }
 
     fun setLog(log: Log) {
@@ -95,17 +70,6 @@ class FileDataReader(val dir: File) : DataReader {
     internal fun useNio(freePhysicalMemoryThreshold: Long) {
         useNio = true
         SharedMappedFilesCache.createInstance(freePhysicalMemoryThreshold)
-    }
-
-    private fun removeFileFromFileCache(file: File) {
-        try {
-            SharedOpenFilesCache.getInstance().removeFile(file)
-            if (useNio) {
-                SharedMappedFilesCache.getInstance().removeFileBuffer(file)
-            }
-        } catch (e: IOException) {
-            throw ExodusException(e)
-        }
     }
 
     private fun toBlocks(files: LongArrayList) =
@@ -135,30 +99,12 @@ class FileDataReader(val dir: File) : DataReader {
                                 logger.warn("Failed to transfer bytes from memory mapped file", t)
                             }
                         }
-
                     }
                     f.seek(position)
                     return f.read(output, offset, count)
                 }
             } catch (e: IOException) {
                 throw ExodusException("Can't read file $absolutePath", e)
-            }
-        }
-    }
-
-    companion object : KLogging() {
-
-        private const val DELETED_FILE_EXTENSION = ".del"
-
-        private fun renameFile(file: File): Boolean {
-            val name = file.name
-            return file.renameTo(File(file.parent,
-                    name.substring(0, name.indexOf(LogUtil.LOG_FILE_EXTENSION)) + DELETED_FILE_EXTENSION))
-        }
-
-        private fun setWritable(file: File) {
-            if (file.exists() && !file.setWritable(true)) {
-                throw ExodusException("Failed to set writable " + file.absolutePath)
             }
         }
     }

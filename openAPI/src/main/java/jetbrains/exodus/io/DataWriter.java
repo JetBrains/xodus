@@ -16,6 +16,7 @@
 package jetbrains.exodus.io;
 
 import jetbrains.exodus.ExodusException;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.Closeable;
 
@@ -36,6 +37,10 @@ public interface DataWriter extends Closeable {
     void clear();
 
     void openOrCreateBlock(long address, long length);
+
+    void removeBlock(long blockAddress, @NotNull RemoveBlockType rbt);
+
+    void truncateBlock(long blockAddress, long length);
 
     /**
      * Try to lock writer during specified time.

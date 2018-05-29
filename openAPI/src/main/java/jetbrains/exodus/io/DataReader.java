@@ -35,9 +35,5 @@ public interface DataReader {
     @NotNull
     Iterable<Block> getBlocks(long fromAddress);
 
-    void removeBlock(long blockAddress, @NotNull RemoveBlockType rbt);
-
-    void truncateBlock(long blockAddress, long length);
-
     void close();
 }

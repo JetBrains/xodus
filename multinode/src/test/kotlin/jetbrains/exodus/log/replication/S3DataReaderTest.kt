@@ -146,7 +146,7 @@ class S3DataReaderTest {
             assertEquals(0, blocks[0].address.toInt())
             assertEquals(LOG_BLOCK_ALIGNMENT, blocks[1].address.toInt())
             assertEquals(2 * LOG_BLOCK_ALIGNMENT, blocks[2].address.toInt())
-            assertTrue(blocks.all { it is S3DataReader.S3Block })
+            assertTrue(blocks.all { it is S3Block })
         }
     }
 
@@ -183,7 +183,7 @@ class S3DataReaderTest {
         sourceDir.newDBFile(1)
         newDBFolder(1)
         with(newReader()) {
-            removeBlock(LOG_BLOCK_ALIGNMENT.toLong(), RemoveBlockType.Delete)
+            writer.removeBlock(LOG_BLOCK_ALIGNMENT.toLong(), RemoveBlockType.Delete)
             assertEquals(1, s3Objects?.size)
         }
     }
@@ -196,7 +196,7 @@ class S3DataReaderTest {
         sourceDir.newDBFile(1)
         newDBFolder(1)
         with(newReader()) {
-            removeBlock(LOG_BLOCK_ALIGNMENT.toLong(), RemoveBlockType.Rename)
+            writer.removeBlock(LOG_BLOCK_ALIGNMENT.toLong(), RemoveBlockType.Rename)
             assertEquals(1, s3Objects?.filter { it.key().endsWith(".xd") }?.size)
             assertEquals(2, s3Objects?.filter { it.key().endsWith(".del") }?.size)
         }
@@ -215,7 +215,7 @@ class S3DataReaderTest {
             it.newPartialFile(3, 100)
         }
         with(newReader()) {
-            truncateBlock(LOG_BLOCK_ALIGNMENT.toLong(), 100)
+            writer.truncateBlock(LOG_BLOCK_ALIGNMENT.toLong(), 100)
 
             s3Objects.let {
                 assertNotNull(it)
@@ -261,7 +261,7 @@ class S3DataReaderTest {
         with(newReader()) {
             with(blocks.toList()) {
                 assertEquals(1, size)
-                assertTrue(get(0) is S3DataReader.S3Block)
+                assertTrue(get(0) is S3Block)
             }
         }
     }
@@ -275,7 +275,7 @@ class S3DataReaderTest {
         with(newReader()) {
             with(blocks.toList()) {
                 assertEquals(1, size)
-                val block = get(0) as S3DataReader.S3FolderBlock
+                val block = get(0) as S3FolderBlock
                 assertEquals(1, block.blocks.size)
                 assertEquals(LOG_BLOCK_ALIGNMENT.toLong(), block.length())
             }
@@ -362,7 +362,7 @@ class S3DataReaderTest {
         }
     }
 
-    private fun newReader() = S3DataReader(s3, bucket, extraHost, S3DataWriter(s3, s3Sync, bucket, extraHost))
+    private fun newReader() = S3DataReader(s3, bucket, extraHost, S3DataWriter(s3Sync, s3, bucket, extraHost))
 
     private val s3Objects: List<S3Object>?
         get() {

@@ -767,8 +767,7 @@ public final class Log implements Closeable {
             listener.beforeRemoveFile(address);
         }
         try {
-            // remove physical file
-            reader.removeBlock(address, rbt);
+            writer.removeBlock(address, rbt);
             // remove address of file of the list
             if (logFileSetMutable != null) {
                 logFileSetMutable.remove(address);
@@ -794,8 +793,7 @@ public final class Log implements Closeable {
     }
 
     private void truncateFile(final long address, final long length) {
-        // truncate physical file
-        reader.truncateBlock(address, length);
+        writer.truncateBlock(address, length);
         writer.openOrCreateBlock(address, length);
         // clear cache
         for (long offset = length - (length % cachePageSize); offset < fileLengthBound; offset += cachePageSize) {

@@ -15,17 +15,11 @@
  */
 package jetbrains.exodus.io.inMemory
 
-import jetbrains.exodus.ExodusException
 import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.DataReader
-import jetbrains.exodus.io.RemoveBlockType
-import jetbrains.exodus.log.LogUtil
 import mu.KLogging
-import org.jetbrains.annotations.NotNull
 
-open class MemoryDataReader(private val memory: Memory) : DataReader {
-
-    companion object : KLogging()
+open class MemoryDataReader(private val memory: Memory) : DataReader, KLogging() {
 
     private val memoryBlocks get() = memory.allBlocks.asSequence()
 
@@ -41,18 +35,6 @@ open class MemoryDataReader(private val memory: Memory) : DataReader {
         }.sortedBy {
             it.address
         }.map { MemoryBlock(it) }.asIterable()
-    }
-
-    override fun removeBlock(blockAddress: Long, @NotNull rbt: RemoveBlockType) {
-        if (!memory.removeBlock(blockAddress)) {
-            throw ExodusException("There is no memory block by address $blockAddress")
-        }
-        logger.info { "Deleted file " + LogUtil.getLogFilename(blockAddress) }
-    }
-
-    override fun truncateBlock(blockAddress: Long, length: Long) {
-        memory.getOrCreateBlockData(blockAddress, length)
-        logger.info { "Truncated file " + LogUtil.getLogFilename(blockAddress) }
     }
 
     override fun close() {

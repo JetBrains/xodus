@@ -25,6 +25,11 @@ import java.util.concurrent.TimeUnit
 
 class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?, private val fileDataReader: FileDataReader) : DataReader {
 
+    companion object : KLogging() {
+        private const val IDLE_FORCE_CHECK_INTERVAL = 3000L // 3 seconds
+        private const val DEBOUNCE_INTERVAL = 100L // 100 milliseconds
+    }
+
     private val watchService = FileSystems.getDefault().newWatchService()
     private val watchKey = fileDataReader.dir.toPath().register(watchService, StandardWatchEventKinds.ENTRY_MODIFY)
     @Volatile
@@ -41,10 +46,6 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?, priv
     override fun getBlocks() = fileDataReader.blocks
 
     override fun getBlocks(fromAddress: Long) = fileDataReader.getBlocks(fromAddress)
-
-    override fun removeBlock(blockAddress: Long, rbt: RemoveBlockType) = throw UnsupportedOperationException()
-
-    override fun truncateBlock(blockAddress: Long, length: Long) = throw UnsupportedOperationException()
 
     override fun close() {
         stopped = true
@@ -123,11 +124,5 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?, priv
             }
         }
         return System.currentTimeMillis()
-    }
-
-    companion object : KLogging() {
-
-        private const val IDLE_FORCE_CHECK_INTERVAL = 3000L // 3 seconds
-        private const val DEBOUNCE_INTERVAL = 100L // 100 milliseconds
     }
 }

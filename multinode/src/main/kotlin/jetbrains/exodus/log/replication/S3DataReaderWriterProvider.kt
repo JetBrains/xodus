@@ -28,10 +28,11 @@ class S3DataReaderWriterProvider @JvmOverloads constructor(
         private val s3: S3AsyncClient,
         private val s3Sync: S3Client,
         private val requestOverrideConfig: AwsRequestOverrideConfig? = null) : DataReaderWriterProvider() {
+
     constructor() : this(S3AsyncClient.builder().region(Region.EU_WEST_1).build(), S3Client.builder().region(Region.EU_WEST_1).build()) // System.getProperty("exodus.s3.bucket.name")
 
     override fun newReaderWriter(location: String): Pair<DataReader, DataWriter> {
-        val writer = S3DataWriter(s3, s3Sync, location, requestOverrideConfig)
+        val writer = S3DataWriter(s3Sync, s3, location, requestOverrideConfig)
         return Pair(S3DataReader(s3, location, requestOverrideConfig, writer), writer)
     }
 }

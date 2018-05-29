@@ -17,21 +17,28 @@ package jetbrains.exodus.log.replication
 
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.io.AbstractDataWriter
+import jetbrains.exodus.io.RemoveBlockType
 import jetbrains.exodus.log.LogUtil
 import mu.KLogging
+import org.reactivestreams.Subscriber
+import org.reactivestreams.Subscription
 import software.amazon.awssdk.core.AwsRequestOverrideConfig
+import software.amazon.awssdk.core.async.AsyncRequestProvider
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import java.io.ByteArrayInputStream
+import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicReference
 
-class S3DataWriter(val s3: S3AsyncClient,
-                   private val s3Sync: S3Client,
-                   private val bucketName: String,
-                   val requestOverrideConfig: AwsRequestOverrideConfig? = null
-) : AbstractDataWriter() {
+internal class S3DataWriter(private val s3Sync: S3Client,
+                            override val s3: S3AsyncClient,
+                            override val bucket: String,
+                            override val requestOverrideConfig: AwsRequestOverrideConfig? = null
+) : S3DataReaderOrWriter, AbstractDataWriter() {
+
     companion object : KLogging() {
         internal fun getPartialFileName(address: Long): String {
             return String.format("%016x${LogUtil.LOG_FILE_EXTENSION}", address)
@@ -42,7 +49,7 @@ class S3DataWriter(val s3: S3AsyncClient,
         }
     }
 
-    internal val currentFile = AtomicReference<CurrentFile>()
+    override val currentFile = AtomicReference<CurrentFile>()
 
     override fun syncImpl() {
         val file = currentFile.get()
@@ -59,7 +66,7 @@ class S3DataWriter(val s3: S3AsyncClient,
         try {
             logger.info { "Put file of $key, length: ${file.length}" }
             s3Sync.putObject(PutObjectRequest.builder()
-                    .bucket(bucketName)
+                    .bucket(bucket)
                     .requestOverrideConfig(requestOverrideConfig)
                     .key(key)
                     .contentLength(file.length.toLong())
@@ -118,6 +125,58 @@ class S3DataWriter(val s3: S3AsyncClient,
         }
     }
 
+    override fun removeBlock(blockAddress: Long, rbt: RemoveBlockType) {
+        val keysToDelete = ArrayList<String>()
+        fileBlocks.filter { it.address == blockAddress }.forEach {
+            keysToDelete.add(it.key)
+        }
+        folderBlocks.filter { it.address == blockAddress }.flatMap { it.blocks }.forEach {
+            keysToDelete.add(it.key)
+        }
+        if (rbt == RemoveBlockType.Rename) {
+            keysToDelete.forEach {
+                val newName = it.replace(".xd", ".del")
+                logger.debug { "renaming block $it to $newName" }
+                try {
+                    s3.copyObject(CopyObjectRequest.builder()
+                            .bucket(bucket)
+                            .requestOverrideConfig(requestOverrideConfig)
+                            .copySource("$bucket/$it")
+                            .key(newName)
+                            .build()).get()
+                } catch (e: Exception) {
+                    val msg = "failed to copy '$it' in S3"
+                    logger.error(msg, e)
+                    throw ExodusException(msg, e)
+                }
+            }
+        }
+        try {
+            keysToDelete.deleteS3Objects(s3, bucket, requestOverrideConfig)
+        } catch (e: Exception) {
+            val msg = "failed to delete files '${keysToDelete.joinToString()}' in S3"
+            logger.error(msg, e)
+            throw ExodusException(msg, e)
+        }
+    }
+
+    override fun truncateBlock(blockAddress: Long, length: Long) {
+        fileBlocks.filter { it.address == blockAddress }.forEach { it.truncate(length) }
+
+        folderBlocks.filter { it.address == blockAddress }.forEach { folder ->
+            folder.blocks.let {
+                val last = it.findLast { it.address - folder.address < length }
+                last?.truncate(length - (last.address - folder.address))
+                it.asSequence()
+                        .filter { it.address - folder.address >= length }
+                        .map { it.key }
+                        .windowed(size = deletePackSize, step = deletePackSize, partialWindows = true).forEach {
+                            it.deleteS3Objects(s3, bucket, requestOverrideConfig)
+                        }
+            }
+        }
+    }
+
     override fun lock(timeout: Long) = true
 
     override fun release() = true
@@ -135,12 +194,48 @@ class S3DataWriter(val s3: S3AsyncClient,
     }
 
     override fun clearImpl() {
-        listObjects(s3, listObjectsBuilder(bucketName, requestOverrideConfig)).filter {
+        listObjects(s3, listObjectsBuilder(bucket, requestOverrideConfig)).filter {
             it.key().isValidAddress || it.key().isValidSubFolder
         }.map {
             it.key()
         }.windowed(size = deletePackSize, step = deletePackSize, partialWindows = true).forEach {
-            it.deleteS3Objects(s3, bucketName, requestOverrideConfig)
+            it.deleteS3Objects(s3, bucket, requestOverrideConfig)
+        }
+    }
+
+    private fun BasicS3Block.truncate(length: Long) {
+        logger.debug { "truncating block at $key to $length" }
+        try {
+            val array = ByteArray(length.toInt())
+            read(array, 0, 0, length.toInt())
+            s3.putObject(PutObjectRequest.builder()
+                    .bucket(bucket)
+                    .requestOverrideConfig(requestOverrideConfig)
+                    .key(key)
+                    .contentLength(length)
+                    .build(), object : AsyncRequestProvider {
+
+                override fun contentLength() = length
+
+                override fun subscribe(subscriber: Subscriber<in ByteBuffer>) {
+                    subscriber.onSubscribe(
+                            object : Subscription {
+                                override fun request(n: Long) {
+                                    if (n > 0) {
+                                        subscriber.onNext(ByteBuffer.wrap(array))
+                                        subscriber.onComplete()
+                                    }
+                                }
+
+                                override fun cancel() {}
+                            }
+                    )
+                }
+            }).get()
+        } catch (e: Exception) {
+            val msg = "failed to update $key"
+            logger.error(msg, e)
+            throw ExodusException(msg, e)
         }
     }
 
@@ -156,8 +251,7 @@ class S3DataWriter(val s3: S3AsyncClient,
             val position: Int = 0,
             val length: Int = 0,
             val prefix: String = getPartialFolderPrefix(blockAddress),
-            val buffer: ByteArray = ByteArray(1024 * 256) // 0.25 MB by default
-    ) {
+            val buffer: ByteArray = ByteArray(1024 * 256) /* 0.25 MB by default */) {
 
         fun grow(len: Int): CurrentFile {
             val newLength = length + len
