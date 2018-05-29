@@ -1055,9 +1055,10 @@ public final class Log implements Closeable {
             if (config.isFullFileReadonly()) {
                 final Long lastFile = writer.getFileSetMutable().getMaximum();
                 if (lastFile != null) {
-                    Block block = reader.getBlock(lastFile);
-                    if (block.length() < fileLengthBound) {
-                        throw new IllegalStateException("File's too short. Block.length() = " + block.length() + ", fileLengthBound = " + fileLengthBound);
+                    final Block block = reader.getBlock(lastFile);
+                    final long length = block.length();
+                    if (length < fileLengthBound) {
+                        throw new IllegalStateException("File's too short (" + LogUtil.getLogFilename(lastFile) + "), block.length() = " + length + ", fileLengthBound = " + fileLengthBound);
                     }
                     block.setReadOnly();
                 }
