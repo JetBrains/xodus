@@ -30,8 +30,6 @@ internal abstract class BasicS3Block(private val s3factory: S3FactoryBoilerplate
 
     override fun getAddress() = _address
 
-    override fun setReadOnly() = true
-
     override fun length(): Long = size
 
     override fun read(output: ByteArray, position: Long, offset: Int, count: Int): Int {
@@ -83,8 +81,6 @@ internal class S3FolderBlock(private val _address: Long,
                              private val currentFile: S3DataWriter.CurrentFile?) : Block {
 
     override fun getAddress() = _address
-
-    override fun setReadOnly() = true
 
     override fun length(): Long = blocks.fold(0L) { acc, value -> acc + value.length() }
 

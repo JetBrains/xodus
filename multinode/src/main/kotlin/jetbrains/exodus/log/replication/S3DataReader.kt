@@ -70,7 +70,5 @@ internal class S3DataReader(override val s3: S3AsyncClient,
             }
             return 0
         }
-
-        override fun setReadOnly() = false
     }
 }

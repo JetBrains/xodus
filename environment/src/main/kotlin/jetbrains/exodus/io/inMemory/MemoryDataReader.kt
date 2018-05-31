@@ -51,16 +51,9 @@ open class MemoryDataReader(private val memory: Memory) : DataReader, KLogging()
             return data.address
         }
 
-        override fun length(): Long {
-            return data.size.toLong()
-        }
+        override fun length() = data.size.toLong()
 
-        override fun read(output: ByteArray, position: Long, offset: Int, count: Int): Int {
-            return data.read(output, position, offset, count)
-        }
-
-        override fun setReadOnly(): Boolean {
-            return false
-        }
+        override fun read(output: ByteArray, position: Long, offset: Int, count: Int) =
+                data.read(output, position, offset, count)
     }
 }

@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -1059,7 +1060,10 @@ public final class Log implements Closeable {
                     if (length < fileLengthBound) {
                         throw new IllegalStateException("File's too short (" + LogUtil.getLogFilename(lastFile) + "), block.length() = " + length + ", fileLengthBound = " + fileLengthBound);
                     }
-                    block.setReadOnly();
+                    if (block instanceof File) {
+                        //noinspection ResultOfMethodCallIgnored
+                        ((File) block).setReadOnly();
+                    }
                 }
             }
         } else if (System.currentTimeMillis() > lastSyncTicks + config.getSyncPeriod()) {
