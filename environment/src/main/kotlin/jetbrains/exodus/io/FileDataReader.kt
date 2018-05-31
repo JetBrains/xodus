@@ -83,9 +83,10 @@ class FileDataReader(val dir: File) : DataReader, KLogging() {
         override fun read(output: ByteArray, position: Long, offset: Int, count: Int): Int {
             try {
                 SharedOpenFilesCache.getInstance().getCachedFile(this).use { f ->
+                    val log = log
                     if (useNio &&
                             /* only read-only (immutable) files can be mapped */
-                            (log != null && log!!.isImmutableFile(address) || log == null && !canWrite())) {
+                            ((log != null && log.isImmutableFile(address)) || (log == null && !canWrite()))) {
                         try {
                             SharedMappedFilesCache.getInstance().getFileBuffer(f).use { mappedBuffer ->
                                 val buffer = mappedBuffer.buffer
