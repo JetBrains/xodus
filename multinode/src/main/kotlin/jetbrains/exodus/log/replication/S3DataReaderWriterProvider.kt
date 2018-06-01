@@ -16,6 +16,8 @@
 package jetbrains.exodus.log.replication
 
 import jetbrains.exodus.core.dataStructures.Pair
+import jetbrains.exodus.env.Environment
+import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.io.DataReader
 import jetbrains.exodus.io.DataReaderWriterProvider
 import jetbrains.exodus.io.DataWriter
@@ -31,8 +33,15 @@ class S3DataReaderWriterProvider @JvmOverloads constructor(
 
     constructor() : this(S3AsyncClient.builder().region(Region.EU_WEST_1).build(), S3Client.builder().region(Region.EU_WEST_1).build()) // System.getProperty("exodus.s3.bucket.name")
 
+    private var env: EnvironmentImpl? = null
+
+    override fun onEnvironmentCreated(env: Environment) {
+        super.onEnvironmentCreated(env)
+        this.env = env as EnvironmentImpl
+    }
+
     override fun newReaderWriter(location: String): Pair<DataReader, DataWriter> {
-        val writer = S3DataWriter(s3Sync, s3, location, requestOverrideConfig)
+        val writer = S3DataWriter(s3Sync, s3, location, requestOverrideConfig, env?.log)
         return Pair(S3DataReader(s3, location, requestOverrideConfig, writer), writer)
     }
 }

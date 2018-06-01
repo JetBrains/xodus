@@ -18,6 +18,8 @@ package jetbrains.exodus.log.replication
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.io.AbstractDataWriter
 import jetbrains.exodus.io.RemoveBlockType
+import jetbrains.exodus.log.Log
+import jetbrains.exodus.log.LogTip
 import jetbrains.exodus.log.LogUtil
 import mu.KLogging
 import org.reactivestreams.Subscriber
@@ -36,7 +38,8 @@ import java.util.concurrent.atomic.AtomicReference
 internal class S3DataWriter(private val s3Sync: S3Client,
                             override val s3: S3AsyncClient,
                             override val bucket: String,
-                            override val requestOverrideConfig: AwsRequestOverrideConfig? = null
+                            override val requestOverrideConfig: AwsRequestOverrideConfig? = null,
+                            private val log: Log? = null
 ) : S3DataReaderOrWriter, AbstractDataWriter() {
 
     companion object : KLogging() {
@@ -50,6 +53,8 @@ internal class S3DataWriter(private val s3Sync: S3Client,
     }
 
     override val currentFile = AtomicReference<CurrentFile>()
+
+    override val logTip: LogTip? get() = log?.tip
 
     override fun syncImpl() {
         val file = currentFile.get()

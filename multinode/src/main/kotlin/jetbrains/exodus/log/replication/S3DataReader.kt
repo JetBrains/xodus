@@ -17,6 +17,7 @@ package jetbrains.exodus.log.replication
 
 import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.DataReader
+import jetbrains.exodus.log.LogTip
 import jetbrains.exodus.log.LogUtil
 import mu.KLogging
 import software.amazon.awssdk.core.AwsRequestOverrideConfig
@@ -33,14 +34,16 @@ internal class S3DataReader(override val s3: S3AsyncClient,
 
     override val currentFile = writer.currentFile
 
+    override val logTip: LogTip? get() = writer.logTip
+
     @Suppress("UNCHECKED_CAST")
     override fun getBlocks(): Iterable<Block> {
-        val result = TreeSet<Block>(Comparator<Block> { o1, o2 ->
+        return logTip?.cachedBlocks ?: TreeSet<Block>(Comparator<Block> { o1, o2 ->
             o1.address.compareTo(o2.address)
-        })
-        return result.apply {
+        }).apply {
             addAll(fileBlocks)
             addAll(folderBlocks)
+            logTip?.setCachedBlocks(this)
         }
     }
 

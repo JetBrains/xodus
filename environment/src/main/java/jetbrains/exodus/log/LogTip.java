@@ -16,7 +16,9 @@
 package jetbrains.exodus.log;
 
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
+import jetbrains.exodus.io.Block;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class LogTip {
     private static final byte[] NO_BYTES = new byte[0];
@@ -31,6 +33,9 @@ public class LogTip {
 
     @NotNull
     final LogFileSet.Immutable logFileSet;
+
+    @Nullable
+    private Iterable<Block> cachedBlocks;
 
     // empty
     LogTip(final long fileLengthBound) {
@@ -74,5 +79,14 @@ public class LogTip {
 
     public LongIterator getFilesFrom(final long highAddress) {
         return logFileSet.getFilesFrom(highAddress);
+    }
+
+    @Nullable
+    public Iterable<Block> getCachedBlocks() {
+        return cachedBlocks;
+    }
+
+    public void setCachedBlocks(@NotNull final Iterable<Block> cachedBlocks) {
+        this.cachedBlocks = cachedBlocks;
     }
 }
