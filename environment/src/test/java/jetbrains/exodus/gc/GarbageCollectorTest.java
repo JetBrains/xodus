@@ -34,7 +34,7 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
     public void dummyCleanWholeLog() {
         getEnvDirectory();
         GarbageCollector gc = env.getGC();
-        gc.cleanWholeLog();
+        gc.cleanEntireLog();
         gc.doCleanFile(env.getLog().getHighFileAddress());
     }
 
@@ -66,7 +66,7 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
         }
         Assert.assertTrue(env.getLog().getNumberOfFiles() > 1);
 
-        env.getGC().cleanWholeLog();
+        env.getGC().cleanEntireLog();
 
         Assert.assertEquals(1L, env.getLog().getNumberOfFiles());
     }
@@ -81,7 +81,7 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
         }
         Assert.assertTrue(env.getLog().getNumberOfFiles() > 1);
 
-        env.getGC().cleanWholeLog();
+        env.getGC().cleanEntireLog();
 
         Assert.assertEquals(1L, env.getLog().getNumberOfFiles());
     }
@@ -97,7 +97,7 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
         deleteAutoCommit(store, key);
         Assert.assertTrue(env.getLog().getNumberOfFiles() > 1);
 
-        env.getGC().cleanWholeLog();
+        env.getGC().cleanEntireLog();
 
         Assert.assertEquals(1L, env.getLog().getNumberOfFiles());
     }
@@ -113,7 +113,7 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
         deleteAutoCommit(store, key);
         Assert.assertTrue(env.getLog().getNumberOfFiles() > 1);
 
-        env.getGC().cleanWholeLog();
+        env.getGC().cleanEntireLog();
 
         Assert.assertEquals(1L, env.getLog().getNumberOfFiles());
     }
@@ -128,7 +128,7 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
         }
         Assert.assertEquals(1, countAutoCommit(store));
 
-        env.getGC().cleanWholeLog();
+        env.getGC().cleanEntireLog();
 
         store = openStoreAutoCommit("updateSameKey", StoreConfig.USE_EXISTING);
         Assert.assertEquals(1, countAutoCommit(store));
@@ -150,7 +150,7 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
         }
         Assert.assertEquals(1, countAutoCommit(store));
 
-        env.getGC().cleanWholeLog();
+        env.getGC().cleanEntireLog();
 
         store = openStoreAutoCommit("updateSameKey", StoreConfig.USE_EXISTING);
         Assert.assertEquals(1, countAutoCommit(store));
@@ -194,7 +194,7 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
                 txn.commit();
             }
         }
-        env.getGC().cleanWholeLog();
+        env.getGC().cleanEntireLog();
 
         reopenEnvironment();
 
@@ -218,7 +218,7 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
             putAutoCommit(nodups, IntegerBinding.intToEntry(0), IntegerBinding.intToEntry(i));
         }
 
-        env.getGC().cleanWholeLog();
+        env.getGC().cleanEntireLog();
 
         reopenEnvironment();
 
@@ -244,7 +244,7 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
             }
         });
 
-        env.getGC().cleanWholeLog();
+        env.getGC().cleanEntireLog();
 
         Assert.assertEquals(1L, env.getLog().getNumberOfFiles());
     }
@@ -265,7 +265,7 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
             }
         });
 
-        env.getGC().cleanWholeLog();
+        env.getGC().cleanEntireLog();
 
         Assert.assertEquals(1L, env.getLog().getNumberOfFiles());
     }
@@ -280,7 +280,7 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
         }
         Assert.assertTrue(env.getLog().getNumberOfFiles() > 1);
 
-        env.getGC().cleanWholeLog();
+        env.getGC().cleanEntireLog();
 
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
@@ -294,7 +294,7 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
             putAutoCommit(store, IntegerBinding.intToEntry(i), IntegerBinding.intToEntry(i));
         }
 
-        env.getGC().cleanWholeLog();
+        env.getGC().cleanEntireLog();
 
         for (int i = 0; i < count; ++i) {
             Assert.assertEquals(i, IntegerBinding.entryToInt(getAutoCommit(store, IntegerBinding.intToEntry(i))));
@@ -313,7 +313,7 @@ public class GarbageCollectorTest extends EnvironmentTestsBase {
             final ArrayByteIterable value = StringBinding.stringToEntry(builder.toString());
             putAutoCommit(store, IntegerBinding.intToEntry(0), value);
         }
-        env.getGC().cleanWholeLog();
+        env.getGC().cleanEntireLog();
         Assert.assertEquals(1L, env.getLog().getNumberOfFiles());
     }
 
