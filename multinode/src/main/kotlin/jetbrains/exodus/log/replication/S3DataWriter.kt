@@ -35,11 +35,11 @@ import java.io.ByteArrayInputStream
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicReference
 
-internal class S3DataWriter(private val s3Sync: S3Client,
-                            override val s3: S3AsyncClient,
-                            override val bucket: String,
-                            override val requestOverrideConfig: AwsRequestOverrideConfig? = null,
-                            private val log: Log? = null
+class S3DataWriter(private val s3Sync: S3Client,
+                   override val s3: S3AsyncClient,
+                   override val bucket: String,
+                   override val requestOverrideConfig: AwsRequestOverrideConfig? = null,
+                   private val log: Log? = null
 ) : S3DataReaderOrWriter, AbstractDataWriter() {
 
     companion object : KLogging() {
@@ -251,7 +251,7 @@ internal class S3DataWriter(private val s3Sync: S3Client,
     // grow-only buffer suitable for atomic swaps
     // TODO: replace ByteArray with netty ByteBuf
     @Suppress("ArrayInDataClass")
-    internal data class CurrentFile(
+    data class CurrentFile(
             val blockAddress: Long,
             val position: Int = 0,
             val length: Int = 0,

@@ -18,7 +18,7 @@ package jetbrains.exodus.log.replication
 import jetbrains.exodus.log.LogTip
 import java.util.concurrent.atomic.AtomicReference
 
-internal interface S3DataReaderOrWriter : S3FactoryBoilerplate {
+interface S3DataReaderOrWriter : S3FactoryBoilerplate {
 
     val currentFile: AtomicReference<S3DataWriter.CurrentFile>
 

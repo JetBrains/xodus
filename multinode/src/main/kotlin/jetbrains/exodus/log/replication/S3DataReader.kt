@@ -25,7 +25,7 @@ import software.amazon.awssdk.services.s3.S3AsyncClient
 import java.util.*
 import kotlin.Comparator
 
-internal class S3DataReader(override val s3: S3AsyncClient,
+class S3DataReader(override val s3: S3AsyncClient,
                             override val bucket: String,
                             override val requestOverrideConfig: AwsRequestOverrideConfig? = null,
                             val writer: S3DataWriter) : S3DataReaderOrWriter, DataReader {
