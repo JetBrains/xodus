@@ -1954,7 +1954,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private PersistentEntity getEntityAssertPhantomLink(@NotNull final PersistentStoreTransaction txn, @NotNull final EntityId id) {
         final int version = getLastVersion(txn, id);
         if (version < 0) {
-            throw new PhantomLinkException(getEntityType(txn, id.getTypeId()));
+            throw new PhantomLinkException(getEntityType(txn, id.getTypeId()) + '[' + id.toString() + ']');
         }
         return new PersistentEntity(this, (PersistentEntityId) id);
     }
