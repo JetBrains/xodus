@@ -142,8 +142,9 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             // in order to avoid data loss, it's necessary to make sure that any GC transaction is flushed
             // to underlying storage device before any file is deleted
             environment.flushAndSync()
-            val rbt = if (ec.gcRenameFiles) RemoveBlockType.Rename else RemoveBlockType.Delete
-            environment.removeFiles(filesToDelete.toArray(), rbt)
+            val filesArray = filesToDelete.toArray()
+            environment.removeFiles(filesArray, if (ec.gcRenameFiles) RemoveBlockType.Rename else RemoveBlockType.Delete)
+            filesArray.forEach { utilizationProfile.removeFile(it) }
         }
     }
 
@@ -251,7 +252,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         if (!cleanedFiles.isEmpty()) {
             for (file in cleanedFiles) {
                 pendingFilesToDelete.add(file)
-                utilizationProfile.removeFile(file)
+                utilizationProfile.resetFile(file)
             }
             utilizationProfile.estimateTotalBytes()
             environment.executeTransactionSafeTask {
@@ -284,8 +285,8 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             throw ExodusException("Attempt to clean already cleaned file")
         }
         loggingInfo {
-            "start cleanFile(${environment.location}${File.separatorChar}${LogUtil.getLogFilename(fileAddress)})"
-            ", free bytes = ${getFileFreeBytes(fileAddress) / 1000}Kb"
+            "start cleanFile(${environment.location}${File.separatorChar}${LogUtil.getLogFilename(fileAddress)})" +
+                    ", free bytes = ${getFileFreeBytes(fileAddress) / 1000}Kb"
         }
         val log = log
         if (logger.isDebugEnabled) {

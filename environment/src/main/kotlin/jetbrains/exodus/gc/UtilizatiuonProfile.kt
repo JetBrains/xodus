@@ -42,7 +42,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         filesUtilization = LongHashMap()
         log.addNewFileListener { fileAddress ->
             synchronized(filesUtilization) {
-                filesUtilization.put(fileAddress, MutableLong(0L))
+                filesUtilization[fileAddress] = MutableLong(0L)
             }
             estimateTotalBytes()
         }
@@ -133,7 +133,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
 
     internal fun getFileFreeBytes(fileAddress: Long): Long {
         synchronized(filesUtilization) {
-            val freeBytes = filesUtilization.get(fileAddress)
+            val freeBytes = filesUtilization[fileAddress]
             return freeBytes?.value ?: java.lang.Long.MAX_VALUE
         }
     }
@@ -149,7 +149,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         synchronized(filesUtilization) {
             for (loggable in loggables) {
                 val fileAddress = log.getFileAddress(loggable.address)
-                val freeBytes = (if (prevFileAddress == fileAddress) prevFreeBytes else filesUtilization.get(fileAddress))
+                val freeBytes = (if (prevFileAddress == fileAddress) prevFreeBytes else filesUtilization[fileAddress])
                         ?: MutableLong(0L).apply { filesUtilization[fileAddress] = this }
                 freeBytes.value += loggable.length.toLong()
                 prevFreeBytes = freeBytes
@@ -164,6 +164,12 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         }
     }
 
+    internal fun resetFile(fileAddress: Long) {
+        synchronized(filesUtilization) {
+            filesUtilization[fileAddress]?.value = 0L
+        }
+    }
+
     internal fun estimateTotalBytes() {
         // at first, estimate total bytes
         val fileAddresses = log.allFileAddresses
@@ -174,7 +180,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         var totalFreeBytes: Long = 0
         synchronized(filesUtilization) {
             while (i < fileAddresses.size) {
-                val freeBytes = filesUtilization.get(fileAddresses[i])
+                val freeBytes = filesUtilization[fileAddresses[i]]
                 totalFreeBytes += freeBytes?.value ?: fileSize
                 ++i
             }
@@ -200,7 +206,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
                 val file = fileAddresses[i]
                 if (file < highFile && !gc.isFileCleaned(file)) {
                     totalCleanableBytes[0] += fileSize
-                    val freeBytes = filesUtilization.get(file)
+                    val freeBytes = filesUtilization[file]
                     if (freeBytes == null) {
                         fragmentedFiles.add(Pair(file, fileSize))
                         totalFreeBytes[0] += fileSize
