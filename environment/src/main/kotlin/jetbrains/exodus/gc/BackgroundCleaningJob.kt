@@ -38,33 +38,29 @@ internal class BackgroundCleaningJob(private var gc: GarbageCollector?) : Job() 
         if (!cleaner.isCurrentThread) {
             return
         }
-        try {
-            if (canContinue()) {
-                val minTimeToInvokeCleaner = gc.startTime
-                if (minTimeToInvokeCleaner > System.currentTimeMillis()) {
-                    gc.wakeAt(minTimeToInvokeCleaner)
-                    return
-                }
-                val env = gc.environment
-                val ec = env.environmentConfig
-                val log = env.log
-                if (gc.minFileAge < log.numberOfFiles) {
-                    cleaner.isCleaning = true
-                    try {
-                        doCleanLog(log, gc)
-                        if (gc.isTooMuchFreeSpace) {
-                            val gcRunPeriod = ec.gcRunPeriod
-                            if (gcRunPeriod > 0) {
-                                gc.wakeAt(System.currentTimeMillis() + gcRunPeriod)
-                            }
+        if (canContinue()) {
+            val minTimeToInvokeCleaner = gc.startTime
+            if (minTimeToInvokeCleaner > System.currentTimeMillis()) {
+                gc.wakeAt(minTimeToInvokeCleaner)
+                return
+            }
+            val env = gc.environment
+            val ec = env.environmentConfig
+            val log = env.log
+            if (gc.minFileAge < log.numberOfFiles) {
+                cleaner.isCleaning = true
+                try {
+                    doCleanLog(log, gc)
+                    if (gc.isTooMuchFreeSpace) {
+                        val gcRunPeriod = ec.gcRunPeriod
+                        if (gcRunPeriod > 0) {
+                            gc.wakeAt(System.currentTimeMillis() + gcRunPeriod)
                         }
-                    } finally {
-                        cleaner.isCleaning = false
                     }
+                } finally {
+                    cleaner.isCleaning = false
                 }
             }
-        } finally {
-            gc.deletePendingFiles()
         }
     }
 

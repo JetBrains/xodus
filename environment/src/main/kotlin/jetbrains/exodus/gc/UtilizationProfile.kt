@@ -81,7 +81,11 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
                             while (cursor.next) {
                                 val fileAddress = LongBinding.compressedEntryToLong(cursor.key)
                                 val freeBytes = CompressedUnsignedLongByteIterable.getLong(cursor.value)
-                                filesUtilization[fileAddress] = MutableLong(freeBytes)
+                                // don't update utilization of files being reset but not deleted
+                                // if they were not actually deleted they will be collected first
+                                if (freeBytes != 0L) {
+                                    filesUtilization[fileAddress] = MutableLong(freeBytes)
+                                }
                             }
                         }
                         synchronized(this@UtilizationProfile.filesUtilization) {
@@ -134,7 +138,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
     internal fun getFileFreeBytes(fileAddress: Long): Long {
         synchronized(filesUtilization) {
             val freeBytes = filesUtilization[fileAddress]
-            return freeBytes?.value ?: java.lang.Long.MAX_VALUE
+            return freeBytes?.value ?: Long.MAX_VALUE
         }
     }
 

@@ -127,27 +127,6 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         return doCleanFiles(setOf(fileAddress).iterator())
     }
 
-    internal fun deletePendingFiles() {
-        cleaner.checkThread()
-        val filesToDelete = LongArrayList()
-        while (true) {
-            (deletionQueue.poll() ?: break).apply {
-                if (pendingFilesToDelete.remove(this)) {
-                    filesToDelete.add(this)
-                }
-            }
-        }
-        if (!filesToDelete.isEmpty) {
-            // force flush and fsync in order to fix XD-249
-            // in order to avoid data loss, it's necessary to make sure that any GC transaction is flushed
-            // to underlying storage device before any file is deleted
-            environment.flushAndSync()
-            val filesArray = filesToDelete.toArray()
-            environment.removeFiles(filesArray, if (ec.gcRenameFiles) RemoveBlockType.Rename else RemoveBlockType.Delete)
-            filesArray.forEach { utilizationProfile.removeFile(it) }
-        }
-    }
-
     /**
      * Cleans fragmented files. It is expected that the files are sorted by utilization, i.e.
      * the first files are more fragmented. In order to avoid race conditions and synchronization issues,
@@ -196,6 +175,34 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         if (aFileWasDeleted) {
             pendingFilesToDelete.clear()
             utilizationProfile.estimateTotalBytes()
+        }
+    }
+
+    internal fun deletePendingFiles() {
+        if (!cleaner.isCurrentThread) {
+            cleaner.getJobProcessor().queue(object : Job() {
+                override fun execute() {
+                    deletePendingFiles()
+                }
+            })
+        } else {
+            val filesToDelete = LongArrayList()
+            while (true) {
+                (deletionQueue.poll() ?: break).apply {
+                    if (pendingFilesToDelete.remove(this)) {
+                        filesToDelete.add(this)
+                    }
+                }
+            }
+            if (!filesToDelete.isEmpty) {
+                // force flush and fsync in order to fix XD-249
+                // in order to avoid data loss, it's necessary to make sure that any GC transaction is flushed
+                // to underlying storage device before any file is deleted
+                environment.flushAndSync()
+                val filesArray = filesToDelete.toArray()
+                environment.removeFiles(filesArray, if (ec.gcRenameFiles) RemoveBlockType.Rename else RemoveBlockType.Delete)
+                filesArray.forEach { utilizationProfile.removeFile(it) }
+            }
         }
     }
 
@@ -258,21 +265,24 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             environment.executeTransactionSafeTask {
                 val filesDeletionDelay = ec.gcFilesDeletionDelay
                 if (filesDeletionDelay == 0) {
-                    for (file in cleanedFiles) {
-                        deletionQueue.offer(file)
-                    }
+                    queueDeletionOfFiles(cleanedFiles)
                 } else {
                     DeferredIO.getJobProcessor().queueIn(object : Job() {
                         override fun execute() {
-                            for (file in cleanedFiles) {
-                                deletionQueue.offer(file)
-                            }
+                            queueDeletionOfFiles(cleanedFiles)
                         }
                     }, filesDeletionDelay.toLong())
                 }
             }
         }
         return true
+    }
+
+    private fun queueDeletionOfFiles(cleanedFiles: PackedLongHashSet) {
+        for (file in cleanedFiles) {
+            deletionQueue.offer(file)
+        }
+        deletePendingFiles()
     }
 
     /**
