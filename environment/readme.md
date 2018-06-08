@@ -66,7 +66,7 @@ To start an exclusive transaction:
 ```java
 final Transaction txn = environment.beginExclusiveTransaction();
 ```
-Any transaction should be finished, meaning that it is either aborted or committed. A transaction can also be flushed or reverted. The methods `commit()` and `flush()` return `true` if they succeed. If any method returns `false`, a database version mismatch has occurred. In this case, there are two possibilities: to abort the transaction and finish or revert the transaction and continue. Reverting the transaction moves it to the latest (newest) database snapshot, and database operations can be repeated against it. Thus, we get a kind of optimistic spinning:
+Any transaction should be finished, meaning that it is either aborted or committed. To finish a read-only transaction, abort it. A transaction can also be flushed or reverted. The methods `commit()` and `flush()` return `true` if they succeed. If any method returns `false`, a database version mismatch has occurred. In this case, there are two possibilities: to abort the transaction and finish or revert the transaction and continue. Reverting the transaction moves it to the latest (newest) database snapshot, and database operations can be repeated against it. Thus, we get a kind of optimistic spinning:
 ```java
 final Transaction txn = beginTransaction();
 try {
@@ -92,7 +92,7 @@ try {
 ```
 The methods `Environment.computeInTransaction()` and `Environment.computeInReadonlyTransaction()` let you compute and return a result in a transaction.
 
-To execute a `TransactionalExecutable` or compute a `TransactionalComputable` in an exlusive transaction, use the `Environment.executeInExclusiveTransaction()` and `Environment.computeInExclusiveTransaction()` methods.
+To execute a `TransactionalExecutable` or compute a `TransactionalComputable` in an exclusive transaction, use the `Environment.executeInExclusiveTransaction()` and `Environment.computeInExclusiveTransaction()` methods.
 
 ## ByteIterables
 
