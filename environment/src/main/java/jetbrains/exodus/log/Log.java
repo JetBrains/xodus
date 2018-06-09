@@ -19,7 +19,6 @@ import jetbrains.exodus.*;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import jetbrains.exodus.crypto.EnvKryptKt;
-import jetbrains.exodus.crypto.InvalidCipherParametersException;
 import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.io.*;
 import jetbrains.exodus.util.DeferredIO;
@@ -149,15 +148,23 @@ public final class Log implements Closeable {
                             }
                             data.next();
                         }
+                    } else if (dataLength < 0) {
+                        // XD-728:
+                        // this is either data corruption or encrypted database
+                        // anyway recovery should stop at this point
+                        break;
                     }
-                    approvedHighAddress = loggable.getAddress() + loggable.length();
+                    final long approvedHighAddressCandidate = loggable.getAddress() + loggable.length();
+                    if (approvedHighAddressCandidate > currentHighAddress) {
+                        // XD-728:
+                        // this is either data corruption or encrypted database
+                        // anyway recovery should stop at this point
+                        break;
+                    }
+                    approvedHighAddress = approvedHighAddressCandidate;
                 }
             } catch (ExodusException e) { // if an exception is thrown then last loggable wasn't read correctly
                 logger.error("Exception on Log recovery. Approved high address = " + approvedHighAddress, e);
-            }
-            if (approvedHighAddress < lastFileAddress || approvedHighAddress > currentHighAddress) {
-                close();
-                throw new InvalidCipherParametersException();
             }
             this.tip.set(proposedTip.withApprovedAddress(approvedHighAddress));
         }
