@@ -401,6 +401,24 @@ public class EntityIterableTests extends EntityStoreTestBase {
         assertEquals(0, ((EntityIterableBase) txn.getAll("Issue")).findLinks(someUsers, "author").size());
     }
 
+    @TestFor(issue = "XD-730")
+    public void testFindMultipleLinks() {
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        createNUsers(txn, 10);
+        final PersistentEntity issue1 = txn.newEntity("Issue");
+        issue1.addLink("author", txn.find("User", "login", "user0").getFirst());
+        final Entity user1 = txn.find("User", "login", "user1").getFirst();
+        issue1.addLink("author", user1);
+        final PersistentEntity issue2 = txn.newEntity("Issue");
+        issue2.addLink("author", txn.find("User", "login", "user2").getFirst());
+        final Entity user3 = txn.find("User", "login", "user3").getFirst();
+        issue2.addLink("author", user3);
+        final PersistentEntity issue3 = txn.newEntity("Issue");
+        txn.flush();
+        assertEquals(2, ((EntityIterableBase) txn.getAll("Issue")).findLinks(
+            txn.getSingletonIterable(user1).union(txn.getSingletonIterable(user3)), "author").size());
+    }
+
     public void testFindLinksSingular() {
         final PersistentStoreTransaction txn = getStoreTransaction();
         createNUsers(txn, 1);
