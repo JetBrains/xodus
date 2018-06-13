@@ -57,10 +57,15 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
                         val value = cursor.getSearchKey(
                                 PropertyKey.propertyKeyToEntry(auxStream, auxArray, id.localId, linkId))
                         if (value != null) {
-                            val linkValue = LinkValue.entryToLinkValue(value)
-                            val targetId = linkValue.entityId
-                            if (idSet.contains(targetId)) {
+                            if (idSet.contains(LinkValue.entryToLinkValue(value).entityId)) {
                                 return true
+                            }
+                            while (cursor.next) {
+                                val propKey = PropertyKey.entryToPropertyKey(cursor.key)
+                                if (propKey.entityLocalId != id.localId || propKey.propertyId != linkId) break
+                                if (idSet.contains(LinkValue.entryToLinkValue(cursor.value).entityId)) {
+                                    return true
+                                }
                             }
                         }
                     }
