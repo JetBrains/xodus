@@ -34,4 +34,8 @@ public class ByteArraySizedInputStream extends ByteArrayInputStream {
     public byte[] toByteArray() {
         return buf;
     }
+
+    public ByteArraySizedInputStream copy() {
+        return new ByteArraySizedInputStream(buf, pos, count);
+    }
 }
