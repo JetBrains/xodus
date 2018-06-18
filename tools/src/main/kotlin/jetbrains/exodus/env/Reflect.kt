@@ -172,7 +172,11 @@ class Reflect(directory: File) {
             println()
         }
 
-        fun openEnvironment(directory: File, readonly: Boolean = false): EnvironmentImpl {
+        fun openEnvironment(directory: File,
+                            readonly: Boolean = false,
+                            cipherId: String? = null,
+                            cipherKey: String? = null,
+                            cipherBasicIV: Long? = null): EnvironmentImpl {
             val files = LogUtil.listFiles(directory)
             files.sortWith(Comparator { left, right ->
                 val cmp = LogUtil.getAddress(left.name) - LogUtil.getAddress(right.name)
@@ -205,6 +209,9 @@ class Reflect(directory: File) {
                 logCachePageSize = pageSize
                 isGcEnabled = false
                 envIsReadonly = readonly
+                cipherId?.run { setCipherId(this) }
+                cipherKey?.run { setCipherKey(this) }
+                cipherBasicIV?.run { setCipherBasicIV(this) }
                 if (logFileSize == EnvironmentConfig.DEFAULT.logFileSize) {
                     val fileSizeInKB = if (files.size > 1)
                         (maxFileSize + pageSize - 1) / pageSize * pageSize / LogUtil.LOG_BLOCK_ALIGNMENT else

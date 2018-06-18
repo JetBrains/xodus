@@ -36,6 +36,7 @@ fun main(args: Array<String>) {
     var sourcePath: String? = null
     var targetPath: String? = null
     var key: ByteArray? = null
+    var keyString: String? = null
     var basicIV: Long? = null
     var compress = false
     var gzip = false
@@ -61,6 +62,7 @@ fun main(args: Array<String>) {
                 targetPath = arg
             } else if (key == null) {
                 key = toBinaryKey(arg)
+                keyString = arg
             } else if (basicIV == null) {
                 basicIV = parseIV(arg)
             } else {
@@ -108,8 +110,14 @@ fun main(args: Array<String>) {
     }
 
     val input = if (source.isDirectory) {
-        val env = Reflect.openEnvironment(source, !overwrite)
-        PersistentEntityStoreImpl(env, "ignored")
+        try {
+            val env = Reflect.openEnvironment(source, !overwrite)
+            PersistentEntityStoreImpl(env, "ignored")
+        } catch (icpe: InvalidCipherParametersException) {
+            val env = Reflect.openEnvironment(source, !overwrite,
+                    cipherId = cipherId, cipherKey = keyString, cipherBasicIV = basicIV)
+            PersistentEntityStoreImpl(env, "ignored")
+        }
     } else {
         ArchiveBackupableFactory.newBackupable(source, gzip)
     }
