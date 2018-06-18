@@ -1,8 +1,9 @@
 # <img src="https://raw.githubusercontent.com/wiki/jetbrains/xodus/xodus.png" width=160>
 
 [Overview](https://github.com/JetBrains/xodus/wiki/Database-Encryption#overview)
-<br>[Working with Encrypted Database](https://github.com/JetBrains/xodus/wiki/Database-Encryption#working-with-an-encrypted-database)
-<br>[Encrypting Existing Database](https://github.com/JetBrains/xodus/wiki/Database-Encryption#encrypting-an-existing-database)
+<br>[Working with an Encrypted Database](https://github.com/JetBrains/xodus/wiki/Database-Encryption#working-with-an-encrypted-database)
+<br>[Encrypting an Existing Database](https://github.com/JetBrains/xodus/wiki/Database-Encryption#encrypting-an-existing-database)
+<br>[Decrypting an Encrypted Database](https://github.com/JetBrains/xodus/wiki/Database-Encryption#decrypting-an-encrypted-database)
 <br>[Custom Cipher Implementations](https://github.com/JetBrains/xodus/wiki/Database-Encryption#custom-cipher-implementations)
 
 ## Overview
@@ -101,6 +102,15 @@ as in the sample above, run:
     ./java -jar xodus-tools.jar scytale /Users/me/.myAppData /Users/me/.myAppData/encrypted 000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f 314159262718281828
         
 The encrypted database is created in `/Users/me/.myAppData/encrypted`.
+
+## Decrypting an Encrypted Database
+
+The `Scytale` tool can also be used to decrypt an encrypted database:
+
+    ./java -jar xodus-tools.jar scytale /Users/me/.myAppData/encrypted /Users/me/.myAppData 000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f 314159262718281828
+
+The decrypted database is created in `/Users/me/.myAppData`. The database would not be decrypted if it is encrypted
+with cipher parameters different from specified. In that case, the tool would fail with `InvalidCipherParametersException`.
 
 ## Custom Cipher Implementations
 
