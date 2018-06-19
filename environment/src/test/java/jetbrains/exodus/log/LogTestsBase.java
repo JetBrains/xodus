@@ -18,10 +18,7 @@ package jetbrains.exodus.log;
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.core.dataStructures.Pair;
-import jetbrains.exodus.io.DataReader;
-import jetbrains.exodus.io.DataWriter;
-import jetbrains.exodus.io.FileDataReader;
-import jetbrains.exodus.io.FileDataWriter;
+import jetbrains.exodus.io.*;
 import jetbrains.exodus.util.IOUtil;
 import org.junit.After;
 import org.junit.Before;
@@ -39,6 +36,7 @@ class LogTestsBase {
 
     @Before
     public void setUp() throws IOException {
+        SharedOpenFilesCache.setSize(16);
         final File testsDirectory = getLogDirectory();
         if (testsDirectory.exists()) {
             IOUtil.deleteRecursively(testsDirectory);
