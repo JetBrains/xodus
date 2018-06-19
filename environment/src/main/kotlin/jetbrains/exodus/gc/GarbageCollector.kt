@@ -82,6 +82,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         resetNewFiles()
     }
 
+    @Suppress("unused")
     fun setCleanerJobProcessor(processor: JobProcessorAdapter) {
         cleaner.getJobProcessor().queue(object : Job() {
             override fun execute() {
@@ -296,7 +297,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         }
         loggingInfo {
             "start cleanFile(${environment.location}${File.separatorChar}${LogUtil.getLogFilename(fileAddress)})" +
-                    ", free bytes = ${getFileFreeBytes(fileAddress) / 1000}Kb"
+                    ", free bytes = ${formatBytes(getFileFreeBytes(fileAddress))}"
         }
         val log = log
         if (logger.isDebugEnabled) {
@@ -353,5 +354,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                 logger.error(t, { message() })
             }
         }
+
+        internal fun formatBytes(bytes: Long) = if (bytes == Long.MAX_VALUE) "Unknown" else "${bytes / 1000}Kb"
     }
 }
