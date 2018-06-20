@@ -414,9 +414,9 @@ public class FindTests extends EntityStoreTestBase {
     public void testFindWithFloatProp() throws Exception {
         final StoreTransaction txn = getStoreTransaction();
         final Entity issue1 = txn.newEntity("Issue");
-        issue1.setProperty("thefloat", -10f);
+        issue1.setProperty("thefloat", 12f);
         final Entity issue2 = txn.newEntity("Issue");
-        issue2.setProperty("thefloat", -12f);
+        issue2.setProperty("thefloat", 10f);
         EntityIterator itr = ((PersistentStoreTransaction) txn).findWithPropSortedByValue("Issue", "thefloat").iterator();
         assertTrue(itr.hasNext());
         assertEquals(issue2, itr.next());
