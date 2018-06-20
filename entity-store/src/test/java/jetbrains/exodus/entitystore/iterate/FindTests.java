@@ -411,6 +411,20 @@ public class FindTests extends EntityStoreTestBase {
         Assert.assertEquals(0, txn.findWithProp("No such type", "size").size());
     }
 
+    public void testFindWithFloatProp() throws Exception {
+        final StoreTransaction txn = getStoreTransaction();
+        final Entity issue1 = txn.newEntity("Issue");
+        issue1.setProperty("thefloat", -10f);
+        final Entity issue2 = txn.newEntity("Issue");
+        issue2.setProperty("thefloat", -12f);
+        EntityIterator itr = txn.findWithProp("Issue", "thefloat").iterator();
+        assertTrue(itr.hasNext());
+        assertEquals(issue2, itr.next());
+        assertTrue(itr.hasNext());
+        assertEquals(issue1, itr.next());
+        assertFalse(itr.hasNext());
+    }
+
     public void testFindWithPropSorted() throws Exception {
         testFindSingleEntityByPropertyValue();
         final PersistentStoreTransaction txn = getStoreTransaction();
