@@ -162,12 +162,11 @@ class Reflect(directory: File) {
                 if (count2 < count1) {
                     return@Comparator -1
                 }
-                0
+                o1 - o2
             })
             sortedKeys.addAll(counts.keys)
-            sortedKeys.forEachIndexed { i, it ->
-                if (i > 0) print(" ")
-                print("$it:${counts.get(it)}")
+            sortedKeys.forEach { it ->
+                println("${it.toString().padEnd(10)}:${counts.get(it).toString().padStart(20)}")
             }
             println()
         }
@@ -282,6 +281,7 @@ class Reflect(directory: File) {
             }
         }
         println("\n\nNull loggables: $nullLoggables")
+        println()
         dumpCounts("Data lengths:", dataLengths)
         dumpCounts("Structure ids:", structureIds)
         dumpCounts("Loggable types:", types)
