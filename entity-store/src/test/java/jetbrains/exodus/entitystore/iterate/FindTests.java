@@ -417,7 +417,7 @@ public class FindTests extends EntityStoreTestBase {
         issue1.setProperty("thefloat", -10f);
         final Entity issue2 = txn.newEntity("Issue");
         issue2.setProperty("thefloat", -12f);
-        EntityIterator itr = txn.findWithProp("Issue", "thefloat").iterator();
+        EntityIterator itr = ((PersistentStoreTransaction) txn).findWithPropSortedByValue("Issue", "thefloat").iterator();
         assertTrue(itr.hasNext());
         assertEquals(issue2, itr.next());
         assertTrue(itr.hasNext());
