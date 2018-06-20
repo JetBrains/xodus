@@ -45,7 +45,7 @@ fun main(args: Array<String>) {
     var envPath2: String? = null
     var dumpUtilizationToFile: String? = null
     var hasOptions = false
-    var gatherLogStats = false
+    var collectLogStats = false
     var validateRoots = false
     var traverse = false
     var copy = false
@@ -56,7 +56,7 @@ fun main(args: Array<String>) {
         if (arg.startsWith('-')) {
             hasOptions = true
             when (arg.toLowerCase().substring(1)) {
-                "ls" -> gatherLogStats = true
+                "ls" -> collectLogStats = true
                 "r" -> validateRoots = true
                 "t" -> traverse = true
                 "c" -> copy = true
@@ -95,14 +95,14 @@ fun main(args: Array<String>) {
             }
         }
         if (!hasOptions) {
-            reflect.gatherLogStats()
+            reflect.collectLogStats()
             exitProcess(reflect.traverse(dumpUtilizationToFile, persistentEntityStoreInfo))
         } else {
             if (validateRoots) {
                 reflect.roots()
             }
-            if (gatherLogStats) {
-                reflect.gatherLogStats()
+            if (collectLogStats) {
+                reflect.collectLogStats()
             }
             if (traverse) {
                 exitProcess(reflect.traverse(dumpUtilizationToFile, persistentEntityStoreInfo))
@@ -124,7 +124,7 @@ fun main(args: Array<String>) {
 internal fun printUsage() {
     println("Usage: Reflect [-options] <environment path> [environment path 2]")
     println("Options:")
-    println("  -ls             gather Log Stats")
+    println("  -ls             collect Log Stats")
     println("  -r              validate Roots")
     println("  -t              Traverse actual root")
     println("  -d<file name>   Dump utilization to a file (can be used with the '-t' option)")
@@ -140,14 +140,14 @@ class Reflect(directory: File) {
     companion object : KLogging() {
 
         private val DEFAULT_PAGE_SIZE = EnvironmentConfig.DEFAULT.logCachePageSize
-        private val MAX_VALID_LOGGABLE_TYPE = PatriciaTreeBase.MAX_VALID_LOGGABLE_TYPE.toInt()
+        private const val MAX_VALID_LOGGABLE_TYPE = PatriciaTreeBase.MAX_VALID_LOGGABLE_TYPE.toInt()
 
         private fun inc(counts: IntHashMap<Int>, key: Int) {
-            val count = counts.get(key)
+            val count = counts[key]
             if (count == null) {
-                counts.put(key, 1)
+                counts[key] = 1
             } else {
-                counts.put(key, count + 1)
+                counts[key] = count + 1
             }
         }
 
@@ -166,7 +166,32 @@ class Reflect(directory: File) {
             })
             sortedKeys.addAll(counts.keys)
             sortedKeys.forEach { it ->
-                println("${it.toString().padEnd(10)}:${counts.get(it).toString().padStart(20)}")
+                println("${it.toString().padEnd(7)}: count = ${counts.get(it).toString().padStart(10)}")
+            }
+            println()
+        }
+
+        private fun dumpLengths(message: String, counts: IntHashMap<Int>) {
+            println("\n$message")
+            val totalSpaces = IntHashMap<Long>().apply {
+                counts.keys.forEach {
+                    put(it, counts[it].toLong() * it)
+                }
+            }
+            val sortedKeys = TreeSet(Comparator<Int> { len1, len2 ->
+                val space1 = totalSpaces[len1]
+                val space2 = totalSpaces[len2]
+                if (space1 < space2) {
+                    return@Comparator 1
+                }
+                if (space2 < space1) {
+                    return@Comparator -1
+                }
+                len1 - len2
+            })
+            sortedKeys.addAll(counts.keys)
+            sortedKeys.forEach { i ->
+                println("${i.toString().padEnd(7)}: count = ${counts.get(i).toString().padStart(10)}, space = ${totalSpaces[i].toString().padStart(20)}")
             }
             println()
         }
@@ -257,7 +282,7 @@ class Reflect(directory: File) {
         println("Roots found: ${totalRoots}")
     }
 
-    internal fun gatherLogStats() {
+    internal fun collectLogStats() {
         val dataLengths = IntHashMap<Int>()
         val structureIds = IntHashMap<Int>()
         val types = IntHashMap<Int>()
@@ -265,10 +290,11 @@ class Reflect(directory: File) {
         val fileAddresses = log.allFileAddresses
         val fileCount = fileAddresses.size
         fileAddresses.reversed().forEachIndexed { i, address ->
-            print("\rGathering log statistics, reading file + $i of $fileCount, ${i * 100 / fileCount}% complete")
+            print("\rCollecting log statistics, reading file $i of $fileCount, ${i * 100 / fileCount}% complete")
+            val nextFileAddress = address + log.fileLengthBound
             log.getLoggableIterator(address).forEach {
                 val la = it.address
-                if (i < fileCount - 1 && la >= fileAddresses[i + 1]) {
+                if (la >= nextFileAddress) {
                     return@forEach
                 }
                 if (NullLoggable.isNullLoggable(it)) {
@@ -282,7 +308,7 @@ class Reflect(directory: File) {
         }
         println("\n\nNull loggables: $nullLoggables")
         println()
-        dumpCounts("Data lengths:", dataLengths)
+        dumpLengths("Data lengths:", dataLengths)
         dumpCounts("Structure ids:", structureIds)
         dumpCounts("Loggable types:", types)
     }
