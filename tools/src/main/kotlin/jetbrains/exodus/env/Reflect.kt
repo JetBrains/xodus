@@ -62,14 +62,10 @@ fun main(args: Array<String>) {
                 "c" -> copy = true
                 "u" -> utilizationInfo = true
                 "p" -> persistentEntityStoreInfo = true
-                else -> {
-                    if (arg.startsWith("-cl")) {
-                        files2Clean.add(arg.substring(3))
-                    } else if (arg.startsWith("-d")) {
-                        dumpUtilizationToFile = arg.substring(2)
-                    } else {
-                        printUsage()
-                    }
+                else -> when {
+                    arg.startsWith("-cl") -> files2Clean.add(arg.substring(3))
+                    arg.startsWith("-d") -> dumpUtilizationToFile = arg.substring(2)
+                    else -> printUsage()
                 }
             }
         } else {
@@ -279,7 +275,7 @@ class Reflect(directory: File) {
                 if (it.address + it.length() >= endAddress) return@forEach
             }
         }
-        println("Roots found: ${totalRoots}")
+        println("Roots found: $totalRoots")
     }
 
     internal fun collectLogStats() {
@@ -290,7 +286,7 @@ class Reflect(directory: File) {
         val fileAddresses = log.allFileAddresses
         val fileCount = fileAddresses.size
         fileAddresses.reversed().forEachIndexed { i, address ->
-            print("\rCollecting log statistics, reading file $i of $fileCount, ${i * 100 / fileCount}% complete")
+            print("\rCollecting log statistics, reading file ${i + 1} of $fileCount, ${i * 100 / fileCount}% complete")
             val nextFileAddress = address + log.fileLengthBound
             log.getLoggableIterator(address).forEach {
                 val la = it.address
@@ -369,7 +365,7 @@ class Reflect(directory: File) {
             println("Copying environment to " + newEnv.location)
             val names = env.computeInReadonlyTransaction { txn -> env.getAllStoreNames(txn) }
             val size = names.size
-            println("Stores found: " + size)
+            println("Stores found: $size")
             names.forEachIndexed { i, name ->
                 print("Copying store $name (${i + 1} of $size )")
                 var config: StoreConfig
@@ -462,11 +458,11 @@ class Reflect(directory: File) {
                 val loggable = log.read(it)
                 val fileAddress = log.getFileAddress(it)
                 val dataLength = loggable.length().toLong()
-                usedSpace.put(fileAddress, (usedSpace[fileAddress] ?: 0L) + dataLength)
-                usedSpacePerStore.put(name, (usedSpacePerStore[name] ?: 0L) + dataLength)
+                usedSpace[fileAddress] = (usedSpace[fileAddress] ?: 0L) + dataLength
+                usedSpacePerStore[name] = (usedSpacePerStore[name] ?: 0L) + dataLength
                 val type = loggable.type.toInt()
                 if (type > MAX_VALID_LOGGABLE_TYPE) {
-                    logger.error("Wrong loggable type: " + type)
+                    logger.error { "Wrong loggable type: $type" }
                 }
             } catch (e: ExodusException) {
                 logger.error("Can't read loggable", e)
