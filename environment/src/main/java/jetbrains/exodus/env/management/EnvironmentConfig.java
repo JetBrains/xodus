@@ -219,6 +219,11 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
+    public void setTreeMaxPageSize(int treeMaxPageSize) {
+        config.setTreeMaxPageSize(treeMaxPageSize);
+    }
+
+    @Override
     public boolean isGcEnabled() {
         return config.isGcEnabled();
     }

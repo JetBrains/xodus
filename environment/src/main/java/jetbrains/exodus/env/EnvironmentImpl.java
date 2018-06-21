@@ -1120,6 +1120,8 @@ public class EnvironmentImpl implements Environment {
                 gc.getUtilizationProfile().computeUtilizationFromScratch();
             } else if (key.equals(EnvironmentConfig.GC_UTILIZATION_FROM_FILE)) {
                 gc.getUtilizationProfile().loadUtilizationFromFile((String) value);
+            } else if (key.equals(EnvironmentConfig.TREE_MAX_PAGE_SIZE)) {
+                balancePolicy = null;
             }
         }
     }

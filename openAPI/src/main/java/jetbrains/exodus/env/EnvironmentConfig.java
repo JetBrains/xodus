@@ -406,7 +406,7 @@ public class EnvironmentConfig extends AbstractConfig {
 
     /**
      * Defines the maximum size of page of B+Tree. Default value is {@code 128}.
-     * <p>Mutable at runtime: no
+     * <p>Mutable at runtime: yes
      */
     public static final String TREE_MAX_PAGE_SIZE = "exodus.tree.maxPageSize";
 

@@ -93,6 +93,8 @@ public interface EnvironmentConfigMBean {
 
     int getTreeMaxPageSize();
 
+    void setTreeMaxPageSize(int treeMaxPageSize);
+
     boolean isGcEnabled();
 
     void setGcEnabled(boolean enabled);
