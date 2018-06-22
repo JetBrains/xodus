@@ -282,7 +282,8 @@ class Reflect(directory: File) {
         val dataLengths = IntHashMap<Int>()
         val structureIds = IntHashMap<Int>()
         val types = IntHashMap<Int>()
-        var nullLoggables = 0
+        var totalLoggables = 0L
+        var nullLoggables = 0L
         val fileAddresses = log.allFileAddresses
         val fileCount = fileAddresses.size
         fileAddresses.reversed().forEachIndexed { i, address ->
@@ -293,6 +294,7 @@ class Reflect(directory: File) {
                 if (la >= nextFileAddress) {
                     return@forEach
                 }
+                ++totalLoggables
                 if (NullLoggable.isNullLoggable(it)) {
                     ++nullLoggables
                 } else {
@@ -302,8 +304,8 @@ class Reflect(directory: File) {
                 }
             }
         }
-        println("\n\nNull loggables: $nullLoggables")
-        println()
+        println("\n\nTotal loggables: $totalLoggables")
+        println("Null loggables: $nullLoggables")
         dumpLengths("Data lengths:", dataLengths)
         dumpCounts("Structure ids:", structureIds)
         dumpCounts("Loggable types:", types)
@@ -527,7 +529,7 @@ class Reflect(directory: File) {
             println(if (usedBytes == null) {
                 "Used bytes for store $name unknown"
             } else {
-                String.format("Used bytes for store\t%110s\t%8.2fKB", replacement(name)
+                String.format("Used bytes for store\t%110s\t%10.2fKB", replacement(name)
                         ?: name, usedBytes.toDouble() / 1024)
             })
         }
