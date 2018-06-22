@@ -203,23 +203,23 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
             }
             if (leftFreeBytes > rightFreeBytes) -1 else 1
         })
-        val totalCleanableBytes = longArrayOf(0)
-        val totalFreeBytes = longArrayOf(0)
+        var totalCleanableBytes = 0L
+        var totalFreeBytes = 0L
         synchronized(filesUtilization) {
             for (i in gc.minFileAge until fileAddresses.size) {
                 val file = fileAddresses[i]
                 if (file < highFile && !gc.isFileCleaned(file)) {
-                    totalCleanableBytes[0] += fileSize
+                    totalCleanableBytes += fileSize
                     val freeBytes = filesUtilization[file]
-                    if (freeBytes == null) {
+                    totalFreeBytes += if (freeBytes == null) {
                         fragmentedFiles.add(Pair(file, fileSize))
-                        totalFreeBytes[0] += fileSize
+                        fileSize
                     } else {
                         val freeBytesValue = freeBytes.value
                         if (freeBytesValue > maxFreeBytes) {
                             fragmentedFiles.add(Pair(file, freeBytesValue))
                         }
-                        totalFreeBytes[0] += freeBytesValue
+                        freeBytesValue
                     }
                 }
             }
@@ -227,12 +227,12 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         return object : Iterator<Long> {
 
             override fun hasNext(): Boolean {
-                return !fragmentedFiles.isEmpty() && totalFreeBytes[0] > totalCleanableBytes[0] * gc.maximumFreeSpacePercent / 100L
+                return !fragmentedFiles.isEmpty() && totalFreeBytes > totalCleanableBytes * gc.maximumFreeSpacePercent / 100L
             }
 
             override fun next(): Long {
                 val pair = fragmentedFiles.poll()
-                totalFreeBytes[0] -= pair.second
+                totalFreeBytes -= pair.second
                 return pair.first
             }
         }
