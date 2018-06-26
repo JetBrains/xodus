@@ -35,6 +35,7 @@ import mu.KLogging
 import java.io.File
 import java.io.PrintWriter
 import java.util.*
+import kotlin.math.min
 import kotlin.system.exitProcess
 
 fun main(args: Array<String>) {
@@ -362,7 +363,8 @@ class Reflect(directory: File) {
     }
 
     fun copy(there: File) {
-        val guard = OOMGuard(0x1000000) // free 16MB if OMM is near
+        val maxMemory = Runtime.getRuntime().maxMemory()
+        val guard = OOMGuard(if (maxMemory == Long.MAX_VALUE) 20_000_000 else min(maxMemory / 50L, 1000_000_000).toInt())
         Environments.newInstance(there, env.environmentConfig).use { newEnv ->
             println("Copying environment to " + newEnv.location)
             val names = env.computeInReadonlyTransaction { txn -> env.getAllStoreNames(txn) }
