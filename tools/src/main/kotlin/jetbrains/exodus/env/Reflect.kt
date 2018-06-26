@@ -371,7 +371,7 @@ class Reflect(directory: File) {
             val size = names.size
             println("Stores found: $size")
             names.forEachIndexed { i, name ->
-                print("Copying store $name (${i + 1} of $size )")
+                print("Copying store $name (${i + 1} of $size)")
                 var config: StoreConfig
                 var storeSize = 0L
                 var storeIsBroken: Throwable? = null
@@ -383,9 +383,9 @@ class Reflect(directory: File) {
                                 config = sourceStore.config
                                 val targetStore = newEnv.openStore(name, config, targetTxn)
                                 storeSize = sourceStore.count(sourceTxn)
-                                sourceStore.openCursor(sourceTxn).forEach {
+                                sourceStore.openCursor(sourceTxn).forEachIndexed {
                                     targetStore.putRight(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))
-                                    if (guard.isItCloseToOOM()) {
+                                    if ((it + 1) % 10_000_000 == 0 || guard.isItCloseToOOM()) {
                                         targetTxn.flush()
                                         guard.reset()
                                     }
