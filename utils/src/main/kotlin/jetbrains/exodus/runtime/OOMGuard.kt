@@ -21,11 +21,7 @@ class OOMGuard(private val extraBytes: Int = 0) {
 
     private var ref: SoftReference<Any> = newReference()
 
-    fun isItCloseToOOM(): Boolean = (ref.get() == null).apply {
-        if (this) {
-            reset()
-        }
-    }
+    fun isItCloseToOOM() = ref.get() == null
 
     fun reset() {
         ref = newReference()
