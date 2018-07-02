@@ -335,7 +335,7 @@ public class EnvironmentTestsBase {
         env.getEnvironmentConfig().setGcEnabled(false);
     }
 
-    private static void invalidateSharedCaches() {
+    protected void invalidateSharedCaches() {
         Log.invalidateSharedCache();
         try {
             SharedOpenFilesCache.invalidate();
