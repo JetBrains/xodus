@@ -265,7 +265,7 @@ public class SortTests extends EntityStoreTestBase {
         issue.setProperty("created", System.currentTimeMillis());
         txn.flush();
         final EntityIterableBase sortedByCreated =
-            (EntityIterableBase) txn.sort("Issue", "created", txn.find("Issue", "description", "description"), true);
+                (EntityIterableBase) txn.sort("Issue", "created", txn.find("Issue", "description", "description"), true);
         for (int i = 0; i < 10000000; ++i) {
             Assert.assertTrue(sortedByCreated.iterator().hasNext());
             Thread.yield();
@@ -332,6 +332,57 @@ public class SortTests extends EntityStoreTestBase {
         Assert.assertEquals(0, txn.sort("Issue", "no prop", sorted, true).getFirst().getProperty("body"));
         sorted = txn.sort("Issue", "body", unsorted, false);
         Assert.assertNotNull(sorted.getFirst().getProperty("body"));
+        System.out.println("Sorting took " + (System.currentTimeMillis() - start));
+    }
+
+    @TestFor(issues = "XD-670")
+    public void testSortTinySourceWithPropsWithLargeIndexStability() {
+        // switch in-memory sort on
+        getEntityStore().getConfig().setDebugAllowInMemorySort(true);
+
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        final int count = 50000;
+        final int divBuckets = 3;
+        for (int i = 0; i < count; ++i) {
+            final Entity issue = txn.newEntity("Issue");
+            if (i % 4000 == 0) {
+                if (i < count / 4) {
+                    issue.setProperty("body", i);
+                } else {
+                    issue.setProperty("body", count / 2 - i); // flip most of the data
+                }
+            }
+            issue.setProperty("div", i % divBuckets);
+        }
+        txn.flush();
+        System.out.println("Sorting started");
+        final long start = System.currentTimeMillis();
+        txn.findWithPropSortedByValue("Issue", "body").size();
+        txn.findWithProp("Issue", "div").size();
+        getEntityStore().getAsyncProcessor().waitForJobs(100);
+        final EntityIterableBase firstSorted = txn.findWithPropSortedByValue("Issue", "body");
+        txn.sort("Issue", "div", firstSorted, true).getLast();
+        System.out.println("Alas");
+        EntityIterable sorted = txn.sort("Issue", "div", firstSorted.asSortResult(), true);
+        Entity prev = null;
+        int buckets = 1;
+        for (final Entity entity : sorted) {
+            if (prev == null) {
+                prev = entity;
+            } else {
+                int prevDiv = (int) prev.getProperty("div");
+                int div = (int) entity.getProperty("div");
+                Assert.assertTrue(prevDiv <= div);
+                if (prevDiv == div) {
+                    Assert.assertNotEquals(prev, entity);
+                    Assert.assertTrue(((int) prev.getProperty("body")) <= ((int) entity.getProperty("body")));
+                } else {
+                    buckets++;
+                }
+                prev = entity;
+            }
+        }
+        Assert.assertEquals(divBuckets, buckets);
         System.out.println("Sorting took " + (System.currentTimeMillis() - start));
     }
 

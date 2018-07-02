@@ -140,7 +140,7 @@ public final class SortIterable extends EntityIterableDecoratorBase {
                 final boolean isCachedInstance = cachedPropertyIndex.isCachedInstance();
                 if ((isCachedInstance && sizeMulLog * sourceSize < indexSize) ||
                     (!isCachedInstance && sizeMulLog * log2IndexSize < indexSize)) {
-                    return new StableInMemorySortIterator((int) sourceSize);
+                    return new OptionallyStableInMemorySortIterator((int) sourceSize, source.isSortResult());
                 }
             }
         }
@@ -376,14 +376,14 @@ public final class SortIterable extends EntityIterableDecoratorBase {
     }
 
     // TODO: consider using Keap for lazy sorting
-    private final class StableInMemorySortIterator extends NonDisposableEntityIterator implements PropertyValueIterator {
+    private final class OptionallyStableInMemorySortIterator extends NonDisposableEntityIterator implements PropertyValueIterator {
 
         private final List<IdValuePair> pairs;
         private boolean hasNull;
         private int cursor;
         private Comparable currentValue;
 
-        private StableInMemorySortIterator(final int sourceSize) {
+        private OptionallyStableInMemorySortIterator(final int sourceSize, final boolean stable) {
             super(propIndex);
 
             pairs = new ArrayList<>(sourceSize / 2);
@@ -440,7 +440,7 @@ public final class SortIterable extends EntityIterableDecoratorBase {
                                 propValue2.compareTo(propValue1);
                         }
                     }
-                    if (result == 0) {
+                    if (!stable && result == 0) {
                         if (pair1.localId < pair2.localId) {
                             result = -1;
                         } else if (pair1.localId > pair2.localId) {
