@@ -133,7 +133,11 @@ open class FileDataWriter @JvmOverloads constructor(private val dir: File, lockI
 
     override fun openOrCreateBlockImpl(address: Long, length: Long) {
         try {
-            val result = RandomAccessFile(File(dir, LogUtil.getLogFilename(address)), "rw")
+            val result = RandomAccessFile(File(dir, LogUtil.getLogFilename(address)).apply {
+                if (!canWrite()) {
+                    setWritable(this)
+                }
+            }, "rw")
             result.seek(length)
             if (length != result.length()) {
                 result.setLength(length)
