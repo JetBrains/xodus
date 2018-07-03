@@ -1,7 +1,7 @@
 # <a href="https://github.com/JetBrains/xodus/wiki"><img src="https://raw.githubusercontent.com/wiki/jetbrains/xodus/xodus.png" width=160></a>
 
 [![official JetBrains project](http://jb.gg/badges/official.svg)](https://confluence.jetbrains.com/display/ALL/JetBrains+on+GitHub)
-[![TeamCity (build status)](https://img.shields.io/teamcity/http/teamcity.jetbrains.com/s/Xodus_Build.svg)](http://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build&guest=1)
+[![TeamCity (build status)](https://img.shields.io/teamcity/http/teamcity.jetbrains.com/s/Xodus_Build.svg)](https://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build&branch_Xodus=<default>&guest=1)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.jetbrains.xodus/xodus-openAPI/badge.svg)](http://search.maven.org/#search%7Cga%7C1%7Corg.jetbrains.xodus%20-dnq%20-time)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
 ![Pure Java + Kotlin](https://img.shields.io/badge/100%25-java%2bkotlin-orange.svg)
