@@ -21,14 +21,12 @@ import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.log.LogTestConfig
 import org.junit.Assert
-import org.junit.Ignore
 import org.junit.Test
 
-class OutOfDiskSpaceTest : EnvironmentTestsBase() {
+open class OutOfDiskSpaceTest : EnvironmentTestsBase() {
 
     @Test
     @TestFor(issues = ["XD-733"])
-    @Ignore
     fun testOODS() {
         env.environmentConfig.logCachePageSize = 1024
         env.environmentConfig.logFileSize = 1
@@ -49,7 +47,7 @@ class OutOfDiskSpaceTest : EnvironmentTestsBase() {
             }
         }
         val highAddress = log.highAddress
-        for (l in highAddress..highAddress * 2) {
+        for (l in highAddress * 2 downTo highAddress) {
             val logTestConfig = LogTestConfig().apply {
                 maxHighAddress = l
             }

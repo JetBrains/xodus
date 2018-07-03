@@ -252,11 +252,11 @@ public final class Log implements Closeable {
 
 
     public LogTip setHighAddress(final LogTip logTip, final long highAddress) {
-        return setHighAddress(logTip, highAddress, null);
+        return setHighAddress(logTip, highAddress, logTip.logFileSet.beginWrite());
     }
 
     @SuppressWarnings({"OverlyLongMethod"})
-    public LogTip setHighAddress(final LogTip logTip, final long highAddress, final LogFileSet fileSet) {
+    public LogTip setHighAddress(final LogTip logTip, final long highAddress, @NotNull final LogFileSet.Mutable fileSet) {
         if (highAddress > logTip.highAddress) {
             throw new ExodusException("Only can decrease high address");
         }
@@ -266,8 +266,6 @@ public final class Log implements Closeable {
             }
             return logTip;
         }
-
-        final LogFileSet.Mutable fileSetMutable = logTip.logFileSet.beginWrite();
 
         // begin of test-only code
         final LogTestConfig testConfig = this.testConfig;
@@ -280,7 +278,7 @@ public final class Log implements Closeable {
         closeWriter();
         final LongArrayList blocksToDelete = new LongArrayList();
         long blockToTruncate = -1L;
-        for (final long blockAddress : (fileSet == null ? fileSetMutable : fileSet).getArray()) {
+        for (final long blockAddress : fileSet.getArray()) {
             if (blockAddress <= highAddress) {
                 blockToTruncate = blockAddress;
                 break;
@@ -290,14 +288,14 @@ public final class Log implements Closeable {
 
         // truncate log
         for (int i = 0; i < blocksToDelete.size(); ++i) {
-            removeFile(blocksToDelete.get(i), RemoveBlockType.Delete, fileSetMutable);
+            removeFile(blocksToDelete.get(i), RemoveBlockType.Delete, fileSet);
         }
         if (blockToTruncate >= 0) {
             truncateFile(blockToTruncate, highAddress - blockToTruncate);
         }
 
         final LogTip updatedTip;
-        if (fileSetMutable.isEmpty()) {
+        if (fileSet.isEmpty()) {
             updateLogIdentity();
             updatedTip = new LogTip(fileLengthBound);
         } else {
@@ -307,7 +305,7 @@ public final class Log implements Closeable {
                 approvedHighAddress = highAddress;
             }
             final long highPageAddress = getHighPageAddress(highAddress);
-            final LogFileSet.Immutable fileSetImmutable = fileSetMutable.endWrite();
+            final LogFileSet.Immutable fileSetImmutable = fileSet.endWrite();
             final int highPageSize = (int) (highAddress - highPageAddress);
             if (oldHighPageAddress == highPageAddress) {
                 updatedTip = logTip.withResize(highPageSize, highAddress, approvedHighAddress, fileSetImmutable);
@@ -347,9 +345,10 @@ public final class Log implements Closeable {
     }
 
     public void revertWrite(final LogTip logTip) {
-        final LogFileSet.Mutable fileSet = ensureWriter().getFileSetMutable();
+        final BufferedDataWriter writer = ensureWriter();
+        final LogFileSet.Mutable fileSet = writer.getFileSetMutable();
         abortWrite();
-        setHighAddress(logTip, logTip.highAddress, fileSet);
+        setHighAddress(compareAndSetTip(logTip, writer.getUpdatedTip()), logTip.highAddress, fileSet);
     }
 
     public long getWrittenHighAddress() {
