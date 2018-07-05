@@ -23,6 +23,8 @@ public class PersistentEntityId implements EntityId {
     @NotNull
     public static final PersistentEntityId EMPTY_ID = new PersistentEntityId(0, 0);
 
+    private static final long serialVersionUID = -3875948066835180514L;
+
     private final int entityTypeId;
     private final long entityLocalId;
 
