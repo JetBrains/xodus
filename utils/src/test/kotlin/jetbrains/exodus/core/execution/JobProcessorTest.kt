@@ -380,9 +380,9 @@ open class JobProcessorTest {
         private var count = 0
 
         private fun sleep(ticks: Long) {
-            val endTicks = System.currentTimeMillis() + ticks
+            val endTicks = System.currentTimeMillis() + ticks + 40
             try {
-                Thread.sleep(ticks + 30)
+                Thread.sleep(ticks + 40)
             } catch (e: InterruptedException) {
                 while (System.currentTimeMillis() < endTicks) {
                     Thread.yield()
