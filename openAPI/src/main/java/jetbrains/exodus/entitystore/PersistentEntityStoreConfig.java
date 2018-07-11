@@ -61,7 +61,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
         @Override
         public PersistentEntityStoreConfig setMutable(boolean isMutable) {
             if (!this.isMutable() && isMutable) {
-                throw new ExodusException("Can't make EnvironmentConfig.DEFAULT mutable");
+                throw new ExodusException("Can't make PersistentEntityStoreConfig.DEFAULT mutable");
             }
             return super.setMutable(isMutable);
         }
