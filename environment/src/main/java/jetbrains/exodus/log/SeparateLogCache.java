@@ -29,26 +29,31 @@ final class SeparateLogCache extends LogCache {
     @NotNull
     private final LongObjectCacheBase<byte[]> pagesCache;
 
-    SeparateLogCache(final long memoryUsage, final int pageSize, final boolean nonBlocking) {
+    SeparateLogCache(final long memoryUsage,
+                     final int pageSize,
+                     final boolean nonBlocking, final int cacheGenerationCount) {
         super(memoryUsage, pageSize);
         final int pagesCount = (int) (memoryUsage / (pageSize +
-                /* each page consumes additionally nearly 80 bytes in the cache */ 80));
+            /* each page consumes additionally nearly 80 bytes in the cache */ 80));
         pagesCache = nonBlocking ?
-            new ConcurrentLongObjectCache<byte[]>(pagesCount, CONCURRENT_CACHE_GENERATION_COUNT) :
+            new ConcurrentLongObjectCache<byte[]>(pagesCount, cacheGenerationCount) :
             new LongObjectCache<byte[]>(pagesCount);
     }
 
-    SeparateLogCache(final int memoryUsagePercentage, final int pageSize, final boolean nonBlocking) {
+    SeparateLogCache(final int memoryUsagePercentage,
+                     final int pageSize,
+                     final boolean nonBlocking,
+                     final int cacheGenerationCount) {
         super(memoryUsagePercentage, pageSize);
         if (memoryUsage == Long.MAX_VALUE) {
             pagesCache = nonBlocking ?
-                new ConcurrentLongObjectCache<byte[]>(DEFAULT_SIZE, CONCURRENT_CACHE_GENERATION_COUNT) :
+                new ConcurrentLongObjectCache<byte[]>(DEFAULT_SIZE, cacheGenerationCount) :
                 new LongObjectCache<byte[]>();
         } else {
             final int pagesCount = (int) (memoryUsage / (pageSize +
-                    /* each page consumes additionally nearly 80 bytes in the cache */ 80));
+                /* each page consumes additionally nearly 80 bytes in the cache */ 80));
             pagesCache = nonBlocking ?
-                new ConcurrentLongObjectCache<byte[]>(pagesCount, CONCURRENT_CACHE_GENERATION_COUNT) :
+                new ConcurrentLongObjectCache<byte[]>(pagesCount, cacheGenerationCount) :
                 new LongObjectCache<byte[]>(pagesCount);
         }
     }

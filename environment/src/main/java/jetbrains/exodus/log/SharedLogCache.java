@@ -29,26 +29,32 @@ final class SharedLogCache extends LogCache {
     @NotNull
     private final LongObjectCacheBase<CachedValue> pagesCache;
 
-    SharedLogCache(final long memoryUsage, final int pageSize, final boolean nonBlocking) {
+    SharedLogCache(final long memoryUsage,
+                   final int pageSize,
+                   final boolean nonBlocking,
+                   final int cacheGenerationCount) {
         super(memoryUsage, pageSize);
         final int pagesCount = (int) (memoryUsage / (pageSize +
                 /* each page consumes additionally 96 bytes in the cache */ 96));
         pagesCache = nonBlocking ?
-            new ConcurrentLongObjectCache<CachedValue>(pagesCount, CONCURRENT_CACHE_GENERATION_COUNT) :
+            new ConcurrentLongObjectCache<CachedValue>(pagesCount, cacheGenerationCount) :
             new LongObjectCache<CachedValue>(pagesCount);
     }
 
-    SharedLogCache(final int memoryUsagePercentage, final int pageSize, final boolean nonBlocking) {
+    SharedLogCache(final int memoryUsagePercentage,
+                   final int pageSize,
+                   final boolean nonBlocking,
+                   final int cacheGenerationCount) {
         super(memoryUsagePercentage, pageSize);
         if (memoryUsage == Long.MAX_VALUE) {
             pagesCache = nonBlocking ?
-                new ConcurrentLongObjectCache<CachedValue>(ObjectCacheBase.DEFAULT_SIZE, CONCURRENT_CACHE_GENERATION_COUNT) :
+                new ConcurrentLongObjectCache<CachedValue>(ObjectCacheBase.DEFAULT_SIZE, cacheGenerationCount) :
                 new LongObjectCache<CachedValue>();
         } else {
             final int pagesCount = (int) (memoryUsage / (pageSize +
                     /* each page consumes additionally 96 bytes in the cache */ 96));
             pagesCache = nonBlocking ?
-                new ConcurrentLongObjectCache<CachedValue>(pagesCount, CONCURRENT_CACHE_GENERATION_COUNT) :
+                new ConcurrentLongObjectCache<CachedValue>(pagesCount, cacheGenerationCount) :
                 new LongObjectCache<CachedValue>(pagesCount);
         }
     }

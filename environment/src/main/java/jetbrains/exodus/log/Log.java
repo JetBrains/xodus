@@ -106,15 +106,16 @@ public final class Log implements Closeable {
         removeFileListeners = new ArrayList<>(2);
         final long memoryUsage = config.getMemoryUsage();
         final boolean nonBlockingCache = config.isNonBlockingCache();
+        final int generationCount = config.getCacheGenerationCount();
         if (memoryUsage != 0) {
             cache = config.isSharedCache() ?
-                getSharedCache(memoryUsage, cachePageSize, nonBlockingCache) :
-                new SeparateLogCache(memoryUsage, cachePageSize, nonBlockingCache);
+                getSharedCache(memoryUsage, cachePageSize, nonBlockingCache, generationCount) :
+                new SeparateLogCache(memoryUsage, cachePageSize, nonBlockingCache, generationCount);
         } else {
             final int memoryUsagePercentage = config.getMemoryUsagePercentage();
             cache = config.isSharedCache() ?
-                getSharedCache(memoryUsagePercentage, cachePageSize, nonBlockingCache) :
-                new SeparateLogCache(memoryUsagePercentage, cachePageSize, nonBlockingCache);
+                getSharedCache(memoryUsagePercentage, cachePageSize, nonBlockingCache, generationCount) :
+                new SeparateLogCache(memoryUsagePercentage, cachePageSize, nonBlockingCache, generationCount);
         }
         DeferredIO.getJobProcessor();
         isClosing = false;
@@ -902,12 +903,15 @@ public final class Log implements Closeable {
     }
 
     @NotNull
-    private static LogCache getSharedCache(final long memoryUsage, final int pageSize, final boolean nonBlocking) {
+    private static LogCache getSharedCache(final long memoryUsage,
+                                           final int pageSize,
+                                           final boolean nonBlocking,
+                                           final int cacheGenerationCount) {
         LogCache result = sharedCache;
         if (result == null) {
             synchronized (Log.class) {
                 if (sharedCache == null) {
-                    sharedCache = new SharedLogCache(memoryUsage, pageSize, nonBlocking);
+                    sharedCache = new SharedLogCache(memoryUsage, pageSize, nonBlocking, cacheGenerationCount);
                 }
                 result = sharedCache;
             }
@@ -917,12 +921,15 @@ public final class Log implements Closeable {
     }
 
     @NotNull
-    private static LogCache getSharedCache(final int memoryUsagePercentage, final int pageSize, final boolean nonBlocking) {
+    private static LogCache getSharedCache(final int memoryUsagePercentage,
+                                           final int pageSize,
+                                           final boolean nonBlocking,
+                                           final int cacheGenerationCount) {
         LogCache result = sharedCache;
         if (result == null) {
             synchronized (Log.class) {
                 if (sharedCache == null) {
-                    sharedCache = new SharedLogCache(memoryUsagePercentage, pageSize, nonBlocking);
+                    sharedCache = new SharedLogCache(memoryUsagePercentage, pageSize, nonBlocking, cacheGenerationCount);
                 }
                 result = sharedCache;
             }

@@ -120,19 +120,20 @@ public final class Environments {
         }
         return newLogInstance(config.
             setFileSize(ec.getLogFileSize()).
-                setLockTimeout(ec.getLogLockTimeout()).
-                setCachePageSize(ec.getLogCachePageSize()).
-                setCacheOpenFilesCount(ec.getLogCacheOpenFilesCount()).
-                setDurableWrite(ec.getLogDurableWrite()).
-                setSharedCache(ec.isLogCacheShared()).
-                setNonBlockingCache(ec.isLogCacheNonBlocking()).
-                setCleanDirectoryExpected(ec.isLogCleanDirectoryExpected()).
-                setClearInvalidLog(ec.isLogClearInvalid()).
-                setSyncPeriod(ec.getLogSyncPeriod()).
-                setFullFileReadonly(ec.isLogFullFileReadonly()).
-                setCipherProvider(ec.getCipherId() == null ? null : KryptKt.newCipherProvider(ec.getCipherId())).
-                setCipherKey(ec.getCipherKey()).
-                setCipherBasicIV(ec.getCipherBasicIV()));
+            setLockTimeout(ec.getLogLockTimeout()).
+            setCachePageSize(ec.getLogCachePageSize()).
+            setCacheOpenFilesCount(ec.getLogCacheOpenFilesCount()).
+            setDurableWrite(ec.getLogDurableWrite()).
+            setSharedCache(ec.isLogCacheShared()).
+            setNonBlockingCache(ec.isLogCacheNonBlocking()).
+            setCacheGenerationCount(ec.getLogCacheGenerationCount()).
+            setCleanDirectoryExpected(ec.isLogCleanDirectoryExpected()).
+            setClearInvalidLog(ec.isLogClearInvalid()).
+            setSyncPeriod(ec.getLogSyncPeriod()).
+            setFullFileReadonly(ec.isLogFullFileReadonly()).
+            setCipherProvider(ec.getCipherId() == null ? null : KryptKt.newCipherProvider(ec.getCipherId())).
+            setCipherKey(ec.getCipherKey()).
+            setCipherBasicIV(ec.getCipherBasicIV()));
     }
 
     @NotNull

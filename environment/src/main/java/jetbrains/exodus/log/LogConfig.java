@@ -41,6 +41,7 @@ public class LogConfig {
     private boolean isFsyncSuppressed;
     private boolean sharedCache;
     private boolean nonBlockingCache;
+    private int cacheGenerationCount;
     private int cachePageSize;
     private int cacheOpenFilesCount;
     private boolean cleanDirectoryExpected;
@@ -181,6 +182,18 @@ public class LogConfig {
 
     public LogConfig setNonBlockingCache(boolean nonBlockingCache) {
         this.nonBlockingCache = nonBlockingCache;
+        return this;
+    }
+
+    public int getCacheGenerationCount() {
+        if (cacheGenerationCount == 0) {
+            cacheGenerationCount = LogCache.CONCURRENT_CACHE_GENERATION_COUNT;
+        }
+        return cacheGenerationCount;
+    }
+
+    public LogConfig setCacheGenerationCount(int cacheGenerationCount) {
+        this.cacheGenerationCount = cacheGenerationCount;
         return this;
     }
 

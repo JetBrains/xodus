@@ -30,7 +30,7 @@ abstract class LogCache {
     protected static final int DEFAULT_OPEN_FILES_COUNT = 16;
     protected static final int MINIMUM_MEM_USAGE_PERCENT = 5;
     protected static final int MAXIMUM_MEM_USAGE_PERCENT = 95;
-    protected static final int CONCURRENT_CACHE_GENERATION_COUNT = 2;
+    static final int CONCURRENT_CACHE_GENERATION_COUNT = 2;
 
     private static final ConcurrentLongObjectCache<byte[]> TAIL_PAGES_CACHE = new ConcurrentLongObjectCache<>(10);
 

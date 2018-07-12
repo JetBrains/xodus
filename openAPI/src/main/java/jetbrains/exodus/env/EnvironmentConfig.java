@@ -218,6 +218,14 @@ public class EnvironmentConfig extends AbstractConfig {
     public static final String LOG_CACHE_NON_BLOCKING = "exodus.log.cache.nonBlocking";
 
     /**
+     * Defines the number of generations of non-blocking LogCache. Is applicable only if {@linkplain #LOG_CACHE_NON_BLOCKING}
+     * is set to {@code true}. The higher number of generations is, the higher the cache hit rate is and CPU ticks
+     * necessary to get a single page from the cache. Default value is {@code 2}.
+     * <p>Mutable at runtime: no
+     */
+    public static final String LOG_CACHE_GENERATION_COUNT = "exodus.log.cache.generationCount";
+
+    /**
      * If is set to {@code true} then the Log constructor fails if the database directory is not clean. Can be useful
      * if an applications expects that the database should always be newly created. Default value is {@code false}.
      * <p>Mutable at runtime: no
@@ -590,6 +598,7 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD, 1_000_000_000L), // ~1GB
             new Pair(LOG_CACHE_SHARED, true),
             new Pair(LOG_CACHE_NON_BLOCKING, true),
+            new Pair(LOG_CACHE_GENERATION_COUNT, 2),
             new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
             new Pair(LOG_CLEAR_INVALID, false),
             new Pair(LOG_SYNC_PERIOD, 10000L),
@@ -1077,6 +1086,29 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public EnvironmentConfig setLogCacheNonBlocking(final boolean nonBlocking) {
         return setSetting(LOG_CACHE_NON_BLOCKING, nonBlocking);
+    }
+
+    /**
+     * Returns the number of generations of non-blocking LogCache. Is applicable only if {@linkplain #LOG_CACHE_NON_BLOCKING}
+     * is set to {@code true}. The higher number of generations is, the higher the cache hit rate is and CPU ticks
+     * necessary to get a single page from the cache. Default value is {@code 2}.
+     *
+     * @return number of generations of non-blocking LogCache
+     */
+    public int getLogCacheGenerationCount() {
+        return (Integer) getSetting(LOG_CACHE_GENERATION_COUNT);
+    }
+
+    /**
+     * Sets the number of generations of non-blocking LogCache. Is applicable only if {@linkplain #LOG_CACHE_NON_BLOCKING}
+     * is set to {@code true}. The higher number of generations is, the higher the cache hit rate is and CPU ticks
+     * necessary to get a single page from the cache. Default value is {@code 2}.
+     *
+     * @param generationCount number of generations of non-blocking LogCache
+     * @return this {@code EnvironmentConfig} instance
+     */
+    public EnvironmentConfig setLogCacheGenerationCount(final int generationCount) {
+        return setSetting(LOG_CACHE_GENERATION_COUNT, generationCount);
     }
 
     /**
