@@ -480,20 +480,43 @@ final class PersistentEntityStoreRefactorings {
                             final PropertiesTable propTable = store.getPropertiesTable(txn, entityTypeId);
                             final Transaction envTxn = txn.getEnvironmentTransaction();
                             final IntHashMap<LongHashMap<PropertyValue>> props = new IntHashMap<>();
-                            final Cursor cursor = store.getPrimaryPropertyIndexCursor(txn, propTable);
-                            final PropertyTypes propertyTypes = store.getPropertyTypes();
-                            while (cursor.getNext()) {
-                                final PropertyKey propKey = PropertyKey.entryToPropertyKey(cursor.getKey());
-                                final PropertyValue propValue = propertyTypes.entryToPropertyValue(cursor.getValue());
-                                final int propId = propKey.getPropertyId();
-                                LongHashMap<PropertyValue> entitiesToValues = props.get(propId);
-                                if (entitiesToValues == null) {
-                                    entitiesToValues = new LongHashMap<>();
-                                    props.put(propId, entitiesToValues);
+                            final LongSet all = new PackedLongHashSet();
+                            try (Cursor cursor = store.getEntitiesIndexCursor(txn, entityTypeId)) {
+                                while (cursor.getNext()) {
+                                    all.add(LongBinding.compressedEntryToLong(cursor.getKey()));
                                 }
-                                entitiesToValues.put(propKey.getEntityLocalId(), propValue);
                             }
-                            cursor.close();
+                            final PropertyTypes propertyTypes = store.getPropertyTypes();
+                            final LongSet entitiesToDelete = new LongHashSet();
+                            try (Cursor cursor = store.getPrimaryPropertyIndexCursor(txn, propTable)) {
+                                while (cursor.getNext()) {
+                                    final PropertyKey propKey = PropertyKey.entryToPropertyKey(cursor.getKey());
+                                    final long localId = propKey.getEntityLocalId();
+                                    if (!all.contains(localId)) {
+                                        entitiesToDelete.add(localId);
+                                        continue;
+                                    }
+                                    final PropertyValue propValue = propertyTypes.entryToPropertyValue(cursor.getValue());
+                                    final int propId = propKey.getPropertyId();
+                                    LongHashMap<PropertyValue> entitiesToValues = props.get(propId);
+                                    if (entitiesToValues == null) {
+                                        entitiesToValues = new LongHashMap<>();
+                                        props.put(propId, entitiesToValues);
+                                    }
+                                    entitiesToValues.put(localId, propValue);
+                                }
+                            }
+                            if (!entitiesToDelete.isEmpty()) {
+                                store.executeInTransaction(new StoreTransactionalExecutable() {
+                                    @Override
+                                    public void execute(@NotNull final StoreTransaction tx) {
+                                        final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
+                                        for (Long localId : entitiesToDelete) {
+                                            store.deleteEntity(txn, new PersistentEntity(store, new PersistentEntityId(entityTypeId, localId)));
+                                        }
+                                    }
+                                });
+                            }
                             final List<Pair<Integer, Pair<ByteIterable, ByteIterable>>> missingPairs = new ArrayList<>();
                             final IntHashMap<Set<Long>> allPropsMap = new IntHashMap<>();
                             for (final int propId : props.keySet()) {
