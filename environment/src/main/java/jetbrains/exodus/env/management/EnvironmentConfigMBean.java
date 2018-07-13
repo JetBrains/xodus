@@ -43,6 +43,8 @@ public interface EnvironmentConfigMBean {
 
     boolean isLogCacheNonBlocking();
 
+    int getLogCacheGenerationCount();
+
     boolean isLogCleanDirectoryExpected();
 
     boolean isLogClearInvalid();

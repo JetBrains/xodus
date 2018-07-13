@@ -94,6 +94,11 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
+    public int getLogCacheGenerationCount() {
+        return config.getLogCacheGenerationCount();
+    }
+
+    @Override
     public boolean isLogCleanDirectoryExpected() {
         return config.isLogCleanDirectoryExpected();
     }
