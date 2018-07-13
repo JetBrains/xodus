@@ -329,7 +329,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
             new Pair(EXPLAIN_ON, false),
             new Pair(DEBUG_LINK_DATA_GETTER, false),
             new Pair(DEBUG_SEARCH_FOR_INCOMING_LINKS_ON_DELETE, false),
-            new Pair(DEBUG_TEST_LINKED_ENTITIES, false),
+            new Pair(DEBUG_TEST_LINKED_ENTITIES, true),
             new Pair(DEBUG_ALLOW_IN_MEMORY_SORT, true),
             new Pair(ENTITY_ITERABLE_CACHE_SIZE, defaultEntityIterableCacheSize()),
             new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHE_SIZE, 65536),
