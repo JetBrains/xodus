@@ -669,14 +669,13 @@ final class PersistentEntityStoreRefactorings {
                                     public void execute(@NotNull final StoreTransaction txn) {
                                         final Store allPropsIndex = propTable.getAllPropsIndex();
                                         final Transaction envTxn = ((PersistentStoreTransaction) txn).getEnvironmentTransaction();
-                                        final Cursor c = allPropsIndex.openCursor(envTxn);
-                                        for (final Pair<Integer, Long> phantom : phantomIds) {
-                                            if (!c.getSearchBoth(IntegerBinding.intToCompressedEntry(phantom.getFirst()), LongBinding.longToCompressedEntry(phantom.getSecond()))) {
-                                                throw new EntityStoreException("Can't be");
+                                        try (Cursor c = allPropsIndex.openCursor(envTxn)) {
+                                            for (final Pair<Integer, Long> phantom : phantomIds) {
+                                                if (c.getSearchBoth(IntegerBinding.intToCompressedEntry(phantom.getFirst()), LongBinding.longToCompressedEntry(phantom.getSecond()))) {
+                                                    c.deleteCurrent();
+                                                }
                                             }
-                                            c.deleteCurrent();
                                         }
-                                        c.close();
                                     }
                                 });
                                 if (logger.isInfoEnabled()) {
