@@ -18,6 +18,7 @@ package jetbrains.exodus.entitystore.iterate;
 import jetbrains.exodus.TestFor;
 import jetbrains.exodus.entitystore.*;
 import org.junit.Assert;
+import org.junit.Ignore;
 
 @SuppressWarnings({"unchecked"})
 public class SortTests extends EntityStoreTestBase {
@@ -265,7 +266,7 @@ public class SortTests extends EntityStoreTestBase {
         issue.setProperty("created", System.currentTimeMillis());
         txn.flush();
         final EntityIterableBase sortedByCreated =
-                (EntityIterableBase) txn.sort("Issue", "created", txn.find("Issue", "description", "description"), true);
+            (EntityIterableBase) txn.sort("Issue", "created", txn.find("Issue", "description", "description"), true);
         for (int i = 0; i < 10000000; ++i) {
             Assert.assertTrue(sortedByCreated.iterator().hasNext());
             Thread.yield();
@@ -336,6 +337,7 @@ public class SortTests extends EntityStoreTestBase {
     }
 
     @TestFor(issues = "XD-670")
+    @Ignore
     public void testSortTinySourceWithPropsWithLargeIndexStability() {
         // switch in-memory sort on
         getEntityStore().getConfig().setDebugAllowInMemorySort(true);
