@@ -336,7 +336,7 @@ public class SortTests extends EntityStoreTestBase {
         System.out.println("Sorting took " + (System.currentTimeMillis() - start));
     }
 
-    @TestFor(issues = "XD-670")
+    @TestFor(issues = "XD-670, XD-736")
     @Ignore
     public void testSortTinySourceWithPropsWithLargeIndexStability() {
         // switch in-memory sort on
@@ -357,18 +357,17 @@ public class SortTests extends EntityStoreTestBase {
             issue.setProperty("div", i % divBuckets);
         }
         txn.flush();
-        System.out.println("Sorting started");
-        final long start = System.currentTimeMillis();
         txn.findWithPropSortedByValue("Issue", "body").size();
         txn.findWithProp("Issue", "div").size();
         getEntityStore().getAsyncProcessor().waitForJobs(100);
         final EntityIterableBase firstSorted = txn.findWithPropSortedByValue("Issue", "body");
-        txn.sort("Issue", "div", firstSorted, true).getLast();
-        System.out.println("Alas");
-        EntityIterable sorted = txn.sort("Issue", "div", firstSorted.asSortResult(), true);
+        final EntityIterable sortedNonStable = txn.sort("Issue", "div", firstSorted, true);
+        sortedNonStable.getLast();
+        getEntityStore().getAsyncProcessor().waitForJobs(100);
+        EntityIterable sortedStable = txn.sort("Issue", "div", firstSorted.asSortResult(), true);
         Entity prev = null;
         int buckets = 1;
-        for (final Entity entity : sorted) {
+        for (final Entity entity : sortedStable) {
             if (prev == null) {
                 prev = entity;
             } else {
@@ -385,7 +384,6 @@ public class SortTests extends EntityStoreTestBase {
             }
         }
         Assert.assertEquals(divBuckets, buckets);
-        System.out.println("Sorting took " + (System.currentTimeMillis() - start));
     }
 
     public void testSortByTwoColumnsAscendingStable() {
