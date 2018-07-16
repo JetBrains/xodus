@@ -1609,7 +1609,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     public String getEntityType(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
         final String result = entityTypes.getName(txn, entityTypeId);
         if (result == null) {
-            throw new EntityStoreException("Invalid type id: " + entityTypeId);
+            throw new EntityRemovedInDatabaseException("Invalid type id: " + entityTypeId);
         }
         return result;
     }
@@ -1618,7 +1618,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     public String getEntityType(@NotNull final TxnProvider txnProvider, final int entityTypeId) {
         final String result = entityTypes.getName(txnProvider, entityTypeId);
         if (result == null) {
-            throw new EntityStoreException("Invalid type id: " + entityTypeId);
+            throw new EntityRemovedInDatabaseException("Invalid type id: " + entityTypeId);
         }
         return result;
     }
