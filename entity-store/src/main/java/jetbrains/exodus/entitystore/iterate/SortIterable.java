@@ -34,6 +34,7 @@ public final class SortIterable extends EntityIterableDecoratorBase {
     private final int sourceTypeId;
     private final int propertyId;
     private final boolean ascending;
+    private final boolean stableSort;
 
     static {
         registerType(getType(), new EntityIterableInstantiator() {
@@ -65,6 +66,7 @@ public final class SortIterable extends EntityIterableDecoratorBase {
         this.sourceTypeId = sourceTypeId;
         this.propertyId = propertyId;
         this.ascending = ascending;
+        stableSort = source.isSortResult();
     }
 
     @Override
@@ -140,7 +142,7 @@ public final class SortIterable extends EntityIterableDecoratorBase {
                 final boolean isCachedInstance = cachedPropertyIndex.isCachedInstance();
                 if ((isCachedInstance && sizeMulLog * sourceSize < indexSize) ||
                     (!isCachedInstance && sizeMulLog * log2IndexSize < indexSize)) {
-                    return new OptionallyStableInMemorySortIterator((int) sourceSize, source.isSortResult());
+                    return new OptionallyStableInMemorySortIterator((int) sourceSize, stableSort);
                 }
             }
         }
@@ -153,7 +155,7 @@ public final class SortIterable extends EntityIterableDecoratorBase {
         if (propIterator == EntityIteratorBase.EMPTY) {
             return new EntityTypeFilteredIterator(source, sourceTypeId);
         }
-        if (source.isSortResult()) {
+        if (stableSort) {
             final StableSortIterator itr = new StableSortIterator((PropertyValueIterator) propIterator);
             return new PropertyValueIteratorFixingDecorator(this, itr, itr);
         }
@@ -183,6 +185,8 @@ public final class SortIterable extends EntityIterableDecoratorBase {
                 applyDecoratedToBuilder(builder);
                 builder.append('-');
                 builder.append(ascending ? 0 : 1);
+                builder.append('-');
+                builder.append(stableSort ? 0 : 1);
             }
 
             @Override
@@ -194,6 +198,8 @@ public final class SortIterable extends EntityIterableDecoratorBase {
                 super.hashCode(hash);
                 hash.applyDelimiter();
                 hash.apply(ascending ? 0 : 1);
+                hash.applyDelimiter();
+                hash.apply(stableSort ? 0 : 1);
             }
 
             @Override

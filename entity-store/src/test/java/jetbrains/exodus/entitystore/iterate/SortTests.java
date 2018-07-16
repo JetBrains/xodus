@@ -18,7 +18,6 @@ package jetbrains.exodus.entitystore.iterate;
 import jetbrains.exodus.TestFor;
 import jetbrains.exodus.entitystore.*;
 import org.junit.Assert;
-import org.junit.Ignore;
 
 @SuppressWarnings({"unchecked"})
 public class SortTests extends EntityStoreTestBase {
@@ -337,7 +336,6 @@ public class SortTests extends EntityStoreTestBase {
     }
 
     @TestFor(issues = "XD-670, XD-736")
-    @Ignore
     public void testSortTinySourceWithPropsWithLargeIndexStability() {
         // switch in-memory sort on
         getEntityStore().getConfig().setDebugAllowInMemorySort(true);
