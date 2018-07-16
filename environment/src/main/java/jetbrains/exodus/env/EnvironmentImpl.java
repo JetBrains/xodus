@@ -775,7 +775,7 @@ public class EnvironmentImpl implements Environment {
         }
         final StoreImpl result;
         if (metaInfo == null) {
-            if (ec.getEnvIsReadonly() && ec.getEnvReadonlyEmptyStores()) {
+            if (txn.isReadonly() && ec.getEnvReadonlyEmptyStores()) {
                 return createTemporaryEmptyStore(name);
             }
             final int structureId = allocateStructureId();

@@ -144,10 +144,17 @@ public class StoreTransactionTests extends EntityStoreTestBase {
     }
 
     public void testExecuteInReadonlyTransaction() {
+        final PersistentEntityStoreImpl store = getEntityStore();
+        store.executeInTransaction(new StoreTransactionalExecutable() {
+            @Override
+            public void execute(@NotNull StoreTransaction txn) {
+                txn.newEntity("Issue");
+            }
+        });
         TestUtil.runWithExpectedException(new Runnable() {
             @Override
             public void run() {
-                getEntityStore().executeInReadonlyTransaction(new StoreTransactionalExecutable() {
+                store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
                     @Override
                     public void execute(@NotNull StoreTransaction txn) {
                         txn.newEntity("Issue");
