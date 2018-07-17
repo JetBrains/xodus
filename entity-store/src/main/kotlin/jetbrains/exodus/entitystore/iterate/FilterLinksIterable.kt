@@ -91,7 +91,7 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
 
     override fun getHandleImpl(): EntityIterableHandle {
         return object : EntityIterableHandleDecorator(store, EntityIterableType.FILTER_LINKS, source.handle) {
-            private val linkIds = EntityIterableHandleBase.mergeFieldIds(intArrayOf(linkId), decorated.linkIds)
+            private val linkIds = mergeFieldIds(intArrayOf(linkId), mergeFieldIds(decorated.linkIds, entities.handle.linkIds))
 
             override fun getLinkIds() = linkIds
 
@@ -113,11 +113,15 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
             }
 
             override fun isMatchedLinkAdded(source: EntityId, target: EntityId, linkId: Int): Boolean {
-                return linkId == this@FilterLinksIterable.linkId || decorated.isMatchedLinkAdded(source, target, linkId)
+                return linkId == this@FilterLinksIterable.linkId ||
+                        decorated.isMatchedLinkAdded(source, target, linkId) ||
+                        entities.handle.isMatchedLinkAdded(source, target, linkId)
             }
 
             override fun isMatchedLinkDeleted(source: EntityId, target: EntityId, linkId: Int): Boolean {
-                return linkId == this@FilterLinksIterable.linkId || decorated.isMatchedLinkDeleted(source, target, linkId)
+                return linkId == this@FilterLinksIterable.linkId ||
+                        decorated.isMatchedLinkDeleted(source, target, linkId) ||
+                        entities.handle.isMatchedLinkDeleted(source, target, linkId)
             }
         }
     }
