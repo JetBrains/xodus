@@ -23,7 +23,7 @@ import org.junit.Assert;
 import java.util.Iterator;
 
 @SuppressWarnings({"HardCodedStringLiteral", "AutoBoxing", "ConstantConditions", "JUnitTestClassNamingConvention",
-        "StringContatenationInLoop", "UnusedDeclaration", "WhileLoopReplaceableByForEach", "LoopStatementThatDoesntLoop"})
+    "StringContatenationInLoop", "UnusedDeclaration", "WhileLoopReplaceableByForEach", "LoopStatementThatDoesntLoop"})
 public class EntityIterableTests extends EntityStoreTestBase {
 
     protected String[] casesThatDontNeedExplicitTxn() {
@@ -395,7 +395,7 @@ public class EntityIterableTests extends EntityStoreTestBase {
         getEntityStore().getAsyncProcessor().waitForJobs(100);
         assertEquals(6, ((EntityIterableBase) txn.getAll("Issue")).findLinks(someUsers, "author").size());
         getEntityStore().getAsyncProcessor().waitForJobs(100);
-        for (Entity issue: txn.getAll("Issue")) {
+        for (Entity issue : txn.getAll("Issue")) {
             issue.setLink("author", nobody);
         }
         assertEquals(0, ((EntityIterableBase) txn.getAll("Issue")).findLinks(someUsers, "author").size());
@@ -427,6 +427,34 @@ public class EntityIterableTests extends EntityStoreTestBase {
         txn.flush();
         Assert.assertEquals(0L, EntityIterableBase.EMPTY.findLinks(txn.getAll("User"), "author").size());
         Assert.assertEquals(0L, ((EntityIterableBase) txn.getAll("Issue")).findLinks(EntityIterableBase.EMPTY, "author").size());
+    }
+
+    @TestFor(issues = "XD-737")
+    public void testInvalidationOfCachedFindLinks() {
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        final Entity[] users = createNUsers(txn, 10);
+        for (Entity user : users) {
+            user.setLink("inGroup", txn.newEntity("UserGroup"));
+        }
+        txn.getAll("UserGroup").getFirst().setLink("owner", users[0]);
+        txn.flush();
+        final EntityIterable withOwner = txn.findWithLinks("UserGroup", "owner");
+        Assert.assertEquals(1, withOwner.size());
+        final EntityIterableBase usersInGroupsWithOwner =
+            (EntityIterableBase) ((EntityIterableBase) txn.getAll("User")).findLinks(withOwner, "inGroup");
+        Assert.assertEquals(1, usersInGroupsWithOwner.size());
+        Assert.assertTrue(usersInGroupsWithOwner.isCached());
+        txn.getAll("UserGroup").getLast().setLink("owner", users[users.length - 1]);
+        Assert.assertFalse(usersInGroupsWithOwner.isCached());
+        txn.flush();
+        Assert.assertEquals(2, withOwner.size());
+        Assert.assertEquals(2, usersInGroupsWithOwner.size());
+        Assert.assertTrue(usersInGroupsWithOwner.isCached());
+        txn.getAll("UserGroup").getLast().deleteLinks("owner");
+        txn.flush();
+        Assert.assertFalse(usersInGroupsWithOwner.isCached());
+        Assert.assertEquals(1, withOwner.size());
+        Assert.assertEquals(1, usersInGroupsWithOwner.size());
     }
 
     public void testGetFirst() {
@@ -505,7 +533,7 @@ public class EntityIterableTests extends EntityStoreTestBase {
         final PersistentEntityStoreImpl store = getEntityStore();
         Assert.assertEquals(0, txn.getAll("User").indexOf(new PersistentEntity(store, new PersistentEntityId(0, 0))));
         final EntityIterableBase cachedInstance =
-                store.getEntityIterableCache().putIfNotCached((EntityIterableBase) txn.getAll("User"));
+            store.getEntityIterableCache().putIfNotCached((EntityIterableBase) txn.getAll("User"));
         Assert.assertFalse(cachedInstance.isEmpty());
     }
 
@@ -594,10 +622,13 @@ public class EntityIterableTests extends EntityStoreTestBase {
         assertEquals(hi + 1, i);
     }
 
-    private static void createNUsers(final StoreTransaction txn, final int n) {
+    private static Entity[] createNUsers(final StoreTransaction txn, final int n) {
+        final Entity[] result = new Entity[n];
         for (int i = 0; i < n; ++i) {
             final Entity user = txn.newEntity("User");
             user.setProperty("login", "user" + i);
+            result[i] = user;
         }
+        return result;
     }
 }
