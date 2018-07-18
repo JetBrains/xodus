@@ -20,3 +20,7 @@ import java.lang.IllegalStateException
 val <T> T?.notNull: T get() = this ?: throw IllegalStateException()
 
 fun <T> T?.notNull(msg: () -> Any?) = this ?: throw IllegalStateException(msg().toString())
+
+inline fun <T : Any, R> T.synchronized(block: T.() -> R): R = synchronized(this) {
+    return block()
+}

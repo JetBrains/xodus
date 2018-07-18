@@ -20,6 +20,7 @@ import jetbrains.exodus.core.dataStructures.Pair
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap
 import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.env.*
+import jetbrains.exodus.kotlin.synchronized
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
 import jetbrains.exodus.log.ExpiredLoggableInfo
 import jetbrains.exodus.log.Log
@@ -41,19 +42,14 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         fileSize = log.fileLengthBound
         filesUtilization = LongHashMap()
         log.addNewFileListener { fileAddress ->
-            synchronized(filesUtilization) {
-                filesUtilization[fileAddress] = MutableLong(0L)
+            filesUtilization.synchronized {
+                this[fileAddress] = MutableLong(0L)
             }
             estimateTotalBytes()
         }
     }
 
-    internal fun clear() {
-        synchronized(filesUtilization) {
-            filesUtilization.clear()
-        }
-        estimateTotalBytes()
-    }
+    internal fun clear() = filesUtilization.synchronized { clear() }.apply { estimateTotalBytes() }
 
     /**
      * Loads utilization profile.
@@ -88,9 +84,9 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
                                 }
                             }
                         }
-                        synchronized(this@UtilizationProfile.filesUtilization) {
-                            this@UtilizationProfile.filesUtilization.clear()
-                            this@UtilizationProfile.filesUtilization.putAll(filesUtilization)
+                        this@UtilizationProfile.filesUtilization.synchronized {
+                            clear()
+                            putAll(filesUtilization)
                         }
                         estimateFreeBytesAndWakeGcIfNecessary()
                     }
@@ -110,15 +106,13 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
             store.openCursor(txn).use { cursor ->
                 while (cursor.next) {
                     val fileAddress = LongBinding.compressedEntryToLong(cursor.key)
-                    if (synchronized(filesUtilization) {
-                                !filesUtilization.containsKey(fileAddress)
-                            }) {
+                    if (filesUtilization.synchronized { containsKey(fileAddress) }) {
                         cursor.deleteCurrent()
                     }
                 }
             }
             // save profile of up-to-date files
-            for (entry in synchronized(filesUtilization) { ArrayList(filesUtilization.entries) }) {
+            for (entry in filesUtilization.synchronized { ArrayList(entries) }) {
                 store.put(txn,
                         LongBinding.longToCompressedEntry(entry.key),
                         CompressedUnsignedLongByteIterable.getIterable(entry.value.value))
@@ -135,11 +129,8 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         return 100 - totalFreeSpacePercent()
     }
 
-    internal fun getFileFreeBytes(fileAddress: Long): Long {
-        synchronized(filesUtilization) {
-            val freeBytes = filesUtilization[fileAddress]
-            return freeBytes?.value ?: Long.MAX_VALUE
-        }
+    internal fun getFileFreeBytes(fileAddress: Long) = filesUtilization.synchronized {
+        this[fileAddress]?.value ?: Long.MAX_VALUE
     }
 
     /**
@@ -150,11 +141,12 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
     internal fun fetchExpiredLoggables(loggables: Iterable<ExpiredLoggableInfo>) {
         var prevFileAddress = -1L
         var prevFreeBytes: MutableLong? = null
-        synchronized(filesUtilization) {
+        filesUtilization.synchronized {
             for (loggable in loggables) {
                 val fileAddress = log.getFileAddress(loggable.address)
-                val freeBytes = (if (prevFileAddress == fileAddress) prevFreeBytes else filesUtilization[fileAddress])
-                        ?: MutableLong(0L).apply { filesUtilization[fileAddress] = this }
+                val freeBytes =
+                        (if (prevFileAddress == fileAddress) prevFreeBytes else this[fileAddress])
+                                ?: MutableLong(0L).also { this[fileAddress] = it }
                 freeBytes.value += loggable.length.toLong()
                 prevFreeBytes = freeBytes
                 prevFileAddress = fileAddress
@@ -162,31 +154,22 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         }
     }
 
-    internal fun removeFile(fileAddress: Long) {
-        synchronized(filesUtilization) {
-            filesUtilization.remove(fileAddress)
-        }
-    }
+    internal fun removeFile(fileAddress: Long): Unit = filesUtilization.synchronized { remove(fileAddress) }
 
-    internal fun resetFile(fileAddress: Long) {
-        synchronized(filesUtilization) {
-            filesUtilization[fileAddress]?.value = 0L
-        }
-    }
+    internal fun resetFile(fileAddress: Long) = filesUtilization.synchronized { this[fileAddress]?.value = 0L }
 
     internal fun estimateTotalBytes() {
         // at first, estimate total bytes
         val fileAddresses = log.allFileAddresses
         val filesCount = fileAddresses.size
-        var i = gc.minFileAge
-        totalBytes = if (filesCount > i) (filesCount - i) * fileSize else 0
+        val minFileAge = gc.minFileAge
+        totalBytes = if (filesCount > minFileAge) (filesCount - minFileAge) * fileSize else 0
         // then, estimate total free bytes
         var totalFreeBytes: Long = 0
-        synchronized(filesUtilization) {
-            while (i < fileAddresses.size) {
-                val freeBytes = filesUtilization[fileAddresses[i]]
+        filesUtilization.synchronized {
+            (minFileAge until filesCount).forEach { i ->
+                val freeBytes = this[fileAddresses[i]]
                 totalFreeBytes += freeBytes?.value ?: fileSize
-                ++i
             }
         }
         this.totalFreeBytes = totalFreeBytes
@@ -205,12 +188,12 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         })
         var totalCleanableBytes = 0L
         var totalFreeBytes = 0L
-        synchronized(filesUtilization) {
-            for (i in gc.minFileAge until fileAddresses.size) {
+        filesUtilization.synchronized {
+            (gc.minFileAge until fileAddresses.size).forEach { i ->
                 val file = fileAddresses[i]
                 if (file < highFile && !gc.isFileCleaned(file)) {
                     totalCleanableBytes += fileSize
-                    val freeBytes = filesUtilization[file]
+                    val freeBytes = this[file]
                     totalFreeBytes += if (freeBytes == null) {
                         fragmentedFiles.add(Pair(file, fileSize))
                         fileSize
@@ -275,20 +258,13 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         gc.cleaner.getJobProcessor().queueAt(ComputeUtilizationFromScratchJob(this), gc.startTime)
     }
 
-    private fun clearUtilization() {
-        synchronized(filesUtilization) {
-            filesUtilization.clear()
-        }
-    }
+    private fun clearUtilization() = filesUtilization.synchronized { clear() }
 
-    private fun setUtilization(usedSpace: LongHashMap<Long>) {
-        synchronized(filesUtilization) {
-            filesUtilization.clear()
-            for ((key, value) in usedSpace) {
-                filesUtilization[key] = MutableLong(fileSize - value)
-            }
+    private fun setUtilization(usedSpace: LongHashMap<Long>) = filesUtilization.synchronized {
+        clear()
+        for ((key, value) in usedSpace) {
+            this[key] = MutableLong(fileSize - value)
         }
-        estimateFreeBytesAndWakeGcIfNecessary()
     }
 
     private fun estimateFreeBytesAndWakeGcIfNecessary() {

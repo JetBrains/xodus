@@ -17,6 +17,7 @@ package jetbrains.exodus.gc
 
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.core.execution.*
+import jetbrains.exodus.kotlin.synchronized
 import mu.KLogging
 
 internal class BackgroundCleaner(private val gc: GarbageCollector) {
@@ -79,18 +80,13 @@ internal class BackgroundCleaner(private val gc: GarbageCollector) {
         processor.finish()
     }
 
-    fun suspend() =
-            synchronized(backgroundCleaningJob) {
-                if (!isSuspended) {
-                    isSuspended = true
-                }
-            }
+    fun suspend() = backgroundCleaningJob.synchronized {
+        if (!isSuspended) {
+            isSuspended = true
+        }
+    }
 
-    fun resume() =
-            synchronized(backgroundCleaningJob) {
-                isSuspended = false
-            }
-
+    fun resume() = backgroundCleaningJob.synchronized { isSuspended = false }
 
     fun queueCleaningJob() {
         if (gc.environment.environmentConfig.isGcEnabled) {

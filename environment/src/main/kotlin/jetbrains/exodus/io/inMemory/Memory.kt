@@ -18,6 +18,7 @@ package jetbrains.exodus.io.inMemory
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.core.dataStructures.LongObjectCache
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap
+import jetbrains.exodus.kotlin.synchronized
 import jetbrains.exodus.log.LogUtil
 import java.io.File
 import java.io.IOException
@@ -32,14 +33,14 @@ open class Memory {
         get() = data.values
 
     internal fun getBlockData(address: Long): Block {
-        synchronized(data) {
-            return data.get(address)
+        return data.synchronized {
+            get(address)
         }
     }
 
     internal fun getOrCreateBlockData(address: Long, length: Long): Block {
-        return synchronized(data) {
-            data.get(address)?.also {
+        return data.synchronized {
+            get(address)?.also {
                 if (it.size.toLong() != length) {
                     it.setSize(length)
                 }
@@ -47,30 +48,26 @@ open class Memory {
             } ?: run {
                 val block = Block(address, lastBlock?.size ?: 2048)
                 lastBlock = block
-                data[address] = lastBlock
+                this[address] = lastBlock
                 block
             }
         }
     }
 
     internal fun removeBlock(blockAddress: Long): Boolean {
-        val removed = synchronized(data) {
-            data.remove(blockAddress)
+        val removed = data.synchronized {
+            remove(blockAddress)
         }
         val result = removed != null
         if (result) {
-            synchronized(data) {
+            data.synchronized {
                 removedBlocks.cacheObject(blockAddress, removed)
             }
         }
         return result
     }
 
-    internal fun clear() {
-        synchronized(data) {
-            data.clear()
-        }
-    }
+    internal fun clear() = data.synchronized { clear() }
 
     fun dump(location: File) {
         location.mkdirs()
@@ -85,8 +82,8 @@ open class Memory {
                 throw ExodusException(e)
             }
         }
-        synchronized(data) {
-            data.forEach(saver)
+        data.synchronized {
+            forEach(saver)
             removedBlocks.forEachEntry { entry ->
                 saver(entry.key, entry.value)
                 true
