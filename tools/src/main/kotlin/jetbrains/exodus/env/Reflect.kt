@@ -537,3 +537,9 @@ class Reflect(directory: File) {
         }
     }
 }
+
+inline fun jetbrains.exodus.tree.LongIterator.forEach(action: (Long) -> Unit) {
+    while (hasNext()) {
+        action(next())
+    }
+}

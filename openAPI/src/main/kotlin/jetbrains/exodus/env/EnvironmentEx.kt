@@ -24,3 +24,22 @@ fun newEnvironmentConfig(configurator: EnvironmentConfig.() -> Unit): Environmen
         configurator()
     }
 }
+
+inline fun Cursor.forEach(action: Cursor.() -> Unit) = use {
+    while (next) {
+        action()
+    }
+}
+
+inline fun Cursor.forEachReversed(action: Cursor.() -> Unit) = use {
+    while (prev) {
+        action()
+    }
+}
+
+inline fun Cursor.forEachIndexed(action: Cursor.(Int) -> Unit) = use {
+    var i = 0
+    while (next) {
+        action(i++)
+    }
+}
