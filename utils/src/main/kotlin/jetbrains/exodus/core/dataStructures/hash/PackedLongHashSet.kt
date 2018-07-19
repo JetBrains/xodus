@@ -21,10 +21,14 @@ import java.util.*
 private const val LONG_BITS: Int = SIZE
 private const val LONG_BITS_LOG: Int = 6
 
-class PackedLongHashSet : AbstractSet<Long>(), LongSet {
+class PackedLongHashSet(source: Collection<Long>? = null) : AbstractSet<Long>(), LongSet {
 
     private val map = LongHashMap<BitsHolder>(20)
     private var count: Int = 0
+
+    init {
+        source?.forEach { add(it) }
+    }
 
     override val size: Int
         get() {

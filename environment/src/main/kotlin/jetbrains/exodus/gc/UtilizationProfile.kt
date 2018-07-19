@@ -18,6 +18,7 @@ package jetbrains.exodus.gc
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.core.dataStructures.Pair
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap
+import jetbrains.exodus.core.dataStructures.hash.PackedLongHashSet
 import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.env.*
 import jetbrains.exodus.kotlin.synchronized
@@ -84,9 +85,28 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
                                 }
                             }
                         }
-                        this@UtilizationProfile.filesUtilization.synchronized {
-                            clear()
-                            putAll(filesUtilization)
+
+                        // check of saved utilization is consistent, at least if it contains same files as the log
+                        var inconsistent = false
+                        with(PackedLongHashSet(filesUtilization.keys)) {
+                            log.allFileAddresses.forEach {
+                                if (!remove(it)) {
+                                    inconsistent = true
+                                    return@with
+                                }
+                            }
+                            if (isNotEmpty()) {
+                                inconsistent = true
+                            }
+                        }
+
+                        if (inconsistent) {
+                            computeUtilizationFromScratch()
+                        } else {
+                            this@UtilizationProfile.filesUtilization.synchronized {
+                                clear()
+                                putAll(filesUtilization)
+                            }
                         }
                         estimateFreeBytesAndWakeGcIfNecessary()
                     }
