@@ -107,8 +107,8 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
                                 clear()
                                 putAll(filesUtilization)
                             }
+                            estimateFreeBytesAndWakeGcIfNecessary()
                         }
-                        estimateFreeBytesAndWakeGcIfNecessary()
                     }
                 }
             }
@@ -275,6 +275,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
      * Reloads utilization profile.
      */
     fun computeUtilizationFromScratch() {
+        GarbageCollector.loggingInfo { "Queueing ComputeUtilizationFromScratchJob" }
         gc.cleaner.getJobProcessor().queueAt(ComputeUtilizationFromScratchJob(this), gc.startTime)
     }
 
@@ -310,28 +311,33 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         private val up: WeakReference<UtilizationProfile> = WeakReference(up)
 
         override fun execute() {
-            val up = this.up.get() ?: return
-            val usedSpace = LongHashMap<Long>()
-            val env = up.env
-            env.executeInReadonlyTransaction { txn ->
-                val log = up.log
-                for (storeName in env.getAllStoreNames(txn)) {
-                    val store = env.openStore(storeName, StoreConfig.USE_EXISTING, txn)
-                    val it = (txn as TransactionBase).getTree(store).addressIterator()
-                    while (it.hasNext()) {
-                        val address = it.next()
-                        val loggable = log.read(address)
-                        val fileAddress = log.getFileAddress(address)
-                        var usedBytes = usedSpace.get(fileAddress)
-                        if (usedBytes == null) {
-                            usedBytes = 0L
+            GarbageCollector.loggingInfo { "Started calculation of log utilization from scratch" }
+            try {
+                val up = this.up.get() ?: return
+                val usedSpace = LongHashMap<Long>()
+                val env = up.env
+                env.executeInReadonlyTransaction { txn ->
+                    val log = up.log
+                    for (storeName in env.getAllStoreNames(txn)) {
+                        val store = env.openStore(storeName, StoreConfig.USE_EXISTING, txn)
+                        val it = (txn as TransactionBase).getTree(store).addressIterator()
+                        while (it.hasNext()) {
+                            val address = it.next()
+                            val loggable = log.read(address)
+                            val fileAddress = log.getFileAddress(address)
+                            var usedBytes = usedSpace.get(fileAddress)
+                            if (usedBytes == null) {
+                                usedBytes = 0L
+                            }
+                            usedBytes += loggable.length().toLong()
+                            usedSpace[fileAddress] = usedBytes
                         }
-                        usedBytes += loggable.length().toLong()
-                        usedSpace[fileAddress] = usedBytes
                     }
                 }
+                up.setUtilization(usedSpace)
+            } finally {
+                GarbageCollector.loggingInfo { "Finished calculation of log utilization from scratch" }
             }
-            up.setUtilization(usedSpace)
         }
     }
 }
