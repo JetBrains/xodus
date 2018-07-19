@@ -106,7 +106,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
             store.openCursor(txn).use { cursor ->
                 while (cursor.next) {
                     val fileAddress = LongBinding.compressedEntryToLong(cursor.key)
-                    if (filesUtilization.synchronized { containsKey(fileAddress) }) {
+                    if (filesUtilization.synchronized { !containsKey(fileAddress) }) {
                         cursor.deleteCurrent()
                     }
                 }
