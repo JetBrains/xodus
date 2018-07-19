@@ -140,6 +140,11 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         }
     }
 
+    fun forceSave(txn: Transaction) {
+        isDirty = true
+        save(txn)
+    }
+
     internal fun totalFreeSpacePercent(): Int {
         val totalBytes = this.totalBytes
         return (if (totalBytes == 0L) 0 else totalFreeBytes * 100L / totalBytes).toInt()

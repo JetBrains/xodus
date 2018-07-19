@@ -406,9 +406,7 @@ public class EnvironmentImpl implements Environment {
                     executeInTransaction(new TransactionalExecutable() {
                         @Override
                         public void execute(@NotNull final Transaction txn) {
-                            final UtilizationProfile up = gc.getUtilizationProfile();
-                            up.setDirty(true);
-                            up.save(txn);
+                            gc.getUtilizationProfile().forceSave(txn);
                         }
                     });
                 }
@@ -1089,6 +1087,7 @@ public class EnvironmentImpl implements Environment {
                     final TransactionBase txn = beginTransaction();
                     try {
                         if (!txn.isReadonly()) {
+                            gc.getUtilizationProfile().forceSave(txn);
                             txn.setCommitHook(new Runnable() {
                                 @Override
                                 public void run() {
