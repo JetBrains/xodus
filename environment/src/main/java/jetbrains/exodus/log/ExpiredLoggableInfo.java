@@ -15,20 +15,31 @@
  */
 package jetbrains.exodus.log;
 
+import jetbrains.exodus.ExodusException;
 import org.jetbrains.annotations.NotNull;
 
 public class ExpiredLoggableInfo {
+
+    private static final boolean EXPIRED_LOGGABLE_LENGTH_CHECK_OFF =
+        Boolean.getBoolean("jetbrains.exodus.log.expiredLoggableLengthCheckOff");
 
     public final long address;
     public final int length;
 
     public ExpiredLoggableInfo(@NotNull final Loggable loggable) {
         this.address = loggable.getAddress();
-        this.length = loggable.length();
+        this.length = assertPositiveLength(loggable.length());
     }
 
     public ExpiredLoggableInfo(long address, int length) {
         this.address = address;
-        this.length = length;
+        this.length = assertPositiveLength(length);
+    }
+
+    private static int assertPositiveLength(int length) {
+        if (!EXPIRED_LOGGABLE_LENGTH_CHECK_OFF && length < 1) {
+            throw new ExodusException("Expired loggable length is negative or nil: " + length);
+        }
+        return length;
     }
 }
