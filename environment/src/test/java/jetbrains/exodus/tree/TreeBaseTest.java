@@ -31,7 +31,6 @@ import org.junit.Assert;
 import org.junit.Before;
 
 import java.io.File;
-import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -90,13 +89,13 @@ public abstract class TreeBaseTest {
     }
 
     @After
-    public void end() throws IOException {
+    public void end() {
         log.close();
         IOUtil.deleteRecursively(tempFolder);
         IOUtil.deleteFile(tempFolder);
     }
 
-    protected void reopen() throws IOException {
+    protected void reopen() {
         log.close();
         createLog();
     }

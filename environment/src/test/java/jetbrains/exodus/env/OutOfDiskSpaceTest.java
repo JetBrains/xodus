@@ -42,7 +42,7 @@ public class OutOfDiskSpaceTest extends EnvironmentTestsBase {
     }
 
     @Override
-    protected Pair<DataReader, DataWriter> createRW() throws IOException {
+    protected Pair<DataReader, DataWriter> createRW() {
         Memory memory = new Memory();
         return new Pair<DataReader, DataWriter>(new MemoryDataReader(memory), new LimitedMemoryDataWriter(memory));
     }
@@ -54,7 +54,7 @@ public class OutOfDiskSpaceTest extends EnvironmentTestsBase {
     }
 
     @Test
-    public void testRecovery() throws IOException {
+    public void testRecovery() {
         Transaction txn = env.beginTransaction();
         env.openStore("new_store", StoreConfig.WITHOUT_DUPLICATES, txn);
         txn.commit();

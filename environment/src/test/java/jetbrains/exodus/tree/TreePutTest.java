@@ -308,7 +308,7 @@ public abstract class TreePutTest extends TreeBaseTest {
     }
 
     @Test
-    public void testPutRandomWithoutDuplicates() throws Throwable {
+    public void testPutRandomWithoutDuplicates() {
         tm = createMutableTree(false, 1);
 
         final IntHashMap<String> map = new IntHashMap<>();

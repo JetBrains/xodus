@@ -37,7 +37,7 @@ public class RunnableJob extends Job {
     }
 
     @Override
-    protected void execute() throws Throwable {
+    protected void execute() {
         runnable.run();
     }
 

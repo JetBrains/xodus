@@ -139,7 +139,7 @@ public class ForkSupportIO implements IStreamer {
         return process;
     }
 
-    public ForkSupportIO start() throws IOException, InterruptedException {
+    public ForkSupportIO start() throws IOException {
         if (process == null) {
             if (logger.isInfoEnabled()) {
                 logger.info("starting child process [" + name + ']');
@@ -178,7 +178,7 @@ public class ForkSupportIO implements IStreamer {
         return result;
     }
 
-    public ForkSupportIO kill() throws InterruptedException {
+    public ForkSupportIO kill() {
         if (processId == -1) {
             process.destroy();
             return this;
@@ -224,7 +224,7 @@ public class ForkSupportIO implements IStreamer {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         try {
             streamer.close();
         } catch (IOException e) {

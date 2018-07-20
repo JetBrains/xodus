@@ -150,7 +150,7 @@ public abstract class JobProcessorAdapter implements JobProcessor {
     }
 
     @Override
-    public void resume() throws InterruptedException {
+    public void resume() {
         synchronized (suspendLatchJob) {
             if (isSuspended) {
                 suspendSemaphore.release();
@@ -272,7 +272,7 @@ public abstract class JobProcessorAdapter implements JobProcessor {
 
     private static final class WaitJob extends LatchJob {
         @Override
-        protected void execute() throws Throwable {
+        protected void execute() {
             release();
         }
     }

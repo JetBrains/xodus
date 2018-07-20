@@ -282,7 +282,7 @@ public class BTreePutSpecificTest extends BTreeTestBase {
     }
 
     @Test
-    public void testSplitDefault() throws IOException {
+    public void testSplitDefault() {
         tm = new BTreeEmpty(log, new BTreeBalancePolicy(7), true, 1).getMutableCopy();
 
         for (int i = 0; i < 10; i++) {
@@ -293,7 +293,7 @@ public class BTreePutSpecificTest extends BTreeTestBase {
     }
 
     @Test
-    public void testSplitAfterSave() throws IOException {
+    public void testSplitAfterSave() {
         tm = new BTreeEmpty(log, new BTreeBalancePolicy(4), false, 1).getMutableCopy();
 
         getTreeMutable().put(kv(1, "v1"));

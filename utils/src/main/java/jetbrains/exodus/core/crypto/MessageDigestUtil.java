@@ -18,7 +18,6 @@ package jetbrains.exodus.core.crypto;
 import jetbrains.exodus.util.HexUtil;
 import org.jetbrains.annotations.Nullable;
 
-import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -122,7 +121,7 @@ public class MessageDigestUtil {
         }
     }
 
-    private static byte[] hmacShaXUnsafe(String method, byte[] key, byte[] message) throws NoSuchAlgorithmException, InvalidKeyException {
+    private static byte[] hmacShaXUnsafe(String method, byte[] key, byte[] message) {
         /* if (message == null) return null;
       SecretKey sk = new SecretKeySpec(key, method);
       final Mac m = Mac.getInstance(sk.getAlgorithm());

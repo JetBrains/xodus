@@ -52,7 +52,7 @@ abstract class JMHEnvTokyoCabinetBenchmarkBase {
     }
 
     @TearDown(Level.Invocation)
-    public void tearDown() throws IOException {
+    public void tearDown() {
         if (env != null) {
             env.close();
             env = null;

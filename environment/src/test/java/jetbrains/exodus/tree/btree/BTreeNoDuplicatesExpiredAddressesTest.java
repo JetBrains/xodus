@@ -20,13 +20,11 @@ import jetbrains.exodus.tree.ITreeMutable;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.IOException;
-
 public class BTreeNoDuplicatesExpiredAddressesTest extends BTreeTestBase {
 
 
     @Test
-    public void testAdd() throws IOException {
+    public void testAdd() {
         tm = new BTreeEmpty(log, false, 1).getMutableCopy();
         long address = saveTree();
         checkExpiredAddress(tm, 0, "Expired: none");
@@ -39,7 +37,7 @@ public class BTreeNoDuplicatesExpiredAddressesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testModify() throws IOException {
+    public void testModify() {
         tm = new BTreeEmpty(log, false, 1).getMutableCopy();
         getTreeMutable().put(kv(0, "value"));
         getTreeMutable().put(kv(1, "value2"));
@@ -54,7 +52,7 @@ public class BTreeNoDuplicatesExpiredAddressesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testDelete() throws IOException {
+    public void testDelete() {
         tm = new BTreeEmpty(log, false, 1).getMutableCopy();
         INode leafNode = kv(0, "value");
         getTreeMutable().put(leafNode);
@@ -69,7 +67,7 @@ public class BTreeNoDuplicatesExpiredAddressesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testBulkAdd() throws IOException {
+    public void testBulkAdd() {
         tm = new BTreeEmpty(log, false, 1).getMutableCopy();
         long address = saveTree();
 
@@ -85,7 +83,7 @@ public class BTreeNoDuplicatesExpiredAddressesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testBulkModify() throws IOException {
+    public void testBulkModify() {
         tm = new BTreeEmpty(log, createTestSplittingPolicy(), false, 1).getMutableCopy();
         for (int i = 0; i < 1000; i++) {
             getTreeMutable().put(kv(i, "value"));
@@ -104,7 +102,7 @@ public class BTreeNoDuplicatesExpiredAddressesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testBulkDelete() throws IOException {
+    public void testBulkDelete() {
         tm = new BTreeEmpty(log, createTestSplittingPolicy(), false, 1).getMutableCopy();
         INode[] leafNode = new INode[1000];
         for (int i = 0; i < 1000; i++) {

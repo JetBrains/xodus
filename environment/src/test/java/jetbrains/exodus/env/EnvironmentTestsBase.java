@@ -169,7 +169,7 @@ public class EnvironmentTestsBase {
             sync.acquire();
             processor.queue(new Job() {
                 @Override
-                protected void execute() throws Throwable {
+                protected void execute() {
                     env.executeInTransaction(runnable);
                     sync.release();
                 }
@@ -184,7 +184,7 @@ public class EnvironmentTestsBase {
     protected void runParallelRunnable(@NotNull final Runnable runnable) {
         processor.queue(new Job() {
             @Override
-            protected void execute() throws Throwable {
+            protected void execute() {
                 runnable.run();
             }
         });

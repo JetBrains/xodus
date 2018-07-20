@@ -38,7 +38,7 @@ public class DelegatingJobProcessor<T extends JobProcessorAdapter> extends JobPr
             finished.set(false);
             Job startJob = new Job() {
                 @Override
-                protected void execute() throws Throwable {
+                protected void execute() {
                     processorStarted();
                 }
             };
@@ -52,7 +52,7 @@ public class DelegatingJobProcessor<T extends JobProcessorAdapter> extends JobPr
         if (started.get() && !finished.getAndSet(true)) {
             delegate.waitForLatchJob(new LatchJob() {
                 @Override
-                protected void execute() throws Throwable {
+                protected void execute() {
                     try {
                         processorFinished();
                     } catch (Throwable t) {

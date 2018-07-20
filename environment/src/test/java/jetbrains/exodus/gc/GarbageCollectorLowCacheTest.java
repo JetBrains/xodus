@@ -84,7 +84,7 @@ public class GarbageCollectorLowCacheTest extends EnvironmentTestsBase {
         return StoreConfig.WITHOUT_DUPLICATES;
     }
 
-    private void printDiskUsage() throws IOException, InterruptedException {
+    private void printDiskUsage() {
         /*final Process spawned = Runtime.getRuntime().exec("df");
         Thread err = ForkSupport.createSpinner(spawned.getErrorStream(), System.err, 1024, "I/O [err]");
         Thread out = ForkSupport.createSpinner(spawned.getInputStream(), System.out, 1024, "I/O [out]");

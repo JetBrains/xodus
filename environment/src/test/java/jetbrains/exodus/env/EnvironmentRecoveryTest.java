@@ -22,8 +22,6 @@ import jetbrains.exodus.tree.btree.BTreeBase;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Test;
 
-import java.io.IOException;
-
 public class EnvironmentRecoveryTest extends EnvironmentTestsBase {
 
     private int[] SEQ;
@@ -42,72 +40,72 @@ public class EnvironmentRecoveryTest extends EnvironmentTestsBase {
     }
 
     @Test
-    public void testLastLoggableIncomplete0() throws IOException {
+    public void testLastLoggableIncomplete0() {
         cutAndCheckLastLoggableIncomplete(106, SEQ.length);
     }
 
     @Test
-    public void testLastLoggableIncomplete1() throws IOException {
+    public void testLastLoggableIncomplete1() {
         cutAndCheckLastLoggableIncomplete(99, A);
     }
 
     @Test
-    public void testLastLoggableIncomplete2() throws IOException {
+    public void testLastLoggableIncomplete2() {
         cutAndCheckLastLoggableIncomplete(89, A);
     }
 
     @Test
-    public void testLastLoggableIncomplete3() throws IOException {
+    public void testLastLoggableIncomplete3() {
         cutAndCheckLastLoggableIncomplete(67, A);
     }
 
     @Test
-    public void testLastLoggableIncomplete4() throws IOException {
+    public void testLastLoggableIncomplete4() {
         cutAndCheckLastLoggableIncomplete(61, A);
     }
 
     @Test
-    public void testLastLoggableIncomplete5() throws IOException {
+    public void testLastLoggableIncomplete5() {
         cutAndCheckLastLoggableIncomplete(56, A);
     }
 
     @Test
-    public void testLastLoggableIncomplete6() throws IOException {
+    public void testLastLoggableIncomplete6() {
         cutAndCheckLastLoggableIncomplete(49, B);
     }
 
     @Test
-    public void testLastLoggableIncomplete7() throws IOException {
+    public void testLastLoggableIncomplete7() {
         cutAndCheckLastLoggableIncomplete(41, B);
     }
 
     @Test
-    public void testLastLoggableIncomplete8() throws IOException {
+    public void testLastLoggableIncomplete8() {
         cutAndCheckLastLoggableIncomplete(23, B);
     }
 
     @Test
-    public void testLastLoggableIncomplete9() throws IOException {
+    public void testLastLoggableIncomplete9() {
         cutAndCheckLastLoggableIncomplete(17, B);
     }
 
     @Test
-    public void testLastLoggableIncomplete10() throws IOException {
+    public void testLastLoggableIncomplete10() {
         cutAndCheckLastLoggableIncomplete(12, B);
     }
 
     @Test
-    public void testLastLoggableIncomplete11() throws IOException {
+    public void testLastLoggableIncomplete11() {
         cutAndCheckLastLoggableIncomplete(5, B); // recovery should create same empty environment
     }
 
     @Test
-    public void testLastLoggableIncomplete12() throws IOException {
+    public void testLastLoggableIncomplete12() {
         cutAndCheckLastLoggableIncomplete(0, B); // recovery should create same empty environment
     }
 
     @Test
-    public void testLastLoggableIncomplete13() throws IOException {
+    public void testLastLoggableIncomplete13() {
         Log log = env.getLog();
         final long fileSize = env.getEnvironmentConfig().getLogFileSize() * 1024;
         log.beginWrite();

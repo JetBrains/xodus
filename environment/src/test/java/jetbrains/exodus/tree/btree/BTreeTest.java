@@ -217,12 +217,12 @@ public class BTreeTest extends BTreeTestBase {
     }
 
     @Test
-    public void testPutNoOverwriteTreeWithoutDuplicates() throws IOException {
+    public void testPutNoOverwriteTreeWithoutDuplicates() {
         putNoOverwrite(false);
     }
 
     @Test
-    public void testPutNoOverwriteTreeWithDuplicates() throws IOException {
+    public void testPutNoOverwriteTreeWithDuplicates() {
         putNoOverwrite(true);
     }
 
@@ -242,7 +242,7 @@ public class BTreeTest extends BTreeTestBase {
     }
 
     @Test
-    public void testPutSortDuplicates() throws IOException {
+    public void testPutSortDuplicates() {
         tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
 
         List<INode> expected = new ArrayList<>();
@@ -266,7 +266,7 @@ public class BTreeTest extends BTreeTestBase {
     }
 
     @Test
-    public void testPutRightSortDuplicates() throws IOException {
+    public void testPutRightSortDuplicates() {
         tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
 
         List<INode> expected = new ArrayList<>();
@@ -290,7 +290,7 @@ public class BTreeTest extends BTreeTestBase {
     }
 
     @Test
-    public void testGetReturnsFirstSortedDuplicate() throws IOException {
+    public void testGetReturnsFirstSortedDuplicate() {
         tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
 
         List<INode> l = new ArrayList<>();

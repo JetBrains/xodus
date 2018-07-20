@@ -93,7 +93,7 @@ class LogTestsBase {
         return log;
     }
 
-    void closeLog() throws IOException {
+    void closeLog() {
         if (log != null) {
             log.close();
             log = null;

@@ -39,7 +39,7 @@ abstract class JMH_MVStoreTokyoCabinetBenchmarkBase {
     }
 
     @TearDown(Level.Invocation)
-    public void tearDown() throws IOException {
+    public void tearDown() {
         closeStore();
     }
 

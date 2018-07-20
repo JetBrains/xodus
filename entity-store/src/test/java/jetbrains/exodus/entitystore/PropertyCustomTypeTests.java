@@ -100,7 +100,7 @@ public class PropertyCustomTypeTests extends EntityStoreTestBase {
     }
 
     @TestFor(issues = "XD-603")
-    public void testRegisterTwiceWithoutReinit() throws Exception {
+    public void testRegisterTwiceWithoutReinit() {
         PersistentEntityStoreImpl store = getEntityStore();
         PropertyTypes propertyTypes = store.getPropertyTypes();
         PersistentStoreTransaction txn = getStoreTransaction();

@@ -254,7 +254,7 @@ public class VfsStreamsTests extends VfsTestsBase {
     }
 
     @Test
-    public void writeNegativePosition() throws IOException {
+    public void writeNegativePosition() {
         final Transaction txn = env.beginTransaction();
         final File file0 = vfs.createFile(txn, "file0");
         TestUtil.runWithExpectedException(new Runnable() {

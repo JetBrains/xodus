@@ -22,7 +22,6 @@ import jetbrains.exodus.tree.LongIterator;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,7 +40,7 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testAdd() throws IOException {
+    public void testAdd() {
         tm = new BTreeEmpty(log, true, 1).getMutableCopy();
         long address = saveTree();
         //Expired: none
@@ -59,7 +58,7 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testAddDup() throws IOException {
+    public void testAddDup() {
         tm = new BTreeEmpty(log, true, 1).getMutableCopy();
         getTreeMutable().put(kv(0, "value"));
         //Expired: none
@@ -82,7 +81,7 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testDeleteDup() throws IOException {
+    public void testDeleteDup() {
         tm = new BTreeEmpty(log, true, 1).getMutableCopy();
         getTreeMutable().put(kv(0, "v0"));
         getTreeMutable().put(kv(0, "v1"));
@@ -104,7 +103,7 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testDeleteAllDups() throws IOException {
+    public void testDeleteAllDups() {
         tm = new BTreeEmpty(log, true, 1).getMutableCopy();
         getTreeMutable().put(kv(0, "value"));
         //Expired: none
@@ -124,7 +123,7 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testDeleteSingleConvert() throws IOException {
+    public void testDeleteSingleConvert() {
         tm = new BTreeEmpty(log, true, 1).getMutableCopy();
         getTreeMutable().put(kv(0, "value"));
         INode leafNode = kv(0, "value2");
@@ -152,7 +151,7 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testDeleteSingleNoConvert() throws IOException {
+    public void testDeleteSingleNoConvert() {
         tm = new BTreeEmpty(log, true, 1).getMutableCopy();
         getTreeMutable().put(kv(0, "value"));
         getTreeMutable().put(kv(0, "value2"));
@@ -171,7 +170,7 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testBulkAdd() throws IOException {
+    public void testBulkAdd() {
         tm = new BTreeEmpty(log, true, 1).getMutableCopy();
         long address = saveTree();
 
@@ -191,7 +190,7 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testBulkDeleteByKey() throws IOException {
+    public void testBulkDeleteByKey() {
         tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
         ByteIterable[] keys = new ByteIterable[1000];
         for (int i = 0; i < 1000; i++) {
@@ -222,7 +221,7 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testBulkDeleteByKV() throws IOException {
+    public void testBulkDeleteByKV() {
         tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
         List<INode> leaves = new ArrayList<>();
         for (int i = 0; i < 1000; i++) {

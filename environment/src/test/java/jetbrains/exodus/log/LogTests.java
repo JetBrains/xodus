@@ -64,7 +64,7 @@ public class LogTests extends LogTestsBase {
     }
 
     @Test
-    public void testWrite2() throws IOException {
+    public void testWrite2() {
         initLog(111); // file size must be multiple of 2 to avoid alignment
         getLog().beginWrite();
         for (int j = 0; j < 111 * 1024; ++j) {
@@ -76,7 +76,7 @@ public class LogTests extends LogTestsBase {
     }
 
     @Test
-    public void testRemoveFile() throws IOException {
+    public void testRemoveFile() {
         initLog(1);
         getLog().beginWrite();
         for (int j = 0; j < 1024 * 99; ++j) {
@@ -93,7 +93,7 @@ public class LogTests extends LogTestsBase {
     }
 
     @Test
-    public void testRemoveFileInvalidAddress() throws IOException {
+    public void testRemoveFileInvalidAddress() {
         initLog(1);
         getLog().beginWrite();
         for (int j = 0; j < 1024 * 10; ++j) {
@@ -110,7 +110,7 @@ public class LogTests extends LogTestsBase {
     }
 
     @Test
-    public void testRemoveFileNonexistentAddress() throws IOException {
+    public void testRemoveFileNonexistentAddress() {
         initLog(1);
         getLog().beginWrite();
         for (int j = 0; j < 1024 * 10; ++j) {
@@ -127,7 +127,7 @@ public class LogTests extends LogTestsBase {
     }
 
     @Test
-    public void testPaddingWithNulls() throws IOException {
+    public void testPaddingWithNulls() {
         initLog(1);
         getLog().beginWrite();
         for (int i = 0; i < 100; ++i) {
@@ -139,7 +139,7 @@ public class LogTests extends LogTestsBase {
     }
 
     @Test
-    public void testWriteNulls() throws IOException {
+    public void testWriteNulls() {
         initLog(1);
         log.beginWrite();
         for (int j = 0; j < 1024 * 99; ++j) {
@@ -150,7 +150,7 @@ public class LogTests extends LogTestsBase {
     }
 
     @Test
-    public void testAutoAlignment() throws IOException {
+    public void testAutoAlignment() {
         initLog(1);
         log.beginWrite();
         for (int i = 0; i < 1023; ++i) {
@@ -168,7 +168,7 @@ public class LogTests extends LogTestsBase {
     }
 
     @Test
-    public void testWriteReadSameAddress() throws IOException {
+    public void testWriteReadSameAddress() {
         initLog(1);
         for (int i = 0; i < 100; ++i) {
             getLog().beginWrite();
@@ -180,7 +180,7 @@ public class LogTests extends LogTestsBase {
     }
 
     @Test
-    public void testAutoAlignment2() throws IOException {
+    public void testAutoAlignment2() {
         initLog(1);
         // one kb loggable can't be placed in a single file of one kb size
         TestUtil.runWithExpectedException(new Runnable() {
@@ -198,7 +198,7 @@ public class LogTests extends LogTestsBase {
     }
 
     @Test
-    public void testReadUnknownLoggableType() throws IOException {
+    public void testReadUnknownLoggableType() {
         getLog().beginWrite();
         getLog().write(DUMMY_LOGGABLE);
         getLog().endWrite();
@@ -256,67 +256,67 @@ public class LogTests extends LogTestsBase {
     }
 
     @Test
-    public void testWriteImmediateRead() throws IOException {
+    public void testWriteImmediateRead() {
         testWriteImmediateRead(1, 1024);
     }
 
     @Test
-    public void testWriteImmediateRead2() throws IOException {
+    public void testWriteImmediateRead2() {
         testWriteImmediateRead(4, 1024 * 4);
     }
 
     @Test
-    public void testWriteImmediateRead3() throws IOException {
+    public void testWriteImmediateRead3() {
         testWriteImmediateRead(16, 1024 * 16);
     }
 
     @Test
-    public void testWriteImmediateRead4() throws IOException {
+    public void testWriteImmediateRead4() {
         testWriteImmediateRead(2, 1024);
     }
 
     @Test
-    public void testWriteSequentialRead() throws IOException {
+    public void testWriteSequentialRead() {
         testWriteSequentialRead(1, 1024);
     }
 
     @Test
-    public void testWriteSequentialRead2() throws IOException {
+    public void testWriteSequentialRead2() {
         testWriteSequentialRead(4, 1024 * 4);
     }
 
     @Test
-    public void testWriteSequentialRead3() throws IOException {
+    public void testWriteSequentialRead3() {
         testWriteSequentialRead(16, 1024 * 16);
     }
 
     @Test
-    public void testWriteSequentialRead4() throws IOException {
+    public void testWriteSequentialRead4() {
         testWriteSequentialRead(2, 1024);
     }
 
     @Test
-    public void testWriteRandomRead() throws IOException {
+    public void testWriteRandomRead() {
         testWriteRandomRead(1, 1024);
     }
 
     @Test
-    public void testWriteRandomRead2() throws IOException {
+    public void testWriteRandomRead2() {
         testWriteRandomRead(4, 1024 * 4);
     }
 
     @Test
-    public void testWriteRandomRead3() throws IOException {
+    public void testWriteRandomRead3() {
         testWriteRandomRead(16, 1024 * 16);
     }
 
     @Test
-    public void testWriteRandomRead4() throws IOException {
+    public void testWriteRandomRead4() {
         testWriteRandomRead(2, 1024);
     }
 
     @Test
-    public void testAllLoggablesIterator() throws IOException {
+    public void testAllLoggablesIterator() {
         initLog(4, 1024 * 4);
         final int count = 10;
         getLog().beginWrite();
@@ -341,7 +341,7 @@ public class LogTests extends LogTestsBase {
     }
 
     @Test
-    public void testAllRandomAccessLoggablesIterator() throws IOException {
+    public void testAllRandomAccessLoggablesIterator() {
         initLog(4, 1024 * 4);
         final int count = 10;
         getLog().beginWrite();

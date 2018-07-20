@@ -28,7 +28,7 @@ import java.io.InputStream;
 @SuppressWarnings("JUnit4AnnotatedMethodInJUnit3TestCase")
 public class StoreTransactionTests extends EntityStoreTestBase {
 
-    public void testAutomaticClosingOpenCursorsInTransaction() throws Exception {
+    public void testAutomaticClosingOpenCursorsInTransaction() {
         final StoreTransaction txn = getStoreTransactionSafe();
         final Entity issue = txn.newEntity("Issue");
         for (int i = 0; i < 10; ++i) {

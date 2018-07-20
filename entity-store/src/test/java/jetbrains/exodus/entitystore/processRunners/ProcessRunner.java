@@ -51,7 +51,7 @@ public class ProcessRunner extends ForkedLogic {
         close();
     }
 
-    private void step() throws Exception {
+    private void step() {
         Entity entity = txn.newEntity("Person");
         entity.setProperty("name", "Vadim");
         entity.setProperty("password", "dummypassword");

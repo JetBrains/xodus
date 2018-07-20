@@ -50,7 +50,7 @@ public interface JobProcessor {
 
     void suspend() throws InterruptedException;
 
-    void resume() throws InterruptedException;
+    void resume();
 
     boolean isSuspended();
 

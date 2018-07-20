@@ -84,7 +84,7 @@ public class SharedTimer {
     private static class Ticker extends Job {
 
         @Override
-        protected void execute() throws Throwable {
+        protected void execute() {
             final long nextTick = System.currentTimeMillis() + PERIOD;
             final Collection<ExpirablePeriodicTask> expiredTasks = new QueueDecorator<>();
             try {

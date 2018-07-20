@@ -27,7 +27,7 @@ public class ModelMetaDataTests extends EntityStoreTestBase {
     final private static String SOURCE_SUPER_CLASS_NAME = "TstSuperSource";
     final private static String SOURCE_SUB_CLASS_NAME = "TstSubSource";
 
-    public void testAddAssociationToSuperClass() throws Exception {
+    public void testAddAssociationToSuperClass() {
 
         ModelMetaData modelMetaData = model(
                 clazz(TARGET_CLASS_NAME)

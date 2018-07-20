@@ -66,7 +66,7 @@ public class ExodusDirectory extends Directory {
     }
 
     @Override
-    public String[] listAll() throws IOException {
+    public String[] listAll() {
         final Transaction txn = env.getAndCheckCurrentTransaction();
         final ArrayList<String> allFiles = new ArrayList<>((int) vfs.getNumberOfFiles(txn));
         for (final File file : vfs.getFiles(txn)) {
@@ -76,33 +76,33 @@ public class ExodusDirectory extends Directory {
     }
 
     @Override
-    public boolean fileExists(String name) throws IOException {
+    public boolean fileExists(String name) {
         return openExistingFile(name, false) != null;
     }
 
     @Override
-    public long fileModified(String name) throws IOException {
+    public long fileModified(String name) {
         final File file = openExistingFile(name, false);
         return file == null ? 0 : file.getLastModified();
     }
 
     @Override
-    public void touchFile(String name) throws IOException {
+    public void touchFile(String name) {
         vfs.touchFile(env.getAndCheckCurrentTransaction(), openExistingFile(name, true));
     }
 
     @Override
-    public void deleteFile(String name) throws IOException {
+    public void deleteFile(String name) {
         vfs.deleteFile(env.getAndCheckCurrentTransaction(), name);
     }
 
     @Override
-    public long fileLength(String name) throws IOException {
+    public long fileLength(String name) {
         return vfs.getFileLength(env.getAndCheckCurrentTransaction(), openExistingFile(name, true));
     }
 
     @Override
-    public IndexOutput createOutput(String name) throws IOException {
+    public IndexOutput createOutput(String name) {
         return new ExodusIndexOutput(this, name);
     }
 
@@ -117,7 +117,7 @@ public class ExodusDirectory extends Directory {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         vfs.shutdown();
     }
 

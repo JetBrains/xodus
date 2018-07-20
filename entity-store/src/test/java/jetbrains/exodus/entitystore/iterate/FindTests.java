@@ -27,7 +27,7 @@ import java.util.List;
 
 public class FindTests extends EntityStoreTestBase {
 
-    public void testFindSingleEntityByPropertyValue() throws Exception {
+    public void testFindSingleEntityByPropertyValue() {
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 100; ++i) {
             final Entity entity = txn.newEntity("Issue");
@@ -45,7 +45,7 @@ public class FindTests extends EntityStoreTestBase {
         Assert.assertEquals(1, count);
     }
 
-    public void testFindByStringPropertyValue() throws Exception {
+    public void testFindByStringPropertyValue() {
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 100; ++i) {
             final Entity entity = txn.newEntity("Issue");
@@ -62,7 +62,7 @@ public class FindTests extends EntityStoreTestBase {
         Assert.assertEquals(10, count);
     }
 
-    public void testFindByStringPropertyValueIgnoreCase() throws Exception {
+    public void testFindByStringPropertyValueIgnoreCase() {
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 100; ++i) {
             final Entity entity = txn.newEntity("Issue");
@@ -198,7 +198,7 @@ public class FindTests extends EntityStoreTestBase {
         }
     }
 
-    public void testCreateFindByPropValueAndIntersect() throws Exception {
+    public void testCreateFindByPropValueAndIntersect() {
         final StoreTransaction txn = getStoreTransaction();
         Entity e = txn.newEntity("Issue");
         Entity owner = txn.newEntity("User");
@@ -229,7 +229,7 @@ public class FindTests extends EntityStoreTestBase {
         }
     }
 
-    public void testCreateFindByPropValueAndIntersectReverseOrder() throws Exception {
+    public void testCreateFindByPropValueAndIntersectReverseOrder() {
         final StoreTransaction txn = getStoreTransaction();
         Entity e = txn.newEntity("Issue");
         Entity eSaved = e;
@@ -260,7 +260,7 @@ public class FindTests extends EntityStoreTestBase {
         }
     }
 
-    public void testOrderByEntityId() throws Exception {
+    public void testOrderByEntityId() {
         final StoreTransaction txn = getStoreTransaction();
         final List<EntityId> ids = new ArrayList<>();
         for (int i = 0; i < 10; ++i) {
@@ -411,7 +411,7 @@ public class FindTests extends EntityStoreTestBase {
         Assert.assertEquals(0, txn.findWithProp("No such type", "size").size());
     }
 
-    public void testFindWithFloatProp() throws Exception {
+    public void testFindWithFloatProp() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity issue1 = txn.newEntity("Issue");
         issue1.setProperty("thefloat", 12f);
@@ -491,7 +491,7 @@ public class FindTests extends EntityStoreTestBase {
         Assert.assertTrue(((EntityIteratorBase) minus.iterator()).getIterable().isCachedInstance());
     }
 
-    public void testFindWithBlob() throws Exception {
+    public void testFindWithBlob() {
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 100; ++i) {
             final Entity entity = txn.newEntity("Issue");
@@ -584,7 +584,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     @TestFor(issues = "XD-577")
-    public void testSuccessiveInvalidationAndUpdateCachedResult() throws InterruptedException {
+    public void testSuccessiveInvalidationAndUpdateCachedResult() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity issue = txn.newEntity("Issue");
         issue.setProperty("summary", "summary");

@@ -47,7 +47,7 @@ abstract class JMHPersistItTokyoCabinetBenchmarkBase {
     }
 
     @TearDown(Level.Invocation)
-    public void tearDown() throws IOException, PersistitException {
+    public void tearDown() throws PersistitException {
         closeDb();
     }
 

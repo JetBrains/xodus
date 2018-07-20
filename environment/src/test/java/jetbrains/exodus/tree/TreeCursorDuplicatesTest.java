@@ -156,7 +156,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
     }
 
     @Test
-    public void testGetNextDup2() throws IOException {
+    public void testGetNextDup2() {
         Cursor c = tm.openCursor();
 
         assertEquals(value("v1"), c.getSearchKey(key(1)));
@@ -195,7 +195,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
     }
 
     @Test
-    public void testGetNextNoDup2() throws IOException {
+    public void testGetNextNoDup2() {
         Cursor c = tm.openCursor();
 
         assertEquals(value("v1"), c.getSearchKey(key(1)));
@@ -362,7 +362,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
     }
 
     @Test
-    public void testGetSearchKeyRange4() throws IOException {
+    public void testGetSearchKeyRange4() {
         tm = createMutableTree(true, 1);
 
         getTreeMutable().put(kv(1, "v1"));

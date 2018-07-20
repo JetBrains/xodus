@@ -93,7 +93,7 @@ public class PersistentStoreExample {
     }
 
 
-    private static Entity createNewBlogPost(StoreTransaction txn, String title, InputStream content) throws IOException {
+    private static Entity createNewBlogPost(StoreTransaction txn, String title, InputStream content) {
         final Entity post = txn.newEntity(POST_ENTITY_TYPE_NAME);
         post.setProperty("title", title);
         post.setBlob("content", content);

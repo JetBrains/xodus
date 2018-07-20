@@ -113,7 +113,7 @@ public abstract class MultiThreadDelegatingJobProcessor extends JobProcessorAdap
                 // while our job is being executed right now)
                 processor.waitForLatchJob(new LatchJob() {
                     @Override
-                    protected void execute() throws Throwable {
+                    protected void execute() {
                         release();
                     }
                 }, 100);

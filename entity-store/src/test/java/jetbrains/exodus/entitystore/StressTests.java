@@ -41,7 +41,7 @@ public class StressTests extends EntityStoreTestBase {
                 final int jj = j;
                 new Job(proc) {
                     @Override
-                    protected void execute() throws Throwable {
+                    protected void execute() {
                         final StoreTransaction s = getEntityStore().beginTransaction();
                         try {
                             final long now = System.currentTimeMillis();

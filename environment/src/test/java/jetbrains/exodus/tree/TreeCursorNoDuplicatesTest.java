@@ -43,7 +43,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void testOneNode() throws IOException {
+    public void testOneNode() {
         tm = createMutableTree(false, 1);
         getTreeMutable().put(kv(1, "v1"));
         assertEquals(1, getTreeMutable().getSize());
@@ -69,7 +69,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void testGetNext2() throws IOException {
+    public void testGetNext2() {
         tm = createMutableTree(false, 1);
 
         getTreeMutable().put(kv(1, "v1"));
@@ -94,7 +94,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void testGetNext3() throws IOException {
+    public void testGetNext3() {
         tm = createMutableTree(false, 1);
 
         for (int i = 0; i < 1000; i++) {
@@ -140,7 +140,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void testGetSearchKey() throws IOException {
+    public void testGetSearchKey() {
         Cursor c = getTreeMutable().openCursor();
 
         for (int i = 0; i < s; i++) {
@@ -153,7 +153,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void testGetSearchBoth() throws IOException {
+    public void testGetSearchBoth() {
         Cursor c = getTreeMutable().openCursor();
 
         for (int i = 0; i < s; i++) {
@@ -166,7 +166,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void testGetSearchBoth2() throws IOException {
+    public void testGetSearchBoth2() {
         tm = createMutableTree(false, 1);
         tm.put(kv("1", "2"));
         final long address = saveTree();
@@ -175,7 +175,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void testGetSearchKeyRange1() throws IOException {
+    public void testGetSearchKeyRange1() {
         Cursor c = getTreeMutable().openCursor();
 
         for (int i = 0; i < s; i++) {
@@ -188,7 +188,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void testGetSearchKeyRange2() throws IOException {
+    public void testGetSearchKeyRange2() {
         tm = createMutableTree(false, 1);
 
         getTreeMutable().put(key("10"), value("v10"));
@@ -213,7 +213,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void testGetSearchKeyRange3() throws IOException {
+    public void testGetSearchKeyRange3() {
         tm = createMutableTree(false, 1);
 
         getTreeMutable().put(new ArrayByteIterable(new byte[]{1}), value("v1"));
@@ -228,7 +228,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void testGetSearchKeyRange4() throws IOException {
+    public void testGetSearchKeyRange4() {
         tm = createMutableTree(false, 1);
 
         final ByteIterable v = value("0");
@@ -243,7 +243,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void testGetSearchKeyRange5() throws IOException {
+    public void testGetSearchKeyRange5() {
         tm = createMutableTree(false, 1);
 
         final ByteIterable v = value("0");
@@ -257,7 +257,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void testGetSearchBothRange1() throws IOException {
+    public void testGetSearchBothRange1() {
         Cursor c = getTreeMutable().openCursor();
 
         for (int i = 0; i < s; i++) {
@@ -268,7 +268,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void testGetSearchBothRange2() throws IOException {
+    public void testGetSearchBothRange2() {
         tm = getTreeMutable().getMutableCopy();
 
         getTreeMutable().put(key("10"), value("v10"));
@@ -307,7 +307,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void testGetPrev2() throws IOException {
+    public void testGetPrev2() {
         tm = createMutableTree(true, 1);
         tm.put(kv("the", "fuck"));
         ITreeCursor c = tm.openCursor();
@@ -316,7 +316,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void testGetLast_XD_466() throws IOException {
+    public void testGetLast_XD_466() {
         tm = createMutableTree(true, 1);
         try (ITreeCursor c = tm.openCursor()) {
             assertFalse(c.getLast());
@@ -341,7 +341,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void testSplitRange() throws IOException {
+    public void testSplitRange() {
         tm = getTreeMutable().getMutableCopy();
 
         getTreeMutable().put(key("aaabbb"), value("v10"));
@@ -357,7 +357,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void testSplitRange2() throws IOException {
+    public void testSplitRange2() {
         tm = createMutableTree(false, 1);
         getTreeMutable().put(key("aa"), value("v"));
         getTreeMutable().put(key("ab"), value("v"));
@@ -366,7 +366,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void xd_333() throws IOException {
+    public void xd_333() {
         rnd = new Random(0);
         final ByteIterable value = value("value");
         tm = createMutableTree(false, 1);

@@ -47,7 +47,7 @@ public class ExodusIndexOutput extends IndexOutput {
     }
 
     @Override
-    public void flush() throws IOException {
+    public void flush() {
         // nothing to do
     }
 
@@ -71,7 +71,7 @@ public class ExodusIndexOutput extends IndexOutput {
     }
 
     @Override
-    public long length() throws IOException {
+    public long length() {
         return directory.getVfs().getFileLength(directory.getEnvironment().getAndCheckCurrentTransaction(), file);
     }
 

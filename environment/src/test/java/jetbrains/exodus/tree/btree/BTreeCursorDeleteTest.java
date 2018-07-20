@@ -20,14 +20,12 @@ import jetbrains.exodus.env.Cursor;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.IOException;
-
 import static org.junit.Assert.*;
 
 public class BTreeCursorDeleteTest extends BTreeTestBase {
 
     @Test
-    public void testDeleteCursorNoDuplicates1() throws IOException {
+    public void testDeleteCursorNoDuplicates1() {
         tm = createMutableTree(false, 1);
         getTreeMutable().put(kv(1, "1"));
 
@@ -40,7 +38,7 @@ public class BTreeCursorDeleteTest extends BTreeTestBase {
     }
 
     @Test
-    public void testDeleteCursorNoDuplicates2() throws IOException {
+    public void testDeleteCursorNoDuplicates2() {
         tm = createEmptyTreeForCursor(1).getMutableCopy();
 
         for (int i = 0; i < 8; i++) {
@@ -63,7 +61,7 @@ public class BTreeCursorDeleteTest extends BTreeTestBase {
     }
 
     @Test
-    public void testDeleteCursorDuplicates1() throws IOException {
+    public void testDeleteCursorDuplicates1() {
         tm = createMutableTree(true, 1);
         getTreeMutable().put(kv(1, "11"));
         getTreeMutable().put(kv(1, "12"));
@@ -90,7 +88,7 @@ public class BTreeCursorDeleteTest extends BTreeTestBase {
     }
 
     @Test
-    public void testDeleteCursorDuplicates2() throws IOException {
+    public void testDeleteCursorDuplicates2() {
         tm = createEmptyTreeForCursor(1).getMutableCopy();
 
         for (int i = 0; i < 8; i++) {
@@ -111,7 +109,7 @@ public class BTreeCursorDeleteTest extends BTreeTestBase {
     }
 
     @Test
-    public void testDeleteCursorDuplicates3() throws IOException {
+    public void testDeleteCursorDuplicates3() {
         tm = createMutableTree(true, 1).getMutableCopy();
 
         for (int i = 0; i < 32; ++i) {

@@ -165,7 +165,7 @@ public abstract class PriorityQueueTest {
 
     @SuppressWarnings("ObjectAllocationInLoop")
     @Test
-    public void concurrentBenchmark() throws InterruptedException {
+    public void concurrentBenchmark() {
         final AtomicInteger counter = new AtomicInteger();
         final PriorityQueue<Priority, TestObject> queue = createQueue();
         final Runnable threadFunction = new Runnable() {

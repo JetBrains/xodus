@@ -26,13 +26,12 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.File;
-import java.io.IOException;
 
 public class EnvironmentLockTest extends EnvironmentTestsBase {
     private static final String LOCK_ID = "magic 0xDEADBEEF data";
 
     @Test
-    public void testAlreadyLockedEnvironment() throws IOException {
+    public void testAlreadyLockedEnvironment() {
         boolean exOnCreate = false;
         Environment first = null;
         try {
@@ -82,7 +81,7 @@ public class EnvironmentLockTest extends EnvironmentTestsBase {
         processor.start();
         new Job(processor) {
             @Override
-            protected void execute() throws Throwable {
+            protected void execute() {
                 final File dir = getEnvDirectory();
                 try {
                     env = newEnvironmentInstance(LogConfig.create(new FileDataReader(dir), new FileDataWriter(dir, LOCK_ID)), new EnvironmentConfig().setLogLockTimeout(5000));

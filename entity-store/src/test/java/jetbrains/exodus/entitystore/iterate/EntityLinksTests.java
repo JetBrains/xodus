@@ -44,7 +44,7 @@ public class EntityLinksTests extends EntityStoreTestBase {
         super.tearDown();
     }
 
-    public void testAddAndIterateLinks() throws Exception {
+    public void testAddAndIterateLinks() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity issue = txn.newEntity("Issue");
         issue.setProperty("description", "Test issue");
@@ -68,7 +68,7 @@ public class EntityLinksTests extends EntityStoreTestBase {
         Assert.assertEquals(10, i);
     }
 
-    public void testAddAndIterateReorder() throws Exception {
+    public void testAddAndIterateReorder() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity[] issues = new Entity[10];
         for (int i = 0; i < issues.length; i++) {

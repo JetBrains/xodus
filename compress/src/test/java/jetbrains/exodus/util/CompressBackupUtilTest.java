@@ -35,13 +35,13 @@ public class CompressBackupUtilTest {
     private File dest;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         randName = getClass().getClassLoader().getResource(".").getFile() + RANDOM.nextLong();
         dest = new File(randName + ".tar.gz");
     }
 
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() {
         if (!dest.delete()) {
             dest.deleteOnExit();
 //            Assert.fail("Can't delete file after test.");

@@ -40,7 +40,7 @@ abstract class JMHChronicleMapTokyoCabinetBenchmarkBase {
     }
 
     @TearDown(Level.Invocation)
-    public void tearDown() throws IOException {
+    public void tearDown() {
         closeTxMaker();
     }
 

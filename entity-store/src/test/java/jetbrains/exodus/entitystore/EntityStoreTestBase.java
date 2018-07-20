@@ -72,7 +72,7 @@ public abstract class EntityStoreTestBase extends TestBase {
         return createStore(dbTempFolder);
     }
 
-    public static PersistentEntityStoreImpl createStore(String dbTempFolder) throws Exception {
+    public static PersistentEntityStoreImpl createStore(String dbTempFolder) {
         return PersistentEntityStores.newInstance(dbTempFolder);
     }
 

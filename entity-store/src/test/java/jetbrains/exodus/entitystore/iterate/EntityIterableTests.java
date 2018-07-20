@@ -30,7 +30,7 @@ public class EntityIterableTests extends EntityStoreTestBase {
         return new String[]{"testEntityIterableCacheIsInvalidatedOnStoreClear"};
     }
 
-    public void testIterateAllEntities() throws Exception {
+    public void testIterateAllEntities() {
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 100; ++i) {
             final Entity entity = txn.newEntity("Issue");
@@ -47,7 +47,7 @@ public class EntityIterableTests extends EntityStoreTestBase {
         Assert.assertEquals(100, i);
     }
 
-    public void testNestedIterateAllEntities() throws Exception {
+    public void testNestedIterateAllEntities() {
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 20; ++i) {
             final Entity entity = txn.newEntity("Issue");
@@ -72,7 +72,7 @@ public class EntityIterableTests extends EntityStoreTestBase {
         Assert.assertEquals(20, i);
     }
 
-    public void testNestedIterateAllEntities2() throws Exception {
+    public void testNestedIterateAllEntities2() {
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 20; ++i) {
             final Entity entity = txn.newEntity("Issue");

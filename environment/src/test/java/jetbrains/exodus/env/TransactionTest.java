@@ -351,7 +351,7 @@ public class TransactionTest extends EnvironmentTestsBase {
         final Transaction[] txn = {null};
         DeferredIO.getJobProcessor().waitForLatchJob(new LatchJob() {
             @Override
-            protected void execute() throws Throwable {
+            protected void execute() {
                 txn[0] = env.beginTransaction();
                 release();
             }
@@ -367,7 +367,7 @@ public class TransactionTest extends EnvironmentTestsBase {
         final Transaction[] txn = {null};
         DeferredIO.getJobProcessor().waitForLatchJob(new LatchJob() {
             @Override
-            protected void execute() throws Throwable {
+            protected void execute() {
                 txn[0] = env.beginReadonlyTransaction();
                 release();
             }

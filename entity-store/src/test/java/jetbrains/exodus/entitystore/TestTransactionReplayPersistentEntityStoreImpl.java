@@ -23,7 +23,7 @@ public final class TestTransactionReplayPersistentEntityStoreImpl extends Persis
 
     private int replayFactor = 1;
 
-    TestTransactionReplayPersistentEntityStoreImpl(@NotNull Environment environment, @NotNull String name) throws Exception {
+    TestTransactionReplayPersistentEntityStoreImpl(@NotNull Environment environment, @NotNull String name) {
         super(environment, name);
     }
 

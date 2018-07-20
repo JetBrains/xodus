@@ -43,7 +43,7 @@ abstract class JMHMapDbTokyoCabinetBenchmarkBase {
     }
 
     @TearDown(Level.Invocation)
-    public void tearDown() throws IOException {
+    public void tearDown() {
         closeDb();
     }
 

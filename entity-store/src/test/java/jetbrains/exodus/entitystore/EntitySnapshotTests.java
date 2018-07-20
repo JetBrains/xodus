@@ -24,8 +24,6 @@ import jetbrains.exodus.env.EnvironmentImpl;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 
-import java.lang.reflect.InvocationTargetException;
-
 public class EntitySnapshotTests extends EntityStoreTestBase {
 
     @Override
@@ -102,7 +100,7 @@ public class EntitySnapshotTests extends EntityStoreTestBase {
         }
     }
 
-    public void testConcurrentPutJetPassLike() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+    public void testConcurrentPutJetPassLike() {
         getEntityStore().getConfig().setCachingDisabled(true);
         final EnvironmentImpl environment = (EnvironmentImpl) getEntityStore().getEnvironment();
         final EnvironmentConfig config = environment.getEnvironmentConfig();
@@ -122,7 +120,7 @@ public class EntitySnapshotTests extends EntityStoreTestBase {
             final int id = i;
             processor.queue(new Job() {
                 @Override
-                protected void execute() throws Throwable {
+                protected void execute() {
                     getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
                         @Override
                         public void execute(@NotNull final StoreTransaction txn) {

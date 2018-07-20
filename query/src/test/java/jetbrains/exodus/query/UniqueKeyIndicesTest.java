@@ -45,7 +45,7 @@ public class UniqueKeyIndicesTest extends EntityStoreTestBase {
         return false;
     }
 
-    public void test2ValidColumns() throws Exception {
+    public void test2ValidColumns() {
         createData();
         testValidColumns(ukiEngine, "column1", "column2");
         // test proper updating
@@ -60,27 +60,27 @@ public class UniqueKeyIndicesTest extends EntityStoreTestBase {
         testInvalidColumns(ukiEngine, "column1", "column2"); // new index creates and checks constraint
     }
 
-    public void test3ValidColumns() throws Exception {
+    public void test3ValidColumns() {
         createData();
         testValidColumns(ukiEngine, "column2", "column1", "column3");
     }
 
-    public void test2InvalidColumns() throws Exception {
+    public void test2InvalidColumns() {
         createData();
         testInvalidColumns(ukiEngine, "column0", "column2");
     }
 
-    public void testNonExistingColumns() throws Exception {
+    public void testNonExistingColumns() {
         createData();
         testInvalidColumns(ukiEngine, "column0", "column2", "column");
     }
 
-    public void testRepeatingColumns() throws Exception {
+    public void testRepeatingColumns() {
         createData();
         testInvalidColumns(ukiEngine, "column0", "column2", "column0");
     }
 
-    public void testUpdatingIndices() throws Exception {
+    public void testUpdatingIndices() {
         createData();
         testValidColumns(ukiEngine, "column2", "column1", "column3");
         testValidColumns(ukiEngine, "column1", "column2", "column3");

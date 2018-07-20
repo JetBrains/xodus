@@ -32,8 +32,6 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-
 public class EnvironmentTestInMemory extends EnvironmentTest {
 
     private static final Logger logger = LoggerFactory.getLogger(EnvironmentTestInMemory.class);
@@ -42,7 +40,7 @@ public class EnvironmentTestInMemory extends EnvironmentTest {
     private final Random rnd = new Random();
 
     @Override
-    protected Pair<DataReader, DataWriter> createRW() throws IOException {
+    protected Pair<DataReader, DataWriter> createRW() {
         Memory memory = new Memory();
         return new Pair<DataReader, DataWriter>(new MemoryDataReader(memory), new MemoryDataWriter(memory));
     }

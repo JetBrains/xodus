@@ -46,7 +46,7 @@ abstract class JMH_LMDBTokyoCabinetBenchmarkBase {
     }
 
     @TearDown(Level.Invocation)
-    public void tearDown() throws IOException {
+    public void tearDown() {
         if (db != null) {
             db.close();
             db = null;

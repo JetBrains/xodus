@@ -81,7 +81,7 @@ public final class SharedMappedFilesCache {
     /**
      * For tests only!!!
      */
-    public static void invalidate() throws IOException {
+    public static void invalidate() {
         final SharedMappedFilesCache oldCache;
         synchronized (syncObject) {
             oldCache = SharedMappedFilesCache.theCache;
@@ -137,7 +137,7 @@ public final class SharedMappedFilesCache {
         }
     }
 
-    void removeDirectory(@NotNull final File dir) throws IOException {
+    void removeDirectory(@NotNull final File dir) {
         try {
             final List<SharedMappedByteBuffer> result = new ArrayList<>();
             final List<File> obsoleteFiles = new ArrayList<>();

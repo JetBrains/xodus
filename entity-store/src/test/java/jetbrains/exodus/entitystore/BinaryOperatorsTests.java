@@ -40,7 +40,7 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
         Assert.assertEquals(100, (int) txn.getAll("Issue").intersect(txn.find("Issue", "ready", Boolean.TRUE)).size());
     }
 
-    public void testIntersectIsCommutative() throws InterruptedException {
+    public void testIntersectIsCommutative() {
         getEntityStore().getConfig().setCachingDisabled(false);
         final StoreTransaction txn = getStoreTransaction();
         final Entity comment = txn.newEntity("Comment");
@@ -119,7 +119,7 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
         Assert.assertEquals(200, (int) txn.getAll("Issue").union(txn.getAll("Comment")).size());
     }
 
-    public void testUnionIsCommutative() throws InterruptedException {
+    public void testUnionIsCommutative() {
         getEntityStore().getConfig().setCachingDisabled(false);
         final StoreTransaction txn = getStoreTransaction();
         final Entity comment = txn.newEntity("Comment");

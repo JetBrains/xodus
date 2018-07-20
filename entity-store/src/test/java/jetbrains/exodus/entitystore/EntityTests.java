@@ -671,11 +671,11 @@ public class EntityTests extends EntityStoreTestBase {
     }
 
 
-    public void testSetPhantomLink() throws InterruptedException {
+    public void testSetPhantomLink() {
         setOrAddPhantomLink(false);
     }
 
-    public void testAddPhantomLink() throws InterruptedException {
+    public void testAddPhantomLink() {
         setOrAddPhantomLink(true);
     }
 

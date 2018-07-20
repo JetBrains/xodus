@@ -19,8 +19,6 @@ import jetbrains.exodus.ByteIterable;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.IOException;
-
 @SuppressWarnings({"AssignmentToStaticFieldFromInstanceMethod"})
 public class BTreeStructureTest extends BTreeTestBase {
     public BTreeBalancePolicy policy = new BTreeBalancePolicy(10);
@@ -44,7 +42,7 @@ public class BTreeStructureTest extends BTreeTestBase {
 
 
     @Test
-    public void simple() throws IOException {
+    public void simple() {
         tm = new BTreeEmpty(log, policy, false, 1).getMutableCopy();
         add("c");
         for (int i = 0; i <= 6; i++) {
@@ -60,7 +58,7 @@ public class BTreeStructureTest extends BTreeTestBase {
     }
 
     @Test
-    public void childExistsTest() throws IOException {
+    public void childExistsTest() {
         tm = new BTreeEmpty(log, policy, false, 1).getMutableCopy();
         for (int i = 0; i <= 60; i++) {
             tm.add(key("k " + i), value("v " + i));

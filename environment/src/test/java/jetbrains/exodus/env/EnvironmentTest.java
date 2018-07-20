@@ -372,7 +372,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     }
 
     @Test
-    public void testWriteDataToSeveralFiles() throws Exception {
+    public void testWriteDataToSeveralFiles() {
         setLogFileSize(16);
         env.getEnvironmentConfig().setGcEnabled(true);
 
