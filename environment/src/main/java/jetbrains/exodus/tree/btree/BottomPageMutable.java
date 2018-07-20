@@ -72,7 +72,7 @@ class BottomPageMutable extends BasePageMutable {
                     // ln may be mutable or immutable, with dups or without
                     LeafNodeDupMutable lnm = LeafNodeDupMutable.convert(ln, tree);
                     if (lnm.put(value)) {
-                        tree.addExpiredLoggable(ln.getAddress());
+                        tree.addExpiredLoggable(ln);
                         set(pos, lnm, null);
                         result[0] = true;
                     }
@@ -80,7 +80,7 @@ class BottomPageMutable extends BasePageMutable {
                 } else {
                     if (!ln.isDupLeaf()) {
                         // TODO: remove this forced update when we no longer need meta tree cloning
-                        tree.addExpiredLoggable(keysAddresses[pos]);
+                        tree.addExpiredLoggable(ln);
                         set(pos, tree.createMutableLeaf(key, value), null);
                         // this should be always true in order to keep up with keysAddresses[pos] expiration
                         result[0] = true;
@@ -113,7 +113,7 @@ class BottomPageMutable extends BasePageMutable {
             } else if (cmp == 0) {
                 if (tree.allowsDuplicates) {
                     set(pos, LeafNodeDupMutable.convert(ln, tree).putRight(value), null);
-                    tree.addExpiredLoggable(ln.getAddress());
+                    tree.addExpiredLoggable(ln);
                     return null;
                 } else {
                     throw new IllegalArgumentException("Key must not be equal");
@@ -174,8 +174,8 @@ class BottomPageMutable extends BasePageMutable {
     @Override
     protected ByteIterable[] getByteIterables(@NotNull final ReclaimFlag flag) {
         return new ByteIterable[]{
-                CompressedUnsignedLongByteIterable.getIterable((size << 1) + flag.value), // store flag bit
-                CompressedUnsignedLongArrayByteIterable.getIterable(keysAddresses, size)
+            CompressedUnsignedLongByteIterable.getIterable((size << 1) + flag.value), // store flag bit
+            CompressedUnsignedLongArrayByteIterable.getIterable(keysAddresses, size)
         };
     }
 
@@ -199,9 +199,11 @@ class BottomPageMutable extends BasePageMutable {
         if (tree.allowsDuplicates) {
             final ILeafNode ln = getKey(pos);
             if (value == null) { // size will be decreased dramatically, all dup sub-tree will expire
-                tree.addExpiredLoggable(keysAddresses[pos]);
-                LongIterator it = ln.addressIterator();
-                while (it.hasNext()) tree.addExpiredLoggable(it.next());
+                if (!ln.isMutable()) {
+                    tree.addExpiredLoggable(ln);
+                    LongIterator it = ln.addressIterator();
+                    while (it.hasNext()) tree.addExpiredLoggable(it.next());
+                }
                 copyChildren(pos + 1, pos);
                 tree.decrementSize(ln.getDupCount());
                 decrementSize(1);
@@ -235,8 +237,7 @@ class BottomPageMutable extends BasePageMutable {
                         //expire previous address
                         tree.addExpiredLoggable(keysAddresses[pos]);
                         //expire single duplicate from sub-tree
-                        LongIterator it = ln.addressIterator();
-                        tree.addExpiredLoggable(it.next());
+                        tree.addExpiredLoggable(ln.addressIterator().next());
                         // convert back to leaf without duplicates
                         set(pos, tree.createMutableLeaf(lnm.getKey(), lnm.getValue()), null);
                     }

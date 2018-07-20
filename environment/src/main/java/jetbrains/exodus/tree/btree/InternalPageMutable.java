@@ -121,14 +121,16 @@ public class InternalPageMutable extends BasePageMutable {
 
     @Override
     protected void setMutableChild(int index, @NotNull BasePageMutable child) {
-        final BaseLeafNodeMutable key = child.keys[0];
-        if (key != null) { // first key is mutable ==> changed, no merges or reclaims allowed
-            keys[index] = key;
-            keysAddresses[index] = key.getAddress();
+        if (children[index] != child) {
+            final BaseLeafNodeMutable key = child.keys[0];
+            if (key != null) { // first key is mutable ==> changed, no merges or reclaims allowed
+                keys[index] = key;
+                keysAddresses[index] = key.getAddress();
+            }
+            children[index] = child;
+            ((BTreeMutable) getTree()).addExpiredLoggable(childrenAddresses[index]);
+            childrenAddresses[index] = Loggable.NULL_ADDRESS;
         }
-        children[index] = child;
-        ((BTreeMutable) getTree()).addExpiredLoggable(childrenAddresses[index]);
-        childrenAddresses[index] = Loggable.NULL_ADDRESS;
     }
 
     @Override
@@ -259,9 +261,9 @@ public class InternalPageMutable extends BasePageMutable {
     @Override
     protected ByteIterable[] getByteIterables(@NotNull final ReclaimFlag flag) {
         return new ByteIterable[]{
-                CompressedUnsignedLongByteIterable.getIterable((size << 1) + flag.value),
-                CompressedUnsignedLongArrayByteIterable.getIterable(keysAddresses, size),
-                CompressedUnsignedLongArrayByteIterable.getIterable(childrenAddresses, size),
+            CompressedUnsignedLongByteIterable.getIterable((size << 1) + flag.value),
+            CompressedUnsignedLongArrayByteIterable.getIterable(keysAddresses, size),
+            CompressedUnsignedLongArrayByteIterable.getIterable(childrenAddresses, size),
         };
     }
 

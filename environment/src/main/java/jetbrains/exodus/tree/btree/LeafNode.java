@@ -18,6 +18,7 @@ package jetbrains.exodus.tree.btree;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.log.ByteIterableWithAddress;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
+import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import org.jetbrains.annotations.NotNull;
 
@@ -72,6 +73,10 @@ class LeafNode extends BaseLeafNode {
     @Override
     public boolean isMutable() {
         return false;
+    }
+
+    Loggable getLoggable() {
+        return loggable;
     }
 
     @NotNull

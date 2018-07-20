@@ -212,7 +212,19 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     }
 
     protected void addExpiredLoggable(long address) {
-        if (address != Loggable.NULL_ADDRESS) addExpiredLoggable(getLoggable(address));
+        if (address != Loggable.NULL_ADDRESS) {
+            addExpiredLoggable(getLoggable(address));
+        }
+    }
+
+    void addExpiredLoggable(ILeafNode node) {
+        if (!node.isMutable()) {
+            if (node instanceof LeafNode) {
+                addExpiredLoggable(((LeafNode) node).getLoggable());
+            } else {
+                addExpiredLoggable(node.getAddress());
+            }
+        }
     }
 
     @SuppressWarnings({"ReturnOfCollectionOrArrayField"})
