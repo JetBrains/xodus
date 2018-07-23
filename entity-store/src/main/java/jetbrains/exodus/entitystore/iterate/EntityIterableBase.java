@@ -225,7 +225,13 @@ public abstract class EntityIterableBase implements EntityIterable {
 
     @Override
     public boolean contains(@NotNull final Entity entity) {
-        return indexOf(entity) >= 0;
+        if (store == null) {
+            return false;
+        }
+        final EntityId entityId = entity.getId();
+        final EntityIterableBase it = store.getEntityIterableCache().putIfNotCached(this);
+        final EntityIterableBase cached = it.isCachedInstance() ? it : this.getOrCreateCachedInstance(getTransaction());
+        return cached.containsImpl(entityId);
     }
 
     @NotNull
@@ -553,6 +559,10 @@ public abstract class EntityIterableBase implements EntityIterable {
             ++result;
         }
         return -1;
+    }
+
+    protected boolean containsImpl(@NotNull final EntityId entityId) {
+        return indexOfImpl(entityId) >= 0;
     }
 
     protected CachedInstanceIterable createCachedInstance(@NotNull final PersistentStoreTransaction txn) {

@@ -47,6 +47,11 @@ public class EmptyCachedInstanceIterable extends CachedInstanceIterable {
     }
 
     @Override
+    protected boolean containsImpl(@NotNull EntityId entityId) {
+        return false;
+    }
+
+    @Override
     protected int indexOfImpl(@NotNull EntityId entityId) {
         return -1;
     }

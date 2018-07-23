@@ -59,6 +59,15 @@ public class MultiTypeSortedEntityIdArrayCachedInstanceIterable extends CachedIn
     }
 
     @Override
+    protected boolean containsImpl(@NotNull EntityId entityId) {
+        final EntityIdSet ids = idSet;
+        if (ids != null) {
+            return ids.contains(entityId);
+        }
+        return super.containsImpl(entityId);
+    }
+
+    @Override
     protected int indexOfImpl(@NotNull EntityId entityId) {
         final long localId = entityId.getLocalId();
         final int typeId = entityId.getTypeId();

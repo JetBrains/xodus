@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.entitystore.iterate.cached;
 
-import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.EntityIterator;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
@@ -58,8 +57,8 @@ public class SingleTypeSortedSetEntityIdCachedInstanceIterable extends CachedIns
     }
 
     @Override
-    public boolean contains(@NotNull Entity entity) {
-        return localIds.contains(entity.getId());
+    protected boolean containsImpl(@NotNull EntityId entityId) {
+        return localIds.contains(entityId);
     }
 
     @Override

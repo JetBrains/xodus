@@ -51,8 +51,8 @@ public class SortResultIterable extends EntityIterableDecoratorBase {
     }
 
     @Override
-    public boolean contains(@NotNull Entity entity) {
-        return source.contains(entity);
+    protected boolean containsImpl(@NotNull EntityId entityId) {
+        return source.containsImpl(entityId);
     }
 
     @Override

@@ -17,7 +17,6 @@ package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.core.dataStructures.IntArrayList;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
-import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.EntityIterator;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
@@ -56,8 +55,8 @@ class EntityIdArrayWithSetIterableWrapper extends CachedInstanceIterable {
     }
 
     @Override
-    public boolean contains(@NotNull Entity entity) {
-        return source.contains(entity);
+    protected boolean containsImpl(@NotNull EntityId entityId) {
+        return source.containsImpl(entityId);
     }
 
     @Override

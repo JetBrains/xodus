@@ -148,6 +148,15 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
     }
 
     @Override
+    protected boolean containsImpl(@NotNull EntityId entityId) {
+        final EntityIdSet ids = idSet;
+        if (ids != null) {
+            return ids.contains(entityId);
+        }
+        return super.containsImpl(entityId);
+    }
+
+    @Override
     public UpdatableEntityIdSortedSetCachedInstanceIterable beginUpdate() {
         return new UpdatableEntityIdSortedSetCachedInstanceIterable(this);
     }

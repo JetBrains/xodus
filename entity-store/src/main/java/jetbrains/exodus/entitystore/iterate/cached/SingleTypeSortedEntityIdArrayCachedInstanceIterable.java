@@ -67,6 +67,15 @@ public class SingleTypeSortedEntityIdArrayCachedInstanceIterable extends CachedI
     }
 
     @Override
+    protected boolean containsImpl(@NotNull EntityId entityId) {
+        final EntityIdSet ids = idSet;
+        if (ids != null) {
+            return ids.contains(entityId);
+        }
+        return super.containsImpl(entityId);
+    }
+
+    @Override
     protected int indexOfImpl(@NotNull final EntityId entityId) {
         if (typeId == entityId.getTypeId()) {
             final int result = Arrays.binarySearch(localIds.getIdArray(), entityId.getLocalId());
