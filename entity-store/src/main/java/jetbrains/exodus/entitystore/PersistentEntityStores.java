@@ -69,7 +69,7 @@ public final class PersistentEntityStores {
     }
 
     public static EnvironmentConfig adjustEnvironmentConfigForEntityStore(@NotNull final EnvironmentConfig ec) {
-        if (ec.getEnvStoreGetCacheSize() == EnvironmentConfig.DEFAULT.getEnvStoreGetCacheSize()) {
+        if (ec.getSetting(EnvironmentConfig.ENV_STOREGET_CACHE_SIZE) == EnvironmentConfig.DEFAULT.getSetting(EnvironmentConfig.ENV_STOREGET_CACHE_SIZE)) {
             ec.setEnvStoreGetCacheSize(STORE_GET_CACHE_SIZE);
         }
         return ec.setEnvReadonlyEmptyStores(true);

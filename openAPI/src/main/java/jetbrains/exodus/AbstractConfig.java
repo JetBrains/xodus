@@ -193,7 +193,8 @@ public abstract class AbstractConfig {
                                       @NotNull final String propName,
                                       final boolean defaultValue) {
         final String value = strategy.getProperty(propName);
-        return value == null ? defaultValue : "true".equalsIgnoreCase(value);
+        //noinspection BooleanConstructorCall,UnnecessaryBoxing
+        return value == null ? defaultValue : new Boolean("true".equalsIgnoreCase(value));
     }
 
     private static Integer getInteger(@NotNull final ConfigurationStrategy strategy,
@@ -202,7 +203,8 @@ public abstract class AbstractConfig {
         final String v = strategy.getProperty(propName);
         if (v != null) {
             try {
-                return Integer.decode(v);
+                //noinspection BoxingBoxedValue
+                return new Integer(Integer.decode(v));
             } catch (NumberFormatException ignored) {
             }
         }
@@ -215,7 +217,8 @@ public abstract class AbstractConfig {
         final String v = strategy.getProperty(propName);
         if (v != null) {
             try {
-                return Long.decode(v);
+                //noinspection BoxingBoxedValue
+                return new Long(Long.decode(v));
             } catch (NumberFormatException ignored) {
             }
         }
@@ -226,7 +229,8 @@ public abstract class AbstractConfig {
                                     @NotNull final String propName,
                                     final String defaultValue) {
         final String v = strategy.getProperty(propName);
-        return v == null ? defaultValue : v;
+        //noinspection RedundantStringConstructorCall
+        return v == null ? defaultValue : new String(v);
     }
 
     private static void appendLineFeed(@NotNull final StringBuilder builder) {
