@@ -355,7 +355,7 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
     }
 
     private void addExpiredLoggable(@Nullable final RandomAccessLoggable sourceLoggable) {
-        if (sourceLoggable != null) {
+        if (sourceLoggable != null && sourceLoggable.getAddress() != NullLoggable.NULL_ADDRESS) {
             Collection<ExpiredLoggableInfo> expiredLoggables = this.expiredLoggables;
             if (expiredLoggables == null) {
                 expiredLoggables = new ArrayList<>(16);

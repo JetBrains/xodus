@@ -21,6 +21,7 @@ import jetbrains.exodus.core.dataStructures.hash.LongHashMap
 import jetbrains.exodus.core.dataStructures.hash.PackedLongHashSet
 import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.env.*
+import jetbrains.exodus.gc.GarbageCollector.Companion.UTILIZATION_PROFILE_STORE_NAME
 import jetbrains.exodus.kotlin.synchronized
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
 import jetbrains.exodus.log.ExpiredLoggableInfo
@@ -166,15 +167,19 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
     internal fun fetchExpiredLoggables(loggables: Iterable<ExpiredLoggableInfo>) {
         var prevFileAddress = -1L
         var prevFreeBytes: MutableLong? = null
+        val set = PackedLongHashSet()
         filesUtilization.synchronized {
             for (loggable in loggables) {
-                val fileAddress = log.getFileAddress(loggable.address)
-                val freeBytes =
-                        (if (prevFileAddress == fileAddress) prevFreeBytes else this[fileAddress])
-                                ?: MutableLong(0L).also { this[fileAddress] = it }
-                freeBytes.value += loggable.length.toLong()
-                prevFreeBytes = freeBytes
-                prevFileAddress = fileAddress
+                val address = loggable.address
+                if (set.add(address)) {
+                    val fileAddress = log.getFileAddress(address)
+                    val freeBytes =
+                            (if (prevFileAddress == fileAddress) prevFreeBytes else this[fileAddress])
+                                    ?: MutableLong(0L).also { this[fileAddress] = it }
+                    freeBytes.value += loggable.length.toLong()
+                    prevFreeBytes = freeBytes
+                    prevFileAddress = fileAddress
+                }
             }
         }
     }
@@ -330,19 +335,14 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
                         // optimistic clearing of files' utilization until no parallel writing transaction happens
                         if (txn.highAddress == env.computeInReadonlyTransaction { tx -> tx.highAddress }) {
                             val log = up.log
-                            for (storeName in env.getAllStoreNames(txn)) {
+                            for (storeName in env.getAllStoreNames(txn) + UTILIZATION_PROFILE_STORE_NAME) {
                                 val store = env.openStore(storeName, StoreConfig.USE_EXISTING, txn)
                                 val it = (txn as TransactionBase).getTree(store).addressIterator()
                                 while (it.hasNext()) {
                                     val address = it.next()
                                     val loggable = log.read(address)
                                     val fileAddress = log.getFileAddress(address)
-                                    var usedBytes = usedSpace.get(fileAddress)
-                                    if (usedBytes == null) {
-                                        usedBytes = 0L
-                                    }
-                                    usedBytes += loggable.length().toLong()
-                                    usedSpace[fileAddress] = usedBytes
+                                    usedSpace[fileAddress] = (usedSpace[fileAddress] ?: 0L) + loggable.length().toLong()
                                 }
                             }
                             goon = false
@@ -350,6 +350,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
                     }
                 }
                 up.setUtilization(usedSpace)
+                up.isDirty = true
                 up.estimateFreeBytesAndWakeGcIfNecessary()
             } finally {
                 GarbageCollector.loggingInfo { "Finished calculation of log utilization from scratch" }

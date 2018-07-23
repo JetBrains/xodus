@@ -20,26 +20,32 @@ import org.jetbrains.annotations.NotNull;
 
 public class ExpiredLoggableInfo {
 
-    private static final boolean EXPIRED_LOGGABLE_LENGTH_CHECK_OFF =
-        Boolean.getBoolean("jetbrains.exodus.log.expiredLoggableLengthCheckOff");
+    private static final boolean EXPIRED_LOGGABLE_CHECK_OFF = Boolean.getBoolean("jetbrains.exodus.log.expiredLoggableCheckOff");
 
     public final long address;
     public final int length;
 
     public ExpiredLoggableInfo(@NotNull final Loggable loggable) {
-        this.address = loggable.getAddress();
+        this.address = checkAddressNonNegative(loggable.getAddress());
         this.length = assertPositiveLength(loggable.length());
     }
 
     public ExpiredLoggableInfo(long address, int length) {
-        this.address = address;
+        this.address = checkAddressNonNegative(address);
         this.length = assertPositiveLength(length);
     }
 
     private static int assertPositiveLength(int length) {
-        if (!EXPIRED_LOGGABLE_LENGTH_CHECK_OFF && length < 1) {
+        if (!EXPIRED_LOGGABLE_CHECK_OFF && length < 1) {
             throw new ExodusException("Expired loggable length is negative or nil: " + length);
         }
         return length;
+    }
+
+    private static long checkAddressNonNegative(long address) {
+        if (!EXPIRED_LOGGABLE_CHECK_OFF && address < 0L) {
+            throw new ExodusException("Expired loggable address is negative: " + address);
+        }
+        return address;
     }
 }
