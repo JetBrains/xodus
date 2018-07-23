@@ -271,7 +271,10 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
 
                 // if an error occurs during reading the file, then GC will be too pessimistic, i.e. it will clean
                 // first the files which are missed in the utilization profile.
-                setUtilization(usedSpace)
+                filesUtilization.synchronized {
+                    clear()
+                    setUtilization(usedSpace)
+                }
             }
         }, gc.startTime)
     }
@@ -287,9 +290,8 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
     private fun clearUtilization() = filesUtilization.synchronized { clear() }
 
     private fun setUtilization(usedSpace: LongHashMap<Long>) = filesUtilization.synchronized {
-        clear()
-        for ((key, value) in usedSpace) {
-            this[key] = MutableLong(fileSize - value)
+        for ((fileAddress, usedBytes) in usedSpace) {
+            (this[fileAddress] ?: MutableLong(0L).also { this[fileAddress] = it }).value += (fileSize - usedBytes)
         }
     }
 
@@ -321,25 +323,34 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
                 val up = this.up.get() ?: return
                 val usedSpace = LongHashMap<Long>()
                 val env = up.env
-                env.executeInReadonlyTransaction { txn ->
-                    val log = up.log
-                    for (storeName in env.getAllStoreNames(txn)) {
-                        val store = env.openStore(storeName, StoreConfig.USE_EXISTING, txn)
-                        val it = (txn as TransactionBase).getTree(store).addressIterator()
-                        while (it.hasNext()) {
-                            val address = it.next()
-                            val loggable = log.read(address)
-                            val fileAddress = log.getFileAddress(address)
-                            var usedBytes = usedSpace.get(fileAddress)
-                            if (usedBytes == null) {
-                                usedBytes = 0L
+                var goon = true
+                while (goon) {
+                    env.executeInReadonlyTransaction { txn ->
+                        up.clear()
+                        // optimistic clearing of files' utilization until no parallel writing transaction happens
+                        if (txn.highAddress == env.computeInReadonlyTransaction { tx -> tx.highAddress }) {
+                            val log = up.log
+                            for (storeName in env.getAllStoreNames(txn)) {
+                                val store = env.openStore(storeName, StoreConfig.USE_EXISTING, txn)
+                                val it = (txn as TransactionBase).getTree(store).addressIterator()
+                                while (it.hasNext()) {
+                                    val address = it.next()
+                                    val loggable = log.read(address)
+                                    val fileAddress = log.getFileAddress(address)
+                                    var usedBytes = usedSpace.get(fileAddress)
+                                    if (usedBytes == null) {
+                                        usedBytes = 0L
+                                    }
+                                    usedBytes += loggable.length().toLong()
+                                    usedSpace[fileAddress] = usedBytes
+                                }
                             }
-                            usedBytes += loggable.length().toLong()
-                            usedSpace[fileAddress] = usedBytes
+                            goon = false
                         }
                     }
                 }
                 up.setUtilization(usedSpace)
+                up.estimateFreeBytesAndWakeGcIfNecessary()
             } finally {
                 GarbageCollector.loggingInfo { "Finished calculation of log utilization from scratch" }
             }
