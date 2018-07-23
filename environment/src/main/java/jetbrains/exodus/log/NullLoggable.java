@@ -31,6 +31,11 @@ public final class NullLoggable extends RandomAccessLoggableImpl {
         return PROTOTYPE;
     }
 
+    @Override
+    public long getAddress() {
+        return Loggable.NULL_ADDRESS;
+    }
+
     public static boolean isNullLoggable(final byte type) {
         return type == TYPE;
     }

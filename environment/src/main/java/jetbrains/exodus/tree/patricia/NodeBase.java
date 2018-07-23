@@ -15,8 +15,12 @@
  */
 package jetbrains.exodus.tree.patricia;
 
+import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
+import jetbrains.exodus.log.ByteIterableWithAddress;
+import jetbrains.exodus.log.ByteIteratorWithAddress;
+import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.tree.INode;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -25,6 +29,8 @@ import java.io.PrintStream;
 
 @SuppressWarnings({"ProtectedField"})
 abstract class NodeBase implements INode {
+
+    private static final int LAZY_KEY_VALUE_ITERABLE_MIN_LENGTH = 16;
 
     @NotNull
     protected ByteIterable keySequence;
@@ -36,6 +42,12 @@ abstract class NodeBase implements INode {
         this.value = value;
     }
 
+    NodeBase(final byte type,
+             @NotNull final ByteIterableWithAddress data,
+             @NotNull final ByteIteratorWithAddress it) {
+        this.keySequence = extractKey(type, data, it);
+        this.value = extractValue(type, data, it);
+    }
 
     long matchesKeySequence(@NotNull final ByteIterator it) {
         int matchingLength = 0;
@@ -215,5 +227,39 @@ abstract class NodeBase implements INode {
         @Override
         public void remove() {
         }
+    }
+
+    @NotNull
+    private static ByteIterable extractKey(final byte type,
+                                           @NotNull final ByteIterableWithAddress data,
+                                           @NotNull final ByteIteratorWithAddress it) {
+        if (!PatriciaTreeBase.nodeHasKey(type)) {
+            return ByteIterable.EMPTY;
+        }
+        return extractLazyIterable(data, it);
+    }
+
+    @Nullable
+    private static ByteIterable extractValue(final byte type,
+                                             @NotNull final ByteIterableWithAddress data,
+                                             @NotNull final ByteIteratorWithAddress it) {
+        if (!PatriciaTreeBase.nodeHasValue(type)) {
+            return null;
+        }
+        return extractLazyIterable(data, it);
+    }
+
+    private static ByteIterable extractLazyIterable(@NotNull final ByteIterableWithAddress data,
+                                                    @NotNull final ByteIteratorWithAddress it) {
+        final int length = CompressedUnsignedLongByteIterable.getInt(it);
+        if (length == 1) {
+            return ArrayByteIterable.fromByte(it.next());
+        }
+        if (length < LAZY_KEY_VALUE_ITERABLE_MIN_LENGTH) {
+            return new ArrayByteIterable(it, length);
+        }
+        final ByteIterable result = data.subIterable((int) (it.getAddress() - data.getDataAddress()), length);
+        it.skip(length);
+        return result;
     }
 }

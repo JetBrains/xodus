@@ -41,7 +41,7 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
         size = treeSize;
         root = new MutableRoot(immutableRoot);
         expiredLoggables = null;
-        addExpiredLoggable(immutableRoot.getAddress()); //TODO: don't re-read
+        addExpiredLoggable(immutableRoot.getLoggable());
     }
 
     @Override
@@ -342,7 +342,7 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
     }
 
     MutableNode mutateNode(@NotNull final ImmutableNode node) {
-        addExpiredLoggable(node.getAddress()); //TODO: don't re-read
+        addExpiredLoggable(node.getLoggable());
         return new MutableNode(node);
     }
 
@@ -352,10 +352,6 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
             throw new ExodusException("Value can't be null");
         }
         return value;
-    }
-
-    private void addExpiredLoggable(long address) {
-        if (address != Loggable.NULL_ADDRESS) addExpiredLoggable(getLoggable(address));
     }
 
     private void addExpiredLoggable(@Nullable final RandomAccessLoggable sourceLoggable) {

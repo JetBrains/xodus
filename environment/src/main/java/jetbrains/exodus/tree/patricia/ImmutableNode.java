@@ -15,38 +15,33 @@
  */
 package jetbrains.exodus.tree.patricia;
 
-import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.log.ByteIterableWithAddress;
-import jetbrains.exodus.log.ByteIteratorWithAddress;
-import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
-import jetbrains.exodus.log.Loggable;
+import jetbrains.exodus.log.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 final class ImmutableNode extends NodeBase {
 
-    private static final int LAZY_KEY_VALUE_ITERABLE_MIN_LENGTH = 16;
-
-    private final long address;
+    @NotNull
+    private final RandomAccessLoggable loggable;
     @NotNull
     private final ByteIterableWithAddress data;
     private final int dataOffset;
     private final short childrenCount;
     private final byte childAddressLength;
 
-    ImmutableNode(final long address, final byte type, @NotNull final ByteIterableWithAddress data) {
-        this(address, type, data, data.iterator());
+    ImmutableNode(@NotNull final RandomAccessLoggable loggable, @NotNull final ByteIterableWithAddress data) {
+        this(loggable.getType(), loggable, data, data.iterator());
     }
 
-    private ImmutableNode(final long address,
-                          final byte type,
+    private ImmutableNode(final byte type,
+                          @NotNull final RandomAccessLoggable loggable,
                           @NotNull final ByteIterableWithAddress data,
                           @NotNull final ByteIteratorWithAddress it) {
-        super(extractKey(type, data, it), extractValue(type, data, it));
-        this.address = address;
+        super(type, data, it);
+        this.loggable = loggable;
         this.data = data;
         if (PatriciaTreeBase.nodeHasChildren(type)) {
             final int i = CompressedUnsignedLongByteIterable.getInt(it);
@@ -64,16 +59,21 @@ final class ImmutableNode extends NodeBase {
      */
     ImmutableNode() {
         super(ByteIterable.EMPTY, null);
-        address = Loggable.NULL_ADDRESS;
+        loggable = NullLoggable.create();
         data = ByteIterableWithAddress.EMPTY;
         dataOffset = 0;
         childrenCount = (short) 0;
         childAddressLength = (byte) 0;
     }
 
+    @NotNull
+    public RandomAccessLoggable getLoggable() {
+        return loggable;
+    }
+
     @Override
     long getAddress() {
-        return address;
+        return loggable.getAddress();
     }
 
     @Override
@@ -185,42 +185,9 @@ final class ImmutableNode extends NodeBase {
     }
 
     private ByteIterator getDataIterator(final int offset) {
-        return address == Loggable.NULL_ADDRESS ? ByteIterable.EMPTY_ITERATOR : data.iterator(dataOffset + offset);
+        return getAddress() == Loggable.NULL_ADDRESS ? ByteIterable.EMPTY_ITERATOR : data.iterator(dataOffset + offset);
     }
 
-    @NotNull
-    private static ByteIterable extractKey(final byte type,
-                                           @NotNull final ByteIterableWithAddress data,
-                                           @NotNull final ByteIteratorWithAddress it) {
-        if (!PatriciaTreeBase.nodeHasKey(type)) {
-            return ByteIterable.EMPTY;
-        }
-        return extractLazyIterable(data, it);
-    }
-
-    @Nullable
-    private static ByteIterable extractValue(final byte type,
-                                             @NotNull final ByteIterableWithAddress data,
-                                             @NotNull final ByteIteratorWithAddress it) {
-        if (!PatriciaTreeBase.nodeHasValue(type)) {
-            return null;
-        }
-        return extractLazyIterable(data, it);
-    }
-
-    private static ByteIterable extractLazyIterable(@NotNull final ByteIterableWithAddress data,
-                                                    @NotNull final ByteIteratorWithAddress it) {
-        final int length = CompressedUnsignedLongByteIterable.getInt(it);
-        if (length == 1) {
-            return ArrayByteIterable.fromByte(it.next());
-        }
-        if (length < LAZY_KEY_VALUE_ITERABLE_MIN_LENGTH) {
-            return new ArrayByteIterable(it, length);
-        }
-        final ByteIterable result = data.subIterable((int) (it.getAddress() - data.getDataAddress()), length);
-        it.skip(length);
-        return result;
-    }
 
     private static void checkAddressLength(long addressLen) {
         if (addressLen < 0 || addressLen > 8) {
