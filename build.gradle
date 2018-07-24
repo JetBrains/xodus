@@ -1,6 +1,6 @@
 buildscript {
-    ext.kotlinVersion = '1.2.21'
-    ext.dokkaVersion = '0.9.15'
+    ext.kotlinVersion = '1.2.51'
+    ext.dokkaVersion = '0.9.17'
     repositories { jcenter() }
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
@@ -75,7 +75,7 @@ subprojects {
 
     dependencies {
         testCompile group: 'junit', name: 'junit', version: '4.12'
-        testCompile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.21'
+        testCompile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.25'
     }
 
     // tests for most of sub-projects run with database encryption turned on
@@ -134,7 +134,7 @@ subprojects {
     // configuring projects with Kotlin sources
     dependencies {
         compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
-        compile 'io.github.microutils:kotlin-logging:1.4.1'
+        compile 'io.github.microutils:kotlin-logging:1.5.4'
     }
     compileKotlin {
         kotlinOptions {

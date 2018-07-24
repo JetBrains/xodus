@@ -6,7 +6,7 @@ dependencies {
     compile project(':sshd')
     compile project(':crypto')
     compile project(':multinode')
-    compile 'com.hierynomus:sshj:0.19.1'
+    compile 'com.hierynomus:sshj:0.24.0'
 
     compileKotlin {
         kotlinOptions {
