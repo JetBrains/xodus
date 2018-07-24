@@ -24,12 +24,12 @@ object LogCacheThreadControl {
     fun setCachingOn(on: Boolean) = if (on) cachingOff.remove() else cachingOff.set(true)
 
     fun withNoCaching(block: () -> Unit) {
-        val initialSate = isCachingOn
+        val initialState = isCachingOn
         setCachingOn(false)
         try {
             block()
         } finally {
-            setCachingOn(initialSate)
+            setCachingOn(initialState)
         }
     }
 }
