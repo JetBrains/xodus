@@ -24,6 +24,7 @@ import jetbrains.exodus.entitystore.MetaServer;
 import jetbrains.exodus.io.DataReader;
 import jetbrains.exodus.io.DataReaderWriterProvider;
 import jetbrains.exodus.io.DataWriter;
+import jetbrains.exodus.system.JVMConstants;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -554,7 +555,8 @@ public class EnvironmentConfig extends AbstractConfig {
     /**
      * If is set to {@code true} then the {@linkplain Environment} exposes two JMX managed beans. One for
      * {@linkplain Environment#getStatistics() environment statistics} and second for controlling the
-     * {@code EnvironmentConfig} settings. Default value is {@code true}.
+     * {@code EnvironmentConfig} settings. Default value is {@code true} for non-Android OS, under Android it is
+     * always {@code false}.
      * <p>Mutable at runtime: no
      *
      * @see Environment#getStatistics()
@@ -632,7 +634,7 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
             new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 1000),
             new Pair(GC_TRANSACTION_TIMEOUT, 1000),
-            new Pair(MANAGEMENT_ENABLED, true),
+            new Pair(MANAGEMENT_ENABLED, !JVMConstants.INSTANCE.getIS_ANDROID()),
             new Pair(MANAGEMENT_OPERATIONS_RESTRICTED, true),
             new Pair(META_SERVER, null)
         }, strategy);
@@ -2069,7 +2071,8 @@ public class EnvironmentConfig extends AbstractConfig {
     /**
      * Return {@code true} if the {@linkplain Environment} exposes two JMX managed beans. One for
      * {@linkplain Environment#getStatistics() environment statistics} and second for controlling the
-     * {@code EnvironmentConfig} settings. Default value is {@code true}.
+     * {@code EnvironmentConfig} settings. Default value is {@code true} for non-Android OS, under Android it is
+     * always {@code false}.
      * <p>Mutable at runtime: no
      *
      * @return {@code true} if the {@linkplain Environment} exposes JMX managed beans
@@ -2081,14 +2084,15 @@ public class EnvironmentConfig extends AbstractConfig {
     /**
      * Set {@code true} if the {@linkplain Environment} should expose two JMX managed beans. One for
      * {@linkplain Environment#getStatistics() environment statistics} and second for controlling the
-     * {@code EnvironmentConfig} settings. Default value is {@code true}.
+     * {@code EnvironmentConfig} settings. Default value is {@code true} for non-Android OS, under Android it is
+     * always {@code false}.
      * <p>Mutable at runtime: no
      *
      * @param managementEnabled {@code true} if the {@linkplain Environment} should expose JMX managed beans
      * @return this {@code EnvironmentConfig} instance
      */
     public EnvironmentConfig setManagementEnabled(final boolean managementEnabled) {
-        return setSetting(MANAGEMENT_ENABLED, managementEnabled);
+        return setSetting(MANAGEMENT_ENABLED, managementEnabled && !JVMConstants.INSTANCE.getIS_ANDROID());
     }
 
     /**
