@@ -16,6 +16,7 @@
 package jetbrains.exodus.gc
 
 import jetbrains.exodus.ExodusException
+import jetbrains.exodus.LogCacheThreadControl
 import jetbrains.exodus.core.dataStructures.LongArrayList
 import jetbrains.exodus.core.dataStructures.Priority
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap
@@ -232,7 +233,9 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             val started = System.currentTimeMillis()
             while (fragmentedFiles.hasNext()) {
                 fragmentedFiles.next().apply {
-                    cleanSingleFile(this, txn)
+                    LogCacheThreadControl.withNoCaching {
+                        cleanSingleFile(this, txn)
+                    }
                     cleanedFiles.add(this)
                 }
                 if (!isTxnExclusive) {

@@ -16,6 +16,7 @@
 package jetbrains.exodus.log;
 
 import jetbrains.exodus.ArrayByteIterable;
+import jetbrains.exodus.LogCacheThreadControl;
 import jetbrains.exodus.core.dataStructures.ConcurrentLongObjectCache;
 import jetbrains.exodus.core.dataStructures.LongObjectCache;
 import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
@@ -35,7 +36,7 @@ final class SharedLogCache extends LogCache {
                    final int cacheGenerationCount) {
         super(memoryUsage, pageSize);
         final int pagesCount = (int) (memoryUsage / (pageSize +
-                /* each page consumes additionally 96 bytes in the cache */ 96));
+            /* each page consumes additionally 96 bytes in the cache */ 96));
         pagesCache = nonBlocking ?
             new ConcurrentLongObjectCache<CachedValue>(pagesCount, cacheGenerationCount) :
             new LongObjectCache<CachedValue>(pagesCount);
@@ -52,7 +53,7 @@ final class SharedLogCache extends LogCache {
                 new LongObjectCache<CachedValue>();
         } else {
             final int pagesCount = (int) (memoryUsage / (pageSize +
-                    /* each page consumes additionally 96 bytes in the cache */ 96));
+                /* each page consumes additionally 96 bytes in the cache */ 96));
             pagesCache = nonBlocking ?
                 new ConcurrentLongObjectCache<CachedValue>(pagesCount, cacheGenerationCount) :
                 new LongObjectCache<CachedValue>(pagesCount);
@@ -120,9 +121,11 @@ final class SharedLogCache extends LogCache {
     }
 
     private void cachePage(final long key, final int logIdentity, final long address, @NotNull final byte[] page) {
-        try (CriticalSection ignored = pagesCache.newCriticalSection()) {
-            if (pagesCache.getObject(key) == null) {
-                pagesCache.cacheObject(key, new CachedValue(logIdentity, address, postProcessTailPage(page)));
+        if (LogCacheThreadControl.INSTANCE.isCachingOn()) {
+            try (CriticalSection ignored = pagesCache.newCriticalSection()) {
+                if (pagesCache.getObject(key) == null) {
+                    pagesCache.cacheObject(key, new CachedValue(logIdentity, address, postProcessTailPage(page)));
+                }
             }
         }
     }
