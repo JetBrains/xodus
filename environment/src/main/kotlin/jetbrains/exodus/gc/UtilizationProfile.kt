@@ -108,7 +108,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
                                 clear()
                                 putAll(filesUtilization)
                             }
-                            estimateFreeBytesAndWakeGcIfNecessary()
+                            estimateTotalBytesAndWakeGcIfNecessary()
                         }
                     }
                 }
@@ -292,18 +292,18 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         gc.cleaner.getJobProcessor().queueAt(ComputeUtilizationFromScratchJob(this), gc.startTime)
     }
 
+    internal fun estimateTotalBytesAndWakeGcIfNecessary() {
+        estimateTotalBytes()
+        if (gc.isTooMuchFreeSpace) {
+            gc.wake()
+        }
+    }
+
     private fun clearUtilization() = filesUtilization.synchronized { clear() }
 
     private fun setUtilization(usedSpace: LongHashMap<Long>) = filesUtilization.synchronized {
         for ((fileAddress, usedBytes) in usedSpace) {
             (this[fileAddress] ?: MutableLong(0L).also { this[fileAddress] = it }).value += (fileSize - usedBytes)
-        }
-    }
-
-    private fun estimateFreeBytesAndWakeGcIfNecessary() {
-        estimateTotalBytes()
-        if (gc.isTooMuchFreeSpace) {
-            gc.wake()
         }
     }
 
@@ -351,7 +351,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
                 }
                 up.setUtilization(usedSpace)
                 up.isDirty = true
-                up.estimateFreeBytesAndWakeGcIfNecessary()
+                up.estimateTotalBytesAndWakeGcIfNecessary()
             } finally {
                 GarbageCollector.loggingInfo { "Finished calculation of log utilization from scratch" }
             }

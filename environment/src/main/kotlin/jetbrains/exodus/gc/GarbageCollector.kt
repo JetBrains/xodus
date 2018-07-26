@@ -204,6 +204,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                 val filesArray = filesToDelete.toArray()
                 environment.removeFiles(filesArray, if (ec.gcRenameFiles) RemoveBlockType.Rename else RemoveBlockType.Delete)
                 filesArray.forEach { utilizationProfile.removeFile(it) }
+                utilizationProfile.estimateTotalBytesAndWakeGcIfNecessary()
             }
         }
     }
