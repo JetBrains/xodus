@@ -131,33 +131,33 @@ public class SortEngine {
             if (emd != null) {
                 final boolean isMultiple = emd.getAssociationEndMetaData(linkName).getCardinality().isMultiple();
                 valueGetter = isMultiple ?
-                        new ComparableGetter() {
-                            @Override
-                            public Comparable select(final Entity entity) {
-                                // return the least property, to be replaced with getMin or something
-                                Iterable<Entity> links = getLinks(entity, linkName);
-                                Comparable result = null;
-                                for (final Entity target : links) {
-                                    final Comparable property = getProperty(target, propName);
-                                    if (result == null) {
+                    new ComparableGetter() {
+                        @Override
+                        public Comparable select(final Entity entity) {
+                            // return the least property, to be replaced with getMin or something
+                            Iterable<Entity> links = getLinks(entity, linkName);
+                            Comparable result = null;
+                            for (final Entity target : links) {
+                                final Comparable property = getProperty(target, propName);
+                                if (result == null) {
+                                    result = property;
+                                } else {
+                                    int compared = compareNullableComparables(result, property);
+                                    if (ascending && compared > 0 || !ascending && compared < 0) {
                                         result = property;
-                                    } else {
-                                        int compared = compareNullableComparables(result, property);
-                                        if (ascending && compared > 0 || !ascending && compared < 0) {
-                                            result = property;
-                                        }
                                     }
                                 }
-                                return result;
                             }
-                        } :
-                        new ComparableGetter() {
-                            @Override
-                            public Comparable select(final Entity entity) {
-                                final Entity target = getLink(entity, linkName);
-                                return target == null ? null : getProperty(target, propName);
-                            }
-                        };
+                            return result;
+                        }
+                    } :
+                    new ComparableGetter() {
+                        @Override
+                        public Comparable select(final Entity entity) {
+                            final Entity target = getLink(entity, linkName);
+                            return target == null ? null : getProperty(target, propName);
+                        }
+                    };
                 final Iterable<Entity> i = queryEngine.toEntityIterable(source);
                 if (queryEngine.isPersistentIterable(i)) {
                     final PersistentStoreTransaction txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
@@ -177,8 +177,8 @@ public class SortEngine {
                         long enumCount = allLinks instanceof EntitiesOfTypeIterable ? allLinks.size() : allLinks.getRoughCount();
                         if (enumCount < 0 || enumCount > MAX_ENUM_COUNT_TO_SORT_LINKS) {
                             distinctLinks = ((EntityIterableBase) (isMultiple ?
-                                    queryEngine.selectManyDistinct(it, linkName) :
-                                    queryEngine.selectDistinct(it, linkName)
+                                queryEngine.selectManyDistinct(it, linkName) :
+                                queryEngine.selectDistinct(it, linkName)
                             )).getSource();
                             enumCount = distinctLinks.getRoughCount();
                         } else {
@@ -207,7 +207,7 @@ public class SortEngine {
                                             public EntityIterableBase getIterable(String type) {
                                                 queryEngine.assertOperational();
                                                 return (EntityIterableBase) txn.sortLinks(type,
-                                                        distinctSortedLinks.getSource(), isMultiple, linkName, it, oppositeType, oppositeLinkName);
+                                                    distinctSortedLinks.getSource(), isMultiple, linkName, it, oppositeType, oppositeLinkName);
                                             }
                                         }, valueGetter, caseInsensitiveComparator(ascending));
                                     }
@@ -254,8 +254,8 @@ public class SortEngine {
         if (source instanceof SortEngine.InMemorySortIterable) {
             final SortEngine.InMemorySortIterable merged = (SortEngine.InMemorySortIterable) source;
             final Comparator<Entity> comparator = new SortEngine.MergedComparator(merged.comparator, ascending
-                    ? toComparator(valueGetter)
-                    : new ReverseComparator(toComparator(valueGetter))
+                ? toComparator(valueGetter)
+                : new ReverseComparator(toComparator(valueGetter))
             );
             return new InMemoryMergeSortIterable(source, comparator);
         } else {
@@ -275,8 +275,11 @@ public class SortEngine {
 
     private Iterable<Entity> getAllEntities(final String entityType, final ModelMetaData mmd) {
         queryEngine.assertOperational();
-        EntityIterable it = queryEngine.instantiateGetAll(entityType);
+        @Nullable
         final EntityMetaData emd = mmd.getEntityMetaData(entityType);
+        EntityIterable it = emd != null && emd.isAbstract() ?
+            EntityIterableBase.EMPTY :
+            queryEngine.instantiateGetAll(entityType);
         if (emd != null) {
             for (String subType : emd.getSubTypes()) {
                 if (Utils.getUnionSubtypes()) {

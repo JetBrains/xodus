@@ -18,8 +18,10 @@ package jetbrains.exodus.query;
 
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.EntityIterable;
+import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.query.metadata.EntityMetaData;
 import jetbrains.exodus.query.metadata.ModelMetaData;
+import org.jetbrains.annotations.Nullable;
 
 import static jetbrains.exodus.query.Utils.safe_equals;
 
@@ -38,7 +40,7 @@ public class LinksEqualDecorator extends NodeBase {
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData) {
         queryEngine.assertOperational();
         return queryEngine.getPersistentStore().getAndCheckCurrentTransaction().findLinks(entityType,
-                (EntityIterable) instantiateDecorated(decoratedEntityType, queryEngine, metaData), name);
+            (EntityIterable) instantiateDecorated(decoratedEntityType, queryEngine, metaData), name);
     }
 
     @Override
@@ -55,8 +57,10 @@ public class LinksEqualDecorator extends NodeBase {
     }
 
     protected Iterable<Entity> instantiateDecorated(String entityType, QueryEngine queryEngine, ModelMetaData metaData) {
-        Iterable<Entity> result = decorated.instantiate(entityType, queryEngine, metaData);
-        final EntityMetaData emd = metaData == null ? null : metaData.getEntityMetaData(entityType);
+        @Nullable final EntityMetaData emd = metaData == null ? null : metaData.getEntityMetaData(entityType);
+        Iterable<Entity> result = emd != null && emd.isAbstract() ?
+            EntityIterableBase.EMPTY :
+            decorated.instantiate(entityType, queryEngine, metaData);
         if (emd != null) {
             for (String subType : emd.getSubTypes()) {
                 result = queryEngine.unionAdjusted(result, instantiateDecorated(subType, queryEngine, metaData));
