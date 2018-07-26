@@ -24,7 +24,6 @@ import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache;
 import jetbrains.exodus.core.dataStructures.FakeObjectCache;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.ObjectCacheDecorator;
-import jetbrains.exodus.core.dataStructures.decorators.HashSetDecorator;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
@@ -45,7 +44,6 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Set;
 
 @SuppressWarnings({"RawUseOfParameterizedType", "rawtypes"})
 public class PersistentStoreTransaction implements StoreTransaction, TxnGetterStrategy, TxnProvider {
@@ -64,8 +62,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     protected final PersistentEntityStoreImpl store;
     @NotNull
     protected final Transaction txn;
-    @NotNull
-    private final Set<EntityIterator> createdIterators;
     private final ObjectCacheBase<PropertyId, Comparable> propsCache;
     @NotNull
     private final ObjectCacheBase<PropertyId, PersistentEntityId> linksCache;
@@ -98,7 +94,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     PersistentStoreTransaction(@NotNull final PersistentStoreTransaction source,
                                @NotNull final TransactionType txnType) {
         this.store = source.store;
-        createdIterators = new HashSetDecorator<>();
         final PersistentEntityStoreConfig config = store.getConfig();
         propsCache = createObjectCache(config.getTransactionPropsCacheSize());
         linksCache = createObjectCache(config.getTransactionLinksCacheSize());
@@ -120,7 +115,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     protected PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store,
                                          @NotNull final TransactionType txnType) {
         this.store = store;
-        createdIterators = new HashSetDecorator<>();
         final PersistentEntityStoreConfig config = store.getConfig();
         propsCache = createObjectCache(config.getTransactionPropsCacheSize());
         linksCache = createObjectCache(config.getTransactionLinksCacheSize());
@@ -197,7 +191,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     @Override
     public void abort() {
         try {
-            disposeCreatedIterators();
             store.unregisterTransaction(this);
             revertCaches();
         } finally {
@@ -230,7 +223,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     @Override
     public void revert() {
-        disposeCreatedIterators();
         txn.revert();
         mutableCache = null;
         mutatedInTxn = new ArrayList<>();
@@ -624,18 +616,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
     }
 
-    public void registerEntityIterator(@NotNull final EntityIterator iterator) {
-        if (!txn.isIdempotent()) {
-            createdIterators.add(iterator);
-        }
-    }
-
-    public void deregisterEntityIterator(@NotNull final EntityIterator iterator) {
-        if (!createdIterators.isEmpty()) {
-            createdIterators.remove(iterator);
-        }
-    }
-
     @NotNull
     public Transaction getEnvironmentTransaction() {
         return txn;
@@ -692,15 +672,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         // caching is irrelevant for the transaction if there are more than a quarter of the EntityIterablesCache's size
         // attempts to query an EntityIterable with local cache hit rate less than 25%
         return localCacheAttempts <= localCache.size() >> 2 || localCacheHits >= localCacheAttempts >> 2;
-    }
-
-    void disposeCreatedIterators() {
-        // dispose opened entity iterables
-        final EntityIterator[] copy = createdIterators.toArray(new EntityIterator[createdIterators.size()]);
-        createdIterators.clear();
-        for (final EntityIterator iterator : copy) {
-            iterator.dispose();
-        }
     }
 
     void cacheProperty(@NotNull final PersistentEntityId fromId, final int propId, @NotNull final Comparable value) {
@@ -879,7 +850,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     // exposed only for tests
     void apply() {
-        disposeCreatedIterators();
         final FlushLog log = new FlushLog();
         store.logOperations(txn, log);
         final BlobVault blobVault = store.getBlobVault();

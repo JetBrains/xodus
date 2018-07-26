@@ -149,9 +149,6 @@ public final class SortIterable extends EntityIterableDecoratorBase {
 
         final EntityIterator propIterator = ascending ?
             cachedPropertyIndex.getIteratorImpl(txn) : cachedPropertyIndex.getReverseIteratorImpl(txn);
-        if (propIterator.shouldBeDisposed()) {
-            store.getAndCheckCurrentTransaction().registerEntityIterator(propIterator);
-        }
         if (propIterator == EntityIteratorBase.EMPTY) {
             return new EntityTypeFilteredIterator(source, sourceTypeId);
         }

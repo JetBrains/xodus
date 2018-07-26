@@ -135,11 +135,7 @@ public abstract class EntityIterableBase implements EntityIterable {
             return EntityIteratorBase.EMPTY;
         }
         final PersistentStoreTransaction txn = getTransaction();
-        final EntityIterator result = store.getEntityIterableCache().putIfNotCached(this).getIteratorImpl(txn);
-        if (result.shouldBeDisposed()) {
-            txn.registerEntityIterator(result);
-        }
-        return result;
+        return store.getEntityIterableCache().putIfNotCached(this).getIteratorImpl(txn);
     }
 
     @NotNull

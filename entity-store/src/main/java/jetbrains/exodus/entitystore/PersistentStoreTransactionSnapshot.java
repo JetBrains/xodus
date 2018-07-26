@@ -41,7 +41,6 @@ final class PersistentStoreTransactionSnapshot extends PersistentStoreTransactio
     @Override
     public void abort() {
         try {
-            disposeCreatedIterators();
             revertCaches();
         } finally {
             txn.abort();

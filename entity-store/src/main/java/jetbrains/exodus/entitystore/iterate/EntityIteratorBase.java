@@ -143,11 +143,6 @@ public abstract class EntityIteratorBase implements EntityIterator {
         queryCancellingPolicy = null;
         if (!disposed) {
             disposed = true;
-            final PersistentStoreTransaction txn = iterable.getStore().getCurrentTransaction();
-            // txn is null if dispose is called from PersistentStoreTransaction.close()
-            if (txn != null) {
-                txn.deregisterEntityIterator(this);
-            }
             final Cursor cursor = this.cursor;
             if (cursor != null) {
                 cursor.close();
