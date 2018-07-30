@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
+import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.bindings.ComparableBinding;
 import jetbrains.exodus.bindings.ComparableSet;
@@ -164,13 +165,15 @@ public final class PropertyValueIterable extends PropertyRangeOrValueIterableBas
         private boolean hasNext;
         @NotNull
         private final ComparableBinding binding;
+        @NotNull
+        private final ArrayByteIterable valueBytes;
 
         private PropertyValueIterator(@NotNull final Cursor cursor) {
             super(PropertyValueIterable.this);
             setCursor(cursor);
             binding = getStore().getPropertyTypes().dataToPropertyValue(value).getBinding();
-            final ByteIterable key = binding.objectToEntry(value);
-            checkHasNext(getCursor().getSearchKey(key) != null);
+            valueBytes = binding.objectToEntry(value);
+            checkHasNext(getCursor().getSearchKey(valueBytes) != null);
         }
 
         @Override
@@ -192,7 +195,7 @@ public final class PropertyValueIterable extends PropertyRangeOrValueIterableBas
         }
 
         private void checkHasNext(final boolean success) {
-            hasNext = success && value.compareTo(binding.entryToObject(getCursor().getKey())) == 0;
+            hasNext = success && valueBytes.compareTo(getCursor().getKey()) == 0;
         }
     }
 }
