@@ -209,6 +209,8 @@ public final class PropertiesIterable extends EntityIterableBase {
         private final boolean ascending;
         private final ComparableBinding binding;
         @Nullable
+        private ByteIterable currentCursorKey;
+        @Nullable
         private Comparable currentValue;
 
         private PropertiesIterator(@NotNull final Cursor secondaryIndex,
@@ -244,7 +246,16 @@ public final class PropertiesIterable extends EntityIterableBase {
 
         @Override
         public boolean hasNextImpl() {
-            currentValue = hasNext ? binding.entryToObject(getCursor().getKey()) : null;
+            if (hasNext) {
+                final ByteIterable key = getCursor().getKey();
+                if (key != currentCursorKey) { // equality check to boost BTreeDup same-key access
+                    currentValue = binding.entryToObject(key);
+                    currentCursorKey = key;
+                }
+            } else {
+                currentValue = null;
+                currentCursorKey = null;
+            }
             return hasNext;
         }
 
