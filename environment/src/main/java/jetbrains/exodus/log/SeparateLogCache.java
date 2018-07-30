@@ -16,7 +16,6 @@
 package jetbrains.exodus.log;
 
 import jetbrains.exodus.ArrayByteIterable;
-import jetbrains.exodus.LogCacheThreadControl;
 import jetbrains.exodus.core.dataStructures.ConcurrentLongObjectCache;
 import jetbrains.exodus.core.dataStructures.LongObjectCache;
 import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
@@ -116,11 +115,9 @@ final class SeparateLogCache extends LogCache {
     }
 
     private void cachePage(final long cacheKey, @NotNull final byte[] pageArray) {
-        if (LogCacheThreadControl.INSTANCE.isCachingOn()) {
-            try (CriticalSection ignored = pagesCache.newCriticalSection()) {
-                if (pagesCache.getObject(cacheKey) == null) {
-                    pagesCache.cacheObject(cacheKey, postProcessTailPage(pageArray));
-                }
+        try (CriticalSection ignored = pagesCache.newCriticalSection()) {
+            if (pagesCache.getObject(cacheKey) == null) {
+                pagesCache.cacheObject(cacheKey, postProcessTailPage(pageArray));
             }
         }
     }
