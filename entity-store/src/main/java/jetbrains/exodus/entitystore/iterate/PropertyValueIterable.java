@@ -164,14 +164,12 @@ public final class PropertyValueIterable extends PropertyRangeOrValueIterableBas
 
         private boolean hasNext;
         @NotNull
-        private final ComparableBinding binding;
-        @NotNull
         private final ArrayByteIterable valueBytes;
 
         private PropertyValueIterator(@NotNull final Cursor cursor) {
             super(PropertyValueIterable.this);
             setCursor(cursor);
-            binding = getStore().getPropertyTypes().dataToPropertyValue(value).getBinding();
+            final ComparableBinding binding = getStore().getPropertyTypes().dataToPropertyValue(value).getBinding();
             valueBytes = binding.objectToEntry(value);
             checkHasNext(getCursor().getSearchKey(valueBytes) != null);
         }
