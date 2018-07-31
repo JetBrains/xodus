@@ -248,6 +248,28 @@ class SortTests : EntityStoreTestBase() {
         Assert.assertNull(it.currentValue())
     }
 
+    fun testPropertiesIteratorValueInterned() {
+        val txn = storeTransaction
+        repeat(10) {
+            txn.newEntity("Issue").setProperty("summary", "summary0")
+        }
+        repeat(10) {
+            txn.newEntity("Issue").setProperty("summary", "summary1")
+        }
+        txn.flush()
+        val it = txn.findWithPropSortedByValue("Issue", "summary").iterator() as PropertyValueIterator
+        var prev: Comparable<*>? = null
+        while (it.hasNext()) {
+            val currentValue = it.currentValue()
+            if (prev == currentValue) {
+                Assert.assertTrue(prev === currentValue)
+            } else {
+                prev = currentValue
+            }
+            it.next()
+        }
+    }
+
     fun testPropertiesIterableCachedWrapper() {
         val txn = storeTransaction
         txn.newEntity("Issue")
