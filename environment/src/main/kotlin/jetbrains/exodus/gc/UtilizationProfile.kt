@@ -336,13 +336,16 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
                         if (txn.highAddress == env.computeInReadonlyTransaction { tx -> tx.highAddress }) {
                             val log = up.log
                             for (storeName in env.getAllStoreNames(txn) + UTILIZATION_PROFILE_STORE_NAME) {
-                                val store = env.openStore(storeName, StoreConfig.USE_EXISTING, txn)
-                                val it = (txn as TransactionBase).getTree(store).addressIterator()
-                                while (it.hasNext()) {
-                                    val address = it.next()
-                                    val loggable = log.read(address)
-                                    val fileAddress = log.getFileAddress(address)
-                                    usedSpace[fileAddress] = (usedSpace[fileAddress] ?: 0L) + loggable.length().toLong()
+                                if (env.storeExists(storeName, txn)) {
+                                    val store = env.openStore(storeName, StoreConfig.USE_EXISTING, txn)
+                                    val it = (txn as TransactionBase).getTree(store).addressIterator()
+                                    while (it.hasNext()) {
+                                        val address = it.next()
+                                        val loggable = log.read(address)
+                                        val fileAddress = log.getFileAddress(address)
+                                        usedSpace[fileAddress] = (usedSpace[fileAddress]
+                                                ?: 0L) + loggable.length().toLong()
+                                    }
                                 }
                             }
                             goon = false
