@@ -30,6 +30,24 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
 
     private val entities: EntityIterableBase = (entities as EntityIterableBase).source
 
+    override fun intersect(right: EntityIterable): EntityIterable {
+        if (right is FilterLinksIterable) {
+            if (linkId == right.linkId && source === right.source) {
+                return FilterLinksIterable(transaction, linkId, source, entities.intersect(right.entities))
+            }
+        }
+        return super.intersect(right)
+    }
+
+    override fun union(right: EntityIterable): EntityIterable {
+        if (right is FilterLinksIterable) {
+            if (linkId == right.linkId && source === right.source) {
+                return FilterLinksIterable(transaction, linkId, source, entities.union(right.entities))
+            }
+        }
+        return super.union(right)
+    }
+
     override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
         return EntityIteratorFixingDecorator(this, object : EntityIteratorBase(this) {
 
