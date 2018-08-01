@@ -16,6 +16,7 @@
 package jetbrains.exodus.query
 
 import jetbrains.exodus.entitystore.Entity
+import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIdSetIterable
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.query.metadata.ModelMetaData
@@ -27,12 +28,15 @@ class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
 
     override fun instantiate(entityType: String, queryEngine: QueryEngine, metaData: ModelMetaData): Iterable<Entity> {
         if (!analyzed && depth >= Utils.reduceUnionsOfLinksDepth) {
-            val linkNames = hashSetOf<String>()
+            val linkNames = hashMapOf<String, EntityIdSetIterable>()
             val txn = queryEngine.persistentStore.andCheckCurrentTransaction
-            val ids = EntityIdSetIterable(txn)
-            if (isUnionOfLinks(linkNames, ids)) {
-                return queryEngine.adjustEntityIterable(
-                        (queryEngine.instantiateGetAll(txn, entityType) as EntityIterableBase).source.findLinks(ids, linkNames.first()))
+            if (isUnionOfLinks(txn, linkNames)) {
+                val all = (queryEngine.instantiateGetAll(txn, entityType) as EntityIterableBase).source
+                var result: Iterable<Entity> = EntityIterableBase.EMPTY
+                linkNames.forEach { linkName, ids ->
+                    result = queryEngine.adjustEntityIterable(result.union(all.findLinks(ids, linkName)))
+                }
+                return result
             }
         }
         return queryEngine.unionAdjusted(left.instantiate(entityType, queryEngine, metaData), right.instantiate(entityType, queryEngine, metaData))
@@ -57,27 +61,25 @@ class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
         return "or"
     }
 
-    private fun isUnionOfLinks(linkNames: MutableSet<String>, entityIdSet: EntityIdSetIterable): Boolean {
+    private fun isUnionOfLinks(txn: PersistentStoreTransaction, linkNames: MutableMap<String, EntityIdSetIterable>): Boolean {
         if (analyzed) return false
         analyzed = true
         val left = left
         if (left is Or) {
-            if (!left.isUnionOfLinks(linkNames, entityIdSet)) return false
+            if (!left.isUnionOfLinks(txn, linkNames)) return false
         } else if (left is LinkEqual) {
-            linkNames.add(left.name)
-            entityIdSet.addTarget(left.toId)
+            linkNames.computeIfAbsent(left.name) { EntityIdSetIterable(txn) }.addTarget(left.toId)
         } else {
             return false
         }
         val right = right
         if (right is Or) {
-            if (!right.isUnionOfLinks(linkNames, entityIdSet)) return false
+            if (!right.isUnionOfLinks(txn, linkNames)) return false
         } else if (right is LinkEqual) {
-            linkNames.add(right.name)
-            entityIdSet.addTarget(right.toId)
+            linkNames.computeIfAbsent(right.name) { EntityIdSetIterable(txn) }.addTarget(right.toId)
         } else {
             return false
         }
-        return linkNames.size == 1
+        return linkNames.isNotEmpty()
     }
 }
