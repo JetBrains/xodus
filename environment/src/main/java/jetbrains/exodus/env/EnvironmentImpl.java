@@ -1013,7 +1013,8 @@ public class EnvironmentImpl implements Environment {
 
     private void invalidateStoreGetCache() {
         final int storeGetCacheSize = ec.getEnvStoreGetCacheSize();
-        storeGetCache = storeGetCacheSize == 0 ? null : new StoreGetCache(storeGetCacheSize);
+        storeGetCache = storeGetCacheSize == 0 ? null :
+            new StoreGetCache(storeGetCacheSize, ec.getEnvStoreGetCacheMinTreeSize(), ec.getEnvStoreGetCacheMaxValueSize());
     }
 
     private static void applyEnvironmentSettings(@NotNull final String location,
@@ -1107,7 +1108,9 @@ public class EnvironmentImpl implements Environment {
 
         @Override
         public void afterSettingChanged(@NotNull String key, @NotNull Object value, @NotNull Map<String, Object> context) {
-            if (key.equals(EnvironmentConfig.ENV_STOREGET_CACHE_SIZE)) {
+            if (key.equals(EnvironmentConfig.ENV_STOREGET_CACHE_SIZE) ||
+                key.equals(EnvironmentConfig.ENV_STOREGET_CACHE_MIN_TREE_SIZE) ||
+                key.equals(EnvironmentConfig.ENV_STOREGET_CACHE_MAX_VALUE_SIZE)) {
                 invalidateStoreGetCache();
             } else if (key.equals(EnvironmentConfig.LOG_SYNC_PERIOD)) {
                 log.getConfig().setSyncPeriod(ec.getLogSyncPeriod());

@@ -17,7 +17,9 @@ package jetbrains.exodus.env;
 
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.core.dataStructures.ConcurrentLongObjectCache;
 import jetbrains.exodus.core.dataStructures.SoftConcurrentLongObjectCache;
+import jetbrains.exodus.core.execution.SharedTimer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -27,10 +29,36 @@ import org.jetbrains.annotations.Nullable;
  */
 class StoreGetCache {
 
-    private final SoftConcurrentLongObjectCache<ValueEntry> cache;
+    private static final int SINGLE_CHUNK_GENERATIONS = 4;
 
-    StoreGetCache(final int cacheSize) {
-        cache = new SoftConcurrentLongObjectCache<>(cacheSize);
+    private final SoftConcurrentLongObjectCache<ValueEntry> cache;
+    private final int minTreeSize;
+    private final int maxValueSize;
+
+    StoreGetCache(final int cacheSize, final int minTreeSize, final int maxValueSize) {
+        cache = new SoftConcurrentLongObjectCache<ValueEntry>(cacheSize) {
+            @NotNull
+            @Override
+            protected ConcurrentLongObjectCache<ValueEntry> newChunk(int chunkSize) {
+                return new ConcurrentLongObjectCache<ValueEntry>(chunkSize, SINGLE_CHUNK_GENERATIONS) {
+                    @Nullable
+                    @Override
+                    protected SharedTimer.ExpirablePeriodicTask getCacheAdjuster() {
+                        return null;
+                    }
+                };
+            }
+        };
+        this.minTreeSize = minTreeSize;
+        this.maxValueSize = maxValueSize;
+    }
+
+    int getMinTreeSize() {
+        return minTreeSize;
+    }
+
+    int getMaxValueSize() {
+        return maxValueSize;
     }
 
     void close() {
@@ -46,8 +74,9 @@ class StoreGetCache {
     }
 
     void cacheObject(final long treeRootAddress, @NotNull final ByteIterable key, @NotNull final ArrayByteIterable value) {
-        final int keyHashCode = key.hashCode();
-        cache.cacheObject(treeRootAddress ^ keyHashCode, new ValueEntry(treeRootAddress, keyHashCode, key, value));
+        final ArrayByteIterable keyCopy = key instanceof ArrayByteIterable ? (ArrayByteIterable) key : new ArrayByteIterable(key);
+        final int keyHashCode = keyCopy.hashCode();
+        cache.cacheObject(treeRootAddress ^ keyHashCode, new ValueEntry(treeRootAddress, keyHashCode, keyCopy, value));
     }
 
     float hitRate() {
@@ -60,13 +89,13 @@ class StoreGetCache {
         private final long treeRootAddress;
         private final int keyHashCode;
         @NotNull
-        private final ByteIterable key;
+        private final ArrayByteIterable key;
         @NotNull
         private final ArrayByteIterable value;
 
         ValueEntry(final long treeRootAddress,
                    final int keyHashCode,
-                   @NotNull final ByteIterable key,
+                   @NotNull final ArrayByteIterable key,
                    @NotNull final ArrayByteIterable value) {
             this.treeRootAddress = treeRootAddress;
             this.keyHashCode = keyHashCode;

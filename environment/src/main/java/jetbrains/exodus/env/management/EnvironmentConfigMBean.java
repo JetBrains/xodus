@@ -63,6 +63,14 @@ public interface EnvironmentConfigMBean {
 
     void setEnvStoreGetCacheSize(int storeGetCacheSize);
 
+    int getEnvStoreGetCacheMinTreeSize();
+
+    void setEnvStoreGetCacheMinTreeSize(int minTreeSize);
+
+    int getEnvStoreGetCacheMaxValueSize();
+
+    void setEnvStoreGetCacheMaxValueSize(int maxValueSize);
+
     boolean getEnvCloseForcedly();
 
     void setEnvCloseForcedly(boolean closeForcedly);

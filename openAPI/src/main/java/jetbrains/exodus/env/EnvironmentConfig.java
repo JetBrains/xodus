@@ -292,6 +292,10 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public static final String ENV_STOREGET_CACHE_SIZE = "exodus.env.storeGetCacheSize";
 
+    public static final String ENV_STOREGET_CACHE_MIN_TREE_SIZE = "exodus.env.storeGetCache.minTreeSize";
+
+    public static final String ENV_STOREGET_CACHE_MAX_VALUE_SIZE = "exodus.env.storeGetCache.maxValueSize";
+
     /**
      * If is set to {@code true} then {@linkplain Environment#close()} doest't check if there are unfinished
      * transactions. Otherwise it checks and throws {@linkplain ExodusException} if there are.
@@ -609,6 +613,8 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(ENV_IS_READONLY, false),
             new Pair(ENV_READONLY_EMPTY_STORES, false),
             new Pair(ENV_STOREGET_CACHE_SIZE, 0),
+            new Pair(ENV_STOREGET_CACHE_MIN_TREE_SIZE, 100000),
+            new Pair(ENV_STOREGET_CACHE_MAX_VALUE_SIZE, 100),
             new Pair(ENV_CLOSE_FORCEDLY, false),
             new Pair(ENV_TXN_REPLAY_TIMEOUT, 2000L),
             new Pair(ENV_TXN_REPLAY_MAX_COUNT, 2),
@@ -1312,6 +1318,28 @@ public class EnvironmentConfig extends AbstractConfig {
             throw new InvalidSettingException("Negative StoreGetCache size");
         }
         return setSetting(ENV_STOREGET_CACHE_SIZE, storeGetCacheSize);
+    }
+
+    public int getEnvStoreGetCacheMinTreeSize() {
+        return (Integer) getSetting(ENV_STOREGET_CACHE_MIN_TREE_SIZE);
+    }
+
+    public EnvironmentConfig setEnvStoreGetCacheMinTreeSize(final int treeSize) {
+        if (treeSize < 0) {
+            throw new InvalidSettingException("Negative tree size");
+        }
+        return setSetting(ENV_STOREGET_CACHE_MIN_TREE_SIZE, treeSize);
+    }
+
+    public int getEnvStoreGetCacheMaxValueSize() {
+        return (Integer) getSetting(ENV_STOREGET_CACHE_MAX_VALUE_SIZE);
+    }
+
+    public EnvironmentConfig setEnvStoreGetCacheMaxValueSize(final int valueSize) {
+        if (valueSize < 0) {
+            throw new InvalidSettingException("Negative value size");
+        }
+        return setSetting(ENV_STOREGET_CACHE_MAX_VALUE_SIZE, valueSize);
     }
 
     /**
