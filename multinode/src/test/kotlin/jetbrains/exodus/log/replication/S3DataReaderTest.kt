@@ -371,15 +371,7 @@ class S3DataReaderTest {
                     .bucket(bucket)
             return s3.listObjects(builder.build()).get()?.contents()
         }
-    private val isWindows: Boolean
-        get() {
-            return try {
-                FileChannel.open(sourceDir.toPath())
-                false
-            } catch (e: Exception) {
-                true
-            }
-        }
+    private val isWindows: Boolean get() = TestUtil.isWindowsDirectory(sourceDir)
 
     private fun getPartialFileName(address: Long): String {
         return String.format("%016x${LogUtil.LOG_FILE_EXTENSION}", address)

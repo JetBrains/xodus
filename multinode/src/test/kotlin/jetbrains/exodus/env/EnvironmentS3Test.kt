@@ -15,6 +15,10 @@
  */
 package jetbrains.exodus.env
 
+import com.amazonaws.auth.AWSStaticCredentialsProvider
+import com.amazonaws.auth.AnonymousAWSCredentials
+import com.amazonaws.client.builder.AwsClientBuilder
+import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import io.findify.s3mock.S3Mock
 import jetbrains.exodus.core.dataStructures.Pair
 import jetbrains.exodus.io.DataReader
@@ -31,16 +35,9 @@ import software.amazon.awssdk.http.nio.netty.NettySdkHttpClientFactory
 import software.amazon.awssdk.services.s3.S3AdvancedConfiguration
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import software.amazon.awssdk.services.s3.S3Client
-import software.amazon.awssdk.services.s3.model.CreateBucketRequest
 import java.io.File
 import java.net.URI
 import java.time.Duration
-import com.amazonaws.auth.AnonymousAWSCredentials
-import com.amazonaws.auth.AWSStaticCredentialsProvider
-import com.amazonaws.client.builder.AwsClientBuilder
-import com.amazonaws.services.s3.AmazonS3ClientBuilder
-import com.amazonaws.services.s3.AmazonS3Client
-
 
 
 class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {

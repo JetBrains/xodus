@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2018 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,6 +21,7 @@ import org.junit.Assert;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.channels.FileChannel;
 
 public class TestUtil {
 
@@ -89,5 +90,17 @@ public class TestUtil {
                 s2.close();
             }
         }
+    }
+
+    // detects if a directory is on a Windows filesystem even if is run in Docker
+    public static boolean isWindowsDirectory(@NotNull final File directory) {
+        try {
+            if (directory.isDirectory()) {
+                FileChannel.open(directory.toPath()).force(false);
+                return true;
+            }
+        } catch (Exception ignore) {
+        }
+        return false;
     }
 }
