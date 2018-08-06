@@ -20,8 +20,8 @@ import jetbrains.exodus.core.dataStructures.persistent.PersistentBitTreeLongMap
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLongMap
 import jetbrains.exodus.io.Block
 
-// file key is aligned file address, i.e. file address divided by fileSize
-sealed class LogFileSet(val fileSize: Long, val set: PersistentLongMap<Block>) {
+// block key is aligned block address, i.e. block address divided by blockSize
+sealed class BlockSet(val blockSize: Long, val set: PersistentLongMap<Block>) {
     protected abstract val current: PersistentLongMap.ImmutableMap<Block>
 
     fun size() = current.size()
@@ -33,7 +33,7 @@ sealed class LogFileSet(val fileSize: Long, val set: PersistentLongMap<Block>) {
     val maximum: Long? get() = current.reverseIterator().let { if (it.hasNext()) it.next().key.keyToAddress else null }
 
     /**
-     * Array of files' addresses in reverse order: the newer files first
+     * Array of blocks' addresses in reverse order: the newer blocks first
      */
     val array: LongArray
         get() = getFiles(reversed = true)
@@ -53,13 +53,13 @@ sealed class LogFileSet(val fileSize: Long, val set: PersistentLongMap<Block>) {
         return result
     }
 
-    fun contains(fileAddress: Long) = current.containsKey(fileAddress.addressToKey)
+    fun contains(blockAddress: Long) = current.containsKey(blockAddress.addressToKey)
 
-    fun getBlock(fileAddress: Long): Block = current.get(fileAddress.addressToKey) ?: EmptyBlock(fileAddress)
+    fun getBlock(blockAddress: Long): Block = current.get(blockAddress.addressToKey) ?: EmptyBlock(blockAddress)
 
-    // if address is inside of a file, the file containing it must be included as well if present
-    fun getFilesFrom(fileAddress: Long = 0L): LongIterator = object : LongIterator {
-        val it = if (fileAddress == 0L) current.iterator() else current.tailEntryIterator(fileAddress.addressToKey)
+    // if address is inside of a block, the block containing it must be included as well if present
+    fun getFilesFrom(blockAddress: Long = 0L): LongIterator = object : LongIterator {
+        val it = if (blockAddress == 0L) current.iterator() else current.tailEntryIterator(blockAddress.addressToKey)
 
         override fun next() = nextLong()
 
@@ -70,23 +70,23 @@ sealed class LogFileSet(val fileSize: Long, val set: PersistentLongMap<Block>) {
         override fun remove() = throw UnsupportedOperationException()
     }
 
-    fun beginWrite() = Mutable(fileSize, set.clone)
+    fun beginWrite() = Mutable(blockSize, set.clone)
 
-    protected val Long.keyToAddress: Long get() = this * fileSize
+    protected val Long.keyToAddress: Long get() = this * blockSize
 
-    protected val Long.addressToKey: Long get() = this / fileSize
+    protected val Long.addressToKey: Long get() = this / blockSize
 
     class Immutable @JvmOverloads constructor(
-            fileSize: Long,
+            blockSize: Long,
             map: PersistentLongMap<Block> = PersistentBitTreeLongMap()
-    ) : LogFileSet(fileSize, map) {
+    ) : BlockSet(blockSize, map) {
         private val immutable: PersistentLongMap.ImmutableMap<Block> = map.beginRead()
 
         public override val current: PersistentLongMap.ImmutableMap<Block>
             get() = immutable
     }
 
-    class Mutable(fileSize: Long, map: PersistentLongMap<Block>) : LogFileSet(fileSize, map) {
+    class Mutable(blockSize: Long, map: PersistentLongMap<Block>) : BlockSet(blockSize, map) {
         private val mutable: PersistentLongMap.MutableMap<Block> = set.beginWrite()
 
         override val current: PersistentLongMap.ImmutableMap<Block>
@@ -94,15 +94,15 @@ sealed class LogFileSet(val fileSize: Long, val set: PersistentLongMap<Block>) {
 
         fun clear() = mutable.clear()
 
-        fun add(fileAddress: Long, block: Block) = mutable.put(fileAddress.addressToKey, block)
+        fun add(blockAddress: Long, block: Block) = mutable.put(blockAddress.addressToKey, block)
 
-        fun remove(fileAddress: Long) = mutable.remove(fileAddress.addressToKey) != null
+        fun remove(blockAddress: Long) = mutable.remove(blockAddress.addressToKey) != null
 
         fun endWrite(): Immutable {
             if (!mutable.endWrite()) {
                 throw IllegalStateException("File set can't be updated")
             }
-            return Immutable(fileSize, set.clone)
+            return Immutable(blockSize, set.clone)
         }
     }
 

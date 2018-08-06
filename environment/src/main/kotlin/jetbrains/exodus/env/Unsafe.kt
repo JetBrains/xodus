@@ -85,7 +85,7 @@ private fun EnvironmentImpl.tryUpdateUnsafe(): Boolean {
 
 // advance to some root loggable
 private fun Log.tryUpdate(tip: LogTip): Pair<DatabaseRoot, LogTip>? {
-    val fileSet = tip.fileSetCopy
+    val blockSet = tip.blockSetCopy
     val addedBlocks = config.reader.getBlocks(getFileAddress(tip.highAddress))
     val itr = addedBlocks.iterator()
     if (!itr.hasNext()) {
@@ -94,7 +94,7 @@ private fun Log.tryUpdate(tip: LogTip): Pair<DatabaseRoot, LogTip>? {
     val lastBlock: Block
     while (true) {
         val block = itr.next()
-        fileSet.add(block.address, block)
+        blockSet.add(block.address, block)
         if (!itr.hasNext()) {
             lastBlock = block
             break
@@ -102,10 +102,10 @@ private fun Log.tryUpdate(tip: LogTip): Pair<DatabaseRoot, LogTip>? {
     }
     // create loggable
     // update "last page"
-    return tryUpdate(this, lastBlock, tip, fileSet)
+    return tryUpdate(this, lastBlock, tip, blockSet)
 }
 
-private fun tryUpdate(log: Log, lastBlock: Block, tip: LogTip, fileSet: LogFileSet.Mutable): Pair<DatabaseRoot, LogTip>? {
+private fun tryUpdate(log: Log, lastBlock: Block, tip: LogTip, blockSet: BlockSet.Mutable): Pair<DatabaseRoot, LogTip>? {
     val lastBlockAddress = lastBlock.address
     val highAddress = lastBlockAddress + lastBlock.length()
     val startAddress = maxOf(tip.highAddress, lastBlockAddress)
@@ -144,7 +144,7 @@ private fun tryUpdate(log: Log, lastBlock: Block, tip: LogTip, fileSet: LogFileS
         return null
     }
     return lastRoot to with(dataIterator) {
-        LogTip(lastPage, lastPageAddress, lastPageCount, highAddress, highAddress, fileSet.endWrite())
+        LogTip(lastPage, lastPageAddress, lastPageCount, highAddress, highAddress, blockSet.endWrite())
     }
 }
 

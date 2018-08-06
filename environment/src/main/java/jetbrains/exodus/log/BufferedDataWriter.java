@@ -43,7 +43,7 @@ public class BufferedDataWriter {
     private final long cipherBasicIV;
     private final int pageSize;
     @NotNull
-    private final LogFileSet.Mutable fileSetMutable;
+    private final BlockSet.Mutable blockSetMutable;
 
     // mutable state
     @NotNull
@@ -56,7 +56,7 @@ public class BufferedDataWriter {
                        @NotNull final LogTip page) {
         this.log = log;
         logCache = log.cache;
-        this.fileSetMutable = page.logFileSet.beginWrite();
+        this.blockSetMutable = page.blockSet.beginWrite();
         this.initialPage = page;
         this.child = child;
         this.highAddress = page.highAddress;
@@ -77,8 +77,8 @@ public class BufferedDataWriter {
     }
 
     @NotNull
-    public LogFileSet.Mutable getFileSetMutable() {
-        return fileSetMutable;
+    public BlockSet.Mutable getBlockSetMutable() {
+        return blockSetMutable;
     }
 
     public void setHighAddress(long highAddress) {
@@ -217,8 +217,8 @@ public class BufferedDataWriter {
     @NotNull
     LogTip getUpdatedTip() {
         final MutablePage currentPage = this.currentPage;
-        final LogFileSet.Immutable fileSetImmutable = fileSetMutable.endWrite();
-        return new LogTip(currentPage.bytes, currentPage.pageAddress, currentPage.committedCount, highAddress, highAddress, fileSetImmutable);
+        final BlockSet.Immutable blockSetImmutable = blockSetMutable.endWrite();
+        return new LogTip(currentPage.bytes, currentPage.pageAddress, currentPage.committedCount, highAddress, highAddress, blockSetImmutable);
     }
 
     byte getByte(long address, byte max) {
@@ -235,13 +235,13 @@ public class BufferedDataWriter {
 
         // slow path: unconfirmed file saved to disk, read byte from it
         final long fileAddress = log.getFileAddress(address);
-        if (!fileSetMutable.contains(fileAddress)) {
+        if (!blockSetMutable.contains(fileAddress)) {
             BlockNotFoundException.raise("Address is out of log space, underflow", log, address);
         }
 
         final byte[] output = new byte[pageSize];
 
-        final Block block = fileSetMutable.getBlock(fileAddress);
+        final Block block = blockSetMutable.getBlock(fileAddress);
 
         final int readBytes = block.read(output, pageAddress - fileAddress, 0, output.length);
 

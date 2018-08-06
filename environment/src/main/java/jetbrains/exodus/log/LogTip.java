@@ -32,7 +32,7 @@ public class LogTip {
     public final long approvedHighAddress;
 
     @NotNull
-    final LogFileSet.Immutable logFileSet;
+    final BlockSet.Immutable blockSet;
 
     @Nullable
     private Iterable<Block> cachedBlocks;
@@ -48,37 +48,37 @@ public class LogTip {
         this.pageAddress = pageAddress;
         this.count = -1;
         this.highAddress = this.approvedHighAddress = highAddress;
-        this.logFileSet = new LogFileSet.Immutable(fileLengthBound); // no files
+        this.blockSet = new BlockSet.Immutable(fileLengthBound); // no files
     }
 
     // non-empty
-    public LogTip(@NotNull byte[] bytes, long pageAddress, int count, long highAddress, long approvedHighAddress, @NotNull final LogFileSet.Immutable logFileSet) {
+    public LogTip(@NotNull byte[] bytes, long pageAddress, int count, long highAddress, long approvedHighAddress, @NotNull final BlockSet.Immutable blockSet) {
         this.bytes = bytes;
         this.pageAddress = pageAddress;
         this.count = count;
         this.highAddress = highAddress;
         this.approvedHighAddress = approvedHighAddress;
-        this.logFileSet = logFileSet;
+        this.blockSet = blockSet;
     }
 
     LogTip withApprovedAddress(long updatedApprovedHighAddress) {
-        return new LogTip(bytes, pageAddress, count, highAddress, updatedApprovedHighAddress, logFileSet);
+        return new LogTip(bytes, pageAddress, count, highAddress, updatedApprovedHighAddress, blockSet);
     }
 
-    LogTip withResize(int updatedCount, long updatedHighAddress, long updatedApprovedHighAddress, @NotNull final LogFileSet.Immutable logFileSet) {
-        return new LogTip(bytes, pageAddress, updatedCount, updatedHighAddress, updatedApprovedHighAddress, logFileSet);
+    LogTip withResize(int updatedCount, long updatedHighAddress, long updatedApprovedHighAddress, @NotNull final BlockSet.Immutable blockSet) {
+        return new LogTip(bytes, pageAddress, updatedCount, updatedHighAddress, updatedApprovedHighAddress, blockSet);
     }
 
     public long[] getAllFiles() {
-        return logFileSet.getFiles();
+        return blockSet.getFiles();
     }
 
-    public LogFileSet.Mutable getFileSetCopy() {
-        return logFileSet.beginWrite();
+    public BlockSet.Mutable getBlockSetCopy() {
+        return blockSet.beginWrite();
     }
 
     public LongIterator getFilesFrom(final long highAddress) {
-        return logFileSet.getFilesFrom(highAddress);
+        return blockSet.getFilesFrom(highAddress);
     }
 
     @Nullable
