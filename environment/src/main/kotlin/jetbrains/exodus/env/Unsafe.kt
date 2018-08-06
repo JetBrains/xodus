@@ -94,7 +94,7 @@ private fun Log.tryUpdate(tip: LogTip): Pair<DatabaseRoot, LogTip>? {
     val lastBlock: Block
     while (true) {
         val block = itr.next()
-        fileSet.add(block.address)
+        fileSet.add(block.address, block)
         if (!itr.hasNext()) {
             lastBlock = block
             break

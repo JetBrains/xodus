@@ -209,7 +209,7 @@ public final class Log implements Closeable {
                 writer.clear();
                 break;
             }
-            fileSetMutable.add(address);
+            fileSetMutable.add(address, block);
         } while (hasNext);
     }
 
@@ -1043,10 +1043,10 @@ public final class Log implements Closeable {
 
         if (!this.writer.isOpen()) {
             final long fileAddress = getFileAddress(result);
-            writer.openOrCreateBlock(fileAddress, writer.getLastWrittenFileLength(fileLengthBound));
+            final Block block = writer.openOrCreateBlock(fileAddress, writer.getLastWrittenFileLength(fileLengthBound));
             final boolean fileCreated = !writer.getFileSetMutable().contains(fileAddress);
             if (fileCreated) {
-                writer.getFileSetMutable().add(fileAddress);
+                writer.getFileSetMutable().add(fileAddress, block);
             }
             if (fileCreated) {
                 // fsync the directory to ensure we will find the log file in the directory after system crash

@@ -55,23 +55,6 @@ class S3DataReader(override val s3: S3AsyncClient,
 
     override fun getBlock(address: Long): Block {
         logger.debug { "Get block at ${LogUtil.getLogFilename(address)}" }
-        return blocks.firstOrNull { it.address == address } ?: InMemoryBlock(address)
-    }
-
-    internal inner class InMemoryBlock(private val address: Long) : Block {
-        override fun getAddress() = address
-
-        override fun length() = 0L
-
-        override fun read(output: ByteArray, position: Long, offset: Int, count: Int): Int {
-            if (count > 0) {
-                writer.currentFile.get()?.let { memory ->
-                    if (memory.blockAddress == address) {
-                        return memory.read(output, position, 0, count, offset)
-                    }
-                }
-            }
-            return 0
-        }
+        return blocks.firstOrNull { it.address == address } ?: S3DataWriter.InMemoryBlock(address, writer)
     }
 }

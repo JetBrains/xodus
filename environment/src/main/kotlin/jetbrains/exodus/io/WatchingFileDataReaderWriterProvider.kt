@@ -22,6 +22,6 @@ class WatchingFileDataReaderWriterProvider : FileDataReaderWriterProvider() {
     override fun newFileDataReader(location: String) =
             WatchingFileDataReader({ env }, super.newFileDataReader(location) as FileDataReader)
 
-    override fun newFileDataWriter(location: String) =
-            WatchingFileDataWriter(checkDirectory(location), env?.environmentConfig?.logLockId)
+    override fun newFileDataWriter(location: String, reader: DataReader) =
+            WatchingFileDataWriter(checkDirectory(location), (reader as WatchingFileDataReader).fileDataReader, env?.environmentConfig?.logLockId)
 }

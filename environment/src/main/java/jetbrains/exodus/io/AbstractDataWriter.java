@@ -54,12 +54,13 @@ public abstract class AbstractDataWriter implements DataWriter {
     }
 
     @Override
-    public final void openOrCreateBlock(final long address, final long length) {
+    public final Block openOrCreateBlock(final long address, final long length) {
         if (open) {
             throw new IllegalStateException("Can't create blocks with open data writer");
         } else {
-            openOrCreateBlockImpl(address, length);
+            final Block result = openOrCreateBlockImpl(address, length);
             open = true;
+            return result;
         }
     }
 
@@ -69,6 +70,6 @@ public abstract class AbstractDataWriter implements DataWriter {
 
     protected abstract void clearImpl();
 
-    protected abstract void openOrCreateBlockImpl(final long address, final long length);
+    protected abstract Block openOrCreateBlockImpl(final long address, final long length);
 
 }

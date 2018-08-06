@@ -190,8 +190,8 @@ public class BufferedDataWriter {
         }
     }
 
-    void openOrCreateBlock(long address, long length) {
-        child.openOrCreateBlock(address, length);
+    Block openOrCreateBlock(long address, long length) {
+        return child.openOrCreateBlock(address, length);
     }
 
     long getHighAddress() {
