@@ -107,16 +107,6 @@ class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {
                 .credentialsProvider(AnonymousCredentialsProvider.create())
                 .build()
 
-        // can't create bucket with async client
-        val client = AmazonS3ClientBuilder
-                .standard()
-                .withPathStyleAccessEnabled(true)
-                .withEndpointConfiguration(AwsClientBuilder.EndpointConfiguration("http://$host:$port", "us-west-2"))
-                .withCredentials(AWSStaticCredentialsProvider(AnonymousAWSCredentials()))
-                .build()
-        client.also {
-            client.createBucket("logfiles")
-            client.shutdown()
-        }
+        s3Sync.createBucket(CreateBucketRequest.builder().bucket("logfiles").build())
     }
 }
