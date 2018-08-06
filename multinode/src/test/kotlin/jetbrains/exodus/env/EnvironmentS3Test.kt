@@ -22,7 +22,6 @@ import jetbrains.exodus.io.DataWriter
 import jetbrains.exodus.log.ReplicatedLogTestMixin
 import jetbrains.exodus.log.replication.S3DataReaderWriterProvider
 import mu.KLogging
-import org.junit.Ignore
 import software.amazon.awssdk.core.AwsRequestOverrideConfig
 import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
 import software.amazon.awssdk.core.client.builder.ClientAsyncHttpConfiguration
@@ -36,7 +35,6 @@ import java.io.File
 import java.net.URI
 import java.time.Duration
 
-@Ignore
 class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {
     companion object : KLogging() {
         const val host = "127.0.0.1"
