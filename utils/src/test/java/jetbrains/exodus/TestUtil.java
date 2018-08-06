@@ -91,16 +91,4 @@ public class TestUtil {
             }
         }
     }
-
-    // detects if a directory is on a Windows filesystem even if is run in Docker
-    public static boolean isWindowsDirectory(@NotNull final File directory) {
-        try {
-            if (directory.isDirectory()) {
-                FileChannel.open(directory.toPath()).force(false);
-                return true;
-            }
-        } catch (Exception ignore) {
-        }
-        return false;
-    }
 }
