@@ -157,7 +157,6 @@ class S3DataReaderTest {
 
     @Test
     fun `should delete files on clear`() {
-//        assumeFalse(isWindows)
         newXdObject(0)
         newFolderObject(1, 100)
         with(newReader()) {
@@ -168,8 +167,6 @@ class S3DataReaderTest {
 
     @Test
     fun `should delete files and folder for deleting blocks`() {
-//        assumeFalse(isWindows)
-
         newXdObject(0)
         newXdObject(1)
         newFolderObject(1)
@@ -181,8 +178,6 @@ class S3DataReaderTest {
 
     @Test
     fun `should rename files and folder for renaming blocks`() {
-//        assumeFalse(isWindows)
-
         newXdObject(0)
         newXdObject(1)
         newFolderObject(1)
@@ -195,8 +190,6 @@ class S3DataReaderTest {
 
     @Test
     fun `should truncate files and folder`() {
-//        assumeFalse(isWindows)
-
         val file0 = newXdObject(0)
         val file1 = newXdObject(1)
         var file2: String? = null
@@ -369,7 +362,6 @@ class S3DataReaderTest {
                     .bucket(bucket)
             return s3.listObjects(builder.build()).get()?.contents()
         }
-//    private val isWindows: Boolean get() = TestUtil.isWindowsDirectory(sourceDir)
 
     private fun getPartialFileName(address: Long): String {
         return String.format("%016x${LogUtil.LOG_FILE_EXTENSION}", address)
