@@ -125,7 +125,7 @@ public final class Log implements Closeable {
         if (lastFileAddress == null) {
             tip = new AtomicReference<>(new LogTip(fileLengthBound));
         } else {
-            final long currentHighAddress = lastFileAddress + reader.getBlock(lastFileAddress).length();
+            final long currentHighAddress = lastFileAddress + fileSetMutable.getBlock(lastFileAddress).length();
             final long highPageAddress = getHighPageAddress(currentHighAddress);
             final byte[] highPageContent = new byte[cachePageSize];
             final LogTip tmpTip = new LogTip(highPageContent, highPageAddress, cachePageSize, currentHighAddress, currentHighAddress, fileSetImmutable);
@@ -336,7 +336,7 @@ public final class Log implements Closeable {
     }
 
     public LogTip beginWrite() {
-        BufferedDataWriter writer = new BufferedDataWriter(this, this.writer, reader, getTip());
+        BufferedDataWriter writer = new BufferedDataWriter(this, this.writer, getTip());
         this.bufferedWriter = writer;
         return writer.getStartingTip();
     }
@@ -871,7 +871,7 @@ public final class Log implements Closeable {
             final long leftBound = files.nextLong();
             final long fileSize = getFileSize(leftBound, logTip);
             if (leftBound == fileAddress && fileAddress + fileSize > address) {
-                final Block block = reader.getBlock(fileAddress);
+                final Block block = logTip.logFileSet.getBlock(fileAddress);
                 final int readBytes = block.read(output, address - fileAddress, 0, output.length);
                 final StreamCipherProvider cipherProvider = config.getCipherProvider();
                 if (cipherProvider != null) {
@@ -1066,9 +1066,10 @@ public final class Log implements Closeable {
 
             this.writer.close();
             if (config.isFullFileReadonly()) {
-                final Long lastFile = writer.getFileSetMutable().getMaximum();
+                final LogFileSet.Mutable fileSet = writer.getFileSetMutable();
+                final Long lastFile = fileSet.getMaximum();
                 if (lastFile != null) {
-                    final Block block = reader.getBlock(lastFile);
+                    final Block block = fileSet.getBlock(lastFile);
                     final long length = block.length();
                     if (length < fileLengthBound) {
                         throw new IllegalStateException("File's too short (" + LogUtil.getLogFilename(lastFile) + "), block.length() = " + length + ", fileLengthBound = " + fileLengthBound);

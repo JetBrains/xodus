@@ -20,7 +20,6 @@ import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.crypto.EnvKryptKt;
 import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.io.Block;
-import jetbrains.exodus.io.DataReader;
 import jetbrains.exodus.io.DataWriter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -36,8 +35,6 @@ public class BufferedDataWriter {
     private final LogCache logCache;
     @NotNull
     private final DataWriter child;
-    @NotNull
-    private final DataReader reader;
     @NotNull
     private final LogTip initialPage;
     @Nullable
@@ -56,14 +53,12 @@ public class BufferedDataWriter {
 
     BufferedDataWriter(@NotNull final Log log,
                        @NotNull final DataWriter child,
-                       @NotNull final DataReader reader,
                        @NotNull final LogTip page) {
         this.log = log;
         logCache = log.cache;
         this.fileSetMutable = page.logFileSet.beginWrite();
         this.initialPage = page;
         this.child = child;
-        this.reader = reader;
         this.highAddress = page.highAddress;
         final boolean validInitialPage = page.count >= 0;
         pageSize = log.getCachePageSize();
@@ -246,7 +241,8 @@ public class BufferedDataWriter {
 
         final byte[] output = new byte[pageSize];
 
-        final Block block = reader.getBlock(fileAddress);
+        final Block block = fileSetMutable.getBlock(fileAddress);
+
         final int readBytes = block.read(output, pageAddress - fileAddress, 0, output.length);
 
         if (readBytes < offset) {

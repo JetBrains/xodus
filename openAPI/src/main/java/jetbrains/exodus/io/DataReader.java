@@ -23,6 +23,7 @@ public interface DataReader {
     @NotNull
     String getLocation();
 
+    @Deprecated
     @NotNull
     Block getBlock(long address);
 

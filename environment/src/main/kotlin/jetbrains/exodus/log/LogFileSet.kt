@@ -16,7 +16,8 @@
 package jetbrains.exodus.log
 
 import jetbrains.exodus.core.dataStructures.hash.LongIterator
-import jetbrains.exodus.core.dataStructures.persistent.*
+import jetbrains.exodus.core.dataStructures.persistent.PersistentBitTreeLongMap
+import jetbrains.exodus.core.dataStructures.persistent.PersistentLongMap
 import jetbrains.exodus.io.Block
 
 // file key is aligned file address, i.e. file address divided by fileSize
@@ -53,6 +54,8 @@ sealed class LogFileSet(val fileSize: Long, val set: PersistentLongMap<Block>) {
     }
 
     fun contains(fileAddress: Long) = current.containsKey(fileAddress.addressToKey)
+
+    fun getBlock(fileAddress: Long): Block = current.get(fileAddress.addressToKey) ?: EmptyBlock(fileAddress)
 
     // if address is inside of a file, the file containing it must be included as well if present
     fun getFilesFrom(fileAddress: Long = 0L): LongIterator = object : LongIterator {
@@ -101,5 +104,13 @@ sealed class LogFileSet(val fileSize: Long, val set: PersistentLongMap<Block>) {
             }
             return Immutable(fileSize, set.clone)
         }
+    }
+
+    private inner class EmptyBlock(private val address: Long) : Block {
+        override fun getAddress() = address
+
+        override fun length() = 0L
+
+        override fun read(output: ByteArray, position: Long, offset: Int, count: Int) = 0
     }
 }

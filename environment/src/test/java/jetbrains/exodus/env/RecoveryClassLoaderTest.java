@@ -104,7 +104,7 @@ public class RecoveryClassLoaderTest {
             // assertLoggableTypes(log.getLoggablesIterator(0), SEQ);
             env.close();
 
-            final long size = cfg.getReader().getBlock(0).length();
+            final long size = cfg.getReader().getBlocks(0).iterator().next().length();
             cfg.getWriter().openOrCreateBlock(0, size - 5);
             cfg.getWriter().close();
         }
