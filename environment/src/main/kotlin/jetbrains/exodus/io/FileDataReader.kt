@@ -63,10 +63,6 @@ class FileDataReader(val dir: File) : DataReader, KLogging() {
         return dir.path
     }
 
-    override fun getBlock(address: Long): Block {
-        return FileBlock(address, this)
-    }
-
     internal fun useNio(freePhysicalMemoryThreshold: Long) {
         useNio = true
         SharedMappedFilesCache.createInstance(freePhysicalMemoryThreshold)

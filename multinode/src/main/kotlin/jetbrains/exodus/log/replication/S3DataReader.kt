@@ -53,8 +53,8 @@ class S3DataReader(override val s3: S3AsyncClient,
 
     override fun close() = s3.close()
 
-    override fun getBlock(address: Long): Block {
-        logger.debug { "Get block at ${LogUtil.getLogFilename(address)}" }
+    // for tests only
+    internal fun getBlock(address: Long): Block {
         return blocks.firstOrNull { it.address == address } ?: S3DataWriter.InMemoryBlock(address, writer)
     }
 }

@@ -41,8 +41,6 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?, inte
 
     override fun getLocation() = fileDataReader.location
 
-    override fun getBlock(address: Long) = fileDataReader.getBlock(address)
-
     override fun getBlocks() = fileDataReader.blocks
 
     override fun getBlocks(fromAddress: Long) = fileDataReader.getBlocks(fromAddress)

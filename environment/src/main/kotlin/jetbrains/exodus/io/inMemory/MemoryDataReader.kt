@@ -43,8 +43,6 @@ open class MemoryDataReader(private val memory: Memory) : DataReader, KLogging()
 
     override fun getLocation() = memory.toString()
 
-    override fun getBlock(address: Long): Block = MemoryBlock(memory.getBlockData(address))
-
     private class MemoryBlock constructor(private val data: Memory.Block) : Block {
 
         override fun getAddress(): Long {
