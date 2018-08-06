@@ -31,9 +31,17 @@ import software.amazon.awssdk.http.nio.netty.NettySdkHttpClientFactory
 import software.amazon.awssdk.services.s3.S3AdvancedConfiguration
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.model.CreateBucketRequest
 import java.io.File
 import java.net.URI
 import java.time.Duration
+import com.amazonaws.auth.AnonymousAWSCredentials
+import com.amazonaws.auth.AWSStaticCredentialsProvider
+import com.amazonaws.client.builder.AwsClientBuilder
+import com.amazonaws.services.s3.AmazonS3ClientBuilder
+import com.amazonaws.services.s3.AmazonS3Client
+
+
 
 class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {
     companion object : KLogging() {
@@ -78,7 +86,7 @@ class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {
     }
 
     private fun initMocks() {
-        api = S3Mock.Builder().withPort(0).withFileBackend(logDir.parentFile.absolutePath).build()
+        api = S3Mock.Builder().withPort(0).withInMemoryBackend().build()
         val port = api.start().localAddress().port
 
         httpClient = NettySdkHttpClientFactory.builder().readTimeout(Duration.ofSeconds(4)).build().createHttpClient()
@@ -101,5 +109,17 @@ class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {
                 .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build())
                 .credentialsProvider(AnonymousCredentialsProvider.create())
                 .build()
+
+        // can't create bucket with async client
+        val client = AmazonS3ClientBuilder
+                .standard()
+                .withPathStyleAccessEnabled(true)
+                .withEndpointConfiguration(AwsClientBuilder.EndpointConfiguration("http://$host:$port", "us-west-2"))
+                .withCredentials(AWSStaticCredentialsProvider(AnonymousAWSCredentials()))
+                .build()
+        client.also {
+            client.createBucket("logfiles")
+            client.shutdown()
+        }
     }
 }
