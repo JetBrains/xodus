@@ -73,7 +73,7 @@ internal class S3SubBlock(s3factory: S3FactoryBoilerplate,
                           size: Long,
                           private val parentAddress: Long) : BasicS3Block(s3factory, address, size) {
     override val key: String
-        get() = S3DataWriter.getPartialFolderPrefix(parentAddress) + S3DataWriter.getPartialFileName(_address)
+        get() = getPartialFolderPrefix(parentAddress) + getPartialFileName(_address)
 }
 
 internal class S3FolderBlock(private val _address: Long,

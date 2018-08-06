@@ -20,7 +20,6 @@ import jetbrains.exodus.io.AbstractDataWriter
 import jetbrains.exodus.io.RemoveBlockType
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogTip
-import jetbrains.exodus.log.LogUtil
 import mu.KLogging
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
@@ -41,16 +40,7 @@ class S3DataWriter(private val s3Sync: S3Client,
                    override val requestOverrideConfig: AwsRequestOverrideConfig? = null,
                    private val log: Log? = null
 ) : S3DataReaderOrWriter, AbstractDataWriter() {
-
-    companion object : KLogging() {
-        internal fun getPartialFileName(address: Long): String {
-            return String.format("%016x${LogUtil.LOG_FILE_EXTENSION}", address)
-        }
-
-        internal fun getPartialFolderPrefix(blockAddress: Long): String {
-            return "_${LogUtil.getLogFilename(blockAddress).replace(LogUtil.LOG_FILE_EXTENSION, "")}/"
-        }
-    }
+    companion object : KLogging()
 
     override val currentFile = AtomicReference<CurrentFile>()
 
