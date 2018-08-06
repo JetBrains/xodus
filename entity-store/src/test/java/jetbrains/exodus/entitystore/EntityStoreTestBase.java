@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.TestUtil;
+import jetbrains.exodus.log.Log;
 import jetbrains.exodus.util.IOUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -49,6 +50,7 @@ public abstract class EntityStoreTestBase extends TestBase {
 
     @Override
     protected void setUp() throws Exception {
+        Log.invalidateSharedCache();
         isPartiallyTornDown = false;
         shouldCleanopOnTearDown = true;
         openStore();

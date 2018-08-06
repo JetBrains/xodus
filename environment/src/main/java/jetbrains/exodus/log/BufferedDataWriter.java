@@ -153,12 +153,14 @@ public class BufferedDataWriter {
                 final byte[] bytes = mutablePage.bytes;
                 final int off = mutablePage.flushedCount;
                 final int len = pageSize - off;
+                final long pageAddress = mutablePage.pageAddress;
                 if (cipherProvider == null) {
-                    child.write(bytes, off, len);
+                    writePage(bytes, off, len);
                 } else {
-                    child.write(EnvKryptKt.cryptBlocksImmutable(cipherProvider, cipherKey, cipherBasicIV,
-                            mutablePage.pageAddress, bytes, off, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
+                    writePage(EnvKryptKt.cryptBlocksImmutable(cipherProvider, cipherKey, cipherBasicIV,
+                            pageAddress, bytes, off, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
                 }
+                cachePage(bytes, pageAddress);
             }
             currentPage.previousPage = null;
         }
@@ -174,11 +176,15 @@ public class BufferedDataWriter {
         if (committedCount > flushedCount) {
             final byte[] bytes = currentPage.bytes;
             final int len = committedCount - flushedCount;
+            final long pageAddress = currentPage.pageAddress;
             if (cipherProvider == null) {
-                child.write(bytes, flushedCount, len);
+                writePage(bytes, flushedCount, len);
             } else {
-                child.write(EnvKryptKt.cryptBlocksImmutable(cipherProvider, cipherKey, cipherBasicIV,
-                        currentPage.pageAddress, bytes, flushedCount, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
+                writePage(EnvKryptKt.cryptBlocksImmutable(cipherProvider, cipherKey, cipherBasicIV,
+                        pageAddress, bytes, flushedCount, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
+            }
+            if (committedCount == pageSize) {
+                cachePage(bytes, pageAddress);
             }
             currentPage.flushedCount = committedCount;
         }
@@ -256,6 +262,14 @@ public class BufferedDataWriter {
             throw new IllegalStateException("Unknown written file loggable type: " + result + ", address: " + address);
         }
         return result;
+    }
+
+    private void writePage(@NotNull final byte[] bytes, final int off, final int len) {
+        child.write(bytes, off, len);
+    }
+
+    private void cachePage(@NotNull final byte[] bytes, final long pageAddress) {
+        logCache.cachePage(log, pageAddress, bytes);
     }
 
     // warning: this method is O(N), where N is number of added pages
