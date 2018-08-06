@@ -281,6 +281,12 @@ public class PersistentBitTreeLongMap<V> implements PersistentLongMap<V> {
         }
 
         @Override
+        public void clear() {
+            mutableMap.setRoot(null);
+            size = 0;
+        }
+
+        @Override
         public boolean endWrite() {
             if (!mutableMap.endWrite()) {
                 return false;
