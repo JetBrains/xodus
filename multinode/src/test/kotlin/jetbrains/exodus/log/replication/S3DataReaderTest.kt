@@ -53,7 +53,7 @@ class S3DataReaderTest {
     private lateinit var api: S3Mock
     private lateinit var httpClient: SdkAsyncHttpClient
     private lateinit var s3: S3AsyncClient
-    protected lateinit var s3Sync: S3Client
+    private lateinit var s3Sync: S3Client
     private lateinit var extraHost: AwsRequestOverrideConfig
 
     private val sourceDir by lazy { newTmpFile() }
