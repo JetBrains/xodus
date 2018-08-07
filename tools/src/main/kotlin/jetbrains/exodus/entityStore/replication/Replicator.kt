@@ -73,7 +73,7 @@ fun main(args: Array<String>) {
             .httpClient(httpClient)
             .region(region)
             .endpointOverride(URI("http://$host:$port"))
-//            .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build()) // for minio
+            .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build()) // for minio
             .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)))
             .build()
     val replicator = S3Replicator(
