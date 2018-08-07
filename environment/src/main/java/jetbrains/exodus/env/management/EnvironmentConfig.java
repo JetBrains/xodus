@@ -144,6 +144,26 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
+    public int getEnvStoreGetCacheMinTreeSize() {
+        return config.getEnvStoreGetCacheMinTreeSize();
+    }
+
+    @Override
+    public void setEnvStoreGetCacheMinTreeSize(int minTreeSize) {
+        config.setEnvStoreGetCacheMinTreeSize(minTreeSize);
+    }
+
+    @Override
+    public int getEnvStoreGetCacheMaxValueSize() {
+        return config.getEnvStoreGetCacheMaxValueSize();
+    }
+
+    @Override
+    public void setEnvStoreGetCacheMaxValueSize(int maxValueSize) {
+        config.setEnvStoreGetCacheMaxValueSize(maxValueSize);
+    }
+
+    @Override
     public boolean getEnvCloseForcedly() {
         return config.getEnvCloseForcedly();
     }

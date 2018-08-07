@@ -16,6 +16,7 @@
 package jetbrains.exodus.log.replication
 
 import jetbrains.exodus.log.LogTip
+import jetbrains.exodus.log.LogUtil
 import java.util.concurrent.atomic.AtomicReference
 
 interface S3DataReaderOrWriter : S3FactoryBoilerplate {
@@ -25,4 +26,12 @@ interface S3DataReaderOrWriter : S3FactoryBoilerplate {
     val logTip: LogTip?
 }
 
-internal fun S3DataReaderOrWriter.listObjectsBuilder() = listObjectsBuilder(bucket, requestOverrideConfig)
+internal fun S3FactoryBoilerplate.listObjectsBuilder() = listObjectsBuilder(bucket, requestOverrideConfig)
+
+internal fun getPartialFileName(address: Long): String {
+    return String.format("%016x${LogUtil.LOG_FILE_EXTENSION}", address)
+}
+
+internal fun getPartialFolderPrefix(blockAddress: Long): String {
+    return "_${LogUtil.getLogFilename(blockAddress).replace(LogUtil.LOG_FILE_EXTENSION, "")}/"
+}

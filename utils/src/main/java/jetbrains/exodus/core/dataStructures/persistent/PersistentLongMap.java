@@ -50,6 +50,8 @@ public interface PersistentLongMap<V> {
 
         V remove(long key);
 
+        void clear();
+
         boolean endWrite();
 
         void testConsistency(); // for testing consistency

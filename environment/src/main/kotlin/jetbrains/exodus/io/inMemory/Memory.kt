@@ -91,7 +91,7 @@ open class Memory {
         }
     }
 
-    internal class Block(val address: Long, initialSize: Int) {
+    internal class Block(private val _address: Long, initialSize: Int) : jetbrains.exodus.io.Block {
         var size: Int = 0
             private set
         var data: ByteArray
@@ -100,6 +100,10 @@ open class Memory {
         init {
             data = ByteArray(initialSize)
         }
+
+        override fun getAddress() = _address
+
+        override fun length() = size.toLong()
 
         fun setSize(size: Long) {
             this.size = size.toInt()
@@ -112,7 +116,7 @@ open class Memory {
             size = newSize
         }
 
-        fun read(output: ByteArray, position: Long, offset: Int, count: Int): Int {
+        override fun read(output: ByteArray, position: Long, offset: Int, count: Int): Int {
             var result = count
             if (position < 0) {
                 throw ExodusException("Block index out of range, underflow")
@@ -127,6 +131,8 @@ open class Memory {
             System.arraycopy(data, position.toInt(), output, offset, result)
             return result
         }
+
+        override fun refresh() = this
 
         fun ensureCapacity(minCapacity: Int) {
             val oldCapacity = data.size

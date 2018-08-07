@@ -22,7 +22,6 @@ import jetbrains.exodus.io.DataWriter
 import jetbrains.exodus.log.ReplicatedLogTestMixin
 import jetbrains.exodus.log.replication.S3DataReaderWriterProvider
 import mu.KLogging
-import org.junit.Ignore
 import software.amazon.awssdk.core.AwsRequestOverrideConfig
 import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
 import software.amazon.awssdk.core.client.builder.ClientAsyncHttpConfiguration
@@ -32,11 +31,12 @@ import software.amazon.awssdk.http.nio.netty.NettySdkHttpClientFactory
 import software.amazon.awssdk.services.s3.S3AdvancedConfiguration
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.model.CreateBucketRequest
 import java.io.File
 import java.net.URI
 import java.time.Duration
 
-@Ignore
+
 class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {
     companion object : KLogging() {
         const val host = "127.0.0.1"
@@ -80,7 +80,7 @@ class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {
     }
 
     private fun initMocks() {
-        api = S3Mock.Builder().withPort(0).withFileBackend(logDir.parentFile.absolutePath).build()
+        api = S3Mock.Builder().withPort(0).withInMemoryBackend().build()
         val port = api.start().localAddress().port
 
         httpClient = NettySdkHttpClientFactory.builder().readTimeout(Duration.ofSeconds(4)).build().createHttpClient()
@@ -103,5 +103,7 @@ class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {
                 .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build())
                 .credentialsProvider(AnonymousCredentialsProvider.create())
                 .build()
+
+        s3Sync.createBucket(CreateBucketRequest.builder().bucket("logfiles").build())
     }
 }

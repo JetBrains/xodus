@@ -99,7 +99,7 @@ public class LogRecoveryTest extends EnvironmentTestsBase {
         final long cipherBasicIV = env.getCipherBasicIV();
         env = null;
 
-        final long size = reader.getBlock(0).length();
+        final long size = reader.getBlocks(0).iterator().next().length();
         writer.openOrCreateBlock(0, size - cutSize);
         writer.close();
 

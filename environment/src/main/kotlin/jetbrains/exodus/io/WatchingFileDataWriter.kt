@@ -17,7 +17,7 @@ package jetbrains.exodus.io
 
 import java.io.File
 
-class WatchingFileDataWriter(val dir: File, lockId: String? = null) : FileDataWriter(dir, lockId) {
+class WatchingFileDataWriter(val dir: File, reader: FileDataReader, lockId: String? = null) : FileDataWriter(dir, reader, lockId) {
 
     override fun removeBlock(blockAddress: Long, rbt: RemoveBlockType) = throw UnsupportedOperationException()
 

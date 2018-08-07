@@ -36,7 +36,8 @@ public class EnvironmentLockTest extends EnvironmentTestsBase {
         Environment first = null;
         try {
             final File dir = getEnvDirectory();
-            first = Environments.newInstance(LogConfig.create(new FileDataReader(dir), new FileDataWriter(dir)), EnvironmentConfig.DEFAULT);
+            FileDataReader reader = new FileDataReader(dir);
+            first = Environments.newInstance(LogConfig.create(reader, new FileDataWriter(dir, reader)), EnvironmentConfig.DEFAULT);
         } catch (ExodusException ex) {
             //Environment already created on startup!
             exOnCreate = true;
@@ -84,7 +85,8 @@ public class EnvironmentLockTest extends EnvironmentTestsBase {
             protected void execute() {
                 final File dir = getEnvDirectory();
                 try {
-                    env = newEnvironmentInstance(LogConfig.create(new FileDataReader(dir), new FileDataWriter(dir, LOCK_ID)), new EnvironmentConfig().setLogLockTimeout(5000));
+                    FileDataReader reader = new FileDataReader(dir);
+                    env = newEnvironmentInstance(LogConfig.create(reader, new FileDataWriter(dir, reader, LOCK_ID)), new EnvironmentConfig().setLogLockTimeout(5000));
                     wasOpened[0] = true;
                 } catch (ExodusException e) {
                     Assert.assertTrue(e.getMessage().contains(LOCK_ID));

@@ -22,7 +22,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import software.amazon.awssdk.services.s3.model.GetObjectResponse
 import java.util.*
 
-internal abstract class BasicS3Block(private val s3factory: S3FactoryBoilerplate,
+internal abstract class BasicS3Block(internal val s3factory: S3FactoryBoilerplate,
                                      internal val _address: Long,
                                      internal val size: Long) : Block {
 
@@ -50,6 +50,8 @@ internal abstract class BasicS3Block(private val s3factory: S3FactoryBoilerplate
         ).get()
     }
 
+    override fun refresh() = this
+
     internal fun readAndCompare(output: ByteArray, position: Long, offset: Int, count: Int): Int {
         return read(output, position, offset, count).also {
             if (it < count) {
@@ -73,12 +75,15 @@ internal class S3SubBlock(s3factory: S3FactoryBoilerplate,
                           size: Long,
                           private val parentAddress: Long) : BasicS3Block(s3factory, address, size) {
     override val key: String
-        get() = S3DataWriter.getPartialFolderPrefix(parentAddress) + S3DataWriter.getPartialFileName(_address)
+        get() = getPartialFolderPrefix(parentAddress) + getPartialFileName(_address)
 }
 
-internal class S3FolderBlock(private val _address: Long,
+internal class S3FolderBlock(s3factory: S3FactoryBoilerplate,
+                             address: Long,
                              internal val blocks: List<S3SubBlock>,
-                             private val currentFile: S3DataWriter.CurrentFile?) : Block {
+                             private val currentFile: S3DataWriter.CurrentFile?) : BasicS3Block(s3factory, address, 0) {
+    override val key: String
+        get() = getPartialFolderPrefix(_address)
 
     override fun getAddress() = _address
 
@@ -131,6 +136,10 @@ internal class S3FolderBlock(private val _address: Long,
         return totalRead
     }
 
+    override fun refresh(): S3FolderBlock {
+        return newS3FolderBlock(s3factory, _address)
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is S3FolderBlock) return false
@@ -143,6 +152,18 @@ internal class S3FolderBlock(private val _address: Long,
     override fun hashCode(): Int {
         return _address.hashCode()
     }
+}
+
+internal fun newS3FolderBlock(s3factory: S3FactoryBoilerplate, address: Long): S3FolderBlock {
+    val builder = s3factory.listObjectsBuilder().prefix(getPartialFolderPrefix(address))
+    val subBlocks = mutableListOf<S3SubBlock>()
+    listObjects(s3factory.s3, builder).forEach {
+        val paths = it.key().split("/")
+        if (paths.size == 2) {
+            subBlocks.add(S3SubBlock(s3factory, decodeAddress(paths[1]), it.size(), address))
+        }
+    }
+    return S3FolderBlock(s3factory, address, subBlocks, null)
 }
 
 internal val S3DataReaderOrWriter.fileBlocks: List<S3Block>
@@ -178,5 +199,5 @@ internal val S3DataReaderOrWriter.folderBlocks: List<S3FolderBlock>
                 }
             }
         }
-        return folders.values.asSequence().map { S3FolderBlock(it.first, it.second, currentFile.get()) }.toList()
+        return folders.values.asSequence().map { S3FolderBlock(this, it.first, it.second, currentFile.get()) }.toList()
     }

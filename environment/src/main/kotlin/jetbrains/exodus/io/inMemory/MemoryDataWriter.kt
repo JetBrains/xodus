@@ -17,6 +17,7 @@ package jetbrains.exodus.io.inMemory
 
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.io.AbstractDataWriter
+import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.RemoveBlockType
 import jetbrains.exodus.log.LogUtil
 import mu.KLogging
@@ -62,9 +63,11 @@ open class MemoryDataWriter(private val memory: Memory) : AbstractDataWriter() {
 
     override fun clearImpl() = memory.clear()
 
-    override fun openOrCreateBlockImpl(address: Long, length: Long) {
-        data = memory.getOrCreateBlockData(address, length)
+    override fun openOrCreateBlockImpl(address: Long, length: Long): Block {
+        val result = memory.getOrCreateBlockData(address, length)
+        data = result
         closed = false
+        return result
     }
 
     private fun checkClosed() {

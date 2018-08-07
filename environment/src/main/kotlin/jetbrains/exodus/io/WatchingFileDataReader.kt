@@ -23,7 +23,7 @@ import java.io.IOException
 import java.nio.file.*
 import java.util.concurrent.TimeUnit
 
-class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?, private val fileDataReader: FileDataReader) : DataReader {
+class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?, internal val fileDataReader: FileDataReader) : DataReader {
 
     companion object : KLogging() {
         private const val IDLE_FORCE_CHECK_INTERVAL = 3000L // 3 seconds
@@ -40,8 +40,6 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?, priv
     }
 
     override fun getLocation() = fileDataReader.location
-
-    override fun getBlock(address: Long) = fileDataReader.getBlock(address)
 
     override fun getBlocks() = fileDataReader.blocks
 

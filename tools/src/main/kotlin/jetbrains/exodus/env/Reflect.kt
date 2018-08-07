@@ -225,7 +225,7 @@ class Reflect(directory: File) {
             logger.info { "Computed page size: $pageSize" }
 
             val reader = FileDataReader(directory)
-            val writer = FileDataWriter(directory)
+            val writer = FileDataWriter(directory, reader)
             val config = newEnvironmentConfig {
                 logCachePageSize = pageSize
                 isGcEnabled = false

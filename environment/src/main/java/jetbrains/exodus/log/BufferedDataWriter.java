@@ -20,7 +20,6 @@ import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.crypto.EnvKryptKt;
 import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.io.Block;
-import jetbrains.exodus.io.DataReader;
 import jetbrains.exodus.io.DataWriter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -37,8 +36,6 @@ public class BufferedDataWriter {
     @NotNull
     private final DataWriter child;
     @NotNull
-    private final DataReader reader;
-    @NotNull
     private final LogTip initialPage;
     @Nullable
     private final StreamCipherProvider cipherProvider;
@@ -46,7 +43,7 @@ public class BufferedDataWriter {
     private final long cipherBasicIV;
     private final int pageSize;
     @NotNull
-    private final LogFileSet.Mutable fileSetMutable;
+    private final BlockSet.Mutable blockSetMutable;
 
     // mutable state
     @NotNull
@@ -56,14 +53,12 @@ public class BufferedDataWriter {
 
     BufferedDataWriter(@NotNull final Log log,
                        @NotNull final DataWriter child,
-                       @NotNull final DataReader reader,
                        @NotNull final LogTip page) {
         this.log = log;
         logCache = log.cache;
-        this.fileSetMutable = page.logFileSet.beginWrite();
+        this.blockSetMutable = page.blockSet.beginWrite();
         this.initialPage = page;
         this.child = child;
-        this.reader = reader;
         this.highAddress = page.highAddress;
         final boolean validInitialPage = page.count >= 0;
         pageSize = log.getCachePageSize();
@@ -82,8 +77,8 @@ public class BufferedDataWriter {
     }
 
     @NotNull
-    public LogFileSet.Mutable getFileSetMutable() {
-        return fileSetMutable;
+    public BlockSet.Mutable getBlockSetMutable() {
+        return blockSetMutable;
     }
 
     public void setHighAddress(long highAddress) {
@@ -153,12 +148,14 @@ public class BufferedDataWriter {
                 final byte[] bytes = mutablePage.bytes;
                 final int off = mutablePage.flushedCount;
                 final int len = pageSize - off;
+                final long pageAddress = mutablePage.pageAddress;
                 if (cipherProvider == null) {
-                    child.write(bytes, off, len);
+                    writePage(bytes, off, len);
                 } else {
-                    child.write(EnvKryptKt.cryptBlocksImmutable(cipherProvider, cipherKey, cipherBasicIV,
-                            mutablePage.pageAddress, bytes, off, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
+                    writePage(EnvKryptKt.cryptBlocksImmutable(cipherProvider, cipherKey, cipherBasicIV,
+                            pageAddress, bytes, off, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
                 }
+                cachePage(bytes, pageAddress);
             }
             currentPage.previousPage = null;
         }
@@ -174,18 +171,22 @@ public class BufferedDataWriter {
         if (committedCount > flushedCount) {
             final byte[] bytes = currentPage.bytes;
             final int len = committedCount - flushedCount;
+            final long pageAddress = currentPage.pageAddress;
             if (cipherProvider == null) {
-                child.write(bytes, flushedCount, len);
+                writePage(bytes, flushedCount, len);
             } else {
-                child.write(EnvKryptKt.cryptBlocksImmutable(cipherProvider, cipherKey, cipherBasicIV,
-                        currentPage.pageAddress, bytes, flushedCount, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
+                writePage(EnvKryptKt.cryptBlocksImmutable(cipherProvider, cipherKey, cipherBasicIV,
+                        pageAddress, bytes, flushedCount, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
+            }
+            if (committedCount == pageSize) {
+                cachePage(bytes, pageAddress);
             }
             currentPage.flushedCount = committedCount;
         }
     }
 
-    void openOrCreateBlock(long address, long length) {
-        child.openOrCreateBlock(address, length);
+    Block openOrCreateBlock(long address, long length) {
+        return child.openOrCreateBlock(address, length);
     }
 
     long getHighAddress() {
@@ -216,8 +217,8 @@ public class BufferedDataWriter {
     @NotNull
     LogTip getUpdatedTip() {
         final MutablePage currentPage = this.currentPage;
-        final LogFileSet.Immutable fileSetImmutable = fileSetMutable.endWrite();
-        return new LogTip(currentPage.bytes, currentPage.pageAddress, currentPage.committedCount, highAddress, highAddress, fileSetImmutable);
+        final BlockSet.Immutable blockSetImmutable = blockSetMutable.endWrite();
+        return new LogTip(currentPage.bytes, currentPage.pageAddress, currentPage.committedCount, highAddress, highAddress, blockSetImmutable);
     }
 
     byte getByte(long address, byte max) {
@@ -234,13 +235,14 @@ public class BufferedDataWriter {
 
         // slow path: unconfirmed file saved to disk, read byte from it
         final long fileAddress = log.getFileAddress(address);
-        if (!fileSetMutable.contains(fileAddress)) {
+        if (!blockSetMutable.contains(fileAddress)) {
             BlockNotFoundException.raise("Address is out of log space, underflow", log, address);
         }
 
         final byte[] output = new byte[pageSize];
 
-        final Block block = reader.getBlock(fileAddress);
+        final Block block = blockSetMutable.getBlock(fileAddress);
+
         final int readBytes = block.read(output, pageAddress - fileAddress, 0, output.length);
 
         if (readBytes < offset) {
@@ -256,6 +258,14 @@ public class BufferedDataWriter {
             throw new IllegalStateException("Unknown written file loggable type: " + result + ", address: " + address);
         }
         return result;
+    }
+
+    private void writePage(@NotNull final byte[] bytes, final int off, final int len) {
+        child.write(bytes, off, len);
+    }
+
+    private void cachePage(@NotNull final byte[] bytes, final long pageAddress) {
+        logCache.cachePage(log, pageAddress, bytes);
     }
 
     // warning: this method is O(N), where N is number of added pages

@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.log.replication
 
+import jetbrains.exodus.io.FileDataReader
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogUtil
 import mu.KLogging
@@ -33,7 +34,7 @@ class S3FileFactory(
     override fun fetchFile(log: Log, address: Long, startingLength: Long, expectedLength: Long, finalFile: Boolean): WriteResult {
         if (checkPreconditions(log, expectedLength, startingLength)) return WriteResult.empty
 
-        log.ensureWriter().fileSetMutable.add(address)
+        log.ensureWriter().blockSetMutable.add(address, FileDataReader.FileBlock(address, log.config.reader as FileDataReader))
 
         val filename = LogUtil.getLogFilename(address)
 

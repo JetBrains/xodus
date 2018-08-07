@@ -23,9 +23,6 @@ public interface DataReader {
     @NotNull
     String getLocation();
 
-    @NotNull
-    Block getBlock(long address);
-
     /**
      * @return array of blocks sorted by address.
      */

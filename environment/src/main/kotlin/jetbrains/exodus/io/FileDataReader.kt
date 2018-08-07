@@ -63,28 +63,24 @@ class FileDataReader(val dir: File) : DataReader, KLogging() {
         return dir.path
     }
 
-    override fun getBlock(address: Long): Block {
-        return FileBlock(address)
-    }
-
     internal fun useNio(freePhysicalMemoryThreshold: Long) {
         useNio = true
         SharedMappedFilesCache.createInstance(freePhysicalMemoryThreshold)
     }
 
     private fun toBlocks(files: LongArrayList) =
-            files.toArray().asSequence().map { address -> FileBlock(address) }.asIterable()
+            files.toArray().asSequence().map { address -> FileBlock(address, this) }.asIterable()
 
-    private inner class FileBlock(private val address: Long) :
-            File(dir, LogUtil.getLogFilename(address)), Block {
+    class FileBlock(private val address: Long, private val reader: FileDataReader) :
+            File(reader.dir, LogUtil.getLogFilename(address)), Block {
 
         override fun getAddress() = address
 
         override fun read(output: ByteArray, position: Long, offset: Int, count: Int): Int {
             try {
                 SharedOpenFilesCache.getInstance().getCachedFile(this).use { f ->
-                    val log = log
-                    if (useNio &&
+                    val log = reader.log
+                    if (reader.useNio &&
                             /* only read-only (immutable) files can be mapped */
                             ((log != null && log.isImmutableFile(address)) || (log == null && !canWrite()))) {
                         try {
@@ -108,5 +104,7 @@ class FileDataReader(val dir: File) : DataReader, KLogging() {
                 throw ExodusException("Can't read file $absolutePath", e)
             }
         }
+
+        override fun refresh() = this
     }
 }

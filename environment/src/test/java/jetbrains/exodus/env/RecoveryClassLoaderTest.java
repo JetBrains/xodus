@@ -83,7 +83,8 @@ public class RecoveryClassLoaderTest {
     private static final Runnable OPEN_ENVIRONMENT = new Runnable() {
         @Override
         public void run() {
-            env = Environments.newInstance(cfg = LogConfig.create(new FileDataReader(testsDirectory[0]), new FileDataWriter(testsDirectory[0])));
+            FileDataReader reader = new FileDataReader(testsDirectory[0]);
+            env = Environments.newInstance(cfg = LogConfig.create(reader, new FileDataWriter(testsDirectory[0], reader)));
         }
     };
 
@@ -103,7 +104,7 @@ public class RecoveryClassLoaderTest {
             // assertLoggableTypes(log.getLoggablesIterator(0), SEQ);
             env.close();
 
-            final long size = cfg.getReader().getBlock(0).length();
+            final long size = cfg.getReader().getBlocks(0).iterator().next().length();
             cfg.getWriter().openOrCreateBlock(0, size - 5);
             cfg.getWriter().close();
         }

@@ -36,7 +36,7 @@ public interface DataWriter extends Closeable {
 
     void clear();
 
-    void openOrCreateBlock(long address, long length);
+    Block openOrCreateBlock(long address, long length);
 
     void removeBlock(long blockAddress, @NotNull RemoveBlockType rbt);
 

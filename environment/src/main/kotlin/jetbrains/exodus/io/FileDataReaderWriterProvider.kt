@@ -25,8 +25,10 @@ open class FileDataReaderWriterProvider : DataReaderWriterProvider() {
 
     protected var env: EnvironmentImpl? = null
 
-    override fun newReaderWriter(location: String): Pair<DataReader, DataWriter> =
-            Pair(newFileDataReader(location), newFileDataWriter(location))
+    override fun newReaderWriter(location: String): Pair<DataReader, DataWriter> {
+        val reader = newFileDataReader(location)
+        return Pair(reader, newFileDataWriter(location, reader))
+    }
 
     override fun onEnvironmentCreated(env: Environment) {
         super.onEnvironmentCreated(env)
@@ -42,8 +44,8 @@ open class FileDataReaderWriterProvider : DataReaderWriterProvider() {
         }
     }
 
-    protected open fun newFileDataWriter(location: String) =
-            FileDataWriter(checkDirectory(location), env?.environmentConfig?.logLockId)
+    protected open fun newFileDataWriter(location: String, reader: DataReader) =
+            FileDataWriter(checkDirectory(location), reader as FileDataReader, env?.environmentConfig?.logLockId)
 
     companion object {
 

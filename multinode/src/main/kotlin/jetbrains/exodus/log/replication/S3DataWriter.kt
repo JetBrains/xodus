@@ -17,10 +17,10 @@ package jetbrains.exodus.log.replication
 
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.io.AbstractDataWriter
+import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.RemoveBlockType
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogTip
-import jetbrains.exodus.log.LogUtil
 import mu.KLogging
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
@@ -41,16 +41,7 @@ class S3DataWriter(private val s3Sync: S3Client,
                    override val requestOverrideConfig: AwsRequestOverrideConfig? = null,
                    private val log: Log? = null
 ) : S3DataReaderOrWriter, AbstractDataWriter() {
-
-    companion object : KLogging() {
-        internal fun getPartialFileName(address: Long): String {
-            return String.format("%016x${LogUtil.LOG_FILE_EXTENSION}", address)
-        }
-
-        internal fun getPartialFolderPrefix(blockAddress: Long): String {
-            return "_${LogUtil.getLogFilename(blockAddress).replace(LogUtil.LOG_FILE_EXTENSION, "")}/"
-        }
-    }
+    companion object : KLogging()
 
     override val currentFile = AtomicReference<CurrentFile>()
 
@@ -119,7 +110,7 @@ class S3DataWriter(private val s3Sync: S3Client,
         grownFile.append(b, off, len)
     }
 
-    override fun openOrCreateBlockImpl(address: Long, length: Long) {
+    override fun openOrCreateBlockImpl(address: Long, length: Long): Block {
         // TODO: this works incorrect for opening existing files
         if (length > Int.MAX_VALUE) {
             throw UnsupportedOperationException("File too large")
@@ -128,6 +119,7 @@ class S3DataWriter(private val s3Sync: S3Client,
         if (!currentFile.compareAndSet(prevFile, CurrentFile(address, length.toInt()))) {
             failIntegrity()
         }
+        return InMemoryBlock(address, this)
     }
 
     override fun removeBlock(blockAddress: Long, rbt: RemoveBlockType) {
@@ -286,5 +278,25 @@ class S3DataWriter(private val s3Sync: S3Client,
             }
             return result
         }
+    }
+
+    internal class InMemoryBlock(private val address: Long, private val writer: S3DataWriter) : Block {
+
+        override fun getAddress() = address
+
+        override fun length() = writer.currentFile.get().run { this?.length ?: 0 }.toLong()
+
+        override fun read(output: ByteArray, position: Long, offset: Int, count: Int): Int {
+            if (count > 0) {
+                writer.currentFile.get()?.let { memory ->
+                    if (memory.blockAddress == address) {
+                        return memory.read(output, position, 0, count, offset)
+                    }
+                }
+            }
+            return 0
+        }
+
+        override fun refresh() = newS3FolderBlock(writer, address)
     }
 }

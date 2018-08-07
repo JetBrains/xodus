@@ -142,5 +142,10 @@ public class PersistentLong23TreeMap<V> implements PersistentLongMap<V> {
             setRoot(root);
             return removeResult.getSecond().getValue();
         }
+
+        @Override
+        public void clear() {
+            setRoot(null);
+        }
     }
 }

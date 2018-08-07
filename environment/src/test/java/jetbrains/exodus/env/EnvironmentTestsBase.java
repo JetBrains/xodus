@@ -141,9 +141,9 @@ public class EnvironmentTestsBase {
         } else if (!testsDirectory.mkdir()) {
             throw new IOException("Failed to create directory for tests.");
         }
+        FileDataReader reader = new FileDataReader(testsDirectory);
         return new Pair<DataReader, DataWriter>(
-                new FileDataReader(testsDirectory),
-                new FileDataWriter(testsDirectory)
+                reader, new FileDataWriter(testsDirectory, reader)
         );
     }
 

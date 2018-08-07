@@ -67,18 +67,30 @@ public class StoreImpl implements Store {
     public ByteIterable get(@NotNull final Transaction txn, @NotNull final ByteIterable key) {
         final TransactionBase tx = (TransactionBase) txn;
         final ITree tree = tx.getTree(this);
-        final long treeRootAddress = tree.getRootAddress();
         final StoreGetCache storeGetCache = environment.getStoreGetCache();
-        final boolean useStoreGetCache = treeRootAddress != Loggable.NULL_ADDRESS && storeGetCache != null;
-        // if neither tree is empty nor mutable and StoreGetCache is on
-        if (useStoreGetCache) {
-            ByteIterable result = storeGetCache.tryKey(treeRootAddress, key);
-            if (result != null) {
-                return result == NULL_CACHED_VALUE ? null : result;
+        if (storeGetCache != null) {
+            final long treeRootAddress = tree.getRootAddress();
+            final boolean useStoreGetCache = treeRootAddress != Loggable.NULL_ADDRESS && tree.getSize() >= storeGetCache.getMinTreeSize();
+            // if neither tree is empty nor mutable
+            if (useStoreGetCache) {
+                ByteIterable result = storeGetCache.tryKey(treeRootAddress, key);
+                if (result != null) {
+                    return result == NULL_CACHED_VALUE ? null : result;
+                }
+                result = tree.get(key);
+                final ArrayByteIterable cachedValue;
+                if (result == null) {
+                    cachedValue = NULL_CACHED_VALUE;
+                } else if (result instanceof ArrayByteIterable) {
+                    cachedValue = (ArrayByteIterable) result;
+                } else {
+                    cachedValue = new ArrayByteIterable(result);
+                }
+                if (cachedValue.getLength() <= storeGetCache.getMaxValueSize()) {
+                    storeGetCache.cacheObject(treeRootAddress, key, cachedValue);
+                }
+                return result;
             }
-            result = tree.get(key);
-            storeGetCache.cacheObject(treeRootAddress, key, result == null ? NULL_CACHED_VALUE : new ArrayByteIterable(result));
-            return result;
         }
         return tree.get(key);
     }

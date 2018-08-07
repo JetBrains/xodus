@@ -17,32 +17,29 @@ package jetbrains.exodus.log.replication
 
 
 import io.findify.s3mock.S3Mock
-import jetbrains.exodus.TestUtil
 import jetbrains.exodus.io.RemoveBlockType
 import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.log.LogUtil.LOG_BLOCK_ALIGNMENT
 import mu.KLogging
 import org.junit.After
 import org.junit.Assert.*
-import org.junit.Assume.assumeFalse
 import org.junit.Before
 import org.junit.Test
 import software.amazon.awssdk.core.AwsRequestOverrideConfig
 import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
 import software.amazon.awssdk.core.client.builder.ClientAsyncHttpConfiguration
 import software.amazon.awssdk.core.regions.Region
+import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient
 import software.amazon.awssdk.http.nio.netty.NettySdkHttpClientFactory
 import software.amazon.awssdk.services.s3.S3AdvancedConfiguration
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.model.CreateBucketRequest
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest
+import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import software.amazon.awssdk.services.s3.model.S3Object
-import java.io.File
 import java.net.URI
-import java.nio.channels.FileChannel
-import java.nio.file.Files
-import java.nio.file.Paths
 
 class S3DataReaderTest {
     companion object : KLogging() {
@@ -53,20 +50,13 @@ class S3DataReaderTest {
     private lateinit var api: S3Mock
     private lateinit var httpClient: SdkAsyncHttpClient
     private lateinit var s3: S3AsyncClient
-    protected lateinit var s3Sync: S3Client
+    private lateinit var s3Sync: S3Client
     private lateinit var extraHost: AwsRequestOverrideConfig
 
-    private val sourceDir by lazy { newTmpFile() }
-
-    private fun newTmpFile(): File {
-        return File(TestUtil.createTempDir(), bucket).also {
-            it.mkdirs()
-        }
-    }
 
     @Before
     fun setup() {
-        api = S3Mock.Builder().withPort(0).withFileBackend(sourceDir.parentFile.absolutePath).build()
+        api = S3Mock.Builder().withPort(0).withInMemoryBackend().build()
         val port = api.start().localAddress().port
 
         httpClient = NettySdkHttpClientFactory.builder().build().createHttpClient()
@@ -90,6 +80,8 @@ class S3DataReaderTest {
                 )
                 .credentialsProvider(AnonymousCredentialsProvider.create())
                 .build()
+
+        s3Sync.createBucket(CreateBucketRequest.builder().bucket("logfiles").build())
     }
 
     @After
@@ -103,14 +95,13 @@ class S3DataReaderTest {
         if (::httpClient.isInitialized) {
             httpClient.close()
         }
-        sourceDir.delete()
     }
 
     @Test
     fun `should read simple xd-files`() {
-        sourceDir.newDBFile(0)
-        sourceDir.newDBFile(1)
-        sourceDir.newDBFile(2, 100) // total length 356
+        newXdObject(0)
+        newXdObject(1)
+        newXdObject(2, 100) // total length 356
         with(newReader()) {
             val blocks = blocks.toList()
             assertEquals(3, blocks.size)
@@ -122,9 +113,9 @@ class S3DataReaderTest {
 
     @Test
     fun `should read xd-files with partiall folders`() {
-        sourceDir.newDBFile(0)
-        sourceDir.newDBFile(1)
-        newDBFolder(2, 100) // total length 356
+        newXdObject(0)
+        newXdObject(1)
+        newFolderObject(2, 100) // total length 356
         with(newReader()) {
             val blocks = blocks.toList()
             assertEquals(3, blocks.size)
@@ -136,10 +127,10 @@ class S3DataReaderTest {
 
     @Test
     fun `xd-files should have higher priority then partially folders`() {
-        sourceDir.newDBFile(0)
-        sourceDir.newDBFile(1)
-        sourceDir.newDBFile(2)
-        newDBFolder(1)
+        newXdObject(0)
+        newXdObject(1)
+        newXdObject(2)
+        newFolderObject(1)
         with(newReader()) {
             val blocks = blocks.toList()
             assertEquals(3, blocks.size)
@@ -152,9 +143,9 @@ class S3DataReaderTest {
 
     @Test
     fun `should handle partially files`() {
-        sourceDir.newDBFile(0)
-        sourceDir.newDBFile(1)
-        newDBFolder(2, 100) // total length 356
+        newXdObject(0)
+        newXdObject(1)
+        newFolderObject(2, 100) // total length 356
         with(newReader()) {
             val blocks = blocks.toList()
             assertEquals(3, blocks.size)
@@ -166,9 +157,9 @@ class S3DataReaderTest {
 
     @Test
     fun `should delete files on clear`() {
-        assumeFalse(isWindows)
-        sourceDir.newDBFile(0)
-        newDBFolder(1, 100)
+//        assumeFalse(isWindows)
+        newXdObject(0)
+        newFolderObject(1, 100)
         with(newReader()) {
             writer.clear()
             assertTrue(s3Objects?.none { it.key().endsWith(".xd") } ?: true)
@@ -177,11 +168,11 @@ class S3DataReaderTest {
 
     @Test
     fun `should delete files and folder for deleting blocks`() {
-        assumeFalse(isWindows)
+//        assumeFalse(isWindows)
 
-        sourceDir.newDBFile(0)
-        sourceDir.newDBFile(1)
-        newDBFolder(1)
+        newXdObject(0)
+        newXdObject(1)
+        newFolderObject(1)
         with(newReader()) {
             writer.removeBlock(LOG_BLOCK_ALIGNMENT.toLong(), RemoveBlockType.Delete)
             assertEquals(1, s3Objects?.size)
@@ -190,11 +181,11 @@ class S3DataReaderTest {
 
     @Test
     fun `should rename files and folder for renaming blocks`() {
-        assumeFalse(isWindows)
+//        assumeFalse(isWindows)
 
-        sourceDir.newDBFile(0)
-        sourceDir.newDBFile(1)
-        newDBFolder(1)
+        newXdObject(0)
+        newXdObject(1)
+        newFolderObject(1)
         with(newReader()) {
             writer.removeBlock(LOG_BLOCK_ALIGNMENT.toLong(), RemoveBlockType.Rename)
             assertEquals(1, s3Objects?.filter { it.key().endsWith(".xd") }?.size)
@@ -204,15 +195,15 @@ class S3DataReaderTest {
 
     @Test
     fun `should truncate files and folder`() {
-        assumeFalse(isWindows)
+//        assumeFalse(isWindows)
 
-        val file0 = sourceDir.newDBFile(0)
-        val file1 = sourceDir.newDBFile(1)
+        val file0 = newXdObject(0)
+        val file1 = newXdObject(1)
         var file2: String? = null
-        newDBFolder(1).also {
-            file2 = it.newPartialFile(1)
-            it.newPartialFile(2)
-            it.newPartialFile(3, 100)
+        newFolderObject(1).also {
+            file2 = it.newPartialXd(1)
+            it.newPartialXd(2)
+            it.newPartialXd(3, 100)
         }
         with(newReader()) {
             writer.truncateBlock(LOG_BLOCK_ALIGNMENT.toLong(), 100)
@@ -237,8 +228,8 @@ class S3DataReaderTest {
 
     @Test
     fun `should read from xd-files`() {
-        sourceDir.newDBFile(0)
-        sourceDir.newDBFile(1, 100)
+        newXdObject(0)
+        newXdObject(1, 100)
         with(newReader()) {
             with(ByteArray(LOG_BLOCK_ALIGNMENT) { 0 }) {
                 getBlock(0).read(this, 0, 0, LOG_BLOCK_ALIGNMENT)
@@ -254,10 +245,10 @@ class S3DataReaderTest {
 
     @Test
     fun `should ignore blobs and textindex folders`() {
-        sourceDir.newDBFile(0)
-        sourceDir.newDBFile(LogUtil.getLogFilename(0).replace(".xd", ".del"))
-        File(sourceDir, "blobs").also { it.mkdirs() }.newDBFile(1)
-        File(sourceDir, "textindex").also { it.mkdirs() }.newDBFile(2)
+        newXdObject(0)
+        newXdObject(LogUtil.getLogFilename(0).replace(".xd", ".del"))
+        "blobs".newXdObject(1)
+        "textindex".newXdObject(2)
         with(newReader()) {
             with(blocks.toList()) {
                 assertEquals(1, size)
@@ -268,9 +259,9 @@ class S3DataReaderTest {
 
     @Test
     fun `should ignore unexpected files in partially folders`() {
-        newDBFolder(0).also {
-            it.newDBFile("_xd.xd") // some trash
-            it.newDBFile(LogUtil.getLogFilename(0).replace(".xd", ".del"))  // submitted for deletion file
+        newFolderObject(0).also {
+            it.newXdObject("_xd.xd") // some trash
+            it.newXdObject(LogUtil.getLogFilename(0).replace(".xd", ".del"))  // submitted for deletion file
         }
         with(newReader()) {
             with(blocks.toList()) {
@@ -284,15 +275,15 @@ class S3DataReaderTest {
 
     @Test
     fun `should read from partially folders`() {
-        newDBFolder(0).also {
-            it.newPartialFile(0)
-            it.newPartialFile(1)
-            it.newPartialFile(2)
+        newFolderObject(0).also {
+            it.newPartialXd(0)
+            it.newPartialXd(1)
+            it.newPartialXd(2)
         }
-        newDBFolder(3).also {
-            it.newPartialFile(3)
-            it.newPartialFile(4)
-            it.newPartialFile(5, 100)
+        newFolderObject(3).also {
+            it.newPartialXd(3)
+            it.newPartialXd(4)
+            it.newPartialXd(5, 100)
         }
         with(newReader()) {
             // should read from first file in folder
@@ -325,41 +316,48 @@ class S3DataReaderTest {
         }
     }
 
-    private fun File.newDBFile(number: Long, size: Int = LOG_BLOCK_ALIGNMENT): String {
-        val prefix = if (name == bucket) "" else "$name/"
-        return prefix + File(this, LogUtil.getLogFilename(LOG_BLOCK_ALIGNMENT * number)).also {
-            it.createNewFile()
-            val path = Paths.get(it.toURI())
-            Files.write(path, ByteArray(size) { 1 })
-        }.name
+    private fun newXdObject(number: Long, size: Int = LOG_BLOCK_ALIGNMENT): String {
+        val key = LogUtil.getLogFilename(LOG_BLOCK_ALIGNMENT * number)
+        newObject(key, size)
+        return key
     }
 
-    private fun File.newDBFile(fileName: String, size: Int = LOG_BLOCK_ALIGNMENT): String {
-        val prefix = if (name == bucket) "" else "$name/"
-        return prefix + File(this, fileName).also {
-            it.createNewFile()
-            val path = Paths.get(it.toURI())
-            Files.write(path, ByteArray(size) { 1 })
-        }.name
+    private fun String.newXdObject(number: Long, size: Int = LOG_BLOCK_ALIGNMENT): String {
+        return newXdObject(LogUtil.getLogFilename(LOG_BLOCK_ALIGNMENT * number), size)
     }
 
-    private fun File.newPartialFile(number: Long, size: Int = LOG_BLOCK_ALIGNMENT): String {
-        val prefix = if (name == bucket) "" else "$name/"
-        return prefix + File(this, getPartialFileName(LOG_BLOCK_ALIGNMENT * number)).also {
-            it.createNewFile()
-            val path = Paths.get(it.toURI())
-            Files.write(path, ByteArray(size) { 1 })
-        }.name
+    private fun String.newXdObject(fileName: String, size: Int = LOG_BLOCK_ALIGNMENT): String {
+        val key = this + "/" + fileName
+        newObject(key, size)
+        return key
     }
 
-    private fun newDBFolder(number: Long, size: Int = LOG_BLOCK_ALIGNMENT): File {
-        return sourceDir.let {
-            val name = LogUtil.getLogFilename(LOG_BLOCK_ALIGNMENT * number).replace(".xd", "")
-            File(it.absolutePath + File.separator + "_" + name).also {
-                it.mkdir()
-                it.newPartialFile(LOG_BLOCK_ALIGNMENT * number, size)
-            }
+    private fun newXdObject(fileName: String, size: Int = LOG_BLOCK_ALIGNMENT): String {
+        newObject(fileName, size)
+        return fileName
+    }
+
+    private fun String.newPartialXd(number: Long, size: Int = LOG_BLOCK_ALIGNMENT): String {
+        val key = "_" + this + "/" + getPartialFileName(LOG_BLOCK_ALIGNMENT * number)
+        newObject(key, size)
+        return key
+    }
+
+    private fun newFolderObject(number: Long, size: Int = LOG_BLOCK_ALIGNMENT): String {
+        return LogUtil.getLogFilename(LOG_BLOCK_ALIGNMENT * number).replace(".xd", "").also {
+            it.newPartialXd(LOG_BLOCK_ALIGNMENT * number, size)
         }
+    }
+
+    private fun newObject(key: String, size: Int) {
+        s3Sync.putObject(
+                PutObjectRequest.builder()
+                        .bucket(bucket)
+                        .key(key)
+                        .contentLength(size.toLong())
+                        .build(),
+                RequestBody.of(ByteArray(size) { 1 })
+        )
     }
 
     private fun newReader() = S3DataReader(s3, bucket, extraHost, S3DataWriter(s3Sync, s3, bucket, extraHost))
@@ -371,15 +369,7 @@ class S3DataReaderTest {
                     .bucket(bucket)
             return s3.listObjects(builder.build()).get()?.contents()
         }
-    private val isWindows: Boolean
-        get() {
-            return try {
-                FileChannel.open(sourceDir.toPath())
-                false
-            } catch (e: Exception) {
-                true
-            }
-        }
+//    private val isWindows: Boolean get() = TestUtil.isWindowsDirectory(sourceDir)
 
     private fun getPartialFileName(address: Long): String {
         return String.format("%016x${LogUtil.LOG_FILE_EXTENSION}", address)

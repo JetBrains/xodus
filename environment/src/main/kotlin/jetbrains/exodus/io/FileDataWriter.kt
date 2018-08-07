@@ -27,7 +27,7 @@ import java.io.RandomAccessFile
 import java.nio.channels.ClosedChannelException
 import java.nio.channels.FileChannel
 
-open class FileDataWriter @JvmOverloads constructor(private val dir: File, lockId: String? = null) : AbstractDataWriter() {
+open class FileDataWriter @JvmOverloads constructor(private val dir: File, private val reader: FileDataReader, lockId: String? = null) : AbstractDataWriter() {
 
     companion object : KLogging() {
 
@@ -131,7 +131,7 @@ open class FileDataWriter @JvmOverloads constructor(private val dir: File, lockI
         }
     }
 
-    override fun openOrCreateBlockImpl(address: Long, length: Long) {
+    override fun openOrCreateBlockImpl(address: Long, length: Long): Block {
         try {
             val result = RandomAccessFile(File(dir, LogUtil.getLogFilename(address)).apply {
                 if (!canWrite()) {
@@ -144,6 +144,7 @@ open class FileDataWriter @JvmOverloads constructor(private val dir: File, lockI
                 forceSync(result)
             }
             file = result
+            return FileDataReader.FileBlock(address, reader)
         } catch (ioe: IOException) {
             throw ExodusException(ioe)
         }
