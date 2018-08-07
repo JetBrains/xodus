@@ -57,6 +57,7 @@ open class StoreReplicationTest : ReplicationBaseTest() {
                 envIsReadonly = true
                 logFileSize = Companion.logFileSize
                 logCachePageSize = Companion.logCachePageSize
+                envCloseForcedly = true
             }
         }
 
