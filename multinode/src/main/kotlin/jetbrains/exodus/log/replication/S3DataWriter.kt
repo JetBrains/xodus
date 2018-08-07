@@ -281,9 +281,10 @@ class S3DataWriter(private val s3Sync: S3Client,
     }
 
     internal class InMemoryBlock(private val address: Long, private val writer: S3DataWriter) : Block {
+
         override fun getAddress() = address
 
-        override fun length() = 0L
+        override fun length() = writer.currentFile.get().run { this?.length ?: 0 }.toLong()
 
         override fun read(output: ByteArray, position: Long, offset: Int, count: Int): Int {
             if (count > 0) {
@@ -295,5 +296,7 @@ class S3DataWriter(private val s3Sync: S3Client,
             }
             return 0
         }
+
+        override fun refresh() = newS3FolderBlock(writer, address)
     }
 }

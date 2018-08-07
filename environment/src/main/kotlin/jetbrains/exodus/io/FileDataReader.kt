@@ -104,5 +104,7 @@ class FileDataReader(val dir: File) : DataReader, KLogging() {
                 throw ExodusException("Can't read file $absolutePath", e)
             }
         }
+
+        override fun refresh() = this
     }
 }

@@ -112,5 +112,7 @@ sealed class BlockSet(val blockSize: Long, val set: PersistentLongMap<Block>) {
         override fun length() = 0L
 
         override fun read(output: ByteArray, position: Long, offset: Int, count: Int) = 0
+
+        override fun refresh() = this
     }
 }

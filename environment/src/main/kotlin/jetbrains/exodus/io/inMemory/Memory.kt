@@ -132,6 +132,8 @@ open class Memory {
             return result
         }
 
+        override fun refresh() = this
+
         fun ensureCapacity(minCapacity: Int) {
             val oldCapacity = data.size
             if (minCapacity > oldCapacity) {

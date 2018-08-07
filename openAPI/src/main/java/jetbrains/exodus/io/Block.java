@@ -23,4 +23,6 @@ public interface Block {
     long length();
 
     int read(byte[] output, long position, int offset, int count);
+
+    Block refresh();
 }

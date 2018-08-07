@@ -109,13 +109,13 @@ public final class Log implements Closeable {
         final int generationCount = config.getCacheGenerationCount();
         if (memoryUsage != 0) {
             cache = config.isSharedCache() ?
-                getSharedCache(memoryUsage, cachePageSize, nonBlockingCache, generationCount) :
-                new SeparateLogCache(memoryUsage, cachePageSize, nonBlockingCache, generationCount);
+                    getSharedCache(memoryUsage, cachePageSize, nonBlockingCache, generationCount) :
+                    new SeparateLogCache(memoryUsage, cachePageSize, nonBlockingCache, generationCount);
         } else {
             final int memoryUsagePercentage = config.getMemoryUsagePercentage();
             cache = config.isSharedCache() ?
-                getSharedCache(memoryUsagePercentage, cachePageSize, nonBlockingCache, generationCount) :
-                new SeparateLogCache(memoryUsagePercentage, cachePageSize, nonBlockingCache, generationCount);
+                    getSharedCache(memoryUsagePercentage, cachePageSize, nonBlockingCache, generationCount) :
+                    new SeparateLogCache(memoryUsagePercentage, cachePageSize, nonBlockingCache, generationCount);
         }
         DeferredIO.getJobProcessor();
         isClosing = false;
@@ -195,10 +195,10 @@ public final class Log implements Closeable {
             if (clearLogReason == null && address != getFileAddress(address)) {
                 if (!config.isClearInvalidLog()) {
                     throw new ExodusException("Unexpected file address " +
-                        LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound));
+                            LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound));
                 }
                 clearLogReason = "Unexpected file address " +
-                    LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound);
+                        LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound);
             }
             if (clearLogReason != null) {
                 if (!config.isClearInvalidLog()) {
@@ -537,7 +537,7 @@ public final class Log implements Closeable {
         final long dataAddress = it.getAddress();
         if (dataLength > 0 && it.availableInCurrentPage(dataLength)) {
             return new RandomAccessLoggableAndArrayByteIterable(
-                address, type, structureId, dataAddress, it.getCurrentPage(), it.getOffset(), dataLength);
+                    address, type, structureId, dataAddress, it.getCurrentPage(), it.getOffset(), dataLength);
         }
         final RandomAccessByteIterable data = new RandomAccessByteIterable(dataAddress, this);
         return new RandomAccessLoggableImpl(address, type, data, dataLength, structureId);
@@ -876,7 +876,7 @@ public final class Log implements Closeable {
                 final StreamCipherProvider cipherProvider = config.getCipherProvider();
                 if (cipherProvider != null) {
                     EnvKryptKt.cryptBlocksMutable(cipherProvider, config.getCipherKey(), config.getCipherBasicIV(),
-                        address, output, 0, readBytes, LogUtil.LOG_BLOCK_ALIGNMENT);
+                            address, output, 0, readBytes, LogUtil.LOG_BLOCK_ALIGNMENT);
                 }
                 notifyReadBytes(output, readBytes);
                 return readBytes;
@@ -941,7 +941,7 @@ public final class Log implements Closeable {
     private static void checkCachePageSize(final int pageSize, @NotNull final LogCache result) {
         if (result.pageSize != pageSize) {
             throw new ExodusException("SharedLogCache was created with page size " + result.pageSize +
-                " and then requested with page size " + pageSize + ". EnvironmentConfig.LOG_CACHE_PAGE_SIZE was set manually.");
+                    " and then requested with page size " + pageSize + ". EnvironmentConfig.LOG_CACHE_PAGE_SIZE was set manually.");
         }
     }
 
@@ -950,7 +950,7 @@ public final class Log implements Closeable {
             final long lockTimeout = config.getLockTimeout();
             if (!writer.lock(lockTimeout)) {
                 throw new ExodusException("Can't acquire environment lock after " +
-                    lockTimeout + " ms.\n\n Lock owner info: \n" + writer.lockInfo());
+                        lockTimeout + " ms.\n\n Lock owner info: \n" + writer.lockInfo());
             }
         }
     }
@@ -1063,23 +1063,27 @@ public final class Log implements Closeable {
             // Don't forget to fsync the old file before closing it, otherwise will get a corrupted DB in the case of a
             // system failure:
             flush(true);
-
             this.writer.close();
-            if (config.isFullFileReadonly()) {
-                final BlockSet.Mutable blockSet = writer.getBlockSetMutable();
-                final Long lastFile = blockSet.getMaximum();
-                if (lastFile != null) {
-                    final Block block = blockSet.getBlock(lastFile);
-                    final long length = block.length();
-                    if (length < fileLengthBound) {
-                        throw new IllegalStateException("File's too short (" + LogUtil.getLogFilename(lastFile) + "), block.length() = " + length + ", fileLengthBound = " + fileLengthBound);
-                    }
-                    if (block instanceof File) {
-                        //noinspection ResultOfMethodCallIgnored
-                        ((File) block).setReadOnly();
-                    }
+            // verify if last block is consistent
+            final BlockSet.Mutable blockSet = writer.getBlockSetMutable();
+            final Long lastFile = blockSet.getMaximum();
+            if (lastFile != null) {
+                final Block block = blockSet.getBlock(lastFile);
+                final Block refreshed = block.refresh();
+                if (block != refreshed) {
+                    blockSet.remove(lastFile);
+                    blockSet.add(lastFile, refreshed);
+                }
+                final long length = refreshed.length();
+                if (length < fileLengthBound) {
+                    throw new IllegalStateException("File's too short (" + LogUtil.getLogFilename(lastFile) + "), block.length() = " + length + ", fileLengthBound = " + fileLengthBound);
+                }
+                if (config.isFullFileReadonly() && (block instanceof File)) {
+                    //noinspection ResultOfMethodCallIgnored
+                    ((File) block).setReadOnly();
                 }
             }
+
         } else if (System.currentTimeMillis() > lastSyncTicks + config.getSyncPeriod()) {
             flush(true);
         }
