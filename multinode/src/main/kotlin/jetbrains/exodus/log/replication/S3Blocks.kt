@@ -43,7 +43,7 @@ internal abstract class BasicS3Block(internal val s3factory: S3FactoryBoilerplat
 
         return s3factory.s3.getObject(GetObjectRequest.builder()
                 .range(range)
-                .requestOverrideConfig(s3factory.requestOverrideConfig)
+                .overrideConfiguration(s3factory.requestOverrideConfig)
                 .bucket(s3factory.bucket)
                 .key(key).build(),
                 ByteArrayAsyncResponseHandler<GetObjectResponse?>(output, offset)

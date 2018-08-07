@@ -25,14 +25,12 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
-import software.amazon.awssdk.core.AwsRequestOverrideConfig
-import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
-import software.amazon.awssdk.core.client.builder.ClientAsyncHttpConfiguration
-import software.amazon.awssdk.core.regions.Region
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient
-import software.amazon.awssdk.http.nio.netty.NettySdkHttpClientFactory
-import software.amazon.awssdk.services.s3.S3AdvancedConfiguration
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
+import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest
@@ -51,7 +49,7 @@ class S3DataReaderTest {
     private lateinit var httpClient: SdkAsyncHttpClient
     private lateinit var s3: S3AsyncClient
     private lateinit var s3Sync: S3Client
-    private lateinit var extraHost: AwsRequestOverrideConfig
+    private lateinit var extraHost: AwsRequestOverrideConfiguration
 
 
     @Before
@@ -59,25 +57,21 @@ class S3DataReaderTest {
         api = S3Mock.Builder().withPort(0).withInMemoryBackend().build()
         val port = api.start().localAddress().port
 
-        httpClient = NettySdkHttpClientFactory.builder().build().createHttpClient()
+        httpClient = NettyNioAsyncHttpClient.builder().build()
 
-        extraHost = AwsRequestOverrideConfig.builder().header("Host", "$host:$port").build()
+        extraHost = AwsRequestOverrideConfiguration.builder().putHeader("Host", "$host:$port").build()
 
         s3Sync = S3Client.builder().region(Region.US_WEST_2)
                 .endpointOverride(URI("http://$host:$port"))
-                .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build())
+//                .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build())
                 .credentialsProvider(AnonymousCredentialsProvider.create())
                 .build()
 
         s3 = S3AsyncClient.builder()
-                .asyncHttpConfiguration(
-                        ClientAsyncHttpConfiguration.builder().httpClient(httpClient).build()
-                )
+                .httpClient(httpClient)
                 .region(Region.US_WEST_2)
                 .endpointOverride(URI("http://$host:$port"))
-                .advancedConfiguration(
-                        S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build()
-                )
+//                .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build())
                 .credentialsProvider(AnonymousCredentialsProvider.create())
                 .build()
 
@@ -349,7 +343,7 @@ class S3DataReaderTest {
                         .key(key)
                         .contentLength(size.toLong())
                         .build(),
-                RequestBody.of(ByteArray(size) { 1 })
+                RequestBody.fromBytes(ByteArray(size) { 1 })
         )
     }
 
@@ -358,7 +352,7 @@ class S3DataReaderTest {
     private val s3Objects: List<S3Object>?
         get() {
             val builder = ListObjectsRequest.builder()
-                    .requestOverrideConfig(extraHost)
+                    .overrideConfiguration(extraHost)
                     .bucket(bucket)
             return s3.listObjects(builder.build()).get()?.contents()
         }

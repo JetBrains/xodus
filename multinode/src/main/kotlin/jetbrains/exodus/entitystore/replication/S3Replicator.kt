@@ -31,7 +31,8 @@ import jetbrains.exodus.env.replication.EnvironmentReplicationDelta
 import jetbrains.exodus.env.replication.ReplicationDelta
 import jetbrains.exodus.log.replication.*
 import mu.KLogging
-import software.amazon.awssdk.core.AwsRequestOverrideConfig
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration
+import software.amazon.awssdk.core.async.AsyncResponseTransformer
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import java.io.BufferedOutputStream
@@ -45,7 +46,7 @@ class S3Replicator(
         private val metaPort: Int = 8062,
         override val s3: S3AsyncClient,
         override val bucket: String,
-        override val requestOverrideConfig: AwsRequestOverrideConfig? = null,
+        override val requestOverrideConfig: AwsRequestOverrideConfiguration? = null,
         val lazyBlobs: Boolean = false
 ) : PersistentEntityStoreReplicator, S3FactoryBoilerplate {
     companion object : KLogging() {
@@ -152,8 +153,8 @@ class S3Replicator(
                         length = length,
                         startingLength = 0,
                         name = blobKey,
-                        handler = FileAsyncHandler(path = file.toPath(), startingLength = 0)
-                ).get().written
+                        handler = AsyncResponseTransformer.toFile(file)
+                ).get().contentLength()
             } else {
                 if (vault !is EncryptedBlobVault) {
                     throw UnsupportedOperationException("Un-encrypt blobs is not supported")

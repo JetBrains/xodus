@@ -49,9 +49,9 @@ fun SdkAsyncHttpClient.postRequest(path: String, params: Map<String, String>, ho
                 method(SdkHttpMethod.POST)
                 encodedPath(path)
                 params.forEach {
-                    rawQueryParameter(it.key, it.value)
+                    putRawQueryParameter(it.key, it.value)
                 }
-                header("Host", "$host:$port")
+                putHeader("Host", "$host:$port")
             }.build(),
             sdkRequestContext,
             EmptyRequestProvider,

@@ -22,19 +22,19 @@ import jetbrains.exodus.io.DataWriter
 import jetbrains.exodus.log.ReplicatedLogTestMixin
 import jetbrains.exodus.log.replication.S3DataReaderWriterProvider
 import mu.KLogging
-import software.amazon.awssdk.core.AwsRequestOverrideConfig
-import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
-import software.amazon.awssdk.core.client.builder.ClientAsyncHttpConfiguration
-import software.amazon.awssdk.core.regions.Region
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration
+import software.amazon.awssdk.core.client.config.ClientAsyncConfiguration
+import software.amazon.awssdk.core.client.config.SdkAdvancedAsyncClientOption
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient
-import software.amazon.awssdk.http.nio.netty.NettySdkHttpClientFactory
-import software.amazon.awssdk.services.s3.S3AdvancedConfiguration
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
+import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest
 import java.io.File
 import java.net.URI
-import java.time.Duration
+import java.util.concurrent.Executors
 
 
 class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {
@@ -48,7 +48,7 @@ class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {
     protected lateinit var httpClient: SdkAsyncHttpClient
     protected lateinit var s3: S3AsyncClient
     protected lateinit var s3Sync: S3Client
-    protected lateinit var extraHost: AwsRequestOverrideConfig
+    protected lateinit var extraHost: AwsRequestOverrideConfiguration
 
     override fun setUp() {
         initMocks()
@@ -83,24 +83,25 @@ class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {
         api = S3Mock.Builder().withPort(0).withInMemoryBackend().build()
         val port = api.start().localAddress().port
 
-        httpClient = NettySdkHttpClientFactory.builder().readTimeout(Duration.ofSeconds(4)).build().createHttpClient()
+        httpClient = NettyNioAsyncHttpClient.builder().build()
 
-        extraHost = AwsRequestOverrideConfig.builder().header("Host", "$host:$port").build()
+        extraHost = AwsRequestOverrideConfiguration.builder().putHeader("Host", "$host:$port").build()
 
         s3Sync = S3Client.builder().region(Region.US_WEST_2)
                 .endpointOverride(URI("http://$host:$port"))
-                .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build())
+//                .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build())
                 .credentialsProvider(AnonymousCredentialsProvider.create())
                 .build()
 
         s3 = S3AsyncClient.builder()
-                .asyncHttpConfiguration(
-                        ClientAsyncHttpConfiguration.builder().httpClient(httpClient).build()
-                )
+                .httpClient(httpClient)
+                .asyncConfiguration(ClientAsyncConfiguration.builder().advancedOption(
+                        SdkAdvancedAsyncClientOption.FUTURE_COMPLETION_EXECUTOR, Executors.newFixedThreadPool(5)
+                ).build())
                 //.overrideConfiguration(ClientOverrideConfiguration.builder().advancedOption(AdvancedClientOption.SIGNER_PROVIDER, NoOpSignerProvider()).build())
                 .region(Region.US_WEST_2)
                 .endpointOverride(URI("http://$host:$port"))
-                .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build())
+//                .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build())
                 .credentialsProvider(AnonymousCredentialsProvider.create())
                 .build()
 

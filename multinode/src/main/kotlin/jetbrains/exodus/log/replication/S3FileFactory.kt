@@ -19,7 +19,7 @@ import jetbrains.exodus.io.FileDataReader
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogUtil
 import mu.KLogging
-import software.amazon.awssdk.core.AwsRequestOverrideConfig
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import java.nio.file.Path
 
@@ -27,7 +27,7 @@ class S3FileFactory(
         override val s3: S3AsyncClient,
         val dir: Path,
         override val bucket: String,
-        override val requestOverrideConfig: AwsRequestOverrideConfig? = null
+        override val requestOverrideConfig: AwsRequestOverrideConfiguration? = null
 ) : S3FactoryBoilerplate, FileFactory {
     companion object : KLogging()
 

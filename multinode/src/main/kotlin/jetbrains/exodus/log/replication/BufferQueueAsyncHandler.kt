@@ -19,7 +19,7 @@ package jetbrains.exodus.log.replication
 import org.reactivestreams.Publisher
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
-import software.amazon.awssdk.core.async.AsyncResponseHandler
+import software.amazon.awssdk.core.async.AsyncResponseTransformer
 import software.amazon.awssdk.services.s3.model.GetObjectResponse
 import java.nio.ByteBuffer
 import java.util.concurrent.ArrayBlockingQueue
@@ -29,7 +29,7 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicReference
 
 // async handler which exposes a queue for sequential writing of response data on caller thread
-class BufferQueueAsyncHandler : AsyncResponseHandler<GetObjectResponse, GetObjectResponse> {
+class BufferQueueAsyncHandler : AsyncResponseTransformer<GetObjectResponse, GetObjectResponse> {
     companion object {
         private const val waitForSubscriptionInterval = 20L
         val finish: ByteBuffer = ByteBuffer.allocate(0)
