@@ -19,12 +19,10 @@ import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
 import jetbrains.exodus.entitystore.newPersistentEntityStoreConfig
 import jetbrains.exodus.entitystore.replication.S3Replicator
 import jetbrains.exodus.env.Reflect
-import software.amazon.awssdk.core.auth.AwsCredentials
-import software.amazon.awssdk.core.auth.StaticCredentialsProvider
-import software.amazon.awssdk.core.client.builder.ClientAsyncHttpConfiguration
-import software.amazon.awssdk.core.regions.Region
-import software.amazon.awssdk.http.nio.netty.NettySdkHttpClientFactory
-import software.amazon.awssdk.services.s3.S3AdvancedConfiguration
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
+import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import java.io.File
 import java.net.URI
@@ -32,8 +30,7 @@ import kotlin.concurrent.thread
 
 fun main(args: Array<String>) {
     val region = Region.US_WEST_2
-    val factory = NettySdkHttpClientFactory.builder().build()
-    val httpClient = factory.createHttpClient()
+    val httpClient = NettyNioAsyncHttpClient.builder().build()
 
     var bucket: String? = null
     var host: String? = null
@@ -72,13 +69,11 @@ fun main(args: Array<String>) {
     }
 
     val s3 = S3AsyncClient.builder()
-            .asyncHttpConfiguration(
-                    ClientAsyncHttpConfiguration.builder().httpClient(httpClient).build()
-            )
+            .httpClient(httpClient)
             .region(region)
             .endpointOverride(URI("http://$host:$port"))
-            .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build()) // for minio
-            .credentialsProvider(StaticCredentialsProvider.create(AwsCredentials.create(accessKey, secretKey)))
+//            .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build()) // for minio
+            .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)))
             .build()
     val replicator = S3Replicator(
             metaServer = host,
