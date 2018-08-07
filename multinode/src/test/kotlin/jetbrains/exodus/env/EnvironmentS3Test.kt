@@ -31,6 +31,7 @@ import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.S3Configuration
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest
 import java.io.File
 import java.net.URI
@@ -89,7 +90,7 @@ class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {
 
         s3Sync = S3Client.builder().region(Region.US_WEST_2)
                 .endpointOverride(URI("http://$host:$port"))
-//                .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build())
+                .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build()) // for minio
                 .credentialsProvider(AnonymousCredentialsProvider.create())
                 .build()
 
@@ -98,10 +99,10 @@ class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {
                 .asyncConfiguration(ClientAsyncConfiguration.builder().advancedOption(
                         SdkAdvancedAsyncClientOption.FUTURE_COMPLETION_EXECUTOR, Executors.newFixedThreadPool(5)
                 ).build())
+                .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build()) // for minio
                 //.overrideConfiguration(ClientOverrideConfiguration.builder().advancedOption(AdvancedClientOption.SIGNER_PROVIDER, NoOpSignerProvider()).build())
                 .region(Region.US_WEST_2)
                 .endpointOverride(URI("http://$host:$port"))
-//                .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build())
                 .credentialsProvider(AnonymousCredentialsProvider.create())
                 .build()
 

@@ -33,6 +33,7 @@ import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.S3Configuration
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
@@ -63,7 +64,7 @@ class S3DataReaderTest {
 
         s3Sync = S3Client.builder().region(Region.US_WEST_2)
                 .endpointOverride(URI("http://$host:$port"))
-//                .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build())
+                .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build()) // for minio
                 .credentialsProvider(AnonymousCredentialsProvider.create())
                 .build()
 
@@ -71,7 +72,7 @@ class S3DataReaderTest {
                 .httpClient(httpClient)
                 .region(Region.US_WEST_2)
                 .endpointOverride(URI("http://$host:$port"))
-//                .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build())
+                .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build()) // for minio
                 .credentialsProvider(AnonymousCredentialsProvider.create())
                 .build()
 
