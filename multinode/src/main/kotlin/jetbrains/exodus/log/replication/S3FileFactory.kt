@@ -27,6 +27,7 @@ class S3FileFactory(
         override val s3: S3AsyncClient,
         val dir: Path,
         override val bucket: String,
+        val reader: FileDataReader,
         override val requestOverrideConfig: AwsRequestOverrideConfiguration? = null
 ) : S3FactoryBoilerplate, FileFactory {
     companion object : KLogging()
@@ -34,7 +35,7 @@ class S3FileFactory(
     override fun fetchFile(log: Log, address: Long, startingLength: Long, expectedLength: Long, finalFile: Boolean): WriteResult {
         if (checkPreconditions(log, expectedLength, startingLength)) return WriteResult.empty
 
-        log.ensureWriter().blockSetMutable.add(address, FileDataReader.FileBlock(address, log.config.reader as FileDataReader))
+        log.ensureWriter().blockSetMutable.add(address, FileDataReader.FileBlock(address, reader))
 
         val filename = LogUtil.getLogFilename(address)
 

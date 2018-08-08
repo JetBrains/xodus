@@ -17,6 +17,7 @@ package jetbrains.exodus.log.replication
 
 import io.findify.s3mock.S3Mock
 import jetbrains.exodus.env.replication.ReplicationDelta
+import jetbrains.exodus.io.FileDataReader
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.ReplicatedLogTestMixin
 import jetbrains.exodus.log.ReplicatedLogTestMixin.Companion.bucket
@@ -141,7 +142,7 @@ abstract class ReplicationBaseTest : ReplicatedLogTestMixin {
     }
 
     protected open fun Log.makeFileFactory(): FileFactory {
-        return S3FileFactory(s3, Paths.get(location), bucket, extraHost)
+        return S3FileFactory(s3, Paths.get(location), bucket, config.reader as FileDataReader, extraHost)
     }
 
     fun Log.filesDelta(startAddress: Long): LongArray {

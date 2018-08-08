@@ -29,6 +29,7 @@ import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.replication.EnvironmentAppender
 import jetbrains.exodus.env.replication.EnvironmentReplicationDelta
 import jetbrains.exodus.env.replication.ReplicationDelta
+import jetbrains.exodus.io.FileDataReader
 import jetbrains.exodus.log.replication.*
 import mu.KLogging
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration
@@ -84,8 +85,15 @@ class S3Replicator(
         sourceEncrypted = delta.encrypted
         val targetEncrypted = environment.cipherProvider != null
 
+        environment as EnvironmentImpl
+
         val factory: FileFactory = if (sourceEncrypted == targetEncrypted) {
-            S3FileFactory(s3, Paths.get(environment.location), bucket, requestOverrideConfig)
+            val reader = environment.log.config.reader
+            if (reader is FileDataReader) {
+                S3FileFactory(s3, Paths.get(environment.location), bucket, reader, requestOverrideConfig)
+            } else {
+                S3ToWriterFileFactory(s3, bucket, requestOverrideConfig)
+            }
         } else {
             if (!targetEncrypted) {
                 throw UnsupportedOperationException("Un-encrypt log is not supported")
@@ -94,7 +102,7 @@ class S3Replicator(
             S3ToWriterFileFactory(s3, bucket, requestOverrideConfig) // writer respects encryption
         }
 
-        EnvironmentAppender.appendEnvironment(environment as EnvironmentImpl, delta, factory)
+        EnvironmentAppender.appendEnvironment(environment, delta, factory)
     }
 
     override fun replicateBlobVault(delta: EnvironmentReplicationDelta, vault: BlobVault, blobsToReplicate: List<Pair<Long, Long>>) {
