@@ -109,6 +109,12 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
         }
     }
 
+    @Override
+    @NotNull
+    public BlobVaultItem getBlob(long blobHandle) {
+        return new FileBasedBlobValueItem(getBlobLocation(blobHandle), blobHandle);
+    }
+
     public File getVaultLocation() {
         return location;
     }
@@ -335,25 +341,9 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
         return getBlobLocation(blobHandle, true);
     }
 
+    @Override
     public String getBlobKey(long blobHandle) {
-        String file;
-        final List<String> files = new ArrayList<>(8);
-        while (true) {
-            file = Integer.toHexString((int) (blobHandle & 0xff));
-            if (blobHandle <= 0xff) {
-                break;
-            }
-            files.add(file);
-            blobHandle >>= 8;
-        }
-        files.add(file);
-        final StringBuilder dir = new StringBuilder(blobsDirectory);
-        for (ListIterator iterator = files.listIterator(files.size()); iterator.hasPrevious(); ) {
-            dir.append('/');
-            dir.append(iterator.previous());
-        }
-        dir.append(blobExtension);
-        return dir.toString();
+        return blobsDirectory + super.getBlobKey(blobHandle) + blobExtension;
     }
 
     @NotNull

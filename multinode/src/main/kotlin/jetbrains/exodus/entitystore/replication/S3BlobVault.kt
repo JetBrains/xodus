@@ -15,75 +15,99 @@
  */
 package jetbrains.exodus.entitystore.replication
 
+
 import jetbrains.exodus.backup.BackupStrategy
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap
 import jetbrains.exodus.core.dataStructures.hash.LongSet
-import jetbrains.exodus.crypto.EncryptedBlobVault
+import jetbrains.exodus.entitystore.BlobHandleGenerator
 import jetbrains.exodus.entitystore.BlobVault
-import jetbrains.exodus.entitystore.DiskBasedBlobVault
+import jetbrains.exodus.entitystore.BlobVaultItem
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
 import jetbrains.exodus.env.Transaction
+import jetbrains.exodus.log.replication.*
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration
+import software.amazon.awssdk.core.async.AsyncResponseTransformer
+import software.amazon.awssdk.services.s3.S3AsyncClient
+import software.amazon.awssdk.services.s3.model.GetObjectRequest
+import software.amazon.awssdk.services.s3.model.S3Object
 import java.io.File
 import java.io.InputStream
 
 class S3BlobVault(
-        var delegate: DiskBasedBlobVault,
-        val store: PersistentEntityStoreImpl,
-        val replicator: S3Replicator
-) : BlobVault(store.config), DiskBasedBlobVault {
+        store: PersistentEntityStoreImpl,
+        val blobHandleGenerator: BlobHandleGenerator,
+        override val s3: S3AsyncClient,
+        override val bucket: String,
+        val location: String,
+        val blobExtension: String,
+        override val requestOverrideConfig: AwsRequestOverrideConfiguration? = null
+) : BlobVault(store.config), S3FactoryBoilerplate {
+
+    override fun getBlob(blobHandle: Long): BlobVaultItem {
+        val blobKey = getBlobKey(blobHandle)
+        val blob = getS3BlobObject(blobKey)
+        if (blob != null) {
+            return S3BlobVaultItem(blobHandle, blob)
+        }
+        return S3MissedBlobVaultItem(blobHandle, blobKey)
+    }
+
+    override fun getBlobKey(blobHandle: Long): String {
+        return location + super.getBlobKey(blobHandle) + blobExtension
+    }
+
     override fun getBackupStrategy(): BackupStrategy = BackupStrategy.EMPTY
 
     override fun getContent(blobHandle: Long, txn: Transaction): InputStream? {
-        var result = delegate.getContent(blobHandle, txn)
-        if (result == null) {
-            store.getBlobFileLength(blobHandle, txn)?.let { length ->
-                replicator.replicateBlob(blobHandle, length, delegate, replicator.sourceEncrypted, delegate is EncryptedBlobVault)?.let {
-                    result = delegate.getContent(blobHandle, txn)
-                }
-            }
-        }
-        return result
+        val blobKey = getBlobKey(blobHandle)
+        return s3.getObject(
+                GetObjectRequest.builder()
+                        .overrideConfiguration(requestOverrideConfig)
+                        .bucket(bucket)
+                        .key(blobKey)
+                        .build(),
+                AsyncResponseTransformer.toBytes()
+        ).get().asInputStream()
     }
 
-    // TODO: get the size from blobs table everywhere
-    override fun getSize(blobHandle: Long, txn: Transaction): Long = store.getBlobFileLength(blobHandle, txn) ?: 0L
-
-    override fun getBlobKey(blobHandle: Long): String {
-        return delegate.getBlobKey(blobHandle)
+    override fun getSize(blobHandle: Long, txn: Transaction): Long {
+        val blobKey = getBlobKey(blobHandle)
+        return getS3BlobObject(blobKey)?.size() ?: 0
     }
 
-    override fun getBlobLocation(blobHandle: Long): File {
-        return delegate.getBlobLocation(blobHandle)
-    }
 
-    override fun getBlobLocation(blobHandle: Long, readonly: Boolean): File {
-        if (!readonly) {
-            readOnly()
-        }
-        return delegate.getBlobLocation(blobHandle, true)
-    }
-
-    override fun size(): Long {
-        return delegate.size()
-    }
+    override fun size() = -1L
 
     override fun requiresTxn(): Boolean = false
 
     override fun nextHandle(txn: Transaction): Long {
-        readOnly()
+        return blobHandleGenerator.nextHandle(txn)
     }
 
     override fun flushBlobs(blobStreams: LongHashMap<InputStream>?, blobFiles: LongHashMap<File>?, deferredBlobsToDelete: LongSet?, txn: Transaction) {
-        if ((blobFiles != null && blobFiles.isNotEmpty()) || (blobStreams != null && blobStreams.isNotEmpty())) {
-            readOnly()
+        TODO()
+    }
+
+    override fun clear() {
+        listObjects(s3, listObjectsBuilder(bucket, requestOverrideConfig)).map {
+            it.key()
+        }.windowed(size = deletePackSize, step = deletePackSize, partialWindows = true).forEach {
+            it.deleteS3Objects(s3, bucket, requestOverrideConfig)
         }
     }
 
-    override fun clear() = readOnly()
-
     override fun close() {
-        delegate.close() // TODO?
+        s3.close()
     }
 
-    private fun readOnly(): Nothing = throw UnsupportedOperationException("vault is read-only")
+    override fun delete(blobHandle: Long): Boolean {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
+    private fun getS3BlobObject(blobKey: String): S3Object? {
+        val list = listObjects(s3,
+                listObjectsBuilder(bucket, requestOverrideConfig).prefix(blobKey)
+        ).asIterable()
+        return list.firstOrNull()
+    }
 }

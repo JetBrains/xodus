@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.io
 
+import com.sun.nio.file.SensitivityWatchEventModifier
 import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.tryUpdate
 import jetbrains.exodus.log.LogUtil

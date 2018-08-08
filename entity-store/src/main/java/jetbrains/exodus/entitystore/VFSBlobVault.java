@@ -74,6 +74,22 @@ public class VFSBlobVault extends BlobVault {
     }
 
     @Override
+    public String getBlobKey(long blobHandle) {
+        return "blob." + blobHandle;
+    }
+
+    @Override
+    @NotNull
+    public BlobVaultItem getBlob(long blobHandle) {
+        throw new VfsException("Can't get blob without a transaction");
+    }
+
+    @Override
+    public boolean delete(long blobHandle) {
+        throw new VfsException("Can't delete blob without a transaction");
+    }
+
+    @Override
     @NotNull
     public InputStream getContent(long blobHandle, @NotNull final Transaction txn) {
         return fs.readFile(txn, blobHandle);

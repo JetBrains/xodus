@@ -122,7 +122,7 @@ class S3Replicator(
 
     override fun decorateBlobVault(vault: DiskBasedBlobVault, store: PersistentEntityStore): DiskBasedBlobVault {
         return if (lazyBlobs) {
-            S3BlobVault(vault, store as PersistentEntityStoreImpl, this)
+            S3ReplicationBlobVault(vault, store as PersistentEntityStoreImpl, this)
         } else {
             vault
         }
