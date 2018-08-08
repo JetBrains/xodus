@@ -19,16 +19,22 @@ package jetbrains.exodus.entitystore.replication
 import jetbrains.exodus.backup.BackupStrategy
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap
 import jetbrains.exodus.core.dataStructures.hash.LongSet
+import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.entitystore.BlobHandleGenerator
 import jetbrains.exodus.entitystore.BlobVault
 import jetbrains.exodus.entitystore.BlobVaultItem
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
 import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.log.replication.*
+import jetbrains.exodus.util.DeferredIO
+import mu.KLogging
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration
+import software.amazon.awssdk.core.async.AsyncRequestBody
 import software.amazon.awssdk.core.async.AsyncResponseTransformer
 import software.amazon.awssdk.services.s3.S3AsyncClient
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
+import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import software.amazon.awssdk.services.s3.model.S3Object
 import java.io.File
 import java.io.InputStream
@@ -42,6 +48,8 @@ class S3BlobVault(
         val blobExtension: String,
         override val requestOverrideConfig: AwsRequestOverrideConfiguration? = null
 ) : BlobVault(store.config), S3FactoryBoilerplate {
+
+    companion object : KLogging()
 
     override fun getBlob(blobHandle: Long): BlobVaultItem {
         val blobKey = getBlobKey(blobHandle)
@@ -85,7 +93,43 @@ class S3BlobVault(
     }
 
     override fun flushBlobs(blobStreams: LongHashMap<InputStream>?, blobFiles: LongHashMap<File>?, deferredBlobsToDelete: LongSet?, txn: Transaction) {
-        TODO()
+        blobStreams?.let { streams ->
+            streams.entries.forEach {
+                val key = getBlobKey(it.key)
+                s3.putObject(PutObjectRequest.builder()
+                        .bucket(bucket)
+                        .overrideConfiguration(requestOverrideConfig)
+                        .key(key).build(),
+                        AsyncRequestBody.fromBytes(it.value.readBytes())
+                )
+            }
+        }
+        blobFiles?.let { files ->
+            files.entries.forEach {
+                val key = getBlobKey(it.key)
+                s3.putObject(PutObjectRequest.builder()
+                        .bucket(bucket)
+                        .overrideConfiguration(requestOverrideConfig)
+                        .key(key).build(),
+                        AsyncRequestBody.fromFile(it.value)
+                )
+            }
+        }
+        deferredBlobsToDelete?.let { blobHandles ->
+            val copyHandles = blobHandles.toList()
+            val environment = txn.environment
+            environment.executeTransactionSafeTask {
+                DeferredIO.getJobProcessor().queueIn(object : Job() {
+                    override fun execute() {
+                        copyHandles.forEach { delete(it) }
+                    }
+
+                    override fun getName() = "Delete obsolete blob files"
+
+                    override fun getGroup() = environment.location
+                }, environment.environmentConfig.gcFilesDeletionDelay.toLong())
+            }
+        }
     }
 
     override fun clear() {
@@ -101,7 +145,17 @@ class S3BlobVault(
     }
 
     override fun delete(blobHandle: Long): Boolean {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        val key = getBlobKey(blobHandle)
+        return try {
+            s3.deleteObject(DeleteObjectRequest.builder()
+                    .bucket(bucket)
+                    .overrideConfiguration(requestOverrideConfig)
+                    .key(key).build()).get()
+            true
+        } catch (e: Exception) {
+            logger.warn(e) { "error deleting blob into " }
+            false
+        }
     }
 
     private fun getS3BlobObject(blobKey: String): S3Object? {
