@@ -19,8 +19,8 @@ import com.sun.nio.file.SensitivityWatchEventModifier
 import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.tryUpdate
 import jetbrains.exodus.log.LogUtil
+import jetbrains.exodus.system.JVMConstants
 import mu.KLogging
-import java.io.IOException
 import java.nio.file.*
 import java.util.concurrent.TimeUnit
 
@@ -32,7 +32,16 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?, inte
     }
 
     private val watchService = FileSystems.getDefault().newWatchService()
-    private val watchKey = fileDataReader.dir.toPath().register(watchService, StandardWatchEventKinds.ENTRY_MODIFY)
+    private val watchKey = fileDataReader.dir.toPath().let {
+        if (JVMConstants.IS_MAC) {
+            it.register(watchService,
+                    arrayOf(StandardWatchEventKinds.ENTRY_MODIFY),
+                    SensitivityWatchEventModifier.HIGH)
+        } else {
+            it.register(watchService, StandardWatchEventKinds.ENTRY_MODIFY)
+        }
+    }
+
     @Volatile
     private var stopped = false
 
@@ -50,9 +59,6 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?, inte
         stopped = true
         watchKey.cancel()
         watchService.close()
-        try {
-        } catch (ignore: IOException) {
-        }
         fileDataReader.close()
     }
 
@@ -78,9 +84,7 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?, inte
                     }
                 }
             } catch (e: InterruptedException) {
-                if (logger.isWarnEnabled) {
-                    logger.warn("File watcher interrupted", e)
-                }
+                logger.warn(e) { "File watcher interrupted" }
                 Thread.currentThread().interrupt()
                 return
             } catch (ignore: ClosedWatchServiceException) {
@@ -112,14 +116,10 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?, inte
         val env = envGetter()
         if (env != null) {
             if (env.tryUpdate()) {
-                if (logger.isInfoEnabled) {
-                    logger.info((if (force) "Env force-updated at " else "Env updated at ") + env.location)
-                }
+                logger.info { (if (force) "Env force-updated at " else "Env updated at ") + env.location }
                 return Long.MIN_VALUE
             } else {
-                if (logger.isInfoEnabled) {
-                    logger.info((if (force) "Can't force-update env at " else "Can't update env at ") + env.location)
-                }
+                logger.info { (if (force) "Can't force-update env at " else "Can't update env at ") + env.location }
             }
         }
         return System.currentTimeMillis()
