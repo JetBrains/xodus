@@ -16,6 +16,7 @@
 package jetbrains.exodus.log.replication
 
 import jetbrains.exodus.ExodusException
+import jetbrains.exodus.core.dataStructures.persistent.read
 import jetbrains.exodus.io.AbstractDataWriter
 import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.RemoveBlockType
@@ -126,11 +127,15 @@ class S3DataWriter(private val s3Sync: S3Client,
 
     override fun removeBlock(blockAddress: Long, rbt: RemoveBlockType) {
         val keysToDelete = ArrayList<String>()
-        fileBlocks.filter { it.address == blockAddress }.forEach {
-            keysToDelete.add(it.key)
+        fileBlocks.firstOrNull { it.address == blockAddress }?.apply {
+            keysToDelete.add(key)
         }
-        folderBlocks.filter { it.address == blockAddress }.flatMap { it.blocks }.forEach {
-            keysToDelete.add(it.key)
+        if (keysToDelete.isEmpty()) {
+            folderBlocks.firstOrNull { it.address == blockAddress }?.apply {
+                blocks.read {
+                    forEach { keysToDelete.add(it.value.key) }
+                }
+            }
         }
         if (rbt == RemoveBlockType.Rename) {
             keysToDelete.forEach {
@@ -160,9 +165,9 @@ class S3DataWriter(private val s3Sync: S3Client,
     }
 
     override fun truncateBlock(blockAddress: Long, length: Long) {
-        fileBlocks.filter { it.address == blockAddress }.forEach { it.truncate(length) }
-
-        folderBlocks.filter { it.address == blockAddress }.forEach { folder ->
+        fileBlocks.firstOrNull { it.address == blockAddress }?.truncate(length)
+        // TODO: XD-743
+        /*folderBlocks.filter { it.address == blockAddress }.forEach { folder ->
             folder.blocks.let {
                 val last = it.findLast { it.address - folder.address < length }
                 last?.truncate(length - (last.address - folder.address))
@@ -173,7 +178,7 @@ class S3DataWriter(private val s3Sync: S3Client,
                             it.deleteS3Objects(s3, bucket, requestOverrideConfig)
                         }
             }
-        }
+        }*/
     }
 
     override fun lock(timeout: Long) = true
