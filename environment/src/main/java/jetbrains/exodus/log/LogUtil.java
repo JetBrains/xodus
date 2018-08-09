@@ -131,8 +131,8 @@ public final class LogUtil {
         return result;
     }
 
-    public static String getWrongAddressErrorMessage(final long address, final long fileSize /* in Kb */) {
-        final long fileAddress = address - (address % (fileSize * 1024L));
+    public static String getWrongAddressErrorMessage(final long address, final long fileLengthBound) {
+        final long fileAddress = address - (address % fileLengthBound);
         return ", address = " + address + ", file = " + getLogFilename(fileAddress);
     }
 }

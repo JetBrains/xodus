@@ -19,7 +19,7 @@ import jetbrains.exodus.log.BufferedDataWriter
 import org.reactivestreams.Publisher
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
-import software.amazon.awssdk.core.async.AsyncResponseHandler
+import software.amazon.awssdk.core.async.AsyncResponseTransformer
 import software.amazon.awssdk.services.s3.model.GetObjectResponse
 import software.amazon.awssdk.utils.FunctionalUtils.invokeSafely
 import java.nio.ByteBuffer
@@ -39,7 +39,7 @@ class FileAsyncHandler(
         private val startingLength: Long,
         private val lastPageStart: Long = 0,
         private val lastPage: BufferedDataWriter.MutablePage? = null
-) : AsyncResponseHandler<GetObjectResponse, WriteResult> {
+) : AsyncResponseTransformer<GetObjectResponse, WriteResult> {
     private val lastPageStartingLength = lastPage?.count ?: 0
 
     private lateinit var fileChannel: AsynchronousFileChannel

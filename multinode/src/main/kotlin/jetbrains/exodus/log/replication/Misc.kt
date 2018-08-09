@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.log.replication
 
-import software.amazon.awssdk.core.AwsRequestOverrideConfig
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import software.amazon.awssdk.services.s3.model.*
 import java.nio.ByteBuffer
@@ -40,9 +40,9 @@ fun ByteBuffer.copyBytes(skip: Int, output: ByteArray, offset: Int, length: Int)
     }
 }
 
-internal fun listObjectsBuilder(bucketName: String, requestOverrideConfig: AwsRequestOverrideConfig? = null): ListObjectsRequest.Builder {
+internal fun listObjectsBuilder(bucketName: String, requestOverrideConfig: AwsRequestOverrideConfiguration? = null): ListObjectsRequest.Builder {
     return ListObjectsRequest.builder()
-            .requestOverrideConfig(requestOverrideConfig)
+            .overrideConfiguration(requestOverrideConfig)
             .bucket(bucketName)
 }
 
@@ -66,11 +66,11 @@ internal fun listObjects(s3: S3AsyncClient, builder: ListObjectsRequest.Builder)
 
 internal fun List<String>.deleteS3Objects(s3: S3AsyncClient,
                                           bucketName: String,
-                                          requestOverrideConfig: AwsRequestOverrideConfig? = null) {
+                                          requestOverrideConfig: AwsRequestOverrideConfiguration? = null) {
     S3DataReader.logger.info { "deleting files ${joinToString()}" }
 
     val deleteObjectsResponse = s3.deleteObjects(DeleteObjectsRequest.builder()
-            .requestOverrideConfig(requestOverrideConfig)
+            .overrideConfiguration(requestOverrideConfig)
             .delete(
                     Delete.builder().objects(
                             map { ObjectIdentifier.builder().key(it).build() })

@@ -423,9 +423,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             }
             final long current = persistentSequenceGetter.get().get();
             for (long blobHandle = current + 1; blobHandle < current + 1000; ++blobHandle) {
-                final File file = blobVault.getBlobLocation(blobHandle);
-                if (file.exists()) {
-                    logger.error("Redundant blob file: " + file);
+                final BlobVaultItem item = blobVault.getBlob(blobHandle);
+                if (item.exists()) {
+                    logger.error("Redundant blob item: " + item);
                 }
             }
             blobVault.setSizeFunctions(new CachedBlobLengths(environment, blobFileLengths));

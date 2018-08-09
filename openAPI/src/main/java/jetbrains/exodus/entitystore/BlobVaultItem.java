@@ -15,26 +15,15 @@
  */
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.env.Transaction;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
-import java.io.File;
-import java.io.InputStream;
+public interface BlobVaultItem {
 
-public interface DiskBasedBlobVault {
+    long getHandle();
 
-    File getBlobLocation(long blobHandle);
+    @NotNull
+    String getLocation();
 
-    File getBlobLocation(long blobHandle, boolean readonly);
+    boolean exists();
 
-    String getBlobKey(long blobHandle);
-
-    boolean delete(long blobHandle);
-
-    @Nullable InputStream getContent(long blobHandle, @NotNull Transaction txn);
-
-    long size();
-
-    void close();
 }

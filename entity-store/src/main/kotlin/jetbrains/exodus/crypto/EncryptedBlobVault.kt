@@ -17,9 +17,7 @@ package jetbrains.exodus.crypto
 
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap
 import jetbrains.exodus.core.dataStructures.hash.LongSet
-import jetbrains.exodus.entitystore.BlobVault
-import jetbrains.exodus.entitystore.DiskBasedBlobVault
-import jetbrains.exodus.entitystore.FileSystemBlobVaultOld
+import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.env.Transaction
 import java.io.File
 import java.io.FileInputStream
@@ -37,10 +35,20 @@ class EncryptedBlobVault(private val decorated: FileSystemBlobVaultOld,
 
     override fun getBackupStrategy() = decorated.backupStrategy
 
+    override fun getBlob(blobHandle: Long): BlobVaultItem {
+        return decorated.getBlob(blobHandle)
+    }
+
     override fun getContent(blobHandle: Long, txn: Transaction): InputStream? {
         return decorated.getContent(blobHandle, txn)?.run {
-            StreamCipherInputStream(this, { newCipher(blobHandle) })
+            StreamCipherInputStream(this) {
+                newCipher(blobHandle)
+            }
         }
+    }
+
+    override fun delete(blobHandle: Long): Boolean {
+        return decorated.delete(blobHandle)
     }
 
     override fun getBlobLocation(blobHandle: Long): File {
@@ -64,15 +72,24 @@ class EncryptedBlobVault(private val decorated: FileSystemBlobVaultOld,
                             deferredBlobsToDelete: LongSet?,
                             txn: Transaction) {
         val streams = LongHashMap<InputStream>()
-        blobStreams?.forEach { streams[it.key] = StreamCipherInputStream(it.value, { newCipher(it.key) }) }
+        blobStreams?.forEach {
+            streams[it.key] = StreamCipherInputStream(it.value) {
+                newCipher(it.key)
+            }
+        }
         var openFiles: MutableList<InputStream>? = null
         try {
             if (blobFiles != null && blobFiles.isNotEmpty()) {
                 openFiles = mutableListOf()
                 blobFiles.forEach {
                     streams[it.key] = StreamCipherInputStream(
-                            FileInputStream(it.value).also { openFiles.add(it) }.asBuffered.apply { mark(Int.MAX_VALUE) },
-                            { newCipher(it.key) })
+                            FileInputStream(it.value)
+                                    .also { openFiles.add(it) }
+                                    .asBuffered
+                                    .apply { mark(Int.MAX_VALUE) }
+                    ) {
+                        newCipher(it.key)
+                    }
                 }
             }
             decorated.flushBlobs(streams, null, deferredBlobsToDelete, txn)

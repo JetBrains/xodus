@@ -17,6 +17,7 @@ package jetbrains.exodus.log.replication
 
 import io.findify.s3mock.S3Mock
 import jetbrains.exodus.env.replication.ReplicationDelta
+import jetbrains.exodus.io.FileDataReader
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.ReplicatedLogTestMixin
 import jetbrains.exodus.log.ReplicatedLogTestMixin.Companion.bucket
@@ -26,13 +27,11 @@ import kotlinx.coroutines.experimental.runBlocking
 import mu.KLogging
 import org.junit.After
 import org.junit.Before
-import software.amazon.awssdk.core.AwsRequestOverrideConfig
-import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
-import software.amazon.awssdk.core.client.builder.ClientAsyncHttpConfiguration
-import software.amazon.awssdk.core.regions.Region
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient
-import software.amazon.awssdk.http.nio.netty.NettySdkHttpClientFactory
-import software.amazon.awssdk.services.s3.S3AdvancedConfiguration
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
+import software.amazon.awssdk.regions.Region.US_WEST_2
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import software.amazon.awssdk.services.s3.model.ListBucketsRequest
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest
@@ -52,7 +51,7 @@ abstract class ReplicationBaseTest : ReplicatedLogTestMixin {
     private lateinit var api: S3Mock
     protected lateinit var httpClient: SdkAsyncHttpClient
     protected lateinit var s3: S3AsyncClient
-    protected lateinit var extraHost: AwsRequestOverrideConfig
+    protected lateinit var extraHost: AwsRequestOverrideConfiguration
 
     @Before
     fun setUp() {
@@ -66,17 +65,15 @@ abstract class ReplicationBaseTest : ReplicatedLogTestMixin {
         api = S3Mock.Builder().withPort(0).withFileBackend(sourceLogDir.parentFile.absolutePath).build()
         val port = api.start().localAddress().port
 
-        httpClient = NettySdkHttpClientFactory.builder().build().createHttpClient()
+        httpClient = NettyNioAsyncHttpClient.builder().build()
 
-        extraHost = AwsRequestOverrideConfig.builder().header("Host", "$host:$port").build()
+        extraHost = AwsRequestOverrideConfiguration.builder().putHeader("Host", "$host:$port").build()
 
         s3 = S3AsyncClient.builder()
-                .asyncHttpConfiguration(
-                        ClientAsyncHttpConfiguration.builder().httpClient(httpClient).build()
-                )
-                .region(Region.US_WEST_2)
+                .httpClient(httpClient)
+                .region(US_WEST_2)
                 .endpointOverride(URI("http://$host:$port"))
-                .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build()) // for tests only
+//                .advancedConfiguration(S3AdvancedConfiguration.builder().pathStyleAccessEnabled(true).build()) // for tests only
                 .credentialsProvider(AnonymousCredentialsProvider.create())
                 .build()
     }
@@ -100,7 +97,7 @@ abstract class ReplicationBaseTest : ReplicatedLogTestMixin {
 
     protected suspend fun doDebug(s3: S3AsyncClient) {
         logger.info { "Listing buckets\n" }
-        val bucketsResponse = s3.listBuckets(ListBucketsRequest.builder().requestOverrideConfig(extraHost).build()).await()
+        val bucketsResponse = s3.listBuckets(ListBucketsRequest.builder().overrideConfiguration(extraHost).build()).await()
 
         logger.info {
             buildString {
@@ -116,7 +113,7 @@ abstract class ReplicationBaseTest : ReplicatedLogTestMixin {
         logger.info { "Listing objects\n" }
 
         val objectListing = s3.listObjects(ListObjectsRequest.builder()
-                .requestOverrideConfig(extraHost)
+                .overrideConfiguration(extraHost)
                 .bucket(bucket)
                 .delimiter("/")
                 //.prefix("My")
@@ -145,7 +142,7 @@ abstract class ReplicationBaseTest : ReplicatedLogTestMixin {
     }
 
     protected open fun Log.makeFileFactory(): FileFactory {
-        return S3FileFactory(s3, Paths.get(location), bucket, extraHost)
+        return S3FileFactory(s3, Paths.get(location), bucket, config.reader as FileDataReader, extraHost)
     }
 
     fun Log.filesDelta(startAddress: Long): LongArray {

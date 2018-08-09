@@ -19,12 +19,12 @@ import mu.KLogging
 import org.reactivestreams.Publisher
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
-import software.amazon.awssdk.core.async.AsyncResponseHandler
+import software.amazon.awssdk.core.async.AsyncResponseTransformer
 import software.amazon.awssdk.utils.FunctionalUtils.invokeSafely
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicInteger
 
-internal class ByteArrayAsyncResponseHandler<R>(val output: ByteArray, private val offset: Int) : AsyncResponseHandler<R, Int> {
+internal class ByteArrayAsyncResponseHandler<R>(val output: ByteArray, private val offset: Int) : AsyncResponseTransformer<R, Int> {
 
     companion object : KLogging()
 

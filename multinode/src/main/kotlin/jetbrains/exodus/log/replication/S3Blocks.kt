@@ -16,6 +16,9 @@
 package jetbrains.exodus.log.replication
 
 import jetbrains.exodus.ExodusException
+import jetbrains.exodus.core.dataStructures.persistent.PersistentBitTreeLongMap
+import jetbrains.exodus.core.dataStructures.persistent.PersistentLongMap
+import jetbrains.exodus.core.dataStructures.persistent.write
 import jetbrains.exodus.io.Block
 import jetbrains.exodus.log.LogUtil
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
@@ -43,7 +46,7 @@ internal abstract class BasicS3Block(internal val s3factory: S3FactoryBoilerplat
 
         return s3factory.s3.getObject(GetObjectRequest.builder()
                 .range(range)
-                .requestOverrideConfig(s3factory.requestOverrideConfig)
+                .overrideConfiguration(s3factory.requestOverrideConfig)
                 .bucket(s3factory.bucket)
                 .key(key).build(),
                 ByteArrayAsyncResponseHandler<GetObjectResponse?>(output, offset)
@@ -53,9 +56,9 @@ internal abstract class BasicS3Block(internal val s3factory: S3FactoryBoilerplat
     override fun refresh() = this
 
     internal fun readAndCompare(output: ByteArray, position: Long, offset: Int, count: Int): Int {
-        return read(output, position, offset, count).also {
-            if (it < count) {
-                val msg = "try to read $count bytes from $key but get $it"
+        return read(output, position, offset, count).also { read ->
+            if (read < count) {
+                val msg = "Tried to read $count bytes from $key but got $read bytes"
                 S3DataReader.logger.error(msg)
                 throw ExodusException(msg)
             }
@@ -78,94 +81,6 @@ internal class S3SubBlock(s3factory: S3FactoryBoilerplate,
         get() = getPartialFolderPrefix(parentAddress) + getPartialFileName(_address)
 }
 
-internal class S3FolderBlock(s3factory: S3FactoryBoilerplate,
-                             address: Long,
-                             internal val blocks: List<S3SubBlock>,
-                             private val currentFile: S3DataWriter.CurrentFile?) : BasicS3Block(s3factory, address, 0) {
-    override val key: String
-        get() = getPartialFolderPrefix(_address)
-
-    override fun getAddress() = _address
-
-    override fun length(): Long = blocks.fold(0L) { acc, value -> acc + value.length() }
-
-    override fun read(output: ByteArray, position: Long, offset: Int, count: Int): Int {
-        if (count <= 0) {
-            return 0
-        }
-
-        val firstIndex = blocks.indexOfFirst { (it.address - address + it.length()) >= position }
-        var lastIndex = blocks.indexOfLast { (it.address - address) <= position + count }
-
-        var totalRead: Int
-        if (firstIndex < 0) {
-            totalRead = 0
-        } else {
-            val first = blocks[firstIndex]
-
-            if (firstIndex == lastIndex) {
-                totalRead = first.read(output, position - (first.address - address), offset, count)
-            } else {
-                totalRead = 0
-                if (lastIndex < 0) {
-                    lastIndex = blocks.size - 1
-                }
-                val last = blocks[lastIndex]
-
-                val startPosition = position - (first.address - address)
-                totalRead += first.readAndCompare(output, startPosition, offset, (first.length() - startPosition).toInt())
-                if (firstIndex + 1 < lastIndex) {
-                    ((firstIndex + 1)..(lastIndex - 1)).forEach {
-                        val block = blocks[it]
-                        totalRead += block.readAndCompare(output, 0, offset + (block.address - address - position).toInt(), block.length().toInt())
-                    }
-                }
-                val outputOffset = (last.address - address - position).toInt()
-                totalRead += last.read(output, 0, offset + outputOffset, minOf(count - (last.address - address - position).toInt(), last.length().toInt()))
-            }
-        }
-
-        if (totalRead < count) {
-            currentFile?.let { memory ->
-                if (memory.blockAddress == _address) {
-                    totalRead = memory.read(output, position, totalRead, count, offset)
-                }
-            }
-        }
-
-        return totalRead
-    }
-
-    override fun refresh(): S3FolderBlock {
-        return newS3FolderBlock(s3factory, _address)
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is S3FolderBlock) return false
-
-        if (_address != other._address) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return _address.hashCode()
-    }
-}
-
-internal fun newS3FolderBlock(s3factory: S3FactoryBoilerplate, address: Long): S3FolderBlock {
-    val builder = s3factory.listObjectsBuilder().prefix(getPartialFolderPrefix(address))
-    val subBlocks = mutableListOf<S3SubBlock>()
-    listObjects(s3factory.s3, builder).forEach {
-        val paths = it.key().split("/")
-        if (paths.size == 2) {
-            subBlocks.add(S3SubBlock(s3factory, decodeAddress(paths[1]), it.size(), address))
-        }
-    }
-    return S3FolderBlock(s3factory, address, subBlocks, null)
-}
-
 internal val S3DataReaderOrWriter.fileBlocks: List<S3Block>
     get() {
         val builder = listObjectsBuilder().delimiter("/")
@@ -179,21 +94,30 @@ internal val S3DataReaderOrWriter.fileBlocks: List<S3Block>
 internal val S3DataReaderOrWriter.folderBlocks: List<S3FolderBlock>
     get() {
         val builder = listObjectsBuilder().prefix("_")
-        val folders = TreeMap<String, Pair<Long, MutableList<S3SubBlock>>>()
+        val folders = TreeMap<String, Pair<Long, PersistentLongMap<S3SubBlock>>>()
         listObjects(s3, builder).forEach {
             val paths = it.key().split("/")
             if (paths.size == 2) {
                 val folderName = paths[0]
                 folders[folderName]?.let { pair ->
                     if (checkAddress(paths[1])) {
-                        pair.second.add(S3SubBlock(this, decodeAddress(paths[1]), it.size(), pair.first))
+                        pair.second.write {
+                            val address = decodeAddress(paths[1])
+                            put(address, (S3SubBlock(this@folderBlocks, address, it.size(), pair.first)))
+                        }
                     }
                 } ?: if (folderName.startsWith("_")) {
                     val folderAsFileName = folderName.drop(1).toFileName()
                     if (folderAsFileName.isValidAddress) {
                         if (checkAddress(paths[1])) {
                             val blockAddress = folderAsFileName.address
-                            folders[folderName] = blockAddress to mutableListOf(S3SubBlock(this, decodeAddress(paths[1]), it.size(), blockAddress))
+                            folders[folderName] = blockAddress to
+                                    PersistentBitTreeLongMap<S3SubBlock>().apply {
+                                        write {
+                                            val address = decodeAddress(paths[1])
+                                            put(address, S3SubBlock(this@folderBlocks, address, it.size(), blockAddress))
+                                        }
+                                    }
                         }
                     }
                 }

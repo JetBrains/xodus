@@ -7,7 +7,7 @@ kotlin {
 dependencies {
     compile project(':environment')
     compile project(':entity-store')
-    compile 'software.amazon.awssdk:s3:2.0.0-preview-9'
+    compile 'software.amazon.awssdk:s3:2.0.0-preview-11'
 
     testCompile project(':environment').sourceSets.test.output
     testCompile project(':utils').sourceSets.test.output

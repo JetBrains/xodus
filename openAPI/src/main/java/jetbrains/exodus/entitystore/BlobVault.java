@@ -26,6 +26,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.ListIterator;
 
 /**
  * {@code BlobVault} is base class describing interface to <a href="https://en.wikipedia.org/wiki/Binary_large_object">
@@ -82,6 +85,31 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
     public File getBlobLocation(long blobHandle) {
         throw new UnsupportedOperationException("Non-file based vault");
     }
+
+    public String getBlobKey(long blobHandle) {
+        String file;
+        final List<String> files = new ArrayList<>(8);
+        while (true) {
+            file = Integer.toHexString((int) (blobHandle & 0xff));
+            if (blobHandle <= 0xff) {
+                break;
+            }
+            files.add(file);
+            blobHandle >>= 8;
+        }
+        files.add(file);
+        final StringBuilder dir = new StringBuilder();
+        for (ListIterator iterator = files.listIterator(files.size()); iterator.hasPrevious(); ) {
+            dir.append('/');
+            dir.append(iterator.previous());
+        }
+        return dir.toString();
+    }
+
+    @NotNull
+    public abstract BlobVaultItem getBlob(long blobHandle);
+
+    public abstract boolean delete(long blobHandle);
 
     /**
      * Returns binary content of blob identified by specified blob handle as {@linkplain InputStream}.

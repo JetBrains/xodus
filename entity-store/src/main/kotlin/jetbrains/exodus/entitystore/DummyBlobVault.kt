@@ -27,6 +27,8 @@ import java.io.InputStream
  */
 class DummyBlobVault(config: PersistentEntityStoreConfig) : BlobVault(config) {
 
+    override fun delete(blobHandle: Long): Boolean = throw NotImplementedError()
+
     override fun clear() {}
 
     override fun getBackupStrategy() = throw NotImplementedError()
@@ -47,4 +49,5 @@ class DummyBlobVault(config: PersistentEntityStoreConfig) : BlobVault(config) {
     override fun nextHandle(txn: Transaction) = throw NotImplementedError()
 
     override fun close() {}
+    override fun getBlob(blobHandle: Long): BlobVaultItem = throw NotImplementedError()
 }

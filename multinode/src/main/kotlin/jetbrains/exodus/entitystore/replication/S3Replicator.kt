@@ -29,9 +29,11 @@ import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.replication.EnvironmentAppender
 import jetbrains.exodus.env.replication.EnvironmentReplicationDelta
 import jetbrains.exodus.env.replication.ReplicationDelta
+import jetbrains.exodus.io.FileDataReader
 import jetbrains.exodus.log.replication.*
 import mu.KLogging
-import software.amazon.awssdk.core.AwsRequestOverrideConfig
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration
+import software.amazon.awssdk.core.async.AsyncResponseTransformer
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import java.io.BufferedOutputStream
@@ -45,7 +47,7 @@ class S3Replicator(
         private val metaPort: Int = 8062,
         override val s3: S3AsyncClient,
         override val bucket: String,
-        override val requestOverrideConfig: AwsRequestOverrideConfig? = null,
+        override val requestOverrideConfig: AwsRequestOverrideConfiguration? = null,
         val lazyBlobs: Boolean = false
 ) : PersistentEntityStoreReplicator, S3FactoryBoilerplate {
     companion object : KLogging() {
@@ -83,8 +85,15 @@ class S3Replicator(
         sourceEncrypted = delta.encrypted
         val targetEncrypted = environment.cipherProvider != null
 
+        environment as EnvironmentImpl
+
         val factory: FileFactory = if (sourceEncrypted == targetEncrypted) {
-            S3FileFactory(s3, Paths.get(environment.location), bucket, requestOverrideConfig)
+            val reader = environment.log.config.reader
+            if (reader is FileDataReader) {
+                S3FileFactory(s3, Paths.get(environment.location), bucket, reader, requestOverrideConfig)
+            } else {
+                S3ToWriterFileFactory(s3, bucket, requestOverrideConfig)
+            }
         } else {
             if (!targetEncrypted) {
                 throw UnsupportedOperationException("Un-encrypt log is not supported")
@@ -93,7 +102,7 @@ class S3Replicator(
             S3ToWriterFileFactory(s3, bucket, requestOverrideConfig) // writer respects encryption
         }
 
-        EnvironmentAppender.appendEnvironment(environment as EnvironmentImpl, delta, factory)
+        EnvironmentAppender.appendEnvironment(environment, delta, factory)
     }
 
     override fun replicateBlobVault(delta: EnvironmentReplicationDelta, vault: BlobVault, blobsToReplicate: List<Pair<Long, Long>>) {
@@ -121,7 +130,7 @@ class S3Replicator(
 
     override fun decorateBlobVault(vault: DiskBasedBlobVault, store: PersistentEntityStore): DiskBasedBlobVault {
         return if (lazyBlobs) {
-            S3BlobVault(vault, store as PersistentEntityStoreImpl, this)
+            S3ReplicationBlobVault(vault, store as PersistentEntityStoreImpl, this)
         } else {
             vault
         }
@@ -152,8 +161,8 @@ class S3Replicator(
                         length = length,
                         startingLength = 0,
                         name = blobKey,
-                        handler = FileAsyncHandler(path = file.toPath(), startingLength = 0)
-                ).get().written
+                        handler = AsyncResponseTransformer.toFile(file)
+                ).get().contentLength()
             } else {
                 if (vault !is EncryptedBlobVault) {
                     throw UnsupportedOperationException("Un-encrypt blobs is not supported")

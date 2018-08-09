@@ -55,12 +55,12 @@ final class PersistentEntityStoreRefactorings {
                 }
             });
             for (int i = 0; i < 10000; ++i) {
-                final File blob = fsBlobVault.getBlobLocation(nextBlobHandle + i);
-                if (blob.exists()) {
-                    if (blob.delete()) {
-                        logInfo("Deleted " + blob);
+                final BlobVaultItem item = fsBlobVault.getBlob(nextBlobHandle + i);
+                if (item.exists()) {
+                    if (fsBlobVault.delete(item.getHandle())) {
+                        logInfo("Deleted " + item);
                     } else {
-                        logger.error("Failed to delete " + blob);
+                        logger.error("Failed to delete " + item);
                     }
                 }
             }

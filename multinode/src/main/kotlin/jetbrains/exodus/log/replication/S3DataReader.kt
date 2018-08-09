@@ -18,16 +18,15 @@ package jetbrains.exodus.log.replication
 import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.DataReader
 import jetbrains.exodus.log.LogTip
-import jetbrains.exodus.log.LogUtil
 import mu.KLogging
-import software.amazon.awssdk.core.AwsRequestOverrideConfig
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import java.util.*
 import kotlin.Comparator
 
 class S3DataReader(override val s3: S3AsyncClient,
                             override val bucket: String,
-                            override val requestOverrideConfig: AwsRequestOverrideConfig? = null,
+                            override val requestOverrideConfig: AwsRequestOverrideConfiguration? = null,
                             val writer: S3DataWriter) : S3DataReaderOrWriter, DataReader {
 
     companion object : KLogging()

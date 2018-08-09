@@ -19,7 +19,7 @@ import jetbrains.exodus.io.FileDataReader
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogUtil
 import mu.KLogging
-import software.amazon.awssdk.core.AwsRequestOverrideConfig
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import java.nio.file.Path
 
@@ -27,14 +27,15 @@ class S3FileFactory(
         override val s3: S3AsyncClient,
         val dir: Path,
         override val bucket: String,
-        override val requestOverrideConfig: AwsRequestOverrideConfig? = null
+        val reader: FileDataReader,
+        override val requestOverrideConfig: AwsRequestOverrideConfiguration? = null
 ) : S3FactoryBoilerplate, FileFactory {
     companion object : KLogging()
 
     override fun fetchFile(log: Log, address: Long, startingLength: Long, expectedLength: Long, finalFile: Boolean): WriteResult {
         if (checkPreconditions(log, expectedLength, startingLength)) return WriteResult.empty
 
-        log.ensureWriter().blockSetMutable.add(address, FileDataReader.FileBlock(address, log.config.reader as FileDataReader))
+        log.ensureWriter().blockSetMutable.add(address, FileDataReader.FileBlock(address, reader))
 
         val filename = LogUtil.getLogFilename(address)
 

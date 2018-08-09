@@ -613,7 +613,7 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(ENV_IS_READONLY, false),
             new Pair(ENV_READONLY_EMPTY_STORES, false),
             new Pair(ENV_STOREGET_CACHE_SIZE, 0),
-            new Pair(ENV_STOREGET_CACHE_MIN_TREE_SIZE, 100000),
+                new Pair(ENV_STOREGET_CACHE_MIN_TREE_SIZE, 10000),
             new Pair(ENV_STOREGET_CACHE_MAX_VALUE_SIZE, 100),
             new Pair(ENV_CLOSE_FORCEDLY, false),
             new Pair(ENV_TXN_REPLAY_TIMEOUT, 2000L),

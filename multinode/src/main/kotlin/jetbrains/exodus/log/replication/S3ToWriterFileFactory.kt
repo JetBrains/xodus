@@ -17,13 +17,13 @@ package jetbrains.exodus.log.replication
 
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogUtil
-import software.amazon.awssdk.core.AwsRequestOverrideConfig
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration
 import software.amazon.awssdk.services.s3.S3AsyncClient
 
 class S3ToWriterFileFactory(
         override val s3: S3AsyncClient,
         override val bucket: String,
-        override val requestOverrideConfig: AwsRequestOverrideConfig? = null
+        override val requestOverrideConfig: AwsRequestOverrideConfiguration? = null
 ) : S3FactoryBoilerplate, FileFactory {
 
     override fun fetchFile(log: Log, address: Long, startingLength: Long, expectedLength: Long, finalFile: Boolean): WriteResult {
