@@ -27,7 +27,7 @@ import java.io.RandomAccessFile
 import java.nio.channels.ClosedChannelException
 import java.nio.channels.FileChannel
 
-open class FileDataWriter @JvmOverloads constructor(private val dir: File, private val reader: FileDataReader, lockId: String? = null) : AbstractDataWriter() {
+open class FileDataWriter @JvmOverloads constructor(private val reader: FileDataReader, lockId: String? = null) : AbstractDataWriter() {
 
     companion object : KLogging() {
 
@@ -65,11 +65,10 @@ open class FileDataWriter @JvmOverloads constructor(private val dir: File, priva
     private var useNio = false
 
     init {
-        file = null
         var channel: FileChannel? = null
         if (!JVMConstants.IS_ANDROID) {
             try {
-                channel = FileChannel.open(dir.toPath())
+                channel = FileChannel.open(reader.dir.toPath())
                 // try to force as XD-698 requires
                 channel.force(false)
             } catch (e: IOException) {
@@ -78,7 +77,7 @@ open class FileDataWriter @JvmOverloads constructor(private val dir: File, priva
             }
         }
         dirChannel = channel
-        lockingManager = LockingManager(dir, lockId)
+        lockingManager = LockingManager(reader.dir, lockId)
     }
 
     override fun write(b: ByteArray, off: Int, len: Int) {
@@ -121,7 +120,7 @@ open class FileDataWriter @JvmOverloads constructor(private val dir: File, priva
     }
 
     override fun clearImpl() {
-        for (file in LogUtil.listFiles(dir)) {
+        for (file in LogUtil.listFiles(reader.dir)) {
             if (!file.canWrite()) {
                 setWritable(file)
             }
@@ -132,19 +131,20 @@ open class FileDataWriter @JvmOverloads constructor(private val dir: File, priva
     }
 
     override fun openOrCreateBlockImpl(address: Long, length: Long): Block {
+        val result = FileDataReader.FileBlock(address, reader)
         try {
-            val result = RandomAccessFile(File(dir, LogUtil.getLogFilename(address)).apply {
+            val file = RandomAccessFile(result.apply {
                 if (!canWrite()) {
                     setWritable(this)
                 }
             }, "rw")
-            result.seek(length)
-            if (length != result.length()) {
-                result.setLength(length)
-                forceSync(result)
+            file.seek(length)
+            if (length != file.length()) {
+                file.setLength(length)
+                forceSync(file)
             }
-            file = result
-            return FileDataReader.FileBlock(address, reader)
+            this.file = file
+            return result
         } catch (ioe: IOException) {
             throw ExodusException(ioe)
         }
@@ -162,7 +162,7 @@ open class FileDataWriter @JvmOverloads constructor(private val dir: File, priva
     }
 
     override fun removeBlock(blockAddress: Long, rbt: RemoveBlockType) {
-        val file = File(dir, LogUtil.getLogFilename(blockAddress))
+        val file = FileDataReader.FileBlock(blockAddress, reader)
         removeFileFromFileCache(file)
         setWritable(file)
         val deleted = if (rbt == RemoveBlockType.Delete) file.delete() else renameFile(file)
@@ -174,7 +174,7 @@ open class FileDataWriter @JvmOverloads constructor(private val dir: File, priva
     }
 
     override fun truncateBlock(blockAddress: Long, length: Long) {
-        val file = File(dir, LogUtil.getLogFilename(blockAddress))
+        val file = FileDataReader.FileBlock(blockAddress, reader)
         removeFileFromFileCache(file)
         setWritable(file)
         try {
@@ -185,10 +185,6 @@ open class FileDataWriter @JvmOverloads constructor(private val dir: File, priva
         } catch (e: IOException) {
             throw ExodusException("Failed to truncate file " + file.absolutePath, e)
         }
-    }
-
-    internal fun useNio() {
-        useNio = true
     }
 
     private fun warnCantFsyncDirectory() {

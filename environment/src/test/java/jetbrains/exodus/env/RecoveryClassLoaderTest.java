@@ -84,7 +84,7 @@ public class RecoveryClassLoaderTest {
         @Override
         public void run() {
             FileDataReader reader = new FileDataReader(testsDirectory[0]);
-            env = Environments.newInstance(cfg = LogConfig.create(reader, new FileDataWriter(testsDirectory[0], reader)));
+            env = Environments.newInstance(cfg = LogConfig.create(reader, new FileDataWriter(reader)));
         }
     };
 

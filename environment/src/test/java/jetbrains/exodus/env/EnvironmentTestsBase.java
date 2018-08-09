@@ -142,9 +142,7 @@ public class EnvironmentTestsBase {
             throw new IOException("Failed to create directory for tests.");
         }
         FileDataReader reader = new FileDataReader(testsDirectory);
-        return new Pair<DataReader, DataWriter>(
-                reader, new FileDataWriter(testsDirectory, reader)
-        );
+        return new Pair<DataReader, DataWriter>(reader, new FileDataWriter(reader));
     }
 
     protected void deleteRW() {
