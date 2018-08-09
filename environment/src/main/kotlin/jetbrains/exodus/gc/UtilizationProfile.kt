@@ -26,6 +26,7 @@ import jetbrains.exodus.kotlin.synchronized
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
 import jetbrains.exodus.log.ExpiredLoggableInfo
 import jetbrains.exodus.log.Log
+import jetbrains.exodus.log.NewFileListener
 import java.io.File
 import java.lang.ref.WeakReference
 import java.util.*
@@ -43,12 +44,12 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
     init {
         fileSize = log.fileLengthBound
         filesUtilization = LongHashMap()
-        log.addNewFileListener { fileAddress ->
+        log.addNewFileListener(NewFileListener { fileAddress ->
             filesUtilization.synchronized {
                 this[fileAddress] = MutableLong(0L)
             }
             estimateTotalBytes()
-        }
+        })
     }
 
     internal fun clear() = filesUtilization.synchronized { clear() }.apply { estimateTotalBytes() }

@@ -28,6 +28,7 @@ import jetbrains.exodus.log.ExpiredLoggableInfo
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.log.Loggable
+import jetbrains.exodus.log.NewFileListener
 import jetbrains.exodus.runtime.OOMGuard
 import jetbrains.exodus.util.DeferredIO
 import mu.KLogging
@@ -49,14 +50,14 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
     init {
         newFiles = ec.gcFilesInterval + 1
         openStoresCache = IntHashMap()
-        environment.log.addNewFileListener {
+        environment.log.addNewFileListener (NewFileListener{
             val newFiles = newFiles + 1
             this@GarbageCollector.newFiles = newFiles
             utilizationProfile.estimateTotalBytes()
             if (!cleaner.isCleaning && newFiles > ec.gcFilesInterval && isTooMuchFreeSpace) {
                 wake()
             }
-        }
+        })
     }
 
     internal val maximumFreeSpacePercent: Int
