@@ -73,6 +73,7 @@ class Log(val config: LogConfig) : Closeable {
      */
     val fileLengthBound: Long
 
+    @Deprecated("for tests only")
     private var testConfig: LogTestConfig? = null
 
     val location: String
@@ -665,6 +666,7 @@ class Log(val config: LogConfig) : Closeable {
     }
 
     // for tests only
+    @Deprecated("for tests only")
     fun forgetFile(address: Long) {
         beginWrite()
         forgetFiles(longArrayOf(address))
@@ -743,7 +745,7 @@ class Log(val config: LogConfig) : Closeable {
         }
         if (bytesToWrite == 0L) {
             writer.commit()
-            closeFullFileFileIfNecessary(writer)
+            closeFullFileIfNecessary(writer)
         } else {
             while (bytesToWrite-- > 0) {
                 writeContinuously(NullLoggable.create())
@@ -852,7 +854,7 @@ class Log(val config: LogConfig) : Closeable {
         }
         writer.commit()
         writer.incHighAddress(recordLength.toLong())
-        closeFullFileFileIfNecessary(writer)
+        closeFullFileIfNecessary(writer)
         return result
     }
 
@@ -868,7 +870,7 @@ class Log(val config: LogConfig) : Closeable {
             write(data, count)
             commit()
             incHighAddress(count.toLong())
-            closeFullFileFileIfNecessary(this)
+            closeFullFileIfNecessary(this)
         }
         return result
     }
@@ -892,17 +894,17 @@ class Log(val config: LogConfig) : Closeable {
             val fileCreated = !writer.blockSetMutable.contains(fileAddress)
             if (fileCreated) {
                 writer.blockSetMutable.add(fileAddress, block)
-            }
-            if (fileCreated) {
                 // fsync the directory to ensure we will find the log file in the directory after system crash
                 this.writer.syncDirectory()
                 notifyBlockCreated(fileAddress)
+            } else {
+                notifyBlockModified(fileAddress)
             }
         }
         return result
     }
 
-    private fun closeFullFileFileIfNecessary(writer: BufferedDataWriter) {
+    private fun closeFullFileIfNecessary(writer: BufferedDataWriter) {
         val shouldCreateNewFile = writer.getLastWrittenFileLength(fileLengthBound) == 0L
         if (shouldCreateNewFile) {
             // Don't forget to fsync the old file before closing it, otherwise will get a corrupted DB in the case of a
@@ -943,6 +945,10 @@ class Log(val config: LogConfig) : Closeable {
 
     private fun notifyBlockCreated(address: Long) {
         blockListeners.notifyListeners { it.blockCreated(address) }
+    }
+
+    private fun notifyBlockModified(address: Long) {
+        blockListeners.notifyListeners { it.blockModified(address) }
     }
 
     private fun notifyReadBytes(bytes: ByteArray, count: Int) {
