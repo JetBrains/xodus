@@ -49,8 +49,9 @@ class Log(val config: LogConfig) : Closeable {
 
     var identity: Int = 0
         private set
-    private val reader: DataReader
-    private val writer: DataWriter
+
+    private val reader: DataReader = config.reader
+    private val writer: DataWriter = config.writer
 
     private val internalTip: AtomicReference<LogTip>
 
@@ -117,7 +118,6 @@ class Log(val config: LogConfig) : Closeable {
 
 
     init {
-        writer = config.writer
         tryLock()
         cachePageSize = config.cachePageSize
         val fileLength = config.fileSize * 1024L
@@ -126,7 +126,6 @@ class Log(val config: LogConfig) : Closeable {
         }
         fileLengthBound = fileLength
         val blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
-        reader = config.reader
         if (reader is FileDataReader) {
             reader.setLog(this)
         }
@@ -497,17 +496,6 @@ class Log(val config: LogConfig) : Closeable {
 
     fun getLoggableIterator(startAddress: Long): LoggableIterator {
         return LoggableIterator(this, startAddress)
-    }
-
-    /**
-     * Writes a loggable to the end of the log
-     * If padding is needed, it is performed, but loggable is not written
-     *
-     * @param loggable - loggable to write.
-     * @return address where the loggable was placed.
-     */
-    fun tryWrite(loggable: Loggable): Long {
-        return tryWrite(loggable.type, loggable.structureId, loggable.data)
     }
 
     fun tryWrite(type: Byte, structureId: Int, data: ByteIterable): Long {
