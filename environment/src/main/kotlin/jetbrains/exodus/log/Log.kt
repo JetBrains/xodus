@@ -918,7 +918,6 @@ class Log(val config: LogConfig) : Closeable {
                 val block = blockSet.getBlock(lastFile)
                 val refreshed = block.refresh()
                 if (block !== refreshed) {
-                    blockSet.remove(lastFile)
                     blockSet.add(lastFile, refreshed)
                 }
                 val length = refreshed.length()
