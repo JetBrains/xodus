@@ -42,13 +42,11 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
     private val deletionQueue = ConcurrentLinkedQueue<Long>()
     internal val cleaner = BackgroundCleaner(this)
     @Volatile
-    private var newFiles: Int = 0 // number of new files appeared after last cleaning job
-    private val openStoresCache: IntHashMap<StoreImpl>
+    private var newFiles = ec.gcFilesInterval + 1 // number of new files appeared after last cleaning job
+    private val openStoresCache =IntHashMap<StoreImpl>()
     private var useRegularTxn: Boolean = false
 
     init {
-        newFiles = ec.gcFilesInterval + 1
-        openStoresCache = IntHashMap()
         environment.log.addBlockListener (object : AbstractBlockListener() {
 
             override fun blockCreated(block: Block, reader: DataReader, writer: DataWriter) {

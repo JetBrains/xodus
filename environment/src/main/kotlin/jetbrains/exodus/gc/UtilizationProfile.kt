@@ -37,16 +37,14 @@ import java.util.*
 class UtilizationProfile(private val env: EnvironmentImpl, private val gc: GarbageCollector) {
 
     private val log: Log = env.log
-    private val fileSize: Long // in bytes
-    private val filesUtilization: LongHashMap<MutableLong> // file address -> number of free bytes
+    private val fileSize = log.fileLengthBound // in bytes
+    private val filesUtilization = LongHashMap<MutableLong>() // file address -> number of free bytes
     private var totalBytes: Long = 0
     private var totalFreeBytes: Long = 0
     @Volatile
     var isDirty: Boolean = false
 
     init {
-        fileSize = log.fileLengthBound
-        filesUtilization = LongHashMap()
         log.addBlockListener(object : AbstractBlockListener() {
             override fun blockCreated(block: Block, reader: DataReader, writer: DataWriter) {
                 filesUtilization.synchronized {

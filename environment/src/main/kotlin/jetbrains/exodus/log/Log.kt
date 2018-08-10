@@ -66,7 +66,7 @@ class Log(val config: LogConfig) : Closeable {
     private val readBytesListeners = ArrayList<ReadBytesListener>(2)
 
     /** Size of single page in log cache. */
-    val cachePageSize: Int
+    val cachePageSize = config.cachePageSize
 
     /** Size of a single file of the log in bytes.
      * @return size of a single log file in bytes.
@@ -118,7 +118,6 @@ class Log(val config: LogConfig) : Closeable {
 
     init {
         tryLock()
-        cachePageSize = config.cachePageSize
         val fileLength = config.fileSize * 1024L
         if (fileLength % cachePageSize != 0L) {
             throw InvalidSettingException("File size should be a multiple of cache page size.")
