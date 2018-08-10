@@ -23,6 +23,9 @@ import jetbrains.exodus.core.dataStructures.hash.PackedLongHashSet
 import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.core.execution.JobProcessorAdapter
 import jetbrains.exodus.env.*
+import jetbrains.exodus.io.Block
+import jetbrains.exodus.io.DataReader
+import jetbrains.exodus.io.DataWriter
 import jetbrains.exodus.io.RemoveBlockType
 import jetbrains.exodus.log.*
 import jetbrains.exodus.runtime.OOMGuard
@@ -48,7 +51,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         openStoresCache = IntHashMap()
         environment.log.addBlockListener (object : AbstractBlockListener() {
 
-            override fun blockCreated(address: Long) {
+            override fun blockCreated(block: Block, reader: DataReader, writer: DataWriter) {
                 val newFiles = newFiles + 1
                 this@GarbageCollector.newFiles = newFiles
                 utilizationProfile.estimateTotalBytes()

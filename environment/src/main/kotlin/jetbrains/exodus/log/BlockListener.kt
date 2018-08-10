@@ -15,12 +15,16 @@
  */
 package jetbrains.exodus.log
 
+import jetbrains.exodus.io.Block
+import jetbrains.exodus.io.DataReader
+import jetbrains.exodus.io.DataWriter
+
 interface BlockListener {
 
-    fun blockCreated(address: Long)
+    fun blockCreated(block: Block, reader: DataReader, writer: DataWriter)
 
-    fun beforeBlockDeleted(address: Long)
-    fun afterBlockDeleted(address: Long)
+    fun beforeBlockDeleted(block: Block, reader: DataReader, writer: DataWriter)
+    fun afterBlockDeleted(address: Long, reader: DataReader, writer: DataWriter)
 
-    fun blockModified(address: Long)
+    fun blockModified(block: Block, reader: DataReader, writer: DataWriter)
 }

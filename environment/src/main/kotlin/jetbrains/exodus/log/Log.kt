@@ -682,7 +682,8 @@ class Log(val config: LogConfig) : Closeable {
 
     @JvmOverloads
     fun removeFile(address: Long, rbt: RemoveBlockType = RemoveBlockType.Delete, blockSetMutable: BlockSet.Mutable? = null) {
-        val listeners = blockListeners.notifyListeners { it.beforeBlockDeleted(address) }
+        val block = tip.blockSet.getBlock(address)
+        val listeners = blockListeners.notifyListeners { it.beforeBlockDeleted(block, reader, writer) }
         try {
             writer.removeBlock(address, rbt)
             // remove address of file of the list
@@ -694,7 +695,7 @@ class Log(val config: LogConfig) : Closeable {
                 offset += cachePageSize.toLong()
             }
         } finally {
-            listeners.forEach { it.afterBlockDeleted(address) }
+            listeners.forEach { it.afterBlockDeleted(address, reader, writer) }
         }
     }
 
@@ -939,16 +940,19 @@ class Log(val config: LogConfig) : Closeable {
      * Sets LogTestConfig.
      * Is destined for tests only, please don't set a not-null value in application code.
      */
+    @Deprecated("for tests only")
     fun setLogTestConfig(testConfig: LogTestConfig?) {
         this.testConfig = testConfig
     }
 
     private fun notifyBlockCreated(address: Long) {
-        blockListeners.notifyListeners { it.blockCreated(address) }
+        val block = tip.blockSet.getBlock(address)
+        blockListeners.notifyListeners { it.blockCreated(block, reader, writer) }
     }
 
     private fun notifyBlockModified(address: Long) {
-        blockListeners.notifyListeners { it.blockModified(address) }
+        val block = tip.blockSet.getBlock(address)
+        blockListeners.notifyListeners { it.blockModified(block, reader, writer) }
     }
 
     private fun notifyReadBytes(bytes: ByteArray, count: Int) {

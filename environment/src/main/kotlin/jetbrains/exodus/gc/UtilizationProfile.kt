@@ -22,6 +22,9 @@ import jetbrains.exodus.core.dataStructures.hash.PackedLongHashSet
 import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.env.*
 import jetbrains.exodus.gc.GarbageCollector.Companion.UTILIZATION_PROFILE_STORE_NAME
+import jetbrains.exodus.io.Block
+import jetbrains.exodus.io.DataReader
+import jetbrains.exodus.io.DataWriter
 import jetbrains.exodus.kotlin.synchronized
 import jetbrains.exodus.log.AbstractBlockListener
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
@@ -45,9 +48,9 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         fileSize = log.fileLengthBound
         filesUtilization = LongHashMap()
         log.addBlockListener(object : AbstractBlockListener() {
-            override fun blockCreated(address: Long) {
+            override fun blockCreated(block: Block, reader: DataReader, writer: DataWriter) {
                 filesUtilization.synchronized {
-                    this[address] = MutableLong(0L)
+                    this[block.address] = MutableLong(0L)
                 }
                 estimateTotalBytes()
             }

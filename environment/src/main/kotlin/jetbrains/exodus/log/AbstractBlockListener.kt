@@ -15,17 +15,21 @@
  */
 package jetbrains.exodus.log
 
+import jetbrains.exodus.io.Block
+import jetbrains.exodus.io.DataReader
+import jetbrains.exodus.io.DataWriter
+
 abstract class AbstractBlockListener() : BlockListener {
 
-    override fun blockCreated(address: Long) {
+    override fun blockCreated(block: Block, reader: DataReader, writer: DataWriter) {
     }
 
-    override fun beforeBlockDeleted(address: Long) {
+    override fun beforeBlockDeleted(block: Block, reader: DataReader, writer: DataWriter) {
     }
 
-    override fun afterBlockDeleted(address: Long) {
+    override fun afterBlockDeleted(address: Long, reader: DataReader, writer: DataWriter) {
     }
 
-    override fun blockModified(address: Long) {
+    override fun blockModified(block: Block, reader: DataReader, writer: DataWriter) {
     }
 }
