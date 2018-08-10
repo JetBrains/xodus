@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2018 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -57,26 +57,26 @@ class TemporaryEmptyStore extends StoreImpl {
     public boolean put(@NotNull final Transaction txn,
                        @NotNull final ByteIterable key,
                        @NotNull final ByteIterable value) {
-        return throwCantModify();
+        return throwCantModify(txn);
     }
 
     @Override
     public void putRight(@NotNull final Transaction txn,
                          @NotNull final ByteIterable key,
                          @NotNull final ByteIterable value) {
-        throwCantModify();
+        throwCantModify(txn);
     }
 
     @Override
     public boolean add(@NotNull final Transaction txn,
                        @NotNull final ByteIterable key,
                        @NotNull final ByteIterable value) {
-        return throwCantModify();
+        return throwCantModify(txn);
     }
 
     @Override
     public boolean delete(@NotNull final Transaction txn, @NotNull final ByteIterable key) {
-        return throwCantModify();
+        return throwCantModify(txn);
     }
 
     @Override
@@ -96,8 +96,8 @@ class TemporaryEmptyStore extends StoreImpl {
         // nothing to reclaim
     }
 
-    private boolean throwCantModify() {
-        if (getEnvironment().getEnvironmentConfig().getEnvIsReadonly()) {
+    private boolean throwCantModify(Transaction txn) {
+        if (txn.isReadonly()) {
             throw new ReadonlyTransactionException();
         }
         throw new UnsupportedOperationException("Can't modify temporary empty store");
