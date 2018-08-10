@@ -23,10 +23,10 @@ import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.env.*
 import jetbrains.exodus.gc.GarbageCollector.Companion.UTILIZATION_PROFILE_STORE_NAME
 import jetbrains.exodus.kotlin.synchronized
+import jetbrains.exodus.log.AbstractBlockListener
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
 import jetbrains.exodus.log.ExpiredLoggableInfo
 import jetbrains.exodus.log.Log
-import jetbrains.exodus.log.NewFileListener
 import java.io.File
 import java.lang.ref.WeakReference
 import java.util.*
@@ -44,11 +44,13 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
     init {
         fileSize = log.fileLengthBound
         filesUtilization = LongHashMap()
-        log.addNewFileListener(NewFileListener { fileAddress ->
-            filesUtilization.synchronized {
-                this[fileAddress] = MutableLong(0L)
+        log.addBlockListener(object : AbstractBlockListener() {
+            override fun blockCreated(address: Long) {
+                filesUtilization.synchronized {
+                    this[address] = MutableLong(0L)
+                }
+                estimateTotalBytes()
             }
-            estimateTotalBytes()
         })
     }
 

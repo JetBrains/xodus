@@ -62,14 +62,13 @@ class Log(val config: LogConfig) : Closeable {
     /** Last ticks when the sync operation was performed. */
     private var lastSyncTicks: Long = 0
 
-    private val newFileListeners: MutableList<NewFileListener>
-    private val readBytesListeners: MutableList<ReadBytesListener>
-    private val removeFileListeners: List<RemoveFileListener>
+    private val blockListeners = ArrayList<BlockListener>(2)
+    private val readBytesListeners = ArrayList<ReadBytesListener>(2)
 
     /** Size of single page in log cache. */
     val cachePageSize: Int
-    /** Size of a single file of the log in bytes. */
-    /**
+
+    /** Size of a single file of the log in bytes.
      * @return size of a single log file in bytes.
      */
     val fileLengthBound: Long
@@ -107,7 +106,6 @@ class Log(val config: LogConfig) : Closeable {
 
     val diskUsage: Long
         get() {
-            val tip = tip
             val allFiles = tip.allFiles
             val filesCount = allFiles.size
             return if (filesCount == 0) 0L else (filesCount - 1) * fileLengthBound + getLastFileSize(allFiles[filesCount - 1], tip)
@@ -134,9 +132,6 @@ class Log(val config: LogConfig) : Closeable {
 
         val blockSetImmutable = blockSetMutable.endWrite()
 
-        newFileListeners = ArrayList(2)
-        readBytesListeners = ArrayList(2)
-        removeFileListeners = ArrayList(2)
         val memoryUsage = config.memoryUsage
         val nonBlockingCache = config.isNonBlockingCache
         val generationCount = config.cacheGenerationCount
@@ -328,7 +323,7 @@ class Log(val config: LogConfig) : Closeable {
         }
         writer.close()
     }
-    
+
     fun beginWrite(): LogTip {
         val writer = BufferedDataWriter(this, this.writer, tip)
         this.bufferedWriter = writer
@@ -439,9 +434,9 @@ class Log(val config: LogConfig) : Closeable {
         return cache.getPage(this, pageAddress)
     }
 
-    fun addNewFileListener(listener: NewFileListener) {
-        synchronized(newFileListeners) {
-            newFileListeners.add(listener)
+    fun addBlockListener(listener: BlockListener) {
+        synchronized(blockListeners) {
+            blockListeners.add(listener)
         }
     }
 
@@ -685,10 +680,7 @@ class Log(val config: LogConfig) : Closeable {
 
     @JvmOverloads
     fun removeFile(address: Long, rbt: RemoveBlockType = RemoveBlockType.Delete, blockSetMutable: BlockSet.Mutable? = null) {
-        val listeners = synchronized(removeFileListeners) {
-            removeFileListeners.toTypedArray()
-        }
-        listeners.forEach { it.beforeRemoveFile(address) }
+        val listeners = blockListeners.notifyListeners { it.beforeBlockDeleted(address) }
         try {
             writer.removeBlock(address, rbt)
             // remove address of file of the list
@@ -700,9 +692,7 @@ class Log(val config: LogConfig) : Closeable {
                 offset += cachePageSize.toLong()
             }
         } finally {
-            for (listener in listeners) {
-                listener.afterRemoveFile(address)
-            }
+            listeners.forEach { it.afterBlockDeleted(address) }
         }
     }
 
@@ -906,7 +896,7 @@ class Log(val config: LogConfig) : Closeable {
             if (fileCreated) {
                 // fsync the directory to ensure we will find the log file in the directory after system crash
                 this.writer.syncDirectory()
-                notifyFileCreated(fileAddress)
+                notifyBlockCreated(fileAddress)
             }
         }
         return result
@@ -951,22 +941,20 @@ class Log(val config: LogConfig) : Closeable {
         this.testConfig = testConfig
     }
 
-    private fun notifyFileCreated(fileAddress: Long) {
-        val listeners = synchronized(newFileListeners) {
-            newFileListeners.toTypedArray()
-        }
-        listeners.forEach {
-            it.fileCreated(fileAddress)
-        }
+    private fun notifyBlockCreated(address: Long) {
+        blockListeners.notifyListeners { it.blockCreated(address) }
     }
 
     private fun notifyReadBytes(bytes: ByteArray, count: Int) {
-        val listeners = synchronized(readBytesListeners) {
-            readBytesListeners.toTypedArray()
+        readBytesListeners.notifyListeners { it.bytesRead(bytes, count) }
+    }
+
+    private inline fun <reified T> List<T>.notifyListeners(call: (T) -> Unit): Array<T> {
+        val listeners = synchronized(this) {
+            this.toTypedArray()
         }
-        listeners.forEach {
-            it.bytesRead(bytes, count)
-        }
+        listeners.forEach { call(it) }
+        return listeners
     }
 
     private fun updateLogIdentity() {

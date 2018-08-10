@@ -24,11 +24,7 @@ import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.core.execution.JobProcessorAdapter
 import jetbrains.exodus.env.*
 import jetbrains.exodus.io.RemoveBlockType
-import jetbrains.exodus.log.ExpiredLoggableInfo
-import jetbrains.exodus.log.Log
-import jetbrains.exodus.log.LogUtil
-import jetbrains.exodus.log.Loggable
-import jetbrains.exodus.log.NewFileListener
+import jetbrains.exodus.log.*
 import jetbrains.exodus.runtime.OOMGuard
 import jetbrains.exodus.util.DeferredIO
 import mu.KLogging
@@ -50,12 +46,15 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
     init {
         newFiles = ec.gcFilesInterval + 1
         openStoresCache = IntHashMap()
-        environment.log.addNewFileListener (NewFileListener{
-            val newFiles = newFiles + 1
-            this@GarbageCollector.newFiles = newFiles
-            utilizationProfile.estimateTotalBytes()
-            if (!cleaner.isCleaning && newFiles > ec.gcFilesInterval && isTooMuchFreeSpace) {
-                wake()
+        environment.log.addBlockListener (object : AbstractBlockListener() {
+
+            override fun blockCreated(address: Long) {
+                val newFiles = newFiles + 1
+                this@GarbageCollector.newFiles = newFiles
+                utilizationProfile.estimateTotalBytes()
+                if (!cleaner.isCleaning && newFiles > ec.gcFilesInterval && isTooMuchFreeSpace) {
+                    wake()
+                }
             }
         })
     }
