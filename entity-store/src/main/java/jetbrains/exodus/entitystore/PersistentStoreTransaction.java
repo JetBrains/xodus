@@ -55,6 +55,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         Readonly
     }
 
+    private static final int LOCAL_CACHE_GENERATIONS = 2;
     @NotNull
     private static final ByteIterable ZERO_VERSION_ENTRY = IntegerBinding.intToCompressedEntry(0);
 
@@ -1317,7 +1318,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         @Override
         protected ObjectCacheBase<PropertyId, V> createdDecorated() {
-            return new ConcurrentObjectCache<PropertyId, V>(size()) {
+            return new ConcurrentObjectCache<PropertyId, V>(size(), LOCAL_CACHE_GENERATIONS) {
                 @Nullable
                 @Override
                 protected SharedTimer.ExpirablePeriodicTask getCacheAdjuster() {
