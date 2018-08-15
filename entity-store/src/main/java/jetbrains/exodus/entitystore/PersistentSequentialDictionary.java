@@ -33,7 +33,7 @@ import java.util.Collection;
 
 class PersistentSequentialDictionary implements FlushLog.Member {
 
-    private static final int CACHE_CAPACITY = 1000;
+    private static final int CACHE_CAPACITY = 2000;
 
     @NotNull
     private final PersistentSequence sequence;
@@ -66,7 +66,7 @@ class PersistentSequentialDictionary implements FlushLog.Member {
     }
 
     public int getId(@NotNull final TxnProvider txnProvider, @NotNull final String name) {
-        Integer result = cache.tryKey(name);
+        Integer result = cache.getObject(name);
         if (result != null) {
             return result;
         }
@@ -91,7 +91,7 @@ class PersistentSequentialDictionary implements FlushLog.Member {
     }
 
     public int getOrAllocateId(@NotNull final TxnProvider txnProvider, @NotNull final String name) {
-        Integer result = cache.tryKey(name);
+        Integer result = cache.getObject(name);
         if (result != null && result >= 0) {
             return result;
         }
@@ -125,7 +125,7 @@ class PersistentSequentialDictionary implements FlushLog.Member {
 
     @Nullable
     public String getName(@NotNull final TxnProvider txnProvider, final int id) {
-        String result = reverseCache.tryKey(id);
+        String result = reverseCache.getObject(id);
         if (result == null) {
             synchronized (lock) {
                 result = reverseCache.getObject(id);
