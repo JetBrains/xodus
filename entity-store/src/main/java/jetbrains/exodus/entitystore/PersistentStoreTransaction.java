@@ -20,14 +20,13 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.OutOfDiskSpaceException;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.LongBinding;
-import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache;
 import jetbrains.exodus.core.dataStructures.FakeObjectCache;
+import jetbrains.exodus.core.dataStructures.NonAdjustableConcurrentObjectCache;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.ObjectCacheDecorator;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
-import jetbrains.exodus.core.execution.SharedTimer;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.util.StringBuilderSpinAllocator;
@@ -148,8 +147,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     @Override
     public boolean isIdempotent() {
         return getEnvironmentTransaction().isIdempotent() &&
-                (blobStreams == null || blobStreams.isEmpty()) &&
-                (blobFiles == null || blobFiles.isEmpty());
+            (blobStreams == null || blobStreams.isEmpty()) &&
+            (blobFiles == null || blobFiles.isEmpty());
     }
 
     @Override
@@ -241,7 +240,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             final int entityTypeId = store.getEntityTypeId(this, entityType, true);
             final long entityLocalId = store.getEntitiesSequence(this, entityTypeId).increment();
             store.getEntitiesTable(this, entityTypeId).putRight(
-                    txn, LongBinding.longToCompressedEntry(entityLocalId), ZERO_VERSION_ENTRY);
+                txn, LongBinding.longToCompressedEntry(entityLocalId), ZERO_VERSION_ENTRY);
             final PersistentEntityId id = new PersistentEntityId(entityTypeId, entityLocalId);
             // update iterables' cache
             new EntityAddedHandleCheckerImpl(this, id, mutableCache(), mutatedInTxn).updateCache();
@@ -497,7 +496,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             return rightOrder;
         }
         return new SortIterable(this, findWithPropSortedByValue(
-                entityType, propertyName), (EntityIterableBase) rightOrder, entityTypeId, propertyId, ascending);
+            entityType, propertyName), (EntityIterableBase) rightOrder, entityTypeId, propertyId, ascending);
     }
 
     @Override
@@ -508,7 +507,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                                     @NotNull final String linkName,
                                     @NotNull final EntityIterable rightOrder) {
         final EntityIterable result = new SortIndirectIterable(this, store, entityType,
-                ((EntityIterableBase) sortedLinks).getSource(), linkName, (EntityIterableBase) rightOrder, null, null);
+            ((EntityIterableBase) sortedLinks).getSource(), linkName, (EntityIterableBase) rightOrder, null, null);
         return isMultiple ? result.distinct() : result;
     }
 
@@ -522,7 +521,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                                     @NotNull final String oppositeEntityType,
                                     @NotNull final String oppositeLinkName) {
         final EntityIterable result = new SortIndirectIterable(this, store, entityType,
-                ((EntityIterableBase) sortedLinks).getSource(), linkName, (EntityIterableBase) rightOrder, oppositeEntityType, oppositeLinkName);
+            ((EntityIterableBase) sortedLinks).getSource(), linkName, (EntityIterableBase) rightOrder, oppositeEntityType, oppositeLinkName);
         return isMultiple ? result.distinct() : result;
     }
 
@@ -729,7 +728,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         final PropertyId propId = new PropertyId(id, propertyId);
         propsCache.remove(propId);
         new PropertyChangedHandleCheckerImpl(this, id, propertyId,
-                oldValue, newValue, mutableCache(), mutatedInTxn).updateCache();
+            oldValue, newValue, mutableCache(), mutatedInTxn).updateCache();
     }
 
     void linkAdded(@NotNull final PersistentEntityId sourceId,
@@ -944,7 +943,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     @SuppressWarnings("unchecked")
     public static <T> T getUpdatable(
-            @NotNull final HandleChecker handleChecker, @NotNull final EntityIterableHandle handle, @NotNull final Class<T> handleType
+        @NotNull final HandleChecker handleChecker, @NotNull final EntityIterableHandle handle, @NotNull final Class<T> handleType
     ) {
         final HandleCheckerAdapter checker = (HandleCheckerAdapter) handleChecker;
         Updatable instance = checker.get(handle);
@@ -967,7 +966,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                     handlePart = "";
                 }
                 logger.error("Iterable doesn't match expected class " + handleType.getName()
-                        + ", handle = " + handle + ", found = " + instance.getClass().getName() + handlePart);
+                    + ", handle = " + handle + ", found = " + instance.getClass().getName() + handlePart);
             }
         }
         return null;
@@ -975,8 +974,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     private static <V> ObjectCacheBase<PropertyId, V> createObjectCache(final int size) {
         return size == 0 ?
-                new FakeObjectCache<PropertyId, V>() :
-                new TransactionObjectCache<V>(size);
+            new FakeObjectCache<PropertyId, V>() :
+            new TransactionObjectCache<V>(size);
     }
 
     abstract static class HandleCheckerAdapter implements HandleChecker {
@@ -1123,7 +1122,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         public boolean checkHandle(@NotNull final EntityIterableHandle handle) {
             return handle.isMatchedEntityDeleted(id)
-                    && !handle.onEntityDeleted(this);
+                && !handle.onEntityDeleted(this);
         }
     }
 
@@ -1139,7 +1138,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         public boolean checkHandle(@NotNull final EntityIterableHandle handle) {
             return handle.isMatchedEntityAdded(id)
-                    && !handle.onEntityAdded(this);
+                && !handle.onEntityAdded(this);
         }
     }
 
@@ -1209,7 +1208,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         public boolean checkHandle(@NotNull EntityIterableHandle handle) {
             return handle.isMatchedLinkAdded(sourceId, targetId, linkId)
-                    && !handle.onLinkAdded(this);
+                && !handle.onLinkAdded(this);
         }
     }
 
@@ -1225,7 +1224,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         public boolean checkHandle(@NotNull EntityIterableHandle handle) {
             return handle.isMatchedLinkDeleted(sourceId, targetId, linkId)
-                    && !handle.onLinkDeleted(this);
+                && !handle.onLinkDeleted(this);
         }
     }
 
@@ -1283,7 +1282,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         public boolean checkHandle(@NotNull EntityIterableHandle handle) {
             return handle.isMatchedPropertyChanged(id, propertyId, oldValue, newValue)
-                    && !handle.onPropertyChanged(this);
+                && !handle.onPropertyChanged(this);
         }
 
         @Override
@@ -1318,13 +1317,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         @Override
         protected ObjectCacheBase<PropertyId, V> createdDecorated() {
-            return new ConcurrentObjectCache<PropertyId, V>(size(), LOCAL_CACHE_GENERATIONS) {
-                @Nullable
-                @Override
-                protected SharedTimer.ExpirablePeriodicTask getCacheAdjuster() {
-                    return null;
-                }
-            };
+            return new NonAdjustableConcurrentObjectCache<>(size(), LOCAL_CACHE_GENERATIONS);
         }
     }
 }

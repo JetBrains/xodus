@@ -18,9 +18,9 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.StringBinding;
-import jetbrains.exodus.core.dataStructures.ConcurrentLongObjectCache;
-import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache;
 import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
+import jetbrains.exodus.core.dataStructures.NonAdjustableConcurrentLongObjectCache;
+import jetbrains.exodus.core.dataStructures.NonAdjustableConcurrentObjectCache;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.entitystore.tables.TwoColumnTable;
@@ -33,14 +33,16 @@ import java.util.Collection;
 
 class PersistentSequentialDictionary implements FlushLog.Member {
 
+    private static final int CACHE_CAPACITY = 1000;
+
     @NotNull
     private final PersistentSequence sequence;
     @NotNull
     private final TwoColumnTable table;
     @NotNull
-    private final ObjectCacheBase<String, Integer> cache = new ConcurrentObjectCache<>();
+    private final ObjectCacheBase<String, Integer> cache = new NonAdjustableConcurrentObjectCache<>(CACHE_CAPACITY, 2);
     @NotNull
-    private final LongObjectCacheBase<String> reverseCache = new ConcurrentLongObjectCache<>();
+    private final LongObjectCacheBase<String> reverseCache = new NonAdjustableConcurrentLongObjectCache<>(CACHE_CAPACITY, 2);
     @NotNull
     private final Collection<DictionaryOperation> operationsLog = new HashSet<>();
     private final Object lock = new Object();
