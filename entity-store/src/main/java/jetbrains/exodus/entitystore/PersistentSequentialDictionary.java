@@ -18,10 +18,6 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.StringBinding;
-import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
-import jetbrains.exodus.core.dataStructures.NonAdjustableConcurrentLongObjectCache;
-import jetbrains.exodus.core.dataStructures.NonAdjustableConcurrentObjectCache;
-import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.entitystore.tables.TwoColumnTable;
 import jetbrains.exodus.env.Transaction;
@@ -30,19 +26,19 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 class PersistentSequentialDictionary implements FlushLog.Member {
-
-    private static final int CACHE_CAPACITY = 2000;
 
     @NotNull
     private final PersistentSequence sequence;
     @NotNull
     private final TwoColumnTable table;
     @NotNull
-    private final ObjectCacheBase<String, Integer> cache = new NonAdjustableConcurrentObjectCache<>(CACHE_CAPACITY, 2);
+    private final Map<String, Integer> cache = new ConcurrentHashMap<>();
     @NotNull
-    private final LongObjectCacheBase<String> reverseCache = new NonAdjustableConcurrentLongObjectCache<>(CACHE_CAPACITY, 2);
+    private final Map<Integer, String> reverseCache = new ConcurrentHashMap<>();
     @NotNull
     private final Collection<DictionaryOperation> operationsLog = new HashSet<>();
     private final Object lock = new Object();
@@ -66,12 +62,12 @@ class PersistentSequentialDictionary implements FlushLog.Member {
     }
 
     public int getId(@NotNull final TxnProvider txnProvider, @NotNull final String name) {
-        Integer result = cache.getObject(name);
+        Integer result = cache.get(name);
         if (result != null) {
             return result;
         }
         synchronized (lock) {
-            result = cache.getObject(name);
+            result = cache.get(name);
             if (result != null) {
                 return result;
             }
@@ -91,12 +87,12 @@ class PersistentSequentialDictionary implements FlushLog.Member {
     }
 
     public int getOrAllocateId(@NotNull final TxnProvider txnProvider, @NotNull final String name) {
-        Integer result = cache.getObject(name);
+        Integer result = cache.get(name);
         if (result != null && result >= 0) {
             return result;
         }
         synchronized (lock) {
-            result = cache.getObject(name);
+            result = cache.get(name);
             if (result != null && result >= 0) {
                 return result;
             }
@@ -125,19 +121,15 @@ class PersistentSequentialDictionary implements FlushLog.Member {
 
     @Nullable
     public String getName(@NotNull final TxnProvider txnProvider, final int id) {
-        String result = reverseCache.getObject(id);
+        String result = reverseCache.get(id);
         if (result == null) {
             synchronized (lock) {
-                result = reverseCache.getObject(id);
-                if (result != null) {
-                    return result;
-                }
                 final ByteIterable idEntry = IntegerBinding.intToCompressedEntry(id);
                 final ByteIterable typeEntry = table.get2(txnProvider.getTransaction().getEnvironmentTransaction(), idEntry);
                 if (typeEntry != null) {
                     result = StringBinding.entryToString(typeEntry);
                     if (result != null) {
-                        reverseCache.cacheObject(id, StringInterner.intern(result));
+                        reverseCache.put(id, result);
                     }
                 }
             }
@@ -183,7 +175,7 @@ class PersistentSequentialDictionary implements FlushLog.Member {
                 }
             });
             cache.remove(oldName);
-            cache.cacheObject(newName, id);
+            cache.put(newName, id);
             reverseCache.remove(id);
             if (newId >= 0) {
                 reverseCache.remove(newId);
@@ -206,12 +198,12 @@ class PersistentSequentialDictionary implements FlushLog.Member {
 
     private void putIdUnsafe(@NotNull final String name, final int id) {
         final String nameInterned = StringInterner.intern(name);
-        cache.cacheObject(nameInterned, id);
-        reverseCache.cacheObject(id, nameInterned);
+        cache.put(nameInterned, id);
+        reverseCache.put(id, nameInterned);
     }
 
     private void putNoIdUnsafe(@NotNull final String name) {
-        cache.cacheObject(StringInterner.intern(name), -1);
+        cache.put(StringInterner.intern(name), -1);
     }
 
     private abstract class DictionaryOperation implements FlushLog.Operation {
