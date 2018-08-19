@@ -114,6 +114,8 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
         try {
             (this.file ?: throw ExodusException("Can't close already closed FileDataWriter")).close()
             this.file = null
+            this.dirChannel?.close()
+            this.dirChannel = null
         } catch (e: IOException) {
             throw ExodusException("Can't close FileDataWriter", e)
         }
