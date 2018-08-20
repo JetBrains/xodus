@@ -34,7 +34,7 @@ class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
                 val all = (queryEngine.instantiateGetAll(txn, entityType) as EntityIterableBase).source
                 var result: Iterable<Entity> = EntityIterableBase.EMPTY
                 linkNames.forEach { linkName, ids ->
-                    result = queryEngine.adjustEntityIterable(result.union(all.findLinks(ids, linkName)))
+                    result = queryEngine.union(result, all.findLinks(ids, linkName))
                 }
                 return result
             }
