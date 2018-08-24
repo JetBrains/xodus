@@ -19,9 +19,10 @@ import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.core.dataStructures.Pair
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap
 import jetbrains.exodus.core.dataStructures.hash.PackedLongHashSet
-import jetbrains.exodus.core.execution.Job
-import jetbrains.exodus.env.*
-import jetbrains.exodus.gc.GarbageCollector.Companion.UTILIZATION_PROFILE_STORE_NAME
+import jetbrains.exodus.env.EnvironmentConfig
+import jetbrains.exodus.env.EnvironmentImpl
+import jetbrains.exodus.env.StoreConfig
+import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.DataReader
 import jetbrains.exodus.io.DataWriter
@@ -31,7 +32,6 @@ import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
 import jetbrains.exodus.log.ExpiredLoggableInfo
 import jetbrains.exodus.log.Log
 import java.io.File
-import java.lang.ref.WeakReference
 import java.util.*
 
 class UtilizationProfile(private val env: EnvironmentImpl, private val gc: GarbageCollector) {
@@ -263,27 +263,25 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
      * @see EnvironmentConfig.setGcUtilizationFromFile
      */
     fun loadUtilizationFromFile(path: String) {
-        gc.cleaner.getJobProcessor().queueAt(object : Job() {
-            override fun execute() {
-                val usedSpace = LongHashMap<Long>()
-                try {
-                    Scanner(File(path)).use { scanner ->
-                        while (scanner.hasNextLong()) {
-                            val address = scanner.nextLong()
-                            val usedBytes = scanner.nextLong()
-                            usedSpace[address] = usedBytes
-                        }
+        gc.cleaner.getJobProcessor().queueAt(GcJob(gc) {
+            val usedSpace = LongHashMap<Long>()
+            try {
+                Scanner(File(path)).use { scanner ->
+                    while (scanner.hasNextLong()) {
+                        val address = scanner.nextLong()
+                        val usedBytes = scanner.nextLong()
+                        usedSpace[address] = usedBytes
                     }
-                } catch (t: Throwable) {
-                    GarbageCollector.loggingError({ "Failed to load utilization from $path" }, t)
                 }
+            } catch (t: Throwable) {
+                GarbageCollector.loggingError({ "Failed to load utilization from $path" }, t)
+            }
 
-                // if an error occurs during reading the file, then GC will be too pessimistic, i.e. it will clean
-                // first the files which are missed in the utilization profile.
-                filesUtilization.synchronized {
-                    clear()
-                    setUtilization(usedSpace)
-                }
+            // if an error occurs during reading the file, then GC will be too pessimistic, i.e. it will clean
+            // first the files which are missed in the utilization profile.
+            filesUtilization.synchronized {
+                clear()
+                setUtilization(usedSpace)
             }
         }, gc.startTime)
     }
@@ -293,7 +291,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
      */
     fun computeUtilizationFromScratch() {
         GarbageCollector.loggingInfo { "Queueing ComputeUtilizationFromScratchJob" }
-        gc.cleaner.getJobProcessor().queueAt(ComputeUtilizationFromScratchJob(this), gc.startTime)
+        gc.cleaner.getJobProcessor().queueAt(ComputeUtilizationFromScratchJob(gc), gc.startTime)
     }
 
     internal fun estimateTotalBytesAndWakeGcIfNecessary() {
@@ -303,13 +301,13 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         }
     }
 
-    private fun clearUtilization() = filesUtilization.synchronized { clear() }
-
-    private fun setUtilization(usedSpace: LongHashMap<Long>) = filesUtilization.synchronized {
+    internal fun setUtilization(usedSpace: LongHashMap<Long>) = filesUtilization.synchronized {
         for ((fileAddress, usedBytes) in usedSpace) {
             (this[fileAddress] ?: MutableLong(0L).also { this[fileAddress] = it }).value += (fileSize - usedBytes)
         }
     }
+    private fun clearUtilization() = filesUtilization.synchronized { clear() }
+
 
     /**
      * Is used instead of [Long] for saving free bytes per file in  order to update the value in-place, so
@@ -319,49 +317,6 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
 
         override fun toString(): String {
             return java.lang.Long.toString(value)
-        }
-    }
-
-    private class ComputeUtilizationFromScratchJob(up: UtilizationProfile) : Job() {
-
-        private val up: WeakReference<UtilizationProfile> = WeakReference(up)
-
-        override fun execute() {
-            GarbageCollector.loggingInfo { "Started calculation of log utilization from scratch" }
-            try {
-                val up = this.up.get() ?: return
-                val usedSpace = LongHashMap<Long>()
-                val env = up.env
-                var goon = true
-                while (goon) {
-                    env.executeInReadonlyTransaction { txn ->
-                        up.clear()
-                        // optimistic clearing of files' utilization until no parallel writing transaction happens
-                        if (txn.highAddress == env.computeInReadonlyTransaction { tx -> tx.highAddress }) {
-                            val log = up.log
-                            for (storeName in env.getAllStoreNames(txn) + UTILIZATION_PROFILE_STORE_NAME) {
-                                if (env.storeExists(storeName, txn)) {
-                                    val store = env.openStore(storeName, StoreConfig.USE_EXISTING, txn)
-                                    val it = (txn as TransactionBase).getTree(store).addressIterator()
-                                    while (it.hasNext()) {
-                                        val address = it.next()
-                                        val loggable = log.read(address)
-                                        val fileAddress = log.getFileAddress(address)
-                                        usedSpace[fileAddress] = (usedSpace[fileAddress]
-                                                ?: 0L) + loggable.length().toLong()
-                                    }
-                                }
-                            }
-                            goon = false
-                        }
-                    }
-                }
-                up.setUtilization(usedSpace)
-                up.isDirty = true
-                up.estimateTotalBytesAndWakeGcIfNecessary()
-            } finally {
-                GarbageCollector.loggingInfo { "Finished calculation of log utilization from scratch" }
-            }
         }
     }
 }

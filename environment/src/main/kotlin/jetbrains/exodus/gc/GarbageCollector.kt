@@ -43,11 +43,11 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
     internal val cleaner = BackgroundCleaner(this)
     @Volatile
     private var newFiles = ec.gcFilesInterval + 1 // number of new files appeared after last cleaning job
-    private val openStoresCache =IntHashMap<StoreImpl>()
+    private val openStoresCache = IntHashMap<StoreImpl>()
     private var useRegularTxn: Boolean = false
 
     init {
-        environment.log.addBlockListener (object : AbstractBlockListener() {
+        environment.log.addBlockListener(object : AbstractBlockListener() {
 
             override fun blockCreated(block: Block, reader: DataReader, writer: DataWriter) {
                 val newFiles = newFiles + 1
@@ -182,10 +182,8 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
 
     internal fun deletePendingFiles() {
         if (!cleaner.isCurrentThread) {
-            cleaner.getJobProcessor().queue(object : Job() {
-                override fun execute() {
-                    deletePendingFiles()
-                }
+            cleaner.getJobProcessor().queue(GcJob(this) {
+                deletePendingFiles()
             })
         } else {
             val filesToDelete = LongArrayList()

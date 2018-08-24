@@ -15,24 +15,13 @@
  */
 package jetbrains.exodus.gc
 
-import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.log.Log
 
-internal class BackgroundCleaningJob(private var gc: GarbageCollector?) : Job() {
+internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
 
     override fun getName() = "Background cleaner"
 
-    override fun getGroup() = gc?.environment?.location ?: "<finished>"
-
-    /**
-     * Cancels job so that it never will be executed again.
-     */
-    fun cancel() {
-        gc = null
-        processor = null
-    }
-
-    override fun execute() {
+    override fun doJob() {
         val gc = this.gc ?: return
         val cleaner = gc.cleaner
         if (!cleaner.isCurrentThread) {
