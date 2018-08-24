@@ -23,6 +23,7 @@ import jetbrains.exodus.entitystore.EntityIterator;
 import jetbrains.exodus.entitystore.PersistentEntityId;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.entitystore.iterate.cached.iterator.OrderedEntityIdCollectionIterator;
+import jetbrains.exodus.entitystore.iterate.cached.iterator.ReverseOrderedEntityIdCollectionIterator;
 import jetbrains.exodus.entitystore.util.EntityIdSetFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -86,28 +87,13 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
     @NotNull
     @Override
     public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
-        if (localIds == EMPTY_IDS && mutableLocalIds == null) {
-            return EntityIteratorBase.EMPTY;
-        }
-        final PersistentLongSet.MutableSet mutableSet = mutableLocalIds;
-        if (mutableSet == null) {
-            return new OrderedEntityIdCollectionIterator(this, getOrCreateIdCollection());
-        }
-        return new NonDisposableEntityIterator(this) {
+        return getIterator(false);
+    }
 
-            private final LongIterator it = mutableSet.longIterator();
-
-            @Override
-            protected boolean hasNextImpl() {
-                return it.hasNext();
-            }
-
-            @Nullable
-            @Override
-            protected EntityId nextIdImpl() {
-                return new PersistentEntityId(entityTypeId, it.next());
-            }
-        };
+    @NotNull
+    @Override
+    public EntityIterator getReverseIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+        return getIterator(true);
     }
 
     @Override
@@ -215,5 +201,33 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
         if (id.getTypeId() != entityTypeId) {
             throw new IllegalStateException("Unexpected entity type id: " + id.getTypeId());
         }
+    }
+
+    @NotNull
+    private EntityIterator getIterator(final boolean reverse) {
+        if (localIds == EMPTY_IDS && mutableLocalIds == null) {
+            return EntityIteratorBase.EMPTY;
+        }
+        final PersistentLongSet.MutableSet mutableSet = mutableLocalIds;
+        if (mutableSet == null) {
+            return reverse ?
+                new ReverseOrderedEntityIdCollectionIterator(this, getOrCreateIdCollection()) :
+                new OrderedEntityIdCollectionIterator(this, getOrCreateIdCollection());
+        }
+        return new NonDisposableEntityIterator(this) {
+
+            private final LongIterator it = reverse ? mutableSet.reverseLongIterator() : mutableSet.longIterator();
+
+            @Override
+            protected boolean hasNextImpl() {
+                return it.hasNext();
+            }
+
+            @Nullable
+            @Override
+            protected EntityId nextIdImpl() {
+                return new PersistentEntityId(entityTypeId, it.next());
+            }
+        };
     }
 }

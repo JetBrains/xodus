@@ -592,7 +592,7 @@ public class EntityIterableTests extends EntityStoreTestBase {
         txn.flush();
         int i = 0;
         for (Entity user : txn.getAll("User").reverse()) {
-            ++i;
+            Assert.assertEquals("user" + (10 - ++i), user.getProperty("login"));
         }
         Assert.assertEquals(count, i);
 
