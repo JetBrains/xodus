@@ -584,6 +584,20 @@ public class EntityIterableTests extends EntityStoreTestBase {
         });
     }
 
+    @TestFor(issues = "XD-746")
+    public void testGetAllReverse() {
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        final int count = 10;
+        createNUsers(txn, count);
+        txn.flush();
+        int i = 0;
+        for (Entity user : txn.getAll("User").reverse()) {
+            ++i;
+        }
+        Assert.assertEquals(count, i);
+
+    }
+
     /**
      * Should fail with OOME being run in JVM with Xmx256m without fix of XD-458
      */
