@@ -22,12 +22,13 @@ import jetbrains.exodus.core.dataStructures.persistent.write
 
 internal class S3FolderBlock(s3factory: S3FactoryBoilerplate,
                              address: Long,
-                             internal val blocks: PersistentLongMap<S3SubBlock>,
-                             private val currentFile: S3DataWriter.CurrentFile?) : BasicS3Block(s3factory, address, 0) {
-    override val key: String
-        get() = getPartialFolderPrefix(_address)
+                             size: Long,
+                             internal val blocks: PersistentLongMap<S3SubBlock>)
+    : BasicS3Block(s3factory, address, size) {
 
-    override fun length(): Long = blocks.read { fold(0L) { acc, value -> acc + value.value.length() } }
+    override val key: String get() = getPartialFolderPrefix(addr)
+
+    //override fun length(): Long = blocks.read { fold(0L) { acc, value -> acc + value.value.length() } }
 
     override fun read(output: ByteArray, position: Long, offset: Int, count: Int): Int {
         if (count <= 0) {
@@ -54,45 +55,41 @@ internal class S3FolderBlock(s3factory: S3FactoryBoilerplate,
                 totalRead += it
             }
         }
-        if (totalRead < count) {
-            currentFile?.let { memory ->
-                if (memory.blockAddress == _address) {
-                    totalRead = memory.read(output, position, totalRead, count, offset)
-                }
-            }
-        }
         return totalRead
     }
 
     override fun refresh(): S3FolderBlock {
-        return newS3FolderBlock(s3factory, _address)
+        return newS3FolderBlock(s3factory, addr)
     }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is S3FolderBlock) return false
 
-        if (_address != other._address) return false
+        if (addr != other.addr) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        return _address.hashCode()
+        return addr.hashCode()
     }
 }
 
 internal fun newS3FolderBlock(s3factory: S3FactoryBoilerplate, address: Long): S3FolderBlock {
     val builder = s3factory.listObjectsBuilder().prefix(getPartialFolderPrefix(address))
     val subBlocks = PersistentBitTreeLongMap<S3SubBlock>()
+    var size = 0L
     subBlocks.write {
         listObjects(s3factory.s3, builder).forEach {
             val paths = it.key().split("/")
             if (paths.size == 2) {
                 val subBlockAddress = decodeAddress(paths[1])
-                put(subBlockAddress, S3SubBlock(s3factory, subBlockAddress, it.size(), address))
+                val subBlockSize = it.size()
+                put(subBlockAddress, S3SubBlock(s3factory, subBlockAddress, subBlockSize, address))
+                size += subBlockSize
             }
         }
     }
-    return S3FolderBlock(s3factory, address, subBlocks, null)
+    return S3FolderBlock(s3factory, address, size, subBlocks)
 }

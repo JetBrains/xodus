@@ -62,6 +62,7 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
     private var dirChannel: FileChannel? = null
     private val lockingManager: LockingManager
     private var file: RandomAccessFile? = null
+    private var block: Block? = null
     private var useNio = false
 
     init {
@@ -80,15 +81,16 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
         lockingManager = LockingManager(reader.dir, lockId)
     }
 
-    override fun write(b: ByteArray, off: Int, len: Int) {
+    override fun write(b: ByteArray, off: Int, len: Int): Block {
         try {
-            (this.file ?: throw ExodusException("Can't write, FileDataWriter is closed")).write(b, off, len)
+            (file ?: throw ExodusException("Can't write, FileDataWriter is closed")).write(b, off, len)
         } catch (ioe: IOException) {
             if (lockingManager.usableSpace < len) {
                 throw OutOfDiskSpaceException(ioe)
             }
             throw ExodusException("Can't write", ioe)
         }
+        return block ?: throw ExodusException("Can't write, FileDataWriter is closed")
     }
 
     override fun lock(timeout: Long): Boolean {
@@ -104,18 +106,16 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
     }
 
     override fun syncImpl() {
-        val file = this.file
-        if (file != null) {
-            forceSync(file)
-        }
+        file?.let { forceSync(it) }
     }
 
     override fun closeImpl() {
         try {
-            (this.file ?: throw ExodusException("Can't close already closed FileDataWriter")).close()
-            this.file = null
-            this.dirChannel?.close()
-            this.dirChannel = null
+            (file ?: throw ExodusException("Can't close already closed FileDataWriter")).close()
+            file = null
+            dirChannel?.close()
+            dirChannel = null
+            block = null
         } catch (e: IOException) {
             throw ExodusException("Can't close FileDataWriter", e)
         }
@@ -135,17 +135,18 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
     override fun openOrCreateBlockImpl(address: Long, length: Long): Block {
         val result = FileDataReader.FileBlock(address, reader)
         try {
-            val file = RandomAccessFile(result.apply {
+            val f = RandomAccessFile(result.apply {
                 if (!canWrite()) {
                     setWritable(this)
                 }
             }, "rw")
-            file.seek(length)
-            if (length != file.length()) {
-                file.setLength(length)
-                forceSync(file)
+            f.seek(length)
+            if (length != f.length()) {
+                f.setLength(length)
+                forceSync(f)
             }
-            this.file = file
+            file = f
+            block = result
             return result
         } catch (ioe: IOException) {
             throw ExodusException(ioe)
@@ -153,7 +154,7 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
     }
 
     override fun syncDirectory() {
-        dirChannel?.apply {
+        dirChannel?.run {
             try {
                 force(false)
             } catch (e: IOException) {

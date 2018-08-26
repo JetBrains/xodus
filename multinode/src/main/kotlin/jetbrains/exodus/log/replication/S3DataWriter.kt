@@ -17,6 +17,7 @@ package jetbrains.exodus.log.replication
 
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.core.dataStructures.persistent.read
+import jetbrains.exodus.core.dataStructures.persistent.write
 import jetbrains.exodus.io.AbstractDataWriter
 import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.RemoveBlockType
@@ -34,7 +35,6 @@ import software.amazon.awssdk.services.s3.model.CopyObjectRequest
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import java.io.ByteArrayInputStream
 import java.nio.ByteBuffer
-import java.util.concurrent.atomic.AtomicReference
 
 class S3DataWriter(private val s3Sync: S3Client,
                    override val s3: S3AsyncClient,
@@ -42,87 +42,51 @@ class S3DataWriter(private val s3Sync: S3Client,
                    override val requestOverrideConfig: AwsRequestOverrideConfiguration? = null,
                    private val log: Log? = null
 ) : S3DataReaderOrWriter, AbstractDataWriter() {
+
     companion object : KLogging()
 
-    override val currentFile = AtomicReference<CurrentFile>()
+    private var block: S3FolderBlock? = null
 
     override val logTip: LogTip? get() = log?.tip
 
-    override fun syncImpl() {
-        val file = currentFile.get()
-        if (file.length > 0) {
-            syncFile(file)
-        }
-        if (!currentFile.compareAndSet(file, file.copy(position = file.position + file.length, length = 0))) {
-            failIntegrity()
-        }
-    }
+    override fun syncImpl() {}
 
-    private fun syncFile(file: CurrentFile) {
-        val key = "${file.prefix}${getPartialFileName(file.blockAddress + file.position)}"
-        try {
-            logger.info { "Put file of $key, length: ${file.length}" }
-            s3Sync.putObject(PutObjectRequest.builder()
-                    .bucket(bucket)
-                    .overrideConfiguration(requestOverrideConfig)
-                    .key(key)
-                    .contentLength(file.length.toLong())
-                    .build(), RequestBody.fromInputStream(
-                    ByteArrayInputStream(file.buffer, 0, file.length), file.length.toLong())
-            )
-            /*s3.putObject(PutObjectRequest.builder()
-                    .bucket(bucketName)
-                    .requestOverrideConfig(requestOverrideConfig)
-                    .key(key)
-                    .contentLength(file.length.toLong())
-                    .build(), object : AsyncRequestProvider {
-
-                override fun contentLength() = file.length.toLong()
-
-                override fun subscribe(subscriber: Subscriber<in ByteBuffer>) {
-                    subscriber.onSubscribe(
-                            object : Subscription {
-                                override fun request(n: Long) {
-                                    if (n > 0) {
-                                        subscriber.onNext(ByteBuffer.wrap(file.buffer, 0, file.length))
-                                        subscriber.onComplete()
-                                    }
-                                }
-
-                                override fun cancel() {}
-                            }
-                    )
+    override fun write(bytes: ByteArray, off: Int, len: Int): Block {
+        with(block ?: throw ExodusException("Can't write, S3DataWriter is closed")) {
+            val subBlockAddress = address + length()
+            val subBlockSize = len.toLong()
+            val key = "${getPartialFolderPrefix(address)}${getPartialFileName(subBlockAddress)}"
+            logger.info { "Put file of $key, length: $len" }
+            try {
+                s3Sync.putObject(PutObjectRequest.builder()
+                        .bucket(bucket)
+                        .overrideConfiguration(requestOverrideConfig)
+                        .key(key)
+                        .contentLength(subBlockSize)
+                        .build(), RequestBody.fromInputStream(
+                        ByteArrayInputStream(bytes, off, len), subBlockSize)
+                )
+                val blocksCopy = blocks.clone.apply {
+                    write {
+                        put(subBlockAddress, S3SubBlock(s3factory, subBlockAddress, subBlockSize, address))
+                    }
                 }
-
-            }).get(30, TimeUnit.SECONDS)*/
-        } catch (e: Exception) {
-            val msg = "failed to update '$key' in S3"
-            logger.error(msg, e)
-            throw ExodusException(msg, e)
+                return S3FolderBlock(s3factory, address, size + subBlockSize, blocksCopy).apply { block = this }
+            } catch (e: Exception) {
+                val msg = "failed to update '$key' in S3"
+                logger.error(msg, e)
+                throw ExodusException(msg, e)
+            }
         }
-    }
-
-    override fun write(b: ByteArray, off: Int, len: Int) {
-        val prevFile = currentFile.get()
-        // 1. grow
-        val grownFile = prevFile.grow(len)
-        if (!currentFile.compareAndSet(prevFile, grownFile)) {
-            failIntegrity()
-        }
-        // 2. write
-        grownFile.append(b, off, len)
     }
 
     override fun openOrCreateBlockImpl(address: Long, length: Long): Block {
-        // TODO: this works incorrect for opening existing files
-        if (length > Int.MAX_VALUE) {
-            throw UnsupportedOperationException("File too large")
+        return newS3FolderBlock(this, address).apply {
+            if (length() > length) {
+                truncateBlock(address, length)
+            }
+            block = this
         }
-        val prevFile = currentFile.get()
-        if (!currentFile.compareAndSet(prevFile, CurrentFile(address, length.toInt()))) {
-            failIntegrity()
-        }
-        return InMemoryBlock(address, this)
     }
 
     override fun removeBlock(blockAddress: Long, rbt: RemoveBlockType) {
@@ -188,13 +152,7 @@ class S3DataWriter(private val s3Sync: S3Client,
     override fun lockInfo(): String? = null
 
     override fun closeImpl() {
-        val file = currentFile.get()
-        if (file.length > 0) {
-            syncFile(file)
-        }
-        if (!currentFile.compareAndSet(file, null)) {
-            failIntegrity()
-        }
+        block = null
     }
 
     override fun clearImpl() {
@@ -245,65 +203,5 @@ class S3DataWriter(private val s3Sync: S3Client,
 
     private fun failIntegrity(): Nothing {
         throw IllegalStateException("Concurrency breach")
-    }
-
-    // grow-only buffer suitable for atomic swaps
-    // TODO: replace ByteArray with netty ByteBuf
-    @Suppress("ArrayInDataClass")
-    data class CurrentFile(
-            val blockAddress: Long,
-            val position: Int = 0,
-            val length: Int = 0,
-            val prefix: String = getPartialFolderPrefix(blockAddress),
-            val buffer: ByteArray = ByteArray(1024 * 256) /* 0.25 MB by default */) {
-
-        fun grow(len: Int): CurrentFile {
-            val newLength = length + len
-            if (newLength < buffer.size) {
-                return copy(length = newLength)
-            }
-            var newCapacity = length + (length shr 1)
-            if (newCapacity < newLength) {
-                newCapacity = newLength
-            }
-            return copy(length = newLength, buffer = buffer.copyOf(newCapacity))
-        }
-
-        fun append(b: ByteArray, off: Int, len: Int) {
-            System.arraycopy(b, off, buffer, length - len, len)
-        }
-
-        fun read(output: ByteArray, position: Long, totalRead: Int, count: Int, offset: Int): Int {
-            var result = totalRead
-            if (this.position <= position + result) {
-                val memoryOffset = (position + result - this.position).toInt()
-                if (memoryOffset < length) {
-                    val remaining = minOf(count - result, length - memoryOffset)
-                    System.arraycopy(buffer, memoryOffset, output, offset + result, remaining)
-                    result += remaining
-                }
-            }
-            return result
-        }
-    }
-
-    internal class InMemoryBlock(private val address: Long, private val writer: S3DataWriter) : Block {
-
-        override fun getAddress() = address
-
-        override fun length() = writer.currentFile.get().run { this?.length ?: 0 }.toLong()
-
-        override fun read(output: ByteArray, position: Long, offset: Int, count: Int): Int {
-            if (count > 0) {
-                writer.currentFile.get()?.let { memory ->
-                    if (memory.blockAddress == address) {
-                        return memory.read(output, position, 0, count, offset)
-                    }
-                }
-            }
-            return 0
-        }
-
-        override fun refresh() = newS3FolderBlock(writer, address)
     }
 }

@@ -65,8 +65,8 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     public void testCreateSingleStore() {
         final Store store = openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES);
         assertLoggableTypes(getLog(), 0, BTreeBase.BOTTOM_ROOT,
-                DatabaseRoot.DATABASE_ROOT_TYPE, BTreeBase.BOTTOM_ROOT, BTreeBase.LEAF, BTreeBase.LEAF,
-                BTreeBase.BOTTOM_ROOT, DatabaseRoot.DATABASE_ROOT_TYPE);
+            DatabaseRoot.DATABASE_ROOT_TYPE, BTreeBase.BOTTOM_ROOT, BTreeBase.LEAF, BTreeBase.LEAF,
+            BTreeBase.BOTTOM_ROOT, DatabaseRoot.DATABASE_ROOT_TYPE);
     }
 
     @Test
@@ -378,7 +378,9 @@ public class EnvironmentTest extends EnvironmentTestsBase {
 
         final StoreConfig expectedConfig = StoreConfig.WITHOUT_DUPLICATES;
 
+        final long started = System.currentTimeMillis();
         for (int j = 0; j < 100; j++) {
+            if (System.currentTimeMillis() - started > 30000) break;
             System.out.println("Cycle " + j);
             for (int i = 0; i < 100; i++) {
                 Transaction txn = env.beginTransaction();
@@ -726,7 +728,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     protected EnvironmentImpl createAndCloseEnvironment() throws Exception {
         final Pair<DataReader, DataWriter> rw = createRW();
         final EnvironmentImpl env = newEnvironmentInstance(
-                LogConfig.create(rw.getFirst(), rw.getSecond()), new EnvironmentConfig().setGcUtilizationFromScratch(true));
+            LogConfig.create(rw.getFirst(), rw.getSecond()), new EnvironmentConfig().setGcUtilizationFromScratch(true));
         env.close();
         return env;
     }

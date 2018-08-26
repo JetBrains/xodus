@@ -18,6 +18,7 @@ package jetbrains.exodus.log.replication
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.core.dataStructures.persistent.PersistentBitTreeLongMap
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLongMap
+import jetbrains.exodus.core.dataStructures.persistent.read
 import jetbrains.exodus.core.dataStructures.persistent.write
 import jetbrains.exodus.io.Block
 import jetbrains.exodus.log.LogUtil
@@ -26,12 +27,12 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse
 import java.util.*
 
 internal abstract class BasicS3Block(internal val s3factory: S3FactoryBoilerplate,
-                                     internal val _address: Long,
+                                     internal val addr: Long,
                                      internal val size: Long) : Block {
 
     abstract val key: String
 
-    override fun getAddress() = _address
+    override fun getAddress() = addr
 
     override fun length(): Long = size
 
@@ -70,7 +71,7 @@ internal class S3Block(s3factory: S3FactoryBoilerplate,
                        address: Long,
                        size: Long) : BasicS3Block(s3factory, address, size) {
     override val key: String
-        get() = LogUtil.getLogFilename(_address)
+        get() = LogUtil.getLogFilename(addr)
 }
 
 internal class S3SubBlock(s3factory: S3FactoryBoilerplate,
@@ -78,7 +79,7 @@ internal class S3SubBlock(s3factory: S3FactoryBoilerplate,
                           size: Long,
                           private val parentAddress: Long) : BasicS3Block(s3factory, address, size) {
     override val key: String
-        get() = getPartialFolderPrefix(parentAddress) + getPartialFileName(_address)
+        get() = getPartialFolderPrefix(parentAddress) + getPartialFileName(addr)
 }
 
 internal val S3DataReaderOrWriter.fileBlocks: List<S3Block>
@@ -87,7 +88,7 @@ internal val S3DataReaderOrWriter.fileBlocks: List<S3Block>
         return listObjects(s3, builder)
                 .filter { it.key().isValidAddress }
                 .map { S3Block(this, it.key().address, it.size()) }
-                .sortedBy { it._address }
+                .sortedBy { it.addr }
                 .toList()
     }
 
@@ -123,5 +124,11 @@ internal val S3DataReaderOrWriter.folderBlocks: List<S3FolderBlock>
                 }
             }
         }
-        return folders.values.asSequence().map { S3FolderBlock(this, it.first, it.second, currentFile.get()) }.toList()
+        return folders.values.asSequence().map {
+            S3FolderBlock(
+                    this,
+                    it.first,
+                    it.second.read { fold(0L) { acc, value -> acc + value.value.length() } },
+                    it.second)
+        }.toList()
     }

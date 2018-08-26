@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.io;
 
-import jetbrains.exodus.ExodusException;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.Closeable;
@@ -25,7 +24,7 @@ public interface DataWriter extends Closeable {
 
     boolean isOpen();
 
-    void write(byte[] b, int off, int len) throws ExodusException;
+    Block write(byte[] b, int off, int len);
 
     void sync();
 

@@ -65,7 +65,7 @@ public class BufferedDataWriter {
         if (validInitialPage) {
             if (pageSize != page.bytes.length) {
                 throw new InvalidSettingException("Configured page size doesn't match actual page size, pageSize = " +
-                        pageSize + ", actual page size = " + page.bytes.length);
+                    pageSize + ", actual page size = " + page.bytes.length);
             }
             currentPage = new MutablePage(null, page.bytes, page.pageAddress, page.count);
         } else {
@@ -153,7 +153,7 @@ public class BufferedDataWriter {
                     writePage(bytes, off, len);
                 } else {
                     writePage(EnvKryptKt.cryptBlocksImmutable(cipherProvider, cipherKey, cipherBasicIV,
-                            pageAddress, bytes, off, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
+                        pageAddress, bytes, off, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
                 }
                 cachePage(bytes, pageAddress);
             }
@@ -176,7 +176,7 @@ public class BufferedDataWriter {
                 writePage(bytes, flushedCount, len);
             } else {
                 writePage(EnvKryptKt.cryptBlocksImmutable(cipherProvider, cipherKey, cipherBasicIV,
-                        pageAddress, bytes, flushedCount, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
+                    pageAddress, bytes, flushedCount, len, LogUtil.LOG_BLOCK_ALIGNMENT), 0, len);
             }
             if (committedCount == pageSize) {
                 cachePage(bytes, pageAddress);
@@ -261,7 +261,8 @@ public class BufferedDataWriter {
     }
 
     private void writePage(@NotNull final byte[] bytes, final int off, final int len) {
-        child.write(bytes, off, len);
+        final Block block = child.write(bytes, off, len);
+        blockSetMutable.add(block.getAddress(), block);
     }
 
     private void cachePage(@NotNull final byte[] bytes, final long pageAddress) {

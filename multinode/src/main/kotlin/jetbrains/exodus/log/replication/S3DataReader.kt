@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.log.replication
 
+import jetbrains.exodus.ExodusException
 import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.DataReader
 import jetbrains.exodus.log.LogTip
@@ -25,13 +26,11 @@ import java.util.*
 import kotlin.Comparator
 
 class S3DataReader(override val s3: S3AsyncClient,
-                            override val bucket: String,
-                            override val requestOverrideConfig: AwsRequestOverrideConfiguration? = null,
-                            val writer: S3DataWriter) : S3DataReaderOrWriter, DataReader {
+                   override val bucket: String,
+                   override val requestOverrideConfig: AwsRequestOverrideConfiguration? = null,
+                   val writer: S3DataWriter) : S3DataReaderOrWriter, DataReader {
 
     companion object : KLogging()
-
-    override val currentFile = writer.currentFile
 
     override val logTip: LogTip? get() = writer.logTip
 
@@ -52,8 +51,8 @@ class S3DataReader(override val s3: S3AsyncClient,
 
     override fun close() = s3.close()
 
-    // for tests only
     internal fun getBlock(address: Long): Block {
-        return blocks.firstOrNull { it.address == address } ?: S3DataWriter.InMemoryBlock(address, writer)
+        return blocks.firstOrNull { it.address == address }
+                ?: throw ExodusException("No block found by address $address")
     }
 }

@@ -30,9 +30,10 @@ open class MemoryDataWriter(private val memory: Memory) : AbstractDataWriter() {
     private var closed = false
     private lateinit var data: Memory.Block
 
-    override fun write(b: ByteArray, off: Int, len: Int) {
+    override fun write(b: ByteArray, off: Int, len: Int): Block {
         checkClosed()
         data.write(b, off, len)
+        return data
     }
 
     override fun removeBlock(blockAddress: Long, @NotNull rbt: RemoveBlockType) {
