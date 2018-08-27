@@ -22,7 +22,10 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ModelMetaDataImpl implements ModelMetaData {
@@ -30,7 +33,7 @@ public class ModelMetaDataImpl implements ModelMetaData {
     private static final Logger logger = LoggerFactory.getLogger(ModelMetaDataImpl.class);
     private static final boolean LOG_RESET = Boolean.getBoolean("jetbrains.exodus.query.metadata.logReset");
 
-    private final Set<EntityMetaData> entityMetaDatas = Collections.newSetFromMap(new ConcurrentHashMap<EntityMetaData, Boolean>());
+    private final Set<EntityMetaData> entityMetaDatas = new HashSet<>();
     private final Map<String, AssociationMetaData> associationMetaDatas = new ConcurrentHashMap<>();
     private volatile Map<String, EntityMetaData> typeToEntityMetaDatas = null;
 
@@ -40,10 +43,13 @@ public class ModelMetaDataImpl implements ModelMetaData {
     }
 
     public void setEntityMetaDatas(@NotNull Set<EntityMetaData> entityMetaDatas) {
-        this.entityMetaDatas.clear();
-        this.entityMetaDatas.addAll(entityMetaDatas);
-        for (EntityMetaData emd : entityMetaDatas) {
-            ((EntityMetaDataImpl) emd).setModelMetaData(this);
+        synchronized (this.entityMetaDatas) {
+            this.entityMetaDatas.clear();
+            this.entityMetaDatas.addAll(entityMetaDatas);
+            for (EntityMetaData emd : entityMetaDatas) {
+                ((EntityMetaDataImpl) emd).setModelMetaData(this);
+            }
+            reset();
         }
     }
 
@@ -54,9 +60,11 @@ public class ModelMetaDataImpl implements ModelMetaData {
     }
 
     public void addEntityMetaData(@NotNull EntityMetaData emd) {
-        entityMetaDatas.add(emd);
-        ((EntityMetaDataImpl) emd).setModelMetaData(this);
-        reset();
+        synchronized (entityMetaDatas) {
+            entityMetaDatas.add(emd);
+            ((EntityMetaDataImpl) emd).setModelMetaData(this);
+            reset();
+        }
     }
 
     void reset() {
