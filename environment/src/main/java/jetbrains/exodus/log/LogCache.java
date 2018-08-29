@@ -30,7 +30,6 @@ abstract class LogCache {
     protected static final int DEFAULT_OPEN_FILES_COUNT = 16;
     protected static final int MINIMUM_MEM_USAGE_PERCENT = 5;
     protected static final int MAXIMUM_MEM_USAGE_PERCENT = 95;
-    static final int CONCURRENT_CACHE_GENERATION_COUNT = 2;
 
     private static final ConcurrentLongObjectCache<byte[]> TAIL_PAGES_CACHE = new ConcurrentLongObjectCache<>(10);
 
@@ -88,26 +87,56 @@ abstract class LogCache {
     @NotNull
     abstract byte[] getPage(@NotNull final Log log, final long pageAddress);
 
+    @Nullable
+    abstract byte[] getCachedPage(@NotNull final Log log, final long pageAddress);
+
     @NotNull
     abstract ArrayByteIterable getPageIterable(@NotNull final Log log, final long pageAddress);
 
     abstract void removePage(@NotNull final Log log, final long pageAddress);
 
     @NotNull
-    protected byte[] readFullPage(Log log, long pageAddress) {
-        final byte[] page = allocPage();
-        final int bytesRead = log.readBytes(page, pageAddress);
-        if (bytesRead != pageSize) {
-            throw new ExodusException("Can't read full bytes from log [" + log.getLocation() + "] with address "
-                    + pageAddress + " (file " + LogUtil.getLogFilename(log.getFileAddress(pageAddress)) + "), offset: "
-                    + (pageAddress % log.getFileLengthBound()) + ", read: " + bytesRead);
+    protected byte[] readFullPage(@NotNull final Log log, final long pageAddress) {
+        final long fileAddress = log.getFileAddress(pageAddress);
+        int readAheadMultiple = 1;
+        while (readAheadMultiple < log.getConfig().getCacheReadAheadMultiple()) {
+            if (log.getFileAddress(pageAddress + pageSize * readAheadMultiple) != fileAddress ||
+                getCachedPage(log, pageAddress + pageSize * readAheadMultiple) != null) {
+                break;
+            }
+            ++readAheadMultiple;
         }
-        return page;
+        if (readAheadMultiple == 1) {
+            final byte[] page = allocPage();
+            readBytes(log, page, pageAddress);
+            return page;
+        } else {
+            final byte[] pages = new byte[pageSize * readAheadMultiple];
+            readBytes(log, pages, pageAddress);
+            for (int i = 1; i < readAheadMultiple; ++i) {
+                final byte[] page = allocPage();
+                System.arraycopy(pages, pageSize * i, page, 0, pageSize);
+                cachePage(log, pageAddress + pageSize * i, page);
+            }
+            final byte[] page = allocPage();
+            System.arraycopy(pages, 0, page, 0, pageSize);
+            cachePage(log, pageAddress, page);
+            return page;
+        }
     }
 
     @NotNull
     byte[] allocPage() {
         return new byte[pageSize];
+    }
+
+    private void readBytes(@NotNull final Log log, @NotNull final byte[] bytes, final long pageAddress) {
+        final int bytesRead = log.readBytes(bytes, pageAddress);
+        if (bytesRead != bytes.length) {
+            throw new ExodusException("Can't read full bytes from log [" + log.getLocation() + "] with address "
+                + pageAddress + " (file " + LogUtil.getLogFilename(log.getFileAddress(pageAddress)) + "), offset: "
+                + (pageAddress % log.getFileLengthBound()) + ", read: " + bytesRead);
+        }
     }
 
     private static void checkPageSize(int pageSize) throws InvalidSettingException {

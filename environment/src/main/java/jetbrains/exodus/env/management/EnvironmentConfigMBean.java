@@ -45,6 +45,10 @@ public interface EnvironmentConfigMBean {
 
     int getLogCacheGenerationCount();
 
+    int getLogCacheReadAheadMultiple();
+
+    void setLogCacheReadAheadMultiple(int readAheadMultiple);
+
     boolean isLogCleanDirectoryExpected();
 
     boolean isLogClearInvalid();

@@ -1124,6 +1124,8 @@ public class EnvironmentImpl implements Environment {
                 gc.getUtilizationProfile().loadUtilizationFromFile((String) value);
             } else if (key.equals(EnvironmentConfig.TREE_MAX_PAGE_SIZE)) {
                 balancePolicy = null;
+            } else if (key.equals(EnvironmentConfig.LOG_CACHE_READ_AHEAD_MULTIPLE)) {
+                log.getConfig().setCacheReadAheadMultiple(ec.getLogCacheReadAheadMultiple());
             }
         }
     }

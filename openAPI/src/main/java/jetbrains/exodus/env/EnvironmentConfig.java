@@ -227,6 +227,14 @@ public class EnvironmentConfig extends AbstractConfig {
     public static final String LOG_CACHE_GENERATION_COUNT = "exodus.log.cache.generationCount";
 
     /**
+     * Defines the number of successive pages to be read at once in case of LogCache miss. Reading successive pages
+     * can reduce amount of random access to database files. It can be useful in workloads like application warm-up.
+     * Default value is {@code 1} which means that no read-ahead strategy is applied.
+     * <p>Mutable at runtime: yes
+     */
+    public static final String LOG_CACHE_READ_AHEAD_MULTIPLE = "exodus.log.cache.readAheadMultiple";
+
+    /**
      * If is set to {@code true} then the Log constructor fails if the database directory is not clean. Can be useful
      * if an applications expects that the database should always be newly created. Default value is {@code false}.
      * <p>Mutable at runtime: no
@@ -292,8 +300,10 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public static final String ENV_STOREGET_CACHE_SIZE = "exodus.env.storeGetCacheSize";
 
+    // TODO: document
     public static final String ENV_STOREGET_CACHE_MIN_TREE_SIZE = "exodus.env.storeGetCache.minTreeSize";
 
+    // TODO: document
     public static final String ENV_STOREGET_CACHE_MAX_VALUE_SIZE = "exodus.env.storeGetCache.maxValueSize";
 
     /**
@@ -605,6 +615,7 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(LOG_CACHE_SHARED, true),
             new Pair(LOG_CACHE_NON_BLOCKING, true),
             new Pair(LOG_CACHE_GENERATION_COUNT, 2),
+            new Pair(LOG_CACHE_READ_AHEAD_MULTIPLE, 1),
             new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
             new Pair(LOG_CLEAR_INVALID, false),
             new Pair(LOG_SYNC_PERIOD, 10000L),
@@ -1116,7 +1127,36 @@ public class EnvironmentConfig extends AbstractConfig {
      * @return this {@code EnvironmentConfig} instance
      */
     public EnvironmentConfig setLogCacheGenerationCount(final int generationCount) {
+        if (generationCount < 2) {
+            throw new InvalidSettingException("LogCache generation count should greater than 1");
+        }
         return setSetting(LOG_CACHE_GENERATION_COUNT, generationCount);
+    }
+
+    /**
+     * Returns the number of successive pages to be read at once in case of LogCache miss. Reading successive pages
+     * can reduce amount of random access to database files. It can be useful in workloads like application warm-up.
+     * Default value is {@code 1} which means that no read-ahead strategy is applied.
+     *
+     * @return number of successive pages to be read at once in case of LogCache miss
+     */
+    public int getLogCacheReadAheadMultiple() {
+        return (Integer) getSetting(LOG_CACHE_READ_AHEAD_MULTIPLE);
+    }
+
+    /**
+     * Sets the number of successive pages to be read at once in case of LogCache miss. Reading successive pages
+     * can reduce amount of random access to database files. It can be useful in workloads like application warm-up.
+     * Default value is {@code 1} which means that no read-ahead strategy is applied.
+     *
+     * @param readAheadMultiple number of successive pages to be read at once in case of LogCache miss
+     * @return this {@code EnvironmentConfig} instance
+     */
+    public EnvironmentConfig setLogCacheReadAheadMultiple(final int readAheadMultiple) {
+        if (readAheadMultiple < 1) {
+            throw new InvalidSettingException("LogCache read ahead multiple should greater than 0");
+        }
+        return setSetting(LOG_CACHE_READ_AHEAD_MULTIPLE, readAheadMultiple);
     }
 
     /**

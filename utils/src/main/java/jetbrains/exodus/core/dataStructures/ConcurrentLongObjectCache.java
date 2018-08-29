@@ -53,6 +53,11 @@ public class ConcurrentLongObjectCache<V> extends LongObjectCacheBase<V> {
     }
 
     @Override
+    public V getObjectLocked(long key) {
+        return getObject(key);
+    }
+
+    @Override
     public void clear() {
         for (int i = 0; i < cache.length; ++i) {
             cache[i] = CacheEntry.NULL_OBJECT;

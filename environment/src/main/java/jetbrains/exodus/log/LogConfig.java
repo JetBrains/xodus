@@ -42,6 +42,7 @@ public class LogConfig {
     private boolean sharedCache;
     private boolean nonBlockingCache;
     private int cacheGenerationCount;
+    private int cacheReadAheadMultiple;
     private int cachePageSize;
     private int cacheOpenFilesCount;
     private boolean cleanDirectoryExpected;
@@ -187,7 +188,7 @@ public class LogConfig {
 
     public int getCacheGenerationCount() {
         if (cacheGenerationCount == 0) {
-            cacheGenerationCount = LogCache.CONCURRENT_CACHE_GENERATION_COUNT;
+            cacheGenerationCount = EnvironmentConfig.DEFAULT.getLogCacheGenerationCount();
         }
         return cacheGenerationCount;
     }
@@ -195,6 +196,17 @@ public class LogConfig {
     public LogConfig setCacheGenerationCount(int cacheGenerationCount) {
         this.cacheGenerationCount = cacheGenerationCount;
         return this;
+    }
+
+    public int getCacheReadAheadMultiple() {
+        if (cacheReadAheadMultiple == 0) {
+            cacheReadAheadMultiple = EnvironmentConfig.DEFAULT.getLogCacheReadAheadMultiple();
+        }
+        return cacheReadAheadMultiple;
+    }
+
+    public void setCacheReadAheadMultiple(int cacheReadAheadMultiple) {
+        this.cacheReadAheadMultiple = cacheReadAheadMultiple;
     }
 
     public int getCachePageSize() {

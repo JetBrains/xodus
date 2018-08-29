@@ -20,6 +20,7 @@ import jetbrains.exodus.core.dataStructures.ConcurrentLongObjectCache;
 import jetbrains.exodus.core.dataStructures.LongObjectCache;
 import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import static jetbrains.exodus.core.dataStructures.LongObjectCacheBase.CriticalSection;
 import static jetbrains.exodus.core.dataStructures.LongObjectCacheBase.DEFAULT_SIZE;
@@ -105,6 +106,20 @@ final class SeparateLogCache extends LogCache {
         page = readFullPage(log, pageAddress);
         cachePage(pageAddress, page);
         return page;
+    }
+
+    @Nullable
+    @Override
+    byte[] getCachedPage(@NotNull Log log, long pageAddress) {
+        byte[] page = pagesCache.getObjectLocked(pageAddress);
+        if (page != null) {
+            return page;
+        }
+        page = log.getHighPage(pageAddress);
+        if (page != null) {
+            return page;
+        }
+        return null;
     }
 
     @Override

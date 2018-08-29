@@ -99,6 +99,16 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
+    public int getLogCacheReadAheadMultiple() {
+        return config.getLogCacheReadAheadMultiple();
+    }
+
+    @Override
+    public void setLogCacheReadAheadMultiple(int readAheadMultiple) {
+        config.setLogCacheReadAheadMultiple(readAheadMultiple);
+    }
+
+    @Override
     public boolean isLogCleanDirectoryExpected() {
         return config.isLogCleanDirectoryExpected();
     }

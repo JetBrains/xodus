@@ -21,6 +21,7 @@ import jetbrains.exodus.core.dataStructures.LongObjectCache;
 import jetbrains.exodus.core.dataStructures.LongObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import static jetbrains.exodus.core.dataStructures.LongObjectCacheBase.CriticalSection;
 
@@ -91,6 +92,22 @@ final class SharedLogCache extends LogCache {
         page = readFullPage(log, pageAddress);
         cachePage(key, logIdentity, pageAddress, page);
         return page;
+    }
+
+    @Nullable
+    @Override
+    byte[] getCachedPage(@NotNull Log log, long pageAddress) {
+        final int logIdentity = log.getIdentity();
+        final long key = getLogPageFingerPrint(logIdentity, pageAddress);
+        final CachedValue cachedValue = pagesCache.getObjectLocked(key);
+        if (cachedValue != null && cachedValue.logIdentity == logIdentity && cachedValue.address == pageAddress) {
+            return cachedValue.page;
+        }
+        byte[] page = log.getHighPage(pageAddress);
+        if (page != null) {
+            return page;
+        }
+        return null;
     }
 
     @Override

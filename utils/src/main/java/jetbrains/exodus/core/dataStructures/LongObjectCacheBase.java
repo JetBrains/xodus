@@ -70,6 +70,12 @@ public abstract class LongObjectCacheBase<V> extends CacheHitRateable {
         }
     }
 
+    public V getObjectLocked(final long key) {
+        try (CriticalSection ignored = newCriticalSection()) {
+            return getObject(key);
+        }
+    }
+
     public abstract void clear();
 
     public abstract void lock();
@@ -86,7 +92,7 @@ public abstract class LongObjectCacheBase<V> extends CacheHitRateable {
     public abstract V getObject(final long key);
 
     public boolean isCached(final long key) {
-        return getObject(key) != null;
+        return getObjectLocked(key) != null;
     }
 
     public abstract int count();
