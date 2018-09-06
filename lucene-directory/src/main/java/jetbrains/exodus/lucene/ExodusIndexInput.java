@@ -19,12 +19,12 @@ import jetbrains.exodus.log.DataCorruptionException;
 import jetbrains.exodus.vfs.ClusteringStrategy;
 import jetbrains.exodus.vfs.File;
 import jetbrains.exodus.vfs.VfsInputStream;
-import org.apache.lucene.store.IndexInput;
+import org.apache.lucene.store.BufferedIndexInput;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 
-public class ExodusIndexInput extends IndexInput {
+class ExodusIndexInput extends BufferedIndexInput {
 
     @NotNull
     private final ExodusDirectory directory;
@@ -33,17 +33,17 @@ public class ExodusIndexInput extends IndexInput {
     private VfsInputStream input;
     private long currentPosition;
 
-    public ExodusIndexInput(@NotNull final ExodusDirectory directory,
-                            @NotNull final String name) {
+    ExodusIndexInput(@NotNull final ExodusDirectory directory,
+                     @NotNull final String name) {
         this(directory, name, 0L);
     }
 
     private ExodusIndexInput(@NotNull final ExodusDirectory directory,
                              @NotNull final String name,
                              final long currentPosition) {
-        super("ExodusDirectory IndexInput for " + name);
+        super("ExodusIndexInput for " + name);
         this.directory = directory;
-        this.file = directory.openExistingFile(name, true);
+        this.file = directory.openExistingFile(name);
         this.currentPosition = currentPosition;
     }
 
@@ -56,12 +56,20 @@ public class ExodusIndexInput extends IndexInput {
     }
 
     @Override
-    public long getFilePointer() {
-        return currentPosition;
+    protected void readInternal(byte[] b, int offset, int length) throws IOException {
+        while (true) {
+            try {
+                getInput().read(b, offset, length);
+                currentPosition += length;
+                return;
+            } catch (DataCorruptionException e) {
+                handleFalseDataCorruption(e);
+            }
+        }
     }
 
     @Override
-    public void seek(long pos) {
+    protected void seekInternal(long pos) {
         if (pos != currentPosition) {
             if (pos > currentPosition) {
                 final ClusteringStrategy clusteringStrategy = directory.getVfs().getConfig().getClusteringStrategy();
@@ -83,41 +91,6 @@ public class ExodusIndexInput extends IndexInput {
     @Override
     public long length() {
         return directory.getVfs().getFileLength(directory.getEnvironment().getAndCheckCurrentTransaction(), file);
-    }
-
-    @Override
-    public byte readByte() {
-        while (true) {
-            try {
-                final byte result = (byte) getInput().read();
-                ++currentPosition;
-                return result;
-            } catch (DataCorruptionException e) {
-                handleFalseDataCorruption(e);
-            }
-        }
-    }
-
-    @Override
-    public void readBytes(byte[] b, int offset, int len) throws IOException {
-        if (len == 1) {
-            b[offset] = readByte();
-        } else {
-            while (true) {
-                try {
-                    currentPosition += getInput().read(b, offset, len);
-                    return;
-                } catch (DataCorruptionException e) {
-                    handleFalseDataCorruption(e);
-                }
-            }
-        }
-    }
-
-    @SuppressWarnings("CloneDoesntCallSuperClone")
-    @Override
-    public final Object clone() {
-        return new ExodusIndexInput(directory, file.getPath(), currentPosition);
     }
 
     @NotNull

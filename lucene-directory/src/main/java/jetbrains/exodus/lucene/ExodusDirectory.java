@@ -16,14 +16,18 @@
 package jetbrains.exodus.lucene;
 
 import jetbrains.exodus.env.ContextualEnvironment;
+import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.env.StoreConfig;
 import jetbrains.exodus.env.Transaction;
 import jetbrains.exodus.vfs.*;
+import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.store.*;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class ExodusDirectory extends Directory {
 
@@ -32,29 +36,22 @@ public class ExodusDirectory extends Directory {
 
     private final ContextualEnvironment env;
     private final VirtualFileSystem vfs;
+    private AtomicLong ticks = new AtomicLong(System.currentTimeMillis());
 
-    public ExodusDirectory(@NotNull final ContextualEnvironment env) throws IOException {
-        this(env, new SingleInstanceLockFactory());
+    public ExodusDirectory(@NotNull final ContextualEnvironment env) {
+        this(env, StoreConfig.WITHOUT_DUPLICATES);
     }
 
     public ExodusDirectory(@NotNull final ContextualEnvironment env,
-                           @NotNull final LockFactory lockFactory) throws IOException {
-        this(env, StoreConfig.WITHOUT_DUPLICATES, lockFactory);
-    }
-
-    public ExodusDirectory(@NotNull final ContextualEnvironment env,
-                           @NotNull final StoreConfig contentsStoreConfig,
-                           @NotNull final LockFactory lockFactory) throws IOException {
-        this(env, createDefaultVfsConfig(), contentsStoreConfig, lockFactory);
+                           @NotNull final StoreConfig contentsStoreConfig) {
+        this(env, createDefaultVfsConfig(), contentsStoreConfig);
     }
 
     public ExodusDirectory(@NotNull final ContextualEnvironment env,
                            @NotNull final VfsConfig vfsConfig,
-                           @NotNull final StoreConfig contentsStoreConfig,
-                           @NotNull final LockFactory lockFactory) throws IOException {
+                           @NotNull final StoreConfig contentsStoreConfig) {
         this.env = env;
         vfs = new VirtualFileSystem(env, vfsConfig, contentsStoreConfig);
-        setLockFactory(lockFactory);
     }
 
     public ContextualEnvironment getEnvironment() {
@@ -72,23 +69,7 @@ public class ExodusDirectory extends Directory {
         for (final File file : vfs.getFiles(txn)) {
             allFiles.add(file.getPath());
         }
-        return allFiles.toArray(new String[allFiles.size()]);
-    }
-
-    @Override
-    public boolean fileExists(String name) {
-        return openExistingFile(name, false) != null;
-    }
-
-    @Override
-    public long fileModified(String name) {
-        final File file = openExistingFile(name, false);
-        return file == null ? 0 : file.getLastModified();
-    }
-
-    @Override
-    public void touchFile(String name) {
-        vfs.touchFile(env.getAndCheckCurrentTransaction(), openExistingFile(name, true));
+        return allFiles.toArray(new String[0]);
     }
 
     @Override
@@ -98,16 +79,36 @@ public class ExodusDirectory extends Directory {
 
     @Override
     public long fileLength(String name) {
-        return vfs.getFileLength(env.getAndCheckCurrentTransaction(), openExistingFile(name, true));
+        return vfs.getFileLength(env.getAndCheckCurrentTransaction(), openExistingFile(name));
     }
 
     @Override
-    public IndexOutput createOutput(String name) {
+    public IndexOutput createOutput(String name, IOContext context) {
         return new ExodusIndexOutput(this, name);
     }
 
     @Override
-    public IndexInput openInput(String name) throws IOException {
+    public IndexOutput createTempOutput(String prefix, String suffix, IOContext context) {
+        return createOutput(IndexFileNames.segmentFileName(prefix, suffix + '_' + nextTicks(), "tmp"), context);
+    }
+
+    @Override
+    public void sync(Collection<String> names) {
+        syncMetaData();
+    }
+
+    @Override
+    public void rename(String source, String dest) {
+        vfs.renameFile(env.getAndCheckCurrentTransaction(), openExistingFile(source), dest);
+    }
+
+    @Override
+    public void syncMetaData() {
+        ((EnvironmentImpl) env).flushAndSync();
+    }
+
+    @Override
+    public IndexInput openInput(String name, IOContext context) throws IOException {
         try {
             return new ExodusIndexInput(this, name);
         } catch (FileNotFoundException e) {
@@ -117,13 +118,23 @@ public class ExodusDirectory extends Directory {
     }
 
     @Override
+    public Lock obtainLock(String name) {
+        return NoLockFactory.INSTANCE.obtainLock(this, name);
+    }
+
+    @Override
     public void close() {
         vfs.shutdown();
     }
 
-    File openExistingFile(@NotNull final String name, final boolean throwFileNotFound) {
+    long nextTicks() {
+        return ticks.getAndIncrement();
+    }
+
+    @NotNull
+    File openExistingFile(@NotNull final String name) {
         final File result = vfs.openFile(env.getAndCheckCurrentTransaction(), name, false);
-        if (throwFileNotFound && result == null) {
+        if (result == null) {
             throw new FileNotFoundException(name);
         }
         return result;

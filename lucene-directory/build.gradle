@@ -1,12 +1,15 @@
 dependencies {
     compile project(':vfs')
-    compile('org.apache.lucene:lucene-core:3.6.2') {
+    compile('org.apache.lucene:lucene-core:7.4.0') {
         transitive = false
     }
-    compile('org.apache.lucene:lucene-analyzers:3.6.2') {
+    compile('org.apache.lucene:lucene-analyzers-common:7.4.0') {
         transitive = false
     }
-    compile('org.apache.lucene:lucene-queries:3.6.2') {
+    compile('org.apache.lucene:lucene-queries:7.4.0') {
+        transitive = false
+    }
+    compile('org.apache.lucene:lucene-queryparser:7.4.0') {
         transitive = false
     }
     testCompile project(':environment').sourceSets.test.output

@@ -17,38 +17,33 @@ package jetbrains.exodus.lucene;
 
 import jetbrains.exodus.vfs.File;
 import jetbrains.exodus.vfs.VirtualFileSystem;
+import org.apache.lucene.store.BufferedChecksum;
 import org.apache.lucene.store.IndexOutput;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.zip.CRC32;
+import java.util.zip.Checksum;
 
-public class ExodusIndexOutput extends IndexOutput {
+class ExodusIndexOutput extends IndexOutput {
 
-    @NotNull
-    private final ExodusDirectory directory;
-    @NotNull
-    private final File file;
     @NotNull
     private OutputStream output;
     private long currentPosition;
+    private final Checksum crc;
 
-    public ExodusIndexOutput(@NotNull final ExodusDirectory directory,
-                             @NotNull final String name) {
-        this.directory = directory;
+    ExodusIndexOutput(@NotNull final ExodusDirectory directory,
+                      @NotNull final String name) {
+        super("ExodusIndexOutput for " + name, name);
         final VirtualFileSystem vfs = directory.getVfs();
         final File file = vfs.openFile(directory.getEnvironment().getAndCheckCurrentTransaction(), name, true);
         if (file == null) {
             throw new NullPointerException("Can't be");
         }
-        this.file = file;
         output = vfs.writeFile(directory.getEnvironment().getAndCheckCurrentTransaction(), file);
         currentPosition = 0;
-    }
-
-    @Override
-    public void flush() {
-        // nothing to do
+        crc = new BufferedChecksum(new CRC32());
     }
 
     @Override
@@ -62,23 +57,15 @@ public class ExodusIndexOutput extends IndexOutput {
     }
 
     @Override
-    public void seek(long pos) throws IOException {
-        if (pos != currentPosition) {
-            output.close();
-            output = directory.getVfs().writeFile(directory.getEnvironment().getAndCheckCurrentTransaction(), file, pos);
-            currentPosition = pos;
-        }
-    }
-
-    @Override
-    public long length() {
-        return directory.getVfs().getFileLength(directory.getEnvironment().getAndCheckCurrentTransaction(), file);
+    public long getChecksum() {
+        return crc.getValue();
     }
 
     @Override
     public void writeByte(byte b) throws IOException {
         output.write(b);
         ++currentPosition;
+        crc.update(b);
     }
 
     @Override
@@ -89,6 +76,7 @@ public class ExodusIndexOutput extends IndexOutput {
             } else {
                 output.write(b, offset, length);
                 currentPosition += length;
+                crc.update(b, offset, length);
             }
         }
     }

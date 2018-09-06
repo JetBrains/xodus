@@ -15,12 +15,15 @@
  */
 package jetbrains.exodus.lucene;
 
+import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.env.StoreConfig;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.FieldType;
+import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.queryParser.ParseException;
-import org.apache.lucene.queryParser.QueryParser;
+import org.apache.lucene.queryparser.classic.ParseException;
+import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TopDocs;
@@ -33,6 +36,18 @@ import java.io.StringReader;
 public class ExodusLuceneWithPatriciaTests extends ExodusLuceneTestsBase {
 
     private static int docId = 0;
+
+    private static final FieldType ID_FIELD_TYPE;
+    private static final FieldType TEXT_FIELD_TYPE;
+
+    static {
+        ID_FIELD_TYPE = new FieldType();
+        ID_FIELD_TYPE.setTokenized(false);
+        ID_FIELD_TYPE.setStored(true);
+        ID_FIELD_TYPE.setIndexOptions(IndexOptions.NONE);
+        TEXT_FIELD_TYPE = new FieldType();
+        TEXT_FIELD_TYPE.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS);
+    }
 
     @Test
     public void addDocument() throws IOException {
@@ -48,7 +63,7 @@ public class ExodusLuceneWithPatriciaTests extends ExodusLuceneTestsBase {
     }
 
     @Test
-    public void addSearchMatch() throws IOException, ParseException {
+    public void addSearchMatch() throws IOException {
         addSingleDocument();
         closeIndexWriter();
         createIndexSearcher();
@@ -57,7 +72,7 @@ public class ExodusLuceneWithPatriciaTests extends ExodusLuceneTestsBase {
     }
 
     @Test
-    public void addSearchNonExistent() throws IOException, ParseException {
+    public void addSearchNonExistent() throws IOException {
         addSingleDocument();
         closeIndexWriter();
         createIndexSearcher();
@@ -66,7 +81,7 @@ public class ExodusLuceneWithPatriciaTests extends ExodusLuceneTestsBase {
     }
 
     @Test
-    public void addSearchAnalyzed() throws IOException, ParseException {
+    public void addSearchAnalyzed() throws IOException {
         addSearchMatch();
         TopDocs docs = indexSearcher.search(getQuery(DESCRIPTION, "market"), Integer.MAX_VALUE);
         Assert.assertEquals(1, docs.totalHits);
@@ -79,7 +94,7 @@ public class ExodusLuceneWithPatriciaTests extends ExodusLuceneTestsBase {
     }
 
     @Test
-    public void addSearchWildcards() throws IOException, ParseException {
+    public void addSearchWildcards() throws IOException {
         addSearchMatch();
         TopDocs docs = indexSearcher.search(getQuery(DESCRIPTION, "mark*"), Integer.MAX_VALUE);
         Assert.assertEquals(1, docs.totalHits);
@@ -102,7 +117,7 @@ public class ExodusLuceneWithPatriciaTests extends ExodusLuceneTestsBase {
     }
 
     @Test
-    public void addSearchPhrase() throws IOException, ParseException {
+    public void addSearchPhrase() throws IOException {
         addSearchMatch();
         TopDocs docs = indexSearcher.search(getQuery(DESCRIPTION, "\"Long-term Cooperation Agreement\""), Integer.MAX_VALUE);
         Assert.assertEquals(1, docs.totalHits);
@@ -119,7 +134,7 @@ public class ExodusLuceneWithPatriciaTests extends ExodusLuceneTestsBase {
     }
 
     @Test
-    public void addSearchExactMatch() throws IOException, ParseException {
+    public void addSearchExactMatch() throws IOException {
         addSearchMatch();
         TopDocs docs = indexSearcher.search(getQuery(DESCRIPTION, "\"aftersales\""), Integer.MAX_VALUE);
         Assert.assertEquals(1, docs.totalHits);
@@ -134,7 +149,7 @@ public class ExodusLuceneWithPatriciaTests extends ExodusLuceneTestsBase {
     }
 
     @Test
-    public void addSearchPhraseTestQuery() throws IOException, ParseException {
+    public void addSearchPhraseTestQuery() throws IOException {
         addSearchMatch();
         Query query = getQuery(DESCRIPTION, "\"could now start selling\"");
         Assert.assertTrue(query instanceof PhraseQuery);
@@ -157,7 +172,7 @@ public class ExodusLuceneWithPatriciaTests extends ExodusLuceneTestsBase {
     }
 
     @Test
-    public void searchExceptions() throws IOException, ParseException {
+    public void searchExceptions() throws IOException {
         addSearchMatch();
         TopDocs docs = indexSearcher.search(getQuery(DESCRIPTION, "java.lang.NullPointerException"), Integer.MAX_VALUE);
         Assert.assertEquals(1, docs.totalHits);
@@ -170,7 +185,7 @@ public class ExodusLuceneWithPatriciaTests extends ExodusLuceneTestsBase {
     }
 
     @Test
-    public void multipleDocuments() throws IOException, ParseException {
+    public void multipleDocuments() throws IOException {
         for (int i = 0; i < 100; ++i) {
             createIndexWriter();
             addSingleDocument();
@@ -184,7 +199,7 @@ public class ExodusLuceneWithPatriciaTests extends ExodusLuceneTestsBase {
     }
 
     @Test
-    public void multipleDocuments2() throws IOException, ParseException {
+    public void multipleDocuments2() throws IOException {
         for (int i = 0; i < 500; ++i) {
             if (i % 23 == 0) {
                 createIndexWriter();
@@ -200,7 +215,7 @@ public class ExodusLuceneWithPatriciaTests extends ExodusLuceneTestsBase {
     }
 
     @Test
-    public void multipleDocuments3() throws IOException, ParseException {
+    public void multipleDocuments3() throws IOException {
         for (int i = 0; i < 5000; ++i) {
             if (i % 200 == 0) {
                 createIndexWriter();
@@ -248,7 +263,7 @@ public class ExodusLuceneWithPatriciaTests extends ExodusLuceneTestsBase {
     }
 
     private void assertMoreLikeThis(final String text, final String field, int result) throws IOException {
-        final Query like = moreLikeThis.like(new StringReader(text), field);
+        final Query like = moreLikeThis.like(field, new StringReader(text));
         final TopDocs docs = indexSearcher.search(like, Integer.MAX_VALUE);
         Assert.assertEquals(result, docs.totalHits);
     }
@@ -259,17 +274,21 @@ public class ExodusLuceneWithPatriciaTests extends ExodusLuceneTestsBase {
         final String idValue = Integer.toString(id);
         indexWriter.deleteDocuments(new Term("doc_id", idValue));
         final Document doc = new Document();
-        doc.add(new Field("doc_id", idValue, Field.Store.YES, Field.Index.NOT_ANALYZED));
-        doc.add(new Field(SUMMARY, SUMMARY_TEXT, Field.Store.NO, Field.Index.ANALYZED));
-        doc.add(new Field(DESCRIPTION, DESCRIPTION_TEXT, Field.Store.NO, Field.Index.ANALYZED));
+        doc.add(new Field("doc_id", idValue, ID_FIELD_TYPE));
+        doc.add(new Field(SUMMARY, SUMMARY_TEXT, TEXT_FIELD_TYPE));
+        doc.add(new Field(DESCRIPTION, DESCRIPTION_TEXT, TEXT_FIELD_TYPE));
         indexWriter.addDocument(doc);
     }
 
-    private Query getQuery(final String field, final String query) throws ParseException {
-        final QueryParser queryParser = new QueryParser(LUCENE_VERSION, field, analyzer);
+    private Query getQuery(final String field, final String query) {
+        final QueryParser queryParser = new QueryParser(field, analyzer);
         queryParser.setAllowLeadingWildcard(true);
         queryParser.setDefaultOperator(QueryParser.Operator.AND);
-        return queryParser.parse(query);
+        try {
+            return queryParser.parse(query);
+        } catch (ParseException e) {
+            throw new ExodusException(e);
+        }
     }
 
     @Override
