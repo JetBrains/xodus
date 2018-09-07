@@ -59,8 +59,7 @@ class ExodusIndexInput extends BufferedIndexInput {
     protected void readInternal(byte[] b, int offset, int length) throws IOException {
         while (true) {
             try {
-                getInput().read(b, offset, length);
-                currentPosition += length;
+                currentPosition += getInput().read(b, offset, length);
                 return;
             } catch (DataCorruptionException e) {
                 handleFalseDataCorruption(e);
