@@ -41,12 +41,17 @@ public class SharedTimer {
     }
 
     public static void registerPeriodicTask(@NotNull final ExpirablePeriodicTask task) {
-        optimisticUpdateOfTasks(new TasksUpdater() {
+        processor.queueIn(new Job() {
             @Override
-            public void update(@NotNull final PersistentHashSet.MutablePersistentHashSet<ExpirablePeriodicTask> mutableTasks) {
-                mutableTasks.add(task);
+            protected void execute() {
+                optimisticUpdateOfTasks(new TasksUpdater() {
+                    @Override
+                    public void update(@NotNull final PersistentHashSet.MutablePersistentHashSet<ExpirablePeriodicTask> mutableTasks) {
+                        mutableTasks.add(task);
+                    }
+                });
             }
-        });
+        }, PERIOD);
     }
 
     public static void unregisterPeriodicTask(@NotNull final ExpirablePeriodicTask task) {
