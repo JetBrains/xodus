@@ -33,8 +33,8 @@ import java.util.Map;
 public abstract class EntityIterableBase implements EntityIterable {
 
     public static final EntityIterableBase EMPTY;
-    public static final Map<EntityIterableType, EntityIterableInstantiator> INSTANTIATORS = new HashMap<>();
     public static final int NULL_TYPE_ID = Integer.MIN_VALUE;
+    private static final Map<EntityIterableType, EntityIterableInstantiator> INSTANTIATORS = new HashMap<>();
 
     static {
         EMPTY = new EntityIterableBase(null) {
@@ -462,6 +462,18 @@ public abstract class EntityIterableBase implements EntityIterable {
     @NotNull
     public final Entity getEntity(@NotNull final EntityId id) {
         return getStore().getEntity(id);
+    }
+
+    public EntityIterable findLinks(@NotNull final Iterable<Entity> entities,
+                                    @NotNull final String linkName) {
+        if (entities instanceof EntityIterable) {
+            return findLinks((EntityIterable) entities, linkName);
+        }
+        final EntityIdSetIterable idSetIterable = new EntityIdSetIterable(getTransaction());
+        for (final Entity entity : entities) {
+            idSetIterable.addTarget(entity.getId());
+        }
+        return findLinks(idSetIterable, linkName);
     }
 
     public EntityIterable findLinks(@NotNull final EntityIterable entities,

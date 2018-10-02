@@ -382,7 +382,7 @@ public class EntityIterableTests extends EntityStoreTestBase {
         final EntityIterable authoredIssues = txn.findWithLinks("Issue", "author");
         final EntityIterable links0 = txn.findLinks("Issue", someUsers, "author");
         Assert.assertEquals(someUsers.size(), links0.size());
-        final EntityIterable links1 = ((EntityIterableBase) authoredIssues).findLinks(someUsers, "author");
+        final EntityIterable links1 = ((EntityIterableBase) authoredIssues).findLinks(toList(someUsers), "author");
         Assert.assertEquals(someUsers.size(), links1.size());
         final EntityIterator it0 = links0.iterator();
         final EntityIterator it1 = links1.iterator();
@@ -398,7 +398,7 @@ public class EntityIterableTests extends EntityStoreTestBase {
         for (Entity issue : txn.getAll("Issue")) {
             issue.setLink("author", nobody);
         }
-        assertEquals(0, ((EntityIterableBase) txn.getAll("Issue")).findLinks(someUsers, "author").size());
+        assertEquals(0, ((EntityIterableBase) txn.getAll("Issue")).findLinks(toList(someUsers), "author").size());
     }
 
     @TestFor(issue = "XD-730")
@@ -416,7 +416,7 @@ public class EntityIterableTests extends EntityStoreTestBase {
         final PersistentEntity issue3 = txn.newEntity("Issue");
         txn.flush();
         assertEquals(2, ((EntityIterableBase) txn.getAll("Issue")).findLinks(
-            txn.getSingletonIterable(user1).union(txn.getSingletonIterable(user3)), "author").size());
+            toList(txn.getSingletonIterable(user1).union(txn.getSingletonIterable(user3))), "author").size());
     }
 
     public void testFindLinksSingular() {

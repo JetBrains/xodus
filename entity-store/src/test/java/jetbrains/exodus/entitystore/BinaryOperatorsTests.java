@@ -20,9 +20,6 @@ import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.iterate.EntityIteratorBase;
 import org.junit.Assert;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class BinaryOperatorsTests extends EntityStoreTestBase {
 
     public void testIntersect() {
@@ -262,13 +259,5 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
         final EntityIterableBase concat = (EntityIterableBase) txn.getAll("User").concat(txn.getAll("Issue"));
         Assert.assertFalse(concat.isCached());
         Assert.assertEquals(2, toList(concat).size());
-    }
-
-    private static List<Entity> toList(Iterable<Entity> it) {
-        final List<Entity> result = new ArrayList<>();
-        for (Entity entity : it) {
-            result.add(entity);
-        }
-        return result;
     }
 }
