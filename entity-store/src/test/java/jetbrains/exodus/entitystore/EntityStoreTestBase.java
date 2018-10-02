@@ -23,6 +23,8 @@ import org.jetbrains.annotations.Nullable;
 import org.junit.Assert;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 public abstract class EntityStoreTestBase extends TestBase {
 
@@ -180,5 +182,13 @@ public abstract class EntityStoreTestBase extends TestBase {
     public interface PersistentStoreTransactionalExecutable {
 
         void execute(@NotNull final PersistentStoreTransaction txn);
+    }
+
+    public static List<Entity> toList(Iterable<Entity> it) {
+        final List<Entity> result = new ArrayList<>();
+        for (Entity entity : it) {
+            result.add(entity);
+        }
+        return result;
     }
 }

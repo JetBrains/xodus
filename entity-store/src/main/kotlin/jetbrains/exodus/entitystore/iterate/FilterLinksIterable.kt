@@ -170,7 +170,7 @@ class EntityIdSetIterable(txn: PersistentStoreTransaction) : EntityIterableBase(
     }
 
     override fun getHandleImpl(): EntityIterableHandle {
-        return object : ConstantEntityIterableHandle(store, EntityIterableType.FILTER_ENTITY_TYPE) {
+        return object : ConstantEntityIterableHandle(store, EntityIterableType.FILTER_LINKS) {
             override fun hashCode(hash: EntityIterableHandleHash) {
                 hash.apply(h)
             }
@@ -189,6 +189,7 @@ class EntityIdSetIterable(txn: PersistentStoreTransaction) : EntityIterableBase(
 
     fun addTarget(id: EntityId) {
         ids = ids.add(id)
+        h.applyDelimiter()
         h.apply(id.typeId)
         h.apply(id.localId)
     }
