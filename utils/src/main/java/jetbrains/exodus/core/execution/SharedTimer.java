@@ -16,11 +16,11 @@
 package jetbrains.exodus.core.execution;
 
 import jetbrains.exodus.core.dataStructures.decorators.QueueDecorator;
-import jetbrains.exodus.core.dataStructures.persistent.PersistentHashSet;
+import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.Set;
 
 /**
  * Shared timer runs registered periodic tasks (each second) in lock-free manner.
@@ -28,12 +28,12 @@ import java.util.concurrent.atomic.AtomicReference;
 public class SharedTimer {
 
     private static int PERIOD = 1000; // in milliseconds
+    private static final Set<ExpirablePeriodicTask> registeredTasks;
     private static final JobProcessor processor;
-    private static final AtomicReference<PersistentHashSet<ExpirablePeriodicTask>> registeredTasks;
 
     static {
+        registeredTasks = new HashSet<>();
         processor = ThreadJobProcessorPool.getOrCreateJobProcessor("Exodus shared timer thread");
-        registeredTasks = new AtomicReference<>(new PersistentHashSet<ExpirablePeriodicTask>());
         processor.queueIn(new Ticker(), PERIOD);
     }
 
@@ -41,49 +41,26 @@ public class SharedTimer {
     }
 
     public static void registerPeriodicTask(@NotNull final ExpirablePeriodicTask task) {
-        processor.queueIn(new Job() {
+        processor.queue(new Job() {
             @Override
             protected void execute() {
-                optimisticUpdateOfTasks(new TasksUpdater() {
-                    @Override
-                    public void update(@NotNull final PersistentHashSet.MutablePersistentHashSet<ExpirablePeriodicTask> mutableTasks) {
-                        mutableTasks.add(task);
-                    }
-                });
-            }
-        }, PERIOD);
-    }
-
-    public static void unregisterPeriodicTask(@NotNull final ExpirablePeriodicTask task) {
-        optimisticUpdateOfTasks(new TasksUpdater() {
-            @Override
-            public void update(@NotNull final PersistentHashSet.MutablePersistentHashSet<ExpirablePeriodicTask> mutableTasks) {
-                mutableTasks.remove(task);
+                registeredTasks.add(task);
             }
         });
     }
 
-    private static void optimisticUpdateOfTasks(@NotNull final TasksUpdater updater) {
-        for (; ; ) {
-            final PersistentHashSet<ExpirablePeriodicTask> current = registeredTasks.get();
-            final PersistentHashSet<ExpirablePeriodicTask> copy = current.getClone();
-            final PersistentHashSet.MutablePersistentHashSet<ExpirablePeriodicTask> mutableTasks = copy.beginWrite();
-            updater.update(mutableTasks);
-            mutableTasks.endWrite();
-            if (registeredTasks.compareAndSet(current, copy)) {
-                break;
+    public static void unregisterPeriodicTask(@NotNull final ExpirablePeriodicTask task) {
+        processor.queue(new Job() {
+            @Override
+            protected void execute() {
+                registeredTasks.remove(task);
             }
-        }
+        });
     }
 
     public interface ExpirablePeriodicTask extends Runnable {
 
         boolean isExpired();
-    }
-
-    private interface TasksUpdater {
-
-        void update(@NotNull final PersistentHashSet.MutablePersistentHashSet<ExpirablePeriodicTask> mutableTasks);
     }
 
     private static class Ticker extends Job {
@@ -93,7 +70,7 @@ public class SharedTimer {
             final long nextTick = System.currentTimeMillis() + PERIOD;
             final Collection<ExpirablePeriodicTask> expiredTasks = new QueueDecorator<>();
             try {
-                for (final ExpirablePeriodicTask task : registeredTasks.get()) {
+                for (final ExpirablePeriodicTask task : registeredTasks) {
                     if (task.isExpired()) {
                         expiredTasks.add(task);
                     } else {
@@ -101,14 +78,9 @@ public class SharedTimer {
                     }
                 }
                 if (!expiredTasks.isEmpty()) {
-                    optimisticUpdateOfTasks(new TasksUpdater() {
-                        @Override
-                        public void update(@NotNull final PersistentHashSet.MutablePersistentHashSet<ExpirablePeriodicTask> mutableTasks) {
-                            for (final ExpirablePeriodicTask expiredTask : expiredTasks) {
-                                mutableTasks.remove(expiredTask);
-                            }
-                        }
-                    });
+                    for (final ExpirablePeriodicTask expiredTask : expiredTasks) {
+                        registeredTasks.remove(expiredTask);
+                    }
                 }
             } finally {
                 processor.queueAt(this, nextTick);

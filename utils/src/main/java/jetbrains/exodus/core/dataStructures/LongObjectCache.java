@@ -92,12 +92,16 @@ public class LongObjectCache<V> extends LongObjectCacheBase<V> {
 
     @Override
     public void lock() {
-        lock.lock();
+        if (lock != null) {
+            lock.lock();
+        }
     }
 
     @Override
     public void unlock() {
-        lock.unlock();
+        if (lock != null) {
+            lock.unlock();
+        }
     }
 
     // returns value pushed out of the cache
