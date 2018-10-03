@@ -469,6 +469,9 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (entities instanceof EntityIterable) {
             return findLinks((EntityIterable) entities, linkName);
         }
+        if (store == null) {
+            return EMPTY;
+        }
         final EntityIdSetIterable idSetIterable = new EntityIdSetIterable(getTransaction());
         for (final Entity entity : entities) {
             idSetIterable.addTarget(entity.getId());
@@ -478,7 +481,7 @@ public abstract class EntityIterableBase implements EntityIterable {
 
     public EntityIterable findLinks(@NotNull final EntityIterable entities,
                                     @NotNull final String linkName) {
-        if (store == null) {
+        if (store == null || ((EntityIterableBase) entities).store == null) {
             return EMPTY;
         }
         final PersistentStoreTransaction txn = getTransaction();
@@ -486,7 +489,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (linkId < 0) {
             return EMPTY;
         }
-        return ((EntityIterableBase) entities).store == null ? EMPTY : new FilterLinksIterable(txn, linkId, this, entities);
+        return new FilterLinksIterable(txn, linkId, this, entities);
     }
 
     @NotNull
