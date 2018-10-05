@@ -429,6 +429,17 @@ public class EntityIterableTests extends EntityStoreTestBase {
         Assert.assertEquals(0L, ((EntityIterableBase) txn.getAll("Issue")).findLinks(EntityIterableBase.EMPTY, "author").size());
     }
 
+    @TestFor(issues = "XD-749")
+    public void testFindLinksSingular2() {
+        final PersistentStoreTransaction txn = getStoreTransaction();
+        createNUsers(txn, 1);
+        final PersistentEntity issue = txn.newEntity("Issue");
+        issue.addLink("author", txn.find("User", "login", "user0").getFirst());
+        txn.flush();
+        Assert.assertEquals(0L, EntityIterableBase.EMPTY.findLinks(toList(txn.getAll("User")), "author").size());
+        Assert.assertEquals(0L, ((EntityIterableBase) txn.getAll("Issue")).findLinks(toList(EntityIterableBase.EMPTY), "author").size());
+    }
+
     @TestFor(issues = "XD-737")
     public void testInvalidationOfCachedFindLinks() {
         final PersistentStoreTransaction txn = getStoreTransaction();
