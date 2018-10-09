@@ -22,12 +22,14 @@ import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.query.metadata.Index;
 import jetbrains.exodus.query.metadata.IndexField;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.junit.Assert;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Callable;
 
 public class UniqueKeyIndicesTest extends EntityStoreTestBase {
 
@@ -182,6 +184,11 @@ public class UniqueKeyIndicesTest extends EntityStoreTestBase {
         @Override
         public String getOwnerEntityType() {
             return "Issue";
+        }
+
+        @Override
+        public @Nullable Callable<String> getErrorMessageBuilder() {
+            return null;
         }
     }
 

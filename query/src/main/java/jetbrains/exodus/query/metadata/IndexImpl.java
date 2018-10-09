@@ -15,13 +15,18 @@
  */
 package jetbrains.exodus.query.metadata;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.List;
+import java.util.concurrent.Callable;
 
 public class IndexImpl implements Index {
 
     private List<IndexField> fields;
 
     private String ownerEntityType;
+
+    private Callable<String> errorMessageBuilder;
 
     public void setFields(List<IndexField> fields) {
         this.fields = fields;
@@ -63,4 +68,13 @@ public class IndexImpl implements Index {
         return sb.toString();
     }
 
+    @Nullable
+    @Override
+    public Callable<String> getErrorMessageBuilder() {
+        return errorMessageBuilder;
+    }
+
+    public void setErrorMessageBuilder(Callable<String> errorMessageBuilder) {
+        this.errorMessageBuilder = errorMessageBuilder;
+    }
 }

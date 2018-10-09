@@ -15,12 +15,18 @@
  */
 package jetbrains.exodus.query.metadata;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.List;
+import java.util.concurrent.Callable;
 
 public interface Index {
 
     String getOwnerEntityType();
 
     List<IndexField> getFields();
+
+    @Nullable
+    Callable<String> getErrorMessageBuilder();
 
 }
