@@ -168,12 +168,14 @@ public class DebugExodusDirectory extends Directory {
         public void writeByte(byte b) throws IOException {
             output.writeByte(b);
             debugOutput.writeByte(b);
+            getFilePointer();
         }
 
         @Override
         public void writeBytes(byte[] b, int offset, int length) throws IOException {
             output.writeBytes(b, offset, length);
             debugOutput.writeBytes(b, offset, length);
+            getFilePointer();
         }
     }
 
@@ -218,6 +220,9 @@ public class DebugExodusDirectory extends Directory {
         public void seek(long pos) throws IOException {
             input.seek(pos);
             debugInput.seek(pos);
+            if (input.getFilePointer() != debugInput.getFilePointer()) {
+                throwDebugMismatch();
+            }
         }
 
         @Override
