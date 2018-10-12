@@ -35,7 +35,7 @@ class ExodusIndexOutput extends IndexOutput {
 
     ExodusIndexOutput(@NotNull final ExodusDirectory directory,
                       @NotNull final String name) {
-        super("ExodusIndexOutput for " + name, name);
+        super("ExodusIndexOutput[" + name + ']', name);
         final VirtualFileSystem vfs = directory.getVfs();
         final File file = vfs.openFile(directory.getEnvironment().getAndCheckCurrentTransaction(), name, true);
         if (file == null) {

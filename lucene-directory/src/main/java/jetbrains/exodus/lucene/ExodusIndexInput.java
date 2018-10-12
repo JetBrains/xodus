@@ -41,7 +41,7 @@ class ExodusIndexInput extends BufferedIndexInput {
     private ExodusIndexInput(@NotNull final ExodusDirectory directory,
                              @NotNull final String name,
                              final long currentPosition) {
-        super("ExodusIndexInput for " + name);
+        super("ExodusIndexInput[" + name + ']');
         this.directory = directory;
         this.file = directory.openExistingFile(name);
         this.currentPosition = currentPosition;
@@ -90,6 +90,12 @@ class ExodusIndexInput extends BufferedIndexInput {
     @Override
     public long length() {
         return directory.getVfs().getFileLength(directory.getEnvironment().getAndCheckCurrentTransaction(), file);
+    }
+
+    @SuppressWarnings("CloneDoesntCallSuperClone")
+    @Override
+    public final ExodusIndexInput clone() {
+        return new ExodusIndexInput(directory, file.getPath(), currentPosition);
     }
 
     @NotNull

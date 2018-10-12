@@ -50,7 +50,16 @@ public abstract class ExodusLuceneTestsBase extends EnvironmentTestsBase {
             "now ready for commencing of prototype production.[8] In August 2005, a contract between the Russian " +
             "government and Sukhoi was signed. Under the agreement, the Superjet 100 project would receive 7.9 " +
             "billion rubles of research and development financing under the Federal Program titled Development of " +
-            "Civil Aviation in Russia in 2005-2009." +
+            "Civil Aviation in Russia in 2005-2009. " +
+            "London City Airport is a major destination for Irish CityJet, which is receiving 15 SSJ100s, but its " +
+            "steep 5.5° approach requires new control laws, wing flap setting and modified brakes: test flights will " +
+            "begin in December 2017, certification is planned for 2018, and the modified aircraft will be available " +
+            "in 2019.[58]\n" +
+            "A new \"sabrelet\" winglet, helping takeoff and landing performance and delivering 3% better fuel burn, " +
+            "will be standard and available for retrofit.[58] Designed with CFD tools by Sukhoi and TsAGI, the " +
+            "“saberlets” debuted flight tests on 21 December 2017. They should improve hot and high airport " +
+            "performance and cut costs up to $70,000 per year. Parts of the wing are reinforced for the aerodynamic " +
+            "loads distribution change. " +
             "settings java.lang.NullPointerException " +
             "as a player.";
 

@@ -17,6 +17,8 @@ package jetbrains.exodus.lucene;
 
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.env.StoreConfig;
+import jetbrains.exodus.env.Transaction;
+import jetbrains.exodus.env.TransactionalExecutable;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
@@ -27,6 +29,7 @@ import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TopDocs;
+import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -44,9 +47,10 @@ public class ExodusLuceneWithPatriciaTests extends ExodusLuceneTestsBase {
         ID_FIELD_TYPE = new FieldType();
         ID_FIELD_TYPE.setTokenized(false);
         ID_FIELD_TYPE.setStored(true);
-        ID_FIELD_TYPE.setIndexOptions(IndexOptions.NONE);
+        ID_FIELD_TYPE.setIndexOptions(IndexOptions.DOCS);
         TEXT_FIELD_TYPE = new FieldType();
         TEXT_FIELD_TYPE.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS);
+        TEXT_FIELD_TYPE.setStoreTermVectors(true);
     }
 
     @Test
@@ -87,9 +91,9 @@ public class ExodusLuceneWithPatriciaTests extends ExodusLuceneTestsBase {
         Assert.assertEquals(1, docs.totalHits);
         docs = indexSearcher.search(getQuery(DESCRIPTION, "develop"), Integer.MAX_VALUE);
         Assert.assertEquals(1, docs.totalHits);
-        docs = indexSearcher.search(getQuery(DESCRIPTION, "settings"), Integer.MAX_VALUE);
-        Assert.assertEquals(1, docs.totalHits);
         docs = indexSearcher.search(getQuery(DESCRIPTION, "setting"), Integer.MAX_VALUE);
+        Assert.assertEquals(1, docs.totalHits);
+        docs = indexSearcher.search(getQuery(DESCRIPTION, "settings"), Integer.MAX_VALUE);
         Assert.assertEquals(1, docs.totalHits);
     }
 
@@ -217,7 +221,7 @@ public class ExodusLuceneWithPatriciaTests extends ExodusLuceneTestsBase {
     @Test
     public void multipleDocuments3() throws IOException {
         for (int i = 0; i < 5000; ++i) {
-            if (i % 200 == 0) {
+            if (i % 500 == 0) {
                 createIndexWriter();
             }
             addSingleDocument();
@@ -228,6 +232,45 @@ public class ExodusLuceneWithPatriciaTests extends ExodusLuceneTestsBase {
         Assert.assertEquals(5000, docs.totalHits);
         docs = indexSearcher.search(getQuery(DESCRIPTION, "develop"), Integer.MAX_VALUE);
         Assert.assertEquals(5000, docs.totalHits);
+    }
+
+    @Test
+    public void multipleDocuments4() throws IOException, InterruptedException {
+        multipleDocuments3();
+        txn.flush();
+        createIndexSearcher();
+        final boolean[] wereExceptions = {false};
+        final Thread[] threads = new Thread[10];
+        for (int i = 0; i < threads.length; i++) {
+            threads[i] = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    env.executeInReadonlyTransaction(new TransactionalExecutable() {
+                        @Override
+                        public void execute(@NotNull Transaction txn) {
+                            try {
+                                for (int i = 0; i < 500; ++i) {
+                                    TopDocs docs = indexSearcher.search(getQuery(DESCRIPTION, "market"), Integer.MAX_VALUE);
+                                    Assert.assertEquals(5000, docs.totalHits);
+                                    docs = indexSearcher.search(getQuery(DESCRIPTION, "develop"), Integer.MAX_VALUE);
+                                    Assert.assertEquals(5000, docs.totalHits);
+                                }
+                            } catch (Throwable t) {
+                                System.out.println(t);
+                                wereExceptions[0] = true;
+                            }
+                        }
+                    });
+                }
+            });
+        }
+        for (Thread thread : threads) {
+            thread.start();
+        }
+        for (Thread thread : threads) {
+            thread.join();
+        }
+        Assert.assertFalse(wereExceptions[0]);
     }
 
     @Test
