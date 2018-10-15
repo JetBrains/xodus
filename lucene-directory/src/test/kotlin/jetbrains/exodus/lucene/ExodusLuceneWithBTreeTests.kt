@@ -13,14 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.lucene;
+package jetbrains.exodus.lucene
 
-import jetbrains.exodus.env.StoreConfig;
+import jetbrains.exodus.env.StoreConfig
 
-public class ExodusLuceneWithBTreeTests extends ExodusLuceneWithPatriciaTests {
+class ExodusLuceneWithBTreeTests : ExodusLuceneWithPatriciaTests() {
 
-    @Override
-    protected StoreConfig getContentsConfig() {
-        return StoreConfig.WITHOUT_DUPLICATES;
-    }
+    override val contentsConfig: StoreConfig
+        get() = StoreConfig.WITHOUT_DUPLICATES
 }

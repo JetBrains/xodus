@@ -449,6 +449,7 @@ public class VirtualFileSystem {
      * @see #appendFile(Transaction, File)
      * @see #touchFile(Transaction, File)
      */
+    @NotNull
     public VfsInputStream readFile(@NotNull final Transaction txn,
                                    @NotNull final File file,
                                    final long fromPosition) {
