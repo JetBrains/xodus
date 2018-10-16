@@ -21,7 +21,6 @@ import jetbrains.exodus.vfs.VfsConfig
 import org.apache.lucene.index.IndexFileNames
 import org.apache.lucene.store.*
 import java.io.IOException
-import java.util.*
 
 class DebugExodusDirectory : Directory {
 
@@ -41,21 +40,7 @@ class DebugExodusDirectory : Directory {
         debugDirectory = RAMDirectory()
     }
 
-    override fun listAll(): Array<String> {
-        val result = directory.listAll()
-        val debugResult = debugDirectory.listAll()
-        if (result.size != debugResult.size) {
-            throwDebugMismatch()
-        }
-        Arrays.sort(result)
-        Arrays.sort(debugResult)
-        for ((i, file) in debugResult.withIndex()) {
-            if (file != result[i]) {
-                throwDebugMismatch()
-            }
-        }
-        return result
-    }
+    override fun listAll(): Array<String> = debugDirectory.listAll()
 
     @Throws(IOException::class)
     override fun deleteFile(name: String) {
