@@ -50,16 +50,6 @@ internal class ExodusIndexInput(private val directory: ExodusDirectory,
 
     override fun seekInternal(pos: Long) {
         if (pos != currentPosition) {
-            if (pos > currentPosition) {
-                val clusteringStrategy = directory.vfs.config.clusteringStrategy
-                val bytesToSkip = pos - currentPosition
-                val clusterSize = clusteringStrategy.firstClusterSize
-                if ((!clusteringStrategy.isLinear || currentPosition % clusterSize + bytesToSkip < clusterSize) // or we are within single cluster
-                        && getInput().skip(bytesToSkip) == bytesToSkip) {
-                    currentPosition = pos
-                    return
-                }
-            }
             close()
             currentPosition = pos
             getInput()
@@ -68,7 +58,7 @@ internal class ExodusIndexInput(private val directory: ExodusDirectory,
 
     override fun length() = directory.vfs.getFileLength(directory.environment.andCheckCurrentTransaction, file)
 
-    override fun clone() = ExodusIndexInput(directory, file.path, currentPosition)
+    override fun clone() = ExodusIndexInput(directory, file.path, filePointer)
 
     private fun getInput(): VfsInputStream = input.let {
         if (it == null || it.isObsolete) {
