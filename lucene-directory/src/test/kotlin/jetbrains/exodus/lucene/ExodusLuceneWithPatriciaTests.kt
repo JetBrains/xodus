@@ -307,7 +307,7 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
     }
 
     @Throws(IOException::class)
-    private fun addSingleDocument() {
+    protected fun addSingleDocument() {
         val id = docId++
         val idValue = Integer.toString(id)
         indexWriter?.deleteDocuments(Term("doc_id", idValue))

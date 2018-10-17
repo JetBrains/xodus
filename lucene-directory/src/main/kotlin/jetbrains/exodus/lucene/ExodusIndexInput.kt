@@ -28,6 +28,13 @@ internal class ExodusIndexInput(private val directory: ExodusDirectory,
     private val file: File = directory.openExistingFile(name)
     private var input: VfsInputStream? = null
 
+    override fun length() = directory.vfs.getFileLength(directory.environment.andCheckCurrentTransaction, file)
+
+    override fun clone() = filePointer.let {
+        // do seek() in order to force invocation of refill() in cloned IndexInput
+        ExodusIndexInput(directory, file.path).apply { seek(it) }
+    }
+
     override fun close() {
         input?.apply {
             close()
@@ -55,10 +62,6 @@ internal class ExodusIndexInput(private val directory: ExodusDirectory,
             getInput()
         }
     }
-
-    override fun length() = directory.vfs.getFileLength(directory.environment.andCheckCurrentTransaction, file)
-
-    override fun clone() = ExodusIndexInput(directory, file.path, filePointer)
 
     private fun getInput(): VfsInputStream = input.let {
         if (it == null || it.isObsolete) {
