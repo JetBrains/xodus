@@ -150,12 +150,12 @@ public class TreeCursorMutable extends TreeCursor implements ITreeCursorMutable 
 
     @Override
     public void treeChanged() {
-        final ByteIterable key = getKey();
-        final ByteIterable value = getValue();
-
-        //moveToPair(key, value);
-        moveToKey = key;
-        moveToValue = value;
+        if (moveToKey == null) {
+            final ByteIterable key = getKey();
+            final ByteIterable value = getValue();
+            moveToKey = key;
+            moveToValue = value;
+        }
     }
 
     @Override
