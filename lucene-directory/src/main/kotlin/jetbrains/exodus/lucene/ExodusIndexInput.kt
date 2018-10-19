@@ -61,21 +61,26 @@ internal class ExodusIndexInput(private val directory: ExodusDirectory,
         }
     }
 
+    @Throws(IOException::class)
     override fun seekInternal(pos: Long) {
         if (pos != currentPosition) {
+            val input = input
+            if (input == null) {
+                currentPosition = pos
+                return
+            }
             if (pos > currentPosition) {
                 val clusteringStrategy = directory.vfs.config.clusteringStrategy
                 val bytesToSkip = pos - currentPosition
                 val clusterSize = clusteringStrategy.firstClusterSize
                 if ((!clusteringStrategy.isLinear || currentPosition % clusterSize + bytesToSkip < clusterSize) // or we are within single cluster
-                        && getInput().skip(bytesToSkip) == bytesToSkip) {
+                        && input.skip(bytesToSkip) == bytesToSkip) {
                     currentPosition = pos
                     return
                 }
             }
             close()
             currentPosition = pos
-            getInput()
         }
     }
 
