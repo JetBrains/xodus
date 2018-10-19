@@ -26,9 +26,9 @@ import org.apache.lucene.queryparser.classic.ParseException
 import org.apache.lucene.queryparser.classic.QueryParser
 import org.apache.lucene.search.PhraseQuery
 import org.apache.lucene.search.Query
+import org.apache.lucene.store.IOContext
 import org.junit.Assert
 import org.junit.Test
-import java.io.IOException
 import java.io.StringReader
 
 open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
@@ -37,13 +37,11 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
         get() = StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING
 
     @Test
-    @Throws(IOException::class)
     fun addDocument() {
         addSingleDocument()
     }
 
     @Test
-    @Throws(IOException::class)
     fun addDocumentAfterClose() {
         addSingleDocument()
         closeIndexWriter()
@@ -52,7 +50,6 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
     }
 
     @Test
-    @Throws(IOException::class)
     fun addSearchMatch() {
         addSingleDocument()
         closeIndexWriter()
@@ -62,7 +59,6 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
     }
 
     @Test
-    @Throws(IOException::class)
     fun addSearchNonExistent() {
         addSingleDocument()
         closeIndexWriter()
@@ -72,7 +68,6 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
     }
 
     @Test
-    @Throws(IOException::class)
     fun addSearchAnalyzed() {
         addSearchMatch()
         var docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "market"), Integer.MAX_VALUE)
@@ -86,7 +81,6 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
     }
 
     @Test
-    @Throws(IOException::class)
     fun addSearchWildcards() {
         addSearchMatch()
         var docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "mark*"), Integer.MAX_VALUE)
@@ -110,7 +104,6 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
     }
 
     @Test
-    @Throws(IOException::class)
     fun addSearchPhrase() {
         addSearchMatch()
         var docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "\"Long-term Cooperation Agreement\""), Integer.MAX_VALUE)
@@ -128,7 +121,6 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
     }
 
     @Test
-    @Throws(IOException::class)
     fun addSearchExactMatch() {
         addSearchMatch()
         var docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "\"aftersales\""), Integer.MAX_VALUE)
@@ -144,7 +136,6 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
     }
 
     @Test
-    @Throws(IOException::class)
     fun addSearchPhraseTestQuery() {
         addSearchMatch()
         var query = getQuery(ExodusLuceneTestsBase.DESCRIPTION, "\"could now start selling\"")
@@ -168,7 +159,6 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
     }
 
     @Test
-    @Throws(IOException::class)
     fun searchExceptions() {
         addSearchMatch()
         var docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "java.lang.NullPointerException"), Integer.MAX_VALUE)
@@ -182,7 +172,6 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
     }
 
     @Test
-    @Throws(IOException::class)
     fun multipleDocuments() {
         for (i in 0..99) {
             createIndexWriter()
@@ -197,7 +186,6 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
     }
 
     @Test
-    @Throws(IOException::class)
     fun multipleDocuments2() {
         for (i in 0..499) {
             if (i % 23 == 0) {
@@ -214,7 +202,6 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
     }
 
     @Test
-    @Throws(IOException::class)
     fun multipleDocuments3() {
         for (i in 0..4999) {
             if (i % 500 == 0) {
@@ -231,7 +218,6 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
     }
 
     @Test
-    @Throws(IOException::class, InterruptedException::class)
     fun multipleDocuments4() {
         multipleDocuments3()
         txn?.flush()
@@ -265,7 +251,6 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
     }
 
     @Test
-    @Throws(IOException::class)
     fun trivialMoreLikeThis() {
         addSingleDocument()
         closeIndexWriter()
@@ -275,7 +260,6 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
     }
 
     @Test
-    @Throws(IOException::class)
     fun simpleMoreLikeThis() {
         addSingleDocument()
         closeIndexWriter()
@@ -285,7 +269,6 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
     }
 
     @Test
-    @Throws(IOException::class)
     fun moreLikeThisByParticularField() {
         addSingleDocument()
         closeIndexWriter()
@@ -299,15 +282,27 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
         assertMoreLikeThis("ничего по-русски в индексе нет", ExodusLuceneTestsBase.SUMMARY, 0)
     }
 
-    @Throws(IOException::class)
+    @Test
+    fun clonedFilePointer() {
+        addSingleDocument()
+        closeIndexWriter()
+        txn?.flush()
+        val nonEmptyFile = directory.listAll().first { directory.fileLength(it) > 0 }
+        val input = directory.openInput(nonEmptyFile, IOContext.DEFAULT)
+        Assert.assertEquals(0L, input.filePointer)
+        Assert.assertEquals(0L, input.clone().filePointer)
+        input.readByte()
+        Assert.assertEquals(1L, input.filePointer)
+        Assert.assertEquals(1L, input.clone().filePointer)
+    }
+
     private fun assertMoreLikeThis(text: String, field: String, result: Int) {
         val like = moreLikeThis?.like(field, StringReader(text))
         val docs = indexSearcher.search(like, Integer.MAX_VALUE)
         Assert.assertEquals(result.toLong(), docs.totalHits)
     }
 
-    @Throws(IOException::class)
-    protected fun addSingleDocument() {
+    private fun addSingleDocument() {
         val id = docId++
         val idValue = Integer.toString(id)
         indexWriter?.deleteDocuments(Term("doc_id", idValue))
