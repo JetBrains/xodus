@@ -33,6 +33,7 @@ import jetbrains.exodus.log.ExpiredLoggableInfo
 import jetbrains.exodus.log.Log
 import java.io.File
 import java.util.*
+import kotlin.math.min
 
 class UtilizationProfile(private val env: EnvironmentImpl, private val gc: GarbageCollector) {
 
@@ -193,20 +194,17 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
     internal fun resetFile(fileAddress: Long) = filesUtilization.synchronized { this[fileAddress]?.value = 0L }
 
     internal fun estimateTotalBytes() {
-        // at first, estimate total bytes
         val fileAddresses = log.allFileAddresses
         val filesCount = fileAddresses.size
         val minFileAge = gc.minFileAge
-        totalBytes = if (filesCount > minFileAge) (filesCount - minFileAge) * fileSize else 0
-        // then, estimate total free bytes
-        var totalFreeBytes: Long = 0
-        filesUtilization.synchronized {
-            (minFileAge until filesCount).forEach { i ->
-                val freeBytes = this[fileAddresses[i]]
-                totalFreeBytes += freeBytes?.value ?: fileSize
+        val totalFreeBytes: Long = filesUtilization.synchronized {
+            (minFileAge until filesCount).fold(0L) { sum, i ->
+                sum + (this[fileAddresses[i]]?.value ?: fileSize)
             }
         }
-        this.totalFreeBytes = totalFreeBytes
+        val totalBytes = if (filesCount > minFileAge) (filesCount - minFileAge) * fileSize else 0
+        this.totalBytes = totalBytes
+        this.totalFreeBytes = min(totalFreeBytes, totalBytes)
     }
 
     internal fun getFilesSortedByUtilization(highFile: Long): Iterator<Long> {
@@ -306,6 +304,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
             (this[fileAddress] ?: MutableLong(0L).also { this[fileAddress] = it }).value += (fileSize - usedBytes)
         }
     }
+
     private fun clearUtilization() = filesUtilization.synchronized { clear() }
 
 
