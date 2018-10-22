@@ -47,6 +47,7 @@ internal class ExodusIndexInput(private val directory: ExodusDirectory,
         input?.apply {
             close()
             input = null
+            cachedTxn = null
         }
     }
 
@@ -94,7 +95,10 @@ internal class ExodusIndexInput(private val directory: ExodusDirectory,
     }
 
     private val txn: Transaction
-        get() = cachedTxn ?: directory.environment.andCheckCurrentTransaction.apply { cachedTxn = this }
+        get() = cachedTxn.run {
+            if (this == null || isFinished) directory.environment.andCheckCurrentTransaction.apply { cachedTxn = this }
+            else this
+        }
 
     private fun handleFalseDataCorruption(e: DataCorruptionException) {
         // we use this dummy synchronized statement, since we don't want TransactionBase.isFinished to be a volatile field
