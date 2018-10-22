@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.lucene
 
+import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.log.DataCorruptionException
 import jetbrains.exodus.vfs.File
 import jetbrains.exodus.vfs.VfsInputStream
@@ -28,8 +29,9 @@ internal class ExodusIndexInput(private val directory: ExodusDirectory,
     private val file: File = directory.openExistingFile(name)
     private var input: VfsInputStream? = null
     private var cachedLength: Long = -1L
+    private var cachedTxn: Transaction? = null
 
-    override fun length() = directory.environment.andCheckCurrentTransaction.let { txn ->
+    override fun length() = run {
         if (!txn.isReadonly || cachedLength < 0L) {
             cachedLength = directory.vfs.getFileLength(txn, file)
         }
@@ -86,12 +88,13 @@ internal class ExodusIndexInput(private val directory: ExodusDirectory,
 
     private fun getInput(): VfsInputStream = input.let {
         if (it == null || it.isObsolete) {
-            return@let directory.vfs.readFile(directory.environment.andCheckCurrentTransaction, file, currentPosition).apply {
-                input = this
-            }
+            return@let directory.vfs.readFile(txn, file, currentPosition).apply { input = this }
         }
         it
     }
+
+    private val txn: Transaction
+        get() = cachedTxn ?: directory.environment.andCheckCurrentTransaction.apply { cachedTxn = this }
 
     private fun handleFalseDataCorruption(e: DataCorruptionException) {
         // we use this dummy synchronized statement, since we don't want TransactionBase.isFinished to be a volatile field
