@@ -77,6 +77,9 @@ class ExodusDirectory(val environment: ContextualEnvironment,
         }
     }
 
+    override fun openChecksumInput(name: String, context: IOContext): ChecksumIndexInput =
+            FastSkippingBufferedChecksumIndexInput(openInput(name, context))
+
     override fun obtainLock(name: String) = NoLockFactory.INSTANCE.obtainLock(this, name)
 
     override fun close() = vfs.shutdown()
