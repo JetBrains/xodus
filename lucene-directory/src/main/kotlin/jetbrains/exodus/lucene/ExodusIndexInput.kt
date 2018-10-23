@@ -23,9 +23,8 @@ import org.apache.lucene.store.BufferedIndexInput
 import java.io.IOException
 
 internal class ExodusIndexInput(private val directory: ExodusDirectory,
-                                name: String) : BufferedIndexInput("ExodusIndexInput[$name]") {
+                                private var file: File) : BufferedIndexInput("ExodusIndexInput[${file.path}]") {
 
-    private val file: File = directory.openExistingFile(txn, name)
     private var input: VfsInputStream? = null
     private var currentPosition: Long = 0L
     private var cachedLength: Long = -1L
@@ -40,7 +39,7 @@ internal class ExodusIndexInput(private val directory: ExodusDirectory,
 
     override fun clone() = filePointer.let {
         // do seek() in order to force invocation of refill() in cloned IndexInput
-        ExodusIndexInput(directory, file.path).apply { seek(it) }
+        ExodusIndexInput(directory, file).apply { seek(it) }
     }
 
     override fun close() {

@@ -73,7 +73,7 @@ class ExodusDirectory(val environment: ContextualEnvironment,
     @Throws(IOException::class)
     override fun openInput(name: String, context: IOContext): IndexInput {
         try {
-            return ExodusIndexInput(this, name)
+            return ExodusIndexInput(this, openExistingFile(environment.andCheckCurrentTransaction, name))
         } catch (e: FileNotFoundException) {
             // if index doesn't exist Lucene awaits an IOException
             throw java.io.FileNotFoundException(name)
