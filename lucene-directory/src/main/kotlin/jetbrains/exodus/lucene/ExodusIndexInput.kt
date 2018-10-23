@@ -20,19 +20,25 @@ import jetbrains.exodus.log.DataCorruptionException
 import jetbrains.exodus.vfs.File
 import jetbrains.exodus.vfs.VfsInputStream
 import org.apache.lucene.store.BufferedIndexInput
+import org.apache.lucene.store.IndexInput
+import java.io.EOFException
 import java.io.IOException
 
-internal class ExodusIndexInput(private val directory: ExodusDirectory,
-                                private var file: File) : BufferedIndexInput("ExodusIndexInput[${file.path}]") {
+internal open class ExodusIndexInput(private val directory: ExodusDirectory,
+                                     private val file: File) : BufferedIndexInput("ExodusIndexInput[${file.path}]") {
 
     private var input: VfsInputStream? = null
     private var currentPosition: Long = 0L
-    private var cachedLength: Long = -1L
     private var cachedTxn: Transaction? = null
+    protected var cachedLength: Long = -1L
 
     override fun length() = run {
-        if (!txn.isReadonly || cachedLength < 0L) {
-            cachedLength = directory.vfs.getFileLength(txn, file)
+        if (cachedLength < 0L) {
+            return directory.vfs.getFileLength(txn, file).apply {
+                if (txn.isReadonly) {
+                    cachedLength = this
+                }
+            }
         }
         cachedLength
     }
@@ -86,6 +92,9 @@ internal class ExodusIndexInput(private val directory: ExodusDirectory,
         }
     }
 
+    override fun slice(sliceDescription: String, offset: Long, length: Long): IndexInput =
+            SlicedExodusIndexInput(this, offset, length)
+
     private fun getInput(): VfsInputStream = input.let {
         if (it == null || it.isObsolete) {
             return@let directory.vfs.readFile(txn, file, currentPosition).apply { input = this }
@@ -105,6 +114,24 @@ internal class ExodusIndexInput(private val directory: ExodusDirectory,
             if (input?.isObsolete != true) {
                 throw e
             }
+        }
+    }
+
+    private class SlicedExodusIndexInput(base: ExodusIndexInput, private val fileOffset: Long, length: Long) : ExodusIndexInput(base.directory, base.file) {
+
+        init {
+            cachedLength = length
+        }
+
+        override fun clone() = SlicedExodusIndexInput(this, fileOffset, cachedLength)
+
+        override fun readInternal(b: ByteArray, offset: Int, length: Int) {
+            val start = filePointer
+            if (start + length > length()) {
+                throw EOFException("read past EOF: " + this)
+            }
+            seek(fileOffset + start)
+            super.readInternal(b, offset, length)
         }
     }
 }
