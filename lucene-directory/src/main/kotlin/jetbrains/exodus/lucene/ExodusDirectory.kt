@@ -18,6 +18,7 @@ package jetbrains.exodus.lucene
 import jetbrains.exodus.env.ContextualEnvironment
 import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.StoreConfig
+import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.vfs.ClusteringStrategy
 import jetbrains.exodus.vfs.FileNotFoundException
 import jetbrains.exodus.vfs.VfsConfig
@@ -52,7 +53,9 @@ class ExodusDirectory(val environment: ContextualEnvironment,
         vfs.deleteFile(environment.andCheckCurrentTransaction, name)
     }
 
-    override fun fileLength(name: String) = vfs.getFileLength(environment.andCheckCurrentTransaction, openExistingFile(name))
+    override fun fileLength(name: String) = environment.andCheckCurrentTransaction.let { txn ->
+        vfs.getFileLength(txn, openExistingFile(txn, name))
+    }
 
     override fun createOutput(name: String, context: IOContext): IndexOutput = ExodusIndexOutput(this, name)
 
@@ -61,8 +64,8 @@ class ExodusDirectory(val environment: ContextualEnvironment,
 
     override fun sync(names: Collection<String>) = syncMetaData()
 
-    override fun rename(source: String, dest: String) {
-        vfs.renameFile(environment.andCheckCurrentTransaction, openExistingFile(source), dest)
+    override fun rename(source: String, dest: String): Unit = environment.andCheckCurrentTransaction.let { txn ->
+        vfs.renameFile(txn, openExistingFile(txn, source), dest)
     }
 
     override fun syncMetaData() = (environment as EnvironmentImpl).flushAndSync()
@@ -86,8 +89,8 @@ class ExodusDirectory(val environment: ContextualEnvironment,
 
     internal fun nextTicks() = ticks.getAndIncrement()
 
-    internal fun openExistingFile(name: String) =
-            vfs.openFile(environment.andCheckCurrentTransaction, name, false) ?: throw FileNotFoundException(name)
+    internal fun openExistingFile(txn: Transaction, name: String) =
+            vfs.openFile(txn, name, false) ?: throw FileNotFoundException(name)
 
     companion object {
 

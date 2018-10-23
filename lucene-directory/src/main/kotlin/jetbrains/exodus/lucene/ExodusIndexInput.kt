@@ -23,11 +23,11 @@ import org.apache.lucene.store.BufferedIndexInput
 import java.io.IOException
 
 internal class ExodusIndexInput(private val directory: ExodusDirectory,
-                                name: String,
-                                private var currentPosition: Long = 0L) : BufferedIndexInput("ExodusIndexInput[$name]") {
+                                name: String) : BufferedIndexInput("ExodusIndexInput[$name]") {
 
-    private val file: File = directory.openExistingFile(name)
+    private val file: File = directory.openExistingFile(txn, name)
     private var input: VfsInputStream? = null
+    private var currentPosition: Long = 0L
     private var cachedLength: Long = -1L
     private var cachedTxn: Transaction? = null
 
