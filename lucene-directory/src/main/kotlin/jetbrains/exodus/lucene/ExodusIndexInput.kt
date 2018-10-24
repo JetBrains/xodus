@@ -22,6 +22,7 @@ import jetbrains.exodus.vfs.VfsInputStream
 import org.apache.lucene.store.BufferedIndexInput
 import org.apache.lucene.store.IndexInput
 import java.io.IOException
+import kotlin.math.max
 import kotlin.math.min
 
 internal open class ExodusIndexInput(private val directory: ExodusDirectory,
@@ -122,7 +123,7 @@ internal open class ExodusIndexInput(private val directory: ExodusDirectory,
     private class SlicedExodusIndexInput(private val base: ExodusIndexInput,
                                          private val fileOffset: Long,
                                          length: Long) :
-            ExodusIndexInput(base.directory, base.file, min(BUFFER_SIZE.toLong(), length).toInt()) {
+            ExodusIndexInput(base.directory, base.file, max(min(BUFFER_SIZE.toLong(), length).toInt(), MIN_BUFFER_SIZE)) {
 
         init {
             cachedLength = length
