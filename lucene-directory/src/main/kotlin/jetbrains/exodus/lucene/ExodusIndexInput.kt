@@ -116,7 +116,8 @@ internal open class ExodusIndexInput(private val directory: ExodusDirectory,
         }
     }
 
-    private class SlicedExodusIndexInput(base: ExodusIndexInput, private val fileOffset: Long, length: Long) : ExodusIndexInput(base.directory, base.file) {
+    private class SlicedExodusIndexInput(private val base: ExodusIndexInput, private val fileOffset: Long, length: Long) :
+            ExodusIndexInput(base.directory, base.file) {
 
         init {
             cachedLength = length
@@ -125,5 +126,8 @@ internal open class ExodusIndexInput(private val directory: ExodusDirectory,
         override fun clone() = SlicedExodusIndexInput(this, fileOffset, cachedLength)
 
         override fun seekInternal(pos: Long) = super.seekInternal(pos + fileOffset)
+
+        override fun slice(sliceDescription: String, offset: Long, length: Long) =
+                base.slice(sliceDescription, fileOffset + offset, length)
     }
 }
