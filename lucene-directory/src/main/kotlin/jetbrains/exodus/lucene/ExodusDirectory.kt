@@ -25,7 +25,7 @@ import jetbrains.exodus.vfs.VfsConfig
 import jetbrains.exodus.vfs.VirtualFileSystem
 import org.apache.lucene.index.IndexFileNames
 import org.apache.lucene.store.*
-import org.apache.lucene.store.BufferedIndexInput.bufferSize
+import org.apache.lucene.store.IOContext.Context.MERGE
 import java.io.IOException
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
@@ -76,7 +76,10 @@ class ExodusDirectory(val environment: ContextualEnvironment,
         try {
             return ExodusIndexInput(this,
                     openExistingFile(environment.andCheckCurrentTransaction, name),
-                    bufferSize(context))
+                    when (context.context) {
+                        MERGE -> MERGE_BUFFER_SIZE
+                        else -> BUFFER_SIZE
+                    })
         } catch (e: FileNotFoundException) {
             // if index doesn't exist Lucene awaits an IOException
             throw java.io.FileNotFoundException(name)

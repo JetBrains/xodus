@@ -25,9 +25,12 @@ import java.io.IOException
 import kotlin.math.max
 import kotlin.math.min
 
+internal const val BUFFER_SIZE = 4096
+internal const val MERGE_BUFFER_SIZE = 16384
+
 internal open class ExodusIndexInput(private val directory: ExodusDirectory,
                                      private val file: File,
-                                     bufferSize: Int = BUFFER_SIZE) :
+                                     bufferSize: Int) :
         BufferedIndexInput("ExodusIndexInput[${file.path}]", bufferSize) {
 
     private var input: VfsInputStream? = null
@@ -48,7 +51,7 @@ internal open class ExodusIndexInput(private val directory: ExodusDirectory,
 
     override fun clone() = filePointer.let {
         // do seek() in order to force invocation of refill() in cloned IndexInput
-        ExodusIndexInput(directory, file).apply { seek(it) }
+        ExodusIndexInput(directory, file, bufferSize).apply { seek(it) }
     }
 
     override fun close() {
