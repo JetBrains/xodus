@@ -21,7 +21,6 @@ import jetbrains.exodus.vfs.File
 import jetbrains.exodus.vfs.VfsInputStream
 import org.apache.lucene.store.BufferedIndexInput
 import org.apache.lucene.store.IndexInput
-import java.io.EOFException
 import java.io.IOException
 
 internal open class ExodusIndexInput(private val directory: ExodusDirectory,
@@ -125,13 +124,6 @@ internal open class ExodusIndexInput(private val directory: ExodusDirectory,
 
         override fun clone() = SlicedExodusIndexInput(this, fileOffset, cachedLength)
 
-        override fun readInternal(b: ByteArray, offset: Int, length: Int) {
-            val start = filePointer
-            if (start + length > length()) {
-                throw EOFException("read past EOF: " + this)
-            }
-            seek(fileOffset + start)
-            super.readInternal(b, offset, length)
-        }
+        override fun seekInternal(pos: Long) = super.seekInternal(pos + fileOffset)
     }
 }
