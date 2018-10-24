@@ -22,9 +22,12 @@ import jetbrains.exodus.vfs.VfsInputStream
 import org.apache.lucene.store.BufferedIndexInput
 import org.apache.lucene.store.IndexInput
 import java.io.IOException
+import kotlin.math.min
 
 internal open class ExodusIndexInput(private val directory: ExodusDirectory,
-                                     private val file: File) : BufferedIndexInput("ExodusIndexInput[${file.path}]") {
+                                     private val file: File,
+                                     bufferSize: Int = BUFFER_SIZE) :
+        BufferedIndexInput("ExodusIndexInput[${file.path}]", bufferSize) {
 
     private var input: VfsInputStream? = null
     private var currentPosition: Long = 0L
@@ -116,8 +119,10 @@ internal open class ExodusIndexInput(private val directory: ExodusDirectory,
         }
     }
 
-    private class SlicedExodusIndexInput(private val base: ExodusIndexInput, private val fileOffset: Long, length: Long) :
-            ExodusIndexInput(base.directory, base.file) {
+    private class SlicedExodusIndexInput(private val base: ExodusIndexInput,
+                                         private val fileOffset: Long,
+                                         length: Long) :
+            ExodusIndexInput(base.directory, base.file, min(BUFFER_SIZE.toLong(), length).toInt()) {
 
         init {
             cachedLength = length
