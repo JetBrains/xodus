@@ -17,7 +17,6 @@ package jetbrains.exodus.lucene
 
 import jetbrains.exodus.env.ContextualEnvironment
 import jetbrains.exodus.env.StoreConfig
-import jetbrains.exodus.vfs.VfsConfig
 import org.apache.lucene.index.IndexFileNames
 import org.apache.lucene.store.*
 import java.io.IOException
@@ -27,16 +26,10 @@ class DebugExodusDirectory : Directory {
     private val directory: ExodusDirectory
     private val debugDirectory: RAMDirectory
 
-    constructor(env: ContextualEnvironment,
-                contentsStoreConfig: StoreConfig = StoreConfig.WITH_DUPLICATES) {
-        directory = ExodusDirectory(env, contentsStoreConfig)
-        debugDirectory = RAMDirectory()
-    }
-
-    constructor(env: ContextualEnvironment,
-                vfsConfig: VfsConfig,
-                contentsStoreConfig: StoreConfig) {
-        directory = ExodusDirectory(env, vfsConfig, contentsStoreConfig)
+    @JvmOverloads constructor(env: ContextualEnvironment,
+                              contentsStoreConfig: StoreConfig = StoreConfig.WITH_DUPLICATES,
+                              directoryConfig: ExodusDirectoryConfig = ExodusDirectoryConfig()) {
+        directory = ExodusDirectory(env, contentsStoreConfig, directoryConfig)
         debugDirectory = RAMDirectory()
     }
 

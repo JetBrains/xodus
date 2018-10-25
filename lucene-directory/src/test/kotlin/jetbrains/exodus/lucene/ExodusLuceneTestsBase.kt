@@ -45,6 +45,12 @@ abstract class ExodusLuceneTestsBase : EnvironmentTestsBase() {
 
     protected abstract val contentsConfig: StoreConfig
 
+    private val directoryConfig: ExodusDirectoryConfig
+        get() = ExodusDirectoryConfig().apply {
+            inputBufferSize = 256
+            inputMergeBufferSize = 1024
+        }
+
     @Before
     @Throws(Exception::class)
     override fun setUp() {
@@ -52,7 +58,7 @@ abstract class ExodusLuceneTestsBase : EnvironmentTestsBase() {
         beginTransaction()
         //directory = new ExodusDirectory(((ContextualEnvironment) getEnvironment()), getContentsConfig());
         //directory = new RAMDirectory();
-        directory = DebugExodusDirectory(environment as ContextualEnvironment, contentsConfig)
+        directory = DebugExodusDirectory(environment as ContextualEnvironment, contentsConfig, directoryConfig)
         createAnalyzer()
         createIndexWriter()
     }

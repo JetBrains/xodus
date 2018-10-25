@@ -32,14 +32,20 @@ import java.util.concurrent.atomic.AtomicLong
 
 class ExodusDirectory(val environment: ContextualEnvironment,
                       vfsConfig: VfsConfig,
-                      contentsStoreConfig: StoreConfig) : Directory() {
+                      contentsStoreConfig: StoreConfig,
+                      private val directoryConfig: ExodusDirectoryConfig) : Directory() {
 
     val vfs: VirtualFileSystem = VirtualFileSystem(environment, vfsConfig, contentsStoreConfig)
     private val ticks = AtomicLong(System.currentTimeMillis())
 
     @JvmOverloads constructor(env: ContextualEnvironment,
                               contentsStoreConfig: StoreConfig = StoreConfig.WITHOUT_DUPLICATES) :
-            this(env, createDefaultVfsConfig(), contentsStoreConfig)
+            this(env, createDefaultVfsConfig(), contentsStoreConfig, ExodusDirectoryConfig())
+
+    constructor(env: ContextualEnvironment,
+                contentsStoreConfig: StoreConfig,
+                directoryConfig: ExodusDirectoryConfig) :
+            this(env, createDefaultVfsConfig(), contentsStoreConfig, directoryConfig)
 
     override fun listAll(): Array<String> {
         val txn = environment.andCheckCurrentTransaction
@@ -77,8 +83,8 @@ class ExodusDirectory(val environment: ContextualEnvironment,
             return ExodusIndexInput(this,
                     openExistingFile(environment.andCheckCurrentTransaction, name),
                     when (context.context) {
-                        MERGE -> MERGE_BUFFER_SIZE
-                        else -> BUFFER_SIZE
+                        MERGE -> directoryConfig.inputMergeBufferSize
+                        else -> directoryConfig.inputBufferSize
                     })
         } catch (e: FileNotFoundException) {
             // if index doesn't exist Lucene awaits an IOException

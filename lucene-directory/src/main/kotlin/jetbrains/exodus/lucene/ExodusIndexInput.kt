@@ -25,8 +25,8 @@ import java.io.IOException
 import kotlin.math.max
 import kotlin.math.min
 
-internal const val BUFFER_SIZE = 4096
-internal const val MERGE_BUFFER_SIZE = 16384
+internal const val BUFFER_SIZE = 512
+internal const val MERGE_BUFFER_SIZE = 4096
 
 internal open class ExodusIndexInput(private val directory: ExodusDirectory,
                                      private val file: File,
@@ -132,7 +132,7 @@ internal open class ExodusIndexInput(private val directory: ExodusDirectory,
             cachedLength = length
         }
 
-        override fun clone() = SlicedExodusIndexInput(this, fileOffset, cachedLength)
+        override fun clone() = SlicedExodusIndexInput(base, fileOffset, cachedLength)
 
         override fun seekInternal(pos: Long) = super.seekInternal(pos + fileOffset)
 
