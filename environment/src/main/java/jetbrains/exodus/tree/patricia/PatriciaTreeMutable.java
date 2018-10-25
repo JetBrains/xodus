@@ -19,6 +19,7 @@ import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.*;
 import org.jetbrains.annotations.NotNull;
@@ -26,12 +27,13 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
+
 final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable {
 
     private MutableRoot root;
     @Nullable
     private Collection<ExpiredLoggableInfo> expiredLoggables;
-    private List<ITreeCursorMutable> openCursors = null;
+    private Set<ITreeCursorMutable> openCursors = null;
 
     PatriciaTreeMutable(@NotNull final Log log,
                         final int structureId,
@@ -267,7 +269,7 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
     @Override
     public ITreeCursor openCursor() {
         if (openCursors == null) {
-            openCursors = new ArrayList<>(4);
+            openCursors = new HashSet<>();
         }
         final ITreeCursorMutable result = new TreeCursorMutable(this, new PatriciaTraverser(this, root), root.hasValue());
         openCursors.add(result);

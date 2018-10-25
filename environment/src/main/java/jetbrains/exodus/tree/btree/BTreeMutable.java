@@ -18,6 +18,7 @@ package jetbrains.exodus.tree.btree;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.CompoundByteIterable;
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.*;
 import jetbrains.exodus.util.LightOutputStream;
@@ -27,7 +28,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
+import java.util.Set;
+
 
 public class BTreeMutable extends BTreeBase implements ITreeMutable {
 
@@ -37,7 +39,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     private BasePageMutable root;
     private Collection<ExpiredLoggableInfo> expiredLoggables = null;
     @Nullable
-    private List<ITreeCursorMutable> openCursors = null;
+    private Set<ITreeCursorMutable> openCursors = null;
     @NotNull
     private final BTreeBase immutableTree;
     private final LightOutputStream leafStream;
@@ -241,9 +243,9 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
 
     @Override
     public TreeCursor openCursor() {
-        final List<ITreeCursorMutable> cursors;
+        final Set<ITreeCursorMutable> cursors;
         if (openCursors == null) {
-            cursors = new ArrayList<>(4);
+            cursors = new HashSet<>();
             openCursors = cursors;
         } else {
             cursors = openCursors;
