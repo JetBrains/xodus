@@ -97,7 +97,7 @@ class PatriciaTraverser implements TreeTraverser {
         if (top == 0) {
             return currentNode.hasValue() ? currentNode.keySequence : ByteIterable.EMPTY;
         }
-        final LightOutputStream output = new LightOutputStream();
+        final LightOutputStream output = new LightOutputStream(7);
         for (int i = 0; i < top; ++i) {
             ByteIterableBase.fillBytes(stack[i].getKey(), output);
             output.write(stack[i].getNode().firstByte); // seems that firstByte isn't mutated
