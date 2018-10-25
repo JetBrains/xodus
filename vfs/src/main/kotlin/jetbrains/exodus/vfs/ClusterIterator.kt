@@ -145,6 +145,7 @@ internal class ClusterIterator @JvmOverloads constructor(private val vfs: Virtua
     fun hasCluster() = current != null
 
     fun moveToNext() {
+        cancelIfNeeded()
         if (current != null) {
             if (!cursor.next) {
                 current = null
@@ -180,12 +181,15 @@ internal class ClusterIterator @JvmOverloads constructor(private val vfs: Virtua
         if (clusterKey.descriptor != fd) {
             current = null
         } else {
-            cancellingPolicy?.run {
-                if (needToCancel()) {
-                    doCancel()
-                }
-            }
             current.notNull.clusterNumber = clusterKey.clusterNumber
+        }
+    }
+
+    private fun cancelIfNeeded() {
+        cancellingPolicy?.run {
+            if (needToCancel()) {
+                doCancel()
+            }
         }
     }
 }
