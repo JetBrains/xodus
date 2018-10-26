@@ -222,21 +222,25 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
         multipleDocuments3()
         txn?.flush()
         createIndexSearcher()
-        val wereExceptions = booleanArrayOf(false)
+        var wereExceptions = false
         val threads = arrayOfNulls<Thread>(10)
         for (i in threads.indices) {
             threads[i] = Thread(Runnable {
                 env.executeInReadonlyTransaction {
                     try {
-                        for (i in 0..499) {
+                        for (j in 0..499) {
                             var docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "market"), Integer.MAX_VALUE)
                             Assert.assertEquals(5000, docs.totalHits)
                             docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "develop"), Integer.MAX_VALUE)
                             Assert.assertEquals(5000, docs.totalHits)
+                            docs.scoreDocs.forEach {
+                                val doc = indexSearcher.doc(it.doc, setOf("doc_id"))
+                                Integer.parseInt(doc.get("doc_id"))
+                            }
                         }
                     } catch (t: Throwable) {
                         println(t)
-                        wereExceptions[0] = true
+                        wereExceptions = true
                     }
                 }
             })
@@ -247,7 +251,7 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
         for (thread in threads) {
             thread?.join()
         }
-        Assert.assertFalse(wereExceptions[0])
+        Assert.assertFalse(wereExceptions)
     }
 
     @Test
@@ -337,7 +341,6 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
             ID_FIELD_TYPE.setStored(true)
             ID_FIELD_TYPE.setIndexOptions(IndexOptions.DOCS)
             TEXT_FIELD_TYPE.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS)
-            TEXT_FIELD_TYPE.setStoreTermVectors(true)
         }
     }
 }
