@@ -35,19 +35,8 @@ internal open class ExodusIndexInput(private val directory: ExodusDirectory,
 
     private var input: VfsInputStream? = null
     private var currentPosition: Long = 0L
-    private var cachedTxn: Transaction? = null
-    protected var cachedLength: Long = -1L
 
-    override fun length() = run {
-        if (cachedLength < 0L) {
-            return directory.vfs.getFileLength(txn, file).apply {
-                if (txn.isReadonly) {
-                    cachedLength = this
-                }
-            }
-        }
-        cachedLength
-    }
+    override fun length() = directory.vfs.getFileLength(txn, file)
 
     override fun clone() = filePointer.let {
         // do seek() in order to force invocation of refill() in cloned IndexInput
@@ -58,7 +47,6 @@ internal open class ExodusIndexInput(private val directory: ExodusDirectory,
         input?.apply {
             close()
             input = null
-            cachedTxn = null
         }
     }
 
@@ -108,11 +96,7 @@ internal open class ExodusIndexInput(private val directory: ExodusDirectory,
         it
     }
 
-    private val txn: Transaction
-        get() = cachedTxn.run {
-            if (this == null || isFinished) directory.environment.andCheckCurrentTransaction.apply { cachedTxn = this }
-            else this
-        }
+    private val txn: Transaction get() = directory.environment.andCheckCurrentTransaction
 
     private fun handleFalseDataCorruption(e: DataCorruptionException) {
         // we use this dummy synchronized statement, since we don't want TransactionBase.isFinished to be a volatile field
@@ -125,14 +109,12 @@ internal open class ExodusIndexInput(private val directory: ExodusDirectory,
 
     private class SlicedExodusIndexInput(private val base: ExodusIndexInput,
                                          private val fileOffset: Long,
-                                         length: Long) :
+                                         private val length: Long) :
             ExodusIndexInput(base.directory, base.file, max(min(BUFFER_SIZE.toLong(), length).toInt(), MIN_BUFFER_SIZE)) {
 
-        init {
-            cachedLength = length
-        }
+        override fun length() = length
 
-        override fun clone() = SlicedExodusIndexInput(base, fileOffset, cachedLength)
+        override fun clone() = SlicedExodusIndexInput(base, fileOffset, length)
 
         override fun seekInternal(pos: Long) = super.seekInternal(pos + fileOffset)
 
