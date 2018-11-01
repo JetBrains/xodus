@@ -300,6 +300,22 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
         Assert.assertEquals(1L, input.clone().filePointer)
     }
 
+    @Test
+    fun clonedSliceFilePointer() {
+        addSingleDocument()
+        closeIndexWriter()
+        txn?.flush()
+        val nonEmptyFile = directory.listAll().first { directory.fileLength(it) > 0 }
+        var input = directory.openInput(nonEmptyFile, IOContext.DEFAULT)
+        Assert.assertEquals(0L, input.filePointer)
+        Assert.assertEquals(0L, input.clone().filePointer)
+        input = input.slice("", 0L, 1L)
+        input.readByte()
+        Assert.assertEquals(1L, input.filePointer)
+        Assert.assertEquals(1L, input.clone().filePointer)
+        Assert.assertEquals(0L, input.slice("", 0L, 1L).filePointer)
+    }
+
     private fun assertMoreLikeThis(text: String, field: String, result: Int) {
         val like = moreLikeThis?.like(field, StringReader(text))
         val docs = indexSearcher.search(like, Integer.MAX_VALUE)

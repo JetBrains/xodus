@@ -114,7 +114,9 @@ internal open class ExodusIndexInput(private val directory: ExodusDirectory,
 
         override fun length() = length
 
-        override fun clone() = SlicedExodusIndexInput(base, fileOffset, length)
+        override fun clone() = filePointer.let {
+            SlicedExodusIndexInput(base, fileOffset, length).apply { seek(it) }
+        }
 
         override fun seekInternal(pos: Long) = super.seekInternal(pos + fileOffset)
 
