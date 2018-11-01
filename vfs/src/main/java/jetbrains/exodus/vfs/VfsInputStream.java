@@ -82,4 +82,8 @@ public class VfsInputStream extends InputStream {
     public boolean isObsolete() {
         return clusterIterator.isObsolete();
     }
+
+    public Transaction getTxn() {
+        return clusterIterator.getTxn();
+    }
 }

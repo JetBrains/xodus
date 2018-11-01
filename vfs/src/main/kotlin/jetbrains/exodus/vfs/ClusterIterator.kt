@@ -26,7 +26,7 @@ import java.io.Closeable
 private const val CANCELLING_POLICY_KEY = "CP_KEY"
 
 internal class ClusterIterator @JvmOverloads constructor(private val vfs: VirtualFileSystem,
-                                                         private val txn: Transaction,
+                                                         val txn: Transaction,
                                                          private val fd: Long,
                                                          position: Long = 0L) : Closeable {
     private val cursor: Cursor = vfs.contents.openCursor(txn)
