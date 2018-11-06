@@ -37,10 +37,10 @@ open class InMemorySortBenchmarkBase {
         val rnd = Random(5566)
         store.computeInTransaction {
             val txn = it as PersistentStoreTransaction
-            repeat(50000, {
+            repeat(50000) {
                 val value = Math.abs(rnd.nextInt())
                 txn.newEntity("Issue").setProperty("int", value)
-            })
+            }
         }
     }
 
