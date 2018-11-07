@@ -24,11 +24,10 @@ import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.EntityStoreException;
+import jetbrains.exodus.util.ByteArraySizedInputStream;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.io.ByteArrayInputStream;
 
 public final class PropertyTypes {
 
@@ -85,7 +84,7 @@ public final class PropertyTypes {
         final ByteIterableBase it = (ByteIterableBase) entry;
         final byte[] bytes = it.getBytesUnsafe();
         final ComparableValueType type = getPropertyType((byte) (bytes[0] ^ 0x80));
-        final Comparable data = type.getBinding().readObject(new ByteArrayInputStream(bytes, 1, it.getLength() - 1));
+        final Comparable data = type.getBinding().readObject(new ByteArraySizedInputStream(bytes, 1, it.getLength() - 1));
         return new PropertyValue(type, data);
     }
 

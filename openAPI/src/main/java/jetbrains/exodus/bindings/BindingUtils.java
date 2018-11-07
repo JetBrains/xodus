@@ -52,38 +52,47 @@ public class BindingUtils {
             next = stream.read();
             if (next == 0) {
                 return null;
-            } else {
-                throw new IllegalArgumentException();
             }
-        } else {
-            final StringBuilder sb = stream instanceof ByteArraySizedInputStream ?
-                new StringBuilder(((ByteArraySizedInputStream) stream).size()) :
-                new StringBuilder();
-            int char1, char2, char3;
-            while (next != 0) {
-                char1 = next & 0xff;
-                final int highFour = char1 >> 4;
-                if (highFour < 8) {
-                    sb.append((char) char1);
-                } else if (highFour == 12 || highFour == 13) {
-                    char2 = stream.read();
+            throw new IllegalArgumentException();
+        }
+        if (next == 0) {
+            return "";
+        }
+        if (!(stream instanceof ByteArraySizedInputStream)) {
+            throw new IllegalArgumentException("ByteArraySizedInputStream is expected");
+        }
+        final ByteArraySizedInputStream sizedStream = (ByteArraySizedInputStream) stream;
+        final byte[] bytes = sizedStream.toByteArray();
+        final char[] chars = new char[sizedStream.size() - 1]; // minus trailing zero
+        int i = sizedStream.pos();
+        int j = 0;
+        do {
+            if (next < 128) {
+                chars[j++] = (char) next;
+            } else {
+                final int high = next >> 4;
+                if (high == 12 || high == 13) {
+                    final int char2 = bytes[i++] & 0xff;
                     if ((char2 & 0xC0) != 0x80) {
                         throw new IllegalArgumentException();
                     }
-                    sb.append((char) (((char1 & 0x1F) << 6) | (char2 & 0x3F)));
-                } else if (highFour == 14) {
-                    char2 = stream.read();
-                    char3 = stream.read();
-                    if (((char2 & 0xC0) != 0x80) || ((char3 & 0xC0) != 0x80))
+                    chars[j++] = (char) (((next & 0x1F) << 6) | (char2 & 0x3F));
+                } else if (high == 14) {
+                    final int char2 = bytes[i] & 0xff;
+                    final int char3 = bytes[i + 1] & 0xff;
+                    i += 2;
+                    if (((char2 & 0xC0) != 0x80) || ((char3 & 0xC0) != 0x80)) {
                         throw new IllegalArgumentException();
-                    sb.append((char) (((char1 & 0x0F) << 12) | ((char2 & 0x3F) << 6) | ((char3 & 0x3F))));
+                    }
+                    chars[j++] = (char) (((next & 0x0F) << 12) | ((char2 & 0x3F) << 6) | ((char3 & 0x3F)));
                 } else {
                     throw new IllegalArgumentException();
                 }
-                next = stream.read();
             }
-            return sb.toString();
-        }
+            next = bytes[i++] & 0xff;
+        } while (next != 0);
+        sizedStream.setPos(i);
+        return new String(chars, 0, j);
     }
 
     private static int readUnsignedShort(@NotNull final ByteArrayInputStream stream) {

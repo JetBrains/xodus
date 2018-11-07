@@ -31,6 +31,18 @@ public class ByteArraySizedInputStream extends ByteArrayInputStream {
         return count - mark;
     }
 
+    public int count() {
+        return count;
+    }
+
+    public int pos() {
+        return pos;
+    }
+
+    public void setPos(final int pos) {
+        this.pos = pos;
+    }
+
     public byte[] toByteArray() {
         return buf;
     }
