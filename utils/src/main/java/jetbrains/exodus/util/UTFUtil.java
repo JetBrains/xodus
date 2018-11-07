@@ -96,7 +96,7 @@ public class UTFUtil {
                 try {
                     temp = dataInput.readUTF();
                     if (result != null && result.length() == 0 &&
-                            builder != null && builder.length() == 0 && temp.length() == 0) {
+                        builder != null && builder.length() == 0 && temp.length() == 0) {
                         break;
                     }
                 } catch (EOFException e) {
@@ -123,17 +123,13 @@ public class UTFUtil {
     }
 
     public static int getUtfByteLength(@NotNull final String value) {
-        int len = 0;
-        for (int i = 0; i < value.length(); i++) {
+        final int strLen = value.length();
+        int len = strLen;
+        for (int i = 0; i < strLen; i++) {
             char c = value.charAt(i);
-            if ((c >= 0x0001) && (c <= 0x007F)) {
-                len++;
-            } else if (c > 0x07FF) {
-                len += 3;
-            } else {
-                len += 2;
+            if (c > 0x007F) {
+                len += (c > 0x07FF ? 2 : 1);
             }
-
         }
         return len;
     }
