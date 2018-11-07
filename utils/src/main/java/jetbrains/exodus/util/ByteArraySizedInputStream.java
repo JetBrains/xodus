@@ -28,7 +28,7 @@ public class ByteArraySizedInputStream extends ByteArrayInputStream {
     }
 
     public int size() {
-        return count;
+        return count - mark;
     }
 
     public byte[] toByteArray() {

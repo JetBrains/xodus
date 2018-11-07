@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.bindings;
 
+import jetbrains.exodus.util.ByteArraySizedInputStream;
 import jetbrains.exodus.util.UTFUtil;
 import org.jetbrains.annotations.NotNull;
 
@@ -55,39 +56,29 @@ public class BindingUtils {
                 throw new IllegalArgumentException();
             }
         } else {
-            final StringBuilder sb = new StringBuilder();
+            final StringBuilder sb = stream instanceof ByteArraySizedInputStream ?
+                new StringBuilder(((ByteArraySizedInputStream) stream).size()) :
+                new StringBuilder();
             int char1, char2, char3;
-            while (true) {
-                if (next == 0) break;
+            while (next != 0) {
                 char1 = next & 0xff;
-                switch ((char1 & 0xff) >> 4) {
-                    case 0:
-                    case 1:
-                    case 2:
-                    case 3:
-                    case 4:
-                    case 5:
-                    case 6:
-                    case 7:
-                        sb.append((char) char1);
-                        break;
-                    case 12:
-                    case 13:
-                        char2 = stream.read();
-                        if ((char2 & 0xC0) != 0x80) {
-                            throw new IllegalArgumentException();
-                        }
-                        sb.append((char) (((char1 & 0x1F) << 6) | (char2 & 0x3F)));
-                        break;
-                    case 14:
-                        char2 = stream.read();
-                        char3 = stream.read();
-                        if (((char2 & 0xC0) != 0x80) || ((char3 & 0xC0) != 0x80))
-                            throw new IllegalArgumentException();
-                        sb.append((char) (((char1 & 0x0F) << 12) | ((char2 & 0x3F) << 6) | ((char3 & 0x3F))));
-                        break;
-                    default:
+                final int highFour = char1 >> 4;
+                if (highFour < 8) {
+                    sb.append((char) char1);
+                } else if (highFour == 12 || highFour == 13) {
+                    char2 = stream.read();
+                    if ((char2 & 0xC0) != 0x80) {
                         throw new IllegalArgumentException();
+                    }
+                    sb.append((char) (((char1 & 0x1F) << 6) | (char2 & 0x3F)));
+                } else if (highFour == 14) {
+                    char2 = stream.read();
+                    char3 = stream.read();
+                    if (((char2 & 0xC0) != 0x80) || ((char3 & 0xC0) != 0x80))
+                        throw new IllegalArgumentException();
+                    sb.append((char) (((char1 & 0x0F) << 12) | ((char2 & 0x3F) << 6) | ((char3 & 0x3F))));
+                } else {
+                    throw new IllegalArgumentException();
                 }
                 next = stream.read();
             }
@@ -128,6 +119,6 @@ public class BindingUtils {
             throw new IndexOutOfBoundsException();
         }
         return ((c1 << 56) | (c2 << 48) | (c3 << 40) | (c4 << 32) |
-                (c5 << 24) | (c6 << 16) | (c7 << 8) | c8);
+            (c5 << 24) | (c6 << 16) | (c7 << 8) | c8);
     }
 }

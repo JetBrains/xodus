@@ -50,7 +50,7 @@ public class JMHStringBindingTest {
         String[] result = new String[STRINGS_COUNT];
         int i = 0;
         for (byte[] array : bytes) {
-            result[i] = new String(array, Charsets.UTF_8);
+            result[i++] = new String(array, Charsets.UTF_8);
         }
         return result;
     }
@@ -63,7 +63,7 @@ public class JMHStringBindingTest {
         byte[][] result = new byte[STRINGS_COUNT][];
         int i = 0;
         for (String string : strings) {
-            result[i]= string.getBytes(Charsets.UTF_8);
+            result[i++] = string.getBytes(Charsets.UTF_8);
         }
         return result;
     }
@@ -76,7 +76,7 @@ public class JMHStringBindingTest {
         String[] result = new String[STRINGS_COUNT];
         int i = 0;
         for (ByteIterable array : byteIterables) {
-            result[i] = StringBinding.entryToString(array);
+            result[i++] = StringBinding.entryToString(array);
         }
         return result;
     }
@@ -89,8 +89,7 @@ public class JMHStringBindingTest {
         ByteIterable[] result = new ByteIterable[STRINGS_COUNT];
         int i = 0;
         for (String str : strings) {
-            result[i] = StringBinding.stringToEntry(str);
-            i++;
+            result[i++] = StringBinding.stringToEntry(str);
         }
         return result;
     }
