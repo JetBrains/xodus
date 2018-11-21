@@ -348,6 +348,7 @@ class Reflect(directory: File) {
                 println()
                 logger.error("Can't fetch used space for store $name", t)
                 wereErrors = true
+                throw t
             }
         }
         println()
