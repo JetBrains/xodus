@@ -1,6 +1,6 @@
 dependencies {
     compile project(':entity-store')
-    compile 'com.github.penemue:keap:0.2.2'
+    compile 'com.github.penemue:keap:0.3.0'
     testCompile project(':entity-store').sourceSets.test.output
     testCompile project(':utils').sourceSets.test.output
 }
