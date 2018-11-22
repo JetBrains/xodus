@@ -127,8 +127,8 @@ public class UTFUtil {
         int len = strLen;
         for (int i = 0; i < strLen; i++) {
             char c = value.charAt(i);
-            if (c > 0x007F) {
-                len += (c > 0x07FF ? 2 : 1);
+            if (c > 0x7f || c < 1) {
+                len += (c > 0x7ff ? 2 : 1);
             }
         }
         return len;
