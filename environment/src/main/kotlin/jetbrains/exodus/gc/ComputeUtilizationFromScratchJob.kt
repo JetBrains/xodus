@@ -36,6 +36,10 @@ internal class ComputeUtilizationFromScratchJob(gc: GarbageCollector) : GcJob(gc
                     if (txn.highAddress == env.computeInReadonlyTransaction { tx -> tx.highAddress }) {
                         val log = env.log
                         for (storeName in env.getAllStoreNames(txn) + GarbageCollector.UTILIZATION_PROFILE_STORE_NAME) {
+                            // stop if environment is already closed
+                            if (this.gc == null) {
+                                break
+                            }
                             if (env.storeExists(storeName, txn)) {
                                 val store = env.openStore(storeName, StoreConfig.USE_EXISTING, txn)
                                 val it = (txn as TransactionBase).getTree(store).addressIterator()
@@ -52,9 +56,12 @@ internal class ComputeUtilizationFromScratchJob(gc: GarbageCollector) : GcJob(gc
                     }
                 }
             }
-            up.setUtilization(usedSpace)
-            up.isDirty = true
-            up.estimateTotalBytesAndWakeGcIfNecessary()
+            // if environment is not closed
+            this.gc?.let {
+                up.setUtilization(usedSpace)
+                up.isDirty = true
+                up.estimateTotalBytesAndWakeGcIfNecessary()
+            }
         } finally {
             GarbageCollector.loggingInfo { "Finished calculation of log utilization from scratch" }
         }
