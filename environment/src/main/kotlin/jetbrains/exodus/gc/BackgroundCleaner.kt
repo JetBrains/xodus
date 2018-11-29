@@ -67,6 +67,7 @@ internal class BackgroundCleaner(private val gc: GarbageCollector) {
     val isCurrentThread: Boolean get() = threadId == Thread.currentThread().id
 
     fun finish() {
+        (processor.currentJob as? GcJob)?.cancel()
         backgroundCleaningJob.cancel()
         processor.waitForLatchJob(object : LatchJob() {
             override fun execute() {
