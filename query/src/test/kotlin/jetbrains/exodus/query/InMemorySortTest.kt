@@ -37,21 +37,21 @@ class InMemorySortTest : EntityStoreTestBase() {
         super.setUp()
         val rnd = Random()
         sum = 0
-        repeat(PAGE_SIZE, {
+        repeat(PAGE_SIZE) {
             storeTransaction.newEntity("Issue").setProperty("int", it)
             sum += it
-        })
-        repeat(15000, {
+        }
+        repeat(15000) {
             val value = Math.abs(rnd.nextInt(Int.MAX_VALUE - PAGE_SIZE) + PAGE_SIZE)
             storeTransaction.newEntity("Issue").setProperty("int", value)
-        })
+        }
         storeTransaction.flush()
     }
 
     @Test
     fun testMergeSort() {
-        testSort(storeTransaction.getAll("Issue"),
-                { InMemoryMergeSortIterable(it, comparator) })
+        testSort(storeTransaction.getAll("Issue")
+        ) { InMemoryMergeSortIterable(it, comparator) }
     }
 
     @Test
@@ -62,26 +62,26 @@ class InMemorySortTest : EntityStoreTestBase() {
 
     @Test
     fun testMergeSortWithArrayList() {
-        testSort(storeTransaction.getAll("Issue"),
-                { InMemoryMergeSortIterableWithArrayList(it, comparator) })
+        testSort(storeTransaction.getAll("Issue")
+        ) { InMemoryMergeSortIterableWithArrayList(it, comparator) }
     }
 
     @Test
     fun testTimSort() {
-        testSort(storeTransaction.getAll("Issue"),
-                { InMemoryTimSortIterable(it, comparator) })
+        testSort(storeTransaction.getAll("Issue")
+        ) { InMemoryTimSortIterable(it, comparator) }
     }
 
     @Test
     fun testQuickSort() {
-        testSort(storeTransaction.getAll("Issue"),
-                { InMemoryQuickSortIterable(it, comparator) })
+        testSort(storeTransaction.getAll("Issue")
+        ) { InMemoryQuickSortIterable(it, comparator) }
     }
 
     @Test
     fun testHeapSort() {
-        testSort(storeTransaction.getAll("Issue"),
-                { InMemoryHeapSortIterable(it, comparator) })
+        testSort(storeTransaction.getAll("Issue")
+        ) { InMemoryHeapSortIterable(it, comparator) }
     }
 
     @Test
@@ -92,14 +92,14 @@ class InMemorySortTest : EntityStoreTestBase() {
 
     @Test
     fun testKeapSort() {
-        testSort(storeTransaction.getAll("Issue"),
-                { InMemoryKeapSortIterable(it, comparator) })
+        testSort(storeTransaction.getAll("Issue")
+        ) { InMemoryKeapSortIterable(it, comparator) }
     }
 
     @Test
     fun testBoundedSort() {
-        testSort(storeTransaction.getAll("Issue"),
-                { InMemoryBoundedHeapSortIterable(PAGE_SIZE, it, comparator) })
+        testSort(storeTransaction.getAll("Issue")
+        ) { InMemoryBoundedHeapSortIterable(PAGE_SIZE, it, comparator) }
     }
 
     private fun testSort(it: Iterable<Entity>, sortFun: (it: Iterable<Entity>) -> SortEngine.InMemorySortIterable) {

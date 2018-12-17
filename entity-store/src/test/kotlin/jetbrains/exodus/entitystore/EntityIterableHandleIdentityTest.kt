@@ -51,7 +51,7 @@ class EntityIterableHandleIdentityTest : EntityStoreTestBase() {
 
         threads.forEach {
             it.start()
-            it.setUncaughtExceptionHandler({ _, ex -> errors.add(ex) })
+            it.setUncaughtExceptionHandler { _, ex -> errors.add(ex) }
         }
 
         iterations.forEach {

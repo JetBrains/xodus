@@ -397,7 +397,7 @@ class Reflect(directory: File) {
                         }
                     }
                 } catch (t: Throwable) {
-                    logger.warn(t, { "Failed to completely copy $name, proceeding in reverse order..." })
+                    logger.warn(t) { "Failed to completely copy $name, proceeding in reverse order..." }
                     if (t is VirtualMachineError) {
                         throw t
                     }
@@ -426,7 +426,7 @@ class Reflect(directory: File) {
                             }
                         }
                     } catch (t: Throwable) {
-                        logger.error(t, { "Failed to completely copy $name" })
+                        logger.error(t) { "Failed to completely copy $name" }
                         if (t is VirtualMachineError) {
                             throw t
                         }

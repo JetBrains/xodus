@@ -30,9 +30,9 @@ fun Long.toByteArray(): ByteArray {
 fun Long.toByteArray(size: Int): ByteArray {
     val result = ByteArray(size)
     var l = this
-    repeat(size, {
+    repeat(size) {
         result[it] = (l and 0xff).toByte()
         l = l shr java.lang.Byte.SIZE
-    })
+    }
     return result
 }

@@ -127,9 +127,9 @@ class Interop(private val rhinoCommand: RhinoCommand,
     }
 
     internal fun backspace(times: Int = 1): Interop {
-        repeat(times, {
+        repeat(times) {
             output.print(127.toChar())
-        })
+        }
         return flushOutput()
     }
 

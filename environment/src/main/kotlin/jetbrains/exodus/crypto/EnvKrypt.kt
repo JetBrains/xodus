@@ -72,13 +72,13 @@ private fun cryptBlocksImpl(cipherProvider: StreamCipherProvider,
         }
         // if offset is not the left bound of a block then the cipher should skip some bytes
         if (offsetInBlock > 0) {
-            repeat(offsetInBlock, {
+            repeat(offsetInBlock) {
                 cipher.crypt(0)
-            })
+            }
         }
-        repeat(blockLen, {
+        repeat(blockLen) {
             output[outputOff++] = cipher.crypt(input[inputOff++])
-        })
+        }
         ++iv
         len -= blockLen
     }

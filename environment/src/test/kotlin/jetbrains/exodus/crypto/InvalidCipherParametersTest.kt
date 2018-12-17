@@ -113,9 +113,9 @@ private fun createEnvironment(dir: File, cipherId: String?, cipherKey: String?, 
                     "NaturalInteger", StoreConfig.WITHOUT_DUPLICATES, txn)
         }
         for (i in 0 until ENTRIES) {
-            env.executeInTransaction({ txn ->
+            env.executeInTransaction { txn ->
                 store.put(txn, IntegerBinding.intToCompressedEntry(i), StringBinding.stringToEntry(i.toString(10)))
-            })
+            }
         }
         ec.envIsReadonly = true
         return (env as EnvironmentImpl).log.highAddress

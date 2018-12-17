@@ -57,9 +57,9 @@ class StreamCipherInputStream(input: InputStream, private val cipherGetter: () -
         super.reset()
         cipher = cipherGetter()
         // skip savedPosition bytes
-        repeat(savedPosition, {
+        repeat(savedPosition) {
             cipher.crypt(0)
-        })
+        }
         position = savedPosition
     }
 

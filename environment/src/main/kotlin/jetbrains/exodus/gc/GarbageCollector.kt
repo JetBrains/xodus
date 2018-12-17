@@ -351,7 +351,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             if (t == null) {
                 logger.error { message() }
             } else {
-                logger.error(t, { message() })
+                logger.error(t) { message() }
             }
         }
 

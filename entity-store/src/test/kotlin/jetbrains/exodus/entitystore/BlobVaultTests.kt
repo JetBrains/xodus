@@ -90,7 +90,7 @@ class BlobVaultTests : EntityStoreTestBase() {
         val txn = storeTransaction
         store.config.maxInPlaceBlobSize = 0
         for (i in 1..3) {
-            txn.newEntity("E").setBlobString("content", buildString { repeat(i, { append(' ') }) })
+            txn.newEntity("E").setBlobString("content", buildString { repeat(i) { append(' ') } })
         }
         txn.flush()
         val infos = store.getBlobFileLengths(txn).iterator()
