@@ -19,7 +19,7 @@ import jetbrains.exodus.core.dataStructures.Priority
 import jetbrains.exodus.core.execution.Job
 import java.lang.ref.WeakReference
 
-internal open class GcJob(gc: GarbageCollector?, private val unitOfWork: (() -> Unit)? = null) : Job() {
+open class GcJob(gc: GarbageCollector?, private val unitOfWork: (() -> Unit)? = null) : Job() {
 
     private var gcRef = WeakReference(gc)
 
