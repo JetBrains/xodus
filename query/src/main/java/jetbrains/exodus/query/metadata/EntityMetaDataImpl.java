@@ -209,28 +209,26 @@ public class EntityMetaDataImpl implements EntityMetaData {
                 externalAssociationEnds = new HashSet<>();
             }
             AssociationEndMetaData a = findAssociationEndMetaData(end.getName());
-
             if (a != null) {
                 throw new IllegalArgumentException("Association already exists [" + end.getName() + ']');
             }
-
-            resetSelfAndSubtypes();
             externalAssociationEnds.add(end);
         }
+        resetSelfAndSubtypes();
     }
 
     AssociationEndMetaData removeAssociationEndMetaData(String name) {
-        synchronized (this) {
-            AssociationEndMetaData a = findAssociationEndMetaData(name);
-
-            if (a == null) {
-                throw new IllegalArgumentException("Can't find association end with name [" + name + ']');
+        try {
+            synchronized (this) {
+                AssociationEndMetaData a = findAssociationEndMetaData(name);
+                if (a == null) {
+                    throw new IllegalArgumentException("Can't find association end with name [" + name + ']');
+                }
+                externalAssociationEnds.remove(a);
+                return a;
             }
-
+        } finally {
             resetSelfAndSubtypes();
-            externalAssociationEnds.remove(a);
-
-            return a;
         }
     }
 
@@ -451,8 +449,8 @@ public class EntityMetaDataImpl implements EntityMetaData {
                         result = new Ends();
                     } else {
                         result = new Ends(
-                                new HashMap<String, AssociationEndMetaData>(externalAssociationEnds.size()),
-                                new LinkedHashSetDecorator<String>());
+                            new HashMap<String, AssociationEndMetaData>(externalAssociationEnds.size()),
+                            new LinkedHashSetDecorator<String>());
                         for (final AssociationEndMetaData aemd : externalAssociationEnds) {
                             result.associationEnds.put(aemd.getName(), aemd);
                             if (aemd.getAssociationEndType() == AssociationEndType.ChildEnd) {
