@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2018 JetBrains s.r.o.
+ * Copyright 2010 - 2019 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,10 @@ package jetbrains.exodus.crypto
 
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap
 import jetbrains.exodus.core.dataStructures.hash.LongSet
-import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.BlobVault
+import jetbrains.exodus.entitystore.BlobVaultItem
+import jetbrains.exodus.entitystore.DiskBasedBlobVault
+import jetbrains.exodus.entitystore.FileSystemBlobVaultOld
 import jetbrains.exodus.env.Transaction
 import java.io.File
 import java.io.FileInputStream
