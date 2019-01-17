@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2018 JetBrains s.r.o.
+ * Copyright 2010 - 2019 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -631,10 +631,8 @@ class Log(val config: LogConfig) : Closeable {
     }
 
     fun sync() {
-        if (!config.isFsyncSuppressed) {
-            writer.sync()
-            lastSyncTicks = System.currentTimeMillis()
-        }
+        writer.sync()
+        lastSyncTicks = System.currentTimeMillis()
     }
 
     override fun close() {

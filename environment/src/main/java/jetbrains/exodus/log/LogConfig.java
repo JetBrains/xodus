@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2018 JetBrains s.r.o.
+ * Copyright 2010 - 2019 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +38,6 @@ public class LogConfig {
     private DataReader reader;
     private DataWriter writer;
     private boolean isDurableWrite;
-    private boolean isFsyncSuppressed;
     private boolean sharedCache;
     private boolean nonBlockingCache;
     private int cacheGenerationCount;
@@ -156,15 +155,6 @@ public class LogConfig {
 
     public LogConfig setDurableWrite(boolean durableWrite) {
         isDurableWrite = durableWrite;
-        return this;
-    }
-
-    public boolean isFsyncSuppressed() {
-        return isFsyncSuppressed;
-    }
-
-    public LogConfig setFsyncSuppressed(boolean fsyncSuppressed) {
-        isFsyncSuppressed = fsyncSuppressed;
         return this;
     }
 

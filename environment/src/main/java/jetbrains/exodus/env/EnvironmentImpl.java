@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2018 JetBrains s.r.o.
+ * Copyright 2010 - 2019 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -654,47 +654,41 @@ public class EnvironmentImpl implements Environment {
             if (wasUpSaved) {
                 up.setDirty(false);
             }
-            final LogConfig config = log.getConfig();
-            config.setFsyncSuppressed(isGcTransaction);
+            final LogTip logTip = log.beginWrite();
+            initialHighAddress = logTip.highAddress;
+            boolean writeConfirmed = false;
             try {
-                final LogTip logTip = log.beginWrite();
-                initialHighAddress = logTip.highAddress;
-                boolean writeConfirmed = false;
+                final MetaTreeImpl.Proto[] tree = new MetaTreeImpl.Proto[1];
+                expiredLoggables = txn.doCommit(tree);
+                // there is a temptation to postpone I/O in order to reduce number of writes to storage device,
+                // but it's quite difficult to resolve all possible inconsistencies afterwards,
+                // so think twice before removing the following line
+                log.flush();
+                final MetaTreeImpl.Proto proto = tree[0];
+                metaWriteLock.lock();
                 try {
-                    final MetaTreeImpl.Proto[] tree = new MetaTreeImpl.Proto[1];
-                    expiredLoggables = txn.doCommit(tree);
-                    // there is a temptation to postpone I/O in order to reduce number of writes to storage device,
-                    // but it's quite difficult to resolve all possible inconsistencies afterwards,
-                    // so think twice before removing the following line
-                    log.flush();
-                    final MetaTreeImpl.Proto proto = tree[0];
-                    metaWriteLock.lock();
-                    try {
-                        final LogTip updatedTip = log.endWrite();
-                        writeConfirmed = true;
-                        resultingHighAddress = updatedTip.approvedHighAddress;
-                        txn.setMetaTree(metaTree = MetaTreeImpl.create(this, updatedTip, proto));
-                        txn.executeCommitHook();
-                    } finally {
-                        metaWriteLock.unlock();
-                    }
-                } catch (Throwable t) { // pokemon exception handling to decrease try/catch block overhead
-                    loggerError("Failed to flush transaction", t);
-                    if (writeConfirmed) {
-                        throwableOnCommit = t; // inoperative on failing to read meta tree
-                        throw ExodusException.toExodusException(t, "Failed to read meta tree");
-                    }
-                    try {
-                        log.revertWrite(logTip);
-                    } catch (Throwable th) {
-                        throwableOnCommit = t; // inoperative on failing to update high address
-                        loggerError("Failed to rollback high address", th);
-                        throw ExodusException.toExodusException(th, "Failed to rollback high address");
-                    }
-                    throw ExodusException.toExodusException(t, "Failed to flush transaction");
+                    final LogTip updatedTip = log.endWrite();
+                    writeConfirmed = true;
+                    resultingHighAddress = updatedTip.approvedHighAddress;
+                    txn.setMetaTree(metaTree = MetaTreeImpl.create(this, updatedTip, proto));
+                    txn.executeCommitHook();
+                } finally {
+                    metaWriteLock.unlock();
                 }
-            } finally {
-                config.setFsyncSuppressed(false);
+            } catch (Throwable t) { // pokemon exception handling to decrease try/catch block overhead
+                loggerError("Failed to flush transaction", t);
+                if (writeConfirmed) {
+                    throwableOnCommit = t; // inoperative on failing to read meta tree
+                    throw ExodusException.toExodusException(t, "Failed to read meta tree");
+                }
+                try {
+                    log.revertWrite(logTip);
+                } catch (Throwable th) {
+                    throwableOnCommit = t; // inoperative on failing to update high address
+                    loggerError("Failed to rollback high address", th);
+                    throw ExodusException.toExodusException(th, "Failed to rollback high address");
+                }
+                throw ExodusException.toExodusException(t, "Failed to flush transaction");
             }
         }
         gc.fetchExpiredLoggables(new ExpiredLoggableIterable(expiredLoggables));
