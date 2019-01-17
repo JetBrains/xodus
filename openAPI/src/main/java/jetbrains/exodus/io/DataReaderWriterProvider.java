@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2018 JetBrains s.r.o.
+ * Copyright 2010 - 2019 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.ServiceLoader;
 
-// TODO: document
 public abstract class DataReaderWriterProvider {
 
     public static final String DEFAULT_READER_WRITER_PROVIDER = "jetbrains.exodus.io.FileDataReaderWriterProvider";
