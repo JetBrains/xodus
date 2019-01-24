@@ -16,13 +16,20 @@
 package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.entitystore.*;
+import jetbrains.exodus.entitystore.iterate.cached.SingleTypeUnsortedEntityIdArrayCachedInstanceIterable;
 import jetbrains.exodus.entitystore.tables.LinkValue;
 import jetbrains.exodus.entitystore.tables.PropertyKey;
 import jetbrains.exodus.env.Cursor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+
+/**
+ * Iterates over entities of specified entity type having specified link to a target.
+ */
 class EntitiesWithCertainLinkIterable extends EntityIterableBase {
 
     static {
@@ -57,7 +64,7 @@ class EntitiesWithCertainLinkIterable extends EntityIterableBase {
 
     @Override
     @NotNull
-    public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public LinksIteratorWithTarget getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
         return new LinksIterator(openCursor(txn));
     }
 
@@ -110,12 +117,45 @@ class EntitiesWithCertainLinkIterable extends EntityIterableBase {
         };
     }
 
+    @Override
+    public boolean isSortedById() {
+        return false;
+    }
+
+    @Override
+    protected CachedInstanceIterable createCachedInstance(@NotNull final PersistentStoreTransaction txn) {
+        final LongArrayList localIds = new LongArrayList();
+        final ArrayList<EntityId> targets = new ArrayList<>();
+        final LinksIteratorWithTarget it = getIteratorImpl(txn);
+        long min = Long.MAX_VALUE, max = Long.MIN_VALUE;
+        while (it.hasNext()) {
+            @SuppressWarnings("ConstantConditions") final long localId = it.nextId().getLocalId();
+            localIds.add(localId);
+            targets.add(it.getTarget());
+            if (min > localId) {
+                min = localId;
+            }
+            if (max < localId) {
+                max = localId;
+            }
+        }
+        return new CachedLinksIterable(txn, localIds.toArray(), targets.toArray(new EntityId[0]), min, max);
+    }
 
     private Cursor openCursor(@NotNull final PersistentStoreTransaction txn) {
         return getStore().getLinksSecondIndexCursor(txn, entityTypeId);
     }
 
-    final class LinksIterator extends EntityIteratorBase {
+    abstract class LinksIteratorWithTarget extends EntityIteratorBase {
+
+        LinksIteratorWithTarget(@NotNull final EntityIterableBase iterable) {
+            super(iterable);
+        }
+
+        abstract EntityId getTarget();
+    }
+
+    private final class LinksIterator extends LinksIteratorWithTarget {
 
         private PropertyKey key;
         private EntityId targetId;
@@ -151,7 +191,8 @@ class EntitiesWithCertainLinkIterable extends EntityIterableBase {
             return null;
         }
 
-        EntityId getTarget() {
+        @Override
+        public EntityId getTarget() {
             return targetId;
         }
 
@@ -162,6 +203,47 @@ class EntitiesWithCertainLinkIterable extends EntityIterableBase {
                 this.key = PropertyKey.entryToPropertyKey(cursor.getValue());
                 targetId = link.getEntityId();
             }
+        }
+    }
+
+    private final class CachedLinksIterable extends SingleTypeUnsortedEntityIdArrayCachedInstanceIterable {
+
+        private final long[] localIds;
+        private final EntityId[] targets;
+
+        CachedLinksIterable(@NotNull final PersistentStoreTransaction txn,
+                            @NotNull final long[] localIds,
+                            @NotNull final EntityId[] targets,
+                            long min, long max) {
+            super(txn, EntitiesWithCertainLinkIterable.this, entityTypeId, localIds, null, min, max);
+            this.localIds = localIds;
+            this.targets = targets;
+        }
+
+        @Override
+        @NotNull
+        public LinksIteratorWithTarget getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+            return new LinksIteratorWithTarget(CachedLinksIterable.this) {
+
+                private int i = 0;
+                private EntityId target;
+
+                @Override
+                EntityId getTarget() {
+                    return target;
+                }
+
+                @Override
+                protected boolean hasNextImpl() {
+                    return i < localIds.length;
+                }
+
+                @Override
+                protected EntityId nextIdImpl() {
+                    target = targets[i];
+                    return new PersistentEntityId(entityTypeId, localIds[i++]);
+                }
+            };
         }
     }
 }

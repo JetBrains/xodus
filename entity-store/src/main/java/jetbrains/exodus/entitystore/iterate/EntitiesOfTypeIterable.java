@@ -83,7 +83,7 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
             @NotNull
             public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
                 final EntityIdSet idSet = source.toSet(txn);
-                final EntitiesWithCertainLinkIterable.LinksIterator it = (EntitiesWithCertainLinkIterable.LinksIterator) entitiesWithLink.getIteratorImpl(txn);
+                final EntitiesWithCertainLinkIterable.LinksIteratorWithTarget it = (EntitiesWithCertainLinkIterable.LinksIteratorWithTarget) entitiesWithLink.iterator();
                 final EntityIteratorBase result = new EntityIteratorBase(EntitiesOfTypeIterable.this) {
 
                     @NotNull
