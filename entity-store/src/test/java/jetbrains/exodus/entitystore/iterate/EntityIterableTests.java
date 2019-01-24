@@ -23,7 +23,7 @@ import org.junit.Assert;
 import java.util.Iterator;
 
 @SuppressWarnings({"HardCodedStringLiteral", "AutoBoxing", "ConstantConditions", "JUnitTestClassNamingConvention",
-    "StringContatenationInLoop", "UnusedDeclaration", "WhileLoopReplaceableByForEach", "LoopStatementThatDoesntLoop"})
+    "StringContatenationInLoop", "UnusedDeclaration", "LoopStatementThatDoesntLoop"})
 public class EntityIterableTests extends EntityStoreTestBase {
 
     protected String[] casesThatDontNeedExplicitTxn() {
@@ -376,12 +376,15 @@ public class EntityIterableTests extends EntityStoreTestBase {
         for (int i = 0; i < 10; ++i) {
             final PersistentEntity issue = txn.newEntity("Issue");
             issue.addLink("author", txn.find("User", "login", "user" + i).getFirst());
+            if (i >= 3 && i <= 8) {
+                issue.addLink("author", txn.find("User", "login", "user3").getFirst());
+            }
         }
         txn.flush();
         final EntityIterable someUsers = txn.find("User", "login", "user3", "user8");
-        final EntityIterable authoredIssues = txn.findWithLinks("Issue", "author");
         final EntityIterable links0 = txn.findLinks("Issue", someUsers, "author");
         Assert.assertEquals(someUsers.size(), links0.size());
+        final EntityIterable authoredIssues = txn.findWithLinks("Issue", "author");
         final EntityIterable links1 = ((EntityIterableBase) authoredIssues).findLinks(toList(someUsers), "author");
         Assert.assertEquals(someUsers.size(), links1.size());
         final EntityIterator it0 = links0.iterator();
@@ -396,7 +399,8 @@ public class EntityIterableTests extends EntityStoreTestBase {
         assertEquals(6, ((EntityIterableBase) txn.getAll("Issue")).findLinks(someUsers, "author").size());
         getEntityStore().getAsyncProcessor().waitForJobs(100);
         for (Entity issue : txn.getAll("Issue")) {
-            issue.setLink("author", nobody);
+            issue.deleteLinks("author");
+            issue.addLink("author", nobody);
         }
         assertEquals(0, ((EntityIterableBase) txn.getAll("Issue")).findLinks(toList(someUsers), "author").size());
     }

@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.entitystore.*;
+import jetbrains.exodus.entitystore.util.EntityIdSetFactory;
 import jetbrains.exodus.env.Cursor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -85,6 +86,8 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
                 final EntitiesWithCertainLinkIterable.LinksIterator it = (EntitiesWithCertainLinkIterable.LinksIterator) entitiesWithLink.getIteratorImpl(txn);
                 final EntityIteratorBase result = new EntityIteratorBase(EntitiesOfTypeIterable.this) {
 
+                    @NotNull
+                    private EntityIdSet distinctIds = EntityIdSetFactory.newSet();
                     @Nullable
                     private EntityId id = nextAvailableId();
 
@@ -97,6 +100,7 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
                     @Nullable
                     protected EntityId nextIdImpl() {
                         final EntityId result = id;
+                        distinctIds = distinctIds.add(result);
                         id = nextAvailableId();
                         return result;
                     }
@@ -105,7 +109,7 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
                     private EntityId nextAvailableId() {
                         while (it.hasNext()) {
                             final EntityId next = it.nextId();
-                            if (idSet.contains(it.getTarget())) {
+                            if (!distinctIds.contains(next) && idSet.contains(it.getTarget())) {
                                 return next;
                             }
                         }
