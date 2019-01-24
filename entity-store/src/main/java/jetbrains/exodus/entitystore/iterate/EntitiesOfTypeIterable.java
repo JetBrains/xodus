@@ -61,15 +61,85 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
         return true;
     }
 
-    @Override
-    @NotNull
-    protected EntityIterableHandle getHandleImpl() {
-        return new EntitiesOfTypeIterableHandle(this);
-    }
 
     @Override
-    protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
-        return getStore().getEntitiesTable(txn, entityTypeId).count(txn.getEnvironmentTransaction());
+    public EntityIterable findLinks(@NotNull final EntityIterable entities, @NotNull final String linkName) {
+        final PersistentStoreTransaction txn = getTransaction();
+        final int linkId = getStore().getLinkId(txn, linkName, false);
+        if (linkId < 0) {
+            return EMPTY;
+        }
+        final EntityIterableBase source = ((EntityIterableBase) entities).getSource();
+        final EntitiesWithCertainLinkIterable entitiesWithLink = new EntitiesWithCertainLinkIterable(txn, entityTypeId, linkId);
+        return new EntityIterableBase(txn) {
+
+            @Override
+            public boolean canBeCached() {
+                return false;
+            }
+
+            @Override
+            @NotNull
+            public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+                final EntityIdSet idSet = source.toSet(txn);
+                final EntitiesWithCertainLinkIterable.LinksIterator it = (EntitiesWithCertainLinkIterable.LinksIterator) entitiesWithLink.getIteratorImpl(txn);
+                final EntityIteratorBase result = new EntityIteratorBase(EntitiesOfTypeIterable.this) {
+
+                    @Nullable
+                    private EntityId id = nextAvailableId();
+
+                    @Override
+                    protected boolean hasNextImpl() {
+                        return id != null;
+                    }
+
+                    @Override
+                    @Nullable
+                    protected EntityId nextIdImpl() {
+                        final EntityId result = id;
+                        id = nextAvailableId();
+                        return result;
+                    }
+
+                    @Nullable
+                    private EntityId nextAvailableId() {
+                        while (it.hasNext()) {
+                            final EntityId next = it.nextId();
+                            if (idSet.contains(it.getTarget())) {
+                                return next;
+                            }
+                        }
+                        return null;
+                    }
+                };
+                final Cursor cursor = it.getCursor();
+                if (cursor != null) {
+                    result.setCursor(cursor);
+                }
+                return result;
+            }
+
+            @Override
+            @NotNull
+            protected EntityIterableHandle getHandleImpl() {
+                return new EntityIterableHandleDecorator(getStore(), EntityIterableType.FILTER_LINKS, entitiesWithLink.getHandle()) {
+
+                    @Override
+                    public void toString(@NotNull StringBuilder builder) {
+                        super.toString(builder);
+                        builder.append('-');
+                        ((EntityIterableHandleBase) source.getHandle()).toString(builder);
+                    }
+
+                    @Override
+                    public void hashCode(@NotNull EntityIterableHandleHash hash) {
+                        super.hashCode(hash);
+                        hash.applyDelimiter();
+                        hash.apply(source.getHandle());
+                    }
+                };
+            }
+        };
     }
 
     @Override
@@ -78,8 +148,19 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
     }
 
     @Override
+    @NotNull
+    protected EntityIterableHandle getHandleImpl() {
+        return new EntitiesOfTypeIterableHandle(this);
+    }
+
+    @Override
     protected CachedInstanceIterable createCachedInstance(@NotNull final PersistentStoreTransaction txn) {
         return new UpdatableEntityIdSortedSetCachedInstanceIterable(txn, this);
+    }
+
+    @Override
+    protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
+        return getStore().getEntitiesTable(txn, entityTypeId).count(txn.getEnvironmentTransaction());
     }
 
     public static final class EntitiesOfTypeIterator extends EntityIteratorBase {
@@ -173,7 +254,7 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
         @Override
         public boolean onEntityAdded(@NotNull EntityAddedOrDeletedHandleChecker handleChecker) {
             UpdatableEntityIdSortedSetCachedInstanceIterable iterable
-                    = PersistentStoreTransaction.getUpdatable(handleChecker, this, UpdatableEntityIdSortedSetCachedInstanceIterable.class);
+                = PersistentStoreTransaction.getUpdatable(handleChecker, this, UpdatableEntityIdSortedSetCachedInstanceIterable.class);
             if (iterable != null) {
                 iterable.addEntity(handleChecker.getId());
                 return true;
@@ -184,7 +265,7 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
         @Override
         public boolean onEntityDeleted(@NotNull EntityAddedOrDeletedHandleChecker handleChecker) {
             UpdatableEntityIdSortedSetCachedInstanceIterable iterable
-                    = PersistentStoreTransaction.getUpdatable(handleChecker, this, UpdatableEntityIdSortedSetCachedInstanceIterable.class);
+                = PersistentStoreTransaction.getUpdatable(handleChecker, this, UpdatableEntityIdSortedSetCachedInstanceIterable.class);
             if (iterable != null) {
                 iterable.removeEntity(handleChecker.getId());
                 return true;

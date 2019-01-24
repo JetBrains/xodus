@@ -93,9 +93,9 @@ public abstract class EntityIterableBase implements EntityIterable {
 
     private static final String INDENT = "|   ";
     // amount of fields appended to iterable string handle
-    static final int[] fields = {0, 1, 2, 3, 4, 2, 2, 2, 3, 4, 2, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 1, 1, 2, 2, 0, 0, 1, 1, 3};
+    static final int[] fields = {0, 1, 2, 3, 4, 2, 2, 2, 3, 4, 2, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 1, 1, 2, 2, 0, 0, 1, 1, 2, 3};
     // amount of children recursively appended to iterable string handle
-    static final int[] children = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 1, 1, 2, 0, 1, 1, 1, 1, 1, 0, 0, 2, 1, 1, 2, 0};
+    static final int[] children = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 1, 1, 2, 0, 1, 1, 1, 1, 1, 0, 0, 2, 1, 1, 2, 0, 0};
 
     @Nullable
     private final PersistentEntityStoreImpl store;

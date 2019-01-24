@@ -69,7 +69,8 @@ public enum EntityIterableType {
     EXCLUDE_NULL("Exclude null", 27),
     FILTER_ENTITY_TYPE("Filter source iterable by entity type", 28),
     FILTER_LINKS("Filter source iterable by links set", 29),
-    ALL_ENTITIES_RANGE("Entities of specific type within id range", 30);
+    ENTITIES_WITH_CERTAIN_LINK("All entities of specified type with certain link", 30),
+    ALL_ENTITIES_RANGE("Entities of specific type within id range", 31);
 
     private final String description;
     private final int type;
