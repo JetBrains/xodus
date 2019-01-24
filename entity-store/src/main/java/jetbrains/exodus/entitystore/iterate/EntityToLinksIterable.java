@@ -118,7 +118,7 @@ public final class EntityToLinksIterable extends EntityLinksIterableBase {
             public boolean isMatchedLinkDeleted(@NotNull final EntityId source,
                                                 @NotNull final EntityId target,
                                                 final int linkId) {
-                return entityTypeId == source.getTypeId() && entityId.equals(target);
+                return isMatchedLinkAdded(source, target, linkId);
             }
         };
     }
