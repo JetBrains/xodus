@@ -75,6 +75,11 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
         return new EntityIterableBase(txn) {
 
             @Override
+            public boolean isSortedById() {
+                return entitiesWithLink.isSortedById();
+            }
+
+            @Override
             public boolean canBeCached() {
                 return false;
             }

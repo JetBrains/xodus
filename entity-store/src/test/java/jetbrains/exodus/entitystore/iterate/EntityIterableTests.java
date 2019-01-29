@@ -369,15 +369,16 @@ public class EntityIterableTests extends EntityStoreTestBase {
     }
 
     public void testFindLinks() {
+        getEntityStore().getConfig().setCachingDisabled(true);
         final PersistentStoreTransaction txn = getStoreTransaction();
-        createNUsers(txn, 10);
+        final Entity[] users = createNUsers(txn, 10);
         PersistentEntity nobody = txn.newEntity("User");
         txn.flush();
         for (int i = 0; i < 10; ++i) {
             final PersistentEntity issue = txn.newEntity("Issue");
-            issue.addLink("author", txn.find("User", "login", "user" + i).getFirst());
-            if (i >= 3 && i <= 8) {
-                issue.addLink("author", txn.find("User", "login", "user3").getFirst());
+            issue.addLink("author", users[9 - i]);
+            if ((9 - i) >= 3 && (9 - i) <= 8) {
+                issue.addLink("author", users[8]);
             }
         }
         txn.flush();
@@ -395,6 +396,10 @@ public class EntityIterableTests extends EntityStoreTestBase {
             Assert.assertEquals(it0.nextId(), it1.nextId());
         }
         assertEquals(6, ((EntityIterableBase) txn.getAll("Issue")).findLinks(someUsers, "author").size());
+        assertEquals(6, ((EntityIterableBase) txn.getAll("Issue")).findLinks(someUsers, "author").
+            intersect(txn.getAll("Issue")).size());
+        assertEquals(6, toList(((EntityIterableBase) txn.getAll("Issue")).findLinks(someUsers, "author").
+            intersect(txn.findWithLinks("Issue", "author"))).size());
         getEntityStore().getAsyncProcessor().waitForJobs(100);
         assertEquals(6, ((EntityIterableBase) txn.getAll("Issue")).findLinks(someUsers, "author").size());
         getEntityStore().getAsyncProcessor().waitForJobs(100);
