@@ -31,7 +31,7 @@ internal object EntityIdCache {
             val idParts = ID_SPLIT_PATTERN.split(representation)
             val partsCount = idParts.size
             if (partsCount != 2) {
-                throw IllegalArgumentException("Invalid structure of entity id")
+                throw IllegalArgumentException("Invalid structure of entity id: $representation")
             }
             val entityTypeId = Integer.parseInt(idParts[0])
             val entityLocalId = java.lang.Long.parseLong(idParts[1])
