@@ -38,9 +38,9 @@ class S3DataReaderWriterProvider @JvmOverloads constructor(
 
     private var env: EnvironmentImpl? = null
 
-    override fun onEnvironmentCreated(env: Environment) {
-        super.onEnvironmentCreated(env)
-        this.env = env as EnvironmentImpl
+    override fun onEnvironmentCreated(environment: Environment) {
+        super.onEnvironmentCreated(environment)
+        this.env = environment as EnvironmentImpl
     }
 
     override fun newReaderWriter(location: String): Pair<DataReader, DataWriter> {

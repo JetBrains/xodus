@@ -297,6 +297,9 @@ public class LogConfig {
     public DataReaderWriterProvider getReaderWriterProvider() {
         if (readerWriterProviderInstance == null) {
             readerWriterProviderInstance = DataReaderWriterProvider.getProvider(readerWriterProvider);
+            if (readerWriterProviderInstance == null) {
+                throw new InvalidSettingException("Unknown DataReaderWriterProvider: " + readerWriterProvider);
+            }
         }
         return readerWriterProviderInstance;
     }

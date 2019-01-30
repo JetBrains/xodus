@@ -15,7 +15,21 @@
  */
 package jetbrains.exodus.io;
 
-// TODO: document
+import jetbrains.exodus.env.EnvironmentConfig;
+
+/**
+ * Type of action applied to the {@linkplain Block blocks} processed by database GC. GC moves accessible data
+ * from old blocks to new ones, so old blocks can finally be removed using {@linkplain DataWriter#removeBlock(long, RemoveBlockType)}.
+ * For debugging purposes, for supporting custom backup procedures and so on, blocks can also be renamed, not only removed.
+ * Actual value of the second parameter passed to {@linkplain DataWriter#removeBlock(long, RemoveBlockType)} is controlled
+ * by the {@linkplain EnvironmentConfig#GC_RENAME_FILES} setting.
+ *
+ * @see Block
+ * @see DataWriter#removeBlock(long, RemoveBlockType)
+ * @see EnvironmentConfig#getGcRenameFiles()
+ * @see EnvironmentConfig#setGcRenameFiles(boolean)
+ * @since 1.3.0
+ */
 public enum RemoveBlockType {
     Delete,
     Rename

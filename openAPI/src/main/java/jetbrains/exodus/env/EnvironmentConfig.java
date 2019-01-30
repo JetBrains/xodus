@@ -1256,9 +1256,9 @@ public class EnvironmentConfig extends AbstractConfig {
     /**
      * Returns fully-qualified name of the {@linkplain DataReaderWriterProvider} service provide interface implementation which
      * will be used to create {@linkplain DataReader} and {@linkplain DataWriter} instances. This setting can be used
-     * to customize storageL define in-memory one, in-cloud, etc.
+     * to customize storage: define in-memory one, in-cloud, etc.
      * Default value is {@linkplain DataReaderWriterProvider#DEFAULT_READER_WRITER_PROVIDER} which means that file system must be
-     * used as a storage. Several settings are applicable only to FileDataReaderWriterProvider used:
+     * used as a storage. Several settings are applicable only if FileDataReaderWriterProvider is used:
      * {@linkplain #LOG_DURABLE_WRITE}, {@linkplain #LOG_SYNC_PERIOD}, {@linkplain #LOG_CACHE_OPEN_FILES},
      * {@linkplain #LOG_FULL_FILE_READ_ONLY}, {@linkplain #LOG_CACHE_USE_NIO}, {@linkplain #LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD}.
      * <p>Mutable at runtime: no
@@ -1272,9 +1272,9 @@ public class EnvironmentConfig extends AbstractConfig {
     /**
      * Sets fully-qualified name of the {@linkplain DataReaderWriterProvider} service provide interface implementation which
      * will be used to create {@linkplain DataReader} and {@linkplain DataWriter} instances. This setting can be used
-     * to customize storageL define in-memory one, in-cloud, etc.
+     * to customize storage: define in-memory one, in-cloud, etc.
      * Default value is {@linkplain DataReaderWriterProvider#DEFAULT_READER_WRITER_PROVIDER} which means that file system must be
-     * used as a storage. Several settings are applicable only to FileDataReaderWriterProvider used:
+     * used as a storage. Several settings are applicable only if FileDataReaderWriterProvider is used:
      * {@linkplain #LOG_DURABLE_WRITE}, {@linkplain #LOG_SYNC_PERIOD}, {@linkplain #LOG_CACHE_OPEN_FILES},
      * {@linkplain #LOG_FULL_FILE_READ_ONLY}, {@linkplain #LOG_CACHE_USE_NIO}, {@linkplain #LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD}.
      * <p>Mutable at runtime: no

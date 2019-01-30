@@ -30,9 +30,9 @@ open class FileDataReaderWriterProvider : DataReaderWriterProvider() {
         return Pair(reader, newFileDataWriter(location, reader))
     }
 
-    override fun onEnvironmentCreated(env: Environment) {
-        super.onEnvironmentCreated(env)
-        this.env = env as EnvironmentImpl
+    override fun onEnvironmentCreated(environment: Environment) {
+        super.onEnvironmentCreated(environment)
+        this.env = environment as EnvironmentImpl
     }
 
     protected open fun newFileDataReader(location: String): DataReader {
