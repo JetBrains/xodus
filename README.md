@@ -28,13 +28,13 @@ To start using Xodus, define dependencies:
 <dependency>
     <groupId>org.jetbrains.xodus</groupId>
     <artifactId>xodus-openAPI</artifactId>
-    <version>1.2.3</version>
+    <version>1.3.0</version>
 </dependency>
 ```
 ```groovy
 // in Gradle project
 dependencies {
-    compile 'org.jetbrains.xodus:xodus-openAPI:1.2.3'
+    compile 'org.jetbrains.xodus:xodus-openAPI:1.3.0'
 }
 ```
 Read more about [managing dependencies](https://github.com/JetBrains/xodus/wiki/Managing-Dependencies).
@@ -43,53 +43,46 @@ There are three different ways to deal with data, which results in three differe
  
 ### Environments
 
-Add dependency on `org.jetbrains.xodus:xodus-environment:1.2.3`.
+Add dependency on `org.jetbrains.xodus:xodus-environment:1.3.0`.
 
 ```java
-final Environment env = Environments.newInstance("/home/me/.myAppData");
-env.executeInTransaction(new TransactionalExecutable() {
-    @Override
-    public void execute(@NotNull final Transaction txn) {
+try (Environment env = Environments.newInstance("/home/me/.myAppData")) {
+    env.executeInTransaction(txn -> {
         final Store store = env.openStore("Messages", StoreConfig.WITHOUT_DUPLICATES, txn);
         store.put(txn, StringBinding.stringToEntry("Hello"), StringBinding.stringToEntry("World!"));
-    }
-});
-env.close();
+    });
+}
 ```
 ### Entity Stores
 
-Add dependency on `org.jetbrains.xodus:xodus-entity-store:1.2.3`.
+Add dependency on `org.jetbrains.xodus:xodus-entity-store:1.3.0`.
 
 ```java
-final PersistentEntityStore entityStore = PersistentEntityStores.newInstance("/home/me/.myAppData");
-entityStore.executeInTransaction(new StoreTransactionalExecutable() {
-    @Override
-    public void execute(@NotNull final StoreTransaction txn) {
+try (PersistentEntityStore entityStore = PersistentEntityStores.newInstance("/home/me/.myAppData") {
+    entityStore.executeInTransaction(txn -> {
         final Entity message = txn.newEntity("Message");
         message.setProperty("hello", "World!");
-    }
-});
-entityStore.close();
+    });
+}
 ```
 ### Virtual File Systems
 
-Add dependency on `org.jetbrains.xodus:xodus-vfs:1.2.3`.
+Add dependency on `org.jetbrains.xodus:xodus-vfs:1.3.0`.
 
 ```java
-final Environment env = Environments.newInstance("/home/me/.myAppData");
-final VirtualFileSystem vfs = new VirtualFileSystem(env);
-env.executeInTransaction(new TransactionalExecutable() {
-    @Override
-    public void execute(@NotNull final Transaction txn) {
+try (Environment env = Environments.newInstance("/home/me/.myAppData")) {
+    final VirtualFileSystem vfs = new VirtualFileSystem(env);
+    env.executeInTransaction(txn -> {
         final File file = vfs.createFile(txn, "Messages");
         try (DataOutputStream output = new DataOutputStream(vfs.writeFile(txn, file))) {
             output.writeUTF("Hello ");
             output.writeUTF("World!");
+        } catch (IOException e) {
+            throw new ExodusException(e);
         }
-    }
-});
-vfs.shutdown();
-env.close(); 
+    });
+    vfs.shutdown();
+}
 ```
 
 ## Building from Source
