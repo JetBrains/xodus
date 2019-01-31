@@ -193,7 +193,7 @@ public class EntityIdArrayCachedInstanceIterableFactory {
                     if (range < Integer.MAX_VALUE
                         && range <= ((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length)) {
                         final SortedEntityIdSet set = new ImmutableSingleTypeEntityIdBitSet(
-                            typeId, localIds.getInstantArray(), length
+                            typeId, min, max, localIds.getInstantArray(), length
                         );
                         // if there are no duplicates in localIds
                         if (set.count() == length) {
@@ -222,10 +222,11 @@ public class EntityIdArrayCachedInstanceIterableFactory {
         if (length > 1) {
             final long min = localIds[0];
             if (min >= 0) {
-                final long range = localIds[length - 1] - min + 1;
+                final long max = localIds[length - 1];
+                final long range = max - min + 1;
                 if (range < Integer.MAX_VALUE
                     && range <= ((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length)) {
-                    return new ImmutableSingleTypeEntityIdBitSet(typeId, localIds, length);
+                    return new ImmutableSingleTypeEntityIdBitSet(typeId, min, max, localIds, length);
                 }
             }
         }

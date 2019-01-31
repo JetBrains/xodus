@@ -36,17 +36,24 @@ public class ImmutableSingleTypeEntityIdBitSet implements SortedEntityIdSet {
     private final long max;
     private final BitSet data;
 
+    @Deprecated
     public ImmutableSingleTypeEntityIdBitSet(final int singleTypeId, final long[] source) {
         this(singleTypeId, source, source.length);
     }
 
+    @Deprecated
     public ImmutableSingleTypeEntityIdBitSet(final int singleTypeId, final long[] source, int length) {
+        this(singleTypeId, source[0], source[length - 1], source, length);
+    }
+
+    // source can be unsorted, but bit set will obviously appear sorted anyway
+    public ImmutableSingleTypeEntityIdBitSet(final int singleTypeId, long min, long max, final long[] source, int length) {
         if (length > source.length) {
             throw new IllegalArgumentException();
         }
         this.singleTypeId = singleTypeId;
-        min = source[0];
-        max = source[length - 1];
+        this.min = min;
+        this.max = max;
         final long bitsCount = max - min + 1;
         if (min < 0 || bitsCount >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException();

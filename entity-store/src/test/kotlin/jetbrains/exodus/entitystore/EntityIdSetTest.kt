@@ -82,7 +82,7 @@ class EntityIdSetTest : EntityStoreTestBase() {
     private fun checkSet(vararg data: Long) {
         Arrays.sort(data)
         val typeId = 7
-        val set = ImmutableSingleTypeEntityIdBitSet(typeId, data)
+        val set = ImmutableSingleTypeEntityIdBitSet(typeId, data[0], data[data.size - 1], data, data.size)
         assertEquals(data.size, set.count())
         var prevValue = data[0] - 20
         for (i in data.indices) {

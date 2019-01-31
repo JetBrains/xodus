@@ -64,7 +64,6 @@ public class SingleTypeUnsortedEntityIdArrayCachedInstanceIterable extends Cache
 
     @Override
     protected CachedInstanceIterable orderById() {
-        Arrays.sort(localIds);
         if (typeId != NULL_TYPE_ID) {
             final int length = localIds.length;
             if (length > 1) {
@@ -73,7 +72,7 @@ public class SingleTypeUnsortedEntityIdArrayCachedInstanceIterable extends Cache
                     if (range < Integer.MAX_VALUE
                         && range <= ((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length)) {
                         final SortedEntityIdSet set = new ImmutableSingleTypeEntityIdBitSet(
-                            typeId, localIds, length
+                            typeId, min, max, localIds, length
                         );
                         // if there are no duplicates in localIds
                         if (set.count() == length) {
@@ -83,6 +82,7 @@ public class SingleTypeUnsortedEntityIdArrayCachedInstanceIterable extends Cache
                 }
             }
         }
+        Arrays.sort(localIds);
         return new SingleTypeSortedEntityIdArrayCachedInstanceIterable(txnGetter.getTxn(this), getSource(), typeId, localIds, idSet);
     }
 

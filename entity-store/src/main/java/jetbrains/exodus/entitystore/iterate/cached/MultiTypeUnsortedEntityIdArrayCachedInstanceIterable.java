@@ -43,7 +43,7 @@ public class MultiTypeUnsortedEntityIdArrayCachedInstanceIterable extends Cached
 
     @Override
     protected CachedInstanceIterable orderById() {
-        return this;
+        throw new UnsupportedOperationException();
     }
 
     @Override
