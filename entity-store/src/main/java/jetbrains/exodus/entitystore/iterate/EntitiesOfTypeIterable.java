@@ -88,7 +88,7 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
             @NotNull
             public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
                 final EntityIdSet idSet = source.toSet(txn);
-                final EntitiesWithCertainLinkIterable.LinksIteratorWithTarget it = (EntitiesWithCertainLinkIterable.LinksIteratorWithTarget) entitiesWithLink.iterator();
+                final LinksIteratorWithTarget it = (LinksIteratorWithTarget) entitiesWithLink.iterator();
                 final EntityIteratorBase result = new EntityIteratorBase(EntitiesOfTypeIterable.this) {
 
                     @NotNull
@@ -114,7 +114,7 @@ public class EntitiesOfTypeIterable extends EntityIterableBase {
                     private EntityId nextAvailableId() {
                         while (it.hasNext()) {
                             final EntityId next = it.nextId();
-                            if (!distinctIds.contains(next) && idSet.contains(it.getTarget())) {
+                            if (!distinctIds.contains(next) && idSet.contains(it.getTargetId())) {
                                 return next;
                             }
                         }
