@@ -113,7 +113,7 @@ open class EntitiesOfTypeIterable(txn: PersistentStoreTransaction, private val e
 
     override fun getHandleImpl() = EntitiesOfTypeIterableHandle(this)
 
-    override fun createCachedInstance(txn: PersistentStoreTransaction) =
+    override fun createCachedInstance(txn: PersistentStoreTransaction): CachedInstanceIterable =
             UpdatableEntityIdSortedSetCachedInstanceIterable(txn, this)
 
     override fun countImpl(txn: PersistentStoreTransaction) =
