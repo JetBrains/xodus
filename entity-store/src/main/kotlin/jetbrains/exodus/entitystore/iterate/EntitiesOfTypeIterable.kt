@@ -44,6 +44,8 @@ open class EntitiesOfTypeIterable(txn: PersistentStoreTransaction, private val e
 
             override fun isSortedById() = entitiesWithLink.isSortedById
 
+            override fun canBeReordered() = true
+
             override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
                 val idSet = filter.toSet(txn)
                 val it = entitiesWithLink.iterator() as LinksIteratorWithTarget
