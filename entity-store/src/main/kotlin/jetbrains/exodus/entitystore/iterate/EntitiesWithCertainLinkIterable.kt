@@ -56,17 +56,11 @@ internal class EntitiesWithCertainLinkIterable(txn: PersistentStoreTransaction,
 
             override fun getEntityTypeId() = this@EntitiesWithCertainLinkIterable.entityTypeId
 
-            override fun isMatchedLinkAdded(source: EntityId,
-                                            target: EntityId,
-                                            linkId: Int): Boolean {
-                return entityTypeId == source.typeId
-            }
+            override fun isMatchedLinkAdded(source: EntityId, target: EntityId, linkId: Int) =
+                    entityTypeId == source.typeId && this@EntitiesWithCertainLinkIterable.linkId == linkId
 
-            override fun isMatchedLinkDeleted(source: EntityId,
-                                              target: EntityId,
-                                              linkId: Int): Boolean {
-                return isMatchedLinkAdded(source, target, linkId)
-            }
+            override fun isMatchedLinkDeleted(source: EntityId, target: EntityId, linkId: Int) =
+                    isMatchedLinkAdded(source, target, linkId)
         }
     }
 
