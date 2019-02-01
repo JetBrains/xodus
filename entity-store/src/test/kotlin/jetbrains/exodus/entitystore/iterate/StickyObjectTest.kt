@@ -115,19 +115,16 @@ class StickyObjectTest : EntityStoreTestBase() {
 
     fun makeIterable(txn: PersistentStoreTransaction): EntitiesOfTypeIterable {
         return object : EntitiesOfTypeIterable(txn, txn.store.getEntityTypeId(txn, "Issue", true)) {
-            override fun createCachedInstance(txn: PersistentStoreTransaction): CachedInstanceIterable {
-                throw IllegalStateException("Must be created as sticky object")
-            }
+            override fun createCachedInstance(txn: PersistentStoreTransaction) =
+                    throw IllegalStateException("Must be created as sticky object")
 
-            override fun getHandleImpl(): EntityIterableHandle {
-                return object : EntitiesOfTypeIterableHandle(this) {
-                    override fun isSticky() = true
+            override fun getHandleImpl() = object : EntitiesOfTypeIterableHandle(this) {
+                override fun isSticky() = true
 
-                    override fun onEntityAdded(handleChecker: EntityAddedOrDeletedHandleChecker): Boolean {
-                        PersistentStoreTransaction.getUpdatable(handleChecker, this,
-                                UpdatableEntityIdSortedSetCachedInstanceIterable::class.java).addEntity(handleChecker.id)
-                        return true
-                    }
+                override fun onEntityAdded(handleChecker: EntityAddedOrDeletedHandleChecker): Boolean {
+                    PersistentStoreTransaction.getUpdatable(handleChecker, this,
+                            UpdatableEntityIdSortedSetCachedInstanceIterable::class.java).addEntity(handleChecker.id)
+                    return true
                 }
             }
         }
