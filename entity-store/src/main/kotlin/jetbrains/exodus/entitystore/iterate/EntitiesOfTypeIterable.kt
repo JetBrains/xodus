@@ -17,7 +17,6 @@ package jetbrains.exodus.entitystore.iterate
 
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.entitystore.*
-import jetbrains.exodus.entitystore.util.EntityIdSetFactory
 import jetbrains.exodus.env.Cursor
 
 /**
@@ -38,77 +37,7 @@ open class EntitiesOfTypeIterable(txn: PersistentStoreTransaction, private val e
         if (linkId < 0) {
             return EntityIterableBase.EMPTY
         }
-        val filter = (entities as EntityIterableBase).source
-        val entitiesWithLink = EntitiesWithCertainLinkIterable(txn, entityTypeId, linkId)
-        return object : EntityIterableBase(txn) {
-
-            override fun isSortedById() = entitiesWithLink.isSortedById
-
-            override fun canBeReordered() = true
-
-            override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
-                val idSet = filter.toSet(txn)
-                val it = entitiesWithLink.iterator() as LinksIteratorWithTarget
-                return object : EntityIteratorBase(this@EntitiesOfTypeIterable) {
-
-                    private var distinctIds = EntityIdSetFactory.newSet()
-                    private var id = nextAvailableId()
-
-                    override fun hasNextImpl() = id != null
-
-                    override fun nextIdImpl(): EntityId? {
-                        val result = id
-                        distinctIds = distinctIds.add(result)
-                        id = nextAvailableId()
-                        return result
-                    }
-
-                    private fun nextAvailableId(): EntityId? {
-                        while (it.hasNext()) {
-                            val next = it.nextId()
-                            if (!distinctIds.contains(next) && idSet.contains(it.targetId)) {
-                                return next
-                            }
-                        }
-                        return null
-                    }
-                }.apply {
-                    it.cursor?.let {
-                        cursor = it
-                    }
-                }
-            }
-
-            override fun getHandleImpl(): EntityIterableHandle {
-                return object : EntityIterableHandleDecorator(store, EntityIterableType.FILTER_LINKS, entitiesWithLink.handle) {
-
-                    private val linkIds = mergeFieldIds(intArrayOf(linkId), filter.handle.linkIds)
-
-                    override fun getLinkIds() = linkIds
-
-                    override fun toString(builder: StringBuilder) {
-                        super.toString(builder)
-                        applyDecoratedToBuilder(builder)
-                        builder.append('-')
-                        (filter.handle as EntityIterableHandleBase).toString(builder)
-                    }
-
-                    override fun hashCode(hash: EntityIterableHandleBase.EntityIterableHandleHash) {
-                        super.hashCode(hash)
-                        hash.applyDelimiter()
-                        hash.apply(filter.handle)
-                    }
-
-                    override fun isMatchedLinkAdded(source: EntityId, target: EntityId, linkId: Int) =
-                            decorated.isMatchedLinkAdded(source, target, linkId) ||
-                                    entities.handle.isMatchedLinkAdded(source, target, linkId)
-
-                    override fun isMatchedLinkDeleted(source: EntityId, target: EntityId, id: Int) =
-                            decorated.isMatchedLinkDeleted(source, target, id) ||
-                                    entities.handle.isMatchedLinkDeleted(source, target, id)
-                }
-            }
-        }
+        return FilterEntitiesWithCertainLinkIterable(txn, entityTypeId, linkId, entities as EntityIterableBase)
     }
 
     override fun isEmptyImpl(txn: PersistentStoreTransaction) = countImpl(txn) == 0L
