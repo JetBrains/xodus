@@ -26,14 +26,14 @@ import jetbrains.exodus.util.LightOutputStream
 class FilterLinksIterable(txn: PersistentStoreTransaction,
                           private val linkId: Int,
                           source: EntityIterableBase,
-                          entities: EntityIterable) : EntityIterableDecoratorBase(txn, source) {
+                          filter: EntityIterable) : EntityIterableDecoratorBase(txn, source) {
 
-    private val entities: EntityIterableBase = (entities as EntityIterableBase).source
+    private val filter: EntityIterableBase = (filter as EntityIterableBase).source
 
     override fun intersect(right: EntityIterable): EntityIterable {
         if (right is FilterLinksIterable) {
             if (linkId == right.linkId && source === right.source) {
-                return FilterLinksIterable(transaction, linkId, source, entities.intersect(right.entities))
+                return FilterLinksIterable(transaction, linkId, source, filter.intersect(right.filter))
             }
         }
         return super.intersect(right)
@@ -42,7 +42,7 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
     override fun union(right: EntityIterable): EntityIterable {
         if (right is FilterLinksIterable) {
             if (linkId == right.linkId && source === right.source) {
-                return FilterLinksIterable(transaction, linkId, source, entities.union(right.entities))
+                return FilterLinksIterable(transaction, linkId, source, filter.union(right.filter))
             }
         }
         return super.union(right)
@@ -55,7 +55,7 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
             private val usedCursors = IntHashMap<Cursor>(6, 2f)
             private val auxStream = LightOutputStream()
             private val auxArray = IntArray(8)
-            private val idSet by lazy { entities.toSet(txn) }
+            private val idSet by lazy { filter.toSet(txn) }
             private var nextId: EntityId? = PersistentEntityId.EMPTY_ID
 
             override fun hasNextImpl(): Boolean {
@@ -109,7 +109,7 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
 
     override fun getHandleImpl(): EntityIterableHandle {
         return object : EntityIterableHandleDecorator(store, EntityIterableType.FILTER_LINKS, source.handle) {
-            private val linkIds = mergeFieldIds(intArrayOf(linkId), mergeFieldIds(decorated.linkIds, entities.handle.linkIds))
+            private val linkIds = mergeFieldIds(intArrayOf(linkId), mergeFieldIds(decorated.linkIds, filter.handle.linkIds))
 
             override fun getLinkIds() = linkIds
 
@@ -119,7 +119,7 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
                 builder.append('-')
                 applyDecoratedToBuilder(builder)
                 builder.append('-')
-                (entities.handle as EntityIterableHandleBase).toString(builder)
+                (filter.handle as EntityIterableHandleBase).toString(builder)
             }
 
             override fun hashCode(hash: EntityIterableHandleBase.EntityIterableHandleHash) {
@@ -127,19 +127,19 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
                 hash.applyDelimiter()
                 super.hashCode(hash)
                 hash.applyDelimiter()
-                hash.apply(entities.handle)
+                hash.apply(filter.handle)
             }
 
             override fun isMatchedLinkAdded(source: EntityId, target: EntityId, linkId: Int): Boolean {
                 return linkId == this@FilterLinksIterable.linkId ||
                         decorated.isMatchedLinkAdded(source, target, linkId) ||
-                        entities.handle.isMatchedLinkAdded(source, target, linkId)
+                        filter.handle.isMatchedLinkAdded(source, target, linkId)
             }
 
             override fun isMatchedLinkDeleted(source: EntityId, target: EntityId, linkId: Int): Boolean {
                 return linkId == this@FilterLinksIterable.linkId ||
                         decorated.isMatchedLinkDeleted(source, target, linkId) ||
-                        entities.handle.isMatchedLinkDeleted(source, target, linkId)
+                        filter.handle.isMatchedLinkDeleted(source, target, linkId)
             }
         }
     }
