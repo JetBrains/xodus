@@ -28,7 +28,7 @@ import java.util.*
  */
 internal class EntitiesWithCertainLinkIterable(txn: PersistentStoreTransaction,
                                                private val entityTypeId: Int,
-                                               private val linkId: Int) : EntityIterableBase(txn) {
+                                               internal val linkId: Int) : EntityIterableBase(txn) {
 
     override fun getEntityTypeId() = entityTypeId
 

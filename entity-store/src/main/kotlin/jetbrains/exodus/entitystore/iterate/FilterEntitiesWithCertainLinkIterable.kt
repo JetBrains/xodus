@@ -19,14 +19,36 @@ import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.util.EntityIdSetFactory
 
 internal class FilterEntitiesWithCertainLinkIterable(txn: PersistentStoreTransaction,
-                                                     private val entityTypeId: Int,
-                                                     private val linkId: Int,
+                                                     private val entitiesWithLink: EntitiesWithCertainLinkIterable,
                                                      filter: EntityIterableBase) : EntityIterableBase(txn) {
 
-    private val entitiesWithLink = EntitiesWithCertainLinkIterable(txn, entityTypeId, linkId)
     private val filter: EntityIterableBase = filter.source
 
-    override fun getEntityTypeId() = entityTypeId
+    val linkId: Int get() = entitiesWithLink.linkId
+
+    override fun intersect(right: EntityIterable): EntityIterable {
+        if (right is FilterEntitiesWithCertainLinkIterable) {
+            if ((entitiesWithLink === right.entitiesWithLink) ||
+                    (linkId == right.linkId && entityTypeId == right.entityTypeId)) {
+                return FilterEntitiesWithCertainLinkIterable(
+                        transaction, entitiesWithLink, filter.intersect(right.filter) as EntityIterableBase)
+            }
+        }
+        return super.intersect(right)
+    }
+
+    override fun union(right: EntityIterable): EntityIterable {
+        if (right is FilterEntitiesWithCertainLinkIterable) {
+            if ((entitiesWithLink === right.entitiesWithLink) ||
+                    (linkId == right.linkId && entityTypeId == right.entityTypeId)) {
+                return FilterEntitiesWithCertainLinkIterable(
+                        transaction, entitiesWithLink, filter.union(right.filter) as EntityIterableBase)
+            }
+        }
+        return super.union(right)
+    }
+
+    override fun getEntityTypeId() = entitiesWithLink.entityTypeId
 
     override fun isSortedById() = entitiesWithLink.isSortedById
 

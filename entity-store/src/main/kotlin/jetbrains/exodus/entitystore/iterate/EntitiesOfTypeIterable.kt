@@ -37,7 +37,8 @@ open class EntitiesOfTypeIterable(txn: PersistentStoreTransaction, private val e
         if (linkId < 0) {
             return EntityIterableBase.EMPTY
         }
-        return FilterEntitiesWithCertainLinkIterable(txn, entityTypeId, linkId, entities as EntityIterableBase)
+        return FilterEntitiesWithCertainLinkIterable(
+                txn, EntitiesWithCertainLinkIterable(txn, entityTypeId, linkId), entities as EntityIterableBase)
     }
 
     override fun isEmptyImpl(txn: PersistentStoreTransaction) = countImpl(txn) == 0L
