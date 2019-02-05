@@ -61,6 +61,11 @@ public final class PropertyValueIterable extends PropertyRangeOrValueIterableBas
     }
 
     @Override
+    public boolean canBeCached() {
+        return value instanceof Boolean || super.canBeCached();
+    }
+
+    @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
         final EntityIterableBase it = getPropertyValueIndex();
