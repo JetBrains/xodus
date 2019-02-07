@@ -25,8 +25,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.PrintStream;
 
-/**
- */
 class BottomPageMutable extends BasePageMutable {
 
     BottomPageMutable(BTreeMutable tree, BottomPage page) {
@@ -36,7 +34,8 @@ class BottomPageMutable extends BasePageMutable {
     private BottomPageMutable(BottomPageMutable page, int from, int length) {
         super((BTreeMutable) page.getTree());
 
-        final int max = Math.max(length, getBalancePolicy().getPageMaxSize());
+        final BTreeBalancePolicy bp = getBalancePolicy();
+        final int max = ((BTreeMutable) tree).isDup() ? bp.getDupPageMaxSize() : bp.getPageMaxSize();
         keys = new BaseLeafNodeMutable[max];
         keysAddresses = new long[max];
 

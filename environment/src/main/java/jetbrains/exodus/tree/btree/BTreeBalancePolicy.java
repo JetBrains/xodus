@@ -19,16 +19,26 @@ import org.jetbrains.annotations.NotNull;
 
 public class BTreeBalancePolicy {
 
-    public static BTreeBalancePolicy DEFAULT = new BTreeBalancePolicy(256);
+    public static BTreeBalancePolicy DEFAULT = new BTreeBalancePolicy(128, 32);
 
     private final int maxSize;
+    private final int maxDupSize;
 
     public BTreeBalancePolicy(int maxSize) {
+        this(maxSize, maxSize);
+    }
+
+    public BTreeBalancePolicy(int maxSize, int maxDupSize) {
         this.maxSize = maxSize;
+        this.maxDupSize = maxDupSize;
     }
 
     public int getPageMaxSize() {
         return maxSize;
+    }
+
+    public int getDupPageMaxSize() {
+        return maxDupSize;
     }
 
     /**
@@ -36,7 +46,7 @@ public class BTreeBalancePolicy {
      * @return true if specified page has to be split before inserting new item.
      */
     public boolean needSplit(@NotNull final BasePage page) {
-        return page.getSize() >= getPageMaxSize();
+        return page.getSize() >= (isDupTree(page) ? getDupPageMaxSize() : getPageMaxSize());
     }
 
     /**
@@ -60,6 +70,11 @@ public class BTreeBalancePolicy {
     public boolean needMerge(@NotNull final BasePage left, @NotNull final BasePage right) {
         final int leftSize = left.getSize();
         final int rightSize = right.getSize();
-        return leftSize == 0 || rightSize == 0 || leftSize + rightSize <= ((getPageMaxSize() * 7) >> 3);
+        return leftSize == 0 || rightSize == 0 ||
+            leftSize + rightSize <= (((isDupTree(left) ? getDupPageMaxSize() : getPageMaxSize()) * 7) >> 3);
+    }
+
+    private static boolean isDupTree(@NotNull final BasePage page) {
+        return ((BTreeMutable) page.tree).isDup();
     }
 }

@@ -40,7 +40,8 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
     protected BasePageMutable(BTreeMutable tree, BasePageImmutable page) {
         super(tree);
         size = page.size;
-        createChildren(Math.max(page.size, getBalancePolicy().getPageMaxSize()));
+        final BTreeBalancePolicy bp = getBalancePolicy();
+        createChildren(Math.max(page.size, tree.isDup() ? bp.getDupPageMaxSize() : bp.getPageMaxSize()));
         if (size > 0) {
             load(page.getDataIterator(), page.keyAddressLen);
         }

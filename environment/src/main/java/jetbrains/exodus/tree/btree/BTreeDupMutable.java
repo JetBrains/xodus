@@ -18,6 +18,7 @@ package jetbrains.exodus.tree.btree;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.CompoundByteIterable;
 import jetbrains.exodus.log.*;
+import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 
 final class BTreeDupMutable extends BTreeMutable {
@@ -96,7 +97,7 @@ final class BTreeDupMutable extends BTreeMutable {
         }
         sizeIterable = CompressedUnsignedLongByteIterable.getIterable((size << 1) + 1);
         final ByteIterable offsetIterable =
-                CompressedUnsignedLongByteIterable.getIterable(log.getWrittenHighAddress() - startAddress);
+            CompressedUnsignedLongByteIterable.getIterable(log.getWrittenHighAddress() - startAddress);
         iterables = new ByteIterable[]{keyIterable, key, sizeIterable, offsetIterable, rootDataIterable};
         final ByteIterable data = new CompoundByteIterable(iterables);
         result = canRetry ? log.tryWrite(type, structureId, data) : log.writeContinuously(type, structureId, data);
@@ -117,6 +118,11 @@ final class BTreeDupMutable extends BTreeMutable {
     }
 
     @Override
+    LightOutputStream getLeafStream() {
+        return mainTree.getLeafStream();
+    }
+
+    @Override
     protected byte getBottomPageType() {
         return DUP_BOTTOM;
     }
@@ -129,6 +135,11 @@ final class BTreeDupMutable extends BTreeMutable {
     @Override
     protected byte getLeafType() {
         return DUP_LEAF;
+    }
+
+    @Override
+    protected boolean isDup() {
+        return true;
     }
 
     @Override

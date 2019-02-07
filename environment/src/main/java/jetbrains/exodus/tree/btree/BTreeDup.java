@@ -33,6 +33,7 @@ final class BTreeDup extends BTreeBase {
 
     BTreeDup(@NotNull BTreeBase mainTree, @NotNull LeafNodeDup leafNodeDup) {
         super(mainTree.getLog(), mainTree.getBalancePolicy(), false, mainTree.getStructureId());
+        dataIterator = mainTree.getDataIterator(Loggable.NULL_ADDRESS);
         this.leafNodeDup = leafNodeDup;
         leafNodeDupKey = leafNodeDup.getKey();
         final ByteIterator iterator = leafNodeDup.getRawValue(0).iterator();
@@ -42,7 +43,7 @@ final class BTreeDup extends BTreeBase {
             long offset = CompressedUnsignedLongByteIterable.getLong(iterator);
             startAddress = leafNodeDup.getAddress() - offset;
             dataOffset = CompressedUnsignedLongByteIterable.getCompressedSize(l)
-                    + CompressedUnsignedLongByteIterable.getCompressedSize(offset);
+                + CompressedUnsignedLongByteIterable.getCompressedSize(offset);
         } else {
             startAddress = Loggable.NULL_ADDRESS;
             dataOffset = CompressedUnsignedLongByteIterable.getCompressedSize(l);

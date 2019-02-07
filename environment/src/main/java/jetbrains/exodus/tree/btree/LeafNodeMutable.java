@@ -62,7 +62,6 @@ class LeafNodeMutable extends BaseLeafNodeMutable {
         final int keyLength = key.getLength();
         final BTreeMutable mutableTree = (BTreeMutable) tree;
         final LightOutputStream output = mutableTree.getLeafStream();
-        output.clear();
         CompressedUnsignedLongByteIterable.fillBytes(keyLength, output);
         ByteIterableBase.fillBytes(key, output);
         ByteIterableBase.fillBytes(value, output);

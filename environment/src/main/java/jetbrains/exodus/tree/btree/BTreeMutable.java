@@ -42,12 +42,11 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     private Set<ITreeCursorMutable> openCursors = null;
     @NotNull
     private final BTreeBase immutableTree;
-    private final LightOutputStream leafStream;
+    private LightOutputStream leafStream = null;
 
     BTreeMutable(@NotNull final BTreeBase tree) {
         super(tree.log, tree.balancePolicy, tree.allowsDuplicates, tree.structureId);
         immutableTree = tree;
-        leafStream = new LightOutputStream(16);
         root = tree.getRoot().getMutableCopy(this);
         size = tree.getSize();
     }
@@ -84,6 +83,12 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     @NotNull
     public BTreeMutable getMutableCopy() {
         return this;
+    }
+
+    @NotNull
+    @Override
+    public DataIterator getDataIterator(long address) {
+        return immutableTree.getDataIterator(address);
     }
 
     @Override
@@ -156,6 +161,11 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     }
 
     LightOutputStream getLeafStream() {
+        if (leafStream == null) {
+            leafStream = new LightOutputStream(16);
+        } else {
+            leafStream.clear();
+        }
         return leafStream;
     }
 
@@ -273,6 +283,10 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
 
     protected byte getLeafType() {
         return LEAF;
+    }
+
+    protected boolean isDup() {
+        return false;
     }
 
     @NotNull

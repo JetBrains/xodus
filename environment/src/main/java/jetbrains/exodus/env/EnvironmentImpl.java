@@ -506,7 +506,7 @@ public class EnvironmentImpl implements Environment {
     public BTreeBalancePolicy getBTreeBalancePolicy() {
         // we don't care of possible race condition here
         if (balancePolicy == null) {
-            balancePolicy = new BTreeBalancePolicy(ec.getTreeMaxPageSize());
+            balancePolicy = new BTreeBalancePolicy(ec.getTreeMaxPageSize(), ec.getTreeDupMaxPageSize());
         }
         return balancePolicy;
     }
@@ -1117,6 +1117,8 @@ public class EnvironmentImpl implements Environment {
             } else if (key.equals(EnvironmentConfig.GC_UTILIZATION_FROM_FILE)) {
                 gc.getUtilizationProfile().loadUtilizationFromFile((String) value);
             } else if (key.equals(EnvironmentConfig.TREE_MAX_PAGE_SIZE)) {
+                balancePolicy = null;
+            } else if (key.equals(EnvironmentConfig.TREE_DUP_MAX_PAGE_SIZE)) {
                 balancePolicy = null;
             } else if (key.equals(EnvironmentConfig.LOG_CACHE_READ_AHEAD_MULTIPLE)) {
                 log.getConfig().setCacheReadAheadMultiple(ec.getLogCacheReadAheadMultiple());

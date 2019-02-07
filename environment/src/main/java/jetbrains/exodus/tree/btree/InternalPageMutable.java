@@ -25,8 +25,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.PrintStream;
 
-/**
- */
 public class InternalPageMutable extends BasePageMutable {
     protected BasePageMutable[] children;
     protected long[] childrenAddresses;
@@ -38,7 +36,8 @@ public class InternalPageMutable extends BasePageMutable {
     private InternalPageMutable(InternalPageMutable page, int from, int length) {
         super((BTreeMutable) page.getTree());
 
-        createChildren(Math.max(length, getBalancePolicy().getPageMaxSize()));
+        final BTreeBalancePolicy bp = getBalancePolicy();
+        createChildren(Math.max(length, ((BTreeMutable) tree).isDup() ? bp.getDupPageMaxSize() : bp.getPageMaxSize()));
 
         System.arraycopy(page.keys, from, keys, 0, length);
         System.arraycopy(page.keysAddresses, from, keysAddresses, 0, length);
@@ -51,7 +50,8 @@ public class InternalPageMutable extends BasePageMutable {
     InternalPageMutable(BTreeMutable tree, BasePageMutable page1, BasePageMutable page2) {
         super(tree);
 
-        createChildren(getBalancePolicy().getPageMaxSize());
+        final BTreeBalancePolicy bp = getBalancePolicy();
+        createChildren(tree.isDup() ? bp.getDupPageMaxSize() : bp.getPageMaxSize());
         set(0, page1.getMinKey(), page1);
         set(1, page2.getMinKey(), page2);
         size = 2;
