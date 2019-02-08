@@ -201,7 +201,7 @@ public abstract class ByteIterableBase implements ByteIterable {
             bytes = SINGLE_BYTES[firstByte & 0xff];
             length = 1;
         } else {
-            final LightOutputStream output = new LightOutputStream();
+            final LightOutputStream output = new LightOutputStream(4);
             output.write(firstByte);
             fillBytes(it, output);
             bytes = output.getBufferBytes();

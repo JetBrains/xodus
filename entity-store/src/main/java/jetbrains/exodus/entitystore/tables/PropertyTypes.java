@@ -105,7 +105,7 @@ public final class PropertyTypes {
     }
 
     public static ArrayByteIterable propertyValueToEntry(@NotNull final PropertyValue object) {
-        final LightOutputStream output = new LightOutputStream();
+        final LightOutputStream output = new LightOutputStream(5);
         writePropertyValue(output, object);
         return output.asArrayByteIterable();
     }

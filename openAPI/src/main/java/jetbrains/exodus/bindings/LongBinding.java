@@ -114,7 +114,7 @@ public class LongBinding extends ComparableBinding {
         if (object < 0) {
             throw new IllegalArgumentException();
         }
-        final LightOutputStream output = new LightOutputStream(7);
+        final LightOutputStream output = new LightOutputStream(4);
         writeCompressed(output, object);
         return output.asArrayByteIterable();
     }
