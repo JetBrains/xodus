@@ -644,7 +644,7 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
             new Pair(ENV_GATHER_STATISTICS, true),
             new Pair(TREE_MAX_PAGE_SIZE, 128),
-            new Pair(TREE_DUP_MAX_PAGE_SIZE, 16),
+            new Pair(TREE_DUP_MAX_PAGE_SIZE, 128),
             new Pair(GC_ENABLED, true),
             new Pair(GC_START_IN, 10000),
             new Pair(GC_MIN_UTILIZATION, 50),
