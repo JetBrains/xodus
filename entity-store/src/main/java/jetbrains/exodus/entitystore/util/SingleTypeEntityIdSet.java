@@ -108,6 +108,11 @@ class SingleTypeEntityIdSet implements EntityIdSet {
     }
 
     @Override
+    public boolean isEmpty() {
+        return !holdsNull && singleTypeLocalIds.isEmpty();
+    }
+
+    @Override
     public Iterator<EntityId> iterator() {
         return new Iterator<EntityId>() {
             @NotNull

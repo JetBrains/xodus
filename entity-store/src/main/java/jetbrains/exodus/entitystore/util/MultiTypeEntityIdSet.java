@@ -98,6 +98,19 @@ class MultiTypeEntityIdSet implements EntityIdSet {
     }
 
     @Override
+    public boolean isEmpty() {
+        if (holdsNull) {
+            return false;
+        }
+        for (final LongSet longSet : set.values()) {
+            if (!longSet.isEmpty()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
     public Iterator<EntityId> iterator() {
         final Iterator<Map.Entry<Integer, LongSet>> entries = set.entrySet().iterator();
         return new Iterator<EntityId>() {

@@ -73,6 +73,11 @@ class EmptyEntityIdSet implements EntityIdSet {
     }
 
     @Override
+    public boolean isEmpty() {
+        return true;
+    }
+
+    @Override
     public Iterator<EntityId> iterator() {
         return NOTHING.iterator();
     }

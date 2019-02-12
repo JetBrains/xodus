@@ -175,6 +175,11 @@ public class ImmutableSingleTypeEntityIdBitSet implements SortedEntityIdSet {
         return LongSet.EMPTY;
     }
 
+    @Override
+    public boolean isEmpty() {
+        return data.isEmpty();
+    }
+
     class IdIterator implements Iterator<EntityId> {
         int nextBitIndex = data.nextSetBit(0);
 

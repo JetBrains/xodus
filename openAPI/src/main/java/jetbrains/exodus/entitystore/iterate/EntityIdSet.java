@@ -36,4 +36,6 @@ public interface EntityIdSet extends EntityIdCollection {
 
     @NotNull
     LongSet getTypeSetSnapshot(int typeId);
+
+    boolean isEmpty();
 }
