@@ -32,6 +32,7 @@ import jetbrains.exodus.tree.btree.BTreeBase;
 import jetbrains.exodus.util.IOUtil;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -579,8 +580,6 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             public void execute(@NotNull final Transaction txn) {
                 store.put(txn, IntegerBinding.intToEntry(0), StringBinding.stringToEntry(Integer.toString(0)));
                 store.put(txn, IntegerBinding.intToEntry(1), StringBinding.stringToEntry(Integer.toString(1)));
-                for (int i = 0; i < 2; ++i) {
-                }
             }
         });
         env.executeInTransaction(new TransactionalExecutable() {
@@ -693,6 +692,49 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                 env.close();
             }
         }
+    }
+
+    @Ignore
+    @Test
+    @TestFor(issues = "XD-770")
+    public void alterBalancePolicy() {
+        final Store[] store = {openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES)};
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                for (int i = 0; i < 10000; i += 2) {
+                    store[0].put(txn, IntegerBinding.intToEntry(i), StringBinding.stringToEntry(Integer.toString(i)));
+                }
+            }
+        });
+        env.executeInReadonlyTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                for (int i = 0; i < 10000; i += 2) {
+                    Assert.assertEquals(StringBinding.stringToEntry(Integer.toString(i)), store[0].get(txn, IntegerBinding.intToEntry(i)));
+                }
+            }
+        });
+        final EnvironmentConfig config = env.getEnvironmentConfig();
+        config.setTreeMaxPageSize(config.getTreeMaxPageSize() / 4);
+        reopenEnvironment();
+        store[0] = openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES);
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                for (int i = 1; i < 10000; i += 2) {
+                    store[0].put(txn, IntegerBinding.intToEntry(i), StringBinding.stringToEntry(Integer.toString(i)));
+                }
+            }
+        });
+        env.executeInReadonlyTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                for (int i = 0; i < 10000; ++i) {
+                    Assert.assertEquals(StringBinding.stringToEntry(Integer.toString(i)), store[0].get(txn, IntegerBinding.intToEntry(i)));
+                }
+            }
+        });
     }
 
     private Pair<DataReader, DataWriter> createReaderWriter(String subfolder) throws IOException {
