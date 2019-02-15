@@ -76,8 +76,9 @@ public class ForkSupportIO implements IStreamer {
 
         final String classpath = join(getClasspath(getClass()), File.pathSeparator);
         final String[] commonJvmArgs = {javaFile.getPath(),
-                // "-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=7777",
-                "-cp", classpath
+            "-Xmx256m",
+            // "-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=7777",
+            "-cp", classpath
         };
 
         final List<String> trueArgs = new ArrayList<>();
