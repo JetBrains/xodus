@@ -57,7 +57,7 @@ class EnvironmentS3Test : EnvironmentTest(), ReplicatedLogTestMixin {
     }
 
     override fun createRW(): Pair<DataReader, DataWriter> {
-        return S3DataReaderWriterProvider(s3, s3Sync, extraHost).newReaderWriter("logfiles")
+        return S3DataReaderWriterProvider(extraHost).also { it.s3 = s3; it.s3Sync = s3Sync }.newReaderWriter("logfiles")
     }
 
     override fun tearDown() {

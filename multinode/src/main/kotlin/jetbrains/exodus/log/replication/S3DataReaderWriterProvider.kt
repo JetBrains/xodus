@@ -25,16 +25,17 @@ import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import software.amazon.awssdk.services.s3.S3Client
+import kotlin.reflect.KProperty
 
 class S3DataReaderWriterProvider @JvmOverloads constructor(
-        private val s3: S3AsyncClient,
-        private val s3Sync: S3Client,
         private val requestOverrideConfig: AwsRequestOverrideConfiguration? = null) : DataReaderWriterProvider() {
 
-    constructor() : this(
-            S3AsyncClient.builder().region(Region.EU_WEST_1).build(),
-            S3Client.builder().region(Region.EU_WEST_1).build()
-    ) // System.getProperty("exodus.s3.bucket.name")
+    var s3 by DefaultDelegate<S3AsyncClient> {
+        S3AsyncClient.builder().region(Region.EU_WEST_1).build()
+    }
+    var s3Sync by DefaultDelegate<S3Client> {
+        S3Client.builder().region(Region.EU_WEST_1).build()
+    }
 
     private var env: EnvironmentImpl? = null
 
@@ -46,5 +47,18 @@ class S3DataReaderWriterProvider @JvmOverloads constructor(
     override fun newReaderWriter(location: String): Pair<DataReader, DataWriter> {
         val writer = S3DataWriter(s3Sync, s3, location, requestOverrideConfig, env?.log)
         return Pair(S3DataReader(s3, location, requestOverrideConfig, writer), writer)
+    }
+}
+
+class DefaultDelegate<T>(private val getDefault: () -> T) {
+
+    private var value: T? = null
+
+    operator fun getValue(thisRef: Any?, property: KProperty<*>): T {
+        return value ?: getDefault().also { value = it }
+    }
+
+    operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
+        this.value = value
     }
 }
