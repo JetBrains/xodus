@@ -180,10 +180,10 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
             final BasePageMutable sibling = split(splitPos, size - splitPos);
             if (pos >= splitPos) {
                 // insert into right sibling
-                sibling.insertAt(pos - splitPos, key, child);
+                sibling.insertDirectly(pos - splitPos, key, child);
             } else {
                 // insert into self
-                insertAt(pos, key, child);
+                insertDirectly(pos, key, child);
             }
             return sibling;
         }

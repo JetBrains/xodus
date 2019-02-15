@@ -35,7 +35,8 @@ class BottomPageMutable extends BasePageMutable {
         super((BTreeMutable) page.getTree());
 
         final BTreeBalancePolicy bp = getBalancePolicy();
-        final int max = ((BTreeMutable) tree).isDup() ? bp.getDupPageMaxSize() : bp.getPageMaxSize();
+        final int max = Math.max((length & 0x7ffffffe) + 2 /* we should have at least one more place to insert a key */,
+            ((BTreeMutable) tree).isDup() ? bp.getDupPageMaxSize() : bp.getPageMaxSize());
         keys = new BaseLeafNodeMutable[max];
         keysAddresses = new long[max];
 

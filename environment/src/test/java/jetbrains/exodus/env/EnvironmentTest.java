@@ -32,7 +32,6 @@ import jetbrains.exodus.tree.btree.BTreeBase;
 import jetbrains.exodus.util.IOUtil;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -694,7 +693,6 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         }
     }
 
-    @Ignore
     @Test
     @TestFor(issues = "XD-770")
     public void alterBalancePolicy() {

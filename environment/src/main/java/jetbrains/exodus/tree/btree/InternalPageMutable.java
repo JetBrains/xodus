@@ -27,7 +27,7 @@ import java.io.PrintStream;
 
 public class InternalPageMutable extends BasePageMutable {
     protected BasePageMutable[] children;
-    protected long[] childrenAddresses;
+    private long[] childrenAddresses;
 
     InternalPageMutable(BTreeMutable tree, InternalPage page) {
         super(tree, page);
@@ -37,7 +37,8 @@ public class InternalPageMutable extends BasePageMutable {
         super((BTreeMutable) page.getTree());
 
         final BTreeBalancePolicy bp = getBalancePolicy();
-        createChildren(Math.max(length, ((BTreeMutable) tree).isDup() ? bp.getDupPageMaxSize() : bp.getPageMaxSize()));
+        createChildren(Math.max((length & 0x7ffffffe) + 2 /* we should have at least one more place to insert a key */,
+            ((BTreeMutable) tree).isDup() ? bp.getDupPageMaxSize() : bp.getPageMaxSize()));
 
         System.arraycopy(page.keys, from, keys, 0, length);
         System.arraycopy(page.keysAddresses, from, keysAddresses, 0, length);
