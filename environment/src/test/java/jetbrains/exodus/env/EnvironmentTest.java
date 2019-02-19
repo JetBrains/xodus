@@ -32,6 +32,7 @@ import jetbrains.exodus.tree.btree.BTreeBase;
 import jetbrains.exodus.util.IOUtil;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -729,6 +730,55 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             @Override
             public void execute(@NotNull Transaction txn) {
                 for (int i = 0; i < 10000; ++i) {
+                    Assert.assertEquals(StringBinding.stringToEntry(Integer.toString(i)), store[0].get(txn, IntegerBinding.intToEntry(i)));
+                }
+            }
+        });
+    }
+
+    @Ignore
+    @Test
+    @TestFor(issues = "XD-770")
+    public void alterBalancePolicy2() {
+        final Store[] store = {openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES)};
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                for (int i = 0; i < 10000; ++i) {
+                    store[0].put(txn, IntegerBinding.intToEntry(i), StringBinding.stringToEntry(Integer.toString(i)));
+                }
+            }
+        });
+        env.executeInReadonlyTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                for (int i = 0; i < 10000; ++i) {
+                    Assert.assertEquals(StringBinding.stringToEntry(Integer.toString(i)), store[0].get(txn, IntegerBinding.intToEntry(i)));
+                }
+            }
+        });
+        final EnvironmentConfig config = env.getEnvironmentConfig();
+        config.setTreeMaxPageSize(config.getTreeMaxPageSize() / 4);
+        reopenEnvironment();
+        store[0] = openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES);
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                for (int i = 0; i < 2000; ++i) {
+                    store[0].delete(txn, IntegerBinding.intToEntry(i));
+                }
+                for (int i = 0; i < 2000; ++i) {
+                    store[0].put(txn, IntegerBinding.intToEntry(i), StringBinding.stringToEntry(""));
+                }
+                for (int i = 0; i < 5000; ++i) {
+                    store[0].delete(txn, IntegerBinding.intToEntry(i));
+                }
+            }
+        });
+        env.executeInReadonlyTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                for (int i = 5000; i < 10000; ++i) {
                     Assert.assertEquals(StringBinding.stringToEntry(Integer.toString(i)), store[0].get(txn, IntegerBinding.intToEntry(i)));
                 }
             }
