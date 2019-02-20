@@ -38,10 +38,7 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 
 import static jetbrains.exodus.env.EnvironmentStatistics.Type.*;
 import static org.junit.Assert.assertNotNull;
@@ -740,11 +737,23 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     @Test
     @TestFor(issues = "XD-770")
     public void alterBalancePolicy2() {
+        alterBalancePolicy(0.25f);
+    }
+
+    @Ignore
+    @Test
+    @TestFor(issues = "XD-770")
+    public void alterBalancePolicy3() {
+        alterBalancePolicy(4);
+    }
+
+    private void alterBalancePolicy(float pageSizeMultiple) {
         final Store[] store = {openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES)};
+        final int count = 20000;
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
-                for (int i = 0; i < 10000; ++i) {
+                for (int i = 0; i < count; ++i) {
                     store[0].put(txn, IntegerBinding.intToEntry(i), StringBinding.stringToEntry(Integer.toString(i)));
                 }
             }
@@ -752,25 +761,30 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         env.executeInReadonlyTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull Transaction txn) {
-                for (int i = 0; i < 10000; ++i) {
+                for (int i = 0; i < count; ++i) {
                     Assert.assertEquals(StringBinding.stringToEntry(Integer.toString(i)), store[0].get(txn, IntegerBinding.intToEntry(i)));
                 }
             }
         });
         final EnvironmentConfig config = env.getEnvironmentConfig();
-        config.setTreeMaxPageSize(config.getTreeMaxPageSize() / 4);
+        config.setTreeMaxPageSize((int) (config.getTreeMaxPageSize() * pageSizeMultiple));
         reopenEnvironment();
         store[0] = openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES);
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
-                for (int i = 0; i < 2000; ++i) {
+                for (int i = 0; i < count / 5; ++i) {
                     store[0].delete(txn, IntegerBinding.intToEntry(i));
                 }
-                for (int i = 0; i < 2000; ++i) {
+                for (int i = 0; i < count / 5; ++i) {
                     store[0].put(txn, IntegerBinding.intToEntry(i), StringBinding.stringToEntry(""));
                 }
-                for (int i = 0; i < 5000; ++i) {
+                Random rnd = new Random();
+                for (int i = 0; i < count / 3; ++i) {
+                    store[0].delete(txn, IntegerBinding.intToEntry(rnd.nextInt(count / 4)));
+                    store[0].put(txn, IntegerBinding.intToEntry(rnd.nextInt(count / 4)), StringBinding.stringToEntry(""));
+                }
+                for (int i = 0; i < count / 2; ++i) {
                     store[0].delete(txn, IntegerBinding.intToEntry(i));
                 }
             }
@@ -778,8 +792,13 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         env.executeInReadonlyTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull Transaction txn) {
-                for (int i = 5000; i < 10000; ++i) {
-                    Assert.assertEquals(StringBinding.stringToEntry(Integer.toString(i)), store[0].get(txn, IntegerBinding.intToEntry(i)));
+                try (Cursor cursor = store[0].openCursor(txn)) {
+                    int i;
+                    for (i = count / 2; i < count; ++i) {
+                        if (!cursor.getNext()) break;
+                        Assert.assertEquals("" + i, IntegerBinding.intToEntry(i), cursor.getKey());
+                    }
+                    Assert.assertEquals(count, i);
                 }
             }
         });
