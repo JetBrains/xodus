@@ -24,6 +24,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.PrintStream;
+import java.util.Arrays;
 
 class BottomPageMutable extends BasePageMutable {
 
@@ -262,9 +263,15 @@ class BottomPageMutable extends BasePageMutable {
 
     @Override
     protected void mergeWithRight(BasePageMutable page) {
+        final int newPageSize = size + page.size;
+        if (newPageSize >= keys.length) {
+            final int newArraySize = (newPageSize & 0x7ffffffe) + 2;
+            keys = Arrays.copyOf(keys, newArraySize);
+            keysAddresses = Arrays.copyOf(keysAddresses, newArraySize);
+        }
         System.arraycopy(page.keys, 0, keys, size, page.size);
         System.arraycopy(page.keysAddresses, 0, keysAddresses, size, page.size);
-        size += page.size;
+        size = newPageSize;
     }
 
     @Override

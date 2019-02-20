@@ -24,6 +24,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.PrintStream;
+import java.util.Arrays;
 
 public class InternalPageMutable extends BasePageMutable {
     protected BasePageMutable[] children;
@@ -281,6 +282,14 @@ public class InternalPageMutable extends BasePageMutable {
     @Override
     protected void mergeWithRight(BasePageMutable _page) {
         InternalPageMutable page = (InternalPageMutable) _page;
+        final int newPageSize = size + page.size;
+        if (newPageSize >= keys.length) {
+            final int newArraySize = (newPageSize & 0x7ffffffe) + 2;
+            keys = Arrays.copyOf(keys, newArraySize);
+            keysAddresses = Arrays.copyOf(keysAddresses, newArraySize);
+            children = Arrays.copyOf(children, newArraySize);
+            childrenAddresses = Arrays.copyOf(childrenAddresses, newArraySize);
+        }
         System.arraycopy(page.keys, 0, keys, size, page.size);
         System.arraycopy(page.keysAddresses, 0, keysAddresses, size, page.size);
         System.arraycopy(page.children, 0, children, size, page.size);
