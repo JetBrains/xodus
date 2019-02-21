@@ -747,15 +747,13 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     @Test
     @TestFor(issues = "XD-770")
     public void avoidEmptyPages() {
-        final EnvironmentConfig config = env.getEnvironmentConfig();
-        config.setTreeMaxPageSize(16);
-        reopenEnvironment();
-        final Store[] store = {openStoreAutoCommit("new_store", StoreConfig.WITH_DUPLICATES)};
+        final Store store = openStoreAutoCommit("new_store", StoreConfig.WITH_DUPLICATES);
+        final int count = 1000;
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
-                for (int i = 0; i < 400; i += 2) {
-                    store[0].put(txn, IntegerBinding.intToEntry(i), StringBinding.stringToEntry(Integer.toString(i)));
+                for (int i = 0; i < count; ++i) {
+                    store.put(txn, IntegerBinding.intToEntry(i % 600), StringBinding.stringToEntry(Integer.toString(i)));
                 }
             }
         });
@@ -763,20 +761,24 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             @Override
             public void execute(@NotNull Transaction txn) {
                 final Random rnd = new Random();
-                for (int i = 0; i < 5000; ++i) {
-                    store[0].delete(txn, IntegerBinding.intToEntry(rnd.nextInt(400)));
-                    store[0].put(txn, IntegerBinding.intToEntry(rnd.nextInt(400)), StringBinding.stringToEntry(""));
-                    try (Cursor cursor = store[0].openCursor(txn)) {
+                for (int i = 0; i < 2000; ++i) {
+                    for (int j = 0; j < count / 2; ++j) {
+                        store.put(txn, IntegerBinding.intToEntry(rnd.nextInt(600)), StringBinding.stringToEntry(Integer.toString(i)));
+                    }
+                    for (int j = 0; j < count / 2; ++j) {
+                        store.delete(txn, IntegerBinding.intToEntry(rnd.nextInt(600)));
+                    }
+                    try (Cursor cursor = store.openCursor(txn)) {
                         cursor.getNext();
                         int prev = IntegerBinding.entryToInt(cursor.getKey());
-                        try (Cursor c = store[0].openCursor(txn)) {
+                        try (Cursor c = store.openCursor(txn)) {
                             Assert.assertNotNull(c.getSearchKey(cursor.getKey()));
                         }
                         while (cursor.getNext()) {
                             final int next = IntegerBinding.entryToInt(cursor.getKey());
                             Assert.assertTrue(prev <= next);
                             prev = next;
-                            try (Cursor c = store[0].openCursor(txn)) {
+                            try (Cursor c = store.openCursor(txn)) {
                                 Assert.assertNotNull(c.getSearchKey(cursor.getKey()));
                             }
                         }
