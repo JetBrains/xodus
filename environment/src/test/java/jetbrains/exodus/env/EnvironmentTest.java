@@ -750,11 +750,11 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         final EnvironmentConfig config = env.getEnvironmentConfig();
         config.setTreeMaxPageSize(16);
         reopenEnvironment();
-        final Store[] store = {openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES)};
+        final Store[] store = {openStoreAutoCommit("new_store", StoreConfig.WITH_DUPLICATES)};
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
-                for (int i = 0; i < 600; i += 3) {
+                for (int i = 0; i < 400; i += 2) {
                     store[0].put(txn, IntegerBinding.intToEntry(i), StringBinding.stringToEntry(Integer.toString(i)));
                 }
             }
@@ -762,17 +762,23 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull Transaction txn) {
-                Random rnd = new Random();
+                final Random rnd = new Random();
                 for (int i = 0; i < 5000; ++i) {
-                    store[0].delete(txn, IntegerBinding.intToEntry(rnd.nextInt(600)));
-                    store[0].put(txn, IntegerBinding.intToEntry(rnd.nextInt(600)), StringBinding.stringToEntry(""));
+                    store[0].delete(txn, IntegerBinding.intToEntry(rnd.nextInt(400)));
+                    store[0].put(txn, IntegerBinding.intToEntry(rnd.nextInt(400)), StringBinding.stringToEntry(""));
                     try (Cursor cursor = store[0].openCursor(txn)) {
                         cursor.getNext();
                         int prev = IntegerBinding.entryToInt(cursor.getKey());
+                        try (Cursor c = store[0].openCursor(txn)) {
+                            Assert.assertNotNull(c.getSearchKey(cursor.getKey()));
+                        }
                         while (cursor.getNext()) {
                             final int next = IntegerBinding.entryToInt(cursor.getKey());
-                            Assert.assertTrue(prev < next);
+                            Assert.assertTrue(prev <= next);
                             prev = next;
+                            try (Cursor c = store[0].openCursor(txn)) {
+                                Assert.assertNotNull(c.getSearchKey(cursor.getKey()));
+                            }
                         }
                     }
                 }
