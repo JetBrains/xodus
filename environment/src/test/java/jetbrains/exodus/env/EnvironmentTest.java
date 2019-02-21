@@ -32,7 +32,6 @@ import jetbrains.exodus.tree.btree.BTreeBase;
 import jetbrains.exodus.util.IOUtil;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -733,18 +732,52 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         });
     }
 
-    @Ignore
     @Test
     @TestFor(issues = "XD-770")
     public void alterBalancePolicy2() {
         alterBalancePolicy(0.25f);
     }
 
-    @Ignore
     @Test
     @TestFor(issues = "XD-770")
     public void alterBalancePolicy3() {
         alterBalancePolicy(4);
+    }
+
+    @Test
+    @TestFor(issues = "XD-770")
+    public void avoidEmptyPages() {
+        final EnvironmentConfig config = env.getEnvironmentConfig();
+        config.setTreeMaxPageSize(16);
+        reopenEnvironment();
+        final Store[] store = {openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES)};
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+                for (int i = 0; i < 600; i += 3) {
+                    store[0].put(txn, IntegerBinding.intToEntry(i), StringBinding.stringToEntry(Integer.toString(i)));
+                }
+            }
+        });
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                Random rnd = new Random();
+                for (int i = 0; i < 5000; ++i) {
+                    store[0].delete(txn, IntegerBinding.intToEntry(rnd.nextInt(600)));
+                    store[0].put(txn, IntegerBinding.intToEntry(rnd.nextInt(600)), StringBinding.stringToEntry(""));
+                    try (Cursor cursor = store[0].openCursor(txn)) {
+                        cursor.getNext();
+                        int prev = IntegerBinding.entryToInt(cursor.getKey());
+                        while (cursor.getNext()) {
+                            final int next = IntegerBinding.entryToInt(cursor.getKey());
+                            Assert.assertTrue(prev < next);
+                            prev = next;
+                        }
+                    }
+                }
+            }
+        });
     }
 
     private void alterBalancePolicy(float pageSizeMultiple) {
