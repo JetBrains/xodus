@@ -434,7 +434,7 @@ public class EnvironmentConfig extends AbstractConfig {
     public static final String TREE_MAX_PAGE_SIZE = "exodus.tree.maxPageSize";
 
     /**
-     * Defines the maximum size of page of duplicates sub-B+Tree. Default value is {@code 16}.
+     * Defines the maximum size of page of duplicates sub-B+Tree. Default value is {@code 8}.
      * <p>Mutable at runtime: yes
      */
     public static final String TREE_DUP_MAX_PAGE_SIZE = "exodus.tree.dupMaxPageSize";
@@ -644,7 +644,7 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
             new Pair(ENV_GATHER_STATISTICS, true),
             new Pair(TREE_MAX_PAGE_SIZE, 128),
-            new Pair(TREE_DUP_MAX_PAGE_SIZE, 16),
+            new Pair(TREE_DUP_MAX_PAGE_SIZE, 8),
             new Pair(GC_ENABLED, true),
             new Pair(GC_START_IN, 10000),
             new Pair(GC_MIN_UTILIZATION, 50),
@@ -1727,7 +1727,7 @@ public class EnvironmentConfig extends AbstractConfig {
     }
 
     /**
-     * Returns the maximum size of page of duplicates sub-B+Tree. Default value is {@code 16}.
+     * Returns the maximum size of page of duplicates sub-B+Tree. Default value is {@code 8}.
      * <p>Mutable at runtime: yes
      *
      * @return maximum size of page of duplicates sub-B+Tree
@@ -1737,16 +1737,16 @@ public class EnvironmentConfig extends AbstractConfig {
     }
 
     /**
-     * Sets the maximum size of page of duplicates sub-B+Tree. Default value is {@code 16}. Only sizes in the range [16..128]
+     * Sets the maximum size of page of duplicates sub-B+Tree. Default value is {@code 8}. Only sizes in the range [8..128]
      * are accepted.
      * <p>Mutable at runtime: yes
      *
      * @param pageSize maximum size of page of duplicates sub-B+Tree
      * @return this {@code EnvironmentConfig} instance
-     * @throws InvalidSettingException page size is not in the range [16..128]
+     * @throws InvalidSettingException page size is not in the range [8..128]
      */
     public EnvironmentConfig setTreeDupMaxPageSize(final int pageSize) throws InvalidSettingException {
-        if (pageSize < 16 || pageSize > 128) {
+        if (pageSize < 8 || pageSize > 128) {
             throw new InvalidSettingException("Invalid dup tree page size: " + pageSize);
         }
         return setSetting(TREE_DUP_MAX_PAGE_SIZE, pageSize);
