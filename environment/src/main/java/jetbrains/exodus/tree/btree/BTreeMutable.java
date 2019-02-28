@@ -37,18 +37,21 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
 
     @NotNull
     private BasePageMutable root;
-    private Collection<ExpiredLoggableInfo> expiredLoggables = null;
-    @Nullable
-    private Set<ITreeCursorMutable> openCursors = null;
     @NotNull
     private final BTreeBase immutableTree;
-    private LightOutputStream leafStream = null;
+    private final ExtraMutableBelongings extraBelongings;
+
 
     BTreeMutable(@NotNull final BTreeBase tree) {
+        this(tree, new ExtraMutableBelongings());
+    }
+
+    BTreeMutable(@NotNull final BTreeBase tree, final ExtraMutableBelongings extraBelongings) {
         super(tree.log, tree.balancePolicy, tree.allowsDuplicates, tree.structureId);
         immutableTree = tree;
         root = tree.getRoot().getMutableCopy(this);
         size = tree.getSize();
+        this.extraBelongings = extraBelongings;
     }
 
     @Override
@@ -71,7 +74,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     @Override
     @Nullable
     public Iterable<ITreeCursorMutable> getOpenCursors() {
-        return openCursors;
+        return extraBelongings.openCursors;
     }
 
     @Override
@@ -161,8 +164,10 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     }
 
     LightOutputStream getLeafStream() {
+        LightOutputStream leafStream = extraBelongings.leafStream;
         if (leafStream == null) {
             leafStream = new LightOutputStream(16);
+            extraBelongings.leafStream = leafStream;
         } else {
             leafStream.clear();
         }
@@ -245,20 +250,20 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     @Override
     @NotNull
     public Collection<ExpiredLoggableInfo> getExpiredLoggables() {
+        Collection<ExpiredLoggableInfo> expiredLoggables = extraBelongings.expiredLoggables;
         if (expiredLoggables == null) {
             expiredLoggables = new ArrayList<>(16);
+            extraBelongings.expiredLoggables = expiredLoggables;
         }
         return expiredLoggables;
     }
 
     @Override
     public TreeCursor openCursor() {
-        final Set<ITreeCursorMutable> cursors;
-        if (openCursors == null) {
+        Set<ITreeCursorMutable> cursors = extraBelongings.openCursors;
+        if (cursors == null) {
             cursors = new HashSet<>();
-            openCursors = cursors;
-        } else {
-            cursors = openCursors;
+            extraBelongings.openCursors = cursors;
         }
         final TreeCursorMutable result = allowsDuplicates ?
             new BTreeCursorDupMutable(this, new BTreeTraverserDup(root)) :
@@ -270,7 +275,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     @SuppressWarnings({"ConstantConditions"})
     @Override
     public void cursorClosed(@NotNull final ITreeCursorMutable cursor) {
-        openCursors.remove(cursor);
+        extraBelongings.openCursors.remove(cursor);
     }
 
     protected byte getBottomPageType() {
@@ -346,6 +351,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
             // if we have reached the end of file and the tree seems to be rather heavyweight then looks like
             // it was a huge transaction that saved the tree, and it's reasonable to stop here, without
             // reaching the tree's root, in order to avoid possible OOME (XD-513)
+            final Collection<ExpiredLoggableInfo> expiredLoggables = extraBelongings.expiredLoggables;
             if (type == NullLoggable.TYPE &&
                 expiredLoggables != null && // this check fixes XD-532 & XD-538
                 expiredLoggables.size() > MAX_EXPIRED_LOGGABLES_TO_CONTINUE_RECLAIM_ON_A_NEW_FILE) {
@@ -393,5 +399,13 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         final int addressLen = data.byteAt(offset);
         final long keyAddress = data.nextLong(offset + 1, addressLen);
         return log.hasAddress(keyAddress) ? loadLeaf(keyAddress) : null;
+    }
+
+    private static class ExtraMutableBelongings {
+
+        private Collection<ExpiredLoggableInfo> expiredLoggables;
+        @Nullable
+        private Set<ITreeCursorMutable> openCursors;
+        private LightOutputStream leafStream;
     }
 }

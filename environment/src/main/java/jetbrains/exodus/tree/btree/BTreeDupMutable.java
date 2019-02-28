@@ -17,9 +17,15 @@ package jetbrains.exodus.tree.btree;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.CompoundByteIterable;
+import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.log.*;
+import jetbrains.exodus.tree.ITreeCursorMutable;
+import jetbrains.exodus.tree.TreeCursor;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.Collection;
 
 final class BTreeDupMutable extends BTreeMutable {
 
@@ -30,7 +36,7 @@ final class BTreeDupMutable extends BTreeMutable {
     long address = Loggable.NULL_ADDRESS;
 
     BTreeDupMutable(@NotNull final BTreeBase dupTree, @NotNull final ByteIterable key) {
-        super(dupTree);
+        super(dupTree, null);
         size = dupTree.size;
         this.key = key;
     }
@@ -123,6 +129,27 @@ final class BTreeDupMutable extends BTreeMutable {
     }
 
     @Override
+    public @NotNull Collection<ExpiredLoggableInfo> getExpiredLoggables() {
+        return mainTree.getExpiredLoggables();
+    }
+
+    @Override
+    @Nullable
+    public Iterable<ITreeCursorMutable> getOpenCursors() {
+        return throwCantOpenCursor();
+    }
+
+    @Override
+    public TreeCursor openCursor() {
+        return throwCantOpenCursor();
+    }
+
+    @Override
+    public void cursorClosed(@NotNull ITreeCursorMutable cursor) {
+        throwCantOpenCursor();
+    }
+
+    @Override
     protected byte getBottomPageType() {
         return DUP_BOTTOM;
     }
@@ -178,5 +205,10 @@ final class BTreeDupMutable extends BTreeMutable {
     @NotNull
     protected BaseLeafNodeMutable createMutableLeaf(@NotNull ByteIterable key, @NotNull ByteIterable value) {
         return new DupLeafNodeMutable(key, this);
+    }
+
+    @Nullable
+    private static <T> T throwCantOpenCursor() {
+        throw new ExodusException("Can't open cursor on BTreeDupMutable");
     }
 }
