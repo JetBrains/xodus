@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.core.dataStructures;
 
+import java.util.Arrays;
+
 @SuppressWarnings({"UnusedDeclaration", "ThrowInsideCatchBlockWhichIgnoresCaughtException", "CloneInNonCloneableClass"})
 public class IntArrayList {
 
@@ -32,9 +34,7 @@ public class IntArrayList {
     public void trimToSize() {
         final int oldCapacity = data.length;
         if (size < oldCapacity) {
-            final int[] oldData = data;
-            data = new int[size];
-            System.arraycopy(oldData, 0, data, 0, size);
+            data = Arrays.copyOf(data, size);
         }
     }
 
@@ -48,9 +48,7 @@ public class IntArrayList {
             if (newCapacity < minCapacity) {
                 newCapacity = minCapacity;
             }
-            final int[] oldData = data;
-            data = new int[newCapacity];
-            System.arraycopy(oldData, 0, data, 0, size);
+            data = Arrays.copyOf(data, newCapacity);
         }
     }
 

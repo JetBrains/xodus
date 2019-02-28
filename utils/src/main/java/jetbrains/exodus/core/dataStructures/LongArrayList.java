@@ -33,9 +33,7 @@ public class LongArrayList implements Cloneable {
     public void trimToSize() {
         final int oldCapacity = data.length;
         if (size < oldCapacity) {
-            final long[] oldData = data;
-            data = new long[size];
-            System.arraycopy(oldData, 0, data, 0, size);
+            data = Arrays.copyOf(data, size);
         }
     }
 
@@ -49,9 +47,7 @@ public class LongArrayList implements Cloneable {
             if (newCapacity < minCapacity) {
                 newCapacity = minCapacity;
             }
-            final long[] oldData = data;
-            data = new long[newCapacity];
-            System.arraycopy(oldData, 0, data, 0, size);
+            data = Arrays.copyOf(data, newCapacity);
         }
     }
 
