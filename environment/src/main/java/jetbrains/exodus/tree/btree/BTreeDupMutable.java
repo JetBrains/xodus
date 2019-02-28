@@ -19,13 +19,12 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.CompoundByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.log.*;
+import jetbrains.exodus.tree.ExpiredLoggableCollection;
 import jetbrains.exodus.tree.ITreeCursorMutable;
 import jetbrains.exodus.tree.TreeCursor;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.Collection;
 
 final class BTreeDupMutable extends BTreeMutable {
 
@@ -129,7 +128,8 @@ final class BTreeDupMutable extends BTreeMutable {
     }
 
     @Override
-    public @NotNull Collection<ExpiredLoggableInfo> getExpiredLoggables() {
+    @NotNull
+    public ExpiredLoggableCollection getExpiredLoggables() {
         return mainTree.getExpiredLoggables();
     }
 

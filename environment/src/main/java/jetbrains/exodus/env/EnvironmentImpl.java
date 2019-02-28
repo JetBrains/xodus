@@ -28,7 +28,11 @@ import jetbrains.exodus.gc.GarbageCollector;
 import jetbrains.exodus.gc.UtilizationProfile;
 import jetbrains.exodus.io.DataReaderWriterProvider;
 import jetbrains.exodus.io.RemoveBlockType;
-import jetbrains.exodus.log.*;
+import jetbrains.exodus.log.DataIterator;
+import jetbrains.exodus.log.Log;
+import jetbrains.exodus.log.LogConfig;
+import jetbrains.exodus.log.LogTip;
+import jetbrains.exodus.tree.ExpiredLoggableCollection;
 import jetbrains.exodus.tree.TreeMetaInfo;
 import jetbrains.exodus.tree.btree.BTree;
 import jetbrains.exodus.tree.btree.BTreeBalancePolicy;
@@ -630,7 +634,7 @@ public class EnvironmentImpl implements Environment {
             return true;
         }
 
-        final Iterable<ExpiredLoggableInfo>[] expiredLoggables;
+        final ExpiredLoggableCollection expiredLoggables;
         final long initialHighAddress;
         final long resultingHighAddress;
         final boolean isGcTransaction = txn.isGCTransaction();
@@ -691,7 +695,7 @@ public class EnvironmentImpl implements Environment {
                 throw ExodusException.toExodusException(t, "Failed to flush transaction");
             }
         }
-        gc.fetchExpiredLoggables(new ExpiredLoggableIterable(expiredLoggables));
+        gc.fetchExpiredLoggables(expiredLoggables);
 
         // update statistics
         statistics.getStatisticsItem(BYTES_WRITTEN).setTotal(resultingHighAddress);
@@ -1127,48 +1131,6 @@ public class EnvironmentImpl implements Environment {
     }
 
     @SuppressWarnings({"AssignmentToCollectionOrArrayFieldFromParameter"})
-    private static class ExpiredLoggableIterable implements Iterable<ExpiredLoggableInfo> {
-
-        private final Iterable<ExpiredLoggableInfo>[] expiredLoggables;
-
-        private ExpiredLoggableIterable(Iterable<ExpiredLoggableInfo>[] expiredLoggables) {
-            this.expiredLoggables = expiredLoggables;
-        }
-
-        @Override
-        public Iterator<ExpiredLoggableInfo> iterator() {
-
-            return new Iterator<ExpiredLoggableInfo>() {
-                private Iterator<ExpiredLoggableInfo> current = expiredLoggables[0].iterator();
-                private int index = 0;
-
-                @Override
-                public boolean hasNext() {
-                    //noinspection LoopConditionNotUpdatedInsideLoop
-                    while (!current.hasNext()) {
-                        if (++index == expiredLoggables.length) {
-                            return false;
-                        }
-                        current = expiredLoggables[index].iterator();
-                    }
-                    return true;
-                }
-
-                @Override
-                public ExpiredLoggableInfo next() {
-                    if (!hasNext()) {
-                        throw new NoSuchElementException("No more loggables available");
-                    }
-                    return current.next();
-                }
-
-                @Override
-                public void remove() {
-                    throw new UnsupportedOperationException();
-                }
-            };
-        }
-    }
 
     private static class RunnableWithTxnRoot {
 

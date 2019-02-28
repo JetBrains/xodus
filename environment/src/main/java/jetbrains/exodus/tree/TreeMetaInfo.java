@@ -20,14 +20,11 @@ import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.env.StoreConfig;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
-import jetbrains.exodus.log.ExpiredLoggableInfo;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.tree.btree.BTreeMetaInfo;
 import jetbrains.exodus.tree.patricia.PatriciaMetaInfo;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
-
-import java.util.Iterator;
 
 public abstract class TreeMetaInfo {
 
@@ -99,8 +96,15 @@ public abstract class TreeMetaInfo {
     }
 
     @NotNull
-    public static Iterable<ExpiredLoggableInfo> getTreeLoggables(@NotNull final ITree tree) {
-        return new TreeLoggableIterable(tree);
+    public static ExpiredLoggableCollection getTreeLoggables(@NotNull final ITree tree) {
+        final ExpiredLoggableCollection result = new ExpiredLoggableCollection();
+        final LongIterator it = tree.addressIterator();
+        final Log log = tree.getLog();
+        while (it.hasNext()) {
+            final long nextAddress = it.next();
+            result.add(log.readNotNull(tree.getDataIterator(nextAddress), nextAddress));
+        }
+        return result;
     }
 
     private static final class Empty extends TreeMetaInfo {
@@ -116,38 +120,6 @@ public abstract class TreeMetaInfo {
         @Override
         public TreeMetaInfo clone(final int newStructureId) {
             return new Empty(newStructureId);
-        }
-    }
-
-    private static class TreeLoggableIterable implements Iterable<ExpiredLoggableInfo> {
-        @NotNull
-        private final ITree tree;
-
-        private TreeLoggableIterable(@NotNull final ITree tree) {
-            this.tree = tree;
-        }
-
-        @Override
-        public Iterator<ExpiredLoggableInfo> iterator() {
-            return new Iterator<ExpiredLoggableInfo>() {
-                final LongIterator itr = tree.addressIterator();
-
-                @Override
-                public boolean hasNext() {
-                    return itr.hasNext();
-                }
-
-                @Override
-                public ExpiredLoggableInfo next() {
-                    final long nextAddress = itr.next();
-                    return new ExpiredLoggableInfo(tree.getLog().readNotNull(tree.getDataIterator(nextAddress), nextAddress));
-                }
-
-                @Override
-                public void remove() {
-                    throw new UnsupportedOperationException();
-                }
-            };
         }
     }
 }

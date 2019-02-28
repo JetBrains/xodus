@@ -25,8 +25,6 @@ import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.Set;
 
@@ -226,7 +224,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
 
     protected void addExpiredLoggable(@NotNull Loggable loggable) {
         if (loggable.getAddress() != NullLoggable.NULL_ADDRESS) {
-            getExpiredLoggables().add(new ExpiredLoggableInfo(loggable));
+            getExpiredLoggables().add(loggable);
         }
     }
 
@@ -249,10 +247,10 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     @SuppressWarnings({"ReturnOfCollectionOrArrayField"})
     @Override
     @NotNull
-    public Collection<ExpiredLoggableInfo> getExpiredLoggables() {
-        Collection<ExpiredLoggableInfo> expiredLoggables = extraBelongings.expiredLoggables;
+    public ExpiredLoggableCollection getExpiredLoggables() {
+        ExpiredLoggableCollection expiredLoggables = extraBelongings.expiredLoggables;
         if (expiredLoggables == null) {
-            expiredLoggables = new ArrayList<>(16);
+            expiredLoggables = new ExpiredLoggableCollection();
             extraBelongings.expiredLoggables = expiredLoggables;
         }
         return expiredLoggables;
@@ -351,10 +349,10 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
             // if we have reached the end of file and the tree seems to be rather heavyweight then looks like
             // it was a huge transaction that saved the tree, and it's reasonable to stop here, without
             // reaching the tree's root, in order to avoid possible OOME (XD-513)
-            final Collection<ExpiredLoggableInfo> expiredLoggables = extraBelongings.expiredLoggables;
+            final ExpiredLoggableCollection expiredLoggables = extraBelongings.expiredLoggables;
             if (type == NullLoggable.TYPE &&
                 expiredLoggables != null && // this check fixes XD-532 & XD-538
-                expiredLoggables.size() > MAX_EXPIRED_LOGGABLES_TO_CONTINUE_RECLAIM_ON_A_NEW_FILE) {
+                expiredLoggables.getSize() > MAX_EXPIRED_LOGGABLES_TO_CONTINUE_RECLAIM_ON_A_NEW_FILE) {
                 break;
             }
             loggable = loggables.next();
@@ -403,7 +401,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
 
     private static class ExtraMutableBelongings {
 
-        private Collection<ExpiredLoggableInfo> expiredLoggables;
+        private ExpiredLoggableCollection expiredLoggables;
         @Nullable
         private Set<ITreeCursorMutable> openCursors;
         private LightOutputStream leafStream;

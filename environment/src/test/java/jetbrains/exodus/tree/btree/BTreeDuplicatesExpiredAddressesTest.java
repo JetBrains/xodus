@@ -252,7 +252,7 @@ public class BTreeDuplicatesExpiredAddressesTest extends BTreeTestBase {
     }
 
     public void checkExpiredAddress(ITreeMutable tree, long expectedAddresses) {
-        Assert.assertEquals(expectedAddresses, tree.getExpiredLoggables().size());
+        Assert.assertEquals(expectedAddresses, tree.getExpiredLoggables().getSize());
     }
 
     protected long countNodes(BTreeMutable tree) {

@@ -29,8 +29,8 @@ import jetbrains.exodus.io.DataWriter
 import jetbrains.exodus.kotlin.synchronized
 import jetbrains.exodus.log.AbstractBlockListener
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
-import jetbrains.exodus.log.ExpiredLoggableInfo
 import jetbrains.exodus.log.Log
+import jetbrains.exodus.tree.ExpiredLoggableCollection
 import java.io.File
 import java.util.*
 import kotlin.math.min
@@ -169,19 +169,18 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
      *
      * @param loggables expired loggables.
      */
-    internal fun fetchExpiredLoggables(loggables: Iterable<ExpiredLoggableInfo>) {
+    internal fun fetchExpiredLoggables(loggables: ExpiredLoggableCollection) {
         var prevFileAddress = -1L
         var prevFreeBytes: MutableLong? = null
         val set = PackedLongHashSet()
         filesUtilization.synchronized {
-            for (loggable in loggables) {
-                val address = loggable.address
+            loggables.forEach { address, length ->
                 if (set.add(address)) {
                     val fileAddress = log.getFileAddress(address)
                     val freeBytes =
                             (if (prevFileAddress == fileAddress) prevFreeBytes else this[fileAddress])
                                     ?: MutableLong(0L).also { this[fileAddress] = it }
-                    freeBytes.value += loggable.length.toLong()
+                    freeBytes.value += length.toLong()
                     prevFreeBytes = freeBytes
                     prevFileAddress = fileAddress
                 }

@@ -19,7 +19,7 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.decorators.HashMapDecorator;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
-import jetbrains.exodus.log.ExpiredLoggableInfo;
+import jetbrains.exodus.tree.ExpiredLoggableCollection;
 import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.ITreeMutable;
 import jetbrains.exodus.tree.TreeMetaInfo;
@@ -222,35 +222,30 @@ public class ReadWriteTransaction extends TransactionBase {
         return createdStores.containsKey(name);
     }
 
-
-    Iterable<ExpiredLoggableInfo>[] doCommit(@NotNull final MetaTreeImpl.Proto[] out) {
+    ExpiredLoggableCollection doCommit(@NotNull final MetaTreeImpl.Proto[] out) {
         final Set<Map.Entry<Integer, ITreeMutable>> entries = mutableTrees.entrySet();
         final Set<Map.Entry<Long, Pair<String, ITree>>> removedEntries = removedStores.entrySet();
-        final int size = entries.size() + removedEntries.size();
-        //noinspection unchecked
-        final Iterable<ExpiredLoggableInfo>[] expiredLoggables = new Iterable[size + 1];
-        int i = 0;
+        ExpiredLoggableCollection expiredLoggables = ExpiredLoggableCollection.Companion.getEMPTY();
         final ITreeMutable metaTreeMutable = getMetaTree().tree.getMutableCopy();
         for (final Map.Entry<Long, Pair<String, ITree>> entry : removedEntries) {
             final Pair<String, ITree> value = entry.getValue();
             MetaTreeImpl.removeStore(metaTreeMutable, value.getFirst(), entry.getKey());
-            expiredLoggables[i++] = TreeMetaInfo.getTreeLoggables(value.getSecond());
+            expiredLoggables = expiredLoggables.mergeWith(TreeMetaInfo.getTreeLoggables(value.getSecond()).trimToSize());
         }
         removedStores.clear();
         for (final Map.Entry<String, TreeMetaInfo> entry : createdStores.entrySet()) {
             MetaTreeImpl.addStore(metaTreeMutable, entry.getKey(), entry.getValue());
         }
         createdStores.clear();
-        final Collection<ExpiredLoggableInfo> last;
         for (final Map.Entry<Integer, ITreeMutable> entry : entries) {
             final ITreeMutable treeMutable = entry.getValue();
-            expiredLoggables[i++] = treeMutable.getExpiredLoggables();
+            expiredLoggables = expiredLoggables.mergeWith(treeMutable.getExpiredLoggables().trimToSize());
             MetaTreeImpl.saveTree(metaTreeMutable, treeMutable);
         }
         clearImmutableTrees();
         mutableTrees.clear();
-        expiredLoggables[i] = last = metaTreeMutable.getExpiredLoggables();
-        out[0] = MetaTreeImpl.saveMetaTree(metaTreeMutable, getEnvironment(), last);
+        expiredLoggables = expiredLoggables.mergeWith(metaTreeMutable.getExpiredLoggables().trimToSize());
+        out[0] = MetaTreeImpl.saveMetaTree(metaTreeMutable, getEnvironment(), expiredLoggables);
         return expiredLoggables;
     }
 

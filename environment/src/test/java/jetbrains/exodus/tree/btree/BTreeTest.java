@@ -199,7 +199,7 @@ public class BTreeTest extends BTreeTestBase {
         for (int i = 0; i < 100; i++) {
             getTreeMutable().put(kv(i, "v" + i));
         }
-        Assert.assertEquals(1L, (long) tm.getExpiredLoggables().size());
+        Assert.assertEquals(1L, (long) tm.getExpiredLoggables().getSize());
         for (int i = 0; i < 100; i++) {
             final INode ln = kv(i, "v" + i);
             getTreeMutable().delete(ln.getKey(), ln.getValue());

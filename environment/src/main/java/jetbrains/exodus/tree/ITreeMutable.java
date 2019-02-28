@@ -16,12 +16,10 @@
 package jetbrains.exodus.tree;
 
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.log.ExpiredLoggableInfo;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collection;
 import java.util.Iterator;
 
 public interface ITreeMutable extends ITree {
@@ -120,10 +118,10 @@ public interface ITreeMutable extends ITree {
     long save();
 
     /**
-     * @return set of infos about loggables that were changed by put or delete methods.
+     * @return set of expired loggables that were changed by put or delete methods.
      */
     @NotNull
-    Collection<ExpiredLoggableInfo> getExpiredLoggables();
+    ExpiredLoggableCollection getExpiredLoggables();
 
     /**
      * Same as reclaim with expirationChecker, but takes all loggables into account

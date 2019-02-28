@@ -123,7 +123,7 @@ public class BTreeNoDuplicatesExpiredAddressesTest extends BTreeTestBase {
     }
 
     public void checkExpiredAddress(ITreeMutable tree, long expectedAddresses, String message) {
-        Assert.assertEquals(message, expectedAddresses, tree.getExpiredLoggables().size());
+        Assert.assertEquals(message, expectedAddresses, tree.getExpiredLoggables().getSize());
     }
 
     protected long countNodes(BTreeMutable tree) {

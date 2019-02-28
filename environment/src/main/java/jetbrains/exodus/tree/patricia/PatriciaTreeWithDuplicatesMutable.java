@@ -17,14 +17,12 @@ package jetbrains.exodus.tree.patricia;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
-import jetbrains.exodus.log.ExpiredLoggableInfo;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import jetbrains.exodus.tree.*;
 import jetbrains.exodus.util.ByteIterableUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collection;
 import java.util.Iterator;
 
 final class PatriciaTreeWithDuplicatesMutable extends PatriciaTreeWithDuplicates implements ITreeMutable {
@@ -136,9 +134,9 @@ final class PatriciaTreeWithDuplicatesMutable extends PatriciaTreeWithDuplicates
         return getTreeNoDuplicates().save();
     }
 
-    @NotNull
     @Override
-    public Collection<ExpiredLoggableInfo> getExpiredLoggables() {
+    @NotNull
+    public ExpiredLoggableCollection getExpiredLoggables() {
         return getTreeNoDuplicates().getExpiredLoggables();
     }
 

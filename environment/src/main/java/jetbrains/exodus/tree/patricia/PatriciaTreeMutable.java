@@ -25,14 +25,17 @@ import jetbrains.exodus.tree.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Iterator;
+import java.util.Set;
 
 
 final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable {
 
     private MutableRoot root;
     @Nullable
-    private Collection<ExpiredLoggableInfo> expiredLoggables;
+    private ExpiredLoggableCollection expiredLoggables;
     private Set<ITreeCursorMutable> openCursors = null;
 
     PatriciaTreeMutable(@NotNull final Log log,
@@ -258,12 +261,11 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
         return root.save(this, new MutableNodeSaveContext(CompressedUnsignedLongByteIterable.getIterable(size)));
     }
 
-    @SuppressWarnings({"NullableProblems"})
-    @NotNull
     @Override
-    public Collection<ExpiredLoggableInfo> getExpiredLoggables() {
-        final Collection<ExpiredLoggableInfo> expiredLoggables = this.expiredLoggables;
-        return expiredLoggables == null ? Collections.<ExpiredLoggableInfo>emptyList() : expiredLoggables;
+    @NotNull
+    public ExpiredLoggableCollection getExpiredLoggables() {
+        final ExpiredLoggableCollection expiredLoggables = this.expiredLoggables;
+        return expiredLoggables == null ? ExpiredLoggableCollection.Companion.getEMPTY() : expiredLoggables;
     }
 
     @Override
@@ -358,12 +360,12 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
 
     private void addExpiredLoggable(@Nullable final RandomAccessLoggable sourceLoggable) {
         if (sourceLoggable != null && sourceLoggable.getAddress() != NullLoggable.NULL_ADDRESS) {
-            Collection<ExpiredLoggableInfo> expiredLoggables = this.expiredLoggables;
+            ExpiredLoggableCollection expiredLoggables = this.expiredLoggables;
             if (expiredLoggables == null) {
-                expiredLoggables = new ArrayList<>(16);
+                expiredLoggables = new ExpiredLoggableCollection();
                 this.expiredLoggables = expiredLoggables;
             }
-            expiredLoggables.add(new ExpiredLoggableInfo(sourceLoggable));
+            expiredLoggables.add(sourceLoggable);
         }
     }
 

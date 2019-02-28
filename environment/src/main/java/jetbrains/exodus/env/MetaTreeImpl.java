@@ -30,7 +30,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -181,13 +180,13 @@ final class MetaTreeImpl implements MetaTree {
     @NotNull
     static MetaTreeImpl.Proto saveMetaTree(@NotNull final ITreeMutable metaTree,
                                            @NotNull final EnvironmentImpl env,
-                                           @NotNull final Collection<ExpiredLoggableInfo> expired) {
+                                           @NotNull final ExpiredLoggableCollection expired) {
         final long newMetaTreeAddress = metaTree.save();
         final Log log = env.getLog();
         final int lastStructureId = env.getLastStructureId();
         final long dbRootAddress = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
             DatabaseRoot.asByteIterable(newMetaTreeAddress, lastStructureId));
-        expired.add(new ExpiredLoggableInfo(dbRootAddress, (int) (log.getWrittenHighAddress() - dbRootAddress)));
+        expired.add(dbRootAddress, (int) (log.getWrittenHighAddress() - dbRootAddress));
         return new MetaTreeImpl.Proto(newMetaTreeAddress, dbRootAddress);
     }
 

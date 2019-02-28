@@ -27,8 +27,12 @@ import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.DataReader
 import jetbrains.exodus.io.DataWriter
 import jetbrains.exodus.io.RemoveBlockType
-import jetbrains.exodus.log.*
+import jetbrains.exodus.log.AbstractBlockListener
+import jetbrains.exodus.log.Log
+import jetbrains.exodus.log.LogUtil
+import jetbrains.exodus.log.Loggable
 import jetbrains.exodus.runtime.OOMGuard
+import jetbrains.exodus.tree.ExpiredLoggableCollection
 import jetbrains.exodus.util.DeferredIO
 import mu.KLogging
 import java.io.File
@@ -104,7 +108,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         }
     }
 
-    fun fetchExpiredLoggables(loggables: Iterable<ExpiredLoggableInfo>) {
+    fun fetchExpiredLoggables(loggables: ExpiredLoggableCollection) {
         utilizationProfile.fetchExpiredLoggables(loggables)
     }
 

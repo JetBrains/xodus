@@ -114,7 +114,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(savedLeafAddress);
         Assert.assertTrue(tm.reclaim(iter.next(), iter));
 
-        System.out.println(tm.getExpiredLoggables().size());
+        System.out.println(tm.getExpiredLoggables().getSize());
 
         final AddressIterator addressIterator = getTreeAddresses(getTree());
 
