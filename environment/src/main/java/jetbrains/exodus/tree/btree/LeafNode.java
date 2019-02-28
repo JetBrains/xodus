@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.tree.btree;
 
+import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.log.ByteIterableWithAddress;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
@@ -67,7 +68,11 @@ class LeafNode extends BaseLeafNode {
     @Override
     @NotNull
     public ByteIterable getValue() {
-        return loggable.getData().subIterable(getKeyRecordSize() + getKeyLength(), getValueLength());
+        int valueLength = getValueLength();
+        if (valueLength == 0) {
+            return ArrayByteIterable.EMPTY;
+        }
+        return loggable.getData().subIterable(getKeyRecordSize() + getKeyLength(), valueLength);
     }
 
     @Override
