@@ -110,14 +110,6 @@ public class SelectManyDistinctIterable extends EntityIterableDecoratorBase {
             public boolean isMatchedLinkDeleted(@NotNull final EntityId source, @NotNull final EntityId target, final int linkId) {
                 return linkId == SelectManyDistinctIterable.this.linkId || decorated.isMatchedLinkDeleted(source, target, linkId);
             }
-
-            @Override
-            public boolean isMatchedPropertyChanged(@NotNull EntityId id,
-                                                    final int propertyId,
-                                                    @Nullable final Comparable oldValue,
-                                                    @Nullable final Comparable newValue) {
-                return decorated.isMatchedPropertyChanged(id, propertyId, oldValue, newValue);
-            }
         };
     }
 
