@@ -92,7 +92,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         val entity = txn.newEntity("Issue")
         entity.setProperty("name", "noname")
         txn.flush()
-        Assert.assertEquals(0, txn.getAll("Comment").size().toInt().toLong())
+        Assert.assertEquals(0, txn.getAll("Comment").size())
     }
 
     fun testMultipleIterators() {
@@ -122,8 +122,8 @@ class EntityIterableTests : EntityStoreTestBase() {
             txn.newEntity("Issue")
         }
         txn.flush()
-        Assert.assertEquals(100, txn.getAll("Issue").size().toInt().toLong())
-        Assert.assertEquals(100, txn.getAll("Issue").size().toInt().toLong())
+        Assert.assertEquals(100, txn.getAll("Issue").size())
+        Assert.assertEquals(100, txn.getAll("Issue").size())
     }
 
     fun testLinksCount() {
@@ -133,7 +133,7 @@ class EntityIterableTests : EntityStoreTestBase() {
             issue.addLink("comment", txn.newEntity("Comment"))
         }
         txn.flush()
-        Assert.assertEquals(100, issue.getLinks("comment").size().toInt().toLong())
+        Assert.assertEquals(100, issue.getLinks("comment").size())
     }
 
     fun testIdRange() {
@@ -165,11 +165,11 @@ class EntityIterableTests : EntityStoreTestBase() {
             issue.setProperty("size", if (i and 1 == 0) 50 else 100)
         }
         txn.flush()
-        Assert.assertEquals(50, txn.find("Issue", "size", 50).size().toInt().toLong())
-        Assert.assertEquals(50, txn.find("Issue", "size", 50).size().toInt().toLong())
-        Assert.assertEquals(50, txn.find("Issue", "size", 100).size().toInt().toLong())
-        Assert.assertEquals(50, txn.find("Issue", "size", 100).size().toInt().toLong())
-        Assert.assertEquals(0, txn.find("Issue", "size", 101).size().toInt().toLong())
+        Assert.assertEquals(50, txn.find("Issue", "size", 50).size())
+        Assert.assertEquals(50, txn.find("Issue", "size", 50).size())
+        Assert.assertEquals(50, txn.find("Issue", "size", 100).size())
+        Assert.assertEquals(50, txn.find("Issue", "size", 100).size())
+        Assert.assertEquals(0, txn.find("Issue", "size", 101).size())
     }
 
     fun testFindByRangeCount() {
@@ -179,18 +179,18 @@ class EntityIterableTests : EntityStoreTestBase() {
             issue.setProperty("size", i / 10)
         }
         txn.flush()
-        Assert.assertEquals(30, txn.find("Issue", "size", 0, 2).size().toInt().toLong())
-        Assert.assertEquals(60, txn.find("Issue", "size", 1, 6).size().toInt().toLong())
-        Assert.assertEquals(0, txn.find("Issue", "size", 10, 20).size().toInt().toLong())
+        Assert.assertEquals(30, txn.find("Issue", "size", 0, 2).size())
+        Assert.assertEquals(60, txn.find("Issue", "size", 1, 6).size())
+        Assert.assertEquals(0, txn.find("Issue", "size", 10, 20).size())
     }
 
     fun testBinaryOperatorAppliedToEmptyIterable() {
         val txn = storeTransaction
         val noIssues = txn.getAll("Issue")
-        Assert.assertEquals(0, noIssues.size().toInt().toLong())
-        Assert.assertEquals(0, noIssues.intersect(txn.getAll("Comment")).size().toInt().toLong())
-        Assert.assertEquals(0, noIssues.union(txn.getAll("Comment")).size().toInt().toLong())
-        Assert.assertEquals(0, noIssues.minus(txn.getAll("Comment")).size().toInt().toLong())
+        Assert.assertEquals(0, noIssues.size())
+        Assert.assertEquals(0, noIssues.intersect(txn.getAll("Comment")).size())
+        Assert.assertEquals(0, noIssues.union(txn.getAll("Comment")).size())
+        Assert.assertEquals(0, noIssues.minus(txn.getAll("Comment")).size())
     }
 
     fun testSkipIterator() {
@@ -220,12 +220,12 @@ class EntityIterableTests : EntityStoreTestBase() {
             txn.newEntity("Issue")
         }
         txn.flush()
-        Assert.assertEquals(80, txn.getAll("Issue").skip(20).size().toInt().toLong())
-        Assert.assertEquals(60, txn.getAll("Issue").skip(20).skip(20).size().toInt().toLong())
-        Assert.assertEquals(40, txn.getAll("Issue").skip(20).skip(20).skip(20).size().toInt().toLong())
-        Assert.assertEquals(20, txn.getAll("Issue").skip(20).skip(20).skip(20).skip(20).size().toInt().toLong())
-        Assert.assertEquals(0, txn.getAll("Issue").skip(20).skip(20).skip(20).skip(20).skip(20).size().toInt().toLong())
-        Assert.assertEquals(0, txn.getAll("Issue").skip(20).skip(20).skip(20).skip(20).skip(21).size().toInt().toLong())
+        Assert.assertEquals(80, txn.getAll("Issue").skip(20).size())
+        Assert.assertEquals(60, txn.getAll("Issue").skip(20).skip(20).size())
+        Assert.assertEquals(40, txn.getAll("Issue").skip(20).skip(20).skip(20).size())
+        Assert.assertEquals(20, txn.getAll("Issue").skip(20).skip(20).skip(20).skip(20).size())
+        Assert.assertEquals(0, txn.getAll("Issue").skip(20).skip(20).skip(20).skip(20).skip(20).size())
+        Assert.assertEquals(0, txn.getAll("Issue").skip(20).skip(20).skip(20).skip(20).skip(21).size())
     }
 
     fun testTakeIterable() {
@@ -236,14 +236,14 @@ class EntityIterableTests : EntityStoreTestBase() {
             txn.newEntity("Issue")
         }
         txn.flush()
-        Assert.assertEquals(80, txn.getAll("Issue").take(80).size().toInt().toLong())
-        Assert.assertEquals(60, txn.getAll("Issue").take(80).take(60).size().toInt().toLong())
-        Assert.assertEquals(40, txn.getAll("Issue").take(80).take(60).take(40).size().toInt().toLong())
-        Assert.assertEquals(20, txn.getAll("Issue").take(20).take(40).take(60).take(80).size().toInt().toLong())
-        Assert.assertEquals(40, txn.getAll("Issue").take(40).take(60).take(80).size().toInt().toLong())
-        Assert.assertEquals(60, txn.getAll("Issue").take(60).take(80).size().toInt().toLong())
-        Assert.assertEquals(0, txn.getAll("Issue").take(60).take(0).size().toInt().toLong())
-        Assert.assertEquals(0, txn.getAll("Issue").take(0).take(60).size().toInt().toLong())
+        Assert.assertEquals(80, txn.getAll("Issue").take(80).size())
+        Assert.assertEquals(60, txn.getAll("Issue").take(80).take(60).size())
+        Assert.assertEquals(40, txn.getAll("Issue").take(80).take(60).take(40).size())
+        Assert.assertEquals(20, txn.getAll("Issue").take(20).take(40).take(60).take(80).size())
+        Assert.assertEquals(40, txn.getAll("Issue").take(40).take(60).take(80).size())
+        Assert.assertEquals(60, txn.getAll("Issue").take(60).take(80).size())
+        Assert.assertEquals(0, txn.getAll("Issue").take(60).take(0).size())
+        Assert.assertEquals(0, txn.getAll("Issue").take(0).take(60).size())
     }
 
     fun testSelectDistinct() {
@@ -253,7 +253,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         txn.newEntity("Issue").addLink("assignee", user)
         txn.newEntity("Issue").addLink("assignee", user)
         txn.flush()
-        Assert.assertEquals(2, txn.getAll("Issue").selectDistinct("assignee").size().toInt().toLong())
+        Assert.assertEquals(2, txn.getAll("Issue").selectDistinct("assignee").size())
     }
 
     fun testSelectDistinct2() {
@@ -264,7 +264,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         txn.newEntity("Issue").addLink("assignee", user)
         txn.newEntity("Issue")
         txn.flush()
-        Assert.assertEquals(3, txn.getAll("Issue").selectDistinct("assignee").size().toInt().toLong())
+        Assert.assertEquals(3, txn.getAll("Issue").selectDistinct("assignee").size())
     }
 
     fun testSelectDistinctSource() {
@@ -288,21 +288,21 @@ class EntityIterableTests : EntityStoreTestBase() {
         txn.newEntity("Issue")
         txn.newEntity("User")
         txn.flush()
-        Assert.assertEquals(0, txn.getAll("Issue").intersect(txn.getAll("User")).selectDistinct("unknown_link").size().toInt().toLong())
+        Assert.assertEquals(0, txn.getAll("Issue").intersect(txn.getAll("User")).selectDistinct("unknown_link").size())
     }
 
     fun testSelectDistinctSingular() {
         val txn = storeTransaction
         txn.newEntity("Issue")
         txn.flush()
-        Assert.assertEquals(1, txn.getAll("Issue").size().toInt().toLong())
-        Assert.assertEquals(1, txn.getAll("Issue").selectDistinct("assignee").size().toInt().toLong())
+        Assert.assertEquals(1, txn.getAll("Issue").size())
+        Assert.assertEquals(1, txn.getAll("Issue").selectDistinct("assignee").size())
         val user = txn.newEntity("User")
         txn.newEntity("Issue").addLink("assignee", user)
         txn.newEntity("Issue").addLink("assignee", user)
         txn.flush()
-        Assert.assertEquals(3, txn.getAll("Issue").size().toInt().toLong())
-        Assert.assertEquals(2, txn.getAll("Issue").selectDistinct("assignee").size().toInt().toLong())
+        Assert.assertEquals(3, txn.getAll("Issue").size())
+        Assert.assertEquals(2, txn.getAll("Issue").selectDistinct("assignee").size())
     }
 
     fun testSelectManyDistinct() {
@@ -313,7 +313,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         txn.newEntity("Issue").addLink("assignee", user)
         txn.newEntity("Issue").addLink("assignee", user)
         txn.flush()
-        Assert.assertEquals(2, txn.getAll("Issue").selectManyDistinct("assignee").size().toInt().toLong())
+        Assert.assertEquals(2, txn.getAll("Issue").selectManyDistinct("assignee").size())
     }
 
     fun testSelectManyDistinct2() {
@@ -330,7 +330,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         issue2.addLink("assignee", user1)
         issue2.addLink("assignee", user2)
         txn.flush()
-        Assert.assertEquals(4, txn.getAll("Issue").selectManyDistinct("assignee").size().toInt().toLong())
+        Assert.assertEquals(4, txn.getAll("Issue").selectManyDistinct("assignee").size())
     }
 
     fun testSelectManyDistinctFromEmptySequence() {
@@ -338,7 +338,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         txn.newEntity("Issue")
         txn.newEntity("User")
         txn.flush()
-        Assert.assertEquals(0, txn.getAll("Issue").intersect(txn.getAll("User")).selectManyDistinct("unknown_link").size().toInt().toLong())
+        Assert.assertEquals(0, txn.getAll("Issue").intersect(txn.getAll("User")).selectManyDistinct("unknown_link").size())
     }
 
     fun testSelectManyDistinct3() {
@@ -356,7 +356,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         issue2.addLink("assignee", user2)
         txn.newEntity("Issue")
         txn.flush()
-        Assert.assertEquals(5, txn.getAll("Issue").selectManyDistinct("assignee").size().toInt().toLong())
+        Assert.assertEquals(5, txn.getAll("Issue").selectManyDistinct("assignee").size())
     }
 
     fun testSelectManyDistinctSource() {
@@ -381,15 +381,15 @@ class EntityIterableTests : EntityStoreTestBase() {
         createNUsers(txn, 10)
         txn.newEntity("Issue")
         txn.flush()
-        Assert.assertEquals(0, txn.getAll("Issue").selectManyDistinct("assignee").size().toInt().toLong())
+        Assert.assertEquals(0, txn.getAll("Issue").selectManyDistinct("assignee").size())
         entityStore.getLinkId(txn, "assignee", true)
         txn.flush()
-        Assert.assertEquals(1, txn.getAll("Issue").selectManyDistinct("assignee").size().toInt().toLong())
+        Assert.assertEquals(1, txn.getAll("Issue").selectManyDistinct("assignee").size())
         val user = txn.newEntity("User")
         txn.newEntity("Issue").addLink("assignee", user)
         txn.newEntity("Issue").addLink("assignee", user)
         txn.flush()
-        Assert.assertEquals(2, txn.getAll("Issue").selectManyDistinct("assignee").size().toInt().toLong())
+        Assert.assertEquals(2, txn.getAll("Issue").selectManyDistinct("assignee").size())
     }
 
     fun testFindLinks() {
@@ -642,7 +642,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         }
         println("getAll(\"User\") cached.")
         for (i in 0..79999) {
-            Assert.assertEquals((i + startingCount).toLong(), txn.getAll("User").size().toInt().toLong())
+            Assert.assertEquals(i + startingCount, txn.getAll("User").size().toInt())
             txn.newEntity("User")
             txn.flush()
         }

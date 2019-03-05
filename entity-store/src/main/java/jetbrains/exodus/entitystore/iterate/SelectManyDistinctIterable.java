@@ -22,6 +22,7 @@ import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
 import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.tables.LinkValue;
 import jetbrains.exodus.entitystore.tables.PropertyKey;
+import jetbrains.exodus.entitystore.util.EntityIdSetFactory;
 import jetbrains.exodus.env.Cursor;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
@@ -184,6 +185,7 @@ public class SelectManyDistinctIterable extends EntityIterableDecoratorBase {
             final EntityIterator sourceIt = this.sourceIt;
             final int linkId = SelectManyDistinctIterable.this.linkId;
             if (linkId >= 0) {
+                EntityIdSet usedIds = EntityIdSetFactory.newSet();
                 while (sourceIt.hasNext()) {
                     final EntityId sourceId = sourceIt.nextId();
                     if (sourceId == null) {
@@ -199,13 +201,19 @@ public class SelectManyDistinctIterable extends EntityIterableDecoratorBase {
                     ByteIterable value = cursor.getSearchKey(
                         PropertyKey.propertyKeyToEntry(auxStream, auxArray, sourceLocalId, linkId));
                     if (value == null) {
-                        ids.add(new Pair<EntityId, EntityId>(sourceId, null));
+                        if (!usedIds.contains(null)) {
+                            usedIds = usedIds.add(null);
+                            ids.add(new Pair<EntityId, EntityId>(sourceId, null));
+                        }
                     } else {
                         for (; ; ) {
                             // value is updated automatically through every iteration
                             final LinkValue linkValue = LinkValue.entryToLinkValue(value);
                             final EntityId nextId = linkValue.getEntityId();
-                            ids.add(new Pair<>(sourceId, nextId));
+                            if (!usedIds.contains(nextId)) {
+                                usedIds = usedIds.add(nextId);
+                                ids.add(new Pair<>(sourceId, nextId));
+                            }
                             if (!cursor.getNext()) {
                                 break;
                             }
