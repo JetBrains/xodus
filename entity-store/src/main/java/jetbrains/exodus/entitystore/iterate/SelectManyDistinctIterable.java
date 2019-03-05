@@ -16,8 +16,8 @@
 package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
-import jetbrains.exodus.core.dataStructures.hash.LinkedHashSet;
 import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
 import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.tables.LinkValue;
@@ -27,8 +27,8 @@ import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Iterator;
-import java.util.Set;
+import java.util.ArrayDeque;
+import java.util.Deque;
 
 @SuppressWarnings({"RawUseOfParameterizedType"})
 public class SelectManyDistinctIterable extends EntityIterableDecoratorBase {
@@ -113,17 +113,20 @@ public class SelectManyDistinctIterable extends EntityIterableDecoratorBase {
         };
     }
 
-    private class SelectManyDistinctIterator extends EntityIteratorBase {
+    private class SelectManyDistinctIterator extends EntityIteratorBase implements SourceMappingIterator {
 
         @NotNull
         private final EntityIteratorBase sourceIt;
         @NotNull
         private final IntHashMap<Cursor> usedCursors;
         @NotNull
+        private final Deque<Pair<EntityId, EntityId>> ids;
+        @NotNull
         private final LightOutputStream auxStream;
         @NotNull
         private final int[] auxArray;
-        private Set<EntityId> usedIds;
+        private boolean idsCollected;
+        private EntityId sourceId;
         @NotNull
         private final PersistentStoreTransaction txn;
 
@@ -131,73 +134,29 @@ public class SelectManyDistinctIterable extends EntityIterableDecoratorBase {
             super(SelectManyDistinctIterable.this);
             sourceIt = (EntityIteratorBase) source.iterator();
             usedCursors = new IntHashMap<>(6, 2.f);
+            ids = new ArrayDeque<>();
             auxStream = new LightOutputStream();
             auxArray = new int[8];
-            usedIds = null;
             this.txn = txn;
         }
 
         @Override
         protected boolean hasNextImpl() {
-            if (usedIds == null) {
+            if (!idsCollected) {
+                idsCollected = true;
                 collectIds();
             }
-            return !usedIds.isEmpty();
+            return !ids.isEmpty();
         }
 
-        @SuppressWarnings({"ObjectAllocationInLoop"})
-        private void collectIds() {
-            final Set<EntityId> usedIds = new LinkedHashSet<>();
-            this.usedIds = usedIds;
-            final EntityIterator sourceIt = this.sourceIt;
-            final int linkId = SelectManyDistinctIterable.this.linkId;
-            if (linkId >= 0) {
-                while (sourceIt.hasNext()) {
-                    EntityId nextId = sourceIt.nextId();
-                    if (nextId == null) {
-                        continue;
-                    }
-                    final int typeId = nextId.getTypeId();
-                    Cursor cursor = usedCursors.get(typeId);
-                    if (cursor == null) {
-                        cursor = getStore().getLinksFirstIndexCursor(txn, typeId);
-                        usedCursors.put(typeId, cursor);
-                    }
-                    final long sourceLocalId = nextId.getLocalId();
-                    ByteIterable value = cursor.getSearchKey(
-                        PropertyKey.propertyKeyToEntry(auxStream, auxArray, sourceLocalId, linkId));
-                    if (value == null) {
-                        usedIds.add(null);
-                    } else {
-                        for (; ; ) {
-                            // value is updated automatically through every iteration
-                            final LinkValue linkValue = LinkValue.entryToLinkValue(value);
-                            nextId = linkValue.getEntityId();
-                            usedIds.add(nextId);
-                            if (!cursor.getNext()) {
-                                break;
-                            }
-                            final PropertyKey key = PropertyKey.entryToPropertyKey(cursor.getKey());
-                            if (key.getPropertyId() != linkId || key.getEntityLocalId() != sourceLocalId) {
-                                break;
-                            }
-                            value = cursor.getValue(); // must be called for XD, because it returns different value pointer
-                        }
-                    }
-                }
-            }
-        }
-
+        @SuppressWarnings("ConstantConditions")
         @Override
         @Nullable
         public EntityId nextIdImpl() {
             if (hasNextImpl()) {
-                final Iterator<EntityId> it = usedIds.iterator();
-                if (it.hasNext()) {
-                    final EntityId id = it.next();
-                    usedIds.remove(id);
-                    return id;
-                }
+                final Pair<EntityId, EntityId> pair = ids.poll();
+                sourceId = pair.getFirst();
+                return pair.getSecond();
             }
             return null;
         }
@@ -212,6 +171,53 @@ public class SelectManyDistinctIterable extends EntityIterableDecoratorBase {
                     return true;
                 }
             });
+        }
+
+        @Override
+        @NotNull
+        public EntityId getSourceId() {
+            return sourceId;
+        }
+
+        @SuppressWarnings({"ObjectAllocationInLoop"})
+        private void collectIds() {
+            final EntityIterator sourceIt = this.sourceIt;
+            final int linkId = SelectManyDistinctIterable.this.linkId;
+            if (linkId >= 0) {
+                while (sourceIt.hasNext()) {
+                    final EntityId sourceId = sourceIt.nextId();
+                    if (sourceId == null) {
+                        continue;
+                    }
+                    final int typeId = sourceId.getTypeId();
+                    Cursor cursor = usedCursors.get(typeId);
+                    if (cursor == null) {
+                        cursor = getStore().getLinksFirstIndexCursor(txn, typeId);
+                        usedCursors.put(typeId, cursor);
+                    }
+                    final long sourceLocalId = sourceId.getLocalId();
+                    ByteIterable value = cursor.getSearchKey(
+                        PropertyKey.propertyKeyToEntry(auxStream, auxArray, sourceLocalId, linkId));
+                    if (value == null) {
+                        ids.add(new Pair<EntityId, EntityId>(sourceId, null));
+                    } else {
+                        for (; ; ) {
+                            // value is updated automatically through every iteration
+                            final LinkValue linkValue = LinkValue.entryToLinkValue(value);
+                            final EntityId nextId = linkValue.getEntityId();
+                            ids.add(new Pair<>(sourceId, nextId));
+                            if (!cursor.getNext()) {
+                                break;
+                            }
+                            final PropertyKey key = PropertyKey.entryToPropertyKey(cursor.getKey());
+                            if (key.getPropertyId() != linkId || key.getEntityLocalId() != sourceLocalId) {
+                                break;
+                            }
+                            value = cursor.getValue(); // must be called for XD, because it returns different value pointer
+                        }
+                    }
+                }
+            }
         }
     }
 }

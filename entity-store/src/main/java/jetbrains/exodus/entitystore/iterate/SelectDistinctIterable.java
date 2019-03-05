@@ -126,7 +126,6 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
         @NotNull
         private final int[] auxArray;
         private EntityIdSet iterated;
-        @NotNull
         private EntityId sourceId;
         private EntityId nextId;
         private boolean hasNext;
