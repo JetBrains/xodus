@@ -61,7 +61,7 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
     @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
-        return new EntityIteratorFixingDecorator(this, new SelectDistinctIterator(txn));
+        return new SelectDistinctIterator(txn);
     }
 
     @Override
@@ -127,6 +127,8 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
         private final int[] auxArray;
         private EntityIdSet iterated;
         private EntityId nextId;
+        private boolean hasNext;
+        private boolean hasNextValid;
         @NotNull
         private final PersistentStoreTransaction txn;
 
@@ -144,6 +146,23 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
         @SuppressWarnings({"ObjectAllocationInLoop"})
         @Override
         protected boolean hasNextImpl() {
+            if (!hasNextValid) {
+                hasNextValid = true;
+                hasNext = advance();
+            }
+            return hasNext;
+        }
+
+        @Override
+        @Nullable
+        public EntityId nextIdImpl() {
+            final EntityId nextId = this.nextId;
+            iterated = iterated.add(nextId);
+            hasNextValid = false;
+            return nextId;
+        }
+
+        private boolean advance() {
             if (linkId < 0) {
                 return !iterated.contains(null) && sourceIt.hasNext();
             }
@@ -175,14 +194,6 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
                 }
             }
             return false;
-        }
-
-        @Override
-        @Nullable
-        public EntityId nextIdImpl() {
-            final EntityId nextId = this.nextId;
-            iterated = iterated.add(nextId);
-            return nextId;
         }
 
         @Override

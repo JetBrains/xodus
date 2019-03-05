@@ -59,7 +59,7 @@ public class SelectManyDistinctIterable extends EntityIterableDecoratorBase {
     @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
-        return new EntityIteratorFixingDecorator(this, new SelectManyDistinctIterator(txn));
+        return new SelectManyDistinctIterator(txn);
     }
 
     @Override
@@ -191,11 +191,13 @@ public class SelectManyDistinctIterable extends EntityIterableDecoratorBase {
         @Override
         @Nullable
         public EntityId nextIdImpl() {
-            final Iterator<EntityId> it = usedIds.iterator();
-            if (it.hasNext()) {
-                final EntityId id = it.next();
-                usedIds.remove(id);
-                return id;
+            if (hasNextImpl()) {
+                final Iterator<EntityId> it = usedIds.iterator();
+                if (it.hasNext()) {
+                    final EntityId id = it.next();
+                    usedIds.remove(id);
+                    return id;
+                }
             }
             return null;
         }
