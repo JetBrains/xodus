@@ -267,6 +267,23 @@ class EntityIterableTests : EntityStoreTestBase() {
         Assert.assertEquals(3, txn.getAll("Issue").selectDistinct("assignee").size().toInt().toLong())
     }
 
+    fun testSelectDistinctSource() {
+        val txn = storeTransaction
+        repeat(10) { i ->
+            txn.newEntity("Issue").apply {
+                setProperty("i", i)
+                addLink("assignee", txn.newEntity("User"))
+            }
+        }
+        txn.flush()
+        val iterator = txn.getAll("Issue").selectDistinct("assignee").iterator() as SourceMappingIterator
+        var i = 0
+        iterator.forEach {
+            Assert.assertEquals(i++, txn.getEntity(iterator.sourceId).getProperty("i"))
+        }
+
+    }
+
     fun testSelectDistinctFromEmptySequence() {
         val txn = storeTransaction
         txn.newEntity("Issue")

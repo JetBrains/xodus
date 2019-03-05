@@ -115,7 +115,7 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
         };
     }
 
-    private class SelectDistinctIterator extends EntityIteratorBase {
+    private class SelectDistinctIterator extends EntityIteratorBase implements SourceMappingIterator {
 
         @NotNull
         private final EntityIteratorBase sourceIt;
@@ -126,6 +126,8 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
         @NotNull
         private final int[] auxArray;
         private EntityIdSet iterated;
+        @NotNull
+        private EntityId sourceId;
         private EntityId nextId;
         private boolean hasNext;
         private boolean hasNextValid;
@@ -171,6 +173,7 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
                 if (nextSourceId == null) {
                     continue;
                 }
+                sourceId = nextSourceId;
                 final int typeId = nextSourceId.getTypeId();
                 Cursor cursor = usedCursors.get(typeId);
                 if (cursor == null) {
@@ -212,6 +215,12 @@ public final class SelectDistinctIterable extends EntityIterableDecoratorBase {
         @Override
         protected EntityIdSet toSet() {
             return iterated;
+        }
+
+        @Override
+        @NotNull
+        public EntityId getSourceId() {
+            return sourceId;
         }
     }
 }
