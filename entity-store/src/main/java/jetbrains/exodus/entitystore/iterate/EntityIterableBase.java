@@ -366,7 +366,20 @@ public abstract class EntityIterableBase implements EntityIterable {
             return EMPTY;
         }
         final PersistentStoreTransaction txn = getTransaction();
-        return new SelectManyDistinctIterable(txn, this, store.getLinkId(txn, linkName, false));
+        return new SelectManyIterable(txn, this, store.getLinkId(txn, linkName, false), true);
+    }
+
+    @NotNull
+    public EntityIterable selectMany(@NotNull final String linkName) {
+        if (isDecoratorForSelectDistinct(this)) {
+            final EntityIterableDecoratorBase decorator = (EntityIterableDecoratorBase) this;
+            return decorator.getDecorated().selectMany(linkName);
+        }
+        if (store == null) {
+            return EMPTY;
+        }
+        final PersistentStoreTransaction txn = getTransaction();
+        return new SelectManyIterable(txn, this, store.getLinkId(txn, linkName, false), false);
     }
 
     @Nullable

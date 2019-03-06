@@ -392,6 +392,93 @@ class EntityIterableTests : EntityStoreTestBase() {
         Assert.assertEquals(2, txn.getAll("Issue").selectManyDistinct("assignee").size())
     }
 
+    fun testSelectMany() {
+        val txn = storeTransaction
+        createNUsers(txn, 10)
+        txn.newEntity("Issue").addLink("assignee", txn.newEntity("User"))
+        val user = txn.newEntity("User")
+        txn.newEntity("Issue").addLink("assignee", user)
+        txn.newEntity("Issue").addLink("assignee", user)
+        txn.flush()
+        Assert.assertEquals(3, txn.getAll("Issue").selectMany("assignee").size())
+    }
+
+    fun testSelectMany2() {
+        val txn = storeTransaction
+        createNUsers(txn, 10)
+        txn.newEntity("Issue").addLink("assignee", txn.newEntity("User"))
+        val user1 = txn.newEntity("User")
+        val user2 = txn.newEntity("User")
+        val issue1 = txn.newEntity("Issue")
+        issue1.addLink("assignee", user1)
+        issue1.addLink("assignee", user2)
+        issue1.addLink("assignee", txn.newEntity("User"))
+        val issue2 = txn.newEntity("Issue")
+        issue2.addLink("assignee", user1)
+        issue2.addLink("assignee", user2)
+        txn.flush()
+        Assert.assertEquals(6, txn.getAll("Issue").selectMany("assignee").size())
+    }
+
+    fun testSelectManyFromEmptySequence() {
+        val txn = storeTransaction
+        txn.newEntity("Issue")
+        txn.newEntity("User")
+        txn.flush()
+        Assert.assertEquals(0, txn.getAll("Issue").intersect(txn.getAll("User")).selectMany("unknown_link").size())
+    }
+
+    fun testSelectMany3() {
+        val txn = storeTransaction
+        createNUsers(txn, 10)
+        txn.newEntity("Issue").addLink("assignee", txn.newEntity("User"))
+        val user1 = txn.newEntity("User")
+        val user2 = txn.newEntity("User")
+        val issue1 = txn.newEntity("Issue")
+        issue1.addLink("assignee", user1)
+        issue1.addLink("assignee", user2)
+        issue1.addLink("assignee", txn.newEntity("User"))
+        val issue2 = txn.newEntity("Issue")
+        issue2.addLink("assignee", user1)
+        issue2.addLink("assignee", user2)
+        txn.newEntity("Issue")
+        txn.flush()
+        Assert.assertEquals(7, txn.getAll("Issue").selectMany("assignee").size())
+    }
+
+    fun testSelectManySource() {
+        val txn = storeTransaction
+        repeat(10) { i ->
+            txn.newEntity("Issue").apply {
+                setProperty("i", i)
+                addLink("assignee", txn.newEntity("User"))
+                addLink("assignee", txn.newEntity("User"))
+            }
+        }
+        txn.flush()
+        val iterator = txn.getAll("Issue").selectMany("assignee").iterator() as SourceMappingIterator
+        var i = 0
+        iterator.forEach {
+            Assert.assertEquals(i++ / 2, txn.getEntity(iterator.sourceId).getProperty("i"))
+        }
+    }
+
+    fun testSelectManySingular() {
+        val txn = storeTransaction
+        createNUsers(txn, 10)
+        txn.newEntity("Issue")
+        txn.flush()
+        Assert.assertEquals(0, txn.getAll("Issue").selectMany("assignee").size())
+        entityStore.getLinkId(txn, "assignee", true)
+        txn.flush()
+        Assert.assertEquals(1, txn.getAll("Issue").selectMany("assignee").size())
+        val user = txn.newEntity("User")
+        txn.newEntity("Issue").addLink("assignee", user)
+        txn.newEntity("Issue").addLink("assignee", user)
+        txn.flush()
+        Assert.assertEquals(3, txn.getAll("Issue").selectMany("assignee").size())
+    }
+
     fun testFindLinks() {
         entityStore.config.isCachingDisabled = true
         val txn = storeTransaction
@@ -683,4 +770,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         @Suppress("UNCHECKED_CAST")
         return result as Array<Entity>
     }
+
+    private fun EntityIterable.selectMany(linkName: String) =
+            (this as EntityIterableBase).selectMany(linkName)
 }

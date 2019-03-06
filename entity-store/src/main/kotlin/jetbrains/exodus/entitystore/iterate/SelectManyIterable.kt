@@ -27,14 +27,15 @@ import jetbrains.exodus.env.Cursor
 import jetbrains.exodus.util.LightOutputStream
 import java.util.*
 
-class SelectManyDistinctIterable(txn: PersistentStoreTransaction,
-                                 source: EntityIterableBase,
-                                 private val linkId: Int) : EntityIterableDecoratorBase(txn, source) {
+class SelectManyIterable(txn: PersistentStoreTransaction,
+                         source: EntityIterableBase,
+                         private val linkId: Int,
+                         private val distinct: Boolean = true) : EntityIterableDecoratorBase(txn, source) {
 
     override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase = SelectManyDistinctIterator(txn)
 
     override fun getHandleImpl(): EntityIterableHandle {
-        return object : EntityIterableHandleDecorator(store, SelectManyDistinctIterable.type, source.handle) {
+        return object : EntityIterableHandleDecorator(store, SelectManyIterable.type, source.handle) {
 
             private val linkIds = EntityIterableHandleBase.mergeFieldIds(intArrayOf(linkId), decorated.linkIds)
 
@@ -54,16 +55,16 @@ class SelectManyDistinctIterable(txn: PersistentStoreTransaction,
             }
 
             override fun isMatchedLinkAdded(source: EntityId, target: EntityId, linkId: Int): Boolean {
-                return linkId == this@SelectManyDistinctIterable.linkId || decorated.isMatchedLinkAdded(source, target, linkId)
+                return linkId == this@SelectManyIterable.linkId || decorated.isMatchedLinkAdded(source, target, linkId)
             }
 
             override fun isMatchedLinkDeleted(source: EntityId, target: EntityId, linkId: Int): Boolean {
-                return linkId == this@SelectManyDistinctIterable.linkId || decorated.isMatchedLinkDeleted(source, target, linkId)
+                return linkId == this@SelectManyIterable.linkId || decorated.isMatchedLinkDeleted(source, target, linkId)
             }
         }
     }
 
-    private inner class SelectManyDistinctIterator constructor(private val txn: PersistentStoreTransaction) : EntityIteratorBase(this@SelectManyDistinctIterable), SourceMappingIterator {
+    private inner class SelectManyDistinctIterator constructor(private val txn: PersistentStoreTransaction) : EntityIteratorBase(this@SelectManyIterable), SourceMappingIterator {
 
         private val sourceIt = source.iterator() as EntityIteratorBase
         private val usedCursors = IntHashMap<Cursor>(6, 2f)
@@ -99,9 +100,9 @@ class SelectManyDistinctIterable(txn: PersistentStoreTransaction,
 
         private fun collectIds() {
             val sourceIt = this.sourceIt
-            val linkId = this@SelectManyDistinctIterable.linkId
+            val linkId = this@SelectManyIterable.linkId
             if (linkId >= 0) {
-                var usedIds = EntityIdSetFactory.newSet()
+                var usedIds = if (distinct) EntityIdSetFactory.newSet() else EntityIdSetFactory.newImmutableSet()
                 while (sourceIt.hasNext()) {
                     val sourceId = sourceIt.nextId() ?: continue
                     val typeId = sourceId.typeId
@@ -142,7 +143,7 @@ class SelectManyDistinctIterable(txn: PersistentStoreTransaction,
 
         init {
             EntityIterableBase.registerType(type) { txn, _, parameters ->
-                SelectManyDistinctIterable(txn,
+                SelectManyIterable(txn,
                         parameters[1] as EntityIterableBase, Integer.valueOf(parameters[0] as String))
             }
         }

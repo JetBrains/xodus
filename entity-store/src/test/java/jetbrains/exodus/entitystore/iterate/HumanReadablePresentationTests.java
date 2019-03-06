@@ -93,7 +93,7 @@ public class HumanReadablePresentationTests extends EntityStoreTestBase {
                 "Distinct iterable\n" +
                         "|   Empty iterable"
         );
-        checkIterable(new SelectManyDistinctIterable(txn, EntityIterableBase.EMPTY, 0),
+        checkIterable(new SelectManyIterable(txn, EntityIterableBase.EMPTY, 0, true),
                 "SelectMany distinct iterable 0\n" +
                         "|   Empty iterable"
         );

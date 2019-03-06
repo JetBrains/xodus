@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.util;
+package jetbrains.exodus.entitystore.util
 
-import jetbrains.exodus.entitystore.iterate.EntityIdSet;
+import jetbrains.exodus.entitystore.EntityId
+import jetbrains.exodus.entitystore.iterate.EntityIdSet
 
-public class EntityIdSetFactory {
-    private static final EntityIdSet NOTHING = new EmptyEntityIdSet();
+internal class ImmutableEmptyEntityIdSet : EmptyEntityIdSet() {
 
-    public static EntityIdSet newSet() {
-        return NOTHING;
-    }
+    override fun add(id: EntityId?): EntityIdSet = this
+
+    override fun add(typeId: Int, localId: Long): EntityIdSet = this
 }
