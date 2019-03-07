@@ -32,6 +32,8 @@ class SelectManyIterable(txn: PersistentStoreTransaction,
                          private val linkId: Int,
                          private val distinct: Boolean = true) : EntityIterableDecoratorBase(txn, source) {
 
+    override fun canBeCached() = distinct
+
     override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase = SelectManyDistinctIterator(txn)
 
     override fun getHandleImpl(): EntityIterableHandle {
@@ -46,12 +48,16 @@ class SelectManyIterable(txn: PersistentStoreTransaction,
                 applyDecoratedToBuilder(builder)
                 builder.append('-')
                 builder.append(linkId)
+                builder.append('-')
+                builder.append(distinct)
             }
 
             override fun hashCode(hash: EntityIterableHandleBase.EntityIterableHandleHash) {
                 super.hashCode(hash)
                 hash.applyDelimiter()
                 hash.apply(linkId)
+                hash.applyDelimiter()
+                hash.apply((if (distinct) 1 else 0).toByte())
             }
 
             override fun isMatchedLinkAdded(source: EntityId, target: EntityId, linkId: Int): Boolean {
