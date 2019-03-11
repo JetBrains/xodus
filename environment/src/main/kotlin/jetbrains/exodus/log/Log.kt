@@ -686,11 +686,7 @@ class Log(val config: LogConfig) : Closeable {
             // remove address of file of the list
             blockSetMutable?.remove(address)
             // clear cache
-            var offset: Long = 0
-            while (offset < fileLengthBound) {
-                cache.removePage(this, address + offset)
-                offset += cachePageSize.toLong()
-            }
+            clearFileFromLogCache(address)
         } finally {
             listeners.forEach { it.afterBlockDeleted(address, reader, writer) }
         }
@@ -704,10 +700,14 @@ class Log(val config: LogConfig) : Closeable {
         writer.truncateBlock(address, length)
         writer.openOrCreateBlock(address, length)
         // clear cache
-        var offset = length - length % cachePageSize
-        while (offset < fileLengthBound) {
-            cache.removePage(this, address + offset)
-            offset += cachePageSize.toLong()
+        clearFileFromLogCache(address, length - length % cachePageSize)
+    }
+
+    fun clearFileFromLogCache(address: Long, offset: Long = 0L) {
+        var off = offset
+        while (off < fileLengthBound) {
+            cache.removePage(this, address + off)
+            off += cachePageSize
         }
     }
 

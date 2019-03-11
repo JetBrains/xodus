@@ -238,6 +238,9 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                 fragmentedFiles.next().apply {
                     cleanSingleFile(this, txn)
                     cleanedFiles.add(this)
+                    if (isTxnExclusive) {
+                        log.clearFileFromLogCache(this)
+                    }
                 }
                 if (!isTxnExclusive) {
                     break // do not process more than one file in a non-exclusive txn
