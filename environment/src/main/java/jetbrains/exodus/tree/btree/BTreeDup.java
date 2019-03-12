@@ -27,6 +27,7 @@ final class BTreeDup extends BTreeBase {
 
     @NotNull
     private final LeafNodeDup leafNodeDup;
+    private final ByteIterable leafNodeDupKey;
     private final long startAddress;
     private final byte dataOffset;
 
@@ -34,6 +35,7 @@ final class BTreeDup extends BTreeBase {
         super(mainTree.getLog(), mainTree.getBalancePolicy(), false, mainTree.getStructureId());
         dataIterator = mainTree.getDataIterator(Loggable.NULL_ADDRESS);
         this.leafNodeDup = leafNodeDup;
+        leafNodeDupKey = leafNodeDup.getKey();
         final ByteIterator iterator = leafNodeDup.getRawValue(0).iterator();
         final long l = CompressedUnsignedLongByteIterable.getLong(iterator);
         size = l >> 1;
@@ -60,7 +62,7 @@ final class BTreeDup extends BTreeBase {
     @Override
     @NotNull
     public BTreeDupMutable getMutableCopy() {
-        return new BTreeDupMutable(this, leafNodeDup.getKey());
+        return new BTreeDupMutable(this, leafNodeDupKey);
     }
 
     @Override
@@ -83,7 +85,7 @@ final class BTreeDup extends BTreeBase {
                 @NotNull
                 @Override
                 public ByteIterable getValue() {
-                    return leafNodeDup.getKey(); // get key from tree
+                    return leafNodeDupKey; // get key from tree
                 }
 
                 @Override
