@@ -543,7 +543,7 @@ public class EnvironmentConfig extends AbstractConfig {
     /**
      * Defines timeout in milliseconds which is used by the database garbage collector to acquire exclusive
      * {@linkplain Transaction} for its purposes if {@linkplain #GC_USE_EXCLUSIVE_TRANSACTION} is {@code true}.
-     * Default value is {@code 1000}.
+     * Default value is {@code 2000}.
      * <p>Mutable at runtime: yes
      *
      * @see #GC_USE_EXCLUSIVE_TRANSACTION
@@ -656,7 +656,7 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(GC_UTILIZATION_FROM_FILE, ""),
             new Pair(GC_FILES_DELETION_DELAY, 5000),
             new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
-            new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 1000),
+            new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 2000),
             new Pair(GC_TRANSACTION_TIMEOUT, 1000),
             new Pair(MANAGEMENT_ENABLED, !JVMConstants.INSTANCE.getIS_ANDROID()),
             new Pair(MANAGEMENT_OPERATIONS_RESTRICTED, true),
@@ -2083,7 +2083,7 @@ public class EnvironmentConfig extends AbstractConfig {
     /**
      * Returns timeout in milliseconds which is used by the database garbage collector to acquire exclusive
      * {@linkplain Transaction} for its purposes if {@linkplain #GC_USE_EXCLUSIVE_TRANSACTION} is {@code true}.
-     * Default value is {@code 1000}.
+     * Default value is {@code 2000}.
      * <p>Mutable at runtime: yes
      *
      * @return timeout in milliseconds which is used by the database garbage collector to acquire exclusive {@linkplain Transaction}
@@ -2097,7 +2097,7 @@ public class EnvironmentConfig extends AbstractConfig {
     /**
      * Sets timeout in milliseconds which is used by the database garbage collector to acquire exclusive
      * {@linkplain Transaction} for its purposes if {@linkplain #GC_USE_EXCLUSIVE_TRANSACTION} is {@code true}.
-     * Default value is {@code 1000}.
+     * Default value is {@code 2000}.
      * <p>Mutable at runtime: yes
      *
      * @param txnAcquireTimeout timeout in milliseconds which is used by the database garbage collector to acquire exclusive {@linkplain Transaction}
