@@ -18,34 +18,27 @@ package jetbrains.exodus.tree.patricia;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Arrays;
 import java.util.Iterator;
 
 final class ChildReferenceSet implements Iterable<ChildReference> {
 
-    private static final int CAPACITY_THRESHOLD = 2;
-
     private ChildReference[] refs;
-    private int size;
 
     ChildReferenceSet() {
         clear(0);
     }
 
     void clear(final int capacity) {
-        refs = capacity == 0 ? null : new ChildReference[Math.max(capacity, CAPACITY_THRESHOLD)];
-        size = 0;
+        refs = capacity == 0 ? null : new ChildReference[capacity];
     }
 
     int size() {
-        return size;
-    }
-
-    void setSize(int size) {
-        this.size = size;
+        return refs == null ? 0 : refs.length;
     }
 
     boolean isEmpty() {
-        return size == 0;
+        return size() == 0;
     }
 
     ChildReference get(final byte b) {
@@ -54,7 +47,7 @@ final class ChildReferenceSet implements Iterable<ChildReference> {
     }
 
     ChildReference getRight() {
-        final int size = this.size;
+        final int size = size();
         return size > 0 ? refs[size - 1] : null;
     }
 
@@ -62,7 +55,7 @@ final class ChildReferenceSet implements Iterable<ChildReference> {
         final ChildReference[] refs = this.refs;
         final int key = b & 0xff;
         int low = 0;
-        int high = size - 1;
+        int high = size() - 1;
         while (low <= high) {
             int mid = (low + high + 1) >>> 1;
             final ChildReference midRef = refs[mid];
@@ -83,17 +76,14 @@ final class ChildReferenceSet implements Iterable<ChildReference> {
     }
 
     void putRight(@NotNull final ChildReference ref) {
-        final int size = this.size;
+        final int size = this.size();
         ensureCapacity(size + 1, size);
         refs[size] = ref;
-        this.size = size + 1;
     }
 
     void insertAt(final int index, @NotNull final ChildReferenceMutable ref) {
-        final int size = this.size + 1;
-        ensureCapacity(size, index);
+        ensureCapacity(this.size() + 1, index);
         refs[index] = ref;
-        this.size = size;
     }
 
     void setAt(final int index, @NotNull final ChildReference ref) {
@@ -105,7 +95,7 @@ final class ChildReferenceSet implements Iterable<ChildReference> {
         if (index < 0) {
             return false;
         }
-        final int size = this.size;
+        final int size = this.size();
         if (size == 1) {
             refs = null;
         } else {
@@ -114,9 +104,8 @@ final class ChildReferenceSet implements Iterable<ChildReference> {
             if (refsToCopy > 0) {
                 System.arraycopy(refs, index + 1, refs, index, refsToCopy);
             }
-            refs[index + refsToCopy] = null;
+            this.refs = Arrays.copyOf(refs, refs.length - 1);
         }
-        this.size = size - 1;
         return true;
     }
 
@@ -132,7 +121,7 @@ final class ChildReferenceSet implements Iterable<ChildReference> {
     private void ensureCapacity(final int capacity, final int insertPos) {
         final ChildReference[] refs = this.refs;
         if (refs == null) {
-            this.refs = new ChildReference[Math.max(capacity, CAPACITY_THRESHOLD)];
+            this.refs = new ChildReference[capacity];
         } else {
             final int length = refs.length;
             if (length >= capacity) {
@@ -140,7 +129,7 @@ final class ChildReferenceSet implements Iterable<ChildReference> {
                     System.arraycopy(refs, insertPos, refs, insertPos + 1, length - insertPos - 1);
                 }
             } else {
-                this.refs = new ChildReference[Math.max(length + CAPACITY_THRESHOLD, capacity)];
+                this.refs = new ChildReference[Math.max(length, capacity)];
                 System.arraycopy(refs, 0, this.refs, 0, insertPos);
                 System.arraycopy(refs, insertPos, this.refs, insertPos + 1, length - insertPos);
                 // refs[insertPos] == null
@@ -156,7 +145,7 @@ final class ChildReferenceSet implements Iterable<ChildReference> {
 
         ChildReferenceIterator(ChildReferenceSet set, int index) {
             refs = set.refs;
-            size = set.size;
+            size = set.size();
             this.index = index;
         }
 

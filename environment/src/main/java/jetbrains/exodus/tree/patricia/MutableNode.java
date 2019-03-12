@@ -368,7 +368,6 @@ class MutableNode extends NodeBase {
             for (final ChildReference child : node.getChildren()) {
                 children.setAt(i++, child);
             }
-            children.setSize(childrenCount);
         }
     }
 
