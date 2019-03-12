@@ -26,27 +26,25 @@ import org.jetbrains.annotations.NotNull;
 final class BTreeDup extends BTreeBase {
 
     @NotNull
-    final LeafNodeDup leafNodeDup;
-    private final ByteIterable leafNodeDupKey;
+    private final LeafNodeDup leafNodeDup;
     private final long startAddress;
-    private final int dataOffset;
+    private final byte dataOffset;
 
     BTreeDup(@NotNull BTreeBase mainTree, @NotNull LeafNodeDup leafNodeDup) {
         super(mainTree.getLog(), mainTree.getBalancePolicy(), false, mainTree.getStructureId());
         dataIterator = mainTree.getDataIterator(Loggable.NULL_ADDRESS);
         this.leafNodeDup = leafNodeDup;
-        leafNodeDupKey = leafNodeDup.getKey();
         final ByteIterator iterator = leafNodeDup.getRawValue(0).iterator();
         final long l = CompressedUnsignedLongByteIterable.getLong(iterator);
         size = l >> 1;
         if ((l & 1) == 1) {
             long offset = CompressedUnsignedLongByteIterable.getLong(iterator);
             startAddress = leafNodeDup.getAddress() - offset;
-            dataOffset = CompressedUnsignedLongByteIterable.getCompressedSize(l)
-                + CompressedUnsignedLongByteIterable.getCompressedSize(offset);
+            dataOffset = (byte) (CompressedUnsignedLongByteIterable.getCompressedSize(l)
+                + CompressedUnsignedLongByteIterable.getCompressedSize(offset));
         } else {
             startAddress = Loggable.NULL_ADDRESS;
-            dataOffset = CompressedUnsignedLongByteIterable.getCompressedSize(l);
+            dataOffset = (byte) CompressedUnsignedLongByteIterable.getCompressedSize(l);
         }
     }
 
@@ -62,7 +60,7 @@ final class BTreeDup extends BTreeBase {
     @Override
     @NotNull
     public BTreeDupMutable getMutableCopy() {
-        return new BTreeDupMutable(this, leafNodeDupKey);
+        return new BTreeDupMutable(this, leafNodeDup.getKey());
     }
 
     @Override
@@ -85,7 +83,7 @@ final class BTreeDup extends BTreeBase {
                 @NotNull
                 @Override
                 public ByteIterable getValue() {
-                    return leafNodeDupKey; // get key from tree
+                    return leafNodeDup.getKey(); // get key from tree
                 }
 
                 @Override
