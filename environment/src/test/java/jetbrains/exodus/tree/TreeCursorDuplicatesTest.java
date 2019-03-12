@@ -25,7 +25,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.*;
 
 import static org.junit.Assert.*;
@@ -58,7 +57,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
     }
 
     @Test
-    public void testInitialState() throws IOException {
+    public void testInitialState() {
         final TreeAwareRunnable initial = new TreeAwareRunnable(getTreeMutable()) {
             @Override
             public void run() {
@@ -77,7 +76,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
     }
 
     @Test
-    public void testCount() throws IOException {
+    public void testCount() {
         final TreeAwareRunnable count = new TreeAwareRunnable(getTreeMutable()) {
             @Override
             public void run() {
@@ -103,7 +102,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
     }
 
     @Test
-    public void testGetNext() throws IOException {
+    public void testGetNext() {
         final TreeAwareRunnable getNext = new TreeAwareRunnable(getTreeMutable()) {
             @Override
             public void run() {
@@ -128,7 +127,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
     }
 
     @Test
-    public void testGetNextDup() throws IOException {
+    public void testGetNextDup() {
         final TreeAwareRunnable getNextDup = new TreeAwareRunnable(getTreeMutable()) {
             @Override
             public void run() {
@@ -170,7 +169,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
     }
 
     @Test
-    public void testGetNextNoDup() throws IOException {
+    public void testGetNextNoDup() {
         final TreeAwareRunnable getNextNoDup = new TreeAwareRunnable(getTreeMutable()) {
             @Override
             public void run() {
@@ -210,7 +209,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
     }
 
     @Test
-    public void testGetSearchKey() throws IOException {
+    public void testGetSearchKey() {
         final TreeAwareRunnable getSearchKey = new TreeAwareRunnable(getTreeMutable()) {
             @Override
             public void run() {
@@ -240,7 +239,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
     }
 
     @Test
-    public void testGetSearchBoth() throws IOException {
+    public void testGetSearchBoth() {
         final TreeAwareRunnable getSearchBoth = new TreeAwareRunnable(getTreeMutable()) {
             @Override
             public void run() {
@@ -270,7 +269,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
     }
 
     @Test
-    public void testGetSearchKeyRange1() throws IOException {
+    public void testGetSearchKeyRange1() {
         final TreeAwareRunnable getSearchKeyRange = new TreeAwareRunnable(getTreeMutable()) {
             @Override
             public void run() {
@@ -293,7 +292,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
     }
 
     @Test
-    public void testGetSearchKeyRange2() throws IOException {
+    public void testGetSearchKeyRange2() {
         final TreeAwareRunnable getSearchKeyRange = new TreeAwareRunnable(getTreeMutable()) {
             @Override
             public void run() {
@@ -329,7 +328,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
     }
 
     @Test
-    public void testGetSearchKeyRange3() throws IOException {
+    public void testGetSearchKeyRange3() {
         tm = createMutableTree(true, 1);
 
         getTreeMutable().put(kv(1, "v1"));
@@ -385,7 +384,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
 
 
     @Test
-    public void testGetSearchBothRange1() throws IOException {
+    public void testGetSearchBothRange1() {
         final TreeAwareRunnable getSearchBothRange = new TreeAwareRunnable(getTreeMutable()) {
             @Override
             public void run() {
@@ -408,7 +407,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
     }
 
     @Test
-    public void testGetSearchBothRange2() throws IOException {
+    public void testGetSearchBothRange2() {
         final TreeAwareRunnable getSearchBothRange = new TreeAwareRunnable(getTreeMutable()) {
             @Override
             public void run() {
@@ -447,7 +446,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
     }
 
     @Test
-    public void testGetSearchBothRange3() throws IOException {
+    public void testGetSearchBothRange3() {
         tm = createMutableTree(true, 1);
 
         getTreeMutable().put(kv(5, "v51"));
@@ -478,7 +477,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
     }
 
     @Test
-    public void testGetPrev() throws IOException {
+    public void testGetPrev() {
         final TreeAwareRunnable getPrev = new TreeAwareRunnable(getTreeMutable()) {
             @Override
             public void run() {
@@ -504,7 +503,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
     }
 
     @Test
-    public void testGetPrev2() throws IOException {
+    public void testGetPrev2() {
         tm = createMutableTree(true, 1);
         values.clear();
         values.add(kv(0, "v0"));

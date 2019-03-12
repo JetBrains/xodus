@@ -22,6 +22,7 @@ import jetbrains.exodus.tree.TreeTraverser;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
@@ -115,10 +116,7 @@ class BTreeTraverser implements TreeTraverser {
     protected void setAt(final int pos, @NotNull final TreePos treePos) {
         final int length = stack.length;
         if (pos >= length) { // ensure capacity
-            final int newCapacity = length << 1;
-            TreePos[] newStack = new TreePos[newCapacity];
-            System.arraycopy(stack, 0, newStack, 0, length);
-            stack = newStack;
+            stack = Arrays.copyOf(stack, length << 1);
         }
         stack[pos] = treePos;
     }
@@ -224,11 +222,22 @@ class BTreeTraverser implements TreeTraverser {
     }
 
     private boolean doMoveTo(@NotNull ByteIterable key, @Nullable ByteIterable value, boolean rangeSearch) {
-        final ILeafNode result;
+        ILeafNode result = null;
         if (top == 0 || currentNode.isInPageRange(key, value)) {
             result = currentNode.find(this, top, key, value, rangeSearch);
         } else {
-            result = stack[0].node.find(this, 0, key, value, rangeSearch);
+            boolean rangeFound = false;
+            for (int i = top - 1; i > 0; --i) {
+                final BasePage node = stack[i].node;
+                if (node.isInPageRange(key, value)) {
+                    result = node.find(this, i, key, value, rangeSearch);
+                    rangeFound = true;
+                    break;
+                }
+            }
+            if (!rangeFound) {
+                result = stack[0].node.find(this, 0, key, value, rangeSearch);
+            }
         }
         if (result == null) {
             return false;

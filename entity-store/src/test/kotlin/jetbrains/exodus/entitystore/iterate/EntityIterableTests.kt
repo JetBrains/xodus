@@ -448,7 +448,7 @@ class EntityIterableTests : EntityStoreTestBase() {
 
     fun testSelectManySource() {
         val txn = storeTransaction
-        repeat(10) { i ->
+        repeat(10000) { i ->
             txn.newEntity("Issue").apply {
                 setProperty("i", i)
                 addLink("assignee", txn.newEntity("User"))
