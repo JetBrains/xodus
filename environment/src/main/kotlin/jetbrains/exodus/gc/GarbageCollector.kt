@@ -48,7 +48,6 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
     @Volatile
     private var newFiles = ec.gcFilesInterval + 1 // number of new files appeared after last cleaning job
     private val openStoresCache = IntHashMap<StoreImpl>()
-    private var useRegularTxn: Boolean = false
 
     init {
         environment.log.addBlockListener(object : AbstractBlockListener() {
@@ -108,30 +107,18 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         }
     }
 
-    fun fetchExpiredLoggables(loggables: ExpiredLoggableCollection) {
-        utilizationProfile.fetchExpiredLoggables(loggables)
-    }
+    fun fetchExpiredLoggables(loggables: ExpiredLoggableCollection) = utilizationProfile.fetchExpiredLoggables(loggables)
 
-    fun getFileFreeBytes(fileAddress: Long): Long {
-        return utilizationProfile.getFileFreeBytes(fileAddress)
-    }
+    fun getFileFreeBytes(fileAddress: Long) = utilizationProfile.getFileFreeBytes(fileAddress)
 
-    fun suspend() {
-        cleaner.suspend()
-    }
+    fun suspend() = cleaner.suspend()
 
-    fun resume() {
-        cleaner.resume()
-    }
+    fun resume() = cleaner.resume()
 
-    fun finish() {
-        cleaner.finish()
-    }
+    fun finish() = cleaner.finish()
 
     /* public access is necessary to invoke the method from the Reflect class */
-    fun doCleanFile(fileAddress: Long): Boolean {
-        return doCleanFiles(setOf(fileAddress).iterator())
-    }
+    fun doCleanFile(fileAddress: Long) = doCleanFiles(setOf(fileAddress).iterator())
 
     /**
      * Cleans fragmented files. It is expected that the files are sorted by utilization, i.e.
@@ -146,16 +133,10 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         return doCleanFiles(fragmentedFiles)
     }
 
-    internal fun isFileCleaned(file: Long): Boolean {
-        return pendingFilesToDelete.contains(file)
-    }
+    internal fun isFileCleaned(file: Long) = pendingFilesToDelete.contains(file)
 
     internal fun resetNewFiles() {
         newFiles = 0
-    }
-
-    internal fun setUseRegularTxn(useRegularTxn: Boolean) {
-        this.useRegularTxn = useRegularTxn
     }
 
     /**
@@ -219,13 +200,12 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         val cleanedFiles = PackedLongHashSet()
         val txn: ReadWriteTransaction
         try {
-            val tx = if (useRegularTxn) environment.beginTransaction() else environment.beginGCTransaction()
+            txn = environment.beginGCTransaction()
             // tx can be read-only, so we should manually finish it (see XD-667)
-            if (tx.isReadonly) {
-                tx.abort()
+            if (txn.isReadonly) {
+                txn.abort()
                 return false
             }
-            txn = tx as ReadWriteTransaction
         } catch (ignore: TransactionAcquireTimeoutException) {
             return false
         }

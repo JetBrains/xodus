@@ -74,17 +74,6 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
                 }
                 Thread.yield()
             } while (canContinue() && loopStart + gcRunPeriod > System.currentTimeMillis())
-            gc.setUseRegularTxn(true)
-            try {
-                while (canContinue() && loopStart + gcRunPeriod > System.currentTimeMillis()) {
-                    val fragmentedFiles = up.getFilesSortedByUtilization(highFile)
-                    if (!fragmentedFiles.hasNext() || !cleanFiles(gc, fragmentedFiles)) {
-                        break
-                    }
-                }
-            } finally {
-                gc.setUseRegularTxn(false)
-            }
         } finally {
             gc.resetNewFiles()
             up.estimateTotalBytes()
