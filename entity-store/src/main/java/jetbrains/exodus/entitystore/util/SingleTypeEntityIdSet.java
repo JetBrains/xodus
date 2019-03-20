@@ -35,7 +35,8 @@ class SingleTypeEntityIdSet implements EntityIdSet {
     private boolean holdsNull;
 
     SingleTypeEntityIdSet(@Nullable final EntityId id) {
-        if (this.holdsNull = (id == null)) {
+        if (id == null) {
+            holdsNull = true;
             this.singleTypeId = -1;
         } else {
             this.singleTypeId = id.getTypeId();
@@ -112,6 +113,7 @@ class SingleTypeEntityIdSet implements EntityIdSet {
         return !holdsNull && singleTypeLocalIds.isEmpty();
     }
 
+    @NotNull
     @Override
     public Iterator<EntityId> iterator() {
         return new Iterator<EntityId>() {
