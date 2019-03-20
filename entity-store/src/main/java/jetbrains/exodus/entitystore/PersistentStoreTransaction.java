@@ -37,7 +37,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -811,7 +810,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (blobFiles != null) {
             final File file = blobFiles.get(blobHandle);
             if (file != null) {
-                return store.getBlobVault().cloneStream(new FileInputStream(file), true);
+                return store.getBlobVault().cloneFile(file);
             }
         }
         return null;

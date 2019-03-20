@@ -1127,7 +1127,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
         final int size = (int) length;
         final long blobHandle = createBlobHandle(txn, entity, blobName,
-            size > config.getMaxInPlaceBlobSize() ? null : blobVault.cloneStream(new FileInputStream(file), true), size);
+                size > config.getMaxInPlaceBlobSize() ? null : blobVault.cloneFile(file), size);
         if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
             setBlobFileLength(txn, blobHandle, length);
             txn.addBlob(blobHandle, file);

@@ -123,16 +123,14 @@ public class CompressBackupUtil {
         }
         final BackupStrategy strategy = source.getBackupStrategy();
         strategy.beforeBackup();
-        try {
+        try (OutputStream output = new BufferedOutputStream(new FileOutputStream(target))) {
             final ArchiveOutputStream archive;
             if (zip) {
-                final ZipArchiveOutputStream zipArchive =
-                        new ZipArchiveOutputStream(new BufferedOutputStream(new FileOutputStream(target)));
+                final ZipArchiveOutputStream zipArchive = new ZipArchiveOutputStream(output);
                 zipArchive.setLevel(Deflater.BEST_COMPRESSION);
                 archive = zipArchive;
             } else {
-                archive = new TarArchiveOutputStream(new GZIPOutputStream(
-                        new BufferedOutputStream(new FileOutputStream(target))));
+                archive = new TarArchiveOutputStream(new GZIPOutputStream(output));
             }
             try (ArchiveOutputStream aos = archive) {
                 for (final VirtualFileDescriptor fd : strategy.getContents()) {
@@ -195,27 +193,13 @@ public class CompressBackupUtil {
             throw new IllegalArgumentException("Destination refers to existing file or folder: " + dest.getAbsolutePath());
         }
 
-        TarArchiveOutputStream tarOut = null;
-        try {
-            tarOut = new TarArchiveOutputStream(new GZIPOutputStream(
-                    new BufferedOutputStream(new FileOutputStream(dest)), 0x1000));
+        try (TarArchiveOutputStream tarOut = new TarArchiveOutputStream(new GZIPOutputStream(
+                new BufferedOutputStream(new FileOutputStream(dest)), 0x1000))) {
             doTar("", source, tarOut);
-            tarOut.close();
         } catch (IOException e) {
-            cleanUp(tarOut, dest); // operation filed, let's remove the destination archive
+            IOUtil.deleteFile(dest); // operation filed, let's remove the destination archive
             throw e;
         }
-    }
-
-    private static void cleanUp(TarArchiveOutputStream tarOut, File dest) {
-        if (tarOut != null) {
-            try {
-                tarOut.close();
-            } catch (IOException e) {
-                // nothing to do here
-            }
-        }
-        IOUtil.deleteFile(dest);
     }
 
     private static void doTar(String pathInArchive,

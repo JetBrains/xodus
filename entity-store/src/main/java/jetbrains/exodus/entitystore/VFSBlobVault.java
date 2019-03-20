@@ -69,7 +69,9 @@ public class VFSBlobVault extends BlobVault {
 
     public void setContent(long blobHandle, @NotNull File file, @NotNull final Transaction txn) throws Exception {
         try (OutputStream blobOutput = fs.writeFile(txn, blobHandle)) {
-            IOUtil.copyStreams(new FileInputStream(file), blobOutput, bufferAllocator);
+            try (InputStream input = new FileInputStream(file)) {
+                IOUtil.copyStreams(input, blobOutput, bufferAllocator);
+            }
         }
     }
 
@@ -171,7 +173,7 @@ public class VFSBlobVault extends BlobVault {
 
     public void refactorFromFS(@NotNull final PersistentEntityStoreImpl store) throws IOException {
         final BlobVault sourceVault = new FileSystemBlobVaultOld(store.getConfig(), store.getLocation(),
-            "blobs", ".blob", BlobHandleGenerator.IMMUTABLE);
+                "blobs", ".blob", BlobHandleGenerator.IMMUTABLE);
 
         final LongSet allBlobs = store.computeInReadonlyTransaction(new StoreTransactionalComputable<LongSet>() {
             @Override

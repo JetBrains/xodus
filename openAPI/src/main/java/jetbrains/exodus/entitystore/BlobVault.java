@@ -52,7 +52,7 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
     private static final int READ_BUFFER_SIZE = 0x4000;
     static final ByteArraySpinAllocator bufferAllocator = new ByteArraySpinAllocator(READ_BUFFER_SIZE);
     private static final BlobStringsCache.BlobStringsCacheCreator
-        stringContentCacheCreator = new BlobStringsCache.BlobStringsCacheCreator();
+            stringContentCacheCreator = new BlobStringsCache.BlobStringsCacheCreator();
     private static final IdGenerator identityGenerator = new IdGenerator();
 
     private final PersistentEntityStoreConfig config;
@@ -68,8 +68,8 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
     protected BlobVault(@NotNull final PersistentEntityStoreConfig config) {
         this.config = config;
         stringContentCache = config.isBlobStringsCacheShared() ?
-            stringContentCacheCreator.getInstance() :
-            new BlobStringsCache.BlobStringsCacheCreator().getInstance();
+                stringContentCacheCreator.getInstance() :
+                new BlobStringsCache.BlobStringsCacheCreator().getInstance();
         vaultIdentity = identityGenerator.nextId();
     }
 
@@ -237,5 +237,11 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
                                                        final boolean closeSource) throws IOException {
         final ByteArrayOutputStream memCopy = copyStream(source, closeSource);
         return new ByteArraySizedInputStream(memCopy.toByteArray(), 0, memCopy.size());
+    }
+
+    public final ByteArraySizedInputStream cloneFile(@NotNull final File file) throws IOException {
+        try (InputStream input = new FileInputStream(file)) {
+            return cloneStream(input, false);
+        }
     }
 }
