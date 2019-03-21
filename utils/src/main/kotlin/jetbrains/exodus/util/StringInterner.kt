@@ -17,6 +17,7 @@ package jetbrains.exodus.util
 
 import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache
 import jetbrains.exodus.system.JVMConstants
+import kotlin.math.min
 
 class StringInterner private constructor(size: Int = StringInterner.INTERNER_SIZE) {
 
@@ -27,7 +28,7 @@ class StringInterner private constructor(size: Int = StringInterner.INTERNER_SIZ
     }
 
     fun doIntern(s: String?): String? {
-        if (s == null) return null
+        if (s == null || s.length > MAX_SIZE_OF_CACHED_STRING) return s
         val cached = cache.tryKey(s)
         if (cached != null) {
             return cached
@@ -52,6 +53,7 @@ class StringInterner private constructor(size: Int = StringInterner.INTERNER_SIZ
     companion object {
 
         private const val NUMBER_OF_GENERATIONS = 3
+        private val MAX_SIZE_OF_CACHED_STRING = Integer.getInteger("exodus.util.stringInternerMaxEntrySize", 1000)
         private val INTERNER_SIZE = Integer.getInteger("exodus.util.stringInternerCacheSize", 15991 * NUMBER_OF_GENERATIONS)
         private val DEFAULT_INTERNER = StringInterner()
 
@@ -59,7 +61,7 @@ class StringInterner private constructor(size: Int = StringInterner.INTERNER_SIZ
         fun intern(s: String?) = DEFAULT_INTERNER.doIntern(s)
 
         @JvmStatic
-        fun intern(builder: StringBuilder, maxLen: Int) = DEFAULT_INTERNER.doIntern(builder, maxLen)
+        fun intern(builder: StringBuilder, maxLen: Int) = DEFAULT_INTERNER.doIntern(builder, min(maxLen, MAX_SIZE_OF_CACHED_STRING))
 
         @JvmStatic
         fun newInterner(size: Int) = StringInterner(size)
