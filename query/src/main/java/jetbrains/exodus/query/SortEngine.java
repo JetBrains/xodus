@@ -221,12 +221,10 @@ public class SortEngine {
                                 }
                             }, valueGetter, caseInsensitiveComparator(ascending));
                         } else {
-                            // wrap source to avoid PersistentEntity instances to be exposed to transient level by in-memory sort (#JT-10189)
-                            source = queryEngine.wrap(it);
+                            source = txn.isReadonly() ? it : queryEngine.wrap(it);
                         }
                     } else {
-                        // wrap source to avoid PersistentEntity instances to be exposed to transient level by in-memory sort (#JT-10189)
-                        source = queryEngine.wrap(s);
+                        source = txn.isReadonly() ? s : queryEngine.wrap(s);
                     }
                 }
             }
@@ -275,8 +273,7 @@ public class SortEngine {
 
     private Iterable<Entity> getAllEntities(final String entityType, final ModelMetaData mmd) {
         queryEngine.assertOperational();
-        @Nullable
-        final EntityMetaData emd = mmd.getEntityMetaData(entityType);
+        @Nullable final EntityMetaData emd = mmd.getEntityMetaData(entityType);
         EntityIterable it = emd != null && emd.isAbstract() ?
             EntityIterableBase.EMPTY :
             queryEngine.instantiateGetAll(entityType);
