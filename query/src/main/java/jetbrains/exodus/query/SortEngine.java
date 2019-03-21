@@ -16,10 +16,7 @@
 package jetbrains.exodus.query;
 
 
-import jetbrains.exodus.entitystore.ComparableGetter;
-import jetbrains.exodus.entitystore.Entity;
-import jetbrains.exodus.entitystore.EntityIterable;
-import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.iterate.EntitiesOfTypeIterable;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.query.metadata.*;
@@ -30,7 +27,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-@SuppressWarnings({"rawtypes", "NestedConditionalExpression"})
+@SuppressWarnings({"WeakerAccess"})
 public class SortEngine {
 
     private static final int MAX_ENTRIES_TO_SORT_IN_MEMORY = Integer.getInteger("jetbrains.exodus.query.maxEntriesToSortInMemory", 10_000_000);
@@ -68,22 +65,32 @@ public class SortEngine {
     }
 
     @Nullable
-    protected Comparable getProperty(Entity entity, String propertyName) {
+    private Comparable getProperty(Entity entity, String propertyName, boolean readOnlyTxn) {
+        if (readOnlyTxn && !(entity instanceof PersistentEntity)) {
+            return queryEngine.getPersistentStore().getEntity(entity.getId()).getProperty(propertyName);
+        }
         return entity.getProperty(propertyName);
     }
 
     @Nullable
-    protected Entity getLink(Entity entity, String linkName) {
+    private Entity getLink(Entity entity, String linkName, boolean readOnlyTxn) {
+        if (readOnlyTxn && !(entity instanceof PersistentEntity)) {
+            return queryEngine.getPersistentStore().getEntity(entity.getId()).getLink(linkName);
+        }
         return entity.getLink(linkName);
     }
 
     @NotNull
-    protected Iterable<Entity> getLinks(Entity entity, String linkName) {
+    private Iterable<Entity> getLinks(Entity entity, String linkName, boolean readOnlyTxn) {
+        if (readOnlyTxn && !(entity instanceof PersistentEntity)) {
+            return queryEngine.getPersistentStore().getEntity(entity.getId()).getLinks(linkName);
+        }
         return entity.getLinks(linkName);
     }
 
     public Iterable<Entity> sort(String entityType, final String propertyName, Iterable<Entity> source, final boolean ascending) {
-        ComparableGetter valueGetter = propertyGetter(propertyName);
+        final PersistentStoreTransaction txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
+        ComparableGetter valueGetter = propertyGetter(propertyName, txn.isReadonly());
         final ModelMetaData mmd = queryEngine.getModelMetaData();
         if (mmd != null) {
             final EntityMetaData emd = mmd.getEntityMetaData(entityType);
@@ -124,6 +131,7 @@ public class SortEngine {
 
     @SuppressWarnings({"OverlyLongMethod", "OverlyNestedMethod"})
     public Iterable<Entity> sort(final String enumType, final String propName, final String entityType, final String linkName, Iterable<Entity> source, final boolean ascending) {
+        final PersistentStoreTransaction txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
         ComparableGetter valueGetter = null;
         final ModelMetaData mmd = queryEngine.getModelMetaData();
         if (mmd != null) {
@@ -131,37 +139,11 @@ public class SortEngine {
             if (emd != null) {
                 final boolean isMultiple = emd.getAssociationEndMetaData(linkName).getCardinality().isMultiple();
                 valueGetter = isMultiple ?
-                    new ComparableGetter() {
-                        @Override
-                        public Comparable select(final Entity entity) {
-                            // return the least property, to be replaced with getMin or something
-                            Iterable<Entity> links = getLinks(entity, linkName);
-                            Comparable result = null;
-                            for (final Entity target : links) {
-                                final Comparable property = getProperty(target, propName);
-                                if (result == null) {
-                                    result = property;
-                                } else {
-                                    int compared = compareNullableComparables(result, property);
-                                    if (ascending && compared > 0 || !ascending && compared < 0) {
-                                        result = property;
-                                    }
-                                }
-                            }
-                            return result;
-                        }
-                    } :
-                    new ComparableGetter() {
-                        @Override
-                        public Comparable select(final Entity entity) {
-                            final Entity target = getLink(entity, linkName);
-                            return target == null ? null : getProperty(target, propName);
-                        }
-                    };
+                    new MultipleLinkComparableGetter(linkName, propName, ascending, txn.isReadonly()) :
+                    new SingleLinkComparableGetter(linkName, propName, txn.isReadonly());
                 final Iterable<Entity> i = queryEngine.toEntityIterable(source);
                 if (queryEngine.isPersistentIterable(i)) {
-                    final PersistentStoreTransaction txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
-                    final EntityIterable s = ((EntityIterableBase) i).getSource();
+                    final EntityIterableBase s = ((EntityIterableBase) i).getSource();
                     if (s == EntityIterableBase.EMPTY) {
                         return queryEngine.wrap(EntityIterableBase.EMPTY);
                     }
@@ -170,10 +152,9 @@ public class SortEngine {
                         return queryEngine.wrap(EntityIterableBase.EMPTY.asSortResult());
                     }
                     if (sourceCount < 0 || sourceCount >= MIN_ENTRIES_TO_SORT_LINKS) {
-                        final EntityIterable it = ((EntityIterableBase) s).getOrCreateCachedInstance(txn);
+                        final EntityIterable it = s.getOrCreateCachedInstance(txn);
                         EntityIterable allLinks = ((EntityIterableBase) queryEngine.queryGetAll(enumType).instantiate()).getSource();
                         final EntityIterable distinctLinks;
-                        //TODO: maybe use EntityIterableBase and nonCachedHasFastCount
                         long enumCount = allLinks instanceof EntitiesOfTypeIterable ? allLinks.size() : allLinks.getRoughCount();
                         if (enumCount < 0 || enumCount > MAX_ENUM_COUNT_TO_SORT_LINKS) {
                             distinctLinks = ((EntityIterableBase) (isMultiple ?
@@ -185,7 +166,7 @@ public class SortEngine {
                             distinctLinks = allLinks;
                         }
                         if (sourceCount > MAX_ENTRIES_TO_SORT_IN_MEMORY || enumCount <= MAX_ENUM_COUNT_TO_SORT_LINKS) {
-                            final ComparableGetter linksGetter = propertyGetter(propName);
+                            final ComparableGetter linksGetter = propertyGetter(propName, txn.isReadonly());
                             final EntityIterableBase distinctSortedLinks = mergeSorted(mmd.getEntityMetaData(enumType), new IterableGetter() {
                                 @Override
                                 public EntityIterableBase getIterable(String type) {
@@ -221,10 +202,10 @@ public class SortEngine {
                                 }
                             }, valueGetter, caseInsensitiveComparator(ascending));
                         } else {
-                            source = txn.isReadonly() ? it : queryEngine.wrap(it);
+                            source = queryEngine.wrap(it);
                         }
                     } else {
-                        source = txn.isReadonly() ? s : queryEngine.wrap(s);
+                        source = queryEngine.wrap(s);
                     }
                 }
             }
@@ -262,18 +243,18 @@ public class SortEngine {
     }
 
     @NotNull
-    private ComparableGetter propertyGetter(final String propertyName) {
+    private ComparableGetter propertyGetter(final String propertyName, final boolean readOnlyTxn) {
         return new ComparableGetter() {
             @Override
             public Comparable select(Entity entity) {
-                return getProperty(entity, propertyName);
+                return getProperty(entity, propertyName, readOnlyTxn);
             }
         };
     }
 
-    private Iterable<Entity> getAllEntities(final String entityType, final ModelMetaData mmd) {
+    private Iterable<Entity> getAllEntities(final String entityType, @Nullable final ModelMetaData mmd) {
         queryEngine.assertOperational();
-        @Nullable final EntityMetaData emd = mmd.getEntityMetaData(entityType);
+        @Nullable final EntityMetaData emd = mmd == null ? null : mmd.getEntityMetaData(entityType);
         EntityIterable it = emd != null && emd.isAbstract() ?
             EntityIterableBase.EMPTY :
             queryEngine.instantiateGetAll(entityType);
@@ -411,6 +392,59 @@ public class SortEngine {
         protected InMemorySortIterable(@NotNull final Iterable<Entity> source, @NotNull final Comparator<Entity> comparator) {
             this.source = source;
             this.comparator = comparator;
+        }
+    }
+
+    private class MultipleLinkComparableGetter implements ComparableGetter {
+
+        private final String linkName;
+        private final String propName;
+        private final boolean ascending;
+        private final boolean readOnlyTxn;
+
+        public MultipleLinkComparableGetter(String linkName, String propName, boolean ascending, boolean readOnlyTxn) {
+            this.linkName = linkName;
+            this.propName = propName;
+            this.ascending = ascending;
+            this.readOnlyTxn = readOnlyTxn;
+        }
+
+        @Override
+        public Comparable select(Entity entity) {
+            // return the least property, to be replaced with getMin or something
+            Iterable<Entity> links = getLinks(entity, linkName, readOnlyTxn);
+            Comparable result = null;
+            for (final Entity target : links) {
+                final Comparable property = getProperty(target, propName, readOnlyTxn);
+                if (result == null) {
+                    result = property;
+                } else {
+                    int compared = compareNullableComparables(result, property);
+                    if (ascending && compared > 0 || !ascending && compared < 0) {
+                        result = property;
+                    }
+                }
+            }
+            return result;
+        }
+    }
+
+    private class SingleLinkComparableGetter implements ComparableGetter {
+
+        private final String linkName;
+        private final String propName;
+        private final boolean readOnlyTxn;
+
+        public SingleLinkComparableGetter(String linkName, String propName, boolean readOnlyTxn) {
+            this.linkName = linkName;
+            this.propName = propName;
+            this.readOnlyTxn = readOnlyTxn;
+        }
+
+        @Override
+        public Comparable select(final Entity entity) {
+            final Entity target = getLink(entity, linkName, readOnlyTxn);
+            return target == null ? null : getProperty(target, propName, readOnlyTxn);
         }
     }
 }
