@@ -72,14 +72,6 @@ public class SortEngine {
         return entity.getProperty(propertyName);
     }
 
-    @Nullable
-    private Entity getLink(Entity entity, String linkName, boolean readOnlyTxn) {
-        if (readOnlyTxn && !(entity instanceof PersistentEntity)) {
-            return queryEngine.getPersistentStore().getEntity(entity.getId()).getLink(linkName);
-        }
-        return entity.getLink(linkName);
-    }
-
     @NotNull
     private Iterable<Entity> getLinks(Entity entity, String linkName, boolean readOnlyTxn) {
         if (readOnlyTxn && !(entity instanceof PersistentEntity)) {
@@ -140,7 +132,7 @@ public class SortEngine {
                 final boolean isMultiple = emd.getAssociationEndMetaData(linkName).getCardinality().isMultiple();
                 valueGetter = isMultiple ?
                     new MultipleLinkComparableGetter(linkName, propName, ascending, txn.isReadonly()) :
-                    new SingleLinkComparableGetter(linkName, propName, txn.isReadonly());
+                    new SingleLinkComparableGetter(linkName, propName, txn.isReadonly(), txn);
                 final Iterable<Entity> i = queryEngine.toEntityIterable(source);
                 if (queryEngine.isPersistentIterable(i)) {
                     final EntityIterableBase s = ((EntityIterableBase) i).getSource();
@@ -434,16 +426,34 @@ public class SortEngine {
         private final String linkName;
         private final String propName;
         private final boolean readOnlyTxn;
+        private final PersistentEntityStoreImpl store;
+        private final PersistentStoreTransaction txn;
+        private final int linkId;
 
-        public SingleLinkComparableGetter(String linkName, String propName, boolean readOnlyTxn) {
+        public SingleLinkComparableGetter(String linkName,
+                                          String propName,
+                                          boolean readOnlyTxn,
+                                          PersistentStoreTransaction txn) {
             this.linkName = linkName;
             this.propName = propName;
             this.readOnlyTxn = readOnlyTxn;
+            store = queryEngine.getPersistentStore();
+            this.txn = txn;
+            linkId = store.getLinkId(txn, linkName, false);
         }
 
         @Override
         public Comparable select(final Entity entity) {
-            final Entity target = getLink(entity, linkName, readOnlyTxn);
+            if (linkId < 0) return null;
+            final boolean isPersistentEntity = entity instanceof PersistentEntity;
+            final Entity target;
+            if (readOnlyTxn || isPersistentEntity) {
+                final EntityId sourceId = entity.getId();
+                final PersistentEntityId targetId = store.getRawLinkAsEntityId(txn, new PersistentEntityId(sourceId), linkId);
+                target = targetId == null ? null : store.getEntity(targetId);
+            } else {
+                target = entity.getLink(linkName);
+            }
             return target == null ? null : getProperty(target, propName, readOnlyTxn);
         }
     }
