@@ -71,6 +71,15 @@ public abstract class MultiThreadDelegatingJobProcessor extends JobProcessorAdap
         return null;
     }
 
+    @NotNull
+    public Job[] getCurrentJobs() {
+        final Job[] result = new Job[jobProcessors.length];
+        for (int i = 0; i < result.length; i++) {
+            result[i] = jobProcessors[i].getCurrentJob();
+        }
+        return result;
+    }
+
     @Override
     public long getCurrentJobStartedAt() {
         return 0;
