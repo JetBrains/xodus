@@ -96,6 +96,15 @@ public class ThreadJobProcessor extends JobProcessorQueueAdapter {
         return thread.toString();
     }
 
+    @Override
+    protected boolean push(Job job, Priority priority) {
+        final boolean result = super.push(job, priority);
+        if (result) {
+            job.setExecutingThread(thread);
+        }
+        return result;
+    }
+
     public long getId() {
         return thread.getId();
     }

@@ -27,6 +27,7 @@ public abstract class Job {
     private JobHandler[] jobStartingHandlers;
     @Nullable
     private JobHandler[] jobFinishedHandlers;
+    private Thread executingThread;
 
     protected Job() {
         processor = null;
@@ -74,6 +75,14 @@ public abstract class Job {
     @Override
     public String toString() {
         return getGroup() + ": " + getName();
+    }
+
+    public Thread getExecutingThread() {
+        return executingThread;
+    }
+
+    void setExecutingThread(Thread executingThread) {
+        this.executingThread = executingThread;
     }
 
     /**
