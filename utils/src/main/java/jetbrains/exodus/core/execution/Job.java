@@ -71,6 +71,11 @@ public abstract class Job {
         return getClass().getName();
     }
 
+    @Override
+    public String toString() {
+        return getGroup() + ": " + getName();
+    }
+
     /**
      * Registers a handler to be invoked before the job is executed.
      * All handlers are executed in the same processor as the {@link #execute()} method.
