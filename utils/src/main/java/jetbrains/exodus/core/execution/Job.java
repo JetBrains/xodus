@@ -19,6 +19,8 @@ import jetbrains.exodus.core.dataStructures.Priority;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Date;
+
 public abstract class Job {
 
     private JobProcessor processor;
@@ -28,12 +30,15 @@ public abstract class Job {
     @Nullable
     private JobHandler[] jobFinishedHandlers;
     private Thread executingThread;
+    private long startedAt;
 
     protected Job() {
         processor = null;
         wasQueued = false;
         jobStartingHandlers = null;
         jobFinishedHandlers = null;
+        executingThread = null;
+        startedAt = 0L;
     }
 
     protected Job(@NotNull final JobProcessor processor) {
@@ -74,15 +79,25 @@ public abstract class Job {
 
     @Override
     public String toString() {
-        return getGroup() + ": " + getName();
+        final StringBuilder result = new StringBuilder(100);
+        result.append(getGroup());
+        result.append(": ");
+        result.append(getName());
+        if (startedAt > 0L) {
+            result.append(", started at: ");
+            result.append(new Date(startedAt).toString()
+                    .substring(4) // skip day of the week
+            );
+        }
+        return result.toString();
     }
 
     public Thread getExecutingThread() {
         return executingThread;
     }
 
-    void setExecutingThread(Thread executingThread) {
-        this.executingThread = executingThread;
+    public long getStartedAt() {
+        return startedAt;
     }
 
     /**
@@ -106,7 +121,10 @@ public abstract class Job {
         jobFinishedHandlers = JobHandler.append(jobFinishedHandlers, handler);
     }
 
-    final void run(@Nullable final JobProcessorExceptionHandler handler) {
+    final void run(@Nullable final JobProcessorExceptionHandler handler,
+                   @NotNull final Thread executingThread) {
+        this.executingThread = executingThread;
+        startedAt = System.currentTimeMillis();
         Throwable exception = null;
         JobHandler.invokeHandlers(jobStartingHandlers, this);
         try {

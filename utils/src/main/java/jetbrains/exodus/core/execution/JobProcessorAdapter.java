@@ -214,7 +214,7 @@ public abstract class JobProcessorAdapter implements JobProcessor {
                     processor.beforeProcessingJob(job);
                     JobHandler.invokeHandlers(jobStartingHandlers, job);
                     try {
-                        job.run(exceptionHandler);
+                        job.run(exceptionHandler, Thread.currentThread());
                     } finally {
                         JobHandler.invokeHandlers(jobFinishedHandlers, job);
                     }

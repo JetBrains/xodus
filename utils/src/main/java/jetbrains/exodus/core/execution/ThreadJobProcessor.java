@@ -96,15 +96,6 @@ public class ThreadJobProcessor extends JobProcessorQueueAdapter {
         return thread.toString();
     }
 
-    @Override
-    protected boolean push(Job job, Priority priority) {
-        final boolean result = super.push(job, priority);
-        if (result) {
-            job.setExecutingThread(thread);
-        }
-        return result;
-    }
-
     public long getId() {
         return thread.getId();
     }
@@ -139,7 +130,7 @@ public class ThreadJobProcessor extends JobProcessorQueueAdapter {
                     JobHandler.invokeHandlers(jobStartingHandlers, job);
                     try {
                         thread.setContextClassLoader(job.getClass().getClassLoader());
-                        job.run(exceptionHandler);
+                        job.run(exceptionHandler, thread);
                     } finally {
                         thread.setContextClassLoader(classLoader);
                         JobHandler.invokeHandlers(jobFinishedHandlers, job);
