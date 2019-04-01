@@ -197,6 +197,12 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
         }
     }
 
+    void moveTo(@NotNull final JobProcessorQueueAdapter copy) {
+        PriorityQueue.moveQueue(queue, copy.queue);
+        PriorityQueue.moveQueue(timeQueue, copy.timeQueue);
+        copy.awake.release();
+    }
+
     private void executeImmediateJobsIfAny() {
         //noinspection StatementWithEmptyBody
         while (!isFinished() && executeImmediateJobIfAny() != null) ;

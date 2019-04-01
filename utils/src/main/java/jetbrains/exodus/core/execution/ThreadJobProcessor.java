@@ -96,6 +96,10 @@ public class ThreadJobProcessor extends JobProcessorQueueAdapter {
         return thread.toString();
     }
 
+    public String getName() {
+        return thread.getName();
+    }
+
     public long getId() {
         return thread.getId();
     }

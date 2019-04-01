@@ -47,4 +47,18 @@ public abstract class PriorityQueue<P extends Comparable<? super P>, E> implemen
     public abstract Guard lock();
 
     public abstract void unlock();
+
+    public static <P extends Comparable<? super P>, E> void moveQueue(@NotNull final PriorityQueue<P, E> source,
+                                                                      @NotNull final PriorityQueue<P, E> dest) {
+        try (Guard ignored = source.lock()) {
+            try (Guard ignore = dest.lock()) {
+                while (true) {
+                    final Pair<P, E> pair = source.peekPair();
+                    if (pair == null) break;
+                    dest.push(pair.getFirst(), pair.getSecond());
+                    source.pop();
+                }
+            }
+        }
+    }
 }

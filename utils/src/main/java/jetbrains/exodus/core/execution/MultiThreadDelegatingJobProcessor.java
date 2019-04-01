@@ -29,11 +29,18 @@ public abstract class MultiThreadDelegatingJobProcessor extends JobProcessorAdap
 
     protected final ThreadJobProcessor[] jobProcessors;
 
-    protected MultiThreadDelegatingJobProcessor(String name, int threadCount) {
+    protected MultiThreadDelegatingJobProcessor(String name, int threadCount, long jobTimeout) {
         jobProcessors = new ThreadJobProcessor[threadCount];
         for (int i = 0; i < jobProcessors.length; i++) {
             jobProcessors[i] = ThreadJobProcessorPool.getOrCreateJobProcessor(name + i);
         }
+        if (jobTimeout > 0L) {
+            SharedTimer.registerPeriodicTask(new WatchDog(jobTimeout));
+        }
+    }
+
+    protected MultiThreadDelegatingJobProcessor(String name, int threadCount) {
+        this(name, threadCount, 0L);
     }
 
     @Override
@@ -165,4 +172,32 @@ public abstract class MultiThreadDelegatingJobProcessor extends JobProcessorAdap
         return jobProcessors[processorNumber].queue(job, priority);
     }
 
+    private class WatchDog implements SharedTimer.ExpirablePeriodicTask {
+
+        private final long jobTimeout;
+
+        private WatchDog(long jobTimeout) {
+            this.jobTimeout = jobTimeout;
+        }
+
+        @Override
+        public boolean isExpired() {
+            return isFinished();
+        }
+
+        @Override
+        public void run() {
+            final long currentTime = System.currentTimeMillis();
+            for (int i = 0; i < jobProcessors.length; i++) {
+                final ThreadJobProcessor processor = jobProcessors[i];
+                final Job currentJob = processor.getCurrentJob();
+                if (currentJob != null && currentJob.getStartedAt() + jobTimeout < currentTime) {
+                    final ThreadJobProcessor newProcessor = ThreadJobProcessorPool.getOrCreateJobProcessor(processor.getName() + '+');
+                    processor.moveTo(newProcessor);
+                    jobProcessors[i] = newProcessor;
+                    processor.queueFinish();
+                }
+            }
+        }
+    }
 }
