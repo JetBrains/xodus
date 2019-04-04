@@ -543,6 +543,10 @@ public class EnvironmentImpl implements Environment {
         }
     }
 
+    public float getStoreGetCacheHitRate() {
+        return storeGetCache == null ? 0 : storeGetCache.hitRate();
+    }
+
     protected StoreImpl createStore(@NotNull final String name, @NotNull final TreeMetaInfo metaInfo) {
         return new StoreImpl(this, name, metaInfo);
     }
@@ -560,6 +564,11 @@ public class EnvironmentImpl implements Environment {
         return ec.getEnvIsReadonly() ?
             new ReadonlyTransaction(this, exclusive, beginHook) :
             new ReadWriteTransaction(this, beginHook, exclusive, cloneMeta);
+    }
+
+    @Nullable
+    StoreGetCache getStoreGetCache() {
+        return storeGetCache;
     }
 
     long getDiskUsage() {
@@ -846,11 +855,6 @@ public class EnvironmentImpl implements Environment {
                 }
             }
         }
-    }
-
-    @Nullable
-    StoreGetCache getStoreGetCache() {
-        return storeGetCache;
     }
 
     void forEachActiveTransaction(@NotNull final TransactionalExecutable executable) {

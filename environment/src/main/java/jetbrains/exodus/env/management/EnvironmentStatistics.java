@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.env.management;
 
-import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.env.EnvironmentStatistics.Type;
@@ -32,7 +31,6 @@ public class EnvironmentStatistics extends MBeanBase implements EnvironmentStati
     @NotNull
     private final Statistics<Type> statistics;
 
-    @SuppressWarnings("unchecked")
     public EnvironmentStatistics(@NotNull final EnvironmentImpl env) {
         super(getObjectName(env));
         this.env = env;
@@ -74,8 +72,8 @@ public class EnvironmentStatistics extends MBeanBase implements EnvironmentStati
     }
 
     @Override
-    public String getLogCacheHitRate() {
-        return ObjectCacheBase.formatHitRate((float) getMean(LOG_CACHE_HIT_RATE));
+    public float getLogCacheHitRate() {
+        return env.getLog().getCacheHitRate();
     }
 
     @Override
@@ -124,8 +122,8 @@ public class EnvironmentStatistics extends MBeanBase implements EnvironmentStati
     }
 
     @Override
-    public String getStoreGetCacheHitRate() {
-        return ObjectCacheBase.formatHitRate((float) getMean(STORE_GET_CACHE_HIT_RATE));
+    public float getStoreGetCacheHitRate() {
+        return env.getStoreGetCacheHitRate();
     }
 
     @Override

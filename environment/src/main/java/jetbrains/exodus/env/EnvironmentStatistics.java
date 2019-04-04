@@ -35,9 +35,7 @@ public class EnvironmentStatistics extends Statistics<EnvironmentStatistics.Type
         ACTIVE_TRANSACTIONS("Active transactions"),
         FLUSHED_TRANSACTIONS("Flushed transactions"),
         DISK_USAGE("Disk usage"),
-        UTILIZATION_PERCENT("Utilization percent"),
-        LOG_CACHE_HIT_RATE("Log cache hit rate"),
-        STORE_GET_CACHE_HIT_RATE("StoreGet cache hit rate");
+        UTILIZATION_PERCENT("Utilization percent");
 
         public final String id;
 
@@ -95,11 +93,6 @@ public class EnvironmentStatistics extends Statistics<EnvironmentStatistics.Type
                 return new DiskUsageStatisticsItem(this);
             case UTILIZATION_PERCENT:
                 return new UtilizationPercentStatisticsItem(this);
-            case LOG_CACHE_HIT_RATE:
-                return new LogCacheHitRateStatisticsItem(this);
-            case STORE_GET_CACHE_HIT_RATE:
-                return new StoreGetCacheHitRateStatisticsItem(this);
-
             default:
                 return super.createNewBuiltInItem(key);
         }
@@ -154,36 +147,6 @@ public class EnvironmentStatistics extends Statistics<EnvironmentStatistics.Type
         protected Long getAutoUpdatedTotal() {
             final EnvironmentStatistics statistics = (EnvironmentStatistics) getStatistics();
             return statistics == null ? null : (long) (statistics.env.getGC().getUtilizationProfile().totalUtilizationPercent());
-        }
-    }
-
-    private static class LogCacheHitRateStatisticsItem extends StatisticsItem {
-
-        LogCacheHitRateStatisticsItem(@NotNull final EnvironmentStatistics statistics) {
-            super(statistics);
-        }
-
-        @Override
-        public double getMean() {
-            final EnvironmentStatistics statistics = (EnvironmentStatistics) getStatistics();
-            return statistics == null ? 0 : statistics.env.getLog().getCacheHitRate();
-        }
-    }
-
-    private static class StoreGetCacheHitRateStatisticsItem extends StatisticsItem {
-
-        StoreGetCacheHitRateStatisticsItem(@NotNull final EnvironmentStatistics statistics) {
-            super(statistics);
-        }
-
-        @Override
-        public double getMean() {
-            final EnvironmentStatistics statistics = (EnvironmentStatistics) getStatistics();
-            if (statistics == null) {
-                return 0;
-            }
-            @Nullable final StoreGetCache storeGetCache = statistics.env.getStoreGetCache();
-            return storeGetCache == null ? 0 : storeGetCache.hitRate();
         }
     }
 }
