@@ -193,8 +193,8 @@ public abstract class MultiThreadDelegatingJobProcessor extends JobProcessorAdap
                 final Job currentJob = processor.getCurrentJob();
                 if (currentJob != null && currentJob.getStartedAt() + jobTimeout < currentTime) {
                     final ThreadJobProcessor newProcessor = ThreadJobProcessorPool.getOrCreateJobProcessor(processor.getName() + '+');
-                    processor.moveTo(newProcessor);
                     jobProcessors[i] = newProcessor;
+                    processor.moveTo(newProcessor);
                     processor.queueFinish();
                 }
             }
