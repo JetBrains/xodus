@@ -2,6 +2,7 @@ package jetbrains.exodus.io
 
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.OutOfDiskSpaceException
+import jetbrains.exodus.system.JVMConstants
 import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
@@ -58,11 +59,13 @@ class LockingManager internal constructor(private val dir: File, private val loc
                 lockFile.setLength(0)
                 lockFile.writeBytes("Private property of Exodus: ")
                 if (lockId == null) {
-                    val bean = ManagementFactory.getRuntimeMXBean()
-                    if (bean != null) {
-                        // Got runtime system bean (try to get PID)
-                        // Result of bean.getName() is unknown
-                        lockFile.writeBytes(bean.name)
+                    if (!JVMConstants.IS_ANDROID) {
+                        val bean = ManagementFactory.getRuntimeMXBean()
+                        if (bean != null) {
+                            // Got runtime system bean (try to get PID)
+                            // Result of bean.getName() is unknown
+                            lockFile.writeBytes(bean.name)
+                        }
                     }
                 } else {
                     lockFile.writeBytes("$lockId")
