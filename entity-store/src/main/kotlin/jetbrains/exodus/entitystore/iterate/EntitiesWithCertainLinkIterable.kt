@@ -140,7 +140,7 @@ internal class EntitiesWithCertainLinkIterable(txn: PersistentStoreTransaction,
             return object : LinksIteratorWithTarget(this@CachedLinksIterable) {
 
                 private var i = 0
-                override var targetId: EntityId = targets[i]
+                override lateinit var targetId: EntityId
                     private set
 
                 override fun hasNextImpl() = i < localIds.size
