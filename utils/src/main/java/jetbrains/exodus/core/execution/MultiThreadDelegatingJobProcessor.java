@@ -44,6 +44,14 @@ public abstract class MultiThreadDelegatingJobProcessor extends JobProcessorAdap
     }
 
     @Override
+    public void setExceptionHandler(@Nullable final JobProcessorExceptionHandler handler) {
+        super.setExceptionHandler(handler);
+        for (final ThreadJobProcessor processor : jobProcessors) {
+            processor.setExceptionHandler(handler);
+        }
+    }
+
+    @Override
     protected Job pushAt(Job job, long millis) {
         throw new UnsupportedOperationException(UNSUPPORTED_TIMED_JOBS_MESSAGE);
     }
@@ -194,6 +202,7 @@ public abstract class MultiThreadDelegatingJobProcessor extends JobProcessorAdap
                 if (currentJob != null && currentJob.getStartedAt() + jobTimeout < currentTime) {
                     final ThreadJobProcessor newProcessor = ThreadJobProcessorPool.getOrCreateJobProcessor(processor.getName() + '+');
                     jobProcessors[i] = newProcessor;
+                    newProcessor.setExceptionHandler(exceptionHandler);
                     processor.moveTo(newProcessor);
                     processor.queueFinish();
                 }
