@@ -283,6 +283,19 @@ public class EnvironmentConfig extends AbstractConfig {
     public static final String ENV_IS_READONLY = "exodus.env.isReadonly";
 
     /**
+     * If is set to {@code true} and {@linkplain #ENV_IS_READONLY} is also {@code true} then the {@linkplain Environment}
+     * obligatorily creates transactions for which {@linkplain Transaction#isReadonly()} is {@code true}. Read-only
+     * transactions fail-fast with {@linkplain ReadonlyTransactionException} on attempt to modify data. If is set to
+     * {@code false} and {@linkplain #ENV_IS_READONLY} is set to {@code true} then the {@linkplain Environment} creates
+     * transaction that allow to accumulate changes but cannot be flushed ot committed since the {@linkplain Environment}
+     * is read-only. Default value is {@code true}.
+     * <p>Mutable at runtime: yes
+     *
+     * @see #ENV_IS_READONLY
+     */
+    public static final String ENV_FAIL_FAST_IN_READONLY = "exodus.env.failFastInReadonly";
+
+    /**
      * If is set to {@code true} and {@linkplain #ENV_IS_READONLY} is also {@code true} then
      * {@linkplain Environment#openStore(String, StoreConfig, Transaction)} doesn't try to create a {@linkplain Store},
      * but returns an empty immutable instance instead. Default value is {@code false}.
@@ -628,6 +641,7 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(LOG_FULL_FILE_READ_ONLY, true),
             new Pair(LOG_DATA_READER_WRITER_PROVIDER, DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER),
             new Pair(ENV_IS_READONLY, false),
+            new Pair(ENV_FAIL_FAST_IN_READONLY, true),
             new Pair(ENV_READONLY_EMPTY_STORES, false),
             new Pair(ENV_STOREGET_CACHE_SIZE, 0),
             new Pair(ENV_STOREGET_CACHE_MIN_TREE_SIZE, 200),
@@ -1312,6 +1326,37 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public EnvironmentConfig setEnvIsReadonly(final boolean isReadonly) {
         return setSetting(ENV_IS_READONLY, isReadonly);
+    }
+
+    /**
+     * If is set to {@code true} and {@linkplain #ENV_IS_READONLY} is also {@code true} then the {@linkplain Environment}
+     * obligatorily creates transactions for which {@linkplain Transaction#isReadonly()} is {@code true}. Read-only
+     * transactions fail-fast with {@linkplain ReadonlyTransactionException} on attempt to modify data. If is set to
+     * {@code false} and {@linkplain #ENV_IS_READONLY} is set to {@code true} then the {@linkplain Environment} creates
+     * transaction that allow to accumulate changes but cannot be flushed ot committed since the {@linkplain Environment}
+     * is read-only. Default value is {@code true}.
+     * <p>Mutable at runtime: yes
+     *
+     * @return {@code true} if attempt to modify data won't fail immediately in read-only mode
+     */
+    public boolean getEnvFailFastInReadonly() {
+        return (Boolean) getSetting(ENV_FAIL_FAST_IN_READONLY);
+    }
+
+    /**
+     * If is set to {@code true} and {@linkplain #ENV_IS_READONLY} is also {@code true} then the {@linkplain Environment}
+     * obligatorily creates transactions for which {@linkplain Transaction#isReadonly()} is {@code true}. Read-only
+     * transactions fail-fast with {@linkplain ReadonlyTransactionException} on attempt to modify data. If is set to
+     * {@code false} and {@linkplain #ENV_IS_READONLY} is set to {@code true} then the {@linkplain Environment} creates
+     * transaction that allow to accumulate changes but cannot be flushed ot committed since the {@linkplain Environment}
+     * is read-only. Default value is {@code true}.
+     * <p>Mutable at runtime: yes
+     *
+     * @param failFast {@code true} if attempt modify data shouldn fail immediately in read-only mode
+     * @return this {@code EnvironmentConfig} instance
+     */
+    public EnvironmentConfig setEnvFailFastInReadonly(final boolean failFast) {
+        return setSetting(ENV_FAIL_FAST_IN_READONLY, failFast);
     }
 
     /**

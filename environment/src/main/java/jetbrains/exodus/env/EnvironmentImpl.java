@@ -561,7 +561,7 @@ public class EnvironmentImpl implements Environment {
     @NotNull
     protected TransactionBase beginTransaction(Runnable beginHook, boolean exclusive, boolean cloneMeta) {
         checkIsOperative();
-        return ec.getEnvIsReadonly() ?
+        return ec.getEnvIsReadonly() && ec.getEnvFailFastInReadonly() ?
             new ReadonlyTransaction(this, exclusive, beginHook) :
             new ReadWriteTransaction(this, beginHook, exclusive, cloneMeta);
     }

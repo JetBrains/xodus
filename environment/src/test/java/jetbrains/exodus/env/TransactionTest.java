@@ -290,6 +290,7 @@ public class TransactionTest extends EnvironmentTestsBase {
     }
 
     @Test(expected = ReadonlyTransactionException.class)
+    @TestFor(issues = "XD-447")
     public void test_XD_447() {
         final EnvironmentImpl env = getEnvironment();
         final EnvironmentConfig ec = env.getEnvironmentConfig();
@@ -306,6 +307,7 @@ public class TransactionTest extends EnvironmentTestsBase {
     }
 
     @Test(expected = ReadonlyTransactionException.class)
+    @TestFor(issues = "XD-447")
     public void test_XD_447_() {
         final EnvironmentImpl env = getEnvironment();
         final EnvironmentConfig ec = env.getEnvironmentConfig();
@@ -320,7 +322,28 @@ public class TransactionTest extends EnvironmentTestsBase {
         });
     }
 
+    private class TestFailFastException extends RuntimeException {
+    }
+
+    @Test(expected = TestFailFastException.class)
+    public void testNoFailFast() {
+        final EnvironmentImpl env = getEnvironment();
+        final EnvironmentConfig ec = env.getEnvironmentConfig();
+        ec.setEnvIsReadonly(true);
+        ec.setEnvFailFastInReadonly(false);
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                final StoreImpl store = env.openStore("WTF", StoreConfig.WITHOUT_DUPLICATES, txn);
+                final ArrayByteIterable wtfEntry = StringBinding.stringToEntry("WTF");
+                store.put(txn, wtfEntry, wtfEntry);
+                throw new TestFailFastException();
+            }
+        });
+    }
+
     @Test
+    @TestFor(issues = "XD-401")
     public void test_XD_401() throws Exception {
         final Environment env = getEnvironment();
         final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
@@ -346,6 +369,7 @@ public class TransactionTest extends EnvironmentTestsBase {
     }
 
     @Test
+    @TestFor(issues = "XD-471")
     public void test_XD_471() {
         final Environment env = getEnvironment();
         final Transaction[] txn = {null};
@@ -362,6 +386,7 @@ public class TransactionTest extends EnvironmentTestsBase {
     }
 
     @Test
+    @TestFor(issues = "XD-471")
     public void test_XD_471_() {
         final Environment env = getEnvironment();
         final Transaction[] txn = {null};

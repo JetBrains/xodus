@@ -63,6 +63,14 @@ public interface EnvironmentConfigMBean {
 
     void setEnvIsReadonly(boolean isReadonly);
 
+    boolean getEnvFailFastInReadonly();
+
+    void setEnvFailFastInReadonly(boolean failFast);
+
+    boolean getEnvReadonlyEmptyStores();
+
+    void setEnvReadonlyEmptyStores(boolean readonlyEmptyStores);
+
     int getEnvStoreGetCacheSize();
 
     void setEnvStoreGetCacheSize(int storeGetCacheSize);

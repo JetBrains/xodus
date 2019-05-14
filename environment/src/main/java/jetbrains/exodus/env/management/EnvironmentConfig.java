@@ -144,6 +144,26 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
+    public boolean getEnvFailFastInReadonly() {
+        return config.getEnvFailFastInReadonly();
+    }
+
+    @Override
+    public void setEnvFailFastInReadonly(boolean failFast) {
+        config.setEnvFailFastInReadonly(failFast);
+    }
+
+    @Override
+    public boolean getEnvReadonlyEmptyStores() {
+        return config.getEnvReadonlyEmptyStores();
+    }
+
+    @Override
+    public void setEnvReadonlyEmptyStores(boolean readonlyEmptyStores) {
+        config.setEnvReadonlyEmptyStores(readonlyEmptyStores);
+    }
+
+    @Override
     public int getEnvStoreGetCacheSize() {
         return config.getEnvStoreGetCacheSize();
     }
