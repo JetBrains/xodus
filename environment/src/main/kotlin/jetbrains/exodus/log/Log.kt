@@ -212,6 +212,8 @@ class Log(val config: LogConfig) : Closeable {
         if (config.isCleanDirectoryExpected) {
             throw ExodusException("Clean log is expected")
         }
+        val rwIsReadonly = config.readerWriterProvider.isReadonly
+        val clearInvalidLog = config.isClearInvalidLog
         var hasNext: Boolean
         do {
             val block = blockIterator.next()
@@ -225,7 +227,7 @@ class Log(val config: LogConfig) : Closeable {
             }
             // if the file address is not a multiple of fileLengthBound
             if (clearLogReason == null && address != getFileAddress(address)) {
-                if (!config.isClearInvalidLog) {
+                if (rwIsReadonly || !clearInvalidLog) {
                     throw ExodusException("Unexpected file address " +
                             LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound))
                 }
@@ -233,7 +235,7 @@ class Log(val config: LogConfig) : Closeable {
                         LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound)
             }
             if (clearLogReason != null) {
-                if (!config.isClearInvalidLog) {
+                if (rwIsReadonly || !clearInvalidLog) {
                     throw ExodusException(clearLogReason)
                 }
                 logger.error("Clearing log due to: $clearLogReason")
