@@ -212,7 +212,7 @@ class Log(val config: LogConfig) : Closeable {
         if (config.isCleanDirectoryExpected) {
             throw ExodusException("Clean log is expected")
         }
-        val rwIsReadonly = config.readerWriterProvider.isReadonly
+        val rwIsReadonly = config.readerWriterProvider?.isReadonly ?: false
         val clearInvalidLog = config.isClearInvalidLog
         var hasNext: Boolean
         do {

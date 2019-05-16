@@ -23,6 +23,7 @@ import jetbrains.exodus.io.DataReader;
 import jetbrains.exodus.io.DataReaderWriterProvider;
 import jetbrains.exodus.io.DataWriter;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class LogConfig {
 
@@ -293,9 +294,9 @@ public class LogConfig {
         return new LogConfig().setReaderWriter(reader, writer);
     }
 
-    @NotNull
+    @Nullable
     public DataReaderWriterProvider getReaderWriterProvider() {
-        if (readerWriterProviderInstance == null) {
+        if (readerWriterProviderInstance == null && readerWriterProvider != null) {
             readerWriterProviderInstance = DataReaderWriterProvider.getProvider(readerWriterProvider);
             if (readerWriterProviderInstance == null) {
                 throw new InvalidSettingException("Unknown DataReaderWriterProvider: " + readerWriterProvider);
