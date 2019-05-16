@@ -178,8 +178,11 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             throw new InvalidSettingException("Unknown DataReaderWriterProvider: " + providerName);
         }
         readerWriterProvider = provider;
-        if (readerWriterProvider.isInMemory()) {
+        if (provider.isInMemory()) {
             config.setMaxInPlaceBlobSize(Integer.MAX_VALUE);
+        }
+        if (provider.isReadonly()) {
+            config.setCachingDisabled(true);
         }
 
         namingRulez = new StoreNamingRules(name);
@@ -1127,7 +1130,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
         final int size = (int) length;
         final long blobHandle = createBlobHandle(txn, entity, blobName,
-                size > config.getMaxInPlaceBlobSize() ? null : blobVault.cloneFile(file), size);
+            size > config.getMaxInPlaceBlobSize() ? null : blobVault.cloneFile(file), size);
         if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
             setBlobFileLength(txn, blobHandle, length);
             txn.addBlob(blobHandle, file);
