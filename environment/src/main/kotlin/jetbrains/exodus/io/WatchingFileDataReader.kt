@@ -24,21 +24,22 @@ import mu.KLogging
 import java.nio.file.*
 import java.util.concurrent.TimeUnit
 
-class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?, internal val fileDataReader: FileDataReader) : DataReader {
+class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
+                             internal val fileDataReader: FileDataReader) : DataReader {
 
     companion object : KLogging() {
         private const val IDLE_FORCE_CHECK_INTERVAL = 3000L // 3 seconds
         private const val DEBOUNCE_INTERVAL = 100L // 100 milliseconds
+        private val EVENT_KINDS =
+                arrayOf(StandardWatchEventKinds.ENTRY_MODIFY, StandardWatchEventKinds.ENTRY_CREATE)
     }
 
     private val watchService = FileSystems.getDefault().newWatchService()
     private val watchKey = fileDataReader.dir.toPath().let {
         if (JVMConstants.IS_MAC) {
-            it.register(watchService,
-                    arrayOf(StandardWatchEventKinds.ENTRY_MODIFY),
-                    SensitivityWatchEventModifier.HIGH)
+            it.register(watchService, EVENT_KINDS, SensitivityWatchEventModifier.HIGH)
         } else {
-            it.register(watchService, StandardWatchEventKinds.ENTRY_MODIFY)
+            it.register(watchService, EVENT_KINDS)
         }
     }
 
