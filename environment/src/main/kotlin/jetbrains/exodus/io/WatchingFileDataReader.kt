@@ -47,7 +47,7 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
     private var stopped = false
 
     init {
-        Thread(Runnable { doWatch() }).start()
+        Thread(Runnable { doWatch() }).apply { name = "Xodus watcher for ${fileDataReader.dir}" }.start()
     }
 
     override fun getLocation() = fileDataReader.location
