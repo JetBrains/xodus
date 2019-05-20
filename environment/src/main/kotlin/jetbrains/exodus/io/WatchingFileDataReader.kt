@@ -16,6 +16,7 @@
 package jetbrains.exodus.io
 
 import com.sun.nio.file.SensitivityWatchEventModifier
+import jetbrains.exodus.ExodusException
 import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.tryUpdate
 import jetbrains.exodus.log.LogUtil
@@ -64,51 +65,56 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
     }
 
     private fun doWatch() {
+        val currentThread = Thread.currentThread()
         var lastDirty = Long.MIN_VALUE
         while (!stopped) {
-            val watchKey: WatchKey?
-            var hasFileUpdates = false
             try {
-                watchKey = watchService.poll(45, TimeUnit.MILLISECONDS)
-                val events = watchKey?.pollEvents()
-                if (events == null || events.isEmpty()) {
-                    if (lastDirty > Long.MIN_VALUE && System.currentTimeMillis() - lastDirty > IDLE_FORCE_CHECK_INTERVAL) {
-                        lastDirty = doUpdate(true)
+                val watchKey: WatchKey?
+                var hasFileUpdates = false
+                try {
+                    watchKey = watchService.poll(100, TimeUnit.MILLISECONDS)
+                    val events = watchKey?.pollEvents()
+                    if (events == null || events.isEmpty()) {
+                        if (lastDirty > Long.MIN_VALUE && System.currentTimeMillis() - lastDirty > IDLE_FORCE_CHECK_INTERVAL) {
+                            lastDirty = doUpdate(true)
+                        }
+                        continue
                     }
-                    continue
-                }
-                for (event in events) {
-                    val eventContext = event.context()
-                    if (eventContext is Path && LogUtil.LOG_FILE_NAME_FILTER.accept(null, eventContext.fileName.toString())) {
-                        hasFileUpdates = true
-                        break
+                    for (event in events) {
+                        val eventContext = event.context()
+                        if (eventContext is Path && LogUtil.LOG_FILE_NAME_FILTER.accept(null, eventContext.fileName.toString())) {
+                            hasFileUpdates = true
+                            break
+                        }
                     }
+                } catch (e: InterruptedException) {
+                    logger.warn(e) { "File watcher interrupted" }
+                    currentThread.interrupt()
+                    return
+                } catch (ignore: ClosedWatchServiceException) {
+                    return
                 }
-            } catch (e: InterruptedException) {
-                logger.warn(e) { "File watcher interrupted" }
-                Thread.currentThread().interrupt()
-                return
-            } catch (ignore: ClosedWatchServiceException) {
-                return
-            }
 
-            if (lastDirty > Long.MIN_VALUE) {
-                val debounce = DEBOUNCE_INTERVAL + (lastDirty - System.currentTimeMillis())
-                if (debounce > 5) {
-                    try {
-                        Thread.sleep(debounce)
-                    } catch (e: InterruptedException) {
-                        Thread.currentThread().interrupt()
-                        return
-                    }
+                if (lastDirty > Long.MIN_VALUE) {
+                    val debounce = DEBOUNCE_INTERVAL + (lastDirty - System.currentTimeMillis())
+                    if (debounce > 5) {
+                        try {
+                            Thread.sleep(debounce)
+                        } catch (e: InterruptedException) {
+                            currentThread.interrupt()
+                            return
+                        }
 
+                    }
                 }
-            }
-            if (hasFileUpdates) {
-                lastDirty = doUpdate(false)
-            }
-            if (!watchKey.reset()) {
-                return
+                if (hasFileUpdates) {
+                    lastDirty = doUpdate(false)
+                }
+                if (!watchKey.reset()) {
+                    return
+                }
+            } catch (t: Throwable) {
+                logger.error(t) { currentThread.name }
             }
         }
     }
@@ -116,11 +122,15 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
     private fun doUpdate(force: Boolean): Long {
         val env = envGetter()
         if (env != null) {
-            if (env.tryUpdate()) {
-                logger.info { (if (force) "Env force-updated at " else "Env updated at ") + env.location }
-                return Long.MIN_VALUE
-            } else {
-                logger.info { (if (force) "Can't force-update env at " else "Can't update env at ") + env.location }
+            try {
+                if (env.tryUpdate()) {
+                    logger.info { (if (force) "Env force-updated at " else "Env updated at ") + env.location }
+                    return Long.MIN_VALUE
+                } else {
+                    logger.info { (if (force) "Can't force-update env at " else "Can't update env at ") + env.location }
+                }
+            } catch (e: ExodusException) {
+                logger.info(e) { "Attempt to update failed in ${Thread.currentThread().name}" }
             }
         }
         return System.currentTimeMillis()
