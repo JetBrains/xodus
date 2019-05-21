@@ -16,7 +16,6 @@
 package jetbrains.exodus.io
 
 import com.sun.nio.file.SensitivityWatchEventModifier
-import jetbrains.exodus.ExodusException
 import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.tryUpdate
 import jetbrains.exodus.log.LogUtil
@@ -120,18 +119,12 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
     }
 
     private fun doUpdate(force: Boolean): Long {
-        val env = envGetter()
-        if (env != null) {
-            try {
-                if (env.tryUpdate()) {
-                    logger.info { (if (force) "Env force-updated at " else "Env updated at ") + env.location }
-                    return Long.MIN_VALUE
-                } else {
-                    logger.info { (if (force) "Can't force-update env at " else "Can't update env at ") + env.location }
-                }
-            } catch (e: ExodusException) {
-                logger.info(e) { "Attempt to update failed in ${Thread.currentThread().name}" }
+        envGetter()?.run {
+            if (tryUpdate()) {
+                logger.info { (if (force) "Env force-updated at " else "Env updated at ") + location }
+                return Long.MIN_VALUE
             }
+            logger.info { (if (force) "Can't force-update env at " else "Can't update env at ") + location }
         }
         return System.currentTimeMillis()
     }

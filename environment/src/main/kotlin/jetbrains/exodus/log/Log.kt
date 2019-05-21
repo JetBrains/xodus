@@ -196,7 +196,7 @@ class Log(val config: LogConfig) : Closeable {
                     approvedHighAddress = approvedHighAddressCandidate
                 }
             } catch (e: ExodusException) { // if an exception is thrown then last loggable wasn't read correctly
-                logger.error("Exception on Log recovery. Approved high address = $approvedHighAddress", e)
+                logger.info(e) { "Exception on Log recovery. Approved high address = $approvedHighAddress" }
             }
 
             this.internalTip.set(proposedTip.withApprovedAddress(approvedHighAddress))

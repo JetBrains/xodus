@@ -108,43 +108,47 @@ private fun Log.tryUpdate(tip: LogTip): Pair<DatabaseRoot, LogTip>? {
 private fun tryUpdate(log: Log, lastBlock: Block, tip: LogTip, blockSet: BlockSet.Mutable): Pair<DatabaseRoot, LogTip>? {
     val lastBlockAddress = lastBlock.address
     val highAddress = lastBlockAddress + lastBlock.length()
-    val startAddress = maxOf(tip.highAddress, lastBlockAddress)
+    val startAddress = maxOf(tip.approvedHighAddress, lastBlockAddress)
     if (startAddress > lastBlockAddress + log.fileLengthBound) {
         throw IllegalStateException("Log truncated abnormally, aborting")
     }
     val dataIterator = BlockDataIterator(log, tip, lastBlock, startAddress)
     val loggables = LoggableIteratorUnsafe(log, dataIterator)
-    val type = DatabaseRoot.DATABASE_ROOT_TYPE
+    val rootType = DatabaseRoot.DATABASE_ROOT_TYPE
     var lastRoot: DatabaseRoot? = null
-    //var currentAddress = startAddress
-    while (loggables.hasNext()) {
-        val loggable = loggables.next()
-        val loggableEnd = loggable.address + loggable.length()
-        if (loggableEnd > highAddress) {
-            break
-        }
-        if (loggable.type == type) {
-            lastRoot = DatabaseRoot(loggable, loggables.iterator)
-        } else if (!NullLoggable.isNullLoggable(loggable)) {
-            // don't skip DatabaseRoot content
-            val expectedDataLength = loggable.dataLength.toLong()
-            if (loggables.iterator.skip(expectedDataLength) < expectedDataLength) {
-                return null
+    var approvedHighAddress = startAddress
+    try {
+        while (loggables.hasNext()) {
+            val loggable = loggables.next()
+            val loggableEnd = loggable.address + loggable.length()
+            if (loggableEnd > highAddress) {
+                break
+            }
+            if (loggable.type == rootType) {
+                lastRoot = DatabaseRoot(loggable, loggables.iterator)
+            } else if (!NullLoggable.isNullLoggable(loggable)) {
+                // don't skip DatabaseRoot content
+                val expectedDataLength = loggable.dataLength.toLong()
+                if (loggables.iterator.skip(expectedDataLength) < expectedDataLength) {
+                    break
+                }
+            }
+            if (loggableEnd != dataIterator.address) {
+                break
+            }
+            approvedHighAddress = loggableEnd
+            if (loggableEnd == highAddress) {
+                break
             }
         }
-        if (loggableEnd != dataIterator.address) {
-            return null
-        }
-        //currentAddress = loggableEnd
-        if (loggableEnd == highAddress) {
-            break
-        }
+    } catch (e: ExodusException) {
+        Log.logger.info(e) { "Exception on Log recovery by tryUpdate() in ${Thread.currentThread().name}. Approved high address = $approvedHighAddress" }
     }
     if (lastRoot == null) {
         return null
     }
     return lastRoot to with(dataIterator) {
-        LogTip(lastPage, lastPageAddress, lastPageCount, highAddress, highAddress, blockSet.endWrite())
+        LogTip(lastPage, lastPageAddress, lastPageCount, highAddress, approvedHighAddress, blockSet.endWrite())
     }
 }
 
