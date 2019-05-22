@@ -17,6 +17,8 @@ package jetbrains.exodus.core.dataStructures;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.io.Closeable;
+
 public abstract class ObjectCacheBase<K, V> extends CacheHitRateable {
 
     public static final int DEFAULT_SIZE = 8192;
@@ -116,7 +118,7 @@ public abstract class ObjectCacheBase<K, V> extends CacheHitRateable {
         return criticalSection;
     }
 
-    public interface CriticalSection extends AutoCloseable {
+    public interface CriticalSection extends Closeable {
 
         @Override
         void close();
