@@ -20,7 +20,9 @@ class WatchingFileDataReaderWriterProvider : FileDataReaderWriterProvider() {
     override fun isReadonly() = true
 
     override fun newFileDataReader(location: String) =
-            WatchingFileDataReader({ env }, super.newFileDataReader(location) as FileDataReader)
+            WatchingFileDataReader({ env }, (super.newFileDataReader(location) as FileDataReader).apply {
+                usedWithWatcher = true
+            })
 
     override fun newFileDataWriter(location: String, reader: DataReader) =
             WatchingFileDataWriter((reader as WatchingFileDataReader).fileDataReader, env?.environmentConfig?.logLockId)

@@ -88,7 +88,7 @@ public final class SharedOpenFilesCache {
             }
         }
         if (result == null) {
-            result = new SharedRandomAccessFile(file, "r");
+            result = openFile(file);
             SharedRandomAccessFile obsolete = null;
             try (CriticalSection ignored = cache.newCriticalSection()) {
                 if (cache.getObject(file) == null) {
@@ -101,6 +101,11 @@ public final class SharedOpenFilesCache {
             }
         }
         return result;
+    }
+
+    @NotNull
+    SharedRandomAccessFile openFile(@NotNull final File file) throws IOException {
+        return new SharedRandomAccessFile(file, "r");
     }
 
     void removeFile(@NotNull final File file) throws IOException {

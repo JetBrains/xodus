@@ -27,8 +27,10 @@ class FileDataReader(val dir: File) : DataReader, KLogging() {
 
     companion object : KLogging()
 
-    private var useNio: Boolean = false
+    private var useNio = false
     private var log: Log? = null
+
+    internal var usedWithWatcher = true
 
     override fun getBlocks(): Iterable<Block> {
         val files = LogUtil.listFileAddresses(dir)
@@ -41,7 +43,6 @@ class FileDataReader(val dir: File) : DataReader, KLogging() {
         files.sort()
         return toBlocks(files)
     }
-
 
 
     override fun close() {
@@ -78,11 +79,13 @@ class FileDataReader(val dir: File) : DataReader, KLogging() {
 
         override fun read(output: ByteArray, position: Long, offset: Int, count: Int): Int {
             try {
-                SharedOpenFilesCache.getInstance().getCachedFile(this).use { f ->
-                    val log = reader.log
+                val log = reader.log
+                val immutable = log?.isImmutableFile(address) ?: !canWrite()
+                val filesCache = SharedOpenFilesCache.getInstance()
+                val file = if (immutable || !reader.usedWithWatcher) filesCache.getCachedFile(this) else filesCache.openFile(this)
+                file.use { f ->
                     if (reader.useNio &&
-                            /* only read-only (immutable) files can be mapped */
-                            ((log != null && log.isImmutableFile(address)) || (log == null && !canWrite()))) {
+                            /* only read-only (immutable) files can be mapped */ immutable) {
                         try {
                             SharedMappedFilesCache.getInstance().getFileBuffer(f).use { mappedBuffer ->
                                 val buffer = mappedBuffer.buffer
