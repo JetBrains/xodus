@@ -305,6 +305,11 @@ public class LogConfig {
         return readerWriterProviderInstance;
     }
 
+    public boolean isReadonlyReaderWriterProvider() {
+        final DataReaderWriterProvider provider = getReaderWriterProvider();
+        return provider != null && provider.isReadonly();
+    }
+
     private void createReaderWriter() {
         final String location = this.location;
         if (location == null) {

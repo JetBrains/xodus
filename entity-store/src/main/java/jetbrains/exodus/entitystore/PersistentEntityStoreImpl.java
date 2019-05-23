@@ -1028,7 +1028,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             return result;
         }
         result = blobVault.getContent(blobHandle, txn.getEnvironmentTransaction());
-        if (result == null) {
+        if (result == null && !((EnvironmentImpl) environment).getLog().getConfig().isReadonlyReaderWriterProvider()) {
             logger.error("Blob not found: " + blobVault.getBlobLocation(blobHandle), new FileNotFoundException());
         }
         return result;
