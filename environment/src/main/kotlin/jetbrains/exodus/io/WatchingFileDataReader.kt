@@ -42,6 +42,7 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
             it.register(watchService, EVENT_KINDS)
         }
     }
+    private val newDataCallbacks: MutableList<() -> Unit> = mutableListOf()
 
     @Volatile
     private var stopped = false
@@ -62,6 +63,14 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
         watchService.close()
         fileDataReader.close()
     }
+
+    /**
+     * Add callback that is invoked when new data arrives and Environment is successfully updated.
+     */
+    fun addNewDataCallback(callback: () -> Unit) =
+            synchronized(newDataCallbacks) {
+                newDataCallbacks.add(callback)
+            }
 
     private fun doWatch() {
         val currentThread = Thread.currentThread()
@@ -103,13 +112,13 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
                             currentThread.interrupt()
                             return
                         }
-
                     }
                 }
                 if (hasFileUpdates) {
                     lastDirty = doUpdate(false)
                 }
                 if (!watchKey.reset()) {
+                    logger.info { "Watch service is no longer valid for ${currentThread.name}, exiting..." }
                     return
                 }
             } catch (t: Throwable) {
@@ -120,11 +129,17 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
 
     private fun doUpdate(force: Boolean): Long {
         envGetter()?.run {
+            val prevTip = log.tip
             if (tryUpdate()) {
-                logger.info { (if (force) "Env force-updated at " else "Env updated at ") + location }
+                logger.debug { (if (force) "Env force-updated at " else "Env updated at ") + location }
+                if (log.tip.approvedHighAddress > prevTip.approvedHighAddress) {
+                    synchronized(newDataCallbacks) {
+                        newDataCallbacks.forEach { callback -> callback() }
+                    }
+                }
                 return Long.MIN_VALUE
             }
-            logger.info { (if (force) "Can't force-update env at " else "Can't update env at ") + location }
+            logger.debug { (if (force) "Can't force-update env at " else "Can't update env at ") + location }
         }
         return System.currentTimeMillis()
     }
