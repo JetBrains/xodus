@@ -23,7 +23,7 @@ import jetbrains.exodus.env.Transaction;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class PersistentSequence implements Sequence, FlushLog.Member {
@@ -91,16 +91,20 @@ public class PersistentSequence implements Sequence, FlushLog.Member {
         }
     }
 
+    void invalidate(@NotNull final Transaction txn) {
+        set(loadValue(txn));
+    }
+
     long loadValue(@NotNull final PersistentStoreTransaction txn) {
-        final ByteIterable value = store.get(txn.getEnvironmentTransaction(), idKeyEntry);
+        return loadValue(txn.getEnvironmentTransaction());
+    }
+
+    long loadValue(@NotNull final Transaction txn) {
+        final ByteIterable value = store.get(txn, idKeyEntry);
         return value == null ? -1 : LongBinding.compressedEntryToLong(value);
     }
 
     static ArrayByteIterable sequenceNameToEntry(@NotNull final String sequenceName) {
-        try {
-            return new ArrayByteIterable(sequenceName.getBytes(UTF8));
-        } catch (final UnsupportedEncodingException e) {
-            throw new EntityStoreException(e);
-        }
+        return new ArrayByteIterable(sequenceName.getBytes(StandardCharsets.UTF_8));
     }
 }

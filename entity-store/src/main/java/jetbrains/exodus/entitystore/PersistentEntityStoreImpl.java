@@ -36,11 +36,15 @@ import jetbrains.exodus.entitystore.tables.*;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.env.replication.EnvironmentReplicationDelta;
 import jetbrains.exodus.io.DataReaderWriterProvider;
+import jetbrains.exodus.io.WatchingFileDataReader;
+import jetbrains.exodus.io.WatchingFileDataReaderWriterProvider;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.management.Statistics;
 import jetbrains.exodus.util.ByteArraySizedInputStream;
 import jetbrains.exodus.util.LightByteArrayOutputStream;
 import jetbrains.exodus.util.UTFUtil;
+import kotlin.Unit;
+import kotlin.jvm.functions.Function0;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -201,6 +205,24 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
 
         init();
+
+        if (provider instanceof WatchingFileDataReaderWriterProvider) {
+            ((WatchingFileDataReader) ((EnvironmentImpl) environment).getLog().getConfig().getReader()).addNewDataCallback(new Function0<Unit>() {
+                @Override
+                public Unit invoke() {
+                    environment.executeInReadonlyTransaction(new TransactionalExecutable() {
+                        @Override
+                        public void execute(@NotNull final Transaction txn) {
+                            entityTypes.invalidate(txn);
+                            propertyIds.invalidate(txn);
+                            linkIds.invalidate(txn);
+                            propertyCustomTypeIds.invalidate(txn);
+                        }
+                    });
+                    return Unit.INSTANCE;
+                }
+            });
+        }
 
         statistics = new PersistentEntityStoreStatistics(this);
         if (config.isManagementEnabled()) {
@@ -1028,7 +1050,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             return result;
         }
         result = blobVault.getContent(blobHandle, txn.getEnvironmentTransaction());
-        if (result == null && !((EnvironmentImpl) environment).getLog().getConfig().isReadonlyReaderWriterProvider()) {
+        if (result == null && !readerWriterProvider.isReadonly()) {
             logger.error("Blob not found: " + blobVault.getBlobLocation(blobHandle), new FileNotFoundException());
         }
         return result;

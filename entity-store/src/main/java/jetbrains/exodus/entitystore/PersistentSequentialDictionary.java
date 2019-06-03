@@ -183,6 +183,14 @@ class PersistentSequentialDictionary implements FlushLog.Member {
         }
     }
 
+    void invalidate(@NotNull final Transaction txn) {
+        sequence.invalidate(txn);
+        synchronized (lock) {
+            cache.clear();
+            reverseCache.clear();
+        }
+    }
+
     protected void created(final PersistentStoreTransaction txn, final int id) { // synchronized modifier not needed
     }
 
