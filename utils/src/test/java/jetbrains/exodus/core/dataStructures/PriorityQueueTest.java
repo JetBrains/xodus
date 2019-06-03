@@ -19,6 +19,7 @@ import jetbrains.exodus.TestFor;
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.core.dataStructures.hash.IntHashSet;
 import jetbrains.exodus.core.execution.locks.Guard;
+import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -57,15 +58,7 @@ public abstract class PriorityQueueTest {
 
     @Test
     public void pushPop() {
-        final PriorityQueue<Priority, String> queue = createQueue();
-        queue.push(Priority.normal, "1");
-        queue.push(Priority.above_normal, "2");
-        queue.push(Priority.below_normal, "3");
-        queue.push(Priority.above_normal, "4");
-        queue.push(Priority.below_normal, "5");
-        queue.push(Priority.lowest, "6");
-        queue.push(Priority.highest, "7");
-        queue.push(Priority.lowest, "8");
+        final PriorityQueue<Priority, String> queue = populateQueue();
         assertEquals("7", queue.pop());
         assertEquals("2", queue.pop());
         assertEquals("4", queue.pop());
@@ -78,15 +71,41 @@ public abstract class PriorityQueueTest {
 
     @Test
     public void pushPeek() {
-        final PriorityQueue<Priority, String> queue = createQueue();
-        queue.push(Priority.normal, "1");
-        queue.push(Priority.above_normal, "2");
-        queue.push(Priority.below_normal, "3");
-        queue.push(Priority.above_normal, "4");
-        queue.push(Priority.below_normal, "5");
-        queue.push(Priority.lowest, "6");
-        queue.push(Priority.highest, "7");
-        queue.push(Priority.lowest, "8");
+        final PriorityQueue<Priority, String> queue = populateQueue();
+        assertEquals("7", queue.peek());
+        assertEquals("7", queue.pop());
+        assertEquals("2", queue.peek());
+        assertEquals("2", queue.pop());
+        assertEquals("4", queue.peek());
+        assertEquals("4", queue.pop());
+        assertEquals("1", queue.peek());
+        assertEquals("1", queue.pop());
+        assertEquals("3", queue.peek());
+        assertEquals("3", queue.pop());
+        assertEquals("5", queue.peek());
+        assertEquals("5", queue.pop());
+        assertEquals("6", queue.peek());
+        assertEquals("6", queue.pop());
+        assertEquals("8", queue.peek());
+        assertEquals("8", queue.pop());
+    }
+
+    @Test
+    public void pushCopyPop() {
+        final PriorityQueue<Priority, String> queue = populateAndCopyQueue();
+        assertEquals("7", queue.pop());
+        assertEquals("2", queue.pop());
+        assertEquals("4", queue.pop());
+        assertEquals("1", queue.pop());
+        assertEquals("3", queue.pop());
+        assertEquals("5", queue.pop());
+        assertEquals("6", queue.pop());
+        assertEquals("8", queue.pop());
+    }
+
+    @Test
+    public void pushCopyPeek() {
+        final PriorityQueue<Priority, String> queue = populateAndCopyQueue();
         assertEquals("7", queue.peek());
         assertEquals("7", queue.pop());
         assertEquals("2", queue.peek());
@@ -231,6 +250,28 @@ public abstract class PriorityQueueTest {
             numbers.add(to.number);
         }
         assertEquals(TestObject.MAX_TEST_OBJECTS, numbers.size());
+    }
+
+    @NotNull
+    private PriorityQueue<Priority, String> populateQueue() {
+        final PriorityQueue<Priority, String> queue = createQueue();
+        queue.push(Priority.normal, "1");
+        queue.push(Priority.above_normal, "2");
+        queue.push(Priority.below_normal, "3");
+        queue.push(Priority.above_normal, "4");
+        queue.push(Priority.below_normal, "5");
+        queue.push(Priority.lowest, "6");
+        queue.push(Priority.highest, "7");
+        queue.push(Priority.lowest, "8");
+        return queue;
+    }
+
+    @NotNull
+    private PriorityQueue<Priority, String> populateAndCopyQueue() {
+        final PriorityQueue<Priority, String> source = populateQueue();
+        final PriorityQueue<Priority, String> result = createQueue();
+        PriorityQueue.moveQueue(source, result);
+        return result;
     }
 
     private static class TestObject {
