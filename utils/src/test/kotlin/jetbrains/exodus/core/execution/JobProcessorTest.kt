@@ -22,21 +22,19 @@ import org.junit.Test
 
 open class JobProcessorTest {
 
-    private lateinit var processor: ThreadJobProcessor
+    protected lateinit var processor: JobProcessor
 
-    private fun createProcessor() {
-        processor = ThreadJobProcessor("Test Job Processor")
-    }
+    protected open fun createProcessor(): JobProcessor = ThreadJobProcessor("Test Job Processor")
 
     @Before
     open fun setUp() {
         System.setProperty(JobProcessorQueueAdapter.CONCURRENT_QUEUE_PROPERTY, "false")
+        processor = createProcessor().apply { start() }
     }
 
     @Test
     fun sleep() {
-        createProcessor()
-        processor.start()
+        val processor = processor as? ThreadJobProcessor ?: return
         val ticks = System.currentTimeMillis()
         val sleepTicks = 2000L
         SleepJob(processor, sleepTicks)
@@ -49,11 +47,9 @@ open class JobProcessorTest {
 
     @Test
     fun testWaitForJobs() {
-        createProcessor()
-        processor.start()
-        for (i in 0..99) { // this should be fast when everything waitForJobs works properly
+        for (i in 0..99) { // this should be fast when everything works properly
             var time = System.currentTimeMillis()
-            processor.queue(IncrementJob(processor, 1), Priority.lowest)
+            IncrementJob(processor, 1, Priority.lowest)
             processor.waitForJobs(1000)
             time = System.currentTimeMillis() - time
             Assert.assertTrue("Waiting took: $time on iteration $i", time < 500)
@@ -62,8 +58,7 @@ open class JobProcessorTest {
 
     @Test
     fun testWaitForTimedJobs() {
-        createProcessor()
-        processor.start()
+        val processor = processor as? ThreadJobProcessor ?: return
         for (i in 0..9) { // this should be fast when everything waitForJobs works properly
             var time = System.currentTimeMillis()
             processor.queueIn(IncrementJob(processor, 1), 100)
@@ -75,8 +70,7 @@ open class JobProcessorTest {
 
     @Test
     fun testSuspend() {
-        createProcessor()
-        processor.start()
+        val processor = processor as? ThreadJobProcessor ?: return
         processor.suspend()
         count = 0
         processor.queue(IncrementJob(processor, 1))
@@ -89,8 +83,7 @@ open class JobProcessorTest {
 
     @Test
     fun testSuspend2() {
-        createProcessor()
-        processor.start()
+        val processor = processor as? ThreadJobProcessor ?: return
         processor.suspend()
         count = 0
         processor.queue(IncrementJob(processor, 1))
@@ -115,8 +108,7 @@ open class JobProcessorTest {
 
     @Test
     fun testSuspend3() {
-        createProcessor()
-        processor.start()
+        val processor = processor as? ThreadJobProcessor ?: return
         processor.suspend()
         val r = SuspendRunnable(processor)
         val suspender = Thread(r)
@@ -134,8 +126,7 @@ open class JobProcessorTest {
 
     @Test
     fun testSuspend4() {
-        createProcessor()
-        processor.start()
+        val processor = processor as? ThreadJobProcessor ?: return
         for (i in 0..99) {
             processor.suspend()
             processor.resume()
@@ -144,8 +135,7 @@ open class JobProcessorTest {
 
     @Test
     fun testSuspend5() {
-        createProcessor()
-        processor.start()
+        val processor = processor as? ThreadJobProcessor ?: return
         for (i in 0..99) {
             processor.suspend()
             processor.suspend()
@@ -156,12 +146,11 @@ open class JobProcessorTest {
 
     @Test
     fun equalJobs() {
-        createProcessor()
+        SleepJob(processor, 100)
         AlwaysEqualJob(processor)
         for (i in 0..9) {
             Assert.assertFalse(AlwaysEqualJob(processor).wasQueued())
         }
-        processor.start()
         sleep(200)
         Assert.assertTrue(AlwaysEqualJob(processor).wasQueued())
         processor.finish()
@@ -171,9 +160,7 @@ open class JobProcessorTest {
 
     @Test
     fun priorityOrder() {
-        createProcessor()
         count = 0
-        processor.start()
         val job = AcquiringLatchJob(processor)
         IncrementJob(processor, 1)
         SleepJob(processor, 300)
@@ -192,9 +179,7 @@ open class JobProcessorTest {
 
     @Test
     fun pendingJobs() {
-        createProcessor()
         count = 0
-        processor.start()
         val job = AcquiringLatchJob(processor)
         IncrementJob(processor, 1)
         SleepJob(processor, 1000)
@@ -220,10 +205,9 @@ open class JobProcessorTest {
 
     @Test
     fun queueAtFuture() {
-        createProcessor()
-        processor.start()
+        val processor = processor as? ThreadJobProcessor ?: return
         count = 0
-        processor.queueAt(IncrementJob(1), System.currentTimeMillis() + 200)
+        processor.queueAt(IncrementJob(), System.currentTimeMillis() + 200)
         processor.queueAt(IncrementJob(2), System.currentTimeMillis() + 400)
         processor.queueAt(IncrementJob(3), System.currentTimeMillis() + 600)
         Assert.assertEquals(0, count)
@@ -237,10 +221,9 @@ open class JobProcessorTest {
 
     @Test
     fun queueAtMerge() {
-        createProcessor()
-        processor.start()
+        val processor = processor as? ThreadJobProcessor ?: return
         count = 0
-        val job = IncrementJob(1)
+        val job = IncrementJob()
         processor.queueAt(job, System.currentTimeMillis() + 200)
         processor.queueAt(job, System.currentTimeMillis() + 400)
         processor.queueAt(job, System.currentTimeMillis() + 600)
@@ -256,10 +239,9 @@ open class JobProcessorTest {
 
     @Test
     fun queueIn() {
-        createProcessor()
-        processor.start()
+        val processor = processor as? ThreadJobProcessor ?: return
         count = 0
-        val job = IncrementJob(1)
+        val job = IncrementJob()
         processor.queueIn(job, 200)
         sleep(100)
         Assert.assertEquals(0, count)
@@ -275,7 +257,6 @@ open class JobProcessorTest {
             } catch (e: InterruptedException) {
                 Thread.currentThread().interrupt()
             }
-
             Assert.assertTrue(processor.queue(this, Priority.highest))
         }
 
@@ -285,9 +266,9 @@ open class JobProcessorTest {
 
     }
 
-    private class SleepJob(processor: JobProcessor,
-                           private var ticks: Long,
-                           priority: Priority = Priority.normal) : Job(processor, priority) {
+    internal class SleepJob(processor: JobProcessor,
+                            private var ticks: Long,
+                            priority: Priority = Priority.normal) : Job(processor, priority) {
 
         init {
             Assert.assertTrue(wasQueued())
@@ -299,7 +280,7 @@ open class JobProcessorTest {
         }
     }
 
-    private class IncrementJob(private val increment: Int) : Job() {
+    internal class IncrementJob(private val increment: Int = 1) : Job() {
 
         internal constructor(processor: JobProcessor, increment: Int, priority: Priority = Priority.normal) : this(increment) {
             Assert.assertTrue(processor.queue(this, priority))
@@ -377,9 +358,9 @@ open class JobProcessorTest {
 
     companion object {
 
-        private var count = 0
+        internal var count = 0
 
-        private fun sleep(ticks: Long) {
+        internal fun sleep(ticks: Long) {
             val endTicks = System.currentTimeMillis() + ticks + 40
             try {
                 Thread.sleep(ticks + 40)

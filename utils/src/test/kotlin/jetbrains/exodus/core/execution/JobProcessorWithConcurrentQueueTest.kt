@@ -22,5 +22,6 @@ class JobProcessorWithConcurrentQueueTest : JobProcessorTest() {
     @Before
     override fun setUp() {
         System.setProperty(JobProcessorQueueAdapter.CONCURRENT_QUEUE_PROPERTY, "true")
+        processor = createProcessor().apply { start() }
     }
 }

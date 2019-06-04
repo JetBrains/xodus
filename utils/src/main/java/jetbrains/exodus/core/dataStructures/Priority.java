@@ -56,6 +56,11 @@ public class Priority implements Comparable<Priority> {
         return description;
     }
 
+    @Override
+    public String toString() {
+        return description;
+    }
+
     public static Priority mean(final Priority p1, final Priority p2) {
         // use long in order to avoid integer overflow
         final long value = ((long) p1.value + (long) p2.value) >>> 1;

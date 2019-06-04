@@ -53,6 +53,10 @@ public abstract class Job {
     }
 
     public boolean queue(Priority priority) {
+        return queue(processor, priority);
+    }
+
+    public boolean queue(JobProcessor processor, Priority priority) {
         return (wasQueued = processor.queue(this, priority));
     }
 

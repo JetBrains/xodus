@@ -16,7 +16,6 @@
 package jetbrains.exodus.core.execution
 
 import jetbrains.exodus.core.dataStructures.Priority
-import org.jetbrains.annotations.NonNls
 
 abstract class MultiThreadDelegatingJobProcessor
 @JvmOverloads protected constructor(name: String, threadCount: Int, jobTimeout: Long = 0L) : JobProcessorAdapter() {
@@ -49,6 +48,10 @@ abstract class MultiThreadDelegatingJobProcessor
 
     override fun waitForTimedJobs(spinTimeout: Long) = jobProcessors.forEach { processor -> processor.waitForTimedJobs(spinTimeout) }
 
+    override fun suspend(): Unit = throw UnsupportedOperationException(UNSUPPORTED_SUSPEND_MESSAGE)
+
+    override fun resume(): Unit = throw UnsupportedOperationException(UNSUPPORTED_RESUME_MESSAGE)
+
     override fun queueLowest(job: Job): Boolean = throw UnsupportedOperationException()
 
     override fun queueLowestTimed(job: Job): Boolean = throw UnsupportedOperationException()
@@ -69,10 +72,6 @@ abstract class MultiThreadDelegatingJobProcessor
             }
         }
     }
-
-    override fun processorStarted() {}
-
-    override fun processorFinished() {}
 
     override fun finish() {
         if (started.get() && !finished.getAndSet(true)) {
@@ -98,7 +97,7 @@ abstract class MultiThreadDelegatingJobProcessor
         }
         val hc = job.hashCode()
         val processorNumber = ((hc and 0xffff) + hc.ushr(16)) % jobProcessors.size
-        return jobProcessors[processorNumber].queue(job, priority)
+        return job.queue(jobProcessors[processorNumber], priority)
     }
 
     private inner class WatchDog(private val jobTimeout: Long) : SharedTimer.ExpirablePeriodicTask {
@@ -125,7 +124,8 @@ abstract class MultiThreadDelegatingJobProcessor
 
     companion object {
 
-        @NonNls
-        private val UNSUPPORTED_TIMED_JOBS_MESSAGE = "Timed jobs are not supported by MultiThreadDelegatingJobProcessor"
+        private const val UNSUPPORTED_TIMED_JOBS_MESSAGE = "Timed jobs are not supported by MultiThreadDelegatingJobProcessor"
+        private const val UNSUPPORTED_SUSPEND_MESSAGE = "Suspend operation is not supported by MultiThreadDelegatingJobProcessor"
+        private const val UNSUPPORTED_RESUME_MESSAGE = "Resume operation is not supported by MultiThreadDelegatingJobProcessor"
     }
 }

@@ -198,9 +198,11 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
     }
 
     void moveTo(@NotNull final JobProcessorQueueAdapter copy) {
-        PriorityQueue.moveQueue(queue, copy.queue);
         PriorityQueue.moveQueue(timeQueue, copy.timeQueue);
-        copy.awake.release();
+        final int queueSize = PriorityQueue.moveQueue(this.queue, copy.queue);
+        if (queueSize > 0) {
+            copy.awake.release(queueSize);
+        }
     }
 
     private void executeImmediateJobsIfAny() {

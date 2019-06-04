@@ -48,8 +48,9 @@ public abstract class PriorityQueue<P extends Comparable<? super P>, E> implemen
 
     public abstract void unlock();
 
-    public static <P extends Comparable<? super P>, E> void moveQueue(@NotNull final PriorityQueue<P, E> source,
-                                                                      @NotNull final PriorityQueue<P, E> dest) {
+    // Returns size of the destination (and obviously of the source) queue
+    public static <P extends Comparable<? super P>, E> int moveQueue(@NotNull final PriorityQueue<P, E> source,
+                                                                     @NotNull final PriorityQueue<P, E> dest) {
         try (Guard ignored = source.lock()) {
             try (Guard ignore = dest.lock()) {
                 while (true) {
@@ -58,6 +59,7 @@ public abstract class PriorityQueue<P extends Comparable<? super P>, E> implemen
                     dest.push(pair.getFirst(), pair.getSecond());
                     source.pop();
                 }
+                return dest.size();
             }
         }
     }
