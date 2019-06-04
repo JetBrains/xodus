@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.core.execution;
+package jetbrains.exodus.core.execution
 
-import org.junit.Before;
+import org.junit.Before
 
-public class JobProcessorWithConcurrentQueueTest extends JobProcessorTest {
+class JobProcessorWithConcurrentQueueTest : JobProcessorTest() {
 
     @Before
-    public void setUp() {
-        System.setProperty(JobProcessorQueueAdapter.CONCURRENT_QUEUE_PROPERTY, "true");
+    override fun setUp() {
+        System.setProperty(JobProcessorQueueAdapter.CONCURRENT_QUEUE_PROPERTY, "true")
     }
 }
