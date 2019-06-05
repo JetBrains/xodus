@@ -70,7 +70,6 @@ open class JobProcessorTest {
 
     @Test
     fun testSuspend() {
-        val processor = processor as? ThreadJobProcessor ?: return
         processor.suspend()
         count = 0
         processor.queue(IncrementJob(processor, 1))
@@ -83,7 +82,7 @@ open class JobProcessorTest {
 
     @Test
     fun testSuspend2() {
-        val processor = processor as? ThreadJobProcessor ?: return
+        //val processor = processor as? ThreadJobProcessor ?: return
         processor.suspend()
         count = 0
         processor.queue(IncrementJob(processor, 1))
@@ -108,7 +107,7 @@ open class JobProcessorTest {
 
     @Test
     fun testSuspend3() {
-        val processor = processor as? ThreadJobProcessor ?: return
+        //val processor = processor as? ThreadJobProcessor ?: return
         processor.suspend()
         val r = SuspendRunnable(processor)
         val suspender = Thread(r)
@@ -126,7 +125,7 @@ open class JobProcessorTest {
 
     @Test
     fun testSuspend4() {
-        val processor = processor as? ThreadJobProcessor ?: return
+        //val processor = processor as? ThreadJobProcessor ?: return
         for (i in 0..99) {
             processor.suspend()
             processor.resume()
@@ -135,7 +134,7 @@ open class JobProcessorTest {
 
     @Test
     fun testSuspend5() {
-        val processor = processor as? ThreadJobProcessor ?: return
+        //val processor = processor as? ThreadJobProcessor ?: return
         for (i in 0..99) {
             processor.suspend()
             processor.suspend()

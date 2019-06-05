@@ -48,9 +48,11 @@ abstract class MultiThreadDelegatingJobProcessor
 
     override fun waitForTimedJobs(spinTimeout: Long) = jobProcessors.forEach { processor -> processor.waitForTimedJobs(spinTimeout) }
 
-    override fun suspend(): Unit = throw UnsupportedOperationException(UNSUPPORTED_SUSPEND_MESSAGE)
+    override fun suspend() =
+            jobProcessors.forEach { processor -> processor.suspend() }
 
-    override fun resume(): Unit = throw UnsupportedOperationException(UNSUPPORTED_RESUME_MESSAGE)
+    override fun resume() =
+            jobProcessors.forEach { processor -> processor.resume() }
 
     override fun queueLowest(job: Job): Boolean = throw UnsupportedOperationException()
 
