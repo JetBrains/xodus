@@ -58,7 +58,7 @@ try (Environment env = Environments.newInstance("/home/me/.myAppData")) {
 Add dependency on `org.jetbrains.xodus:xodus-entity-store:1.3.0`.
 
 ```java
-try (PersistentEntityStore entityStore = PersistentEntityStores.newInstance("/home/me/.myAppData") {
+try (PersistentEntityStore entityStore = PersistentEntityStores.newInstance("/home/me/.myAppData")) {
     entityStore.executeInTransaction(txn -> {
         final Entity message = txn.newEntity("Message");
         message.setProperty("hello", "World!");
