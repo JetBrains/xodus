@@ -351,6 +351,29 @@ class StoreTest : EnvironmentTestsBase() {
         }
     }
 
+    @Test
+    @TestFor(issues = ["XD-774"])
+    fun `remove and open store in single txn (by Martin Hausler)`() {
+        val store = openStoreAutoCommit("store", StoreConfig.WITHOUT_DUPLICATES)
+        env.executeInTransaction { txn ->
+            store.put(txn, key, value)
+        }
+        env.executeInTransaction { txn ->
+            assertEquals(value, store[txn, key])
+        }
+        env.executeInTransaction { txn ->
+            env.removeStore("store", txn)
+            @Suppress("NAME_SHADOWING") val store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn)
+            store.put(txn, key, value2)
+        }
+        env.executeInTransaction { txn ->
+            @Suppress("NAME_SHADOWING") val store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn)
+            val value = store[txn, key]
+            assertNotNull(value)
+            assertEquals(value2, value)
+        }
+    }
+
     private fun putWithoutDuplicates(config: StoreConfig) {
         val env = environment
         var txn: Transaction = env.beginTransaction()
