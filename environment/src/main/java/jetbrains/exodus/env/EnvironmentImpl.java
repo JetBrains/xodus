@@ -805,6 +805,10 @@ public class EnvironmentImpl implements Environment {
                 metaInfo = TreeMetaInfo.load(this, hasDuplicates, false, metaInfo.getStructureId());
             }
             result = createStore(name, metaInfo);
+            // XD-774: if the store was just removed in the same txn forget the removal
+            if (txn instanceof ReadWriteTransaction) {
+                ((ReadWriteTransaction) txn).storeOpened(result);
+            }
         }
         return result;
     }

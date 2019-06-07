@@ -205,6 +205,10 @@ public class ReadWriteTransaction extends TransactionBase {
         mutableTrees.remove(structureId);
     }
 
+    void storeOpened(@NotNull final StoreImpl store) {
+        removedStores.remove(store.getStructureId());
+    }
+
     void storeCreated(@NotNull final StoreImpl store) {
         getMutableTree(store);
         createdStores.put(store.getName(), store.getMetaInfo());
