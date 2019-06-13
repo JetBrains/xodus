@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore
 
 import jetbrains.exodus.ConfigSettingChangeListener
+import mu.KLogging
 
 internal class PersistentEntityStoreSettingsListener(private val store: PersistentEntityStoreImpl) : ConfigSettingChangeListener.Adapter() {
 
@@ -23,7 +24,13 @@ internal class PersistentEntityStoreSettingsListener(private val store: Persiste
         if (PersistentEntityStoreConfig.CACHING_DISABLED == key) {
             // if caching is switched on/off then clear EntityIterableCache
             store.entityIterableCache.clear()
-            store.entityIterableCache.isCachingDisabled = store.config.isCachingDisabled
+            val cachingDisabled = store.config.isCachingDisabled
+            store.entityIterableCache.isCachingDisabled = cachingDisabled
+            logger.info(Throwable()) {
+                "EntityIterableCache ${if (cachingDisabled) "disabled" else "enabled"}"
+            }
         }
     }
+
+    companion object : KLogging()
 }
