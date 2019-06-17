@@ -168,7 +168,7 @@ open class SortEngine {
                 valueGetter ?: throw ExodusException("ValueGetter is undefined"), asc)
     }
 
-    protected fun attach(entity: Entity): Entity {
+    protected open fun attach(entity: Entity): Entity {
         return entity
     }
 
