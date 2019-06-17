@@ -77,11 +77,12 @@ open class SortEngine {
         if (mmd != null) {
             val emd = mmd.getEntityMetaData(entityType)
             if (emd != null) {
+                val isReadOnlyTxn = txn.isReadonly
                 val isMultiple = emd.getAssociationEndMetaData(linkName).cardinality.isMultiple
                 valueGetter = if (isMultiple)
-                    MultipleLinkComparableGetter(linkName, propName, asc, txn.isReadonly)
+                    MultipleLinkComparableGetter(linkName, propName, asc, isReadOnlyTxn)
                 else
-                    SingleLinkComparableGetter(linkName, propName, txn.isReadonly, txn)
+                    SingleLinkComparableGetter(linkName, propName, txn)
                 val i = queryEngine.toEntityIterable(src)
                 if (queryEngine.isPersistentIterable(i)) {
                     val s = (i as EntityIterableBase).source
@@ -107,38 +108,53 @@ open class SortEngine {
                             distinctLinks = allLinks
                         }
                         if (sourceCount > MAX_ENTRIES_TO_SORT_IN_MEMORY || enumCount <= MAX_ENUM_COUNT_TO_SORT_LINKS) {
-                            val linksGetter = propertyGetter(propName, txn.isReadonly)
+                            val linksGetter = propertyGetter(propName, isReadOnlyTxn)
                             val distinctSortedLinks = mergeSorted(mmd.getEntityMetaData(enumType)!!, object : IterableGetter {
                                 override fun getIterable(type: String): EntityIterableBase {
                                     queryEngine.assertOperational()
                                     return txn.sort(type, propName, distinctLinks, asc) as EntityIterableBase
                                 }
                             }, linksGetter, caseInsensitiveComparator(asc))
-                            val aemd = emd.getAssociationEndMetaData(linkName)
-                            if (aemd != null) {
-                                val amd = aemd.associationMetaData
-                                if (amd.type != AssociationType.Directed) {
-                                    val oppositeEmd = aemd.oppositeEntityMetaData
-                                    if (!oppositeEmd.hasSubTypes()) {
-                                        val oppositeType = oppositeEmd.type
-                                        val oppositeAemd = amd.getOppositeEnd(aemd)
-                                        val oppositeLinkName = oppositeAemd.name
-                                        return mergeSorted(emd, object : IterableGetter {
-                                            override fun getIterable(type: String): EntityIterableBase {
-                                                queryEngine.assertOperational()
-                                                return txn.sortLinks(type,
-                                                        distinctSortedLinks.source, isMultiple, linkName, it, oppositeType, oppositeLinkName) as EntityIterableBase
-                                            }
-                                        }, valueGetter, caseInsensitiveComparator(asc))
+                            // check if all enums values are distinct
+                            var enumsAreDistinct = true
+                            var prev: Comparable<Any>? = null
+                            distinctSortedLinks.forEach { enum ->
+                                val current = getProperty(enum, propName, isReadOnlyTxn)
+                                if (current != null && prev?.compareTo(current) ?: 1 == 0) {
+                                    enumsAreDistinct = false
+                                    return@forEach
+                                }
+                                prev = current
+                            }
+                            if (enumsAreDistinct) {
+                                val aemd = emd.getAssociationEndMetaData(linkName)
+                                if (aemd != null) {
+                                    val amd = aemd.associationMetaData
+                                    if (amd.type != AssociationType.Directed) {
+                                        val oppositeEmd = aemd.oppositeEntityMetaData
+                                        if (!oppositeEmd.hasSubTypes()) {
+                                            val oppositeType = oppositeEmd.type
+                                            val oppositeAemd = amd.getOppositeEnd(aemd)
+                                            val oppositeLinkName = oppositeAemd.name
+                                            return mergeSorted(emd, object : IterableGetter {
+                                                override fun getIterable(type: String): EntityIterableBase {
+                                                    queryEngine.assertOperational()
+                                                    return txn.sortLinks(type,
+                                                            distinctSortedLinks.source, isMultiple, linkName, it, oppositeType, oppositeLinkName) as EntityIterableBase
+                                                }
+                                            }, valueGetter, caseInsensitiveComparator(asc))
+                                        }
                                     }
                                 }
+                                return mergeSorted(emd, object : IterableGetter {
+                                    override fun getIterable(type: String): EntityIterableBase {
+                                        queryEngine.assertOperational()
+                                        return txn.sortLinks(type, distinctSortedLinks.source, isMultiple, linkName, it) as EntityIterableBase
+                                    }
+                                }, valueGetter, caseInsensitiveComparator(asc))
+                            } else {
+                                src = queryEngine.wrap(it)
                             }
-                            return mergeSorted(emd, object : IterableGetter {
-                                override fun getIterable(type: String): EntityIterableBase {
-                                    queryEngine.assertOperational()
-                                    return txn.sortLinks(type, distinctSortedLinks.source, isMultiple, linkName, it) as EntityIterableBase
-                                }
-                            }, valueGetter, caseInsensitiveComparator(asc))
                         } else {
                             src = queryEngine.wrap(it)
                         }
@@ -306,10 +322,10 @@ open class SortEngine {
 
     private inner class SingleLinkComparableGetter(private val linkName: String,
                                                    private val propName: String,
-                                                   private val readOnlyTxn: Boolean,
                                                    private val txn: PersistentStoreTransaction) : ComparableGetter {
         private val store = queryEngine.persistentStore
         private val linkId = store.getLinkId(txn, linkName, false)
+        private val readOnlyTxn = txn.isReadonly
 
         override fun select(entity: Entity): Comparable<*>? {
             if (linkId < 0) return null
