@@ -54,6 +54,7 @@ public class InMemoryMergeSortIterableWithArrayList extends SortEngine.InMemoryS
                 if (src == null) {
                     init();
                 }
+                final Comparator<Entity> comparator = getComparator();
                 int segment = 1;
                 // next[current] is index of the least remaining element on current segment
                 // next[current] == -1 means minimum on current segment is not counted yet
@@ -90,7 +91,7 @@ public class InMemoryMergeSortIterableWithArrayList extends SortEngine.InMemoryS
 
             public void init() {
                 src = new ArrayList<>();
-                for (final Entity it : source) {
+                for (final Entity it : getSrc()) {
                     src.add(it);
                 }
                 height = 1;

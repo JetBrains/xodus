@@ -33,7 +33,7 @@ class InMemoryMergeSortIterable(source: Iterable<Entity>, comparator: Comparator
 
             init {
                 src = arrayOfNulls<Entity>(1)
-                for (entity in source) {
+                for (entity in this@InMemoryMergeSortIterable.src) {
                     if (size >= src.size) {
                         src = Arrays.copyOf(src, src.size shl 1)
                     }

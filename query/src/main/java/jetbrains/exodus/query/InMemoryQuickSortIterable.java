@@ -66,6 +66,7 @@ public class InMemoryQuickSortIterable extends SortEngine.InMemorySortIterable {
                 // or     medianStart[top] <= current <= medianEnd[top]
                 // or     current == medianEnd[top] + 1 and we should go deeper
                 if (top < 0 || current > medianEnd.get(top)) {
+                    final Comparator<Entity> comparator = getComparator();
                     do {
                         int l;
                         int r;
@@ -128,7 +129,7 @@ public class InMemoryQuickSortIterable extends SortEngine.InMemorySortIterable {
 
             public void init() {
                 src = new ArrayList<>();
-                for (final Entity it : source) {
+                for (final Entity it : getSrc()) {
                     src.add(it);
                 }
                 left = new ArrayList<>();

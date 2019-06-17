@@ -58,7 +58,7 @@ public class InMemoryMergeSortOnInitIterable extends SortEngine.InMemorySortIter
 
             public void init() {
                 src = new ArrayList[]{new ArrayList<>(), null};
-                for (final Entity entity : source) {
+                for (final Entity entity : getSrc()) {
                     src[0].add(entity);
                 }
                 src[1] = new ArrayList<>(src[0]);
@@ -83,6 +83,7 @@ public class InMemoryMergeSortOnInitIterable extends SortEngine.InMemorySortIter
                 msort(rStart, right, 1 - c);
                 int i = left;
                 int j = rStart;
+                final Comparator<Entity> comparator = getComparator();
                 for (int k = left; k <= right; k++) {
                     if ((j > right) || ((i < rStart) && (comparator.compare(src[1 - c].get(i), src[1 - c].get(j)) <= 0))) {
                         src[c].set(k, src[1 - c].get(i++));

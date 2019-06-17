@@ -21,6 +21,7 @@ import jetbrains.exodus.kotlin.notNull
 import java.util.*
 
 interface InMemoryQueueSortIterableMixin: Iterable<Entity> {
+
     val source: Iterable<Entity>
 
     fun createQueue(unsorted: Collection<Entity>): Queue<Entity>

@@ -22,5 +22,5 @@ abstract class InMemoryQueueSortIterable(source: Iterable<Entity>, comparator: C
     : SortEngine.InMemorySortIterable(source, comparator), InMemoryQueueSortIterableMixin {
 
     override val source: Iterable<Entity>
-        get() = super.source
+        get() = super.src
 }

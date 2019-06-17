@@ -80,7 +80,7 @@ public class InMemoryTimSortIterable extends SortEngine.InMemorySortIterable {
                     } else if (from[right[node]] < 0) {
                         stack.add(right[node]);
                     } else {
-                        if (len[right[node]] <= 0 || (len[left[node]] > 0 && comparator.compare(src.get(from[left[node]]), src.get(from[right[node]])) <= 0)) {
+                        if (len[right[node]] <= 0 || (len[left[node]] > 0 && getComparator().compare(src.get(from[left[node]]), src.get(from[right[node]])) <= 0)) {
                             from[node] = from[left[node]];
                             len[left[node]]--;
                         } else {
@@ -115,7 +115,7 @@ public class InMemoryTimSortIterable extends SortEngine.InMemorySortIterable {
 
             public void init() {
                 src = new ArrayList<>();
-                for (final Entity entity : source) {
+                for (final Entity entity : getSrc()) {
                     src.add(entity);
                 }
                 int n = src.size();
@@ -140,7 +140,7 @@ public class InMemoryTimSortIterable extends SortEngine.InMemorySortIterable {
                 boolean growing = true;
                 for (int i = 1; i < n; i++) {
                     // on the run
-                    if ((comparator.compare(src.get(i - 1), src.get(i)) <= 0) == growing) {
+                    if ((getComparator().compare(src.get(i - 1), src.get(i)) <= 0) == growing) {
                         continue;
                     }
                     // start of run
@@ -156,7 +156,7 @@ public class InMemoryTimSortIterable extends SortEngine.InMemorySortIterable {
                     for (; i < n && i - from[runCount] < minRunLength; i++) {
                         Entity t = src.get(i);
                         int j = i - 1;
-                        for (; j >= from[runCount] && comparator.compare(src.get(j), t) > 0; j--) {
+                        for (; j >= from[runCount] && getComparator().compare(src.get(j), t) > 0; j--) {
                             src.set(j + 1, src.get(j));
                         }
                         src.set(j + 1, t);

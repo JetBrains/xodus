@@ -129,7 +129,7 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
         if (isExplainOn) {
             Iterable<Entity> explained = result;
             while (explained instanceof SortEngine.InMemorySortIterable) {
-                explained = ((SortEngine.InMemorySortIterable) explained).source;
+                explained = ((SortEngine.InMemorySortIterable) explained).getSrc();
             }
             if (explained instanceof EntityIterableBase) {
                 final EntityIterableBase entityIterable = ((EntityIterableBase) explained).getSource();
