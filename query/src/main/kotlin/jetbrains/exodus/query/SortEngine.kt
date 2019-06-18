@@ -84,8 +84,8 @@ open class SortEngine {
                 else
                     SingleLinkComparableGetter(linkName, propName, txn)
                 val i = queryEngine.toEntityIterable(src)
-                if (queryEngine.isPersistentIterable(i)) {
-                    val s = (i as EntityIterableBase).source
+                if (queryEngine.isPersistentIterable(i) && i is EntityIterableBase) {
+                    val s = i.source
                     if (s === EntityIterableBase.EMPTY) {
                         return queryEngine.wrap(EntityIterableBase.EMPTY)
                     }
@@ -117,14 +117,16 @@ open class SortEngine {
                             }, linksGetter, caseInsensitiveComparator(asc))
                             // check if all enums values are distinct
                             var enumsAreDistinct = true
-                            var prev: Comparable<Any>? = null
-                            distinctSortedLinks.forEach { enum ->
-                                val current = getProperty(enum, propName, isReadOnlyTxn)
-                                if (current != null && prev?.compareTo(current) ?: 1 == 0) {
-                                    enumsAreDistinct = false
-                                    return@forEach
+                            if (i.isSortResult || s.isSortResult) {
+                                var prev: Comparable<Any>? = null
+                                distinctSortedLinks.forEach { enum ->
+                                    val current = getProperty(enum, propName, isReadOnlyTxn)
+                                    if (current != null && prev?.compareTo(current) ?: 1 == 0) {
+                                        enumsAreDistinct = false
+                                        return@forEach
+                                    }
+                                    prev = current
                                 }
-                                prev = current
                             }
                             if (enumsAreDistinct) {
                                 val aemd = emd.getAssociationEndMetaData(linkName)
