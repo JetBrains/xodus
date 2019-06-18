@@ -119,7 +119,7 @@ open class SortEngine {
                             var enumsAreDistinct = true
                             if (i.isSortResult || s.isSortResult) {
                                 var prev: Comparable<Any>? = null
-                                distinctSortedLinks.forEach { enum ->
+                                distinctSortedLinks.filterNotNull().forEach { enum ->
                                     val current = getProperty(enum, propName, isReadOnlyTxn)
                                     if (current != null && prev?.compareTo(current) ?: 1 == 0) {
                                         enumsAreDistinct = false
