@@ -26,7 +26,7 @@ import java.util.*
 
 open class SortEngine {
 
-    protected lateinit var queryEngine: QueryEngine
+    lateinit var queryEngine: QueryEngine
 
     constructor()
 
