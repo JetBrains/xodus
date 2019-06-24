@@ -17,10 +17,7 @@ package jetbrains.exodus.gc
 
 import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.bindings.StringBinding
-import jetbrains.exodus.env.EnvironmentTestsBase
-import jetbrains.exodus.env.Store
-import jetbrains.exodus.env.StoreConfig
-import jetbrains.exodus.env.StoreImpl
+import jetbrains.exodus.env.*
 import org.junit.Assert
 import org.junit.Test
 
@@ -301,6 +298,63 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
         Assert.assertEquals(1L, env.log.numberOfFiles)
     }
 
+    @Test
+    fun `stackoverflow-com-questions-56662998`() {
+        env.environmentConfig.run {
+            gcStartIn = 0
+            gcFileMinAge = 1
+            gcFilesDeletionDelay = 0
+            gcMinUtilization = 90
+        }
+        setLogFileSize(1)
+        val store = openStoreAutoCommit("store")
+        env.executeInExclusiveTransaction { txn ->
+            for (i in 1..1000) {
+                store.putRight(txn, IntegerBinding.intToEntry(i), IntegerBinding.intToEntry(i))
+            }
+        }
+        Assert.assertTrue(env.log.numberOfFiles > 1L)
+        env.executeInExclusiveTransaction { txn ->
+            store.openCursor(txn).use { cursor ->
+                cursor.forEach { deleteCurrent() }
+            }
+        }
+        env.gc()
+        env.gc.cleaner.getJobProcessor().run {
+            repeat(4) {
+                waitForJobs(100)
+            }
+        }
+        Assert.assertEquals(1L, env.log.numberOfFiles)
+    }
+
+    @Test
+    fun `stackoverflow-com-questions-56662998+`() {
+        env.environmentConfig.run {
+            gcStartIn = 0
+            gcFileMinAge = 1
+            gcFilesDeletionDelay = 0
+            gcMinUtilization = 90
+        }
+        setLogFileSize(1)
+        val store = openStoreAutoCommit("store")
+        env.executeInExclusiveTransaction { txn ->
+            for (i in 1..1000) {
+                store.putRight(txn, IntegerBinding.intToEntry(i), IntegerBinding.intToEntry(i))
+            }
+        }
+        Assert.assertTrue(env.log.numberOfFiles > 1L)
+        env.executeInExclusiveTransaction { txn ->
+            env.truncateStore("store", txn)
+        }
+        env.gc()
+        env.gc.cleaner.getJobProcessor().run {
+            repeat(4) {
+                waitForJobs(100)
+            }
+        }
+        Assert.assertEquals(1L, env.log.numberOfFiles)
+    }
 
     protected fun openStoreAutoCommit(name: String): StoreImpl {
         return openStoreAutoCommit(name, getStoreConfig(false)) as StoreImpl
