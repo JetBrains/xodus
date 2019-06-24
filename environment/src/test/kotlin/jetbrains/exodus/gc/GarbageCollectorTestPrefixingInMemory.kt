@@ -13,19 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.gc;
+package jetbrains.exodus.gc
 
-import jetbrains.exodus.env.StoreConfig;
+import jetbrains.exodus.env.StoreConfig
 
-public class GarbageCollectorInterleavingTestPrefixing extends GarbageCollectorInterleavingTest {
+class GarbageCollectorTestPrefixingInMemory : GarbageCollectorTestInMemory() {
 
-    @Override
-    protected StoreConfig getStoreConfig() {
-        return StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING;
-    }
-
-    @Override
-    protected int getRecordsNumber() {
-        return 47;
-    }
+    override fun getStoreConfig(hasDuplicates: Boolean) =
+            if (hasDuplicates)
+                StoreConfig.WITH_DUPLICATES_WITH_PREFIXING
+            else
+                StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING
 }

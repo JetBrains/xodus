@@ -13,14 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.gc;
+package jetbrains.exodus.gc
 
-import jetbrains.exodus.env.StoreConfig;
+import jetbrains.exodus.env.StoreConfig
 
-public class GarbageCollectorLowCacheTestPrefixing extends GarbageCollectorLowCacheTest {
+class GarbageCollectorLowCacheTestPrefixing : GarbageCollectorLowCacheTest() {
 
-    @Override
-    protected StoreConfig getConfig() {
-        return StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING;
-    }
+    override val config: StoreConfig
+        get() = StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING
 }
