@@ -494,7 +494,7 @@ public class EnvironmentImpl implements Environment {
 
     @Override
     public void gc() {
-        gc.wake();
+        gc.wake(true);
     }
 
     @Override

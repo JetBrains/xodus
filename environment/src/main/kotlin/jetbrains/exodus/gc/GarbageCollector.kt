@@ -22,6 +22,7 @@ import jetbrains.exodus.core.dataStructures.hash.IntHashMap
 import jetbrains.exodus.core.dataStructures.hash.PackedLongHashSet
 import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.core.execution.JobProcessorAdapter
+import jetbrains.exodus.core.execution.LatchJob
 import jetbrains.exodus.env.*
 import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.DataReader
@@ -95,9 +96,14 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         }, Priority.highest)
     }
 
-    fun wake() {
+    fun wake(estimateTotalUtilization: Boolean = false) {
         if (ec.isGcEnabled) {
-            environment.executeTransactionSafeTask { cleaner.queueCleaningJob() }
+            environment.executeTransactionSafeTask {
+                if (estimateTotalUtilization) {
+                    utilizationProfile.estimateTotalBytes()
+                }
+                cleaner.queueCleaningJob()
+            }
         }
     }
 
@@ -137,6 +143,17 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
 
     internal fun resetNewFiles() {
         newFiles = 0
+    }
+
+    /**
+     * For tests only!!!
+     */
+    fun waitForPendingGC() {
+        cleaner.getJobProcessor().waitForLatchJob(object : LatchJob() {
+            override fun execute() {
+                release()
+            }
+        }, 100, Priority.lowest)
     }
 
     /**

@@ -39,17 +39,16 @@ import java.util.concurrent.CyclicBarrier
 open class GarbageCollectorTestInMemory : GarbageCollectorTest() {
 
     private val rnd = Random()
-    private var memory: Memory? = null
+    private lateinit var memory: Memory
 
     override fun createRW(): Pair<DataReader, DataWriter> {
         memory = Memory()
-        return Pair(MemoryDataReader(memory!!), MemoryDataWriter(memory!!))
+        return Pair(MemoryDataReader(memory), MemoryDataWriter(memory))
     }
 
     override fun deleteRW() {
         reader = null
         writer = null
-        memory = null
     }
 
     @Test
@@ -78,7 +77,7 @@ open class GarbageCollectorTestInMemory : GarbageCollectorTest() {
                 Thread.sleep(0)
             }
         } catch (t: Throwable) {
-            memory!!.dump(File(System.getProperty("user.home"), "dump"))
+            memory.dump(File(System.getProperty("user.home"), "dump"))
             logger.error("User code exception: ", t)
             Assert.fail()
         }
@@ -129,7 +128,7 @@ open class GarbageCollectorTestInMemory : GarbageCollectorTest() {
                 Thread.sleep(0)
             }
         } catch (t: Throwable) {
-            memory!!.dump(File(System.getProperty("user.home"), "dump"))
+            memory.dump(File(System.getProperty("user.home"), "dump"))
             logger.error("User code exception: ", t)
             Assert.fail()
         }
@@ -225,7 +224,7 @@ open class GarbageCollectorTestInMemory : GarbageCollectorTest() {
         }
         val t = throwable
         if (t != null) {
-            memory!!.dump(File(System.getProperty("user.home"), "dump"))
+            memory.dump(File(System.getProperty("user.home"), "dump"))
             logger.error("User code exception: ", t)
             Assert.fail()
         }
