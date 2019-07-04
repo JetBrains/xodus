@@ -54,7 +54,6 @@ class XodusConcurrentCursorTest {
                     val key = cursor.key
                     limiter.acquire()
                     threadPool.submit {
-                        println("deleting key=$key")
                         env.deleteEntryInSeparateTransaction(key)
                         limiter.release()
                     }.also { futures.add(it) }
