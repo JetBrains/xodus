@@ -49,6 +49,15 @@ public class SharedTimer {
         });
     }
 
+    public static void registerPeriodicTaskIn(@NotNull final ExpirablePeriodicTask task, final long millis) {
+        processor.queueIn(new Job() {
+            @Override
+            protected void execute() {
+                registeredTasks.add(task);
+            }
+        }, millis);
+    }
+
     public static void unregisterPeriodicTask(@NotNull final ExpirablePeriodicTask task) {
         processor.queue(new Job() {
             @Override

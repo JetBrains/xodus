@@ -25,7 +25,7 @@ abstract class MultiThreadDelegatingJobProcessor
 
     init {
         if (jobTimeout > 0L) {
-            SharedTimer.registerPeriodicTask(WatchDog(jobTimeout))
+            SharedTimer.registerPeriodicTaskIn(WatchDog(jobTimeout), jobTimeout)
         }
     }
 
