@@ -21,11 +21,11 @@ import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.io.DataReader
 import jetbrains.exodus.io.DataReaderWriterProvider
 import jetbrains.exodus.io.DataWriter
+import jetbrains.exodus.kotlin.DefaultDelegate
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import software.amazon.awssdk.services.s3.S3Client
-import kotlin.reflect.KProperty
 
 class S3DataReaderWriterProvider @JvmOverloads constructor(
         private val requestOverrideConfig: AwsRequestOverrideConfiguration? = null) : DataReaderWriterProvider() {
@@ -48,17 +48,5 @@ class S3DataReaderWriterProvider @JvmOverloads constructor(
         val writer = S3DataWriter(s3Sync, s3, location, requestOverrideConfig, env?.log)
         return Pair(S3DataReader(s3, location, requestOverrideConfig, writer), writer)
     }
-}
 
-class DefaultDelegate<T>(private val getDefault: () -> T) {
-
-    private var value: T? = null
-
-    operator fun getValue(thisRef: Any?, property: KProperty<*>): T {
-        return value ?: getDefault().also { value = it }
-    }
-
-    operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
-        this.value = value
-    }
 }
