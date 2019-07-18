@@ -26,9 +26,6 @@ internal class PersistentEntityStoreSettingsListener(private val store: Persiste
             store.entityIterableCache.clear()
             val cachingDisabled = store.config.isCachingDisabled
             store.entityIterableCache.isCachingDisabled = cachingDisabled
-            logger.info(Throwable()) {
-                "EntityIterableCache ${if (cachingDisabled) "disabled" else "enabled"}"
-            }
         }
     }
 
