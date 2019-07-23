@@ -20,16 +20,12 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.env.Store;
 import jetbrains.exodus.env.Transaction;
-import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class PersistentSequence implements Sequence, FlushLog.Member {
-
-    @NonNls
-    private static final String UTF8 = "UTF-8";
 
     @NotNull
     private final Store store;
@@ -38,6 +34,7 @@ public class PersistentSequence implements Sequence, FlushLog.Member {
     private final String name;
     private final AtomicLong val;
     private final AtomicLong lastSavedValue;
+    private boolean forcedUpdate = false;
 
     public PersistentSequence(@NotNull final PersistentStoreTransaction txn, @NotNull final Store store, @NotNull final String name) {
         this.store = store;
@@ -64,6 +61,11 @@ public class PersistentSequence implements Sequence, FlushLog.Member {
 
     @Override
     public void set(final long l) {
+        val.set(l);
+    }
+
+    public void forceSet(final long l) {
+        forcedUpdate = true;
         val.set(l); // don't check old value, some database refactorings may use this
     }
 
@@ -75,7 +77,16 @@ public class PersistentSequence implements Sequence, FlushLog.Member {
     @Override
     public void logOperations(final Transaction txn, final FlushLog flushLog) {
         final long value = val.get();
-        if (value > lastSavedValue.get()) { // is dirty
+        if (forcedUpdate) {
+            store.put(txn, idKeyEntry, LongBinding.longToCompressedEntry(value));
+            flushLog.add(new FlushLog.Operation() {
+                @Override
+                public void flushed() {
+                    lastSavedValue.set(value);
+                    forcedUpdate = false;
+                }
+            });
+        } else if (value > lastSavedValue.get()) { // is dirty
             store.put(txn, idKeyEntry, LongBinding.longToCompressedEntry(value));
             flushLog.add(new FlushLog.Operation() {
                 @Override
