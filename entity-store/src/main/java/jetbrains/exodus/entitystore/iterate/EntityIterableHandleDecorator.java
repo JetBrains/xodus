@@ -86,6 +86,11 @@ public class EntityIterableHandleDecorator extends EntityIterableHandleBase {
     }
 
     @Override
+    public boolean isConsistent() {
+        return decorated.isConsistent();
+    }
+
+    @Override
     public boolean isExpired() {
         return decorated.isExpired();
     }

@@ -244,6 +244,11 @@ abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
             }
 
             @Override
+            public boolean isConsistent() {
+                return iterable1.getHandle().isConsistent() && iterable2.getHandle().isConsistent();
+            }
+
+            @Override
             public boolean isExpired() {
                 return iterable1.getHandle().isExpired() || iterable2.getHandle().isExpired();
             }

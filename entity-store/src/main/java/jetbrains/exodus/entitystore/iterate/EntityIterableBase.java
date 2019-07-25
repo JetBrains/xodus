@@ -527,6 +527,11 @@ public abstract class EntityIterableBase implements EntityIterable {
                 cached = cached.orderById();
             }
             if (canBeCached) {
+                // if this iterable may be inconsistent and the transaction is read-only
+                // then revert it in order to hold the latest cache adapter instance
+                if (!getHandle().isConsistent() && txn.isReadonly()) {
+                    txn.revert();
+                }
                 txn.addCachedInstance(cached);
             } else {
                 cache.setCachedCount(getHandle(), cached.size());
