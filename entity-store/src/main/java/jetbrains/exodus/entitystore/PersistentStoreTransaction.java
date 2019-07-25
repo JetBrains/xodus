@@ -829,7 +829,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         blobStringsCache.close();
     }
 
-    void revertCaches() {
+    public void revertCaches() {
         revertCaches(true);
     }
 

@@ -530,7 +530,7 @@ public abstract class EntityIterableBase implements EntityIterable {
                 // if this iterable may be inconsistent and the transaction is read-only
                 // then revert it in order to hold the latest cache adapter instance
                 if (!getHandle().isConsistent() && txn.isReadonly()) {
-                    txn.revert();
+                    txn.revertCaches();
                 }
                 txn.addCachedInstance(cached);
             } else {
