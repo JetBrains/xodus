@@ -25,6 +25,8 @@ import jetbrains.exodus.entitystore.PersistentEntityId;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.ByteArrayInputStream;
+
 public class EntityIdBinding {
 
     @NotNull
@@ -53,6 +55,12 @@ public class EntityIdBinding {
     public static EntityId iteratorToEntityId(@NotNull final ByteIterator it) {
         final int entityTypeId = IntegerBinding.readCompressed(it);
         final long entityLocalId = LongBinding.readCompressed(it);
+        return new PersistentEntityId(entityTypeId, entityLocalId);
+    }
+
+    public static EntityId readObject(@NotNull final ByteArrayInputStream stream) {
+        final int entityTypeId = IntegerBinding.readCompressed(stream);
+        final long entityLocalId = LongBinding.readCompressed(stream);
         return new PersistentEntityId(entityTypeId, entityLocalId);
     }
 

@@ -15,10 +15,13 @@
  */
 package jetbrains.exodus.bindings
 
+import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.TestFor
 import jetbrains.exodus.bindings.IntegerBinding.*
 import jetbrains.exodus.bindings.LongBinding.*
+import jetbrains.exodus.util.ByteArraySizedInputStream
 import jetbrains.exodus.util.LightOutputStream
+import org.jetbrains.annotations.NotNull
 import org.junit.Assert
 import org.junit.Test
 
@@ -144,6 +147,7 @@ class CompressingBindingsTest {
         writeCompressed(output, l)
         val input = output.asArrayByteIterable()
         Assert.assertEquals(l, LongBinding.readCompressed(input.iterator()))
+        Assert.assertEquals(l, LongBinding.readCompressed(toByteArrayInputStream(input)))
     }
 
     private fun testInt(i: Int) {
@@ -151,5 +155,9 @@ class CompressingBindingsTest {
         writeCompressed(output, i)
         val input = output.asArrayByteIterable()
         Assert.assertEquals(i.toLong(), IntegerBinding.readCompressed(input.iterator()).toLong())
+        Assert.assertEquals(i.toLong(), IntegerBinding.readCompressed(toByteArrayInputStream(input)).toLong())
     }
+
+    private fun toByteArrayInputStream(input: ArrayByteIterable) =
+            ByteArraySizedInputStream(input.bytesUnsafe, 0, input.length)
 }

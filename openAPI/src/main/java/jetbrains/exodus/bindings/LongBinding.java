@@ -191,6 +191,16 @@ public class LongBinding extends ComparableBinding {
         return result;
     }
 
+    public static long readCompressed(@NotNull final ByteArrayInputStream iterator) {
+        final int firstByte = iterator.read() & 0xff;
+        long result = firstByte & 0xf;
+        int byteLen = firstByte >> 4;
+        while (--byteLen >= 0) {
+            result = (result << 8) + (iterator.read() & 0xff);
+        }
+        return result;
+    }
+
     public static void writeCompressed(@NotNull final LightOutputStream output, long l) {
         writeCompressed(output, l, new int[8]);
     }

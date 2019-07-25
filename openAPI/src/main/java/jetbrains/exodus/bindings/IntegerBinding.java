@@ -166,6 +166,18 @@ public class IntegerBinding extends ComparableBinding {
         return result;
     }
 
+    public static int readCompressed(@NotNull final ByteArrayInputStream iterator) {
+        final int firstByte = iterator.read() & 0xff;
+        int result = firstByte & 0x1f;
+        int byteLen = firstByte >> 5;
+        while (--byteLen >= 0) {
+            result = (result << 8) + (iterator.read() & 0xff);
+        }
+        return result;
+    }
+
+
+
     public static int readCompressed(@NotNull final byte[] bytes) {
         final int firstByte = bytes[0] & 0xff;
         int result = firstByte & 0x1f;
