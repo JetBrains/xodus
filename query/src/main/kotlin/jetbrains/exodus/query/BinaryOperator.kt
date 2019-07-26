@@ -48,7 +48,7 @@ abstract class BinaryOperator internal constructor(private var left: NodeBase, p
         when {
             child === left -> setLeft(newChild)
             child === right -> setRight(newChild)
-            else -> throw ExodusException(javaClass.toString() + ": can't replace not own child")
+            else -> throw ExodusException("$javaClass: can't replace not own child")
         }
         newChild.parent = this
         return child
