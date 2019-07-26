@@ -21,7 +21,7 @@ import jetbrains.exodus.javascript.RhinoCommand.Companion.CONSOLE
 import mu.KLogging
 import org.apache.sshd.SshServer
 import org.apache.sshd.server.PasswordAuthenticator
-import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider
+import org.apache.sshd.server.keyprovider.PEMGeneratorHostKeyProvider
 import java.io.Closeable
 import java.io.File
 
@@ -38,11 +38,11 @@ class RhinoServer(config: Map<String, *>, port: Int = 2808, password: String? = 
         val passwordMD5 = password ?: MessageDigestUtil.MD5(password)
         logger.info {
             "Starting SSH daemon on port $port " +
-                    if (password == null) "with anonymous access" else ", password hash = " + passwordMD5
+                    if (password == null) "with anonymous access" else ", password hash = $passwordMD5"
         }
         sshd = SshServer.setUpDefaultServer().apply {
-            keyPairProvider = SimpleGeneratorHostKeyProvider(File(System.getProperty("user.home"), ".xodus.ser").absolutePath)
-            passwordAuthenticator = PasswordAuthenticator { username, password, session ->
+            keyPairProvider = PEMGeneratorHostKeyProvider(File(System.getProperty("user.home"), ".xodus.ser").absolutePath, "RSA")
+            passwordAuthenticator = PasswordAuthenticator { _, password, _ ->
                 passwordMD5 == null || passwordMD5 == MessageDigestUtil.MD5(password)
             }
             setShellFactory { RhinoCommand.createCommand(config) }
