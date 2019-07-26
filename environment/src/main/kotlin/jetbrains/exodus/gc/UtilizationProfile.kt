@@ -314,7 +314,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
     private class MutableLong internal constructor(var value: Long) {
 
         override fun toString(): String {
-            return java.lang.Long.toString(value)
+            return value.toString()
         }
     }
 }

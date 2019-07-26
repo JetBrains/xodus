@@ -179,16 +179,16 @@ open class SortEngine {
     }
 
     protected fun sortInMemory(source: Iterable<Entity>, comparator: Comparator<Entity>): Iterable<Entity> {
-        return if (source is SortEngine.InMemorySortIterable) {
-            InMemoryMergeSortIterable(source, SortEngine.MergedComparator(source.comparator, comparator))
+        return if (source is InMemorySortIterable) {
+            InMemoryMergeSortIterable(source, MergedComparator(source.comparator, comparator))
         } else {
             InMemoryMergeSortIterable(source, comparator)
         }
     }
 
     protected fun sortInMemory(source: Iterable<Entity>, valueGetter: ComparableGetter, asc: Boolean): Iterable<Entity> {
-        return if (source is SortEngine.InMemorySortIterable) {
-            val comparator = SortEngine.MergedComparator(source.comparator,
+        return if (source is InMemorySortIterable) {
+            val comparator = MergedComparator(source.comparator,
                     if (asc)
                         toComparator(valueGetter)
                     else
@@ -274,7 +274,7 @@ open class SortEngine {
         override fun compare(o1: Entity, o2: Entity): Int {
             val c1 = selector.select(o1)
             val c2 = selector.select(o2)
-            return SortEngine.compareNullableComparables(c1, c2)
+            return compareNullableComparables(c1, c2)
         }
     }
 
@@ -350,8 +350,8 @@ open class SortEngine {
         private val MAX_ENUM_COUNT_TO_SORT_LINKS = Integer.getInteger("jetbrains.exodus.query.maxEnumCountToSortLinks", 2048)
         private val MIN_ENTRIES_TO_SORT_LINKS = Integer.getInteger("jetbrains.exodus.query.minEntriesToSortLinks", 16)
 
-        private val PROPERTY_VALUE_COMPARATOR = Comparator<Comparable<Any>> { o1, o2 -> SortEngine.compareNullableComparables(o1, o2) }
-        private val REVERSE_PROPERTY_VALUE_COMPARATOR = Comparator<Comparable<Any>> { o1, o2 -> SortEngine.compareNullableComparables(o2, o1) }
+        private val PROPERTY_VALUE_COMPARATOR = Comparator<Comparable<Any>> { o1, o2 -> compareNullableComparables(o1, o2) }
+        private val REVERSE_PROPERTY_VALUE_COMPARATOR = Comparator<Comparable<Any>> { o1, o2 -> compareNullableComparables(o2, o1) }
 
         fun compareNullableComparables(c1: Comparable<Any>?, c2: Comparable<Any>?): Int {
             if (c1 == null && c2 == null) {
@@ -371,7 +371,7 @@ open class SortEngine {
         }
 
         private fun toComparator(selector: ComparableGetter): Comparator<Entity> {
-            return SortEngine.EntityComparator(selector)
+            return EntityComparator(selector)
         }
     }
 }

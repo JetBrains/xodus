@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.iterate
 
 import jetbrains.exodus.core.dataStructures.LongArrayList
 import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.iterate.EntityIterableBase.registerType
 import jetbrains.exodus.entitystore.iterate.cached.SingleTypeUnsortedEntityIdArrayCachedInstanceIterable
 import jetbrains.exodus.entitystore.tables.LinkValue
 import jetbrains.exodus.entitystore.tables.PropertyKey
@@ -47,7 +48,7 @@ internal class EntitiesWithCertainLinkIterable(txn: PersistentStoreTransaction,
                 builder.append(linkId)
             }
 
-            override fun hashCode(hash: EntityIterableHandleBase.EntityIterableHandleHash) {
+            override fun hashCode(hash: EntityIterableHandleHash) {
                 hash.applyDelimiter()
                 hash.apply(entityTypeId)
                 hash.applyDelimiter()
@@ -156,7 +157,7 @@ internal class EntitiesWithCertainLinkIterable(txn: PersistentStoreTransaction,
     companion object {
 
         init {
-            EntityIterableBase.registerType(type) { txn, _, parameters ->
+            registerType(type) { txn, _, parameters ->
                 EntitiesWithCertainLinkIterable(txn,
                         Integer.valueOf(parameters[0] as String),
                         Integer.valueOf(parameters[1] as String))

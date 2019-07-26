@@ -60,8 +60,8 @@ class PriorityMap<E>(initialCapacity: Int, private val comparator: Comparator<Co
         if (newCapacity - maxArraySize > 0) {
             newCapacity = hugeCapacity(minCapacity)
         }
-        queue = Arrays.copyOf(queue, newCapacity)
-        data = Arrays.copyOf(data, newCapacity)
+        queue = queue.copyOf(newCapacity)
+        data = data.copyOf(newCapacity)
     }
 
     override fun add(element: E) = offer(element)

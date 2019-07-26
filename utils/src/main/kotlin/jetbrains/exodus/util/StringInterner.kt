@@ -19,7 +19,7 @@ import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache
 import jetbrains.exodus.system.JVMConstants
 import kotlin.math.min
 
-class StringInterner private constructor(size: Int = StringInterner.INTERNER_SIZE) {
+class StringInterner private constructor(size: Int = INTERNER_SIZE) {
 
     private val cache: ConcurrentObjectCache<String, String>
 

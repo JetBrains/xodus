@@ -101,7 +101,7 @@ internal class FilterEntitiesWithCertainLinkIterable(txn: PersistentStoreTransac
                 (filter.handle as EntityIterableHandleBase).toString(builder)
             }
 
-            override fun hashCode(hash: EntityIterableHandleBase.EntityIterableHandleHash) {
+            override fun hashCode(hash: EntityIterableHandleHash) {
                 super.hashCode(hash)
                 hash.applyDelimiter()
                 hash.apply(filter.handle)

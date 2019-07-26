@@ -21,6 +21,7 @@ import jetbrains.exodus.backup.Backupable
 import jetbrains.exodus.backup.VirtualFileDescriptor
 import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.log.LogUtil.LOG_FILE_EXTENSION
+import kotlin.math.min
 
 fun ScytaleEngine.encryptBackupable(source: Backupable) {
     val strategy = source.backupStrategy
@@ -44,7 +45,7 @@ fun ScytaleEngine.encryptFiles(strategy: BackupStrategy) {
                 break
             }
             if (descriptor.hasContent()) {
-                val fileSize = Math.min(descriptor.fileSize, strategy.acceptFile(descriptor))
+                val fileSize = min(descriptor.fileSize, strategy.acceptFile(descriptor))
                 if (fileSize > 0L) {
                     appendFile(it, descriptor, fileSize)
                 }
@@ -105,7 +106,7 @@ private fun appendFile(out: ScytaleEngine, fd: VirtualFileDescriptor, fileSize: 
                 break
             }
             if (read > 0) {
-                read = Math.min(fileSize - totalRead, read.toLong()).toInt()
+                read = min(fileSize - totalRead, read.toLong()).toInt()
                 out.put(FileChunk(header, read, buffer))
                 totalRead += read
             }

@@ -21,6 +21,7 @@ import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.util.IOUtil
+import kotlin.math.max
 
 class CachedBlobLengths(private val env: Environment,
                         private val blobFileLengths: Store) : VaultSizeFunctions {
@@ -49,7 +50,7 @@ class CachedBlobLengths(private val env: Environment,
         }
     }
 
-    private fun adjustToBlockSize(fileLength: Long): Long = (Math.max(fileLength, 1L) + blockSize - 1) / blockSize * blockSize
+    private fun adjustToBlockSize(fileLength: Long): Long = (max(fileLength, 1L) + blockSize - 1) / blockSize * blockSize
 
     companion object {
 

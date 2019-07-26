@@ -35,7 +35,7 @@ class InMemoryMergeSortIterable(source: Iterable<Entity>, comparator: Comparator
                 src = arrayOfNulls<Entity>(1)
                 for (entity in this@InMemoryMergeSortIterable.src) {
                     if (size >= src.size) {
-                        src = Arrays.copyOf(src, src.size shl 1)
+                        src = src.copyOf(src.size shl 1)
                     }
                     src[size++] = entity
                 }

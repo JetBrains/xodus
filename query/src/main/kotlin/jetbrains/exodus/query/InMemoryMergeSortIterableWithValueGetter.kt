@@ -38,8 +38,8 @@ class InMemoryMergeSortIterableWithValueGetter(private val source: Iterable<Enti
                 for (entity in source) {
                     if (size >= src.size) {
                         val size = src.size shl 1
-                        src = Arrays.copyOf(src, size)
-                        values = Arrays.copyOf(values, size)
+                        src = src.copyOf(size)
+                        values = values.copyOf(size)
                     }
                     val currentSize = size
                     src[currentSize] = entity

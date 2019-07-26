@@ -19,6 +19,7 @@ import jetbrains.exodus.core.dataStructures.persistent.PersistentBitTreeLongMap
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLongMap
 import jetbrains.exodus.core.dataStructures.persistent.read
 import jetbrains.exodus.core.dataStructures.persistent.write
+import kotlin.math.min
 
 internal class S3FolderBlock(s3factory: S3FactoryBoilerplate,
                              address: Long,
@@ -50,7 +51,7 @@ internal class S3FolderBlock(s3factory: S3FactoryBoilerplate,
         var totalRead = 0
         blocks.forEach { block ->
             val blockPosition = leftBound + totalRead - block.address
-            val bytesToRead = Math.min((block.length() - blockPosition).toInt(), count - totalRead)
+            val bytesToRead = min((block.length() - blockPosition).toInt(), count - totalRead)
             block.readAndCompare(output, blockPosition, offset + totalRead, bytesToRead).also {
                 totalRead += it
             }

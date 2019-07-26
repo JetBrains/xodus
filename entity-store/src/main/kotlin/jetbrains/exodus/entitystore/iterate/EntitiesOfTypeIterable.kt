@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.iterate
 
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.iterate.EntityIterableBase.registerType
 import jetbrains.exodus.env.Cursor
 
 /**
@@ -35,7 +36,7 @@ open class EntitiesOfTypeIterable(txn: PersistentStoreTransaction, private val e
         val txn = transaction
         val linkId = store.getLinkId(txn, linkName, false)
         if (linkId < 0) {
-            return EntityIterableBase.EMPTY
+            return EMPTY
         }
         return FilterEntitiesWithCertainLinkIterable(
                 txn, EntitiesWithCertainLinkIterable(txn, entityTypeId, linkId), entities as EntityIterableBase)
@@ -100,7 +101,7 @@ open class EntitiesOfTypeIterable(txn: PersistentStoreTransaction, private val e
             builder.append(entityTypeId)
         }
 
-        override fun hashCode(hash: EntityIterableHandleBase.EntityIterableHandleHash) {
+        override fun hashCode(hash: EntityIterableHandleHash) {
             hash.apply(entityTypeId)
         }
 
@@ -134,7 +135,7 @@ open class EntitiesOfTypeIterable(txn: PersistentStoreTransaction, private val e
     companion object {
 
         init {
-            EntityIterableBase.registerType(EntityIterableType.ALL_ENTITIES) { txn, _, parameters ->
+            registerType(EntityIterableType.ALL_ENTITIES) { txn, _, parameters ->
                 EntitiesOfTypeIterable(txn, Integer.valueOf(parameters[0] as String))
             }
         }

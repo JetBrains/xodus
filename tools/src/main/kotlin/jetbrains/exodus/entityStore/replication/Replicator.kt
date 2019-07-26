@@ -28,6 +28,7 @@ import software.amazon.awssdk.services.s3.S3Configuration
 import java.io.File
 import java.net.URI
 import kotlin.concurrent.thread
+import kotlin.system.exitProcess
 
 fun main(args: Array<String>) {
     val region = Region.US_WEST_2
@@ -55,7 +56,7 @@ fun main(args: Array<String>) {
                 "n" -> persistentStoreName = args[++i]
                 else -> {
                     printUsage()
-                    System.exit(1)
+                    exitProcess(1)
                     return
                 }
             }
@@ -65,7 +66,7 @@ fun main(args: Array<String>) {
 
     if (bucket == null || host == null || accessKey == null || secretKey == null || location == null || persistentStoreName == null) {
         printUsage()
-        System.exit(1)
+        exitProcess(1)
         return
     }
 

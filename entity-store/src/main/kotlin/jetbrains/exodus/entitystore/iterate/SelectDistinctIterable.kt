@@ -35,7 +35,7 @@ class SelectDistinctIterable(txn: PersistentStoreTransaction,
     override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase = SelectDistinctIterator(txn)
 
     override fun getHandleImpl(): EntityIterableHandle {
-        return object : EntityIterableHandleDecorator(store, SelectDistinctIterable.type, source.handle) {
+        return object : EntityIterableHandleDecorator(store, type, source.handle) {
 
             private val linkIds = EntityIterableHandleBase.mergeFieldIds(intArrayOf(linkId), decorated.linkIds)
 
@@ -48,7 +48,7 @@ class SelectDistinctIterable(txn: PersistentStoreTransaction,
                 builder.append(linkId)
             }
 
-            override fun hashCode(hash: EntityIterableHandleBase.EntityIterableHandleHash) {
+            override fun hashCode(hash: EntityIterableHandleHash) {
                 super.hashCode(hash)
                 hash.applyDelimiter()
                 hash.apply(linkId)

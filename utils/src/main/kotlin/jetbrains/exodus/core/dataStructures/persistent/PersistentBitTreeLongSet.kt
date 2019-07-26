@@ -216,8 +216,8 @@ class PersistentBitTreeLongSet : PersistentLongSet {
             return index
         }
 
-        override fun compareTo(other: PersistentBitTreeLongSet.Entry): Int {
-            return java.lang.Long.compare(index, other.index)
+        override fun compareTo(other: Entry): Int {
+            return index.compareTo(other.index)
         }
     }
 

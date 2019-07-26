@@ -20,6 +20,7 @@ import jetbrains.exodus.query.*
 import jetbrains.exodus.util.Random
 import org.junit.rules.TemporaryFolder
 import java.util.*
+import kotlin.math.abs
 
 open class InMemorySortBenchmarkBase {
     lateinit var store: PersistentEntityStoreImpl
@@ -38,7 +39,7 @@ open class InMemorySortBenchmarkBase {
         store.computeInTransaction {
             val txn = it as PersistentStoreTransaction
             repeat(50000) {
-                val value = Math.abs(rnd.nextInt())
+                val value = abs(rnd.nextInt())
                 txn.newEntity("Issue").setProperty("int", value)
             }
         }
@@ -88,7 +89,7 @@ open class InMemorySortBenchmarkBase {
     open fun testNoSort(): Long {
         return store.computeInTransaction {
             val sum = it.getAll("Issue").sumBy { it.getProperty("int") as Int }
-            if (Math.abs(sum) < 100) {
+            if (abs(sum) < 100) {
                 throw IndexOutOfBoundsException()
             }
             it.getAll("Issue").take(100).map { it.id.localId }.sum()

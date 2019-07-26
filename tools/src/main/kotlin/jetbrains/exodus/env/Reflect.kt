@@ -35,6 +35,7 @@ import mu.KLogging
 import java.io.File
 import java.io.PrintWriter
 import java.util.*
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.system.exitProcess
 
@@ -162,7 +163,7 @@ class Reflect(directory: File) {
                 o1 - o2
             })
             sortedKeys.addAll(counts.keys)
-            sortedKeys.forEach { it ->
+            sortedKeys.forEach {
                 println("${it.toString().padEnd(7)}: count = ${counts.get(it).toString().padStart(10)}")
             }
             println()
@@ -217,7 +218,7 @@ class Reflect(directory: File) {
                         throw ExodusException("Length of non-last file ${f.name}  is badly aligned: $length")
                     }
                 }
-                maxFileSize = Math.max(maxFileSize, length)
+                maxFileSize = max(maxFileSize, length)
             }
             logger.info { "Maximum file length: $maxFileSize" }
 
@@ -266,14 +267,14 @@ class Reflect(directory: File) {
         var totalRoots = 0L
         log.allFileAddresses.reversed().forEach {
             val endAddress = it + log.getFileSize(it)
-            log.getLoggableIterator(it).forEach {
-                if (it.type == DatabaseRoot.DATABASE_ROOT_TYPE) {
+            log.getLoggableIterator(it).forEach { loggable ->
+                if (loggable.type == DatabaseRoot.DATABASE_ROOT_TYPE) {
                     ++totalRoots
-                    if (!DatabaseRoot(it).isValid) {
-                        logger.error("Invalid root at address: ${it.address}")
+                    if (!DatabaseRoot(loggable).isValid) {
+                        logger.error("Invalid root at address: ${loggable.address}")
                     }
                 }
-                if (it.address + it.length() >= endAddress) return@forEach
+                if (loggable.address + loggable.length() >= endAddress) return@forEach
             }
         }
         println("Roots found: $totalRoots")
@@ -538,7 +539,7 @@ class Reflect(directory: File) {
     }
 }
 
-inline fun jetbrains.exodus.tree.LongIterator.forEach(action: (Long) -> Unit) {
+inline fun LongIterator.forEach(action: (Long) -> Unit) {
     while (hasNext()) {
         action(next())
     }

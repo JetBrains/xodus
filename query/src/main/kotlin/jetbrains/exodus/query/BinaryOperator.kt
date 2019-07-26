@@ -26,8 +26,8 @@ abstract class BinaryOperator internal constructor(private var left: NodeBase, p
     protected var depth: Int = 0
 
     init {
-        this.left = NodeBase.getUnderRoot(left)
-        this.right = NodeBase.getUnderRoot(right)
+        this.left = getUnderRoot(left)
+        this.right = getUnderRoot(right)
         this.left.parent = this
         this.right.parent = this
         invalidateDepth(left, right)
@@ -62,7 +62,7 @@ abstract class BinaryOperator internal constructor(private var left: NodeBase, p
         }
     }
 
-    internal override fun matchChildren(node: NodeBase, ctx: NodeBase.MatchContext): Boolean {
+    internal override fun matchChildren(node: NodeBase, ctx: MatchContext): Boolean {
         val bo = node as BinaryOperator
         return left.match(bo.left, ctx) && right.match(bo.right, ctx)
     }

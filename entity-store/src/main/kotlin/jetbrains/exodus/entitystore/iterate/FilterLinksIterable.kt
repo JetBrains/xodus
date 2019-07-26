@@ -122,7 +122,7 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
                 (filter.handle as EntityIterableHandleBase).toString(builder)
             }
 
-            override fun hashCode(hash: EntityIterableHandleBase.EntityIterableHandleHash) {
+            override fun hashCode(hash: EntityIterableHandleHash) {
                 hash.apply(linkId)
                 hash.applyDelimiter()
                 super.hashCode(hash)
