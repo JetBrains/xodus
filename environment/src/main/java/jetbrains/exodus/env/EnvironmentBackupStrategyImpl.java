@@ -44,7 +44,7 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
     public Iterable<VirtualFileDescriptor> getContents() {
         return new Iterable<VirtualFileDescriptor>() {
 
-            private final File[] files = IOUtil.listFiles(new File(environment.getLog().getLocation()));
+            private final File[] files = IOUtil.listFiles(new File(environment.getLocation()));
             private int i = 0;
             private VirtualFileDescriptor next;
 

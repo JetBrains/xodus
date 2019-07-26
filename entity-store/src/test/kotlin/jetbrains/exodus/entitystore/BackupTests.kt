@@ -44,7 +44,7 @@ class BackupTests : EntityStoreTestBase() {
         val randomDescription = arrayOfNulls<String>(1)
         store.executeInTransaction { txn ->
             val issue = txn.newEntity("Issue")
-            randomDescription[0] = java.lang.Double.toString(Math.random())
+            randomDescription[0] = Math.random().toString()
             issue.setBlobString("description", randomDescription[0]!!)
         }
         val backupDir = TestUtil.createTempDir()
@@ -54,7 +54,7 @@ class BackupTests : EntityStoreTestBase() {
             try {
                 extractEntireZip(backup, restoreDir)
                 val newStore = PersistentEntityStores.newInstance(restoreDir)
-                newStore.use { _ ->
+                newStore.use {
                     newStore.executeInReadonlyTransaction { txn ->
                         assertEquals(1, txn.getAll("Issue").size())
                         val issue = txn.getAll("Issue").first
@@ -125,7 +125,7 @@ class BackupTests : EntityStoreTestBase() {
         store.executeInTransaction { txn ->
             for (i in 0 until issueCount) {
                 val issue = txn.newEntity("Issue")
-                issue.setBlobString("description", java.lang.Double.toString(Math.random()))
+                issue.setBlobString("description", Math.random().toString())
             }
         }
         val rnd = Random()
@@ -144,7 +144,7 @@ class BackupTests : EntityStoreTestBase() {
                             store.executeInTransaction { txn ->
                                 val issue = txn.getAll("Issue").skip(rnd.nextInt(issueCount - 1)).first
                                 TestCase.assertNotNull(issue)
-                                issue!!.setBlobString("description", java.lang.Double.toString(Math.random()))
+                                issue!!.setBlobString("description", Math.random().toString())
                                 print("\r" + ++backgroundChanges[0])
                             }
                         }
@@ -161,7 +161,7 @@ class BackupTests : EntityStoreTestBase() {
             try {
                 extractEntireZip(backup, restoreDir)
                 val newStore = PersistentEntityStores.newInstance(restoreDir)
-                newStore.use { _ ->
+                newStore.use {
                     val lastUsedBlobHandle = longArrayOf(-1L)
                     newStore.executeInReadonlyTransaction { t ->
                         val txn = t as PersistentStoreTransaction

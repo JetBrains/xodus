@@ -186,11 +186,9 @@ public class BackupBean implements Backupable {
                                         }
                                         it = wrapped[i++].getContents().iterator();
                                     }
-                                    next = it.next();
-                                }
-                                final long acceptedSize = wrapped[i - 1].acceptFile(next);
-                                if (acceptedSize < next.getFileSize()) {
-                                    return next.copy(acceptedSize);
+                                    final VirtualFileDescriptor next = it.next();
+                                    final long acceptedSize = wrapped[i - 1].acceptFile(next);
+                                    this.next = acceptedSize < next.getFileSize() ? next.copy(acceptedSize) : next;
                                 }
                                 return next;
                             }
