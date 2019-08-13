@@ -121,6 +121,8 @@ public interface EnvironmentConfigMBean {
 
     void setGcEnabled(boolean enabled);
 
+    boolean isGcSuspended();
+
     int getGcStartIn();
 
     int getGcMinUtilization();

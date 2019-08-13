@@ -79,6 +79,9 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
     internal val startTime: Long
         get() = environment.created + ec.gcStartIn
 
+    val isSuspended: Boolean
+        get() = cleaner.isSuspended
+
     fun clear() {
         utilizationProfile.clear()
         pendingFilesToDelete.clear()

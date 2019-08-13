@@ -289,6 +289,11 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
+    public boolean isGcSuspended() {
+        return env.getGC().isSuspended();
+    }
+
+    @Override
     public int getGcStartIn() {
         return config.getGcStartIn();
     }
