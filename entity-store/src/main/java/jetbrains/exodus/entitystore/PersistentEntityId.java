@@ -114,17 +114,11 @@ public class PersistentEntityId implements EntityId {
         final long rightLocalId = o.getLocalId();
         final int rightType = o.getTypeId();
         if (entityTypeId < rightType) {
-            return -3;
-        }
-        if (entityTypeId > rightType) {
-            return 3;
-        }
-        if (entityLocalId < rightLocalId) {
             return -2;
         }
-        if (entityLocalId > rightLocalId) {
+        if (entityTypeId > rightType) {
             return 2;
         }
-        return 0;
+        return Long.compare(entityLocalId, rightLocalId);
     }
 }
