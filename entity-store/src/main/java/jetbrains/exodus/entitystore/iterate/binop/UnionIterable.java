@@ -227,15 +227,16 @@ public final class UnionIterable extends BinaryOperatorEntityIterable {
             }
             array[i++] = it.nextId();
         }
-        final EntityId[] result = Arrays.copyOf(array, i);
-        Arrays.sort(result, new Comparator<EntityId>() {
+        final int size = i;
+        final EntityId[] result = array;
+        Arrays.sort(result, 0, size, new Comparator<EntityId>() {
             @Override
             public int compare(EntityId o1, EntityId o2) {
                 if (o1 == null) {
-                    return -1;
+                    return 1;
                 }
                 if (o2 == null) {
-                    return 1;
+                    return -1;
                 }
                 return o1.compareTo(o2);
             }
@@ -245,7 +246,7 @@ public final class UnionIterable extends BinaryOperatorEntityIterable {
 
             @Override
             public boolean hasNext() {
-                return i < result.length;
+                return i < size;
             }
 
             @Override
