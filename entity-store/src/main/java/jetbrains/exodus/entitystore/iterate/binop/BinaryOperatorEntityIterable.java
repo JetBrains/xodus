@@ -25,7 +25,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 @SuppressWarnings({"ProtectedField", "RawUseOfParameterizedType", "MethodOnlyUsedFromInnerClass"})
-abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
+public abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
 
     private static final int MAXIMUM_DEPTH_TO_ALLOW_CACHING = 200;
     private static final int COMMUTATIVE_FLAG = 1 << 30;
