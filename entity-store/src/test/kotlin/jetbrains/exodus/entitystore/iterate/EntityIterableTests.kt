@@ -639,7 +639,9 @@ class EntityIterableTests : EntityStoreTestBase() {
         users.first().addLink("inGroup2", group)
         txn.flush()
         Assert.assertNull(txn.findLinks("User", group, "inGroup").last)
-        users.forEach { it.addLink("inGroup", group) }
+        users.copyOfRange(1, count).forEach { it.addLink("inGroup", group) }
+        val newGroup = txn.newEntity("UserGroup")
+        users[0].addLink("inGroup", newGroup)
         txn.flush()
         Assert.assertEquals(users.last(), txn.findLinks("User", group, "inGroup").last)
     }

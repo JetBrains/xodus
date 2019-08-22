@@ -127,7 +127,7 @@ public final class EntityToLinksIterable extends EntityLinksIterableBase {
     public @Nullable Entity getLast() {
         final PersistentStoreTransaction txn = getStore().getAndCheckCurrentTransaction();
         try (Cursor cursor = openCursor(txn)) {
-            if (cursor.getSearchKeyRange(getKey(linkId + 1)) == null) {
+            if (cursor.getSearchKeyRange(getKey(new PersistentEntityId(entityId.getTypeId(), entityId.getLocalId() + 1))) == null) {
                 if (!cursor.getLast()) {
                     return null;
                 }
@@ -159,10 +159,10 @@ public final class EntityToLinksIterable extends EntityLinksIterableBase {
     }
 
     private ByteIterable getFirstKey() {
-        return getKey(linkId);
+        return getKey(entityId);
     }
 
-    private ByteIterable getKey(final int linkId) {
+    private ByteIterable getKey(final EntityId entityId) {
         return LinkValue.linkValueToEntry(new LinkValue(entityId, linkId));
     }
 
