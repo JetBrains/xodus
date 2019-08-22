@@ -35,8 +35,8 @@ public class EntityFromLinksIterable extends EntityLinksIterableBase {
             @Override
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
                 return new EntityFromLinksIterable(txn,
-                        new PersistentEntityId(Integer.valueOf((String) parameters[0]),
-                                Integer.valueOf((String) parameters[1])), Integer.valueOf((String) parameters[2])
+                    new PersistentEntityId(Integer.valueOf((String) parameters[0]),
+                        Integer.valueOf((String) parameters[1])), Integer.valueOf((String) parameters[2])
                 );
             }
         });
@@ -56,7 +56,7 @@ public class EntityFromLinksIterable extends EntityLinksIterableBase {
     @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
-        return new LinksIterator(openCursor(txn), getFirstKey());
+        return new LinksIterator(openCursor(txn));
     }
 
     @Override
@@ -107,6 +107,29 @@ public class EntityFromLinksIterable extends EntityLinksIterableBase {
     }
 
     @Override
+    @Nullable
+    public Entity getLast() {
+        final PersistentStoreTransaction txn = getStore().getAndCheckCurrentTransaction();
+        try (Cursor cursor = openCursor(txn)) {
+            if (cursor.getSearchKeyRange(getKey(linkId + 1)) == null) {
+                if (!cursor.getLast()) {
+                    return null;
+                }
+            } else {
+                if (!cursor.getPrev()) {
+                    return null;
+                }
+            }
+            final PropertyKey key = PropertyKey.entryToPropertyKey(cursor.getKey());
+            if (key.getEntityLocalId() != entityId.getLocalId() || key.getPropertyId() != linkId) {
+                return null;
+            }
+            final LinkValue value = LinkValue.entryToLinkValue(cursor.getValue());
+            return txn.getEntity(value.getEntityId());
+        }
+    }
+
+    @Override
     protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
         return new SingleKeyCursorCounter(openCursor(txn), getFirstKey()).getCount();
     }
@@ -121,6 +144,10 @@ public class EntityFromLinksIterable extends EntityLinksIterableBase {
     }
 
     private ByteIterable getFirstKey() {
+        return getKey(linkId);
+    }
+
+    private ByteIterable getKey(final int linkId) {
         return PropertyKey.propertyKeyToEntry(new PropertyKey(entityId.getLocalId(), linkId));
     }
 
@@ -128,10 +155,10 @@ public class EntityFromLinksIterable extends EntityLinksIterableBase {
 
         private boolean hasNext;
 
-        private LinksIterator(@NotNull final Cursor index, @NotNull final ByteIterable key) {
+        private LinksIterator(@NotNull final Cursor index) {
             super(EntityFromLinksIterable.this);
             setCursor(index);
-            hasNext = index.getSearchKey(key) != null;
+            hasNext = index.getSearchKey(getFirstKey()) != null;
         }
 
         @Override

@@ -619,6 +619,56 @@ class EntityIterableTests : EntityStoreTestBase() {
         Assert.assertEquals("user" + (count - 1), lastUser!!.getProperty("login"))
     }
 
+    fun testGetLastOfFromLinks() {
+        val txn = storeTransaction
+        val count = 1000
+        val users = createNUsers(txn, count)
+        txn.flush()
+        val group = txn.newEntity("UserGroup")
+        txn.flush()
+        Assert.assertNull(txn.findLinks("User", group, "inGroup").last)
+        users.first().addLink("inGroup0", group)
+        txn.flush()
+        Assert.assertNull(txn.findLinks("User", group, "inGroup").last)
+        users.first().addLink("inGroup", group)
+        txn.flush()
+        Assert.assertEquals(users.first(), txn.findLinks("User", group, "inGroup").last)
+        users.first().deleteLink("inGroup", group)
+        txn.flush()
+        Assert.assertNull(txn.findLinks("User", group, "inGroup").last)
+        users.first().addLink("inGroup2", group)
+        txn.flush()
+        Assert.assertNull(txn.findLinks("User", group, "inGroup").last)
+        users.forEach { it.addLink("inGroup", group) }
+        txn.flush()
+        Assert.assertEquals(users.last(), txn.findLinks("User", group, "inGroup").last)
+    }
+
+    fun testGetLastOfToLinks() {
+        val txn = storeTransaction
+        val count = 1000
+        val users = createNUsers(txn, count)
+        txn.flush()
+        val group = txn.newEntity("UserGroup")
+        txn.flush()
+        Assert.assertNull(group.getLinks("users").last)
+        group.addLink("users0", users.first())
+        txn.flush()
+        Assert.assertNull(group.getLinks("users").last)
+        group.addLink("users", users.first())
+        txn.flush()
+        Assert.assertEquals(users.first(), group.getLinks("users").last)
+        group.deleteLink("users", users.first())
+        txn.flush()
+        Assert.assertNull(group.getLinks("users").last)
+        group.addLink("users2", users.first())
+        txn.flush()
+        Assert.assertNull(group.getLinks("users").last)
+        users.forEach { group.addLink("users", it) }
+        txn.flush()
+        Assert.assertEquals(users.last(), group.getLinks("users").last)
+    }
+
     fun testSingleEntityIterable_XD_408() {
         val txn = storeTransaction
         val count = 1

@@ -64,7 +64,7 @@ public final class EntityToLinksIterable extends EntityLinksIterableBase {
     @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
-        return new LinksIterator(openCursor(txn), new LinkValue(entityId, linkId));
+        return new LinksIterator(openCursor(txn));
     }
 
     @Override
@@ -123,33 +123,57 @@ public final class EntityToLinksIterable extends EntityLinksIterableBase {
         };
     }
 
+    @Override
+    public @Nullable Entity getLast() {
+        final PersistentStoreTransaction txn = getStore().getAndCheckCurrentTransaction();
+        try (Cursor cursor = openCursor(txn)) {
+            if (cursor.getSearchKeyRange(getKey(linkId + 1)) == null) {
+                if (!cursor.getLast()) {
+                    return null;
+                }
+            } else {
+                if (!cursor.getPrev()) {
+                    return null;
+                }
+            }
+            final LinkValue key = LinkValue.entryToLinkValue(cursor.getKey());
+            if (!key.getEntityId().equals(entityId) || key.getLinkId() != linkId) {
+                return null;
+            }
+            return txn.getEntity(new PersistentEntityId(entityTypeId, PropertyKey.entryToPropertyKey(cursor.getValue()).getEntityLocalId()));
+        }
+    }
 
     @Override
     protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
-        return new SingleKeyCursorCounter(openCursor(txn), LinkValue.linkValueToEntry(
-                new LinkValue(entityId, linkId))).getCount();
+        return new SingleKeyCursorCounter(openCursor(txn), getFirstKey()).getCount();
     }
 
     @Override
     public boolean isEmptyImpl(@NotNull final PersistentStoreTransaction txn) {
-        return new SingleKeyCursorIsEmptyChecker(openCursor(txn), LinkValue.linkValueToEntry(
-                new LinkValue(entityId, linkId))).isEmpty();
+        return new SingleKeyCursorIsEmptyChecker(openCursor(txn), getFirstKey()).isEmpty();
     }
 
     private Cursor openCursor(@NotNull final PersistentStoreTransaction txn) {
         return getStore().getLinksSecondIndexCursor(txn, entityTypeId);
     }
 
+    private ByteIterable getFirstKey() {
+        return getKey(linkId);
+    }
+
+    private ByteIterable getKey(final int linkId) {
+        return LinkValue.linkValueToEntry(new LinkValue(entityId, linkId));
+    }
+
     private final class LinksIterator extends EntityIteratorBase {
 
         private boolean hasNext;
 
-        private LinksIterator(@NotNull final Cursor index,
-                              @NotNull final LinkValue link) {
+        private LinksIterator(@NotNull final Cursor index) {
             super(EntityToLinksIterable.this);
             setCursor(index);
-            final ByteIterable key = LinkValue.linkValueToEntry(link);
-            hasNext = index.getSearchKey(key) != null;
+            hasNext = index.getSearchKey(getFirstKey()) != null;
         }
 
         @Override
@@ -163,8 +187,7 @@ public final class EntityToLinksIterable extends EntityLinksIterableBase {
             if (hasNextImpl()) {
                 explain(getType());
                 final Cursor cursor = getCursor();
-                final PropertyKey key = PropertyKey.entryToPropertyKey(cursor.getValue());
-                final EntityId result = new PersistentEntityId(entityTypeId, key.getEntityLocalId());
+                final EntityId result = new PersistentEntityId(entityTypeId, PropertyKey.entryToPropertyKey(cursor.getValue()).getEntityLocalId());
                 hasNext = cursor.getNextDup();
                 return result;
             }
