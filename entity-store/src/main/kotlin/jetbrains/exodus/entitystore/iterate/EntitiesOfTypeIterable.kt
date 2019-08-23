@@ -46,6 +46,17 @@ open class EntitiesOfTypeIterable(txn: PersistentStoreTransaction, private val e
 
     override fun getHandleImpl() = EntitiesOfTypeIterableHandle(this)
 
+    override fun getLast(): Entity? {
+        val txn = store.andCheckCurrentTransaction
+        store.getEntitiesIndexCursor(txn, entityTypeId).use { cursor ->
+            return if (cursor.last) {
+                txn.getEntity(PersistentEntityId(entityTypeId, LongBinding.compressedEntryToLong(cursor.key)))
+            } else {
+                null
+            }
+        }
+    }
+
     override fun createCachedInstance(txn: PersistentStoreTransaction): CachedInstanceIterable =
             UpdatableEntityIdSortedSetCachedInstanceIterable(txn, this)
 
