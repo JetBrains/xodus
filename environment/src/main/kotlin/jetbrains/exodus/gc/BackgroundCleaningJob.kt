@@ -67,12 +67,11 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
             do {
                 val fragmentedFiles = up.getFilesSortedByUtilization(highFile)
                 if (!fragmentedFiles.hasNext()) {
-                    return
-                }
-                if (cleanFiles(gc, fragmentedFiles)) {
                     break
                 }
-                Thread.yield()
+                if (!cleanFiles(gc, fragmentedFiles)) {
+                    Thread.yield()
+                }
             } while (canContinue() && loopStart + gcRunPeriod > System.currentTimeMillis())
         } finally {
             gc.resetNewFiles()
