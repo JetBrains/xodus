@@ -17,6 +17,7 @@ package jetbrains.exodus.gc
 
 import jetbrains.exodus.core.dataStructures.Priority
 import jetbrains.exodus.core.execution.Job
+import jetbrains.exodus.core.execution.JobProcessorAdapter
 import java.lang.ref.WeakReference
 
 open class GcJob(gc: GarbageCollector?, private val unitOfWork: (() -> Unit)? = null) : Job() {
@@ -34,7 +35,7 @@ open class GcJob(gc: GarbageCollector?, private val unitOfWork: (() -> Unit)? = 
             val actualProcessor = cleaner.getJobProcessor()
             if (actualProcessor != processor) {
                 processor = actualProcessor
-                actualProcessor.queue(this@GcJob, Priority.highest)
+                reQueue(actualProcessor)
             } else {
                 unitOfWork.let {
                     if (it == null) {
@@ -45,6 +46,10 @@ open class GcJob(gc: GarbageCollector?, private val unitOfWork: (() -> Unit)? = 
                 }
             }
         }
+    }
+
+    protected fun reQueue(processor: JobProcessorAdapter) {
+        processor.queue(this, Priority.highest)
     }
 
     override fun getGroup() = gc?.environment?.location ?: "<finished>"

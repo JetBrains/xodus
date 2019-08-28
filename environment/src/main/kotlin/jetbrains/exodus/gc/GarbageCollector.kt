@@ -95,6 +95,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         cleaner.getJobProcessor().queue(object : Job() {
             override fun execute() {
                 cleaner.setJobProcessor(processor)
+                wake(true)
             }
         }, Priority.highest)
     }

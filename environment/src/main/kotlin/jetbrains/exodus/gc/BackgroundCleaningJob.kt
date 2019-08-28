@@ -25,7 +25,7 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
         val gc = this.gc ?: return
         val cleaner = gc.cleaner
         if (!cleaner.isCurrentThread) {
-            return
+            reQueue(cleaner.getJobProcessor())
         }
         if (canContinue()) {
             val minTimeToInvokeCleaner = gc.startTime
