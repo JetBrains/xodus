@@ -619,7 +619,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         Assert.assertEquals("user" + (count - 1), lastUser!!.getProperty("login"))
     }
 
-    fun testGetLastOfFromLinks() {
+    fun testGetLastOfToLinks() {
         val txn = storeTransaction
         val count = 1000
         val users = createNUsers(txn, count)
@@ -639,14 +639,14 @@ class EntityIterableTests : EntityStoreTestBase() {
         users.first().addLink("inGroup2", group)
         txn.flush()
         Assert.assertNull(txn.findLinks("User", group, "inGroup").last)
-        users.copyOfRange(1, count).forEach { it.addLink("inGroup", group) }
-        val newGroup = txn.newEntity("UserGroup")
-        users[0].addLink("inGroup", newGroup)
+        users.copyOfRange(2, count).forEach { it.addLink("inGroup", group) }
+        users[0].addLink("inGroup", txn.newEntity("UserGroup"))
+        users[1].addLink("inGroup", txn.newEntity("UserGroup2"))
         txn.flush()
         Assert.assertEquals(users.last(), txn.findLinks("User", group, "inGroup").last)
     }
 
-    fun testGetLastOfToLinks() {
+    fun testGetLastOfFromLinks() {
         val txn = storeTransaction
         val count = 1000
         val users = createNUsers(txn, count)
