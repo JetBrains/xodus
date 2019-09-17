@@ -15,11 +15,14 @@
  */
 package jetbrains.exodus.runtime
 
+import java.lang.ref.Reference
 import java.lang.ref.SoftReference
+import java.lang.ref.WeakReference
 
-class OOMGuard(private val extraBytes: Int = 0) {
+class OOMGuard(private val extraBytes: Int = 0,
+               private val softRef: Boolean = true /* use either SoftReference, or WeakReference*/) {
 
-    private var ref: SoftReference<Any> = newReference()
+    private var ref: Reference<Any> = newReference()
 
     fun isItCloseToOOM() = ref.get() == null
 
@@ -27,5 +30,8 @@ class OOMGuard(private val extraBytes: Int = 0) {
         ref = newReference()
     }
 
-    private fun newReference() = SoftReference(if (extraBytes == 0) Any() else ByteArray(extraBytes))
+    private fun newReference() =
+            (if (extraBytes == 0) Any() else ByteArray(extraBytes)).let {
+                if (softRef) SoftReference(it) else WeakReference(it)
+            }
 }
