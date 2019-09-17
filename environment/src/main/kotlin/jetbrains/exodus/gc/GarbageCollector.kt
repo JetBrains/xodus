@@ -218,6 +218,9 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         if (!fragmentedFiles.hasNext()) {
             return true
         }
+
+        val guard = OOMGuard(softRef = false)
+
         val txn: ReadWriteTransaction = try {
             environment.beginGCTransaction()
         } catch (_: ReadonlyTransactionException) {
@@ -229,15 +232,11 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         val cleanedFiles = PackedLongHashSet()
         val isTxnExclusive = txn.isExclusive
         try {
-            val guard = OOMGuard()
             val started = System.currentTimeMillis()
             while (fragmentedFiles.hasNext()) {
-                fragmentedFiles.next().apply {
-                    cleanSingleFile(this, txn)
-                    cleanedFiles.add(this)
-                    if (isTxnExclusive) {
-                        log.clearFileFromLogCache(this)
-                    }
+                fragmentedFiles.next().let { file ->
+                    cleanSingleFile(file, txn)
+                    cleanedFiles.add(file)
                 }
                 if (!isTxnExclusive) {
                     break // do not process more than one file in a non-exclusive txn
@@ -263,8 +262,11 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         } finally {
             txn.abort()
         }
-        if (!cleanedFiles.isEmpty()) {
+        if (cleanedFiles.isNotEmpty()) {
             for (file in cleanedFiles) {
+                if (isTxnExclusive) {
+                    log.clearFileFromLogCache(file)
+                }
                 pendingFilesToDelete.add(file)
                 utilizationProfile.resetFile(file)
             }
