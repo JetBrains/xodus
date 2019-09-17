@@ -515,7 +515,7 @@ public class EnvironmentConfig extends AbstractConfig {
     /**
      * Defines the number of milliseconds after which background cleaning cycle (single run of the database garbage
      * collector) can be repeated if the previous one didn't reach required utilization. Default value is
-     * {@code 30000}.
+     * {@code 5000}.
      * <p>Mutable at runtime: yes
      */
     public static final String GC_RUN_PERIOD = "exodus.gc.runPeriod";
@@ -556,7 +556,7 @@ public class EnvironmentConfig extends AbstractConfig {
     /**
      * Defines timeout in milliseconds which is used by the database garbage collector to acquire exclusive
      * {@linkplain Transaction} for its purposes if {@linkplain #GC_USE_EXCLUSIVE_TRANSACTION} is {@code true}.
-     * Default value is {@code 2000}.
+     * Default value is {@code 1000}.
      * <p>Mutable at runtime: yes
      *
      * @see #GC_USE_EXCLUSIVE_TRANSACTION
@@ -569,7 +569,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * Defines timeout in milliseconds which is used by the database garbage collector to reclaim non-expired data
      * in several files inside single GC {@linkplain Transaction} acquired exclusively.
      * {@linkplain #GC_USE_EXCLUSIVE_TRANSACTION} should be {@code true}.
-     * Default value is {@code 1000}.
+     * Default value is {@code 500}.
      * <p>Mutable at runtime: yes
      *
      * @see #GC_USE_EXCLUSIVE_TRANSACTION
@@ -665,13 +665,13 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(GC_RENAME_FILES, false),
             new Pair(GC_MIN_FILE_AGE, 2),
             new Pair(GC_FILES_INTERVAL, 3),
-            new Pair(GC_RUN_PERIOD, 30000),
+            new Pair(GC_RUN_PERIOD, 5000),
             new Pair(GC_UTILIZATION_FROM_SCRATCH, false),
             new Pair(GC_UTILIZATION_FROM_FILE, ""),
             new Pair(GC_FILES_DELETION_DELAY, 5000),
             new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
-            new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 2000),
-            new Pair(GC_TRANSACTION_TIMEOUT, 1000),
+            new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 1000),
+            new Pair(GC_TRANSACTION_TIMEOUT, 500),
             new Pair(MANAGEMENT_ENABLED, !JVMConstants.INSTANCE.getIS_ANDROID()),
             new Pair(MANAGEMENT_OPERATIONS_RESTRICTED, true),
             new Pair(META_SERVER, null)
@@ -2008,7 +2008,7 @@ public class EnvironmentConfig extends AbstractConfig {
     /**
      * Returns the number of milliseconds after which background cleaning cycle (single run of the database garbage
      * collector) can be repeated if the previous one didn't reach required utilization. Default value is
-     * {@code 30000}.
+     * {@code 5000}.
      * <p>Mutable at runtime: yes
      *
      * @return number of milliseconds after which background cleaning cycle can be repeated if the previous one
@@ -2021,7 +2021,7 @@ public class EnvironmentConfig extends AbstractConfig {
     /**
      * Sets the number of milliseconds after which background cleaning cycle (single run of the database garbage
      * collector) can be repeated if the previous one didn't reach required utilization. Default value is
-     * {@code 30000}.
+     * {@code 5000}.
      * <p>Mutable at runtime: yes
      *
      * @param runPeriod number of milliseconds after which background cleaning cycle can be repeated if the previous one
@@ -2128,7 +2128,7 @@ public class EnvironmentConfig extends AbstractConfig {
     /**
      * Returns timeout in milliseconds which is used by the database garbage collector to acquire exclusive
      * {@linkplain Transaction} for its purposes if {@linkplain #GC_USE_EXCLUSIVE_TRANSACTION} is {@code true}.
-     * Default value is {@code 2000}.
+     * Default value is {@code 1000}.
      * <p>Mutable at runtime: yes
      *
      * @return timeout in milliseconds which is used by the database garbage collector to acquire exclusive {@linkplain Transaction}
@@ -2142,7 +2142,7 @@ public class EnvironmentConfig extends AbstractConfig {
     /**
      * Sets timeout in milliseconds which is used by the database garbage collector to acquire exclusive
      * {@linkplain Transaction} for its purposes if {@linkplain #GC_USE_EXCLUSIVE_TRANSACTION} is {@code true}.
-     * Default value is {@code 2000}.
+     * Default value is {@code 1000}.
      * <p>Mutable at runtime: yes
      *
      * @param txnAcquireTimeout timeout in milliseconds which is used by the database garbage collector to acquire exclusive {@linkplain Transaction}
@@ -2158,7 +2158,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * Returns timeout in milliseconds which is used by the database garbage collector to reclaim non-expired data
      * in several files inside single GC {@linkplain Transaction} acquired exclusively.
      * {@linkplain #GC_USE_EXCLUSIVE_TRANSACTION} should be {@code true}.
-     * Default value is {@code 1000}.
+     * Default value is {@code 500}.
      * <p>Mutable at runtime: yes
      *
      * @return timeout in milliseconds which is used by the database garbage collector to reclaim non-expired data
@@ -2174,7 +2174,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * Sets timeout in milliseconds which is used by the database garbage collector to reclaim non-expired data
      * in several files inside single GC {@linkplain Transaction} acquired exclusively.
      * {@linkplain #GC_USE_EXCLUSIVE_TRANSACTION} should be {@code true}.
-     * Default value is {@code 1000}.
+     * Default value is {@code 500}.
      * <p>Mutable at runtime: yes
      *
      * @param txnTimeout timeout in milliseconds which is used by the database garbage collector to reclaim non-expired data
