@@ -218,19 +218,15 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         if (!fragmentedFiles.hasNext()) {
             return true
         }
-        val cleanedFiles = PackedLongHashSet()
-        val txn: ReadWriteTransaction
-        try {
-            txn = environment.beginGCTransaction()
-            // tx can be read-only, so we should manually finish it (see XD-667)
-            if (txn.isReadonly) {
-                txn.abort()
-                return false
-            }
-        } catch (ignore: TransactionAcquireTimeoutException) {
+        val txn: ReadWriteTransaction = try {
+            environment.beginGCTransaction()
+        } catch (_: ReadonlyTransactionException) {
+            return false
+        } catch (_: TransactionAcquireTimeoutException) {
             return false
         }
 
+        val cleanedFiles = PackedLongHashSet()
         val isTxnExclusive = txn.isExclusive
         try {
             val guard = OOMGuard()
@@ -246,7 +242,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                 if (!isTxnExclusive) {
                     break // do not process more than one file in a non-exclusive txn
                 }
-                if (started + ec.gcTransactionTimeout < System.currentTimeMillis()) {
+                if (started + ec.gcTransactionTimeout <= System.currentTimeMillis()) {
                     break // break by timeout
                 }
                 if (guard.isItCloseToOOM()) {
@@ -260,6 +256,8 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                 }
                 return false
             }
+        } catch (_: ReadonlyTransactionException) {
+            return false
         } catch (e: Throwable) {
             throw ExodusException.toExodusException(e)
         } finally {
