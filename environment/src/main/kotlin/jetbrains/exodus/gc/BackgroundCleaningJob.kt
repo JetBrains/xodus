@@ -19,6 +19,9 @@ import jetbrains.exodus.log.Log
 
 internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
 
+    // the last time when the job was invoked
+    private var lastInvocationTime = 0L
+
     override fun getName() = "Background cleaner"
 
     override fun doJob() {
@@ -26,29 +29,43 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
         val cleaner = gc.cleaner
         if (!cleaner.isCurrentThread) {
             reQueue(cleaner.getJobProcessor())
+            return
         }
-        if (canContinue()) {
-            val minTimeToInvokeCleaner = gc.startTime
-            if (minTimeToInvokeCleaner > System.currentTimeMillis()) {
-                gc.wakeAt(minTimeToInvokeCleaner)
-                return
-            }
-            val env = gc.environment
-            val ec = env.environmentConfig
-            val log = env.log
-            if (gc.minFileAge < log.numberOfFiles) {
-                cleaner.isCleaning = true
-                try {
-                    doCleanLog(log, gc)
-                    if (gc.isTooMuchFreeSpace) {
-                        val gcRunPeriod = ec.gcRunPeriod
-                        if (gcRunPeriod > 0) {
-                            gc.wakeAt(System.currentTimeMillis() + gcRunPeriod)
-                        }
+
+        if (!canContinue()) return
+
+        // is invoked too early?
+        val minTimeToInvokeCleaner = gc.startTime
+        val currentTime = System.currentTimeMillis()
+        if (minTimeToInvokeCleaner > currentTime) {
+            gc.wakeAt(minTimeToInvokeCleaner)
+            return
+        }
+
+        val env = gc.environment
+        val ec = env.environmentConfig
+        val gcRunPeriod = ec.gcRunPeriod
+
+        // is invoked too often?
+        if (gcRunPeriod > 0 && lastInvocationTime + gcRunPeriod > currentTime) {
+            gc.wakeAt(lastInvocationTime + gcRunPeriod)
+            return
+        }
+
+        val log = env.log
+        // are there enough files in the log?
+        if (gc.minFileAge < log.numberOfFiles) {
+            cleaner.isCleaning = true
+            try {
+                doCleanLog(log, gc)
+                if (gc.isTooMuchFreeSpace) {
+                    if (gcRunPeriod > 0) {
+                        gc.wakeAt(System.currentTimeMillis() + gcRunPeriod)
                     }
-                } finally {
-                    cleaner.isCleaning = false
                 }
+            } finally {
+                lastInvocationTime = System.currentTimeMillis()
+                cleaner.isCleaning = false
             }
         }
     }
