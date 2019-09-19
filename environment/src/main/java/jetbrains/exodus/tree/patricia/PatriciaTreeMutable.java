@@ -265,7 +265,7 @@ final class PatriciaTreeMutable extends PatriciaTreeBase implements ITreeMutable
     @NotNull
     public ExpiredLoggableCollection getExpiredLoggables() {
         final ExpiredLoggableCollection expiredLoggables = this.expiredLoggables;
-        return expiredLoggables == null ? ExpiredLoggableCollection.Companion.getEMPTY() : expiredLoggables;
+        return expiredLoggables == null ? ExpiredLoggableCollection.getEMPTY() : expiredLoggables;
     }
 
     @Override

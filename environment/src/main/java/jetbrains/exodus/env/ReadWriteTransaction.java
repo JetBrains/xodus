@@ -229,7 +229,7 @@ public class ReadWriteTransaction extends TransactionBase {
     ExpiredLoggableCollection doCommit(@NotNull final MetaTreeImpl.Proto[] out) {
         final Set<Map.Entry<Integer, ITreeMutable>> entries = mutableTrees.entrySet();
         final Set<Map.Entry<Long, Pair<String, ITree>>> removedEntries = removedStores.entrySet();
-        ExpiredLoggableCollection expiredLoggables = ExpiredLoggableCollection.Companion.getEMPTY();
+        ExpiredLoggableCollection expiredLoggables = ExpiredLoggableCollection.getEMPTY();
         final ITreeMutable metaTreeMutable = getMetaTree().tree.getMutableCopy();
         for (final Map.Entry<Long, Pair<String, ITree>> entry : removedEntries) {
             final Pair<String, ITree> value = entry.getValue();

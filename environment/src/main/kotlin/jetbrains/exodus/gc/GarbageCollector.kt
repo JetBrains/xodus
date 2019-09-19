@@ -117,7 +117,13 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         }
     }
 
-    fun fetchExpiredLoggables(loggables: ExpiredLoggableCollection) = utilizationProfile.fetchExpiredLoggables(loggables)
+    fun fetchExpiredLoggables(loggables: ExpiredLoggableCollection) {
+        if (loggables.fromScratch) {
+            utilizationProfile.computeUtilizationFromScratch()
+        } else {
+            utilizationProfile.fetchExpiredLoggables(loggables)
+        }
+    }
 
     fun getFileFreeBytes(fileAddress: Long) = utilizationProfile.getFileFreeBytes(fileAddress)
 

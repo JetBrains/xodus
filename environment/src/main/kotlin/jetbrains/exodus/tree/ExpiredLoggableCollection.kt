@@ -22,9 +22,12 @@ import jetbrains.exodus.log.Loggable
 
 class ExpiredLoggableCollection(private val parent: ExpiredLoggableCollection? = null,
                                 private val addresses: LongArrayList = LongArrayList(),
-                                private val lengths: IntArrayList = IntArrayList()) {
+                                private val lengths: IntArrayList = IntArrayList(),
+                                private val calcUtilizationFromScratch: Boolean = false) {
 
     val size: Int get() = lengths.size() + (parent?.size ?: 0)
+
+    val fromScratch: Boolean get() = calcUtilizationFromScratch
 
     fun add(loggable: Loggable) = add(loggable.address, loggable.length())
 
@@ -40,6 +43,8 @@ class ExpiredLoggableCollection(private val parent: ExpiredLoggableCollection? =
     }
 
     fun mergeWith(parent: ExpiredLoggableCollection): ExpiredLoggableCollection {
+        if (fromScratch) return this
+        if (parent.fromScratch) return parent
         return this.parent?.let {
             parent.parent?.let {
                 throw ExodusException("Can't merge 2 ExpiredLoggableCollections with both non-trivial parents")
@@ -58,6 +63,9 @@ class ExpiredLoggableCollection(private val parent: ExpiredLoggableCollection? =
     override fun toString() = "Expired $size loggables"
 
     companion object {
+        @JvmStatic
         val EMPTY = ExpiredLoggableCollection()
+        @JvmStatic
+        val FROM_SCRATCH = ExpiredLoggableCollection(calcUtilizationFromScratch = true)
     }
 }
