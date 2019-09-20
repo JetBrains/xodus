@@ -255,6 +255,6 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     public static String getObjectName(@NotNull final PersistentEntityStoreImpl store) {
-        return OBJECT_NAME_PREFIX + ", location=" + escapeLocation(store.getLocation());
+        return OBJECT_NAME_PREFIX + ", location=" + escapeLocation(store.getLocation()) + ", name=" + store.getName();
     }
 }

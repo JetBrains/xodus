@@ -81,6 +81,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private final String name;
     @NotNull
     private final Environment environment;
+    private boolean closeEnvironment;
     @NotNull
     private final DataReaderWriterProvider readerWriterProvider;
     @NotNull
@@ -170,6 +171,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         hashCode = System.identityHashCode(this);
         this.config = config;
         this.environment = environment;
+        closeEnvironment = false;
         this.blobVault = blobVault;
         PersistentEntityStores.adjustEnvironmentConfigForEntityStore(environment.getEnvironmentConfig());
         this.name = name;
@@ -1928,6 +1930,10 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return statistics;
     }
 
+    public void setCloseEnvironment(boolean closeEnvironment) {
+        this.closeEnvironment = closeEnvironment;
+    }
+
     @Override
     public void close() {
         logger.info("Closing...");
@@ -1942,7 +1948,10 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             getAsyncProcessor().finish();
             synchronized (this) {
                 blobVault.close();
-                environment.close();
+                // by default, do not close underlying environment since it can be used also by another EntityStore or in a different way
+                if (closeEnvironment) {
+                    environment.close();
+                }
             }
             iterableCache.clear();
             logger.info("Closed successfully.");

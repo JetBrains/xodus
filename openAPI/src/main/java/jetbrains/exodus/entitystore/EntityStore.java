@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.env.Environment;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -84,7 +85,7 @@ public interface EntityStore extends Closeable {
     StoreTransaction getCurrentTransaction();
 
     /**
-     * Closes the {@code EntityStore}.
+     * Closes the {@code EntityStore}. Doesn't close underlying {@linkplain Environment} if it was created explicitly.
      */
     void close();
 }

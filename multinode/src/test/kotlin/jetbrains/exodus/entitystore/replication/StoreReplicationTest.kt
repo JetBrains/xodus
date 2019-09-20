@@ -148,11 +148,13 @@ open class StoreReplicationTest : ReplicationBaseTest() {
 
             PersistentEntityStoreImpl(PersistentEntityStoreConfig.DEFAULT,
                     Environments.newInstance(targetLogDir, targetConfig), null, storeName).use {
+                it.setCloseEnvironment(true)
                 it.checkIssues(batchCount * i)
             }
 
             PersistentEntityStoreImpl(storeConfig,
                     Environments.newInstance(targetLogDir, targetConfig), null, storeName).use {
+                it.setCloseEnvironment(true)
                 it.checkIssues(batchCount * (i + 1))
             }
         }

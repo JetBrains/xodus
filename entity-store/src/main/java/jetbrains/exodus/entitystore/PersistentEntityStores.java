@@ -61,7 +61,9 @@ public final class PersistentEntityStores {
     }
 
     public static PersistentEntityStoreImpl newInstance(@NotNull final File dir) {
-        return newInstance(Environments.newInstance(dir, new EnvironmentConfig()));
+        final PersistentEntityStoreImpl result = newInstance(Environments.newInstance(dir, new EnvironmentConfig()));
+        result.setCloseEnvironment(true);
+        return result;
     }
 
     public static PersistentEntityStoreImpl newInstance(@NotNull final String dir) {
