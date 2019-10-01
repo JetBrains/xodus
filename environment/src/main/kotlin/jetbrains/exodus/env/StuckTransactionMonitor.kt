@@ -55,8 +55,12 @@ internal class StuckTransactionMonitor(env: EnvironmentImpl) : Job() {
                         ++stuckTxnCount
                     }
                 }
-                env.transactionExpirationTimeout().forEachExpiredTransaction {
-                    env.finishTransaction(it)
+                env.transactionExpirationTimeout().forEachExpiredTransaction { txn ->
+                    if (env is ContextualEnvironmentImpl) {
+                        env.finishTransactionSafe(txn, false)
+                    } else {
+                        env.finishTransaction(txn)
+                    }
                 }
             } finally {
                 this.stuckTxnCount = stuckTxnCount

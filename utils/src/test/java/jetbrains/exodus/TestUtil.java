@@ -38,7 +38,7 @@ public class TestUtil {
                 return;
             }
         }
-        Assert.assertTrue("Expected exception wasn't thrown", false);
+        Assert.fail("Expected exception wasn't thrown");
     }
 
     public static long time(@NotNull final String text, @NotNull final Runnable runnable) {

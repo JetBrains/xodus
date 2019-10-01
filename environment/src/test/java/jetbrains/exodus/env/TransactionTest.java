@@ -22,11 +22,14 @@ import jetbrains.exodus.core.execution.LatchJob;
 import jetbrains.exodus.log.LogConfig;
 import jetbrains.exodus.tree.btree.BTreeBase;
 import jetbrains.exodus.util.DeferredIO;
+import jetbrains.exodus.util.IOUtil;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
+
+import java.io.File;
 
 public class TransactionTest extends EnvironmentTestsBase {
 
@@ -47,14 +50,14 @@ public class TransactionTest extends EnvironmentTestsBase {
         Transaction txn = env.beginTransaction();
         Assert.assertEquals(txn, env.getCurrentTransaction());
         txn.abort();
-        Assert.assertEquals(null, env.getCurrentTransaction());
+        Assert.assertNull(env.getCurrentTransaction());
         txn = env.beginTransaction();
         Assert.assertEquals(txn, env.getCurrentTransaction());
         Transaction txn1 = env.beginTransaction();
         Assert.assertEquals(txn1, env.getCurrentTransaction());
         txn1.commit();
         txn.commit();
-        Assert.assertEquals(null, env.getCurrentTransaction());
+        Assert.assertNull(env.getCurrentTransaction());
     }
 
     @Test
@@ -587,5 +590,37 @@ public class TransactionTest extends EnvironmentTestsBase {
                 env.suspendGC();
             }
         });
+    }
+
+    @Test
+    @TestFor(issue = "XD-789")
+    public void testExpiration() throws InterruptedException {
+        final File dir = TestUtil.createTempDir();
+        try {
+            testTxnExpirationTimeout(Environments.newInstance(dir, new EnvironmentConfig().setEnvMonitorTxnsExpirationTimeout(1000).setEnvCloseForcedly(true)));
+        } finally {
+            IOUtil.deleteRecursively(dir);
+        }
+    }
+
+    @Test
+    @TestFor(issue = "XD-789")
+    public void testExpirationContextual() throws InterruptedException {
+        final File dir = TestUtil.createTempDir();
+        try {
+            testTxnExpirationTimeout(Environments.newContextualInstance(dir, new EnvironmentConfig().setEnvMonitorTxnsExpirationTimeout(1000).setEnvCloseForcedly(true)));
+        } finally {
+            IOUtil.deleteRecursively(dir);
+        }
+    }
+
+    private void testTxnExpirationTimeout(Environment env) throws InterruptedException {
+        try {
+            final Transaction txn = env.beginTransaction();
+            Thread.sleep(2000);
+            Assert.assertTrue(txn.isFinished());
+        } finally {
+            env.close();
+        }
     }
 }

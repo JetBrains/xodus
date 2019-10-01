@@ -175,10 +175,15 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
 
     @Override
     protected void finishTransaction(@NotNull final TransactionBase txn) {
+        finishTransactionSafe(txn, true);
+    }
+
+    void finishTransactionSafe(@NotNull final TransactionBase txn, boolean checkThread) {
         final Thread thread = txn.getCreatingThread();
-        // logging.info("finished txn " + System.identityHashCode(txn) + " in thread " + thread.getName(), new Throwable());
-        if (!Thread.currentThread().equals(thread)) {
-            throw new ExodusException("Can't finish transaction in a thread different from the one which it was created in");
+        if (checkThread) {
+            if (!Thread.currentThread().equals(thread)) {
+                throw new ExodusException("Can't finish transaction in a thread different from the one which it was created in");
+            }
         }
         final Deque<TransactionBase> stack = threadTxns.get(thread);
         if (stack == null) {
