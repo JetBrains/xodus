@@ -16,6 +16,7 @@
 package jetbrains.exodus.backup;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -160,7 +161,8 @@ public abstract class BackupStrategy {
             return path;
         }
 
-        @NotNull
+        @Override
+        @Nullable
         public File getFile() {
             return file;
         }

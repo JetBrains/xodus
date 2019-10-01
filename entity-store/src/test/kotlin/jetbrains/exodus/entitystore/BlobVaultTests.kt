@@ -58,12 +58,13 @@ class BlobVaultTests : EntityStoreTestBase() {
         val blobVault = store.blobVault.sourceVault as FileSystemBlobVault
         val handlesToFiles = TreeMap<Long, File>()
         for (fd in blobVault.backupStrategy.contents) {
-            val file = (fd as BackupStrategy.FileDescriptor).file
-            if (file.isFile && file.name != FileSystemBlobVaultOld.VERSION_FILE) {
-                val handle = blobVault.getBlobHandleByFile(file)
-                Assert.assertFalse(handlesToFiles.containsKey(handle))
-                handlesToFiles[handle] = file
-                Assert.assertEquals(file, blobVault.getBlobLocation(handle))
+            (fd as BackupStrategy.FileDescriptor).file?.let { file ->
+                if (file.isFile && file.name != FileSystemBlobVaultOld.VERSION_FILE) {
+                    val handle = blobVault.getBlobHandleByFile(file)
+                    Assert.assertFalse(handlesToFiles.containsKey(handle))
+                    handlesToFiles[handle] = file
+                    Assert.assertEquals(file, blobVault.getBlobLocation(handle))
+                }
             }
         }
         val min = handlesToFiles.navigableKeySet().iterator().next()

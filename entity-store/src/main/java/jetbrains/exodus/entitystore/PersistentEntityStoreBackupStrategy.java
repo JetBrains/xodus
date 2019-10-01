@@ -20,6 +20,7 @@ import jetbrains.exodus.backup.VirtualFileDescriptor;
 import jetbrains.exodus.log.LogUtil;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.File;
 import java.util.Iterator;
 
 public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
@@ -50,8 +51,8 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
                     if (!file.hasContent() || file.getName().equals(fsBlobVault.VERSION_FILE)) {
                         return super.acceptFile(file);
                     }
-                    // TODO: improve this?
-                    if ((file instanceof FileDescriptor) && fsBlobVault.getBlobHandleByFile(((FileDescriptor)file).getFile()) > lastUsedHandle) {
+                    final File f = file.getFile();
+                    if (f != null && fsBlobVault.getBlobHandleByFile(f) > lastUsedHandle) {
                         return -1L;
                     }
                     return super.acceptFile(file);

@@ -104,6 +104,8 @@ object ArchiveBackupableFactory : KLogging() {
 
         override fun getPath() = _path
 
+        override fun getFile(): File? = null
+
         override fun getName() = _name
 
         override fun hasContent() = !entry.isDirectory
