@@ -34,6 +34,8 @@ public final class PropertyValueIterable extends PropertyRangeOrValueIterableBas
 
     @NotNull
     private final Comparable value;
+    @NotNull
+    private final Class<? extends Comparable> valueClass;
 
     static {
         registerType(getType(), new EntityIterableInstantiator() {
@@ -41,12 +43,12 @@ public final class PropertyValueIterable extends PropertyRangeOrValueIterableBas
             public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
                 try {
                     return new PropertyValueIterable(txn,
-                        Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]),
-                        Long.parseLong((String) parameters[2]));
+                            Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]),
+                            Long.parseLong((String) parameters[2]));
                 } catch (NumberFormatException e) {
                     return new PropertyValueIterable(txn,
-                        Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]),
-                        (Comparable) parameters[2]);
+                            Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]),
+                            (Comparable) parameters[2]);
                 }
             }
         });
@@ -58,6 +60,7 @@ public final class PropertyValueIterable extends PropertyRangeOrValueIterableBas
                                  @NotNull final Comparable value) {
         super(txn, entityTypeId, propertyId);
         this.value = PropertyTypes.toLowerCase(value);
+        valueClass = value.getClass();
     }
 
     @Override
@@ -141,6 +144,7 @@ public final class PropertyValueIterable extends PropertyRangeOrValueIterableBas
                 if (value instanceof ComparableSet) {
                     return ((ComparableSet) value).containsItem(PropertyValueIterable.this.value);
                 }
+                if (value.getClass() != valueClass) return false;
                 value = PropertyTypes.toLowerCase(value);
                 return value.compareTo(PropertyValueIterable.this.value) == 0;
             }
