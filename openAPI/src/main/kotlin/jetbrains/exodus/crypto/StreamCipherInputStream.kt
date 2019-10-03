@@ -67,4 +67,13 @@ class StreamCipherInputStream(input: InputStream, private val cipherGetter: () -
         super.mark(readlimit)
         savedPosition = position
     }
+
+    val source: InputStream
+        get() {
+            var result = `in`
+            while (result is FilterInputStream) {
+                result = `in`
+            }
+            return result
+        }
 }
