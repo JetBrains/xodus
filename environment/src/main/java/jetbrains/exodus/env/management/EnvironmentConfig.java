@@ -408,6 +408,11 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
         config.setGcFilesDeletionDelay(delay);
     }
 
+    @Override
+    public void gc() {
+        env.gc();
+    }
+
     public static String getObjectName(@NotNull final Environment env) {
         return OBJECT_NAME_PREFIX + ", location=" + escapeLocation(env.getLocation());
     }
