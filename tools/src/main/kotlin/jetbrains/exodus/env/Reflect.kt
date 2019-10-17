@@ -333,7 +333,7 @@ class Reflect(directory: File) {
 
         var wereErrors = false
         names.forEachIndexed { i, name ->
-            println("Traversing store $name ($i of $size)")
+            println("Traversing store $name (${i + 1} of $size)")
             try {
                 env.executeInTransaction { txn ->
                     val store = env.openStore(name, StoreConfig.USE_EXISTING, txn)
@@ -346,7 +346,7 @@ class Reflect(directory: File) {
                     }
                 }
             } catch (t: Throwable) {
-                println()
+                println("Can't fetch used space for store $name: $t")
                 logger.error("Can't fetch used space for store $name", t)
                 wereErrors = true
             }
