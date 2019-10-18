@@ -21,9 +21,9 @@ import java.util.*
 private const val LONG_BITS: Int = SIZE
 private const val LONG_BITS_LOG: Int = 6
 
-class PackedLongHashSet(source: Collection<Long>? = null) : AbstractSet<Long>(), LongSet {
+class PackedLongHashSet(source: Collection<Long>? = null, loadFactor: Float = HashUtil.DEFAULT_LOAD_FACTOR) : AbstractSet<Long>(), LongSet {
 
-    private val map = LongHashMap<BitsHolder>(20)
+    private val map = LongHashMap<BitsHolder>(20, loadFactor)
     private var count: Int = 0
 
     init {
