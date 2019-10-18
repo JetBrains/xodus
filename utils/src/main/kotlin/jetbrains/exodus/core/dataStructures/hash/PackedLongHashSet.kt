@@ -75,6 +75,11 @@ class PackedLongHashSet(source: Collection<Long>? = null) : AbstractSet<Long>(),
         return true
     }
 
+    override fun clear() {
+        map.clear()
+        count = 0
+    }
+
     override fun iterator(): LongIterator {
         return object : LongIterator {
 
