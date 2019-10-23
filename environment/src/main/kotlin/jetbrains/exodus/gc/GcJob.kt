@@ -32,6 +32,7 @@ open class GcJob(gc: GarbageCollector?, private val unitOfWork: (() -> Unit)? = 
 
     override fun execute() {
         gc?.run {
+            if (!environment.environmentConfig.isGcEnabled) return
             val actualProcessor = cleaner.getJobProcessor()
             if (actualProcessor != processor) {
                 processor = actualProcessor
