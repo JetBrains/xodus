@@ -345,7 +345,6 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             logger.error("cleanFile(" + LogUtil.getLogFilename(fileAddress) + ')'.toString(), e)
             throw e
         }
-
     }
 
     companion object : KLogging() {

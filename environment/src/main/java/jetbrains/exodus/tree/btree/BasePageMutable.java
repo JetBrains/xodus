@@ -223,6 +223,19 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
         return binarySearch(this, key, low, getSize() - 1);
     }
 
+    @Override
+    protected int binarySearch(final ByteIterable key, final int low, final long expectedAddress) {
+        // searching for the address linearly in keyAdresses seems to be quite cheap
+        // if we find it we don't have to perform binary search with several keys' loadings
+        final int size = getSize();
+        for (int i = low; i < size; ++i) {
+            if (keysAddresses[i] == expectedAddress && getKey(i).compareKeyTo(key) == 0) {
+                return i;
+            }
+        }
+        return binarySearch(this, key, low, size - 1);
+    }
+
     protected void decrementSize(final int value) {
         if (size < value) {
             throw new ExodusException("Can't decrease BTree page size " + size + " on " + value);

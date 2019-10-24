@@ -135,6 +135,10 @@ class BTreeTraverser implements TreeTraverser {
         return currentNode.binarySearch(key, currentPos);
     }
 
+    int getNextSibling(final ByteIterable key, final long expectedAddress) {
+        return currentNode.binarySearch(key, currentPos, expectedAddress);
+    }
+
     @Override
     public int compareCurrent(@NotNull final ByteIterable key) {
         return currentNode.getKey(currentPos).compareKeyTo(key);

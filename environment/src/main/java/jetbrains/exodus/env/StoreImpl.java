@@ -195,8 +195,8 @@ public class StoreImpl implements Store {
                         @NotNull final RandomAccessLoggable loggable,
                         @NotNull final Iterator<RandomAccessLoggable> loggables) {
         final ReadWriteTransaction txn = EnvironmentImpl.throwIfReadonly(transaction, "Can't reclaim in read-only transaction");
-        final boolean wasTreeCreated = txn.hasTreeMutable(this);
-        if (!txn.getMutableTree(this).reclaim(loggable, loggables) && !wasTreeCreated) {
+        final boolean hadTreeMutated = txn.hasTreeMutable(this);
+        if (!txn.getMutableTree(this).reclaim(loggable, loggables) && !hadTreeMutated) {
             txn.removeTreeMutable(this);
         }
     }

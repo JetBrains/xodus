@@ -125,7 +125,7 @@ class LeafNode extends BaseLeafNode {
                 leafIndex = context.currentPos;
             } else {
                 context.moveRight();
-                leafIndex = context.getNextSibling(keyIterable);
+                leafIndex = context.getNextSibling(keyIterable, loggable.getAddress());
             }
             if (leafIndex >= 0) {
                 doReclaim(context, leafIndex);

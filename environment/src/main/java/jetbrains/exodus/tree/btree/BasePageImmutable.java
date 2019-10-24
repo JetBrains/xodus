@@ -142,6 +142,11 @@ abstract class BasePageImmutable extends BasePage {
     }
 
     @Override
+    protected int binarySearch(final ByteIterable key, final int low, final long expectedAddress) {
+        return binarySearch(key, low);
+    }
+
+    @Override
     protected int binarySearch(final ByteIterable key, int low) {
         if (dataAddress == Loggable.NULL_ADDRESS) {
             return -1;

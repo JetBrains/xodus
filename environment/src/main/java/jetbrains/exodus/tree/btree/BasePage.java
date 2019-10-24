@@ -116,6 +116,8 @@ abstract class BasePage implements Dumpable {
 
     protected abstract int binarySearch(final ByteIterable key, final int low);
 
+    protected abstract int binarySearch(final ByteIterable key, final int low, final long expectedAddress);
+
     @Nullable
     protected abstract ILeafNode get(@NotNull final ByteIterable key);
 
