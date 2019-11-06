@@ -585,6 +585,28 @@ class EntityIterableTests : EntityStoreTestBase() {
         Assert.assertEquals(1, usersInGroupsWithOwner.size())
     }
 
+    fun testFindLinksReverse() {
+        entityStore.config.isCachingDisabled = true
+        val txn = storeTransaction
+        val users = createNUsers(txn, 10)
+        for (user in users) {
+            user.setLink("inGroup", txn.newEntity("UserGroup"))
+        }
+        txn.getAll("UserGroup").first!!.setLink("owner", users[0])
+        txn.getAll("UserGroup").last!!.setLink("owner", users[1])
+        txn.flush()
+        val withOwner = txn.findWithLinks("UserGroup", "owner")
+        val usersIt = txn.getAll("User") as EntityIterableBase
+        val iterator = usersIt.findLinks(withOwner, "inGroup").iterator()
+        Assert.assertEquals(users[0], iterator.next())
+        Assert.assertEquals(users[9], iterator.next())
+        Assert.assertFalse(iterator.hasNext())
+        val reverseIterator = usersIt.findLinks(withOwner, "inGroup").reverse().iterator()
+        Assert.assertEquals(users[9], reverseIterator.next())
+        Assert.assertEquals(users[0], reverseIterator.next())
+        Assert.assertFalse(reverseIterator.hasNext())
+    }
+
     fun testGetFirst() {
         for (i in 0..255) {
             Assert.assertNull(EntityIterableBase.EMPTY.first)

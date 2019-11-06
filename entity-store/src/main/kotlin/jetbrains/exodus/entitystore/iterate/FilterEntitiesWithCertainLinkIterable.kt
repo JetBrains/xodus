@@ -55,8 +55,16 @@ internal class FilterEntitiesWithCertainLinkIterable(txn: PersistentStoreTransac
     override fun canBeReordered() = true
 
     override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
+        return getIteratorImpl(txn, reverse = false)
+    }
+
+    override fun getReverseIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
+        return getIteratorImpl(txn, reverse = true)
+    }
+
+    private fun getIteratorImpl(txn: PersistentStoreTransaction, reverse: Boolean): EntityIteratorBase {
         val idSet = filter.toSet(txn)
-        val it = entitiesWithLink.iterator() as LinksIteratorWithTarget
+        val it = if (reverse) entitiesWithLink.getReverseIteratorImpl(txn) else entitiesWithLink.getIteratorImpl(txn)
         return object : EntityIteratorBase(this) {
 
             private var distinctIds = EntityIdSetFactory.newSet()

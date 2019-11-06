@@ -66,6 +66,10 @@ public final class EntityReverseIterable extends EntityIterableDecoratorBase {
     @Override
     @NotNull
     public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+        try {
+            return source.asProbablyCached().getReverseIteratorImpl(txn);
+        } catch (UnsupportedOperationException ignore) {
+        }
         return source.getOrCreateCachedInstance(txn).getReverseIteratorImpl(txn);
     }
 

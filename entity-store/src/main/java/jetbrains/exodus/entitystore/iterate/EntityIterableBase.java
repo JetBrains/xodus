@@ -135,7 +135,7 @@ public abstract class EntityIterableBase implements EntityIterable {
             return EntityIteratorBase.EMPTY;
         }
         final PersistentStoreTransaction txn = getTransaction();
-        return store.getEntityIterableCache().putIfNotCached(this).getIteratorImpl(txn);
+        return asProbablyCached().getIteratorImpl(txn);
     }
 
     @NotNull
@@ -158,7 +158,7 @@ public abstract class EntityIterableBase implements EntityIterable {
             return true;
         }
         final PersistentStoreTransaction txn = getTransaction();
-        final EntityIterableBase it = store.getEntityIterableCache().putIfNotCached(this);
+        final EntityIterableBase it = asProbablyCached();
         return it.isEmptyImpl(txn);
     }
 
@@ -172,7 +172,7 @@ public abstract class EntityIterableBase implements EntityIterable {
             return 0;
         }
         final PersistentStoreTransaction txn = getTransaction();
-        final EntityIterableBase it = store.getEntityIterableCache().putIfNotCached(this);
+        final EntityIterableBase it = asProbablyCached();
         final EntityIterableBase cached = it.nonCachedHasFastCountAndIsEmpty() ? it : getOrCreateCachedInstance(txn);
         return cached.countImpl(txn);
     }
@@ -182,7 +182,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             return 0;
         }
-        final EntityIterableBase it = store.getEntityIterableCache().putIfNotCached(this);
+        final EntityIterableBase it = asProbablyCached();
         return it.isCachedInstance() ? it.countImpl(getTransaction()) : -1;
     }
 
@@ -214,7 +214,7 @@ public abstract class EntityIterableBase implements EntityIterable {
             return -1;
         }
         final EntityId entityId = entity.getId();
-        final EntityIterableBase it = store.getEntityIterableCache().putIfNotCached(this);
+        final EntityIterableBase it = asProbablyCached();
         final EntityIterableBase cached = it.isCachedInstance() ? it : this.getOrCreateCachedInstance(getTransaction());
         return cached.indexOfImpl(entityId);
     }
@@ -225,7 +225,7 @@ public abstract class EntityIterableBase implements EntityIterable {
             return false;
         }
         final EntityId entityId = entity.getId();
-        final EntityIterableBase it = store.getEntityIterableCache().putIfNotCached(this);
+        final EntityIterableBase it = asProbablyCached();
         final EntityIterableBase cached = it.isCachedInstance() ? it : this.getOrCreateCachedInstance(getTransaction());
         return cached.containsImpl(entityId);
     }
@@ -569,6 +569,13 @@ public abstract class EntityIterableBase implements EntityIterable {
         } finally {
             it.disposeIfShouldBe();
         }
+    }
+
+    protected EntityIterableBase asProbablyCached() {
+        if (store == null) {
+            return EntityIterableBase.EMPTY;
+        }
+        return store.getEntityIterableCache().putIfNotCached(this);
     }
 
     protected boolean isEmptyFast(@NotNull final PersistentStoreTransaction txn) {

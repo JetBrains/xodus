@@ -21,7 +21,6 @@ import jetbrains.exodus.entitystore.iterate.EntityIterableBase.registerType
 import jetbrains.exodus.entitystore.iterate.cached.SingleTypeUnsortedEntityIdArrayCachedInstanceIterable
 import jetbrains.exodus.entitystore.tables.LinkValue
 import jetbrains.exodus.entitystore.tables.PropertyKey
-import jetbrains.exodus.env.Cursor
 import java.util.*
 
 /**
@@ -33,7 +32,9 @@ internal class EntitiesWithCertainLinkIterable(txn: PersistentStoreTransaction,
 
     override fun getEntityTypeId() = entityTypeId
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction): LinksIteratorWithTarget = LinksIterator(openCursor(txn))
+    override fun getIteratorImpl(txn: PersistentStoreTransaction): LinksIteratorWithTarget = LinksIterator(txn)
+
+    override fun getReverseIteratorImpl(txn: PersistentStoreTransaction): LinksIteratorWithTarget = LinksIterator(txn, reverse = true)
 
     override fun getHandleImpl(): EntityIterableHandle {
         return object : ConstantEntityIterableHandle(store, type) {
@@ -89,28 +90,39 @@ internal class EntitiesWithCertainLinkIterable(txn: PersistentStoreTransaction,
 
     private fun openCursor(txn: PersistentStoreTransaction) = store.getLinksSecondIndexCursor(txn, entityTypeId)
 
-    private inner class LinksIterator constructor(index: Cursor) : LinksIteratorWithTarget(this@EntitiesWithCertainLinkIterable) {
+    private inner class LinksIterator constructor(txn: PersistentStoreTransaction, private val reverse: Boolean = false)
+        : LinksIteratorWithTarget(this@EntitiesWithCertainLinkIterable) {
 
         private var key: PropertyKey? = null
         override lateinit var targetId: EntityId
             private set
 
         init {
-            cursor = index
-            val key = LinkValue.linkValueToEntry(LinkValue(PersistentEntityId(0, 0L), linkId))
-            if (index.getSearchKeyRange(key) != null) {
-                loadCursorState()
+            val index = openCursor(txn).also { cursor = it }
+            val idBound = PersistentEntityId(0, 0L)
+            if (reverse) {
+                if (if (index.getSearchKeyRange(LinkValue.linkValueToEntry(LinkValue(idBound, linkId + 1))) == null) {
+                            index.last
+                        } else {
+                            index.prev
+                        }) {
+                    loadCursorState()
+                }
+            } else {
+                if (index.getSearchKeyRange(LinkValue.linkValueToEntry(LinkValue(idBound, linkId))) != null) {
+                    loadCursorState()
+                }
             }
         }
 
         public override fun hasNextImpl(): Boolean {
-            if (key == null) {
-                if (cursor.next) {
-                    loadCursorState()
-                }
-                return key != null
+            key?.let {
+                return true
             }
-            return true
+            if (if (reverse) cursor.prev else cursor.next) {
+                loadCursorState()
+            }
+            return key != null
         }
 
         public override fun nextIdImpl(): EntityId? {
@@ -135,7 +147,8 @@ internal class EntitiesWithCertainLinkIterable(txn: PersistentStoreTransaction,
     private inner class CachedLinksIterable internal constructor(txn: PersistentStoreTransaction,
                                                                  private val localIds: LongArray,
                                                                  private val targets: Array<EntityId>,
-                                                                 min: Long, max: Long) : SingleTypeUnsortedEntityIdArrayCachedInstanceIterable(txn, this@EntitiesWithCertainLinkIterable, entityTypeId, localIds, null, min, max) {
+                                                                 min: Long, max: Long)
+        : SingleTypeUnsortedEntityIdArrayCachedInstanceIterable(txn, this@EntitiesWithCertainLinkIterable, entityTypeId, localIds, null, min, max) {
 
         override fun getIteratorImpl(txn: PersistentStoreTransaction): LinksIteratorWithTarget {
             return object : LinksIteratorWithTarget(this@CachedLinksIterable) {
