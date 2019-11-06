@@ -111,7 +111,7 @@ public class EnvironmentTestsBase {
     }
 
     protected EnvironmentImpl newEnvironmentInstance(final LogConfig config) {
-        return (EnvironmentImpl) Environments.newInstance(config);
+        return (EnvironmentImpl) Environments.newInstance(config, new EnvironmentConfig().setLogCacheShared(false));
     }
 
     protected EnvironmentImpl newEnvironmentInstance(final LogConfig config, final EnvironmentConfig ec) {
