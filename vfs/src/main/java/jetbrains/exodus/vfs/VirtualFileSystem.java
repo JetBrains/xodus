@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2019 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -45,7 +45,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * #createFile(Transaction, long, String)} methods. To create file with unique pathname and specified path prefix,
  * use {@linkplain #createUniqueFile(Transaction, String)}. To open existing file or to create the new file,
  * use {@linkplain #openFile(Transaction, String, boolean)}.
- *
+ * <p>
  * To read {@linkplain File} contents, open {@linkplain java.io.InputStream} using {@linkplain #readFile(Transaction, File)},
  * {@linkplain #readFile(Transaction, File, long)} and {@linkplain #readFile(Transaction, long)} methods. To write
  * {@linkplain File} contents, open {@linkplain OutputStream} using {@linkplain #appendFile(Transaction, File)},
@@ -389,8 +389,19 @@ public class VirtualFileSystem {
      * @see File#getDescriptor()
      */
     public long getFileLength(@NotNull final Transaction txn, final long fileDescriptor) {
+        // in read-only transaction file length can be cached as a txn user object
+        if (txn.isReadonly()) {
+            final Object cachedLength = txn.getUserObject("vfs.file.length." + fileDescriptor);
+            if (cachedLength instanceof Long) {
+                return (Long) cachedLength;
+            }
+        }
         try (ClusterIterator it = new ClusterIterator(this, txn, fileDescriptor, -1L)) {
-            return it.size();
+            final long result = it.size();
+            if (txn.isReadonly()) {
+                txn.setUserObject("vfs.file.length." + fileDescriptor, result);
+            }
+            return result;
         }
     }
 

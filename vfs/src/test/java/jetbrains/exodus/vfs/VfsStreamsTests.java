@@ -18,6 +18,7 @@ package jetbrains.exodus.vfs;
 import jetbrains.exodus.TestFor;
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.env.Transaction;
+import jetbrains.exodus.env.TransactionalExecutable;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
@@ -140,6 +141,25 @@ public class VfsStreamsTests extends VfsTestsBase {
         Assert.assertEquals(-1, inputStream.read());
         inputStream.close();
         txn.commit();
+    }
+
+    @Test
+    public void writeLength() throws IOException {
+        final Transaction txn = env.beginTransaction();
+        final File file0 = vfs.createFile(txn, "file0");
+        final OutputStream outputStream = vfs.appendFile(txn, file0);
+        final byte[] bytes = HOEGAARDEN.getBytes(UTF_8);
+        outputStream.write(bytes);
+        outputStream.close();
+        txn.commit();
+        env.executeInReadonlyTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull Transaction txn) {
+                Assert.assertEquals(bytes.length, vfs.getFileLength(txn, file0));
+                // second time to test cached value
+                Assert.assertEquals(bytes.length, vfs.getFileLength(txn, file0));
+            }
+        });
     }
 
     @Test
