@@ -16,6 +16,7 @@
 package jetbrains.exodus.query
 
 import jetbrains.exodus.entitystore.Entity
+import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.query.metadata.ModelMetaData
 
 class IterableDecorator(private val it: Iterable<Entity>) : NodeBase() {
@@ -28,14 +29,21 @@ class IterableDecorator(private val it: Iterable<Entity>) : NodeBase() {
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        other?.let { right ->
-            return right is IterableDecorator && it === right.it
+        other?.let { r ->
+            return r is IterableDecorator &&
+                    (it === r.it || (it is EntityIterableBase && r.it is EntityIterableBase && it.source.handle == r.it.source.handle))
         }
         return false
     }
 
     override fun getHandle(sb: StringBuilder): StringBuilder {
-        return super.getHandle(sb).append('(').append(it.hashCode() and 0x7fffffff).append(')')
+        super.getHandle(sb).append('(')
+        if (it is EntityIterableBase) {
+            sb.append(it.source.handle.toString())
+        } else {
+            sb.append(it.hashCode() and 0x7fffffff)
+        }
+        return sb.append(')')
     }
 
     override fun getSimpleName() = "id"
