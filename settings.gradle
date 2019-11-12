@@ -1,3 +1,10 @@
+pluginManagement {
+    repositories {
+        maven { url 'https://cache-redirector.jetbrains.com/plugins.gradle.org/m2' }
+        gradlePluginPortal() // Public Gradle plugin portal
+    }
+}
+
 rootProject.name = 'xodus'
 
 include 'utils',
