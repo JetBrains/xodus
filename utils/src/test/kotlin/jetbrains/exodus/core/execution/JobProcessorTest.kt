@@ -29,7 +29,10 @@ open class JobProcessorTest {
     @Before
     open fun setUp() {
         System.setProperty(JobProcessorQueueAdapter.CONCURRENT_QUEUE_PROPERTY, "false")
-        processor = createProcessor().apply { start() }
+        processor = createProcessor().apply {
+            start()
+            while (pendingJobs() > 0) Thread.yield()
+        }
     }
 
     @Test
@@ -358,6 +361,7 @@ open class JobProcessorTest {
 
     companion object {
 
+        @Volatile
         internal var count = 0
 
         internal fun sleep(ticks: Long) {
