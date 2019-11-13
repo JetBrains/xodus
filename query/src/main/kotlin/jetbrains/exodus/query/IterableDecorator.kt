@@ -19,7 +19,9 @@ import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.query.metadata.ModelMetaData
 
-class IterableDecorator(private val it: Iterable<Entity>) : NodeBase() {
+class IterableDecorator(iterable: Iterable<Entity>) : NodeBase() {
+
+    private val it = StaticTypedEntityIterable.instantiate(iterable)
 
     override fun instantiate(entityType: String, queryEngine: QueryEngine, metaData: ModelMetaData): Iterable<Entity> {
         return it
