@@ -55,7 +55,7 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
         if (entityIterable instanceof StaticTypedEntityIterable) {
             final String entityIterableType = ((StaticTypedEntityIterable) entityIterable).getEntityType();
             if (!(entityType.equals(entityIterableType)) && Utils.isTypeOf(entityIterableType, entityType,
-                queryEngine.getModelMetaData())) {
+                    queryEngine.getModelMetaData())) {
                 entityType = entityIterableType;
             }
         }
@@ -82,13 +82,13 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
                 sourceTree.replaceChild(((UnaryNode) sourceTree).getChild(), instanceTree.getClone());
                 if (isExplainOn) {
                     annotatedTree = "at " + strippedStacktrace + '\n' + sourceTree.getClass().getSimpleName() +
-                        ("\n" + (instanceTreeIt.annotatedTree != null ? instanceTreeIt.annotatedTree : instanceTree)).replace("\n", '\n' + NodeBase.TREE_LEVEL_INDENT);
+                            ("\n" + (instanceTreeIt.annotatedTree != null ? instanceTreeIt.annotatedTree : instanceTree)).replace("\n", '\n' + NodeBase.TREE_LEVEL_INDENT);
                 }
             } else {
                 sourceTree = instanceTree instanceof GetAll ? queryTree : new And(instanceTree.getClone(), queryTree);
                 if (isExplainOn && !(instanceTree instanceof GetAll)) {
                     annotatedTree = "at " + strippedStacktrace + "\nAnd" +
-                        ("\n" + (instanceTreeIt.annotatedTree != null ? instanceTreeIt.annotatedTree : instanceTree) + '\n' + annotatedTree).replace("\n", '\n' + NodeBase.TREE_LEVEL_INDENT);
+                            ("\n" + (instanceTreeIt.annotatedTree != null ? instanceTreeIt.annotatedTree : instanceTree) + '\n' + annotatedTree).replace("\n", '\n' + NodeBase.TREE_LEVEL_INDENT);
                 }
             }
             instance = instanceTreeIt.instance;
@@ -163,8 +163,8 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
         final ModelMetaData mmd = queryEngine.getModelMetaData();
         @Nullable final EntityMetaData emd = mmd == null ? null : mmd.getEntityMetaData(entityType);
         Iterable<Entity> result = (emd != null && emd.isAbstract()) ?
-            EntityIterableBase.EMPTY :
-            ast.getClone().instantiate(entityType, queryEngine, mmd);
+                EntityIterableBase.EMPTY :
+                ast.getClone().instantiate(entityType, queryEngine, mmd);
         if (!(emd == null || ast.polymorphic())) {
             for (String subType : emd.getSubTypes()) {
                 if (Utils.getUnionSubtypes()) {
@@ -193,7 +193,7 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
                 }
                 root.cleanSorts(sorts);
                 optimizedTree = root.getChild();
-                if (sorts.canBeCached()) {
+                if (sorts.canBeCached() && optimizedTree.canBeCached()) {
                     OptimizedTreesCache.get().cacheOptimized(sourceTree, optimizedTree, sorts);
                 }
                 final long delta = System.currentTimeMillis() - start;
