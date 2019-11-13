@@ -39,11 +39,6 @@ public class SortByLinkProperty extends Sort {
     }
 
     @Override
-    public boolean canBeCached() {
-        return true;
-    }
-
-    @Override
     public boolean equalAsSort(Object o) {
         if (!(o instanceof SortByLinkProperty)) {
             return false;

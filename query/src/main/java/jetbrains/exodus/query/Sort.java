@@ -34,8 +34,6 @@ public abstract class Sort extends UnaryNode {
         return ascending;
     }
 
-    public abstract boolean canBeCached();
-
     @Override
     public void optimize(Sorts sorts, OptimizationPlan rules) {
         sorts.addSort(this);

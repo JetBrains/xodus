@@ -105,6 +105,13 @@ public abstract class NodeBase {
         }
     }
 
+    boolean canBeCached() {
+        for (final NodeBase descendant : getDescendants()) {
+            if (descendant != this && !descendant.canBeCached()) return false;
+        }
+        return true;
+    }
+
     boolean replaceIfMatches(OptimizationRule rule) {
         NodeBase.MatchContext ctx = new NodeBase.MatchContext();
         if (!(match(rule.getSource(), ctx))) {

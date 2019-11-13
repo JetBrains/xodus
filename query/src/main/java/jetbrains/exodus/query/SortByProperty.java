@@ -35,11 +35,6 @@ public class SortByProperty extends Sort {
     }
 
     @Override
-    public boolean canBeCached() {
-        return true;
-    }
-
-    @Override
     public boolean equalAsSort(Object o) {
         if (!(o instanceof SortByProperty)) {
             return false;

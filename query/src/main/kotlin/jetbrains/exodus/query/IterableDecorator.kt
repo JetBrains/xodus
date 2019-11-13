@@ -49,4 +49,6 @@ class IterableDecorator(iterable: Iterable<Entity>) : NodeBase() {
     }
 
     override fun getSimpleName() = "id"
+
+    override fun canBeCached() = false
 }
