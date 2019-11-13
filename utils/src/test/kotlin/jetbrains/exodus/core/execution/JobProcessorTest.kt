@@ -162,17 +162,18 @@ open class JobProcessorTest {
         count = 0
         val job = AcquiringLatchJob(processor)
         IncrementJob(processor, 1)
-        SleepJob(processor, 300)
+        SleepJob(processor, 500)
         IncrementJob(processor, 2, Priority.above_normal)
-        SleepJob(processor, 300, Priority.above_normal)
+        SleepJob(processor, 500, Priority.above_normal)
         IncrementJob(processor, 3, Priority.highest)
-        SleepJob(processor, 300, Priority.highest)
+        SleepJob(processor, 500, Priority.highest)
         job.release()
-        sleep(200)
+        Thread.yield()
+        sleep(250)
         Assert.assertEquals(3, count)
-        sleep(300)
+        sleep(500)
         Assert.assertEquals(5, count)
-        sleep(300)
+        sleep(500)
         Assert.assertEquals(6, count)
     }
 
@@ -274,7 +275,7 @@ open class JobProcessorTest {
         }
 
         override fun execute() {
-            println("SleepJob")
+            println("SleepJob($ticks)")
             sleep(ticks)
         }
     }
@@ -288,7 +289,7 @@ open class JobProcessorTest {
         override fun execute() {
             val before = System.nanoTime()
             count += increment
-            println("Increment executed in: " + (System.nanoTime() - before) + "ns.")
+            println("Increment($increment) executed in: ${(System.nanoTime() - before)} ns.")
         }
     }
 
