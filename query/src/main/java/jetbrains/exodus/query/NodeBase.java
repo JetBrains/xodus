@@ -106,8 +106,8 @@ public abstract class NodeBase {
     }
 
     boolean canBeCached() {
-        for (final NodeBase descendant : getDescendants()) {
-            if (descendant != this && !descendant.canBeCached()) return false;
+        for (final NodeBase child : getChildren()) {
+            if (child != this && !child.canBeCached()) return false;
         }
         return true;
     }
