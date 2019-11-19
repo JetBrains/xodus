@@ -24,7 +24,16 @@ class IterableDecorator(iterable: Iterable<Entity>) : NodeBase() {
     private val it = StaticTypedEntityIterable.instantiate(iterable)
 
     override fun instantiate(entityType: String, queryEngine: QueryEngine, metaData: ModelMetaData): Iterable<Entity> {
-        return it
+        val entityStore = queryEngine.persistentStore
+        val txn = entityStore.andCheckCurrentTransaction
+        if (it is EntityIterableBase) {
+            return queryEngine.wrap(it.source.intersect(txn.getAll(entityType)))
+        }
+        val typeId = entityStore.getEntityTypeId(txn, entityType, false)
+        if (it is List<*>) {
+            return it.filter { entity -> entity.id.typeId == typeId }
+        }
+        return it.asSequence().filter { entity -> entity.id.typeId == typeId }.asIterable()
     }
 
     override fun getClone() = IterableDecorator(it)
