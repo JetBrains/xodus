@@ -17,12 +17,10 @@ package jetbrains.exodus.entitystore.iterate.binop
 
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.EntityIterableType
-import jetbrains.exodus.entitystore.EntityIterator
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.iterate.EntityIteratorFixingDecorator
 import jetbrains.exodus.entitystore.iterate.NonDisposableEntityIterator
-import java.util.*
 
 class UnionIterable(txn: PersistentStoreTransaction?,
                     iterable1: EntityIterableBase,
@@ -116,42 +114,6 @@ class UnionIterable(txn: PersistentStoreTransaction?,
             EntityIterableBase.registerType(EntityIterableType.UNION) { txn, _, parameters ->
                 UnionIterable(txn,
                         parameters[0] as EntityIterableBase, parameters[1] as EntityIterableBase)
-            }
-        }
-
-        private fun toEntityIdIterator(it: EntityIterator): Iterator<EntityId?> {
-            return object : Iterator<EntityId?> {
-
-                override fun hasNext() = it.hasNext()
-
-                override fun next() = it.nextId()
-            }
-        }
-
-        private fun toSortedEntityIdIterator(it: EntityIterator): Iterator<EntityId?> {
-            var array = arrayOfNulls<EntityId>(8)
-            var size = 0
-            while (it.hasNext()) {
-                if (size == array.size) {
-                    array = array.copyOf(size * 2)
-                }
-                array[size++] = it.nextId()
-            }
-            if (size > 1) {
-                Arrays.sort(array, 0, size) { o1, o2 ->
-                    when {
-                        o1 == null -> 1
-                        o2 == null -> -1
-                        else -> o1.compareTo(o2)
-                    }
-                }
-            }
-            return object : Iterator<EntityId?> {
-                var i = 0
-
-                override fun hasNext() = i < size
-
-                override fun next() = array[i++]
             }
         }
     }
