@@ -115,7 +115,7 @@ class IntersectionIterable @JvmOverloads constructor(txn: PersistentStoreTransac
 
     private class UnsortedIterator constructor(iterable: EntityIterableBase,
                                                private val txn: PersistentStoreTransaction,
-                                               private var iterable1: EntityIterableBase,
+                                               private val iterable1: EntityIterableBase,
                                                iterable2: EntityIterableBase) : NonDisposableEntityIterator(iterable) {
         private val iterator2 = iterable2.iterator() as EntityIteratorBase
         private var entityIdSet: EntityIdSet? = null
