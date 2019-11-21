@@ -180,8 +180,9 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
 
     public void optimize() {
         if (optimizedTree == null) {
-            OptimizedTreesCache.OptimizedTreeAndSorts optimized = OptimizedTreesCache.get().findOptimized(sourceTree);
-            if (optimized != null) {
+            final boolean sourceCanBeCached = sourceTree.canBeCached();
+            OptimizedTreesCache.OptimizedTreeAndSorts optimized;
+            if (sourceCanBeCached && (optimized = OptimizedTreesCache.get().findOptimized(sourceTree)) != null) {
                 optimizedTree = optimized.getOptimizedTree();
                 sorts = optimized.getSorts();
             } else {
@@ -193,7 +194,7 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
                 }
                 root.cleanSorts(sorts);
                 optimizedTree = root.getChild();
-                if (sorts.canBeCached() && optimizedTree.canBeCached()) {
+                if (sourceCanBeCached && sorts.canBeCached()) {
                     OptimizedTreesCache.get().cacheOptimized(sourceTree, optimizedTree, sorts);
                 }
                 final long delta = System.currentTimeMillis() - start;

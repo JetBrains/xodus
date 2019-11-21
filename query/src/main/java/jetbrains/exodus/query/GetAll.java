@@ -20,8 +20,6 @@ import jetbrains.exodus.core.dataStructures.NanoSet;
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 
-import java.util.Collection;
-
 public class GetAll extends NodeBase {
 
     @Override
@@ -38,11 +36,6 @@ public class GetAll extends NodeBase {
     @Override
     public NodeBase replaceChild(NodeBase child, NodeBase newChild) {
         throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Collection<NodeBase> getChildren() {
-        return NodeBase.NO_CHILDREN;
     }
 
     @Override
