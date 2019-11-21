@@ -24,7 +24,7 @@ import jetbrains.exodus.entitystore.iterate.*
 class IntersectionIterable @JvmOverloads constructor(txn: PersistentStoreTransaction?,
                                                      iterable1: EntityIterableBase,
                                                      iterable2: EntityIterableBase,
-                                                     preserveRightOrder: Boolean = false) : BinaryOperatorEntityIterable(txn, iterable1, iterable2, !preserveRightOrder) {
+                                                     private val preserveRightOrder: Boolean = false) : BinaryOperatorEntityIterable(txn, iterable1, iterable2, !preserveRightOrder) {
 
     init {
         if (preserveRightOrder) {
@@ -40,11 +40,24 @@ class IntersectionIterable @JvmOverloads constructor(txn: PersistentStoreTransac
     override fun getIterableType() = EntityIterableType.INTERSECT
 
     override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase {
-        return EntityIteratorFixingDecorator(this,
-                if (isSortedById)
-                    SortedIterator(this, iterable1, iterable2) else
-                    UnsortedIterator(this, txn, iterable1, iterable2)
-        )
+        val it =
+                if (preserveRightOrder) {
+                    if (iterable1.isSortedById && iterable2.isSortedById)
+                        SortedIterator(this, iterable1, iterable2) else
+                        UnsortedIterator(this, txn, iterable1, iterable2)
+                } else {
+                    // both are or are not sorted
+                    if (iterable1.isSortedById == iterable2.isSortedById)
+                        SortedIterator(this, iterable1, iterable2) else {
+                        if (iterable2.isSortedById)
+                        // iterable2 is sorted by id
+                            UnsortedIterator(this, txn, iterable1, iterable2) else
+                        // iterable1 is sorted by id
+                            UnsortedIterator(this, txn, iterable2, iterable1)
+
+                    }
+                }
+        return EntityIteratorFixingDecorator(this, it)
     }
 
     override fun countImpl(txn: PersistentStoreTransaction) = if (isEmptyFast(txn)) 0 else super.countImpl(txn)
