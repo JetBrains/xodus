@@ -24,8 +24,10 @@ class IterableDecorator(iterable: Iterable<Entity>) : NodeBase() {
     private val it = StaticTypedEntityIterable.instantiate(iterable)
 
     override fun instantiate(entityType: String, queryEngine: QueryEngine, metaData: ModelMetaData): Iterable<Entity> {
-        if (metaData.getEntityMetaData(entityType)?.hasSubTypes() != true) {
-            return it
+        metaData.getEntityMetaData(entityType)?.let { emd ->
+            if (!emd.hasSubTypes() && emd.superType == null) {
+                return it
+            }
         }
         val entityStore = queryEngine.persistentStore
         val txn = entityStore.andCheckCurrentTransaction
