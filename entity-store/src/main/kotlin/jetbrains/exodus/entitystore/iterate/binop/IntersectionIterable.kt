@@ -24,40 +24,41 @@ import jetbrains.exodus.entitystore.iterate.*
 class IntersectionIterable @JvmOverloads constructor(txn: PersistentStoreTransaction?,
                                                      iterable1: EntityIterableBase,
                                                      iterable2: EntityIterableBase,
-                                                     private val preserveRightOrder: Boolean = false) : BinaryOperatorEntityIterable(txn, iterable1, iterable2, !preserveRightOrder) {
+                                                     preserveRightOrder: Boolean = false) : BinaryOperatorEntityIterable(txn, iterable1, iterable2, !preserveRightOrder) {
 
     init {
         if (preserveRightOrder) {
-            if (iterable2.isSortedById) {
+            if (this.iterable2.isSortedById) {
                 depth += SORTED_BY_ID_FLAG
             }
         } else {
-            // IntersectionIterable is always sorted by id if preserving right order is not necessary
-            depth += SORTED_BY_ID_FLAG
+            if (iterable1.isSortedById || iterable2.isSortedById) {
+                depth += SORTED_BY_ID_FLAG
+            }
         }
     }
 
     override fun getIterableType() = EntityIterableType.INTERSECT
 
     override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase {
-        val it =
-                if (preserveRightOrder) {
-                    if (iterable1.isSortedById && iterable2.isSortedById)
-                        SortedIterator(this, iterable1, iterable2) else
-                        UnsortedIterator(this, txn, iterable1, iterable2)
-                } else {
-                    // both are or are not sorted
-                    if (iterable1.isSortedById == iterable2.isSortedById)
-                        SortedIterator(this, iterable1, iterable2) else {
-                        if (iterable2.isSortedById)
-                        // iterable2 is sorted by id
-                            UnsortedIterator(this, txn, iterable1, iterable2) else
-                        // iterable1 is sorted by id
-                            UnsortedIterator(this, txn, iterable2, iterable1)
-
-                    }
-                }
-        return EntityIteratorFixingDecorator(this, it)
+        val iterable1 = this.iterable1
+        val iterable2 = this.iterable2
+        val iterator: EntityIteratorBase
+        if (isSortedById) {
+            if (iterable1.isSortedById) {
+                iterator = if (iterable2.isSortedById)
+                    SortedIterator(this, iterable1, iterable2)
+                else
+                    UnsortedIterator(this, txn, iterable2, iterable1)
+            } else {
+                // iterable2 is sorted for sure
+                iterator = UnsortedIterator(this, txn, iterable1, iterable2)
+            }
+        } else {
+            // both unsorted or order preservation needed
+            iterator = UnsortedIterator(this, txn, iterable1, iterable2)
+        }
+        return EntityIteratorFixingDecorator(this, iterator)
     }
 
     override fun countImpl(txn: PersistentStoreTransaction) = if (isEmptyFast(txn)) 0 else super.countImpl(txn)
@@ -74,12 +75,8 @@ class IntersectionIterable @JvmOverloads constructor(txn: PersistentStoreTransac
                                              iterable1: EntityIterableBase,
                                              iterable2: EntityIterableBase) : NonDisposableEntityIterator(iterable) {
 
-        private var iterator1: Iterator<EntityId?> = iterable1.iterator().let {
-            if (iterable1.isSortedById) toEntityIdIterator(it) else toSortedEntityIdIterator(it)
-        }
-        private var iterator2: Iterator<EntityId?> = iterable2.iterator().let {
-            if (iterable2.isSortedById) toEntityIdIterator(it) else toSortedEntityIdIterator(it)
-        }
+        private val iterator1 = iterable1.iterator() as EntityIteratorBase
+        private val iterator2 = iterable2.iterator() as EntityIteratorBase
         private var nextId: EntityId? = null
 
         override fun hasNextImpl(): Boolean {
@@ -95,13 +92,13 @@ class IntersectionIterable @JvmOverloads constructor(txn: PersistentStoreTransac
                         if (!iterator1.hasNext()) {
                             break
                         }
-                        e1 = iterator1.next()
+                        e1 = iterator1.nextId()
                     }
                     if (e2 == null) {
                         if (!iterator2.hasNext()) {
                             break
                         }
-                        e2 = iterator2.next()
+                        e2 = iterator2.nextId()
                     }
                     // check if single id is null, not both
                     if (e1 !== e2 && (e1 == null || e2 == null)) {
