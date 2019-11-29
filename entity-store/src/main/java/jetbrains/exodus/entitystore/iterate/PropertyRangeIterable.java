@@ -70,6 +70,11 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
     }
 
     @Override
+    public boolean canBeReordered() {
+        return true;
+    }
+
+    @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
         final EntityIterableBase it = getPropertyValueIndex();
