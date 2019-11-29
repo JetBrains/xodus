@@ -100,7 +100,6 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
         EntityIterableBase found = (EntityIterableBase) txn.find("Issue", "name", "Test issue #1", "Test issue #2 ");
         Assert.assertEquals(20, (int) found.size());
         assertFalse(found.isSortedById());
-        assertFalse(found.canBeReordered());
         Assert.assertEquals(20, (int) txn.getAll("Issue").intersect(txn.find("Issue", "name", "Test issue #1", "Test issue #2 ")).size());
     }
 
