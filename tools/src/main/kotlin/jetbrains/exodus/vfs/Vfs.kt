@@ -15,7 +15,9 @@
  */
 package jetbrains.exodus.vfs
 
+import jetbrains.exodus.ExodusException
 import jetbrains.exodus.env.Environments
+import jetbrains.exodus.env.StoreConfig
 import java.nio.file.Paths
 import kotlin.system.exitProcess
 
@@ -46,10 +48,16 @@ fun main(args: Array<String>) {
     }
     if (!hasOptions || envPath == null || targetDirectory == null) {
         printUsage()
+        return
     }
-    val vfs = VirtualFileSystem(Environments.newInstance(envPath!!))
+    val env = Environments.newInstance(envPath)
+    val vfs = try {
+        VirtualFileSystem(env)
+    } catch (e: ExodusException) {
+        VirtualFileSystem(env, VfsConfig.DEFAULT, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING)
+    }
     vfs.environment.executeInReadonlyTransaction { txn ->
-        vfs.dump(txn, Paths.get(targetDirectory!!))
+        vfs.dump(txn, Paths.get(targetDirectory))
     }
     vfs.shutdown()
 }
