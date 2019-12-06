@@ -27,12 +27,13 @@ fun main(args: Array<String>) {
     }
     var envPath: String? = null
     var targetDirectory: String? = null
-    var hasOptions = false
+    var dOption = false
+    var duOption = false
     for (arg in args) {
         if (arg.startsWith('-')) {
             when (arg.toLowerCase().substring(1)) {
-                "d" -> hasOptions = true
-
+                "d" -> dOption = true
+                "du" -> duOption = true
                 else -> {
                     printUsage()
                 }
@@ -46,10 +47,18 @@ fun main(args: Array<String>) {
             }
         }
     }
-    if (!hasOptions || envPath == null || targetDirectory == null) {
-        printUsage()
+    if (dOption && envPath != null && targetDirectory != null) {
+        dump(envPath, targetDirectory)
         return
     }
+    if (duOption && envPath != null) {
+        diskUsage(envPath)
+        return
+    }
+    printUsage()
+}
+
+private fun dump(envPath: String, targetDirectory: String) {
     val env = Environments.newInstance(envPath)
     val vfs = try {
         VirtualFileSystem(env)
@@ -62,9 +71,23 @@ fun main(args: Array<String>) {
     vfs.shutdown()
 }
 
-internal fun printUsage() {
-    println("Usage: Vfs [-options] <environment path> <target directory>")
+private fun diskUsage(envPath: String) {
+    val env = Environments.newInstance(envPath)
+    val vfs = try {
+        VirtualFileSystem(env)
+    } catch (e: ExodusException) {
+        VirtualFileSystem(env, VfsConfig.DEFAULT, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING)
+    }
+    vfs.environment.executeInReadonlyTransaction { txn ->
+        println("Disk usage: ${vfs.diskUsage(txn)} bytes.")
+    }
+    vfs.shutdown()
+}
+
+private fun printUsage() {
+    println("Usage: Vfs [-options] <environment path> [target directory]")
     println("Options:")
-    println("  -d              dump Virtual File System in specified environment to specified directory")
+    println("  -d              dump Virtual File System in specified environment to target directory")
+    println("  -du             print disk usage of the Virtual File System in specified environment")
     exitProcess(1)
 }

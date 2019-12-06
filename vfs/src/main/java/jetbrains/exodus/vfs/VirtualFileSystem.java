@@ -406,6 +406,20 @@ public class VirtualFileSystem {
     }
 
     /**
+     * Returns total size of all the files in the filesystem.
+     *
+     * @param txn {@linkplain Transaction} instance
+     * @return total size of all the files in the filesystem
+     */
+    public long diskUsage(@NotNull final Transaction txn) {
+        long result = 0;
+        for (File file : getFiles(txn)) {
+            result += getFileLength(txn, file);
+        }
+        return result;
+    }
+
+    /**
      * Returns {@linkplain InputStream} to read contents of the specified file from the beginning.
      *
      * @param txn  {@linkplain Transaction} instance
