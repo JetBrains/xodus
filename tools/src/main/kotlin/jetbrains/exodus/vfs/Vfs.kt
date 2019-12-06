@@ -18,6 +18,7 @@ package jetbrains.exodus.vfs
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.env.Environments
 import jetbrains.exodus.env.StoreConfig
+import jetbrains.exodus.env.Transaction
 import java.nio.file.Paths
 import kotlin.system.exitProcess
 
@@ -59,28 +60,25 @@ fun main(args: Array<String>) {
 }
 
 private fun dump(envPath: String, targetDirectory: String) {
-    val env = Environments.newInstance(envPath)
-    val vfs = try {
-        VirtualFileSystem(env)
-    } catch (e: ExodusException) {
-        VirtualFileSystem(env, VfsConfig.DEFAULT, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING)
+    openVfsAndExecuteInReadonlyTxn(envPath) { txn ->
+        dump(txn, Paths.get(targetDirectory))
     }
-    vfs.environment.executeInReadonlyTransaction { txn ->
-        vfs.dump(txn, Paths.get(targetDirectory))
-    }
-    vfs.shutdown()
 }
 
 private fun diskUsage(envPath: String) {
+    openVfsAndExecuteInReadonlyTxn(envPath) { txn ->
+        println("Disk usage: ${diskUsage(txn)} bytes.")
+    }
+}
+
+private fun openVfsAndExecuteInReadonlyTxn(envPath: String, action: VirtualFileSystem.(Transaction) -> Unit) {
     val env = Environments.newInstance(envPath)
     val vfs = try {
         VirtualFileSystem(env)
     } catch (e: ExodusException) {
         VirtualFileSystem(env, VfsConfig.DEFAULT, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING)
     }
-    vfs.environment.executeInReadonlyTransaction { txn ->
-        println("Disk usage: ${vfs.diskUsage(txn)} bytes.")
-    }
+    env.executeInReadonlyTransaction { txn -> vfs.action(txn) }
     vfs.shutdown()
 }
 
