@@ -1936,7 +1936,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @Override
     public void close() {
-        logger.info("Closing...");
+        if(logger.isDebugEnabled()) {
+            logger.debug("Closing...");
+        }
         config.removeChangedSettingsListener(entityStoreSettingsListener);
         if (configMBean != null) {
             configMBean.unregister();
@@ -1954,7 +1956,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
             }
             iterableCache.clear();
-            logger.info("Closed successfully.");
+            if(logger.isDebugEnabled()) {
+                logger.debug("Closed successfully.");
+            }
         } catch (Exception e) {
             logger.error("close() failed", e);
             throw ExodusException.toExodusException(e);
