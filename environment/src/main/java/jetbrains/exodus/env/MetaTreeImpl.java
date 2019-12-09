@@ -92,7 +92,7 @@ final class MetaTreeImpl implements MetaTree {
             throw new InvalidCipherParametersException();
         }
         // no roots found: the database is empty
-        EnvironmentImpl.loggerInfo("No roots found: the database is empty");
+        EnvironmentImpl.loggerDebug("No roots found: the database is empty");
         logTip = log.setHighAddress(logTip, 0);
         final ITree resultTree = getEmptyMetaTree(env);
         final long root;

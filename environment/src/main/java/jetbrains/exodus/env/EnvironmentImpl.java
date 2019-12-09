@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2019 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -429,8 +429,8 @@ public class EnvironmentImpl implements Environment {
             throwableOnClose = new EnvironmentClosedException();
             throwableOnCommit = throwableOnClose;
         }
-        loggerInfo("Store get cache hit rate: " + ObjectCacheBase.formatHitRate(storeGetCacheHitRate));
-        loggerInfo("Exodus log cache hit rate: " + ObjectCacheBase.formatHitRate(logCacheHitRate));
+        loggerDebug("Store get cache hit rate: " + ObjectCacheBase.formatHitRate(storeGetCacheHitRate));
+        loggerDebug("Exodus log cache hit rate: " + ObjectCacheBase.formatHitRate(logCacheHitRate));
     }
 
     @Override
@@ -928,6 +928,20 @@ public class EnvironmentImpl implements Environment {
         }
     }
 
+    static void loggerDebug(@NotNull final String message) {
+        loggerDebug(message, null);
+    }
+
+    static void loggerDebug(@NotNull final String message, @Nullable final Throwable t) {
+        if (logger.isDebugEnabled()) {
+            if (t == null) {
+                logger.debug(message);
+            } else {
+                logger.debug(message, t);
+            }
+        }
+    }
+
     private void runAllTransactionSafeTasks() {
         if (throwableOnCommit == null) {
             synchronized (txnSafeTasks) {
@@ -972,7 +986,7 @@ public class EnvironmentImpl implements Environment {
             String stacksUnavailable = "Transactions stack traces are not available, " +
                 "set \'" + EnvironmentConfig.ENV_MONITOR_TXNS_TIMEOUT + " > 0\'";
             if (debug) {
-                logger.debug(stacksUnavailable);
+                loggerDebug(stacksUnavailable);
             } else {
                 loggerError(stacksUnavailable);
             }
@@ -982,7 +996,7 @@ public class EnvironmentImpl implements Environment {
                 public void execute(@NotNull final Transaction txn) {
                     final Throwable trace = ((TransactionBase) txn).getTrace();
                     if (debug) {
-                        logger.debug("Alive transaction: ", trace);
+                        loggerDebug("Alive transaction: ", trace);
                     } else {
                         loggerError("Alive transaction: ", trace);
                     }
