@@ -21,6 +21,7 @@ import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Pair;
+import jetbrains.exodus.core.execution.SharedTimer;
 import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.entitystore.MetaServer;
 import jetbrains.exodus.env.management.EnvironmentConfigWithOperations;
@@ -960,7 +961,11 @@ public class EnvironmentImpl implements Environment {
     }
 
     private void checkInactive(boolean exceptionSafe) {
-        final int txnCount = txns.size();
+        int txnCount = txns.size();
+        if (!exceptionSafe && txnCount > 0) {
+            SharedTimer.ensureIdle();
+            txnCount = txns.size();
+        }
         if (txnCount > 0) {
             final String errorString = "Environment[" + getLocation() + "] is active: " + txnCount + " transaction(s) not finished";
             if (!exceptionSafe) {
