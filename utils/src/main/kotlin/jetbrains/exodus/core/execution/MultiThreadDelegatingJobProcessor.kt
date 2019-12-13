@@ -105,7 +105,7 @@ abstract class MultiThreadDelegatingJobProcessor
     private inner class WatchDog(private val jobTimeout: Long) : SharedTimer.ExpirablePeriodicTask {
 
         override val isExpired: Boolean
-            get() = isExpired
+            get() = isFinished
 
         override fun run() {
             val currentTime = System.currentTimeMillis()
