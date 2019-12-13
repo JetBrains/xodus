@@ -147,7 +147,7 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
         }
     }
 
-    private class SubIterable extends ByteIterableBase {
+    private class SubIterable extends ByteIterableBase implements ByteIterableWithOffset {
 
         private int offset;
 
@@ -167,13 +167,18 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
         }
 
         @Override
-        public ByteIterator iterator() {
-            return getIterator();
+        public ByteIterable getSource() {
+            return ArrayByteIterableWithAddress.this;
         }
 
         @Override
-        public ByteIterable getSource() {
-            return ArrayByteIterableWithAddress.this;
+        public int getOffset() {
+            return offset;
+        }
+
+        @Override
+        public ByteIterator iterator() {
+            return getIterator();
         }
 
         @Override
