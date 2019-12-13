@@ -99,6 +99,10 @@ public abstract class ByteIterableBase implements ByteIterable {
         return length == 0 ? EMPTY : new FixedLengthByteIterable(this, offset, length);
     }
 
+    public ByteIterable getSource() {
+        return this;
+    }
+
     protected abstract ByteIterator getIterator();
 
     protected void fillBytes() {
