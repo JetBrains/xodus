@@ -369,10 +369,11 @@ class Reflect(directory: File) {
         Environments.newInstance(there, env.environmentConfig).use { newEnv ->
             println("Copying environment to " + newEnv.location)
             val names = env.computeInReadonlyTransaction { txn -> env.getAllStoreNames(txn) }
-            val size = names.size
-            println("Stores found: $size")
+            val storesCount = names.size
+            println("Stores found: $storesCount")
             names.forEachIndexed { i, name ->
-                print("Copying store $name (${i + 1} of $size)")
+                val started = Date()
+                print(copyStoreMessage(started, name, i + 1, storesCount, 0))
                 var config: StoreConfig
                 var storeSize = 0L
                 var storeIsBroken: Throwable? = null
@@ -386,9 +387,10 @@ class Reflect(directory: File) {
                                 storeSize = sourceStore.count(sourceTxn)
                                 sourceStore.openCursor(sourceTxn).forEachIndexed {
                                     targetStore.putRight(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))
-                                    if ((it + 1) % 10_000_000 == 0 || guard.isItCloseToOOM()) {
+                                    if ((it + 1) % 100_000 == 0 || guard.isItCloseToOOM()) {
                                         targetTxn.flush()
                                         guard.reset()
+                                        print(copyStoreMessage(started, name, i + 1, storesCount, it * 100 / storeSize))
                                     }
                                 }
                             }
@@ -441,9 +443,13 @@ class Reflect(directory: File) {
                     } else 0L
 
                 }
-                println(". Saved store size = $storeSize, actual number of pairs = $actualSize")
+                println("\r$started Copying store $name (${i + 1} of $storesCount): saved store size = $storeSize, actual number of pairs = $actualSize")
             }
         }
+    }
+
+    fun copyStoreMessage(started: Date, name: String, n: Int, totalCount: Int, percent: Long): String {
+        return "\r$started Copying store $name ($n of $totalCount): $percent%"
     }
 
     fun spaceInfoFromUtilization() {
