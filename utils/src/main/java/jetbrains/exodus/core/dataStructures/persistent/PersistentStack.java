@@ -17,9 +17,10 @@ package jetbrains.exodus.core.dataStructures.persistent;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-public class PersistentStack<T> {
+public class PersistentStack<T> implements Iterable<T> {
 
     @SuppressWarnings({"RawUseOfParameterizedType"})
     public static final PersistentStack EMPTY_STACK = new PersistentStack();
@@ -97,5 +98,30 @@ public class PersistentStack<T> {
             return false;
         }
         return element.equals(stack.element) && next.equals(stack.next);
+    }
+
+    @NotNull
+    @Override
+    public Iterator<T> iterator() {
+        final PersistentStack[] current = {this};
+        return new Iterator<T>() {
+
+            @Override
+            public boolean hasNext() {
+                return !current[0].isEmpty();
+            }
+
+            @Override
+            public T next() {
+                @SuppressWarnings("unchecked") final T result = (T) current[0].element;
+                current[0] = current[0].next;
+                return result;
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException("remove");
+            }
+        };
     }
 }
