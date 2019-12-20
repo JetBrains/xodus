@@ -39,11 +39,21 @@ public class FixedLengthByteIterable extends ByteIterableBase {
     public byte[] getBytesUnsafe() {
         if (bytes == null) {
             final int length = this.length;
-            final byte[] bytes = new byte[length];
-            final ByteIterator it = source.iterator();
-            it.skip(offset);
-            for (int i = 0; it.hasNext() && i < length; ++i) {
-                bytes[i] = it.next();
+            byte[] bytes = null;
+            if (source instanceof ByteIterableBase) {
+                final ByteIterableBase s = (ByteIterableBase) source;
+                if (s.bytes != null) {
+                    bytes = new byte[length];
+                    System.arraycopy(s.bytes, offset, bytes, 0, length);
+                }
+            }
+            if (bytes == null) {
+                bytes = new byte[length];
+                final ByteIterator it = source.iterator();
+                it.skip(offset);
+                for (int i = 0; it.hasNext() && i < length; ++i) {
+                    bytes[i] = it.next();
+                }
             }
             this.bytes = bytes;
         }
