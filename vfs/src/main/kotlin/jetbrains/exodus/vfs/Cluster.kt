@@ -18,10 +18,12 @@ package jetbrains.exodus.vfs
 import jetbrains.exodus.*
 import jetbrains.exodus.ByteIterator
 import jetbrains.exodus.bindings.IntegerBinding
+import jetbrains.exodus.log.BlockByteIterator
 import jetbrains.exodus.util.LightOutputStream
 import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
+import java.lang.Math.min
 
 internal class Cluster(private val it: ByteIterable) : Iterator<Byte> {
 
@@ -35,6 +37,19 @@ internal class Cluster(private val it: ByteIterable) : Iterator<Byte> {
     override fun hasNext() = getSize() > 0
 
     override fun next() = getIterator().next().also { --size }
+
+    fun nextBytes(array: ByteArray, off: Int, len: Int): Int {
+        val iterator = getIterator()
+        if (iterator is BlockByteIterator) {
+            return iterator.nextBytes(array, off, len).also { readBytes -> size -= readBytes }
+        }
+        val result = min(len, size)
+        for (i in 0 until result) {
+            array[off + i] = iterator.next()
+        }
+        size -= result
+        return result
+    }
 
     fun skip(length: Long): Long {
         val size = getSize()
