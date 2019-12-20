@@ -173,27 +173,7 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
 
         @Override
         protected ByteIterator getIterator() {
-            return new ByteIterator() {
-
-                int i = offset;
-
-                @Override
-                public boolean hasNext() {
-                    return length > i - offset;
-                }
-
-                @Override
-                public byte next() {
-                    return bytes[i++];
-                }
-
-                @Override
-                public long skip(long bytes) {
-                    final int result = Math.min(length - i + offset, (int) bytes);
-                    i += result;
-                    return result;
-                }
-            };
+            return new SubIterableByteIterator();
         }
 
         @Override
@@ -207,6 +187,36 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
 
         private byte[] getRawBytes() {
             return bytes;
+        }
+
+        private class SubIterableByteIterator extends ByteIterator implements BlockByteIterator {
+
+            int i = offset;
+
+            @Override
+            public boolean hasNext() {
+                return length > i - offset;
+            }
+
+            @Override
+            public byte next() {
+                return bytes[i++];
+            }
+
+            @Override
+            public long skip(long bytes) {
+                final int result = Math.min(length - i + offset, (int) bytes);
+                i += result;
+                return result;
+            }
+
+            @Override
+            public int nextBytes(byte[] array, int off, int len) {
+                final int result = Math.min(length - i + offset, len);
+                System.arraycopy(bytes, i, array, off, result);
+                i += result;
+                return result;
+            }
         }
     }
 }
