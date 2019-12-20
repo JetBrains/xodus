@@ -19,7 +19,7 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.FixedLengthByteIterable;
 import org.jetbrains.annotations.NotNull;
 
-class LogAwareFixedLengthByteIterable extends FixedLengthByteIterable implements ByteIterableWithOffset {
+class LogAwareFixedLengthByteIterable extends FixedLengthByteIterable {
 
     LogAwareFixedLengthByteIterable(@NotNull final ByteIterableWithAddress source, final int offset, final int length) {
         super(source, offset, length);
