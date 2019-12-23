@@ -220,7 +220,6 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
     @Test
     fun multipleDocuments4() {
         multipleDocuments3()
-        txn?.flush()
         createIndexSearcher()
         var wereExceptions = false
         val threads = arrayOfNulls<Thread>(10)

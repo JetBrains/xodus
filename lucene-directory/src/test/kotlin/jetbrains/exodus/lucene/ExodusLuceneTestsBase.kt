@@ -87,8 +87,23 @@ abstract class ExodusLuceneTestsBase : EnvironmentTestsBase() {
 
     protected fun commitTransaction() {
         (txn ?: throw IllegalStateException("Not started transaction")).apply {
-            commit()
+            if (isReadonly) {
+                abort()
+            } else {
+                commit()
+            }
             txn = null
+        }
+    }
+
+    protected fun flushTransaction() {
+        (txn ?: throw IllegalStateException("Not started transaction")).apply {
+            if (isReadonly) {
+                abort()
+            } else {
+                commit()
+            }
+            txn = env.beginReadonlyTransaction()
         }
     }
 
@@ -128,6 +143,7 @@ abstract class ExodusLuceneTestsBase : EnvironmentTestsBase() {
 
     @Throws(IOException::class)
     protected fun createIndexSearcher() {
+        flushTransaction()
         indexSearcher = IndexSearcher(createIndexReader())
     }
 
