@@ -46,18 +46,14 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
     private val pendingFilesToDelete = PackedLongHashSet()
     private val deletionQueue = ConcurrentLinkedQueue<Long>()
     internal val cleaner = BackgroundCleaner(this)
-    @Volatile
-    private var newFiles = ec.gcFilesInterval + 1 // number of new files appeared after last cleaning job
     private val openStoresCache = IntHashMap<StoreImpl>()
 
     init {
         environment.log.addBlockListener(object : AbstractBlockListener() {
 
             override fun blockCreated(block: Block, reader: DataReader, writer: DataWriter) {
-                val newFiles = newFiles + 1
-                this@GarbageCollector.newFiles = newFiles
                 utilizationProfile.estimateTotalBytes()
-                if (!cleaner.isCleaning && newFiles > ec.gcFilesInterval && isTooMuchFreeSpace) {
+                if (!cleaner.isCleaning && isTooMuchFreeSpace) {
                     wake()
                 }
             }
@@ -87,7 +83,6 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         pendingFilesToDelete.clear()
         deletionQueue.clear()
         openStoresCache.clear()
-        resetNewFiles()
     }
 
     @Suppress("unused")
@@ -150,10 +145,6 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
     }
 
     internal fun isFileCleaned(file: Long) = pendingFilesToDelete.contains(file)
-
-    internal fun resetNewFiles() {
-        newFiles = 0
-    }
 
     /**
      * For tests only!!!

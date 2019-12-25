@@ -91,7 +91,6 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
                 }
             } while (canContinue() && loopStart + gcRunPeriod > System.currentTimeMillis())
         } finally {
-            gc.resetNewFiles()
             up.estimateTotalBytes()
             up.isDirty = true
             GarbageCollector.loggingInfo { "Finished background cleaner loop for ${log.location}, free space: ${up.totalFreeSpacePercent()}%" }

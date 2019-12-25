@@ -510,6 +510,8 @@ public class EnvironmentConfig extends AbstractConfig {
      * {@code Log} files.
      * <p>Mutable at runtime: yes
      */
+    @SuppressWarnings("DeprecatedIsStillUsed")
+    @Deprecated
     public static final String GC_FILES_INTERVAL = "exodus.gc.filesInterval";
 
     /**
@@ -1983,6 +1985,7 @@ public class EnvironmentConfig extends AbstractConfig {
      *
      * @return number of new .xd files that must be created to trigger the next background cleaning cycle
      */
+    @Deprecated
     public int getGcFilesInterval() {
         return (Integer) getSetting(GC_FILES_INTERVAL);
     }
@@ -1998,6 +2001,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * @return this {@code EnvironmentConfig} instance
      * @throws InvalidSettingException {@code files} is less than {@code 1}
      */
+    @Deprecated
     public EnvironmentConfig setGcFilesInterval(final int files) throws InvalidSettingException {
         if (files < 1) {
             throw new InvalidSettingException("Invalid number of files: " + files);
