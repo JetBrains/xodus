@@ -16,6 +16,7 @@
 package jetbrains.exodus.gc
 
 import jetbrains.exodus.log.Log
+import java.util.*
 
 internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
 
@@ -28,7 +29,9 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
         val gc = this.gc ?: return
         val cleaner = gc.cleaner
         if (!cleaner.isCurrentThread) {
-            reQueue(cleaner.getJobProcessor())
+            val processor = cleaner.getJobProcessor()
+            GarbageCollector.loggingInfo { "Re-queueing BackgroundCleaningJob[${gc.environment.location}] to thread[${cleaner.threadId}]" }
+            reQueue(processor)
             return
         }
 
@@ -38,7 +41,7 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
         val minTimeToInvokeCleaner = gc.startTime
         val currentTime = System.currentTimeMillis()
         if (minTimeToInvokeCleaner > currentTime) {
-            gc.wakeAt(minTimeToInvokeCleaner)
+            wakeAt(gc, minTimeToInvokeCleaner)
             return
         }
 
@@ -48,7 +51,7 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
 
         // is invoked too often?
         if (gcRunPeriod > 0 && lastInvocationTime + gcRunPeriod > currentTime) {
-            gc.wakeAt(lastInvocationTime + gcRunPeriod)
+            wakeAt(gc, lastInvocationTime + gcRunPeriod)
             return
         }
 
@@ -60,7 +63,7 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
                 doCleanLog(log, gc)
                 if (gc.isTooMuchFreeSpace) {
                     if (gcRunPeriod > 0) {
-                        gc.wakeAt(System.currentTimeMillis() + gcRunPeriod)
+                        wakeAt(gc, System.currentTimeMillis() + gcRunPeriod)
                     }
                 }
             } finally {
@@ -111,5 +114,10 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
         }
         val ec = gc.environment.environmentConfig
         return ec.isGcEnabled && !ec.envIsReadonly && gc.isTooMuchFreeSpace
+    }
+
+    private fun wakeAt(gc: GarbageCollector, time: Long) {
+        GarbageCollector.loggingInfo { "Queueing BackgroundCleaningJob[${gc.environment.location}] to wake up at [${Date(time)}]" }
+        gc.wakeAt(time)
     }
 }

@@ -24,7 +24,7 @@ internal class BackgroundCleaner(private val gc: GarbageCollector) {
 
     private val backgroundCleaningJob: BackgroundCleaningJob = BackgroundCleaningJob(gc)
     private var processor: JobProcessorAdapter
-    private var threadId: Long = 0
+    internal var threadId: Long = 0
     @Volatile
     var isSuspended: Boolean = false
         private set
