@@ -28,11 +28,29 @@ public class ByteIterableUtil {
     }
 
     public static int compare(@NotNull final byte[] key1, final int len1, @NotNull final byte[] key2, final int len2) {
-        return compare(key1, len1, 0, key2, len2, 0);
+        final int min = Math.min(len1, len2);
+
+        for (int i = 0; i < min; i++) {
+            final int cmp = (key1[i] & 0xff) - (key2[i] & 0xff);
+            if (cmp != 0) {
+                return cmp;
+            }
+        }
+
+        return len1 - len2;
     }
 
     public static int compare(@NotNull final byte[] key1, final int len1, final int offset1, @NotNull final byte[] key2, final int len2) {
-        return compare(key1, len1, offset1, key2, len2, 0);
+        final int min = Math.min(len1, len2);
+
+        for (int i = 0; i < min; i++) {
+            final int cmp = (key1[i + offset1] & 0xff) - (key2[i] & 0xff);
+            if (cmp != 0) {
+                return cmp;
+            }
+        }
+
+        return len1 - len2;
     }
 
     public static int compare(@NotNull final byte[] key1, final int len1, final int offset1,
@@ -40,10 +58,9 @@ public class ByteIterableUtil {
         final int min = Math.min(len1, len2);
 
         for (int i = 0; i < min; i++) {
-            final byte b1 = key1[i + offset1];
-            final byte b2 = key2[i + offset2];
-            if (b1 != b2) {
-                return (b1 & 0xff) - (b2 & 0xff);
+            final int cmp = (key1[i + offset1] & 0xff) - (key2[i + offset2] & 0xff);
+            if (cmp != 0) {
+                return cmp;
             }
         }
 
