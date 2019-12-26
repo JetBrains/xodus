@@ -18,7 +18,7 @@ package jetbrains.exodus.log;
 import jetbrains.exodus.ArrayByteIterable;
 import org.jetbrains.annotations.NotNull;
 
-class CompoundByteIterator extends ByteIteratorWithAddress {
+class CompoundByteIterator extends ByteIteratorWithAddress implements BlockByteIterator {
 
     @NotNull
     private ArrayByteIterable.Iterator current;
@@ -97,5 +97,22 @@ class CompoundByteIterator extends ByteIteratorWithAddress {
     @Override
     public long getAddress() {
         return currentAddress + current.getOffset() - offset;
+    }
+
+    @Override
+    public int nextBytes(byte[] array, int off, int len) {
+        if (!hasNext()) {
+            DataCorruptionException.raise(
+                "CompoundByteIterator: no more bytes available", log, getAddress());
+        }
+        int read = current.nextBytes(array, off, len);
+        if (read < len) {
+            hasNextValid = false;
+            while (read < len) {
+                array[off + read] = next();
+                ++read;
+            }
+        }
+        return read;
     }
 }

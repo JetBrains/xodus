@@ -16,6 +16,7 @@
 package jetbrains.exodus.log;
 
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.FixedLengthByteIterable;
 import org.jetbrains.annotations.NotNull;
 
@@ -33,5 +34,58 @@ class LogAwareFixedLengthByteIterable extends FixedLengthByteIterable {
     @Override
     public ByteIterableWithAddress getSource() {
         return (ByteIterableWithAddress) super.getSource();
+    }
+
+    @Override
+    protected ByteIterator getIterator() {
+        if (length == 0) {
+            return ByteIterable.EMPTY_ITERATOR;
+        }
+        final ByteIterator bi = source.iterator();
+        bi.skip(offset);
+        return new LogAwareFixedLengthByteIterator(bi, length);
+    }
+
+    private static class LogAwareFixedLengthByteIterator extends ByteIterator implements BlockByteIterator {
+
+        private final ByteIterator si;
+        private int bytesToRead;
+
+        LogAwareFixedLengthByteIterator(@NotNull final ByteIterator si, final int length) {
+            this.si = si;
+            bytesToRead = length;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return bytesToRead > 0 && si.hasNext();
+        }
+
+        @Override
+        public byte next() {
+            bytesToRead--;
+            return si.next();
+        }
+
+        @Override
+        public long skip(long bytes) {
+            long result = si.skip(Math.min(bytes, bytesToRead));
+            bytesToRead -= (int) result;
+            return result;
+        }
+
+        @Override
+        public int nextBytes(byte[] array, int off, int len) {
+            final int bytesToRead = Math.min(len, this.bytesToRead);
+            if (si instanceof BlockByteIterator) {
+                final int result = ((BlockByteIterator) si).nextBytes(array, off, bytesToRead);
+                this.bytesToRead -= result;
+                return result;
+            }
+            for (int i = 0; i < bytesToRead; ++i) {
+                array[off + i] = next();
+            }
+            return bytesToRead;
+        }
     }
 }

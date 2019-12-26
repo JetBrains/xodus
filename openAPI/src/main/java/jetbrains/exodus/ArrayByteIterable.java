@@ -162,6 +162,13 @@ public class ArrayByteIterable extends ByteIterableBase {
         public int getOffset() {
             return offset;
         }
+
+        public int nextBytes(byte[] array, int off, int len) {
+            final int copyLen = Math.min(len, length - offset);
+            System.arraycopy(bytes, offset, array, off, copyLen);
+            offset += copyLen;
+            return copyLen;
+        }
     }
 
     @SuppressWarnings({"NonConstantFieldWithUpperCaseName"})
