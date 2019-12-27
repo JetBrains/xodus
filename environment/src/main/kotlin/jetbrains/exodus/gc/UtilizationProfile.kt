@@ -174,15 +174,18 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         var prevFreeBytes: MutableLong? = null
         val set = PackedLongHashSet()
         filesUtilization.synchronized {
-            loggables.forEach { address, length ->
-                if (set.add(address)) {
-                    val fileAddress = log.getFileAddress(address)
-                    val freeBytes =
-                            (if (prevFileAddress == fileAddress) prevFreeBytes else this[fileAddress])
-                                    ?: MutableLong(0L).also { this[fileAddress] = it }
-                    freeBytes.value += length.toLong()
-                    prevFreeBytes = freeBytes
-                    prevFileAddress = fileAddress
+            var l: ExpiredLoggableCollection? = loggables
+            while (l != null) {
+                l = l.forEach { address, length ->
+                    if (set.add(address)) {
+                        val fileAddress = log.getFileAddress(address)
+                        val freeBytes =
+                                (if (prevFileAddress == fileAddress) prevFreeBytes else this[fileAddress])
+                                        ?: MutableLong(0L).also { this[fileAddress] = it }
+                        freeBytes.value += length.toLong()
+                        prevFreeBytes = freeBytes
+                        prevFileAddress = fileAddress
+                    }
                 }
             }
         }

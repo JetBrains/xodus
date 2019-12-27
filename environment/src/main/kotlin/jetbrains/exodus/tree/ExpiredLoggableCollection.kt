@@ -53,11 +53,11 @@ class ExpiredLoggableCollection(private val parent: ExpiredLoggableCollection? =
         } ?: ExpiredLoggableCollection(parent, addresses, lengths)
     }
 
-    fun forEach(action: (Long, Int) -> Unit) {
-        parent?.forEach(action)
+    fun forEach(action: (Long, Int) -> Unit): ExpiredLoggableCollection? {
         for (i in 0 until lengths.size()) {
             action(addresses[i], lengths[i])
         }
+        return parent
     }
 
     override fun toString() = "Expired $size loggables"
