@@ -148,12 +148,12 @@ open class JobProcessorTest {
 
     @Test
     fun equalJobs() {
-        SleepJob(processor, 100)
+        SleepJob(processor, 500)
         AlwaysEqualJob(processor)
         for (i in 0..9) {
             Assert.assertFalse(AlwaysEqualJob(processor).wasQueued())
         }
-        sleep(200)
+        sleep(1000)
         Assert.assertTrue(AlwaysEqualJob(processor).wasQueued())
         processor.finish()
         // do not queue after processor has finished
