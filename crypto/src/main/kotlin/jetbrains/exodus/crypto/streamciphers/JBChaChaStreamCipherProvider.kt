@@ -64,8 +64,8 @@ class JBChaChaStreamCipherProvider : StreamCipherProvider() {
         }
 
         override fun crypt(b: Byte): Byte {
-            val out = keyStream[index++] xor b
-            if (index == STATE_SIZE * 4) {
+            val out = keyStream[index] xor b
+            if (++index == STATE_SIZE * 4) {
                 index = 0
                 if (++state[12] == 0) {
                     throw IllegalStateException("Attempt to increase counter past 2^32.")
@@ -184,17 +184,25 @@ class JBChaChaStreamCipherProvider : StreamCipherProvider() {
 
         private fun updateState(bs: ByteArray, off: Int, count: Int) {
             var byteOffset = 0
-            for (i in 0 until count) {
-                state[off + i] = littleEndianToInt(bs, byteOffset)
+            var stateOffset = off
+            repeat(count) {
+                var result = 0
+                for (i in 3 downTo 0) {
+                    result = result shl 8
+                    result = result or (bs[byteOffset + i].toInt() and 0xff)
+                }
+                state[stateOffset++] = result
                 byteOffset += 4
             }
         }
 
         private fun intToKeyStream(n: Int, off: Int) {
-            keyStream[off] = n.toByte()
-            keyStream[off + 1] = n.ushr(8).toByte()
-            keyStream[off + 2] = n.ushr(16).toByte()
-            keyStream[off + 3] = n.ushr(24).toByte()
+            var shifted = n
+            var keyOffset = off
+            repeat(4) {
+                keyStream[keyOffset++] = shifted.toByte()
+                shifted = shifted shr 8
+            }
         }
 
         private companion object {
@@ -215,12 +223,6 @@ class JBChaChaStreamCipherProvider : StreamCipherProvider() {
 
             private fun rotl7(x: Int) = x shl 7 or x.ushr(25)
 
-            private fun littleEndianToInt(bs: ByteArray, off: Int): Int {
-                return (bs[off].toInt() and 0xff) or
-                        (bs[off + 1].toInt() and 0xff shl 8) or
-                        (bs[off + 2].toInt() and 0xff shl 16) or
-                        (bs[off + 3].toInt() shl 24)
-            }
         }
     }
 }
