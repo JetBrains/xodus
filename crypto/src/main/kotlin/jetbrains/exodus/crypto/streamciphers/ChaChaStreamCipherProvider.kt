@@ -22,9 +22,6 @@ import org.bouncycastle.crypto.params.ParametersWithIV
 
 const val CHACHA_CIPHER_ID = "jetbrains.exodus.crypto.streamciphers.ChaChaStreamCipherProvider"
 
-// ChaCha initialization vector is 12 bytes
-private const val CHACHA_IV_SIZE = 12
-
 /**
  * ChaCha stream cipher with 20 rounds. Respects [RFC-7539](https://tools.ietf.org/html/rfc7539 RFC-7539).
  */
@@ -47,6 +44,11 @@ class ChaChaStreamCipherProvider : KeyAwareStreamCipherProvider() {
 
         override fun crypt(b: Byte): Byte {
             return engine.returnByte(b)
+        }
+
+        private companion object {
+
+            private const val CHACHA_IV_SIZE = 12
         }
     }
 }
