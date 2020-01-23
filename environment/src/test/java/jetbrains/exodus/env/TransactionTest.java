@@ -617,7 +617,7 @@ public class TransactionTest extends EnvironmentTestsBase {
     private void testTxnExpirationTimeout(Environment env) throws InterruptedException {
         try {
             final Transaction txn = env.beginTransaction();
-            Thread.sleep(2000);
+            Thread.sleep(5000);
             Assert.assertTrue(txn.isFinished());
         } finally {
             env.close();
