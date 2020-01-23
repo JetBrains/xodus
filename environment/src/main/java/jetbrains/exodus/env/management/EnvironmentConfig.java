@@ -409,6 +409,16 @@ public class EnvironmentConfig extends MBeanBase implements EnvironmentConfigMBe
     }
 
     @Override
+    public int getGcRunEvery() {
+        return config.getGcRunEvery();
+    }
+
+    @Override
+    public void setGcRunEvery(int seconds) {
+        config.setGcRunEvery(seconds);
+    }
+
+    @Override
     public void gc() {
         env.gc();
     }

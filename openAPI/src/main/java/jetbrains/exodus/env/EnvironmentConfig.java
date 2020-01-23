@@ -588,6 +588,13 @@ public class EnvironmentConfig extends AbstractConfig {
     public static final String GC_FILES_DELETION_DELAY = "exodus.gc.filesDeletionDelay";
 
     /**
+     * If set to nonzero value, GC is forced every this number of seconds. Default value is {@code 0} which means
+     * that GC is not forced periodically.
+     * <p>Mutable at runtime: yes
+     */
+    public static final String GC_RUN_EVERY = "exodus.gc.runEvery";
+
+    /**
      * If is set to {@code true} then the {@linkplain Environment} exposes two JMX managed beans. One for
      * {@linkplain Environment#getStatistics() environment statistics} and second for controlling the
      * {@code EnvironmentConfig} settings. Default value is {@code true} for non-Android OS, under Android it is
@@ -671,6 +678,7 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(GC_UTILIZATION_FROM_SCRATCH, false),
             new Pair(GC_UTILIZATION_FROM_FILE, ""),
             new Pair(GC_FILES_DELETION_DELAY, 5000),
+            new Pair(GC_RUN_EVERY, 0),
             new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
             new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 1000),
             new Pair(GC_TRANSACTION_TIMEOUT, 500),
@@ -2216,6 +2224,26 @@ public class EnvironmentConfig extends AbstractConfig {
             throw new InvalidSettingException("Invalid GC files deletion delay: " + delay);
         }
         return setSetting(GC_FILES_DELETION_DELAY, delay);
+    }
+
+    /**
+     * GC is forced every this number of seconds. Default value is {@code 0} which means that GC is not forced periodically.
+     * <p>Mutable at runtime: yes
+     */
+    public int getGcRunEvery() {
+        return (Integer) getSetting(GC_RUN_EVERY);
+    }
+
+    /**
+     * Sets GC to be forced every this number of seconds. If the value is zero GC is not forced periodically.
+     * Default value is {@code 0}.
+     * <p>Mutable at runtime: yes
+     */
+    public EnvironmentConfig setGcRunEvery(final int seconds) {
+        if (seconds < 0) {
+            throw new InvalidSettingException("Number of seconds must be non-negative: " + seconds);
+        }
+        return setSetting(GC_RUN_EVERY, seconds);
     }
 
     /**

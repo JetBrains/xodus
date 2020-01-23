@@ -23,6 +23,7 @@ import jetbrains.exodus.core.dataStructures.hash.PackedLongHashSet
 import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.core.execution.JobProcessorAdapter
 import jetbrains.exodus.core.execution.LatchJob
+import jetbrains.exodus.core.execution.SharedTimer
 import jetbrains.exodus.env.*
 import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.DataReader
@@ -41,6 +42,8 @@ import java.util.concurrent.ConcurrentLinkedQueue
 
 class GarbageCollector(internal val environment: EnvironmentImpl) {
 
+    // the last time when background cleaning job was invoked
+    var lastInvocationTime = 0L
     private val ec: EnvironmentConfig = environment.environmentConfig
     val utilizationProfile = UtilizationProfile(environment, this)
     private val pendingFilesToDelete = PackedLongHashSet()
@@ -58,6 +61,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                 }
             }
         })
+        SharedTimer.registerPeriodicTask(PeriodicGc(this))
     }
 
     internal val maximumFreeSpacePercent: Int

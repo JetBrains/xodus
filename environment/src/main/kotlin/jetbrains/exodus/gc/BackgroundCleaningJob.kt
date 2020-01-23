@@ -20,9 +20,6 @@ import java.util.*
 
 internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
 
-    // the last time when the job was invoked
-    private var lastInvocationTime = 0L
-
     override fun getName() = "Background cleaner"
 
     override fun doJob() {
@@ -50,8 +47,8 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
         val gcRunPeriod = ec.gcRunPeriod
 
         // is invoked too often?
-        if (gcRunPeriod > 0 && lastInvocationTime + gcRunPeriod > currentTime) {
-            wakeAt(gc, lastInvocationTime + gcRunPeriod)
+        if (gcRunPeriod > 0 && gc.lastInvocationTime + gcRunPeriod > currentTime) {
+            wakeAt(gc, gc.lastInvocationTime + gcRunPeriod)
             return
         }
 
@@ -67,7 +64,7 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
                     }
                 }
             } finally {
-                lastInvocationTime = System.currentTimeMillis()
+                gc.lastInvocationTime = System.currentTimeMillis()
                 cleaner.isCleaning = false
             }
         }

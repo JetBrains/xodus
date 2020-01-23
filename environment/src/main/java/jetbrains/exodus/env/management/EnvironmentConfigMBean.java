@@ -169,6 +169,10 @@ public interface EnvironmentConfigMBean {
 
     void setGcFilesDeletionDelay(int delay);
 
+    int getGcRunEvery();
+
+    void setGcRunEvery(int seconds);
+
     void close();
 
     void gc();
