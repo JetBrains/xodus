@@ -55,7 +55,11 @@ public abstract class StreamCipherProvider {
      */
     @Nullable
     public static StreamCipherProvider getProvider(@NotNull final String id) {
-        for (final StreamCipherProvider provider : ServiceLoader.load(StreamCipherProvider.class)) {
+        ServiceLoader<StreamCipherProvider> serviceLoader = ServiceLoader.load(StreamCipherProvider.class);
+        if (!serviceLoader.iterator().hasNext()) {
+            serviceLoader = ServiceLoader.load(StreamCipherProvider.class, StreamCipherProvider.class.getClassLoader());
+        }
+        for (final StreamCipherProvider provider : serviceLoader) {
             if (id.equalsIgnoreCase(provider.getId())) {
                 return provider;
             }

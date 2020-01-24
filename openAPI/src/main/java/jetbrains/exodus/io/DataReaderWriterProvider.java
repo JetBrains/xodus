@@ -96,7 +96,11 @@ public abstract class DataReaderWriterProvider {
      */
     @Nullable
     public static DataReaderWriterProvider getProvider(@NotNull final String providerName) {
-        for (DataReaderWriterProvider provider : ServiceLoader.load(DataReaderWriterProvider.class)) {
+        ServiceLoader<DataReaderWriterProvider> serviceLoader = ServiceLoader.load(DataReaderWriterProvider.class);
+        if (!serviceLoader.iterator().hasNext()) {
+            serviceLoader = ServiceLoader.load(DataReaderWriterProvider.class, DataReaderWriterProvider.class.getClassLoader());
+        }
+        for (DataReaderWriterProvider provider : serviceLoader) {
             if (provider.getClass().getCanonicalName().equalsIgnoreCase(providerName)) {
                 return provider;
             }
