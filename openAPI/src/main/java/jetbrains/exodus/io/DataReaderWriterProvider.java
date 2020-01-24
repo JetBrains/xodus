@@ -92,7 +92,7 @@ public abstract class DataReaderWriterProvider {
      * Gets a {@code DataReaderWriterProvider} implementation by specified provider name.
      *
      * @param providerName fully-qualified name of {@code DataReaderWriterProvider} implementation
-     * @return {@code DataReaderWriterProvider} implementation of {@code null} if the service could not be loaded
+     * @return {@code DataReaderWriterProvider} implementation or {@code null} if the service could not be loaded
      */
     @Nullable
     public static DataReaderWriterProvider getProvider(@NotNull final String providerName) {

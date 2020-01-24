@@ -51,7 +51,7 @@ public abstract class StreamCipherProvider {
      * Gets a {@code StreamCipherProvider} implementation by specified id.
      *
      * @param id id of {@code StreamCipherProvider}
-     * @return {@code StreamCipherProvider} implementation of {@code null} if the service could not be loaded
+     * @return {@code StreamCipherProvider} implementation or {@code null} if the service could not be loaded
      */
     @Nullable
     public static StreamCipherProvider getProvider(@NotNull final String id) {
