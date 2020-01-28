@@ -389,6 +389,23 @@ class StoreTest : EnvironmentTestsBase() {
         }
     }
 
+    @Test
+    fun `FixedLengthByteIterable#getBytesUnsafe`() {
+        val store = openStoreAutoCommit("store", StoreConfig.WITHOUT_DUPLICATES)
+        env.executeInTransaction { txn ->
+            store.put(txn, key, value)
+        }
+        env.executeInTransaction { txn ->
+            assertEquals(value, store[txn, key])
+        }
+        env.executeInTransaction { txn ->
+            val vl = value.length
+            (0 until vl).forEach { i ->
+                assertEquals(value.subIterable(i, vl - i), store[txn, key]?.subIterable(i, vl - i))
+            }
+        }
+    }
+
     private fun putWithoutDuplicates(config: StoreConfig) {
         val env = environment
         var txn: Transaction = env.beginTransaction()

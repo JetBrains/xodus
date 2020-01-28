@@ -42,9 +42,10 @@ public class FixedLengthByteIterable extends ByteIterableBase {
             byte[] bytes = null;
             if (source instanceof ByteIterableBase) {
                 final ByteIterableBase s = (ByteIterableBase) source;
-                if (s.bytes != null) {
+                final byte[] sourceBytes = s.getBytesUnsafe();
+                if (sourceBytes != null) {
                     bytes = new byte[length];
-                    System.arraycopy(s.bytes, offset, bytes, 0, length);
+                    System.arraycopy(sourceBytes, offset, bytes, 0, length);
                 }
             }
             if (bytes == null) {
