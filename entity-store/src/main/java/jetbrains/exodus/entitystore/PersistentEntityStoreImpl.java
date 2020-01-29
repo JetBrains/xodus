@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2020 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -1053,7 +1053,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
         result = blobVault.getContent(blobHandle, txn.getEnvironmentTransaction());
         if (result == null && !readerWriterProvider.isReadonly()) {
-            logger.error("Blob not found: " + blobVault.getBlobLocation(blobHandle), new FileNotFoundException());
+            if (logger.isWarnEnabled()) {
+                logger.warn("Blob not found: " + blobVault.getBlobLocation(blobHandle), new FileNotFoundException());
+            }
         }
         return result;
     }
@@ -1936,7 +1938,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @Override
     public void close() {
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             logger.debug("Closing...");
         }
         config.removeChangedSettingsListener(entityStoreSettingsListener);
@@ -1956,7 +1958,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
             }
             iterableCache.clear();
-            if(logger.isDebugEnabled()) {
+            if (logger.isDebugEnabled()) {
                 logger.debug("Closed successfully.");
             }
         } catch (Exception e) {
