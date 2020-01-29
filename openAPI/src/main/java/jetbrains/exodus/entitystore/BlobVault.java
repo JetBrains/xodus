@@ -52,7 +52,7 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
     private static final int READ_BUFFER_SIZE = 0x4000;
     static final ByteArraySpinAllocator bufferAllocator = new ByteArraySpinAllocator(READ_BUFFER_SIZE);
     private static final BlobStringsCache.BlobStringsCacheCreator
-            stringContentCacheCreator = new BlobStringsCache.BlobStringsCacheCreator();
+        stringContentCacheCreator = new BlobStringsCache.BlobStringsCacheCreator();
     private static final IdGenerator identityGenerator = new IdGenerator();
 
     private final PersistentEntityStoreConfig config;
@@ -68,8 +68,8 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
     protected BlobVault(@NotNull final PersistentEntityStoreConfig config) {
         this.config = config;
         stringContentCache = config.isBlobStringsCacheShared() ?
-                stringContentCacheCreator.getInstance() :
-                new BlobStringsCache.BlobStringsCacheCreator().getInstance();
+            stringContentCacheCreator.getInstance() :
+            new BlobStringsCache.BlobStringsCacheCreator().getInstance();
         vaultIdentity = identityGenerator.nextId();
     }
 
@@ -203,7 +203,9 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
         if (result == null) {
             final InputStream content = getContent(blobHandle, txn);
             if (content == null) {
-                logger.error("Blob string not found: " + getBlobLocation(blobHandle), new FileNotFoundException());
+                if (logger.isWarnEnabled()) {
+                    logger.warn("Blob string not found: " + getBlobLocation(blobHandle), new FileNotFoundException());
+                }
             }
             result = content == null ? null : UTFUtil.readUTF(content);
             if (result != null && result.length() <= config.getBlobStringsCacheMaxValueSize()) {
