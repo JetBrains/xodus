@@ -80,17 +80,20 @@ public final class PropertiesTable extends Table {
         final Store valueIdx = getOrCreateValueIndex(txn, propertyId);
         final ByteIterable key = PropertyKey.propertyKeyToEntry(new PropertyKey(localId, propertyId));
         final Transaction envTxn = txn.getEnvironmentTransaction();
-        primaryStore.put(envTxn, key, value);
+        boolean success = primaryStore.put(envTxn, key, value);
         final ByteIterable secondaryValue = LongBinding.longToCompressedEntry(localId);
-        boolean success;
         if (oldValue == null) {
-            success = allPropsIndex.put(envTxn, IntegerBinding.intToCompressedEntry(propertyId), secondaryValue);
+            if (!allPropsIndex.put(envTxn, IntegerBinding.intToCompressedEntry(propertyId), secondaryValue)) {
+                success = false;
+            }
         } else {
-            success = deleteFromStore(envTxn, valueIdx, secondaryValue, createSecondaryKeys(store.getPropertyTypes(), oldValue, type));
+            if (!deleteFromStore(envTxn, valueIdx, secondaryValue, createSecondaryKeys(store.getPropertyTypes(), oldValue, type))) {
+                success = false;
+            }
         }
-        if (success) {
-            for (final ByteIterable secondaryKey : createSecondaryKeys(store.getPropertyTypes(), value, type)) {
-                valueIdx.put(envTxn, secondaryKey, secondaryValue);
+        for (final ByteIterable secondaryKey : createSecondaryKeys(store.getPropertyTypes(), value, type)) {
+            if (!valueIdx.put(envTxn, secondaryKey, secondaryValue)) {
+                success = false;
             }
         }
         checkStatus(success, "Failed to put");
@@ -194,20 +197,21 @@ public final class PropertiesTable extends Table {
                                            @NotNull final Store store,
                                            @NotNull final ByteIterable value,
                                            @NotNull final ByteIterable... keys) {
+        boolean result = true;
         try (Cursor cursor = store.openCursor(txn)) {
             for (final ByteIterable key : keys) {
                 if (!cursor.getSearchBoth(key, value)) {
                     // repeat for debugging
                     cursor.getSearchBoth(key, value);
-                    return false;
+                    result = false;
                 }
                 if (!cursor.deleteCurrent()) {
                     // repeat for debugging
                     cursor.deleteCurrent();
-                    return false;
+                    result = false;
                 }
             }
-            return true;
+            return result;
         }
     }
 

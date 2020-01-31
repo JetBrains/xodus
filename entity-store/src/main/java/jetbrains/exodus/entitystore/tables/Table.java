@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.entitystore.tables;
 
-import jetbrains.exodus.entitystore.EntityStoreException;
+import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 
@@ -25,7 +25,7 @@ public abstract class Table {
 
     public static void checkStatus(final boolean success, @NotNull final String message) {
         if (!success) {
-            throw new EntityStoreException(message + ", operation unsuccessful");
+            PersistentEntityStoreImpl.loggerWarn(message + ", operation unsuccessful");
         }
     }
 

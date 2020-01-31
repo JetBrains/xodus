@@ -68,12 +68,10 @@ public final class BlobsTable extends Table {
     public void delete(@NotNull final Transaction txn, final long localId, final int blobId) {
         final ByteIterable key = PropertyKey.propertyKeyToEntry(new PropertyKey(localId, blobId));
         boolean success = primaryStore.delete(txn, key);
-        if (success) {
-            try (Cursor cursor = allBlobsIndex.openCursor(txn)) {
-                success = cursor.getSearchBoth(IntegerBinding.intToCompressedEntry(blobId), LongBinding.longToCompressedEntry(localId));
-                if (success) {
-                    success = cursor.deleteCurrent();
-                }
+        try (Cursor cursor = allBlobsIndex.openCursor(txn)) {
+            if (!cursor.getSearchBoth(IntegerBinding.intToCompressedEntry(blobId), LongBinding.longToCompressedEntry(localId)) ||
+                    !cursor.deleteCurrent()) {
+                success = false;
             }
         }
         checkStatus(success, "Failed to delete");
