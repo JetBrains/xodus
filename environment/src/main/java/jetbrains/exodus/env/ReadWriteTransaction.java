@@ -125,7 +125,7 @@ public class ReadWriteTransaction extends TransactionBase {
     public void revert() {
         checkIsFinished();
         if (isReadonly()) {
-            throw new ExodusException("Attempt ot revert read-only transaction");
+            throw new ExodusException("Attempt to revert read-only transaction");
         }
         final long oldRoot = getMetaTree().root;
         final boolean wasExclusive = isExclusive();
