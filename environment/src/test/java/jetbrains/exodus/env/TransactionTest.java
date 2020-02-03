@@ -69,7 +69,7 @@ public class TransactionTest extends EnvironmentTestsBase {
                 txn.commit();
                 txn.commit();
             }
-        }, ExodusException.class);
+        }, TransactionFinishedException.class);
     }
 
     @Test
@@ -81,7 +81,7 @@ public class TransactionTest extends EnvironmentTestsBase {
                 txn.abort();
                 txn.abort();
             }
-        }, ExodusException.class);
+        }, TransactionFinishedException.class);
     }
 
     @Test

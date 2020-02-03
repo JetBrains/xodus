@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.env;
 
-import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.decorators.HashMapDecorator;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.tree.ITree;
@@ -47,6 +46,8 @@ public abstract class TransactionBase implements Transaction {
     private boolean isExclusive;
     private final boolean wasCreatedExclusive;
     private boolean isFinished;
+    private boolean trackFinish;
+    private Throwable traceFinish;
     private int acquiredPermits;
 
     public TransactionBase(@NotNull final EnvironmentImpl env, final boolean isExclusive) {
@@ -60,6 +61,8 @@ public abstract class TransactionBase implements Transaction {
         created = System.currentTimeMillis();
         started = created;
         isFinished = false;
+        trackFinish = false;
+        traceFinish = null;
     }
 
     @Override
@@ -132,8 +135,12 @@ public abstract class TransactionBase implements Transaction {
 
     public void checkIsFinished() {
         if (isFinished) {
-            throw new ExodusException("Transaction is already finished");
+            throw new TransactionFinishedException(traceFinish);
         }
+    }
+
+    public void setTrackFinish(boolean trackFinish) {
+        this.trackFinish = trackFinish;
     }
 
     @NotNull
@@ -222,6 +229,9 @@ public abstract class TransactionBase implements Transaction {
 
     protected void setIsFinished() {
         isFinished = true;
+        if (trackFinish) {
+            traceFinish = new Throwable();
+        }
     }
 
     protected Runnable getWrappedBeginHook(@Nullable final Runnable beginHook) {
