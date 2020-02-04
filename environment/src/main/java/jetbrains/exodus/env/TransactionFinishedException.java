@@ -21,7 +21,7 @@ public class TransactionFinishedException extends ExodusException {
 
     private final Throwable trace;
 
-    public TransactionFinishedException(Throwable trace) {
+    TransactionFinishedException(Throwable trace) {
         super("Transaction is already finished");
         this.trace = trace;
     }

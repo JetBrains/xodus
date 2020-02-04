@@ -45,8 +45,7 @@ public abstract class TransactionBase implements Transaction {
     private long started;       // started is the ticks when the txn held its current snapshot
     private boolean isExclusive;
     private final boolean wasCreatedExclusive;
-    private boolean isFinished;
-    private boolean trackFinish;
+    @Nullable
     private Throwable traceFinish;
     private int acquiredPermits;
 
@@ -60,8 +59,6 @@ public abstract class TransactionBase implements Transaction {
         trace = env.transactionTimeout() > 0 ? new Throwable() : null;
         created = System.currentTimeMillis();
         started = created;
-        isFinished = false;
-        trackFinish = false;
         traceFinish = null;
     }
 
@@ -105,7 +102,7 @@ public abstract class TransactionBase implements Transaction {
 
     @Override
     public boolean isFinished() {
-        return isFinished;
+        return traceFinish != null;
     }
 
     @Override
@@ -134,13 +131,9 @@ public abstract class TransactionBase implements Transaction {
     }
 
     public void checkIsFinished() {
-        if (isFinished) {
+        if (isFinished()) {
             throw new TransactionFinishedException(traceFinish);
         }
-    }
-
-    public void setTrackFinish(boolean trackFinish) {
-        this.trackFinish = trackFinish;
     }
 
     @NotNull
@@ -228,8 +221,7 @@ public abstract class TransactionBase implements Transaction {
     }
 
     protected void setIsFinished() {
-        isFinished = true;
-        if (trackFinish) {
+        if (traceFinish == null) {
             traceFinish = new Throwable();
         }
     }
