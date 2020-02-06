@@ -17,11 +17,12 @@ package jetbrains.exodus.core.execution
 
 import jetbrains.exodus.core.dataStructures.decorators.QueueDecorator
 import jetbrains.exodus.core.dataStructures.hash.HashSet
+import mu.KLogging
 
 /**
  * Shared timer runs registered periodic tasks (each second) in lock-free manner.
  */
-object SharedTimer {
+object SharedTimer : KLogging() {
 
     private val PERIOD = 1000 // in milliseconds
     private val registeredTasks: MutableSet<ExpirablePeriodicTask>
@@ -80,7 +81,11 @@ object SharedTimer {
                     if (task.isExpired) {
                         expiredTasks.add(task)
                     } else {
-                        task.run()
+                        try {
+                            task.run()
+                        } catch (t: Throwable) {
+                            logger.error("Periodic task failure", t)
+                        }
                     }
                 }
                 for (expiredTask in expiredTasks) {
