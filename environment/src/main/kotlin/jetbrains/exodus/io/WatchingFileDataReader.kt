@@ -42,7 +42,7 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
             it.register(watchService, EVENT_KINDS)
         }
     }
-    private val newDataCallbacks: MutableList<() -> Unit> = mutableListOf()
+    private val newDataListeners: MutableList<(prevHighAddress: Long, newHighAddress: Long) -> Unit> = mutableListOf()
 
     @Volatile
     private var stopped = false
@@ -67,14 +67,14 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
     /**
      * Add callback that is invoked when new data arrives and Environment is successfully updated.
      */
-    fun addNewDataCallback(callback: () -> Unit) =
-            synchronized(newDataCallbacks) {
-                newDataCallbacks.add(callback)
+    fun addNewDataListener(listener: (Long, Long) -> Unit) =
+            synchronized(newDataListeners) {
+                newDataListeners.add(listener)
             }
 
     private fun doWatch() {
         val currentThread = Thread.currentThread()
-        var lastDirty = Long.MIN_VALUE
+        var lastIdle = Long.MIN_VALUE
         while (!stopped) {
             try {
                 val watchKey: WatchKey?
@@ -83,8 +83,8 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
                     watchKey = watchService.poll(100, TimeUnit.MILLISECONDS)
                     val events = watchKey?.pollEvents()
                     if (events == null || events.isEmpty()) {
-                        if (lastDirty > Long.MIN_VALUE && System.currentTimeMillis() - lastDirty > IDLE_FORCE_CHECK_INTERVAL) {
-                            lastDirty = doUpdate(true)
+                        if (lastIdle > Long.MIN_VALUE && System.currentTimeMillis() - lastIdle > IDLE_FORCE_CHECK_INTERVAL) {
+                            lastIdle = doUpdate(true, currentThread)
                         }
                         continue
                     }
@@ -102,9 +102,8 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
                 } catch (ignore: ClosedWatchServiceException) {
                     return
                 }
-
-                if (lastDirty > Long.MIN_VALUE) {
-                    val debounce = DEBOUNCE_INTERVAL + (lastDirty - System.currentTimeMillis())
+                if (lastIdle > Long.MIN_VALUE) {
+                    val debounce = DEBOUNCE_INTERVAL + (lastIdle - System.currentTimeMillis())
                     if (debounce > 5) {
                         try {
                             Thread.sleep(debounce)
@@ -115,7 +114,7 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
                     }
                 }
                 if (hasFileUpdates) {
-                    lastDirty = doUpdate(false)
+                    lastIdle = doUpdate(false, currentThread)
                 }
                 if (!watchKey.reset()) {
                     logger.info { "Watch service is no longer valid for ${currentThread.name}, exiting..." }
@@ -127,17 +126,26 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
         }
     }
 
-    private fun doUpdate(force: Boolean): Long {
+    // returns
+    private fun doUpdate(force: Boolean, currentThread: Thread): Long {
         envGetter()?.run {
             val prevTip = log.tip
             if (tryUpdate()) {
                 logger.debug { (if (force) "Env force-updated at " else "Env updated at ") + location }
-                if (log.tip.approvedHighAddress > prevTip.approvedHighAddress) {
-                    synchronized(newDataCallbacks) {
-                        newDataCallbacks.forEach { callback -> callback() }
+                val newHighAddress = log.tip.approvedHighAddress
+                val prevHighAddress = prevTip.approvedHighAddress
+                if (newHighAddress > prevHighAddress) {
+                    synchronized(newDataListeners) {
+                        newDataListeners.toTypedArray()
+                    }.forEach { listener ->
+                        try {
+                            listener(prevHighAddress, newHighAddress)
+                        } catch (t: Throwable) {
+                            logger.error(t) { "New data listener failed for ${currentThread.name}" }
+                        }
                     }
+                    return Long.MIN_VALUE
                 }
-                return Long.MIN_VALUE
             }
             logger.debug { (if (force) "Can't force-update env at " else "Can't update env at ") + location }
         }
