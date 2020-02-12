@@ -97,11 +97,11 @@ public class TwoColumnTable extends Table {
         boolean success;
         try (Cursor cursor = getFirstIndexCursor(txn)) {
             success = cursor.getSearchBoth(first, second);
-            checkStatus(success, "Failed to delete: data mismatch in TwoColumnTable's stores");
-            if (success) {
-                success = cursor.deleteCurrent();
-                checkStatus(success, "Failed to delete");
+            if (!success) {
+                return false;
             }
+            success = cursor.deleteCurrent();
+            checkStatus(success, "Failed to delete");
         }
         try (Cursor cursor = getSecondIndexCursor(txn)) {
             success = cursor.getSearchBoth(second, first);

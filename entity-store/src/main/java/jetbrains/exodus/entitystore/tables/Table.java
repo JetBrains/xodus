@@ -25,7 +25,7 @@ public abstract class Table {
 
     public static void checkStatus(final boolean success, @NotNull final String message) {
         if (!success) {
-            PersistentEntityStoreImpl.loggerWarn(message + ", operation unsuccessful");
+            PersistentEntityStoreImpl.loggerWarn(message + ", operation unsuccessful", new Throwable());
         }
     }
 
