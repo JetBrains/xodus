@@ -31,13 +31,19 @@ public interface EntityStoreStatisticsMBean {
 
     long getTotalCachingJobsNotStarted();
 
-    long getTotalCachingCountJobs();
+    long getTotalCachingCountJobsEnqueued();
 
     long getTotalEntityIterableCacheHits();
 
     long getTotalEntityIterableCacheMisses();
 
+    long getTotalEntityIterableCacheCountHits();
+
+    long getTotalEntityIterableCacheCountMisses();
+
     float getEntityIterableCacheHitRate();
+
+    float getEntityIterableCacheCountHitRate();
 
     float getBlobStringsCacheHitRate();
 }

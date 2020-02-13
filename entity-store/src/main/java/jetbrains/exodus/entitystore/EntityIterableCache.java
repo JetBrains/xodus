@@ -51,12 +51,14 @@ public final class EntityIterableCache {
     // the value is updated by PersistentEntityStoreSettingsListener
     public boolean isCachingDisabled;
 
-    public EntityIterableCache(@NotNull final PersistentEntityStoreImpl store) {
+    EntityIterableCache(@NotNull final PersistentEntityStoreImpl store) {
         this.store = store;
         config = store.getConfig();
         cacheAdapter = new EntityIterableCacheAdapter(config);
         stats = new EntityIterableCacheStatistics();
-        clear();
+        final int cacheSize = config.getEntityIterableCacheSize();
+        deferredIterablesCache = new ConcurrentObjectCache<>(cacheSize);
+        iterableCountsCache = new ConcurrentObjectCache<>(config.getEntityIterableCacheCountsCacheSize());
         processor = new EntityStoreSharedAsyncProcessor(config.getEntityIterableCacheThreadCount());
         processor.start();
         isCachingDisabled = config.isCachingDisabled();
@@ -67,6 +69,11 @@ public final class EntityIterableCache {
         return cacheAdapter.hitRate();
     }
 
+    public float countsCacheHitRate() {
+        return iterableCountsCache.hitRate();
+    }
+
+    @NotNull
     public EntityIterableCacheStatistics getStats() {
         return stats;
     }
@@ -141,7 +148,13 @@ public final class EntityIterableCache {
 
     @Nullable
     public Long getCachedCount(@NotNull final EntityIterableHandle handle) {
-        return iterableCountsCache.tryKey(handle.getIdentity());
+        final Long result = iterableCountsCache.tryKey(handle.getIdentity());
+        if (result == null) {
+            stats.incTotalCountMisses();
+        } else {
+            stats.incTotalCountHits();
+        }
+        return result;
     }
 
     public long getCachedCount(@NotNull final EntityIterableBase it) {
@@ -152,7 +165,7 @@ public final class EntityIterableCache {
         }
         if (it.isThreadSafe() && !isCachingQueueFull()) {
             new EntityIterableAsyncInstantiation(handle, it, false).queue(
-                    result == null ? Priority.normal : Priority.below_normal);
+                result == null ? Priority.normal : Priority.below_normal);
         }
         return result == null ? -1 : result;
     }
@@ -202,7 +215,7 @@ public final class EntityIterableCache {
             setProcessor(processor);
             stats.incTotalJobsEnqueued();
             if (!isConsistent) {
-                stats.incTotalCountJobs();
+                stats.incTotalCountJobsEnqueued();
             }
         }
 
@@ -282,7 +295,7 @@ public final class EntityIterableCache {
             this.isConsistent = isConsistent;
             startTime = System.currentTimeMillis();
             cachingTimeout = isConsistent ?
-                    config.getEntityIterableCacheCachingTimeout() : config.getEntityIterableCacheCountsCachingTimeout();
+                config.getEntityIterableCacheCachingTimeout() : config.getEntityIterableCacheCountsCachingTimeout();
         }
 
         private boolean isOverdue(final long currentMillis) {
@@ -357,6 +370,6 @@ public final class EntityIterableCache {
 
     public static String getStringPresentation(@NotNull final PersistentEntityStoreConfig config, @NotNull final EntityIterableHandle handle) {
         return config.getEntityIterableCacheUseHumanReadable() ?
-                EntityIterableBase.getHumanReadablePresentation(handle) : handle.toString();
+            EntityIterableBase.getHumanReadablePresentation(handle) : handle.toString();
     }
 }

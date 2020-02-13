@@ -65,8 +65,8 @@ public class EntityStoreStatistics extends MBeanBase implements EntityStoreStati
     }
 
     @Override
-    public long getTotalCachingCountJobs() {
-        return store.getEntityIterableCache().getStats().getTotalCountJobs();
+    public long getTotalCachingCountJobsEnqueued() {
+        return store.getEntityIterableCache().getStats().getTotalCountJobsEnqueued();
     }
 
     @Override
@@ -80,8 +80,23 @@ public class EntityStoreStatistics extends MBeanBase implements EntityStoreStati
     }
 
     @Override
+    public long getTotalEntityIterableCacheCountHits() {
+        return store.getEntityIterableCache().getStats().getTotalCountHits();
+    }
+
+    @Override
+    public long getTotalEntityIterableCacheCountMisses() {
+        return store.getEntityIterableCache().getStats().getTotalCountMisses();
+    }
+
+    @Override
     public float getEntityIterableCacheHitRate() {
         return store.getEntityIterableCache().hitRate();
+    }
+
+    @Override
+    public float getEntityIterableCacheCountHitRate() {
+        return store.getEntityIterableCache().countsCacheHitRate();
     }
 
     @Override
