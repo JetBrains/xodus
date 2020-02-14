@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2020 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -45,6 +45,7 @@ import java.util.List;
 
 @SuppressWarnings({"RawUseOfParameterizedType", "rawtypes"})
 public class PersistentStoreTransaction implements StoreTransaction, TxnGetterStrategy, TxnProvider {
+
     private static final Logger logger = LoggerFactory.getLogger(PersistentStoreTransaction.class);
 
     enum TransactionType {
@@ -277,12 +278,20 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         return store.getEntityTypes(this);
     }
 
+    // TODO: remove ASAP
+    private static int traceGetAllForEntityType = Integer.getInteger("jetbrains.exodus.entitystore.traceGetAllForEntityType", -1);
+
     @Override
     @NotNull
     public EntityIterable getAll(@NotNull final String entityType) {
         final int entityTypeId = store.getEntityTypeId(this, entityType, false);
         if (entityTypeId < 0) {
             return EntityIterableBase.EMPTY;
+        }
+        if (entityTypeId == traceGetAllForEntityType) {
+            if (logger.isErrorEnabled()) {
+                logger.error("txn.getAll() for entityTypeId = " + entityTypeId, new Throwable());
+            }
         }
         return new EntitiesOfTypeIterable(this, entityTypeId);
     }
