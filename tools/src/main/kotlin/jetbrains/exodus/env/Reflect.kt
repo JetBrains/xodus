@@ -373,7 +373,7 @@ class Reflect(directory: File) {
             println("Stores found: $storesCount")
             names.forEachIndexed { i, name ->
                 val started = Date()
-                print(copyStoreMessage(started, name, i + 1, storesCount, 0))
+                print(copyStoreMessage(started, name, i + 1, storesCount, 0L))
                 var config: StoreConfig
                 var storeSize = 0L
                 var storeIsBroken: Throwable? = null
@@ -390,7 +390,7 @@ class Reflect(directory: File) {
                                     if ((it + 1) % 100_000 == 0 || guard.isItCloseToOOM()) {
                                         targetTxn.flush()
                                         guard.reset()
-                                        print(copyStoreMessage(started, name, i + 1, storesCount, it * 100 / storeSize))
+                                        print(copyStoreMessage(started, name, i + 1, storesCount, (it.toLong() * 100L / storeSize)))
                                     }
                                 }
                             }
