@@ -364,6 +364,10 @@ class Reflect(directory: File) {
     }
 
     fun copy(there: File) {
+        if (there.list().run { this != null && isNotEmpty() }) {
+            println("Environment path 2 is expected to be an empty directory: $there")
+            return
+        }
         val maxMemory = Runtime.getRuntime().maxMemory()
         val guard = OOMGuard(if (maxMemory == Long.MAX_VALUE) 20_000_000 else min(maxMemory / 50L, 1000_000_000).toInt())
         Environments.newInstance(there, env.environmentConfig).use { newEnv ->
