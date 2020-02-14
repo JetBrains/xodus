@@ -62,7 +62,7 @@ public abstract class ClusteringStrategy {
     }
 
     protected int adjustClusterSize(final int nextClusterSize) {
-        return nextClusterSize > maxClusterSize ? maxClusterSize : nextClusterSize;
+        return Math.min(nextClusterSize, maxClusterSize);
     }
 
     @SuppressWarnings({"ProtectedField"})
