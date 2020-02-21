@@ -87,7 +87,7 @@ internal class FilterEntitiesWithCertainLinkIterable(txn: PersistentStoreTransac
             private fun nextAvailableId(): EntityId? {
                 while (it.hasNext()) {
                     val next = it.nextId()
-                    if (!distinctIds.contains(next) && idSet.contains(it.targetId)) {
+                    if (idSet.contains(it.targetId) && !distinctIds.contains(next)) {
                         return next
                     }
                 }
