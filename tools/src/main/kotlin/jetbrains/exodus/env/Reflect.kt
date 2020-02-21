@@ -51,6 +51,7 @@ fun main(args: Array<String>) {
     var validateRoots = false
     var traverse = false
     var copy = false
+    var forcePrefixing = false
     var utilizationInfo = false
     var persistentEntityStoreInfo = false
     val files2Clean = LinkedHashSet<String>()
@@ -62,6 +63,9 @@ fun main(args: Array<String>) {
                 "r" -> validateRoots = true
                 "t" -> traverse = true
                 "c" -> copy = true
+                "cp" -> {
+                    copy = true; forcePrefixing = true
+                }
                 "u" -> utilizationInfo = true
                 "p" -> persistentEntityStoreInfo = true
                 else -> when {
@@ -106,7 +110,7 @@ fun main(args: Array<String>) {
                 exitProcess(reflect.traverse(dumpUtilizationToFile, persistentEntityStoreInfo))
             }
             if (copy) {
-                reflect.copy(File(envPath2))
+                reflect.copy(File(envPath2), forcePrefixing)
             }
             if (utilizationInfo) {
                 reflect.spaceInfoFromUtilization()
@@ -127,6 +131,7 @@ internal fun printUsage() {
     println("  -t              Traverse actual root")
     println("  -d<file name>   Dump utilization to a file (can be used with the '-t' option)")
     println("  -c              Copy actual root to a new environment (environment path 2 is mandatory)")
+    println("  -cp             Copy actual root to a new environment with forced prefixing (environment path 2 is mandatory)")
     println("  -u              display stored Utilization")
     println("  -p              print PersistentEntityStore tables usage (must be used with the '-t' option)")
     println("  -cl<file name>  CLean particular file before any reflection")
@@ -363,7 +368,7 @@ class Reflect(directory: File) {
         return if (wereErrors) -1 else 0
     }
 
-    fun copy(there: File) {
+    fun copy(there: File, forcePrefixing: Boolean) {
         if (there.list().run { this != null && isNotEmpty() }) {
             println("Environment path 2 is expected to be an empty directory: $there")
             return
@@ -378,7 +383,6 @@ class Reflect(directory: File) {
             names.forEachIndexed { i, name ->
                 val started = Date()
                 print(copyStoreMessage(started, name, i + 1, storesCount, 0L))
-                var config: StoreConfig
                 var storeSize = 0L
                 var storeIsBroken: Throwable? = null
                 try {
@@ -386,8 +390,10 @@ class Reflect(directory: File) {
                         try {
                             env.executeInReadonlyTransaction { sourceTxn ->
                                 val sourceStore = env.openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
-                                config = sourceStore.config
-                                val targetStore = newEnv.openStore(name, config, targetTxn)
+                                val targetConfig = sourceStore.config.let { sourceConfig ->
+                                    if (forcePrefixing) StoreConfig.getStoreConfig(sourceConfig.duplicates, true) else sourceConfig
+                                }
+                                val targetStore = newEnv.openStore(name, targetConfig, targetTxn)
                                 storeSize = sourceStore.count(sourceTxn)
                                 sourceStore.openCursor(sourceTxn).forEachIndexed {
                                     targetStore.putRight(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))
@@ -416,8 +422,10 @@ class Reflect(directory: File) {
                             try {
                                 env.executeInReadonlyTransaction { sourceTxn ->
                                     val sourceStore = env.openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
-                                    config = sourceStore.config
-                                    val targetStore = newEnv.openStore(name, config, targetTxn)
+                                    val targetConfig = sourceStore.config.let { sourceConfig ->
+                                        if (forcePrefixing) StoreConfig.getStoreConfig(sourceConfig.duplicates, true) else sourceConfig
+                                    }
+                                    val targetStore = newEnv.openStore(name, targetConfig, targetTxn)
                                     storeSize = sourceStore.count(sourceTxn)
                                     sourceStore.openCursor(sourceTxn).forEachReversed {
                                         targetStore.put(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))
