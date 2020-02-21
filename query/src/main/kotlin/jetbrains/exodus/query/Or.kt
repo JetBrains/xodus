@@ -33,7 +33,7 @@ class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
             if (isUnionOfLinks(txn, linkNames)) {
                 val all = (queryEngine.instantiateGetAll(txn, entityType) as EntityIterableBase).source
                 var result: Iterable<Entity> = EntityIterableBase.EMPTY
-                linkNames.forEach { linkName, ids ->
+                linkNames.forEach { (linkName, ids) ->
                     result = queryEngine.union(result, all.findLinks(ids, linkName))
                 }
                 return result
