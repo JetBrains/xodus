@@ -69,8 +69,7 @@ public class PersistentEntityStoreStatistics extends Statistics<PersistentEntity
             case BLOBS_DISK_USAGE:
                 return new BlobsDiskUsageStatisticsItem(this);
             case CACHING_JOBS:
-                new CachingJobsStatisticsItem(this);
-
+                return new CachingJobsStatisticsItem(this);
             default:
                 return super.createNewBuiltInItem(key);
         }
