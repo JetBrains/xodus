@@ -184,6 +184,16 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
+    public long getEntityIterableCacheStartCachingTimeout() {
+        return config.getEntityIterableCacheStartCachingTimeout();
+    }
+
+    @Override
+    public void setEntityIterableCacheStartCachingTimeout(long startCachingTimeout) {
+        config.setEntityIterableCacheStartCachingTimeout(startCachingTimeout);
+    }
+
+    @Override
     public int getEntityIterableCacheDeferredDelay() {
         return config.getEntityIterableCacheDeferredDelay();
     }

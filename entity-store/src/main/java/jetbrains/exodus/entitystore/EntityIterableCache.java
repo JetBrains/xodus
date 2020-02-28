@@ -241,7 +241,7 @@ public final class EntityIterableCache {
         @Override
         protected void execute() {
             final long started;
-            if (isCachingQueueFull() || cancellingPolicy.isOverdue(started = System.currentTimeMillis())) {
+            if (isCachingQueueFull() || !cancellingPolicy.canStartAt(started = System.currentTimeMillis())) {
                 stats.incTotalJobsNotStarted();
                 return;
             }
@@ -289,6 +289,7 @@ public final class EntityIterableCache {
         private final boolean isConsistent;
         private final long startTime;
         private final long cachingTimeout;
+        private final long startCachingTimeout;
         private EntityIterableCacheAdapter localCache;
 
         private CachingCancellingPolicy(final boolean isConsistent) {
@@ -296,10 +297,11 @@ public final class EntityIterableCache {
             startTime = System.currentTimeMillis();
             cachingTimeout = isConsistent ?
                 config.getEntityIterableCacheCachingTimeout() : config.getEntityIterableCacheCountsCachingTimeout();
+            startCachingTimeout = config.getEntityIterableCacheStartCachingTimeout();
         }
 
-        private boolean isOverdue(final long currentMillis) {
-            return currentMillis - startTime > cachingTimeout;
+        private boolean canStartAt(final long currentMillis) {
+            return currentMillis - startTime < startCachingTimeout;
         }
 
         private void setLocalCache(@NotNull final EntityIterableCacheAdapter localCache) {
@@ -308,7 +310,7 @@ public final class EntityIterableCache {
 
         @Override
         public boolean needToCancel() {
-            return (isConsistent && cacheAdapter != localCache) || isOverdue(System.currentTimeMillis());
+            return (isConsistent && cacheAdapter != localCache) || System.currentTimeMillis() - startTime > cachingTimeout;
         }
 
         @Override
