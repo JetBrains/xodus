@@ -140,7 +140,7 @@ public final class EntityIterableCache {
             return it.getOrCreateCachedInstance(txn);
         }
         if (!isCachingQueueFull()) {
-            new EntityIterableAsyncInstantiation(handle, it, true).queue(Priority.below_normal);
+            new EntityIterableAsyncInstantiation(handle, it, Priority.below_normal, true);
         }
 
         return it;
@@ -164,8 +164,7 @@ public final class EntityIterableCache {
             return it.getOrCreateCachedInstance(it.getTransaction()).size();
         }
         if (it.isThreadSafe() && !isCachingQueueFull()) {
-            new EntityIterableAsyncInstantiation(handle, it, false).queue(
-                result == null ? Priority.normal : Priority.below_normal);
+            new EntityIterableAsyncInstantiation(handle, it, result == null ? Priority.normal : Priority.below_normal, false);
         }
         return result == null ? -1 : result;
     }
@@ -208,14 +207,19 @@ public final class EntityIterableCache {
 
         private EntityIterableAsyncInstantiation(@NotNull final EntityIterableHandle handle,
                                                  @NotNull final EntityIterableBase it,
+                                                 @NotNull final Priority priority,
                                                  final boolean isConsistent) {
             this.it = it;
             this.handle = handle;
             cancellingPolicy = new CachingCancellingPolicy(isConsistent && handle.isConsistent());
             setProcessor(processor);
-            stats.incTotalJobsEnqueued();
-            if (!isConsistent) {
-                stats.incTotalCountJobsEnqueued();
+            if (queue(priority)) {
+                stats.incTotalJobsEnqueued();
+                if (!isConsistent) {
+                    stats.incTotalCountJobsEnqueued();
+                }
+            } else {
+                stats.incTotalJobsMerged();
             }
         }
 

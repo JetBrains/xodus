@@ -19,6 +19,8 @@ class EntityIterableCacheStatistics {
 
     var totalJobsEnqueued = 0L
         private set
+    var totalJobsMerged = 0L
+        private set
     var totalJobsStarted = 0L
         private set
     var totalJobsInterrupted = 0L
@@ -37,6 +39,8 @@ class EntityIterableCacheStatistics {
         private set
 
     fun incTotalJobsEnqueued() = ++totalJobsEnqueued
+
+    fun incTotalJobsMerged() = ++totalJobsMerged
 
     fun incTotalJobsStarted() = ++totalJobsStarted
 
