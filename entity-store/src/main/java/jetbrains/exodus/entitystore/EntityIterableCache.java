@@ -219,7 +219,7 @@ public final class EntityIterableCache {
                     stats.incTotalCountJobsEnqueued();
                 }
             } else {
-                stats.incTotalJobsMerged();
+                stats.incTotalJobsNonQueued();
             }
         }
 
