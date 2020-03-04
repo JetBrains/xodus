@@ -139,9 +139,7 @@ public final class EntityIterableCache {
         if (isDispatcherThread()) {
             return it.getOrCreateCachedInstance(txn);
         }
-        if (!isCachingQueueFull()) {
-            new EntityIterableAsyncInstantiation(handle, it, true);
-        }
+        new EntityIterableAsyncInstantiation(handle, it, true);
 
         return it;
     }
