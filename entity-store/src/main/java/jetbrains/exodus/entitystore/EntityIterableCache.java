@@ -140,7 +140,7 @@ public final class EntityIterableCache {
             return it.getOrCreateCachedInstance(txn);
         }
         if (!isCachingQueueFull()) {
-            new EntityIterableAsyncInstantiation(handle, it, Priority.below_normal, true);
+            new EntityIterableAsyncInstantiation(handle, it, true);
         }
 
         return it;
@@ -163,8 +163,8 @@ public final class EntityIterableCache {
         if (result == null && isDispatcherThread()) {
             return it.getOrCreateCachedInstance(it.getTransaction()).size();
         }
-        if (it.isThreadSafe() && !isCachingQueueFull()) {
-            new EntityIterableAsyncInstantiation(handle, it, result == null ? Priority.normal : Priority.below_normal, false);
+        if (it.isThreadSafe()) {
+            new EntityIterableAsyncInstantiation(handle, it, false);
         }
         return result == null ? -1 : result;
     }
@@ -202,18 +202,19 @@ public final class EntityIterableCache {
         private final EntityIterableBase it;
         @NotNull
         private final EntityIterableHandle handle;
+        private final boolean isConsistent;
         @NotNull
         private final CachingCancellingPolicy cancellingPolicy;
 
         private EntityIterableAsyncInstantiation(@NotNull final EntityIterableHandle handle,
                                                  @NotNull final EntityIterableBase it,
-                                                 @NotNull final Priority priority,
                                                  final boolean isConsistent) {
             this.it = it;
             this.handle = handle;
+            this.isConsistent = isConsistent;
             cancellingPolicy = new CachingCancellingPolicy(isConsistent && handle.isConsistent());
             setProcessor(processor);
-            if (queue(priority)) {
+            if (!isCachingQueueFull() && queue(Priority.normal)) {
                 stats.incTotalJobsEnqueued();
                 if (!isConsistent) {
                     stats.incTotalCountJobsEnqueued();
@@ -239,7 +240,7 @@ public final class EntityIterableCache {
         }
 
         public int hashCode() {
-            return handle.hashCode();
+            return (handle.hashCode() << 1) + (isConsistent ? 0 : 1);
         }
 
         @Override
@@ -300,7 +301,7 @@ public final class EntityIterableCache {
             this.isConsistent = isConsistent;
             startTime = System.currentTimeMillis();
             cachingTimeout = isConsistent ?
-                config.getEntityIterableCacheCachingTimeout() : config.getEntityIterableCacheCountsCachingTimeout();
+                    config.getEntityIterableCacheCachingTimeout() : config.getEntityIterableCacheCountsCachingTimeout();
             startCachingTimeout = config.getEntityIterableCacheStartCachingTimeout();
         }
 
@@ -376,6 +377,6 @@ public final class EntityIterableCache {
 
     public static String getStringPresentation(@NotNull final PersistentEntityStoreConfig config, @NotNull final EntityIterableHandle handle) {
         return config.getEntityIterableCacheUseHumanReadable() ?
-            EntityIterableBase.getHumanReadablePresentation(handle) : handle.toString();
+                EntityIterableBase.getHumanReadablePresentation(handle) : handle.toString();
     }
 }

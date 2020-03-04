@@ -21,6 +21,8 @@ import jetbrains.exodus.core.execution.ThreadJobProcessor;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.util.Random;
 import org.jetbrains.annotations.NotNull;
+import org.junit.Ignore;
+import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -97,7 +99,9 @@ public class StressTests extends EntityStoreTestBase {
         }
     }
 
-    public void testCacheAdapter() {
+    @Ignore
+    @Test
+    public void cacheAdapter() {
         final PersistentEntityStoreImpl store = getEntityStore();
         final EntityStoreSharedAsyncProcessor asyncProcessor = store.getAsyncProcessor();
 

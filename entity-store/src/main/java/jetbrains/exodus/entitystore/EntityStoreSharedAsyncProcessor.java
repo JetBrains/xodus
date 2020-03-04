@@ -29,7 +29,7 @@ public final class EntityStoreSharedAsyncProcessor extends MultiThreadDelegating
     private static final JobProcessorExceptionHandler EXCEPTION_HANDLER = new EntityStoreSharedAsyncProcessorExceptionHandler();
 
     public EntityStoreSharedAsyncProcessor(final int threadCount) {
-        super(THREAD_NAME, threadCount);
+        super(THREAD_NAME, assertEven(threadCount));
         setExceptionHandler(EXCEPTION_HANDLER);
     }
 
@@ -39,5 +39,12 @@ public final class EntityStoreSharedAsyncProcessor extends MultiThreadDelegating
         public void handle(final JobProcessor processor, final Job job, final Throwable t) {
             logger.error(t.getMessage(), t);
         }
+    }
+
+    private static int assertEven(int threadCount) {
+        if ((threadCount & 1) == 1) {
+            throw new EntityStoreException("EntityStoreSharedAsyncProcessor threadCount should be even");
+        }
+        return threadCount;
     }
 }
