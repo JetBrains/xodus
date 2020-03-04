@@ -248,7 +248,6 @@ public final class EntityIterableCache {
                 stats.incTotalJobsNotStarted();
                 return;
             }
-            Thread.yield();
             stats.incTotalJobsStarted();
             store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
                 @Override
