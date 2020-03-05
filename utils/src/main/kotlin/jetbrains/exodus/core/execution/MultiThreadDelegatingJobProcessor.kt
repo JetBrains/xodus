@@ -98,6 +98,8 @@ abstract class MultiThreadDelegatingJobProcessor
             job.processor = this
         }
         val hc = job.hashCode()
+        // if you change the way of computing processorNumber then make sure you've changed
+        // EntityIterableAsyncInstantiation.hashCode() correspondingly
         val processorNumber = ((hc and 0xffff) + hc.ushr(16)) % jobProcessors.size
         return job.queue(jobProcessors[processorNumber], priority)
     }
