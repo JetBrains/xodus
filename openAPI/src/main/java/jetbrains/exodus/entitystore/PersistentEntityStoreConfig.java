@@ -54,7 +54,7 @@ import java.util.Map;
  * @see PersistentEntityStore
  * @see PersistentEntityStore#getConfig()
  */
-@SuppressWarnings({"UnusedDeclaration", "WeakerAccess"})
+@SuppressWarnings({"UnusedDeclaration", "WeakerAccess", "UnusedReturnValue"})
 public class PersistentEntityStoreConfig extends AbstractConfig {
 
     public static final PersistentEntityStoreConfig DEFAULT = new PersistentEntityStoreConfig(ConfigurationStrategy.IGNORE) {
@@ -261,6 +261,18 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     public static final String ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE = "exodus.entityStore.entityIterableCache.useHumanReadable";
 
     /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code 2048}.
+     * <p>Mutable at runtime: no
+     */
+    public static final String ENTITY_ITERABLE_CACHE_HEAVY_QUERIES_CACHE_SIZE = "exodus.entityStore.entityIterableCache.heavyQueriesCacheSize";
+
+    /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code 60000}.
+     * <p>Mutable at runtime: yes
+     */
+    public static final String ENTITY_ITERABLE_CACHE_HEAVY_ITERABLES_LIFE_SPAN = "exodus.entityStore.entityIterableCache.heavyQueriesLifeSpan";
+
+    /**
      * Defines the size of "property values" cache held by each {@linkplain StoreTransaction} instance. This cache
      * reduces load created by de-serialization of property values. Default value is {@code 1024}.
      * <p>Mutable at runtime: yes
@@ -329,27 +341,29 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
             new Pair(REFACTORING_DELETE_REDUNDANT_BLOBS, false),
             new Pair(MAX_IN_PLACE_BLOB_SIZE, 10000),
             new Pair(BLOB_STRINGS_CACHE_SHARED, true),
-                new Pair(BLOB_STRINGS_CACHE_MAX_VALUE_SIZE, 1000000L),
-                new Pair(CACHING_DISABLED, false),
-                new Pair(REORDERING_DISABLED, false),
-                new Pair(EXPLAIN_ON, false),
-                new Pair(DEBUG_LINK_DATA_GETTER, false),
-                new Pair(DEBUG_SEARCH_FOR_INCOMING_LINKS_ON_DELETE, false),
-                new Pair(DEBUG_TEST_LINKED_ENTITIES, true),
-                new Pair(DEBUG_ALLOW_IN_MEMORY_SORT, true),
-                new Pair(ENTITY_ITERABLE_CACHE_SIZE, defaultEntityIterableCacheSize()),
-                new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHE_SIZE, 65536),
-                new Pair(ENTITY_ITERABLE_CACHE_THREAD_COUNT, Runtime.getRuntime().availableProcessors() > 8 ? 4 : 2),
-                new Pair(ENTITY_ITERABLE_CACHE_CACHING_TIMEOUT, 10000L),
-                new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHING_TIMEOUT, 100000L),
-                new Pair(ENTITY_ITERABLE_CACHE_START_CACHING_TIMEOUT, 7000L),
-                new Pair(ENTITY_ITERABLE_CACHE_DEFERRED_DELAY, 2000),
-                new Pair(ENTITY_ITERABLE_CACHE_MAX_SIZE_OF_DIRECT_VALUE, 512),
-                new Pair(ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE, false),
-                new Pair(TRANSACTION_PROPS_CACHE_SIZE, 1024),
-                new Pair(TRANSACTION_LINKS_CACHE_SIZE, 1024),
-                new Pair(TRANSACTION_BLOB_STRINGS_CACHE_SIZE, 256),
-                new Pair(GATHER_STATISTICS, true),
+            new Pair(BLOB_STRINGS_CACHE_MAX_VALUE_SIZE, 1000000L),
+            new Pair(CACHING_DISABLED, false),
+            new Pair(REORDERING_DISABLED, false),
+            new Pair(EXPLAIN_ON, false),
+            new Pair(DEBUG_LINK_DATA_GETTER, false),
+            new Pair(DEBUG_SEARCH_FOR_INCOMING_LINKS_ON_DELETE, false),
+            new Pair(DEBUG_TEST_LINKED_ENTITIES, true),
+            new Pair(DEBUG_ALLOW_IN_MEMORY_SORT, true),
+            new Pair(ENTITY_ITERABLE_CACHE_SIZE, defaultEntityIterableCacheSize()),
+            new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHE_SIZE, 65536),
+            new Pair(ENTITY_ITERABLE_CACHE_THREAD_COUNT, Runtime.getRuntime().availableProcessors() > 8 ? 4 : 2),
+            new Pair(ENTITY_ITERABLE_CACHE_CACHING_TIMEOUT, 10000L),
+            new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHING_TIMEOUT, 100000L),
+            new Pair(ENTITY_ITERABLE_CACHE_START_CACHING_TIMEOUT, 7000L),
+            new Pair(ENTITY_ITERABLE_CACHE_DEFERRED_DELAY, 2000),
+            new Pair(ENTITY_ITERABLE_CACHE_MAX_SIZE_OF_DIRECT_VALUE, 512),
+            new Pair(ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE, false),
+            new Pair(ENTITY_ITERABLE_CACHE_HEAVY_QUERIES_CACHE_SIZE, 2048),
+            new Pair(ENTITY_ITERABLE_CACHE_HEAVY_ITERABLES_LIFE_SPAN, 60000L),
+            new Pair(TRANSACTION_PROPS_CACHE_SIZE, 1024),
+            new Pair(TRANSACTION_LINKS_CACHE_SIZE, 1024),
+            new Pair(TRANSACTION_BLOB_STRINGS_CACHE_SIZE, 256),
+            new Pair(GATHER_STATISTICS, true),
             new Pair(MANAGEMENT_ENABLED, true),
             new Pair(REPLICATOR, null)
         }, strategy);
@@ -581,6 +595,22 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
 
     public PersistentEntityStoreConfig setEntityIterableCacheUseHumanReadable(final boolean useHumanReadable) {
         return setSetting(ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE, useHumanReadable);
+    }
+
+    public int getEntityIterableCacheHeavyIterablesCacheSize() {
+        return (Integer) getSetting(ENTITY_ITERABLE_CACHE_HEAVY_QUERIES_CACHE_SIZE);
+    }
+
+    public PersistentEntityStoreConfig setEntityIterableCacheHeavyIterablesCacheSize(int cacheSize) {
+        return setSetting(ENTITY_ITERABLE_CACHE_HEAVY_QUERIES_CACHE_SIZE, cacheSize);
+    }
+
+    public long getEntityIterableCacheHeavyIterablesLifeSpan() {
+        return (Long) getSetting(ENTITY_ITERABLE_CACHE_HEAVY_ITERABLES_LIFE_SPAN);
+    }
+
+    public PersistentEntityStoreConfig setEntityIterableCacheHeavyIterablesLifeSpan(long lifeSpan) {
+        return setSetting(ENTITY_ITERABLE_CACHE_HEAVY_ITERABLES_LIFE_SPAN, lifeSpan);
     }
 
     public int getTransactionPropsCacheSize() {

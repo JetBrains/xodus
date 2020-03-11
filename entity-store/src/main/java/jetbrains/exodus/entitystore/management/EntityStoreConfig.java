@@ -224,6 +224,21 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
+    public int getEntityIterableCacheHeavyIterablesCacheSize() {
+        return config.getEntityIterableCacheHeavyIterablesCacheSize();
+    }
+
+    @Override
+    public long getEntityIterableCacheHeavyIterablesLifeSpan() {
+        return config.getEntityIterableCacheHeavyIterablesLifeSpan();
+    }
+
+    @Override
+    public void setEntityIterableCacheHeavyIterablesLifeSpan(long lifeSpan) {
+        config.setEntityIterableCacheHeavyIterablesLifeSpan(lifeSpan);
+    }
+
+    @Override
     public int getTransactionPropsCacheSize() {
         return config.getTransactionPropsCacheSize();
     }

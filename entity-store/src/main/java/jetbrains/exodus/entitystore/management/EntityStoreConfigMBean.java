@@ -95,6 +95,12 @@ public interface EntityStoreConfigMBean {
 
     void setEntityIterableCacheUseHumanReadable(boolean useHumanReadable);
 
+    int getEntityIterableCacheHeavyIterablesCacheSize();
+
+    long getEntityIterableCacheHeavyIterablesLifeSpan();
+
+    void setEntityIterableCacheHeavyIterablesLifeSpan(long lifeSpan);
+
     int getTransactionPropsCacheSize();
 
     void setTransactionPropsCacheSize(int transactionPropsCacheSize);

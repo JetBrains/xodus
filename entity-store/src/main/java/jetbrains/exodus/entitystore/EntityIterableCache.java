@@ -47,6 +47,8 @@ public final class EntityIterableCache {
     @NotNull
     private ObjectCacheBase<Object, Long> iterableCountsCache;
     @NotNull
+    private final ObjectCacheBase<Object, Long> heavyIterablesCache;
+    @NotNull
     final EntityStoreSharedAsyncProcessor processor;
     // the value is updated by PersistentEntityStoreSettingsListener
     public boolean isCachingDisabled;
@@ -59,6 +61,7 @@ public final class EntityIterableCache {
         final int cacheSize = config.getEntityIterableCacheSize();
         deferredIterablesCache = new ConcurrentObjectCache<>(cacheSize);
         iterableCountsCache = new ConcurrentObjectCache<>(config.getEntityIterableCacheCountsCacheSize());
+        heavyIterablesCache = new ConcurrentObjectCache<>(config.getEntityIterableCacheHeavyIterablesCacheSize());
         processor = new EntityStoreSharedAsyncProcessor(config.getEntityIterableCacheThreadCount());
         processor.start();
         isCachingDisabled = config.isCachingDisabled();
@@ -193,6 +196,11 @@ public final class EntityIterableCache {
         return false;
     }
 
+    public static String getStringPresentation(@NotNull final PersistentEntityStoreConfig config, @NotNull final EntityIterableHandle handle) {
+        return config.getEntityIterableCacheUseHumanReadable() ?
+            EntityIterableBase.getHumanReadablePresentation(handle) : handle.toString();
+    }
+
     @SuppressWarnings({"EqualsAndHashcode"})
     private final class EntityIterableAsyncInstantiation extends Job {
 
@@ -247,9 +255,25 @@ public final class EntityIterableCache {
         @Override
         protected void execute() {
             final long started;
+            // don't try to cache if the queue is full or if it is too late
             if (isCachingQueueFull() || !cancellingPolicy.canStartAt(started = System.currentTimeMillis())) {
                 stats.incTotalJobsNotStarted();
                 return;
+            }
+            final Object iterableIdentity = handle.getIdentity();
+            // for consistent jobs, don't try to cache if we know that this iterable was "heavy" during its life span
+            if (isConsistent) {
+                final Long lastCancelled = heavyIterablesCache.tryKey(iterableIdentity);
+                if (lastCancelled != null) {
+                    if (lastCancelled + config.getEntityIterableCacheHeavyIterablesLifeSpan() > started) {
+                        stats.incTotalJobsNotStarted();
+                        if (logger.isInfoEnabled()) {
+                            logger.info("Heavy iterable not started, handle=" + getStringPresentation(config, handle));
+                        }
+                        return;
+                    }
+                    heavyIterablesCache.remove(iterableIdentity);
+                }
             }
             stats.incTotalJobsStarted();
             store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
@@ -279,6 +303,9 @@ public final class EntityIterableCache {
                         queue(Priority.below_normal);
                     } catch (TooLongEntityIterableInstantiationException e) {
                         stats.incTotalJobsInterrupted();
+                        if (isConsistent) {
+                            heavyIterablesCache.cacheObject(iterableIdentity, System.currentTimeMillis());
+                        }
                         if (logger.isInfoEnabled()) {
                             final String action = cancellingPolicy.isConsistent ? "Caching" : "Caching (inconsistent)";
                             logger.info(action + " forcedly stopped, " + e.reason.message + ": " + getStringPresentation(config, handle));
@@ -289,54 +316,12 @@ public final class EntityIterableCache {
         }
     }
 
-    private final class CachingCancellingPolicy implements QueryCancellingPolicy {
-
-        private final boolean isConsistent;
-        private final long startTime;
-        private final long cachingTimeout;
-        private final long startCachingTimeout;
-        private EntityIterableCacheAdapter localCache;
-
-        private CachingCancellingPolicy(final boolean isConsistent) {
-            this.isConsistent = isConsistent;
-            startTime = System.currentTimeMillis();
-            cachingTimeout = isConsistent ?
-                    config.getEntityIterableCacheCachingTimeout() : config.getEntityIterableCacheCountsCachingTimeout();
-            startCachingTimeout = config.getEntityIterableCacheStartCachingTimeout();
-        }
-
-        private boolean canStartAt(final long currentMillis) {
-            return currentMillis - startTime < startCachingTimeout;
-        }
-
-        private void setLocalCache(@NotNull final EntityIterableCacheAdapter localCache) {
-            this.localCache = localCache;
-        }
-
-        @Override
-        public boolean needToCancel() {
-            return (isConsistent && cacheAdapter != localCache) || System.currentTimeMillis() - startTime > cachingTimeout;
-        }
-
-        @Override
-        public void doCancel() {
-            final TooLongEntityIterableInstantiationReason reason;
-            if (isConsistent && cacheAdapter != localCache) {
-                reason = TooLongEntityIterableInstantiationReason.CACHE_ADAPTER_OBSOLETE;
-            } else {
-                reason = TooLongEntityIterableInstantiationReason.JOB_OVERDUE;
-            }
-            throw new TooLongEntityIterableInstantiationException(reason);
-        }
-    }
-
     @SuppressWarnings({"serial", "SerializableClassInSecureContext", "EmptyClass", "SerializableHasSerializationMethods", "DeserializableClassInSecureContext"})
     private static class TooLongEntityIterableInstantiationException extends ExodusException {
         private final TooLongEntityIterableInstantiationReason reason;
 
         TooLongEntityIterableInstantiationException(TooLongEntityIterableInstantiationReason reason) {
             super(reason.message);
-
             this.reason = reason;
         }
     }
@@ -375,8 +360,44 @@ public final class EntityIterableCache {
         }
     }
 
-    public static String getStringPresentation(@NotNull final PersistentEntityStoreConfig config, @NotNull final EntityIterableHandle handle) {
-        return config.getEntityIterableCacheUseHumanReadable() ?
-                EntityIterableBase.getHumanReadablePresentation(handle) : handle.toString();
+    private final class CachingCancellingPolicy implements QueryCancellingPolicy {
+
+        private final boolean isConsistent;
+        private final long startTime;
+        private final long cachingTimeout;
+        private final long startCachingTimeout;
+        private EntityIterableCacheAdapter localCache;
+
+        private CachingCancellingPolicy(final boolean isConsistent) {
+            this.isConsistent = isConsistent;
+            startTime = System.currentTimeMillis();
+            cachingTimeout = isConsistent ?
+                config.getEntityIterableCacheCachingTimeout() : config.getEntityIterableCacheCountsCachingTimeout();
+            startCachingTimeout = config.getEntityIterableCacheStartCachingTimeout();
+        }
+
+        private boolean canStartAt(final long currentMillis) {
+            return currentMillis - startTime < startCachingTimeout;
+        }
+
+        private void setLocalCache(@NotNull final EntityIterableCacheAdapter localCache) {
+            this.localCache = localCache;
+        }
+
+        @Override
+        public boolean needToCancel() {
+            return (isConsistent && cacheAdapter != localCache) || System.currentTimeMillis() - startTime > cachingTimeout;
+        }
+
+        @Override
+        public void doCancel() {
+            final TooLongEntityIterableInstantiationReason reason;
+            if (isConsistent && cacheAdapter != localCache) {
+                reason = TooLongEntityIterableInstantiationReason.CACHE_ADAPTER_OBSOLETE;
+            } else {
+                reason = TooLongEntityIterableInstantiationReason.JOB_OVERDUE;
+            }
+            throw new TooLongEntityIterableInstantiationException(reason);
+        }
     }
 }
