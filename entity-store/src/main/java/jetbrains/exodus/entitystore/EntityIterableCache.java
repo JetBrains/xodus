@@ -248,8 +248,8 @@ public final class EntityIterableCache {
         public int hashCode() {
             // hashcode is computed in accordance with MultiThreadDelegatingJobProcessor.push()
             // "consistent" jobs should be queued to an even processor, "inconsistent" jobs - to an odd one
-            final int hc = handle.hashCode();
-            return isConsistent ? (hc & 0xfffefffe) : (hc | 0x10001);
+            final int hc = handle.hashCode() & 0xfffefffe;
+            return isConsistent ? hc : hc | 1;
         }
 
         @Override
