@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.env
 
-import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.bindings.StringBinding
@@ -28,7 +27,6 @@ import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogConfig
 import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.log.NullLoggable
-import jetbrains.exodus.runtime.OOMGuard
 import jetbrains.exodus.tree.LongIterator
 import jetbrains.exodus.tree.patricia.PatriciaTreeBase
 import mu.KLogging
@@ -36,7 +34,6 @@ import java.io.File
 import java.io.PrintWriter
 import java.util.*
 import kotlin.math.max
-import kotlin.math.min
 import kotlin.system.exitProcess
 
 fun main(args: Array<String>) {
@@ -110,7 +107,9 @@ fun main(args: Array<String>) {
                 exitProcess(reflect.traverse(dumpUtilizationToFile, persistentEntityStoreInfo))
             }
             if (copy) {
-                reflect.copy(File(envPath2), forcePrefixing)
+                reflect.env.copyTo(File(envPath2), forcePrefixing, Reflect.logger) {
+                    println(it)
+                }
             }
             if (utilizationInfo) {
                 reflect.spaceInfoFromUtilization()
@@ -250,7 +249,7 @@ class Reflect(directory: File) {
         }
     }
 
-    private val env: EnvironmentImpl
+    internal val env: EnvironmentImpl
     private val log: Log
 
     init {
@@ -366,102 +365,6 @@ class Reflect(directory: File) {
             }
         }
         return if (wereErrors) -1 else 0
-    }
-
-    fun copy(there: File, forcePrefixing: Boolean) {
-        if (there.list().run { this != null && isNotEmpty() }) {
-            println("Environment path 2 is expected to be an empty directory: $there")
-            return
-        }
-        val maxMemory = Runtime.getRuntime().maxMemory()
-        val guard = OOMGuard(if (maxMemory == Long.MAX_VALUE) 20_000_000 else min(maxMemory / 50L, 1000_000_000).toInt())
-        Environments.newInstance(there, env.environmentConfig).use { newEnv ->
-            println("Copying environment to " + newEnv.location)
-            val names = env.computeInReadonlyTransaction { txn -> env.getAllStoreNames(txn) }
-            val storesCount = names.size
-            println("Stores found: $storesCount")
-            names.forEachIndexed { i, name ->
-                val started = Date()
-                print(copyStoreMessage(started, name, i + 1, storesCount, 0L))
-                var storeSize = 0L
-                var storeIsBroken: Throwable? = null
-                try {
-                    newEnv.executeInExclusiveTransaction { targetTxn ->
-                        try {
-                            env.executeInReadonlyTransaction { sourceTxn ->
-                                val sourceStore = env.openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
-                                val targetConfig = sourceStore.config.let { sourceConfig ->
-                                    if (forcePrefixing) StoreConfig.getStoreConfig(sourceConfig.duplicates, true) else sourceConfig
-                                }
-                                val targetStore = newEnv.openStore(name, targetConfig, targetTxn)
-                                storeSize = sourceStore.count(sourceTxn)
-                                sourceStore.openCursor(sourceTxn).forEachIndexed {
-                                    targetStore.putRight(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))
-                                    if ((it + 1) % 100_000 == 0 || guard.isItCloseToOOM()) {
-                                        targetTxn.flush()
-                                        guard.reset()
-                                        print(copyStoreMessage(started, name, i + 1, storesCount, (it.toLong() * 100L / storeSize)))
-                                    }
-                                }
-                            }
-                        } catch (t: Throwable) {
-                            targetTxn.flush()
-                            throw t
-                        }
-                    }
-                } catch (t: Throwable) {
-                    logger.warn(t) { "Failed to completely copy $name, proceeding in reverse order..." }
-                    if (t is VirtualMachineError) {
-                        throw t
-                    }
-                    storeIsBroken = t
-                }
-                if (storeIsBroken != null) {
-                    try {
-                        newEnv.executeInExclusiveTransaction { targetTxn ->
-                            try {
-                                env.executeInReadonlyTransaction { sourceTxn ->
-                                    val sourceStore = env.openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
-                                    val targetConfig = sourceStore.config.let { sourceConfig ->
-                                        if (forcePrefixing) StoreConfig.getStoreConfig(sourceConfig.duplicates, true) else sourceConfig
-                                    }
-                                    val targetStore = newEnv.openStore(name, targetConfig, targetTxn)
-                                    storeSize = sourceStore.count(sourceTxn)
-                                    sourceStore.openCursor(sourceTxn).forEachReversed {
-                                        targetStore.put(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))
-                                        if (guard.isItCloseToOOM()) {
-                                            targetTxn.flush()
-                                            guard.reset()
-                                        }
-                                    }
-                                }
-                            } catch (t: Throwable) {
-                                targetTxn.flush()
-                                throw t
-                            }
-                        }
-                    } catch (t: Throwable) {
-                        logger.error(t) { "Failed to completely copy $name" }
-                        if (t is VirtualMachineError) {
-                            throw t
-                        }
-                    }
-                    println()
-                    logger.error("Failed to completely copy store $name", storeIsBroken)
-                }
-                val actualSize = newEnv.computeInReadonlyTransaction { txn ->
-                    if (newEnv.storeExists(name, txn)) {
-                        newEnv.openStore(name, StoreConfig.USE_EXISTING, txn).count(txn)
-                    } else 0L
-
-                }
-                println("\r$started Copying store $name (${i + 1} of $storesCount): saved store size = $storeSize, actual number of pairs = $actualSize")
-            }
-        }
-    }
-
-    fun copyStoreMessage(started: Date, name: String, n: Int, totalCount: Int, percent: Long): String {
-        return "\r$started Copying store $name ($n of $totalCount): $percent%"
     }
 
     fun spaceInfoFromUtilization() {
