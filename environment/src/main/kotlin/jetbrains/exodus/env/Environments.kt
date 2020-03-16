@@ -113,12 +113,13 @@ object Environments {
         if (ec.envCompactOnOpen) {
             val location = env.location
             File(location, "compactTemp${System.currentTimeMillis()}").let { tempDir ->
-                if (tempDir.freeSpace < env.diskUsage) {
-                    EnvironmentImpl.loggerError("Not enough free disk space to compact the database: $location")
-                    return@let
-                }
                 if (!tempDir.mkdir()) {
                     EnvironmentImpl.loggerError("Failed to create temporary directory: $tempDir")
+                    return@let
+                }
+                if (tempDir.freeSpace < env.diskUsage) {
+                    EnvironmentImpl.loggerError("Not enough free disk space to compact the database: $location")
+                    tempDir.delete()
                     return@let
                 }
                 env.copyTo(tempDir, false, null) { msg ->
