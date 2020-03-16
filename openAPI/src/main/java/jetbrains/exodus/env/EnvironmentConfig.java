@@ -441,6 +441,13 @@ public class EnvironmentConfig extends AbstractConfig {
     public static final String ENV_GATHER_STATISTICS = "exodus.env.gatherStatistics";
 
     /**
+     * If is set to {@code true} then the {@linkplain Environment} will compact itself on opening.
+     * Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
+    public static final String ENV_COMPACT_ON_OPEN = "exodus.env.compactOnOpen";
+
+    /**
      * Defines the maximum size of page of B+Tree. Default value is {@code 128}.
      * <p>Mutable at runtime: yes
      */
@@ -666,6 +673,7 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(ENV_MONITOR_TXNS_EXPIRATION_TIMEOUT, (int) TimeUnit.HOURS.toMillis(8)),
             new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
             new Pair(ENV_GATHER_STATISTICS, true),
+            new Pair(ENV_COMPACT_ON_OPEN, false),
             new Pair(TREE_MAX_PAGE_SIZE, 128),
             new Pair(TREE_DUP_MAX_PAGE_SIZE, 8),
             new Pair(GC_ENABLED, true),
@@ -1753,6 +1761,29 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public EnvironmentConfig setEnvGatherStatistics(final boolean gatherStatistics) {
         return setSetting(ENV_GATHER_STATISTICS, gatherStatistics);
+    }
+
+    /**
+     * Returns {@code true} if the {@linkplain Environment} will compact itself on opening.
+     * Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     *
+     * @return {@code true} if the {@linkplain Environment} will compact itself on opening
+     */
+    public boolean getEnvCompactOnOpen() {
+        return (Boolean) getSetting(ENV_COMPACT_ON_OPEN);
+    }
+
+    /**
+     * Set {@code true} if the {@linkplain Environment} should compact itself on opening
+     * Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     *
+     * @param compactOnOpen {@code true} if the {@linkplain Environment} should  compact itself on opening
+     * @return this {@code EnvironmentConfig} instance
+     */
+    public EnvironmentConfig setEnvCompactOnOpen(final boolean compactOnOpen) {
+        return setSetting(ENV_COMPACT_ON_OPEN, compactOnOpen);
     }
 
     /**

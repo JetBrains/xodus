@@ -33,7 +33,7 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
 
         private const val DELETED_FILE_EXTENSION = ".del"
 
-        private fun renameFile(file: File): Boolean {
+        fun renameFile(file: File): Boolean {
             val name = file.name
             return file.renameTo(File(file.parent,
                     name.substring(0, name.indexOf(LogUtil.LOG_FILE_EXTENSION)) + DELETED_FILE_EXTENSION))

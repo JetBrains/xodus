@@ -15,55 +15,59 @@
  */
 package jetbrains.exodus.env
 
+import jetbrains.exodus.ExodusException
 import jetbrains.exodus.crypto.newCipherProvider
+import jetbrains.exodus.io.FileDataWriter
 import jetbrains.exodus.io.SharedOpenFilesCache
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogConfig
+import jetbrains.exodus.log.LogUtil
 import java.io.File
 
 object Environments {
 
     @JvmStatic
-    fun newInstance(dir: String, subDir: String, ec: EnvironmentConfig): Environment = prepare(EnvironmentImpl(newLogInstance(File(dir, subDir), ec), ec))
+    fun newInstance(dir: String, subDir: String, ec: EnvironmentConfig): Environment = prepare { EnvironmentImpl(newLogInstance(File(dir, subDir), ec), ec) }
 
     @JvmStatic
     fun newInstance(dir: String): Environment = newInstance(dir, EnvironmentConfig())
 
     @JvmStatic
-    fun newInstance(log: Log, ec: EnvironmentConfig): Environment = prepare(EnvironmentImpl(log, ec))
+    fun newInstance(log: Log, ec: EnvironmentConfig): Environment = prepare { EnvironmentImpl(log, ec) }
 
     @JvmStatic
-    fun newInstance(dir: String, ec: EnvironmentConfig): Environment = prepare(EnvironmentImpl(newLogInstance(File(dir), ec), ec))
+    fun newInstance(dir: String, ec: EnvironmentConfig): Environment = prepare { EnvironmentImpl(newLogInstance(File(dir), ec), ec) }
 
     @JvmStatic
     fun newInstance(dir: File): Environment = newInstance(dir, EnvironmentConfig())
 
     @JvmStatic
-    fun newInstance(dir: File, ec: EnvironmentConfig): Environment = prepare(EnvironmentImpl(newLogInstance(dir, ec), ec))
+    fun newInstance(dir: File, ec: EnvironmentConfig): Environment = prepare { EnvironmentImpl(newLogInstance(dir, ec), ec) }
 
     @JvmStatic
     fun newInstance(config: LogConfig): Environment = newInstance(config, EnvironmentConfig())
 
     @JvmStatic
-    fun newInstance(config: LogConfig, ec: EnvironmentConfig): Environment = prepare(EnvironmentImpl(newLogInstance(config, ec), ec))
+    fun newInstance(config: LogConfig, ec: EnvironmentConfig): Environment = prepare { EnvironmentImpl(newLogInstance(config, ec), ec) }
 
     @JvmStatic
-    fun newContextualInstance(dir: String, subDir: String, ec: EnvironmentConfig): ContextualEnvironment = prepare(ContextualEnvironmentImpl(newLogInstance(File(dir, subDir), ec), ec))
+    fun newContextualInstance(dir: String, subDir: String, ec: EnvironmentConfig): ContextualEnvironment =
+            prepare { ContextualEnvironmentImpl(newLogInstance(File(dir, subDir), ec), ec) }
 
     @JvmStatic
     fun newContextualInstance(dir: String): ContextualEnvironment = newContextualInstance(dir, EnvironmentConfig())
 
     @JvmStatic
-    fun newContextualInstance(dir: String, ec: EnvironmentConfig): ContextualEnvironment = prepare(ContextualEnvironmentImpl(newLogInstance(File(dir), ec), ec))
+    fun newContextualInstance(dir: String, ec: EnvironmentConfig): ContextualEnvironment = prepare { ContextualEnvironmentImpl(newLogInstance(File(dir), ec), ec) }
 
     @JvmStatic
     fun newContextualInstance(dir: File): ContextualEnvironment = newContextualInstance(dir, EnvironmentConfig())
 
     @JvmStatic
-    fun newContextualInstance(dir: File, ec: EnvironmentConfig): ContextualEnvironment = prepare(ContextualEnvironmentImpl(newLogInstance(dir, ec), ec))
+    fun newContextualInstance(dir: File, ec: EnvironmentConfig): ContextualEnvironment = prepare { ContextualEnvironmentImpl(newLogInstance(dir, ec), ec) }
 
     @JvmStatic
-    fun newContextualInstance(config: LogConfig, ec: EnvironmentConfig): ContextualEnvironment = prepare(ContextualEnvironmentImpl(newLogInstance(config, ec), ec))
+    fun newContextualInstance(config: LogConfig, ec: EnvironmentConfig): ContextualEnvironment = prepare { ContextualEnvironmentImpl(newLogInstance(config, ec), ec) }
 
     @JvmStatic
     fun newLogInstance(dir: File, ec: EnvironmentConfig): Log = newLogInstance(LogConfig().setLocation(dir.path), ec)
@@ -103,10 +107,42 @@ object Environments {
     @JvmStatic
     fun newLogInstance(config: LogConfig): Log = Log(config.also { SharedOpenFilesCache.setSize(config.cacheOpenFilesCount) })
 
-    @JvmStatic
-    fun <T : EnvironmentImpl> prepare(env: T): T {
+    private fun <T : EnvironmentImpl> prepare(envCreator: () -> T): T {
+        var env = envCreator()
+        val ec = env.environmentConfig
+        if (ec.envCompactOnOpen) {
+            val location = env.location
+            File(location, "compactTemp${System.currentTimeMillis()}").let { tempDir ->
+                if (tempDir.freeSpace < env.diskUsage) {
+                    EnvironmentImpl.loggerError("Not enough free disk space to compact the database: $location")
+                    return@let
+                }
+                if (!tempDir.mkdir()) {
+                    EnvironmentImpl.loggerError("Failed to create temporary directory: $tempDir")
+                    return@let
+                }
+                env.copyTo(tempDir, false, null) { msg ->
+                    EnvironmentImpl.loggerInfo(msg.toString())
+                }
+                val files = env.log.allFileAddresses
+                env.close()
+                files.forEach { fileAddress ->
+                    val file = File(location, LogUtil.getLogFilename(fileAddress))
+                    if (!FileDataWriter.renameFile(file)) {
+                        EnvironmentImpl.loggerError("Failed to reanme file: $file")
+                        return@let
+                    }
+                }
+                LogUtil.listFiles(tempDir).forEach { file ->
+                    if (!file.renameTo(File(location, file.name))) {
+                        throw ExodusException("Failed to reanme file: $file")
+                    }
+                }
+                env = envCreator()
+            }
+        }
         env.gc.utilizationProfile.load()
-        val metaServer = env.environmentConfig.metaServer
+        val metaServer = ec.metaServer
         metaServer?.start(env)
         return env
     }
