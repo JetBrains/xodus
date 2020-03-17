@@ -110,7 +110,7 @@ object Environments {
     private fun <T : EnvironmentImpl> prepare(envCreator: () -> T): T {
         var env = envCreator()
         val ec = env.environmentConfig
-        if (ec.envCompactOnOpen) {
+        if (ec.envCompactOnOpen && env.log.numberOfFiles > 1) {
             val location = env.location
             File(location, "compactTemp${System.currentTimeMillis()}").let { tempDir ->
                 if (!tempDir.mkdir()) {
