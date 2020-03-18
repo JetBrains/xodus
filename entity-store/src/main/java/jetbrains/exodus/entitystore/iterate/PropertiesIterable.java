@@ -33,6 +33,7 @@ public final class PropertiesIterable extends EntityIterableBase {
 
     private final int entityTypeId;
     private final int propertyId;
+    private boolean isSticky;
 
     static {
         registerType(getType(), new EntityIterableInstantiator() {
@@ -55,6 +56,7 @@ public final class PropertiesIterable extends EntityIterableBase {
         super(txn);
         this.entityTypeId = entityTypeId;
         this.propertyId = propertyId;
+        isSticky = false;
     }
 
     @Override
@@ -87,10 +89,14 @@ public final class PropertiesIterable extends EntityIterableBase {
         return result;
     }
 
+    public void setSticky(boolean sticky) {
+        isSticky = sticky;
+    }
+
     @Override
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
-        return new PropertiesIterableHandle();
+        return new PropertiesIterableHandle(isSticky);
     }
 
     @Override
@@ -129,8 +135,11 @@ public final class PropertiesIterable extends EntityIterableBase {
 
     private final class PropertiesIterableHandle extends ConstantEntityIterableHandle {
 
-        public PropertiesIterableHandle() {
+        private final boolean isSticky;
+
+        public PropertiesIterableHandle(final boolean isSticky) {
             super(PropertiesIterable.this.getStore(), PropertiesIterable.getType());
+            this.isSticky = isSticky;
         }
 
         @NotNull
@@ -157,6 +166,11 @@ public final class PropertiesIterable extends EntityIterableBase {
         @Override
         public int getEntityTypeId() {
             return entityTypeId;
+        }
+
+        @Override
+        public boolean isSticky() {
+            return isSticky;
         }
 
         @Override

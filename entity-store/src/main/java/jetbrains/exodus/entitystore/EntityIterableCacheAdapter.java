@@ -79,7 +79,11 @@ class EntityIterableCacheAdapter {
     }
 
     void cacheObject(@NotNull final EntityIterableHandle key, @NotNull final CachedInstanceIterable it) {
-        cache.cacheObject(key, new CacheItem(it, config.getEntityIterableCacheMaxSizeOfDirectValue()));
+        if (key.isSticky()) {
+            stickyObjects.put(key, (Updatable) it);
+        } else {
+            cache.cacheObject(key, new CacheItem(it, config.getEntityIterableCacheMaxSizeOfDirectValue()));
+        }
     }
 
     void forEachKey(final ObjectProcedure<EntityIterableHandle> procedure) {
@@ -119,13 +123,13 @@ class EntityIterableCacheAdapter {
     }
 
     @Nullable
-    Updatable getStickyObjectSafe(@NotNull EntityIterableHandle handle) {
+    Updatable getStickyObjectUnsafe(@NotNull EntityIterableHandle handle) {
         return stickyObjects.get(handle);
     }
 
     @NotNull
     Updatable getStickyObject(@NotNull final EntityIterableHandle handle) {
-        Updatable result = getStickyObjectSafe(handle);
+        Updatable result = getStickyObjectUnsafe(handle);
         if (result == null) {
             throw new IllegalStateException("Sticky object not found, handle: " + getStringPresentation(config, handle));
         }
