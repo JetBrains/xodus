@@ -59,7 +59,11 @@ class EntityIterableCacheAdapter {
         if (key.isSticky()) {
             return (CachedInstanceIterable) getStickyObject(key);
         }
-        return parseCachedObject(key, cache.tryKey(key));
+        CachedInstanceIterable cached = parseCachedObject(key, cache.tryKey(key));
+        if (cached == null) {
+            cached = (CachedInstanceIterable) getStickyObjectUnsafe(key);
+        }
+        return cached;
     }
 
     @Nullable
@@ -67,7 +71,11 @@ class EntityIterableCacheAdapter {
         if (key.isSticky()) {
             return (CachedInstanceIterable) getStickyObject(key);
         }
-        return parseCachedObject(key, cache.getObject(key));
+        CachedInstanceIterable cached = parseCachedObject(key, cache.getObject(key));
+        if (cached == null) {
+            cached = (CachedInstanceIterable) getStickyObjectUnsafe(key);
+        }
+        return cached;
     }
 
     @Nullable
@@ -75,7 +83,11 @@ class EntityIterableCacheAdapter {
         if (key.isSticky()) {
             return getStickyObject(key);
         }
-        return (Updatable) parseCachedObject(key, cache.getObject(key));
+        Updatable updatable = (Updatable) parseCachedObject(key, cache.getObject(key));
+        if (updatable == null) {
+            updatable = getStickyObjectUnsafe(key);
+        }
+        return updatable;
     }
 
     void cacheObject(@NotNull final EntityIterableHandle key, @NotNull final CachedInstanceIterable it) {
