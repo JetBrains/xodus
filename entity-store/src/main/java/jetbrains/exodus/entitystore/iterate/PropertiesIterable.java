@@ -29,11 +29,10 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 @SuppressWarnings({"RawUseOfParameterizedType"})
-public final class PropertiesIterable extends EntityIterableBase {
+public class PropertiesIterable extends EntityIterableBase {
 
     private final int entityTypeId;
     private final int propertyId;
-    private boolean isSticky;
 
     static {
         registerType(getType(), new EntityIterableInstantiator() {
@@ -56,7 +55,6 @@ public final class PropertiesIterable extends EntityIterableBase {
         super(txn);
         this.entityTypeId = entityTypeId;
         this.propertyId = propertyId;
-        isSticky = false;
     }
 
     @Override
@@ -89,14 +87,11 @@ public final class PropertiesIterable extends EntityIterableBase {
         return result;
     }
 
-    public void setSticky(boolean sticky) {
-        isSticky = sticky;
-    }
 
     @Override
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
-        return new PropertiesIterableHandle(isSticky);
+        return new PropertiesIterableHandle();
     }
 
     @Override
@@ -135,11 +130,8 @@ public final class PropertiesIterable extends EntityIterableBase {
 
     private final class PropertiesIterableHandle extends ConstantEntityIterableHandle {
 
-        private final boolean isSticky;
-
-        public PropertiesIterableHandle(final boolean isSticky) {
+        public PropertiesIterableHandle() {
             super(PropertiesIterable.this.getStore(), PropertiesIterable.getType());
-            this.isSticky = isSticky;
         }
 
         @NotNull
@@ -169,11 +161,6 @@ public final class PropertiesIterable extends EntityIterableBase {
         }
 
         @Override
-        public boolean isSticky() {
-            return isSticky;
-        }
-
-        @Override
         public boolean isMatchedPropertyChanged(@NotNull final EntityId id,
                                                 final int propertyId,
                                                 @Nullable final Comparable oldValue,
@@ -184,7 +171,7 @@ public final class PropertiesIterable extends EntityIterableBase {
         @Override
         public boolean onPropertyChanged(@NotNull PropertyChangedHandleChecker handleChecker) {
             UpdatablePropertiesCachedInstanceIterable iterable
-                    = PersistentStoreTransaction.getUpdatable(handleChecker, this, UpdatablePropertiesCachedInstanceIterable.class);
+                = PersistentStoreTransaction.getUpdatable(handleChecker, this, UpdatablePropertiesCachedInstanceIterable.class);
             if (iterable != null) {
                 final Comparable oldValue = handleChecker.getOldValue();
                 final Comparable newValue = handleChecker.getNewValue();
@@ -237,7 +224,7 @@ public final class PropertiesIterable extends EntityIterableBase {
             if (hasNext = getNext(secondaryIndex)) {
                 final long entityLocalId = LongBinding.compressedEntryToLong(secondaryIndex.getValue());
                 final ByteIterable value = primaryIndex.getSearchKey(
-                        PropertyKey.propertyKeyToEntry(new PropertyKey(entityLocalId, propertyId)));
+                    PropertyKey.propertyKeyToEntry(new PropertyKey(entityLocalId, propertyId)));
                 if ((hasNext = value != null)) {
                     final PropertyValue propertyValue = getStore().getPropertyTypes().entryToPropertyValue(value);
                     if (propertyValue.getType().getTypeId() != ComparableValueType.COMPARABLE_SET_VALUE_TYPE) {

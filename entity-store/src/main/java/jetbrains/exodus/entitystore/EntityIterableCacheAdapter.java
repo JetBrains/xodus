@@ -91,11 +91,7 @@ class EntityIterableCacheAdapter {
     }
 
     void cacheObject(@NotNull final EntityIterableHandle key, @NotNull final CachedInstanceIterable it) {
-        if (key.isSticky()) {
-            stickyObjects.put(key, (Updatable) it);
-        } else {
-            cache.cacheObject(key, new CacheItem(it, config.getEntityIterableCacheMaxSizeOfDirectValue()));
-        }
+        cache.cacheObject(key, new CacheItem(it, config.getEntityIterableCacheMaxSizeOfDirectValue()));
     }
 
     void forEachKey(final ObjectProcedure<EntityIterableHandle> procedure) {
