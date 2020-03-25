@@ -22,7 +22,7 @@ import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.query.metadata.ModelMetaData
 
 @Suppress("EqualsOrHashCode")
-class Or internal constructor(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
+class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
 
     companion object {
 

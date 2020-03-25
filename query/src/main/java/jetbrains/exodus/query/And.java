@@ -31,7 +31,7 @@ public class And extends CommutativeOperator {
 
     private static final boolean traceFindLinks = Boolean.getBoolean("jetbrains.exodus.query.traceFindLinks");
 
-    And(final NodeBase left, final NodeBase right) {
+    public And(final NodeBase left, final NodeBase right) {
         super(left, right);
     }
 
