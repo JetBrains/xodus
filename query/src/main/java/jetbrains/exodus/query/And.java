@@ -31,7 +31,7 @@ public class And extends CommutativeOperator {
 
     private static final boolean traceFindLinks = Boolean.getBoolean("jetbrains.exodus.query.traceFindLinks");
 
-    public And(final NodeBase left, final NodeBase right) {
+    And(final NodeBase left, final NodeBase right) {
         super(left, right);
     }
 
@@ -76,6 +76,16 @@ public class And extends CommutativeOperator {
         return "and";
     }
 
+    public static NodeBase and(final NodeBase left, final NodeBase right) {
+        if (left instanceof GetAll) {
+            return right;
+        }
+        if (right instanceof GetAll) {
+            return left;
+        }
+        return new And(left, right);
+    }
+
     private static Iterable<Entity> instantiateCustom(@NotNull final String entityType,
                                                       @NotNull final QueryEngine queryEngine,
                                                       @NotNull final ModelMetaData metaData,
@@ -85,8 +95,8 @@ public class And extends CommutativeOperator {
         final Iterable<Entity> selfInstance = self.instantiate(entityType, queryEngine, metaData);
         if (selfInstance instanceof EntityIterableBase) {
             final EntityIterable result = ((EntityIterableBase) selfInstance).findLinks(
-                    ((EntityIterableBase) decorator.instantiateDecorated(decorator.getLinkEntityType(), queryEngine, metaData)).getSource(),
-                    decorator.getLinkName());
+                ((EntityIterableBase) decorator.instantiateDecorated(decorator.getLinkEntityType(), queryEngine, metaData)).getSource(),
+                decorator.getLinkName());
             if (traceFindLinks) {
                 final Iterator<Entity> directIt = directClosure.instantiate().iterator();
                 final EntityIterator it = result.iterator();

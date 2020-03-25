@@ -137,9 +137,9 @@ public class QueryEngine {
                 if (l.getInstance() == r.getInstance()) {
                     final String rightType = r.getEntityType();
                     if (Utils.isTypeOf(leftType, rightType, mmd)) {
-                        return new TreeKeepingEntityIterable(r.getInstance(), leftType, new And(l.getTree(), r.getTree()), l.annotatedTree, r.annotatedTree, this);
+                        return new TreeKeepingEntityIterable(r.getInstance(), leftType, And.and(l.getTree(), r.getTree()), l.annotatedTree, r.annotatedTree, this);
                     } else if (Utils.isTypeOf(rightType, leftType, mmd)) {
-                        return new TreeKeepingEntityIterable(r.getInstance(), rightType, new And(l.getTree(), r.getTree()), l.annotatedTree, r.annotatedTree, this);
+                        return new TreeKeepingEntityIterable(r.getInstance(), rightType, And.and(l.getTree(), r.getTree()), l.annotatedTree, r.annotatedTree, this);
                     }
                 }
             }
@@ -188,7 +188,7 @@ public class QueryEngine {
             if (right instanceof TreeKeepingEntityIterable) {
                 final TreeKeepingEntityIterable r = (TreeKeepingEntityIterable) right;
                 if (l.getInstance() == r.getInstance() && leftType.equals(r.getEntityType())) {
-                    return new TreeKeepingEntityIterable(r.getInstance(), leftType, new Or(l.getTree(), r.getTree()), l.annotatedTree, r.annotatedTree, this);
+                    return new TreeKeepingEntityIterable(r.getInstance(), leftType, Or.or(l.getTree(), r.getTree()), l.annotatedTree, r.annotatedTree, this);
                 }
             }
         }

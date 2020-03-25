@@ -24,11 +24,14 @@ import org.junit.Assert;
 
 import java.util.Objects;
 
+import static jetbrains.exodus.query.And.and;
+import static jetbrains.exodus.query.Or.or;
 import static jetbrains.exodus.query.metadata.AssociationEndCardinality._0_1;
 import static jetbrains.exodus.query.metadata.MetaBuilder.*;
 
-@SuppressWarnings({"HardcodedLineSeparator", "EqualsBetweenInconvertibleTypes", "OverlyCoupledMethod"})
+@SuppressWarnings({"HardcodedLineSeparator", "OverlyCoupledMethod"})
 public class QueryTreeTest extends EntityStoreTestBase {
+
     private PropertyEqual propertyEqual;
     private PropertyEqual propertyEqualNull;
     private PropertyNotNull propertyNotNull;
@@ -42,14 +45,14 @@ public class QueryTreeTest extends EntityStoreTestBase {
     protected void setUp() throws Exception {
         super.setUp();
         queryEngine = new QueryEngine(model(
-                clazz("TstClass").
-                        prop("s", "string").
-                        prop("i", "int").
-                        link("itself", "TstClass", _0_1).
-                        edge("self1", "TstClass", _0_1, "self2", _0_1).
-                        link("myEnum", "MyEnum", _0_1),
-                enumeration("MyEnum").
-                        prop("number", "int")
+            clazz("TstClass").
+                prop("s", "string").
+                prop("i", "int").
+                link("itself", "TstClass", _0_1).
+                edge("self1", "TstClass", _0_1, "self2", _0_1).
+                link("myEnum", "MyEnum", _0_1),
+            enumeration("MyEnum").
+                prop("number", "int")
         ), getEntityStore());
         SortEngine sortEngine = new SortEngine();
         queryEngine.setSortEngine(sortEngine);
@@ -58,7 +61,7 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testAnd() {
-        And and = new And(propertyEqual, linkNotNull);
+        NodeBase and = and(propertyEqual, linkNotNull);
         Assert.assertEquals(1, QueryUtil.getSize(instantiate(and)));
         Assert.assertNotEquals(and, propertyEqual);
         Assert.assertNotEquals(propertyEqual, and);
@@ -93,18 +96,18 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testOr() {
-        Or or = new Or(propertyEqual, linkNotNull);
+        NodeBase or = or(propertyEqual, linkNotNull);
         Assert.assertEquals(3, QueryUtil.getSize(instantiate(or)));
         Assert.assertNotEquals(or, propertyEqual);
         Assert.assertNotEquals(propertyEqual, or);
     }
 
     public void testBinaryOperation() {
-        Or tree = new Or(new UnaryNot(NodeFactory.all()), new UnaryNot(NodeFactory.all()));
-        tree.replaceChild(tree.getLeft(), NodeFactory.all());
-        Assert.assertEquals(new Or(NodeFactory.all(), new UnaryNot(NodeFactory.all())), tree);
-        tree.replaceChild(tree.getRight(), NodeFactory.all());
-        Assert.assertEquals(new Or(NodeFactory.all(), NodeFactory.all()), tree);
+        Or tree = (Or) or(new UnaryNot(propertyEqual), new UnaryNot(linkNotNull));
+        tree.replaceChild(tree.getLeft(), propertyEqual);
+        Assert.assertEquals(or(propertyEqual, new UnaryNot(linkNotNull)), tree);
+        tree.replaceChild(tree.getRight(), linkNotNull);
+        Assert.assertEquals(or(propertyEqual, linkNotNull), tree);
     }
 
     public void testGenericSort() {
@@ -116,7 +119,7 @@ public class QueryTreeTest extends EntityStoreTestBase {
         }, true);
         Assert.assertEquals(sortNode, sortNode.getClone());
         Assert.assertEquals(4, QueryUtil.getSize(instantiate(sortNode)));
-        Assert.assertEquals(4, QueryUtil.getSize(instantiate(new And(sortNode, NodeFactory.all()))));
+        Assert.assertEquals(4, QueryUtil.getSize(instantiate(and(sortNode, NodeFactory.all()))));
         Assert.assertNotEquals(sortNode, propertyEqual);
         Assert.assertNotEquals(propertyEqual, sortNode);
     }
@@ -138,21 +141,21 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testUnaryNot() {
-        Assert.assertEquals(new And(propertyNotNull, new Or(propertyEqual, linkNotNull)), getOptimizedTree(new And(propertyNotNull, new UnaryNot(new And(new UnaryNot(propertyEqual), new UnaryNot(linkNotNull))))));
-        Assert.assertEquals(new And(propertyNotNull, new Minus(linkNotNull, propertyEqual)), getOptimizedTree(new And(propertyNotNull, new And(new UnaryNot(propertyEqual), linkNotNull))));
-        Assert.assertEquals(new And(propertyNotNull, new Minus(propertyEqual, linkNotNull)), getOptimizedTree(new And(propertyNotNull, new And(propertyEqual, new UnaryNot(linkNotNull)))));
-        Assert.assertEquals(new Minus(propertyNotNull, new Minus(propertyEqual, linkNotNull)), getOptimizedTree(new And(propertyNotNull, new Or(new UnaryNot(propertyEqual), linkNotNull))));
-        Assert.assertEquals(new Minus(propertyNotNull, new Minus(linkNotNull, propertyEqual)), getOptimizedTree(new And(propertyNotNull, new Or(propertyEqual, new UnaryNot(linkNotNull)))));
-        NodeBase node = new And(propertyNotNull, new UnaryNot(new Or(new UnaryNot(propertyEqual), new UnaryNot(linkNotNull))));
-        Assert.assertEquals(new And(propertyNotNull, new And(propertyEqual, linkNotNull)), getOptimizedTree(node));
+        Assert.assertEquals(and(propertyNotNull, or(propertyEqual, linkNotNull)), getOptimizedTree(and(propertyNotNull, new UnaryNot(and(new UnaryNot(propertyEqual), new UnaryNot(linkNotNull))))));
+        Assert.assertEquals(and(propertyNotNull, new Minus(linkNotNull, propertyEqual)), getOptimizedTree(and(propertyNotNull, and(new UnaryNot(propertyEqual), linkNotNull))));
+        Assert.assertEquals(and(propertyNotNull, new Minus(propertyEqual, linkNotNull)), getOptimizedTree(and(propertyNotNull, and(propertyEqual, new UnaryNot(linkNotNull)))));
+        Assert.assertEquals(new Minus(propertyNotNull, new Minus(propertyEqual, linkNotNull)), getOptimizedTree(and(propertyNotNull, or(new UnaryNot(propertyEqual), linkNotNull))));
+        Assert.assertEquals(new Minus(propertyNotNull, new Minus(linkNotNull, propertyEqual)), getOptimizedTree(and(propertyNotNull, or(propertyEqual, new UnaryNot(linkNotNull)))));
+        NodeBase node = and(propertyNotNull, new UnaryNot(or(new UnaryNot(propertyEqual), new UnaryNot(linkNotNull))));
+        Assert.assertEquals(and(propertyNotNull, and(propertyEqual, linkNotNull)), getOptimizedTree(node));
         Assert.assertNotEquals(node, propertyEqual);
         Assert.assertNotEquals(propertyEqual, node);
     }
 
     public void testPropertyEqual() {
         Assert.assertEquals(propertyNotNull, getOptimizedTree(new UnaryNot(propertyEqualNull)));
-        Assert.assertEquals(new Minus(propertyEqual, propertyNotNull), getOptimizedTree(new And(propertyEqualNull, propertyEqual)));
-        Assert.assertEquals(new Minus(NodeFactory.all(), new Minus(propertyNotNull, propertyEqual)), getOptimizedTree(new Or(propertyEqualNull, propertyEqual)));
+        Assert.assertEquals(new Minus(propertyEqual, propertyNotNull), getOptimizedTree(and(propertyEqualNull, propertyEqual)));
+        Assert.assertEquals(new Minus(NodeFactory.all(), new Minus(propertyNotNull, propertyEqual)), getOptimizedTree(or(propertyEqualNull, propertyEqual)));
         Assert.assertEquals(new Minus(NodeFactory.all(), propertyNotNull), getOptimizedTree(propertyEqualNull));
         Assert.assertNotEquals(propertyEqual, propertyEqualNull);
         Assert.assertNotEquals(propertyEqualNull, propertyEqual);
@@ -166,17 +169,17 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testGetAll() {
-        Assert.assertEquals(propertyEqual, getOptimizedTree(new And(NodeFactory.all(), propertyEqual)));
-        Assert.assertEquals(NodeFactory.all(), getOptimizedTree(new Or(NodeFactory.all(), propertyEqual)));
+        Assert.assertEquals(propertyEqual, getOptimizedTree(and(NodeFactory.all(), propertyEqual)));
+        Assert.assertEquals(NodeFactory.all(), getOptimizedTree(or(NodeFactory.all(), propertyEqual)));
         Assert.assertNotEquals(NodeFactory.all(), propertyEqual);
         Assert.assertNotEquals(propertyEqual, NodeFactory.all());
     }
 
     public void testLinkEqual() {
-        Assert.assertEquals(new Minus(NodeFactory.all(), new Or(linkNotNull, new LinkNotNull("self1"))), getOptimizedTree(new And(linkEqualNull, new LinkEqual("self1", null))));
+        Assert.assertEquals(new Minus(NodeFactory.all(), or(linkNotNull, new LinkNotNull("self1"))), getOptimizedTree(and(linkEqualNull, new LinkEqual("self1", null))));
         Assert.assertEquals(linkNotNull, getOptimizedTree(new UnaryNot(linkEqualNull)));
-        Assert.assertEquals(new Minus(propertyEqual, linkNotNull), getOptimizedTree(new And(propertyEqual, linkEqualNull)));
-        Assert.assertEquals(new Minus(NodeFactory.all(), new Minus(linkNotNull, propertyEqual)), getOptimizedTree(new Or(propertyEqual, linkEqualNull)));
+        Assert.assertEquals(new Minus(propertyEqual, linkNotNull), getOptimizedTree(and(propertyEqual, linkEqualNull)));
+        Assert.assertEquals(new Minus(NodeFactory.all(), new Minus(linkNotNull, propertyEqual)), getOptimizedTree(or(propertyEqual, linkEqualNull)));
         Assert.assertEquals(new Minus(NodeFactory.all(), linkNotNull), getOptimizedTree(linkEqualNull));
         Assert.assertNotEquals(linkEqualNull, propertyEqual);
         Assert.assertNotEquals(propertyEqual, linkEqualNull);
@@ -198,22 +201,22 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testPropertyRange() {
-        NodeBase node = getOptimizedTree(new And(new And(new PropertyRange("string", "aa", "pq"), new PropertyRange("string", "d", "pz")), new PropertyRange("1string", "1d", "1pz")));
-        Assert.assertEquals(new And(new PropertyRange("string", "d", "pq"), new PropertyRange("1string", "1d", "1pz")), node);
+        NodeBase node = getOptimizedTree(and(and(new PropertyRange("string", "aa", "pq"), new PropertyRange("string", "d", "pz")), new PropertyRange("1string", "1d", "1pz")));
+        Assert.assertEquals(and(new PropertyRange("string", "d", "pq"), new PropertyRange("1string", "1d", "1pz")), node);
         Assert.assertNotEquals(node, propertyEqual);
         Assert.assertNotEquals(propertyEqual, node);
     }
 
     public void testCloneAndAnalyze() {
-        NodeBase tree = new Root(new UnaryNot(new Concat(new Minus(getTree(queryEngine.query(null, "TstClass", new Or(new And(new PropertyEqual("i", 1), new PropertyEqual("i", 2)),
-                new PropertyEqual("i", 3)))), getTree(queryEngine.query(null, "TstClass", new PropertyEqual("i", 4)))), new Concat(getTree(queryEngine.queryGetAll("TstClass")),
-                new Concat(getTree(queryEngine.query(null, "TstClass", new LinkEqual("itself", QueryUtil.getFirst(queryEngine, queryEngine.queryGetAll("TstClass"))))), new Concat(new LinkNotNull("itself"),
-                        new Concat(getTree(queryEngine.query(null, "TstClass", new LinksEqualDecorator("itself", new LinkEqual("self1",
-                                QueryUtil.getFirst(queryEngine, queryEngine.queryGetAll("TstClass"))), "TstClass"))), new Concat(new PropertyNotNull("s"), new Concat(getTree(queryEngine.query(null, "TstClass",
-                            new PropertyRange("i", Objects.requireNonNull(QueryUtil.nextGreater(0, Integer.class)), Objects.requireNonNull(QueryUtil.positiveInfinity(Integer.class))))),
-                                getTree(queryEngine.query(null, "TstClass", new PropertyStartsWith("s", "val")))
-                        )))
-                ))
+        NodeBase tree = new Root(new UnaryNot(new Concat(new Minus(getTree(queryEngine.query(null, "TstClass", or(and(new PropertyEqual("i", 1), new PropertyEqual("i", 2)),
+            new PropertyEqual("i", 3)))), getTree(queryEngine.query(null, "TstClass", new PropertyEqual("i", 4)))), new Concat(getTree(queryEngine.queryGetAll("TstClass")),
+            new Concat(getTree(queryEngine.query(null, "TstClass", new LinkEqual("itself", QueryUtil.getFirst(queryEngine, queryEngine.queryGetAll("TstClass"))))), new Concat(new LinkNotNull("itself"),
+                new Concat(getTree(queryEngine.query(null, "TstClass", new LinksEqualDecorator("itself", new LinkEqual("self1",
+                    QueryUtil.getFirst(queryEngine, queryEngine.queryGetAll("TstClass"))), "TstClass"))), new Concat(new PropertyNotNull("s"), new Concat(getTree(queryEngine.query(null, "TstClass",
+                    new PropertyRange("i", Objects.requireNonNull(QueryUtil.nextGreater(0, Integer.class)), Objects.requireNonNull(QueryUtil.positiveInfinity(Integer.class))))),
+                    getTree(queryEngine.query(null, "TstClass", new PropertyStartsWith("s", "val")))
+                )))
+            ))
         ))));
         NodeBase clone = tree.getClone();
         Assert.assertEquals(tree, clone);
@@ -239,8 +242,8 @@ public class QueryTreeTest extends EntityStoreTestBase {
         PropertyEqual b = new PropertyEqual("s", "B");
         PropertyEqual c = new PropertyEqual("s", "C");
         PropertyEqual d = new PropertyEqual("s", "D");
-        NodeBase tree = new Concat(new Concat(new And(new Or(a, b), new Or(a2, c)), new And(new Or(a, b), new Or(c, a2))), new Concat(new And(new Or(b, a), new Or(a2, c)), new And(new Or(b, a), new Or(c, a2))));
-        Concat expectedOptimizedTree = new Concat(new Concat(new Or(a, new And(b, c)), new Or(a, new And(c, b))), new Concat(new Or(a, new And(b, c)), new Or(a, new And(b, c))));
+        NodeBase tree = new Concat(new Concat(and(or(a, b), or(a2, c)), and(or(a, b), or(c, a2))), new Concat(and(or(b, a), or(a2, c)), and(or(b, a), or(c, a2))));
+        Concat expectedOptimizedTree = new Concat(new Concat(or(a, and(b, c)), or(a, and(c, b))), new Concat(or(a, and(b, c)), or(a, and(b, c))));
         NodeBase optimizedTree = getOptimizedTree(tree);
 
         System.out.println("Original tree:\n" + tree);
@@ -249,14 +252,14 @@ public class QueryTreeTest extends EntityStoreTestBase {
 
         Assert.assertEquals(expectedOptimizedTree, optimizedTree);
 
-        tree = new Concat(new Concat(new Or(new And(a, b), new And(a2, c)), new Or(new And(a, b), new And(c, a2))), new Concat(new Or(new And(b, a), new And(a2, c)), new Or(new And(b, a), new And(c, a2))));
-        Assert.assertEquals(new Concat(new Concat(new And(a, new Or(b, c)), new And(a, new Or(c, b))), new Concat(new And(a, new Or(b, c)), new And(a, new Or(b, c)))), getOptimizedTree(tree));
+        tree = new Concat(new Concat(or(and(a, b), and(a2, c)), or(and(a, b), and(c, a2))), new Concat(or(and(b, a), and(a2, c)), or(and(b, a), and(c, a2))));
+        Assert.assertEquals(new Concat(new Concat(and(a, or(b, c)), and(a, or(c, b))), new Concat(and(a, or(b, c)), and(a, or(b, c)))), getOptimizedTree(tree));
 
         tree = new Minus(a, new Minus(a, b));
-        Assert.assertEquals(new And(a, b), getOptimizedTree(tree));
+        Assert.assertEquals(and(a, b), getOptimizedTree(tree));
 
-        tree = new Or(new Or(new And(a, b), c), new And(d, b));
-        Assert.assertEquals(new Or(new And(new Or(a, d), b), c), getOptimizedTree(tree));
+        tree = or(or(and(a, b), c), and(d, b));
+        Assert.assertEquals(or(and(or(a, d), b), c), getOptimizedTree(tree));
     }
 
     @TestFor(issues = "XD-694")
@@ -264,9 +267,9 @@ public class QueryTreeTest extends EntityStoreTestBase {
         final PropertyEqual a = new PropertyEqual("s", "A");
         final PropertyEqual b = new PropertyEqual("s", "B");
         final PropertyEqual c = new PropertyEqual("s", "C");
-        final NodeBase tree = new And(new And(new And(a, new Or(b, c)), new Or(b, c)), new Or(b, c));
+        final NodeBase tree = and(and(and(a, or(b, c)), or(b, c)), or(b, c));
         final NodeBase optimizedTree = getOptimizedTree(tree);
-        final NodeBase expectedOptimizedTree = new And(a, new Or(b, c));
+        final NodeBase expectedOptimizedTree = and(a, or(b, c));
         System.out.println("Original tree:\n" + tree);
         System.out.println("Optimized tree:\n" + optimizedTree);
         System.out.println("Expected optimized tree:\n" + expectedOptimizedTree);

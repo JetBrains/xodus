@@ -22,7 +22,21 @@ import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.query.metadata.ModelMetaData
 
 @Suppress("EqualsOrHashCode")
-class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
+class Or internal constructor(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
+
+    companion object {
+
+        @JvmStatic
+        fun or(left: NodeBase, right: NodeBase): NodeBase {
+            if (left is GetAll) {
+                return left
+            }
+            if (right is GetAll) {
+                return right
+            }
+            return Or(left, right)
+        }
+    }
 
     private var analyzed = false
 

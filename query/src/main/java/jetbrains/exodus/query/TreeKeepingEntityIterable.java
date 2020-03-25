@@ -85,7 +85,7 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
                             ("\n" + (instanceTreeIt.annotatedTree != null ? instanceTreeIt.annotatedTree : instanceTree)).replace("\n", '\n' + NodeBase.TREE_LEVEL_INDENT);
                 }
             } else {
-                sourceTree = instanceTree instanceof GetAll ? queryTree : new And(instanceTree.getClone(), queryTree);
+                sourceTree = instanceTree instanceof GetAll ? queryTree : And.and(instanceTree.getClone(), queryTree);
                 if (isExplainOn && !(instanceTree instanceof GetAll)) {
                     annotatedTree = "at " + strippedStacktrace + "\nAnd" +
                             ("\n" + (instanceTreeIt.annotatedTree != null ? instanceTreeIt.annotatedTree : instanceTree) + '\n' + annotatedTree).replace("\n", '\n' + NodeBase.TREE_LEVEL_INDENT);
