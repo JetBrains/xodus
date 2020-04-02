@@ -19,6 +19,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.ref.SoftReference;
+import java.util.Arrays;
 
 public abstract class SoftLongObjectCacheBase<V> extends LongObjectCacheBase<V> {
 
@@ -45,9 +46,7 @@ public abstract class SoftLongObjectCacheBase<V> extends LongObjectCacheBase<V> 
 
     @Override
     public void clear() {
-        for (int i = 0; i < chunks.length; i++) {
-            chunks[i] = null;
-        }
+        Arrays.fill(chunks, null);
     }
 
     @Override
@@ -75,9 +74,7 @@ public abstract class SoftLongObjectCacheBase<V> extends LongObjectCacheBase<V> 
         if (chunk == null) {
             return null;
         }
-        try (CriticalSection ignored = chunk.newCriticalSection()) {
-            return chunk.getObject(key);
-        }
+        return chunk.getObjectLocked(key);
     }
 
     @Override
@@ -86,9 +83,7 @@ public abstract class SoftLongObjectCacheBase<V> extends LongObjectCacheBase<V> 
         if (chunk == null) {
             throw new NullPointerException();
         }
-        try (CriticalSection ignored = chunk.newCriticalSection()) {
-            return chunk.cacheObject(key, value);
-        }
+        return chunk.cacheObjectLocked(key, value);
     }
 
     @Override
@@ -97,19 +92,12 @@ public abstract class SoftLongObjectCacheBase<V> extends LongObjectCacheBase<V> 
         if (chunk == null) {
             return null;
         }
-        try (CriticalSection ignored = chunk.newCriticalSection()) {
-            return chunk.remove(key);
-        }
+        return chunk.removeLocked(key);
     }
 
     @Override
     public int count() {
         throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public CriticalSection newCriticalSection() {
-        return TRIVIAL_CRITICAL_SECTION;
     }
 
     @NotNull

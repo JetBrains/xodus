@@ -23,8 +23,6 @@ import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import static jetbrains.exodus.core.dataStructures.LongObjectCacheBase.CriticalSection;
-
 final class SharedLogCache extends LogCache {
 
     @NotNull
@@ -36,10 +34,10 @@ final class SharedLogCache extends LogCache {
                    final int cacheGenerationCount) {
         super(memoryUsage, pageSize);
         final int pagesCount = (int) (memoryUsage / (pageSize +
-            /* each page consumes additionally 96 bytes in the cache */ 96));
+                /* each page consumes additionally 96 bytes in the cache */ 96));
         pagesCache = nonBlocking ?
-            new ConcurrentLongObjectCache<CachedValue>(pagesCount, cacheGenerationCount) :
-            new LongObjectCache<CachedValue>(pagesCount);
+                new ConcurrentLongObjectCache<CachedValue>(pagesCount, cacheGenerationCount) :
+                new LongObjectCache<CachedValue>(pagesCount);
     }
 
     SharedLogCache(final int memoryUsagePercentage,
@@ -49,14 +47,14 @@ final class SharedLogCache extends LogCache {
         super(memoryUsagePercentage, pageSize);
         if (memoryUsage == Long.MAX_VALUE) {
             pagesCache = nonBlocking ?
-                new ConcurrentLongObjectCache<CachedValue>(ObjectCacheBase.DEFAULT_SIZE, cacheGenerationCount) :
-                new LongObjectCache<CachedValue>();
+                    new ConcurrentLongObjectCache<CachedValue>(ObjectCacheBase.DEFAULT_SIZE, cacheGenerationCount) :
+                    new LongObjectCache<CachedValue>();
         } else {
             final int pagesCount = (int) (memoryUsage / (pageSize +
-                /* each page consumes additionally 96 bytes in the cache */ 96));
+                    /* each page consumes additionally 96 bytes in the cache */ 96));
             pagesCache = nonBlocking ?
-                new ConcurrentLongObjectCache<CachedValue>(pagesCount, cacheGenerationCount) :
-                new LongObjectCache<CachedValue>(pagesCount);
+                    new ConcurrentLongObjectCache<CachedValue>(pagesCount, cacheGenerationCount) :
+                    new LongObjectCache<CachedValue>(pagesCount);
         }
     }
 
@@ -131,17 +129,11 @@ final class SharedLogCache extends LogCache {
     @Override
     protected void removePage(@NotNull final Log log, final long pageAddress) {
         final long key = getLogPageFingerPrint(log.getIdentity(), pageAddress);
-        try (CriticalSection ignored = pagesCache.newCriticalSection()) {
-            pagesCache.remove(key);
-        }
+        pagesCache.removeLocked(key);
     }
 
     private void cachePage(final long key, final int logIdentity, final long address, @NotNull final byte[] page) {
-        try (CriticalSection ignored = pagesCache.newCriticalSection()) {
-            if (pagesCache.getObject(key) == null) {
-                pagesCache.cacheObject(key, new CachedValue(logIdentity, address, postProcessTailPage(page)));
-            }
-        }
+        pagesCache.cacheObjectLocked(key, new CachedValue(logIdentity, address, postProcessTailPage(page)));
     }
 
     private static long getLogPageFingerPrint(final int logIdentity, final long address) {

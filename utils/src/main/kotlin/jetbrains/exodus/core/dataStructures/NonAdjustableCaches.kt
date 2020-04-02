@@ -18,16 +18,23 @@ package jetbrains.exodus.core.dataStructures
 import jetbrains.exodus.core.execution.SharedTimer
 
 
-class NonAdjustableConcurrentObjectCache<K, V>(size: Int = DEFAULT_SIZE,
-                                               numberOfGenerations: Int = DEFAULT_NUMBER_OF_GENERATIONS)
+class NonAdjustableConcurrentObjectCache<K, V> @JvmOverloads constructor(size: Int = DEFAULT_SIZE,
+                                                                         numberOfGenerations: Int = DEFAULT_NUMBER_OF_GENERATIONS)
     : ConcurrentObjectCache<K, V>(size, numberOfGenerations) {
 
     override fun getCacheAdjuster(): SharedTimer.ExpirablePeriodicTask? = null
 }
 
-class NonAdjustableConcurrentLongObjectCache<V>(size: Int = DEFAULT_SIZE,
-                                                numberOfGenerations: Int = DEFAULT_NUMBER_OF_GENERATIONS)
+class NonAdjustableConcurrentLongObjectCache<V> @JvmOverloads constructor(size: Int = DEFAULT_SIZE,
+                                                                          numberOfGenerations: Int = DEFAULT_NUMBER_OF_GENERATIONS)
     : ConcurrentLongObjectCache<V>(size, numberOfGenerations) {
+
+    override fun getCacheAdjuster(): SharedTimer.ExpirablePeriodicTask? = null
+}
+
+class NonAdjustableConcurrentIntObjectCache<V> @JvmOverloads constructor(size: Int = DEFAULT_SIZE,
+                                                                         numberOfGenerations: Int = DEFAULT_NUMBER_OF_GENERATIONS)
+    : ConcurrentIntObjectCache<V>(size, numberOfGenerations) {
 
     override fun getCacheAdjuster(): SharedTimer.ExpirablePeriodicTask? = null
 }

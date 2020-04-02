@@ -68,14 +68,14 @@ public class LongObjectCache<V> extends LongObjectCacheBase<V> {
         firstGenerationQueue = new LongLinkedHashMap<V>() {
             @Override
             protected boolean removeEldestEntry(final Map.Entry<Long, V> eldest) {
-                final boolean result = size() + secondGenerationQueue.size() > LongObjectCache.this.size;
+                final boolean result = size() + secondGenerationQueue.size() > LongObjectCache.this.size();
                 if (result) {
                     fireListenersAboutDeletion(eldest.getKey(), eldest.getValue());
                 }
                 return result;
             }
         };
-        final int secondGenSizeBound = (int) (size * secondGenSizeRatio);
+        final int secondGenSizeBound = (int) (size() * secondGenSizeRatio);
         secondGenerationQueue = new LongLinkedHashMap<V>() {
             @Override
             protected boolean removeEldestEntry(final Map.Entry<Long, V> eldest) {
