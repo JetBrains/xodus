@@ -405,9 +405,10 @@ public class EnvironmentImpl implements Environment {
             if (throwableOnClose != null) {
                 throw new EnvironmentClosedException(throwableOnClose); // add combined stack trace information
             }
-            checkInactive(ec.getEnvCloseForcedly());
+            final boolean closeForcedly = ec.getEnvCloseForcedly();
+            checkInactive(closeForcedly);
             try {
-                if (!ec.getEnvIsReadonly() && ec.isGcEnabled()) {
+                if (!closeForcedly && !ec.getEnvIsReadonly() && ec.isGcEnabled()) {
                     executeInTransaction(new TransactionalExecutable() {
                         @Override
                         public void execute(@NotNull final Transaction txn) {
@@ -989,7 +990,7 @@ public class EnvironmentImpl implements Environment {
     private void reportAliveTransactions(final boolean debug) {
         if (transactionTimeout() == 0) {
             String stacksUnavailable = "Transactions stack traces are not available, " +
-                "set \'" + EnvironmentConfig.ENV_MONITOR_TXNS_TIMEOUT + " > 0\'";
+                    "set '" + EnvironmentConfig.ENV_MONITOR_TXNS_TIMEOUT + " > 0'";
             if (debug) {
                 loggerDebug(stacksUnavailable);
             } else {
