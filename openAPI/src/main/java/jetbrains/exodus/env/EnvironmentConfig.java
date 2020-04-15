@@ -227,6 +227,17 @@ public class EnvironmentConfig extends AbstractConfig {
     public static final String LOG_CACHE_GENERATION_COUNT = "exodus.log.cache.generationCount";
 
     /**
+     * If is set to {@code true} the LogCache uses {@linkplain java.lang.ref.SoftReference soft references} for
+     * holding cached pages. The cache still uses not more memory than it is configured by {@linkplain #MEMORY_USAGE} or
+     * {@linkplain #MEMORY_USAGE_PERCENTAGE} settings, but JVM GC can reclaim memory used by the cache on
+     * a heavy load surge. On the other hand, use of soft references results in greater JVM GC load and greater
+     * general CPU consumption by the cache. So one can choose either memory-flexible, or CPU-optimal cache.
+     * Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
+    public static final String LOG_CACHE_USE_SOFT_REFERENCES = "exodus.log.cache.useSoftReferences";
+
+    /**
      * Defines the number of successive pages to be read at once in case of LogCache miss. Reading successive pages
      * can reduce amount of random access to database files. It can be useful in workloads like application warm-up.
      * Default value is {@code 1} which means that no read-ahead strategy is applied.
@@ -632,67 +643,69 @@ public class EnvironmentConfig extends AbstractConfig {
         this(ConfigurationStrategy.SYSTEM_PROPERTY);
     }
 
+    @SuppressWarnings("rawtypes")
     public EnvironmentConfig(@NotNull final ConfigurationStrategy strategy) {
         //noinspection unchecked
         super(new Pair[]{
-            new Pair(MEMORY_USAGE_PERCENTAGE, 50),
-            new Pair(CIPHER_ID, null),
-            new Pair(CIPHER_KEY, null),
-            new Pair(CIPHER_BASIC_IV, 0L),
-            new Pair(LOG_DURABLE_WRITE, false),
-            new Pair(LOG_FILE_SIZE, 8192L),
-            new Pair(LOG_LOCK_TIMEOUT, 0L),
-            new Pair(LOG_LOCK_ID, null),
-            new Pair(LOG_CACHE_PAGE_SIZE, 64 * 1024),
-            new Pair(LOG_CACHE_OPEN_FILES, 500),
-            new Pair(LOG_CACHE_USE_NIO, false),
-            new Pair(LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD, 1_000_000_000L), // ~1GB
-            new Pair(LOG_CACHE_SHARED, true),
-            new Pair(LOG_CACHE_NON_BLOCKING, true),
-            new Pair(LOG_CACHE_GENERATION_COUNT, 2),
-            new Pair(LOG_CACHE_READ_AHEAD_MULTIPLE, 1),
-            new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
-            new Pair(LOG_CLEAR_INVALID, false),
-            new Pair(LOG_SYNC_PERIOD, 10000L),
-            new Pair(LOG_FULL_FILE_READ_ONLY, true),
-            new Pair(LOG_DATA_READER_WRITER_PROVIDER, DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER),
-            new Pair(ENV_IS_READONLY, false),
-            new Pair(ENV_FAIL_FAST_IN_READONLY, true),
-            new Pair(ENV_READONLY_EMPTY_STORES, false),
-            new Pair(ENV_STOREGET_CACHE_SIZE, 0),
-            new Pair(ENV_STOREGET_CACHE_MIN_TREE_SIZE, 200),
-            new Pair(ENV_STOREGET_CACHE_MAX_VALUE_SIZE, 200),
-            new Pair(ENV_CLOSE_FORCEDLY, false),
-            new Pair(ENV_TXN_REPLAY_TIMEOUT, 2000L),
-            new Pair(ENV_TXN_REPLAY_MAX_COUNT, 2),
-            new Pair(ENV_TXN_DOWNGRADE_AFTER_FLUSH, true),
-            new Pair(ENV_TXN_SINGLE_THREAD_WRITES, false),
-            new Pair(ENV_MAX_PARALLEL_TXNS, Integer.MAX_VALUE),
-            new Pair(ENV_MAX_PARALLEL_READONLY_TXNS, Integer.MAX_VALUE),
-            new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
-            new Pair(ENV_MONITOR_TXNS_EXPIRATION_TIMEOUT, (int) TimeUnit.HOURS.toMillis(8)),
-            new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
-            new Pair(ENV_GATHER_STATISTICS, true),
-            new Pair(ENV_COMPACT_ON_OPEN, false),
-            new Pair(TREE_MAX_PAGE_SIZE, 128),
-            new Pair(TREE_DUP_MAX_PAGE_SIZE, 8),
-            new Pair(GC_ENABLED, true),
-            new Pair(GC_START_IN, 10000),
-            new Pair(GC_MIN_UTILIZATION, 50),
-            new Pair(GC_RENAME_FILES, false),
-            new Pair(GC_MIN_FILE_AGE, 2),
-            new Pair(GC_FILES_INTERVAL, 3),
-            new Pair(GC_RUN_PERIOD, 5000),
-            new Pair(GC_UTILIZATION_FROM_SCRATCH, false),
-            new Pair(GC_UTILIZATION_FROM_FILE, ""),
-            new Pair(GC_FILES_DELETION_DELAY, 5000),
-            new Pair(GC_RUN_EVERY, 0),
-            new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
-            new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 1000),
-            new Pair(GC_TRANSACTION_TIMEOUT, 500),
-            new Pair(MANAGEMENT_ENABLED, !JVMConstants.INSTANCE.getIS_ANDROID()),
-            new Pair(MANAGEMENT_OPERATIONS_RESTRICTED, true),
-            new Pair(META_SERVER, null)
+                new Pair(MEMORY_USAGE_PERCENTAGE, 50),
+                new Pair(CIPHER_ID, null),
+                new Pair(CIPHER_KEY, null),
+                new Pair(CIPHER_BASIC_IV, 0L),
+                new Pair(LOG_DURABLE_WRITE, false),
+                new Pair(LOG_FILE_SIZE, 8192L),
+                new Pair(LOG_LOCK_TIMEOUT, 0L),
+                new Pair(LOG_LOCK_ID, null),
+                new Pair(LOG_CACHE_PAGE_SIZE, 64 * 1024),
+                new Pair(LOG_CACHE_OPEN_FILES, 500),
+                new Pair(LOG_CACHE_USE_NIO, false),
+                new Pair(LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD, 1_000_000_000L), // ~1GB
+                new Pair(LOG_CACHE_SHARED, true),
+                new Pair(LOG_CACHE_NON_BLOCKING, true),
+                new Pair(LOG_CACHE_GENERATION_COUNT, 2),
+                new Pair(LOG_CACHE_USE_SOFT_REFERENCES, false),
+                new Pair(LOG_CACHE_READ_AHEAD_MULTIPLE, 1),
+                new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
+                new Pair(LOG_CLEAR_INVALID, false),
+                new Pair(LOG_SYNC_PERIOD, 10000L),
+                new Pair(LOG_FULL_FILE_READ_ONLY, true),
+                new Pair(LOG_DATA_READER_WRITER_PROVIDER, DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER),
+                new Pair(ENV_IS_READONLY, false),
+                new Pair(ENV_FAIL_FAST_IN_READONLY, true),
+                new Pair(ENV_READONLY_EMPTY_STORES, false),
+                new Pair(ENV_STOREGET_CACHE_SIZE, 0),
+                new Pair(ENV_STOREGET_CACHE_MIN_TREE_SIZE, 200),
+                new Pair(ENV_STOREGET_CACHE_MAX_VALUE_SIZE, 200),
+                new Pair(ENV_CLOSE_FORCEDLY, false),
+                new Pair(ENV_TXN_REPLAY_TIMEOUT, 2000L),
+                new Pair(ENV_TXN_REPLAY_MAX_COUNT, 2),
+                new Pair(ENV_TXN_DOWNGRADE_AFTER_FLUSH, true),
+                new Pair(ENV_TXN_SINGLE_THREAD_WRITES, false),
+                new Pair(ENV_MAX_PARALLEL_TXNS, Integer.MAX_VALUE),
+                new Pair(ENV_MAX_PARALLEL_READONLY_TXNS, Integer.MAX_VALUE),
+                new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
+                new Pair(ENV_MONITOR_TXNS_EXPIRATION_TIMEOUT, (int) TimeUnit.HOURS.toMillis(8)),
+                new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
+                new Pair(ENV_GATHER_STATISTICS, true),
+                new Pair(ENV_COMPACT_ON_OPEN, false),
+                new Pair(TREE_MAX_PAGE_SIZE, 128),
+                new Pair(TREE_DUP_MAX_PAGE_SIZE, 8),
+                new Pair(GC_ENABLED, true),
+                new Pair(GC_START_IN, 10000),
+                new Pair(GC_MIN_UTILIZATION, 50),
+                new Pair(GC_RENAME_FILES, false),
+                new Pair(GC_MIN_FILE_AGE, 2),
+                new Pair(GC_FILES_INTERVAL, 3),
+                new Pair(GC_RUN_PERIOD, 5000),
+                new Pair(GC_UTILIZATION_FROM_SCRATCH, false),
+                new Pair(GC_UTILIZATION_FROM_FILE, ""),
+                new Pair(GC_FILES_DELETION_DELAY, 5000),
+                new Pair(GC_RUN_EVERY, 0),
+                new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
+                new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 1000),
+                new Pair(GC_TRANSACTION_TIMEOUT, 500),
+                new Pair(MANAGEMENT_ENABLED, !JVMConstants.INSTANCE.getIS_ANDROID()),
+                new Pair(MANAGEMENT_OPERATIONS_RESTRICTED, true),
+                new Pair(META_SERVER, null)
         }, strategy);
     }
 
@@ -1170,6 +1183,32 @@ public class EnvironmentConfig extends AbstractConfig {
             throw new InvalidSettingException("LogCache generation count should greater than 1");
         }
         return setSetting(LOG_CACHE_GENERATION_COUNT, generationCount);
+    }
+
+    /**
+     * Returns {@code true} the LogCache uses {@linkplain java.lang.ref.SoftReference soft references} for
+     * holding cached pages. The cache still uses not more memory than it is configured by {@linkplain #MEMORY_USAGE} or
+     * {@linkplain #MEMORY_USAGE_PERCENTAGE} settings, but JVM GC can reclaim memory used by the cache on
+     * a heavy load surge. On the other hand, use of soft references results in greater JVM GC load and greater
+     * general CPU consumption by the cache. So one can choose either memory-flexible, or CPU-optimal cache.
+     * Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
+    public boolean getLogCacheUseSoftReferences() {
+        return (Boolean) getSetting(LOG_CACHE_USE_SOFT_REFERENCES);
+    }
+
+    /**
+     * Set {@code true} if the LogCache should use {@linkplain java.lang.ref.SoftReference soft references} for
+     * holding cached pages. The cache still uses not more memory than it is configured by {@linkplain #MEMORY_USAGE} or
+     * {@linkplain #MEMORY_USAGE_PERCENTAGE} settings, but JVM GC can reclaim memory used by the cache on
+     * a heavy load surge. On the other hand, use of soft references results in greater JVM GC load and greater
+     * general CPU consumption by the cache. So one can choose either memory-flexible, or CPU-optimal cache.
+     * Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
+    public EnvironmentConfig setLogCacheUseSoftReferences(final boolean useSoftReferences) {
+        return setSetting(LOG_CACHE_USE_SOFT_REFERENCES, useSoftReferences);
     }
 
     /**

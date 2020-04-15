@@ -623,7 +623,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             final int numberOfEnvironments = 200;
             for (int i = 0; i < numberOfEnvironments; ++i) {
                 final Pair<DataReader, DataWriter> rwPair = createReaderWriter("sub" + i);
-                additionalEnvironments.add(newEnvironmentInstance(LogConfig.create(rwPair.getFirst(), rwPair.getSecond()), EnvironmentConfig.DEFAULT));
+                additionalEnvironments.add(newEnvironmentInstance(LogConfig.create(rwPair.getFirst(), rwPair.getSecond()), new EnvironmentConfig()));
             }
             final Thread[] threads = new Thread[numberOfEnvironments];
             System.out.println("create data concurrently");

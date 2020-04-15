@@ -41,6 +41,7 @@ public class LogConfig {
     private boolean isDurableWrite;
     private boolean sharedCache;
     private boolean nonBlockingCache;
+    private boolean cacheUseSoftReferences;
     private int cacheGenerationCount;
     private int cacheReadAheadMultiple;
     private int cachePageSize;
@@ -174,6 +175,15 @@ public class LogConfig {
 
     public LogConfig setNonBlockingCache(boolean nonBlockingCache) {
         this.nonBlockingCache = nonBlockingCache;
+        return this;
+    }
+
+    public boolean getCacheUseSoftReferences() {
+        return cacheUseSoftReferences;
+    }
+
+    public LogConfig setCacheUseSoftReferences(boolean cacheUseSoftReferences) {
+        this.cacheUseSoftReferences = cacheUseSoftReferences;
         return this;
     }
 

@@ -93,6 +93,7 @@ object Environments {
             isDurableWrite = ec.logDurableWrite
             isSharedCache = ec.isLogCacheShared
             isNonBlockingCache = ec.isLogCacheNonBlocking
+            cacheUseSoftReferences = ec.logCacheUseSoftReferences
             cacheGenerationCount = ec.logCacheGenerationCount
             isCleanDirectoryExpected = ec.isLogCleanDirectoryExpected
             isClearInvalidLog = ec.isLogClearInvalid

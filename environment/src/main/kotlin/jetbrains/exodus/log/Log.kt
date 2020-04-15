@@ -21,12 +21,12 @@ import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.InvalidSettingException
 import jetbrains.exodus.core.dataStructures.LongArrayList
-import jetbrains.exodus.core.dataStructures.hash.LongIterator
 import jetbrains.exodus.crypto.cryptBlocksMutable
 import jetbrains.exodus.io.DataReader
 import jetbrains.exodus.io.DataWriter
 import jetbrains.exodus.io.FileDataReader
 import jetbrains.exodus.io.RemoveBlockType
+import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.util.DeferredIO
 import jetbrains.exodus.util.IdGenerator
 import mu.KLogging
@@ -134,19 +134,20 @@ class Log(val config: LogConfig) : Closeable {
 
         val memoryUsage = config.memoryUsage
         val nonBlockingCache = config.isNonBlockingCache
+        val useSoftReferences = config.cacheUseSoftReferences
         val generationCount = config.cacheGenerationCount
 
         cache = if (memoryUsage != 0L) {
             if (config.isSharedCache)
-                getSharedCache(memoryUsage, cachePageSize, nonBlockingCache, generationCount)
+                getSharedCache(memoryUsage, cachePageSize, nonBlockingCache, useSoftReferences, generationCount)
             else
-                SeparateLogCache(memoryUsage, cachePageSize, nonBlockingCache, generationCount)
+                SeparateLogCache(memoryUsage, cachePageSize, nonBlockingCache, useSoftReferences, generationCount)
         } else {
             val memoryUsagePercentage = config.memoryUsagePercentage
             if (config.isSharedCache)
-                getSharedCache(memoryUsagePercentage, cachePageSize, nonBlockingCache, generationCount)
+                getSharedCache(memoryUsagePercentage, cachePageSize, nonBlockingCache, useSoftReferences, generationCount)
             else
-                SeparateLogCache(memoryUsagePercentage, cachePageSize, nonBlockingCache, generationCount)
+                SeparateLogCache(memoryUsagePercentage, cachePageSize, nonBlockingCache, useSoftReferences, generationCount)
         }
         DeferredIO.getJobProcessor()
         isClosing = false
@@ -810,10 +811,6 @@ class Log(val config: LogConfig) : Closeable {
         return highAddress - alignment // aligned address
     }
 
-    fun getFilesFrom(logTip: LogTip, fileAddress: Long?): LongIterator {
-        return logTip.blockSet.getFilesFrom(fileAddress!!)
-    }
-
     /**
      * Writes specified loggable continuously in a single file.
      *
@@ -974,12 +971,13 @@ class Log(val config: LogConfig) : Closeable {
         private val identityGenerator = IdGenerator()
 
         @Volatile
-        private var sharedCache: LogCache? = null
+        private var sharedCache: SharedLogCache? = null
 
         /**
          * For tests only!!!
          */
         @JvmStatic
+        @Deprecated("for tests only")
         fun invalidateSharedCache() {
             synchronized(Log::class.java) {
                 sharedCache = null
@@ -989,41 +987,54 @@ class Log(val config: LogConfig) : Closeable {
         private fun getSharedCache(memoryUsage: Long,
                                    pageSize: Int,
                                    nonBlocking: Boolean,
+                                   useSoftReferences: Boolean,
                                    cacheGenerationCount: Int): LogCache {
             var result = sharedCache
             if (result == null) {
                 synchronized(Log::class.java) {
                     if (sharedCache == null) {
-                        sharedCache = SharedLogCache(memoryUsage, pageSize, nonBlocking, cacheGenerationCount)
+                        sharedCache = SharedLogCache(memoryUsage, pageSize, nonBlocking, useSoftReferences, cacheGenerationCount)
                     }
                     result = sharedCache
                 }
             }
-            checkCachePageSize(pageSize, result!!)
-            return result!!
+            return result.notNull.also { cache ->
+                checkCachePageSize(pageSize, cache)
+                checkUseSoftReferences(useSoftReferences, cache)
+            }
         }
 
         private fun getSharedCache(memoryUsagePercentage: Int,
                                    pageSize: Int,
                                    nonBlocking: Boolean,
+                                   useSoftReferences: Boolean,
                                    cacheGenerationCount: Int): LogCache {
             var result = sharedCache
             if (result == null) {
                 synchronized(Log::class.java) {
                     if (sharedCache == null) {
-                        sharedCache = SharedLogCache(memoryUsagePercentage, pageSize, nonBlocking, cacheGenerationCount)
+                        sharedCache = SharedLogCache(memoryUsagePercentage, pageSize, nonBlocking, useSoftReferences, cacheGenerationCount)
                     }
                     result = sharedCache
                 }
             }
-            checkCachePageSize(pageSize, result!!)
-            return result!!
+            return result.notNull.also { cache ->
+                checkCachePageSize(pageSize, cache)
+                checkUseSoftReferences(useSoftReferences, cache)
+            }
         }
 
-        private fun checkCachePageSize(pageSize: Int, result: LogCache) {
-            if (result.pageSize != pageSize) {
-                throw ExodusException("SharedLogCache was created with page size " + result.pageSize +
-                        " and then requested with page size " + pageSize + ". EnvironmentConfig.LOG_CACHE_PAGE_SIZE was set manually.")
+        private fun checkCachePageSize(pageSize: Int, cache: LogCache) {
+            if (cache.pageSize != pageSize) {
+                throw ExodusException("SharedLogCache was created with page size ${cache.pageSize}" +
+                        " and then requested with page size $pageSize. EnvironmentConfig.LOG_CACHE_PAGE_SIZE is set manually.")
+            }
+        }
+
+        private fun checkUseSoftReferences(useSoftReferences: Boolean, cache: SharedLogCache) {
+            if (cache.useSoftReferences != useSoftReferences) {
+                throw ExodusException("SharedLogCache was created with useSoftReferences = ${cache.useSoftReferences}" +
+                        " and then requested with useSoftReferences = $useSoftReferences. EnvironmentConfig.LOG_CACHE_USE_SOFT_REFERENCES is set manually.")
             }
         }
 

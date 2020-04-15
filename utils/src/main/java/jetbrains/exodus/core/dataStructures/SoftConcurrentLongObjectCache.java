@@ -18,16 +18,25 @@ package jetbrains.exodus.core.dataStructures;
 import jetbrains.exodus.core.execution.SharedTimer;
 import org.jetbrains.annotations.NotNull;
 
+import static jetbrains.exodus.core.dataStructures.ConcurrentLongObjectCache.DEFAULT_NUMBER_OF_GENERATIONS;
+
 public class SoftConcurrentLongObjectCache<V> extends SoftLongObjectCacheBase<V> {
 
+    private final int generationCount;
+
     public SoftConcurrentLongObjectCache(final int cacheSize) {
+        this(cacheSize, DEFAULT_NUMBER_OF_GENERATIONS);
+    }
+
+    public SoftConcurrentLongObjectCache(final int cacheSize, final int generationCount) {
         super(cacheSize);
+        this.generationCount = generationCount;
     }
 
     @NotNull
     @Override
     protected ConcurrentLongObjectCache<V> newChunk(final int chunkSize) {
-        return new ConcurrentLongObjectCache<V>(chunkSize) {
+        return new ConcurrentLongObjectCache<V>(chunkSize, generationCount) {
             @Override
             protected SharedTimer.ExpirablePeriodicTask getCacheAdjuster() {
                 return null;
