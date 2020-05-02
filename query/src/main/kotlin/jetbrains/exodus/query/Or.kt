@@ -20,6 +20,7 @@ import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIdSetIterable
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.query.metadata.ModelMetaData
+import java.util.*
 
 @Suppress("EqualsOrHashCode")
 class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
@@ -77,23 +78,29 @@ class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
 
     private fun isUnionOfLinks(txn: PersistentStoreTransaction, linkNames: MutableMap<String, EntityIdSetIterable>): Boolean {
         if (analyzed) return false
-        analyzed = true
-        val left = left
-        if (left is Or) {
-            if (!left.isUnionOfLinks(txn, linkNames)) return false
-        } else if (left is LinkEqual) {
-            linkNames.computeIfAbsent(left.name) { EntityIdSetIterable(txn) }.addTarget(left.toId)
-        } else {
-            return false
+        val stack = ArrayDeque<Or>()
+        stack.push(this)
+        while (stack.isNotEmpty()) {
+            val or = stack.pop()
+            if (or.analyzed) continue
+            or.analyzed = true
+            or.left.let { left ->
+                if (left is Or) {
+                    stack.push(left)
+                } else {
+                    if (left !is LinkEqual) return false
+                    linkNames.computeIfAbsent(left.name) { EntityIdSetIterable(txn) }.addTarget(left.toId)
+                }
+            }
+            or.right.let { right ->
+                if (right is Or) {
+                    stack.push(right)
+                } else {
+                    if (right !is LinkEqual) return false
+                    linkNames.computeIfAbsent(right.name) { EntityIdSetIterable(txn) }.addTarget(right.toId)
+                }
+            }
         }
-        val right = right
-        if (right is Or) {
-            if (!right.isUnionOfLinks(txn, linkNames)) return false
-        } else if (right is LinkEqual) {
-            linkNames.computeIfAbsent(right.name) { EntityIdSetIterable(txn) }.addTarget(right.toId)
-        } else {
-            return false
-        }
-        return linkNames.isNotEmpty()
+        return true
     }
 }
