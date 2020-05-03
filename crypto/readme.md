@@ -23,8 +23,17 @@ ChaCha20 as a replacement for [RC4](https://en.wikipedia.org/wiki/RC4)
 in [TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security) and its inclusion in
 [OpenSSH](https://en.wikipedia.org/wiki/OpenSSH).
 
-Both built-in implementations (Salsa20 and ChaCha20) are provided by the
-[Legion of the Bouncy Castle](https://www.bouncycastle.org). 
+Both algorithms (Salsa20 and ChaCha20) have built-in implementations provided by the
+[Legion of the Bouncy Castle](https://www.bouncycastle.org). In addition, ChaCha20 has
+a built-in implementation in Kotlin provided by JetBrains. It is identical to Bouncy
+Castle's implementation in terms of ciphering and, according to benchmark results,
+is 13% faster than Bouncy Castle's implementation:
+
+```text
+Benchmark                                      Mode  Cnt    Score   Error   Units
+JMHStreamCipherBenchmarks.chaChaCrypt         thrpt   12   97.439 ± 1.069  ops/us
+JMHStreamCipherBenchmarks.jbChaChaCrypt       thrpt   12  110.342 ± 0.543  ops/us
+```
 
 You can also plug in an implementation for a custom algorithm as long as you use a
 symmetric [stream cipher](https://en.wikipedia.org/wiki/Stream_cipher).
@@ -41,6 +50,7 @@ Opening a database can look as follows:
 
 ```java
 final EnvironmentConfig config = new EnvironmentConfig();
+// set "jetbrains.exodus.crypto.streamciphers.JBChaChaStreamCipherProvider" to use JetBrains' implementation of ChaCha20
 config.setCipherId("jetbrains.exodus.crypto.streamciphers.ChaChaStreamCipherProvider");
 config.setCipherKey("000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f");
 config.setCipherBasicIV(314159262718281828);
@@ -131,6 +141,7 @@ in your application jar or any jar in its CLASSPATH. For example, the
 ```text
 jetbrains.exodus.crypto.streamciphers.Salsa20StreamCipherProvider
 jetbrains.exodus.crypto.streamciphers.ChaChaStreamCipherProvider
+jetbrains.exodus.crypto.streamciphers.JBChaChaStreamCipherProvider
 ```   
 
 So if your application depends on `xodus-crypto.jar`, it will be able to use Salsa20 or
