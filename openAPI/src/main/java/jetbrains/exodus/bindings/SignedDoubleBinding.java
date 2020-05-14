@@ -23,31 +23,28 @@ import org.jetbrains.annotations.NotNull;
 import java.io.ByteArrayInputStream;
 
 /**
- * {@linkplain ComparableBinding} for unsigned non-negative {@linkplain Double} values.
- * For signed values use {@linkplain SignedDoubleBinding}.
+ * {@linkplain ComparableBinding} for signed {@linkplain Double} values.
+ * For unsigned non-negative values, {@linkplain DoubleBinding} can be used.
  *
- * @see SignedDoubleBinding
+ * @see DoubleBinding
  * @see ComparableBinding
  */
-public final class DoubleBinding extends ComparableBinding {
+public class SignedDoubleBinding extends ComparableBinding {
 
-    public static final DoubleBinding BINDING = new DoubleBinding();
+    public static final SignedDoubleBinding BINDING = new SignedDoubleBinding();
 
-    private DoubleBinding() {
+    private SignedDoubleBinding() {
     }
 
     @Override
     public Double readObject(@NotNull final ByteArrayInputStream stream) {
-        return BindingUtils.readUnsignedDouble(stream);
+        return BindingUtils.readSignedDouble(stream);
     }
 
     @Override
     public void writeObject(@NotNull final LightOutputStream output, @NotNull final Comparable object) {
-        final double value = (Double) object;
-        /*if (value < 0) {
-            throw new ExodusException("DoubleBinding can be used only for unsigned non-negative values.");
-        }*/
-        output.writeUnsignedLong(Double.doubleToLongBits(value));
+        final long longValue = Double.doubleToLongBits((Double) object);
+        output.writeUnsignedLong(longValue ^ (longValue < 0 ? 0xffffffffffffffffL : 0x8000000000000000L));
     }
 
     /**
@@ -70,3 +67,4 @@ public final class DoubleBinding extends ComparableBinding {
         return BINDING.objectToEntry(object);
     }
 }
+

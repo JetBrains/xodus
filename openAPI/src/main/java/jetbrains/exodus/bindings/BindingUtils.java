@@ -38,12 +38,22 @@ public class BindingUtils {
         return readUnsignedLong(stream) ^ 0x8000000000000000L;
     }
 
-    public static float readFloat(@NotNull final ByteArrayInputStream stream) {
+    public static float readUnsignedFloat(@NotNull final ByteArrayInputStream stream) {
         return Float.intBitsToFloat((int) readUnsignedInt(stream));
     }
 
-    public static double readDouble(@NotNull final ByteArrayInputStream stream) {
+    public static float readSignedFloat(@NotNull final ByteArrayInputStream stream) {
+        final int intValue = (int) readUnsignedInt(stream);
+        return Float.intBitsToFloat(intValue ^ (intValue < 0 ? 0x80000000 : 0xffffffff));
+    }
+
+    public static double readUnsignedDouble(@NotNull final ByteArrayInputStream stream) {
         return Double.longBitsToDouble(readUnsignedLong(stream));
+    }
+
+    public static double readSignedDouble(@NotNull final ByteArrayInputStream stream) {
+        final long longValue = readUnsignedLong(stream);
+        return Double.longBitsToDouble(longValue ^ (longValue < 0 ? 0x8000000000000000L : 0xffffffffffffffffL));
     }
 
     public static String readString(@NotNull final ByteArrayInputStream stream) {
@@ -128,6 +138,6 @@ public class BindingUtils {
             throw new IndexOutOfBoundsException();
         }
         return ((c1 << 56) | (c2 << 48) | (c3 << 40) | (c4 << 32) |
-            (c5 << 24) | (c6 << 16) | (c7 << 8) | c8);
+                (c5 << 24) | (c6 << 16) | (c7 << 8) | c8);
     }
 }

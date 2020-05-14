@@ -23,8 +23,10 @@ import org.jetbrains.annotations.NotNull;
 import java.io.ByteArrayInputStream;
 
 /**
- * {@linkplain ComparableBinding} for {@linkplain Float} values.
+ * {@linkplain ComparableBinding} for unsigned non-negative {@linkplain Float} values.
+ * For signed values use {@linkplain SignedFloatBinding}.
  *
+ * @see SignedFloatBinding
  * @see ComparableBinding
  */
 public class FloatBinding extends ComparableBinding {
@@ -36,12 +38,16 @@ public class FloatBinding extends ComparableBinding {
 
     @Override
     public Float readObject(@NotNull final ByteArrayInputStream stream) {
-        return BindingUtils.readFloat(stream);
+        return BindingUtils.readUnsignedFloat(stream);
     }
 
     @Override
     public void writeObject(@NotNull final LightOutputStream output, @NotNull final Comparable object) {
-        output.writeUnsignedInt(Float.floatToIntBits((Float) object));
+        final float value = (Float) object;
+        /*if (value < 0) {
+            throw new ExodusException("FloatBinding can be used only for unsigned non-negative values.");
+        }*/
+        output.writeUnsignedInt(Float.floatToIntBits(value));
     }
 
     /**

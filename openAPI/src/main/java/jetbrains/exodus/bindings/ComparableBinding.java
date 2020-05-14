@@ -31,15 +31,18 @@ import java.io.ByteArrayInputStream;
  * All the inheritors contain two static methods: one for getting {@linkplain ByteIterable} entry from a value,
  * and another for getting value from a {@linkplain ByteIterable} entry.
  *
- * <p>Bindings save the order of values. This means that the greater the value, the greater the {@code ByteIterable}
+ * <p>Bindings save natural order of values. This means that the greater the value, the greater the {@code ByteIterable}
  * entry. The order of the {@code ByteIterable} entries is defined by
- * {@linkplain ByteIterableUtil#compare(ByteIterable, ByteIterable)}.
+ * {@linkplain ByteIterableUtil#compare(ByteIterable, ByteIterable)}. The only exceptions are {@linkplain DoubleBinding}
+ * and {@linkplain FloatBinding}, they save order only for unsigned non-negative values.
  *
  * @see BooleanBinding
  * @see ByteBinding
  * @see ComparableSetBinding
  * @see DoubleBinding
+ * @see SignedDoubleBinding
  * @see FloatBinding
+ * @see SignedFloatBinding
  * @see IntegerBinding
  * @see LongBinding
  * @see ShortBinding

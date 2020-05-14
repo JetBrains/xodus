@@ -23,50 +23,48 @@ import org.jetbrains.annotations.NotNull;
 import java.io.ByteArrayInputStream;
 
 /**
- * {@linkplain ComparableBinding} for unsigned non-negative {@linkplain Double} values.
- * For signed values use {@linkplain SignedDoubleBinding}.
+ * {@linkplain ComparableBinding} for signed {@linkplain Float} values.
+ * For unsigned non-negative values, {@linkplain FloatBinding} can be used.
  *
- * @see SignedDoubleBinding
+ * @see FloatBinding
  * @see ComparableBinding
  */
-public final class DoubleBinding extends ComparableBinding {
+public class SignedFloatBinding extends ComparableBinding {
 
-    public static final DoubleBinding BINDING = new DoubleBinding();
+    public static final SignedFloatBinding BINDING = new SignedFloatBinding();
 
-    private DoubleBinding() {
+    private SignedFloatBinding() {
     }
 
     @Override
-    public Double readObject(@NotNull final ByteArrayInputStream stream) {
-        return BindingUtils.readUnsignedDouble(stream);
+    public Float readObject(@NotNull final ByteArrayInputStream stream) {
+        return BindingUtils.readSignedFloat(stream);
     }
 
     @Override
     public void writeObject(@NotNull final LightOutputStream output, @NotNull final Comparable object) {
-        final double value = (Double) object;
-        /*if (value < 0) {
-            throw new ExodusException("DoubleBinding can be used only for unsigned non-negative values.");
-        }*/
-        output.writeUnsignedLong(Double.doubleToLongBits(value));
+        final int intValue = Float.floatToIntBits((Float) object);
+        output.writeUnsignedInt(intValue ^ (intValue < 0 ? 0xffffffff : 0x80000000));
     }
 
     /**
-     * De-serializes {@linkplain ByteIterable} entry to a {@code double} value.
+     * De-serializes {@linkplain ByteIterable} entry to a {@code float} value.
      *
      * @param entry {@linkplain ByteIterable} instance
      * @return de-serialized value
      */
-    public static double entryToDouble(@NotNull final ByteIterable entry) {
-        return (Double) BINDING.entryToObject(entry);
+    public static float entryToFloat(@NotNull final ByteIterable entry) {
+        return (Float) BINDING.entryToObject(entry);
     }
 
     /**
-     * Serializes {@code double} value to the {@linkplain ArrayByteIterable} entry.
+     * Serializes {@code float} value to the {@linkplain ArrayByteIterable} entry.
      *
      * @param object value to serialize
      * @return {@linkplain ArrayByteIterable} entry
      */
-    public static ArrayByteIterable doubleToEntry(final double object) {
+    public static ArrayByteIterable floatToEntry(final float object) {
         return BINDING.objectToEntry(object);
     }
 }
+
