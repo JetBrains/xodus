@@ -20,7 +20,6 @@ package jetbrains.exodus.entitystore
 import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.bindings.*
-import jetbrains.exodus.core.dataStructures.Pair
 import jetbrains.exodus.core.dataStructures.hash.*
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLong23TreeSet
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLongSet
@@ -361,11 +360,11 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                                         // ignore
                                     }
                                 }
-                                val deletedLinkIdsNames = ArrayList<String?>(deletedLinkIds.size)
+                                val deletedLinkIdsNames = ArrayList<String>(deletedLinkIds.size)
                                 for (typeId in deletedLinkIds) {
                                     try {
                                         val linkName = store.getLinkName(txn, typeId)
-                                        deletedLinkIdsNames.add(linkName)
+                                        linkName?.let { deletedLinkIdsNames.add(linkName) }
                                     } catch (t: Throwable) {
                                         // ignore
                                     }
@@ -537,8 +536,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                     }
                     c.close()
                     if (!allPropsMap.isEmpty()) {
-                        val added = intArrayOf(0)
-                        store.executeInTransaction { txn ->
+                        val added = store.computeInTransaction { txn ->
                             var count = 0
                             val allPropsIndex = propTable.allPropsIndex
                             val envTxn = (txn as PersistentStoreTransaction).environmentTransaction
@@ -549,9 +547,9 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                                     ++count
                                 }
                             }
-                            added[0] = count
+                            count
                         }
-                        logInfo("${added[0]} missing id pairs found and fixed for [$entityType]")
+                        logInfo("$added missing id pairs found and fixed for [$entityType]")
                     }
                     if (phantomIds.isNotEmpty()) {
                         store.executeInTransaction { txn ->
@@ -566,6 +564,53 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                             }
                         }
                         logInfo("${phantomIds.size} phantom id pairs found and fixed for [$entityType]")
+                    }
+                })
+            }
+        }
+    }
+
+    fun refactorFixNegativeFloatAndDoubleProps() {
+        store.executeInReadonlyTransaction { tx ->
+            val txn = tx as PersistentStoreTransaction
+            for (entityType in store.getEntityTypes(txn)) {
+                logInfo("Refactoring fixing negative float & double props for [$entityType]")
+                runReadonlyTransactionSafeForEntityType(entityType, Runnable {
+                    val entityTypeId = store.getEntityTypeId(txn, entityType, false)
+                    val propTable = store.getPropertiesTable(txn, entityTypeId)
+                    val props = HashMap<PropertyKey, Pair<PropertyValue, ByteIterable>>()
+                    val propertyTypes = store.propertyTypes
+                    store.getPrimaryPropertyIndexCursor(txn, propTable).use { cursor ->
+                        while (cursor.next) {
+                            val key = PropertyKey.entryToPropertyKey(cursor.key)
+                            try {
+                                cursor.value.let {
+                                    val propertyType = propertyTypes.getPropertyType(it.iterator().next().toInt() xor 0x80)
+                                    when (propertyType.typeId) {
+                                        ComparableValueType.FLOAT_VALUE_TYPE -> {
+                                            props[key] = propertyTypes.entryToPropertyValue(it, FloatBinding.BINDING) to it
+                                        }
+                                        ComparableValueType.DOUBLE_VALUE_TYPE -> {
+                                            props[key] = propertyTypes.entryToPropertyValue(it, DoubleBinding.BINDING) to it
+                                        }
+                                        else -> {
+                                        }
+                                    }
+                                }
+                            } catch (_: Throwable) {
+                            }
+                        }
+                    }
+                    if (props.isNotEmpty()) {
+                        store.getPropertiesTable(txn, entityTypeId).let { propTable ->
+                            props.forEach { entry ->
+                                val key = entry.key
+                                val (propValue, it) = entry.value
+                                propTable.put(txn, key.entityLocalId,
+                                        PropertyTypes.propertyValueToEntry(propValue),
+                                        it, key.propertyId, propValue.type)
+                            }
+                        }
                     }
                 })
             }

@@ -17,6 +17,7 @@ package jetbrains.exodus.bindings;
 
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 
@@ -44,9 +45,9 @@ public final class DoubleBinding extends ComparableBinding {
     @Override
     public void writeObject(@NotNull final LightOutputStream output, @NotNull final Comparable object) {
         final double value = (Double) object;
-        /*if (value < 0) {
+        if (value < 0) {
             throw new ExodusException("DoubleBinding can be used only for unsigned non-negative values.");
-        }*/
+        }
         output.writeUnsignedLong(Double.doubleToLongBits(value));
     }
 

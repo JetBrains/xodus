@@ -21,6 +21,8 @@ import org.jetbrains.annotations.NotNull;
 public class ComparableValueType {
 
     public static final int STRING_VALUE_TYPE = 2;
+    public static final int DOUBLE_VALUE_TYPE = 3;
+    public static final int FLOAT_VALUE_TYPE = 7;
     public static final int COMPARABLE_SET_VALUE_TYPE = 8;
 
     public static final ComparableValueType[] PREDEFINED_COMPARABLE_VALUE_TYPES;
@@ -40,11 +42,11 @@ public class ComparableValueType {
             IntegerBinding.BINDING,
             LongBinding.BINDING,
             StringBinding.BINDING,
-            DoubleBinding.BINDING,
+            SignedDoubleBinding.BINDING,
             ByteBinding.BINDING,
             BooleanBinding.BINDING,
             ShortBinding.BINDING,
-            FloatBinding.BINDING,
+            SignedFloatBinding.BINDING,
             ComparableSetBinding.BINDING
     };
 

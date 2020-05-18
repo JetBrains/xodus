@@ -23,6 +23,8 @@ import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Objects;
+
 public final class PropertyKey {
 
     private final long entityLocalId;
@@ -39,6 +41,19 @@ public final class PropertyKey {
 
     public int getPropertyId() {
         return propertyId;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        PropertyKey that = (PropertyKey) o;
+        return entityLocalId == that.entityLocalId && propertyId == that.propertyId;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(entityLocalId, propertyId);
     }
 
     public static PropertyKey entryToPropertyKey(@NotNull final ByteIterable entry) {

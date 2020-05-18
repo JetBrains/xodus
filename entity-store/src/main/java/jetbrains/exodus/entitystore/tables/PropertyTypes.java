@@ -17,7 +17,6 @@ package jetbrains.exodus.entitystore.tables;
 
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ByteIterableBase;
 import jetbrains.exodus.bindings.ComparableBinding;
 import jetbrains.exodus.bindings.ComparableValueType;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
@@ -81,10 +80,16 @@ public final class PropertyTypes {
     }
 
     public PropertyValue entryToPropertyValue(@NotNull final ByteIterable entry) {
-        final ByteIterableBase it = (ByteIterableBase) entry;
-        final byte[] bytes = it.getBytesUnsafe();
+        return entryToPropertyValue(entry, null);
+    }
+
+    public PropertyValue entryToPropertyValue(@NotNull final ByteIterable entry, @Nullable ComparableBinding binding) {
+        final byte[] bytes = entry.getBytesUnsafe();
         final ComparableValueType type = getPropertyType((byte) (bytes[0] ^ 0x80));
-        final Comparable data = type.getBinding().readObject(new ByteArraySizedInputStream(bytes, 1, it.getLength() - 1));
+        if (binding == null) {
+            binding = type.getBinding();
+        }
+        final Comparable data = binding.readObject(new ByteArraySizedInputStream(bytes, 1, entry.getLength() - 1));
         return new PropertyValue(type, data);
     }
 

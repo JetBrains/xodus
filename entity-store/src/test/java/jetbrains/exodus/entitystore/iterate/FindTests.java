@@ -425,6 +425,21 @@ public class FindTests extends EntityStoreTestBase {
         assertFalse(itr.hasNext());
     }
 
+    @TestFor(issue = "XD-805")
+    public void testFindWithNegativeFloatProp() {
+        final StoreTransaction txn = getStoreTransaction();
+        final Entity issue1 = txn.newEntity("Issue");
+        issue1.setProperty("thefloat", 12f);
+        final Entity issue2 = txn.newEntity("Issue");
+        issue2.setProperty("thefloat", -10f);
+        EntityIterator itr = ((PersistentStoreTransaction) txn).findWithPropSortedByValue("Issue", "thefloat").iterator();
+        assertTrue(itr.hasNext());
+        assertEquals(issue2, itr.next());
+        assertTrue(itr.hasNext());
+        assertEquals(issue1, itr.next());
+        assertFalse(itr.hasNext());
+    }
+
     public void testFindWithPropSorted() throws Exception {
         testFindSingleEntityByPropertyValue();
         final PersistentStoreTransaction txn = getStoreTransaction();
