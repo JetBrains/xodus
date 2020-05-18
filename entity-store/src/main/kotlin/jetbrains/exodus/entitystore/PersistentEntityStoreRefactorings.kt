@@ -603,14 +603,15 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                     }
                     if (props.isNotEmpty()) {
                         store.getPropertiesTable(txn, entityTypeId).let { propTable ->
-                            props.forEach { entry ->
-                                val key = entry.key
-                                val (propValue, it) = entry.value
-                                propTable.put(txn, key.entityLocalId,
-                                        PropertyTypes.propertyValueToEntry(propValue),
-                                        it, key.propertyId, propValue.type)
+                            props.keys.sortedBy { it.propertyId }.forEach { key ->
+                                props[key]?.let { (propValue, it) ->
+                                    propTable.put(txn, key.entityLocalId,
+                                            PropertyTypes.propertyValueToEntry(propValue),
+                                            it, key.propertyId, propValue.type)
+                                }
                             }
                         }
+                        logInfo("${props.size} negative float & double props fixed.")
                     }
                 })
             }
