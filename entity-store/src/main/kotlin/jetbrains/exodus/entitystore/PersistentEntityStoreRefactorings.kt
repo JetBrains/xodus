@@ -30,6 +30,7 @@ import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import mu.KLogging
 import java.util.*
+import kotlin.experimental.xor
 
 internal class PersistentEntityStoreRefactorings(private val store: PersistentEntityStoreImpl) {
 
@@ -582,16 +583,15 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                     val propertyTypes = store.propertyTypes
                     store.getPrimaryPropertyIndexCursor(txn, propTable).use { cursor ->
                         while (cursor.next) {
-                            val key = PropertyKey.entryToPropertyKey(cursor.key)
                             try {
                                 cursor.value.let {
-                                    val propertyType = propertyTypes.getPropertyType(it.iterator().next().toInt() xor 0x80)
+                                    val propertyType = propertyTypes.getPropertyType((it.iterator().next() xor (0x80).toByte()).toInt())
                                     when (propertyType.typeId) {
                                         ComparableValueType.FLOAT_VALUE_TYPE -> {
-                                            props[key] = propertyTypes.entryToPropertyValue(it, FloatBinding.BINDING) to it
+                                            props[PropertyKey.entryToPropertyKey(cursor.key)] = propertyTypes.entryToPropertyValue(it, FloatBinding.BINDING) to it
                                         }
                                         ComparableValueType.DOUBLE_VALUE_TYPE -> {
-                                            props[key] = propertyTypes.entryToPropertyValue(it, DoubleBinding.BINDING) to it
+                                            props[PropertyKey.entryToPropertyKey(cursor.key)] = propertyTypes.entryToPropertyValue(it, DoubleBinding.BINDING) to it
                                         }
                                         else -> {
                                         }
