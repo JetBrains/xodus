@@ -54,7 +54,19 @@ class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
                 return result
             }
         }
-        return queryEngine.unionAdjusted(left.instantiate(entityType, queryEngine, metaData), right.instantiate(entityType, queryEngine, metaData))
+        var result: Iterable<Entity> = EntityIterableBase.EMPTY
+        val stack = ArrayDeque<NodeBase>()
+        stack.push(this)
+        while (stack.isNotEmpty()) {
+            val node = stack.pop()
+            if (node !is Or) {
+                result = queryEngine.unionAdjusted(result, node.instantiate(entityType, queryEngine, metaData))
+            } else {
+                stack.push(node.left)
+                stack.push(node.right)
+            }
+        }
+        return result
     }
 
     override fun equals(other: Any?): Boolean {
