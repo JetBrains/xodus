@@ -603,7 +603,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                     }
                     if (props.isNotEmpty()) {
                         store.getPropertiesTable(txn, entityTypeId).let { propTable ->
-                            props.keys.sortedBy { it.propertyId }.forEach { key ->
+                            props.keys.sortedBy { it.entityLocalId }.forEach { key ->
                                 props[key]?.let { (propValue, it) ->
                                     propTable.put(txn, key.entityLocalId,
                                             PropertyTypes.propertyValueToEntry(propValue),
