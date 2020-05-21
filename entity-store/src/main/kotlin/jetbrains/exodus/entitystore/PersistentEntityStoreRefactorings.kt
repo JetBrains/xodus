@@ -584,7 +584,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                     store.getPrimaryPropertyIndexCursor(txn, propTable).use { cursor ->
                         while (cursor.next) {
                             try {
-                                cursor.value.let {
+                                ArrayByteIterable(cursor.value).let {
                                     val propertyType = propertyTypes.getPropertyType((it.iterator().next() xor (0x80).toByte()).toInt())
                                     when (propertyType.typeId) {
                                         ComparableValueType.FLOAT_VALUE_TYPE -> {
@@ -602,13 +602,11 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                         }
                     }
                     if (props.isNotEmpty()) {
-                        store.getPropertiesTable(txn, entityTypeId).let { propTable ->
-                            props.keys.sortedBy { it.entityLocalId }.forEach { key ->
-                                props[key]?.let { (propValue, it) ->
-                                    propTable.put(txn, key.entityLocalId,
-                                            PropertyTypes.propertyValueToEntry(propValue),
-                                            it, key.propertyId, propValue.type)
-                                }
+                        props.keys.sortedBy { it.entityLocalId }.forEach { key ->
+                            props[key]?.let { (propValue, it) ->
+                                propTable.put(txn, key.entityLocalId,
+                                        PropertyTypes.propertyValueToEntry(propValue),
+                                        it, key.propertyId, propValue.type)
                             }
                         }
                         logInfo("${props.size} negative float & double props fixed.")
