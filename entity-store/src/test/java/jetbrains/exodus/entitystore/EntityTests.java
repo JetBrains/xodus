@@ -186,10 +186,13 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertEquals("This is a test issue", entity.getProperty("description"));
     }
 
-    public void testDoubleProperty() {
+    public void testDoubleAndFloatProperties() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity entity = txn.newEntity("Issue");
         entity.setProperty("hitRate", 0.123456789);
+        entity.setProperty("hitRate (float)", 0.123456789f);
+        entity.setProperty("crude oil (WTI) price", -40.32);
+        entity.setProperty("crude oil (WTI) price (float)", -40.32f);
         txn.flush();
         Assert.assertEquals("Issue", entity.getType());
         final Entity sameEntity = txn.getEntity(entity.getId());
@@ -197,6 +200,9 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertEquals(entity.getType(), sameEntity.getType());
         Assert.assertEquals(entity.getId(), sameEntity.getId());
         Assert.assertEquals(0.123456789, entity.getProperty("hitRate"));
+        Assert.assertEquals(0.123456789f, entity.getProperty("hitRate (float)"));
+        Assert.assertEquals(-40.32, entity.getProperty("crude oil (WTI) price"));
+        Assert.assertEquals(-40.32f, entity.getProperty("crude oil (WTI) price (float)"));
     }
 
     public void testDateProperty() {

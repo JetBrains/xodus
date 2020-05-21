@@ -16,11 +16,12 @@
 package jetbrains.exodus.entitystore
 
 import jetbrains.exodus.ByteIterable
-import jetbrains.exodus.bindings.CompressedUnsignedLongArrayByteIterable
-import jetbrains.exodus.bindings.IntegerBinding
-import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.bindings.*
+import jetbrains.exodus.entitystore.tables.PropertyTypes
+import jetbrains.exodus.util.LightOutputStream
 import org.junit.Assert
 import org.junit.Test
+import kotlin.experimental.xor
 
 class PrimitiveIterableTests {
 
@@ -91,6 +92,18 @@ class PrimitiveIterableTests {
         testLong(Integer.MAX_VALUE.toLong())
     }
 
+    @Test
+    fun testFloatMigration() {
+        testMigration(1.8f)
+        testMigration(40.32f)
+    }
+
+    @Test
+    fun testDoubleMigration() {
+        testMigration(1.8)
+        testMigration(40.32)
+    }
+
     private fun testInt(i: Int) {
         Assert.assertEquals(i.toLong(), IntegerBinding.entryToInt(IntegerBinding.intToEntry(i)).toLong())
     }
@@ -120,5 +133,27 @@ class PrimitiveIterableTests {
             val l = longArray[i]
             Assert.assertEquals(l, longs[i])
         }
+    }
+
+    private fun testMigration(f: Float) {
+        val stream = LightOutputStream()
+        stream.write(ComparableValueType.FLOAT_VALUE_TYPE xor 0x80)
+        FloatBinding.BINDING.writeObject(stream, f)
+        val it = stream.asArrayByteIterable()
+        Assert.assertEquals(ComparableValueType.FLOAT_VALUE_TYPE, (it.iterator().next() xor (0x80).toByte()).toInt())
+        val propTypes = PropertyTypes()
+        val propValue = propTypes.entryToPropertyValue(it, FloatBinding.BINDING)
+        Assert.assertEquals(f, propTypes.entryToPropertyValue(PropertyTypes.propertyValueToEntry(propValue)).data)
+    }
+
+    private fun testMigration(d: Double) {
+        val stream = LightOutputStream()
+        stream.write(ComparableValueType.DOUBLE_VALUE_TYPE xor 0x80)
+        DoubleBinding.BINDING.writeObject(stream, d)
+        val it = stream.asArrayByteIterable()
+        Assert.assertEquals(ComparableValueType.DOUBLE_VALUE_TYPE, (it.iterator().next() xor (0x80).toByte()).toInt())
+        val propTypes = PropertyTypes()
+        val propValue = propTypes.entryToPropertyValue(it, DoubleBinding.BINDING)
+        Assert.assertEquals(d, propTypes.entryToPropertyValue(PropertyTypes.propertyValueToEntry(propValue)).data)
     }
 }
