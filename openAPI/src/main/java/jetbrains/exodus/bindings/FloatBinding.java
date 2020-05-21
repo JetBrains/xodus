@@ -52,7 +52,7 @@ public class FloatBinding extends ComparableBinding {
     }
 
     /**
-     * De-serializes {@linkplain ByteIterable} entry to a {@code float} value.
+     * De-serializes {@linkplain ByteIterable} entry to an unsigned non-negative {@code float} value.
      *
      * @param entry {@linkplain ByteIterable} instance
      * @return de-serialized value
@@ -62,7 +62,7 @@ public class FloatBinding extends ComparableBinding {
     }
 
     /**
-     * Serializes {@code float} value to the {@linkplain ArrayByteIterable} entry.
+     * Serializes unsigned non-negative {@code float} value to the {@linkplain ArrayByteIterable} entry.
      *
      * @param object value to serialize
      * @return {@linkplain ArrayByteIterable} entry

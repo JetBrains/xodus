@@ -52,7 +52,7 @@ public final class DoubleBinding extends ComparableBinding {
     }
 
     /**
-     * De-serializes {@linkplain ByteIterable} entry to a {@code double} value.
+     * De-serializes {@linkplain ByteIterable} entry to an unsigned non-negative {@code double} value.
      *
      * @param entry {@linkplain ByteIterable} instance
      * @return de-serialized value
@@ -62,7 +62,7 @@ public final class DoubleBinding extends ComparableBinding {
     }
 
     /**
-     * Serializes {@code double} value to the {@linkplain ArrayByteIterable} entry.
+     * Serializes unsigned non-negative {@code double} value to the {@linkplain ArrayByteIterable} entry.
      *
      * @param object value to serialize
      * @return {@linkplain ArrayByteIterable} entry
