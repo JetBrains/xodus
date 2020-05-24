@@ -572,46 +572,44 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
     }
 
     fun refactorFixNegativeFloatAndDoubleProps() {
-        store.executeInReadonlyTransaction { tx ->
+        store.executeInTransaction { tx ->
             val txn = tx as PersistentStoreTransaction
             for (entityType in store.getEntityTypes(txn)) {
                 logInfo("Refactoring fixing negative float & double props for [$entityType]")
-                runReadonlyTransactionSafeForEntityType(entityType, Runnable {
-                    val entityTypeId = store.getEntityTypeId(txn, entityType, false)
-                    val propTable = store.getPropertiesTable(txn, entityTypeId)
-                    val props = HashMap<PropertyKey, Pair<PropertyValue, ByteIterable>>()
-                    val propertyTypes = store.propertyTypes
-                    store.getPrimaryPropertyIndexCursor(txn, propTable).use { cursor ->
-                        while (cursor.next) {
-                            try {
-                                ArrayByteIterable(cursor.value).let {
-                                    val propertyType = propertyTypes.getPropertyType((it.iterator().next() xor (0x80).toByte()).toInt())
-                                    when (propertyType.typeId) {
-                                        ComparableValueType.FLOAT_VALUE_TYPE -> {
-                                            props[PropertyKey.entryToPropertyKey(cursor.key)] = propertyTypes.entryToPropertyValue(it, FloatBinding.BINDING) to it
-                                        }
-                                        ComparableValueType.DOUBLE_VALUE_TYPE -> {
-                                            props[PropertyKey.entryToPropertyKey(cursor.key)] = propertyTypes.entryToPropertyValue(it, DoubleBinding.BINDING) to it
-                                        }
-                                        else -> {
-                                        }
+                val entityTypeId = store.getEntityTypeId(txn, entityType, false)
+                val propTable = store.getPropertiesTable(txn, entityTypeId)
+                val props = HashMap<PropertyKey, Pair<PropertyValue, ByteIterable>>()
+                val propertyTypes = store.propertyTypes
+                store.getPrimaryPropertyIndexCursor(txn, propTable).use { cursor ->
+                    while (cursor.next) {
+                        try {
+                            ArrayByteIterable(cursor.value).let {
+                                val propertyType = propertyTypes.getPropertyType((it.iterator().next() xor (0x80).toByte()).toInt())
+                                when (propertyType.typeId) {
+                                    ComparableValueType.FLOAT_VALUE_TYPE -> {
+                                        props[PropertyKey.entryToPropertyKey(cursor.key)] = propertyTypes.entryToPropertyValue(it, FloatBinding.BINDING) to it
+                                    }
+                                    ComparableValueType.DOUBLE_VALUE_TYPE -> {
+                                        props[PropertyKey.entryToPropertyKey(cursor.key)] = propertyTypes.entryToPropertyValue(it, DoubleBinding.BINDING) to it
+                                    }
+                                    else -> {
                                     }
                                 }
-                            } catch (_: Throwable) {
                             }
+                        } catch (_: Throwable) {
                         }
                     }
-                    if (props.isNotEmpty()) {
-                        props.keys.sortedBy { it.entityLocalId }.forEach { key ->
-                            props[key]?.let { (propValue, it) ->
-                                propTable.put(txn, key.entityLocalId,
-                                        PropertyTypes.propertyValueToEntry(propValue),
-                                        it, key.propertyId, propValue.type)
-                            }
+                }
+                if (props.isNotEmpty()) {
+                    props.keys.sortedBy { it.entityLocalId }.forEach { key ->
+                        props[key]?.let { (propValue, it) ->
+                            propTable.put(txn, key.entityLocalId,
+                                    PropertyTypes.propertyValueToEntry(propValue),
+                                    it, key.propertyId, propValue.type)
                         }
-                        logInfo("${props.size} negative float & double props fixed.")
                     }
-                })
+                    logInfo("${props.size} negative float & double props fixed.")
+                }
             }
         }
     }
