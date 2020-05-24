@@ -20,6 +20,7 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.env.Store;
 import jetbrains.exodus.env.Transaction;
+import jetbrains.exodus.env.TransactionalComputable;
 import jetbrains.exodus.env.TransactionalExecutable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -31,30 +32,37 @@ public class Settings {
 
     @Nullable
     public static String get(@NotNull final Store settingsStore, @NotNull final String name) {
-        final ByteIterable[] result = new ByteIterable[1];
+        return settingsStore.getEnvironment().computeInTransaction(new TransactionalComputable<String>() {
+            @Override
+            public String compute(@NotNull final Transaction txn) {
+                return get(txn, settingsStore, name);
+            }
+        });
+    }
+
+    @Nullable
+    public static String get(@NotNull final Transaction txn, @NotNull final Store settingsStore, @NotNull final String name) {
         try {
-            settingsStore.getEnvironment().executeInReadonlyTransaction(new TransactionalExecutable() {
-                @Override
-                public void execute(@NotNull final Transaction txn) {
-                    result[0] = settingsStore.get(txn, StringBinding.stringToEntry(name));
-                }
-            });
-        } catch (ExodusException e) {
-            // ignore
+            final ByteIterable entry = settingsStore.get(txn, StringBinding.stringToEntry(name));
+            if (entry != null) {
+                return StringBinding.entryToString(entry);
+            }
+        } catch (ExodusException ignore) {
         }
-        if (result[0] == null) {
-            return null;
-        }
-        return StringBinding.entryToString(result[0]);
+        return null;
     }
 
     public static void set(@NotNull final Store settingsStore, @NotNull final String name, @NotNull final String setting) {
         settingsStore.getEnvironment().executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
-                settingsStore.put(txn, StringBinding.stringToEntry(name), StringBinding.stringToEntry(setting));
+                set(txn, settingsStore, name, setting);
             }
         });
+    }
+
+    public static void set(@NotNull final Transaction txn, @NotNull final Store settingsStore, @NotNull final String name, @NotNull final String setting) {
+        settingsStore.put(txn, StringBinding.stringToEntry(name), StringBinding.stringToEntry(setting));
     }
 
     public static void delete(@NotNull final Store settingsStore, @NotNull final String name) {

@@ -109,12 +109,6 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
      * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
      * <p>Mutable at runtime: no
      */
-    public static final String REFACTORING_FIX_NEGATIVE_FLOAT_AND_DOUBLE_PROPS = "exodus.entityStore.refactoring.fixNegativeFloatAndDoubleProps";
-
-    /**
-     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
-     * <p>Mutable at runtime: no
-     */
     public static final String REFACTORING_DELETE_REDUNDANT_BLOBS = "exodus.entityStore.refactoring.deleteRedundantBlobs";
 
     /**
@@ -344,7 +338,6 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
             new Pair(REFACTORING_BLOB_NULL_INDICES, false),
             new Pair(REFACTORING_HEAVY_LINKS, false),
             new Pair(REFACTORING_HEAVY_PROPS, false),
-            new Pair(REFACTORING_FIX_NEGATIVE_FLOAT_AND_DOUBLE_PROPS, false),
             new Pair(REFACTORING_DELETE_REDUNDANT_BLOBS, false),
             new Pair(MAX_IN_PLACE_BLOB_SIZE, 10000),
             new Pair(BLOB_STRINGS_CACHE_SHARED, true),
@@ -432,14 +425,6 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
 
     public PersistentEntityStoreConfig setRefactoringHeavyProps(final boolean heavyProps) {
         return setSetting(REFACTORING_HEAVY_PROPS, heavyProps);
-    }
-
-    public boolean getRefactoringFixNegativeFloatAndDoubleProps() {
-        return getRefactoringForceAll() || (Boolean) getSetting(REFACTORING_FIX_NEGATIVE_FLOAT_AND_DOUBLE_PROPS);
-    }
-
-    public PersistentEntityStoreConfig setRefactoringFixNegativeFloatAndDoubleProps(final boolean fixNegative) {
-        return setSetting(REFACTORING_FIX_NEGATIVE_FLOAT_AND_DOUBLE_PROPS, fixNegative);
     }
 
     public boolean getRefactoringDeleteRedundantBlobs() {

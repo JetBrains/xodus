@@ -393,9 +393,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
                 Settings.set(internalSettings, "refactorMakePropTablesConsistent() applied", "y");
             }
-            if (fromScratch || Settings.get(internalSettings, "refactorFixNegativeFloatAndDoubleProps() applied") == null || config.getRefactoringFixNegativeFloatAndDoubleProps()) {
+            if (fromScratch || Settings.get(internalSettings, "refactorFixNegativeFloatAndDoubleProps() applied") == null) {
                 if (!fromScratch) {
-                    refactorings.refactorFixNegativeFloatAndDoubleProps();
+                    refactorings.refactorFixNegativeFloatAndDoubleProps(internalSettings);
                 }
                 Settings.set(internalSettings, "refactorFixNegativeFloatAndDoubleProps() applied", "y");
             }
