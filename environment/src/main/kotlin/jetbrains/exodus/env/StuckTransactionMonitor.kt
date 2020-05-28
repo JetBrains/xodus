@@ -48,10 +48,10 @@ internal class StuckTransactionMonitor(env: EnvironmentImpl) : Job() {
                         val creatingThread = it.creatingThread
                         val out = ByteArrayOutputStream()
                         val ps = PrintStream(out)
-                        val errorHeader = "Transaction timed out: created at ${Date(it.startTime)}, thread = $creatingThread(${creatingThread.id})"
-                        ps.writer().write(errorHeader)
+                        val msg = "Transaction timed out: created at ${Date(it.startTime)}, thread = $creatingThread(${creatingThread.id})"
+                        ps.writer().write(msg)
                         trace.printStackTrace(ps)
-                        logger.error(errorHeader, trace)
+                        logger.info(msg, trace)
                         ++stuckTxnCount
                     }
                 }
