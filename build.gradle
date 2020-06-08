@@ -1,8 +1,22 @@
+buildscript {
+    ext.kotlinVersion = '1.3.72'
+    ext.kotlinLangVersion = '1.3'
+    ext.kotlinCoroutinesVersion = '1.3.7'
+    ext.dokkaVersion = '0.10.0'
+    ext.kotlinLoggingVersion = '1.7.9'
+    ext.annotationsVersion = '19.0.0'
+    ext.licensePluginVersion = '0.15.0'
+    ext.nexusPluginVersion = '0.21.2'
+    ext.junitVersion = '4.13'
+    ext.slf4jVersion = '1.7.30'
+    ext.commonsCompressVersion = '1.20'
+}
+
 plugins {
-    id 'com.github.hierynomus.license' version '0.15.0'
-    id 'io.codearte.nexus-staging' version '0.11.0'
-    id 'org.jetbrains.kotlin.jvm' version '1.3.10'
-    id 'org.jetbrains.dokka' version '0.9.17'
+    id 'org.jetbrains.kotlin.jvm' version "$kotlinVersion"
+    id 'org.jetbrains.dokka' version "$dokkaVersion"
+    id 'com.github.hierynomus.license' version "$licensePluginVersion"
+    id 'io.codearte.nexus-staging' version "$nexusPluginVersion"
 }
 
 group = 'org.jetbrains.xodus'
@@ -20,8 +34,8 @@ static def shouldDeploy(project) {
     return project.version.length() > 0 && !(project.name in ['benchmarks', 'samples'])
 }
 
-task wrapper(type: Wrapper) {
-    gradleVersion = '3.5.1'
+wrapper {
+    gradleVersion = '6.5'
 }
 
 defaultTasks 'assemble'
@@ -37,6 +51,7 @@ nexusStaging {
 allprojects {
     repositories {
         maven { url "https://cache-redirector.jetbrains.com/repo1.maven.org/maven2" }
+        maven { url 'https://dl.bintray.com/kotlin/dokka' }
     }
 }
 
@@ -49,7 +64,7 @@ subprojects {
     apply plugin: 'signing'
     apply plugin: 'org.jetbrains.dokka'
 
-    sourceCompatibility = 1.7
+    sourceCompatibility = 1.8
     compileJava.options.encoding = 'UTF-8'
     group = rootProject.group
     version = rootProject.version
@@ -68,10 +83,10 @@ subprojects {
         }
     }
 
-
     dependencies {
-        testCompile group: 'junit', name: 'junit', version: '4.12'
-        testCompile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.25'
+        implementation "org.apache.commons:commons-compress:$commonsCompressVersion"
+        testImplementation group: 'junit', name: 'junit', version: "$junitVersion"
+        testImplementation group: 'org.slf4j', name: 'slf4j-simple', version: "$slf4jVersion"
     }
 
     // tests for most of sub-projects run with database encryption turned on
@@ -84,7 +99,7 @@ subprojects {
             //systemProperty 'exodus.log.readerWriterProvider', 'jetbrains.exodus.io.inMemory.MemoryDataReaderWriterProvider'
         }
         dependencies {
-            testCompile project(':crypto')
+            testImplementation project(':crypto')
         }
     }
 
@@ -94,7 +109,7 @@ subprojects {
 
     jar {
         manifest {
-            attributes 'Implementation-Title': archivesBaseName, 'Implementation-Version': version
+            attributes 'Implementation-Title': archivesBaseName, 'Implementation-Version': project.version
         }
     }
 
@@ -132,25 +147,26 @@ subprojects {
 
     // configuring projects with Kotlin sources
     dependencies {
-        compile "org.jetbrains.kotlin:kotlin-stdlib:1.3.10"
-        compile 'io.github.microutils:kotlin-logging:1.5.4'
+        implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
+        implementation "io.github.microutils:kotlin-logging:$kotlinLoggingVersion"
     }
     compileKotlin {
         kotlinOptions {
-            languageVersion = '1.2'
-            apiVersion = '1.2'
+            jvmTarget = '1.8'
+            languageVersion = "$kotlinLangVersion"
+            apiVersion = "$kotlinLangVersion"
         }
     }
     compileTestKotlin {
         kotlinOptions {
-            languageVersion = '1.2'
-            apiVersion = '1.2'
+            jvmTarget = '1.8'
+            languageVersion = "$kotlinLangVersion"
+            apiVersion = "$kotlinLangVersion"
         }
     }
     if (project.name != "benchmarks") {
         dokka {
-            jdkVersion = 7
-            packageOptions {
+            configuration {
                 reportUndocumented = false
             }
         }

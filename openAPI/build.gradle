@@ -1,4 +1,4 @@
 dependencies {
-    compile project(':utils')
-    testCompile project(':utils').sourceSets.test.output
+    api project(':utils')
+    testImplementation project(':utils').sourceSets.test.output
 }

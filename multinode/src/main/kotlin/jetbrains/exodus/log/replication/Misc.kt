@@ -19,7 +19,6 @@ import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import software.amazon.awssdk.services.s3.model.*
 import java.nio.ByteBuffer
-import kotlin.coroutines.experimental.buildSequence
 
 internal const val deletePackSize = 500
 
@@ -47,7 +46,7 @@ internal fun listObjectsBuilder(bucketName: String, requestOverrideConfig: AwsRe
 }
 
 internal fun listObjects(s3: S3AsyncClient, builder: ListObjectsRequest.Builder): Sequence<S3Object> {
-    return buildSequence {
+    return sequence {
         while (true) {
             val response = s3.listObjects(builder.build()).get()
             val contents = response.contents() ?: break

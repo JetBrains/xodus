@@ -1,6 +1,3 @@
 dependencies {
-    compile project(':openAPI')
-    compile('org.apache.commons:commons-compress:1.12') {
-        transitive = false
-    }
+    api project(':openAPI')
 }

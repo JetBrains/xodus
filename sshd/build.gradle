@@ -1,8 +1,8 @@
 dependencies {
-    compile project(':entity-store')
-    compile 'org.apache.sshd:apache-sshd:0.14.0'
-    compile 'commons-cli:commons-cli:1.4'
-    compile 'org.mozilla:rhino:1.7.10'
+    implementation project(':entity-store')
+    implementation 'org.apache.sshd:apache-sshd:0.14.0'
+    implementation 'commons-cli:commons-cli:1.4'
+    implementation 'org.mozilla:rhino:1.7.10'
 }
 
 // add license header to JavaScript files as well

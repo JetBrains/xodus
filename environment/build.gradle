@@ -1,4 +1,4 @@
 dependencies {
-    compile project(':compress')
-    testCompile project(':utils').sourceSets.test.output
+    api project(':compress')
+    testImplementation project(':utils').sourceSets.test.output
 }

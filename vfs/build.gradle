@@ -1,6 +1,6 @@
 dependencies {
-    compile project(':environment')
-    testCompile project(':environment').sourceSets.test.output
-    testCompile project(':utils').sourceSets.test.output
-    testCompile 'io.airlift:aircompressor:0.8'
+    api project(':environment')
+    testImplementation project(':environment').sourceSets.test.output
+    testImplementation project(':utils').sourceSets.test.output
+    testImplementation 'io.airlift:aircompressor:0.8'
 }

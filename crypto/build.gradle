@@ -1,6 +1,5 @@
 dependencies {
-    compile 'org.bouncycastle:bcpg-jdk15on:1.60'
-    compile project(':openAPI')
-    compile project(':environment')
-    testCompile project(':openAPI').sourceSets.test.output
+    api project(':environment')
+    implementation 'org.bouncycastle:bcpg-jdk15on:1.60'
+    testImplementation project(':openAPI').sourceSets.test.output
 }

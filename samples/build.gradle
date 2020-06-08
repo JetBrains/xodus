@@ -1,5 +1,5 @@
 dependencies {
-    compile project(':entity-store')
+    implementation project(':entity-store')
 }
 
 jar {

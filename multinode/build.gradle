@@ -1,32 +1,13 @@
-kotlin {
-    experimental {
-        coroutines 'enable'
-    }
-}
-
 dependencies {
-    compile project(':environment')
-    compile project(':entity-store')
-    compile 'software.amazon.awssdk:s3:2.0.0-preview-11'
+    api project(':entity-store')
+    implementation 'software.amazon.awssdk:s3:2.0.0-preview-11'
+    implementation 'software.amazon.awssdk:netty-nio-client:2.0.0-preview-11'
+    implementation 'io.netty:netty-transport:4.1.46.Final'
+    implementation 'io.netty:netty-codec-http:4.1.46.Final'
 
-    testCompile project(':environment').sourceSets.test.output
-    testCompile project(':utils').sourceSets.test.output
-    testCompile 'io.findify:s3mock_2.12:0.2.5'
-    testCompile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.22.5'
-    testCompile 'org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:0.22.5'
-
-    compileKotlin {
-        kotlinOptions {
-            jvmTarget = '1.8'
-            languageVersion = '1.2'
-            apiVersion = '1.2'
-        }
-    }
-    compileTestKotlin {
-        kotlinOptions {
-            jvmTarget = '1.8'
-            languageVersion = '1.2'
-            apiVersion = '1.2'
-        }
-    }
+    testImplementation project(':environment').sourceSets.test.output
+    testImplementation project(':utils').sourceSets.test.output
+    testImplementation 'io.findify:s3mock_2.12:0.2.5'
+    testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinCoroutinesVersion"
+    testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:$kotlinCoroutinesVersion"
 }

@@ -57,7 +57,6 @@ fun main(args: Array<String>) {
                 else -> {
                     printUsage()
                     exitProcess(1)
-                    return
                 }
             }
         }
@@ -67,7 +66,6 @@ fun main(args: Array<String>) {
     if (bucket == null || host == null || accessKey == null || secretKey == null || location == null || persistentStoreName == null) {
         printUsage()
         exitProcess(1)
-        return
     }
 
     val s3 = S3AsyncClient.builder()

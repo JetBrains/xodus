@@ -22,8 +22,8 @@ import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.ReplicatedLogTestMixin
 import jetbrains.exodus.log.ReplicatedLogTestMixin.Companion.bucket
 import jetbrains.exodus.util.IOUtil
-import kotlinx.coroutines.experimental.future.await
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.future.await
+import kotlinx.coroutines.runBlocking
 import mu.KLogging
 import org.junit.After
 import org.junit.Before

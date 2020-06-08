@@ -1,27 +1,14 @@
 plugins {
-    id 'com.github.johnrengelman.shadow' version "2.0.1"
+    id 'com.github.johnrengelman.shadow' version "5.2.0"
 }
 
 dependencies {
-    compile project(':sshd')
-    compile project(':crypto')
-    compile project(':multinode')
-    compile 'com.hierynomus:sshj:0.24.0'
-
-    compileKotlin {
-        kotlinOptions {
-            jvmTarget = '1.8'
-            languageVersion = '1.2'
-            apiVersion = '1.2'
-        }
-    }
-    compileTestKotlin {
-        kotlinOptions {
-            jvmTarget = '1.8'
-            languageVersion = '1.2'
-            apiVersion = '1.2'
-        }
-    }
+    implementation project(':sshd')
+    implementation project(':crypto')
+    implementation project(':multinode')
+    implementation 'com.hierynomus:sshj:0.24.0'
+    implementation 'software.amazon.awssdk:s3:2.0.0-preview-11'
+    implementation 'software.amazon.awssdk:netty-nio-client:2.0.0-preview-11'
 }
 
 //Shadow jar is a self-contained archive with all dependencies packed
