@@ -48,7 +48,7 @@ final StoreTransaction txn = store.beginReadonlyTransaction();
 ```
 An attempt to modify data in a read-only transaction fails with a `ReadonlyTransactionException`.
  
-Any transaction should be finished, meaning that it is either aborted or committed. The transaction can also be flushed or reverted. The methods `commit()` and `flush()` return `true` if they succeed. If any method returns `false`, a database version mismatch has occurred. In this case, there are two possibilities: to abort the transaction and finish or revert the transaction and continue. An unsuccessful flush implicitly reverts the transaction and moves it to the latest (newest) database snapshot, so database operations can be repeated against it:
+Any transaction should be finished, meaning it is either aborted or committed, where `abort()` is the only way to finish a read-only transaction.  The transaction can also be flushed or reverted. The methods `commit()` and `flush()` return `true` if they succeed. If any method returns `false`, a database version mismatch has occurred. In this case, there are two possibilities: to abort the transaction and finish or revert the transaction and continue. An unsuccessful flush implicitly reverts the transaction and moves it to the latest (newest) database snapshot, so database operations can be repeated against it:
 ```java
 StoreTransaction txn = beginTransaction();
 try {
