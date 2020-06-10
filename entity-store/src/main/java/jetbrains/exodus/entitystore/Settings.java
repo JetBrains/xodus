@@ -20,8 +20,6 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.env.Store;
 import jetbrains.exodus.env.Transaction;
-import jetbrains.exodus.env.TransactionalComputable;
-import jetbrains.exodus.env.TransactionalExecutable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -32,12 +30,7 @@ public class Settings {
 
     @Nullable
     public static String get(@NotNull final Store settingsStore, @NotNull final String name) {
-        return settingsStore.getEnvironment().computeInTransaction(new TransactionalComputable<String>() {
-            @Override
-            public String compute(@NotNull final Transaction txn) {
-                return get(txn, settingsStore, name);
-            }
-        });
+        return settingsStore.getEnvironment().computeInTransaction(txn -> get(txn, settingsStore, name));
     }
 
     @Nullable
@@ -53,12 +46,7 @@ public class Settings {
     }
 
     public static void set(@NotNull final Store settingsStore, @NotNull final String name, @NotNull final String setting) {
-        settingsStore.getEnvironment().executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final Transaction txn) {
-                set(txn, settingsStore, name, setting);
-            }
-        });
+        settingsStore.getEnvironment().executeInTransaction(txn -> set(txn, settingsStore, name, setting));
     }
 
     public static void set(@NotNull final Transaction txn, @NotNull final Store settingsStore, @NotNull final String name, @NotNull final String setting) {
@@ -66,11 +54,6 @@ public class Settings {
     }
 
     public static void delete(@NotNull final Store settingsStore, @NotNull final String name) {
-        settingsStore.getEnvironment().executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final Transaction txn) {
-                settingsStore.delete(txn, StringBinding.stringToEntry(name));
-            }
-        });
+        settingsStore.getEnvironment().executeInTransaction(txn -> settingsStore.delete(txn, StringBinding.stringToEntry(name)));
     }
 }

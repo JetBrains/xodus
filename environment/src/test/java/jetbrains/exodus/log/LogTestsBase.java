@@ -28,7 +28,6 @@ import java.io.IOException;
 
 class LogTestsBase {
 
-    @SuppressWarnings({"FieldAccessedSynchronizedAndUnsynchronized"})
     protected volatile Log log;
     private File logDirectory = null;
     protected DataReader reader;
@@ -62,7 +61,7 @@ class LogTestsBase {
 
     protected Pair<DataReader, DataWriter> createLogRW() {
         FileDataReader reader = new FileDataReader(logDirectory);
-        return new Pair<DataReader, DataWriter>(reader, new FileDataWriter(reader));
+        return new Pair<>(reader, new FileDataWriter(reader));
     }
 
     void initLog(final long fileSize) {

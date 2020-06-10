@@ -128,7 +128,6 @@ abstract class NodeBase implements INode {
         }
     }
 
-    @SuppressWarnings({"PackageVisibleField"})
     static class MatchResult {
 
         static long getMatchResult(final int matchingLength) {

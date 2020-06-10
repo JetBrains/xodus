@@ -111,12 +111,7 @@ public class QueryTreeTest extends EntityStoreTestBase {
     }
 
     public void testGenericSort() {
-        ComparableGetterSort sortNode = new ComparableGetterSort(concat, new ComparableGetter() {
-            @Override
-            public Comparable select(Entity entity) {
-                return entity.getProperty("i");
-            }
-        }, true);
+        ComparableGetterSort sortNode = new ComparableGetterSort(concat, entity -> entity.getProperty("i"), true);
         Assert.assertEquals(sortNode, sortNode.getClone());
         Assert.assertEquals(4, QueryUtil.getSize(instantiate(sortNode)));
         Assert.assertEquals(4, QueryUtil.getSize(instantiate(and(sortNode, NodeFactory.all()))));
@@ -222,12 +217,7 @@ public class QueryTreeTest extends EntityStoreTestBase {
         Assert.assertEquals(tree, clone);
         tree = ((UnaryNode) tree).getChild();
         Assert.assertEquals(new Minus(NodeFactory.all(), ((UnaryNode) tree).getChild().getClone()), getOptimizedTree(tree));
-        ComparableGetter valueGetter = new ComparableGetter() {
-            @Override
-            public Comparable select(Entity entity) {
-                return entity.getProperty("i");
-            }
-        };
+        ComparableGetter valueGetter = entity -> entity.getProperty("i");
         ComparableGetterSort genericSort = ComparableGetterSort.create(concat, valueGetter, true);
         for (int i = 0; i < 4; i++) {
             Assert.assertEquals(getAnalyzedSortCount(genericSort), i + 1);

@@ -109,7 +109,6 @@ public class PersistentHashSetTest {
         Assert.assertEquals(2, read.size());
     }
 
-    @SuppressWarnings({"OverlyLongMethod"})
     @Test
     public void iterationTest() {
         Random random = new Random(8234890);
@@ -147,7 +146,6 @@ public class PersistentHashSetTest {
         }
     }
 
-    @SuppressWarnings({"OverlyLongMethod"})
     @Test
     public void forEachKeyTest() {
         Random random = new Random(8234890);
@@ -159,13 +157,10 @@ public class PersistentHashSetTest {
             Assert.assertEquals(i, size);
             if ((size & 1023) == 0 || size < 100) {
                 final Collection<Integer> actual = new HashSet<>(size);
-                ObjectProcedure<Integer> proc = new ObjectProcedure<Integer>() {
-                    @Override
-                    public boolean execute(Integer object) {
-                        Assert.assertFalse(actual.contains(object));
-                        actual.add(object);
-                        return true;
-                    }
+                ObjectProcedure<Integer> proc = object -> {
+                    Assert.assertFalse(actual.contains(object));
+                    actual.add(object);
+                    return true;
                 };
                 tree.forEachKey(proc);
                 Assert.assertEquals(size, actual.size());
@@ -204,46 +199,40 @@ public class PersistentHashSetTest {
         final CountDownLatch latch = new CountDownLatch(2);
         final int itr = 10000;
         final List<Throwable> errors = new LinkedList<>();
-        final Thread writer = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    latch.countDown();
-                    boolean even = true;
-                    for (int i = 0; i < itr; i++) {
-                        final PersistentHashSet.MutablePersistentHashSet<Integer> tree = source.beginWrite();
-                        if (even) {
-                            tree.add(1);
-                            tree.add(2);
-                            even = false;
-                        } else {
-                            tree.remove(1);
-                            tree.remove(2);
-                            even = true;
-                        }
-                        tree.endWrite();
+        final Thread writer = new Thread(() -> {
+            try {
+                latch.countDown();
+                boolean even = true;
+                for (int i = 0; i < itr; i++) {
+                    final PersistentHashSet.MutablePersistentHashSet<Integer> tree = source.beginWrite();
+                    if (even) {
+                        tree.add(1);
+                        tree.add(2);
+                        even = false;
+                    } else {
+                        tree.remove(1);
+                        tree.remove(2);
+                        even = true;
                     }
-                } catch (Throwable t) {
-                    rememberError(errors, t);
+                    tree.endWrite();
                 }
+            } catch (Throwable t) {
+                rememberError(errors, t);
             }
         });
-        final Thread reader = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    latch.countDown();
-                    for (int i = 0; i < itr; i++) {
-                        final PersistentHashSet.ImmutablePersistentHashSet<Integer> tree = source.beginRead();
-                        int size = 0;
-                        for (final Integer ignored : tree) {
-                            size++;
-                        }
-                        Assert.assertEquals("at reader iteration " + i, size, tree.size());
+        final Thread reader = new Thread(() -> {
+            try {
+                latch.countDown();
+                for (int i = 0; i < itr; i++) {
+                    final PersistentHashSet.ImmutablePersistentHashSet<Integer> tree = source.beginRead();
+                    int size = 0;
+                    for (final Integer ignored : tree) {
+                        size++;
                     }
-                } catch (Throwable t) {
-                    rememberError(errors, t);
+                    Assert.assertEquals("at reader iteration " + i, size, tree.size());
                 }
+            } catch (Throwable t) {
+                rememberError(errors, t);
             }
         });
         writer.start();
@@ -270,7 +259,7 @@ public class PersistentHashSetTest {
         mutableSet.add(e);
         mutableSet.endWrite();
         //noinspection NumberEquality
-        Assert.assertTrue(e == set.beginRead().getKey(new Integer(271828)));
+        Assert.assertSame(e, set.beginRead().getKey(271828));
     }
 
     private static int[] genPermutation(Random random) {

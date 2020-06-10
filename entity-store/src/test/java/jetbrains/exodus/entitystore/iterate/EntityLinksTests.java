@@ -23,7 +23,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 
 @SuppressWarnings(
-        {"HardCodedStringLiteral", "AutoBoxing", "JUnitTestClassNamingConvention", "StringContatenationInLoop", "BusyWait"})
+    {"HardCodedStringLiteral"})
 public class EntityLinksTests extends EntityStoreTestBase {
 
     private String debugLinkDataGetterValue;
@@ -186,13 +186,13 @@ public class EntityLinksTests extends EntityStoreTestBase {
         final Entity comment1 = txn.newEntity("Comment");
         issue.setLink("comment", comment1);
         txn.flush();
-        Assert.assertFalse(comment.equals(issue.getLink("comment")));
+        Assert.assertNotEquals(comment, issue.getLink("comment"));
         Assert.assertEquals(comment1, issue.getLink("comment"));
         final Entity comment2 = txn.newEntity("Comment");
         issue.setLink("comment", comment2);
         txn.flush();
-        Assert.assertFalse(comment.equals(issue.getLink("comment")));
-        Assert.assertFalse(comment1.equals(issue.getLink("comment")));
+        Assert.assertNotEquals(comment, issue.getLink("comment"));
+        Assert.assertNotEquals(comment1, issue.getLink("comment"));
         Assert.assertEquals(comment2, issue.getLink("comment"));
     }
 

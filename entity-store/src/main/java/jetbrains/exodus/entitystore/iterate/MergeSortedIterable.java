@@ -37,21 +37,13 @@ public class MergeSortedIterable extends EntityIterableBase {
         /*
         Attention!! Comparator is fake. Should work for iteration count, but not for actual results.
         */
-        registerType(getType(), new EntityIterableInstantiator() {
-            @Override
-            public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                int size = Integer.valueOf((String) parameters[0]);
-                ArrayList<EntityIterable> sorted = new ArrayList<>(size);
-                for (int i = 0; i < size; i++) {
-                    sorted.add((EntityIterable) parameters[i + 1]);
-                }
-                return new MergeSortedIterable(txn, sorted, new Comparator<Entity>() {
-                    @Override
-                    public int compare(Entity o1, Entity o2) {
-                        return o1.getId().compareTo(o2.getId());
-                    }
-                });
+        registerType(getType(), (txn, store, parameters) -> {
+            int size = Integer.parseInt((String) parameters[0]);
+            ArrayList<EntityIterable> sorted = new ArrayList<>(size);
+            for (int i = 0; i < size; i++) {
+                sorted.add((EntityIterable) parameters[i + 1]);
             }
+            return new MergeSortedIterable(txn, sorted, (o1, o2) -> o1.getId().compareTo(o2.getId()));
         });
     }
 
@@ -134,13 +126,10 @@ public class MergeSortedIterable extends EntityIterableBase {
         @SuppressWarnings({"ObjectAllocationInLoop"})
         private MergeSortedIterator() {
             super(MergeSortedIterable.this);
-            queue = new PriorityQueue<>(sorted.size(), new Comparator<EntityWithSource>() {
-                @Override
-                public int compare(EntityWithSource o1, EntityWithSource o2) {
-                    final Entity e1 = getEntity(o1.id);
-                    final Entity e2 = getEntity(o2.id);
-                    return comparator.compare(e1, e2);
-                }
+            queue = new PriorityQueue<>(sorted.size(), (o1, o2) -> {
+                final Entity e1 = getEntity(o1.id);
+                final Entity e2 = getEntity(o2.id);
+                return comparator.compare(e1, e2);
             });
             for (final EntityIterable it : sorted) {
                 final EntityIterator i = it.iterator();

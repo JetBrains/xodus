@@ -53,7 +53,6 @@ public class PersistentLong23TreeMap<V> implements PersistentLongMap<V> {
         return set.endWrite(tree);
     }
 
-    @SuppressWarnings("unchecked")
     protected static class ImmutableMap<V> extends Persistent23Tree.ImmutableTree<PersistentLongMap.Entry<V>> implements PersistentLongMap.ImmutableMap<V> {
 
         ImmutableMap(RootNode<PersistentLongMap.Entry<V>> root) {
@@ -78,16 +77,15 @@ public class PersistentLong23TreeMap<V> implements PersistentLongMap<V> {
 
         @Override
         public Iterator<Entry<V>> tailEntryIterator(long staringKey) {
-            return tailIterator(new LongMapEntry<V>(staringKey));
+            return tailIterator(new LongMapEntry<>(staringKey));
         }
 
         @Override
         public Iterator<Entry<V>> tailReverseEntryIterator(long staringKey) {
-            return tailReverseIterator(new LongMapEntry<V>(staringKey));
+            return tailReverseIterator(new LongMapEntry<>(staringKey));
         }
     }
 
-    @SuppressWarnings("unchecked")
     protected static class MutableMap<V> extends Persistent23Tree.MutableTree<PersistentLongMap.Entry<V>> implements PersistentLongMap.MutableMap<V>, RootHolder {
 
         MutableMap(Persistent23Tree<PersistentLongMap.Entry<V>> set) {
@@ -111,12 +109,12 @@ public class PersistentLong23TreeMap<V> implements PersistentLongMap<V> {
 
         @Override
         public Iterator<Entry<V>> tailEntryIterator(long staringKey) {
-            return tailIterator(new LongMapEntry<V>(staringKey));
+            return tailIterator(new LongMapEntry<>(staringKey));
         }
 
         @Override
         public Iterator<Entry<V>> tailReverseEntryIterator(long staringKey) {
-            return tailReverseIterator(new LongMapEntry<V>(staringKey));
+            return tailReverseIterator(new LongMapEntry<>(staringKey));
         }
 
         @Override
@@ -130,7 +128,7 @@ public class PersistentLong23TreeMap<V> implements PersistentLongMap<V> {
             if (root == null) {
                 return null;
             }
-            Pair<Node<PersistentLongMap.Entry<V>>, PersistentLongMap.Entry<V>> removeResult = root.remove(new LongMapEntry<V>(key), true);
+            Pair<Node<PersistentLongMap.Entry<V>>, PersistentLongMap.Entry<V>> removeResult = root.remove(new LongMapEntry<>(key), true);
             if (removeResult == null) {
                 return null;
             }

@@ -29,13 +29,8 @@ public class EntitiesWithLinkIterable extends EntityIterableBase {
     private final int linkId;
 
     static {
-        registerType(getType(), new EntityIterableInstantiator() {
-            @Override
-            public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new EntitiesWithLinkIterable(txn,
-                        Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]));
-            }
-        });
+        registerType(getType(), (txn, store, parameters) -> new EntitiesWithLinkIterable(txn,
+            Integer.parseInt((String) parameters[0]), Integer.parseInt((String) parameters[1])));
     }
 
     public EntitiesWithLinkIterable(@NotNull final PersistentStoreTransaction txn,

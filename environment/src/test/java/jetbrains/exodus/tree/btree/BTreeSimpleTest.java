@@ -51,8 +51,8 @@ public class BTreeSimpleTest extends BTreeTestBase {
         getTreeMutable().put(ln1);
 
         assertEquals(1, tm.getSize());
-        assertEquals(true, tm.hasKey(key("1")));
-        assertEquals(true, tm.hasPair(key("1"), value("vadim")));
+        assertTrue(tm.hasKey(key("1")));
+        assertTrue(tm.hasPair(key("1"), value("vadim")));
 
         assertTrue(getTreeMutable().getRoot() instanceof BottomPageMutable);
         BottomPageMutable bpm = (BottomPageMutable) getTreeMutable().getRoot();
@@ -74,8 +74,8 @@ public class BTreeSimpleTest extends BTreeTestBase {
             @Override
             public void run() {
                 assertEquals(1, t.getSize());
-                assertEquals(true, tm.hasKey(key("1")));
-                assertEquals(true, tm.hasPair(key("1"), value("vadim")));
+                assertTrue(tm.hasKey(key("1")));
+                assertTrue(tm.hasPair(key("1"), value("vadim")));
 
                 assertTrue(getTree().getRoot() instanceof BottomPage);
                 BottomPage bp = (BottomPage) getTree().getRoot();

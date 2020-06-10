@@ -17,7 +17,6 @@ package jetbrains.exodus.query.metadata;
 
 import org.jetbrains.annotations.NotNull;
 
-@SuppressWarnings("EnumeratedConstantNamingConvention")
 public enum AssociationEndCardinality {
 
     _0_1("0..1"),

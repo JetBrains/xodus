@@ -27,13 +27,8 @@ public class EntitiesWithBlobIterable extends EntityIterableBase {
     private final int blobId;
 
     static {
-        registerType(getType(), new EntityIterableInstantiator() {
-            @Override
-            public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new EntitiesWithBlobIterable(txn,
-                        Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]));
-            }
-        });
+        registerType(getType(), (txn, store, parameters) -> new EntitiesWithBlobIterable(txn,
+            Integer.parseInt((String) parameters[0]), Integer.parseInt((String) parameters[1])));
     }
 
     public EntitiesWithBlobIterable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId, final int blobId) {

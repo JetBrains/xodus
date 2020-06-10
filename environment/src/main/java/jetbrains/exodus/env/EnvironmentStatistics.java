@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.env;
 
-import jetbrains.exodus.log.ReadBytesListener;
 import jetbrains.exodus.management.Statistics;
 import jetbrains.exodus.management.StatisticsItem;
 import org.jetbrains.annotations.NotNull;
@@ -56,12 +55,7 @@ public class EnvironmentStatistics extends Statistics<EnvironmentStatistics.Type
         createAllStatisticsItems();
         getStatisticsItem(BYTES_WRITTEN).setTotal(env.getLog().getHighAddress());
 
-        env.getLog().addReadBytesListener(new ReadBytesListener() {
-            @Override
-            public void bytesRead(final byte[] bytes, final int count) {
-                getStatisticsItem(BYTES_READ).addTotal(count);
-            }
-        });
+        env.getLog().addReadBytesListener((bytes, count) -> getStatisticsItem(BYTES_READ).addTotal(count));
     }
 
     @Override

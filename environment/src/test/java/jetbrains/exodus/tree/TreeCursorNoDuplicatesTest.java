@@ -54,12 +54,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
 
     @Test
     public void testGetNext() throws IOException {
-        final GetNext getNext = new GetNext() {
-            @Override
-            public boolean n(Cursor c) {
-                return c.getNext();
-            }
-        };
+        final GetNext getNext = Cursor::getNext;
         check(tm, getNext);
         long a = saveTree();
         check(tm, getNext);
@@ -109,12 +104,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
 
     @Test
     public void testCount() throws IOException {
-        final GetNext getNext = new GetNext() {
-            @Override
-            public boolean n(Cursor c) {
-                return c.getNext() && c.count() == 1;
-            }
-        };
+        final GetNext getNext = c -> c.getNext() && c.count() == 1;
         check(tm, getNext);
         long a = saveTree();
         check(tm, getNext);
@@ -125,12 +115,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
 
     @Test
     public void testGetNextNoDup() throws IOException {
-        final GetNext getNextNoDup = new GetNext() {
-            @Override
-            public boolean n(Cursor c) {
-                return c.getNextNoDup();
-            }
-        };
+        final GetNext getNextNoDup = Cursor::getNextNoDup;
         check(tm, getNextNoDup);
         long a = saveTree();
         check(tm, getNextNoDup);
@@ -157,7 +142,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
         Cursor c = getTreeMutable().openCursor();
 
         for (int i = 0; i < s; i++) {
-            assertEquals(true, c.getSearchBoth(key(i), value("v" + i)));
+            assertTrue(c.getSearchBoth(key(i), value("v" + i)));
             assertEquals(c.getValue(), value("v" + i));
             assertEquals(c.getKey(), key(i));
         }
@@ -205,7 +190,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
         assertEquals(value("v60"), c.getSearchKeyRange(key("55")));
         assertEquals(key("60"), c.getKey());
 
-        assertEquals(null, c.getSearchKeyRange(key("61")));
+        assertNull(c.getSearchKeyRange(key("61")));
         // cursor keep prev pos
         assertEquals(key("60"), c.getKey());
 
@@ -280,13 +265,13 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
 
         Cursor c = getTreeMutable().openCursor();
         // miss
-        assertEquals(null, c.getSearchBothRange(key("01"), value("v10")));
+        assertNull(c.getSearchBothRange(key("01"), value("v10")));
 
         // found
         assertEquals(value("v10"), c.getSearchBothRange(key("10"), value("v01")));
 
         // miss
-        assertEquals(null, c.getSearchBothRange(key("20"), value("v21")));
+        assertNull(c.getSearchBothRange(key("20"), value("v21")));
 
         // check keep prev state
         assertEquals(key("10"), c.getKey());
@@ -294,12 +279,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
 
     @Test
     public void testGetPrev() throws IOException {
-        final GetPrev getPrev = new GetPrev() {
-            @Override
-            public boolean p(Cursor c) {
-                return c.getPrev();
-            }
-        };
+        final GetPrev getPrev = Cursor::getPrev;
         long a = saveTree();
         reopen();
         t = openTree(a, false);

@@ -27,7 +27,7 @@ public class LogRecoveryTestInMemory extends LogRecoveryTest {
     @Override
     protected Pair<DataReader, DataWriter> createRW() {
         Memory memory = new Memory();
-        return new Pair<DataReader, DataWriter>(new MemoryDataReader(memory), new MemoryDataWriter(memory));
+        return new Pair<>(new MemoryDataReader(memory), new MemoryDataWriter(memory));
     }
 
     @Override

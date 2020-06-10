@@ -124,7 +124,7 @@ public class ArrayByteIterable extends ByteIterableBase {
 
     public class Iterator extends ByteIterator {
 
-        private int offset = 0;
+        private int offset;
 
         public Iterator(int offset) {
             this.offset = offset;

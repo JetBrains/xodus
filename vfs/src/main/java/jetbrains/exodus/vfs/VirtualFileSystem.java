@@ -159,25 +159,10 @@ public class VirtualFileSystem {
                 PATHNAMES_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn);
             contents = env.openStore(CONTENTS_STORE_NAME, contentsStoreConfig, txn);
         } else {
-            settings = env.computeInTransaction(new TransactionalComputable<VfsSettings>() {
-                @Override
-                public VfsSettings compute(@NotNull final Transaction txn) {
-                    return new VfsSettings(env, env.openStore(
-                        SETTINGS_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn));
-                }
-            });
-            pathnames = env.computeInTransaction(new TransactionalComputable<Store>() {
-                @Override
-                public Store compute(@NotNull final Transaction txn) {
-                    return env.openStore(PATHNAMES_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn);
-                }
-            });
-            contents = env.computeInTransaction(new TransactionalComputable<Store>() {
-                @Override
-                public Store compute(@NotNull final Transaction txn) {
-                    return env.openStore(CONTENTS_STORE_NAME, contentsStoreConfig, txn);
-                }
-            });
+            settings = env.computeInTransaction(txn13 -> new VfsSettings(env, env.openStore(
+                SETTINGS_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn13)));
+            pathnames = env.computeInTransaction(txn12 -> env.openStore(PATHNAMES_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn12));
+            contents = env.computeInTransaction(txn1 -> env.openStore(CONTENTS_STORE_NAME, contentsStoreConfig, txn1));
         }
         fileDescriptorSequence = new AtomicLong();
         final ByteIterable bi = settings.get(txn, VfsSettings.NEXT_FREE_PATH_ID);
@@ -346,26 +331,20 @@ public class VirtualFileSystem {
     @NotNull
     public Iterable<File> getFiles(@NotNull final Transaction txn) {
         try (Cursor cursor = pathnames.openCursor(txn)) {
-            return new Iterable<File>() {
-                @NotNull
+            return () -> new Iterator<File>() {
                 @Override
-                public Iterator<File> iterator() {
-                    return new Iterator<File>() {
-                        @Override
-                        public boolean hasNext() {
-                            return cursor.getNext();
-                        }
+                public boolean hasNext() {
+                    return cursor.getNext();
+                }
 
-                        @Override
-                        public File next() {
-                            return new File(StringBinding.entryToString(cursor.getKey()), cursor.getValue());
-                        }
+                @Override
+                public File next() {
+                    return new File(StringBinding.entryToString(cursor.getKey()), cursor.getValue());
+                }
 
-                        @Override
-                        public void remove() {
-                            deleteFile(txn, StringBinding.entryToString(cursor.getKey()));
-                        }
-                    };
+                @Override
+                public void remove() {
+                    deleteFile(txn, StringBinding.entryToString(cursor.getKey()));
                 }
             };
         }

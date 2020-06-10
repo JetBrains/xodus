@@ -18,7 +18,6 @@ package jetbrains.exodus.vfs;
 import jetbrains.exodus.TestFor;
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.env.Transaction;
-import jetbrains.exodus.env.TransactionalExecutable;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
@@ -152,13 +151,10 @@ public class VfsStreamsTests extends VfsTestsBase {
         outputStream.write(bytes);
         outputStream.close();
         txn.commit();
-        env.executeInReadonlyTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull Transaction txn) {
-                Assert.assertEquals(bytes.length, vfs.getFileLength(txn, file0));
-                // second time to test cached value
-                Assert.assertEquals(bytes.length, vfs.getFileLength(txn, file0));
-            }
+        env.executeInReadonlyTransaction(txn1 -> {
+            Assert.assertEquals(bytes.length, vfs.getFileLength(txn1, file0));
+            // second time to test cached value
+            Assert.assertEquals(bytes.length, vfs.getFileLength(txn1, file0));
         });
     }
 
@@ -277,12 +273,7 @@ public class VfsStreamsTests extends VfsTestsBase {
     public void writeNegativePosition() {
         final Transaction txn = env.beginTransaction();
         final File file0 = vfs.createFile(txn, "file0");
-        TestUtil.runWithExpectedException(new Runnable() {
-            @Override
-            public void run() {
-                vfs.writeFile(txn, file0, -1);
-            }
-        }, IllegalArgumentException.class);
+        TestUtil.runWithExpectedException(() -> vfs.writeFile(txn, file0, -1), IllegalArgumentException.class);
         txn.commit();
     }
 

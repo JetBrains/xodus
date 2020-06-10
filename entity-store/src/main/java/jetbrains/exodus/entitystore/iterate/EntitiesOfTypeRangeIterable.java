@@ -32,13 +32,10 @@ public class EntitiesOfTypeRangeIterable extends EntityIterableBase {
     private final long max;
 
     static {
-        registerType(getType(), new EntityIterableInstantiator() {
-            @Override
-            public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                long min = Long.parseLong((String) parameters[1]);
-                long max = Long.parseLong((String) parameters[2]);
-                return new EntitiesOfTypeRangeIterable(txn, Integer.valueOf((String) parameters[0]), min, max);
-            }
+        registerType(getType(), (txn, store, parameters) -> {
+            long min = Long.parseLong((String) parameters[1]);
+            long max = Long.parseLong((String) parameters[2]);
+            return new EntitiesOfTypeRangeIterable(txn, Integer.parseInt((String) parameters[0]), min, max);
         });
     }
 

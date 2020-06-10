@@ -36,7 +36,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Iterator;
 
-@SuppressWarnings({"ClassNameSameAsAncestorName"})
 public class StoreImpl implements Store {
 
     @NotNull

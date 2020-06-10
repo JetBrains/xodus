@@ -49,7 +49,6 @@ public abstract class Sort extends UnaryNode {
 
     public abstract Iterable<Entity> applySort(String entityType, Iterable<Entity> iterable, @NotNull final SortEngine sortEngine);
 
-    @SuppressWarnings({"EqualsWhichDoesntCheckParameterClass"})
     @Override
     public boolean equals(Object obj) {
         if (obj == this) {

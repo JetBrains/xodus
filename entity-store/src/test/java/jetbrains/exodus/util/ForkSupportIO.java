@@ -27,7 +27,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-@SuppressWarnings({"HardcodedFileSeparator", "UseOfProcessBuilder", "ObjectToString", "RawUseOfParameterizedType"})
+@SuppressWarnings({"UseOfProcessBuilder", "RawUseOfParameterizedType"})
 public class ForkSupportIO implements IStreamer {
 
     private static final Logger logger = LoggerFactory.getLogger(ForkSupportIO.class);
@@ -158,20 +158,17 @@ public class ForkSupportIO implements IStreamer {
 
     private static Thread createSpinner(final InputStream input, final PrintStream output,
                                         final int bufferSize, final String title) {
-        final Thread result = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    final byte[] buf = new byte[bufferSize];
+        final Thread result = new Thread(() -> {
+            try {
+                final byte[] buf = new byte[bufferSize];
 
-                    int i;
-                    while ((i = input.read(buf, 0, bufferSize)) != -1) {
-                        output.write(buf, 0, i);
-                    }
-                } catch (IOException ioe) {
-                    if (logger.isWarnEnabled()) {
-                        logger.warn("IO error in child process for reader: " + input);
-                    }
+                int i;
+                while ((i = input.read(buf, 0, bufferSize)) != -1) {
+                    output.write(buf, 0, i);
+                }
+            } catch (IOException ioe) {
+                if (logger.isWarnEnabled()) {
+                    logger.warn("IO error in child process for reader: " + input);
                 }
             }
         }, title);
@@ -246,19 +243,9 @@ public class ForkSupportIO implements IStreamer {
         return new ForkSupportIO(clazz.getName(), jvmArgs, args);
     }
 
-    private static final FilenameFilter JAR_FILTER = new FilenameFilter() {
-        @Override
-        public boolean accept(File dir, String name) {
-            return name.endsWith(".jar");
-        }
-    };
+    private static final FilenameFilter JAR_FILTER = (dir, name) -> name.endsWith(".jar");
 
-    private static final FilenameFilter CLASS_FILTER = new FilenameFilter() {
-        @Override
-        public boolean accept(File dir, String name) {
-            return name.endsWith(".class");
-        }
-    };
+    private static final FilenameFilter CLASS_FILTER = (dir, name) -> name.endsWith(".class");
 
     private static StringBuilder appendClassPath(final File directory, final StringBuilder builder) {
         for (final File dir : IOUtil.listFiles(directory)) {

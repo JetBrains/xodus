@@ -35,7 +35,7 @@ public class PersistentQueue<T> {
         outgoing = PersistentStack.EMPTY_STACK;
     }
 
-    private PersistentQueue(PersistentStack<T> in, PersistentStack<T> out) {
+    private PersistentQueue(@NotNull PersistentStack<T> in, @NotNull PersistentStack<T> out) {
         incoming = in;
         outgoing = out;
     }

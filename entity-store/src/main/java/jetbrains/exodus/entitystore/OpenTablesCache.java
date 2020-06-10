@@ -66,12 +66,9 @@ class OpenTablesCache {
     private IntHashMap<Table> cloneCache() {
         final IntHashMap<Table> currentCache = cache;
         final IntHashMap<Table> result = new IntHashMap<>(currentCache.size());
-        currentCache.forEachEntry(new ObjectProcedure<Map.Entry<Integer, Table>>() {
-            @Override
-            public boolean execute(Map.Entry<Integer, Table> entry) {
-                result.put(entry.getKey(), entry.getValue());
-                return true;
-            }
+        currentCache.forEachEntry((ObjectProcedure<Map.Entry<Integer, Table>>) entry -> {
+            result.put(entry.getKey(), entry.getValue());
+            return true;
         });
         return result;
     }

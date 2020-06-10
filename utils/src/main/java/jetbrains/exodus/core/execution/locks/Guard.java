@@ -16,11 +16,8 @@
 package jetbrains.exodus.core.execution.locks;
 
 public interface Guard extends AutoCloseable {
-    Guard EMPTY = new Guard() {
-        @Override
-        public void close() {
+    Guard EMPTY = () -> {
 
-        }
     };
 
     @Override

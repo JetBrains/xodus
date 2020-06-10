@@ -76,7 +76,7 @@ public class Persistent23TreeTest {
 
         AbstractPersistent23Tree.Node<Integer> root = write1.getRoot();
         write1.add(2);
-        Assert.assertFalse(write1.getRoot() == root);
+        Assert.assertNotSame(write1.getRoot(), root);
         write2.add(3);
         Assert.assertTrue(write1.endWrite());
         Assert.assertFalse(write2.endWrite());
@@ -88,7 +88,6 @@ public class Persistent23TreeTest {
         Assert.assertEquals(2, read.size());
     }
 
-    @SuppressWarnings({"OverlyLongMethod"})
     @Test
     public void iterationTest() {
         Random random = new Random(8234890);
@@ -126,7 +125,6 @@ public class Persistent23TreeTest {
         }
     }
 
-    @SuppressWarnings({"OverlyLongMethod"})
     @Test
     public void reverseIterationTest() {
         Random random = new Random(5743);
@@ -173,38 +171,32 @@ public class Persistent23TreeTest {
         for (int i = 0; i < count; ++i) {
             tree.add(i);
         }
-        TestUtil.time("Persistent23Tree iteration", new Runnable() {
-            @Override
-            public void run() {
-                for (int i = 0; i < 300; ++i) {
-                    int prev = Integer.MIN_VALUE;
-                    Assert.assertFalse(tree.contains(prev));
-                    final Iterator<Integer> it = tree.iterator();
-                    int j = 0;
-                    while (it.hasNext()) {
-                        j = it.next();
-                        Assert.assertTrue(prev < j);
-                        prev = j;
-                    }
-                    Assert.assertEquals(count - 1, j);
+        TestUtil.time("Persistent23Tree iteration", () -> {
+            for (int i = 0; i < 300; ++i) {
+                int prev = Integer.MIN_VALUE;
+                Assert.assertFalse(tree.contains(prev));
+                final Iterator<Integer> it = tree.iterator();
+                int j = 0;
+                while (it.hasNext()) {
+                    j = it.next();
+                    Assert.assertTrue(prev < j);
+                    prev = j;
                 }
+                Assert.assertEquals(count - 1, j);
             }
         });
-        TestUtil.time("Persistent23Tree reverse iteration", new Runnable() {
-            @Override
-            public void run() {
-                for (int i = 0; i < 300; ++i) {
-                    int prev = Integer.MAX_VALUE;
-                    Assert.assertFalse(tree.contains(prev));
-                    final Iterator<Integer> it = tree.reverseIterator();
-                    int j = 0;
-                    while (it.hasNext()) {
-                        j = it.next();
-                        Assert.assertTrue(prev > j);
-                        prev = j;
-                    }
-                    Assert.assertEquals(0, j);
+        TestUtil.time("Persistent23Tree reverse iteration", () -> {
+            for (int i = 0; i < 300; ++i) {
+                int prev = Integer.MAX_VALUE;
+                Assert.assertFalse(tree.contains(prev));
+                final Iterator<Integer> it = tree.reverseIterator();
+                int j = 0;
+                while (it.hasNext()) {
+                    j = it.next();
+                    Assert.assertTrue(prev > j);
+                    prev = j;
                 }
+                Assert.assertEquals(0, j);
             }
         });
     }
@@ -497,46 +489,40 @@ public class Persistent23TreeTest {
         final CyclicBarrier barrier = new CyclicBarrier(2);
         final int itr = 10000;
         final List<Throwable> errors = new LinkedList<>();
-        final Thread writer = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    barrier.await();
-                    boolean even = true;
-                    for (int i = 0; i < itr; i++) {
-                        final Persistent23Tree.MutableTree<Integer> tree = source.beginWrite();
-                        if (even) {
-                            tree.add(1);
-                            tree.add(2);
-                            even = false;
-                        } else {
-                            tree.exclude(1);
-                            tree.exclude(2);
-                            even = true;
-                        }
-                        tree.endWrite();
+        final Thread writer = new Thread(() -> {
+            try {
+                barrier.await();
+                boolean even = true;
+                for (int i = 0; i < itr; i++) {
+                    final Persistent23Tree.MutableTree<Integer> tree = source.beginWrite();
+                    if (even) {
+                        tree.add(1);
+                        tree.add(2);
+                        even = false;
+                    } else {
+                        tree.exclude(1);
+                        tree.exclude(2);
+                        even = true;
                     }
-                } catch (Throwable t) {
-                    rememberError(errors, t);
+                    tree.endWrite();
                 }
+            } catch (Throwable t) {
+                rememberError(errors, t);
             }
         });
-        final Thread reader = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    barrier.await();
-                    for (int i = 0; i < itr; i++) {
-                        final Persistent23Tree.ImmutableTree<Integer> tree = source.beginRead();
-                        int size = 0;
-                        for (final Integer ignored : tree) {
-                            size++;
-                        }
-                        Assert.assertEquals("at reader iteration " + i, size, tree.size());
+        final Thread reader = new Thread(() -> {
+            try {
+                barrier.await();
+                for (int i = 0; i < itr; i++) {
+                    final Persistent23Tree.ImmutableTree<Integer> tree = source.beginRead();
+                    int size = 0;
+                    for (final Integer ignored : tree) {
+                        size++;
                     }
-                } catch (Throwable t) {
-                    rememberError(errors, t);
+                    Assert.assertEquals("at reader iteration " + i, size, tree.size());
                 }
+            } catch (Throwable t) {
+                rememberError(errors, t);
             }
         });
         writer.start();

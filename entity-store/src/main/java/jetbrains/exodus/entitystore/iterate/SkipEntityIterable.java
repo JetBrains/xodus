@@ -15,7 +15,10 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
-import jetbrains.exodus.entitystore.*;
+import jetbrains.exodus.entitystore.EntityId;
+import jetbrains.exodus.entitystore.EntityIterableHandle;
+import jetbrains.exodus.entitystore.EntityIterableType;
+import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import org.jetbrains.annotations.NotNull;
 
 public class SkipEntityIterable extends EntityIterableDecoratorBase {
@@ -23,13 +26,8 @@ public class SkipEntityIterable extends EntityIterableDecoratorBase {
     private final int itemsToSkip;
 
     static {
-        registerType(getType(), new EntityIterableInstantiator() {
-            @Override
-            public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new SkipEntityIterable(txn,
-                        (EntityIterableBase) parameters[1], Integer.valueOf((String) parameters[0]));
-            }
-        });
+        registerType(getType(), (txn, store, parameters) -> new SkipEntityIterable(txn,
+            (EntityIterableBase) parameters[1], Integer.parseInt((String) parameters[0])));
     }
 
     protected SkipEntityIterable(@NotNull final PersistentStoreTransaction txn,

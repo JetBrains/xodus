@@ -16,6 +16,7 @@
 package jetbrains.exodus.core.dataStructures.hash;
 
 import jetbrains.exodus.util.MathUtil;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.AbstractSet;
@@ -149,7 +150,7 @@ public class LinkedHashSet<E> extends AbstractSet<E> {
     }
 
     @Override
-    public Iterator<E> iterator() {
+    public @NotNull Iterator<E> iterator() {
         return new LinkedHashIterator();
     }
 

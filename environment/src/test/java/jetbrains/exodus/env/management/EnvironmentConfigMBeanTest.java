@@ -68,12 +68,7 @@ public class EnvironmentConfigMBeanTest extends EnvironmentTestsBase {
             env.openStore("New Store", StoreConfig.WITHOUT_DUPLICATES, txn);
             Assert.assertFalse(txn.isIdempotent());
             platformMBeanServer.setAttribute(envConfigName, new Attribute(READ_ONLY_ATTR, true));
-            TestUtil.runWithExpectedException(new Runnable() {
-                @Override
-                public void run() {
-                    txn.flush();
-                }
-            }, ReadonlyTransactionException.class);
+            TestUtil.runWithExpectedException(txn::flush, ReadonlyTransactionException.class);
         } finally {
             txn.abort();
         }

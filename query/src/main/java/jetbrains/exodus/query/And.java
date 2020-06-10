@@ -39,12 +39,7 @@ public class And extends CommutativeOperator {
     public Iterable<Entity> instantiate(final String entityType, final QueryEngine queryEngine, final ModelMetaData metaData) {
         final NodeBase left = getLeft();
         final NodeBase right = getRight();
-        final Instantiatable directClosure = new Instantiatable() {
-            @Override
-            public Iterable<Entity> instantiate() {
-                return queryEngine.intersectAdjusted(left.instantiate(entityType, queryEngine, metaData), right.instantiate(entityType, queryEngine, metaData));
-            }
-        };
+        final Instantiatable directClosure = () -> queryEngine.intersectAdjusted(left.instantiate(entityType, queryEngine, metaData), right.instantiate(entityType, queryEngine, metaData));
         if (left instanceof LinksEqualDecorator) {
             return instantiateCustom(entityType, queryEngine, metaData, right, (LinksEqualDecorator) left, directClosure);
         }

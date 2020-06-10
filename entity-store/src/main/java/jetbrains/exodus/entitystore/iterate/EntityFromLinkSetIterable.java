@@ -33,25 +33,22 @@ public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
     private final IntHashMap<String> linkNames;
 
     static {
-        registerType(getType(), new EntityIterableInstantiator() {
-            @Override
-            public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                Integer linkCount = Integer.valueOf((String) parameters[2]);
-                IntHashMap<String> linkNames = new IntHashMap<>(linkCount);
-                for (int i = 0; i < linkCount; i++) {
-                    linkNames.put(Integer.valueOf((String) parameters[4 + i]), null);
-                }
-                PersistentEntityId entityId = new PersistentEntityId(Integer.valueOf((String) parameters[0]),
-                    Long.valueOf((String) parameters[1]));
-                List<String> entityLinkNames = store.getLinkNames(txn, new PersistentEntity(store, entityId));
-                for (String linkName : entityLinkNames) {
-                    int linkId = store.getLinkId(txn, linkName, false);
-                    if (linkNames.containsKey(linkId)) {
-                        linkNames.put(linkId, linkName);
-                    }
-                }
-                return new EntityFromLinkSetIterable(txn, entityId, linkNames);
+        registerType(getType(), (txn, store, parameters) -> {
+            Integer linkCount = Integer.valueOf((String) parameters[2]);
+            IntHashMap<String> linkNames = new IntHashMap<>(linkCount);
+            for (int i = 0; i < linkCount; i++) {
+                linkNames.put(Integer.valueOf((String) parameters[4 + i]), null);
             }
+            PersistentEntityId entityId = new PersistentEntityId(Integer.parseInt((String) parameters[0]),
+                Long.parseLong((String) parameters[1]));
+            List<String> entityLinkNames = store.getLinkNames(txn, new PersistentEntity(store, entityId));
+            for (String linkName : entityLinkNames) {
+                int linkId = store.getLinkId(txn, linkName, false);
+                if (linkNames.containsKey(linkId)) {
+                    linkNames.put(linkId, linkName);
+                }
+            }
+            return new EntityFromLinkSetIterable(txn, entityId, linkNames);
         });
     }
 

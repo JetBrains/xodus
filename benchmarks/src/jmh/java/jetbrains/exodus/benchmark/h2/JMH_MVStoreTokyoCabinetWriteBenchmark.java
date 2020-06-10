@@ -15,8 +15,6 @@
  */
 package jetbrains.exodus.benchmark.h2;
 
-import org.h2.mvstore.MVStore;
-import org.jetbrains.annotations.NotNull;
 import org.openjdk.jmh.annotations.*;
 
 import java.io.IOException;
@@ -40,12 +38,7 @@ public class JMH_MVStoreTokyoCabinetWriteBenchmark extends JMH_MVStoreTokyoCabin
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
     public void successiveWrite() {
-        executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final MVStore store) {
-                writeSuccessiveKeys(createTestMap(store));
-            }
-        });
+        executeInTransaction(store -> writeSuccessiveKeys(createTestMap(store)));
     }
 
     @Benchmark
@@ -54,13 +47,10 @@ public class JMH_MVStoreTokyoCabinetWriteBenchmark extends JMH_MVStoreTokyoCabin
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
     public void randomWrite() {
-        executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final MVStore store) {
-                final Map<Object, Object> map = createTestMap(store);
-                for (final String key : randomKeys) {
-                    map.put(key, key);
-                }
+        executeInTransaction(store -> {
+            final Map<Object, Object> map = createTestMap(store);
+            for (final String key : randomKeys) {
+                map.put(key, key);
             }
         });
     }

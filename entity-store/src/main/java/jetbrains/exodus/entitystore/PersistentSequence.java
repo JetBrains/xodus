@@ -79,23 +79,17 @@ public class PersistentSequence implements Sequence, FlushLog.Member {
         final long value = val.get();
         if (forcedUpdate) {
             store.put(txn, idKeyEntry, LongBinding.longToCompressedEntry(value));
-            flushLog.add(new FlushLog.Operation() {
-                @Override
-                public void flushed() {
-                    lastSavedValue.set(value);
-                    forcedUpdate = false;
-                }
+            flushLog.add(() -> {
+                lastSavedValue.set(value);
+                forcedUpdate = false;
             });
         } else if (value > lastSavedValue.get()) { // is dirty
             store.put(txn, idKeyEntry, LongBinding.longToCompressedEntry(value));
-            flushLog.add(new FlushLog.Operation() {
-                @Override
-                public void flushed() {
-                    for (; ; ) {
-                        final long current = lastSavedValue.get(); // never decrease
-                        if (current >= value || lastSavedValue.compareAndSet(current, value)) {
-                            break;
-                        }
+            flushLog.add(() -> {
+                for (; ; ) {
+                    final long current = lastSavedValue.get(); // never decrease
+                    if (current >= value || lastSavedValue.compareAndSet(current, value)) {
+                        break;
                     }
                 }
             });

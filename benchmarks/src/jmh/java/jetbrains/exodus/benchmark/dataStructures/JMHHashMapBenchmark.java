@@ -21,7 +21,7 @@ import org.openjdk.jmh.annotations.*;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-@SuppressWarnings({"MismatchedQueryAndUpdateOfCollection", "UnusedDeclaration"})
+@SuppressWarnings({"UnusedDeclaration"})
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 public class JMHHashMapBenchmark {

@@ -28,7 +28,7 @@ import java.util.Arrays;
 
 import static jetbrains.exodus.entitystore.iterate.EntityIterableBase.NULL_TYPE_ID;
 
-@SuppressWarnings({"AbstractClassWithoutAbstractMethods", "RawUseOfParameterizedType", "ProtectedField"})
+@SuppressWarnings({"RawUseOfParameterizedType"})
 public abstract class EntityIterableHandleBase implements EntityIterableHandle {
 
     private static final int HASH_LONGS_COUNT = 4; // NB: the fact that it is a power of 2 is used
@@ -382,12 +382,7 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
         }
 
         public void apply(@NotNull final EntityIterableHandleHash sourceHash) {
-            sourceHash.forEachByte(new ByteConsumer() {
-                @Override
-                public void accept(final byte b) {
-                    apply(b);
-                }
-            });
+            sourceHash.forEachByte(this::apply);
         }
 
         public void applyDelimiter() {
@@ -398,12 +393,7 @@ public abstract class EntityIterableHandleBase implements EntityIterableHandle {
         public String toString() {
             final int hashBytes = Math.min(bytesProcessed, HASH_LONGS_COUNT * 8);
             final StringBuilder builder = new StringBuilder(hashBytes);
-            forEachByte(new ByteConsumer() {
-                @Override
-                public void accept(final byte b) {
-                    builder.append((char) b);
-                }
-            });
+            forEachByte(b -> builder.append((char) b));
             return builder.toString();
         }
 

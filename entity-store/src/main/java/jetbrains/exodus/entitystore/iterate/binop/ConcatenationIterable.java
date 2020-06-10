@@ -17,22 +17,19 @@ package jetbrains.exodus.entitystore.iterate.binop;
 
 import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.EntityIterableType;
-import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
-import jetbrains.exodus.entitystore.iterate.*;
+import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
+import jetbrains.exodus.entitystore.iterate.EntityIteratorBase;
+import jetbrains.exodus.entitystore.iterate.EntityIteratorFixingDecorator;
+import jetbrains.exodus.entitystore.iterate.NonDisposableEntityIterator;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public final class ConcatenationIterable extends BinaryOperatorEntityIterable {
 
     static {
-        registerType(EntityIterableType.CONCAT, new EntityIterableInstantiator() {
-            @Override
-            public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new ConcatenationIterable(txn,
-                        (EntityIterableBase) parameters[0], (EntityIterableBase) parameters[1]);
-            }
-        });
+        registerType(EntityIterableType.CONCAT, (txn, store, parameters) -> new ConcatenationIterable(txn,
+            (EntityIterableBase) parameters[0], (EntityIterableBase) parameters[1]));
     }
 
     public ConcatenationIterable(@Nullable final PersistentStoreTransaction txn,

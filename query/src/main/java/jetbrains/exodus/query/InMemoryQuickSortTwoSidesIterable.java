@@ -27,7 +27,7 @@ public class InMemoryQuickSortTwoSidesIterable extends SortEngine.InMemorySortIt
     }
 
     @Override
-    public Iterator<Entity> iterator() {
+    public @NotNull Iterator<Entity> iterator() {
         return new Iterator<Entity>() {
             private List<Entity> src;
             private Entity[] tmp;

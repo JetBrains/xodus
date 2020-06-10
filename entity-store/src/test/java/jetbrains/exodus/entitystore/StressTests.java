@@ -20,7 +20,6 @@ import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.core.execution.ThreadJobProcessor;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.util.Random;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -69,28 +68,22 @@ public class StressTests extends EntityStoreTestBase {
     }
 
     static void xd_347_like(PersistentEntityStoreImpl store, int count) {
-        final List<Entity> issues = store.computeInTransaction(new StoreTransactionalComputable<List<Entity>>() {
-            @Override
-            public List<Entity> compute(@NotNull final StoreTransaction txn) {
-                final List<Entity> result = new ArrayList<>();
-                for (final Entity issue : txn.getAll("Issue")) {
-                    result.add(issue);
-                }
-                while (result.size() < 10000) {
-                    result.add(txn.newEntity("Issue"));
-                }
-                return result;
+        final List<Entity> issues = store.computeInTransaction(txn -> {
+            final List<Entity> result = new ArrayList<>();
+            for (final Entity issue : txn.getAll("Issue")) {
+                result.add(issue);
             }
+            while (result.size() < 10000) {
+                result.add(txn.newEntity("Issue"));
+            }
+            return result;
         });
         final Random rnd = new Random(346);
         for (int i = 0; i < count; ++i) {
-            store.executeInTransaction(new StoreTransactionalExecutable() {
-                @Override
-                public void execute(@NotNull final StoreTransaction txn) {
-                    for (int j = 0; j < 100; ++j) {
-                        issues.get(rnd.nextInt(issues.size())).setProperty("created", System.currentTimeMillis());
-                        issues.get(rnd.nextInt(issues.size())).setProperty("updated", System.currentTimeMillis());
-                    }
+            store.executeInTransaction(txn -> {
+                for (int j = 0; j < 100; ++j) {
+                    issues.get(rnd.nextInt(issues.size())).setProperty("created", System.currentTimeMillis());
+                    issues.get(rnd.nextInt(issues.size())).setProperty("updated", System.currentTimeMillis());
                 }
             });
             if (i % 10 == 0) {
@@ -109,18 +102,15 @@ public class StressTests extends EntityStoreTestBase {
         final Entity[] issues = new Entity[1000000];
 
 
-        store.executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                for (int i = 0; i < 16; i++) {
-                    comments[i] = txn.newEntity("Comment");
-                }
+        store.executeInTransaction(txn -> {
+            for (int i = 0; i < 16; i++) {
+                comments[i] = txn.newEntity("Comment");
+            }
 
-                for (int i = 0; i < issues.length; i++) {
-                    Entity issue = txn.newEntity("Issue");
-                    issues[i] = issue;
-                    issue.setLink("linkvalue", comments[i % 4]);
-                }
+            for (int i = 0; i < issues.length; i++) {
+                Entity issue = txn.newEntity("Issue");
+                issues[i] = issue;
+                issue.setLink("linkvalue", comments[i % 4]);
             }
         });
 
@@ -130,24 +120,21 @@ public class StressTests extends EntityStoreTestBase {
             warmUp(store, comments);
         }
 
-        store.executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                logger.info("Test cache cancel");
+        store.executeInTransaction(txn -> {
+            logger.info("Test cache cancel");
 
-                for (int i = 0; i < asyncProcessor.getThreadCount(); i++) {
-                    txn.findLinks("Issue", comments[i], "linkvalue").iterator();
-                }
-
-                try {
-                    Thread.sleep(10);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    e.printStackTrace();
-                }
-
-                issues[14141].setLink("linkvalue", txn.newEntity("Comment")); // disrupt cache
+            for (int i = 0; i < asyncProcessor.getThreadCount(); i++) {
+                txn.findLinks("Issue", comments[i], "linkvalue").iterator();
             }
+
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                e.printStackTrace();
+            }
+
+            issues[14141].setLink("linkvalue", txn.newEntity("Comment")); // disrupt cache
         });
 
         long start = System.currentTimeMillis();
@@ -167,28 +154,22 @@ public class StressTests extends EntityStoreTestBase {
         final String linkName = "linkvalue";
         final NanoSet<String> linkNames = new NanoSet<>(linkName);
 
-        store.executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                for (int i = 0; i < 16; i++) {
-                    comments[i] = txn.newEntity("Comment");
-                }
+        store.executeInTransaction(txn -> {
+            for (int i = 0; i < 16; i++) {
+                comments[i] = txn.newEntity("Comment");
+            }
 
-                for (int i = 0; i < issues.length; i++) {
-                    Entity issue = txn.newEntity("Issue");
-                    issues[i] = issue;
-                    issue.setLink(linkName, comments[i % 4]);
-                }
+            for (int i = 0; i < issues.length; i++) {
+                Entity issue = txn.newEntity("Issue");
+                issues[i] = issue;
+                issue.setLink(linkName, comments[i % 4]);
             }
         });
 
-        store.executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                for (Entity issue : issues) {
-                    ((EntityIterableBase) issue.getLinks(linkName)).getOrCreateCachedInstance((PersistentStoreTransaction) txn);
-                    ((EntityIterableBase) issue.getLinks(linkNames)).getOrCreateCachedInstance((PersistentStoreTransaction) txn);
-                }
+        store.executeInTransaction(txn -> {
+            for (Entity issue : issues) {
+                ((EntityIterableBase) issue.getLinks(linkName)).getOrCreateCachedInstance((PersistentStoreTransaction) txn);
+                ((EntityIterableBase) issue.getLinks(linkNames)).getOrCreateCachedInstance((PersistentStoreTransaction) txn);
             }
         });
 
@@ -198,13 +179,10 @@ public class StressTests extends EntityStoreTestBase {
     }
 
     private void warmUp(final PersistentEntityStoreImpl store, final Entity[] comments) {
-        store.executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                final EntityStoreSharedAsyncProcessor asyncProcessor = store.getAsyncProcessor();
-                for (int i = 0; i < asyncProcessor.getThreadCount(); i++) {
-                    txn.findLinks("Issue", comments[i], "linkvalue").iterator();
-                }
+        store.executeInTransaction(txn -> {
+            final EntityStoreSharedAsyncProcessor asyncProcessor = store.getAsyncProcessor();
+            for (int i = 0; i < asyncProcessor.getThreadCount(); i++) {
+                txn.findLinks("Issue", comments[i], "linkvalue").iterator();
             }
         });
 

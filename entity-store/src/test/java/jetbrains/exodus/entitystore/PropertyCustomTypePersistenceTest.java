@@ -36,13 +36,10 @@ public class PropertyCustomTypePersistenceTest extends EntityStoreTestBase {
 
         registerDatatype(store);
 
-        store.executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                Entity testEntity = txn.newEntity("Entity");
-                testEntity.setProperty("property", new MockData(42));
-                txn.saveEntity(testEntity);
-            }
+        store.executeInTransaction(txn -> {
+            Entity testEntity = txn.newEntity("Entity");
+            testEntity.setProperty("property", new MockData(42));
+            txn.saveEntity(testEntity);
         });
 
         store.close();
@@ -50,13 +47,10 @@ public class PropertyCustomTypePersistenceTest extends EntityStoreTestBase {
 
         registerDatatype(store);
 
-        store.executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                final Entity entity = txn.getAll("Entity").getFirst();
-                assertNotNull(entity);
-                assertEquals(new MockData(42), entity.getProperty("property"));
-            }
+        store.executeInTransaction(txn -> {
+            final Entity entity = txn.getAll("Entity").getFirst();
+            assertNotNull(entity);
+            assertEquals(new MockData(42), entity.getProperty("property"));
         });
     }
 

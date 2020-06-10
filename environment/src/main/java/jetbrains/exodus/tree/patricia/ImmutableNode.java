@@ -110,15 +110,9 @@ final class ImmutableNode extends NodeBase {
     @Override
     @NotNull
     NodeChildren getChildren() {
-        return new NodeChildren() {
-            @NotNull
-            @Override
-            public NodeChildrenIterator iterator() {
-                return childrenCount == (short) 0 ?
-                    new EmptyNodeChildrenIterator() :
-                    new ImmutableNodeChildrenIterator(getDataIterator(0), -1, null);
-            }
-        };
+        return () -> childrenCount == (short) 0 ?
+            new EmptyNodeChildrenIterator() :
+            new ImmutableNodeChildrenIterator(getDataIterator(0), -1, null);
     }
 
     @Override
@@ -198,7 +192,7 @@ final class ImmutableNode extends NodeBase {
     private final class ImmutableNodeChildrenIterator implements NodeChildrenIterator {
 
         private ByteIterator itr;
-        private int index = 0;
+        private int index;
         private ChildReference node;
 
         private ImmutableNodeChildrenIterator(ByteIterator itr, int index, ChildReference node) {

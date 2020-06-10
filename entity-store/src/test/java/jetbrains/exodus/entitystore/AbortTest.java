@@ -44,11 +44,11 @@ public class AbortTest extends TestCase {
         final ArrayByteIterable dbEntry = new ArrayByteIterable(new byte[4]);
         store.put(txn, dbEntry, dbEntry);
         txn.revert();
-        Assert.assertTrue(store.count(txn) == 0);
+        Assert.assertEquals(0, store.count(txn));
         //env.setThreadTransaction(txn);
         store.put(txn, dbEntry, dbEntry);
         txn.flush();
-        Assert.assertTrue(store.count(txn) == 1);
+        Assert.assertEquals(1, store.count(txn));
         txn.abort();
     }
 

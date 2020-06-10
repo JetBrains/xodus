@@ -44,42 +44,37 @@ public class ExcludeNullStaticTypedEntityIterable extends StaticTypedEntityItera
             }
             return queryEngine.wrap(new ExcludeNullIterableDecorator(entityIterableBaseDecorated.getTransaction(), entityIterableBaseDecorated));
         }
-        return new Iterable<Entity>() {
+        return () -> new Iterator<Entity>() {
+            private Iterator<Entity> iterator = null;
+            private Entity next = null;
+
             @Override
-            public Iterator<Entity> iterator() {
-                return new Iterator<Entity>() {
-                    private Iterator<Entity> iterator = null;
-                    private Entity next = null;
+            public boolean hasNext() {
+                if (next != null) {
+                    return true;
+                }
+                if (iterator == null) {
+                    iterator = decorated.iterator();
+                }
+                while (iterator.hasNext() && next == null) {
+                    next = iterator.next();
+                }
+                return next != null;
+            }
 
-                    @Override
-                    public boolean hasNext() {
-                        if (next != null) {
-                            return true;
-                        }
-                        if (iterator == null) {
-                            iterator = decorated.iterator();
-                        }
-                        while (iterator.hasNext() && next == null) {
-                            next = iterator.next();
-                        }
-                        return next != null;
-                    }
+            @Override
+            public Entity next() {
+                if (hasNext()) {
+                    Entity result = next;
+                    next = null;
+                    return result;
+                }
+                throw new NoSuchElementException();
+            }
 
-                    @Override
-                    public Entity next() {
-                        if (hasNext()) {
-                            Entity result = next;
-                            next = null;
-                            return result;
-                        }
-                        throw new NoSuchElementException();
-                    }
-
-                    @Override
-                    public void remove() {
-                        throw new UnsupportedOperationException();
-                    }
-                };
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException();
             }
         };
     }

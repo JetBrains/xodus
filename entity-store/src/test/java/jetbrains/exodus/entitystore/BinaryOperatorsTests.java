@@ -20,12 +20,14 @@ import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.iterate.EntityIteratorBase;
 import org.junit.Assert;
 
+import java.util.Objects;
+
 public class BinaryOperatorsTests extends EntityStoreTestBase {
 
     public void testIntersect() {
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 100; ++i) {
-            final Entity issue = txn.newEntity("Issue");
+            final Entity issue = Objects.requireNonNull(txn).newEntity("Issue");
             issue.setProperty("ready", true);
         }
         for (int i = 0; i < 100; ++i) {
@@ -40,7 +42,7 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
     public void testIntersectIsCommutative() {
         getEntityStore().getConfig().setCachingDisabled(false);
         final StoreTransaction txn = getStoreTransaction();
-        final Entity comment = txn.newEntity("Comment");
+        final Entity comment = Objects.requireNonNull(txn).newEntity("Comment");
         for (int i = 0; i < 100; ++i) {
             final Entity issue = txn.newEntity("Issue");
             issue.setLink("comment", comment);
@@ -60,7 +62,7 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
     public void testSingularIntersect() {
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 100; ++i) {
-            final Entity entity = txn.newEntity("Issue");
+            final Entity entity = Objects.requireNonNull(txn).newEntity("Issue");
             entity.setProperty("description", "Test issue #" + i % 10);
             entity.setProperty("size", i);
         }
@@ -82,7 +84,7 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
     public void testIntersectDifferentTypes() {
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 100; ++i) {
-            txn.newEntity("Issue");
+            Objects.requireNonNull(txn).newEntity("Issue");
             txn.newEntity("Comment");
         }
         txn.flush();
@@ -93,7 +95,7 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
     public void testIntersectUnsorted() {
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 100; ++i) {
-            final Entity issue = txn.newEntity("Issue");
+            final Entity issue = Objects.requireNonNull(txn).newEntity("Issue");
             issue.setProperty("name", "Test issue #" + (i % 10));
         }
         txn.flush();
@@ -106,7 +108,7 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
     public void testUnion() {
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 100; ++i) {
-            txn.newEntity("Issue");
+            Objects.requireNonNull(txn).newEntity("Issue");
             txn.newEntity("Comment");
         }
         txn.flush();
@@ -118,7 +120,7 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
     public void testUnionIsCommutative() {
         getEntityStore().getConfig().setCachingDisabled(false);
         final StoreTransaction txn = getStoreTransaction();
-        final Entity comment = txn.newEntity("Comment");
+        final Entity comment = Objects.requireNonNull(txn).newEntity("Comment");
         for (int i = 0; i < 100; ++i) {
             final Entity issue = txn.newEntity("Issue");
             issue.setLink("comment", comment);
@@ -138,7 +140,7 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
     public void testSingularUnion() {
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 100; ++i) {
-            txn.newEntity("Issue");
+            Objects.requireNonNull(txn).newEntity("Issue");
             txn.newEntity("Comment");
         }
         txn.flush();
@@ -149,7 +151,7 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
     public void testUnionUnsorted() {
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 100; ++i) {
-            final Entity issue = txn.newEntity("Issue");
+            final Entity issue = Objects.requireNonNull(txn).newEntity("Issue");
             issue.setProperty("name", "Test issue #" + (99 - i));
         }
         txn.flush();
@@ -163,7 +165,7 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
         final StoreTransaction txn = getStoreTransaction();
         final int count = 10000;
         for (int i = 0; i < count; ++i) {
-            final Entity issue = txn.newEntity("Issue");
+            final Entity issue = Objects.requireNonNull(txn).newEntity("Issue");
             issue.setProperty("number", i);
         }
         txn.flush();
@@ -177,7 +179,7 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
 
     public void testMinus() {
         final StoreTransaction txn = getStoreTransaction();
-        txn.flush();
+        Objects.requireNonNull(txn).flush();
         for (int i = 0; i < 100; ++i) {
             final Entity issue = txn.newEntity("Issue");
             issue.setProperty("name", "Test issue #" + (i % 10));
@@ -196,7 +198,7 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
     public void testSingularMinus() {
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 100; ++i) {
-            final Entity issue = txn.newEntity("Issue");
+            final Entity issue = Objects.requireNonNull(txn).newEntity("Issue");
             issue.setProperty("name", "Test issue #" + (i % 10));
         }
         txn.flush();
@@ -207,7 +209,7 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
     public void testMinusUnsorted() {
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 100; ++i) {
-            final Entity issue = txn.newEntity("Issue");
+            final Entity issue = Objects.requireNonNull(txn).newEntity("Issue");
             issue.setProperty("size", 99 - i);
             txn.newEntity("Comment");
         }
@@ -221,7 +223,7 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
     public void testConcat() {
         final StoreTransaction txn = getStoreTransaction();
         for (int i = 0; i < 100; ++i) {
-            final Entity issue = txn.newEntity("Issue");
+            final Entity issue = Objects.requireNonNull(txn).newEntity("Issue");
             issue.setProperty("name", "Test issue #" + (i % 10));
             txn.newEntity("Comment");
         }
@@ -237,13 +239,13 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
     @TestFor(issues = "XD-566")
     public void testConcat2() {
         final StoreTransaction txn = getStoreTransaction();
-        txn.newEntity("Issue");
+        Objects.requireNonNull(txn).newEntity("Issue");
         Assert.assertEquals(1, toList(txn.getAll("User").concat(txn.getAll("Issue"))).size());
         Assert.assertTrue(txn.flush());
         txn.newEntity("User");
         Assert.assertTrue(txn.flush());
         Assert.assertEquals(2, toList(txn.getAll("User").concat(txn.getAll("Issue"))).size());
-        txn.getAll("User").getFirst().delete();
+        Objects.requireNonNull(txn.getAll("User").getFirst()).delete();
         Assert.assertTrue(txn.flush());
         while (true) {
             txn.revert();

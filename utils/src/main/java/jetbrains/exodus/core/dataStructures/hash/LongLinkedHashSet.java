@@ -16,6 +16,7 @@
 package jetbrains.exodus.core.dataStructures.hash;
 
 import jetbrains.exodus.util.MathUtil;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.AbstractSet;
 
@@ -145,7 +146,7 @@ public class LongLinkedHashSet extends AbstractSet<Long> implements LongSet {
     }
 
     @Override
-    public LongIterator iterator() {
+    public @NotNull LongIterator iterator() {
         return new LinkedHashIterator();
     }
 

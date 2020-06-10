@@ -44,7 +44,6 @@ public class LongObjectCache<V> extends LongObjectCacheBase<V> {
         this(cacheSize, DEFAULT_SECOND_GENERATION_QUEUE_SIZE_RATIO);
     }
 
-    @SuppressWarnings({"unchecked"})
     public LongObjectCache(int cacheSize, float secondGenSizeRatio) {
         super(cacheSize);
         lock = new ReentrantLock();
@@ -55,12 +54,7 @@ public class LongObjectCache<V> extends LongObjectCacheBase<V> {
         }
         this.secondGenSizeRatio = secondGenSizeRatio;
         clear();
-        addDeletedPairsListener(new DeletedPairsListener<V>() {
-            @Override
-            public void objectRemoved(long key, V value) {
-                pushedOutValue = value;
-            }
-        });
+        addDeletedPairsListener((key, value) -> pushedOutValue = value);
     }
 
     @Override

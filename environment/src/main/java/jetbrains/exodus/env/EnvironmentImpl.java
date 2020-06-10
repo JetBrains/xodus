@@ -375,7 +375,6 @@ public class EnvironmentImpl implements Environment {
         }
     }
 
-    @SuppressWarnings({"AccessToStaticFieldLockedOnInstance"})
     @Override
     public void close() {
         // if this is already closed do nothing
@@ -409,12 +408,7 @@ public class EnvironmentImpl implements Environment {
             checkInactive(closeForcedly);
             try {
                 if (!closeForcedly && !ec.getEnvIsReadonly() && ec.isGcEnabled()) {
-                    executeInTransaction(new TransactionalExecutable() {
-                        @Override
-                        public void execute(@NotNull final Transaction txn) {
-                            gc.getUtilizationProfile().forceSave(txn);
-                        }
-                    });
+                    executeInTransaction(txn -> gc.getUtilizationProfile().forceSave(txn));
                 }
                 ec.removeChangedSettingsListener(envSettingsListener);
                 logCacheHitRate = log.getCacheHitRate();
@@ -629,9 +623,8 @@ public class EnvironmentImpl implements Environment {
         };
     }
 
-    @SuppressWarnings("OverlyNestedMethod")
-    boolean commitTransaction(@NotNull final ReadWriteTransaction txn, final boolean forceCommit) {
-        if (flushTransaction(txn, forceCommit)) {
+    boolean commitTransaction(@NotNull final ReadWriteTransaction txn) {
+        if (flushTransaction(txn, false)) {
             finishTransaction(txn);
             return true;
         }
@@ -997,15 +990,12 @@ public class EnvironmentImpl implements Environment {
                 loggerError(stacksUnavailable);
             }
         } else {
-            forEachActiveTransaction(new TransactionalExecutable() {
-                @Override
-                public void execute(@NotNull final Transaction txn) {
-                    final Throwable trace = ((TransactionBase) txn).getTrace();
-                    if (debug) {
-                        loggerDebug("Alive transaction: ", trace);
-                    } else {
-                        loggerError("Alive transaction: ", trace);
-                    }
+            forEachActiveTransaction(txn -> {
+                final Throwable trace = ((TransactionBase) txn).getTrace();
+                if (debug) {
+                    loggerDebug("Alive transaction: ", trace);
+                } else {
+                    loggerError("Alive transaction: ", trace);
                 }
             });
         }
@@ -1115,13 +1105,10 @@ public class EnvironmentImpl implements Environment {
                     try {
                         if (!txn.isReadonly()) {
                             gc.getUtilizationProfile().forceSave(txn);
-                            txn.setCommitHook(new Runnable() {
-                                @Override
-                                public void run() {
-                                    EnvironmentConfig.suppressConfigChangeListenersForThread();
-                                    ec.setEnvIsReadonly(true);
-                                    EnvironmentConfig.resumeConfigChangeListenersForThread();
-                                }
+                            txn.setCommitHook(() -> {
+                                EnvironmentConfig.suppressConfigChangeListenersForThread();
+                                ec.setEnvIsReadonly(true);
+                                EnvironmentConfig.resumeConfigChangeListenersForThread();
                             });
                             ((ReadWriteTransaction) txn).forceFlush();
                         }
@@ -1157,8 +1144,6 @@ public class EnvironmentImpl implements Environment {
             }
         }
     }
-
-    @SuppressWarnings({"AssignmentToCollectionOrArrayFieldFromParameter"})
 
     private static class RunnableWithTxnRoot {
 

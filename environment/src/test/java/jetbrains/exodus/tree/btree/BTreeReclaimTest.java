@@ -26,7 +26,7 @@ import org.junit.Test;
 
 import java.util.Iterator;
 
-@SuppressWarnings({"OverloadedMethodsWithSameNumberOfParameters", "CastToConcreteClass"})
+@SuppressWarnings({"CastToConcreteClass"})
 public class BTreeReclaimTest extends BTreeTestBase {
 
     private long init(int p) {

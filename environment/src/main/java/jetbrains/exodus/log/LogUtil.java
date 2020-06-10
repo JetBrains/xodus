@@ -32,13 +32,8 @@ public final class LogUtil {
     public static final int LOG_FILE_EXTENSION_LENGTH = 3;
     public static final int LOG_FILE_NAME_WITH_EXT_LENGTH = LOG_FILE_NAME_LENGTH + LOG_FILE_EXTENSION_LENGTH;
     public static final String LOG_FILE_EXTENSION = ".xd";
-    public static final FilenameFilter LOG_FILE_NAME_FILTER = new FilenameFilter() {
-        @Override
-        public boolean accept(File dir, String name) {
-            return name.length() == LogUtil.LOG_FILE_NAME_WITH_EXT_LENGTH &&
-                name.endsWith(LogUtil.LOG_FILE_EXTENSION);
-        }
-    };
+    public static final FilenameFilter LOG_FILE_NAME_FILTER = (dir, name) -> name.length() == LogUtil.LOG_FILE_NAME_WITH_EXT_LENGTH &&
+        name.endsWith(LogUtil.LOG_FILE_EXTENSION);
 
     private static final char[] LOG_FILE_EXTENSION_CHARS = LOG_FILE_EXTENSION.toCharArray();
     private static final char[] LOG_FILE_NAME_ALPHABET = "0123456789abcdefghijklmnopqrstuv".toCharArray();

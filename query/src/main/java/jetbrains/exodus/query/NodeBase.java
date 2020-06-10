@@ -214,34 +214,31 @@ public abstract class NodeBase {
     }
 
     public Iterable<NodeBase> getDescendants() {
-        return new Iterable<NodeBase>() {
-            @Override
-            public Iterator<NodeBase> iterator() {
-                final List<NodeBase> stack = new LinkedList<>();
-                stack.add(NodeBase.this); // push root
-                return new Iterator<NodeBase>() {
-                    @Override
-                    public boolean hasNext() {
-                        return !stack.isEmpty();
-                    }
+        return () -> {
+            final List<NodeBase> stack = new LinkedList<>();
+            stack.add(NodeBase.this); // push root
+            return new Iterator<NodeBase>() {
+                @Override
+                public boolean hasNext() {
+                    return !stack.isEmpty();
+                }
 
-                    @Override
-                    public NodeBase next() {
-                        if (stack.isEmpty()) {
-                            throw new NoSuchElementException();
-                        } else {
-                            final NodeBase result = stack.remove(0); // pop
-                            stack.addAll(0, result.getChildren()); // push all children (first will be on top)
-                            return result;
-                        }
+                @Override
+                public NodeBase next() {
+                    if (stack.isEmpty()) {
+                        throw new NoSuchElementException();
+                    } else {
+                        final NodeBase result = stack.remove(0); // pop
+                        stack.addAll(0, result.getChildren()); // push all children (first will be on top)
+                        return result;
                     }
+                }
 
-                    @Override
-                    public void remove() {
-                        throw new UnsupportedOperationException();
-                    }
-                };
-            }
+                @Override
+                public void remove() {
+                    throw new UnsupportedOperationException();
+                }
+            };
         };
     }
 

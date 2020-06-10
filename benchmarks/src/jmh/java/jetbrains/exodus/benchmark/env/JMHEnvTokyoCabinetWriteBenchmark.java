@@ -17,9 +17,6 @@ package jetbrains.exodus.benchmark.env;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.env.StoreConfig;
-import jetbrains.exodus.env.Transaction;
-import jetbrains.exodus.env.TransactionalExecutable;
-import org.jetbrains.annotations.NotNull;
 import org.openjdk.jmh.annotations.*;
 
 import java.io.IOException;
@@ -51,12 +48,9 @@ public class JMHEnvTokyoCabinetWriteBenchmark extends JMHEnvTokyoCabinetBenchmar
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
     public void randomWrite() {
-        env.executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull Transaction txn) {
-                for (final ByteIterable key : randomKeys) {
-                    store.add(txn, key, key);
-                }
+        env.executeInTransaction(txn -> {
+            for (final ByteIterable key : randomKeys) {
+                store.add(txn, key, key);
             }
         });
     }

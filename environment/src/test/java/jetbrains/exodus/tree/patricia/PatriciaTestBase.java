@@ -150,7 +150,7 @@ public class PatriciaTestBase extends TreeBaseTest {
             this(isMutable, expectedChar, expectedKey, null, expectedChildren);
         }
 
-        N(boolean isMutable, char expectedChar, ByteIterable expectedKey, @Nullable ByteIterable expectedValue, N... expectedChildren) {
+        N(boolean isMutable, char expectedChar, @NotNull ByteIterable expectedKey, @Nullable ByteIterable expectedValue, N... expectedChildren) {
             mutable = isMutable;
             c = expectedChar;
             children = expectedChildren;

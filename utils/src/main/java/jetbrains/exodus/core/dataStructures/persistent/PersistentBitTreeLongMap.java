@@ -33,7 +33,7 @@ public class PersistentBitTreeLongMap<V> implements PersistentLongMap<V> {
     private final Root<V> root;
 
     public PersistentBitTreeLongMap() {
-        this.root = new Root<>(new Persistent23Tree<Entry>(), 0);
+        this.root = new Root<>(new Persistent23Tree<>(), 0);
     }
 
     private PersistentBitTreeLongMap(Root<V> root) {
@@ -148,7 +148,7 @@ public class PersistentBitTreeLongMap<V> implements PersistentLongMap<V> {
     protected static class MutableMap<V> implements PersistentLongMap.MutableMap<V>, RootHolder {
 
         @NotNull
-        private Persistent23Tree.MutableTree<Entry> mutableMap;
+        private final Persistent23Tree.MutableTree<Entry> mutableMap;
         private int size;
         private final PersistentBitTreeLongMap baseMap;
 

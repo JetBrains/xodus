@@ -98,12 +98,12 @@ public class BTreeCursorDeleteTest extends BTreeTestBase {
 
         Cursor c = getTreeMutable().openCursor();
 
-        assertEquals(true, c.getSearchBoth(key(1), value("vv1")));
+        assertTrue(c.getSearchBoth(key(1), value("vv1")));
         assertTrue(c.deleteCurrent());
         assertFalse(c.deleteCurrent());
         assertTrue(c.getNext());
 
-        assertEquals(true, c.getSearchBoth(key(7), value("vv7")));
+        assertTrue(c.getSearchBoth(key(7), value("vv7")));
         assertTrue(c.deleteCurrent());
         assertFalse(c.getNext());
     }

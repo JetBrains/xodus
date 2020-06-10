@@ -184,24 +184,18 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
                            @Nullable final LongSet deferredBlobsToDelete,
                            @NotNull final Transaction txn) throws Exception {
         if (blobStreams != null) {
-            blobStreams.forEachEntry(new ObjectProcedureThrows<Map.Entry<Long, InputStream>, Exception>() {
-                @Override
-                public boolean execute(final Map.Entry<Long, InputStream> object) throws Exception {
-                    final InputStream stream = object.getValue();
-                    stream.reset();
-                    setContent(object.getKey(), stream);
-                    return true;
-                }
+            blobStreams.forEachEntry((ObjectProcedureThrows<Map.Entry<Long, InputStream>, Exception>) object -> {
+                final InputStream stream = object.getValue();
+                stream.reset();
+                setContent(object.getKey(), stream);
+                return true;
             });
         }
         // if there were blob files then move them
         if (blobFiles != null) {
-            blobFiles.forEachEntry(new ObjectProcedureThrows<Map.Entry<Long, File>, Exception>() {
-                @Override
-                public boolean execute(final Map.Entry<Long, File> object) throws Exception {
-                    setContent(object.getKey(), object.getValue());
-                    return true;
-                }
+            blobFiles.forEachEntry((ObjectProcedureThrows<Map.Entry<Long, File>, Exception>) object -> {
+                setContent(object.getKey(), object.getValue());
+                return true;
             });
         }
         // if there are deferred blobs to delete then defer their deletion
@@ -212,30 +206,25 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
                 copy.add(it.nextLong());
             }
             final Environment environment = txn.getEnvironment();
-            environment.executeTransactionSafeTask(new Runnable() {
+            environment.executeTransactionSafeTask(() -> DeferredIO.getJobProcessor().queueIn(new Job() {
                 @Override
-                public void run() {
-                    DeferredIO.getJobProcessor().queueIn(new Job() {
-                        @Override
-                        protected void execute() {
-                            final long[] blobHandles = copy.getInstantArray();
-                            for (int i = 0; i < copy.size(); ++i) {
-                                delete(blobHandles[i]);
-                            }
-                        }
-
-                        @Override
-                        public String getName() {
-                            return "Delete obsolete blob files";
-                        }
-
-                        @Override
-                        public String getGroup() {
-                            return environment.getLocation();
-                        }
-                    }, environment.getEnvironmentConfig().getGcFilesDeletionDelay());
+                protected void execute() {
+                    final long[] blobHandles = copy.getInstantArray();
+                    for (int i = 0; i < copy.size(); ++i) {
+                        delete(blobHandles[i]);
+                    }
                 }
-            });
+
+                @Override
+                public String getName() {
+                    return "Delete obsolete blob files";
+                }
+
+                @Override
+                public String getGroup() {
+                    return environment.getLocation();
+                }
+            }, environment.getEnvironmentConfig().getGcFilesDeletionDelay()));
         }
     }
 
@@ -265,72 +254,68 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
 
             @Override
             public Iterable<VirtualFileDescriptor> getContents() {
-                return new Iterable<VirtualFileDescriptor>() {
-                    @NotNull
-                    @Override
-                    public Iterator<VirtualFileDescriptor> iterator() {
-                        final Deque<FileDescriptor> queue = new LinkedList<>();
-                        queue.add(new FileDescriptor(location, blobsDirectory + File.separator));
-                        return new Iterator<VirtualFileDescriptor>() {
-                            int i = 0;
-                            int n = 0;
-                            File[] files;
-                            FileDescriptor next;
-                            String currentPrefix;
+                return () -> {
+                    final Deque<FileDescriptor> queue = new LinkedList<>();
+                    queue.add(new FileDescriptor(location, blobsDirectory + File.separator));
+                    return new Iterator<VirtualFileDescriptor>() {
+                        int i = 0;
+                        int n = 0;
+                        File[] files;
+                        FileDescriptor next;
+                        String currentPrefix;
 
-                            @Override
-                            public boolean hasNext() {
-                                if (next != null) {
-                                    return true;
-                                }
-                                while (i < n) {
-                                    final File file = files[i++];
-                                    final String name = file.getName();
-                                    if (file.isDirectory()) {
-                                        queue.push(new FileDescriptor(file, currentPrefix + file.getName() + File.separator));
-                                    } else if (file.isFile()) {
-                                        final long fileSize = file.length();
-                                        if (fileSize == 0) continue;
-                                        if (name.endsWith(blobExtension)) {
-                                            next = new FileDescriptor(file, currentPrefix, fileSize);
-                                            return true;
-                                        } else if (name.equalsIgnoreCase(VERSION_FILE)) {
-                                            next = new FileDescriptor(file, currentPrefix, fileSize, false);
-                                            return true;
-                                        }
-                                    } else if (file.exists()) {
-                                        // something strange with filesystem
-                                        throw new EntityStoreException("File or directory expected: " + file.toString());
-                                    }
-                                }
-                                if (queue.isEmpty()) {
-                                    return false;
-                                }
-                                final FileDescriptor fd = queue.pop();
-                                files = IOUtil.listFiles(fd.getFile());
-                                currentPrefix = fd.getPath();
-                                i = 0;
-                                n = files.length;
-                                next = fd;
+                        @Override
+                        public boolean hasNext() {
+                            if (next != null) {
                                 return true;
                             }
-
-                            @Override
-                            public FileDescriptor next() {
-                                if (!hasNext()) {
-                                    throw new NoSuchElementException();
+                            while (i < n) {
+                                final File file = files[i++];
+                                final String name = file.getName();
+                                if (file.isDirectory()) {
+                                    queue.push(new FileDescriptor(file, currentPrefix + file.getName() + File.separator));
+                                } else if (file.isFile()) {
+                                    final long fileSize = file.length();
+                                    if (fileSize == 0) continue;
+                                    if (name.endsWith(blobExtension)) {
+                                        next = new FileDescriptor(file, currentPrefix, fileSize);
+                                        return true;
+                                    } else if (name.equalsIgnoreCase(VERSION_FILE)) {
+                                        next = new FileDescriptor(file, currentPrefix, fileSize, false);
+                                        return true;
+                                    }
+                                } else if (file.exists()) {
+                                    // something strange with filesystem
+                                    throw new EntityStoreException("File or directory expected: " + file.toString());
                                 }
-                                final FileDescriptor result = next;
-                                next = null;
-                                return result;
                             }
+                            if (queue.isEmpty()) {
+                                return false;
+                            }
+                            final FileDescriptor fd = queue.pop();
+                            files = IOUtil.listFiles(fd.getFile());
+                            currentPrefix = fd.getPath();
+                            i = 0;
+                            n = files.length;
+                            next = fd;
+                            return true;
+                        }
 
-                            @Override
-                            public void remove() {
-                                throw new UnsupportedOperationException();
+                        @Override
+                        public FileDescriptor next() {
+                            if (!hasNext()) {
+                                throw new NoSuchElementException();
                             }
-                        };
-                    }
+                            final FileDescriptor result = next;
+                            next = null;
+                            return result;
+                        }
+
+                        @Override
+                        public void remove() {
+                            throw new UnsupportedOperationException();
+                        }
+                    };
                 };
             }
         };

@@ -29,8 +29,8 @@ public class OptimizedTreesCache {
     private OptimizedTreesCache() {
         final boolean blocking = "false".equals(System.getProperty("exodus.query.treeCache.nonBlocking"));
         cache = blocking ?
-                new SoftObjectCache<String, OptimizedTreeAndSorts>(CACHE_SIZE) :
-                new SoftConcurrentObjectCache<String, OptimizedTreeAndSorts>(CACHE_SIZE);
+            new SoftObjectCache<>(CACHE_SIZE) :
+            new SoftConcurrentObjectCache<>(CACHE_SIZE);
     }
 
     OptimizedTreeAndSorts findOptimized(NodeBase tree) {

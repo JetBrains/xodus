@@ -35,17 +35,13 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.StringTokenizer;
 
-@SuppressWarnings({"AssignmentToStaticFieldFromInstanceMethod"})
 public class RecoveryClassLoaderTest {
 
     private static Object env = null;
     private static LogConfig cfg = null;
 
     static {
-        runIsolated(new Runnable() {
-            @Override
-            public void run() {
-            }
+        runIsolated(() -> {
         });
     }
 
@@ -80,55 +76,41 @@ public class RecoveryClassLoaderTest {
         runIsolated(CHECK_ENVIRONMENT);
     }
 
-    private static final Runnable OPEN_ENVIRONMENT = new Runnable() {
-        @Override
-        public void run() {
-            FileDataReader reader = new FileDataReader(testsDirectory[0]);
-            env = Environments.newInstance(cfg = LogConfig.create(reader, new FileDataWriter(reader)));
-        }
+    private static final Runnable OPEN_ENVIRONMENT = () -> {
+        FileDataReader reader = new FileDataReader(testsDirectory[0]);
+        env = Environments.newInstance(cfg = LogConfig.create(reader, new FileDataWriter(reader)));
     };
 
-    private static final Runnable BREAK_ENVIRONMENT = new Runnable() {
-        @Override
-        public void run() {
-            final Environment env = (Environment) RecoveryClassLoaderTest.env;
-            final LogConfig cfg = RecoveryClassLoaderTest.cfg;
+    private static final Runnable BREAK_ENVIRONMENT = () -> {
+        final Environment env = (Environment) RecoveryClassLoaderTest.env;
+        final LogConfig cfg = RecoveryClassLoaderTest.cfg;
 
-            env.executeInTransaction(new TransactionalExecutable() {
-                @Override
-                public void execute(@NotNull Transaction txn) {
-                    env.openStore("new_store", StoreConfig.WITHOUT_DUPLICATES, txn);
-                }
-            });
+        env.executeInTransaction(txn -> env.openStore("new_store", StoreConfig.WITHOUT_DUPLICATES, txn));
 
-            // assertLoggableTypes(log.getLoggablesIterator(0), SEQ);
-            env.close();
+        // assertLoggableTypes(log.getLoggablesIterator(0), SEQ);
+        env.close();
 
-            final long size = cfg.getReader().getBlocks(0).iterator().next().length();
-            cfg.getWriter().openOrCreateBlock(0, size - 5);
-            cfg.getWriter().close();
-        }
+        final long size = cfg.getReader().getBlocks(0).iterator().next().length();
+        cfg.getWriter().openOrCreateBlock(0, size - 5);
+        cfg.getWriter().close();
     };
 
-    private static final Runnable CHECK_ENVIRONMENT = new Runnable() {
-        @Override
-        public void run() {
-            EnvironmentImpl env = (EnvironmentImpl) RecoveryClassLoaderTest.env;
-            Log log = env.getLog();
+    private static final Runnable CHECK_ENVIRONMENT = () -> {
+        EnvironmentImpl env = (EnvironmentImpl) RecoveryClassLoaderTest.env;
+        Log log = env.getLog();
 
-            // only 'max' first loggables should remain
-            // assertLoggableTypes(max, log.getLoggablesIterator(0), SEQ);
+        // only 'max' first loggables should remain
+        // assertLoggableTypes(max, log.getLoggablesIterator(0), SEQ);
 
-            final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(0);
-            Loggable last = null;
-            while (iter.hasNext()) {
-                last = iter.next();
-            }
-
-            Assert.assertNotNull(last);
-
-            Assert.assertEquals(log.getHighAddress(), last.getAddress() + last.length());
+        final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(0);
+        Loggable last = null;
+        while (iter.hasNext()) {
+            last = iter.next();
         }
+
+        Assert.assertNotNull(last);
+
+        Assert.assertEquals(log.getHighAddress(), last.getAddress() + last.length());
     };
 
     private static void runIsolated(@NotNull final Runnable runnable) {

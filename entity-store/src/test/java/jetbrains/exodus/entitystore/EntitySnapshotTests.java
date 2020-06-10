@@ -17,11 +17,9 @@ package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.core.execution.JobProcessor;
-import jetbrains.exodus.core.execution.JobProcessorExceptionHandler;
 import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor;
 import jetbrains.exodus.env.EnvironmentConfig;
 import jetbrains.exodus.env.EnvironmentImpl;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 
 public class EntitySnapshotTests extends EntityStoreTestBase {
@@ -108,12 +106,7 @@ public class EntitySnapshotTests extends EntityStoreTestBase {
         config.setGcEnabled(false);
         final JobProcessor processor = new MultiThreadDelegatingJobProcessor("ConcurrentPutProcessor", 8) {
         };
-        processor.setExceptionHandler(new JobProcessorExceptionHandler() {
-            @Override
-            public void handle(JobProcessor processor, Job job, Throwable t) {
-                logger.error("Background exception", t);
-            }
-        });
+        processor.setExceptionHandler((processor1, job, t) -> logger.error("Background exception", t));
         processor.start();
         final int count = 30000;
         for (int i = 0; i < count; ++i) {
@@ -121,31 +114,25 @@ public class EntitySnapshotTests extends EntityStoreTestBase {
             processor.queue(new Job() {
                 @Override
                 protected void execute() {
-                    getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
-                        @Override
-                        public void execute(@NotNull final StoreTransaction txn) {
-                            final Entity ticket = txn.newEntity("CASTicket");
-                            ticket.setProperty("id", id);
-                        }
+                    getEntityStore().executeInTransaction(txn -> {
+                        final Entity ticket = txn.newEntity("CASTicket");
+                        ticket.setProperty("id", id);
                     });
                 }
             });
         }
         processor.waitForJobs(100);
         processor.finish();
-        getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final StoreTransaction txn) {
-                //System.out.println("Structure id: " + executeMethod(environment, "getLastStructureId"));
-                Assert.assertEquals(count, (int) txn.getAll("CASTicket").size());
-                final EntityIterable sorted = txn.sort("CASTicket", "id", true);
-                Assert.assertEquals(count, (int) sorted.size());
-                int i = 0;
-                for (final Entity ticket : sorted) {
-                    final Comparable id = ticket.getProperty("id");
-                    Assert.assertNotNull(id);
-                    Assert.assertEquals(i++, id);
-                }
+        getEntityStore().executeInTransaction(txn -> {
+            //System.out.println("Structure id: " + executeMethod(environment, "getLastStructureId"));
+            Assert.assertEquals(count, (int) txn.getAll("CASTicket").size());
+            final EntityIterable sorted = txn.sort("CASTicket", "id", true);
+            Assert.assertEquals(count, (int) sorted.size());
+            int i = 0;
+            for (final Entity ticket : sorted) {
+                final Comparable id = ticket.getProperty("id");
+                Assert.assertNotNull(id);
+                Assert.assertEquals(i++, id);
             }
         });
     }

@@ -85,10 +85,10 @@ public class PersistentHashMapTest {
 
         Object root = write1.getRoot();
         write1.put(2, "2");
-        Assert.assertFalse(write1.getRoot() == root);
+        Assert.assertNotSame(write1.getRoot(), root);
         root = write2.getRoot();
         write2.put(2, "_2");
-        Assert.assertFalse(write2.getRoot() == root);
+        Assert.assertNotSame(write2.getRoot(), root);
         Assert.assertTrue(write1.endWrite());
         Assert.assertFalse(write2.endWrite());
         read = tree.getCurrent();

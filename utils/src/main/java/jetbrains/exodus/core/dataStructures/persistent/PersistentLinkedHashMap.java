@@ -192,21 +192,11 @@ public class PersistentLinkedHashMap<K, V> {
         }
 
         public void forEachKey(final ObjectProcedure<K> procedure) {
-            mapMutable.forEachKey(new ObjectProcedure<PersistentHashMap.Entry<K, InternalValue<V>>>() {
-                @Override
-                public boolean execute(PersistentHashMap.Entry<K, InternalValue<V>> object) {
-                    return procedure.execute(object.getKey());
-                }
-            });
+            mapMutable.forEachKey(object -> procedure.execute(object.getKey()));
         }
 
         public void forEachEntry(final PairProcedure<K, V> procedure) {
-            mapMutable.forEachKey(new ObjectProcedure<PersistentHashMap.Entry<K, InternalValue<V>>>() {
-                @Override
-                public boolean execute(PersistentHashMap.Entry<K, InternalValue<V>> object) {
-                    return procedure.execute(object.getKey(), object.getValue().getValue());
-                }
-            });
+            mapMutable.forEachKey(object -> procedure.execute(object.getKey(), object.getValue().getValue()));
         }
 
         public boolean isDirty() {
@@ -214,7 +204,7 @@ public class PersistentLinkedHashMap<K, V> {
         }
 
         @Override
-        public Iterator<Pair<K, V>> iterator() {
+        public @NotNull Iterator<Pair<K, V>> iterator() {
             final Iterator<PersistentHashMap.Entry<K, InternalValue<V>>> sourceIt = mapMutable.iterator();
             return new Iterator<Pair<K, V>>() {
 
@@ -278,7 +268,7 @@ public class PersistentLinkedHashMap<K, V> {
         private final long order;
 
         private Root() {
-            this(new PersistentHashMap<K, InternalValue<V>>(), new PersistentLong23TreeMap<K>(), 0L);
+            this(new PersistentHashMap<>(), new PersistentLong23TreeMap<>(), 0L);
         }
 
         private Root(@NotNull final Root<K, V> source) {

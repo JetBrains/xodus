@@ -28,13 +28,8 @@ public class EntitiesWithPropertyIterable extends EntityIterableBase {
     private final int propertyId;
 
     static {
-        registerType(getType(), new EntityIterableInstantiator() {
-            @Override
-            public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new EntitiesWithPropertyIterable(txn,
-                        Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]));
-            }
-        });
+        registerType(getType(), (txn, store, parameters) -> new EntitiesWithPropertyIterable(txn,
+            Integer.parseInt((String) parameters[0]), Integer.parseInt((String) parameters[1])));
     }
 
     public EntitiesWithPropertyIterable(@NotNull final PersistentStoreTransaction txn,

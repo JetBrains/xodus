@@ -62,7 +62,7 @@ public class Explainer {
 
     private static Thread forceExplainThread = null;
 
-    private boolean explainOn;
+    private final boolean explainOn;
 
     static {
         PERFORMANCE_PARAMETERS.add(CURSOR_ADVANCES_FOR_FIRST);
@@ -184,12 +184,7 @@ public class Explainer {
         for (String parameter : toRemove) {
             query.remove(parameter);
         }
-        Comparator<Pair<Integer, String>> pairComparator = new Comparator<Pair<Integer, String>>() {
-            @Override
-            public int compare(Pair<Integer, String> p1, Pair<Integer, String> p2) {
-                return p2.getFirst().compareTo(p1.getFirst());
-            }
-        };
+        Comparator<Pair<Integer, String>> pairComparator = (p1, p2) -> p2.getFirst().compareTo(p1.getFirst());
         Collections.sort(byType, pairComparator);
         Collections.sort(byHandle, pairComparator);
         StringBuilder advancesByType = new StringBuilder();

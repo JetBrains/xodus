@@ -39,11 +39,7 @@ public interface BlobHandleGenerator {
     /**
      * BlobHandleGenerator for immutable {@linkplain BlobVault}s.
      */
-    BlobHandleGenerator IMMUTABLE = new BlobHandleGenerator() {
-
-        @Override
-        public long nextHandle(@NotNull final Transaction txn) {
-            throw new UnsupportedOperationException();
-        }
+    BlobHandleGenerator IMMUTABLE = txn -> {
+        throw new UnsupportedOperationException();
     };
 }

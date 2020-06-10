@@ -19,7 +19,6 @@ import jetbrains.exodus.TestFor;
 import jetbrains.exodus.bindings.ComparableSet;
 import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.util.Random;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 
 import java.util.ArrayList;
@@ -530,12 +529,7 @@ public class FindTests extends EntityStoreTestBase {
         for (int i = 0; i < 1000; ++i) {
             Assert.assertEquals(setSize, randomSet.size());
             issue.setProperty("randomSet", randomSet);
-            randomSet.forEach(new ComparableSet.Consumer<Integer>() {
-                @Override
-                public void accept(@NotNull final Integer item, int index) {
-                    Assert.assertEquals(issue, txn.find("Issue", "randomSet", item).getFirst());
-                }
-            });
+            randomSet.forEach((item, index) -> Assert.assertEquals(issue, txn.find("Issue", "randomSet", item).getFirst()));
             Assert.assertTrue(randomSet.removeItem(randomSet.iterator().next()));
             while (true) {
                 final int newItem = rnd.nextInt();

@@ -44,7 +44,7 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.zip.GZIPOutputStream;
 
-@SuppressWarnings({"ProtectedField", "UnusedDeclaration", "CallToPrintStackTrace"})
+@SuppressWarnings({"ProtectedField", "UnusedDeclaration"})
 public class EnvironmentTestsBase {
 
     protected EnvironmentImpl env;
@@ -142,7 +142,7 @@ public class EnvironmentTestsBase {
             throw new IOException("Failed to create directory for tests.");
         }
         FileDataReader reader = new FileDataReader(testsDirectory);
-        return new Pair<DataReader, DataWriter>(reader, new FileDataWriter(reader));
+        return new Pair<>(reader, new FileDataWriter(reader));
     }
 
     protected void deleteRW() {
@@ -189,52 +189,27 @@ public class EnvironmentTestsBase {
     }
 
     protected Store openStoreAutoCommit(final String name, final StoreConfig config) {
-        return env.computeInTransaction(new TransactionalComputable<Store>() {
-            @Override
-            public Store compute(@NotNull Transaction txn) {
-                return env.openStore(name, config, txn);
-            }
-        });
+        return env.computeInTransaction((TransactionalComputable<Store>) txn -> env.openStore(name, config, txn));
     }
 
     protected void putAutoCommit(@NotNull final Store store,
                                  @NotNull final ByteIterable key,
                                  @NotNull final ByteIterable value) {
-        env.executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final Transaction txn) {
-                store.put(txn, key, value);
-            }
-        });
+        env.executeInTransaction(txn -> store.put(txn, key, value));
     }
 
     protected ByteIterable getAutoCommit(@NotNull final Store store,
                                          @NotNull final ByteIterable key) {
-        return env.computeInReadonlyTransaction(new TransactionalComputable<ByteIterable>() {
-            @Override
-            public ByteIterable compute(@NotNull Transaction txn) {
-                return store.get(txn, key);
-            }
-        });
+        return env.computeInReadonlyTransaction(txn -> store.get(txn, key));
     }
 
     protected boolean deleteAutoCommit(@NotNull final Store store,
                                        @NotNull final ByteIterable key) {
-        return env.computeInTransaction(new TransactionalComputable<Boolean>() {
-            @Override
-            public Boolean compute(@NotNull Transaction txn) {
-                return store.delete(txn, key);
-            }
-        });
+        return env.computeInTransaction(txn -> store.delete(txn, key));
     }
 
     protected long countAutoCommit(@NotNull final Store store) {
-        return env.computeInTransaction(new TransactionalComputable<Long>() {
-            @Override
-            public Long compute(@NotNull Transaction txn) {
-                return store.count(txn);
-            }
-        });
+        return env.computeInTransaction(store::count);
     }
 
     protected static void assertLoggableTypes(final Iterator<RandomAccessLoggable> it, final int... types) {
@@ -260,12 +235,7 @@ public class EnvironmentTestsBase {
     protected void assertNotNullStringValue(final Store store,
                                             final ByteIterable keyEntry,
                                             final String value) {
-        env.executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull Transaction txn) {
-                assertNotNullStringValue(txn, store, keyEntry, value);
-            }
-        });
+        env.executeInTransaction(txn -> assertNotNullStringValue(txn, store, keyEntry, value));
     }
 
     protected void assertNotNullStringValue(final Transaction txn, final Store store,
@@ -276,12 +246,7 @@ public class EnvironmentTestsBase {
     }
 
     protected void assertEmptyValue(final Store store, final ByteIterable keyEntry) {
-        env.executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull Transaction txn) {
-                assertEmptyValue(txn, store, keyEntry);
-            }
-        });
+        env.executeInTransaction(txn -> assertEmptyValue(txn, store, keyEntry));
     }
 
     protected void assertEmptyValue(final Transaction txn, final Store store, final ByteIterable keyEntry) {
@@ -291,17 +256,14 @@ public class EnvironmentTestsBase {
 
     protected void assertNotNullStringValues(final Store store,
                                              final String... values) {
-        env.executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull Transaction txn) {
-                try (Cursor cursor = store.openCursor(txn)) {
-                    int i = 0;
-                    while (cursor.getNext()) {
-                        final ByteIterable valueEntry = cursor.getValue();
-                        Assert.assertNotNull(valueEntry);
-                        final String value = values[i++];
-                        Assert.assertEquals(value, StringBinding.entryToString(valueEntry));
-                    }
+        env.executeInTransaction(txn -> {
+            try (Cursor cursor = store.openCursor(txn)) {
+                int i = 0;
+                while (cursor.getNext()) {
+                    final ByteIterable valueEntry = cursor.getValue();
+                    Assert.assertNotNull(valueEntry);
+                    final String value = values[i++];
+                    Assert.assertEquals(value, StringBinding.entryToString(valueEntry));
                 }
             }
         });

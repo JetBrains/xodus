@@ -30,7 +30,6 @@ import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.util.StringBuilderSpinAllocator;
-import kotlin.jvm.functions.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -43,7 +42,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-@SuppressWarnings({"RawUseOfParameterizedType", "rawtypes"})
+@SuppressWarnings({"rawtypes"})
 public class PersistentStoreTransaction implements StoreTransaction, TxnGetterStrategy, TxnProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(PersistentStoreTransaction.class);
@@ -279,7 +278,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     // TODO: remove ASAP
-    private static int traceGetAllForEntityType = Integer.getInteger("jetbrains.exodus.entitystore.traceGetAllForEntityType", -1);
+    private static final int traceGetAllForEntityType = Integer.getInteger("jetbrains.exodus.entitystore.traceGetAllForEntityType", -1);
 
     @Override
     @NotNull
@@ -869,14 +868,11 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                 throw ExodusException.toEntityStoreException(e);
             }
         }
-        txn.setCommitHook(new Runnable() {
-            @Override
-            public void run() {
-                log.flushed();
-                final EntityIterableCacheAdapterMutable cache = PersistentStoreTransaction.this.mutableCache;
-                if (cache != null) { // mutableCache can be null if only blobs are modified
-                    applyAtomicCaches(cache);
-                }
+        txn.setCommitHook(() -> {
+            log.flushed();
+            final EntityIterableCacheAdapterMutable cache = PersistentStoreTransaction.this.mutableCache;
+            if (cache != null) { // mutableCache can be null if only blobs are modified
+                applyAtomicCaches(cache);
             }
         });
     }
@@ -894,23 +890,15 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     private void applyExclusiveTransactionCaches() {
         final EntityIterableCacheAdapterMutable cache = this.mutableCache;
         if (cache != null) {
-            UnsafeKt.executeInMetaWriteLock((EnvironmentImpl) store.getEnvironment(), new Function0<Object>() {
-                @Override
-                public Object invoke() {
-                    applyAtomicCaches(cache);
-                    return null;
-                }
+            UnsafeKt.executeInMetaWriteLock((EnvironmentImpl) store.getEnvironment(), () -> {
+                applyAtomicCaches(cache);
+                return null;
             });
         }
     }
 
     private Runnable getRevertCachesBeginHook() {
-        return new Runnable() {
-            @Override
-            public void run() {
-                revertCaches();
-            }
-        };
+        return this::revertCaches;
     }
 
     private void flushNonTransactionalBlobs() {
@@ -982,8 +970,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     private static <V> ObjectCacheBase<PropertyId, V> createObjectCache(final int size) {
         return size == 0 ?
-            new FakeObjectCache<PropertyId, V>() :
-            new TransactionObjectCache<V>(size);
+            new FakeObjectCache<>() :
+            new TransactionObjectCache<>(size);
     }
 
     abstract static class HandleCheckerAdapter implements HandleChecker {

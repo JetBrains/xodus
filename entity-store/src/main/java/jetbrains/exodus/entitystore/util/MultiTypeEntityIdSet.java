@@ -111,7 +111,7 @@ class MultiTypeEntityIdSet implements EntityIdSet {
     }
 
     @Override
-    public Iterator<EntityId> iterator() {
+    public @NotNull Iterator<EntityId> iterator() {
         final Iterator<Map.Entry<Integer, LongSet>> entries = set.entrySet().iterator();
         return new Iterator<EntityId>() {
 

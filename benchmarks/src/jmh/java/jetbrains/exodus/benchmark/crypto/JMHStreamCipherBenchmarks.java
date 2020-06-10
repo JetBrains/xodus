@@ -43,9 +43,9 @@ public class JMHStreamCipherBenchmarks {
     private final StreamCipherProvider salsa20Provider = KryptKt.newCipherProvider(SALSA20_CIPHER_ID);
     private final StreamCipherProvider chaChaProvider = KryptKt.newCipherProvider(CHACHA_CIPHER_ID);
     private final StreamCipherProvider jbChaChaProvider = KryptKt.newCipherProvider(JB_CHACHA_CIPHER_ID);
-    private StreamCipher salsa20Cipher = salsa20Provider.newCipher();
-    private StreamCipher chaChaCipher = chaChaProvider.newCipher();
-    private StreamCipher jbChaChaCipher = jbChaChaProvider.newCipher();
+    private final StreamCipher salsa20Cipher = salsa20Provider.newCipher();
+    private final StreamCipher chaChaCipher = chaChaProvider.newCipher();
+    private final StreamCipher jbChaChaCipher = jbChaChaProvider.newCipher();
 
     @Setup
     public void prepare() {

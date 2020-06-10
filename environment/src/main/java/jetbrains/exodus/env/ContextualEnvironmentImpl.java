@@ -62,23 +62,13 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
     @NotNull
     @Override
     public ContextualStoreImpl openStore(@NotNull final String name, @NotNull final StoreConfig config) {
-        return super.computeInTransaction(new TransactionalComputable<ContextualStoreImpl>() {
-            @Override
-            public ContextualStoreImpl compute(@NotNull final Transaction txn) {
-                return openStore(name, config, txn);
-            }
-        });
+        return super.computeInTransaction(txn -> openStore(name, config, txn));
     }
 
     @Override
     @Nullable
     public ContextualStoreImpl openStore(@NotNull final String name, @NotNull final StoreConfig config, final boolean creationRequired) {
-        return super.computeInTransaction(new TransactionalComputable<ContextualStoreImpl>() {
-            @Override
-            public ContextualStoreImpl compute(@NotNull final Transaction txn) {
-                return openStore(name, config, txn, creationRequired);
-            }
-        });
+        return super.computeInTransaction(txn -> openStore(name, config, txn, creationRequired));
     }
 
     @NotNull

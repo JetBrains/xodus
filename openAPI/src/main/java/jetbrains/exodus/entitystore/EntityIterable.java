@@ -43,6 +43,7 @@ public interface EntityIterable extends Iterable<Entity> {
      * @see EntityIterator
      */
     @Override
+    @NotNull
     EntityIterator iterator();
 
     /**

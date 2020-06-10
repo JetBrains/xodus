@@ -23,7 +23,6 @@ import jetbrains.exodus.log.LogConfig;
 import jetbrains.exodus.tree.btree.BTreeBase;
 import jetbrains.exodus.util.DeferredIO;
 import jetbrains.exodus.util.IOUtil;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -62,25 +61,19 @@ public class TransactionTest extends EnvironmentTestsBase {
 
     @Test
     public void testCommitTwice() {
-        TestUtil.runWithExpectedException(new Runnable() {
-            @Override
-            public void run() {
-                Transaction txn = env.beginTransaction();
-                txn.commit();
-                txn.commit();
-            }
+        TestUtil.runWithExpectedException(() -> {
+            Transaction txn = env.beginTransaction();
+            txn.commit();
+            txn.commit();
         }, TransactionFinishedException.class);
     }
 
     @Test
     public void testAbortTwice() {
-        TestUtil.runWithExpectedException(new Runnable() {
-            @Override
-            public void run() {
-                Transaction txn = env.beginTransaction();
-                txn.abort();
-                txn.abort();
-            }
+        TestUtil.runWithExpectedException(() -> {
+            Transaction txn = env.beginTransaction();
+            txn.abort();
+            txn.abort();
         }, TransactionFinishedException.class);
     }
 
@@ -88,12 +81,7 @@ public class TransactionTest extends EnvironmentTestsBase {
     public void testNestedTransactions() {
         final Transaction txn = env.beginTransaction();
         final Transaction txn1 = env.beginTransaction();
-        TestUtil.runWithExpectedException(new Runnable() {
-            @Override
-            public void run() {
-                txn.commit();
-            }
-        }, ExodusException.class);
+        TestUtil.runWithExpectedException(txn::commit, ExodusException.class);
         txn1.commit();
         txn.commit();
     }
@@ -173,12 +161,7 @@ public class TransactionTest extends EnvironmentTestsBase {
         assertNotNullStringValue(store, key, "value");
         txn = env.beginTransaction();
         assertNotNullStringValue(store, key, "value");
-        executeParallelTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final Transaction txn) {
-                store.put(txn, key, StringBinding.stringToEntry("value1"));
-            }
-        });
+        executeParallelTransaction(txn1 -> store.put(txn1, key, StringBinding.stringToEntry("value1")));
         assertNotNullStringValue(store, key, "value");
         txn.abort();
         assertNotNullStringValue(store, key, "value1");
@@ -190,18 +173,8 @@ public class TransactionTest extends EnvironmentTestsBase {
         final boolean[] bFalse = new boolean[]{true};
         final Transaction txn = env.beginTransaction();
         final Transaction txn1 = env.beginTransaction();
-        env.executeTransactionSafeTask(new Runnable() {
-            @Override
-            public void run() {
-                bTrue[0] = true;
-            }
-        });
-        env.executeTransactionSafeTask(new Runnable() {
-            @Override
-            public void run() {
-                bFalse[0] = false;
-            }
-        });
+        env.executeTransactionSafeTask(() -> bTrue[0] = true);
+        env.executeTransactionSafeTask(() -> bFalse[0] = false);
         Thread.sleep(500);
         Assert.assertFalse(bTrue[0]);
         Assert.assertTrue(bFalse[0]);
@@ -226,28 +199,22 @@ public class TransactionTest extends EnvironmentTestsBase {
         txn.commit();
         txn = env.beginTransaction();
         store.put(txn, key1, StringBinding.stringToEntry("value1"));
-        executeParallelTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final Transaction txn) {
-                try {
-                    assertEmptyValue(txn, store, key1);
-                    assertEmptyValue(txn, store, key2);
-                } catch (Throwable t) {
-                    ok[0] = false;
-                }
+        executeParallelTransaction(txn12 -> {
+            try {
+                assertEmptyValue(txn12, store, key1);
+                assertEmptyValue(txn12, store, key2);
+            } catch (Throwable t) {
+                ok[0] = false;
             }
         });
         txn.flush();
         store.put(txn, key2, StringBinding.stringToEntry("value2"));
-        executeParallelTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final Transaction txn) {
-                try {
-                    assertNotNullStringValue(txn, store, key1, "value1");
-                    assertEmptyValue(txn, store, key2);
-                } catch (Throwable t) {
-                    ok[0] = false;
-                }
+        executeParallelTransaction(txn1 -> {
+            try {
+                assertNotNullStringValue(txn1, store, key1, "value1");
+                assertEmptyValue(txn1, store, key2);
+            } catch (Throwable t) {
+                ok[0] = false;
             }
         });
         txn.flush();
@@ -267,12 +234,7 @@ public class TransactionTest extends EnvironmentTestsBase {
         txn.commit();
         txn = env.beginTransaction();
         store.put(txn, key1, StringBinding.stringToEntry("value1"));
-        executeParallelTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final Transaction txn) {
-                store.put(txn, key2, StringBinding.stringToEntry("value2"));
-            }
-        });
+        executeParallelTransaction(txn1 -> store.put(txn1, key2, StringBinding.stringToEntry("value2")));
         assertNotNullStringValue(store, key1, "value1");
         assertEmptyValue(store, key2);
         txn.revert();
@@ -284,12 +246,7 @@ public class TransactionTest extends EnvironmentTestsBase {
     @Test(expected = ReadonlyTransactionException.class)
     public void testExecuteInReadonlyTransaction() {
         final EnvironmentImpl env = getEnvironment();
-        env.executeInReadonlyTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull Transaction txn) {
-                env.openStore("WTF", StoreConfig.WITHOUT_DUPLICATES, txn);
-            }
-        });
+        env.executeInReadonlyTransaction(txn -> env.openStore("WTF", StoreConfig.WITHOUT_DUPLICATES, txn));
     }
 
     @Test(expected = ReadonlyTransactionException.class)
@@ -299,13 +256,10 @@ public class TransactionTest extends EnvironmentTestsBase {
         final EnvironmentConfig ec = env.getEnvironmentConfig();
         ec.setEnvIsReadonly(true);
         ec.setEnvReadonlyEmptyStores(true);
-        env.executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull Transaction txn) {
-                final StoreImpl store = env.openStore("WTF", StoreConfig.WITHOUT_DUPLICATES, txn);
-                final ArrayByteIterable wtfEntry = StringBinding.stringToEntry("WTF");
-                store.put(txn, wtfEntry, wtfEntry);
-            }
+        env.executeInTransaction(txn -> {
+            final StoreImpl store = env.openStore("WTF", StoreConfig.WITHOUT_DUPLICATES, txn);
+            final ArrayByteIterable wtfEntry = StringBinding.stringToEntry("WTF");
+            store.put(txn, wtfEntry, wtfEntry);
         });
     }
 
@@ -316,12 +270,9 @@ public class TransactionTest extends EnvironmentTestsBase {
         final EnvironmentConfig ec = env.getEnvironmentConfig();
         ec.setEnvIsReadonly(true);
         ec.setEnvReadonlyEmptyStores(true);
-        env.executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull Transaction txn) {
-                final StoreImpl store = env.openStore("WTF", StoreConfig.WITHOUT_DUPLICATES, txn);
-                store.delete(txn, StringBinding.stringToEntry("WTF"));
-            }
+        env.executeInTransaction(txn -> {
+            final StoreImpl store = env.openStore("WTF", StoreConfig.WITHOUT_DUPLICATES, txn);
+            store.delete(txn, StringBinding.stringToEntry("WTF"));
         });
     }
 
@@ -334,14 +285,11 @@ public class TransactionTest extends EnvironmentTestsBase {
         final EnvironmentConfig ec = env.getEnvironmentConfig();
         ec.setEnvIsReadonly(true);
         ec.setEnvFailFastInReadonly(false);
-        env.executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull Transaction txn) {
-                final StoreImpl store = env.openStore("WTF", StoreConfig.WITHOUT_DUPLICATES, txn);
-                final ArrayByteIterable wtfEntry = StringBinding.stringToEntry("WTF");
-                store.put(txn, wtfEntry, wtfEntry);
-                throw new TestFailFastException();
-            }
+        env.executeInTransaction(txn -> {
+            final StoreImpl store = env.openStore("WTF", StoreConfig.WITHOUT_DUPLICATES, txn);
+            final ArrayByteIterable wtfEntry = StringBinding.stringToEntry("WTF");
+            store.put(txn, wtfEntry, wtfEntry);
+            throw new TestFailFastException();
         });
     }
 
@@ -349,12 +297,7 @@ public class TransactionTest extends EnvironmentTestsBase {
     @TestFor(issues = "XD-401")
     public void test_XD_401() throws Exception {
         final Environment env = getEnvironment();
-        final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
-            @Override
-            public Store compute(@NotNull final Transaction txn) {
-                return env.openStore("store", StoreConfig.WITH_DUPLICATES, txn);
-            }
-        });
+        final Store store = env.computeInTransaction(txn -> env.openStore("store", StoreConfig.WITH_DUPLICATES, txn));
         final Transaction txn = env.beginTransaction();
         final long started = txn.getStartTime();
         store.put(txn, StringBinding.stringToEntry("key"), StringBinding.stringToEntry("value"));
@@ -498,29 +441,21 @@ public class TransactionTest extends EnvironmentTestsBase {
     @TestFor(issues = "XD-477")
     public void test_XD_477() {
         getEnvironment().getEnvironmentConfig().setEnvTxnReplayTimeout(500L);
-        getEnvironment().executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull Transaction txn) {
-                env.openStore("new store", StoreConfig.WITHOUT_DUPLICATES, txn);
-                getEnvironment().executeInTransaction(new TransactionalExecutable() {
-                    @Override
-                    public void execute(@NotNull Transaction txn) {
-                        env.openStore("new store 2", StoreConfig.WITHOUT_DUPLICATES, txn);
-                    }
-                });
-                txn.flush();
-                Assert.assertFalse(txn.isExclusive());
-                txn.revert();
-                Assert.assertFalse(txn.isExclusive());
-                // here transaction is idempotent and not exclusive
-                try {
-                    Thread.sleep(600);
-                } catch (InterruptedException ignore) {
-                    Thread.currentThread().interrupt();
-                }
-                txn.revert();
-                Assert.assertFalse(txn.isExclusive());
+        getEnvironment().executeInTransaction(txn -> {
+            env.openStore("new store", StoreConfig.WITHOUT_DUPLICATES, txn);
+            getEnvironment().executeInTransaction(txn1 -> env.openStore("new store 2", StoreConfig.WITHOUT_DUPLICATES, txn1));
+            txn.flush();
+            Assert.assertFalse(txn.isExclusive());
+            txn.revert();
+            Assert.assertFalse(txn.isExclusive());
+            // here transaction is idempotent and not exclusive
+            try {
+                Thread.sleep(600);
+            } catch (InterruptedException ignore) {
+                Thread.currentThread().interrupt();
             }
+            txn.revert();
+            Assert.assertFalse(txn.isExclusive());
         });
     }
 
@@ -528,21 +463,11 @@ public class TransactionTest extends EnvironmentTestsBase {
     @TestFor(issues = "XD-478")
     public void test_XD_478() {
         final EnvironmentImpl env = getEnvironment();
-        final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
-            @Override
-            public Store compute(@NotNull Transaction txn) {
-                return env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn);
-            }
-        });
+        final Store store = env.computeInTransaction((TransactionalComputable<Store>) txn -> env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn));
         final TransactionBase txn = env.beginTransaction();
         try {
             Assert.assertFalse(store.exists(txn, StringBinding.stringToEntry("key"), StringBinding.stringToEntry("value")));
-            env.executeInTransaction(new TransactionalExecutable() {
-                @Override
-                public void execute(@NotNull Transaction tx) {
-                    store.put(tx, StringBinding.stringToEntry("key"), StringBinding.stringToEntry("value"));
-                }
-            });
+            env.executeInTransaction(tx -> store.put(tx, StringBinding.stringToEntry("key"), StringBinding.stringToEntry("value")));
             txn.revert();
             Assert.assertTrue(store.exists(txn, StringBinding.stringToEntry("key"), StringBinding.stringToEntry("value")));
         } finally {
@@ -558,37 +483,23 @@ public class TransactionTest extends EnvironmentTestsBase {
         env.getEnvironmentConfig().setGcEnabled(true);
         env.getEnvironmentConfig().setGcMinUtilization(90);
         env.getEnvironmentConfig().setGcStartIn(0);
-        final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
-            @Override
-            public Store compute(@NotNull Transaction txn) {
-                return env.openStore("new store", StoreConfig.WITHOUT_DUPLICATES, txn);
+        final Store store = env.computeInTransaction((TransactionalComputable<Store>) txn -> env.openStore("new store", StoreConfig.WITHOUT_DUPLICATES, txn));
+        env.executeInTransaction(t -> {
+            for (int i = 0; i < 30; ++i) {
+                final int j = i;
+                env.executeInTransaction(txn -> {
+                    store.put(txn, IntegerBinding.intToEntry(0), IntegerBinding.intToEntry(j));
+                    store.put(txn, IntegerBinding.intToEntry(j / 2), IntegerBinding.intToEntry(j));
+                });
             }
         });
-        env.executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull Transaction t) {
-                for (int i = 0; i < 30; ++i) {
-                    final int j = i;
-                    env.executeInTransaction(new TransactionalExecutable() {
-                        @Override
-                        public void execute(@NotNull Transaction txn) {
-                            store.put(txn, IntegerBinding.intToEntry(0), IntegerBinding.intToEntry(j));
-                            store.put(txn, IntegerBinding.intToEntry(j / 2), IntegerBinding.intToEntry(j));
-                        }
-                    });
-                }
+        env.executeInTransaction(txn -> {
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException ignore) {
+                Thread.currentThread().interrupt();
             }
-        });
-        env.executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull Transaction txn) {
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException ignore) {
-                    Thread.currentThread().interrupt();
-                }
-                env.suspendGC();
-            }
+            env.suspendGC();
         });
     }
 

@@ -276,47 +276,44 @@ public final class EntityIterableCache {
                 }
             }
             stats.incTotalJobsStarted();
-            store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
-                @Override
-                public void execute(@NotNull final StoreTransaction tx) {
-                    if (!handle.isConsistent()) {
-                        handle.resetBirthTime();
+            store.executeInReadonlyTransaction(tx -> {
+                if (!handle.isConsistent()) {
+                    handle.resetBirthTime();
+                }
+                final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
+                cancellingPolicy.setLocalCache(txn.getLocalCache());
+                txn.setQueryCancellingPolicy(cancellingPolicy);
+                try {
+                    if (!logger.isInfoEnabled()) {
+                        it.getOrCreateCachedInstance(txn, !cancellingPolicy.isConsistent);
+                    } else {
+                        it.getOrCreateCachedInstance(txn, !cancellingPolicy.isConsistent);
+                        final long cachedIn = System.currentTimeMillis() - started;
+                        if (cachedIn > 1000) {
+                            String action = cancellingPolicy.isConsistent ? "Cached" : "Cached (inconsistent)";
+                            logger.info(action + " in " + cachedIn + " ms, handle=" + getStringPresentation(config, handle));
+                        }
                     }
-                    final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
-                    cancellingPolicy.setLocalCache(txn.getLocalCache());
-                    txn.setQueryCancellingPolicy(cancellingPolicy);
-                    try {
-                        if (!logger.isInfoEnabled()) {
-                            it.getOrCreateCachedInstance(txn, !cancellingPolicy.isConsistent);
-                        } else {
-                            it.getOrCreateCachedInstance(txn, !cancellingPolicy.isConsistent);
-                            final long cachedIn = System.currentTimeMillis() - started;
-                            if (cachedIn > 1000) {
-                                String action = cancellingPolicy.isConsistent ? "Cached" : "Cached (inconsistent)";
-                                logger.info(action + " in " + cachedIn + " ms, handle=" + getStringPresentation(config, handle));
-                            }
-                        }
-                    } catch (ReadonlyTransactionException rte) {
-                        // work around XD-626
+                } catch (ReadonlyTransactionException rte) {
+                    // work around XD-626
+                    final String action = cancellingPolicy.isConsistent ? "Caching" : "Caching (inconsistent)";
+                    logger.error(action + " failed with ReadonlyTransactionException. Re-queueing...");
+                    queue(Priority.below_normal);
+                } catch (TooLongEntityIterableInstantiationException e) {
+                    stats.incTotalJobsInterrupted();
+                    if (isConsistent) {
+                        heavyIterablesCache.cacheObject(iterableIdentity, System.currentTimeMillis());
+                    }
+                    if (logger.isInfoEnabled()) {
                         final String action = cancellingPolicy.isConsistent ? "Caching" : "Caching (inconsistent)";
-                        logger.error(action + " failed with ReadonlyTransactionException. Re-queueing...");
-                        queue(Priority.below_normal);
-                    } catch (TooLongEntityIterableInstantiationException e) {
-                        stats.incTotalJobsInterrupted();
-                        if (isConsistent) {
-                            heavyIterablesCache.cacheObject(iterableIdentity, System.currentTimeMillis());
-                        }
-                        if (logger.isInfoEnabled()) {
-                            final String action = cancellingPolicy.isConsistent ? "Caching" : "Caching (inconsistent)";
-                            logger.info(action + " forcedly stopped, " + e.reason.message + ": " + getStringPresentation(config, handle));
-                        }
+                        logger.info(action + " forcedly stopped, " + e.reason.message + ": " + getStringPresentation(config, handle));
                     }
                 }
             });
         }
     }
 
-    @SuppressWarnings({"serial", "SerializableClassInSecureContext", "EmptyClass", "SerializableHasSerializationMethods", "DeserializableClassInSecureContext"})
+    @SuppressWarnings({"serial", "SerializableHasSerializationMethods"})
     private static class TooLongEntityIterableInstantiationException extends ExodusException {
         private final TooLongEntityIterableInstantiationReason reason;
 

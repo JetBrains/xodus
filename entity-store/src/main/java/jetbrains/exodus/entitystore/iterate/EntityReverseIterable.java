@@ -15,18 +15,16 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
-import jetbrains.exodus.entitystore.*;
+import jetbrains.exodus.entitystore.EntityIterableHandle;
+import jetbrains.exodus.entitystore.EntityIterableType;
+import jetbrains.exodus.entitystore.EntityIterator;
+import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import org.jetbrains.annotations.NotNull;
 
 public final class EntityReverseIterable extends EntityIterableDecoratorBase {
 
     static {
-        registerType(getType(), new EntityIterableInstantiator() {
-            @Override
-            public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new EntityReverseIterable(txn, (EntityIterableBase) parameters[0]);
-            }
-        });
+        registerType(getType(), (txn, store, parameters) -> new EntityReverseIterable(txn, (EntityIterableBase) parameters[0]));
     }
 
     public EntityReverseIterable(@NotNull final PersistentStoreTransaction txn,

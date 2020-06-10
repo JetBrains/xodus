@@ -49,7 +49,7 @@ public abstract class AbstractConfig {
 
     protected AbstractConfig(@NotNull final Pair<String, Object>[] props, @NotNull final ConfigurationStrategy strategy) {
         settings = new StringHashMap<>();
-        listeners = Collections.newSetFromMap(new ConcurrentHashMap<ConfigSettingChangeListener, Boolean>());
+        listeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
         isMutable = true;
         for (final Pair<String, Object> prop : props) {
             final String propName = prop.getFirst();

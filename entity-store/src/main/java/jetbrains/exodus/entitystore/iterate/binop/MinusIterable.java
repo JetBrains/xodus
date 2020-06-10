@@ -23,13 +23,8 @@ import org.jetbrains.annotations.Nullable;
 public final class MinusIterable extends BinaryOperatorEntityIterable {
 
     static {
-        EntityIterableBase.registerType(EntityIterableType.MINUS, new EntityIterableInstantiator() {
-            @Override
-            public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new MinusIterable(txn,
-                        (EntityIterableBase) parameters[0], (EntityIterableBase) parameters[1]);
-            }
-        });
+        EntityIterableBase.registerType(EntityIterableType.MINUS, (txn, store, parameters) -> new MinusIterable(txn,
+            (EntityIterableBase) parameters[0], (EntityIterableBase) parameters[1]));
     }
 
     public MinusIterable(@Nullable final PersistentStoreTransaction txn,

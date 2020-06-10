@@ -178,7 +178,6 @@ public class LongArrayList implements Cloneable {
 
     private void checkRange(final int index) {
         if (index >= size || index < 0) {
-            //noinspection HardCodedStringLiteral
             throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
         }
     }

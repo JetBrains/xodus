@@ -22,7 +22,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
 
-@SuppressWarnings({"IfStatementWithTooManyBranches", "rawtypes", "ClassNamingConvention"})
+@SuppressWarnings({"rawtypes"})
 public class QueryUtil {
 
     private static final float FLOAT_PRECISION = 0.0001f;

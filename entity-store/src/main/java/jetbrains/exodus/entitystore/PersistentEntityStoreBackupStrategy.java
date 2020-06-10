@@ -69,37 +69,31 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
 
     @Override
     public Iterable<VirtualFileDescriptor> getContents() {
-        return new Iterable<VirtualFileDescriptor>() {
-            @NotNull
+        return () -> new Iterator<VirtualFileDescriptor>() {
+
+            private Iterator<VirtualFileDescriptor> filesIterator = environmentBackupStrategy.getContents().iterator();
+            private boolean environmentListed = false;
+
             @Override
-            public Iterator<VirtualFileDescriptor> iterator() {
-                return new Iterator<VirtualFileDescriptor>() {
-
-                    private Iterator<VirtualFileDescriptor> filesIterator = environmentBackupStrategy.getContents().iterator();
-                    private boolean environmentListed = false;
-
-                    @Override
-                    public boolean hasNext() {
-                        while (!filesIterator.hasNext()) {
-                            if (environmentListed) {
-                                return false;
-                            }
-                            environmentListed = true;
-                            filesIterator = blobVaultBackupStrategy.getContents().iterator();
-                        }
-                        return true;
+            public boolean hasNext() {
+                while (!filesIterator.hasNext()) {
+                    if (environmentListed) {
+                        return false;
                     }
+                    environmentListed = true;
+                    filesIterator = blobVaultBackupStrategy.getContents().iterator();
+                }
+                return true;
+            }
 
-                    @Override
-                    public VirtualFileDescriptor next() {
-                        return filesIterator.next();
-                    }
+            @Override
+            public VirtualFileDescriptor next() {
+                return filesIterator.next();
+            }
 
-                    @Override
-                    public void remove() {
-                        throw new UnsupportedOperationException();
-                    }
-                };
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException();
             }
         };
     }

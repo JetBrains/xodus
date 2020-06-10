@@ -183,35 +183,23 @@ public class LongLinkedHashMapTest {
             tested.put(i, Long.toString(i));
         }
         final int[] ii = {0};
-        tested.forEachKey(new ObjectProcedure<Long>() {
-            @Override
-            public boolean execute(Long object) {
-                ii[0]++;
-                return true;
-            }
+        tested.forEachKey(object -> {
+            ii[0]++;
+            return true;
         });
-        tested.forEachValue(new ObjectProcedure<String>() {
-            @Override
-            public boolean execute(String object) {
-                ii[0]++;
-                return true;
-            }
+        tested.forEachValue(object -> {
+            ii[0]++;
+            return true;
         });
         Assert.assertEquals(tested.size() * 2, ii[0]);
         ii[0] = 0;
-        tested.forEachKey(new ObjectProcedure<Long>() {
-            @Override
-            public boolean execute(Long object) {
-                ii[0]++;
-                return object > 99500;
-            }
+        tested.forEachKey(object -> {
+            ii[0]++;
+            return object > 99500;
         });
-        tested.forEachValue(new ObjectProcedure<String>() {
-            @Override
-            public boolean execute(String object) {
-                ii[0]++;
-                return true;
-            }
+        tested.forEachValue(object -> {
+            ii[0]++;
+            return true;
         });
         Assert.assertEquals(tested.size() + 500, ii[0]);
     }

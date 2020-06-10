@@ -19,7 +19,6 @@ import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogConfig;
 import jetbrains.exodus.log.NullLoggable;
 import jetbrains.exodus.tree.btree.BTreeBase;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Test;
 
 public class EnvironmentRecoveryTest extends EnvironmentTestsBase {
@@ -113,18 +112,8 @@ public class EnvironmentRecoveryTest extends EnvironmentTestsBase {
             log.write(NullLoggable.create());
         }
         log.endWrite();
-        env.executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull Transaction txn) {
-                env.openStore("new_store", StoreConfig.WITHOUT_DUPLICATES, txn);
-            }
-        });
-        env.executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull Transaction txn) {
-                env.openStore("another_store", StoreConfig.WITHOUT_DUPLICATES, txn);
-            }
-        });
+        env.executeInTransaction(txn -> env.openStore("new_store", StoreConfig.WITHOUT_DUPLICATES, txn));
+        env.executeInTransaction(txn -> env.openStore("another_store", StoreConfig.WITHOUT_DUPLICATES, txn));
         env.close();
         writer.openOrCreateBlock(fileSize, 0);
         writer.close();
@@ -133,18 +122,8 @@ public class EnvironmentRecoveryTest extends EnvironmentTestsBase {
     }
 
     private void cutAndCheckLastLoggableIncomplete(int cutAt, int max) {
-        env.executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull Transaction txn) {
-                env.openStore("new_store", StoreConfig.WITHOUT_DUPLICATES, txn);
-            }
-        });
-        env.executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull Transaction txn) {
-                env.openStore("another_store", StoreConfig.WITHOUT_DUPLICATES, txn);
-            }
-        });
+        env.executeInTransaction(txn -> env.openStore("new_store", StoreConfig.WITHOUT_DUPLICATES, txn));
+        env.executeInTransaction(txn -> env.openStore("another_store", StoreConfig.WITHOUT_DUPLICATES, txn));
         assertLoggableTypes(getLog(), 0, SEQ);
         env.close();
 

@@ -63,14 +63,14 @@ public class LightOutputStream extends OutputStream {
     }
 
     @Override
-    public void write(@NotNull byte[] fromBuf) {
+    public void write(@NotNull byte @NotNull [] fromBuf) {
         ensureCapacity(len + fromBuf.length);
         System.arraycopy(fromBuf, 0, buf, len, fromBuf.length);
         len += fromBuf.length;
     }
 
     @Override
-    public void write(@NotNull byte[] fromBuf, int offset, int length) {
+    public void write(@NotNull byte @NotNull [] fromBuf, int offset, int length) {
         ensureCapacity(len + length);
         System.arraycopy(fromBuf, offset, buf, len, length);
         len += length;

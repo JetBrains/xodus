@@ -37,19 +37,16 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
     private final Comparable max;
 
     static {
-        registerType(getType(), new EntityIterableInstantiator() {
-            @Override
-            public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                try {
-                    long min = Long.parseLong((String) parameters[2]);
-                    long max = Long.parseLong((String) parameters[3]);
-                    return new PropertyRangeIterable(txn,
-                        Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]), min, max);
-                } catch (NumberFormatException e) {
-                    return new PropertyRangeIterable(txn,
-                        Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]),
-                        (Comparable) parameters[2], (Comparable) parameters[3]);
-                }
+        registerType(getType(), (txn, store, parameters) -> {
+            try {
+                long min = Long.parseLong((String) parameters[2]);
+                long max = Long.parseLong((String) parameters[3]);
+                return new PropertyRangeIterable(txn,
+                    Integer.parseInt((String) parameters[0]), Integer.parseInt((String) parameters[1]), min, max);
+            } catch (NumberFormatException e) {
+                return new PropertyRangeIterable(txn,
+                    Integer.parseInt((String) parameters[0]), Integer.parseInt((String) parameters[1]),
+                    (Comparable) parameters[2], (Comparable) parameters[3]);
             }
         });
     }

@@ -170,7 +170,7 @@ public class ConcurrentStablePriorityQueue<P extends Comparable<? super P>, E> e
     }
 
     @Override
-    public Iterator<E> iterator() {
+    public @NotNull Iterator<E> iterator() {
         final Pair<Persistent23Tree<TreeNode<P, E>>, PersistentHashSet<IdentifiedTreeNode<P, E>>> currentPair = getCurrent();
         if (currentPair == null) {
             final List<E> objects = Collections.emptyList();

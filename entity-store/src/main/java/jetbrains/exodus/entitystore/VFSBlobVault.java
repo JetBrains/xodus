@@ -117,24 +117,18 @@ public class VFSBlobVault extends BlobVault {
                            @Nullable final LongSet deferredBlobsToDelete,
                            @NotNull final Transaction txn) throws Exception {
         if (blobStreams != null) {
-            blobStreams.forEachEntry(new ObjectProcedureThrows<Map.Entry<Long, InputStream>, Exception>() {
-                @Override
-                public boolean execute(final Map.Entry<Long, InputStream> object) throws Exception {
-                    final InputStream stream = object.getValue();
-                    stream.reset();
-                    setContent(object.getKey(), stream, txn);
-                    return true;
-                }
+            blobStreams.forEachEntry((ObjectProcedureThrows<Map.Entry<Long, InputStream>, Exception>) object -> {
+                final InputStream stream = object.getValue();
+                stream.reset();
+                setContent(object.getKey(), stream, txn);
+                return true;
             });
         }
         // if there were blob files then move them
         if (blobFiles != null) {
-            blobFiles.forEachEntry(new ObjectProcedureThrows<Map.Entry<Long, File>, Exception>() {
-                @Override
-                public boolean execute(final Map.Entry<Long, File> object) throws Exception {
-                    setContent(object.getKey(), object.getValue(), txn);
-                    return true;
-                }
+            blobFiles.forEachEntry((ObjectProcedureThrows<Map.Entry<Long, File>, Exception>) object -> {
+                setContent(object.getKey(), object.getValue(), txn);
+                return true;
             });
         }
         // if there are deferred blobs to delete then defer their deletion
@@ -175,12 +169,7 @@ public class VFSBlobVault extends BlobVault {
         final BlobVault sourceVault = new FileSystemBlobVaultOld(store.getConfig(), store.getLocation(),
                 "blobs", ".blob", BlobHandleGenerator.IMMUTABLE);
 
-        final LongSet allBlobs = store.computeInReadonlyTransaction(new StoreTransactionalComputable<LongSet>() {
-            @Override
-            public LongSet compute(@NotNull final StoreTransaction txn) {
-                return loadAllBlobs(store, (PersistentStoreTransaction) txn);
-            }
-        });
+        final LongSet allBlobs = store.computeInReadonlyTransaction(txn -> loadAllBlobs(store, (PersistentStoreTransaction) txn));
         final Environment env = fs.getEnvironment();
         final Transaction txn = env.beginTransaction();
         try {

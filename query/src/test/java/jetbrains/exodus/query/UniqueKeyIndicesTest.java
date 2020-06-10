@@ -21,7 +21,6 @@ import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.query.metadata.Index;
 import jetbrains.exodus.query.metadata.IndexField;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.junit.Assert;
 
@@ -51,12 +50,9 @@ public class UniqueKeyIndicesTest extends EntityStoreTestBase {
         createData();
         testValidColumns(ukiEngine, "column1", "column2");
         // test proper updating
-        getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                entity1.setProperty("column0", 1);
-                entity1.setProperty("column1", "o");
-            }
+        getEntityStore().executeInTransaction(txn -> {
+            entity1.setProperty("column0", 1);
+            entity1.setProperty("column1", "o");
         });
         testValidColumns(ukiEngine, "column0"); // index for (column1, column2) should become obsolete
         testInvalidColumns(ukiEngine, "column1", "column2"); // new index creates and checks constraint
@@ -91,54 +87,40 @@ public class UniqueKeyIndicesTest extends EntityStoreTestBase {
     public void testRecreateIndices_XD_393() {
         createData();
         testValidColumns(ukiEngine, "column0", "column1"); // create index
-        getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                final PersistentStoreTransaction t = (PersistentStoreTransaction) txn;
-                entity1.setProperty("column0", 1);
-                entity1.setProperty("column1", "o");
-                ukiEngine.deleteUniqueKey(t, new TestIndex("column0", "column1"), Arrays.asList((Comparable) Integer.valueOf(0), "oo"));
-                ukiEngine.insertUniqueKey(t, new TestIndex("column0", "column1"), Arrays.asList((Comparable) Integer.valueOf(1), "o"), entity1);
-            }
+        getEntityStore().executeInTransaction((StoreTransactionalExecutable) txn -> {
+            final PersistentStoreTransaction t = (PersistentStoreTransaction) txn;
+            entity1.setProperty("column0", 1);
+            entity1.setProperty("column1", "o");
+            ukiEngine.deleteUniqueKey(t, new TestIndex("column0", "column1"), Arrays.asList((Comparable) 0, "oo"));
+            ukiEngine.insertUniqueKey(t, new TestIndex("column0", "column1"), Arrays.asList((Comparable) 1, "o"), entity1);
         });
         testValidColumns(ukiEngine); // remove index
         testValidColumns(ukiEngine, "column0", "column1"); // recreate index
-        TestUtil.runWithExpectedException(new Runnable() {
-            @Override
-            public void run() {
-                getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
-                    @Override
-                    public void execute(@NotNull StoreTransaction txn) {
-                        final PersistentStoreTransaction t = (PersistentStoreTransaction) txn;
-                        ukiEngine.insertUniqueKey(t, new TestIndex("column0", "column1"), Arrays.asList((Comparable) Integer.valueOf(1), "o"), entity1);
-                    }
-                });
-            }
-        }, InsertConstraintException.class);
+        TestUtil.runWithExpectedException((Runnable) () -> getEntityStore().executeInTransaction((StoreTransactionalExecutable) txn -> {
+            final PersistentStoreTransaction t = (PersistentStoreTransaction) txn;
+            ukiEngine.insertUniqueKey(t, new TestIndex("column0", "column1"), Arrays.asList((Comparable) 1, "o"), entity1);
+        }), InsertConstraintException.class);
     }
 
     private void createData() {
-        getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                final Entity entity0 = txn.newEntity("Issue");
-                entity0.setProperty("column0", 0);
-                entity0.setProperty("column1", "o");
-                entity0.setProperty("column2", 0L);
-                entity0.setProperty("column3", 0.0);
-                entity1 = txn.newEntity("Issue");
-                entity1.setProperty("column0", 0);
-                entity1.setProperty("column1", "oo");
-                entity1.setProperty("column2", 0L);
-                entity1.setProperty("column3", 0.0);
-            }
+        getEntityStore().executeInTransaction(txn -> {
+            final Entity entity0 = txn.newEntity("Issue");
+            entity0.setProperty("column0", 0);
+            entity0.setProperty("column1", "o");
+            entity0.setProperty("column2", 0L);
+            entity0.setProperty("column3", 0.0);
+            entity1 = txn.newEntity("Issue");
+            entity1.setProperty("column0", 0);
+            entity1.setProperty("column1", "oo");
+            entity1.setProperty("column2", 0L);
+            entity1.setProperty("column3", 0.0);
         });
     }
 
     private static void testValidColumns(final UniqueKeyIndicesEngine engine, String... columns) {
         Throwable t = null;
         try {
-            engine.updateUniqueKeyIndices(columns.length == 0 ? new HashSet<Index>() : getIndices(columns));
+            engine.updateUniqueKeyIndices(columns.length == 0 ? new HashSet<>() : getIndices(columns));
         } catch (Throwable e) {
             t = e;
         }
@@ -159,7 +141,7 @@ public class UniqueKeyIndicesTest extends EntityStoreTestBase {
     }
 
     private static Set<Index> getIndices(String... columns) {
-        return new NanoSet<Index>(new TestIndex(columns));
+        return new NanoSet<>(new TestIndex(columns));
     }
 
     private static final class TestIndex implements Index {
@@ -167,7 +149,6 @@ public class UniqueKeyIndicesTest extends EntityStoreTestBase {
         private final String[] columns;
 
 
-        @SuppressWarnings("AssignmentToCollectionOrArrayFieldFromParameter")
         private TestIndex(String... columns) {
             this.columns = columns;
         }

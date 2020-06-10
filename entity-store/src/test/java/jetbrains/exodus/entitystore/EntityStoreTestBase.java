@@ -171,12 +171,7 @@ public abstract class EntityStoreTestBase extends TestBase {
 
     @NotNull
     private static StoreTransactionalExecutable wrap(@NotNull final EntityStoreTestBase.PersistentStoreTransactionalExecutable executable) {
-        return new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                executable.execute((PersistentStoreTransaction) txn);
-            }
-        };
+        return (StoreTransactionalExecutable) txn -> executable.execute((PersistentStoreTransaction) txn);
     }
 
     public interface PersistentStoreTransactionalExecutable {

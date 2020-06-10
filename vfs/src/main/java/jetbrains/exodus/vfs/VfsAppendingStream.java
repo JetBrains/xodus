@@ -66,7 +66,6 @@ class VfsAppendingStream extends OutputStream {
         } else {
             outputCluster = new byte[clusterSize];
             if (currentClusterSize > 0) {
-                //noinspection ConstantConditions
                 currentCluster.copyTo(outputCluster);
             }
             position = currentClusterSize;

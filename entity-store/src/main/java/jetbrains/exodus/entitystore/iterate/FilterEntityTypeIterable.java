@@ -22,13 +22,8 @@ import org.jetbrains.annotations.Nullable;
 class FilterEntityTypeIterable extends EntityIterableDecoratorBase {
 
     static {
-        registerType(getType(), new EntityIterableInstantiator() {
-            @Override
-            public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new FilterEntityTypeIterable(txn,
-                        Integer.valueOf((String) parameters[0]), (EntityIterableBase) parameters[1]);
-            }
-        });
+        registerType(getType(), (txn, store, parameters) -> new FilterEntityTypeIterable(txn,
+            Integer.parseInt((String) parameters[0]), (EntityIterableBase) parameters[1]));
     }
 
     private final int entityTypeId;

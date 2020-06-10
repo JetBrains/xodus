@@ -33,14 +33,14 @@ public class EntityMetaDataImpl implements EntityMetaData {
     private final AtomicReference<ModelMetaData> modelMetaData;
     private String type = null;
     private String superType = null;
-    private Set<String> interfaces = new LinkedHashSetDecorator<>();
+    private final Set<String> interfaces = new LinkedHashSetDecorator<>();
     private Runnable initializer = null;
     private boolean removeOrphan = true;
     private boolean isAbstract = false;
-    private Set<String> subTypes = new LinkedHashSetDecorator<>();
+    private final Set<String> subTypes = new LinkedHashSetDecorator<>();
     private List<String> thisAndSuperTypes = Collections.emptyList();
     private Set<AssociationEndMetaData> externalAssociationEnds = null;
-    private Map<String, PropertyMetaData> properties = new HashMapDecorator<>();
+    private final Map<String, PropertyMetaData> properties = new HashMapDecorator<>();
     private Set<Index> ownIndexes = Collections.emptySet();
     private Set<String> requiredProperties = Collections.emptySet();
     private Set<String> requiredIfProperties = Collections.emptySet();
@@ -369,7 +369,7 @@ public class EntityMetaDataImpl implements EntityMetaData {
         updateIndexes();
 
         Set<Index> res = fieldToIndexes.get(field);
-        return res == null ? Collections.<Index>emptySet() : res;
+        return res == null ? Collections.emptySet() : res;
     }
 
     private void updateIndexes() {
@@ -449,8 +449,8 @@ public class EntityMetaDataImpl implements EntityMetaData {
                         result = new Ends();
                     } else {
                         result = new Ends(
-                            new HashMap<String, AssociationEndMetaData>(externalAssociationEnds.size()),
-                            new LinkedHashSetDecorator<String>());
+                            new HashMap<>(externalAssociationEnds.size()),
+                            new LinkedHashSetDecorator<>());
                         for (final AssociationEndMetaData aemd : externalAssociationEnds) {
                             result.associationEnds.put(aemd.getName(), aemd);
                             if (aemd.getAssociationEndType() == AssociationEndType.ChildEnd) {
@@ -487,7 +487,7 @@ public class EntityMetaDataImpl implements EntityMetaData {
         private final Set<String> aggregationChildEnds;
 
         private Ends() {
-            this(Collections.<String, AssociationEndMetaData>emptyMap(), Collections.<String>emptySet());
+            this(Collections.emptyMap(), Collections.emptySet());
         }
 
         private Ends(@NotNull final Map<String, AssociationEndMetaData> associationEnds,

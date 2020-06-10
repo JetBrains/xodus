@@ -16,6 +16,7 @@
 package jetbrains.exodus.core.dataStructures.hash;
 
 import jetbrains.exodus.util.MathUtil;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.AbstractSet;
 import java.util.Iterator;
@@ -115,7 +116,7 @@ public class IntHashSet extends AbstractSet<Integer> {
     }
 
     @Override
-    public Iterator<Integer> iterator() {
+    public @NotNull Iterator<Integer> iterator() {
         return new HashSetIterator<Integer>() {
             @Override
             public Integer next() {

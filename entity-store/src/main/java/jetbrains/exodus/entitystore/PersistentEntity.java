@@ -29,7 +29,6 @@ import java.io.InputStream;
 import java.util.Collection;
 import java.util.List;
 
-@SuppressWarnings({"unchecked"})
 public class PersistentEntity implements Entity, TxnProvider {
 
     @NotNull

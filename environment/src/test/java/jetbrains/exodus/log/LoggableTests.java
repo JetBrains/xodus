@@ -111,7 +111,7 @@ public class LoggableTests {
     @Test
     public void testCompoundByteIteratorSkip2() {
         CompoundByteIteratorBase iterator = new CompoundByteIteratorBase() {
-            byte[][] a = {{1}, {2}, {3}, {4}};
+            final byte[][] a = {{1}, {2}, {3}, {4}};
             int current = 0;
 
             @Override

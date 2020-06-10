@@ -17,7 +17,6 @@ package jetbrains.exodus.entitystore.iterate.binop;
 
 import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
-import jetbrains.exodus.entitystore.iterate.EntityIterableInstantiator;
 import jetbrains.exodus.entitystore.iterate.EntityIteratorBase;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -27,13 +26,8 @@ import java.util.NoSuchElementException;
 public class AddNullDecoratorIterable extends BinaryOperatorEntityIterable {
 
     static {
-        registerType(EntityIterableType.ADD_NULL, new EntityIterableInstantiator() {
-            @Override
-            public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new AddNullDecoratorIterable(txn, 
-                        (EntityIterableBase) parameters[0], (EntityIterableBase) parameters[1]);
-            }
-        });
+        registerType(EntityIterableType.ADD_NULL, (txn, store, parameters) -> new AddNullDecoratorIterable(txn,
+            (EntityIterableBase) parameters[0], (EntityIterableBase) parameters[1]));
     }
 
     public AddNullDecoratorIterable(@NotNull final PersistentStoreTransaction txn,

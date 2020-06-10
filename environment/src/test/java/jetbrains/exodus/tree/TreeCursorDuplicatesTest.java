@@ -62,8 +62,8 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
             @Override
             public void run() {
                 Cursor c = _t.openCursor();
-                assertEquals(false, c.getKey().iterator().hasNext());
-                assertEquals(false, c.getValue().iterator().hasNext());
+                assertFalse(c.getKey().iterator().hasNext());
+                assertFalse(c.getValue().iterator().hasNext());
             }
         };
 
@@ -109,12 +109,12 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
                 Cursor c = _t.openCursor();
 
                 for (INode ln : values) {
-                    assertEquals(true, c.getNext());
+                    assertTrue(c.getNext());
                     assertEquals(ln.getValue(), c.getValue());
                     assertEquals(ln.getKey(), c.getKey());
                 }
 
-                assertEquals(false, c.getNext());
+                assertFalse(c.getNext());
             }
         };
 
@@ -176,12 +176,12 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
                 Cursor c = _t.openCursor();
 
                 for (INode ln : valuesNoDup) {
-                    assertEquals(true, c.getNextNoDup());
+                    assertTrue(c.getNextNoDup());
                     assertEquals(ln.getValue(), c.getValue());
                     assertEquals(ln.getKey(), c.getKey());
                 }
 
-                assertEquals(false, c.getNextNoDup());
+                assertFalse(c.getNextNoDup());
             }
         };
 
@@ -221,9 +221,9 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
                     assertEquals(ln.getKey(), c.getKey());
                 }
 
-                assertEquals(null, c.getSearchKey(key(0)));
-                assertEquals(null, c.getSearchKey(key(4)));
-                assertEquals(null, c.getSearchKey(key(13)));
+                assertNull(c.getSearchKey(key(0)));
+                assertNull(c.getSearchKey(key(4)));
+                assertNull(c.getSearchKey(key(13)));
                 // prev state due to failed search
                 assertEquals(values.get(values.size() - 1).getValue(), c.getValue());
                 assertEquals(values.get(values.size() - 1).getKey(), c.getKey());
@@ -246,14 +246,14 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
                 Cursor c = _t.openCursor();
 
                 for (INode ln : values) {
-                    assertEquals(true, c.getSearchBoth(ln.getKey(), ln.getValue()));
+                    assertTrue(c.getSearchBoth(ln.getKey(), ln.getValue()));
                     assertEquals(ln.getValue(), c.getValue());
                     assertEquals(ln.getKey(), c.getKey());
                 }
 
-                assertEquals(false, c.getSearchBoth(key(0), value("v1")));
-                assertEquals(false, c.getSearchBoth(key(4), value("v1")));
-                assertEquals(false, c.getSearchBoth(key(13), value("v1")));
+                assertFalse(c.getSearchBoth(key(0), value("v1")));
+                assertFalse(c.getSearchBoth(key(4), value("v1")));
+                assertFalse(c.getSearchBoth(key(13), value("v1")));
                 // prev state due to failed search
                 assertEquals(values.get(values.size() - 1).getValue(), c.getValue());
                 assertEquals(values.get(values.size() - 1).getKey(), c.getKey());
@@ -304,15 +304,15 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
                 assertEquals(value("v51"), c.getSearchKeyRange(key(3)));
                 assertEquals(key(5), c.getKey());
 
-                assertEquals(true, c.getNextDup());
+                assertTrue(c.getNextDup());
                 assertEquals(value("v52"), c.getValue());
                 assertEquals(key(5), c.getKey());
 
-                assertEquals(true, c.getNextDup());
+                assertTrue(c.getNextDup());
                 assertEquals(value("v53"), c.getValue());
                 assertEquals(key(5), c.getKey());
 
-                assertEquals(null, c.getSearchKeyRange(key(13)));
+                assertNull(c.getSearchKeyRange(key(13)));
                 // cursor keep prev pos
                 assertEquals(value("v53"), c.getValue());
                 assertEquals(key(5), c.getKey());
@@ -413,7 +413,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
             public void run() {
                 Cursor c = _t.openCursor();
                 // miss
-                assertEquals(null, c.getSearchBothRange(key(0), value("v1")));
+                assertNull(c.getSearchBothRange(key(0), value("v1")));
 
                 // found
                 assertEquals(value("v1"), c.getSearchBothRange(key(1), value("v0")));
@@ -421,7 +421,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
                 assertEquals(value("v1"), c.getValue());
 
                 // miss
-                assertEquals(null, c.getSearchBothRange(key(2), value("v21")));
+                assertNull(c.getSearchBothRange(key(2), value("v21")));
                 // check keep prev state
                 assertEquals(key(1), c.getKey());
 
@@ -432,7 +432,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
                 assertEquals(value("v53"), c.getSearchBothRange(key(5), value("v521")));
                 assertEquals(key(5), c.getKey());
 
-                assertEquals(null, c.getSearchBothRange(key(5), value("v54")));
+                assertNull(c.getSearchBothRange(key(5), value("v54")));
                 assertEquals(value("v53"), c.getValue());
             }
         };
@@ -463,7 +463,7 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
 
                 assertEquals(value("v51"), c.getSearchKeyRange(key(4)));
                 assertEquals(key(5), c.getKey());
-                assertEquals(null, c.getSearchBothRange(key(5), value("v54")));
+                assertNull(c.getSearchBothRange(key(5), value("v54")));
                 assertEquals(key(5), c.getKey()); // key unchanged
             }
         };
@@ -486,11 +486,11 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
                 final ListIterator<INode> itr = values.listIterator(values.size());
                 while (itr.hasPrevious()) {
                     INode ln = itr.previous();
-                    assertEquals(true, c.getPrev());
+                    assertTrue(c.getPrev());
                     assertEquals(ln.getValue(), c.getValue());
                     assertEquals(ln.getKey(), c.getKey());
                 }
-                assertEquals(false, c.getPrev());
+                assertFalse(c.getPrev());
             }
         };
 
@@ -522,11 +522,11 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
                 final ListIterator<INode> itr = values.listIterator(values.size());
                 while (itr.hasPrevious()) {
                     INode ln = itr.previous();
-                    assertEquals(true, c.getPrev());
+                    assertTrue(c.getPrev());
                     assertEquals(ln.getValue(), c.getValue());
                     assertEquals(ln.getKey(), c.getKey());
                 }
-                assertEquals(false, c.getPrev());
+                assertFalse(c.getPrev());
             }
         };
 
@@ -548,12 +548,9 @@ public abstract class TreeCursorDuplicatesTest extends TreeBaseTest {
         for (int i = 0; i < count; ++i, ++value) {
             if (i > count / 2) {
                 final Pair<Long, LongHashSet>[] pair = new Pair[1];
-                values.forEachEntry(new ObjectProcedure<Map.Entry<Long, LongHashSet>>() {
-                    @Override
-                    public boolean execute(Map.Entry<Long, LongHashSet> object) {
-                        pair[0] = new Pair<>(object.getKey(), object.getValue());
-                        return false;
-                    }
+                values.forEachEntry((ObjectProcedure<Map.Entry<Long, LongHashSet>>) object -> {
+                    pair[0] = new Pair<>(object.getKey(), object.getValue());
+                    return false;
                 });
                 final Pair<Long, LongHashSet> p = pair[0];
                 final LongHashSet oldSet = p.getSecond();

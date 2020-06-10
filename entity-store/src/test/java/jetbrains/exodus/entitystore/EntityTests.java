@@ -25,7 +25,6 @@ import jetbrains.exodus.util.ByteArraySizedInputStream;
 import jetbrains.exodus.util.DeferredIO;
 import jetbrains.exodus.util.LightByteArrayOutputStream;
 import jetbrains.exodus.util.UTFUtil;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 
 import java.io.DataInputStream;
@@ -42,10 +41,10 @@ public class EntityTests extends EntityStoreTestBase {
     @Override
     protected String[] casesThatDontNeedExplicitTxn() {
         return new String[]{"testConcurrentCreationTypeIdsAreOk",
-                "testConcurrentSerializableChanges",
-                "testEntityStoreClear",
-                "testSetPhantomLink",
-                "testAddPhantomLink"
+            "testConcurrentSerializableChanges",
+            "testEntityStoreClear",
+            "testSetPhantomLink",
+            "testAddPhantomLink"
         };
     }
 
@@ -67,7 +66,7 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertNotNull(entity);
         Assert.assertTrue(entity.getId().getTypeId() >= 0);
         Assert.assertTrue(entity.getId().getLocalId() >= 0);
-        Assert.assertTrue(entity.getId().equals(new PersistentEntityId(0, 0)));
+        Assert.assertEquals(entity.getId(), new PersistentEntityId(0, 0));
         try {
             txn.getEntity(new PersistentEntityId(0, 1));
             Assert.fail();
@@ -260,7 +259,6 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertEquals(0.5, entity.getProperty("rank"));
     }
 
-    @SuppressWarnings("unchecked")
     @TestFor(issues = "XD-509")
     public void testComparableSetNewEmpty() {
         final StoreTransaction txn = getStoreTransaction();
@@ -312,7 +310,6 @@ public class EntityTests extends EntityStoreTestBase {
     }
 
 
-    @SuppressWarnings("unchecked")
     public void testComparableSetAddAll() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity entity = txn.newEntity("Issue");
@@ -353,7 +350,6 @@ public class EntityTests extends EntityStoreTestBase {
         Assert.assertEquals(newComparableSet("Search Parser"), propValue);
     }
 
-    @SuppressWarnings("unchecked")
     @TestFor(issues = "XD-509")
     public void testComparableSetClear() {
         final StoreTransaction txn = getStoreTransaction();
@@ -468,12 +464,12 @@ public class EntityTests extends EntityStoreTestBase {
             txn.newEntity("Issue");
         }
         txn.flush();
-        Assert.assertTrue(txn.getAll("Issue").size() == 10);
+        Assert.assertEquals(10, txn.getAll("Issue").size());
         getEntityStore().renameEntityType("Issue", "Comment");
         txn.flush();
         //noinspection SizeReplaceableByIsEmpty
-        Assert.assertTrue(txn.getAll("Issue").size() == 0);
-        Assert.assertTrue(txn.getAll("Comment").size() == 10);
+        Assert.assertEquals(0, txn.getAll("Issue").size());
+        Assert.assertEquals(10, txn.getAll("Comment").size());
     }
 
     public void testRenameNonExistingEntityType() {
@@ -482,37 +478,24 @@ public class EntityTests extends EntityStoreTestBase {
             txn.newEntity("Issue");
         }
         txn.flush();
-        Assert.assertTrue(txn.getAll("Issue").size() == 10);
-        TestUtil.runWithExpectedException(new Runnable() {
-            @Override
-            public void run() {
-                getEntityStore().renameEntityType("Comment", "Issue");
-            }
-        }, IllegalArgumentException.class);
+        Assert.assertEquals(10, txn.getAll("Issue").size());
+        TestUtil.runWithExpectedException(() -> getEntityStore().renameEntityType("Comment", "Issue"), IllegalArgumentException.class);
     }
 
     public void testConcurrentSerializableChanges() throws InterruptedException {
-        final Entity e1 = getEntityStore().computeInTransaction(new StoreTransactionalComputable<Entity>() {
-            @Override
-            public Entity compute(@NotNull final StoreTransaction txn) {
-                return txn.newEntity("E");
-            }
-        });
+        final Entity e1 = getEntityStore().computeInTransaction(txn -> txn.newEntity("E"));
         final int count = 100;
-        final Runnable target = new Runnable() {
-            @Override
-            public void run() {
-                final StoreTransaction txn = getEntityStore().beginTransaction();
-                try {
-                    for (int i = 0; i <= count; ++i) {
-                        do {
-                            e1.setProperty("i", i);
-                            e1.setProperty("s", Integer.toString(i));
-                        } while (!txn.flush());
-                    }
-                } finally {
-                    txn.abort();
+        final Runnable target = () -> {
+            final StoreTransaction txn = getEntityStore().beginTransaction();
+            try {
+                for (int i = 0; i <= count; ++i) {
+                    do {
+                        e1.setProperty("i", i);
+                        e1.setProperty("s", Integer.toString(i));
+                    } while (!txn.flush());
                 }
+            } finally {
+                txn.abort();
             }
         };
         final Thread t1 = new Thread(target);
@@ -521,35 +504,26 @@ public class EntityTests extends EntityStoreTestBase {
         t2.start();
         t1.join();
         t2.join();
-        getEntityStore().executeInReadonlyTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final StoreTransaction txn) {
-                Assert.assertEquals(count, e1.getProperty("i"));
-                Assert.assertEquals(Integer.toString(count), e1.getProperty("s"));
-            }
+        getEntityStore().executeInReadonlyTransaction(txn -> {
+            Assert.assertEquals(count, e1.getProperty("i"));
+            Assert.assertEquals(Integer.toString(count), e1.getProperty("s"));
         });
     }
 
     public void testConcurrentCreationTypeIdsAreOk() throws InterruptedException {
         final int count = 100;
         final boolean[] itsOk = {true};
-        final Runnable target = new Runnable() {
-            @Override
-            public void run() {
-                for (final int[] i = {0}; i[0] <= count; ++i[0]) {
-                    if (!getEntityStore().computeInTransaction(new StoreTransactionalComputable<Boolean>() {
-                        @Override
-                        public Boolean compute(@NotNull StoreTransaction txn) {
-                            final Entity e = txn.newEntity("Entity" + i[0]);
-                            if (e.getId().getTypeId() != i[0]) {
-                                itsOk[0] = false;
-                                return false;
-                            }
-                            return true;
-                        }
-                    })) {
-                        break;
+        final Runnable target = () -> {
+            for (final int[] i = {0}; i[0] <= count; ++i[0]) {
+                if (!getEntityStore().computeInTransaction(txn -> {
+                    final Entity e = txn.newEntity("Entity" + i[0]);
+                    if (e.getId().getTypeId() != i[0]) {
+                        itsOk[0] = false;
+                        return false;
                     }
+                    return true;
+                })) {
+                    break;
                 }
             }
         };
@@ -564,76 +538,54 @@ public class EntityTests extends EntityStoreTestBase {
 
     public void testAsciiUTFDecodingBenchmark() {
         final String s = "This is sample ASCII string of not that great size, but large enough to use in the benchmark";
-        TestUtil.time("Constructing string from data input", new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    final LightByteArrayOutputStream out = new LightByteArrayOutputStream();
-                    DataOutputStream output = new DataOutputStream(out);
-                    output.writeUTF(s);
-                    final InputStream stream = new ByteArraySizedInputStream(out.toByteArray(), 0, out.size());
-                    stream.mark(Integer.MAX_VALUE);
-                    for (int i = 0; i < 10000000; i++) {
-                        stream.reset();
-                        assertEquals(s, new DataInputStream(stream).readUTF());
-                    }
-                } catch (IOException e) {
-                    throw ExodusException.toEntityStoreException(e);
+        TestUtil.time("Constructing string from data input", () -> {
+            try {
+                final LightByteArrayOutputStream out = new LightByteArrayOutputStream();
+                DataOutputStream output = new DataOutputStream(out);
+                output.writeUTF(s);
+                final InputStream stream = new ByteArraySizedInputStream(out.toByteArray(), 0, out.size());
+                stream.mark(Integer.MAX_VALUE);
+                for (int i = 0; i < 10000000; i++) {
+                    stream.reset();
+                    assertEquals(s, new DataInputStream(stream).readUTF());
                 }
+            } catch (IOException e) {
+                throw ExodusException.toEntityStoreException(e);
             }
         });
-        TestUtil.time("Constructing strings from bytes", new Runnable() {
-            @Override
-            public void run() {
-                final byte bytes[] = s.getBytes();
-                for (int i = 0; i < 10000000; i++) {
-                    assertEquals(s, UTFUtil.fromAsciiByteArray(bytes, 0, bytes.length));
-                }
+        TestUtil.time("Constructing strings from bytes", () -> {
+            final byte bytes[] = s.getBytes();
+            for (int i = 0; i < 10000000; i++) {
+                assertEquals(s, UTFUtil.fromAsciiByteArray(bytes, 0, bytes.length));
             }
         });
     }
 
     public void testTxnCachesIsolation() {
-        final Entity issue = getEntityStore().computeInTransaction(new StoreTransactionalComputable<Entity>() {
-            @Override
-            public Entity compute(@NotNull StoreTransaction txn) {
-                final Entity issue = txn.newEntity("Issue");
-                issue.setProperty("description", "1");
-                return issue;
-            }
+        final Entity issue = getEntityStore().computeInTransaction(txn -> {
+            final Entity issue1 = txn.newEntity("Issue");
+            issue1.setProperty("description", "1");
+            return issue1;
         });
         final PersistentStoreTransaction txn = getStoreTransaction();
         txn.revert();
         Assert.assertEquals("1", issue.getProperty("description"));
-        getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                issue.setProperty("description", "2");
-            }
-        });
+        getEntityStore().executeInTransaction(txn1 -> issue.setProperty("description", "2"));
         txn.revert();
         Assert.assertEquals("2", issue.getProperty("description"));
     }
 
     public void testTxnCachesIsolation2() {
-        final Entity issue = getEntityStore().computeInTransaction(new StoreTransactionalComputable<Entity>() {
-            @Override
-            public Entity compute(@NotNull StoreTransaction txn) {
-                final Entity issue = txn.newEntity("Issue");
-                issue.setProperty("description", "1");
-                return issue;
-            }
+        final Entity issue = getEntityStore().computeInTransaction(txn -> {
+            final Entity issue1 = txn.newEntity("Issue");
+            issue1.setProperty("description", "1");
+            return issue1;
         });
         final PersistentStoreTransaction txn = getStoreTransaction();
         txn.revert();
         Assert.assertEquals("1", issue.getProperty("description"));
         issue.setProperty("description", "2");
-        getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                issue.setProperty("description", "3");
-            }
-        });
+        getEntityStore().executeInTransaction(txn1 -> issue.setProperty("description", "3"));
         Assert.assertFalse(txn.flush());
         Assert.assertEquals("3", issue.getProperty("description"));
     }
@@ -641,39 +593,16 @@ public class EntityTests extends EntityStoreTestBase {
     @TestFor(issues = "XD-530")
     public void testEntityStoreClear() {
         final PersistentEntityStoreImpl store = getEntityStore();
-        final Entity user = store.computeInTransaction(new StoreTransactionalComputable<Entity>() {
-            @Override
-            public Entity compute(@NotNull StoreTransaction txn) {
-                final Entity result = txn.newEntity("User");
-                result.setProperty("login", "penemue");
-                return result;
-            }
+        final Entity user = store.computeInTransaction(txn -> {
+            final Entity result = txn.newEntity("User");
+            result.setProperty("login", "penemue");
+            return result;
         });
-        store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                Assert.assertEquals("penemue", user.getProperty("login"));
-            }
-        });
+        store.executeInReadonlyTransaction(txn -> Assert.assertEquals("penemue", user.getProperty("login")));
         store.clear();
-        store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                Assert.assertEquals(null, user.getProperty("login"));
-            }
-        });
-        store.executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                txn.newEntity("UserProfile");
-            }
-        });
-        store.executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                txn.getSequence("qwerty").increment();
-            }
-        });
+        store.executeInReadonlyTransaction(txn -> Assert.assertNull(user.getProperty("login")));
+        store.executeInTransaction(txn -> txn.newEntity("UserProfile"));
+        store.executeInTransaction(txn -> txn.getSequence("qwerty").increment());
     }
 
 
@@ -691,72 +620,46 @@ public class EntityTests extends EntityStoreTestBase {
         store.getEnvironment().getEnvironmentConfig().setGcEnabled(false);
         store.getConfig().setDebugTestLinkedEntities(true);
 
-        final Entity issue = store.computeInTransaction(new StoreTransactionalComputable<Entity>() {
-            @Override
-            public Entity compute(@NotNull StoreTransaction txn) {
-                return txn.newEntity("Issue");
-            }
-        });
-        final Entity comment = store.computeInTransaction(new StoreTransactionalComputable<Entity>() {
-            @Override
-            public Entity compute(@NotNull StoreTransaction txn) {
-                return txn.newEntity("Comment");
-            }
-        });
+        final Entity issue = store.computeInTransaction(txn -> txn.newEntity("Issue"));
+        final Entity comment = store.computeInTransaction(txn -> txn.newEntity("Comment"));
         final CountDownLatch startBoth = new CountDownLatch(2);
         final Semaphore deleted = new Semaphore(0);
         DeferredIO.getJobProcessor().queue(new Job() {
             @Override
             protected void execute() {
-                store.executeInTransaction(new StoreTransactionalExecutable() {
-                    @Override
-                    public void execute(@NotNull StoreTransaction txn) {
-                        startBoth.countDown();
-                        try {
-                            startBoth.await();
-                        } catch (InterruptedException ignore) {
-                        }
-                        comment.delete();
-                        txn.flush();
-                        deleted.release();
+                store.executeInTransaction(txn -> {
+                    startBoth.countDown();
+                    try {
+                        startBoth.await();
+                    } catch (InterruptedException ignore) {
                     }
+                    comment.delete();
+                    txn.flush();
+                    deleted.release();
                 });
             }
         });
         final int[] i = {0};
-        TestUtil.runWithExpectedException(new Runnable() {
-            @Override
-            public void run() {
-                store.executeInTransaction(new StoreTransactionalExecutable() {
-                    @Override
-                    public void execute(@NotNull StoreTransaction txn) {
-                        final boolean first = i[0] == 0;
-                        if (first) {
-                            startBoth.countDown();
-                            try {
-                                startBoth.await();
-                            } catch (InterruptedException ignore) {
-                            }
-                        }
-                        ++i[0];
-                        if (setLink) {
-                            issue.setLink("comment", comment);
-                        } else {
-                            issue.addLink("comment", comment);
-                        }
-                        if (first) {
-                            deleted.acquireUninterruptibly();
-                        }
-                    }
-                });
+        TestUtil.runWithExpectedException(() -> store.executeInTransaction(txn -> {
+            final boolean first = i[0] == 0;
+            if (first) {
+                startBoth.countDown();
+                try {
+                    startBoth.await();
+                } catch (InterruptedException ignore) {
+                }
             }
-        }, PhantomLinkException.class);
+            ++i[0];
+            if (setLink) {
+                issue.setLink("comment", comment);
+            } else {
+                issue.addLink("comment", comment);
+            }
+            if (first) {
+                deleted.acquireUninterruptibly();
+            }
+        }), PhantomLinkException.class);
         Assert.assertEquals(2, i[0]);
-        store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                Assert.assertNull(issue.getLink("comment"));
-            }
-        });
+        store.executeInReadonlyTransaction(txn -> Assert.assertNull(issue.getLink("comment")));
     }
 }

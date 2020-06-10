@@ -47,22 +47,12 @@ public class IOUtil {
 
         if (recursive) {
 
-            for (File childDir : listFiles(dir, new FileFilter() {
-                @Override
-                public boolean accept(File pathname) {
-                    return pathname.isDirectory();
-                }
-            })) {
+            for (File childDir : listFiles(dir, File::isDirectory)) {
                 sum += getDirectorySize(childDir, extension, /*always true*/recursive);
             }
         }
 
-        for (final File file : listFiles(dir, new FilenameFilter() {
-            @Override
-            public boolean accept(File dir, String name) {
-                return name.endsWith(extension);
-            }
-        })) {
+        for (final File file : listFiles(dir, (dir1, name) -> name.endsWith(extension))) {
             sum += getAdjustedFileLength(file);
         }
 

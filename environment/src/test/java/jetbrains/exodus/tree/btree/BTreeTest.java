@@ -206,14 +206,14 @@ public class BTreeTest extends BTreeTestBase {
         }
 
         Assert.assertEquals(0, tm.getSize());
-        assertMatchesIterator(tm, Collections.<INode>emptyList());
+        assertMatchesIterator(tm, Collections.emptyList());
 
         rootAddress = saveTree();
 
         reopen();
 
         t = new BTree(log, rootAddress, true, 1);
-        assertMatchesIterator(tm, Collections.<INode>emptyList());
+        assertMatchesIterator(tm, Collections.emptyList());
     }
 
     @Test

@@ -39,7 +39,6 @@ public abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
     protected final EntityIterableBase iterable2;
     protected int depth;
 
-    @SuppressWarnings({"ThrowableInstanceNeverThrown"})
     protected BinaryOperatorEntityIterable(@Nullable final PersistentStoreTransaction txn,
                                            @NotNull final EntityIterableBase iterable1,
                                            @NotNull final EntityIterableBase iterable2,

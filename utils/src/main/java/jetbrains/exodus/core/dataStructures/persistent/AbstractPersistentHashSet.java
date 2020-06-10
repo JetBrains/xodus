@@ -89,7 +89,7 @@ abstract class AbstractPersistentHashSet<K> implements Iterable<K> {
                 stack.pop();
                 if (stack.isEmpty()) {
                     hasNext = false;
-                    return hasNext;
+                    return false;
                 }
                 treePos = stack.peek();
                 treePos.index++;
@@ -98,7 +98,7 @@ abstract class AbstractPersistentHashSet<K> implements Iterable<K> {
                 Object o = treePos.node.get(treePos.index);
                 if (!(o instanceof Node)) {
                     hasNext = true;
-                    return hasNext;
+                    return true;
                 }
                 //noinspection unchecked
                 treePos = new TreePos((Node<K>) o);
@@ -218,7 +218,6 @@ abstract class AbstractPersistentHashSet<K> implements Iterable<K> {
                 result = ((Node<K>) target).insert(key, hash, offset + BITS_PER_TABLE, flag);
             } else {
                 // target is key
-                //noinspection unchecked
                 if (target.equals(key)) {
                     result = key;
                 } else {
@@ -417,14 +416,12 @@ abstract class AbstractPersistentHashSet<K> implements Iterable<K> {
                 if (keys[i].equals(key)) {
                     K[] newKeys = keys.clone();
                     newKeys[i] = key;
-                    //noinspection unchecked
                     return new HashCollisionNode<>(newKeys);
                 }
             }
             K[] newKeys = Arrays.copyOf(keys, keysLength + 1);
             newKeys[keysLength] = key;
             flag.flag();
-            //noinspection unchecked
             return new HashCollisionNode<>(newKeys);
         }
 

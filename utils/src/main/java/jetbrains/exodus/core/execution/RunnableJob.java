@@ -20,7 +20,7 @@ import org.jetbrains.annotations.NotNull;
 
 public class RunnableJob extends Job {
 
-    private Runnable runnable;
+    private final Runnable runnable;
 
     public RunnableJob(Runnable runnable) {
         this.runnable = runnable;

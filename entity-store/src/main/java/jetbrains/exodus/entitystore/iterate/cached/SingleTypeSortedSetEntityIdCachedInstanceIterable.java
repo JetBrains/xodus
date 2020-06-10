@@ -27,7 +27,7 @@ import org.jetbrains.annotations.Nullable;
 public class SingleTypeSortedSetEntityIdCachedInstanceIterable extends CachedInstanceIterable {
     private final int typeId;
     @NotNull
-    private SortedEntityIdSet localIds;
+    private final SortedEntityIdSet localIds;
 
     public SingleTypeSortedSetEntityIdCachedInstanceIterable(@Nullable PersistentStoreTransaction txn, @NotNull EntityIterableBase source,
                                                              int typeId, @NotNull SortedEntityIdSet localIds) {

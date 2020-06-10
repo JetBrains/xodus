@@ -55,7 +55,7 @@ public class ImmutableSingleTypeEntityIdCollection implements OrderedEntityIdCol
     }
 
     @Override
-    public Iterator<EntityId> iterator() {
+    public @NotNull Iterator<EntityId> iterator() {
         return new Iterator<EntityId>() {
             private int i = 0;
 

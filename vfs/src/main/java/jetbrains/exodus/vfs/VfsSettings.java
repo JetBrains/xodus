@@ -21,7 +21,6 @@ import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.env.Store;
 import jetbrains.exodus.env.Transaction;
-import jetbrains.exodus.env.TransactionalExecutable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -48,12 +47,7 @@ class VfsSettings {
             return settingStore.get(txn, key);
         }
         final ByteIterable[] result = new ByteIterable[1];
-        env.executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final Transaction txn) {
-                result[0] = settingStore.get(txn, key);
-            }
-        });
+        env.executeInTransaction(txn1 -> result[0] = settingStore.get(txn1, key));
         return result[0];
     }
 
@@ -62,12 +56,7 @@ class VfsSettings {
         if (txn != null) {
             settingStore.put(txn, key, bi);
         } else {
-            env.executeInTransaction(new TransactionalExecutable() {
-                @Override
-                public void execute(@NotNull final Transaction txn) {
-                    settingStore.put(txn, key, bi);
-                }
-            });
+            env.executeInTransaction(txn1 -> settingStore.put(txn1, key, bi));
         }
     }
 }

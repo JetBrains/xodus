@@ -17,6 +17,7 @@ package jetbrains.exodus.query;
 
 
 import jetbrains.exodus.entitystore.Entity;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Iterator;
 
@@ -35,7 +36,7 @@ public abstract class StaticTypedEntityIterable implements Iterable<Entity> {
     public abstract Iterable<Entity> instantiate();
 
     @Override
-    public Iterator<Entity> iterator() {
+    public @NotNull Iterator<Entity> iterator() {
         return instantiate().iterator();
     }
 

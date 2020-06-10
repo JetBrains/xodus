@@ -18,7 +18,6 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.TestFor;
 import jetbrains.exodus.TestUtil;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 
 import java.io.*;
@@ -203,23 +202,20 @@ public class EntityBlobTests extends EntityStoreTestBase {
         final boolean[] wereExceptions = {false};
         Thread[] threads = new Thread[10];
         for (int t = 0; t < threads.length; ++t) {
-            final Thread thread = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    final PersistentStoreTransaction txn = getEntityStore().beginTransaction();
-                    for (int i = 0; i < 2000; ++i) {
-                        try {
-                            if (!TestUtil.streamsEqual(entity.getBlob("body" + i), string2Stream("body" + i))) {
-                                wereExceptions[0] = true;
-                                break;
-                            }
-                        } catch (Exception e) {
+            final Thread thread = new Thread(() -> {
+                final PersistentStoreTransaction txn1 = getEntityStore().beginTransaction();
+                for (int i = 0; i < 2000; ++i) {
+                    try {
+                        if (!TestUtil.streamsEqual(entity.getBlob("body" + i), string2Stream("body" + i))) {
                             wereExceptions[0] = true;
                             break;
                         }
+                    } catch (Exception e) {
+                        wereExceptions[0] = true;
+                        break;
                     }
-                    txn.commit();
                 }
+                txn1.commit();
             });
             thread.start();
             threads[t] = thread;
@@ -234,31 +230,18 @@ public class EntityBlobTests extends EntityStoreTestBase {
     public void testEntityStoreClear() {
         final PersistentEntityStoreImpl store = getEntityStore();
         store.getConfig().setMaxInPlaceBlobSize(0);
-        store.executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                txn.newEntity("User").setBlobString("bio", "I was born");
-            }
-        });
-        store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                final InputStream content = store.getBlobVault().getContent(0, ((PersistentStoreTransaction) txn).getEnvironmentTransaction());
-                assertNotNull(content);
-                try {
-                    content.close();
-                } catch (IOException e) {
-                    throw ExodusException.toExodusException(e);
-                }
+        store.executeInTransaction(txn -> txn.newEntity("User").setBlobString("bio", "I was born"));
+        store.executeInReadonlyTransaction(txn -> {
+            final InputStream content = store.getBlobVault().getContent(0, ((PersistentStoreTransaction) txn).getEnvironmentTransaction());
+            assertNotNull(content);
+            try {
+                content.close();
+            } catch (IOException e) {
+                throw ExodusException.toExodusException(e);
             }
         });
         store.clear();
-        store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                assertNull(store.getBlobVault().getContent(0, ((PersistentStoreTransaction) txn).getEnvironmentTransaction()));
-            }
-        });
+        store.executeInReadonlyTransaction(txn -> assertNull(store.getBlobVault().getContent(0, ((PersistentStoreTransaction) txn).getEnvironmentTransaction())));
     }
 
     private static void checkBlobs(StoreTransaction txn) throws IOException {

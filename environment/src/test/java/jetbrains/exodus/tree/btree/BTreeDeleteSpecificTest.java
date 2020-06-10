@@ -45,7 +45,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         ByteIterable key = getTreeMutable().getRoot().getKey(1).getKey();
         refresh();
         tm.delete(key);
-        assertTrue(getTreeMutable().getRoot().getKey(1).compareKeyTo(getTreeMutable().getRoot().getChild(1).getMinKey().getKey()) == 0);
+        assertEquals(0, getTreeMutable().getRoot().getKey(1).compareKeyTo(getTreeMutable().getRoot().getChild(1).getMinKey().getKey()));
     }
 
     @Test
@@ -129,11 +129,11 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         getTreeMutable().put(kv(1, "11"));
         getTreeMutable().put(kv(1, "12"));
 
-        assertEquals(false, tm.delete(key(2)));
-        assertEquals(true, tm.delete(key(1)));
+        assertFalse(tm.delete(key(2)));
+        assertTrue(tm.delete(key(1)));
 
         assertEquals(0, tm.getSize());
-        assertEquals(null, tm.get(key(1)));
+        assertNull(tm.get(key(1)));
 
         long a = saveTree();
 
@@ -142,7 +142,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         t = new BTree(log, a, false, 1);
 
         assertEquals(0, tm.getSize());
-        assertEquals(null, tm.get(key(1)));
+        assertNull(tm.get(key(1)));
     }
 
     @Test
@@ -152,11 +152,11 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         getTreeMutable().put(kv(1, "11"));
         getTreeMutable().put(kv(1, "12"));
 
-        assertEquals(true, getTreeMutable().delete(key(1), value("11")));
-        assertEquals(true, getTreeMutable().delete(key(1), value("12")));
+        assertTrue(getTreeMutable().delete(key(1), value("11")));
+        assertTrue(getTreeMutable().delete(key(1), value("12")));
 
         assertEquals(0, tm.getSize());
-        assertEquals(null, tm.get(key(1)));
+        assertNull(tm.get(key(1)));
 
         long a = saveTree();
 
@@ -165,7 +165,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         t = new BTree(log, a, false, 1);
 
         assertEquals(0, tm.getSize());
-        assertEquals(null, tm.get(key(1)));
+        assertNull(tm.get(key(1)));
     }
 
     @Test

@@ -20,12 +20,7 @@ import org.jetbrains.annotations.NotNull;
 
 public interface TxnGetterStrategy {
 
-    TxnGetterStrategy DEFAULT = new TxnGetterStrategy() {
-        @Override
-        public PersistentStoreTransaction getTxn(@NotNull final EntityIterableBase iterable) {
-            return iterable.getStore().getAndCheckCurrentTransaction();
-        }
-    };
+    TxnGetterStrategy DEFAULT = iterable -> iterable.getStore().getAndCheckCurrentTransaction();
 
     PersistentStoreTransaction getTxn(@NotNull final EntityIterableBase iterable);
 }

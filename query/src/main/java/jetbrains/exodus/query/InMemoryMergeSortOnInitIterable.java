@@ -27,7 +27,7 @@ public class InMemoryMergeSortOnInitIterable extends SortEngine.InMemorySortIter
     }
 
     @Override
-    public Iterator<Entity> iterator() {
+    public @NotNull Iterator<Entity> iterator() {
         return new Iterator<Entity>() {
             private List<Entity>[] src;
             private int current;

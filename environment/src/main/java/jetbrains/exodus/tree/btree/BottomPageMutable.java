@@ -92,8 +92,7 @@ class BottomPageMutable extends BasePageMutable {
         }
 
         // if found - insert at this position, else insert after found
-        if (pos < 0) pos = -pos - 1;
-        else pos++;
+        pos = -pos - 1;
 
         final BasePageMutable page = insertAt(pos, tree.createMutableLeaf(key, value), null);
         result[0] = true;

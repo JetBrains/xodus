@@ -53,37 +53,34 @@ public class UniqueKeyIndicesEngine {
         final Environment environment = persistentStore.getEnvironment();
         environment.suspendGC();
         try {
-            persistentStore.executeInTransaction(new StoreTransactionalExecutable() {
-                @Override
-                public void execute(@NotNull StoreTransaction txn) {
-                    final PersistentStoreTransaction t = (PersistentStoreTransaction) txn;
-                    final PersistentStoreTransaction snapshot = t.getSnapshot();
-                    try {
-                        final Collection<String> indexNames = new HashSet<>();
-                        for (final String dbName : environment.getAllStoreNames(t.getEnvironmentTransaction())) {
-                            if (isUniqueKeyIndexName(dbName)) {
-                                indexNames.add(dbName);
-                            }
+            persistentStore.executeInTransaction(txn -> {
+                final PersistentStoreTransaction t = (PersistentStoreTransaction) txn;
+                final PersistentStoreTransaction snapshot = t.getSnapshot();
+                try {
+                    final Collection<String> indexNames = new HashSet<>();
+                    for (final String dbName : environment.getAllStoreNames(t.getEnvironmentTransaction())) {
+                        if (isUniqueKeyIndexName(dbName)) {
+                            indexNames.add(dbName);
                         }
-                        for (final Index index : indices) {
-                            final String indexName = getUniqueKeyIndexName(index);
-                            if (indexNames.contains(indexName)) {
-                                indexNames.remove(indexName);
-                            } else {
-                                createUniqueKeyIndex(t, snapshot, index);
-                            }
-                        }
-                        // remove obsolete indices
-                        for (final String indexName : indexNames) {
-                            removeObsoleteUniqueKeyIndex(t, indexName);
-                        }
-                        if (logger.isTraceEnabled()) {
-                            logger.trace("Flush index persistent transaction " + t);
-                        }
-                        t.flush();
-                    } finally {
-                        snapshot.abort(); // reading snapshot is obsolete now
                     }
+                    for (final Index index : indices) {
+                        final String indexName = getUniqueKeyIndexName(index);
+                        if (indexNames.contains(indexName)) {
+                            indexNames.remove(indexName);
+                        } else {
+                            createUniqueKeyIndex(t, snapshot, index);
+                        }
+                    }
+                    // remove obsolete indices
+                    for (final String indexName : indexNames) {
+                        removeObsoleteUniqueKeyIndex(t, indexName);
+                    }
+                    if (logger.isTraceEnabled()) {
+                        logger.trace("Flush index persistent transaction " + t);
+                    }
+                    t.flush();
+                } finally {
+                    snapshot.abort(); // reading snapshot is obsolete now
                 }
             });
         } finally {

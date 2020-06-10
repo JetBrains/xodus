@@ -15,9 +15,7 @@
  */
 package jetbrains.exodus.benchmark.chronicle;
 
-import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.map.ExternalMapQueryContext;
-import org.jetbrains.annotations.NotNull;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.runner.Runner;
@@ -37,12 +35,7 @@ public class JMHChronicleMapTokyoCabinetReadBenchmark extends JMHChronicleMapTok
     @Setup(Level.Invocation)
     public void beforeBenchmark() throws IOException {
         setup();
-        executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull ChronicleMap<String, String> map) {
-                writeSuccessiveKeys(map);
-            }
-        });
+        executeInTransaction(this::writeSuccessiveKeys);
     }
 
     @Benchmark
@@ -51,15 +44,10 @@ public class JMHChronicleMapTokyoCabinetReadBenchmark extends JMHChronicleMapTok
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
     public void successiveRead(final Blackhole bh) {
-        executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull ChronicleMap<String, String> map) {
-                map.forEachEntry(e -> {
-                    bh.consume(e.key().get());
-                    bh.consume(e.value().get());
-                });
-            }
-        });
+        executeInTransaction(map -> map.forEachEntry(e -> {
+            bh.consume(e.key().get());
+            bh.consume(e.value().get());
+        }));
     }
 
     @Benchmark
@@ -68,13 +56,10 @@ public class JMHChronicleMapTokyoCabinetReadBenchmark extends JMHChronicleMapTok
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
     public void randomRead(final Blackhole bh) {
-        executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull ChronicleMap<String, String> map) {
-                for (final String key : randomKeys) {
-                    try (ExternalMapQueryContext<String, String, ?> c = map.queryContext(key)) {
-                        bh.consume(c.entry().value().get());
-                    }
+        executeInTransaction(map -> {
+            for (final String key : randomKeys) {
+                try (ExternalMapQueryContext<String, String, ?> c = map.queryContext(key)) {
+                    bh.consume(c.entry().value().get());
                 }
             }
         });

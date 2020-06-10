@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.core.dataStructures.hash;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.*;
 
 public abstract class AbstractHashMap<K, V> extends AbstractMap<K, V> {
@@ -43,17 +45,17 @@ public abstract class AbstractHashMap<K, V> extends AbstractMap<K, V> {
     }
 
     @Override
-    public Set<K> keySet() {
+    public @NotNull Set<K> keySet() {
         return new KeySet();
     }
 
     @Override
-    public Collection<V> values() {
+    public @NotNull Collection<V> values() {
         return new Values();
     }
 
     @Override
-    public Set<Map.Entry<K, V>> entrySet() {
+    public @NotNull Set<Map.Entry<K, V>> entrySet() {
         return new EntrySet();
     }
 

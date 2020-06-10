@@ -17,33 +17,33 @@ package jetbrains.exodus.tree;
 
 import jetbrains.exodus.env.Cursor;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 public abstract class CursorTestBase extends TreeBaseTest {
     public final int s = 1000;
 
     protected void check(ITree tm, GetNext r) {
         Cursor c = tm.openCursor();
-        assertEquals(false, c.getKey().iterator().hasNext());
-        assertEquals(false, c.getValue().iterator().hasNext());
+        assertFalse(c.getKey().iterator().hasNext());
+        assertFalse(c.getValue().iterator().hasNext());
 
         for (int i = 0; i < s; i++) {
-            assertEquals(true, r.n(c));
+            assertTrue(r.n(c));
             assertEquals(c.getValue(), value("v" + i));
             assertEquals(c.getKey(), key(i));
         }
 
-        assertEquals(false, r.n(c));
+        assertFalse(r.n(c));
     }
 
     protected void check(ITree tm, GetPrev r) {
         Cursor c = tm.openCursor();
         for (int i = 0; i < s; i++) {
-            assertEquals(true, r.p(c));
+            assertTrue(r.p(c));
             assertEquals(c.getValue(), value("v" + (s - i - 1)));
             assertEquals(c.getKey(), key(s - i - 1));
         }
-        assertEquals(false, r.p(c));
+        assertFalse(r.p(c));
         c.close();
     }
 

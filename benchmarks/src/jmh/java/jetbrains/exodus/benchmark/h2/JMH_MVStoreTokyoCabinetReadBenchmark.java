@@ -15,8 +15,6 @@
  */
 package jetbrains.exodus.benchmark.h2;
 
-import org.h2.mvstore.MVStore;
-import org.jetbrains.annotations.NotNull;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
@@ -33,12 +31,7 @@ public class JMH_MVStoreTokyoCabinetReadBenchmark extends JMH_MVStoreTokyoCabine
     @Setup(Level.Invocation)
     public void beforeBenchmark() throws IOException {
         setup();
-        executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final MVStore store) {
-                writeSuccessiveKeys(createTestMap(store));
-            }
-        });
+        executeInTransaction(store -> writeSuccessiveKeys(createTestMap(store)));
     }
 
     @Benchmark
@@ -47,14 +40,11 @@ public class JMH_MVStoreTokyoCabinetReadBenchmark extends JMH_MVStoreTokyoCabine
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
     public void successiveRead(final Blackhole bh) {
-        executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final MVStore store) {
-                final Map<Object, Object> map = createTestMap(store);
-                for (Map.Entry entry : map.entrySet()) {
-                    bh.consume(entry.getKey());
-                    bh.consume(entry.getValue());
-                }
+        executeInTransaction(store -> {
+            final Map<Object, Object> map = createTestMap(store);
+            for (Map.Entry entry : map.entrySet()) {
+                bh.consume(entry.getKey());
+                bh.consume(entry.getValue());
             }
         });
     }
@@ -65,13 +55,10 @@ public class JMH_MVStoreTokyoCabinetReadBenchmark extends JMH_MVStoreTokyoCabine
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
     public void randomRead(final Blackhole bh) {
-        executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final MVStore store) {
-                final Map<Object, Object> map = createTestMap(store);
-                for (final String key : randomKeys) {
-                    bh.consume(map.get(key));
-                }
+        executeInTransaction(store -> {
+            final Map<Object, Object> map = createTestMap(store);
+            for (final String key : randomKeys) {
+                bh.consume(map.get(key));
             }
         });
     }

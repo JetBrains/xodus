@@ -244,7 +244,6 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         }
     }
 
-    @SuppressWarnings({"ReturnOfCollectionOrArrayField"})
     @Override
     @NotNull
     public ExpiredLoggableCollection getExpiredLoggables() {

@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.core.dataStructures.decorators;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.*;
 
 public class QueueDecorator<E> implements Queue<E> {
@@ -46,17 +48,17 @@ public class QueueDecorator<E> implements Queue<E> {
     }
 
     @Override
-    public Iterator<E> iterator() {
+    public @NotNull Iterator<E> iterator() {
         return decorated.iterator();
     }
 
     @Override
-    public Object[] toArray() {
+    public Object @NotNull [] toArray() {
         return decorated.toArray();
     }
 
     @Override
-    public <T> T[] toArray(T[] a) {
+    public <T> T @NotNull [] toArray(T @NotNull [] a) {
         return decorated.toArray(a);
     }
 
@@ -73,24 +75,24 @@ public class QueueDecorator<E> implements Queue<E> {
     }
 
     @Override
-    public boolean containsAll(Collection<?> c) {
+    public boolean containsAll(@NotNull Collection<?> c) {
         return decorated.containsAll(c);
     }
 
     @Override
-    public boolean addAll(Collection<? extends E> c) {
+    public boolean addAll(@NotNull Collection<? extends E> c) {
         checkDecorated();
         return decorated.addAll(c);
     }
 
     @Override
-    public boolean removeAll(Collection<?> c) {
+    public boolean removeAll(@NotNull Collection<?> c) {
         checkDecorated();
         return decorated.removeAll(c);
     }
 
     @Override
-    public boolean retainAll(Collection<?> c) {
+    public boolean retainAll(@NotNull Collection<?> c) {
         checkDecorated();
         return decorated.retainAll(c);
     }

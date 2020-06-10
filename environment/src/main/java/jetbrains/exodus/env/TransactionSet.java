@@ -121,7 +121,7 @@ final class TransactionSet {
         }
 
         MinMaxAwareSnapshotSet() {
-            this(new PersistentHashSet<Snapshot>(), null, null);
+            this(new PersistentHashSet<>(), null, null);
         }
 
         @Nullable

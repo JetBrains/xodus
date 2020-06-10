@@ -16,7 +16,6 @@
 package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.entitystore.*;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 
 public class CornerCaseTests extends EntityStoreTestBase {
@@ -34,19 +33,16 @@ public class CornerCaseTests extends EntityStoreTestBase {
         store.getConfig().setCachingDisabled(true);
         for (int i = 0; i < 100; i++) {
             try {
-                store.executeInTransaction(new StoreTransactionalExecutable() {
-                    @Override
-                    public void execute(@NotNull StoreTransaction txn) {
-                        Entity defaultSubsystem = txn.newEntity("Subsystem");
-                        Entity project = txn.newEntity("Project");
-                        project.setLink("defaultSubsystem", defaultSubsystem);
-                        addSubsystem(project, defaultSubsystem, "Unknown");
-                        addSubsystem(project, txn.newEntity("Subsystem"), "s3");
-                        addSubsystem(project, txn.newEntity("Subsystem"), "s1");
-                        addSubsystem(project, txn.newEntity("Subsystem"), "s2");
-                        Assert.assertEquals("s1", doSort(txn, project).getFirst().getProperty("name"));
-                        Assert.assertEquals("Unknown", doSort(txn, project).getLast().getProperty("name"));
-                    }
+                store.executeInTransaction(txn -> {
+                    Entity defaultSubsystem = txn.newEntity("Subsystem");
+                    Entity project = txn.newEntity("Project");
+                    project.setLink("defaultSubsystem", defaultSubsystem);
+                    addSubsystem(project, defaultSubsystem, "Unknown");
+                    addSubsystem(project, txn.newEntity("Subsystem"), "s3");
+                    addSubsystem(project, txn.newEntity("Subsystem"), "s1");
+                    addSubsystem(project, txn.newEntity("Subsystem"), "s2");
+                    Assert.assertEquals("s1", doSort(txn, project).getFirst().getProperty("name"));
+                    Assert.assertEquals("Unknown", doSort(txn, project).getLast().getProperty("name"));
                 });
             } catch (Throwable t) {
                 System.out.println("Failed at iteration " + i);

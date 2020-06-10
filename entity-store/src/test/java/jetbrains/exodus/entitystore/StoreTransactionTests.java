@@ -19,13 +19,11 @@ import jetbrains.exodus.TestFor;
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.env.ReadonlyTransactionException;
 import jetbrains.exodus.util.UTFUtil;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 
 import java.io.IOException;
 import java.io.InputStream;
 
-@SuppressWarnings("JUnit4AnnotatedMethodInJUnit3TestCase")
 public class StoreTransactionTests extends EntityStoreTestBase {
 
     public void testAutomaticClosingOpenCursorsInTransaction() {
@@ -49,24 +47,24 @@ public class StoreTransactionTests extends EntityStoreTestBase {
     public void testAbort() {
         final StoreTransaction txn = getStoreTransactionSafe();
         txn.newEntity("Issue");
-        Assert.assertTrue(txn.getAll("Issue").size() == 1);
+        Assert.assertEquals(1, txn.getAll("Issue").size());
         txn.flush();
         txn.newEntity("Issue");
-        Assert.assertTrue(txn.getAll("Issue").size() == 2);
+        Assert.assertEquals(2, txn.getAll("Issue").size());
         txn.revert();
-        Assert.assertTrue(txn.getAll("Issue").size() == 1);
+        Assert.assertEquals(1, txn.getAll("Issue").size());
     }
 
     public void testAbort2() {
         final StoreTransaction txn = getStoreTransactionSafe();
         txn.newEntity("Issue");
-        Assert.assertTrue(txn.getAll("Issue").size() == 1);
+        Assert.assertEquals(1, txn.getAll("Issue").size());
         txn.revert();
-        Assert.assertTrue(txn.getAll("Issue").size() == 0);
+        Assert.assertEquals(0, txn.getAll("Issue").size());
         txn.newEntity("Issue");
-        Assert.assertTrue(txn.getAll("Issue").size() == 1);
+        Assert.assertEquals(1, txn.getAll("Issue").size());
         txn.flush();
-        Assert.assertTrue(txn.getAll("Issue").size() == 1);
+        Assert.assertEquals(1, txn.getAll("Issue").size());
     }
 
     public void testAbortLinks() {
@@ -75,10 +73,10 @@ public class StoreTransactionTests extends EntityStoreTestBase {
         PersistentEntity issue_duplicated = txn.newEntity("Issue");
         issue_duplicated.addLink("duplicated", issue);
         txn.flush();
-        Assert.assertTrue(issue_duplicated.getLinks("duplicated").size() == 1);
+        Assert.assertEquals(1, issue_duplicated.getLinks("duplicated").size());
         issue_duplicated.deleteLink("duplicated", issue);
         txn.revert();
-        Assert.assertTrue(issue_duplicated.getLinks("duplicated").size() == 1);
+        Assert.assertEquals(1, issue_duplicated.getLinks("duplicated").size());
     }
 
     public void testIsolatedBlobs() throws InterruptedException, IOException {
@@ -101,67 +99,29 @@ public class StoreTransactionTests extends EntityStoreTestBase {
         final PersistentEntityStoreImpl entityStore = getEntityStore();
         entityStore.getEnvironment().getEnvironmentConfig().setEnvIsReadonly(true);
         entityStore.getEnvironment().getEnvironmentConfig().setEnvReadonlyEmptyStores(true);
-        Assert.assertEquals(0L, (long) entityStore.computeInReadonlyTransaction(new StoreTransactionalComputable<Long>() {
-            @Override
-            public Long compute(@NotNull StoreTransaction txn) {
-                return txn.getAll("Issue").size();
-            }
-        }));
-        entityStore.executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final StoreTransaction txn) {
-                entityStore.getLastVersion((PersistentStoreTransaction) txn, new PersistentEntityId(0, 0));
-            }
-        });
+        Assert.assertEquals(0L, (long) entityStore.computeInReadonlyTransaction(txn -> txn.getAll("Issue").size()));
+        entityStore.executeInTransaction((StoreTransactionalExecutable) txn -> entityStore.getLastVersion((PersistentStoreTransaction) txn, new PersistentEntityId(0, 0)));
         entityStore.getEnvironment().getEnvironmentConfig().setEnvIsReadonly(false);
-        entityStore.executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final StoreTransaction txn) {
-                final Entity issue = txn.newEntity("Issue");
-                issue.setBlobString("desc", "Happy New Year");
-            }
+        entityStore.executeInTransaction(txn -> {
+            final Entity issue = txn.newEntity("Issue");
+            issue.setBlobString("desc", "Happy New Year");
         });
-        Assert.assertEquals(1L, (long) entityStore.computeInReadonlyTransaction(new StoreTransactionalComputable<Long>() {
-            @Override
-            public Long compute(@NotNull StoreTransaction txn) {
-                return txn.getAll("Issue").size();
-            }
-        }));
+        Assert.assertEquals(1L, (long) entityStore.computeInReadonlyTransaction(txn -> txn.getAll("Issue").size()));
     }
 
     public void testExecuteInTransaction() {
         final PersistentStoreTransaction txn = getStoreTransactionSafe();
         final Entity issue = txn.newEntity("Issue");
         issue.setProperty("summary", "Do nothing");
-        getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                issue.setProperty("summary", "Release Xodus");
-            }
-        });
+        getEntityStore().executeInTransaction(txn1 -> issue.setProperty("summary", "Release Xodus"));
         Assert.assertFalse(txn.flush());
         Assert.assertEquals("Release Xodus", issue.getProperty("summary"));
     }
 
     public void testExecuteInReadonlyTransaction() {
         final PersistentEntityStoreImpl store = getEntityStore();
-        store.executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                txn.newEntity("Issue");
-            }
-        });
-        TestUtil.runWithExpectedException(new Runnable() {
-            @Override
-            public void run() {
-                store.executeInReadonlyTransaction(new StoreTransactionalExecutable() {
-                    @Override
-                    public void execute(@NotNull StoreTransaction txn) {
-                        txn.newEntity("Issue");
-                    }
-                });
-            }
-        }, ReadonlyTransactionException.class);
+        store.executeInTransaction(txn -> txn.newEntity("Issue"));
+        TestUtil.runWithExpectedException(() -> store.executeInReadonlyTransaction(txn -> txn.newEntity("Issue")), ReadonlyTransactionException.class);
     }
 
     public void testComputeInReadonlyTransaction() {
@@ -169,72 +129,27 @@ public class StoreTransactionTests extends EntityStoreTestBase {
         final Entity issue = txn.newEntity("Issue");
         issue.setProperty("summary", "it's ok");
         txn.flush();
-        Assert.assertEquals("it's ok", getEntityStore().computeInReadonlyTransaction(new StoreTransactionalComputable<Comparable>() {
-            @Override
-            public Comparable compute(@NotNull StoreTransaction txn) {
-                return issue.getProperty("summary");
-            }
-        }));
+        Assert.assertEquals("it's ok", getEntityStore().computeInReadonlyTransaction(txn1 -> issue.getProperty("summary")));
     }
 
     @TestFor(issues = "XD-495")
     public void testNewEntityInReadonlyTransaction() {
         setReadonly();
-        TestUtil.runWithExpectedException(new Runnable() {
-            @Override
-            public void run() {
-                getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
-                    @Override
-                    public void execute(@NotNull StoreTransaction txn) {
-                        txn.newEntity("Issue");
-                    }
-                });
-            }
-        }, ReadonlyTransactionException.class);
+        TestUtil.runWithExpectedException(() -> getEntityStore().executeInTransaction(txn -> txn.newEntity("Issue")), ReadonlyTransactionException.class);
     }
 
     @TestFor(issues = "XD-495")
     public void testNewEntityInReadonlyTransaction2() {
-        getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                txn.newEntity("Issue");
-            }
-        });
+        getEntityStore().executeInTransaction(txn -> txn.newEntity("Issue"));
         setReadonly();
-        TestUtil.runWithExpectedException(new Runnable() {
-            @Override
-            public void run() {
-                getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
-                    @Override
-                    public void execute(@NotNull StoreTransaction txn) {
-                        txn.newEntity("Issue");
-                    }
-                });
-            }
-        }, ReadonlyTransactionException.class);
+        TestUtil.runWithExpectedException(() -> getEntityStore().executeInTransaction(txn -> txn.newEntity("Issue")), ReadonlyTransactionException.class);
     }
 
     @TestFor(issues = "XD-495")
     public void testNewEntityInReadonlyTransaction3() {
-        getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                txn.newEntity("Issue");
-            }
-        });
+        getEntityStore().executeInTransaction(txn -> txn.newEntity("Issue"));
         setReadonly();
-        getEntityStore().executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final StoreTransaction txn) {
-                TestUtil.runWithExpectedException(new Runnable() {
-                    @Override
-                    public void run() {
-                        txn.newEntity("Issue");
-                    }
-                }, ReadonlyTransactionException.class);
-            }
-        });
+        getEntityStore().executeInTransaction(txn -> TestUtil.runWithExpectedException(() -> txn.newEntity("Issue"), ReadonlyTransactionException.class));
     }
 
     private void setReadonly() {

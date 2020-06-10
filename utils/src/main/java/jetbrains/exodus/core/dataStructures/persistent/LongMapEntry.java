@@ -46,7 +46,7 @@ public class LongMapEntry<V> implements PersistentLongMap.Entry<V>, LongComparab
         return key;
     }
 
-    @SuppressWarnings("NullableProblems") // Comparable<T> contract requires NPE if argument is null
+    // Comparable<T> contract requires NPE if argument is null
     @Override
     public int compareTo(PersistentLongMap.Entry<V> o) {
         final long otherKey = o.getKey();

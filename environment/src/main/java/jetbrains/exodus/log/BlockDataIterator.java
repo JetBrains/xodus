@@ -159,7 +159,7 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
         }
 
         @Override
-        public int read(@NotNull byte[] b, int off, int len) {
+        public int read(@NotNull byte @NotNull [] b, int off, int len) {
             final int readLength = block.read(b, position - block.getAddress(), off, len);
             if (readLength > 0) {
                 if (crypt) {

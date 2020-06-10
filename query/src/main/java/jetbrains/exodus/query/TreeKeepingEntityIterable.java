@@ -36,7 +36,7 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
     private final NodeBase sourceTree;
     private NodeBase optimizedTree;
     private Sorts sorts;
-    private Object origin;
+    private final Object origin;
     private String strippedStacktrace;
     String annotatedTree;
     private final boolean isExplainOn;

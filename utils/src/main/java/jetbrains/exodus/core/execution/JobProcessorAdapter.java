@@ -34,7 +34,6 @@ public abstract class JobProcessorAdapter implements JobProcessor {
     protected JobHandler[] jobStartingHandlers;
     @Nullable
     protected JobHandler[] jobFinishedHandlers;
-    @SuppressWarnings({"MismatchedQueryAndUpdateOfCollection"})
     @NotNull
     private final Semaphore suspendSemaphore;
     @NotNull

@@ -45,7 +45,7 @@ public class GetAll extends NodeBase {
 
     @Override
     public Iterable<NodeBase> getDescendants() {
-        return new NanoSet<NodeBase>(this);
+        return new NanoSet<>(this);
     }
 
     @Override

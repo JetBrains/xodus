@@ -37,7 +37,7 @@ public class PropertyEqual extends NodeBase {
         return name;
     }
 
-    public Comparable getValue() {
+    public @Nullable Comparable getValue() {
         return value;
     }
 

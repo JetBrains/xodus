@@ -28,8 +28,9 @@ import java.util.NoSuchElementException;
  * Iterates over decorated. Adds null to the end if nullContainer contains null.
  */
 public class AddNullStaticTypedEntityIterable extends StaticTypedEntityIterable {
-    private StaticTypedEntityIterable decorated;
-    private StaticTypedEntityIterable nullContainer;
+
+    private final StaticTypedEntityIterable decorated;
+    private final StaticTypedEntityIterable nullContainer;
 
     public AddNullStaticTypedEntityIterable(String entityType, StaticTypedEntityIterable decorated,
                                             StaticTypedEntityIterable nullContainer, QueryEngine engine) {
@@ -47,57 +48,52 @@ public class AddNullStaticTypedEntityIterable extends StaticTypedEntityIterable 
             EntityIterableBase entityIterableBaseDecorated = ((EntityIterableBase) instantiatedDecorated).getSource();
             EntityIterableBase entityIterableBaseNullContainer = ((EntityIterableBase) instantiatedNullContainer).getSource();
             return queryEngine.wrap(new AddNullDecoratorIterable(
-                    queryEngine.getPersistentStore().getAndCheckCurrentTransaction(), entityIterableBaseDecorated, entityIterableBaseNullContainer));
+                queryEngine.getPersistentStore().getAndCheckCurrentTransaction(), entityIterableBaseDecorated, entityIterableBaseNullContainer));
         }
-        return new Iterable<Entity>() {
+        return () -> new Iterator<Entity>() {
+            private Iterator<Entity> iterator = null;
+            private Boolean hasNull = null;
+
             @Override
-            public Iterator<Entity> iterator() {
-                return new Iterator<Entity>() {
-                    private Iterator<Entity> iterator = null;
-                    private Boolean hasNull = null;
+            public boolean hasNext() {
+                if (iterator == null) {
+                    iterator = decorated.iterator();
+                }
+                if (iterator.hasNext()) {
+                    return true;
+                }
+                if (hasNull == null) {
+                    hasNull = false;
+                    for (Entity entity : nullContainer) {
+                        if (entity == null) {
+                            hasNull = true;
+                            break;
+                        }
+                    }
+                }
+                return hasNull;
+            }
 
-                    @Override
-                    public boolean hasNext() {
-                        if (iterator == null) {
-                            iterator = decorated.iterator();
-                        }
-                        if (iterator.hasNext()) {
-                            return true;
-                        }
-                        if (hasNull == null) {
+            @Override
+            public Entity next() {
+                if (hasNext()) {
+                    if (hasNull == null) {
+                        Entity result = iterator.next();
+                        if (result == null) {
                             hasNull = false;
-                            for (Entity entity : nullContainer) {
-                                if (entity == null) {
-                                    hasNull = true;
-                                    break;
-                                }
-                            }
                         }
-                        return hasNull;
+                        return result;
+                    } else {
+                        hasNull = false;
+                        return null;
                     }
+                }
+                throw new NoSuchElementException();
+            }
 
-                    @Override
-                    public Entity next() {
-                        if (hasNext()) {
-                            if (hasNull == null) {
-                                Entity result = iterator.next();
-                                if (result == null) {
-                                    hasNull = false;
-                                }
-                                return result;
-                            } else {
-                                hasNull = false;
-                                return null;
-                            }
-                        }
-                        throw new NoSuchElementException();
-                    }
-
-                    @Override
-                    public void remove() {
-                        throw new UnsupportedOperationException();
-                    }
-                };
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException();
             }
         };
     }

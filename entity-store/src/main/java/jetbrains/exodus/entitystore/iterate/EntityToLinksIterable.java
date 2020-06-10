@@ -32,16 +32,11 @@ public final class EntityToLinksIterable extends EntityLinksIterableBase {
     private final int linkId;
 
     static {
-        registerType(getType(), new EntityIterableInstantiator() {
-            @Override
-            public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new EntityToLinksIterable(txn,
-                        new PersistentEntityId(Integer.valueOf((String) parameters[0]),
-                                Integer.valueOf((String) parameters[1])),
-                        Integer.valueOf((String) parameters[2]), Integer.valueOf((String) parameters[3])
-                );
-            }
-        });
+        registerType(getType(), (txn, store, parameters) -> new EntityToLinksIterable(txn,
+            new PersistentEntityId(Integer.parseInt((String) parameters[0]),
+                Integer.parseInt((String) parameters[1])),
+            Integer.parseInt((String) parameters[2]), Integer.parseInt((String) parameters[3])
+        ));
     }
 
     public EntityToLinksIterable(@NotNull final PersistentStoreTransaction txn,

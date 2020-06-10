@@ -26,7 +26,7 @@ class BTreeCursorDup extends TreeCursor {
     @NotNull
     protected final BTreeTraverserDup traverser; // hack to avoid casts
 
-    BTreeCursorDup(BTreeTraverserDup traverser) {
+    BTreeCursorDup(@NotNull BTreeTraverserDup traverser) {
         super(traverser);
         this.traverser = traverser;
     }

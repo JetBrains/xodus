@@ -40,7 +40,7 @@ public abstract class ByteIterableBase implements ByteIterable {
     protected int length = -1;
 
     @Override
-    public int compareTo(final ByteIterable right) {
+    public int compareTo(@NotNull final ByteIterable right) {
         return ByteIterableUtil.compare(this, right);
     }
 
@@ -131,7 +131,6 @@ public abstract class ByteIterableBase implements ByteIterable {
         return result;
     }
 
-    @SuppressWarnings({"AssignmentToForLoopParameter"})
     @Override
     public String toString() {
         return toString(getBytesUnsafe(), 0, getLength());

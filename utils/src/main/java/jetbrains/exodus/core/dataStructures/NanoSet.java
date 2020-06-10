@@ -31,7 +31,7 @@ public class NanoSet<E> extends AbstractSet<E> {
     }
 
     @Override
-    public Iterator<E> iterator() {
+    public @NotNull Iterator<E> iterator() {
         return new NanoIterator<>(this);
     }
 
@@ -56,7 +56,7 @@ public class NanoSet<E> extends AbstractSet<E> {
     }
 
     @Override
-    public boolean addAll(Collection<? extends E> c) {
+    public boolean addAll(@NotNull Collection<? extends E> c) {
         throw new UnsupportedOperationException();
     }
 

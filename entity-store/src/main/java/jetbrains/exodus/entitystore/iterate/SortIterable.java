@@ -37,14 +37,9 @@ public final class SortIterable extends EntityIterableDecoratorBase {
     private final boolean stableSort;
 
     static {
-        registerType(getType(), new EntityIterableInstantiator() {
-            @Override
-            public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new SortIterable(txn, (EntityIterableBase) parameters[3],
-                    (EntityIterableBase) parameters[3], Integer.valueOf((String) parameters[0]),
-                    Integer.valueOf((String) parameters[1]), "0".equals(parameters[2]));
-            }
-        });
+        registerType(getType(), (txn, store, parameters) -> new SortIterable(txn, (EntityIterableBase) parameters[3],
+            (EntityIterableBase) parameters[3], Integer.parseInt((String) parameters[0]),
+            Integer.parseInt((String) parameters[1]), "0".equals(parameters[2])));
     }
 
     public SortIterable(@NotNull final PersistentStoreTransaction txn,
@@ -264,7 +259,6 @@ public final class SortIterable extends EntityIterableDecoratorBase {
             lastValue = null;
         }
 
-        @SuppressWarnings({"OverlyLongMethod"})
         @Override
         protected boolean hasNextImpl() {
             if (sameValueQueue.isEmpty()) {
@@ -420,39 +414,36 @@ public final class SortIterable extends EntityIterableDecoratorBase {
 
             // finally sort
             final Object[] array = pairs.toArray();
-            Arrays.sort(array, new Comparator() {
-                @Override
-                public int compare(final Object o1, final Object o2) {
-                    final IdValuePair pair1 = (IdValuePair) o1;
-                    final IdValuePair pair2 = (IdValuePair) o2;
-                    final Comparable propValue1 = pair1.propValue;
-                    final Comparable propValue2 = pair2.propValue;
-                    int result;
-                    if (propValue1 == null && propValue2 == null) {
-                        result = 0;
-                    } else if (propValue1 == null) {
-                        result = 1;
-                    } else if (propValue2 == null) {
-                        result = -1;
+            Arrays.sort(array, (Comparator) (o1, o2) -> {
+                final IdValuePair pair1 = (IdValuePair) o1;
+                final IdValuePair pair2 = (IdValuePair) o2;
+                final Comparable propValue1 = pair1.propValue;
+                final Comparable propValue2 = pair2.propValue;
+                int result;
+                if (propValue1 == null && propValue2 == null) {
+                    result = 0;
+                } else if (propValue1 == null) {
+                    result = 1;
+                } else if (propValue2 == null) {
+                    result = -1;
+                } else {
+                    final boolean isString = propValue1 instanceof String;
+                    if (ascending) {
+                        result = isString ? ((String) propValue1).compareToIgnoreCase((String) propValue2) :
+                            propValue1.compareTo(propValue2);
                     } else {
-                        final boolean isString = propValue1 instanceof String;
-                        if (ascending) {
-                            result = isString ? ((String) propValue1).compareToIgnoreCase((String) propValue2) :
-                                propValue1.compareTo(propValue2);
-                        } else {
-                            result = isString ? ((String) propValue2).compareToIgnoreCase((String) propValue1) :
-                                propValue2.compareTo(propValue1);
-                        }
+                        result = isString ? ((String) propValue2).compareToIgnoreCase((String) propValue1) :
+                            propValue2.compareTo(propValue1);
                     }
-                    if (!stable && result == 0) {
-                        if (pair1.localId < pair2.localId) {
-                            result = -1;
-                        } else if (pair1.localId > pair2.localId) {
-                            result = 1;
-                        }
-                    }
-                    return result;
                 }
+                if (!stable && result == 0) {
+                    if (pair1.localId < pair2.localId) {
+                        result = -1;
+                    } else if (pair1.localId > pair2.localId) {
+                        result = 1;
+                    }
+                }
+                return result;
             });
             final ListIterator<IdValuePair> i = pairs.listIterator();
             for (final Object o : array) {

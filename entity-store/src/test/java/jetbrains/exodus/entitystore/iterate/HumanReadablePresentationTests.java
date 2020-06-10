@@ -16,11 +16,13 @@
 package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
-import jetbrains.exodus.entitystore.*;
+import jetbrains.exodus.entitystore.EntityIterableType;
+import jetbrains.exodus.entitystore.EntityStoreTestBase;
+import jetbrains.exodus.entitystore.PersistentEntityId;
+import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.entitystore.iterate.binop.*;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 
 public class HumanReadablePresentationTests extends EntityStoreTestBase {
 
@@ -63,18 +65,7 @@ public class HumanReadablePresentationTests extends EntityStoreTestBase {
         checkIterable(new EntitiesWithLinkIterable(txn, 0, 1), "Entities with link 0 1");
         checkIterable(new EntitiesWithLinkSortedIterable(txn, 0, 1, 2, 3), "Entities with link 0 1");
         checkIterable(new SingleEntityIterable(txn, new PersistentEntityId(0, 1)), "Single entity 0 1");
-        //noinspection ComparatorMethodParameterNotUsed
-        checkIterable(new MergeSortedIterableWithValueGetter(txn, new ArrayList<EntityIterable>(), new ComparableGetter() {
-            @Override
-            public Comparable select(Entity entity) {
-                return null;
-            }
-        }, new Comparator<Comparable<Object>>() {
-            @Override
-            public int compare(Comparable<Object> o1, Comparable<Object> o2) {
-                return 0;
-            }
-        }), "Merge sorted iterables 0");
+        checkIterable(new MergeSortedIterableWithValueGetter(txn, new ArrayList<>(), entity -> null, (o1, o2) -> 0), "Merge sorted iterables 0");
         checkIterable(new EntitiesWithPropertyIterable(txn, 0, 1), "Entities with property 0 1");
         checkIterable(new EntitiesWithBlobIterable(txn, 0, 1), "Entities with blob 0 1");
         checkIterable(new TakeEntityIterable(txn, EntityIterableBase.EMPTY, 0),

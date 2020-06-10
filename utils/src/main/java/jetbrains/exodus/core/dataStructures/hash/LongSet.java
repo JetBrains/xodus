@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.core.dataStructures.hash;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.AbstractSet;
 import java.util.Set;
 
@@ -29,6 +31,7 @@ public interface LongSet extends Set<Long> {
     boolean remove(final long key);
 
     @Override
+    @NotNull
     LongIterator iterator();
 
     long[] toLongArray();
@@ -51,7 +54,7 @@ public interface LongSet extends Set<Long> {
         }
 
         @Override
-        public LongIterator iterator() {
+        public @NotNull LongIterator iterator() {
             return LongIterator.EMPTY;
         }
 

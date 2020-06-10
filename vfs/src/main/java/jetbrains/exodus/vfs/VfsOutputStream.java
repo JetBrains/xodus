@@ -109,7 +109,7 @@ class VfsOutputStream extends OutputStream {
 
 
     @Override
-    public void write(@NotNull byte[] b, int off, int len) throws IOException {
+    public void write(@NotNull byte @NotNull [] b, int off, int len) throws IOException {
         int position = this.position;
         if (position + len > outputCluster.length) {
             super.write(b, off, len);

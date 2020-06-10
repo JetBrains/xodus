@@ -48,7 +48,7 @@ public class LightByteArrayOutputStream extends ByteArrayOutputStream {
     }
 
     @Override
-    public byte toByteArray()[] {
+    public byte @NotNull [] toByteArray() {
         return buf;
     }
 

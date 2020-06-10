@@ -16,7 +16,6 @@
 package jetbrains.exodus.backup;
 
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -53,28 +52,24 @@ public abstract class BackupStrategy {
 
     public Iterable<VirtualFileDescriptor> getContents() {
         final Iterable<FileDescriptor> contents = listFiles();
-        return new Iterable<VirtualFileDescriptor>() {
-            @NotNull
-            @Override
-            public Iterator<VirtualFileDescriptor> iterator() {
-                final Iterator<FileDescriptor> sourceItr = contents.iterator();
-                return new Iterator<VirtualFileDescriptor>() {
-                    @Override
-                    public boolean hasNext() {
-                        return sourceItr.hasNext();
-                    }
+        return () -> {
+            final Iterator<FileDescriptor> sourceItr = contents.iterator();
+            return new Iterator<VirtualFileDescriptor>() {
+                @Override
+                public boolean hasNext() {
+                    return sourceItr.hasNext();
+                }
 
-                    @Override
-                    public VirtualFileDescriptor next() {
-                        return sourceItr.next();
-                    }
+                @Override
+                public VirtualFileDescriptor next() {
+                    return sourceItr.next();
+                }
 
-                    @Override
-                    public void remove() {
-                        sourceItr.remove();
-                    }
-                };
-            }
+                @Override
+                public void remove() {
+                    sourceItr.remove();
+                }
+            };
         };
     }
 
@@ -162,7 +157,7 @@ public abstract class BackupStrategy {
         }
 
         @Override
-        @Nullable
+        @NotNull
         public File getFile() {
             return file;
         }

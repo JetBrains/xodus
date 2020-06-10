@@ -28,14 +28,13 @@ public class StringKVNode implements INode {
 
     @NotNull
     protected final ByteIterable key;
-    @NotNull
     protected final ByteIterable value;
     @NotNull
     private final String skey;
     @Nullable
     private final String svalue;
 
-    public StringKVNode(String key, String value) {
+    public StringKVNode(String key, @Nullable String value) {
         this.key = new ArrayByteIterable(key.getBytes());
         this.value = value == null ? null : new ArrayByteIterable(value.getBytes());
         skey = key;

@@ -81,7 +81,7 @@ public class HashMapTest {
         Assert.assertEquals(501, tested.size());
         Assert.assertEquals("null", tested.get(null));
         tested.remove(null);
-        Assert.assertEquals(null, tested.get(null));
+        Assert.assertNull(tested.get(null));
         for (int i = 0; i < 1000; ++i) {
             Assert.assertEquals((i % 2 == 0) ? null : Integer.toString(i), tested.get(i));
         }
@@ -130,7 +130,7 @@ public class HashMapTest {
         it = tested.keySet().iterator();
         for (int i = 9998; i >= 0; i -= 2) {
             Assert.assertTrue(it.hasNext());
-            Assert.assertTrue(it.next() % 2 == 0);
+            Assert.assertEquals(0, it.next() % 2);
             Assert.assertTrue(set.remove(i));
         }
         Assert.assertEquals(0, set.size());
@@ -167,35 +167,23 @@ public class HashMapTest {
         }
         tested.put(null, "null");
         final int[] ii = {0};
-        tested.forEachKey(new ObjectProcedure<Integer>() {
-            @Override
-            public boolean execute(Integer object) {
-                ii[0]++;
-                return true;
-            }
+        tested.forEachKey(object -> {
+            ii[0]++;
+            return true;
         });
-        tested.forEachValue(new ObjectProcedure<String>() {
-            @Override
-            public boolean execute(String object) {
-                ii[0]++;
-                return true;
-            }
+        tested.forEachValue(object -> {
+            ii[0]++;
+            return true;
         });
         Assert.assertEquals(tested.size() * 2, ii[0]);
         ii[0] = 0;
-        tested.forEachKey(new ObjectProcedure<Integer>() {
-            @Override
-            public boolean execute(Integer object) {
-                ii[0]++;
-                return (object == null) || (object < 500);
-            }
+        tested.forEachKey(object -> {
+            ii[0]++;
+            return (object == null) || (object < 500);
         });
-        tested.forEachValue(new ObjectProcedure<String>() {
-            @Override
-            public boolean execute(String object) {
-                ii[0]++;
-                return true;
-            }
+        tested.forEachValue(object -> {
+            ii[0]++;
+            return true;
         });
         Assert.assertEquals(tested.size() + 502, ii[0]);
     }

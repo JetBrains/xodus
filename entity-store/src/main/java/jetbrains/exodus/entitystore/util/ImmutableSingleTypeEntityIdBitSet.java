@@ -119,7 +119,7 @@ public class ImmutableSingleTypeEntityIdBitSet implements SortedEntityIdSet {
     }
 
     @Override
-    public Iterator<EntityId> iterator() {
+    public @NotNull Iterator<EntityId> iterator() {
         return new IdIterator();
     }
 

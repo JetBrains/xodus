@@ -15,8 +15,6 @@
  */
 package jetbrains.exodus.benchmark.chronicle;
 
-import net.openhft.chronicle.map.ChronicleMap;
-import org.jetbrains.annotations.NotNull;
 import org.openjdk.jmh.annotations.*;
 
 import java.io.IOException;
@@ -39,12 +37,7 @@ public class JMHChronicleMapTokyoCabinetWriteBenchmark extends JMHChronicleMapTo
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
     public void successiveWrite() {
-        executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull ChronicleMap<String, String> map) {
-                writeSuccessiveKeys(map);
-            }
-        });
+        executeInTransaction(this::writeSuccessiveKeys);
     }
 
     @Benchmark
@@ -53,12 +46,9 @@ public class JMHChronicleMapTokyoCabinetWriteBenchmark extends JMHChronicleMapTo
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
     public void randomWrite() {
-        executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull ChronicleMap<String, String> map) {
-                for (final String key : randomKeys) {
-                    map.put(key, key);
-                }
+        executeInTransaction(map -> {
+            for (final String key : randomKeys) {
+                map.put(key, key);
             }
         });
     }

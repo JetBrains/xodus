@@ -19,7 +19,6 @@ import jetbrains.exodus.util.StringInterner;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 
-@SuppressWarnings({"unchecked"})
 final class StoreNamingRules {
 
     @NonNls

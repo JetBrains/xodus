@@ -16,6 +16,7 @@
 package jetbrains.exodus.core.dataStructures.decorators;
 
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -52,17 +53,17 @@ public class HashSetDecorator<E> implements Set<E> {
     }
 
     @Override
-    public Iterator<E> iterator() {
+    public @NotNull Iterator<E> iterator() {
         return decorated.iterator();
     }
 
     @Override
-    public Object[] toArray() {
+    public Object @NotNull [] toArray() {
         return decorated.toArray();
     }
 
     @Override
-    public <T> T[] toArray(T[] a) {
+    public <T> T @NotNull [] toArray(T @NotNull [] a) {
         return decorated.toArray(a);
     }
 
@@ -83,24 +84,24 @@ public class HashSetDecorator<E> implements Set<E> {
     }
 
     @Override
-    public boolean containsAll(Collection<?> c) {
+    public boolean containsAll(@NotNull Collection<?> c) {
         return decorated.containsAll(c);
     }
 
     @Override
-    public boolean addAll(Collection<? extends E> c) {
+    public boolean addAll(@NotNull Collection<? extends E> c) {
         checkDecorated();
         return decorated.addAll(c);
     }
 
     @Override
-    public boolean retainAll(Collection<?> c) {
+    public boolean retainAll(@NotNull Collection<?> c) {
         checkDecorated();
         return decorated.retainAll(c);
     }
 
     @Override
-    public boolean removeAll(Collection<?> c) {
+    public boolean removeAll(@NotNull Collection<?> c) {
         if (decorated == Collections.emptySet()) return false;
         final boolean result = decorated.removeAll(c);
         if (result && decorated.isEmpty()) {

@@ -51,7 +51,7 @@ public class BackupBean implements Backupable {
     private boolean backupToZip;
     private String backupNamePrefix;
     private String commandAfterBackup;
-    private List<Runnable> runAfterBackup = new ArrayList<>();
+    private final List<Runnable> runAfterBackup = new ArrayList<>();
     private Throwable backupException;
 
     public BackupBean(final Backupable target) {

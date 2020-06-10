@@ -26,7 +26,6 @@ import jetbrains.exodus.io.inMemory.Memory;
 import jetbrains.exodus.io.inMemory.MemoryDataReader;
 import jetbrains.exodus.io.inMemory.MemoryDataWriter;
 import jetbrains.exodus.util.Random;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -42,7 +41,7 @@ public class EnvironmentTestInMemory extends EnvironmentTest {
     @Override
     protected Pair<DataReader, DataWriter> createRW() {
         Memory memory = new Memory();
-        return new Pair<DataReader, DataWriter>(new MemoryDataReader(memory), new MemoryDataWriter(memory));
+        return new Pair<>(new MemoryDataReader(memory), new MemoryDataWriter(memory));
     }
 
     @Override
@@ -81,16 +80,13 @@ public class EnvironmentTestInMemory extends EnvironmentTest {
                 txn.abort();
             }
         }
-        env.executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final Transaction txn) {
-                try (Cursor cursor = primary.openCursor(txn)) {
-                    Assert.assertTrue(cursor.getNext());
-                    for (Persistent23TreeMap.Entry<Integer, Integer> entry : testMap.beginRead()) {
-                        Assert.assertEquals((int) entry.getKey(), IntegerBinding.readCompressed(cursor.getKey().iterator()));
-                        Assert.assertEquals((int) entry.getValue(), IntegerBinding.readCompressed(cursor.getValue().iterator()));
-                        cursor.getNext();
-                    }
+        env.executeInTransaction(txn -> {
+            try (Cursor cursor = primary.openCursor(txn)) {
+                Assert.assertTrue(cursor.getNext());
+                for (Persistent23TreeMap.Entry<Integer, Integer> entry : testMap.beginRead()) {
+                    Assert.assertEquals((int) entry.getKey(), IntegerBinding.readCompressed(cursor.getKey().iterator()));
+                    Assert.assertEquals((int) entry.getValue(), IntegerBinding.readCompressed(cursor.getValue().iterator()));
+                    cursor.getNext();
                 }
             }
         });

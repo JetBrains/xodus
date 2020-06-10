@@ -15,8 +15,6 @@
  */
 package jetbrains.exodus.entitystore;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.io.*;
 
 public class PersistentStoreExample {
@@ -36,44 +34,38 @@ public class PersistentStoreExample {
         final PersistentEntityStoreImpl store = PersistentEntityStores.newInstance("data");
 
         // Create new blog and put new blog post there
-        final EntityId blogId = store.computeInTransaction(new StoreTransactionalComputable<EntityId>() {
-            @Override
-            public EntityId compute(@NotNull StoreTransaction txn) {
-                final Entity blog = txn.newEntity(BLOG_ENTITY_TYPE_NAME);
-                blog.setProperty("name", "Xodus Official Blog");
-                final Entity post;
+        final EntityId blogId = store.computeInTransaction(txn -> {
+            final Entity blog = txn.newEntity(BLOG_ENTITY_TYPE_NAME);
+            blog.setProperty("name", "Xodus Official Blog");
+            final Entity post;
 
-                try {
-                    post = createNewBlogPost(txn, "Xodus blog post",
-                            new ByteArrayInputStream(SAMPLE_BLOG_POST.getBytes("UTF-8")));
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-
-                blog.addLink("items", post);
-                return blog.getId();
+            try {
+                post = createNewBlogPost(txn, "Xodus blog post",
+                    new ByteArrayInputStream(SAMPLE_BLOG_POST.getBytes("UTF-8")));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
+
+            blog.addLink("items", post);
+            return blog.getId();
         });
 
         // Load blog and show posts and print content
-        store.executeInTransaction(new StoreTransactionalExecutable() {
-            @Override
-            public void execute(@NotNull StoreTransaction txn) {
-                final EntityIterable blogs = txn.getAll(BLOG_ENTITY_TYPE_NAME);
-                for (Entity blog : blogs) {
-                    System.out.println("Blog name: " + blog.getProperty("name"));
-                    final Iterable<Entity> blogItems = blog.getLinks("items");
+        store.executeInTransaction(txn -> {
+            final EntityIterable blogs = txn.getAll(BLOG_ENTITY_TYPE_NAME);
+            for (Entity blog : blogs) {
+                System.out.println("Blog name: " + blog.getProperty("name"));
+                final Iterable<Entity> blogItems = blog.getLinks("items");
 
-                    for (Entity item : blogItems) {
-                        try {
-                            printBlogItem(item);
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
+                for (Entity item : blogItems) {
+                    try {
+                        printBlogItem(item);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
                     }
                 }
-
             }
+
         });
 
         // Close store when we are done

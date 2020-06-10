@@ -33,7 +33,7 @@ public abstract class CachedInstanceIterable extends EntityIterableBase {
     }
 
     @Override
-    public EntityIterator iterator() {
+    public @NotNull EntityIterator iterator() {
         return getIteratorImpl();
     }
 

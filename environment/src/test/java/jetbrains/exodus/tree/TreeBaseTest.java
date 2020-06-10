@@ -126,13 +126,13 @@ public abstract class TreeBaseTest {
 
     protected static void checkEmptyTree(ITree bt) {
         assertEquals(log, bt.getLog());
-        assertEquals(true, bt.isEmpty());
+        assertTrue(bt.isEmpty());
         assertEquals(0, bt.getSize());
-        assertEquals(null, bt.get(ByteIterable.EMPTY));
-        assertEquals(null, bt.get(key("some key")));
-        assertEquals(false, bt.openCursor().getNext());
-        assertEquals(false, bt.hasKey(key("some key")));
-        assertEquals(false, bt.hasPair(key("some key"), value("some value")));
+        assertNull(bt.get(ByteIterable.EMPTY));
+        assertNull(bt.get(key("some key")));
+        assertFalse(bt.openCursor().getNext());
+        assertFalse(bt.hasKey(key("some key")));
+        assertFalse(bt.hasPair(key("some key"), value("some value")));
     }
 
     public static INode kv(String key) {
@@ -174,7 +174,7 @@ public abstract class TreeBaseTest {
 
         if (checkExists) {
             for (INode leafNode : expected) {
-                assertEquals(true, actual.hasPair(leafNode.getKey(), leafNode.getValue()));
+                assertTrue(actual.hasPair(leafNode.getKey(), leafNode.getValue()));
             }
         }
     }
@@ -209,7 +209,7 @@ public abstract class TreeBaseTest {
         Collections.sort(list);
         long prev = -239L;
         for (final long l : list) {
-            Assert.assertFalse(prev == l);
+            assertNotEquals(prev, l);
             prev = l;
         }
     }

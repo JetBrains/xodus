@@ -187,59 +187,53 @@ public abstract class PriorityQueueTest {
     public void concurrentBenchmark() {
         final AtomicInteger counter = new AtomicInteger();
         final PriorityQueue<Priority, TestObject> queue = createQueue();
-        final Runnable threadFunction = new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    //noinspection InfiniteLoopStatement
-                    while (true) {
-                        try (Guard ignored = queue.lock()) {
-                            final TestObject value = new TestObject(counter);
-                            final Priority p;
-                            switch (value.number % 5) {
-                                case 0:
-                                    p = Priority.lowest;
-                                    break;
-                                case 1:
-                                    p = Priority.below_normal;
-                                    break;
-                                case 2:
-                                    p = Priority.normal;
-                                    break;
-                                case 3:
-                                    p = Priority.above_normal;
-                                    break;
-                                default:
-                                    p = Priority.highest;
-                                    break;
-                            }
-                            queue.push(p, value);
+        final Runnable threadFunction = () -> {
+            try {
+                //noinspection InfiniteLoopStatement
+                while (true) {
+                    try (Guard ignored = queue.lock()) {
+                        final TestObject value = new TestObject(counter);
+                        final Priority p;
+                        switch (value.number % 5) {
+                            case 0:
+                                p = Priority.lowest;
+                                break;
+                            case 1:
+                                p = Priority.below_normal;
+                                break;
+                            case 2:
+                                p = Priority.normal;
+                                break;
+                            case 3:
+                                p = Priority.above_normal;
+                                break;
+                            default:
+                                p = Priority.highest;
+                                break;
                         }
+                        queue.push(p, value);
                     }
-                } catch (RuntimeException e) {
-                    // ignore
                 }
+            } catch (RuntimeException e) {
+                // ignore
             }
         };
 
-        TestUtil.time("concurrentBenchmark", new Runnable() {
-            @Override
-            public void run() {
-                final int numberOfThreads = 4;
-                final Thread[] threads = new Thread[numberOfThreads];
-                for (int i = 0; i < numberOfThreads; ++i) {
-                    threads[i] = new Thread(threadFunction);
-                }
-                for (int i = 0; i < numberOfThreads; ++i) {
-                    threads[i].start();
-                }
-                for (int i = 0; i < numberOfThreads; ++i) {
-                    try {
-                        threads[i].join();
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        // ignore
-                    }
+        TestUtil.time("concurrentBenchmark", () -> {
+            final int numberOfThreads = 4;
+            final Thread[] threads = new Thread[numberOfThreads];
+            for (int i = 0; i < numberOfThreads; ++i) {
+                threads[i] = new Thread(threadFunction);
+            }
+            for (int i = 0; i < numberOfThreads; ++i) {
+                threads[i].start();
+            }
+            for (int i = 0; i < numberOfThreads; ++i) {
+                try {
+                    threads[i].join();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    // ignore
                 }
             }
         });

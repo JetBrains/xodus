@@ -44,7 +44,6 @@ public class ObjectCache<K, V> extends ObjectCacheBase<K, V> {
         this(cacheSize, DEFAULT_SECOND_GENERATION_QUEUE_SIZE_RATIO);
     }
 
-    @SuppressWarnings({"unchecked"})
     public ObjectCache(final int cacheSize, float secondGenSizeRatio) {
         super(cacheSize);
         lock = new ReentrantLock();
@@ -55,12 +54,7 @@ public class ObjectCache<K, V> extends ObjectCacheBase<K, V> {
         }
         this.secondGenSizeRatio = secondGenSizeRatio;
         clear();
-        addDeletedPairsListener(new DeletedPairsListener<K, V>() {
-            @Override
-            public void objectRemoved(K key, V value) {
-                pushedOutValue = value;
-            }
-        });
+        addDeletedPairsListener((key, value) -> pushedOutValue = value);
     }
 
     public void clear() {

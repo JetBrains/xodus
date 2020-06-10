@@ -101,12 +101,7 @@ public class LogTests extends LogTestsBase {
         }
         getLog().flush();
         getLog().endWrite();
-        TestUtil.runWithExpectedException(new Runnable() {
-            @Override
-            public void run() {
-                getLog().removeFile(1111);
-            }
-        }, ExodusException.class);
+        TestUtil.runWithExpectedException(() -> getLog().removeFile(1111), ExodusException.class);
     }
 
     @Test
@@ -118,12 +113,7 @@ public class LogTests extends LogTestsBase {
         }
         getLog().flush();
         getLog().endWrite();
-        TestUtil.runWithExpectedException(new Runnable() {
-            @Override
-            public void run() {
-                getLog().removeFile(1024 * 10);
-            }
-        }, ExodusException.class);
+        TestUtil.runWithExpectedException(() -> getLog().removeFile(1024 * 10), ExodusException.class);
     }
 
     @Test
@@ -183,16 +173,13 @@ public class LogTests extends LogTestsBase {
     public void testAutoAlignment2() {
         initLog(1);
         // one kb loggable can't be placed in a single file of one kb size
-        TestUtil.runWithExpectedException(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    log.beginWrite();
-                    getLog().write(ONE_KB_LOGGABLE);
-                } catch (Throwable t) {
-                    getLog().abortWrite();
-                    throw t;
-                }
+        TestUtil.runWithExpectedException(() -> {
+            try {
+                log.beginWrite();
+                getLog().write(ONE_KB_LOGGABLE);
+            } catch (Throwable t) {
+                getLog().abortWrite();
+                throw t;
             }
         }, TooBigLoggableException.class);
     }

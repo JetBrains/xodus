@@ -93,7 +93,7 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
                     while (treePos.pos >= (treePos.node.isTernary() ? 2 : 1)) {
                         if (--i < 0) {
                             hasNext = false;
-                            return hasNext;
+                            return false;
                         }
                         treePos = stack[i];
                     }
@@ -160,7 +160,7 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
                     Node<K> root = getRoot();
                     if (root == null) {
                         hasNext = false;
-                        return hasNext;
+                        return false;
                     }
                     stack = new Stack<>();
                     if (!root.getLess(key, stack)) {
@@ -173,7 +173,7 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
                         stack.pop();
                         if (stack.isEmpty()) {
                             hasNext = false;
-                            return hasNext;
+                            return false;
                         }
                         treePos = stack.peek();
                     }
@@ -193,7 +193,7 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
                 }
                 treePos.pos++;
                 hasNext = true;
-                return hasNext;
+                return true;
             }
 
             @Override
@@ -259,7 +259,7 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
                     while (treePos.pos <= 1) {
                         if (--i < 0) {
                             hasNext = false;
-                            return hasNext;
+                            return false;
                         }
                         treePos = stack[i];
                     }
@@ -325,7 +325,7 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
                     Node<K> root = getRoot();
                     if (root == null) {
                         hasNext = false;
-                        return hasNext;
+                        return false;
                     }
                     bound = getLess(root, key);
                     stack = new Stack<>();
@@ -337,7 +337,7 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
                         stack.pop();
                         if (stack.isEmpty()) {
                             hasNext = false;
-                            return hasNext;
+                            return false;
                         }
                         treePos = stack.peek();
                     }
@@ -587,7 +587,7 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
             if (strict && comp != 0) {
                 return null;
             } else {
-                return new Pair<Node<K>, K>(new RemovedNode<K>(null), firstKey);
+                return new Pair<>(new RemovedNode<>(null), firstKey);
             }
         }
 
@@ -732,7 +732,6 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
             return splitResult.fill(new InternalTernaryNode<>(firstChild, firstKey, firstNode, splitKey, splitResult.getSecondNode()));
         }
 
-        @SuppressWarnings({"SimplifiableConditionalExpression", "ConditionalExpressionWithNegatedCondition", "OverlyLongMethod"})
         @Override
         public Pair<Node<K>, K> remove(@NotNull K key, boolean strict) {
             int comp = strict ? key.compareTo(firstKey) : -1;
@@ -749,11 +748,11 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
                         final Node<K> node = createNode(
                                 removedNodeResult, firstKey, secondChild.getFirstChild(), secondChild.getFirstKey(), secondChild.getSecondChild()
                         );
-                        return new Pair<Node<K>, K>(new RemovedNode<>(node), removedKey);
+                        return new Pair<>(new RemovedNode<>(node), removedKey);
                     } else {
-                        return new Pair<Node<K>, K>(new InternalBinaryNode<>(
-                                createNode(removedNodeResult, firstKey, secondChild.getFirstChild()), secondChild.getFirstKey(),
-                                createNode(secondChild.getSecondChild(), secondChild.getSecondKey(), secondChild.getThirdChild())), removedKey);
+                        return new Pair<>(new InternalBinaryNode<>(
+                            createNode(removedNodeResult, firstKey, secondChild.getFirstChild()), secondChild.getFirstKey(),
+                            createNode(secondChild.getSecondChild(), secondChild.getSecondKey(), secondChild.getThirdChild())), removedKey);
                     }
                 } else {
                     return new Pair<>(createNode(resultNode, firstKey, secondChild), removedKey);
@@ -770,16 +769,16 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
             if (resultNode instanceof RemovedNode) {
                 Node<K> removedNodeResult = resultNode.getFirstChild();
                 if (!firstChild.isTernary()) {
-                    return new Pair<Node<K>, K>(new RemovedNode<>(createNode(
-                            firstChild.getFirstChild(), firstChild.getFirstKey(), firstChild.getSecondChild(), newNodeKey, removedNodeResult
+                    return new Pair<>(new RemovedNode<>(createNode(
+                        firstChild.getFirstChild(), firstChild.getFirstKey(), firstChild.getSecondChild(), newNodeKey, removedNodeResult
                     )), removedKey);
                 } else {
-                    return new Pair<Node<K>, K>(new InternalBinaryNode<>(
-                            createNode(firstChild.getFirstChild(), firstChild.getFirstKey(), firstChild.getSecondChild()),
-                            firstChild.getSecondKey(), createNode(firstChild.getThirdChild(), newNodeKey, removedNodeResult)), removedKey);
+                    return new Pair<>(new InternalBinaryNode<>(
+                        createNode(firstChild.getFirstChild(), firstChild.getFirstKey(), firstChild.getSecondChild()),
+                        firstChild.getSecondKey(), createNode(firstChild.getThirdChild(), newNodeKey, removedNodeResult)), removedKey);
                 }
             } else {
-                return new Pair<Node<K>, K>(new InternalBinaryNode<>(firstChild, newNodeKey, resultNode), removedKey);
+                return new Pair<>(new InternalBinaryNode<>(firstChild, newNodeKey, resultNode), removedKey);
             }
         }
 
@@ -830,9 +829,6 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
             }
             if (to != null && to.compareTo(firstKey) <= 0) {
                 throw new RuntimeException("Not a search tree.");
-            }
-            if (firstChild == null || secondChild == null) {
-                throw new RuntimeException("Not an inner node.");
             }
             int firstDepth = firstChild.checkNode(from, firstKey);
             int secondDepth = secondChild.checkNode(firstKey, to);
@@ -947,17 +943,15 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
                 return null;
             }
             if (compFirst <= 0) {
-                return new Pair<Node<K>, K>(new BinaryNode<>(secondKey), firstKey);
+                return new Pair<>(new BinaryNode<>(secondKey), firstKey);
             }
             // strict is true here
-            int compSecond = -1;
-            if (compFirst > 0) {
-                compSecond = key.compareTo(secondKey);
-            }
+            int compSecond;
+            compSecond = key.compareTo(secondKey);
             if (compSecond != 0) {
                 return null;
             } else {
-                return new Pair<Node<K>, K>(new BinaryNode<>(firstKey), secondKey);
+                return new Pair<>(new BinaryNode<>(firstKey), secondKey);
             }
         }
 
@@ -1145,7 +1139,7 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
             return splitResult.fill(new InternalBinaryNode<>(firstChild, firstKey, secondChild), secondKey, new InternalBinaryNode<>(firstNode, splitKey, splitResult.getSecondNode()));
         }
 
-        @SuppressWarnings({"ConditionalExpressionWithNegatedCondition", "OverlyLongMethod"})
+        @SuppressWarnings({"OverlyLongMethod"})
         @Override
         public Pair<Node<K>, K> remove(@NotNull K key, boolean strict) {
             int compFirst = strict ? key.compareTo(firstKey) : -1;
@@ -1159,13 +1153,13 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
                 if (resultNode instanceof RemovedNode) {
                     Node<K> removedNodeResult = resultNode.getFirstChild();
                     if (!secondChild.isTernary()) {
-                        return new Pair<Node<K>, K>(new InternalBinaryNode<>(createNode(
-                                removedNodeResult, firstKey, secondChild.getFirstChild(), secondChild.getFirstKey(), secondChild.getSecondChild()
+                        return new Pair<>(new InternalBinaryNode<>(createNode(
+                            removedNodeResult, firstKey, secondChild.getFirstChild(), secondChild.getFirstKey(), secondChild.getSecondChild()
                         ), secondKey, thirdChild), removedKey);
                     } else {
-                        return new Pair<Node<K>, K>(new InternalTernaryNode<>(createNode(removedNodeResult, firstKey, secondChild.getFirstChild()),
-                                secondChild.getFirstKey(), createNode(secondChild.getSecondChild(), secondChild.getSecondKey(), secondChild.getThirdChild()),
-                                secondKey, thirdChild), removedKey);
+                        return new Pair<>(new InternalTernaryNode<>(createNode(removedNodeResult, firstKey, secondChild.getFirstChild()),
+                            secondChild.getFirstKey(), createNode(secondChild.getSecondChild(), secondChild.getSecondKey(), secondChild.getThirdChild()),
+                            secondKey, thirdChild), removedKey);
                     }
                 } else {
                     return new Pair<>(cloneReplacingChild(firstChild, resultNode), removedKey);
@@ -1187,16 +1181,16 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
                 if (resultNode instanceof RemovedNode) {
                     Node<K> removedNodeResult = resultNode.getFirstChild();
                     if (!firstChild.isTernary()) {
-                        return new Pair<Node<K>, K>(new InternalBinaryNode<>(createNode(
-                                firstChild.getFirstChild(), firstChild.getFirstKey(), firstChild.getSecondChild(), newNodeKey, removedNodeResult
+                        return new Pair<>(new InternalBinaryNode<>(createNode(
+                            firstChild.getFirstChild(), firstChild.getFirstKey(), firstChild.getSecondChild(), newNodeKey, removedNodeResult
                         ), secondKey, thirdChild), removedKey);
                     } else {
-                        return new Pair<Node<K>, K>(new InternalTernaryNode<>(
-                                createNode(firstChild.getFirstChild(), firstChild.getFirstKey(), firstChild.getSecondChild()),
-                                firstChild.getSecondKey(), createNode(firstChild.getThirdChild(), newNodeKey, removedNodeResult), secondKey, thirdChild), removedKey);
+                        return new Pair<>(new InternalTernaryNode<>(
+                            createNode(firstChild.getFirstChild(), firstChild.getFirstKey(), firstChild.getSecondChild()),
+                            firstChild.getSecondKey(), createNode(firstChild.getThirdChild(), newNodeKey, removedNodeResult), secondKey, thirdChild), removedKey);
                     }
                 } else {
-                    return new Pair<Node<K>, K>(new InternalTernaryNode<>(firstChild, newNodeKey, resultNode, secondKey, thirdChild), removedKey);
+                    return new Pair<>(new InternalTernaryNode<>(firstChild, newNodeKey, resultNode, secondKey, thirdChild), removedKey);
                 }
             }
 
@@ -1210,16 +1204,16 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
             if (resultNode instanceof RemovedNode) {
                 Node<K> removedNodeResult = resultNode.getFirstChild();
                 if (!secondChild.isTernary()) {
-                    return new Pair<Node<K>, K>(new InternalBinaryNode<>(firstChild, firstKey, createNode(
-                            secondChild.getFirstChild(), secondChild.getFirstKey(), secondChild.getSecondChild(), newNodeKey, removedNodeResult
+                    return new Pair<>(new InternalBinaryNode<>(firstChild, firstKey, createNode(
+                        secondChild.getFirstChild(), secondChild.getFirstKey(), secondChild.getSecondChild(), newNodeKey, removedNodeResult
                     )), removedKey);
                 } else {
-                    return new Pair<Node<K>, K>(new InternalTernaryNode<>(firstChild, firstKey,
-                            createNode(secondChild.getFirstChild(), secondChild.getFirstKey(), secondChild.getSecondChild()),
-                            secondChild.getSecondKey(), createNode(secondChild.getThirdChild(), newNodeKey, removedNodeResult)), removedKey);
+                    return new Pair<>(new InternalTernaryNode<>(firstChild, firstKey,
+                        createNode(secondChild.getFirstChild(), secondChild.getFirstKey(), secondChild.getSecondChild()),
+                        secondChild.getSecondKey(), createNode(secondChild.getThirdChild(), newNodeKey, removedNodeResult)), removedKey);
                 }
             } else {
-                return new Pair<Node<K>, K>(new InternalTernaryNode<>(firstChild, firstKey, secondChild, newNodeKey, resultNode), removedKey);
+                return new Pair<>(new InternalTernaryNode<>(firstChild, firstKey, secondChild, newNodeKey, resultNode), removedKey);
             }
         }
 
@@ -1298,7 +1292,7 @@ public abstract class AbstractPersistent23Tree<K extends Comparable<K>> implemen
             if (to != null && to.compareTo(secondKey) <= 0) {
                 throw new RuntimeException("Not a search tree.");
             }
-            if (firstChild == null || secondChild == null || thirdChild == null) {
+            if (firstChild == null || secondChild == null) {
                 throw new RuntimeException("The node has not enough children.");
             }
             int depth = firstChild.checkNode(from, firstKey);

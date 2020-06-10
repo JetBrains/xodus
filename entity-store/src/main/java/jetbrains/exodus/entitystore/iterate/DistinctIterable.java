@@ -23,12 +23,7 @@ import org.jetbrains.annotations.Nullable;
 public final class DistinctIterable extends EntityIterableDecoratorBase {
 
     static {
-        registerType(getType(), new EntityIterableInstantiator() {
-            @Override
-            public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new DistinctIterable(txn, (EntityIterableBase) parameters[0]);
-            }
-        });
+        registerType(getType(), (txn, store, parameters) -> new DistinctIterable(txn, (EntityIterableBase) parameters[0]));
     }
 
     public DistinctIterable(@NotNull final PersistentStoreTransaction txn,

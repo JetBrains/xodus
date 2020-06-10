@@ -17,7 +17,7 @@ package jetbrains.exodus.vfs;
 
 import jetbrains.exodus.ExodusException;
 
-@SuppressWarnings({"serial", "SerializableClassInSecureContext", "SerializableHasSerializationMethods", "DeserializableClassInSecureContext", "UnusedDeclaration"})
+@SuppressWarnings({"serial", "SerializableHasSerializationMethods", "UnusedDeclaration"})
 public class VfsException extends ExodusException {
 
     public VfsException() {

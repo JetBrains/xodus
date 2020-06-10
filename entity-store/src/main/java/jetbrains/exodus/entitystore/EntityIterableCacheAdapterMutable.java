@@ -15,7 +15,10 @@
  */
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.core.dataStructures.hash.*;
+import jetbrains.exodus.core.dataStructures.hash.HashMap;
+import jetbrains.exodus.core.dataStructures.hash.HashSet;
+import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
+import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
 import jetbrains.exodus.core.dataStructures.persistent.EvictListener;
 import jetbrains.exodus.entitystore.iterate.CachedInstanceIterable;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
@@ -42,14 +45,11 @@ public final class EntityIterableCacheAdapterMutable extends EntityIterableCache
     }
 
     void update(@NotNull final PersistentStoreTransaction.HandleCheckerAdapter checker) {
-        final ObjectProcedure<EntityIterableHandle> procedure = new ObjectProcedure<EntityIterableHandle>() {
-            @Override
-            public boolean execute(EntityIterableHandle object) {
-                if (checker.checkHandle(object)) {
-                    remove(object);
-                }
-                return true;
+        final ObjectProcedure<EntityIterableHandle> procedure = object -> {
+            if (checker.checkHandle(object)) {
+                remove(object);
             }
+            return true;
         };
 
         final int linkId;
@@ -130,15 +130,12 @@ public final class EntityIterableCacheAdapterMutable extends EntityIterableCache
             byTypeId = new FieldIdGroupedHandles(count / 16, removed);
             byTypeIdAffectingCreation = new FieldIdGroupedHandles(count / 16, removed);
 
-            cache.forEachEntry(new PairProcedure<EntityIterableHandle, CacheItem>() {
-                @Override
-                public boolean execute(EntityIterableHandle handle, CacheItem value) {
-                    CachedInstanceIterable iterable = getCachedValue(value);
-                    if (iterable != null) {
-                        addHandle(handle);
-                    }
-                    return true;
+            cache.forEachEntry((handle, value) -> {
+                CachedInstanceIterable iterable = getCachedValue(value);
+                if (iterable != null) {
+                    addHandle(handle);
                 }
+                return true;
             });
         }
 

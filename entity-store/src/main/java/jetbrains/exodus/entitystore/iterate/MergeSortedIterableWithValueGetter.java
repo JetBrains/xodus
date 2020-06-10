@@ -37,27 +37,13 @@ public class MergeSortedIterableWithValueGetter extends EntityIterableBase {
         /*
         Attention!! Comparator is fake. Should work for iteration count, but not for actual results.
         */
-        registerType(getType(), new EntityIterableInstantiator() {
-            @Override
-            public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                int size = Integer.valueOf((String) parameters[0]);
-                ArrayList<EntityIterable> sorted = new ArrayList<>(size);
-                for (int i = 0; i < size; i++) {
-                    sorted.add((EntityIterable) parameters[i + 1]);
-                }
-                return new MergeSortedIterableWithValueGetter(txn, sorted, new ComparableGetter() {
-                    @Override
-                    public Comparable select(Entity entity) {
-                        return entity.getId();
-                    }
-                }, new Comparator<Comparable<Object>>() {
-                    @SuppressWarnings("unchecked")
-                    @Override
-                    public int compare(Comparable<Object> o1, Comparable<Object> o2) {
-                        return o1.compareTo(o2);
-                    }
-                });
+        registerType(getType(), (txn, store, parameters) -> {
+            int size = Integer.parseInt((String) parameters[0]);
+            ArrayList<EntityIterable> sorted = new ArrayList<>(size);
+            for (int i = 0; i < size; i++) {
+                sorted.add((EntityIterable) parameters[i + 1]);
             }
+            return new MergeSortedIterableWithValueGetter(txn, sorted, Entity::getId, Comparable::compareTo);
         });
     }
 
@@ -142,13 +128,7 @@ public class MergeSortedIterableWithValueGetter extends EntityIterableBase {
         @SuppressWarnings({"ObjectAllocationInLoop"})
         private MergeSortedIterator() {
             super(MergeSortedIterableWithValueGetter.this);
-            queue = new PriorityQueue<>(sorted.size(), new Comparator<EntityWithSource>() {
-                @SuppressWarnings("unchecked")
-                @Override
-                public int compare(EntityWithSource o1, EntityWithSource o2) {
-                    return comparator.compare(o1.value, o2.value);
-                }
-            });
+            queue = new PriorityQueue<>(sorted.size(), (o1, o2) -> comparator.compare(o1.value, o2.value));
             for (final EntityIterable it : sorted) {
                 final EntityIterator i = it.iterator();
                 if (i.hasNext()) {

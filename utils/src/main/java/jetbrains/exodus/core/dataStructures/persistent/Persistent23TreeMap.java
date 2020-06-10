@@ -62,13 +62,13 @@ public class Persistent23TreeMap<K extends Comparable<K>, V> {
             if (root == null) {
                 return null;
             }
-            Entry<K, V> entry = root.get(new Entry<K, V>(key));
+            Entry<K, V> entry = root.get(new Entry<>(key));
             return entry == null ? null : entry.getValue();
         }
 
         public boolean containsKey(@NotNull K key) {
             final Node<Entry<K, V>> root = getRoot();
-            return root != null && root.get(new Entry<K, V>(key)) != null;
+            return root != null && root.get(new Entry<>(key)) != null;
         }
     }
 
@@ -83,7 +83,7 @@ public class Persistent23TreeMap<K extends Comparable<K>, V> {
             if (root == null) {
                 return null;
             }
-            Entry<K, V> entry = root.get(new Entry<K, V>(key));
+            Entry<K, V> entry = root.get(new Entry<>(key));
             return entry == null ? null : entry.getValue();
         }
 
@@ -100,7 +100,7 @@ public class Persistent23TreeMap<K extends Comparable<K>, V> {
             if (root == null) {
                 return null;
             }
-            Pair<Node<Entry<K, V>>, Entry<K, V>> removeResult = root.remove(new Entry<K, V>(key), true);
+            Pair<Node<Entry<K, V>>, Entry<K, V>> removeResult = root.remove(new Entry<>(key), true);
             if (removeResult == null) {
                 return null;
             }

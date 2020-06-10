@@ -151,7 +151,6 @@ public class Persistent23Tree<K extends Comparable<K>> extends AbstractPersisten
          * @param toDepth  minimal depth of the desired tree
          * @return root of the constructed tree
          */
-        @SuppressWarnings({"UnnecessaryParentheses"})
         private Node<K> makeNode(@NotNull Iterator<K> iterator, int size, int toDepth) {
             if (size <= 0) {
                 return null;

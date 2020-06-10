@@ -82,13 +82,8 @@ class MutableNode extends NodeBase {
     @NotNull
     @Override
     NodeChildren getChildren() {
-        return new NodeChildren() {
-            @Override
-            public NodeChildrenIterator iterator() {
-                return children.isEmpty() ?
-                        new EmptyNodeChildrenIterator() : new MutableNodeChildrenIterator(MutableNode.this, children);
-            }
-        };
+        return () -> children.isEmpty() ?
+            new EmptyNodeChildrenIterator() : new MutableNodeChildrenIterator(MutableNode.this, children);
     }
 
     @Override
@@ -290,7 +285,6 @@ class MutableNode extends NodeBase {
         if (hasValue()) {
             // noinspection ConstantConditions
             CompressedUnsignedLongByteIterable.fillBytes(value.getLength(), nodeStream);
-            // noinspection ConstantConditions
             ByteIterableBase.fillBytes(value, nodeStream);
         }
         if (!children.isEmpty()) {

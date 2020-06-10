@@ -23,12 +23,7 @@ import java.util.NoSuchElementException;
 public class ExcludeNullIterableDecorator extends EntityIterableDecoratorBase {
 
     static {
-        registerType(getType(), new EntityIterableInstantiator() {
-            @Override
-            public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                return new ExcludeNullIterableDecorator(txn, (EntityIterableBase) parameters[0]);
-            }
-        });
+        registerType(getType(), (txn, store, parameters) -> new ExcludeNullIterableDecorator(txn, (EntityIterableBase) parameters[0]));
     }
 
     public ExcludeNullIterableDecorator(@NotNull final PersistentStoreTransaction txn,

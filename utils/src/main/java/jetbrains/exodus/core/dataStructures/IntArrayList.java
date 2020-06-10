@@ -17,7 +17,7 @@ package jetbrains.exodus.core.dataStructures;
 
 import java.util.Arrays;
 
-@SuppressWarnings({"UnusedDeclaration", "ThrowInsideCatchBlockWhichIgnoresCaughtException", "CloneInNonCloneableClass"})
+@SuppressWarnings({"UnusedDeclaration", "CloneInNonCloneableClass"})
 public class IntArrayList {
 
     private int[] data;
@@ -175,7 +175,6 @@ public class IntArrayList {
 
     private void checkRange(final int index) {
         if (index >= size || index < 0) {
-            //noinspection HardCodedStringLiteral
             throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
         }
     }

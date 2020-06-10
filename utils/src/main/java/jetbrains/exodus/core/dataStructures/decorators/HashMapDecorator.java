@@ -16,6 +16,7 @@
 package jetbrains.exodus.core.dataStructures.decorators;
 
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -72,7 +73,7 @@ public class HashMapDecorator<K, V> implements Map<K, V> {
     }
 
     @Override
-    public void putAll(Map<? extends K, ? extends V> m) {
+    public void putAll(@NotNull Map<? extends K, ? extends V> m) {
         checkDecorated();
         decorated.putAll(m);
     }
@@ -83,17 +84,17 @@ public class HashMapDecorator<K, V> implements Map<K, V> {
     }
 
     @Override
-    public Set<K> keySet() {
+    public @NotNull Set<K> keySet() {
         return decorated.keySet();
     }
 
     @Override
-    public Collection<V> values() {
+    public @NotNull Collection<V> values() {
         return decorated.values();
     }
 
     @Override
-    public Set<Entry<K, V>> entrySet() {
+    public @NotNull Set<Entry<K, V>> entrySet() {
         return decorated.entrySet();
     }
 

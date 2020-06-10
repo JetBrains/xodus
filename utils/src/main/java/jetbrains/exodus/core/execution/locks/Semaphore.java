@@ -19,7 +19,7 @@ public class Semaphore {
 
     Thread thread;
     private int permits;
-    private int maxPermits;
+    private final int maxPermits;
 
     public Semaphore() {
         this(0);

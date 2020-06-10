@@ -36,27 +36,24 @@ public class SortIndirectIterable extends EntityIterableDecoratorBase {
     private final String oppositeLinkName;
 
     static {
-        registerType(getType(), new EntityIterableInstantiator() {
-            @Override
-            public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                int typeId = Integer.parseInt((String) parameters[0]);
-                String typeName = null;
-                for (String type : store.getEntityTypes(txn)) {
-                    if (typeId == store.getEntityTypeId(txn, type, false)) {
-                        typeName = type;
-                    }
+        registerType(getType(), (txn, store, parameters) -> {
+            int typeId = Integer.parseInt((String) parameters[0]);
+            String typeName = null;
+            for (String type : store.getEntityTypes(txn)) {
+                if (typeId == store.getEntityTypeId(txn, type, false)) {
+                    typeName = type;
                 }
-                int linkId = Integer.parseInt((String) parameters[1]);
-                String linkName = null;
-                for (String name : store.getAllLinkNames(txn)) {
-                    if (linkId == store.getLinkId(txn, name, false)) {
-                        linkName = name;
-                    }
-                }
-                return new SortIndirectIterable(txn, store, typeName,
-                        (EntityIterableBase) parameters[3], linkName, (EntityIterableBase) parameters[2],
-                        null, null);
             }
+            int linkId = Integer.parseInt((String) parameters[1]);
+            String linkName = null;
+            for (String name : store.getAllLinkNames(txn)) {
+                if (linkId == store.getLinkId(txn, name, false)) {
+                    linkName = name;
+                }
+            }
+            return new SortIndirectIterable(txn, store, typeName,
+                (EntityIterableBase) parameters[3], linkName, (EntityIterableBase) parameters[2],
+                null, null);
         });
     }
 

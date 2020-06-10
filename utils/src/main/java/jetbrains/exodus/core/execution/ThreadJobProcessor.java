@@ -37,12 +37,7 @@ public class ThreadJobProcessor extends JobProcessorQueueAdapter {
     public ThreadJobProcessor(@NotNull final String name, @Nullable ThreadJobProcessor.ThreadCreator creator) {
         classLoader = getClass().getClassLoader();
         this.name = name;
-        body = new Runnable() {
-            @Override
-            public void run() {
-                ThreadJobProcessor.this.run();
-            }
-        };
+        body = ThreadJobProcessor.this::run;
         this.creator = creator;
         createProcessorThread();
     }

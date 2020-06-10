@@ -19,7 +19,6 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.benchmark.TokyoCabinetBenchmark;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.log.Log;
-import org.jetbrains.annotations.NotNull;
 import org.junit.rules.TemporaryFolder;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.TearDown;
@@ -43,12 +42,7 @@ abstract class JMHEnvTokyoCabinetBenchmarkBase {
         temporaryFolder.create();
         final File testsDirectory = temporaryFolder.newFolder("data");
         env = Environments.newInstance(testsDirectory, new EnvironmentConfig().setLogFileSize(32768));
-        store = env.computeInTransaction(new TransactionalComputable<Store>() {
-            @Override
-            public Store compute(@NotNull Transaction txn) {
-                return env.openStore("TokyoCabinetBenchmarkStore", getConfig(), txn);
-            }
-        });
+        store = env.computeInTransaction(txn -> env.openStore("TokyoCabinetBenchmarkStore", getConfig(), txn));
     }
 
     @TearDown(Level.Invocation)
@@ -63,12 +57,9 @@ abstract class JMHEnvTokyoCabinetBenchmarkBase {
     }
 
     void writeSuccessiveKeys() {
-        env.executeInTransaction(new TransactionalExecutable() {
-            @Override
-            public void execute(@NotNull final Transaction txn) {
-                for (final ByteIterable key : successiveKeys) {
-                    store.add(txn, key, key);
-                }
+        env.executeInTransaction(txn -> {
+            for (final ByteIterable key : successiveKeys) {
+                store.add(txn, key, key);
             }
         });
     }

@@ -26,7 +26,6 @@ public class RandomAccessLoggableImpl implements RandomAccessLoggable {
     private final ByteIterableWithAddress data;
     private final int structureId;
 
-    @SuppressWarnings({"ConstructorWithTooManyParameters"})
     public RandomAccessLoggableImpl(final long address,
                                     final byte type,
                                     @NotNull final ByteIterableWithAddress data,

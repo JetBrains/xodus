@@ -34,10 +34,10 @@ public class BTreePutSpecificTest extends BTreeTestBase {
         getTreeMutable().put(kv("1", "11"));
         valueEquals("1", tm.get(key("1")));
 
-        assertEquals(true, tm.hasKey(key("1")));
-        assertEquals(false, tm.hasKey(key("2")));
-        assertEquals(true, tm.hasPair(key("1"), value("11")));
-        assertEquals(true, tm.hasPair(key("1"), value("1")));
+        assertTrue(tm.hasKey(key("1")));
+        assertFalse(tm.hasKey(key("2")));
+        assertTrue(tm.hasPair(key("1"), value("11")));
+        assertTrue(tm.hasPair(key("1"), value("1")));
     }
 
     @Test
@@ -93,15 +93,15 @@ public class BTreePutSpecificTest extends BTreeTestBase {
     public void testPutNoOverwriteDuplicateTreeWithDuplicates2() {
         tm = new BTreeEmpty(log, true, 1).getMutableCopy();
 
-        assertEquals(true, getTreeMutable().add(kv("1", "1")));
+        assertTrue(getTreeMutable().add(kv("1", "1")));
         valueEquals("1", tm.get(key("1")));
-        assertEquals(false, getTreeMutable().add(kv("1", "11")));
+        assertFalse(getTreeMutable().add(kv("1", "11")));
         valueEquals("1", tm.get(key("1")));
 
-        assertEquals(true, tm.hasKey(key("1")));
-        assertEquals(false, tm.hasKey(key("2")));
-        assertEquals(false, tm.hasPair(key("1"), value("11")));
-        assertEquals(true, tm.hasPair(key("1"), value("1")));
+        assertTrue(tm.hasKey(key("1")));
+        assertFalse(tm.hasKey(key("2")));
+        assertFalse(tm.hasPair(key("1"), value("11")));
+        assertTrue(tm.hasPair(key("1"), value("1")));
     }
 
 
@@ -143,13 +143,13 @@ public class BTreePutSpecificTest extends BTreeTestBase {
 
         t = new BTree(log, new BTreeBalancePolicy(4), a, true, 2);
 
-        assertEquals(true, t.hasKey(key("1")));
-        assertEquals(true, t.hasKey(key("2")));
-        assertEquals(false, t.hasKey(key("3")));
+        assertTrue(t.hasKey(key("1")));
+        assertTrue(t.hasKey(key("2")));
+        assertFalse(t.hasKey(key("3")));
 
-        assertEquals(true, t.hasPair(key("1"), value("11")));
-        assertEquals(true, t.hasPair(key("2"), value("22")));
-        assertEquals(false, t.hasPair(key("3"), value("1")));
+        assertTrue(t.hasPair(key("1"), value("11")));
+        assertTrue(t.hasPair(key("2"), value("22")));
+        assertFalse(t.hasPair(key("3"), value("1")));
     }
 
     @Test

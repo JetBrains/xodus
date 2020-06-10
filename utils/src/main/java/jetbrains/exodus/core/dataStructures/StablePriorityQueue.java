@@ -128,7 +128,7 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
     }
 
     @Override
-    public Iterator<E> iterator() {
+    public @NotNull Iterator<E> iterator() {
         return new QueueIterator();
     }
 

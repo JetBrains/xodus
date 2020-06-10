@@ -27,6 +27,6 @@ public class LogInMemoryTests extends LogTests {
     @Override
     protected Pair<DataReader, DataWriter> createLogRW() {
         final Memory memory = new Memory();
-        return new Pair<DataReader, DataWriter>(new MemoryDataReader(memory), new MemoryDataWriter(memory));
+        return new Pair<>(new MemoryDataReader(memory), new MemoryDataWriter(memory));
     }
 }

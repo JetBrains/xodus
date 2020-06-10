@@ -53,12 +53,12 @@ public class PersistentHashMap<K, V> {
         }
 
         public V get(@NotNull final K key) {
-            final Entry<K, V> entry = getRoot().getKey(new Entry<K, V>(key), key.hashCode(), 0);
+            final Entry<K, V> entry = getRoot().getKey(new Entry<>(key), key.hashCode(), 0);
             return entry == null ? null : entry.getValue();
         }
 
         public boolean containsKey(@NotNull final K key) {
-            return getRoot().getKey(new Entry<K, V>(key), key.hashCode(), 0) != null;
+            return getRoot().getKey(new Entry<>(key), key.hashCode(), 0) != null;
         }
     }
 
@@ -69,21 +69,20 @@ public class PersistentHashMap<K, V> {
         }
 
         public V get(@NotNull final K key) {
-            final Entry<K, V> entry = getRoot().getKey(new Entry<K, V>(key), key.hashCode(), 0);
+            final Entry<K, V> entry = getRoot().getKey(new Entry<>(key), key.hashCode(), 0);
             return entry == null ? null : entry.getValue();
         }
 
         public boolean containsKey(@NotNull final K key) {
-            return getRoot().getKey(new Entry<K, V>(key), key.hashCode(), 0) != null;
+            return getRoot().getKey(new Entry<>(key), key.hashCode(), 0) != null;
         }
 
         public void put(@NotNull final K key, @NotNull final V value) {
             add(new Entry<>(key, value));
         }
 
-        @SuppressWarnings("MethodOverloadsMethodOfSuperclass")
         public V removeKey(@NotNull final K key) {
-            final Entry<K, V> entry = getRoot().getKey(new Entry<K, V>(key), key.hashCode(), 0);
+            final Entry<K, V> entry = getRoot().getKey(new Entry<>(key), key.hashCode(), 0);
             final V result = entry == null ? null : entry.getValue();
             if (entry != null) {
                 remove(entry);

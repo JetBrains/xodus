@@ -56,7 +56,7 @@ public class EntityIdArrayCachedInstanceIterableTests extends EntityStoreTestBas
     public void testSkipCompact() {
         TestEntityIterableImpl t = t(0, 6, 0, 7, 0, 8, 0, 9, 1, 6, 1, 7, 1, 8, 1, 9);
         CachedInstanceIterable w = w(t);
-        assertEquals(true, w.isSortedById());
+        assertTrue(w.isSortedById());
         examineSkip(t, w, 1, 3);
         examineSkip(t, w, 2, 4);
         examineSkip(t, w, 3, 6);
@@ -66,7 +66,7 @@ public class EntityIdArrayCachedInstanceIterableTests extends EntityStoreTestBas
     public void testSkipCompact2() {
         TestEntityIterableImpl t = t(0, 6, 0, 7, 0, 8, 0, 9, 1, 6, 1, 7, 1, 8, 1, 9, 2, 1);
         CachedInstanceIterable w = w(t);
-        assertEquals(true, w.isSortedById());
+        assertTrue(w.isSortedById());
         examineSkip(t, w, 1, 3);
         examineSkip(t, w, 2, 4);
         examineSkip(t, w, 3, 6);
@@ -99,7 +99,7 @@ public class EntityIdArrayCachedInstanceIterableTests extends EntityStoreTestBas
     void examineUnsorted(final long... ids) {
         TestEntityIterableImpl t = t(false, ids);
         CachedInstanceIterable w = w(t);
-        assertEquals(false, w.isSortedById());
+        assertFalse(w.isSortedById());
         assertIterablesMatch(t, w);
     }
 
@@ -121,8 +121,8 @@ public class EntityIdArrayCachedInstanceIterableTests extends EntityStoreTestBas
             assertTrue(idSet.contains(e == null ? null : e.getId()));
         }
         if (expected.isEmpty()) {
-            assertEquals(null, ((EntityIteratorBase) actual.getIteratorImpl(txn)).getLast());
-            assertEquals(null, ((EntityIteratorBase) actual.getReverseIteratorImpl(txn)).getLast());
+            assertNull(((EntityIteratorBase) actual.getIteratorImpl(txn)).getLast());
+            assertNull(((EntityIteratorBase) actual.getReverseIteratorImpl(txn)).getLast());
         } else {
             final Entity last = expected.getReverseIteratorImpl(txn).next();
             assertEquals(last == null ? null : last.getId(), ((EntityIteratorBase) actual.getIteratorImpl(txn)).getLast());
@@ -221,7 +221,7 @@ public class EntityIdArrayCachedInstanceIterableTests extends EntityStoreTestBas
         }
 
         @Override
-        public EntityIteratorBase iterator() {
+        public @NotNull EntityIteratorBase iterator() {
             return getIteratorImpl(getTransaction());
         }
 
@@ -311,7 +311,6 @@ public class EntityIdArrayCachedInstanceIterableTests extends EntityStoreTestBas
 
         @Override
         @NotNull
-        @SuppressWarnings("EmptyClass")
         public EntityIterableHandle getHandleImpl() {
             return new ConstantEntityIterableHandle(getEntityStore(), EntityIterableType.DISTINCT) {
 

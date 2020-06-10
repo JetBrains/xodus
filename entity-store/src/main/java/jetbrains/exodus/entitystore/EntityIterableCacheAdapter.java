@@ -38,7 +38,7 @@ class EntityIterableCacheAdapter {
     protected final HashMap<EntityIterableHandle, Updatable> stickyObjects;
 
     EntityIterableCacheAdapter(@NotNull final PersistentEntityStoreConfig config) {
-        this(config, new NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem>(config.getEntityIterableCacheSize()), new HashMap<EntityIterableHandle, Updatable>());
+        this(config, new NonAdjustablePersistentObjectCache<>(config.getEntityIterableCacheSize()), new HashMap<>());
     }
 
     EntityIterableCacheAdapter(@NotNull final PersistentEntityStoreConfig config,

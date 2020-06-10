@@ -183,35 +183,23 @@ public class IntLinkedHashMapTest {
             tested.put(i, Integer.toString(i));
         }
         final int[] ii = {0};
-        tested.forEachKey(new ObjectProcedure<Integer>() {
-            @Override
-            public boolean execute(Integer object) {
-                ii[0]++;
-                return true;
-            }
+        tested.forEachKey(object -> {
+            ii[0]++;
+            return true;
         });
-        tested.forEachValue(new ObjectProcedure<String>() {
-            @Override
-            public boolean execute(String object) {
-                ii[0]++;
-                return true;
-            }
+        tested.forEachValue(object -> {
+            ii[0]++;
+            return true;
         });
         Assert.assertEquals(tested.size() * 2, ii[0]);
         ii[0] = 0;
-        tested.forEachKey(new ObjectProcedure<Integer>() {
-            @Override
-            public boolean execute(Integer object) {
-                ii[0]++;
-                return object > 99500;
-            }
+        tested.forEachKey(object -> {
+            ii[0]++;
+            return object > 99500;
         });
-        tested.forEachValue(new ObjectProcedure<String>() {
-            @Override
-            public boolean execute(String object) {
-                ii[0]++;
-                return true;
-            }
+        tested.forEachValue(object -> {
+            ii[0]++;
+            return true;
         });
         Assert.assertEquals(tested.size() + 500, ii[0]);
     }

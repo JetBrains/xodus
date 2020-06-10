@@ -38,18 +38,15 @@ public final class PropertyValueIterable extends PropertyRangeOrValueIterableBas
     private final Class<? extends Comparable> valueClass;
 
     static {
-        registerType(getType(), new EntityIterableInstantiator() {
-            @Override
-            public EntityIterableBase instantiate(PersistentStoreTransaction txn, PersistentEntityStoreImpl store, Object[] parameters) {
-                try {
-                    return new PropertyValueIterable(txn,
-                            Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]),
-                            Long.parseLong((String) parameters[2]));
-                } catch (NumberFormatException e) {
-                    return new PropertyValueIterable(txn,
-                            Integer.valueOf((String) parameters[0]), Integer.valueOf((String) parameters[1]),
-                            (Comparable) parameters[2]);
-                }
+        registerType(getType(), (txn, store, parameters) -> {
+            try {
+                return new PropertyValueIterable(txn,
+                    Integer.parseInt((String) parameters[0]), Integer.parseInt((String) parameters[1]),
+                    Long.parseLong((String) parameters[2]));
+            } catch (NumberFormatException e) {
+                return new PropertyValueIterable(txn,
+                    Integer.parseInt((String) parameters[0]), Integer.parseInt((String) parameters[1]),
+                    (Comparable) parameters[2]);
             }
         });
     }

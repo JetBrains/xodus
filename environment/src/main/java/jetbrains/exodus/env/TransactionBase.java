@@ -227,17 +227,14 @@ public abstract class TransactionBase implements Transaction {
     }
 
     protected Runnable getWrappedBeginHook(@Nullable final Runnable beginHook) {
-        return new Runnable() {
-            @Override
-            public void run() {
-                final EnvironmentImpl env = getEnvironment();
-                setMetaTree(env.getMetaTreeInternal());
-                env.registerTransaction(TransactionBase.this);
-                if (beginHook != null) {
-                    beginHook.run();
-                }
-
+        return () -> {
+            final EnvironmentImpl env = getEnvironment();
+            setMetaTree(env.getMetaTreeInternal());
+            env.registerTransaction(TransactionBase.this);
+            if (beginHook != null) {
+                beginHook.run();
             }
+
         };
     }
 }

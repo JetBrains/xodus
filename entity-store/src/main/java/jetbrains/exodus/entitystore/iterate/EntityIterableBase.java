@@ -29,7 +29,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 
-@SuppressWarnings({"InstanceofThis", "DynamicRegexReplaceableByCompiledPattern", "HardcodedLineSeparator"})
+@SuppressWarnings({"InstanceofThis", "HardcodedLineSeparator"})
 public abstract class EntityIterableBase implements EntityIterable {
 
     public static final EntityIterableBase EMPTY;
@@ -52,7 +52,6 @@ public abstract class EntityIterableBase implements EntityIterable {
             @Override
             @NotNull
             protected EntityIterableHandle getHandleImpl() {
-                //noinspection EmptyClass
                 return new ConstantEntityIterableHandle(null, EntityIterableType.EMPTY) {
                     @Override
                     public void hashCode(@NotNull final EntityIterableHandleHash hash) {
@@ -115,7 +114,6 @@ public abstract class EntityIterableBase implements EntityIterable {
         }
     }
 
-    @SuppressWarnings({"NullableProblems"})
     @NotNull
     public PersistentEntityStoreImpl getStore() {
         if (store == null) {
@@ -129,7 +127,7 @@ public abstract class EntityIterableBase implements EntityIterable {
     }
 
     @Override
-    public EntityIterator iterator() {
+    public @NotNull EntityIterator iterator() {
         // EMPTY iterable
         if (store == null) {
             return EntityIteratorBase.EMPTY;
@@ -635,7 +633,7 @@ public abstract class EntityIterableBase implements EntityIterable {
     }
 
     private static void getHumanReadablePresentation(StringBuilder presentation, String[] types, int[] pos, String indent) {
-        int type = Integer.valueOf(types[pos[0]]);
+        int type = Integer.parseInt(types[pos[0]]);
         pos[0]++;
         if (type < 0 || type >= children.length) {
             throw new RuntimeException("New EntityIterable added: " + type);
@@ -661,7 +659,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         }
         presentation.append(tmp);
         if (type == EntityIterableType.MERGE_SORTED.getType()) {
-            int count = Integer.valueOf(types[pos[0]]);
+            int count = Integer.parseInt(types[pos[0]]);
             presentation.append(' ').append(count);
             pos[0]++;
             for (int i = 0; i < count; i++) {
@@ -671,7 +669,7 @@ public abstract class EntityIterableBase implements EntityIterable {
             }
         }
         if (type == EntityIterableType.ENTITY_FROM_LINKS_SET.getType()) {
-            int count = Integer.valueOf(types[pos[0]]);
+            int count = Integer.parseInt(types[pos[0]]);
             presentation.append("  ").append(count).append(" links:");
             pos[0]++;
             for (int i = 0; i < count; i++) {

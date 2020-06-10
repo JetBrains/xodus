@@ -134,7 +134,7 @@ public class LongHashSet extends AbstractSet<Long> implements LongSet {
     }
 
     @Override
-    public LongIterator iterator() {
+    public @NotNull LongIterator iterator() {
         return new HashSetIterator();
     }
 

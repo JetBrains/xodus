@@ -27,7 +27,7 @@ class LogAwareFixedLengthByteIterable extends FixedLengthByteIterable {
     }
 
     @Override
-    public int compareTo(final ByteIterable right) {
+    public int compareTo(final @NotNull ByteIterable right) {
         return getSource().compareTo(offset, length, right);
     }
 

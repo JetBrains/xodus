@@ -178,12 +178,7 @@ public final class PropertiesTable extends Table {
             final ComparableBinding itemBinding = propertyTypes.getPropertyType(itemClass).getBinding();
             final ByteIterable[] result = new ByteIterable[data.size()];
             //noinspection unchecked
-            data.forEach(new ComparableSet.Consumer() {
-                @Override
-                public void accept(@NotNull final Comparable item, final int index) {
-                    result[index] = itemBinding.objectToEntry(PropertyTypes.toLowerCase(item));
-                }
-            });
+            data.forEach((item, index) -> result[index] = itemBinding.objectToEntry(PropertyTypes.toLowerCase(item)));
             return result;
         }
         return new ByteIterable[]{value.subIterable(1, value.getLength() - 1)}; // skip property type

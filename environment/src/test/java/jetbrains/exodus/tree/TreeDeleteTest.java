@@ -22,7 +22,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 public abstract class TreeDeleteTest extends TreeBaseTest {
 
@@ -33,17 +33,17 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
         tm.put(kv(1, "1"));
         assertEquals(1, tm.getSize());
         assertEquals(value("1"), tm.get(key(1)));
-        assertEquals(false, tm.delete(key(2)));
-        assertEquals(true, tm.delete(key(1)));
+        assertFalse(tm.delete(key(2)));
+        assertTrue(tm.delete(key(1)));
         assertEquals(0, tm.getSize());
-        assertEquals(null, tm.get(key(1)));
+        assertNull(tm.get(key(1)));
 
         long a = saveTree();
         reopen();
         t = openTree(a, false);
 
         assertEquals(0, tm.getSize());
-        assertEquals(null, tm.get(key(1)));
+        assertNull(tm.get(key(1)));
     }
 
     @Test
@@ -64,19 +64,19 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
         assertEquals(value("1"), tm.get(key("1")));
         assertEquals(value("11"), tm.get(key("11")));
         assertEquals(value("111"), tm.get(key("111")));
-        assertEquals(false, tm.delete(key(2)));
-        assertEquals(true, tm.delete(key("111")));
-        assertEquals(true, tm.delete(key("11")));
+        assertFalse(tm.delete(key(2)));
+        assertTrue(tm.delete(key("111")));
+        assertTrue(tm.delete(key("11")));
         assertEquals(1, tm.getSize());
-        assertEquals(null, tm.get(key("11")));
+        assertNull(tm.get(key("11")));
 
         a = saveTree();
         reopen();
         t = openTree(a, false);
 
         assertEquals(1, tm.getSize());
-        assertEquals(null, tm.get(key("111")));
-        assertEquals(null, tm.get(key("11")));
+        assertNull(tm.get(key("111")));
+        assertNull(tm.get(key("11")));
         valueEquals("1", tm.get(key("1")));
     }
 
@@ -147,26 +147,26 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
         getTreeMutable().put(kv(1, "1"));
         assertEquals(1, tm.getSize());
         assertEquals(value("1"), tm.get(key(1)));
-        assertEquals(false, tm.delete(key(-1)));
-        assertEquals(false, tm.delete(key(-2)));
-        assertEquals(false, tm.delete(key(-3)));
-        assertEquals(false, tm.delete(key(2)));
-        assertEquals(true, tm.delete(key(1)));
-        assertEquals(false, tm.delete(key(1)));
-        assertEquals(false, tm.delete(key(-1)));
-        assertEquals(false, tm.delete(key(-2)));
+        assertFalse(tm.delete(key(-1)));
+        assertFalse(tm.delete(key(-2)));
+        assertFalse(tm.delete(key(-3)));
+        assertFalse(tm.delete(key(2)));
+        assertTrue(tm.delete(key(1)));
+        assertFalse(tm.delete(key(1)));
+        assertFalse(tm.delete(key(-1)));
+        assertFalse(tm.delete(key(-2)));
 
         assertEquals(0, tm.getSize());
-        assertEquals(null, tm.get(key(1)));
+        assertNull(tm.get(key(1)));
 
         long a = saveTree();
         reopen();
         t = openTree(a, false);
 
         assertEquals(0, t.getSize());
-        assertEquals(null, t.get(key(1)));
-        assertEquals(null, t.get(key(-1)));
-        assertEquals(null, t.get(key(2)));
+        assertNull(t.get(key(1)));
+        assertNull(t.get(key(-1)));
+        assertNull(t.get(key(2)));
     }
 
     @Test
@@ -178,30 +178,30 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
         getTreeMutable().put(kv(111, "1"));
         assertEquals(3, tm.getSize());
         assertEquals(value("1"), tm.get(key(1)));
-        assertEquals(false, tm.delete(key(-1)));
-        assertEquals(false, tm.delete(key(-2)));
-        assertEquals(false, tm.delete(key(-3)));
-        assertEquals(false, tm.delete(key(2)));
-        assertEquals(true, tm.delete(key(1)));
-        assertEquals(false, tm.delete(key(1)));
-        assertEquals(true, tm.delete(key(11)));
-        assertEquals(false, tm.delete(key(11)));
-        assertEquals(true, tm.delete(key(111)));
-        assertEquals(false, tm.delete(key(111)));
-        assertEquals(false, tm.delete(key(-1)));
-        assertEquals(false, tm.delete(key(-2)));
+        assertFalse(tm.delete(key(-1)));
+        assertFalse(tm.delete(key(-2)));
+        assertFalse(tm.delete(key(-3)));
+        assertFalse(tm.delete(key(2)));
+        assertTrue(tm.delete(key(1)));
+        assertFalse(tm.delete(key(1)));
+        assertTrue(tm.delete(key(11)));
+        assertFalse(tm.delete(key(11)));
+        assertTrue(tm.delete(key(111)));
+        assertFalse(tm.delete(key(111)));
+        assertFalse(tm.delete(key(-1)));
+        assertFalse(tm.delete(key(-2)));
 
         assertEquals(0, tm.getSize());
-        assertEquals(null, tm.get(key(1)));
+        assertNull(tm.get(key(1)));
 
         long a = saveTree();
         reopen();
         t = openTree(a, false);
 
         assertEquals(0, t.getSize());
-        assertEquals(null, t.get(key(1)));
-        assertEquals(null, t.get(key(-1)));
-        assertEquals(null, t.get(key(2)));
+        assertNull(t.get(key(1)));
+        assertNull(t.get(key(-1)));
+        assertNull(t.get(key(2)));
     }
 
     @Test
@@ -211,15 +211,12 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
         final IntHashMap<String> map = new IntHashMap<>();
         final int count = 30000;
 
-        TestUtil.time("Put took ", new Runnable() {
-            @Override
-            public void run() {
-                for (int i = 0; i < count; ++i) {
-                    final int key = Math.abs(RANDOM.nextInt());
-                    final String value = Integer.toString(i);
-                    tm.put(key(Integer.toString(key)), value(value));
-                    map.put(key, value);
-                }
+        TestUtil.time("Put took ", () -> {
+            for (int i = 0; i < count; ++i) {
+                final int key = Math.abs(RANDOM.nextInt());
+                final String value = Integer.toString(i);
+                tm.put(key(Integer.toString(key)), value(value));
+                map.put(key, value);
             }
         });
 
@@ -228,13 +225,10 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
         t = openTree(address, false);
 
         tm = t.getMutableCopy();
-        TestUtil.time("Delete took ", new Runnable() {
-            @Override
-            public void run() {
-                for (int i = 0; i < count; ++i) {
-                    final int key = Math.abs(RANDOM.nextInt());
-                    assertEquals(map.remove(key) != null, tm.delete(key(Integer.toString(key))));
-                }
+        TestUtil.time("Delete took ", () -> {
+            for (int i = 0; i < count; ++i) {
+                final int key = Math.abs(RANDOM.nextInt());
+                assertEquals(map.remove(key) != null, tm.delete(key(Integer.toString(key))));
             }
         });
 
@@ -244,27 +238,21 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
 
         assertEquals(map.size(), t.getSize());
 
-        TestUtil.time("Get took ", new Runnable() {
-            @Override
-            public void run() {
-                for (final Map.Entry<Integer, String> entry : map.entrySet()) {
-                    final Integer key = entry.getKey();
-                    final String value = entry.getValue();
-                    valueEquals(value, t.get(key(Integer.toString(key))));
-                }
+        TestUtil.time("Get took ", () -> {
+            for (final Map.Entry<Integer, String> entry : map.entrySet()) {
+                final Integer key = entry.getKey();
+                final String value = entry.getValue();
+                valueEquals(value, t.get(key(Integer.toString(key))));
             }
         });
 
         tm = t.getMutableCopy();
 
-        TestUtil.time("Missing get took ", new Runnable() {
-            @Override
-            public void run() {
-                for (int i = 0; i < count; ++i) {
-                    final int key = Math.abs(RANDOM.nextInt());
-                    if (!map.containsKey(key)) {
-                        assertEquals(false, tm.delete(key(Integer.toString(key))));
-                    }
+        TestUtil.time("Missing get took ", () -> {
+            for (int i = 0; i < count; ++i) {
+                final int key = Math.abs(RANDOM.nextInt());
+                if (!map.containsKey(key)) {
+                    assertFalse(tm.delete(key(Integer.toString(key))));
                 }
             }
         });

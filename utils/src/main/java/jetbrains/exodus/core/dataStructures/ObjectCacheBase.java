@@ -24,20 +24,11 @@ public abstract class ObjectCacheBase<K, V> extends CacheHitRateable {
     public static final int DEFAULT_SIZE = 8192;
     public static final int MIN_SIZE = 4;
 
-    static final CriticalSection TRIVIAL_CRITICAL_SECTION = new CriticalSection() {
-        @Override
-        public void close() {
-        }
+    static final CriticalSection TRIVIAL_CRITICAL_SECTION = () -> {
     };
 
     protected final int size;
-    private final CriticalSection criticalSection = new CriticalSection() {
-
-        @Override
-        public void close() {
-            unlock();
-        }
-    };
+    private final CriticalSection criticalSection = this::unlock;
 
     protected ObjectCacheBase(final int size) {
         this.size = Math.max(MIN_SIZE, size);

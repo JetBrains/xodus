@@ -21,19 +21,9 @@ package jetbrains.exodus;
  */
 public interface ConfigurationStrategy {
 
-    ConfigurationStrategy IGNORE = new ConfigurationStrategy() {
-        @Override
-        public String getProperty(String key) {
-            return null;
-        }
-    };
+    ConfigurationStrategy IGNORE = key -> null;
 
-    ConfigurationStrategy SYSTEM_PROPERTY = new ConfigurationStrategy() {
-        @Override
-        public String getProperty(String key) {
-            return System.getProperty(key);
-        }
-    };
+    ConfigurationStrategy SYSTEM_PROPERTY = System::getProperty;
 
     String getProperty(String key);
 }

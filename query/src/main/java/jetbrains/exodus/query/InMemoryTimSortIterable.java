@@ -29,7 +29,7 @@ public class InMemoryTimSortIterable extends SortEngine.InMemorySortIterable {
     }
 
     @Override
-    public Iterator<Entity> iterator() {
+    public @NotNull Iterator<Entity> iterator() {
         return new Iterator<Entity>() {
             private List<Entity> src;
             private int runCount;

@@ -61,7 +61,7 @@ public class EntityIterableHandleTests extends EntityStoreTestBase {
             h.computeHashCode();
             // in case of poor distribution, birthday paradox will give assertion quite soon
             if (!set.add(h)) {
-                Assert.assertTrue(false);
+                Assert.fail();
             }
         }
     }

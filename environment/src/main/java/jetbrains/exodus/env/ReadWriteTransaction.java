@@ -52,15 +52,12 @@ public class ReadWriteTransaction extends TransactionBase {
         mutableTrees = new TreeMap<>();
         removedStores = new LongHashMap<>();
         createdStores = new HashMapDecorator<>();
-        this.beginHook = new Runnable() {
-            @Override
-            public void run() {
-                final MetaTreeImpl currentMetaTree = env.getMetaTreeInternal();
-                setMetaTree(cloneMeta ? currentMetaTree.getClone() : currentMetaTree);
-                env.registerTransaction(ReadWriteTransaction.this);
-                if (beginHook != null) {
-                    beginHook.run();
-                }
+        this.beginHook = () -> {
+            final MetaTreeImpl currentMetaTree = env.getMetaTreeInternal();
+            setMetaTree(cloneMeta ? currentMetaTree.getClone() : currentMetaTree);
+            env.registerTransaction(ReadWriteTransaction.this);
+            if (beginHook != null) {
+                beginHook.run();
             }
         };
         replayCount = 0;
@@ -99,7 +96,7 @@ public class ReadWriteTransaction extends TransactionBase {
     @Override
     public boolean commit() {
         checkIsFinished();
-        return getEnvironment().commitTransaction(this, false);
+        return getEnvironment().commitTransaction(this);
     }
 
     @Override
