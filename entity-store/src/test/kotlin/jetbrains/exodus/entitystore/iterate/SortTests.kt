@@ -122,7 +122,7 @@ class SortTests : EntityStoreTestBase() {
         val project = txn.newEntity("Project")
         for (i in 0..99) {
             val issue = txn.newEntity("Issue")
-            issue.setProperty("body", Integer.toString(i))
+            issue.setProperty("body", i.toString())
             issue.setProperty("size", 100 - i)
             if (i < 50) {
                 project.addLink("issue", issue)
@@ -310,7 +310,7 @@ class SortTests : EntityStoreTestBase() {
         val count = 50000
         for (i in 0 until count) {
             val issue = txn.newEntity("Issue")
-            issue.setProperty("body", Integer.toString(i / 1000))
+            issue.setProperty("body", (i / 1000).toString())
             if (i % 500 == 0) {
                 issue.setProperty("hasComment", true)
             }
@@ -427,7 +427,7 @@ class SortTests : EntityStoreTestBase() {
         val count = 5000
         for (i in 0 until count) {
             val issue = txn.newEntity("Issue")
-            issue.setProperty("body", Integer.toString(i / 5))
+            issue.setProperty("body", (i / 5).toString())
             issue.setProperty("size", 100 - i)
         }
         for (i in 0 until count) {

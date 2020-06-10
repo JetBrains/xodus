@@ -323,7 +323,7 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
 
     private fun addSingleDocument() {
         val id = docId++
-        val idValue = Integer.toString(id)
+        val idValue = id.toString()
         indexWriter?.deleteDocuments(Term("doc_id", idValue))
         val doc = Document()
         doc.add(Field("doc_id", idValue, ID_FIELD_TYPE))

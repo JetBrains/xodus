@@ -16,6 +16,7 @@
 package jetbrains.exodus.core.dataStructures
 
 import java.io.Closeable
+import kotlin.math.max
 
 abstract class IntObjectCacheBase<V> protected constructor(size: Int) : CacheHitRateable() {
 
@@ -24,7 +25,7 @@ abstract class IntObjectCacheBase<V> protected constructor(size: Int) : CacheHit
         const val MIN_SIZE = 4
     }
 
-    private val size = Math.max(MIN_SIZE, size)
+    private val size = max(MIN_SIZE, size)
     private val criticalSection: Closeable = object : Closeable {
         override fun close() {
             unlock()

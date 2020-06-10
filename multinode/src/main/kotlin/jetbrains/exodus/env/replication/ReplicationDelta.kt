@@ -18,7 +18,6 @@ package jetbrains.exodus.env.replication
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonProperty
 import jetbrains.exodus.log.LogUtil
-import java.util.*
 
 // avoid com.fasterxml.jackson.module.kotlin.KotlinModule because it requires kotlin-reflect
 data class ReplicationDelta @JsonCreator constructor(
@@ -48,7 +47,7 @@ data class ReplicationDelta @JsonCreator constructor(
         if (fileLengthBound != other.fileLengthBound) return false
         if (metaTreeAddress != other.metaTreeAddress) return false
         if (rootAddress != other.rootAddress) return false
-        if (!Arrays.equals(files, other.files)) return false
+        if (!files.contentEquals(other.files)) return false
 
         return true
     }
@@ -59,7 +58,7 @@ data class ReplicationDelta @JsonCreator constructor(
         result = 31 * result + fileLengthBound.hashCode()
         result = 31 * result + metaTreeAddress.hashCode()
         result = 31 * result + rootAddress.hashCode()
-        result = 31 * result + Arrays.hashCode(files)
+        result = 31 * result + files.contentHashCode()
         return result
     }
 

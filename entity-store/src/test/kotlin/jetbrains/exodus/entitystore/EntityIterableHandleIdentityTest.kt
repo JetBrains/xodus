@@ -35,7 +35,7 @@ class EntityIterableHandleIdentityTest : EntityStoreTestBase() {
         val sema = Semaphore(0)
         val iterations = 1..100000
 
-        val threads = (1..2).map {
+        val threads = (1..2).map { thread ->
             Thread({
                 iterations.forEach {
                     sema.acquire()
@@ -46,7 +46,7 @@ class EntityIterableHandleIdentityTest : EntityStoreTestBase() {
                         Assert.assertEquals("hash#$it mismatch for $referenceHandle vs $actualHandle", reference, hash)
                     }
                 }
-            }, "worker $it")
+            }, "worker $thread")
         }
 
         threads.forEach {

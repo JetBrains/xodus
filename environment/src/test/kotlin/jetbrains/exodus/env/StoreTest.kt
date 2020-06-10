@@ -32,6 +32,7 @@ import java.io.FileOutputStream
 import java.io.UnsupportedEncodingException
 import java.security.SecureRandom
 import java.util.*
+import kotlin.math.abs
 
 class StoreTest : EnvironmentTestsBase() {
 
@@ -73,7 +74,7 @@ class StoreTest : EnvironmentTestsBase() {
         txn.commit()
         assertNotNullStringValue(store, key, "value")
 
-        env.executeInTransaction { txn -> env.removeStore("store", txn) }
+        env.executeInTransaction { tx -> env.removeStore("store", tx) }
         try {
             openStoreAutoCommit("store", StoreConfig.USE_EXISTING)
             fail("Exception on open removed db is not thrown!")
@@ -346,12 +347,12 @@ class StoreTest : EnvironmentTestsBase() {
     @TestFor(issues = ["XD-601"])
     fun testXD_601_by_Thorsten_Schemm() {
         env.environmentConfig.isGcEnabled = false
-        assertTrue(HashSet(Arrays.asList(*XD_601_KEYS)).size == XD_601_KEYS.size)
+        assertTrue(HashSet(listOf(*XD_601_KEYS)).size == XD_601_KEYS.size)
         val store = env.computeInTransaction { txn -> env.openStore("Messages", StoreConfig.WITHOUT_DUPLICATES, txn, true) }
                 ?: throw ExodusException("store is null")
         for (i in XD_601_KEYS.indices) {
             val nextKey = StringBinding.stringToEntry(XD_601_KEYS[i])
-            val nextValue = StringBinding.stringToEntry(Integer.toString(i))
+            val nextValue = StringBinding.stringToEntry(i.toString())
             val storeCount = env.computeInTransaction { txn -> store.count(txn) }
             assertEquals(storeCount, i.toLong())
             if (storeCount != i.toLong()) {
@@ -460,7 +461,7 @@ class StoreTest : EnvironmentTestsBase() {
         val processor = object : MultiThreadDelegatingJobProcessor("ConcurrentPutProcessor", 8) {
 
         }
-        processor.exceptionHandler = JobProcessorExceptionHandler { processor, job, t -> t.printStackTrace(System.out) }
+        processor.exceptionHandler = JobProcessorExceptionHandler { _, _, t -> t.printStackTrace(System.out) }
         processor.start()
         val count = 50000
         val keys = LongHashSet()
@@ -519,7 +520,7 @@ class StoreTest : EnvironmentTestsBase() {
         private val rnd = SecureRandom()
 
         private fun randomLong(): Long {
-            return Math.abs(rnd.nextLong())
+            return abs(rnd.nextLong())
         }
     }
 }

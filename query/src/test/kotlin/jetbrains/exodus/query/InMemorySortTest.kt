@@ -22,6 +22,7 @@ import jetbrains.exodus.util.Random
 import org.junit.Assert
 import org.junit.Test
 import java.util.*
+import kotlin.math.abs
 
 private const val PAGE_SIZE = 100
 
@@ -42,7 +43,7 @@ class InMemorySortTest : EntityStoreTestBase() {
             sum += it
         }
         repeat(15000) {
-            val value = Math.abs(rnd.nextInt(Int.MAX_VALUE - PAGE_SIZE) + PAGE_SIZE)
+            val value = abs(rnd.nextInt(Int.MAX_VALUE - PAGE_SIZE) + PAGE_SIZE)
             storeTransaction.newEntity("Issue").setProperty("int", value)
         }
         storeTransaction.flush()

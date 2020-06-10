@@ -23,7 +23,6 @@ import jetbrains.exodus.util.LightOutputStream
 import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
-import java.lang.Math.min
 
 internal class Cluster(private val it: ByteIterable) : Iterator<Byte> {
 
@@ -43,7 +42,7 @@ internal class Cluster(private val it: ByteIterable) : Iterator<Byte> {
         if (iterator is BlockByteIterator) {
             return iterator.nextBytes(array, off, len).also { readBytes -> size -= readBytes }
         }
-        val result = min(len, size)
+        val result = kotlin.math.min(len, size)
         for (i in 0 until result) {
             array[off + i] = iterator.next()
         }
