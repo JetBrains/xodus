@@ -19,7 +19,7 @@ import jetbrains.exodus.ExodusException;
 
 public class TooBigLoggableException extends ExodusException {
 
-    private static final String DEFAULT_MESSAGE = "Can't write a loggable which size is greater then file size.";
+    private static final String DEFAULT_MESSAGE = "Can't write a loggable which size is greater than file size.";
 
     public TooBigLoggableException() {
         this(DEFAULT_MESSAGE);
