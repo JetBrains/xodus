@@ -69,7 +69,7 @@ public class SpinAllocator<T> {
         return creator.createInstance();
     }
 
-    public void dispose(final T instance) {
+    public boolean dispose(final T instance) {
         for (int i = 0; i < MAXIMUM_ALLOCATIONS; ++i) {
             if (objects[i] == instance) {
                 if (!employed[i].get()) {
@@ -79,9 +79,10 @@ public class SpinAllocator<T> {
                     disposer.disposeInstance(instance);
                 }
                 employed[i].set(false);
-                return;
+                return true;
             }
         }
-        // do nothing, allocation wasn't pooled
+        // allocation wasn't pooled
+        return false;
     }
 }
