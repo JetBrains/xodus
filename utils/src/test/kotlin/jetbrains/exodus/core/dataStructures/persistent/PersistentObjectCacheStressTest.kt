@@ -44,14 +44,14 @@ class PersistentObjectCacheStressTest {
                 put("key$it", "value$it")
             }
             val cached = arrayListOf<String>()
-            forEachEntry { key, value ->
+            forEachEntry { key, _ ->
                 cached.add(key)
             }
 
             val sema = Semaphore(0)
             val count = 10
             val wasError = AtomicBoolean()
-            val threads = (1..count).map {
+            val threads = (1..count).map { thread ->
                 Thread({
                     var iteration = 0
                     sema.acquire()
@@ -68,7 +68,7 @@ class PersistentObjectCacheStressTest {
                         t.printStackTrace()
                         wasError.set(true)
                     }
-                }, "Runner $it")
+                }, "Runner $thread")
             }
             threads.forEach(Thread::start)
             sema.release(count)
