@@ -1,5 +1,8 @@
+buildscript {
+    ext.bouncyCastleVersion = '1.65'
+}
 dependencies {
     api project(':environment')
-    implementation 'org.bouncycastle:bcpg-jdk15on:1.60'
+    implementation "org.bouncycastle:bcpg-jdk15on:$bouncyCastleVersion"
     testImplementation project(':openAPI').sourceSets.test.output
 }

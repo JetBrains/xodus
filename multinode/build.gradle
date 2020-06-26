@@ -1,6 +1,6 @@
 dependencies {
     api project(':entity-store')
-    implementation 'software.amazon.awssdk:s3:2.0.0-preview-11'
+    api 'software.amazon.awssdk:s3:2.0.0-preview-11'
     implementation 'software.amazon.awssdk:netty-nio-client:2.0.0-preview-11'
     implementation 'io.netty:netty-transport:4.1.46.Final'
     implementation 'io.netty:netty-codec-http:4.1.46.Final'
