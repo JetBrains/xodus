@@ -299,7 +299,7 @@ The result of a binary operation (`EntityIterable`) itself can be an operand of 
 
 #### Searching for Entities Having Property, Link, Blob
 
-The `StoreTransaction.findWithProp` method returns entities of a specified type that have a property with the specified name. There are also methods `StoreTransaction.findWithBlob` and `StoreTransaction.findWithLink`.
+The `StoreTransaction.findWithProp` method returns entities of a specified type that have a property with the specified name. There are also methods `StoreTransaction.findWithBlob` and `StoreTransaction.findWithLinks`.
 
 For example, if we do not require a user to enter a full name, the `fullName` property can be null. You can get users with or without full name by using `findWithProp`:    
 ```java
@@ -316,7 +316,7 @@ final EntityIterable userProfilesWithBio = txn.findWithBlob("UserProfile", "bio"
 ```
 To get users with auth modules:
 ```java
-final EntityIterable usersWithAuthModules = txn.findWithLink("User", "authModule");
+final EntityIterable usersWithAuthModules = txn.findWithLinks("User", "authModule");
 ```
 
 #### Sorting
