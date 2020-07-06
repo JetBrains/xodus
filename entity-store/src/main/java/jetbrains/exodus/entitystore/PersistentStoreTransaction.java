@@ -938,9 +938,9 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> T getUpdatable(
-        @NotNull final HandleChecker handleChecker, @NotNull final EntityIterableHandle handle, @NotNull final Class<T> handleType
-    ) {
+    public static <T> T getUpdatable(@NotNull final HandleChecker handleChecker,
+                                     @NotNull final EntityIterableHandle handle,
+                                     @NotNull final Class<T> handleType) {
         final HandleCheckerAdapter checker = (HandleCheckerAdapter) handleChecker;
         Updatable instance = checker.get(handle);
         if (instance != null) {
