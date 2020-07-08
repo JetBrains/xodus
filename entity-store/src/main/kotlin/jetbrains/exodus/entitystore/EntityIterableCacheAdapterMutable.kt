@@ -171,7 +171,6 @@ internal class EntityIterableCacheAdapterMutable private constructor(config: Per
                 }
             }
         }
-
     }
 
     companion object {

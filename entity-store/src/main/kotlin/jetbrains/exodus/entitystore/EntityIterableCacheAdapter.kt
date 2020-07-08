@@ -50,7 +50,12 @@ internal open class EntityIterableCacheAdapter
     }
 
     open fun cacheObject(key: EntityIterableHandle, it: CachedInstanceIterable) {
-        cache.cacheObject(key, CacheItem(it, config.entityIterableCacheMaxSizeOfDirectValue))
+        // if it is Updatable then it could be mutated in a txn being stored as sticky object
+        if (it is Updatable && stickyObjects.containsKey(key)) {
+            stickyObjects[key] = it
+        } else {
+            cache.cacheObject(key, CacheItem(it, config.entityIterableCacheMaxSizeOfDirectValue))
+        }
     }
 
     fun forEachKey(procedure: ObjectProcedure<EntityIterableHandle>) = cache.forEachKey(procedure)
