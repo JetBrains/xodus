@@ -547,7 +547,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         Assert.assertEquals(0L, (txn.getAll("Issue") as EntityIterableBase).findLinks(EntityIterableBase.EMPTY, "author").size())
     }
 
-    @TestFor(issues = ["XD-749"])
+    @TestFor(issue = "XD-749")
     fun testFindLinksSingular2() {
         val txn = storeTransaction
         createNUsers(txn, 1)
@@ -558,7 +558,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         Assert.assertEquals(0L, (txn.getAll("Issue") as EntityIterableBase).findLinks(EntityStoreTestBase.toList(EntityIterableBase.EMPTY), "author").size())
     }
 
-    @TestFor(issues = ["XD-737"])
+    @TestFor(issue = "XD-737")
     fun testInvalidationOfCachedFindLinks() {
         val txn = storeTransaction
         val users = createNUsers(txn, 10)
@@ -717,7 +717,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         Assert.assertEquals(1L, users.getRoughCount())
     }
 
-    @TestFor(issues = ["XD-502"])
+    @TestFor(issue = "XD-502")
     fun testFindWithPropSortedCount() {
         val txn = storeTransaction
         Assert.assertEquals(0, txn.findWithPropSortedByValue("User", "login").countImpl(txn))
@@ -738,7 +738,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         Assert.assertFalse(cachedInstance.isEmpty)
     }
 
-    @TestFor(issues = ["XD-522"])
+    @TestFor(issue = "XD-522")
     @Throws(InterruptedException::class)
     fun testRoughSize() {
         val txn = storeTransaction
@@ -756,7 +756,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         }
     }
 
-    @TestFor(issues = ["XD-536"])
+    @TestFor(issue = "XD-536")
     fun testEntityIterableCacheIsInvalidatedOnStoreClear() {
         val entityStore = entityStore
         entityStore.executeInTransaction { txn -> createNUsers(txn, 10) }
@@ -766,7 +766,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         entityStore.executeInReadonlyTransaction { txn -> Assert.assertEquals(-1, txn.getAll("User").indexOf(PersistentEntity(entityStore, PersistentEntityId(0, 9))).toLong()) }
     }
 
-    @TestFor(issues = ["XD-746"])
+    @TestFor(issue = "XD-746")
     fun testGetAllReverse() {
         val txn = storeTransaction
         val count = 10

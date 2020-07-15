@@ -252,7 +252,7 @@ public class QueryTreeTest extends EntityStoreTestBase {
         Assert.assertEquals(or(and(or(a, d), b), c), getOptimizedTree(tree));
     }
 
-    @TestFor(issues = "XD-694")
+    @TestFor(issue = "XD-694")
     public void testNestedAnd() {
         final PropertyEqual a = new PropertyEqual("s", "A");
         final PropertyEqual b = new PropertyEqual("s", "B");

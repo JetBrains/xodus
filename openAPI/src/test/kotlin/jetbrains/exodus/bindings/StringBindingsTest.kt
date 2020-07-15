@@ -31,7 +31,7 @@ class StringBindingsTest {
     }
 
     @Test()
-    @TestFor(issues = ["XD-761"])
+    @TestFor(issue = "XD-761")
     fun testWeirdChars() {
         val string = String(hash, StandardCharsets.UTF_8)
         val value = propertyValueToEntry(string)

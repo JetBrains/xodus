@@ -132,20 +132,20 @@ public class StoreTransactionTests extends EntityStoreTestBase {
         Assert.assertEquals("it's ok", getEntityStore().computeInReadonlyTransaction(txn1 -> issue.getProperty("summary")));
     }
 
-    @TestFor(issues = "XD-495")
+    @TestFor(issue = "XD-495")
     public void testNewEntityInReadonlyTransaction() {
         setReadonly();
         TestUtil.runWithExpectedException(() -> getEntityStore().executeInTransaction(txn -> txn.newEntity("Issue")), ReadonlyTransactionException.class);
     }
 
-    @TestFor(issues = "XD-495")
+    @TestFor(issue = "XD-495")
     public void testNewEntityInReadonlyTransaction2() {
         getEntityStore().executeInTransaction(txn -> txn.newEntity("Issue"));
         setReadonly();
         TestUtil.runWithExpectedException(() -> getEntityStore().executeInTransaction(txn -> txn.newEntity("Issue")), ReadonlyTransactionException.class);
     }
 
-    @TestFor(issues = "XD-495")
+    @TestFor(issue = "XD-495")
     public void testNewEntityInReadonlyTransaction3() {
         getEntityStore().executeInTransaction(txn -> txn.newEntity("Issue"));
         setReadonly();

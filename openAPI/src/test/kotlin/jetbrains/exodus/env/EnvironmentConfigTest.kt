@@ -185,13 +185,13 @@ class EnvironmentConfigTest {
     }
 
     @Test(expected = ExodusException::class)
-    @TestFor(issues = ["XD-704"])
+    @TestFor(issue = "XD-704")
     fun mutateDefaultConfig() {
         EnvironmentConfig.DEFAULT.isGcEnabled = false
     }
 
     @Test(expected = ExodusException::class)
-    @TestFor(issues = ["XD-704"])
+    @TestFor(issue = "XD-704")
     fun makeDefaultConfigMutable() {
         EnvironmentConfig.DEFAULT.isMutable = true
     }

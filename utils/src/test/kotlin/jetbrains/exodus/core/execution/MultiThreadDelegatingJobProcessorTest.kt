@@ -24,7 +24,7 @@ class MultiThreadDelegatingJobProcessorTest : JobProcessorTest() {
     override fun createProcessor(): JobProcessor = object : MultiThreadDelegatingJobProcessor("qwa-qwa${Any().hashCode()}", 1, 5000L) {}
 
     @Test
-    @TestFor(issues = ["XD-779"])
+    @TestFor(issue = "XD-779")
     fun testTimeout() {
         val processor = processor as MultiThreadDelegatingJobProcessor
         SleepJob(processor, 10000L)

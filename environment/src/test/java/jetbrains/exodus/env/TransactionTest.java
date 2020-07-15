@@ -250,7 +250,7 @@ public class TransactionTest extends EnvironmentTestsBase {
     }
 
     @Test(expected = ReadonlyTransactionException.class)
-    @TestFor(issues = "XD-447")
+    @TestFor(issue = "XD-447")
     public void test_XD_447() {
         final EnvironmentImpl env = getEnvironment();
         final EnvironmentConfig ec = env.getEnvironmentConfig();
@@ -264,7 +264,7 @@ public class TransactionTest extends EnvironmentTestsBase {
     }
 
     @Test(expected = ReadonlyTransactionException.class)
-    @TestFor(issues = "XD-447")
+    @TestFor(issue = "XD-447")
     public void test_XD_447_() {
         final EnvironmentImpl env = getEnvironment();
         final EnvironmentConfig ec = env.getEnvironmentConfig();
@@ -294,7 +294,7 @@ public class TransactionTest extends EnvironmentTestsBase {
     }
 
     @Test
-    @TestFor(issues = "XD-401")
+    @TestFor(issue = "XD-401")
     public void test_XD_401() throws Exception {
         final Environment env = getEnvironment();
         final Store store = env.computeInTransaction(txn -> env.openStore("store", StoreConfig.WITH_DUPLICATES, txn));
@@ -315,7 +315,7 @@ public class TransactionTest extends EnvironmentTestsBase {
     }
 
     @Test
-    @TestFor(issues = "XD-471")
+    @TestFor(issue = "XD-471")
     public void test_XD_471() {
         final Environment env = getEnvironment();
         final Transaction[] txn = {null};
@@ -332,7 +332,7 @@ public class TransactionTest extends EnvironmentTestsBase {
     }
 
     @Test
-    @TestFor(issues = "XD-471")
+    @TestFor(issue = "XD-471")
     public void test_XD_471_() {
         final Environment env = getEnvironment();
         final Transaction[] txn = {null};
@@ -438,7 +438,7 @@ public class TransactionTest extends EnvironmentTestsBase {
     }
 
     @Test
-    @TestFor(issues = "XD-477")
+    @TestFor(issue = "XD-477")
     public void test_XD_477() {
         getEnvironment().getEnvironmentConfig().setEnvTxnReplayTimeout(500L);
         getEnvironment().executeInTransaction(txn -> {
@@ -460,7 +460,7 @@ public class TransactionTest extends EnvironmentTestsBase {
     }
 
     @Test
-    @TestFor(issues = "XD-478")
+    @TestFor(issue = "XD-478")
     public void test_XD_478() {
         final EnvironmentImpl env = getEnvironment();
         final Store store = env.computeInTransaction((TransactionalComputable<Store>) txn -> env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn));
@@ -476,7 +476,7 @@ public class TransactionTest extends EnvironmentTestsBase {
     }
 
     @Test
-    @TestFor(issues = "XD-480") // the test will hang if XD-480 is not fixed
+    @TestFor(issue = "XD-480") // the test will hang if XD-480 is not fixed
     public void testSuspendGCInTxn() {
         set1KbFileWithoutGC();
         final EnvironmentImpl env = getEnvironment();

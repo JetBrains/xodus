@@ -30,7 +30,7 @@ public class PropertyCustomTypePersistenceTest extends EntityStoreTestBase {
         return new String[]{"testPersistentCustomPropertyType"};
     }
 
-    @TestFor(issues = "XD-555")
+    @TestFor(issue = "XD-555")
     public void testPersistentCustomPropertyType() throws Exception {
         PersistentEntityStoreImpl store = getEntityStore();
 

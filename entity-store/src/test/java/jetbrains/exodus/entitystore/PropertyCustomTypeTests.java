@@ -99,7 +99,7 @@ public class PropertyCustomTypeTests extends EntityStoreTestBase {
         store.registerCustomPropertyType(txn, sample.getClass(), customBinding);
     }
 
-    @TestFor(issues = "XD-603")
+    @TestFor(issue = "XD-603")
     public void testRegisterTwiceWithoutReinit() {
         PersistentEntityStoreImpl store = getEntityStore();
         PropertyTypes propertyTypes = store.getPropertyTypes();

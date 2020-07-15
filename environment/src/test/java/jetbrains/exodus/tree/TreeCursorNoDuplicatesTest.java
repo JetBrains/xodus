@@ -434,7 +434,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    @TestFor(issues = "XD-614")
+    @TestFor(issue = "XD-614")
     public void failingGetNextAndGetPrevDontInvalidateKeyValue() {
         tm = createMutableTree(false, 1);
         tm.put(kv("0", "0"));
@@ -457,7 +457,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    @TestFor(issues = "XD-619")
+    @TestFor(issue = "XD-619")
     public void failingGetNextAndGetPrevDontInvalidateKeyValue2() {
         tm = createMutableTree(false, 1);
         final int treeSize = 10000;

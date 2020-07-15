@@ -413,7 +413,7 @@ public abstract class TreePutTest extends TreeBaseTest {
     }
 
     @Test
-    @TestFor(issues = "XD-539")
+    @TestFor(issue = "XD-539")
     public void createHugeTree() throws Throwable {
         if (Runtime.getRuntime().maxMemory() < 4000000000L) {
             return;

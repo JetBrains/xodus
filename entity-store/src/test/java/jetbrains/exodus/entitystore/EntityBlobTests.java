@@ -52,7 +52,7 @@ public class EntityBlobTests extends EntityStoreTestBase {
         Assert.assertEquals("my body2", entity.getBlobString("body2"));
     }
 
-    @TestFor(issues = "XD-675")
+    @TestFor(issue = "XD-675")
     public void testBlobFiles2() throws Exception {
         getEntityStore().getConfig().setMaxInPlaceBlobSize(0);
         testBlobFiles();
@@ -120,7 +120,7 @@ public class EntityBlobTests extends EntityStoreTestBase {
         Assert.assertEquals("абвгдеёжзийклмнопрстуфхкцчшщъыьэюя", issue.getBlobString("description"));
     }
 
-    @TestFor(issues = "JT-44824")
+    @TestFor(issue = "JT-44824")
     public void testLargeBlobString() {
         StringBuilder builder = new StringBuilder();
         final int blobStringSize = 80000;
@@ -226,7 +226,7 @@ public class EntityBlobTests extends EntityStoreTestBase {
         Assert.assertFalse(wereExceptions[0]);
     }
 
-    @TestFor(issues = "XD-531")
+    @TestFor(issue = "XD-531")
     public void testEntityStoreClear() {
         final PersistentEntityStoreImpl store = getEntityStore();
         store.getConfig().setMaxInPlaceBlobSize(0);

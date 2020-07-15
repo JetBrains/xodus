@@ -301,7 +301,7 @@ public class EntityLinksTests extends EntityStoreTestBase {
         }
     }
 
-    @TestFor(issues = "XD-517")
+    @TestFor(issue = "XD-517")
     public void testInvalidationOfToLinks() throws InterruptedException {
         final PersistentStoreTransaction txn = getStoreTransaction();
         PersistentEntity issue = txn.newEntity("Issue");
@@ -324,7 +324,7 @@ public class EntityLinksTests extends EntityStoreTestBase {
         }
     }
 
-    @TestFor(issues = "XD-518")
+    @TestFor(issue = "XD-518")
     public void testInvalidationFromSetLinks() throws InterruptedException {
         final PersistentStoreTransaction txn = getStoreTransaction();
         PersistentEntity issue = txn.newEntity("Issue");

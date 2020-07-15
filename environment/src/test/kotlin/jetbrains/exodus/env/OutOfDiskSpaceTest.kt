@@ -28,7 +28,7 @@ import org.junit.Test
 open class OutOfDiskSpaceTest : EnvironmentTestsBase() {
 
     @Test
-    @TestFor(issues = ["XD-733"])
+    @TestFor(issue = "XD-733")
     fun `emulate out of disk space`() {
         val (store0, store1) = prepareStores()
 
@@ -59,7 +59,7 @@ open class OutOfDiskSpaceTest : EnvironmentTestsBase() {
     }
 
     @Test
-    @TestFor(issues = ["XD-733"])
+    @TestFor(issue = "XD-733")
     fun `too big loggable`() {
         val (store0, store1) = prepareStores()
         println(env.log.highAddress)

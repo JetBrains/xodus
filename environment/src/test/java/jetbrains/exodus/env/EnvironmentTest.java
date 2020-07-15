@@ -136,7 +136,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     }
 
     @Test
-    @TestFor(issues = "XD-457")
+    @TestFor(issue = "XD-457")
     public void testClearWithTransaction_XD_457() throws InterruptedException {
         final Latch latch = Latch.create();
         env.executeInTransaction(txn -> {
@@ -380,7 +380,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     }
 
     @Test
-    @TestFor(issues = "XD-590")
+    @TestFor(issue = "XD-590")
     public void issueXD_590_reported() {
         // 1) open store
         final Store store = env.computeInTransaction((TransactionalComputable<Store>) txn -> env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn));
@@ -413,7 +413,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     }
 
     @Test
-    @TestFor(issues = "XD-606")
+    @TestFor(issue = "XD-606")
     public void mappedFileNotUnmapped() {
         File tempDir = TestUtil.createTempDir();
         try {
@@ -438,7 +438,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     }
 
     @Test(expected = IllegalStateException.class)
-    @TestFor(issues = "XD-628")
+    @TestFor(issue = "XD-628")
     public void readCloseRace() {
         final Store store = openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES);
         env.executeInTransaction(txn -> {
@@ -468,7 +468,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     }
 
     @Test
-    @TestFor(issues = "XD-682")
+    @TestFor(issue = "XD-682")
     public void cursorOnFlushedTxn() {
         final Store store = openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES);
         env.executeInTransaction(txn -> {
@@ -559,7 +559,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     }
 
     @Test
-    @TestFor(issues = "XD-770")
+    @TestFor(issue = "XD-770")
     public void alterBalancePolicy() {
         final Store[] store = {openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES)};
         env.executeInTransaction(txn -> {
@@ -589,19 +589,19 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     }
 
     @Test
-    @TestFor(issues = "XD-770")
+    @TestFor(issue = "XD-770")
     public void alterBalancePolicy2() {
         alterBalancePolicy(0.25f);
     }
 
     @Test
-    @TestFor(issues = "XD-770")
+    @TestFor(issue = "XD-770")
     public void alterBalancePolicy3() {
         alterBalancePolicy(4);
     }
 
     @Test
-    @TestFor(issues = "XD-770")
+    @TestFor(issue = "XD-770")
     public void avoidEmptyPages() {
         final Store store = openStoreAutoCommit("new_store", StoreConfig.WITH_DUPLICATES);
         final int count = 1000;

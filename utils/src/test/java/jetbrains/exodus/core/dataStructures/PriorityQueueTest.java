@@ -166,7 +166,7 @@ public abstract class PriorityQueueTest {
         assertEquals(new TestObject(0), queue.pop());
     }
 
-    @TestFor(issues = "XD-600")
+    @TestFor(issue = "XD-600")
     @Test
     public void mergePushedOut() {
         final PriorityQueue<Integer, TestObject> queue = createQueue();

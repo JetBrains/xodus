@@ -20,7 +20,7 @@ import jetbrains.exodus.bindings.ComparableSet;
 
 public class PersistentEntityStoreRefactoringsTests extends EntityStoreTestBase {
 
-    @TestFor(issues = "XD-553", testForClass = PersistentEntityStoreRefactorings.class)
+    @TestFor(issue = "XD-553", testForClass = PersistentEntityStoreRefactorings.class)
     public void testConsistentPropsRefactoringForComparableSetValues() {
 
         // at first, disable entity iterables' caching

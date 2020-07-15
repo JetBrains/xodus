@@ -300,7 +300,7 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
     }
 
     @Test
-    @TestFor(issues = ["XD-780"])
+    @TestFor(issue = "XD-780")
     fun `stackoverflow-com-questions-56662998`() {
         env.environmentConfig.run {
             gcStartIn = 0
@@ -327,7 +327,7 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
     }
 
     @Test
-    @TestFor(issues = ["XD-780"])
+    @TestFor(issue = "XD-780")
     fun `stackoverflow-com-questions-56662998+`() {
         env.environmentConfig.run {
             gcStartIn = 0

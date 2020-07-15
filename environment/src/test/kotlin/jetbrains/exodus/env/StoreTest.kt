@@ -120,7 +120,7 @@ class StoreTest : EnvironmentTestsBase() {
         assertNotNullStringValues(store, "value", "value2")
     }
 
-    @TestFor(issues = ["XD-705"])
+    @TestFor(issue = "XD-705")
     @Test
     fun testCloseCursorTwice() {
         val store = openStoreAutoCommit("store", StoreConfig.WITH_DUPLICATES)
@@ -219,7 +219,7 @@ class StoreTest : EnvironmentTestsBase() {
     }
 
     @Test
-    @TestFor(issues = ["XD-601"])
+    @TestFor(issue = "XD-601")
     fun testXD_601() {
         val store = env.computeInTransaction { txn -> env.openStore("Messages", StoreConfig.WITHOUT_DUPLICATES, txn, true) }
                 ?: throw ExodusException("store is null")
@@ -234,7 +234,7 @@ class StoreTest : EnvironmentTestsBase() {
     }
 
     @Test
-    @TestFor(issues = ["XD-608"])
+    @TestFor(issue = "XD-608")
     fun testXD_608_by_Thorsten_Schemm() {
         env.environmentConfig.isGcEnabled = false
         val store = env.computeInTransaction { txn -> env.openStore("Whatever", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn, true) }
@@ -249,7 +249,7 @@ class StoreTest : EnvironmentTestsBase() {
     }
 
     @Test
-    @TestFor(issues = ["XD-608"])
+    @TestFor(issue = "XD-608")
     fun testXD_608_Mutable() {
         env.environmentConfig.isGcEnabled = false
         val store = env.computeInTransaction { txn -> env.openStore("Whatever", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn, true) }
@@ -291,7 +291,7 @@ class StoreTest : EnvironmentTestsBase() {
     }
 
     @Test
-    @TestFor(issues = ["XD-614"])
+    @TestFor(issue = "XD-614")
     fun testXD_614_by_Thorsten_Schemm() {
         env.environmentConfig.isGcEnabled = false
         val store = env.computeInTransaction { txn -> env.openStore("Whatever", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn, true) }
@@ -318,7 +318,7 @@ class StoreTest : EnvironmentTestsBase() {
     }
 
     @Test
-    @TestFor(issues = ["XD-614"])
+    @TestFor(issue = "XD-614")
     fun testXD_614_next_prev() {
         env.environmentConfig.isGcEnabled = false
         val store = env.computeInTransaction { txn -> env.openStore("Whatever", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn, true) }
@@ -344,7 +344,7 @@ class StoreTest : EnvironmentTestsBase() {
     }
 
     @Test
-    @TestFor(issues = ["XD-601"])
+    @TestFor(issue = "XD-601")
     fun testXD_601_by_Thorsten_Schemm() {
         env.environmentConfig.isGcEnabled = false
         assertTrue(HashSet(listOf(*XD_601_KEYS)).size == XD_601_KEYS.size)
@@ -368,7 +368,7 @@ class StoreTest : EnvironmentTestsBase() {
     }
 
     @Test
-    @TestFor(issues = ["XD-774"])
+    @TestFor(issue = "XD-774")
     fun `remove and open store in single txn (by Martin Hausler)`() {
         val store = openStoreAutoCommit("store", StoreConfig.WITHOUT_DUPLICATES)
         env.executeInTransaction { txn ->

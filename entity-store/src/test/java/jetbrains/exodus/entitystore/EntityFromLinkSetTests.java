@@ -74,7 +74,7 @@ public class EntityFromLinkSetTests extends EntityStoreTestBase {
         }
     }
 
-    @TestFor(issues = "XD-669")
+    @TestFor(issue = "XD-669")
     public void testCached() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity i1 = txn.newEntity("Issue");

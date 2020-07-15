@@ -464,7 +464,7 @@ public class FindTests extends EntityStoreTestBase {
         Assert.assertTrue(((EntityIteratorBase) txn.findWithPropSortedByValue("Issue", "description").iterator()).getIterable().isCachedInstance());
     }
 
-    @TestFor(issues = "XD-524")
+    @TestFor(issue = "XD-524")
     public void testFindWithPropAndIntersectIsCached() throws Exception {
         testFindWithPropSortedIsCached();
         final PersistentStoreTransaction txn = getStoreTransaction();
@@ -477,7 +477,7 @@ public class FindTests extends EntityStoreTestBase {
         Assert.assertTrue(((EntityIteratorBase) intersect.iterator()).getIterable().isCachedInstance());
     }
 
-    @TestFor(issues = "XD-524")
+    @TestFor(issue = "XD-524")
     public void testFindWithPropAndUnionIsCached() throws Exception {
         testFindWithPropSortedIsCached();
         final PersistentStoreTransaction txn = getStoreTransaction();
@@ -490,7 +490,7 @@ public class FindTests extends EntityStoreTestBase {
         Assert.assertTrue(((EntityIteratorBase) union.iterator()).getIterable().isCachedInstance());
     }
 
-    @TestFor(issues = "XD-524")
+    @TestFor(issue = "XD-524")
     public void testFindWithPropAndMinusIsCached() throws Exception {
         testFindWithPropSortedIsCached();
         final PersistentStoreTransaction txn = getStoreTransaction();
@@ -544,7 +544,7 @@ public class FindTests extends EntityStoreTestBase {
         }
     }
 
-    @TestFor(issues = "XD-510")
+    @TestFor(issue = "XD-510")
     public void testFindComparableSetRange() throws InterruptedException {
         final StoreTransaction txn = getStoreTransaction();
         final Entity issue = txn.newEntity("Issue");
@@ -563,7 +563,7 @@ public class FindTests extends EntityStoreTestBase {
         }
     }
 
-    @TestFor(issues = "XD-511")
+    @TestFor(issue = "XD-511")
     public void testFindComparableSetCaseInsensitive() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity issue = txn.newEntity("Issue");
@@ -584,7 +584,7 @@ public class FindTests extends EntityStoreTestBase {
         Assert.assertEquals(issue, txn.findStartingWith("Issue", "commenters", "ann").getFirst());
     }
 
-    @TestFor(issues = "XD-512")
+    @TestFor(issue = "XD-512")
     public void testComparableSetPropertiesIterable() {
         getEntityStore().getConfig().setCachingDisabled(true); // disable caching to avoid background exceptions
         testFindComparableSetCaseInsensitive();
@@ -592,7 +592,7 @@ public class FindTests extends EntityStoreTestBase {
         Assert.assertTrue(txn.findWithPropSortedByValue("Issue", "commenters").iterator().hasNext());
     }
 
-    @TestFor(issues = "XD-577")
+    @TestFor(issue = "XD-577")
     public void testSuccessiveInvalidationAndUpdateCachedResult() {
         final StoreTransaction txn = getStoreTransaction();
         final Entity issue = txn.newEntity("Issue");
@@ -604,7 +604,7 @@ public class FindTests extends EntityStoreTestBase {
         Assert.assertEquals(1L, txn.findStartingWith("Issue", "summary", "summary").size());
     }
 
-    @TestFor(issues = "XD-618")
+    @TestFor(issue = "XD-618")
     public void testInvalidateComparableSetPropertyIterables() {
         testFindComparableSetCaseInsensitive();
 

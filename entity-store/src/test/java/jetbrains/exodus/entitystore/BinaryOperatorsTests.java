@@ -236,7 +236,7 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
         Assert.assertEquals(30, (int) txn.find("Issue", "name", "Test issue #0").concat(txn.find("Issue", "name", "Test issue #1")).concat(txn.find("Issue", "name", "Test issue #2")).size());
     }
 
-    @TestFor(issues = "XD-566")
+    @TestFor(issue = "XD-566")
     public void testConcat2() {
         final StoreTransaction txn = getStoreTransaction();
         Objects.requireNonNull(txn).newEntity("Issue");
