@@ -20,6 +20,9 @@ import jetbrains.exodus.TestFor
 import jetbrains.exodus.TestUtil
 import jetbrains.exodus.bindings.ComparableSet
 import jetbrains.exodus.core.execution.Job
+import jetbrains.exodus.env.Environments
+import jetbrains.exodus.env.newEnvironmentConfig
+import jetbrains.exodus.log.TooBigLoggableException
 import jetbrains.exodus.util.ByteArraySizedInputStream
 import jetbrains.exodus.util.DeferredIO
 import jetbrains.exodus.util.LightByteArrayOutputStream
@@ -36,12 +39,14 @@ import java.util.concurrent.Semaphore
 
 @Suppress("UNCHECKED_CAST")
 class EntityTests : EntityStoreTestBase() {
+
     override fun casesThatDontNeedExplicitTxn(): Array<String> {
         return arrayOf("testConcurrentCreationTypeIdsAreOk",
                 "testConcurrentSerializableChanges",
                 "testEntityStoreClear",
                 "testSetPhantomLink",
-                "testAddPhantomLink"
+                "testAddPhantomLink",
+                "testTooBigProperty"
         )
     }
 
@@ -256,7 +261,7 @@ class EntityTests : EntityStoreTestBase() {
         Assert.assertEquals(0.5, entity.getProperty("rank"))
     }
 
-    @TestFor(issues = ["XD-509"])
+    @TestFor(issue = "XD-509")
     fun testComparableSetNewEmpty() {
         val txn = storeTransaction
         val entity = txn.newEntity("Issue")
@@ -332,7 +337,7 @@ class EntityTests : EntityStoreTestBase() {
         Assert.assertEquals(newComparableSet("Search Parser"), propValue)
     }
 
-    @TestFor(issues = ["XD-509"])
+    @TestFor(issue = "XD-509")
     fun testComparableSetClear() {
         val txn = storeTransaction
         val entity = txn.newEntity("Issue")
@@ -574,7 +579,7 @@ class EntityTests : EntityStoreTestBase() {
         Assert.assertEquals("3", issue.getProperty("description"))
     }
 
-    @TestFor(issues = ["XD-530"])
+    @TestFor(issue = "XD-530")
     fun testEntityStoreClear() {
         val store = entityStore
         val user = store.computeInTransaction { txn ->
@@ -592,6 +597,45 @@ class EntityTests : EntityStoreTestBase() {
         }
         store.executeInTransaction { txn ->
             txn.getSequence("qwerty").increment()
+        }
+    }
+
+    @TestFor(issue = "XD-810")
+    fun testTooBigProperty() {
+        val dir = initTempFolder()
+        try {
+            PersistentEntityStores.newInstance(Environments.newInstance(dir, newEnvironmentConfig {
+                isLogCacheShared = false
+                logCachePageSize = 1024
+                logFileSize = 1
+            })).use { store ->
+                store.environment.use {
+                    val issue = store.computeInTransaction { txn ->
+                        txn.newEntity("Issue").apply {
+                            setProperty("p1", "")
+                            setProperty("p2", "")
+                        }
+                    }
+                    val wasTooBig = try {
+                        store.executeInTransaction { txn ->
+                            issue.setProperty("p1", "value")
+                            issue.setProperty("p2", "value")
+                            txn.flush()
+                            issue.setProperty("p2", "".padEnd(1024))
+                        }
+                        false
+                    } catch (_: TooBigLoggableException) {
+                        true
+                    }
+                    Assert.assertTrue(wasTooBig)
+                    store.executeInTransaction {
+                        Assert.assertEquals("value", issue.getProperty("p1"))
+                        Assert.assertEquals("value", issue.getProperty("p2"))
+                    }
+                }
+            }
+        } finally {
+            cleanUp(dir)
         }
     }
 
