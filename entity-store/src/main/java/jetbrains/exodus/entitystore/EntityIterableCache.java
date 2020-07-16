@@ -306,7 +306,7 @@ public final class EntityIterableCache {
                     }
                     if (logger.isInfoEnabled()) {
                         final String action = cancellingPolicy.isConsistent ? "Caching" : "Caching (inconsistent)";
-                        logger.info(action + " forcedly stopped, " + e.reason.message + ": " + getStringPresentation(config, handle));
+                        logger.info(action + " forcibly stopped, " + e.reason.message + ": " + getStringPresentation(config, handle));
                     }
                 }
             });
