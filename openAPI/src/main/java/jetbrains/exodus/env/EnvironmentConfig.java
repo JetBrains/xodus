@@ -693,19 +693,19 @@ public class EnvironmentConfig extends AbstractConfig {
                 new Pair(GC_START_IN, 10000),
                 new Pair(GC_MIN_UTILIZATION, 50),
                 new Pair(GC_RENAME_FILES, false),
-                new Pair(GC_MIN_FILE_AGE, 2),
-                new Pair(GC_FILES_INTERVAL, 3),
-                new Pair(GC_RUN_PERIOD, 5000),
-                new Pair(GC_UTILIZATION_FROM_SCRATCH, false),
-                new Pair(GC_UTILIZATION_FROM_FILE, ""),
-                new Pair(GC_FILES_DELETION_DELAY, 5000),
-                new Pair(GC_RUN_EVERY, 0),
-                new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
-                new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 1000),
-                new Pair(GC_TRANSACTION_TIMEOUT, 500),
-                new Pair(MANAGEMENT_ENABLED, !JVMConstants.INSTANCE.getIS_ANDROID()),
-                new Pair(MANAGEMENT_OPERATIONS_RESTRICTED, true),
-                new Pair(META_SERVER, null)
+            new Pair(GC_MIN_FILE_AGE, 2),
+            new Pair(GC_FILES_INTERVAL, 3),
+            new Pair(GC_RUN_PERIOD, 5000),
+            new Pair(GC_UTILIZATION_FROM_SCRATCH, false),
+            new Pair(GC_UTILIZATION_FROM_FILE, ""),
+            new Pair(GC_FILES_DELETION_DELAY, 5000),
+            new Pair(GC_RUN_EVERY, 0),
+            new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
+            new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 1000),
+            new Pair(GC_TRANSACTION_TIMEOUT, 500),
+            new Pair(MANAGEMENT_ENABLED, !JVMConstants.getIS_ANDROID()),
+            new Pair(MANAGEMENT_OPERATIONS_RESTRICTED, true),
+            new Pair(META_SERVER, null)
         }, strategy);
     }
 
@@ -2340,7 +2340,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * @return this {@code EnvironmentConfig} instance
      */
     public EnvironmentConfig setManagementEnabled(final boolean managementEnabled) {
-        return setSetting(MANAGEMENT_ENABLED, managementEnabled && !JVMConstants.INSTANCE.getIS_ANDROID());
+        return setSetting(MANAGEMENT_ENABLED, managementEnabled && !JVMConstants.getIS_ANDROID());
     }
 
     /**

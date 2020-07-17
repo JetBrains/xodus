@@ -26,6 +26,8 @@ object JVMConstants {
     val JAVA_MINOR_VERSION: Int
     val IS_JAVA8_OR_HIGHER: Boolean
     val IS_JAVA9_OR_HIGHER: Boolean
+
+    @JvmStatic
     val IS_ANDROID = System.getProperty("java.vendor").contains("Android")
     val IS_MAC = System.getProperty("os.name").contains("Mac")
 

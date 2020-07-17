@@ -179,6 +179,6 @@ public final class SharedMappedFilesCache {
     }
 
     private boolean isOSOverloaded() {
-        return OperatingSystem.INSTANCE.getFreePhysicalMemorySize() < freePhysicalMemoryThreshold;
+        return OperatingSystem.getFreePhysicalMemorySize() < freePhysicalMemoryThreshold;
     }
 }

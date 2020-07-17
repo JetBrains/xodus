@@ -48,7 +48,7 @@ final class SharedMappedByteBuffer implements Closeable {
     @Override
     public void close() {
         if (clients.decrementAndGet() < 0) {
-            SafeByteBufferCleaner.INSTANCE.clean(buffer);
+            SafeByteBufferCleaner.clean(buffer);
         }
     }
 }

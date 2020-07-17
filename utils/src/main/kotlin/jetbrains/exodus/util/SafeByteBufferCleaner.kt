@@ -44,6 +44,7 @@ object SafeByteBufferCleaner {
         }
     }
 
+    @JvmStatic
     fun clean(buffer: ByteBuffer) {
         try {
             doPrivileged {

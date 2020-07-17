@@ -25,6 +25,7 @@ object OperatingSystem {
     private var cachedPhysicalMemorySize = WeakReference<Long>(null)
     private var cachedSystemCpuLoad = WeakReference<Double>(null)
 
+    @JvmStatic
     fun getFreePhysicalMemorySize(): Long {
         var result = cachedPhysicalMemorySize.get()
         if (result == null) {
