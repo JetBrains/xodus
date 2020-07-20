@@ -56,7 +56,7 @@ try (Environment env = Environments.newInstance("/home/me/.myAppData")) {
 ```
 ### Entity Stores
 
-Add dependency on `org.jetbrains.xodus:xodus-entity-store:1.3.232`.
+Add dependency on `org.jetbrains.xodus:xodus-entity-store:1.3.232`, `org.jetbrains.xodus:xodus-environment:1.3.232` and `org.jetbrains.xodus:xodus-vfs:1.3.232`.
 
 ```java
 try (PersistentEntityStore entityStore = PersistentEntityStores.newInstance("/home/me/.myAppData")) {
@@ -68,7 +68,7 @@ try (PersistentEntityStore entityStore = PersistentEntityStores.newInstance("/ho
 ```
 ### Virtual File Systems
 
-Add dependency on `org.jetbrains.xodus:xodus-vfs:1.3.232`.
+Add dependency on `org.jetbrains.xodus:xodus-vfs:1.3.232` and `org.jetbrains.xodus:xodus-environment:1.3.232`.
 
 ```java
 try (Environment env = Environments.newInstance("/home/me/.myAppData")) {
