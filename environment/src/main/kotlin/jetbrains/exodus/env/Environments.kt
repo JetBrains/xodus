@@ -84,6 +84,7 @@ object Environments {
             setReaderWriterProvider(ec.logDataReaderWriterProvider)
             if (config.readerWriterProvider?.isReadonly == true) {
                 ec.envIsReadonly = true
+                ec.envFailFastInReadonly = true
                 config.isLockIgnored = true
             }
             fileSize = ec.logFileSize
