@@ -77,9 +77,9 @@ public class ObjectCache<K, V> extends ObjectCacheBase<K, V> {
             protected boolean removeEldestEntry(final Map.Entry<K, V> eldest) {
                 final boolean result = size() > secondGenSizeBound;
                 if (result) {
-                    --size;
+                    --_size;
                     firstGenerationQueue.put(eldest.getKey(), eldest.getValue());
-                    ++size;
+                    ++_size;
                 }
                 return result;
             }

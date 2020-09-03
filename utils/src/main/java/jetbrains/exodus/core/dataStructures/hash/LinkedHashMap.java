@@ -66,11 +66,11 @@ public class LinkedHashMap<K, V> extends AbstractHashMap<K, V> {
             back = e;
         }
         this.top = e;
-        size += 1;
+        _size += 1;
 
         if (removeEldestEntry(back)) {
             remove(eldestKey());
-        } else if (size > capacity) {
+        } else if (_size > capacity) {
             rehash(HashUtil.nextCapacity(capacity));
         }
         return null;
@@ -100,7 +100,7 @@ public class LinkedHashMap<K, V> extends AbstractHashMap<K, V> {
             }
         }
         unlink(e);
-        size -= 1;
+        _size -= 1;
         return e.value;
     }
 
@@ -141,7 +141,7 @@ public class LinkedHashMap<K, V> extends AbstractHashMap<K, V> {
         allocateTable(HashUtil.getCeilingPrime((int) (capacity / loadFactor)));
         top = back = null;
         this.capacity = capacity;
-        size = 0;
+        _size = 0;
     }
 
     @Override

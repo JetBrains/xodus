@@ -68,11 +68,11 @@ public class LongLinkedHashMap<V> extends AbstractHashMap<Long, V> {
             back = e;
         }
         this.top = e;
-        size += 1;
+        _size += 1;
 
         if (removeEldestEntry(back)) {
             remove(back.key);
-        } else if (size > capacity) {
+        } else if (_size > capacity) {
             rehash(HashUtil.nextCapacity(capacity));
         }
         return null;
@@ -108,7 +108,7 @@ public class LongLinkedHashMap<V> extends AbstractHashMap<Long, V> {
             }
         }
         unlink(e);
-        size -= 1;
+        _size -= 1;
         return e.value;
     }
 
@@ -135,7 +135,7 @@ public class LongLinkedHashMap<V> extends AbstractHashMap<Long, V> {
         allocateTable(HashUtil.getCeilingPrime((int) (capacity / loadFactor)));
         top = back = null;
         this.capacity = capacity;
-        size = 0;
+        _size = 0;
     }
 
     @Override

@@ -436,7 +436,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                         allPropsMap[propId] = sortedLocalIdSet
                         val localIds = sortedLocalIdSet.toTypedArray()
                         for (localId in localIds) {
-                            val propValue = entitiesToValues[localId]
+                            val propValue = checkNotNull(entitiesToValues[localId])
                             for (secondaryKey in PropertiesTable.createSecondaryKeys(
                                     propertyTypes, PropertyTypes.propertyValueToEntry(propValue), propValue.type)) {
                                 val secondaryValue: ByteIterable = LongBinding.longToCompressedEntry(localId)

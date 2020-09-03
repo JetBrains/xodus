@@ -21,11 +21,11 @@ import java.util.*;
 
 public abstract class AbstractHashMap<K, V> extends AbstractMap<K, V> {
 
-    protected int size;
+    protected int _size;
 
     @Override
     public int size() {
-        return size;
+        return _size;
     }
 
     @Override
@@ -155,7 +155,7 @@ public abstract class AbstractHashMap<K, V> extends AbstractMap<K, V> {
 
         @Override
         public int size() {
-            return size;
+            return _size;
         }
 
         @Override
@@ -178,7 +178,7 @@ public abstract class AbstractHashMap<K, V> extends AbstractMap<K, V> {
 
         @Override
         public int size() {
-            return size;
+            return _size;
         }
 
         @Override
@@ -211,7 +211,7 @@ public abstract class AbstractHashMap<K, V> extends AbstractMap<K, V> {
 
         @Override
         public int size() {
-            return size;
+            return _size;
         }
 
         @Override

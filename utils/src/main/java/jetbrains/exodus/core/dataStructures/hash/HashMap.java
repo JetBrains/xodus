@@ -46,7 +46,7 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
     }
 
     public HashMap(HashMap<K, V> copy) {
-        this(copy.capacity, copy.size, copy.loadFactor, copy.table.length, copy.mask);
+        this(copy.capacity, copy.size(), copy.loadFactor, copy.table.length, copy.mask);
         final Entry<K, V>[] source = copy.table;
         for (int i = 0; i < source.length; i++) {
             table[i] = copyEntry(source[i]);
@@ -61,14 +61,14 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
         table = new Entry[tableSize];
         this.mask = mask;
         this.capacity = capacity;
-        this.size = size;
+        this._size = size;
     }
 
     @Override
     public V put(@Nullable final K key, final V value) {
         if (key == null) {
             if (nullEntry == null) {
-                size += 1;
+                _size += 1;
                 nullEntry = new Entry<>(null, value);
                 return null;
             }
@@ -88,9 +88,9 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
         final Entry<K, V> e = new Entry<>(key, value);
         e.hashNext = table[index];
         table[index] = e;
-        size += 1;
+        _size += 1;
 
-        if (size > capacity) {
+        if (_size > capacity) {
             rehash(HashUtil.nextCapacity(capacity));
         }
         return null;
@@ -100,7 +100,7 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
     public V remove(final Object key) {
         if (key == null) {
             if (nullEntry != null) {
-                size -= 1;
+                _size -= 1;
                 V hadNullValue = nullEntry.value;
                 nullEntry = null;
                 return hadNullValue;
@@ -128,7 +128,7 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
                 }
             }
         }
-        size -= 1;
+        _size -= 1;
         return e.value;
     }
 
@@ -158,7 +158,7 @@ public class HashMap<K, V> extends AbstractHashMap<K, V> implements Serializable
         }
         allocateTable(HashUtil.getCeilingPrime((int) (capacity / loadFactor)));
         this.capacity = capacity;
-        size = 0;
+        _size = 0;
     }
 
     @Override

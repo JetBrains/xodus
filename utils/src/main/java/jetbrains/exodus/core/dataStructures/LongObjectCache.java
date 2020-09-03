@@ -75,9 +75,9 @@ public class LongObjectCache<V> extends LongObjectCacheBase<V> {
             protected boolean removeEldestEntry(final Map.Entry<Long, V> eldest) {
                 final boolean result = size() > secondGenSizeBound;
                 if (result) {
-                    --size;
+                    --_size;
                     firstGenerationQueue.put(eldest.getKey(), eldest.getValue());
-                    ++size;
+                    ++_size;
                 }
                 return result;
             }

@@ -58,9 +58,9 @@ public class IntHashMap<V> extends AbstractHashMap<Integer, V> {
         final Entry<V> e = new Entry<>(key, value);
         e.hashNext = table[index];
         table[index] = e;
-        size += 1;
+        _size += 1;
 
-        if (size > capacity) {
+        if (_size > capacity) {
             rehash(HashUtil.nextCapacity(capacity));
         }
         return null;
@@ -95,7 +95,7 @@ public class IntHashMap<V> extends AbstractHashMap<Integer, V> {
                 }
             }
         }
-        size -= 1;
+        _size -= 1;
         return e.value;
     }
 
@@ -116,7 +116,7 @@ public class IntHashMap<V> extends AbstractHashMap<Integer, V> {
         }
         allocateTable(HashUtil.getCeilingPrime((int) (capacity / loadFactor)));
         this.capacity = capacity;
-        size = 0;
+        _size = 0;
     }
 
     @Override

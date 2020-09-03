@@ -144,7 +144,7 @@ public class HashMapTest {
         HashMap<Integer, String> copy = new HashMap<>(tested);
         Assert.assertEquals("a", copy.get(7));
         Assert.assertEquals("b", copy.get(8));
-        Assert.assertEquals(2, copy.size);
+        Assert.assertEquals(2, copy.size());
     }
 
     @Test
@@ -156,7 +156,7 @@ public class HashMapTest {
         tested.put(7, "c");
         Assert.assertEquals("a", copy.get(7));
         Assert.assertEquals("b", copy.get(8));
-        Assert.assertEquals(2, copy.size);
+        Assert.assertEquals(2, copy.size());
     }
 
     @Test
