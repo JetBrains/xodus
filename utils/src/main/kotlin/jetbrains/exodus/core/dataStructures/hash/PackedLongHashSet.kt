@@ -23,7 +23,7 @@ private const val LONG_BITS_LOG: Int = 6
 
 class PackedLongHashSet(source: Collection<Long>? = null, loadFactor: Float = HashUtil.DEFAULT_LOAD_FACTOR) : AbstractSet<Long>(), LongSet {
 
-    private val map = LongHashMap<BitsHolder>(20, loadFactor)
+    private val map = LongLongHashMap(20, loadFactor)
     private var count: Int = 0
 
     init {
@@ -37,42 +37,21 @@ class PackedLongHashSet(source: Collection<Long>? = null, loadFactor: Float = Ha
 
     override fun contains(element: Long): Boolean {
         val v = map[element.key]
-        return v != null && v.bits and masks[element.bit] != 0L
+        return v != null && v and masks[element.bit] != 0L
     }
 
     override fun add(element: Long): Boolean {
         val key = element.key
         val bit = element.bit
         val mask = masks[bit]
-        val v = map[key]
-        if (v == null) {
-            map[key] = BitsHolder(mask)
-            ++count
-            return true
-        }
-        if (v.bits and mask != 0L) {
-            return false
-        }
-        v.bits = v.bits xor mask
-        ++count
-        return true
+        return map.addBit(key, mask).also { if (it) ++count }
     }
 
     override fun remove(element: Long): Boolean {
         val key = element.key
         val bit = element.bit
         val mask = masks[bit]
-        val v = map[key] ?: return false
-        val bits = v.bits
-        if (bits and mask == 0L) {
-            return false
-        }
-        v.bits = bits xor mask
-        if (v.bits == 0L) {
-            map.remove(key)
-        }
-        --count
-        return true
+        return map.removeBit(key, mask).also { if (it) --count }
     }
 
     override fun clear() {
@@ -107,10 +86,9 @@ class PackedLongHashSet(source: Collection<Long>? = null, loadFactor: Float = Ha
     override fun toLongArray(): LongArray {
         return LongArray(count).apply {
             var i = 0
-            map.forEach {
-                val base = it.key shl LONG_BITS_LOG
-                val value = it.value.bits
-                @Suppress("LoopToCallChain")
+            map.forEach { entry ->
+                val base = entry.key shl LONG_BITS_LOG
+                val value = entry.value
                 for (j in 0 until LONG_BITS) {
                     if (value and masks[j] != 0L) {
                         this[i++] = base + j
@@ -119,8 +97,6 @@ class PackedLongHashSet(source: Collection<Long>? = null, loadFactor: Float = Ha
             }
         }
     }
-
-    private class BitsHolder(var bits: Long = 0L)
 
     companion object {
 

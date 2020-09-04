@@ -16,11 +16,10 @@
 package jetbrains.exodus.core.dataStructures.hash
 
 import jetbrains.exodus.util.MathUtil
-import java.lang.Integer.max
 
-class LongHashMap<V> @JvmOverloads constructor(capacity: Int = 0, private val loadFactor: Float = HashUtil.DEFAULT_LOAD_FACTOR) : AbstractHashMap<Long, V>() {
+class LongLongHashMap @JvmOverloads constructor(capacity: Int = 0, private val loadFactor: Float = HashUtil.DEFAULT_LOAD_FACTOR) : AbstractHashMap<Long, Long>() {
 
-    private var table: Array<Entry<V>?> = emptyArray()
+    private var table: Array<Entry?> = emptyArray()
     private var capacity = 0
     private var mask = 0
 
@@ -28,9 +27,9 @@ class LongHashMap<V> @JvmOverloads constructor(capacity: Int = 0, private val lo
         init(capacity)
     }
 
-    override fun get(key: Long): V? = getEntry(key)?.value
+    override fun get(key: Long): Long? = getEntry(key)?.value
 
-    override fun put(key: Long, value: V): V? {
+    override fun put(key: Long, value: Long): Long? {
         table.let { table ->
             val index = HashUtil.indexFor(key, table.size, mask)
             var e = table[index]
@@ -54,11 +53,11 @@ class LongHashMap<V> @JvmOverloads constructor(capacity: Int = 0, private val lo
 
     override fun containsKey(key: Long) = getEntry(key) != null
 
-    override fun remove(key: Long): V? {
+    override fun remove(key: Long): Long? {
         table.let { table ->
             val index = HashUtil.indexFor(key, table.size, mask)
-            var e: Entry<V> = table[index] ?: return null
-            var last: Entry<V>? = null
+            var e: Entry = table[index] ?: return null
+            var last: Entry? = null
             while (key != e.key) {
                 last = e
                 e = e.hashNext ?: return null
@@ -74,12 +73,12 @@ class LongHashMap<V> @JvmOverloads constructor(capacity: Int = 0, private val lo
     }
 
     @Suppress("UNCHECKED_CAST")
-    override fun getEntry(key: Any): MutableMap.MutableEntry<Long, V>? {
-        return getEntry((key as Long).toLong()) as MutableMap.MutableEntry<Long, V>?
+    override fun getEntry(key: Any): MutableMap.MutableEntry<Long, Long>? {
+        return getEntry((key as Long).toLong()) as MutableMap.MutableEntry<Long, Long>?
     }
 
     override fun init(capacity: Int) {
-        max(capacity, HashUtil.MIN_CAPACITY).let { c ->
+        Integer.max(capacity, HashUtil.MIN_CAPACITY).let { c ->
             allocateTable(HashUtil.getCeilingPrime((c / loadFactor).toInt()))
             this.capacity = c
             this._size = 0
@@ -90,7 +89,65 @@ class LongHashMap<V> @JvmOverloads constructor(capacity: Int = 0, private val lo
         return HashIterator()
     }
 
-    private fun getEntry(key: Long): Entry<V>? {
+    /**
+     * Adds single bit (`mask`) to a value by key. Returns `true` if the bit was added,
+     * i.e. if value was added or modified.
+     */
+    fun addBit(key: Long, mask: Long): Boolean {
+        table.let { table ->
+            val index = HashUtil.indexFor(key, table.size, this.mask)
+            var e = table[index]
+            while (e != null) {
+                if (e.key == key) {
+                    val value = e.value
+                    val result = (value and mask) == 0L
+                    if (result) {
+                        e.value = value xor mask
+                    }
+                    return result
+                }
+                e = e.hashNext
+            }
+            Entry(key, mask).let { newEntry ->
+                newEntry.hashNext = table[index]
+                table[index] = newEntry
+            }
+            _size += 1
+            if (_size > capacity) {
+                rehash(HashUtil.nextCapacity(capacity))
+            }
+            return true
+        }
+    }
+
+    /**
+     * Removes single bit (`mask`) from a value by key. Returns `true` if the bit was removed.
+     */
+    internal fun removeBit(key: Long, mask: Long): Boolean {
+        table.let { table ->
+            val index = HashUtil.indexFor(key, table.size, this.mask)
+            var e: Entry = table[index] ?: return false
+            var last: Entry? = null
+            while (key != e.key) {
+                last = e
+                e = e.hashNext ?: return false
+            }
+            val value = e.value
+            if (value and mask == 0L) return false
+            e.value = value xor mask
+            if (e.value == 0L) {
+                _size -= 1
+                if (last == null) {
+                    table[index] = e.hashNext
+                } else {
+                    last.hashNext = e.hashNext
+                }
+            }
+            return true
+        }
+    }
+
+    private fun getEntry(key: Long): Entry? {
         val table = table
         val index = HashUtil.indexFor(key, table.size, mask)
         var e = table[index]
@@ -104,7 +161,7 @@ class LongHashMap<V> @JvmOverloads constructor(capacity: Int = 0, private val lo
     }
 
     private fun allocateTable(length: Int) {
-        table = arrayOfNulls<Entry<V>?>(length)
+        table = arrayOfNulls<Entry?>(length)
         mask = (1 shl MathUtil.integerLogarithm(table.size)) - 1
     }
 
@@ -112,12 +169,12 @@ class LongHashMap<V> @JvmOverloads constructor(capacity: Int = 0, private val lo
         val length = HashUtil.getCeilingPrime((capacity / loadFactor).toInt())
         this.capacity = capacity
         if (length != table.size) {
-            val entries: Iterator<Map.Entry<Long, V>> = entries.iterator()
+            val entries: Iterator<Map.Entry<Long, Long>> = entries.iterator()
             allocateTable(length)
             val table = table
             val mask = mask
             while (entries.hasNext()) {
-                val e = entries.next() as Entry<V>
+                val e = entries.next() as Entry
                 val index = HashUtil.indexFor(e.key, length, mask)
                 e.hashNext = table[index]
                 table[index] = e
@@ -125,19 +182,19 @@ class LongHashMap<V> @JvmOverloads constructor(capacity: Int = 0, private val lo
         }
     }
 
-    private class Entry<V>(override val key: Long, override var value: V) : MutableMap.MutableEntry<Long?, V> {
+    private class Entry(override val key: Long, override var value: Long) : MutableMap.MutableEntry<Long?, Long> {
 
-        var hashNext: Entry<V>? = null
+        var hashNext: Entry? = null
 
-        override fun setValue(newValue: V) = value.also { value = newValue }
+        override fun setValue(newValue: Long) = value.also { value = newValue }
     }
 
     private inner class HashIterator internal constructor() : HashMapIterator() {
 
-        private val table = this@LongHashMap.table
+        private val table = this@LongLongHashMap.table
         private var index = 0
-        private var e: Entry<V>? = null
-        private var last: Entry<V>? = null
+        private var e: Entry? = null
+        private var last: Entry? = null
 
         init {
             initNextEntry()
@@ -146,7 +203,7 @@ class LongHashMap<V> @JvmOverloads constructor(capacity: Int = 0, private val lo
         public override fun hasNext() = e != null
 
         public override fun remove() {
-            this@LongHashMap.remove(checkNotNull(last).key)
+            this@LongLongHashMap.remove(checkNotNull(last).key)
             last = null
         }
 
