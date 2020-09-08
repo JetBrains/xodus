@@ -131,7 +131,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
 
     /**
      * Defines the maximum size in bytes of a blob string that can be cached in blob strings cache.
-     * Default value is {@code 1000000}.
+     * Default value is {@code 100000}.
      * <p>Mutable at runtime: yes
      *
      * @since 1.0.5
@@ -341,7 +341,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
             new Pair(REFACTORING_DELETE_REDUNDANT_BLOBS, false),
             new Pair(MAX_IN_PLACE_BLOB_SIZE, 10000),
             new Pair(BLOB_STRINGS_CACHE_SHARED, true),
-            new Pair(BLOB_STRINGS_CACHE_MAX_VALUE_SIZE, 1000000L),
+            new Pair(BLOB_STRINGS_CACHE_MAX_VALUE_SIZE, 100000L),
             new Pair(CACHING_DISABLED, false),
             new Pair(REORDERING_DISABLED, false),
             new Pair(EXPLAIN_ON, false),
