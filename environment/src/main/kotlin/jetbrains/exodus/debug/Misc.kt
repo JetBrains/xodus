@@ -13,21 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env;
+package jetbrains.exodus.debug
 
-import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.debug.StackTrace;
+import java.io.ByteArrayOutputStream
+import java.io.PrintStream
 
-public class TransactionFinishedException extends ExodusException {
-
-    private final StackTrace trace;
-
-    TransactionFinishedException(StackTrace trace) {
-        super("Transaction is already finished");
-        this.trace = trace;
-    }
-
-    public StackTrace getTrace() {
-        return trace;
-    }
+internal fun dumpToString(dump: (PrintStream) -> Unit): String {
+    val out = ByteArrayOutputStream()
+    val utf8Name = Charsets.UTF_8.name()
+    PrintStream(out, false, utf8Name).use { ps -> dump(ps) }
+    return out.toString(utf8Name)
 }

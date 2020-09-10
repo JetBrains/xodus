@@ -17,6 +17,7 @@ package jetbrains.exodus.env;
 
 import jetbrains.exodus.core.dataStructures.decorators.HashMapDecorator;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
+import jetbrains.exodus.debug.StackTrace;
 import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.TreeMetaInfo;
 import org.jetbrains.annotations.NotNull;
@@ -40,13 +41,13 @@ public abstract class TransactionBase implements Transaction {
     @NotNull
     private final Map<Object, Object> userObjects;
     @Nullable
-    private final Throwable trace;
+    private final StackTrace trace;
     private final long created; // created is the ticks when the txn was actually created (constructed)
     private long started;       // started is the ticks when the txn held its current snapshot
     private boolean isExclusive;
     private final boolean wasCreatedExclusive;
     @Nullable
-    private Throwable traceFinish;
+    private StackTrace traceFinish;
     private int acquiredPermits;
 
     public TransactionBase(@NotNull final EnvironmentImpl env, final boolean isExclusive) {
@@ -56,7 +57,7 @@ public abstract class TransactionBase implements Transaction {
         wasCreatedExclusive = isExclusive;
         immutableTrees = new IntHashMap<>();
         userObjects = new HashMapDecorator<>();
-        trace = env.transactionTimeout() > 0 ? new Throwable() : null;
+        trace = env.transactionTimeout() > 0 || env.getEnvironmentConfig().getProfilerOn() ? new StackTrace() : null;
         created = System.currentTimeMillis();
         started = created;
         traceFinish = null;
@@ -160,7 +161,7 @@ public abstract class TransactionBase implements Transaction {
     }
 
     @Nullable
-    Throwable getTrace() {
+    public StackTrace getTrace() {
         return trace;
     }
 
@@ -222,7 +223,7 @@ public abstract class TransactionBase implements Transaction {
 
     protected void setIsFinished() {
         if (traceFinish == null) {
-            traceFinish = new Throwable();
+            traceFinish = new StackTrace();
         }
     }
 

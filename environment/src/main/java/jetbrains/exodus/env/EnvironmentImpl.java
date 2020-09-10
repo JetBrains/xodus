@@ -23,6 +23,8 @@ import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.execution.SharedTimer;
 import jetbrains.exodus.crypto.StreamCipherProvider;
+import jetbrains.exodus.debug.StackTrace;
+import jetbrains.exodus.debug.TxnProfiler;
 import jetbrains.exodus.entitystore.MetaServer;
 import jetbrains.exodus.env.management.EnvironmentConfigWithOperations;
 import jetbrains.exodus.gc.GarbageCollector;
@@ -100,6 +102,9 @@ public class EnvironmentImpl implements Environment {
     private final StuckTransactionMonitor stuckTxnMonitor;
 
     @Nullable
+    private final TxnProfiler txnProfiler;
+
+    @Nullable
     private final StreamCipherProvider streamCipherProvider;
     @Nullable
     private final byte[] cipherKey;
@@ -151,6 +156,8 @@ public class EnvironmentImpl implements Environment {
         throwableOnClose = null;
 
         stuckTxnMonitor = (transactionTimeout() > 0 || transactionExpirationTimeout() > 0) ? new StuckTransactionMonitor(this) : null;
+
+        txnProfiler = ec.getProfilerOn() ? new TxnProfiler() : null;
 
         final LogConfig logConfig = log.getConfig();
         streamCipherProvider = logConfig.getCipherProvider();
@@ -422,6 +429,9 @@ public class EnvironmentImpl implements Environment {
                 storeGetCacheHitRate = storeGetCache.hitRate();
                 storeGetCache.close();
             }
+            if (txnProfiler != null) {
+                txnProfiler.dump();
+            }
             throwableOnClose = new EnvironmentClosedException();
             throwableOnCommit = throwableOnClose;
         }
@@ -683,6 +693,8 @@ public class EnvironmentImpl implements Environment {
                 } finally {
                     metaWriteLock.unlock();
                 }
+                // update txn profiler within commitLock
+                updateTxnProfiler(txn, initialHighAddress, resultingHighAddress);
             } catch (Throwable t) { // pokemon exception handling to decrease try/catch block overhead
                 loggerError("Failed to flush transaction", t);
                 if (writeConfirmed) {
@@ -983,7 +995,7 @@ public class EnvironmentImpl implements Environment {
     private void reportAliveTransactions(final boolean debug) {
         if (transactionTimeout() == 0) {
             String stacksUnavailable = "Transactions stack traces are not available, " +
-                    "set '" + EnvironmentConfig.ENV_MONITOR_TXNS_TIMEOUT + " > 0'";
+                "set '" + EnvironmentConfig.ENV_MONITOR_TXNS_TIMEOUT + " > 0'";
             if (debug) {
                 loggerDebug(stacksUnavailable);
             } else {
@@ -991,11 +1003,11 @@ public class EnvironmentImpl implements Environment {
             }
         } else {
             forEachActiveTransaction(txn -> {
-                final Throwable trace = ((TransactionBase) txn).getTrace();
+                final StackTrace trace = ((TransactionBase) txn).getTrace();
                 if (debug) {
-                    loggerDebug("Alive transaction: ", trace);
+                    loggerDebug("Alive transaction:\n" + trace);
                 } else {
-                    loggerError("Alive transaction: ", trace);
+                    loggerError("Alive transaction:\n" + trace);
                 }
             });
         }
@@ -1031,6 +1043,20 @@ public class EnvironmentImpl implements Environment {
         final int storeGetCacheSize = ec.getEnvStoreGetCacheSize();
         storeGetCache = storeGetCacheSize == 0 ? null :
             new StoreGetCache(storeGetCacheSize, ec.getEnvStoreGetCacheMinTreeSize(), ec.getEnvStoreGetCacheMaxValueSize());
+    }
+
+    private void updateTxnProfiler(TransactionBase txn, long initialHighAddress, long resultingHighAddress) {
+        if (txnProfiler != null) {
+            final long writtenBytes = resultingHighAddress - initialHighAddress;
+            if (txn.isGCTransaction()) {
+                txnProfiler.incGcTransaction();
+                txnProfiler.addGcMovedBytes(writtenBytes);
+            } else if (txn.isReadonly()) {
+                txnProfiler.addReadonlyTxn(txn);
+            } else {
+                txnProfiler.addTxn(txn, writtenBytes);
+            }
+        }
     }
 
     private static void applyEnvironmentSettings(@NotNull final String location,

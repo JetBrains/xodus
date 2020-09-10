@@ -133,6 +133,12 @@ public class EnvironmentConfig extends AbstractConfig {
     public static final String CIPHER_BASIC_IV = "exodus.cipherBasicIV";
 
     /**
+     * If is set to {@code true} database profiler is turned on. By default, is turned off.
+     * <p>Mutable at runtime: no
+     */
+    public static final String PROFILER_ON = "exodus.profiler.on";
+
+    /**
      * If is set to {@code true} forces file system's fsync call after each committed or flushed transaction. By default,
      * is switched off since it creates great performance overhead and can be controlled manually.
      * <p>Mutable at runtime: yes
@@ -647,52 +653,53 @@ public class EnvironmentConfig extends AbstractConfig {
     public EnvironmentConfig(@NotNull final ConfigurationStrategy strategy) {
         //noinspection unchecked
         super(new Pair[]{
-                new Pair(MEMORY_USAGE_PERCENTAGE, 50),
-                new Pair(CIPHER_ID, null),
-                new Pair(CIPHER_KEY, null),
-                new Pair(CIPHER_BASIC_IV, 0L),
-                new Pair(LOG_DURABLE_WRITE, false),
-                new Pair(LOG_FILE_SIZE, 8192L),
-                new Pair(LOG_LOCK_TIMEOUT, 0L),
-                new Pair(LOG_LOCK_ID, null),
-                new Pair(LOG_CACHE_PAGE_SIZE, 64 * 1024),
-                new Pair(LOG_CACHE_OPEN_FILES, 500),
-                new Pair(LOG_CACHE_USE_NIO, false),
-                new Pair(LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD, 1_000_000_000L), // ~1GB
-                new Pair(LOG_CACHE_SHARED, true),
-                new Pair(LOG_CACHE_NON_BLOCKING, true),
-                new Pair(LOG_CACHE_GENERATION_COUNT, 2),
-                new Pair(LOG_CACHE_USE_SOFT_REFERENCES, false),
-                new Pair(LOG_CACHE_READ_AHEAD_MULTIPLE, 1),
-                new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
-                new Pair(LOG_CLEAR_INVALID, false),
-                new Pair(LOG_SYNC_PERIOD, 10000L),
-                new Pair(LOG_FULL_FILE_READ_ONLY, true),
-                new Pair(LOG_DATA_READER_WRITER_PROVIDER, DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER),
-                new Pair(ENV_IS_READONLY, false),
-                new Pair(ENV_FAIL_FAST_IN_READONLY, true),
-                new Pair(ENV_READONLY_EMPTY_STORES, false),
-                new Pair(ENV_STOREGET_CACHE_SIZE, 0),
-                new Pair(ENV_STOREGET_CACHE_MIN_TREE_SIZE, 200),
-                new Pair(ENV_STOREGET_CACHE_MAX_VALUE_SIZE, 200),
-                new Pair(ENV_CLOSE_FORCEDLY, false),
-                new Pair(ENV_TXN_REPLAY_TIMEOUT, 2000L),
-                new Pair(ENV_TXN_REPLAY_MAX_COUNT, 2),
-                new Pair(ENV_TXN_DOWNGRADE_AFTER_FLUSH, true),
-                new Pair(ENV_TXN_SINGLE_THREAD_WRITES, false),
-                new Pair(ENV_MAX_PARALLEL_TXNS, Integer.MAX_VALUE),
-                new Pair(ENV_MAX_PARALLEL_READONLY_TXNS, Integer.MAX_VALUE),
-                new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
-                new Pair(ENV_MONITOR_TXNS_EXPIRATION_TIMEOUT, (int) TimeUnit.HOURS.toMillis(8)),
-                new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
-                new Pair(ENV_GATHER_STATISTICS, true),
-                new Pair(ENV_COMPACT_ON_OPEN, false),
-                new Pair(TREE_MAX_PAGE_SIZE, 128),
-                new Pair(TREE_DUP_MAX_PAGE_SIZE, 8),
-                new Pair(GC_ENABLED, true),
-                new Pair(GC_START_IN, 10000),
-                new Pair(GC_MIN_UTILIZATION, 50),
-                new Pair(GC_RENAME_FILES, false),
+            new Pair(MEMORY_USAGE_PERCENTAGE, 50),
+            new Pair(CIPHER_ID, null),
+            new Pair(CIPHER_KEY, null),
+            new Pair(CIPHER_BASIC_IV, 0L),
+            new Pair(PROFILER_ON, false),
+            new Pair(LOG_DURABLE_WRITE, false),
+            new Pair(LOG_FILE_SIZE, 8192L),
+            new Pair(LOG_LOCK_TIMEOUT, 0L),
+            new Pair(LOG_LOCK_ID, null),
+            new Pair(LOG_CACHE_PAGE_SIZE, 64 * 1024),
+            new Pair(LOG_CACHE_OPEN_FILES, 500),
+            new Pair(LOG_CACHE_USE_NIO, false),
+            new Pair(LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD, 1_000_000_000L), // ~1GB
+            new Pair(LOG_CACHE_SHARED, true),
+            new Pair(LOG_CACHE_NON_BLOCKING, true),
+            new Pair(LOG_CACHE_GENERATION_COUNT, 2),
+            new Pair(LOG_CACHE_USE_SOFT_REFERENCES, false),
+            new Pair(LOG_CACHE_READ_AHEAD_MULTIPLE, 1),
+            new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
+            new Pair(LOG_CLEAR_INVALID, false),
+            new Pair(LOG_SYNC_PERIOD, 10000L),
+            new Pair(LOG_FULL_FILE_READ_ONLY, true),
+            new Pair(LOG_DATA_READER_WRITER_PROVIDER, DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER),
+            new Pair(ENV_IS_READONLY, false),
+            new Pair(ENV_FAIL_FAST_IN_READONLY, true),
+            new Pair(ENV_READONLY_EMPTY_STORES, false),
+            new Pair(ENV_STOREGET_CACHE_SIZE, 0),
+            new Pair(ENV_STOREGET_CACHE_MIN_TREE_SIZE, 200),
+            new Pair(ENV_STOREGET_CACHE_MAX_VALUE_SIZE, 200),
+            new Pair(ENV_CLOSE_FORCEDLY, false),
+            new Pair(ENV_TXN_REPLAY_TIMEOUT, 2000L),
+            new Pair(ENV_TXN_REPLAY_MAX_COUNT, 2),
+            new Pair(ENV_TXN_DOWNGRADE_AFTER_FLUSH, true),
+            new Pair(ENV_TXN_SINGLE_THREAD_WRITES, false),
+            new Pair(ENV_MAX_PARALLEL_TXNS, Integer.MAX_VALUE),
+            new Pair(ENV_MAX_PARALLEL_READONLY_TXNS, Integer.MAX_VALUE),
+            new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
+            new Pair(ENV_MONITOR_TXNS_EXPIRATION_TIMEOUT, (int) TimeUnit.HOURS.toMillis(8)),
+            new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
+            new Pair(ENV_GATHER_STATISTICS, true),
+            new Pair(ENV_COMPACT_ON_OPEN, false),
+            new Pair(TREE_MAX_PAGE_SIZE, 128),
+            new Pair(TREE_DUP_MAX_PAGE_SIZE, 8),
+            new Pair(GC_ENABLED, true),
+            new Pair(GC_START_IN, 10000),
+            new Pair(GC_MIN_UTILIZATION, 50),
+            new Pair(GC_RENAME_FILES, false),
             new Pair(GC_MIN_FILE_AGE, 2),
             new Pair(GC_FILES_INTERVAL, 3),
             new Pair(GC_RUN_PERIOD, 5000),
@@ -898,6 +905,27 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public EnvironmentConfig setCipherBasicIV(final long basicIV) {
         return setSetting(CIPHER_BASIC_IV, basicIV);
+    }
+
+    /**
+     * If is set to {@code true} database profiler is turned on. By default, is turned off.
+     * <p>Mutable at runtime: no
+     *
+     * @return {@code true} if database profiler is turned on.
+     */
+    public boolean getProfilerOn() {
+        return (Boolean) getSetting(PROFILER_ON);
+    }
+
+    /**
+     * Set {@code true} to turn database profiler on.By default, is turned off.
+     * <p>Mutable at runtime: no
+     *
+     * @param profilerOn {@code true} if database profiler is on.
+     * @return this {@code EnvironmentConfig} instance
+     */
+    public EnvironmentConfig setProfilerOn(final boolean profilerOn) {
+        return setSetting(PROFILER_ON, profilerOn);
     }
 
     /**
