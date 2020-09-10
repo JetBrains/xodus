@@ -64,7 +64,7 @@ public abstract class MBeanBase {
         this.runOnClose = runnable;
     }
 
-    protected static String escapeLocation(@NotNull final String location) {
+    public static String escapeLocation(@NotNull final String location) {
         return location.indexOf(':') >= 0 ? location.replace(':', '@') : location;
     }
 }

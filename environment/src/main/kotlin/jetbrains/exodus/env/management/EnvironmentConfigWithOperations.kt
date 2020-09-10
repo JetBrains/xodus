@@ -13,24 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env.management;
+package jetbrains.exodus.env.management
 
-import jetbrains.exodus.env.EnvironmentImpl;
-import org.jetbrains.annotations.NotNull;
+import jetbrains.exodus.env.EnvironmentImpl
 
-public class EnvironmentConfigWithOperations extends EnvironmentConfig {
+class EnvironmentConfigWithOperations(env: EnvironmentImpl) : EnvironmentConfig(env) {
 
-    public EnvironmentConfigWithOperations(@NotNull final EnvironmentImpl env) {
-        super(env);
+    override fun close() {
+        env.close()
+        super.close()
     }
 
-    @Override
-    public void close() {
-        env.close();
-        super.close();
-    }
-
-    public void clean() {
-        env.clear();
+    fun clean() {
+        env.clear()
     }
 }
