@@ -62,18 +62,18 @@ class TxnProfiler : KLogging() {
         ps.println("Read-only transactions:")
         readonlyTxns.forEach { st, count ->
             ps.println(count)
-            ps.println(st)
+            st.toString(ps)
         }
         ps.println("Transaction counts:")
         txnCounts.forEach { st, count ->
             ps.println(count)
-            ps.println(st)
+            st.toString(ps)
         }
         ps.println("Transaction traffic (written bytes):")
         txnWrittenBytes.forEach { st, bytes ->
             ps.print(bytes)
             ps.println(" bytes")
-            ps.println(st)
+            st.toString(ps)
         }
     }
 }
