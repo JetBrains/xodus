@@ -88,7 +88,7 @@ class EnvironmentStatistics(private val env: EnvironmentImpl) : MBeanBase(getObj
 
     companion object {
         internal fun getObjectName(env: Environment) =
-                "$STATISTICS_OBJECT_NAME_PREFIX, location=${MBeanBase.escapeLocation(env.location)}"
+                "$STATISTICS_OBJECT_NAME_PREFIX, location=${escapeLocation(env.location)}"
     }
 
 }

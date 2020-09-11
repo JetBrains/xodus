@@ -26,6 +26,7 @@ import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.debug.StackTrace;
 import jetbrains.exodus.debug.TxnProfiler;
 import jetbrains.exodus.entitystore.MetaServer;
+import jetbrains.exodus.env.management.DatabaseProfiler;
 import jetbrains.exodus.env.management.EnvironmentConfigWithOperations;
 import jetbrains.exodus.gc.GarbageCollector;
 import jetbrains.exodus.gc.UtilizationProfile;
@@ -85,9 +86,13 @@ public class EnvironmentImpl implements Environment {
     @NotNull
     private final EnvironmentStatistics statistics;
     @Nullable
+    private final TxnProfiler txnProfiler;
+    @Nullable
     private final jetbrains.exodus.env.management.EnvironmentConfig configMBean;
     @Nullable
     private final jetbrains.exodus.env.management.EnvironmentStatistics statisticsMBean;
+    @Nullable
+    private final DatabaseProfiler profilerMBean;
 
     /**
      * Throwable caught during commit after which rollback of highAddress failed.
@@ -100,9 +105,6 @@ public class EnvironmentImpl implements Environment {
 
     @Nullable
     private final StuckTransactionMonitor stuckTxnMonitor;
-
-    @Nullable
-    private final TxnProfiler txnProfiler;
 
     @Nullable
     private final StreamCipherProvider streamCipherProvider;
@@ -141,23 +143,24 @@ public class EnvironmentImpl implements Environment {
         roTxnDispatcher = new ReentrantTransactionDispatcher(ec.getEnvMaxParallelReadonlyTxns());
 
         statistics = new EnvironmentStatistics(this);
+        txnProfiler = ec.getProfilerOn() ? new TxnProfiler() : null;
         if (ec.isManagementEnabled()) {
             configMBean = ec.getManagementOperationsRestricted() ?
                 new jetbrains.exodus.env.management.EnvironmentConfig(this) :
                 new EnvironmentConfigWithOperations(this);
             // if we don't gather statistics then we should not expose corresponding managed bean
             statisticsMBean = ec.getEnvGatherStatistics() ? new jetbrains.exodus.env.management.EnvironmentStatistics(this) : null;
+            profilerMBean = txnProfiler == null ? null : new DatabaseProfiler(this);
         } else {
             configMBean = null;
             statisticsMBean = null;
+            profilerMBean = null;
         }
 
         throwableOnCommit = null;
         throwableOnClose = null;
 
         stuckTxnMonitor = (transactionTimeout() > 0 || transactionExpirationTimeout() > 0) ? new StuckTransactionMonitor(this) : null;
-
-        txnProfiler = ec.getProfilerOn() ? new TxnProfiler() : null;
 
         final LogConfig logConfig = log.getConfig();
         streamCipherProvider = logConfig.getCipherProvider();
@@ -192,6 +195,11 @@ public class EnvironmentImpl implements Environment {
 
     public GarbageCollector getGC() {
         return gc;
+    }
+
+    @Nullable
+    public TxnProfiler getTxnProfiler() {
+        return txnProfiler;
     }
 
     @Override
@@ -399,6 +407,9 @@ public class EnvironmentImpl implements Environment {
         }
         if (statisticsMBean != null) {
             statisticsMBean.unregister();
+        }
+        if (profilerMBean != null) {
+            profilerMBean.unregister();
         }
         runAllTransactionSafeTasks();
         // in order to avoid deadlock, do not finish gc inside lock

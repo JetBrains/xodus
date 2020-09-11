@@ -260,6 +260,6 @@ open class EnvironmentConfig(protected val env: EnvironmentImpl) : MBeanBase(get
 
     companion object {
         internal fun getObjectName(env: Environment) =
-                "$CONFIG_OBJECT_NAME_PREFIX, location=${MBeanBase.escapeLocation(env.location)}"
+                "$CONFIG_OBJECT_NAME_PREFIX, location=${escapeLocation(env.location)}"
     }
 }
