@@ -143,7 +143,7 @@ public class EnvironmentImpl implements Environment {
         roTxnDispatcher = new ReentrantTransactionDispatcher(ec.getEnvMaxParallelReadonlyTxns());
 
         statistics = new EnvironmentStatistics(this);
-        txnProfiler = ec.getProfilerOn() ? new TxnProfiler() : null;
+        txnProfiler = ec.getProfilerEnabled() ? new TxnProfiler() : null;
         if (ec.isManagementEnabled()) {
             configMBean = ec.getManagementOperationsRestricted() ?
                 new jetbrains.exodus.env.management.EnvironmentConfig(this) :

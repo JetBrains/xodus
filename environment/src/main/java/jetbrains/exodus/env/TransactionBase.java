@@ -57,7 +57,7 @@ public abstract class TransactionBase implements Transaction {
         wasCreatedExclusive = isExclusive;
         immutableTrees = new IntHashMap<>();
         userObjects = new HashMapDecorator<>();
-        trace = env.transactionTimeout() > 0 || env.getEnvironmentConfig().getProfilerOn() ? new StackTrace() : null;
+        trace = env.transactionTimeout() > 0 || env.getEnvironmentConfig().getProfilerEnabled() ? new StackTrace() : null;
         created = System.currentTimeMillis();
         started = created;
         traceFinish = null;

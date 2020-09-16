@@ -33,7 +33,7 @@ class DatabaseProfilerMBeanTest : EnvironmentTestsBase() {
     }
 
     override fun createEnvironment() {
-        env = newEnvironmentInstance(LogConfig.create(reader, writer), EnvironmentConfig().setProfilerOn(true))
+        env = newEnvironmentInstance(LogConfig.create(reader, writer), EnvironmentConfig().setProfilerEnabled(true))
     }
 
     companion object {

@@ -133,10 +133,10 @@ public class EnvironmentConfig extends AbstractConfig {
     public static final String CIPHER_BASIC_IV = "exodus.cipherBasicIV";
 
     /**
-     * If is set to {@code true} database profiler is turned on. By default, is turned off.
+     * If is set to {@code true} database profiler is enabled. By default, it is disabled.
      * <p>Mutable at runtime: no
      */
-    public static final String PROFILER_ON = "exodus.profiler.on";
+    public static final String PROFILER_ENABLED = "exodus.profiler.enabled";
 
     /**
      * If is set to {@code true} forces file system's fsync call after each committed or flushed transaction. By default,
@@ -657,7 +657,7 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(CIPHER_ID, null),
             new Pair(CIPHER_KEY, null),
             new Pair(CIPHER_BASIC_IV, 0L),
-            new Pair(PROFILER_ON, false),
+            new Pair(PROFILER_ENABLED, false),
             new Pair(LOG_DURABLE_WRITE, false),
             new Pair(LOG_FILE_SIZE, 8192L),
             new Pair(LOG_LOCK_TIMEOUT, 0L),
@@ -908,24 +908,24 @@ public class EnvironmentConfig extends AbstractConfig {
     }
 
     /**
-     * If is set to {@code true} database profiler is turned on. By default, is turned off.
+     * If is set to {@code true} database profiler is enabled. By default, it is disabled.
      * <p>Mutable at runtime: no
      *
-     * @return {@code true} if database profiler is turned on.
+     * @return {@code true} if database profiler is enabled.
      */
-    public boolean getProfilerOn() {
-        return (Boolean) getSetting(PROFILER_ON);
+    public boolean getProfilerEnabled() {
+        return (Boolean) getSetting(PROFILER_ENABLED);
     }
 
     /**
-     * Set {@code true} to turn database profiler on.By default, is turned off.
+     * Set {@code true} to enable database profiler. By default, it is disabled.
      * <p>Mutable at runtime: no
      *
-     * @param profilerOn {@code true} if database profiler is on.
+     * @param enabled {@code true} to enable database profiler.
      * @return this {@code EnvironmentConfig} instance
      */
-    public EnvironmentConfig setProfilerOn(final boolean profilerOn) {
-        return setSetting(PROFILER_ON, profilerOn);
+    public EnvironmentConfig setProfilerEnabled(final boolean enabled) {
+        return setSetting(PROFILER_ENABLED, enabled);
     }
 
     /**
