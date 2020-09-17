@@ -247,13 +247,19 @@ public class EntityBlobTests extends EntityStoreTestBase {
     private static void checkBlobs(StoreTransaction txn) throws IOException {
         final Entity entity = txn.newEntity("Issue");
         Assert.assertNull(entity.getBlob("body"));
+        Assert.assertEquals(-1L, entity.getBlobSize("body"));
         final int length = "body".getBytes().length;
         entity.setBlob("body", string2Stream("body"));
+        entity.setBlob("body2", createTempFile("body"));
         Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), string2Stream("body")));
         Assert.assertEquals(length, entity.getBlobSize("body"));
+        Assert.assertEquals("body", entity.getBlobString("body2"));
+        Assert.assertEquals(length + 2, entity.getBlobSize("body2"));
         txn.flush();
         Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), string2Stream("body")));
         Assert.assertEquals(length, entity.getBlobSize("body"));
+        Assert.assertEquals("body", entity.getBlobString("body2"));
+        Assert.assertEquals(length + 2, entity.getBlobSize("body2"));
     }
 
     private static File createTempFile(String content) throws IOException {
