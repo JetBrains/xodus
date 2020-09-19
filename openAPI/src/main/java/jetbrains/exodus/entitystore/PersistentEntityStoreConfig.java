@@ -22,6 +22,7 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.entitystore.replication.PersistentEntityStoreReplicator;
 import jetbrains.exodus.env.Environment;
+import jetbrains.exodus.system.JVMConstants;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.ref.SoftReference;
@@ -364,7 +365,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
             new Pair(TRANSACTION_LINKS_CACHE_SIZE, 1024),
             new Pair(TRANSACTION_BLOB_STRINGS_CACHE_SIZE, 256),
             new Pair(GATHER_STATISTICS, true),
-            new Pair(MANAGEMENT_ENABLED, true),
+            new Pair(MANAGEMENT_ENABLED, !JVMConstants.getIS_ANDROID()),
             new Pair(REPLICATOR, null)
         }, strategy);
     }
