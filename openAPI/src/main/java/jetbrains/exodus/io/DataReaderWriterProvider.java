@@ -44,9 +44,15 @@ import java.util.ServiceLoader;
 public abstract class DataReaderWriterProvider {
 
     /**
-     * Fully-qualified name of default {@code }DataReaderWriteProvider}.
+     * Fully-qualified name of default {@code DataReaderWriteProvider}.
      */
     public static final String DEFAULT_READER_WRITER_PROVIDER = "jetbrains.exodus.io.FileDataReaderWriterProvider";
+
+    /**
+     * Fully-qualified name of read-only watching {@code DataReaderWriteProvider}.
+     */
+    public static final String WATCHING_READER_WRITER_PROVIDER = "jetbrains.exodus.io.WatchingFileDataReaderWriterProvider";
+
 
     /**
      * Creates pair of new instances of {@linkplain DataReader} and {@linkplain DataWriter} by specified location.

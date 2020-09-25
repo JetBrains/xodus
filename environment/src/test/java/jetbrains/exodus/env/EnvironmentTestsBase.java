@@ -49,7 +49,7 @@ public class EnvironmentTestsBase {
 
     protected EnvironmentImpl env;
     private JobProcessor processor;
-    private File envDirectory = null;
+    protected File envDirectory = null;
     protected DataReader reader;
     protected DataWriter writer;
 

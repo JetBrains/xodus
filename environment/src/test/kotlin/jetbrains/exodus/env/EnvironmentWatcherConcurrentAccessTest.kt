@@ -16,6 +16,7 @@
 package jetbrains.exodus.env
 
 import jetbrains.exodus.InvalidSettingException
+import jetbrains.exodus.io.DataReaderWriterProvider
 import org.junit.Assert
 import org.junit.Test
 
@@ -28,7 +29,7 @@ class EnvironmentWatcherConcurrentAccessTest : EnvironmentConcurrentAccessTest()
             logFileSize = fileSize
             logCachePageSize = cachePageSize
             isLogCacheShared = false
-            logDataReaderWriterProvider = "jetbrains.exodus.io.WatchingFileDataReaderWriterProvider"
+            logDataReaderWriterProvider = DataReaderWriterProvider.WATCHING_READER_WRITER_PROVIDER
         }
     }
 

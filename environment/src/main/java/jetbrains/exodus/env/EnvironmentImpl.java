@@ -46,6 +46,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.management.InstanceAlreadyExistsException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -144,15 +145,15 @@ public class EnvironmentImpl implements Environment {
 
         statistics = new EnvironmentStatistics(this);
         txnProfiler = ec.getProfilerEnabled() ? new TxnProfiler() : null;
-        if (ec.isManagementEnabled()) {
-            configMBean = ec.getManagementOperationsRestricted() ?
-                new jetbrains.exodus.env.management.EnvironmentConfig(this) :
-                new EnvironmentConfigWithOperations(this);
+        final jetbrains.exodus.env.management.EnvironmentConfig configMBean =
+            ec.isManagementEnabled() ? createConfigMBean(this) : null;
+        if (configMBean != null) {
+            this.configMBean = configMBean;
             // if we don't gather statistics then we should not expose corresponding managed bean
             statisticsMBean = ec.getEnvGatherStatistics() ? new jetbrains.exodus.env.management.EnvironmentStatistics(this) : null;
             profilerMBean = txnProfiler == null ? null : new DatabaseProfiler(this);
         } else {
-            configMBean = null;
+            this.configMBean = null;
             statisticsMBean = null;
             profilerMBean = null;
         }
@@ -1085,6 +1086,20 @@ public class EnvironmentImpl implements Environment {
             } catch (IOException e) {
                 throw ExodusException.toExodusException(e);
             }
+        }
+    }
+
+    @Nullable
+    private static jetbrains.exodus.env.management.EnvironmentConfig createConfigMBean(@NotNull final EnvironmentImpl e) {
+        try {
+            return e.ec.getManagementOperationsRestricted() ?
+                new jetbrains.exodus.env.management.EnvironmentConfig(e) :
+                new EnvironmentConfigWithOperations(e);
+        } catch (RuntimeException ex) {
+            if (ex.getCause() instanceof InstanceAlreadyExistsException) {
+                return null;
+            }
+            throw ex;
         }
     }
 
