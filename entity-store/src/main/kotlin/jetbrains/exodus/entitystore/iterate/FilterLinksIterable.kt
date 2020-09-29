@@ -166,7 +166,14 @@ class EntityIdSetIterable(txn: PersistentStoreTransaction) : EntityIterableBase(
     var ids: EntityIdSet = EntityIdSetFactory.newSet()
 
     override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
-        throw NotImplementedError()
+        return object : EntityIteratorBase(this) {
+
+            val it = ids.iterator()
+
+            override fun hasNextImpl() = it.hasNext()
+
+            override fun nextIdImpl() = it.next()
+        }
     }
 
     override fun getHandleImpl(): EntityIterableHandle {
