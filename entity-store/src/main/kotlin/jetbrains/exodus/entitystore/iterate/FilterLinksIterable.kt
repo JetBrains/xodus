@@ -185,6 +185,8 @@ class EntityIdSetIterable(txn: PersistentStoreTransaction) : EntityIterableBase(
 
     override fun getRoughSize() = ids.count().toLong()
 
+    override fun isSortedById() = false
+
     override fun toSet(txn: PersistentStoreTransaction) = ids
 
     fun addTarget(id: EntityId) {
