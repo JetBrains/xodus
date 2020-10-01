@@ -53,6 +53,11 @@ public abstract class DataReaderWriterProvider {
      */
     public static final String WATCHING_READER_WRITER_PROVIDER = "jetbrains.exodus.io.WatchingFileDataReaderWriterProvider";
 
+    /**
+     * Fully-qualified name of in-memory {@code DataReaderWriteProvider}.
+     */
+    public static final String IN_MEMORY_READER_WRITER_PROVIDER = "jetbrains.exodus.io.MemoryDataReaderWriterProvider";
+
 
     /**
      * Creates pair of new instances of {@linkplain DataReader} and {@linkplain DataWriter} by specified location.

@@ -19,9 +19,8 @@ import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.env.EnvironmentConfig;
-import jetbrains.exodus.io.DataReader;
-import jetbrains.exodus.io.DataReaderWriterProvider;
-import jetbrains.exodus.io.DataWriter;
+import jetbrains.exodus.io.*;
+import jetbrains.exodus.io.inMemory.MemoryDataReaderWriterProvider;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -309,7 +308,19 @@ public class LogConfig {
         if (readerWriterProviderInstance == null && readerWriterProvider != null) {
             readerWriterProviderInstance = DataReaderWriterProvider.getProvider(readerWriterProvider);
             if (readerWriterProviderInstance == null) {
-                throw new InvalidSettingException("Unknown DataReaderWriterProvider: " + readerWriterProvider);
+                switch (readerWriterProvider) {
+                    case DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER:
+                        readerWriterProviderInstance = new FileDataReaderWriterProvider();
+                        break;
+                    case DataReaderWriterProvider.WATCHING_READER_WRITER_PROVIDER:
+                        readerWriterProviderInstance = new WatchingFileDataReaderWriterProvider();
+                        break;
+                    case DataReaderWriterProvider.IN_MEMORY_READER_WRITER_PROVIDER:
+                        readerWriterProviderInstance = new MemoryDataReaderWriterProvider();
+                        break;
+                    default:
+                        throw new InvalidSettingException("Unknown DataReaderWriterProvider: " + readerWriterProvider);
+                }
             }
         }
         return readerWriterProviderInstance;
