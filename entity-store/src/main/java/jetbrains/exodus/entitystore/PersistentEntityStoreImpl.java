@@ -160,17 +160,13 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         this.name = name;
         location = environment.getLocation();
 
+        readerWriterProvider = Objects.requireNonNull(((EnvironmentImpl) environment).getLog().getConfig().getReaderWriterProvider());
         // if database is in-memory then never create blobs in BlobVault
-        final String providerName = environment.getEnvironmentConfig().getLogDataReaderWriterProvider();
-        final DataReaderWriterProvider provider = DataReaderWriterProvider.getProvider(providerName);
-        if (provider == null) {
-            throw new InvalidSettingException("Unknown DataReaderWriterProvider: " + providerName);
-        }
-        readerWriterProvider = provider;
-        if (provider.isInMemory()) {
+        if (readerWriterProvider.isInMemory()) {
             config.setMaxInPlaceBlobSize(Integer.MAX_VALUE);
         }
-        if (provider.isReadonly()) {
+        // if database is read-only turn caching off since cached results cannot be invalidated
+        if (readerWriterProvider.isReadonly()) {
             config.setCachingDisabled(true);
         }
 
@@ -191,7 +187,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
         init();
 
-        if (provider instanceof WatchingFileDataReaderWriterProvider) {
+        if (readerWriterProvider instanceof WatchingFileDataReaderWriterProvider) {
             ((WatchingFileDataReader) ((EnvironmentImpl) environment).getLog().getConfig().getReader()).addNewDataListener((aLong, aLong2) -> {
                 environment.executeInReadonlyTransaction(txn -> {
                     entityTypes.invalidate(txn);
