@@ -380,6 +380,18 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         return find(entityType, propertyName, value, value + Character.MAX_VALUE);
     }
 
+    @Override
+    @NotNull
+    public EntityIterable findContaining(@NotNull final String entityType,
+                                         @NotNull final String propertyName,
+                                         @NotNull final String value) {
+        final int len = value.length();
+        if (len == 0) {
+            return getAll(entityType);
+        }
+        return find(entityType, propertyName, value, value + Character.MAX_VALUE);
+    }
+
     @NotNull
     @Override
     public EntityIterable findWithBlob(@NotNull final String entityType, @NotNull final String blobName) {

@@ -295,6 +295,21 @@ public interface StoreTransaction {
                                     @NotNull final String value);
 
     /**
+     * Returns {@linkplain EntityIterable} with entities of specified type which have {@linkplain String} values of
+     * specified property containing specified {@code value}.
+     *
+     * @param entityType   entity type
+     * @param propertyName name of the property to search for
+     * @param value        {@linkplain String} value which searched properties are containing
+     * @return {@linkplain EntityIterable} instance
+     * @see EntityIterable
+     */
+    @NotNull
+    EntityIterable findContaining(@NotNull final String entityType,
+                                  @NotNull final String propertyName,
+                                  @NotNull final String value);
+
+    /**
      * Returns {@linkplain EntityIterable} with entities of specified type with {@linkplain EntityId ids} having their
      * local ids in specified range [minValue, maxValue].
      *
