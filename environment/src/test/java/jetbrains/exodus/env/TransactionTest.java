@@ -525,6 +525,21 @@ public class TransactionTest extends EnvironmentTestsBase {
         }
     }
 
+    @Test
+    @TestFor(question = "https://stackoverflow.com/questions/64203125/check-active-transactions-within-a-xodus-environment")
+    public void testForcedCloseWithinTxn() {
+        env.getEnvironmentConfig().setEnvCloseForcedly(true);
+        final Transaction txn = env.beginReadonlyTransaction();
+        env.executeTransactionSafeTask(() -> {
+            env.executeInExclusiveTransaction(t -> {
+                env.close();
+            });
+        });
+        Assert.assertTrue(env.isOpen());
+        txn.abort();
+        Assert.assertFalse(env.isOpen());
+    }
+
     private void testTxnExpirationTimeout(Environment env) throws InterruptedException {
         try {
             final Transaction txn = env.beginTransaction();
