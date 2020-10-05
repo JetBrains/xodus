@@ -32,21 +32,28 @@ import java.lang.annotation.Target;
 public @interface TestFor {
 
     /**
-     * Binds implementation class with a test to be able to find the class by the test
+     * Binds implementation class with a test to be able to find the class by the test.
      */
     @NotNull Class[] testForClass() default {};
 
     /**
-     * Binds test with issues
+     * Binds test with issues.
      *
      * @return issue IDs
      */
     @NotNull String[] issues() default {};
 
     /**
-     * Binds test with a single issue
+     * Binds test with a single issue.
      *
      * @return issue ID
      */
     @NotNull String issue() default "";
+
+    /**
+     * Binds test with a question on Stack Overflow.
+     *
+     * @return URL of a question on Stack Overflow
+     */
+    @NotNull String question() default "";
 }
