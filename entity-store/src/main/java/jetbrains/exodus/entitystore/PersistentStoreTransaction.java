@@ -389,7 +389,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (len == 0) {
             return getAll(entityType);
         }
-        return find(entityType, propertyName, value, value + Character.MAX_VALUE);
+        return find(entityType, propertyName, Character.MIN_VALUE + value, value + Character.MAX_VALUE);
     }
 
     @NotNull
