@@ -16,7 +16,6 @@
 package jetbrains.exodus.tree.patricia;
 
 import jetbrains.exodus.*;
-import jetbrains.exodus.bindings.CompressedUnsignedLongArrayByteIterable;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.util.LightOutputStream;
@@ -222,8 +221,8 @@ class MutableNode extends NodeBase {
             suffixKey = keySequence.subIterable(prefixLength + 1, suffixLength);
         }
         final MutableNode suffix = new MutableNode(suffixKey, value,
-                // copy children of this node to the suffix one
-                children);
+            // copy children of this node to the suffix one
+            children);
         prefix.setChild(nextByte, suffix);
         return prefix;
     }
@@ -237,7 +236,7 @@ class MutableNode extends NodeBase {
         final NodeBase child = ref.getNode(tree);
         value = child.value;
         keySequence = new CompoundByteIterable(new ByteIterable[]{
-                keySequence, SingleByteIterable.getIterable(ref.firstByte), child.keySequence});
+            keySequence, SingleByteIterable.getIterable(ref.firstByte), child.keySequence});
         copyChildrenFrom(child);
     }
 
@@ -261,21 +260,9 @@ class MutableNode extends NodeBase {
         return hangRight((byte) firstByte, tail);
     }
 
-    @SuppressWarnings({"OverlyLongMethod"})
-    long save(@NotNull final PatriciaTreeMutable tree, @NotNull final MutableNodeSaveContext context) {
-        final Log log = tree.getLog();
-        // save children and compute number of bytes to represent children's addresses
-        int bytesPerAddress = 0;
-        for (final ChildReference ref : children) {
-            if (ref.isMutable()) {
-                ref.suffixAddress = ((ChildReferenceMutable) ref).child.save(tree, context);
-            }
-            final int logarithm = CompressedUnsignedLongArrayByteIterable.logarithm(ref.suffixAddress);
-            if (logarithm > bytesPerAddress) {
-                bytesPerAddress = logarithm;
-            }
-        }
-        final int childrenCount = getChildrenCount();
+    long save(@NotNull final PatriciaTreeMutable tree,
+              @NotNull final MutableNodeSaveContext context,
+              final int bytesPerAddress) {
         final LightOutputStream nodeStream = context.newNodeStream();
         // save key and value
         if (hasKey()) {
@@ -287,7 +274,8 @@ class MutableNode extends NodeBase {
             CompressedUnsignedLongByteIterable.fillBytes(value.getLength(), nodeStream);
             ByteIterableBase.fillBytes(value, nodeStream);
         }
-        if (!children.isEmpty()) {
+        final int childrenCount = getChildrenCount();
+        if (childrenCount > 0) {
             // save references to children
             CompressedUnsignedLongByteIterable.fillBytes((childrenCount << 3) + bytesPerAddress - 1, nodeStream);
             for (final ChildReference ref : children) {
@@ -296,6 +284,7 @@ class MutableNode extends NodeBase {
             }
         }
         // finally, write loggable
+        final Log log = tree.getLog();
         byte type = getLoggableType();
         final int structureId = tree.getStructureId();
         final ByteIterable mainIterable = nodeStream.asArrayByteIterable();

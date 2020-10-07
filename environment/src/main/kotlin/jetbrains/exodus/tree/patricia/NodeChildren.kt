@@ -13,37 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.tree.patricia;
+package jetbrains.exodus.tree.patricia
 
-import jetbrains.exodus.ByteIterable;
-import org.jetbrains.annotations.NotNull;
+import jetbrains.exodus.ByteIterable
 
-import java.util.Iterator;
-
-interface NodeChildren extends Iterable<ChildReference> {
-
-    @NotNull
-    @Override
-    NodeChildrenIterator iterator();
+internal interface NodeChildren : Iterable<ChildReference?> {
+    override fun iterator(): NodeChildrenIterator
 }
 
-interface NodeChildrenIterator extends Iterator<ChildReference> {
-
-    boolean hasPrev();
-
-    ChildReference prev();
-
-    boolean isMutable();
-
-    void nextInPlace();
-
-    void prevInPlace();
-
-    ChildReference getNode();
-
-    NodeBase getParentNode();
-
-    int getIndex();
-
-    ByteIterable getKey();
+internal interface NodeChildrenIterator : MutableIterator<ChildReference?> {
+    fun hasPrev(): Boolean
+    fun prev(): ChildReference?
+    val isMutable: Boolean
+    fun nextInPlace()
+    fun prevInPlace()
+    val node: ChildReference?
+    val parentNode: NodeBase?
+    val index: Int
+    val key: ByteIterable?
 }

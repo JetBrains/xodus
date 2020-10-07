@@ -27,6 +27,10 @@ final class ChildReferenceMutable extends ChildReference {
         this.child = child;
     }
 
+    ChildReferenceMutable(@NotNull final MutableNode child) {
+        this((byte) 0, child);
+    }
+
     @Override
     boolean isMutable() {
         return true;
