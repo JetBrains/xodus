@@ -178,10 +178,6 @@ public final class EntityIterableCache {
         return processor.isDispatcherThread();
     }
 
-    boolean isCachingQueueFull() {
-        return processor.pendingJobs() > cacheAdapter.size();
-    }
-
     @NotNull
     EntityIterableCacheAdapter getCacheAdapter() {
         return cacheAdapter;
@@ -220,7 +216,7 @@ public final class EntityIterableCache {
             this.isConsistent = isConsistent;
             cancellingPolicy = new CachingCancellingPolicy(isConsistent && handle.isConsistent());
             setProcessor(processor);
-            if (!isCachingQueueFull() && queue(Priority.normal)) {
+            if (queue(Priority.normal)) {
                 stats.incTotalJobsEnqueued();
                 if (!isConsistent) {
                     stats.incTotalCountJobsEnqueued();
@@ -255,8 +251,8 @@ public final class EntityIterableCache {
         @Override
         protected void execute() {
             final long started;
-            // don't try to cache if the queue is full or if it is too late
-            if (isCachingQueueFull() || !cancellingPolicy.canStartAt(started = System.currentTimeMillis())) {
+            // don't try to cache if it is too late
+            if (!cancellingPolicy.canStartAt(started = System.currentTimeMillis())) {
                 stats.incTotalJobsNotStarted();
                 return;
             }
