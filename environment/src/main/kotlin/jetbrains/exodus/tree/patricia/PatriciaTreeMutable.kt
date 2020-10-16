@@ -445,19 +445,16 @@ internal class PatriciaTreeMutable(log: Log,
                         break
                     }
                 }
-                for (i in 0 until srcPushes) {
-                    source.moveUp()
-                }
-                for (i in 0 until actPushes) {
-                    actual.popAndMutate()
-                }
+                repeat(srcPushes) { source.moveUp() }
+                repeat(actPushes) { actual.popAndMutate() }
             }
         }
 
         private fun reclaimActualChildren(source: PatriciaReclaimSourceTraverser,
                                           actual: PatriciaReclaimActualTraverser) {
             var depth = 1
-            dive_deeper@ while (true) {
+            dive_deeper@
+            while (true) {
                 while (actual.isValidPos) {
                     val actualChild = actual.currentChild
                     val suffixAddress = actualChild.suffixAddress
