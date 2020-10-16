@@ -385,16 +385,14 @@ internal class PatriciaTreeMutable(log: Log,
 
         private fun reclaim(source: PatriciaReclaimSourceTraverser,
                             actual: PatriciaReclaimActualTraverser) {
-            val actualNode = actual.currentNode
-            val sourceNode = source.currentNode
-            if (actualNode.address == sourceNode.address) {
-                actual.currentNode = actualNode.getMutableCopy(actual.mainTree)
+            if (actual.currentNode.address == source.currentNode.address) {
+                actual.currentNode = actual.currentNode.getMutableCopy(actual.mainTree)
                 actual.getItr()
                 actual.wasReclaim = true
                 reclaimActualChildren(source, actual)
             } else {
-                var srcItr = sourceNode.keySequence.iterator()
-                var actItr = actualNode.keySequence.iterator()
+                var srcItr = source.currentNode.keySequence.iterator()
+                var actItr = actual.currentNode.keySequence.iterator()
                 var srcPushes = 0
                 var actPushes = 0
                 while (true) {
@@ -425,7 +423,25 @@ internal class PatriciaTreeMutable(log: Log,
                         srcItr = source.currentNode.keySequence.iterator()
                     } else {
                         // both iterators matched, here comes the branching
-                        reclaimChildren(source, actual)
+                        source.moveToNextReclaimable()
+                        while (source.isValidPos && actual.isValidPos) {
+                            val sourceChild = source.currentChild
+                            val sourceByte = sourceChild.firstByte.toInt() and 0xff
+                            val actualByte = actual.currentChild.firstByte.toInt() and 0xff
+                            if (sourceByte < actualByte) {
+                                source.moveRight()
+                            } else if (sourceByte > actualByte) {
+                                actual.moveRight()
+                            } else {
+                                source.moveDown()
+                                actual.moveDown()
+                                reclaim(source, actual)
+                                actual.popAndMutate()
+                                source.moveUp()
+                                source.moveRight()
+                                actual.moveRight()
+                            }
+                        }
                         break
                     }
                 }
@@ -452,29 +468,6 @@ internal class PatriciaTreeMutable(log: Log,
                     actual.popAndMutate()
                 }
                 actual.moveRight()
-            }
-        }
-
-        private fun reclaimChildren(source: PatriciaReclaimSourceTraverser,
-                                    actual: PatriciaReclaimActualTraverser) {
-            source.moveToNextReclaimable()
-            while (source.isValidPos && actual.isValidPos) {
-                val sourceChild = source.currentChild
-                val sourceByte = sourceChild.firstByte.toInt() and 0xff
-                val actualByte = actual.currentChild.firstByte.toInt() and 0xff
-                if (sourceByte < actualByte) {
-                    source.moveRight()
-                } else if (sourceByte > actualByte) {
-                    actual.moveRight()
-                } else {
-                    source.moveDown()
-                    actual.moveDown()
-                    reclaim(source, actual)
-                    actual.popAndMutate()
-                    source.moveUp()
-                    source.moveRight()
-                    actual.moveRight()
-                }
             }
         }
     }
