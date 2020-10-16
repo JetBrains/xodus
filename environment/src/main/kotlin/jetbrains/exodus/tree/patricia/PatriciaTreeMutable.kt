@@ -456,17 +456,25 @@ internal class PatriciaTreeMutable(log: Log,
 
         private fun reclaimActualChildren(source: PatriciaReclaimSourceTraverser,
                                           actual: PatriciaReclaimActualTraverser) {
-            while (actual.isValidPos) {
-                val actualChild = actual.currentChild
-                val suffixAddress = actualChild.suffixAddress
-                if (source.isAddressReclaimable(suffixAddress)) {
-                    actual.moveDown()
-                    actual.currentNode = actual.currentNode.getMutableCopy(actual.mainTree)
-                    actual.getItr()
-                    actual.wasReclaim = true
-                    reclaimActualChildren(source, actual)
-                    actual.popAndMutate()
+            var depth = 1
+            dive_deeper@ while (true) {
+                while (actual.isValidPos) {
+                    val actualChild = actual.currentChild
+                    val suffixAddress = actualChild.suffixAddress
+                    if (source.isAddressReclaimable(suffixAddress)) {
+                        actual.moveDown()
+                        actual.currentNode = actual.currentNode.getMutableCopy(actual.mainTree)
+                        actual.getItr()
+                        actual.wasReclaim = true
+                        depth++
+                        continue@dive_deeper
+                    }
+                    actual.moveRight()
                 }
+                if (--depth == 0) {
+                    break
+                }
+                actual.popAndMutate()
                 actual.moveRight()
             }
         }
