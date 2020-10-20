@@ -573,6 +573,13 @@ public class EnvironmentImpl implements Environment {
         releaseTransaction(txn);
         txns.remove(txn);
         txn.setIsFinished();
+        if (txn.isReadonly()) {
+            statistics.getStatisticsItem(READONLY_TRANSACTIONS).incTotal();
+        } else if (txn.isGCTransaction()) {
+            statistics.getStatisticsItem(GC_TRANSACTIONS).incTotal();
+        } else {
+            statistics.getStatisticsItem(TRANSACTIONS).incTotal();
+        }
         runTransactionSafeTasks();
     }
 

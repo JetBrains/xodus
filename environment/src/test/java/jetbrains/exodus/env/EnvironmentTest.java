@@ -81,6 +81,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         assertNotNull(statistics.getStatisticsItem(BYTES_MOVED_BY_GC));
         assertNotNull(statistics.getStatisticsItem(TRANSACTIONS));
         assertNotNull(statistics.getStatisticsItem(READONLY_TRANSACTIONS));
+        assertNotNull(statistics.getStatisticsItem(GC_TRANSACTIONS));
         assertNotNull(statistics.getStatisticsItem(ACTIVE_TRANSACTIONS));
         assertNotNull(statistics.getStatisticsItem(FLUSHED_TRANSACTIONS));
         assertNotNull(statistics.getStatisticsItem(DISK_USAGE));

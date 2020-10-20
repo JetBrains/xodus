@@ -31,6 +31,7 @@ public class EnvironmentStatistics extends Statistics<EnvironmentStatistics.Type
         BYTES_MOVED_BY_GC("Bytes moved by GC"),
         TRANSACTIONS("Transactions"),
         READONLY_TRANSACTIONS("Read-only transactions"),
+        GC_TRANSACTIONS("GC transactions"),
         ACTIVE_TRANSACTIONS("Active transactions"),
         FLUSHED_TRANSACTIONS("Flushed transactions"),
         DISK_USAGE("Disk usage"),

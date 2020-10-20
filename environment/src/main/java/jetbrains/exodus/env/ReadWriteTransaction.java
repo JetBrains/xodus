@@ -28,8 +28,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
-import static jetbrains.exodus.env.EnvironmentStatistics.Type.TRANSACTIONS;
-
 public class ReadWriteTransaction extends TransactionBase {
 
     @NotNull
@@ -63,7 +61,6 @@ public class ReadWriteTransaction extends TransactionBase {
         replayCount = 0;
         setExclusive(isExclusive() | env.shouldTransactionBeExclusive(this));
         env.holdNewestSnapshotBy(this);
-        env.getStatistics().getStatisticsItem(TRANSACTIONS).incTotal();
     }
 
     ReadWriteTransaction(@NotNull final TransactionBase origin, @Nullable final Runnable beginHook) {
@@ -78,7 +75,6 @@ public class ReadWriteTransaction extends TransactionBase {
         setExclusive(env.shouldTransactionBeExclusive(this));
         env.acquireTransaction(this);
         env.registerTransaction(this);
-        env.getStatistics().getStatisticsItem(TRANSACTIONS).incTotal();
     }
 
     public boolean isIdempotent() {
