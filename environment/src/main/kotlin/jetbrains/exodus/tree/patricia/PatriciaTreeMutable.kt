@@ -385,73 +385,89 @@ internal class PatriciaTreeMutable(log: Log,
 
         private fun reclaim(source: PatriciaReclaimSourceTraverser,
                             actual: PatriciaReclaimActualTraverser) {
-            if (actual.currentNode.address == source.currentNode.address) {
-                actual.currentNode = actual.currentNode.getMutableCopy(actual.mainTree)
-                actual.getItr()
-                actual.wasReclaim = true
+            if (source.matches(actual)) {
                 reclaimActualChildren(source, actual)
             } else {
-                var srcItr = source.currentNode.keySequence.iterator()
-                var actItr = actual.currentNode.keySequence.iterator()
-                var srcPushes = 0
-                var actPushes = 0
+                val stack = ArrayDeque<ReclaimFrame>()
+                dive_deeper@
                 while (true) {
-                    if (srcItr.hasNext()) {
-                        if (actItr.hasNext()) {
-                            if (srcItr.next() != actItr.next()) { // key is not matching
-                                break
-                            }
-                        } else {
-                            val children = actual.currentNode.getChildren(srcItr.next())
-                            val child = children.node ?: break
-                            actual.currentChild = child
-                            actual.currentIterator = children
-                            actual.moveDown()
-                            ++actPushes
-                            actItr = actual.currentNode.keySequence.iterator()
-                        }
-                    } else if (actItr.hasNext()) {
-                        val children = source.currentNode.getChildren(actItr.next())
-                        val child = children.node
-                        if (child == null || !source.isAddressReclaimable(child.suffixAddress)) {
-                            break // child can be expired if source parent was already not-current
-                        }
-                        source.currentChild = child
-                        source.currentIterator = children
-                        source.moveDown()
-                        ++srcPushes
-                        srcItr = source.currentNode.keySequence.iterator()
-                    } else {
-                        // both iterators matched, here comes the branching
-                        source.moveToNextReclaimable()
-                        while (source.isValidPos && actual.isValidPos) {
-                            val sourceChild = source.currentChild
-                            val sourceByte = sourceChild.firstByte.toInt() and 0xff
-                            val actualByte = actual.currentChild.firstByte.toInt() and 0xff
-                            if (sourceByte < actualByte) {
-                                source.moveRight()
-                            } else if (sourceByte > actualByte) {
-                                actual.moveRight()
+                    var srcItr = source.currentNode.keySequence.iterator()
+                    var actItr = actual.currentNode.keySequence.iterator()
+                    var frame = ReclaimFrame()
+                    var iteratorsMatch = false
+                    while (true) {
+                        if (srcItr.hasNext()) {
+                            if (actItr.hasNext()) {
+                                if (srcItr.next() != actItr.next()) { // key is not matching
+                                    break
+                                }
                             } else {
-                                source.moveDown()
+                                val children = actual.currentNode.getChildren(srcItr.next())
+                                val child = children.node ?: break
+                                actual.currentChild = child
+                                actual.currentIterator = children
                                 actual.moveDown()
-                                reclaim(source, actual)
-                                actual.popAndMutate()
-                                source.moveUp()
-                                source.moveRight()
-                                actual.moveRight()
+                                frame.actPushes++
+                                actItr = actual.currentNode.keySequence.iterator()
+                            }
+                        } else if (actItr.hasNext()) {
+                            val children = source.currentNode.getChildren(actItr.next())
+                            val child = children.node
+                            if (child == null || !source.isAddressReclaimable(child.suffixAddress)) {
+                                break // child can be expired if source parent was already not-current
+                            }
+                            source.currentChild = child
+                            source.currentIterator = children
+                            source.moveDown()
+                            frame.srcPushes++
+                            srcItr = source.currentNode.keySequence.iterator()
+                        } else {
+                            // both iterators matched, here comes the branching
+                            source.moveToNextReclaimable()
+                            iteratorsMatch = true
+                            break
+                        }
+                    }
+                    while (true) {
+                        if (iteratorsMatch) {
+                            while (source.isValidPos && actual.isValidPos) {
+                                val sourceChild = source.currentChild
+                                val sourceByte = sourceChild.firstByte.toInt() and 0xff
+                                val actualByte = actual.currentChild.firstByte.toInt() and 0xff
+                                if (sourceByte < actualByte) {
+                                    source.moveRight()
+                                } else if (sourceByte > actualByte) {
+                                    actual.moveRight()
+                                } else {
+                                    source.moveDown()
+                                    actual.moveDown()
+                                    if (source.matches(actual)) {
+                                        reclaimActualChildren(source, actual)
+                                        upAndRight(source, actual)
+                                    } else {
+                                        stack.push(frame)
+                                        continue@dive_deeper
+                                    }
+                                }
                             }
                         }
-                        break
+                        repeat(frame.srcPushes) { source.moveUp() }
+                        repeat(frame.actPushes) { actual.popAndMutate() }
+                        frame = stack.poll() ?: break@dive_deeper
+                        upAndRight(source, actual)
+                        iteratorsMatch = true
                     }
                 }
-                repeat(srcPushes) { source.moveUp() }
-                repeat(actPushes) { actual.popAndMutate() }
             }
         }
 
+        private fun PatriciaReclaimSourceTraverser.matches(actual: PatriciaReclaimActualTraverser) = currentNode.address == actual.currentNode.address
+
         private fun reclaimActualChildren(source: PatriciaReclaimSourceTraverser,
                                           actual: PatriciaReclaimActualTraverser) {
+            actual.currentNode = actual.currentNode.getMutableCopy(actual.mainTree)
+            actual.getItr()
+            actual.wasReclaim = true
             var depth = 1
             dive_deeper@
             while (true) {
@@ -474,6 +490,19 @@ internal class PatriciaTreeMutable(log: Log,
                 actual.popAndMutate()
                 actual.moveRight()
             }
+        }
+
+        private fun upAndRight(source: PatriciaReclaimSourceTraverser,
+                               actual: PatriciaReclaimActualTraverser) {
+            actual.popAndMutate()
+            source.moveUp()
+            source.moveRight()
+            actual.moveRight()
+        }
+
+        private class ReclaimFrame {
+            var srcPushes = 0
+            var actPushes = 0
         }
     }
 }
