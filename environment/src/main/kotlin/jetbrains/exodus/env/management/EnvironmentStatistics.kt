@@ -57,6 +57,12 @@ class EnvironmentStatistics(private val env: EnvironmentImpl) : MBeanBase(getObj
     override val numberOfReadonlyTransactionsPerSecond: Double
         get() = getMean(EnvironmentStatistics.Type.READONLY_TRANSACTIONS)
 
+    override val numberOfGCTransactions: Long
+        get() = getTotal(EnvironmentStatistics.Type.GC_TRANSACTIONS)
+
+    override val numberOfGCTransactionsPerSecond: Double
+        get() = getMean(EnvironmentStatistics.Type.GC_TRANSACTIONS)
+
     override val activeTransactions: Int
         get() = getTotal(EnvironmentStatistics.Type.ACTIVE_TRANSACTIONS).toInt()
 

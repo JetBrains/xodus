@@ -29,6 +29,8 @@ interface EnvironmentStatisticsMBean {
     val numberOfTransactionsPerSecond: Double
     val numberOfReadonlyTransactions: Long
     val numberOfReadonlyTransactionsPerSecond: Double
+    val numberOfGCTransactions: Long
+    val numberOfGCTransactionsPerSecond: Double
     val activeTransactions: Int
     val numberOfFlushedTransactions: Long
     val numberOfFlushedTransactionsPerSecond: Double
