@@ -72,6 +72,15 @@ class EnvironmentStatistics(private val env: EnvironmentImpl) : MBeanBase(getObj
     override val numberOfFlushedTransactionsPerSecond: Double
         get() = getMean(EnvironmentStatistics.Type.FLUSHED_TRANSACTIONS)
 
+    override val transactionsDuration: Long
+        get() = getTotal(EnvironmentStatistics.Type.TRANSACTIONS_DURATION)
+
+    override val readonlyTransactionsDuration: Long
+        get() = getTotal(EnvironmentStatistics.Type.READONLY_TRANSACTIONS_DURATION)
+
+    override val gcTransactionsDuration: Long
+        get() = getTotal(EnvironmentStatistics.Type.GC_TRANSACTIONS_DURATION)
+
     override val diskUsage: Long
         get() = getTotal(EnvironmentStatistics.Type.DISK_USAGE)
 

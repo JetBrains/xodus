@@ -34,6 +34,9 @@ public class EnvironmentStatistics extends Statistics<EnvironmentStatistics.Type
         GC_TRANSACTIONS("GC transactions"),
         ACTIVE_TRANSACTIONS("Active transactions"),
         FLUSHED_TRANSACTIONS("Flushed transactions"),
+        TRANSACTIONS_DURATION("Transactions duration"),
+        READONLY_TRANSACTIONS_DURATION("Read-only transactions duration"),
+        GC_TRANSACTIONS_DURATION("GC transactions duration"),
         DISK_USAGE("Disk usage"),
         UTILIZATION_PERCENT("Utilization percent");
 

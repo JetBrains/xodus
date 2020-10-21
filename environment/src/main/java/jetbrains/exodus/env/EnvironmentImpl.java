@@ -573,12 +573,16 @@ public class EnvironmentImpl implements Environment {
         releaseTransaction(txn);
         txns.remove(txn);
         txn.setIsFinished();
+        final long duration = System.currentTimeMillis() - txn.getCreated();
         if (txn.isReadonly()) {
             statistics.getStatisticsItem(READONLY_TRANSACTIONS).incTotal();
+            statistics.getStatisticsItem(READONLY_TRANSACTIONS_DURATION).addTotal(duration);
         } else if (txn.isGCTransaction()) {
             statistics.getStatisticsItem(GC_TRANSACTIONS).incTotal();
+            statistics.getStatisticsItem(GC_TRANSACTIONS_DURATION).addTotal(duration);
         } else {
             statistics.getStatisticsItem(TRANSACTIONS).incTotal();
+            statistics.getStatisticsItem(TRANSACTIONS_DURATION).addTotal(duration);
         }
         runTransactionSafeTasks();
     }

@@ -34,6 +34,9 @@ interface EnvironmentStatisticsMBean {
     val activeTransactions: Int
     val numberOfFlushedTransactions: Long
     val numberOfFlushedTransactionsPerSecond: Double
+    val transactionsDuration: Long
+    val readonlyTransactionsDuration: Long
+    val gcTransactionsDuration: Long
     val diskUsage: Long
     val utilizationPercent: Int
     val storeGetCacheHitRate: Float
