@@ -29,17 +29,6 @@ internal class FilterEntitiesWithCertainLinkIterable(txn: PersistentStoreTransac
 
     val linkId: Int get() = entitiesWithLink.linkId
 
-    override fun intersect(right: EntityIterable): EntityIterable {
-        if (right is FilterEntitiesWithCertainLinkIterable) {
-            if ((entitiesWithLink === right.entitiesWithLink) ||
-                    (linkId == right.linkId && entityTypeId == right.entityTypeId)) {
-                return FilterEntitiesWithCertainLinkIterable(
-                        transaction, entitiesWithLink, filter.intersect(right.filter) as EntityIterableBase)
-            }
-        }
-        return super.intersect(right)
-    }
-
     override fun union(right: EntityIterable): EntityIterable {
         if (right is FilterEntitiesWithCertainLinkIterable) {
             if ((entitiesWithLink === right.entitiesWithLink) ||
