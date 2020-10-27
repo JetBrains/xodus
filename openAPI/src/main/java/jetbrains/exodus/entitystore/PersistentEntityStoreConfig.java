@@ -651,7 +651,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     }
 
     public PersistentEntityStoreConfig setManagementEnabled(final boolean managementEnabled) {
-        return setSetting(MANAGEMENT_ENABLED, managementEnabled);
+        return setSetting(MANAGEMENT_ENABLED, managementEnabled && !JVMConstants.getIS_ANDROID());
     }
 
     public PersistentEntityStoreConfig setStoreReplicator(final PersistentEntityStoreReplicator replicator) {
