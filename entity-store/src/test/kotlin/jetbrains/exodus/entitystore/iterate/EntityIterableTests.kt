@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.iterate
 
 import jetbrains.exodus.TestFor
 import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.kotlin.notNull
 import org.junit.Assert
 
 class EntityIterableTests : EntityStoreTestBase() {
@@ -278,7 +279,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         txn.flush()
         val iterator = txn.getAll("Issue").selectDistinct("assignee").iterator() as SourceMappingIterator
         var i = 0
-        iterator.forEach {
+        iterator.forEach { _ ->
             Assert.assertEquals(i++, txn.getEntity(iterator.sourceId).getProperty("i"))
         }
     }
@@ -371,7 +372,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         txn.flush()
         val iterator = txn.getAll("Issue").selectManyDistinct("assignee").iterator() as SourceMappingIterator
         var i = 0
-        iterator.forEach {
+        iterator.forEach { _ ->
             Assert.assertEquals(i++ / 2, txn.getEntity(iterator.sourceId).getProperty("i"))
         }
     }
@@ -458,7 +459,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         txn.flush()
         val iterator = txn.getAll("Issue").selectMany("assignee").iterator() as SourceMappingIterator
         var i = 0
-        iterator.forEach {
+        iterator.forEach { _ ->
             Assert.assertEquals(i++ / 2, txn.getEntity(iterator.sourceId).getProperty("i"))
         }
     }
@@ -497,7 +498,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         val links0 = txn.findLinks("Issue", someUsers, "author")
         Assert.assertEquals(someUsers.size(), links0.size())
         val authoredIssues = txn.findWithLinks("Issue", "author")
-        val links1 = (authoredIssues as EntityIterableBase).findLinks(EntityStoreTestBase.toList(someUsers), "author")
+        val links1 = (authoredIssues as EntityIterableBase).findLinks(toList(someUsers), "author")
         Assert.assertEquals(someUsers.size(), links1.size())
         val it0 = links0.iterator()
         val it1 = links1.iterator()
@@ -508,7 +509,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         }
         assertEquals(6, (txn.getAll("Issue") as EntityIterableBase).findLinks(someUsers, "author").size())
         assertEquals(6, (txn.getAll("Issue") as EntityIterableBase).findLinks(someUsers, "author").intersect(txn.getAll("Issue")).size())
-        assertEquals(6, EntityStoreTestBase.toList((txn.getAll("Issue") as EntityIterableBase).findLinks(someUsers, "author").intersect(txn.findWithLinks("Issue", "author"))).size)
+        assertEquals(6, toList((txn.getAll("Issue") as EntityIterableBase).findLinks(someUsers, "author").intersect(txn.findWithLinks("Issue", "author"))).size)
         entityStore.asyncProcessor.waitForJobs(100)
         assertEquals(6, (txn.getAll("Issue") as EntityIterableBase).findLinks(someUsers, "author").size())
         entityStore.asyncProcessor.waitForJobs(100)
@@ -516,7 +517,7 @@ class EntityIterableTests : EntityStoreTestBase() {
             issue.deleteLinks("author")
             issue.addLink("author", nobody)
         }
-        assertEquals(0, (txn.getAll("Issue") as EntityIterableBase).findLinks(EntityStoreTestBase.toList(someUsers), "author").size())
+        assertEquals(0, (txn.getAll("Issue") as EntityIterableBase).findLinks(toList(someUsers), "author").size())
     }
 
     @TestFor(issue = "XD-730")
@@ -524,24 +525,24 @@ class EntityIterableTests : EntityStoreTestBase() {
         val txn = storeTransaction
         createNUsers(txn, 10)
         val issue1 = txn.newEntity("Issue")
-        issue1.addLink("author", txn.find("User", "login", "user0").first!!)
+        issue1.addLink("author", txn.find("User", "login", "user0").first.notNull)
         val user1 = txn.find("User", "login", "user1").first
-        issue1.addLink("author", user1!!)
+        issue1.addLink("author", user1.notNull)
         val issue2 = txn.newEntity("Issue")
-        issue2.addLink("author", txn.find("User", "login", "user2").first!!)
+        issue2.addLink("author", txn.find("User", "login", "user2").first.notNull)
         val user3 = txn.find("User", "login", "user3").first
-        issue2.addLink("author", user3!!)
+        issue2.addLink("author", user3.notNull)
         txn.newEntity("Issue")
         txn.flush()
         assertEquals(2, (txn.getAll("Issue") as EntityIterableBase).findLinks(
-                EntityStoreTestBase.toList(txn.getSingletonIterable(user1).union(txn.getSingletonIterable(user3))), "author").size())
+                toList(txn.getSingletonIterable(user1.notNull).union(txn.getSingletonIterable(user3.notNull))), "author").size())
     }
 
     fun testFindLinksSingular() {
         val txn = storeTransaction
         createNUsers(txn, 1)
         val issue = txn.newEntity("Issue")
-        issue.addLink("author", txn.find("User", "login", "user0").first!!)
+        issue.addLink("author", txn.find("User", "login", "user0").first.notNull)
         txn.flush()
         Assert.assertEquals(0L, EntityIterableBase.EMPTY.findLinks(txn.getAll("User"), "author").size())
         Assert.assertEquals(0L, (txn.getAll("Issue") as EntityIterableBase).findLinks(EntityIterableBase.EMPTY, "author").size())
@@ -552,10 +553,10 @@ class EntityIterableTests : EntityStoreTestBase() {
         val txn = storeTransaction
         createNUsers(txn, 1)
         val issue = txn.newEntity("Issue")
-        issue.addLink("author", txn.find("User", "login", "user0").first!!)
+        issue.addLink("author", txn.find("User", "login", "user0").first.notNull)
         txn.flush()
-        Assert.assertEquals(0L, EntityIterableBase.EMPTY.findLinks(EntityStoreTestBase.toList(txn.getAll("User")), "author").size())
-        Assert.assertEquals(0L, (txn.getAll("Issue") as EntityIterableBase).findLinks(EntityStoreTestBase.toList(EntityIterableBase.EMPTY), "author").size())
+        Assert.assertEquals(0L, EntityIterableBase.EMPTY.findLinks(toList(txn.getAll("User")), "author").size())
+        Assert.assertEquals(0L, (txn.getAll("Issue") as EntityIterableBase).findLinks(toList(EntityIterableBase.EMPTY), "author").size())
     }
 
     @TestFor(issue = "XD-737")
@@ -565,20 +566,20 @@ class EntityIterableTests : EntityStoreTestBase() {
         for (user in users) {
             user.setLink("inGroup", txn.newEntity("UserGroup"))
         }
-        txn.getAll("UserGroup").first!!.setLink("owner", users[0])
+        txn.getAll("UserGroup").first.notNull.setLink("owner", users[0])
         txn.flush()
         val withOwner = txn.findWithLinks("UserGroup", "owner")
         Assert.assertEquals(1, withOwner.size())
         val usersInGroupsWithOwner = (txn.getAll("User") as EntityIterableBase).findLinks(withOwner, "inGroup") as EntityIterableBase
         Assert.assertEquals(1, usersInGroupsWithOwner.size())
         //Assert.assertTrue(usersInGroupsWithOwner.isCached());
-        txn.getAll("UserGroup").last!!.setLink("owner", users[users.size - 1])
+        txn.getAll("UserGroup").last.notNull.setLink("owner", users[users.size - 1])
         Assert.assertFalse(usersInGroupsWithOwner.isCached)
         txn.flush()
         Assert.assertEquals(2, withOwner.size())
         Assert.assertEquals(2, usersInGroupsWithOwner.size())
         //Assert.assertTrue(usersInGroupsWithOwner.isCached());
-        txn.getAll("UserGroup").last!!.deleteLinks("owner")
+        txn.getAll("UserGroup").last.notNull.deleteLinks("owner")
         txn.flush()
         //Assert.assertFalse(usersInGroupsWithOwner.isCached());
         Assert.assertEquals(1, withOwner.size())
@@ -592,19 +593,39 @@ class EntityIterableTests : EntityStoreTestBase() {
         for (user in users) {
             user.setLink("inGroup", txn.newEntity("UserGroup"))
         }
-        txn.getAll("UserGroup").first!!.setLink("owner", users[0])
-        txn.getAll("UserGroup").last!!.setLink("owner", users[1])
+        txn.getAll("UserGroup").first.notNull.setLink("owner", users[0])
+        txn.getAll("UserGroup").last.notNull.setLink("owner", users[1])
         txn.flush()
         val withOwner = txn.findWithLinks("UserGroup", "owner")
-        val usersIt = txn.getAll("User") as EntityIterableBase
-        val iterator = usersIt.findLinks(withOwner, "inGroup").iterator()
+        val all = txn.getAll("User") as EntityIterableBase
+        val iterator = all.findLinks(withOwner, "inGroup").iterator()
         Assert.assertEquals(users[0], iterator.next())
         Assert.assertEquals(users[9], iterator.next())
         Assert.assertFalse(iterator.hasNext())
-        val reverseIterator = usersIt.findLinks(withOwner, "inGroup").reverse().iterator()
+        val reverseIterator = all.findLinks(withOwner, "inGroup").reverse().iterator()
         Assert.assertEquals(users[9], reverseIterator.next())
         Assert.assertEquals(users[0], reverseIterator.next())
         Assert.assertFalse(reverseIterator.hasNext())
+    }
+
+    @TestFor(issue = "XD-826")
+    fun testIntersectOfFindLinks() {
+        val txn = storeTransaction
+        val users = createNUsers(txn, 10)
+        val group0 = txn.newEntity("UserGroup")
+        val group1 = txn.newEntity("UserGroup")
+        (0..5).forEach { i ->
+            users[i].addLink("group", group0)
+        }
+        (4..9).forEach { i ->
+            users[i].addLink("group", group1)
+        }
+        val all = txn.getAll("User") as EntityIterableBase
+        val result = all.findLinks(listOf(group0), "group").intersect(
+                all.findLinks(listOf(group1), "group"))
+        Assert.assertEquals(2L, result.size())
+        Assert.assertEquals(users[4], result.first)
+        Assert.assertEquals(users[5], result.last)
     }
 
     fun testGetFirst() {
@@ -615,7 +636,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         createNUsers(txn, 10)
         txn.flush()
         Assert.assertNotNull(txn.getAll("User").first)
-        Assert.assertEquals("user0", txn.getAll("User").first!!.getProperty("login"))
+        Assert.assertEquals("user0", txn.getAll("User").first.notNull.getProperty("login"))
     }
 
     fun testGetLast() {
@@ -626,7 +647,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         createNUsers(txn, 10)
         txn.flush()
         Assert.assertNotNull(txn.getAll("User").last)
-        Assert.assertEquals("user9", txn.getAll("User").last!!.getProperty("login"))
+        Assert.assertEquals("user9", txn.getAll("User").last.notNull.getProperty("login"))
     }
 
     fun testGetLastOfGetAll() {
@@ -638,7 +659,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         val lastUser = txn.getAll("User").last
         println(System.currentTimeMillis() - started)
         Assert.assertNotNull(lastUser)
-        Assert.assertEquals("user" + (count - 1), lastUser!!.getProperty("login"))
+        Assert.assertEquals("user" + (count - 1), lastUser.notNull.getProperty("login"))
     }
 
     fun testGetLastOfToLinks() {
@@ -698,7 +719,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         val count = 1
         createNUsers(txn, count)
         txn.flush()
-        var users = txn.getSingletonIterable(txn.getAll("User").first!!)
+        var users = txn.getSingletonIterable(txn.getAll("User").first.notNull)
         users = users.union(users)
         Assert.assertFalse((users as EntityIterableBase).canBeCached())
         Assert.assertEquals(1L, users.getRoughSize())
@@ -709,7 +730,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         val count = 1
         createNUsers(txn, count)
         txn.flush()
-        var users = txn.getSingletonIterable(txn.getAll("User").first!!)
+        var users = txn.getSingletonIterable(txn.getAll("User").first.notNull)
         users = users.union(users)
         Assert.assertFalse((users as EntityIterableBase).canBeCached())
         Assert.assertEquals(-1L, users.getRoughCount())
@@ -777,7 +798,6 @@ class EntityIterableTests : EntityStoreTestBase() {
             Assert.assertEquals("user" + (10 - ++i), user.getProperty("login"))
         }
         Assert.assertEquals(count.toLong(), i.toLong())
-
     }
 
     /**
@@ -797,7 +817,7 @@ class EntityIterableTests : EntityStoreTestBase() {
             }
         }
         txn.flush()
-        println(startingCount.toString() + " users created.")
+        println("$startingCount users created.")
         while (!entityStore.entityIterableCache.putIfNotCached(txn.getAll("User") as EntityIterableBase).isCachedInstance) {
             Thread.sleep(1000)
         }
