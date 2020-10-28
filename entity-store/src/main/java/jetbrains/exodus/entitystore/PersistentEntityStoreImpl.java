@@ -1704,6 +1704,10 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return allowCreate ? linkIds.getOrAllocateId(txnProvider, linkName) : linkIds.getId(txnProvider, linkName);
     }
 
+    public void deleteLinkName(@NotNull final PersistentStoreTransaction txn, @NotNull final String linkName) {
+        linkIds.delete(txn, linkName);
+    }
+
     @Nullable
     String getLinkName(@NotNull final PersistentStoreTransaction txn, final int linkId) {
         return linkIds.getName(txn, linkId);
