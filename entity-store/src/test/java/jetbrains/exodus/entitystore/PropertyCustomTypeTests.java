@@ -16,13 +16,10 @@
 package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.TestFor;
-import jetbrains.exodus.bindings.ComparableBinding;
+import jetbrains.exodus.entitystore.custom.ComparablePair;
+import jetbrains.exodus.entitystore.custom.ComparablePairBinding;
 import jetbrains.exodus.entitystore.tables.PropertyTypes;
-import jetbrains.exodus.util.LightOutputStream;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
-
-import java.io.ByteArrayInputStream;
 
 @SuppressWarnings({"unchecked"})
 public class PropertyCustomTypeTests extends EntityStoreTestBase {
@@ -109,68 +106,5 @@ public class PropertyCustomTypeTests extends EntityStoreTestBase {
         store.registerCustomPropertyType(txn, sample.getClass(), customBinding);
         Assert.assertTrue(txn.flush());
         store.registerCustomPropertyType(txn, sample.getClass(), customBinding);
-    }
-
-    private static final class ComparablePair<F extends Comparable<F>, S extends Comparable<S>> implements Comparable<ComparablePair<F, S>> {
-
-        private final F first;
-        private final S second;
-
-        private ComparablePair(@NotNull final F first, @NotNull final S second) {
-            this.first = first;
-            this.second = second;
-        }
-
-        @Override
-        public int compareTo(@NotNull final ComparablePair<F, S> o) {
-            final int result = first.compareTo(o.first);
-            return result != 0 ? result : second.compareTo(o.second);
-        }
-
-        @Override
-        public int hashCode() {
-            return first.hashCode() ^ second.hashCode();
-        }
-
-        @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
-        @Override
-        public boolean equals(Object obj) {
-            if (obj == null) {
-                return false;
-            }
-            final ComparablePair<F, S> pair = (ComparablePair<F, S>) obj;
-            return first.equals(pair.first) && second.equals(pair.second);
-        }
-
-        @Override
-        public String toString() {
-            return "ComparablePair{" + "first=" + first + ", second=" + second + '}';
-        }
-    }
-
-    private static final class ComparablePairBinding extends ComparableBinding {
-
-        private final PropertyTypes propertyTypes;
-        private final ComparablePair sample;
-
-        private ComparablePairBinding(@NotNull final PropertyTypes propertyTypes,
-                                      @NotNull final ComparablePair sample) {
-            this.propertyTypes = propertyTypes;
-            this.sample = sample;
-        }
-
-        @Override
-        public Comparable readObject(@NotNull final ByteArrayInputStream stream) {
-            return new ComparablePair(
-                    propertyTypes.getPropertyType(sample.first.getClass()).getBinding().readObject(stream),
-                    propertyTypes.getPropertyType(sample.second.getClass()).getBinding().readObject(stream));
-        }
-
-        @Override
-        public void writeObject(@NotNull final LightOutputStream output, @NotNull final Comparable object) {
-            final ComparablePair cPair = (ComparablePair) object;
-            propertyTypes.getPropertyType(cPair.first.getClass()).getBinding().writeObject(output, cPair.first);
-            propertyTypes.getPropertyType(cPair.second.getClass()).getBinding().writeObject(output, cPair.second);
-        }
     }
 }
