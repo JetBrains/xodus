@@ -223,6 +223,11 @@ public class PersistentEntity implements Entity, TxnProvider {
     }
 
     @Override
+    public boolean addLink(@NotNull final String linkName, @NotNull final EntityId targetId) {
+        return store.getLastVersion(targetId) >= 0 && addLink(linkName, store.getEntity(targetId));
+    }
+
+    @Override
     @Nullable
     public Entity getLink(@NotNull final String linkName) {
         final PersistentStoreTransaction txn = getTransaction();
@@ -236,6 +241,11 @@ public class PersistentEntity implements Entity, TxnProvider {
         final PersistentStoreTransaction txn = getTransaction();
         final int linkId = store.getLinkId(txn, linkName, true);
         return store.setLink(txn, this, linkId, (PersistentEntity) target);
+    }
+
+    @Override
+    public boolean setLink(@NotNull final String linkName, @Nullable final EntityId targetId) {
+        return store.getLastVersion(targetId) >= 0 && setLink(linkName, store.getEntity(targetId));
     }
 
     @Override
@@ -272,6 +282,11 @@ public class PersistentEntity implements Entity, TxnProvider {
             return false;
         }
         return store.deleteLinkInternal(txn, this, linkId, (PersistentEntity) target);
+    }
+
+    @Override
+    public boolean deleteLink(@NotNull final String linkName, @NotNull final EntityId targetId) {
+        return store.getLastVersion(targetId) >= 0 && deleteLink(linkName, store.getEntity(targetId));
     }
 
     @Override

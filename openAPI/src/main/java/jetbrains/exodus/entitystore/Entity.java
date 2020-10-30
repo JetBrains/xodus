@@ -283,14 +283,39 @@ public interface Entity extends Comparable<Entity> {
      * @param linkName name of the link
      * @param target   entity to link with
      * @return {@code true} if the link didn't exist
+     * @see #addLink(String, EntityId)
      * @see #getLink(String)
      * @see #getLinks(String)
+     * @see #getLinks(Collection)
      * @see #setLink(String, Entity)
+     * @see #setLink(String, EntityId)
      * @see #deleteLink(String, Entity)
+     * @see #deleteLink(String, EntityId)
      * @see #deleteLinks(String)
      * @see #getLinkNames()
      */
     boolean addLink(@NotNull final String linkName, @NotNull final Entity target);
+
+    /**
+     * Adds link with specified name from this entity to an entity with specified id. If there is a link with the same
+     * name to another target, it is not affected. If target with specified id doest't exist nothing happens, and the
+     * method returns {@code false}.
+     *
+     * @param linkName name of the link
+     * @param targetId id of entity to link with
+     * @return {@code true} if target exists and the link didn't exist
+     * @see #addLink(String, EntityId)
+     * @see #getLink(String)
+     * @see #getLinks(String)
+     * @see #getLinks(Collection)
+     * @see #setLink(String, Entity)
+     * @see #setLink(String, EntityId)
+     * @see #deleteLink(String, Entity)
+     * @see #deleteLink(String, EntityId)
+     * @see #deleteLinks(String)
+     * @see #getLinkNames()
+     */
+    boolean addLink(@NotNull final String linkName, @NotNull final EntityId targetId);
 
     /**
      * Returns a single entity which this one is linked by link with specified name, or {@code null}
@@ -299,10 +324,13 @@ public interface Entity extends Comparable<Entity> {
      * @param linkName name of the link
      * @return linked entity or or {@code null} if it doesn't exist
      * @see #addLink(String, Entity)
+     * @see #addLink(String, EntityId)
      * @see #getLinks(String)
      * @see #getLinks(Collection)
      * @see #setLink(String, Entity)
+     * @see #setLink(String, EntityId)
      * @see #deleteLink(String, Entity)
+     * @see #deleteLink(String, EntityId)
      * @see #deleteLinks(String)
      * @see #getLinkNames()
      */
@@ -317,26 +345,53 @@ public interface Entity extends Comparable<Entity> {
      * @param linkName name of the link
      * @param target   entity to link with
      * @return {@code true} if {@code target} is not equal to old target
-     * @see #getLink(String)
      * @see #addLink(String, Entity)
+     * @see #addLink(String, EntityId)
+     * @see #getLink(String)
      * @see #getLinks(String)
      * @see #getLinks(Collection)
+     * @see #setLink(String, EntityId)
      * @see #deleteLink(String, Entity)
+     * @see #deleteLink(String, EntityId)
      * @see #deleteLinks(String)
      * @see #getLinkNames()
      */
     boolean setLink(@NotNull final String linkName, @Nullable final Entity target);
 
     /**
+     * Links this entity with target with specified id by link with specified name. Unlike
+     * {@linkplain #addLink(String, EntityId)}, the method doesn't add new target if any with the same link already
+     * exists, but overrides the old target. So there can be only 0 or 1 link with specified name set by this method.
+     *
+     * @param linkName name of the link
+     * @param targetId id of entity to link with
+     * @return {@code true} if target with specified id exists and is not equal to old target
+     * @see #addLink(String, Entity)
+     * @see #addLink(String, EntityId)
+     * @see #getLink(String)
+     * @see #getLinks(String)
+     * @see #getLinks(Collection)
+     * @see #setLink(String, Entity)
+     * @see #deleteLink(String, Entity)
+     * @see #deleteLink(String, EntityId)
+     * @see #deleteLinks(String)
+     * @see #getLinkNames()
+     */
+    boolean setLink(@NotNull final String linkName, @Nullable final EntityId targetId);
+
+    /**
      * Returns all entities which this one is linked by the link with specified name.
      *
      * @param linkName name of the link
      * @return {@linkplain EntityIterable}
-     * @see #getLink(String)
      * @see #addLink(String, Entity)
-     * @see #setLink(String, Entity)
+     * @see #addLink(String, EntityId)
+     * @see #getLink(String)
      * @see #getLinks(Collection)
+     * @see #setLink(String, Entity)
+     * @see #setLink(String, EntityId)
      * @see #deleteLink(String, Entity)
+     * @see #deleteLink(String, EntityId)
      * @see #deleteLinks(String)
      * @see #getLinkNames()
      */
@@ -348,11 +403,14 @@ public interface Entity extends Comparable<Entity> {
      *
      * @param linkNames collection of link names
      * @return {@linkplain EntityIterable}
-     * @see #getLink(String)
      * @see #addLink(String, Entity)
-     * @see #setLink(String, Entity)
+     * @see #addLink(String, EntityId)
+     * @see #getLink(String)
      * @see #getLinks(String)
+     * @see #setLink(String, Entity)
+     * @see #setLink(String, EntityId)
      * @see #deleteLink(String, Entity)
+     * @see #deleteLink(String, EntityId)
      * @see #deleteLinks(String)
      * @see #getLinkNames()
      */
@@ -364,27 +422,52 @@ public interface Entity extends Comparable<Entity> {
      *
      * @param linkName name of the link
      * @param target   linked target
-     * @return {@code true} is the link was actually deleted, otherwise it didn't exist
-     * @see #getLink(String)
+     * @return {@code true} if the link was actually deleted, otherwise it didn't exist
      * @see #addLink(String, Entity)
-     * @see #setLink(String, Entity)
+     * @see #addLink(String, EntityId)
+     * @see #getLink(String)
      * @see #getLinks(String)
      * @see #getLinks(Collection)
+     * @see #setLink(String, Entity)
+     * @see #setLink(String, EntityId)
+     * @see #deleteLink(String, EntityId)
      * @see #deleteLinks(String)
      * @see #getLinkNames()
      */
     boolean deleteLink(@NotNull final String linkName, @NotNull final Entity target);
 
     /**
+     * Deletes the link with specified name to target with specified id. If target doesn't exist returns {@code false}.
+     *
+     * @param linkName name of the link
+     * @param targetId id of linked target
+     * @return {@code true} if target with specified id exists and the link was actually deleted, otherwise it didn't exist
+     * @see #addLink(String, Entity)
+     * @see #addLink(String, EntityId)
+     * @see #getLink(String)
+     * @see #getLinks(String)
+     * @see #getLinks(Collection)
+     * @see #setLink(String, Entity)
+     * @see #setLink(String, EntityId)
+     * @see #deleteLink(String, Entity)
+     * @see #deleteLinks(String)
+     * @see #getLinkNames()
+     */
+    boolean deleteLink(@NotNull final String linkName, @NotNull final EntityId targetId);
+
+    /**
      * Deletes links to all entities which this entity is linked by the link with specified name.
      *
      * @param linkName name of the link
-     * @see #getLink(String)
      * @see #addLink(String, Entity)
-     * @see #setLink(String, Entity)
+     * @see #addLink(String, EntityId)
+     * @see #getLink(String)
      * @see #getLinks(String)
      * @see #getLinks(Collection)
+     * @see #setLink(String, Entity)
+     * @see #setLink(String, EntityId)
      * @see #deleteLink(String, Entity)
+     * @see #deleteLink(String, EntityId)
      * @see #getLinkNames()
      */
     void deleteLinks(@NotNull final String linkName);
@@ -393,12 +476,15 @@ public interface Entity extends Comparable<Entity> {
      * Returns names of all links of the entity.
      *
      * @return {@linkplain List list} of link names
-     * @see #getLink(String)
      * @see #addLink(String, Entity)
-     * @see #setLink(String, Entity)
+     * @see #addLink(String, EntityId)
+     * @see #getLink(String)
      * @see #getLinks(String)
      * @see #getLinks(Collection)
+     * @see #setLink(String, Entity)
+     * @see #setLink(String, EntityId)
      * @see #deleteLink(String, Entity)
+     * @see #deleteLink(String, EntityId)
      * @see #deleteLinks(String)
      */
     @NotNull

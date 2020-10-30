@@ -203,7 +203,7 @@ public class EntityLinksTests extends EntityStoreTestBase {
         issue.setLink("comment", comment);
         txn.flush();
         Assert.assertEquals(comment, issue.getLink("comment"));
-        issue.setLink("comment", null);
+        issue.setLink("comment", (Entity) null);
         txn.flush();
         Assert.assertNull(issue.getLink("comment"));
     }
