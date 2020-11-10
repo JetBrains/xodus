@@ -69,7 +69,9 @@ object SafeByteBufferCleaner {
                         // cleaner = ((DirectByteBuffer)buffer).cleaner()
                         val cleaner = dbbCleanerMethod.invoke(buffer)
                         // ((sun.misc.Cleaner)cleaner).clean()
-                        cleanMethod.invoke(cleaner)
+                        cleaner?.let {
+                            cleanMethod.invoke(cleaner)
+                        }
                     } else {
                         // for Android 5.1.1 try to call ((DirectByteBuffer)buffer).free()
                         if (JVMConstants.IS_ANDROID) {
