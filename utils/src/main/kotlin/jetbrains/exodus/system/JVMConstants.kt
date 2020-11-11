@@ -35,7 +35,7 @@ object JVMConstants {
         val st = StringTokenizer(JAVA_SPEC_VERSION, ".")
         JAVA_MAJOR_VERSION = Integer.parseInt(st.nextToken())
         JAVA_MINOR_VERSION = if (st.hasMoreTokens()) Integer.parseInt(st.nextToken()) else 0
-        IS_JAVA8_OR_HIGHER = JAVA_MAJOR_VERSION == 1 && JAVA_MINOR_VERSION == 8
         IS_JAVA9_OR_HIGHER = JAVA_MAJOR_VERSION > 1 || (JAVA_MAJOR_VERSION == 1 && JAVA_MINOR_VERSION == 9)
+        IS_JAVA8_OR_HIGHER = IS_JAVA9_OR_HIGHER || (JAVA_MAJOR_VERSION == 1 && JAVA_MINOR_VERSION == 8)
     }
 }
