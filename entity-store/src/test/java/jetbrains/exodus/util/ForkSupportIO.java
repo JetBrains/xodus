@@ -15,13 +15,15 @@
  */
 package jetbrains.exodus.util;
 
+import io.github.classgraph.ClassGraph;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.net.*;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -74,7 +76,7 @@ public class ForkSupportIO implements IStreamer {
             }
         }
 
-        final String classpath = join(getClasspath(getClass()), File.pathSeparator);
+        final String classpath = new ClassGraph().addClassLoader(getClass().getClassLoader()).getClasspath();
         final String[] commonJvmArgs = {javaFile.getPath(),
             "-Xmx256m",
             // "-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=7777",
@@ -98,34 +100,16 @@ public class ForkSupportIO implements IStreamer {
     }
 
     @NotNull
-    public static String join(@NotNull Collection<? extends String> strings, @NotNull final String separator) {
+    public static String join(@NotNull Collection<? extends String> strings) {
         final StringBuilder result = new StringBuilder();
         for (String string : strings) {
             if (string != null && !string.isEmpty()) {
-                if (result.length() != 0) result.append(separator);
+                if (result.length() > 0) result.append(File.pathSeparatorChar);
                 result.append(string);
             }
         }
         return result.toString();
     }
-
-    public static List<String> getClasspath(Class cls) {
-        List<String> classpath = new ArrayList<>();
-        URL[] urls = ((URLClassLoader) cls.getClassLoader()).getURLs();
-        for (URL url : urls) {
-            File f;
-            try {
-                f = new File(url.toURI());
-            } catch (URISyntaxException e) {
-                f = new File(url.getPath());
-            }
-
-            classpath.add(f.getAbsolutePath());
-        }
-
-        return classpath;
-    }
-
 
     @NotNull
     private Process spawnProcess() throws IOException {

@@ -1,5 +1,6 @@
 dependencies {
     api project(':vfs')
+    testImplementation 'io.github.classgraph:classgraph:4.8.90'
     testImplementation project(':utils').sourceSets.test.output
 }
 
