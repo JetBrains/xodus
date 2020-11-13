@@ -26,10 +26,10 @@ import jetbrains.exodus.core.execution.JobProcessorExceptionHandler
 import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor
 import org.junit.Assert.*
 import org.junit.Test
-import sun.nio.cs.US_ASCII
 import java.io.File
 import java.io.FileOutputStream
 import java.io.UnsupportedEncodingException
+import java.nio.charset.Charset
 import java.security.SecureRandom
 import java.util.*
 import kotlin.math.abs
@@ -189,7 +189,7 @@ class StoreTest : EnvironmentTestsBase() {
     fun testFileByteIterable() {
         val content = "quod non habet principium, non habet finem"
         val file = File.createTempFile("FileByteIterable", null, TestUtil.createTempDir())
-        FileOutputStream(file).use { output -> output.write(content.toByteArray(US_ASCII())) }
+        FileOutputStream(file).use { output -> output.write(content.toByteArray(Charset.defaultCharset())) }
         val store = env.computeInTransaction { txn -> env.openStore("Store", StoreConfig.WITHOUT_DUPLICATES, txn) }
         val fbi = FileByteIterable(file)
         env.executeInTransaction { txn -> store.put(txn, StringBinding.stringToEntry("winged"), fbi) }
@@ -198,7 +198,7 @@ class StoreTest : EnvironmentTestsBase() {
                 val value = store.get(txn, StringBinding.stringToEntry("winged"))
                         ?: throw ExodusException("value is null")
                 try {
-                    return@TransactionalComputable String(value.bytesUnsafe, 0, value.length, US_ASCII())
+                    return@TransactionalComputable String(value.bytesUnsafe, 0, value.length, Charset.defaultCharset())
                 } catch (e: UnsupportedEncodingException) {
                     return@TransactionalComputable null
                 }
