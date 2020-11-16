@@ -87,7 +87,7 @@ try (Environment env = Environments.newInstance("/home/me/.myAppData")) {
 ```
 
 ## Building from Source
-[Gradle](http://www.gradle.org) is used to build, test, and publish. JDK 1.8 is required. To build the project, run:
+[Gradle](http://www.gradle.org) is used to build, test, and publish. JDK 1.8 or higher is required. To build the project, run:
 
     ./gradlew build
 
