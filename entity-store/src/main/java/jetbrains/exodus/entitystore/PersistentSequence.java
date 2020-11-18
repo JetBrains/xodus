@@ -36,11 +36,23 @@ public class PersistentSequence implements Sequence, FlushLog.Member {
     private final AtomicLong lastSavedValue;
     private boolean forcedUpdate = false;
 
-    public PersistentSequence(@NotNull final PersistentStoreTransaction txn, @NotNull final Store store, @NotNull final String name) {
+    public PersistentSequence(@NotNull final PersistentStoreTransaction txn,
+                              @NotNull final Store store,
+                              @NotNull final String name) {
+        this(txn, store, name, 0L);
+    }
+
+    public PersistentSequence(@NotNull final PersistentStoreTransaction txn,
+                              @NotNull final Store store,
+                              @NotNull final String name,
+                              final long initialValue) {
         this.store = store;
         this.name = name;
         idKeyEntry = sequenceNameToEntry(name);
-        final long savedValue = loadValue(txn);
+        long savedValue = loadValue(txn);
+        if (savedValue == -1L) {
+            savedValue = initialValue - 1;
+        }
         val = new AtomicLong(savedValue);
         lastSavedValue = new AtomicLong(savedValue);
     }
@@ -104,9 +116,9 @@ public class PersistentSequence implements Sequence, FlushLog.Member {
         return loadValue(txn.getEnvironmentTransaction());
     }
 
-    long loadValue(@NotNull final Transaction txn) {
+    private long loadValue(@NotNull final Transaction txn) {
         final ByteIterable value = store.get(txn, idKeyEntry);
-        return value == null ? -1 : LongBinding.compressedEntryToLong(value);
+        return value == null ? -1L : LongBinding.compressedEntryToLong(value);
     }
 
     static ArrayByteIterable sequenceNameToEntry(@NotNull final String sequenceName) {

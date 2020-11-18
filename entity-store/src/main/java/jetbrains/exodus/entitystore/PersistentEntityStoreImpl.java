@@ -607,6 +607,20 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
     }
 
+    @NotNull
+    public PersistentSequence getSequence(@NotNull final PersistentStoreTransaction txn,
+                                          @NotNull final String sequenceName,
+                                          final long initialValue) {
+        synchronized (allSequences) {
+            PersistentSequence result = allSequences.get(sequenceName);
+            if (result == null) {
+                result = new PersistentSequence(txn, sequences, sequenceName, initialValue);
+                allSequences.put(sequenceName, result);
+            }
+            return result;
+        }
+    }
+
     public List<PersistentSequence> getAllSequences() {
         synchronized (allSequences) {
             return new ArrayList<>(allSequences.values());

@@ -582,6 +582,15 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     @Override
+    public @NotNull Sequence getSequence(@NotNull final String sequenceName, final long initialValue) {
+        try {
+            return store.getSequence(this, sequenceName, initialValue);
+        } catch (Exception e) {
+            throw ExodusException.wrap(e);
+        }
+    }
+
+    @Override
     public void setQueryCancellingPolicy(QueryCancellingPolicy policy) {
         queryCancellingPolicy = policy;
     }

@@ -571,14 +571,25 @@ public interface StoreTransaction {
     EntityId toEntityId(@NotNull final String representation);
 
     /**
-     * Returns existing or creates the new named {@linkplain Sequence}.
+     * Returns existing or creates new named zero-starting {@linkplain Sequence}.
      *
-     * @param sequenceName name of sequence, unique in the {@linkplain EntityStore}
-     * @return {@linkplain Sequence} instance having specified name
+     * @param sequenceName name of the sequence, unique in the {@linkplain EntityStore}
+     * @return {@linkplain Sequence} instance with specified name
      * @see Sequence
      */
     @NotNull
     Sequence getSequence(@NotNull final String sequenceName);
+
+    /**
+     * Returns existing or creates new named {@linkplain Sequence} starting with {@code initialValue}.
+     *
+     * @param sequenceName name of the sequence, unique in the {@linkplain EntityStore}
+     * @param initialValue initial value of the sequence
+     * @return {@linkplain Sequence} instance with specified name
+     * @see Sequence
+     */
+    @NotNull
+    Sequence getSequence(@NotNull final String sequenceName, final long initialValue);
 
     /**
      * Sets a query cancelling policy for the {@code StoreTransaction}.
