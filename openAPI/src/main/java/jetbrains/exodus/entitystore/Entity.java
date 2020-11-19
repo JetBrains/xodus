@@ -377,7 +377,7 @@ public interface Entity extends Comparable<Entity> {
      * @see #deleteLinks(String)
      * @see #getLinkNames()
      */
-    boolean setLink(@NotNull final String linkName, @Nullable final EntityId targetId);
+    boolean setLink(@NotNull final String linkName, @NotNull final EntityId targetId);
 
     /**
      * Returns all entities which this one is linked by the link with specified name.

@@ -244,7 +244,7 @@ public class PersistentEntity implements Entity, TxnProvider {
     }
 
     @Override
-    public boolean setLink(@NotNull final String linkName, @Nullable final EntityId targetId) {
+    public boolean setLink(@NotNull final String linkName, @NotNull final EntityId targetId) {
         return store.getLastVersion(targetId) >= 0 && setLink(linkName, store.getEntity(targetId));
     }
 
