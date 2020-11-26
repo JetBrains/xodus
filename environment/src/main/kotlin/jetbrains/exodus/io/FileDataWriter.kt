@@ -185,7 +185,7 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
                 if (JVMConstants.IS_JAVA9_OR_HIGHER) {
                     UnsafeHolder.doPrivileged {
                         try {
-                            UnsafeHolder.unsafeClass.getDeclaredMethod("setUninterruptible", Class.forName("sun.nio.ch.FileChannelImpl")).apply {
+                            Class.forName("sun.nio.ch.FileChannelImpl").getDeclaredMethod("setUninterruptible").apply {
                                 isAccessible = true
                                 logger.info { "Uninterruptible file channel will be used" }
                             }
