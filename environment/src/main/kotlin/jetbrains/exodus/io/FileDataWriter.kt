@@ -20,6 +20,7 @@ import jetbrains.exodus.OutOfDiskSpaceException
 import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.system.JVMConstants
 import jetbrains.exodus.util.SharedRandomAccessFile
+import jetbrains.exodus.util.UnsafeHolder
 import mu.KLogging
 import java.io.File
 import java.io.IOException
@@ -28,36 +29,6 @@ import java.nio.channels.ClosedChannelException
 import java.nio.channels.FileChannel
 
 open class FileDataWriter @JvmOverloads constructor(private val reader: FileDataReader, lockId: String? = null) : AbstractDataWriter() {
-
-    companion object : KLogging() {
-
-        private const val DELETED_FILE_EXTENSION = ".del"
-
-        fun renameFile(file: File): Boolean {
-            val name = file.name
-            return file.renameTo(File(file.parent,
-                    name.substring(0, name.indexOf(LogUtil.LOG_FILE_EXTENSION)) + DELETED_FILE_EXTENSION))
-        }
-
-        private fun forceSync(file: RandomAccessFile) {
-            try {
-                val channel = file.channel
-                channel.force(false)
-            } catch (e: ClosedChannelException) {
-                // ignore
-            } catch (ioe: IOException) {
-                if (file.channel.isOpen) {
-                    throw ExodusException(ioe)
-                }
-            }
-        }
-
-        private fun setWritable(file: File) {
-            if (file.exists() && !file.setWritable(true)) {
-                throw ExodusException("Failed to set writable " + file.absolutePath)
-            }
-        }
-    }
 
     private var dirChannel: FileChannel? = null
     private val lockingManager: LockingManager
@@ -154,9 +125,12 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
     }
 
     override fun syncDirectory() {
-        dirChannel?.run {
+        dirChannel?.let { channel ->
             try {
-                force(false)
+                setUninterruptibleMethod?.run {
+                    invoke(channel)
+                }
+                channel.force(false)
             } catch (e: IOException) {
                 // just warn as XD-698 requires
                 warnCantFsyncDirectory()
@@ -170,9 +144,9 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
         setWritable(file)
         val deleted = if (rbt == RemoveBlockType.Delete) file.delete() else renameFile(file)
         if (!deleted) {
-            throw ExodusException("Failed to delete " + file.absolutePath)
-        } else if (FileDataReader.logger.isInfoEnabled) {
-            FileDataReader.logger.info("Deleted file " + file.absolutePath)
+            throw ExodusException("Failed to delete ${file.absolutePath}")
+        } else {
+            logger.info { "Deleted file ${file.absolutePath}" }
         }
     }
 
@@ -182,9 +156,7 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
         setWritable(file)
         try {
             SharedRandomAccessFile(file, "rw").use { f -> f.setLength(length) }
-            if (FileDataReader.logger.isInfoEnabled) {
-                FileDataReader.logger.info("Truncated file " + file.absolutePath + " to length = " + length)
-            }
+            logger.info { "Truncated file ${file.absolutePath} to length = $length" }
         } catch (e: IOException) {
             throw ExodusException("Failed to truncate file " + file.absolutePath, e)
         }
@@ -203,6 +175,55 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
             }
         } catch (e: IOException) {
             throw ExodusException(e)
+        }
+    }
+
+    companion object : KLogging() {
+
+        private const val DELETED_FILE_EXTENSION = ".del"
+        private val setUninterruptibleMethod =
+                if (JVMConstants.IS_JAVA9_OR_HIGHER) {
+                    UnsafeHolder.doPrivileged {
+                        try {
+                            UnsafeHolder.unsafeClass.getDeclaredMethod("setUninterruptible", Class.forName("sun.nio.ch.FileChannelImpl")).apply {
+                                isAccessible = true
+                                logger.info { "Uninterruptible file channel will be used" }
+                            }
+                        } catch (t: Throwable) {
+                            logger.info(t) { "Interruptible file channel will be used" }
+                            null
+                        }
+                    }
+                } else {
+                    null
+                }
+
+        fun renameFile(file: File): Boolean {
+            val name = file.name
+            return file.renameTo(File(file.parent,
+                    name.substring(0, name.indexOf(LogUtil.LOG_FILE_EXTENSION)) + DELETED_FILE_EXTENSION))
+        }
+
+        private fun forceSync(file: RandomAccessFile) {
+            try {
+                file.channel.also { channel ->
+                    setUninterruptibleMethod?.run {
+                        invoke(channel)
+                    }
+                }.force(false)
+            } catch (e: ClosedChannelException) {
+                // ignore
+            } catch (ioe: IOException) {
+                if (file.channel.isOpen) {
+                    throw ExodusException(ioe)
+                }
+            }
+        }
+
+        private fun setWritable(file: File) {
+            if (file.exists() && !file.setWritable(true)) {
+                throw ExodusException("Failed to set writable " + file.absolutePath)
+            }
         }
     }
 }

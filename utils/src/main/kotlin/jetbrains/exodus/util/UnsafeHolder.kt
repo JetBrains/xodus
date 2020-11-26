@@ -25,7 +25,7 @@ object UnsafeHolder {
         unsafeClass.getDeclaredField("theUnsafe").apply { isAccessible = true }[null]
     }
 
-    internal fun <T> doPrivileged(f: () -> T): T {
+    fun <T> doPrivileged(f: () -> T): T {
         return AccessController.doPrivileged(PrivilegedExceptionAction<T> {
             f()
         })
