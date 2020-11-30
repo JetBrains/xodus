@@ -20,64 +20,18 @@ import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.EntityStoreException
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
-import jetbrains.exodus.entitystore.tables.PropertyTypes
+import jetbrains.exodus.entitystore.tables.PropertyTypes.toLowerCase
 import jetbrains.exodus.kotlin.notNull
 import org.slf4j.LoggerFactory
 
-class UpdatablePropertiesCachedInstanceIterable private constructor(txn: PersistentStoreTransaction?,
-                                                                    source: EntityIterableBase,
-                                                                    private var typeId: Int,
-                                                                    private var valueClass: Class<Comparable<Any>>?,
-                                                                    private val index: Persistent23Tree<IndexEntry>
-) : UpdatableCachedInstanceIterable(txn, source) {
+class UpdatablePropertiesCachedInstanceIterable
+private constructor(txn: PersistentStoreTransaction?,
+                    source: EntityIterableBase,
+                    private var typeId: Int,
+                    private var valueClass: Class<Comparable<Any>>?,
+                    private val index: Persistent23Tree<IndexEntry<Comparable<Any>>>) : UpdatableCachedInstanceIterable(txn, source) {
 
-    companion object {
-        private val logger = LoggerFactory.getLogger(UpdatablePropertiesCachedInstanceIterable::class.java)
-        private val PropertyValueIterator.nextId get() = this.nextId().notNull
-        private val PropertyValueIterator.currentValue: Comparable<Any> get() = this.currentValue().notNull
-
-        @JvmStatic
-        fun newInstance(
-                txn: PersistentStoreTransaction?, it: PropertyValueIterator?, source: EntityIterableBase
-        ): UpdatablePropertiesCachedInstanceIterable {
-            try {
-                if (it != null && it.hasNext()) {
-                    val index = Persistent23Tree<IndexEntry>()
-                    val id: EntityId = it.nextId
-                    val typeId = id.typeId
-                    var prevValue: Comparable<Any> = it.currentValue
-                    val valueClass = prevValue.javaClass
-                    val tempList = mutableListOf(IndexEntry(prevValue, id.localId))
-                    while (it.hasNext()) {
-                        val localId = it.nextId.localId
-                        val currentValue: Comparable<Any> = it.currentValue
-                        if (prevValue == currentValue) {
-                            tempList.add(IndexEntry(prevValue, localId))
-                        } else {
-                            tempList.add(IndexEntry(currentValue, localId))
-                            prevValue = currentValue
-                            if (valueClass != currentValue.javaClass) {
-                                throw EntityStoreException("Unexpected property value class")
-                            }
-                        }
-                    }
-                    index.beginWrite().run {
-                        addAll(tempList, tempList.size)
-                        endWrite()
-                    }
-                    return UpdatablePropertiesCachedInstanceIterable(txn, source, typeId, valueClass, index)
-                } else {
-                    return UpdatablePropertiesCachedInstanceIterable(txn, source, -1, null, Persistent23Tree<IndexEntry>())
-                }
-            } finally {
-                if (it is EntityIteratorBase) {
-                    it.disposeIfShouldBe()
-                }
-            }
-        }
-    }
-
-    private var mutableIndex: Persistent23Tree.MutableTree<IndexEntry>? = null
+    private var mutableIndex: Persistent23Tree.MutableTree<IndexEntry<Comparable<Any>>>? = null
 
     // constructor for mutating source index
     private constructor(source: UpdatablePropertiesCachedInstanceIterable) : this(
@@ -110,8 +64,8 @@ class UpdatablePropertiesCachedInstanceIterable private constructor(txn: Persist
         if (this.typeId == -1) {
             this.typeId = typeId
         }
-        val oldEntry = if (oldValue == null) null else IndexEntry(PropertyTypes.toLowerCase(oldValue), localId)
-        val newEntry = if (newValue == null) null else IndexEntry(PropertyTypes.toLowerCase(newValue), localId)
+        val oldEntry = if (oldValue == null) null else createEntry(toLowerCase(oldValue), localId) as IndexEntry<Comparable<Any>>
+        val newEntry = if (newValue == null) null else createEntry(toLowerCase(newValue), localId) as IndexEntry<Comparable<Any>>
         if (oldEntry == newEntry) {
             throw IllegalStateException("Can't update in-memory index: both oldValue and newValue are null")
         }
@@ -124,9 +78,7 @@ class UpdatablePropertiesCachedInstanceIterable private constructor(txn: Persist
             }
         }
         if (newEntry != null) {
-            val entryNoDuplicates = IndexEntryNoDuplicates(newEntry.propValue, newEntry.localId)
-            if (!index.contains(entryNoDuplicates)) {
-                newEntry.propValue = entryNoDuplicates.propValue
+            if (!index.contains(newEntry)) {
                 index.add(newEntry)
             }
             if (valueClass == null) {
@@ -157,41 +109,10 @@ class UpdatablePropertiesCachedInstanceIterable private constructor(txn: Persist
 
     private val currentTree get() = mutableIndex ?: index.beginRead()
 
-    private open class IndexEntry(var propValue: Comparable<Any>, val localId: Long) : Comparable<IndexEntry> {
-
-        override fun compareTo(other: IndexEntry): Int {
-            var result = propValue.compareTo(other.propValue)
-            if (result == 0) {
-                if (localId < other.localId) {
-                    result = -1
-                } else if (localId > other.localId) {
-                    result = 1
-                }
-            }
-            return result
-        }
-    }
-
-    private class IndexEntryNoDuplicates(propValue: Comparable<Any>, localId: Long) : IndexEntry(propValue, localId) {
-
-        override fun compareTo(other: IndexEntry): Int {
-            var result = propValue.compareTo(other.propValue)
-            if (result == 0) {
-                propValue = other.propValue
-                if (localId < other.localId) {
-                    result = -1
-                } else if (localId > other.localId) {
-                    result = 1
-                }
-            }
-            return result
-        }
-    }
-
-    private abstract inner class PropertiesCachedInstanceIteratorBase(private val it: Iterator<IndexEntry>)
+    private abstract inner class PropertiesCachedInstanceIteratorBase(private val it: Iterator<IndexEntry<Comparable<Any>>>)
         : NonDisposableEntityIterator(this@UpdatablePropertiesCachedInstanceIterable), PropertyValueIterator {
 
-        protected var next: IndexEntry? = null
+        protected var next: IndexEntry<Comparable<Any>>? = null
         protected var hasNextValid: Boolean = false
 
         override fun hasNextImpl(): Boolean {
@@ -213,14 +134,14 @@ class UpdatablePropertiesCachedInstanceIterable private constructor(txn: Persist
             if (!hasNextImpl()) {
                 return null
             }
-            val result = PersistentEntityId(entityTypeId, next!!.localId)
+            val result = PersistentEntityId(entityTypeId, next.notNull.localId)
             hasNextValid = false
             return result
         }
 
         override fun currentValue() = next?.propValue
 
-        protected open fun checkIndexEntry(entry: IndexEntry?) = entry != null
+        protected open fun checkIndexEntry(entry: IndexEntry<Comparable<Any>>?) = entry != null
     }
 
     private inner class PropertiesCachedInstanceIterator : PropertiesCachedInstanceIteratorBase(currentTree.iterator())
@@ -228,14 +149,224 @@ class UpdatablePropertiesCachedInstanceIterable private constructor(txn: Persist
     private inner class ReversePropertiesCachedInstanceIterator : PropertiesCachedInstanceIteratorBase(currentTree.reverseIterator())
 
     private inner class PropertyValueCachedInstanceIterator(private val value: Comparable<Any>)
-        : PropertiesCachedInstanceIteratorBase(currentTree.tailIterator(IndexEntry(value, 0))) {
+        : PropertiesCachedInstanceIteratorBase(currentTree.tailIterator(createEntry(value, 0) as IndexEntry<Comparable<Any>>)) {
 
-        override fun checkIndexEntry(entry: IndexEntry?) = entry != null && entry.propValue == value
+        override fun checkIndexEntry(entry: IndexEntry<Comparable<Any>>?) = entry != null && entry.propValue == value
     }
 
     private inner class PropertyRangeCachedInstanceIterator(min: Comparable<Any>, private val max: Comparable<Any>)
-        : PropertiesCachedInstanceIteratorBase(currentTree.tailIterator(IndexEntry(min, 0))) {
+        : PropertiesCachedInstanceIteratorBase(currentTree.tailIterator(createEntry(min, 0) as IndexEntry<Comparable<Any>>)) {
 
-        override fun checkIndexEntry(entry: IndexEntry?) = entry != null && entry.propValue <= max
+        override fun checkIndexEntry(entry: IndexEntry<Comparable<Any>>?) = entry != null && entry.propValue <= max
+    }
+
+    companion object {
+
+        private val logger = LoggerFactory.getLogger(UpdatablePropertiesCachedInstanceIterable::class.java)
+        private val PropertyValueIterator.nextId get() = this.nextId().notNull
+        private val PropertyValueIterator.currentValue: Comparable<Any> get() = this.currentValue().notNull
+
+        @JvmStatic
+        fun newInstance(txn: PersistentStoreTransaction?,
+                        it: PropertyValueIterator?,
+                        source: EntityIterableBase): UpdatablePropertiesCachedInstanceIterable {
+            try {
+                if (it != null && it.hasNext()) {
+                    val index = Persistent23Tree<IndexEntry<Comparable<Any>>>()
+                    val id: EntityId = it.nextId
+                    val typeId = id.typeId
+                    var prevValue: Comparable<Any> = it.currentValue
+                    val valueClass = prevValue.javaClass
+                    val tempList = mutableListOf(createEntry(prevValue, id.localId))
+                    while (it.hasNext()) {
+                        val localId = it.nextId.localId
+                        val currentValue: Comparable<Any> = it.currentValue
+                        if (prevValue == currentValue) {
+                            tempList.add(createEntry(prevValue, localId))
+                        } else {
+                            tempList.add(createEntry(currentValue, localId))
+                            prevValue = currentValue
+                            if (valueClass != currentValue.javaClass) {
+                                throw EntityStoreException("Unexpected property value class")
+                            }
+                        }
+                    }
+                    index.beginWrite().run {
+                        addAll(tempList as MutableIterable<IndexEntry<Comparable<Any>>>, tempList.size)
+                        endWrite()
+                    }
+                    return UpdatablePropertiesCachedInstanceIterable(txn, source, typeId, valueClass, index)
+                } else {
+                    return UpdatablePropertiesCachedInstanceIterable(txn, source, -1, null, Persistent23Tree())
+                }
+            } finally {
+                if (it is EntityIteratorBase) {
+                    it.disposeIfShouldBe()
+                }
+            }
+        }
+    }
+}
+
+private fun createEntry(propValue: Comparable<*>, localId: Long): IndexEntry<*> {
+    return when (propValue) {
+        is Long -> LongIndexEntry(propValue, localId)
+        is Int -> IntIndexEntry(propValue, localId)
+        is Boolean -> BooleanIndexEntry(propValue, localId)
+        is Float -> FloatIndexEntry(propValue, localId)
+        is Double -> DoubleIndexEntry(propValue, localId)
+        is Byte -> ByteIndexEntry(propValue, localId)
+        is Short -> ShortIndexEntry(propValue, localId)
+        else -> ComparableIndexEntry(propValue as Comparable<Any>, localId)
+    }
+}
+
+private abstract class IndexEntry<T : Comparable<T>>(val localId: Long) : Comparable<IndexEntry<T>> {
+
+    abstract val propValue: T
+
+    override fun compareTo(other: IndexEntry<T>): Int {
+        var result = propValue.compareTo(other.propValue)
+        if (result == 0) {
+            if (localId < other.localId) {
+                result = -1
+            } else if (localId > other.localId) {
+                result = 1
+            }
+        }
+        return result
+    }
+}
+
+private class ComparableIndexEntry(override val propValue: Comparable<Any>, localId: Long) : IndexEntry<Comparable<Any>>(localId)
+
+private class LongIndexEntry(override val propValue: Long, localId: Long) : IndexEntry<Long>(localId) {
+
+    override fun compareTo(other: IndexEntry<Long>): Int {
+        val otherValue = (other as LongIndexEntry).propValue
+        return when {
+            propValue < otherValue -> -1
+            propValue > otherValue -> 1
+            else -> {
+                val otherLocalId = other.localId
+                when {
+                    localId < otherLocalId -> -1
+                    localId > otherLocalId -> 1
+                    else -> 0
+                }
+            }
+        }
+    }
+}
+
+private class IntIndexEntry(override val propValue: Int, localId: Long) : IndexEntry<Int>(localId) {
+
+    override fun compareTo(other: IndexEntry<Int>): Int {
+        val otherValue = (other as IntIndexEntry).propValue
+        return when {
+            propValue < otherValue -> -1
+            propValue > otherValue -> 1
+            else -> {
+                val otherLocalId = other.localId
+                when {
+                    localId < otherLocalId -> -1
+                    localId > otherLocalId -> 1
+                    else -> 0
+                }
+            }
+        }
+    }
+}
+
+private class BooleanIndexEntry(override val propValue: Boolean, localId: Long) : IndexEntry<Boolean>(localId) {
+
+    override fun compareTo(other: IndexEntry<Boolean>): Int {
+        val otherValue = (other as BooleanIndexEntry).propValue
+        return when {
+            propValue < otherValue -> -1
+            propValue > otherValue -> 1
+            else -> {
+                val otherLocalId = other.localId
+                when {
+                    localId < otherLocalId -> -1
+                    localId > otherLocalId -> 1
+                    else -> 0
+                }
+            }
+        }
+    }
+}
+
+private class FloatIndexEntry(override val propValue: Float, localId: Long) : IndexEntry<Float>(localId) {
+
+    override fun compareTo(other: IndexEntry<Float>): Int {
+        val otherValue = (other as FloatIndexEntry).propValue
+        return when {
+            propValue < otherValue -> -1
+            propValue > otherValue -> 1
+            else -> {
+                val otherLocalId = other.localId
+                when {
+                    localId < otherLocalId -> -1
+                    localId > otherLocalId -> 1
+                    else -> 0
+                }
+            }
+        }
+    }
+}
+
+private class DoubleIndexEntry(override val propValue: Double, localId: Long) : IndexEntry<Double>(localId) {
+
+    override fun compareTo(other: IndexEntry<Double>): Int {
+        val otherValue = (other as DoubleIndexEntry).propValue
+        return when {
+            propValue < otherValue -> -1
+            propValue > otherValue -> 1
+            else -> {
+                val otherLocalId = other.localId
+                when {
+                    localId < otherLocalId -> -1
+                    localId > otherLocalId -> 1
+                    else -> 0
+                }
+            }
+        }
+    }
+}
+
+private class ByteIndexEntry(override val propValue: Byte, localId: Long) : IndexEntry<Byte>(localId) {
+
+    override fun compareTo(other: IndexEntry<Byte>): Int {
+        val result = propValue.toInt() - (other as ByteIndexEntry).propValue.toInt()
+        return when {
+            result != 0 -> result
+            else -> {
+                val otherLocalId = other.localId
+                when {
+                    localId < otherLocalId -> -1
+                    localId > otherLocalId -> 1
+                    else -> 0
+                }
+            }
+        }
+    }
+}
+
+private class ShortIndexEntry(override val propValue: Short, localId: Long) : IndexEntry<Short>(localId) {
+
+    override fun compareTo(other: IndexEntry<Short>): Int {
+        val result = propValue.toInt() - (other as ShortIndexEntry).propValue.toInt()
+        return when {
+            result != 0 -> result
+            else -> {
+                val otherLocalId = other.localId
+                when {
+                    localId < otherLocalId -> -1
+                    localId > otherLocalId -> 1
+                    else -> 0
+                }
+            }
+        }
     }
 }
