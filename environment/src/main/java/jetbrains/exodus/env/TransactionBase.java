@@ -109,12 +109,16 @@ public abstract class TransactionBase implements Transaction {
     @Override
     @Nullable
     public Object getUserObject(@NotNull final Object key) {
-        return userObjects.get(key);
+        synchronized (userObjects) {
+            return userObjects.get(key);
+        }
     }
 
     @Override
     public void setUserObject(@NotNull final Object key, @NotNull final Object value) {
-        userObjects.put(key, value);
+        synchronized (userObjects) {
+            userObjects.put(key, value);
+        }
     }
 
     @NotNull
@@ -221,10 +225,16 @@ public abstract class TransactionBase implements Transaction {
         this.isExclusive = isExclusive;
     }
 
-    protected void setIsFinished() {
+    protected boolean setIsFinished() {
         if (traceFinish == null) {
+            clearImmutableTrees();
+            synchronized (userObjects) {
+                userObjects.clear();
+            }
             traceFinish = new StackTrace();
+            return true;
         }
+        return false;
     }
 
     protected Runnable getWrappedBeginHook(@Nullable final Runnable beginHook) {

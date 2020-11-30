@@ -301,6 +301,15 @@ public class ReadWriteTransaction extends TransactionBase {
         return beginHook;
     }
 
+    @Override
+    protected boolean setIsFinished() {
+        if (super.setIsFinished()) {
+            mutableTrees.clear();
+            return true;
+        }
+        return false;
+    }
+
     private void doRevert() {
         mutableTrees.clear();
         removedStores.clear();
