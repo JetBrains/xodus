@@ -26,7 +26,7 @@ import kotlin.math.max
 class CachedBlobLengths(private val env: Environment,
                         private val blobFileLengths: Store) : VaultSizeFunctions {
 
-    private val blockSize = IOUtil.getBlockSize()
+    private val blockSize = IOUtil.blockSize
 
     override fun getBlobVaultSize(): Long {
         return if (env.isOpen) {

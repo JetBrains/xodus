@@ -245,7 +245,7 @@ public class CompressBackupUtil {
         }
         final InputStream input = source.getInputStream();
         try {
-            IOUtil.copyStreams(input, fileSize, out, IOUtil.BUFFER_ALLOCATOR);
+            IOUtil.copyStreams(input, fileSize, out, IOUtil.getBUFFER_ALLOCATOR());
         } finally {
             if (source.shouldCloseStream()) {
                 input.close();

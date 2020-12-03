@@ -29,6 +29,7 @@ import java.io.FileWriter;
 import java.util.zip.GZIPInputStream;
 
 public class CompressBackupUtilTest {
+
     private static final Random RANDOM = new Random(System.currentTimeMillis());
 
     private String randName;
