@@ -2,7 +2,7 @@
 
 The **Environments** layer provides the lowest-level API available. [Environment](https://github.com/JetBrains/xodus/blob/master/openAPI/src/main/java/jetbrains/exodus/env/Environment.java) encapsulates one or more [stores](https://github.com/JetBrains/xodus/blob/master/openAPI/src/main/java/jetbrains/exodus/env/Store.java) that contain data. This encapsulation lets you perform read and modify operations against multiple stores within a single [transaction](https://github.com/JetBrains/xodus/blob/master/openAPI/src/main/java/jetbrains/exodus/env/Transaction.java).
 
-In short, [Environment](https://github.com/JetBrains/xodus/blob/master/openAPI/src/main/java/jetbrains/exodus/env/Environment.java) is a transactional key-value storage. [Store](https://github.com/JetBrains/xodus/blob/master/openAPI/src/main/java/jetbrains/exodus/env/Store.java) is a named collection of key/value pairs. If a `Store` is allowed to contain duplicate keys, then it is a map. Otherwise, it is a multi-map. Also, `Store` can be thought as a table with two columns, one for keys and another for values. Both keys and values are managed using instances of [ByteIterable](https://github.com/JetBrains/xodus/blob/master/openAPI/src/main/java/jetbrains/exodus/ByteIterable.java). You can use [cursors](https://github.com/JetBrains/xodus/blob/master/openAPI/src/main/java/jetbrains/exodus/env/Cursor.java) to iterate over a `Store`, for example, to find the nearest key or key/value pair. All operations can only be performed within a transaction. The API and implementation live in the _jetbrains.exodus.env_ package.
+In short, [Environment](https://github.com/JetBrains/xodus/blob/master/openAPI/src/main/java/jetbrains/exodus/env/Environment.java) is a transactional key-value storage. [Store](https://github.com/JetBrains/xodus/blob/master/openAPI/src/main/java/jetbrains/exodus/env/Store.java) is a named collection of key/value pairs. If a `Store` is not allowed to contain duplicate keys, then it is a map. Otherwise, it is a multi-map. Also, `Store` can be thought as a table with two columns, one for keys and another for values. Both keys and values are managed using instances of [ByteIterable](https://github.com/JetBrains/xodus/blob/master/openAPI/src/main/java/jetbrains/exodus/ByteIterable.java). You can use [cursors](https://github.com/JetBrains/xodus/blob/master/openAPI/src/main/java/jetbrains/exodus/env/Cursor.java) to iterate over a `Store`, for example, to find the nearest key or key/value pair. All operations can only be performed within a transaction. The API and implementation live in the _jetbrains.exodus.env_ package.
 
 [Data Environments](https://github.com/JetBrains/xodus/wiki/Environments#data-environments)
 <br>[Transactions](https://github.com/JetBrains/xodus/wiki/Environments#transactions)
@@ -21,7 +21,7 @@ In short, [Environment](https://github.com/JetBrains/xodus/blob/master/openAPI/s
 
 ## Data Environments
 
-To open an Environment, create an instance of `Environment` with the help of the [Environments](https://github.com/JetBrains/xodus/blob/master/environment/src/main/java/jetbrains/exodus/env/Environments.java) utility class.
+To open an Environment, create an instance of `Environment` with the help of the [Environments](https://github.com/JetBrains/xodus/blob/master/environment/src/main/kotlin/jetbrains/exodus/env/Environments.kt) utility class.
 ```java
 Environment env = Environments.newInstance("/home/me/.myAppData");
 ```
@@ -71,7 +71,7 @@ Any transaction should be finished, meaning that it is either aborted or committ
 final Transaction txn = beginTransaction();
 try {
     while (true) {
-        // do something 
+        // do something
         if (txn.flush()) {
             break;
         }
@@ -184,7 +184,7 @@ Use the [delete()](https://github.com/JetBrains/xodus/blob/master/openAPI/src/ma
 
 #### ContextualStore
 
-ContextualStore is a `Store` created by a `ContextualEnvironment`. Just like `ContextualEnvironment`, it is aware of the [transaction]() that is started in the current thread. `ContextualStore` overloads all `Store`'s methods with the methods that don't accept a transaction instance.
+ContextualStore is a `Store` created by a `ContextualEnvironment`. Just like `ContextualEnvironment`, it is aware of the [transaction](https://github.com/JetBrains/xodus/wiki/Environments#transactions) that is started in the current thread. `ContextualStore` overloads all `Store`'s methods with the methods that don't accept a transaction instance.
 ```java
 final ContextualEnvironment env = Environments.newContextualInstance("/home/me/.myAppData");
 final ContextualStore store = env.openStore("MyStore", StoreConfig.WITHOUT_DUPLICATES);
