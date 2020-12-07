@@ -32,6 +32,7 @@ import jetbrains.exodus.gc.GarbageCollector;
 import jetbrains.exodus.gc.UtilizationProfile;
 import jetbrains.exodus.io.DataReaderWriterProvider;
 import jetbrains.exodus.io.RemoveBlockType;
+import jetbrains.exodus.io.StorageTypeNotAllowedException;
 import jetbrains.exodus.log.DataIterator;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogConfig;
@@ -41,6 +42,7 @@ import jetbrains.exodus.tree.TreeMetaInfo;
 import jetbrains.exodus.tree.btree.BTree;
 import jetbrains.exodus.tree.btree.BTreeBalancePolicy;
 import jetbrains.exodus.util.DeferredIO;
+import jetbrains.exodus.util.IOUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -117,7 +119,10 @@ public class EnvironmentImpl implements Environment {
     EnvironmentImpl(@NotNull final Log log, @NotNull final EnvironmentConfig ec) {
         this.log = log;
         this.ec = ec;
-        applyEnvironmentSettings(log.getLocation(), ec);
+        final String logLocation = log.getLocation();
+        applyEnvironmentSettings(logLocation, ec);
+
+        checkStorageType(logLocation, ec);
 
         final DataReaderWriterProvider readerWriterProvider = log.getConfig().getReaderWriterProvider();
         readerWriterProvider.onEnvironmentCreated(this);
@@ -168,7 +173,7 @@ public class EnvironmentImpl implements Environment {
         cipherKey = logConfig.getCipherKey();
         cipherBasicIV = logConfig.getCipherBasicIV();
 
-        loggerInfo("Exodus environment created: " + log.getLocation());
+        loggerInfo("Exodus environment created: " + logLocation);
     }
 
     @Override
@@ -1096,6 +1101,21 @@ public class EnvironmentImpl implements Environment {
                 }
             } catch (IOException e) {
                 throw ExodusException.toExodusException(e);
+            }
+        }
+    }
+
+    private static void checkStorageType(@NotNull final String location, @NotNull final EnvironmentConfig ec) {
+        if (ec.getLogDataReaderWriterProvider().equals(DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER)) {
+            final File databaseDir = new File(location);
+            if (!ec.isLogAllowRemovable() && IOUtil.isRemovableFile(databaseDir)) {
+                throw new StorageTypeNotAllowedException("Database on removable storage is not allowed");
+            }
+            if (!ec.isLogAllowRemote() && IOUtil.isRemoteFile(databaseDir)) {
+                throw new StorageTypeNotAllowedException("Database on remote storage is not allowed");
+            }
+            if (!ec.isLogAllowRamDisk() && IOUtil.isRamDiskFile(databaseDir)) {
+                throw new StorageTypeNotAllowedException("Database on RAM disk is not allowed");
             }
         }
     }

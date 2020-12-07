@@ -20,20 +20,32 @@ import java.nio.file.Files
 import kotlin.math.min
 
 /**
- * Encapsulates utility methods for IO and compression routine.
+ * Encapsulates utility methods for IO and compression routines.
  */
 object IOUtil {
 
-    const val READ_BUFFER_SIZE = 0x4000
+    private const val READ_BUFFER_SIZE = 0x4000
 
     @JvmStatic
     val BUFFER_ALLOCATOR = ByteArraySpinAllocator(READ_BUFFER_SIZE)
 
     private const val BLOCK_SIZE = "exodus.io.blockSize"
     private val NO_FILES = arrayOf<File>()
+    private val getStoreTypeMethod = UnsafeHolder.doPrivileged {
+        try {
+            Class.forName("sun.nio.fs.WindowsFileStore").getDeclaredMethod("volumeType").apply {
+                isAccessible = true
+            }
+        } catch (t: Throwable) {
+            null
+        }
+    }
 
     val blockSize: Long get() = java.lang.Long.getLong(BLOCK_SIZE, 0x1000)
 
+    /**
+     * Returns 'true' if the method is invoked in Windows & the file is removable.
+     */
     @JvmStatic
     fun isRemovableFile(file: File) =
             try {
@@ -42,10 +54,28 @@ object IOUtil {
                 false
             }
 
+    /**
+     * Returns 'true' if the method is invoked in Windows & the file is remote.
+     */
     @JvmStatic
-    fun isCdromFile(file: File) =
+    fun isRemoteFile(file: File) =
             try {
-                Files.getFileStore(file.toPath()).getAttribute("volume:isCdrom") == true
+                getStoreTypeMethod?.run {
+                    invoke(Files.getFileStore(file.toPath())) == 4
+                } ?: false
+            } catch (_: Throwable) {
+                false
+            }
+
+    /**
+     * Returns 'true' if the method is invoked in Windows & the file exists on a RAM disk..
+     */
+    @JvmStatic
+    fun isRamDiskFile(file: File) =
+            try {
+                getStoreTypeMethod?.run {
+                    invoke(Files.getFileStore(file.toPath())) == 6
+                } ?: false
             } catch (_: Throwable) {
                 false
             }

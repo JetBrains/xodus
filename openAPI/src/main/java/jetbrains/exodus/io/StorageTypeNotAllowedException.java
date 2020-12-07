@@ -13,18 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.util
+package jetbrains.exodus.io;
 
-import org.junit.Assert
-import org.junit.Test
+import jetbrains.exodus.ExodusException;
 
-class IOUtilTest {
+/**
+ * Exception thrown if a database is being opened on a storage of not allowed type:
+ * removable device, on a remote file system, or on a RAM disk.
+ */
+public class StorageTypeNotAllowedException extends ExodusException {
 
-    @Test
-    fun `is removable file`() {
-        createTempFile().let { tmpFile ->
-            Assert.assertFalse(IOUtil.isRemovableFile(tmpFile))
-            IOUtil.deleteFile(tmpFile)
-        }
+    public StorageTypeNotAllowedException(String message) {
+        super(message);
     }
 }

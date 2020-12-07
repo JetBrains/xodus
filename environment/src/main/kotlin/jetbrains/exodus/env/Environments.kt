@@ -17,6 +17,7 @@ package jetbrains.exodus.env
 
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.crypto.newCipherProvider
+import jetbrains.exodus.io.DataReaderWriterProvider
 import jetbrains.exodus.io.FileDataWriter
 import jetbrains.exodus.io.SharedOpenFilesCache
 import jetbrains.exodus.log.Log
@@ -82,10 +83,10 @@ object Environments {
                 memoryUsagePercentage = ec.memoryUsagePercentage
             }
             setReaderWriterProvider(ec.logDataReaderWriterProvider)
-            if (config.readerWriterProvider?.isReadonly == true) {
+            if (readerWriterProvider?.isReadonly == true) {
                 ec.envIsReadonly = true
                 ec.envFailFastInReadonly = true
-                config.isLockIgnored = true
+                isLockIgnored = true
             }
             fileSize = ec.logFileSize
             lockTimeout = ec.logLockTimeout
@@ -112,7 +113,8 @@ object Environments {
     private fun <T : EnvironmentImpl> prepare(envCreator: () -> T): T {
         var env = envCreator()
         val ec = env.environmentConfig
-        if (ec.envCompactOnOpen && env.log.numberOfFiles > 1) {
+        if (ec.logDataReaderWriterProvider == DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER &&
+                ec.envCompactOnOpen && env.log.numberOfFiles > 1) {
             val location = env.location
             File(location, "compactTemp${System.currentTimeMillis()}").let { tempDir ->
                 if (!tempDir.mkdir()) {

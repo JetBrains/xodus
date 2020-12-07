@@ -24,6 +24,7 @@ import jetbrains.exodus.entitystore.MetaServer;
 import jetbrains.exodus.io.DataReader;
 import jetbrains.exodus.io.DataReaderWriterProvider;
 import jetbrains.exodus.io.DataWriter;
+import jetbrains.exodus.io.StorageTypeNotAllowedException;
 import jetbrains.exodus.system.JVMConstants;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -280,6 +281,33 @@ public class EnvironmentConfig extends AbstractConfig {
      * <p>Mutable at runtime: no
      */
     public static final String LOG_FULL_FILE_READ_ONLY = "exodus.log.fullFileReadonly";
+
+    /**
+     * For {@linkplain DataReaderWriterProvider#DEFAULT_READER_WRITER_PROVIDER} used as {@linkplain
+     * DataReaderWriterProvider} service provider interface implementation, if is set to {@code true}
+     * then the database can be opened on a removable storage. Attempt to open database on a storage of not allowed
+     * type results in {@linkplain StorageTypeNotAllowedException}. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
+    public static final String LOG_ALLOW_REMOVABLE = "exodus.log.allowRemovable";
+
+    /**
+     * For {@linkplain DataReaderWriterProvider#DEFAULT_READER_WRITER_PROVIDER} used as {@linkplain
+     * DataReaderWriterProvider} service provider interface implementation, if is set to {@code true}
+     * then the database can be opened on a remote storage. Attempt to open database on a storage of not allowed
+     * type results in {@linkplain StorageTypeNotAllowedException}. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
+    public static final String LOG_ALLOW_REMOTE = "exodus.log.allowRemote";
+
+    /**
+     * For {@linkplain DataReaderWriterProvider#DEFAULT_READER_WRITER_PROVIDER} used as {@linkplain
+     * DataReaderWriterProvider} service provider interface implementation, if is set to {@code true}
+     * then the database can be opened on RAM-disk. Attempt to open database on a storage of not allowed
+     * type results in {@linkplain StorageTypeNotAllowedException}. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
+    public static final String LOG_ALLOW_RAM_DISK = "exodus.log.allowRamDisk";
 
     /**
      * Defines fully-qualified name of the {@linkplain DataReaderWriterProvider} service provider interface implementation which
@@ -675,6 +703,9 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(LOG_CLEAR_INVALID, false),
             new Pair(LOG_SYNC_PERIOD, 10000L),
             new Pair(LOG_FULL_FILE_READ_ONLY, true),
+            new Pair(LOG_ALLOW_REMOVABLE, false),
+            new Pair(LOG_ALLOW_REMOTE, false),
+            new Pair(LOG_ALLOW_RAM_DISK, false),
             new Pair(LOG_DATA_READER_WRITER_PROVIDER, DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER),
             new Pair(ENV_IS_READONLY, false),
             new Pair(ENV_FAIL_FAST_IN_READONLY, true),
@@ -1357,6 +1388,87 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public EnvironmentConfig setFullFileReadonly(final boolean readonly) {
         return setSetting(LOG_FULL_FILE_READ_ONLY, readonly);
+    }
+
+    /**
+     * For {@linkplain DataReaderWriterProvider#DEFAULT_READER_WRITER_PROVIDER} used as {@linkplain
+     * DataReaderWriterProvider} service provider interface implementation, if is set to {@code true}
+     * then the database can be opened on a removable storage. Attempt to open database on a storage of not allowed
+     * type results in {@linkplain StorageTypeNotAllowedException}. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     *
+     * @return {@code true} if the database can be opened on a removable storage
+     */
+    public boolean isLogAllowRemovable() {
+        return (Boolean) getSetting(LOG_ALLOW_REMOVABLE);
+    }
+
+    /**
+     * For {@linkplain DataReaderWriterProvider#DEFAULT_READER_WRITER_PROVIDER} used as {@linkplain
+     * DataReaderWriterProvider} service provider interface implementation, if is set to {@code true}
+     * then the database can be opened on a removable storage. Attempt to open database on a storage of not allowed
+     * type results in {@linkplain StorageTypeNotAllowedException}. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     *
+     * @param allow {@code true} to allow using database located on removable storage
+     * @return this {@code EnvironmentConfig} instance
+     */
+    public EnvironmentConfig setLogAllowRemovable(final boolean allow) {
+        return setSetting(LOG_ALLOW_REMOVABLE, allow);
+    }
+
+    /**
+     * For {@linkplain DataReaderWriterProvider#DEFAULT_READER_WRITER_PROVIDER} used as {@linkplain
+     * DataReaderWriterProvider} service provider interface implementation, if is set to {@code true}
+     * then the database can be opened on a remote storage. Attempt to open database on a storage of not allowed
+     * type results in {@linkplain StorageTypeNotAllowedException}. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     *
+     * @return {@code true} if the database can be opened on a remote storage
+     */
+    public boolean isLogAllowRemote() {
+        return (Boolean) getSetting(LOG_ALLOW_REMOTE);
+    }
+
+    /**
+     * For {@linkplain DataReaderWriterProvider#DEFAULT_READER_WRITER_PROVIDER} used as {@linkplain
+     * DataReaderWriterProvider} service provider interface implementation, if is set to {@code true}
+     * then the database can be opened on a remote storage. Attempt to open database on a storage of not allowed
+     * type results in {@linkplain StorageTypeNotAllowedException}. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     *
+     * @param allow {@code true} to allow using database located on remote storage
+     * @return this {@code EnvironmentConfig} instance
+     */
+    public EnvironmentConfig setLogAllowRemote(final boolean allow) {
+        return setSetting(LOG_ALLOW_REMOTE, allow);
+    }
+
+    /**
+     * For {@linkplain DataReaderWriterProvider#DEFAULT_READER_WRITER_PROVIDER} used as {@linkplain
+     * DataReaderWriterProvider} service provider interface implementation, if is set to {@code true}
+     * then the database can be opened on RAM-disk. Attempt to open database on a storage of not allowed
+     * type results in {@linkplain StorageTypeNotAllowedException}. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     *
+     * @return {@code true} if the database can be opened on RAM-disk
+     */
+    public boolean isLogAllowRamDisk() {
+        return (Boolean) getSetting(LOG_ALLOW_RAM_DISK);
+    }
+
+    /**
+     * For {@linkplain DataReaderWriterProvider#DEFAULT_READER_WRITER_PROVIDER} used as {@linkplain
+     * DataReaderWriterProvider} service provider interface implementation, if is set to {@code true}
+     * then the database can be opened on RAM-disk. Attempt to open database on a storage of not allowed
+     * type results in {@linkplain StorageTypeNotAllowedException}. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     *
+     * @param allow {@code true} to allow using database located on RAM-disk
+     * @return this {@code EnvironmentConfig} instance
+     */
+    public EnvironmentConfig setLogAllowRamDisk(final boolean allow) {
+        return setSetting(LOG_ALLOW_RAM_DISK, allow);
     }
 
     /**
