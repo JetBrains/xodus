@@ -83,6 +83,15 @@ open class EnvironmentConfig(protected val env: EnvironmentImpl) : MBeanBase(get
     override val isLogFullFileReadonly: Boolean
         get() = config.isLogFullFileReadonly
 
+    override val isLogAllowRemovable: Boolean
+        get() = config.isLogAllowRemovable
+
+    override val isLogAllowRemote: Boolean
+        get() = config.isLogAllowRemote
+
+    override val isLogAllowRamDisk: Boolean
+        get() = config.isLogAllowRamDisk
+
     override var envIsReadonly: Boolean
         get() = config.envIsReadonly
         set(isReadonly) {
@@ -147,6 +156,12 @@ open class EnvironmentConfig(protected val env: EnvironmentImpl) : MBeanBase(get
         get() = config.envTxnSingleThreadWrites
         set(singleThreadWrites) {
             config.envTxnSingleThreadWrites = singleThreadWrites
+        }
+
+    override var envTxnTraceFinish: Boolean
+        get() = config.isEnvTxnTraceFinish
+        set(traceFinish) {
+            config.isEnvTxnTraceFinish = traceFinish
         }
 
     override val envMaxParallelTxns: Int

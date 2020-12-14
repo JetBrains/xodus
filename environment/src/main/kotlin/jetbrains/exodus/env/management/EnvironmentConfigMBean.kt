@@ -35,6 +35,9 @@ interface EnvironmentConfigMBean {
     val isLogClearInvalid: Boolean
     var logSyncPeriod: Long
     val isLogFullFileReadonly: Boolean
+    val isLogAllowRemovable: Boolean
+    val isLogAllowRemote: Boolean
+    val isLogAllowRamDisk: Boolean
     var envIsReadonly: Boolean
     var envFailFastInReadonly: Boolean
     var envReadonlyEmptyStores: Boolean
@@ -46,6 +49,7 @@ interface EnvironmentConfigMBean {
     var envTxnReplayMaxCount: Int
     var envTxnDowngradeAfterFlush: Boolean
     var envTxnSingleThreadWrites: Boolean
+    var envTxnTraceFinish: Boolean
     val envMaxParallelTxns: Int
     val envMaxParallelReadonlyTxns: Int
     val envMonitorTxnsTimeout: Int
