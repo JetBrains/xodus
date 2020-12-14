@@ -32,6 +32,9 @@ import java.util.Map;
 public abstract class TransactionBase implements Transaction {
 
     @NotNull
+    private static final StackTrace EMPTY_TRACE = new StackTrace(new StackTraceElement[0]);
+
+    @NotNull
     private final EnvironmentImpl env;
     @NotNull
     private final Thread creatingThread;
@@ -137,7 +140,9 @@ public abstract class TransactionBase implements Transaction {
 
     public void checkIsFinished() {
         if (isFinished()) {
-            throw new TransactionFinishedException(traceFinish);
+            throw traceFinish == EMPTY_TRACE ?
+                new TransactionFinishedException() :
+                new TransactionFinishedException(traceFinish);
         }
     }
 
@@ -231,7 +236,7 @@ public abstract class TransactionBase implements Transaction {
             synchronized (userObjects) {
                 userObjects.clear();
             }
-            traceFinish = new StackTrace();
+            traceFinish = env.getEnvironmentConfig().isEnvTxnTraceFinish() ? new StackTrace() : EMPTY_TRACE;
             return true;
         }
         return false;

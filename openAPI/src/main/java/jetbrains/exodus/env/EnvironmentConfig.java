@@ -136,6 +136,8 @@ public class EnvironmentConfig extends AbstractConfig {
     /**
      * If is set to {@code true} database profiler is enabled. By default, it is disabled.
      * <p>Mutable at runtime: no
+     *
+     * @since 1.4.0
      */
     public static final String PROFILER_ENABLED = "exodus.profiler.enabled";
 
@@ -288,6 +290,8 @@ public class EnvironmentConfig extends AbstractConfig {
      * then the database can be opened on a removable storage. Attempt to open database on a storage of not allowed
      * type results in {@linkplain StorageTypeNotAllowedException}. Default value is {@code false}.
      * <p>Mutable at runtime: no
+     *
+     * @since 1.4.0
      */
     public static final String LOG_ALLOW_REMOVABLE = "exodus.log.allowRemovable";
 
@@ -297,6 +301,8 @@ public class EnvironmentConfig extends AbstractConfig {
      * then the database can be opened on a remote storage. Attempt to open database on a storage of not allowed
      * type results in {@linkplain StorageTypeNotAllowedException}. Default value is {@code false}.
      * <p>Mutable at runtime: no
+     *
+     * @since 1.4.0
      */
     public static final String LOG_ALLOW_REMOTE = "exodus.log.allowRemote";
 
@@ -306,6 +312,8 @@ public class EnvironmentConfig extends AbstractConfig {
      * then the database can be opened on RAM-disk. Attempt to open database on a storage of not allowed
      * type results in {@linkplain StorageTypeNotAllowedException}. Default value is {@code false}.
      * <p>Mutable at runtime: no
+     *
+     * @since 1.4.0
      */
     public static final String LOG_ALLOW_RAM_DISK = "exodus.log.allowRamDisk";
 
@@ -415,6 +423,17 @@ public class EnvironmentConfig extends AbstractConfig {
      * @see Transaction
      */
     public static final String ENV_TXN_SINGLE_THREAD_WRITES = "exodus.env.txn.singleThreadWrites";
+
+    /**
+     * If is set to {@code true} then each transaction, read/write or read-only, saves stack trace
+     * when it is finished (aborted or committed). The stack trace is then reported with
+     * {@code TransactionFinishedException}. Default value is {@code false}.
+     * <p>Mutable at runtime: yes
+     *
+     * @see Transaction
+     * @since 1.4.0
+     */
+    public static final String ENV_TXN_TRACE_FINISH = "exodus.env.txn.traceFinish";
 
     /**
      * Defines the number of {@linkplain Transaction transactions} that can be started in parallel. By default it is
@@ -718,6 +737,7 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(ENV_TXN_REPLAY_MAX_COUNT, 2),
             new Pair(ENV_TXN_DOWNGRADE_AFTER_FLUSH, true),
             new Pair(ENV_TXN_SINGLE_THREAD_WRITES, false),
+            new Pair(ENV_TXN_TRACE_FINISH, false),
             new Pair(ENV_MAX_PARALLEL_TXNS, Integer.MAX_VALUE),
             new Pair(ENV_MAX_PARALLEL_READONLY_TXNS, Integer.MAX_VALUE),
             new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
@@ -943,6 +963,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * <p>Mutable at runtime: no
      *
      * @return {@code true} if database profiler is enabled.
+     * @since 1.4.0
      */
     public boolean getProfilerEnabled() {
         return (Boolean) getSetting(PROFILER_ENABLED);
@@ -954,6 +975,7 @@ public class EnvironmentConfig extends AbstractConfig {
      *
      * @param enabled {@code true} to enable database profiler.
      * @return this {@code EnvironmentConfig} instance
+     * @since 1.4.0
      */
     public EnvironmentConfig setProfilerEnabled(final boolean enabled) {
         return setSetting(PROFILER_ENABLED, enabled);
@@ -1398,6 +1420,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * <p>Mutable at runtime: no
      *
      * @return {@code true} if the database can be opened on a removable storage
+     * @since 1.4.0
      */
     public boolean isLogAllowRemovable() {
         return (Boolean) getSetting(LOG_ALLOW_REMOVABLE);
@@ -1412,6 +1435,7 @@ public class EnvironmentConfig extends AbstractConfig {
      *
      * @param allow {@code true} to allow using database located on removable storage
      * @return this {@code EnvironmentConfig} instance
+     * @since 1.4.0
      */
     public EnvironmentConfig setLogAllowRemovable(final boolean allow) {
         return setSetting(LOG_ALLOW_REMOVABLE, allow);
@@ -1425,6 +1449,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * <p>Mutable at runtime: no
      *
      * @return {@code true} if the database can be opened on a remote storage
+     * @since 1.4.0
      */
     public boolean isLogAllowRemote() {
         return (Boolean) getSetting(LOG_ALLOW_REMOTE);
@@ -1439,6 +1464,7 @@ public class EnvironmentConfig extends AbstractConfig {
      *
      * @param allow {@code true} to allow using database located on remote storage
      * @return this {@code EnvironmentConfig} instance
+     * @since 1.4.0
      */
     public EnvironmentConfig setLogAllowRemote(final boolean allow) {
         return setSetting(LOG_ALLOW_REMOTE, allow);
@@ -1452,6 +1478,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * <p>Mutable at runtime: no
      *
      * @return {@code true} if the database can be opened on RAM-disk
+     * @since 1.4.0
      */
     public boolean isLogAllowRamDisk() {
         return (Boolean) getSetting(LOG_ALLOW_RAM_DISK);
@@ -1466,6 +1493,7 @@ public class EnvironmentConfig extends AbstractConfig {
      *
      * @param allow {@code true} to allow using database located on RAM-disk
      * @return this {@code EnvironmentConfig} instance
+     * @since 1.4.0
      */
     public EnvironmentConfig setLogAllowRamDisk(final boolean allow) {
         return setSetting(LOG_ALLOW_RAM_DISK, allow);
@@ -1765,6 +1793,35 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public EnvironmentConfig setEnvTxnSingleThreadWrites(final boolean singleThreadWrites) {
         return setSetting(ENV_TXN_SINGLE_THREAD_WRITES, singleThreadWrites);
+    }
+
+    /**
+     * If is set to {@code true} then each transaction, read/write or read-only, saves stack trace
+     * when it is finished (aborted or committed). The stack trace is then reported with
+     * {@code TransactionFinishedException}. Default value is {@code false}.
+     * <p>Mutable at runtime: yes
+     *
+     * @return {@code true} if each transaction saves stack trace when it is finished
+     * @see Transaction
+     * @since 1.4.0
+     */
+    public boolean isEnvTxnTraceFinish() {
+        return (Boolean) getSetting(ENV_TXN_TRACE_FINISH);
+    }
+
+    /**
+     * If is set to {@code true} then each transaction, read/write or read-only, saves stack trace
+     * when it is finished (aborted or committed). The stack trace is then reported with
+     * {@code TransactionFinishedException}. Default value is {@code false}.
+     * <p>Mutable at runtime: yes
+     *
+     * @param traceFinish {@code true} if each transaction should save stack trace when it is finished
+     * @return this {@code EnvironmentConfig} instance
+     * @see Transaction
+     * @since 1.4.0
+     */
+    public EnvironmentConfig setEnvTxnTraceFinish(final boolean traceFinish) {
+        return setSetting(ENV_TXN_TRACE_FINISH, traceFinish);
     }
 
     /**

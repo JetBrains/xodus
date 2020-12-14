@@ -17,16 +17,23 @@ package jetbrains.exodus.env;
 
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.debug.StackTrace;
+import org.jetbrains.annotations.Nullable;
 
 public class TransactionFinishedException extends ExodusException {
 
+    @Nullable
     private final StackTrace trace;
 
-    TransactionFinishedException(StackTrace trace) {
+    TransactionFinishedException() {
+        this(null);
+    }
+
+    TransactionFinishedException(@Nullable StackTrace trace) {
         super("Transaction is already finished");
         this.trace = trace;
     }
 
+    @Nullable
     public StackTrace getTrace() {
         return trace;
     }
