@@ -41,6 +41,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.BiFunction;
 
 @SuppressWarnings({"rawtypes"})
 public class PersistentStoreTransaction implements StoreTransaction, TxnGetterStrategy, TxnProvider {
@@ -306,30 +307,26 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     public EntityIterable find(@NotNull final String entityType,
                                @NotNull final String propertyName,
                                @NotNull final Comparable value) {
-        final int entityTypeId = store.getEntityTypeId(this, entityType, false);
-        if (entityTypeId < 0) {
-            return EntityIterableBase.EMPTY;
-        }
-        final int propertyId = store.getPropertyId(this, propertyName, false);
-        if (propertyId < 0) {
-            return EntityIterableBase.EMPTY;
-        }
-        return new PropertyValueIterable(this, entityTypeId, propertyId, value);
+        return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
+            new PropertyValueIterable(this, entityTypeId, propertyId, value));
     }
 
     @Override
     @NotNull
     public EntityIterable find(@NotNull final String entityType, @NotNull final String propertyName,
                                @NotNull final Comparable minValue, @NotNull final Comparable maxValue) {
-        final int entityTypeId = store.getEntityTypeId(this, entityType, false);
-        if (entityTypeId < 0) {
-            return EntityIterableBase.EMPTY;
+        return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
+            new PropertyRangeIterable(this, entityTypeId, propertyId, minValue, maxValue));
+    }
+
+    @Override
+    public @NotNull EntityIterable findContaining(@NotNull final String entityType, @NotNull final String propertyName,
+                                                  @NotNull final String value, final boolean ignoreCase) {
+        if (value.isEmpty()) {
+            return findWithPropSortedByValue(entityType, propertyName);
         }
-        final int propertyId = store.getPropertyId(this, propertyName, false);
-        if (propertyId < 0) {
-            return EntityIterableBase.EMPTY;
-        }
-        return new PropertyRangeIterable(this, entityTypeId, propertyId, minValue, maxValue);
+        return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
+            new PropertyContainsValueEntityIterable(this, entityTypeId, propertyId, value, ignoreCase));
     }
 
     @Override
@@ -345,27 +342,13 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     @NotNull
     @Override
     public EntityIterableBase findWithProp(@NotNull final String entityType, @NotNull final String propertyName) {
-        final int entityTypeId = store.getEntityTypeId(this, entityType, false);
-        if (entityTypeId < 0) {
-            return EntityIterableBase.EMPTY;
-        }
-        final int propertyId = store.getPropertyId(this, propertyName, false);
-        if (propertyId < 0) {
-            return EntityIterableBase.EMPTY;
-        }
-        return new EntitiesWithPropertyIterable(this, entityTypeId, propertyId);
+        return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
+            new EntitiesWithPropertyIterable(this, entityTypeId, propertyId));
     }
 
     public EntityIterableBase findWithPropSortedByValue(@NotNull final String entityType, @NotNull final String propertyName) {
-        final int entityTypeId = store.getEntityTypeId(this, entityType, false);
-        if (entityTypeId < 0) {
-            return EntityIterableBase.EMPTY;
-        }
-        final int propertyId = store.getPropertyId(this, propertyName, false);
-        if (propertyId < 0) {
-            return EntityIterableBase.EMPTY;
-        }
-        return new PropertiesIterable(this, entityTypeId, propertyId);
+        return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
+            new PropertiesIterable(this, entityTypeId, propertyId));
     }
 
     @Override
@@ -383,15 +366,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     @NotNull
     @Override
     public EntityIterable findWithBlob(@NotNull final String entityType, @NotNull final String blobName) {
-        final int entityTypeId = store.getEntityTypeId(this, entityType, false);
-        if (entityTypeId < 0) {
-            return EntityIterableBase.EMPTY;
-        }
-        final int blobId = store.getPropertyId(this, blobName, false);
-        if (blobId < 0) {
-            return EntityIterableBase.EMPTY;
-        }
-        return new EntitiesWithBlobIterable(this, entityTypeId, blobId);
+        return getPropertyIterable(entityType, blobName, (entityTypeId, blobId) ->
+            new EntitiesWithBlobIterable(this, entityTypeId, blobId));
     }
 
     @Override
@@ -944,6 +920,20 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (e instanceof IOException && store.getUsableSpace() < 4096) {
             throw new OutOfDiskSpaceException(e);
         }
+    }
+
+    private EntityIterableBase getPropertyIterable(@NotNull final String entityType,
+                                                   @NotNull final String propertyName,
+                                                   @NotNull final BiFunction<Integer, Integer, EntityIterableBase> instantiator) {
+        final int entityTypeId = store.getEntityTypeId(this, entityType, false);
+        if (entityTypeId < 0) {
+            return EntityIterableBase.EMPTY;
+        }
+        final int propertyId = store.getPropertyId(this, propertyName, false);
+        if (propertyId < 0) {
+            return EntityIterableBase.EMPTY;
+        }
+        return instantiator.apply(entityTypeId, propertyId);
     }
 
     @SuppressWarnings("unchecked")

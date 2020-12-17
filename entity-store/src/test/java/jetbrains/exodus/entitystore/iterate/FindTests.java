@@ -66,10 +66,43 @@ public class FindTests extends EntityStoreTestBase {
         for (int i = 0; i < 100; ++i) {
             final Entity entity = txn.newEntity("Issue");
             entity.setProperty("description", "Test issue #" + i % 10);
-            entity.setProperty("size", i);
         }
         txn.flush();
         final EntityIterable issues = txn.find("Issue", "description", "Test ISSUE #5");
+        int count = 0;
+        for (final Entity issue : issues) {
+            Assert.assertEquals("Test issue #5", issue.getProperty("description"));
+            count++;
+        }
+        Assert.assertEquals(10, count);
+    }
+
+    @TestFor(issue = "XD-824")
+    public void testFindContaining() {
+        final StoreTransaction txn = getStoreTransaction();
+        for (int i = 0; i < 100; ++i) {
+            final Entity entity = txn.newEntity("Issue");
+            entity.setProperty("description", "Test issue #" + i % 10);
+        }
+        txn.flush();
+        final EntityIterable issues = txn.findContaining("Issue", "description", "e #5", false);
+        int count = 0;
+        for (final Entity issue : issues) {
+            Assert.assertEquals("Test issue #5", issue.getProperty("description"));
+            count++;
+        }
+        Assert.assertEquals(10, count);
+    }
+
+    @TestFor(issue = "XD-824")
+    public void testFindContainingIgnoreCase() {
+        final StoreTransaction txn = getStoreTransaction();
+        for (int i = 0; i < 100; ++i) {
+            final Entity entity = txn.newEntity("Issue");
+            entity.setProperty("description", "Test issue #" + i % 10);
+        }
+        txn.flush();
+        final EntityIterable issues = txn.findContaining("Issue", "description", "T ISSUE #5", true);
         int count = 0;
         for (final Entity issue : issues) {
             Assert.assertEquals("Test issue #5", issue.getProperty("description"));

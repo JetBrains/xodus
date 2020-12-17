@@ -280,6 +280,24 @@ public interface StoreTransaction {
                         @NotNull final Comparable maxValue);
 
     /**
+     * Returns {@linkplain EntityIterable} with entities of specified type with specified property having a string value
+     * containing specified value as sub-string with respect to specified character case.
+     * specified range {@code [minValue, maxValue]}.
+     *
+     * @param entityType   entity type
+     * @param propertyName name of the property to search for
+     * @param value        sub-string that the property should contain
+     * @param ignoreCase   {@code true} to ignore character case when comparing strings
+     * @return {@linkplain EntityIterable} instance
+     * @see EntityIterable
+     */
+    @NotNull
+    EntityIterable findContaining(@NotNull final String entityType,
+                                  @NotNull final String propertyName,
+                                  @NotNull final String value,
+                                  final boolean ignoreCase);
+
+    /**
      * Returns {@linkplain EntityIterable} with entities of specified type which have {@linkplain String} values of
      * specified property starting with specified {@code value}.
      *

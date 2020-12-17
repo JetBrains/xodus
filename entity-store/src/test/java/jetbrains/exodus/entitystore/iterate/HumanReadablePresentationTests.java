@@ -60,6 +60,7 @@ public class HumanReadablePresentationTests extends EntityStoreTestBase {
         );
         checkIterable(new PropertiesIterable(txn, 0, 1), "Entities with property sorted by its value 0 1");
         checkIterable(new PropertyValueIterable(txn, 0, 1, "value"), "Entities with specified property value 0 1 value");
+        checkIterable(new PropertyContainsValueEntityIterable(txn, 0, 1, "sub", true), "Entities with string property containing a value 0 1 sub true");
         checkIterable(new EntitiesOfTypeIterable(txn, 0), "All entities of specific type 0");
         checkIterable(new EntitiesOfTypeRangeIterable(txn, 0, 3, 8), "Entities of specific type within id range 0 3 8");
         checkIterable(new EntitiesWithLinkIterable(txn, 0, 1), "Entities with link 0 1");

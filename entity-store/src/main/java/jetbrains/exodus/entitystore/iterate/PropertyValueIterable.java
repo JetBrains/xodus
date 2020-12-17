@@ -29,7 +29,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Iterates all entities of specified entity type having specified property equal to a value.
  */
-@SuppressWarnings({"unchecked"})
+@SuppressWarnings({"unchecked", "rawtypes"})
 public final class PropertyValueIterable extends PropertyRangeOrValueIterableBase {
 
     @NotNull
@@ -122,7 +122,7 @@ public final class PropertyValueIterable extends PropertyRangeOrValueIterableBas
 
             @Override
             public int getEntityTypeId() {
-                return PropertyValueIterable.this.getEntityTypeId();
+                return entityTypeId;
             }
 
             @Override

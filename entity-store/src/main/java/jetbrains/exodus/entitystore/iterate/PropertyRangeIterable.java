@@ -28,7 +28,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
 
-@SuppressWarnings({"unchecked"})
+@SuppressWarnings({"unchecked", "rawtypes"})
 public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBase {
 
     @NotNull
@@ -129,7 +129,7 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
 
             @Override
             public int getEntityTypeId() {
-                return PropertyRangeIterable.this.getEntityTypeId();
+                return entityTypeId;
             }
 
             @Override
