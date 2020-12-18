@@ -167,9 +167,6 @@ open class EnvironmentConfig(protected val env: EnvironmentImpl) : MBeanBase(get
     override val envMaxParallelTxns: Int
         get() = config.envMaxParallelTxns
 
-    override val envMaxParallelReadonlyTxns: Int
-        get() = config.envMaxParallelReadonlyTxns
-
     override val envMonitorTxnsTimeout: Int
         get() = config.envMonitorTxnsTimeout
 

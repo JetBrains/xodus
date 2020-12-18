@@ -51,7 +51,6 @@ interface EnvironmentConfigMBean {
     var envTxnSingleThreadWrites: Boolean
     var envTxnTraceFinish: Boolean
     val envMaxParallelTxns: Int
-    val envMaxParallelReadonlyTxns: Int
     val envMonitorTxnsTimeout: Int
     val envMonitorTxnsCheckFreq: Int
     val envGatherStatistics: Boolean

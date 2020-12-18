@@ -441,7 +441,6 @@ public class EnvironmentConfig extends AbstractConfig {
      * <p>Mutable at runtime: no
      *
      * @see Transaction
-     * @see #ENV_MAX_PARALLEL_READONLY_TXNS
      */
     public static final String ENV_MAX_PARALLEL_TXNS = "exodus.env.maxParallelTxns";
 
@@ -450,10 +449,13 @@ public class EnvironmentConfig extends AbstractConfig {
      * default it is unlimited.
      * <p>Mutable at runtime: no
      *
+     * As of 1.4.0, is deprecated.
+     *
      * @see Transaction
      * @see Transaction#isReadonly()
      * @see #ENV_MAX_PARALLEL_TXNS
      */
+    @Deprecated
     public static final String ENV_MAX_PARALLEL_READONLY_TXNS = "exodus.env.maxParallelReadonlyTxns";
 
     /**
@@ -739,7 +741,6 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(ENV_TXN_SINGLE_THREAD_WRITES, false),
             new Pair(ENV_TXN_TRACE_FINISH, false),
             new Pair(ENV_MAX_PARALLEL_TXNS, Integer.MAX_VALUE),
-            new Pair(ENV_MAX_PARALLEL_READONLY_TXNS, Integer.MAX_VALUE),
             new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
             new Pair(ENV_MONITOR_TXNS_EXPIRATION_TIMEOUT, (int) TimeUnit.HOURS.toMillis(8)),
             new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
@@ -1852,10 +1853,13 @@ public class EnvironmentConfig extends AbstractConfig {
      * default it is unlimited.
      * <p>Mutable at runtime: no
      *
+     * As of 1.4.0, is deprecated.
+     *
      * @return number of read-only {@linkplain Transaction transactions} that can be started in parallel
      */
+    @Deprecated
     public int getEnvMaxParallelReadonlyTxns() {
-        return (Integer) getSetting(ENV_MAX_PARALLEL_READONLY_TXNS);
+        return Integer.MAX_VALUE;
     }
 
     /**
@@ -1863,11 +1867,13 @@ public class EnvironmentConfig extends AbstractConfig {
      * default it is unlimited.
      * <p>Mutable at runtime: no
      *
+     * As of 1.4.0, is deprecated.
+     *
      * @param maxParallelReadonlyTxns number of read-only {@linkplain Transaction transactions} that can be started in parallel
      * @return this {@code EnvironmentConfig} instance
      */
     public EnvironmentConfig setEnvMaxParallelReadonlyTxns(final int maxParallelReadonlyTxns) {
-        return setSetting(ENV_MAX_PARALLEL_TXNS, maxParallelReadonlyTxns);
+        return this;
     }
 
     /**

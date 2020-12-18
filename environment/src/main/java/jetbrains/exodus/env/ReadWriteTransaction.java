@@ -41,6 +41,7 @@ public class ReadWriteTransaction extends TransactionBase {
     @Nullable
     private Runnable commitHook;
     private int replayCount;
+    private int acquiredPermits;
 
     ReadWriteTransaction(@NotNull final EnvironmentImpl env,
                          @Nullable final Runnable beginHook,
@@ -213,6 +214,14 @@ public class ReadWriteTransaction extends TransactionBase {
 
     void incReplayCount() {
         ++replayCount;
+    }
+
+    int getAcquiredPermits() {
+        return acquiredPermits;
+    }
+
+    void setAcquiredPermits(final int acquiredPermits) {
+        this.acquiredPermits = acquiredPermits;
     }
 
     boolean isStoreNew(@NotNull final String name) {

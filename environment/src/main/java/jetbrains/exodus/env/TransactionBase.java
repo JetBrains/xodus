@@ -51,7 +51,6 @@ public abstract class TransactionBase implements Transaction {
     private final boolean wasCreatedExclusive;
     @Nullable
     private StackTrace traceFinish;
-    private int acquiredPermits;
 
     public TransactionBase(@NotNull final EnvironmentImpl env, final boolean isExclusive) {
         this.env = env;
@@ -207,14 +206,6 @@ public abstract class TransactionBase implements Transaction {
     List<String> getAllStoreNames() {
         checkIsFinished();
         return getMetaTree().getAllStoreNames();
-    }
-
-    int getAcquiredPermits() {
-        return acquiredPermits;
-    }
-
-    void setAcquiredPermits(final int acquiredPermits) {
-        this.acquiredPermits = acquiredPermits;
     }
 
     @Nullable

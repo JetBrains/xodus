@@ -26,7 +26,7 @@ public class ReadonlyTransaction extends TransactionBase {
     public ReadonlyTransaction(@NotNull final EnvironmentImpl env, final  boolean exclusive, @Nullable final Runnable beginHook) {
         super(env, exclusive);
         this.beginHook = getWrappedBeginHook(beginHook);
-        env.holdNewestSnapshotBy(this);
+        env.holdNewestSnapshotBy(this, false);
     }
 
     /**
@@ -37,7 +37,6 @@ public class ReadonlyTransaction extends TransactionBase {
         beginHook = null;
         setMetaTree(origin.getMetaTree());
         final EnvironmentImpl env = getEnvironment();
-        env.acquireTransaction(this);
         env.registerTransaction(this);
     }
 

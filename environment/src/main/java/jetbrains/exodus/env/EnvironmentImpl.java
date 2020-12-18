@@ -85,7 +85,6 @@ public class EnvironmentImpl implements Environment {
     private final ReentrantReadWriteLock.ReadLock metaReadLock;
     final ReentrantReadWriteLock.WriteLock metaWriteLock;
     private final ReentrantTransactionDispatcher txnDispatcher;
-    private final ReentrantTransactionDispatcher roTxnDispatcher;
     @NotNull
     private final EnvironmentStatistics statistics;
     @Nullable
@@ -146,7 +145,6 @@ public class EnvironmentImpl implements Environment {
         metaWriteLock = metaLock.writeLock();
 
         txnDispatcher = new ReentrantTransactionDispatcher(ec.getEnvMaxParallelTxns());
-        roTxnDispatcher = new ReentrantTransactionDispatcher(ec.getEnvMaxParallelReadonlyTxns());
 
         statistics = new EnvironmentStatistics(this);
         txnProfiler = ec.getProfilerEnabled() ? new TxnProfiler() : null;
@@ -358,7 +356,7 @@ public class EnvironmentImpl implements Environment {
     @Override
     public void clear() {
         final Thread currentThread = Thread.currentThread();
-        if (txnDispatcher.getThreadPermits(currentThread) != 0 || roTxnDispatcher.getThreadPermits(currentThread) != 0) {
+        if (txnDispatcher.getThreadPermits(currentThread) != 0) {
             throw new ExodusException("Environment.clear() can't proceed if there is a transaction in current thread");
         }
         runAllTransactionSafeTasks();
@@ -369,24 +367,19 @@ public class EnvironmentImpl implements Environment {
         try {
             final int permits = txnDispatcher.acquireExclusiveTransaction(currentThread);// wait for and stop all writing transactions
             try {
-                final int roPermits = roTxnDispatcher.acquireExclusiveTransaction(currentThread);// wait for and stop all read-only transactions
-                try {
-                    synchronized (commitLock) {
-                        metaWriteLock.lock();
-                        try {
-                            gc.clear();
-                            log.clear();
-                            invalidateStoreGetCache();
-                            throwableOnCommit = null;
-                            final Pair<MetaTreeImpl, Integer> meta = MetaTreeImpl.create(this);
-                            metaTree = meta.getFirst();
-                            structureId.set(meta.getSecond());
-                        } finally {
-                            metaWriteLock.unlock();
-                        }
+                synchronized (commitLock) {
+                    metaWriteLock.lock();
+                    try {
+                        gc.clear();
+                        log.clear();
+                        invalidateStoreGetCache();
+                        throwableOnCommit = null;
+                        final Pair<MetaTreeImpl, Integer> meta = MetaTreeImpl.create(this);
+                        metaTree = meta.getFirst();
+                        structureId.set(meta.getSecond());
+                    } finally {
+                        metaWriteLock.unlock();
                     }
-                } finally {
-                    roTxnDispatcher.releaseTransaction(currentThread, roPermits);
                 }
             } finally {
                 txnDispatcher.releaseTransaction(currentThread, permits);
@@ -575,7 +568,9 @@ public class EnvironmentImpl implements Environment {
     }
 
     protected void finishTransaction(@NotNull final TransactionBase txn) {
-        releaseTransaction(txn);
+        if (!txn.isReadonly()) {
+            releaseTransaction(txn);
+        }
         txns.remove(txn);
         txn.setIsFinished();
         final long duration = System.currentTimeMillis() - txn.getCreated();
@@ -611,16 +606,19 @@ public class EnvironmentImpl implements Environment {
 
     void acquireTransaction(@NotNull final TransactionBase txn) {
         checkIfTransactionCreatedAgainstThis(txn);
-        (txn.isReadonly() ? roTxnDispatcher : txnDispatcher).acquireTransaction(txn, this);
+        txnDispatcher.acquireTransaction(throwIfReadonly(
+            txn, "TxnDispatcher can't acquire permits for read-only transaction"), this);
     }
 
     void releaseTransaction(@NotNull final TransactionBase txn) {
         checkIfTransactionCreatedAgainstThis(txn);
-        (txn.isReadonly() ? roTxnDispatcher : txnDispatcher).releaseTransaction(txn);
+        txnDispatcher.releaseTransaction(throwIfReadonly(
+            txn, "TxnDispatcher can't release permits for read-only transaction"));
     }
 
     void downgradeTransaction(@NotNull final TransactionBase txn) {
-        (txn.isReadonly() ? roTxnDispatcher : txnDispatcher).downgradeTransaction(txn);
+        txnDispatcher.downgradeTransaction(throwIfReadonly(
+            txn, "TxnDispatcher can't downgrade read-only transaction"));
     }
 
     boolean shouldTransactionBeExclusive(@NotNull final ReadWriteTransaction txn) {
