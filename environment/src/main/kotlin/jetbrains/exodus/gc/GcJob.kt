@@ -20,13 +20,9 @@ import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.core.execution.JobProcessorAdapter
 import java.lang.ref.WeakReference
 
-open class GcJob(gc: GarbageCollector?, private val unitOfWork: (() -> Unit)? = null) : Job() {
+open class GcJob(gc: GarbageCollector, private val unitOfWork: (() -> Unit)? = null) : Job() {
 
     private var gcRef = WeakReference(gc)
-
-    init {
-        processor = gc?.cleaner?.getJobProcessor()
-    }
 
     protected val gc get() = gcRef.get()
 
@@ -61,6 +57,16 @@ open class GcJob(gc: GarbageCollector?, private val unitOfWork: (() -> Unit)? = 
     fun cancel() {
         gcRef = WeakReference(null)
         processor = null
+    }
+
+    /**
+     * If the job has been cancelled it must be renewed before queueing
+     */
+    internal fun renew(gc: GarbageCollector) {
+        this.gc ?: let {
+            gcRef = WeakReference(gc)
+            processor = gc.cleaner.getJobProcessor()
+        }
     }
 
     protected open fun doJob() {}
