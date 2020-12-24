@@ -22,7 +22,7 @@ abstract class JobHandler {
     companion object {
 
         @JvmStatic
-        fun append(handlers: Array<JobHandler>, handle: JobHandler) = handlers + handle
+        fun append(handlers: Array<JobHandler>?, handle: JobHandler) = handlers?.let { it + handle } ?: arrayOf(handle)
 
         @JvmStatic
         fun remove(handlers: Array<JobHandler>, handle: JobHandler): Array<JobHandler>? {
