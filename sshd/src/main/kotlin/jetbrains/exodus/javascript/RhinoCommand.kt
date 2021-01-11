@@ -21,9 +21,10 @@ import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
 import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.kotlin.notNull
-import org.apache.sshd.server.Command
 import org.apache.sshd.server.Environment
 import org.apache.sshd.server.ExitCallback
+import org.apache.sshd.server.channel.ChannelSession
+import org.apache.sshd.server.command.Command
 import org.mozilla.javascript.*
 import org.mozilla.javascript.tools.ToolErrorReporter
 import java.awt.event.KeyEvent
@@ -78,7 +79,7 @@ abstract class RhinoCommand(protected val config: Map<String, *>) : Job(), Comma
         this.input = input
     }
 
-    override fun destroy() {
+    override fun destroy(channel: ChannelSession) {
         stopped = true
     }
 
@@ -90,7 +91,7 @@ abstract class RhinoCommand(protected val config: Map<String, *>) : Job(), Comma
         output = toPrintStream(out)
     }
 
-    override fun start(env: Environment?) {
+    override fun start(channel: ChannelSession, env: Environment?) {
         processor = RhinoServer.commandProcessor
         queue(Priority.normal)
     }

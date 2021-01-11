@@ -1,6 +1,6 @@
 dependencies {
     api project(':entity-store')
-    implementation 'org.apache.sshd:apache-sshd:0.14.0'
+    implementation 'org.apache.sshd:apache-sshd:2.6.0'
     implementation 'commons-cli:commons-cli:1.4'
     implementation 'org.mozilla:rhino:1.7.10'
 }
