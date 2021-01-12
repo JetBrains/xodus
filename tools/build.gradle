@@ -6,7 +6,7 @@ dependencies {
     implementation project(':sshd')
     implementation project(':crypto')
     implementation project(':multinode')
-    implementation 'com.hierynomus:sshj:0.24.0'
+    implementation 'com.hierynomus:sshj:0.30.0'
     implementation 'software.amazon.awssdk:s3:2.0.0-preview-11'
     implementation 'software.amazon.awssdk:netty-nio-client:2.0.0-preview-11'
 }
