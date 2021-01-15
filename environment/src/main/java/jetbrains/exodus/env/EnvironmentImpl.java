@@ -280,6 +280,11 @@ public class EnvironmentImpl implements Environment {
         };
     }
 
+    public ReadonlyTransaction beginTransactionAt(final long highAddress) {
+        checkIsOperative();
+        return new ReadonlyTransaction(this, highAddress);
+    }
+
     @Override
     public void executeInTransaction(@NotNull final TransactionalExecutable executable) {
         executeInTransaction(executable, beginTransaction());

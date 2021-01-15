@@ -530,6 +530,10 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return transaction;
     }
 
+    public PersistentStoreTransaction beginTransactionAt(final long highAddress) {
+        return new PersistentStoreTransactionSnapshot(this, highAddress);
+    }
+
     public void registerTransaction(@NotNull final PersistentStoreTransaction txn) {
         final Thread thread = Thread.currentThread();
         Deque<PersistentStoreTransaction> stack = txns.get(thread);

@@ -119,6 +119,30 @@ final class MetaTreeImpl implements MetaTree {
         );
     }
 
+    static MetaTreeImpl create(@NotNull final EnvironmentImpl env, final long highAddress) {
+        final Log log = env.getLog();
+        final LogTip logTip = log.getTip();
+        final Loggable rootLoggable = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, highAddress, logTip);
+        if (rootLoggable == null) {
+            throw new ExodusException("Failed to find root loggable before address = " + highAddress);
+        }
+        final long root = rootLoggable.getAddress();
+        if (root + rootLoggable.length() != highAddress) {
+            throw new ExodusException("Database root should be the last loggable before address = " + highAddress);
+        }
+        DatabaseRoot dbRoot = null;
+        try {
+            dbRoot = new DatabaseRoot(rootLoggable);
+        } catch (ExodusException e) {
+            EnvironmentImpl.loggerError("Failed to load database root at " + root, e);
+        }
+        if (dbRoot == null || !dbRoot.isValid()) {
+            throw new ExodusException("Can't load valid database root by address = " + root);
+        }
+        final LogTip truncatedTip = logTip.asTruncatedTo(highAddress);
+        return new MetaTreeImpl(env.loadMetaTree(dbRoot.getRootAddress(), truncatedTip), root, truncatedTip);
+    }
+
     @Override
     public LogTip getLogTip() {
         return logTip;

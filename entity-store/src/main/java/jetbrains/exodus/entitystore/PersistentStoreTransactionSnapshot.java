@@ -23,6 +23,11 @@ final class PersistentStoreTransactionSnapshot extends PersistentStoreTransactio
         super(source, TransactionType.Readonly);
     }
 
+    public PersistentStoreTransactionSnapshot(@NotNull final PersistentEntityStoreImpl store,
+                                              final long highAddress) {
+        super(store, highAddress);
+    }
+
     @Override
     public boolean isCurrent() {
         return false;

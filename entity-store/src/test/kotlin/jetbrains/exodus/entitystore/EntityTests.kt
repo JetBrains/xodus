@@ -46,7 +46,8 @@ class EntityTests : EntityStoreTestBase() {
                 "testEntityStoreClear",
                 "testSetPhantomLink",
                 "testAddPhantomLink",
-                "testTooBigProperty"
+                "testTooBigProperty",
+                "testTransactionAt"
         )
     }
 
@@ -577,6 +578,25 @@ class EntityTests : EntityStoreTestBase() {
         }
         Assert.assertFalse(txn.flush())
         Assert.assertEquals("3", issue.getProperty("description"))
+    }
+
+    fun testTransactionAt() {
+        var highAddress = 0L
+        val issue = entityStore.computeInTransaction { txn ->
+            txn.newEntity("Issue").apply { setProperty("description", "1") }
+            txn.flush()
+            highAddress = (txn as PersistentStoreTransaction).environmentTransaction.highAddress
+        }
+        entityStore.computeInTransaction { txn ->
+            txn.newEntity("Issue").apply { setProperty("description", "2") }
+        }
+        entityStore.beginTransactionAt(highAddress).let { txn ->
+            Assert.assertEquals(1L, txn.getAll("Issue").size())
+            val i = txn.getAll("Issue").first
+            Assert.assertNotNull(i)
+            Assert.assertEquals("1", (i as PersistentEntity).getSnapshot(txn).getProperty("description"))
+            txn.abort()
+        }
     }
 
     @TestFor(issue = "XD-530")

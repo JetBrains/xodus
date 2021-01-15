@@ -241,7 +241,6 @@ public abstract class TransactionBase implements Transaction {
             if (beginHook != null) {
                 beginHook.run();
             }
-
         };
     }
 }
