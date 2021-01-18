@@ -802,11 +802,11 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                                @NotNull final PersistentEntity entity,
                                @NotNull final String propertyName,
                                @NotNull final Comparable value) {
-        final PropertyValue propValue = propertyTypes.dataToPropertyValue(value);
-        final ComparableValueType valueType = propValue.getType();
-        if (valueType.getBinding() == ComparableSetBinding.BINDING && ((ComparableSet) value).isEmpty()) {
+        if (value instanceof ComparableSet && ((ComparableSet) value).isEmpty()) {
             return deleteProperty(txn, entity, propertyName);
         }
+        final PropertyValue propValue = propertyTypes.dataToPropertyValue(value);
+        final ComparableValueType valueType = propValue.getType();
         final PersistentEntityId entityId = entity.getId();
         final int propertyId = getPropertyId(txn, propertyName, true);
         final ByteIterable oldValueEntry = getRawProperty(txn, entityId, propertyId);

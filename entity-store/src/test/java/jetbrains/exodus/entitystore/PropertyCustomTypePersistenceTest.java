@@ -57,9 +57,10 @@ public class PropertyCustomTypePersistenceTest extends EntityStoreTestBase {
 
     @TestFor(issue = "XD-833")
     public void testPersistentCustomPropertyTypeSet() throws Exception {
-        testPersistentCustomPropertyType();
-
         PersistentEntityStoreImpl store = getEntityStore();
+
+        registerDatatype(store);
+
         store.executeInTransaction(txn -> {
             Entity testEntity = txn.newEntity("Entity");
             final ComparableSet<MockData> set = new ComparableSet<>();

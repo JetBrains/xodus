@@ -18,6 +18,8 @@ package jetbrains.exodus.entitystore.tables;
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.bindings.ComparableBinding;
+import jetbrains.exodus.bindings.ComparableSet;
+import jetbrains.exodus.bindings.ComparableSetBinding;
 import jetbrains.exodus.bindings.ComparableValueType;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
@@ -46,6 +48,25 @@ public final class PropertyTypes {
             typesById.put(predefinedType.getTypeId(), predefinedType);
             typesByClass.put(predefinedType.getClazz(), predefinedType);
         }
+        final ComparableValueType comparableSetType = typesByClass.get(ComparableSet.class);
+        final ComparableSetBinding newBinding = new ComparableSetBinding() {
+
+            @Override
+            protected ComparableValueType getType(@NotNull Class<? extends Comparable> itemClass) {
+                final ComparableValueType result = super.getType(itemClass);
+                return result == null ? typesByClass.get(itemClass) : result;
+            }
+
+            @Override
+            protected ComparableBinding getBinding(int valueTypeId) {
+                final ComparableBinding result = super.getBinding(valueTypeId);
+                return result == null ? typesById.get(valueTypeId).getBinding() : result;
+            }
+        };
+        final int typeId = comparableSetType.getTypeId();
+        final ComparableValueType newComparableSetType = new ComparableValueType(typeId, newBinding, comparableSetType.getClazz());
+        typesByClass.put(ComparableSet.class, newComparableSetType);
+        typesById.put(typeId, newComparableSetType);
     }
 
     @NotNull

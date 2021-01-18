@@ -28,26 +28,26 @@ public class ComparableValueType {
     public static final ComparableValueType[] PREDEFINED_COMPARABLE_VALUE_TYPES;
 
     private static final Class[] PREDEFINED_CLASSES = {
-            Integer.class,
-            Long.class,
-            String.class,
-            Double.class,
-            Byte.class,
-            Boolean.class,
-            Short.class,
-            Float.class,
-            ComparableSet.class
+        Integer.class,
+        Long.class,
+        String.class,
+        Double.class,
+        Byte.class,
+        Boolean.class,
+        Short.class,
+        Float.class,
+        ComparableSet.class
     };
     private static final ComparableBinding[] PREDEFINED_BINDINGS = {
-            IntegerBinding.BINDING,
-            LongBinding.BINDING,
-            StringBinding.BINDING,
-            SignedDoubleBinding.BINDING,
-            ByteBinding.BINDING,
-            BooleanBinding.BINDING,
-            ShortBinding.BINDING,
-            SignedFloatBinding.BINDING,
-            ComparableSetBinding.BINDING
+        IntegerBinding.BINDING,
+        LongBinding.BINDING,
+        StringBinding.BINDING,
+        SignedDoubleBinding.BINDING,
+        ByteBinding.BINDING,
+        BooleanBinding.BINDING,
+        ShortBinding.BINDING,
+        SignedFloatBinding.BINDING,
+        ComparableSetBinding.BINDING
     };
 
     static {
@@ -81,15 +81,24 @@ public class ComparableValueType {
     }
 
     public static ComparableBinding getPredefinedBinding(final int typeId) {
-        return PREDEFINED_BINDINGS[typeId];
+        return typeId >= 0 && typeId < PREDEFINED_BINDINGS.length ? PREDEFINED_BINDINGS[typeId] : null;
     }
 
+    @NotNull
     public static ComparableValueType getPredefinedType(@NotNull final Class<? extends Comparable> clazz) {
+        final ComparableValueType result = getPredefinedTypeNullable(clazz);
+        if (result == null) {
+            throw new ExodusException("Unsupported Comparable value type: " + clazz);
+        }
+        return result;
+    }
+
+    public static ComparableValueType getPredefinedTypeNullable(@NotNull final Class<? extends Comparable> clazz) {
         for (int i = 0; i < PREDEFINED_CLASSES.length; i++) {
             if (PREDEFINED_CLASSES[i].equals(clazz)) {
                 return PREDEFINED_COMPARABLE_VALUE_TYPES[i];
             }
         }
-        throw new ExodusException("Unsupported Comparable value type: " + clazz);
+        return null;
     }
 }

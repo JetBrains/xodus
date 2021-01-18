@@ -34,13 +34,18 @@ public class ComparableSetBinding extends ComparableBinding {
 
     public static final ComparableSetBinding BINDING = new ComparableSetBinding();
 
-    private ComparableSetBinding() {
+    /**
+     * To support sets of EntityStore custom property types, there should be an ability to
+     * create a separate ComparableSetBinding instance with overriden {@link #getType(Class)}
+     * and {@link #getBinding(int)} methods.
+     */
+    public ComparableSetBinding() {
     }
 
     @Override
     public ComparableSet readObject(@NotNull final ByteArrayInputStream stream) {
         final int valueTypeId = stream.read() ^ 0x80;
-        final ComparableBinding itemBinding = ComparableValueType.getPredefinedBinding(valueTypeId);
+        final ComparableBinding itemBinding = getBinding(valueTypeId);
         final ComparableSet result = new ComparableSet();
         while (stream.available() > 0) {
             result.addItem(itemBinding.readObject(stream));
@@ -56,7 +61,7 @@ public class ComparableSetBinding extends ComparableBinding {
         if (itemClass == null) {
             throw new ExodusException("Attempt to write empty ComparableSet");
         }
-        final ComparableValueType type = ComparableValueType.getPredefinedType(itemClass);
+        final ComparableValueType type = getType(itemClass);
         output.writeByte(type.getTypeId());
         final ComparableBinding itemBinding = type.getBinding();
         //noinspection Convert2Lambda
@@ -66,6 +71,14 @@ public class ComparableSetBinding extends ComparableBinding {
                 itemBinding.writeObject(output, item);
             }
         });
+    }
+
+    protected ComparableValueType getType(@NotNull final Class<? extends Comparable> itemClass) {
+        return ComparableValueType.getPredefinedTypeNullable(itemClass);
+    }
+
+    protected ComparableBinding getBinding(final int valueTypeId) {
+        return ComparableValueType.getPredefinedBinding(valueTypeId);
     }
 
     /**
