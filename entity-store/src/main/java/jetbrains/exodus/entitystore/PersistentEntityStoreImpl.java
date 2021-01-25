@@ -1561,10 +1561,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     public int getEntityTypeId(@NotNull final PersistentStoreTransaction txn, @NotNull final String entityType, final boolean allowCreate) {
+        Objects.requireNonNull(entityType, "Entity type cannot be null");
         return allowCreate ? entityTypes.getOrAllocateId(txn, entityType) : entityTypes.getId(txn, entityType);
     }
 
     public int getEntityTypeId(@NotNull final TxnProvider txnProvider, @NotNull final String entityType, final boolean allowCreate) {
+        Objects.requireNonNull(entityType, "Entity type cannot be null");
         return allowCreate ? entityTypes.getOrAllocateId(txnProvider, entityType) : entityTypes.getId(txnProvider, entityType);
     }
 
