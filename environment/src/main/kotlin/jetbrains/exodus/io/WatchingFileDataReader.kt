@@ -28,8 +28,8 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
                              internal val fileDataReader: FileDataReader) : DataReader {
 
     companion object : KLogging() {
-        private const val IDLE_FORCE_CHECK_INTERVAL = 3000L // 3 seconds
         private const val DEBOUNCE_INTERVAL = 100L // 100 milliseconds
+        private val FORCE_CHECK_INTERVAL = java.lang.Long.getLong("jetbrains.exodus.io.watching.forceCheckEach", 3000L) // 3 seconds by default
         private val EVENT_KINDS =
                 arrayOf(StandardWatchEventKinds.ENTRY_MODIFY, StandardWatchEventKinds.ENTRY_CREATE)
     }
@@ -79,7 +79,7 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
 
     private fun doWatch() {
         val currentThread = Thread.currentThread()
-        var lastIdle = Long.MIN_VALUE
+        var lastUpdated = 0L
         while (!stopped) {
             try {
                 val watchKey: WatchKey?
@@ -88,8 +88,8 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
                     watchKey = watchService.poll(100, TimeUnit.MILLISECONDS)
                     val events = watchKey?.pollEvents()
                     if (events == null || events.isEmpty()) {
-                        if (lastIdle > Long.MIN_VALUE && System.currentTimeMillis() - lastIdle > IDLE_FORCE_CHECK_INTERVAL) {
-                            lastIdle = doUpdate(true, currentThread)
+                        if (System.currentTimeMillis() - lastUpdated > FORCE_CHECK_INTERVAL) {
+                            lastUpdated = doUpdate(true, currentThread)
                         }
                         continue
                     }
@@ -107,8 +107,8 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
                 } catch (ignore: ClosedWatchServiceException) {
                     return
                 }
-                if (lastIdle > Long.MIN_VALUE) {
-                    val debounce = DEBOUNCE_INTERVAL + (lastIdle - System.currentTimeMillis())
+                if (lastUpdated > 0) {
+                    val debounce = DEBOUNCE_INTERVAL + (lastUpdated - System.currentTimeMillis())
                     if (debounce > 5) {
                         try {
                             Thread.sleep(debounce)
@@ -119,7 +119,7 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
                     }
                 }
                 if (hasFileUpdates) {
-                    lastIdle = doUpdate(false, currentThread)
+                    lastUpdated = doUpdate(false, currentThread)
                 }
                 if (!watchKey.reset()) {
                     logger.info { "Watch service is no longer valid for ${currentThread.name}, exiting..." }
@@ -135,7 +135,9 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
     private fun doUpdate(force: Boolean, currentThread: Thread): Long {
         envGetter()?.run {
             val prevTip = log.tip
-            if (tryUpdate()) {
+            if (!tryUpdate()) {
+                logger.debug { (if (force) "Can't force-update env at " else "Can't update env at ") + location }
+            } else {
                 logger.debug { (if (force) "Env force-updated at " else "Env updated at ") + location }
                 val newHighAddress = log.tip.approvedHighAddress
                 val prevHighAddress = prevTip.approvedHighAddress
@@ -149,10 +151,8 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
                             logger.error(t) { "New data listener failed for ${currentThread.name}" }
                         }
                     }
-                    return Long.MIN_VALUE
                 }
             }
-            logger.debug { (if (force) "Can't force-update env at " else "Can't update env at ") + location }
         }
         return System.currentTimeMillis()
     }
