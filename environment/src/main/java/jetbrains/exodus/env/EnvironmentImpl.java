@@ -1182,7 +1182,7 @@ public class EnvironmentImpl implements Environment {
         @Override
         public void beforeSettingChanged(@NotNull String key, @NotNull Object value, @NotNull Map<String, Object> context) {
             if (key.equals(EnvironmentConfig.ENV_IS_READONLY)) {
-                if (log.getConfig().getReaderWriterProvider().isReadonly()) {
+                if (log.getConfig().isReadonlyReaderWriterProvider()) {
                     throw new InvalidSettingException("Can't modify read-only state in run time since DataReaderWriterProvider is read-only");
                 }
                 if (Boolean.TRUE.equals(value)) {
