@@ -42,13 +42,13 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
             it.register(watchService, EVENT_KINDS)
         }
     }
-    private val newDataListeners: MutableList<(prevHighAddress: Long, newHighAddress: Long) -> Unit> = mutableListOf()
+    private val newDataListeners: MutableSet<(prevHighAddress: Long, newHighAddress: Long) -> Unit> = linkedSetOf()
 
     @Volatile
     private var stopped = false
 
     init {
-        Thread(Runnable { doWatch() }).apply { name = "Xodus watcher for ${fileDataReader.dir}" }.start()
+        Thread { doWatch() }.apply { name = "Xodus watcher for ${fileDataReader.dir}" }.start()
     }
 
     override fun getLocation() = fileDataReader.location
@@ -70,6 +70,11 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
     fun addNewDataListener(listener: (Long, Long) -> Unit) =
             synchronized(newDataListeners) {
                 newDataListeners.add(listener)
+            }
+
+    fun removeNewDataListener(listener: (Long, Long) -> Unit) =
+            synchronized(newDataListeners) {
+                newDataListeners.remove(listener)
             }
 
     private fun doWatch() {
