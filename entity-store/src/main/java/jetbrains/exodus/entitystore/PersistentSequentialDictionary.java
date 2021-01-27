@@ -77,7 +77,6 @@ class PersistentSequentialDictionary implements FlushLog.Member {
                 putIdUnsafe(name, id);
                 return id;
             }
-            putNoIdUnsafe(name);
         }
         return -1;
     }
@@ -208,10 +207,6 @@ class PersistentSequentialDictionary implements FlushLog.Member {
         final String nameInterned = StringInterner.intern(name);
         cache.put(nameInterned, id);
         reverseCache.put(id, nameInterned);
-    }
-
-    private void putNoIdUnsafe(@NotNull final String name) {
-        cache.put(StringInterner.intern(name), -1);
     }
 
     private abstract class DictionaryOperation implements FlushLog.Operation {
