@@ -126,7 +126,9 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
                     return
                 }
             } catch (t: Throwable) {
-                logger.error(t) { currentThread.name }
+                if (!stopped) {
+                    logger.error(t) { currentThread.name }
+                }
             }
         }
     }
