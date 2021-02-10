@@ -72,6 +72,10 @@ class PropertyContainsValueEntityIterable(txn: PersistentStoreTransaction,
         }
     }
 
+    override fun isSortedById(): Boolean {
+        return false
+    }
+
     private inner class PropertyContainsValueIterator(private val index: PropertyValueIterator) : EntityIteratorBase(this), PropertyValueIterator {
 
         private var nextId: EntityId? = null

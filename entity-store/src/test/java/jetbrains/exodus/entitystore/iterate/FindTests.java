@@ -27,7 +27,7 @@ import java.util.List;
 public class FindTests extends EntityStoreTestBase {
 
     public void testFindSingleEntityByPropertyValue() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         for (int i = 0; i < 100; ++i) {
             final Entity entity = txn.newEntity("Issue");
             entity.setProperty("description", "Test issue #" + i);
@@ -45,7 +45,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     public void testFindByStringPropertyValue() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         for (int i = 0; i < 100; ++i) {
             final Entity entity = txn.newEntity("Issue");
             entity.setProperty("description", "Test issue #" + i % 10);
@@ -62,7 +62,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     public void testFindByStringPropertyValueIgnoreCase() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         for (int i = 0; i < 100; ++i) {
             final Entity entity = txn.newEntity("Issue");
             entity.setProperty("description", "Test issue #" + i % 10);
@@ -79,10 +79,10 @@ public class FindTests extends EntityStoreTestBase {
 
     @TestFor(issue = "XD-824")
     public void testFindContaining() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         for (int i = 0; i < 100; ++i) {
             final Entity entity = txn.newEntity("Issue");
-            entity.setProperty("description", "Test issue #" + i % 10);
+            entity.setProperty("description", "Test issue #" + (i % 10));
         }
         txn.flush();
         final EntityIterable issues = txn.findContaining("Issue", "description", "e #5", false);
@@ -96,10 +96,10 @@ public class FindTests extends EntityStoreTestBase {
 
     @TestFor(issue = "XD-824")
     public void testFindContainingIgnoreCase() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         for (int i = 0; i < 100; ++i) {
             final Entity entity = txn.newEntity("Issue");
-            entity.setProperty("description", "Test issue #" + i % 10);
+            entity.setProperty("description", "Test issue #" + (i % 10));
         }
         txn.flush();
         final EntityIterable issues = txn.findContaining("Issue", "description", "T ISSUE #5", true);
@@ -111,8 +111,29 @@ public class FindTests extends EntityStoreTestBase {
         Assert.assertEquals(10, count);
     }
 
+    @TestFor(issue = "XD-837")
+    public void testFindContainingIntersect() {
+        final StoreTransaction txn = getStoreTransactionSafe();
+        final Entity project = txn.newEntity("Project");
+        for (int i = 0; i < 100; ++i) {
+            final Entity issue = txn.newEntity("Issue");
+            issue.setProperty("description", ((100 - i) % 9) + "Test issue #" + (i % 10));
+            project.addLink("issues", issue);
+        }
+        txn.flush();
+        final EntityIterable issues = txn.
+            findContaining("Issue", "description", "T ISSUE #5", true).
+            intersect(project.getLinks("issues"));
+        int count = 0;
+        for (final Entity issue : issues) {
+            Assert.assertEquals("Test issue #5", ((String) issue.getProperty("description")).substring(1));
+            count++;
+        }
+        Assert.assertEquals(10, count);
+    }
+
     public void testSingularFind() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         final Entity entity = txn.newEntity("Issue");
         entity.setProperty("name", "noname");
         entity.setProperty("size", 6);
@@ -126,7 +147,7 @@ public class FindTests extends EntityStoreTestBase {
     public void testFindByPropAfterSeveralTxns() {
         final int pi = 31415926;
         final int e = 271828182;
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         Entity issue = txn.newEntity("Issue");
         issue.setProperty("size", pi);
         txn.flush();
@@ -164,7 +185,7 @@ public class FindTests extends EntityStoreTestBase {
     public void testFindByPropAfterSeveralTxns2() {
         final int pi = 31415926;
         final int e = 271828182;
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         Entity issue1 = txn.newEntity("Issue");
         Entity issue2 = txn.newEntity("Issue");
         issue1.setProperty("size", pi);
@@ -185,7 +206,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     public void testCreateCheckSize() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         for (int i = 0; i < 1000; ++i) {
             Assert.assertEquals("Iteration " + i, (long) i, txn.getAll("Issue").size());
             txn.newEntity("Issue");
@@ -195,7 +216,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     public void testCreateFindByPropValue() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         Entity e = txn.newEntity("Issue");
         e.setProperty("size", "S" + 0);
         txn.flush();
@@ -213,7 +234,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     public void testCreateFindByPropValueReverseOrder() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         Entity e = txn.newEntity("Issue");
         e.setProperty("size", "S" + 0);
         txn.flush();
@@ -231,7 +252,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     public void testCreateFindByPropValueAndIntersect() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         Entity e = txn.newEntity("Issue");
         Entity owner = txn.newEntity("User");
         e.setProperty("size", Integer.toString(0));
@@ -262,7 +283,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     public void testCreateFindByPropValueAndIntersectReverseOrder() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         Entity e = txn.newEntity("Issue");
         Entity eSaved = e;
         Entity owner = txn.newEntity("User");
@@ -293,7 +314,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     public void testOrderByEntityId() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         final List<EntityId> ids = new ArrayList<>();
         for (int i = 0; i < 10; ++i) {
             ids.add(txn.newEntity("Issue").getId());
@@ -322,7 +343,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     public void testFindRange() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         for (int i = 0; i < 100; ++i) {
             final Entity entity = txn.newEntity("Issue");
             entity.setProperty("description", "Test issue #" + i % 10);
@@ -335,7 +356,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     public void testFindRangeOrder() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         for (int i = 0; i < 100; ++i) {
             final Entity issue = txn.newEntity("Issue");
             issue.setProperty("description", "Test issue #" + i % 10);
@@ -349,7 +370,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     public void testFindRangeByStrings() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         Entity entity = txn.newEntity("Issue");
         entity.setProperty("description", "aaa");
         entity = txn.newEntity("Issue");
@@ -371,7 +392,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     public void testFindRangeByStringsIgnoreCase() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         Entity entity = txn.newEntity("Issue");
         entity.setProperty("description", "aaa");
         entity = txn.newEntity("Issue");
@@ -393,7 +414,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     public void testFindRangeAddedInBackOrder() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         for (int i = 0; i < 100; ++i) {
             final Entity entity = txn.newEntity("Issue");
             entity.setProperty("description", "Test issue #" + i % 10);
@@ -406,7 +427,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     public void testSingularFindRangeByStrings() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         Entity entity = txn.newEntity("Issue");
         entity.setProperty("description", "a");
         txn.flush();
@@ -420,7 +441,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     public void testStartsWith() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         for (int i = 0; i < 100; ++i) {
             final Entity entity = txn.newEntity("Issue");
             entity.setProperty("description", "Test issue #" + i);
@@ -436,7 +457,7 @@ public class FindTests extends EntityStoreTestBase {
 
     public void testFindWithProp() throws Exception {
         testFindSingleEntityByPropertyValue();
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         Assert.assertEquals(100, txn.findWithProp("Issue", "description").size());
         Assert.assertEquals(100, txn.findWithProp("Issue", "size").size());
         Assert.assertEquals(0, txn.findWithProp("Issue", "no such property").size());
@@ -444,7 +465,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     public void testFindWithFloatProp() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         final Entity issue1 = txn.newEntity("Issue");
         issue1.setProperty("thefloat", 12f);
         final Entity issue2 = txn.newEntity("Issue");
@@ -459,7 +480,7 @@ public class FindTests extends EntityStoreTestBase {
 
     @TestFor(issue = "XD-805")
     public void testFindWithNegativeFloatProp() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         final Entity issue1 = txn.newEntity("Issue");
         issue1.setProperty("thefloat", 12f);
         final Entity issue2 = txn.newEntity("Issue");
@@ -474,7 +495,7 @@ public class FindTests extends EntityStoreTestBase {
 
     public void testFindWithPropSorted() throws Exception {
         testFindSingleEntityByPropertyValue();
-        final PersistentStoreTransaction txn = getStoreTransaction();
+        final PersistentStoreTransaction txn = getStoreTransactionSafe();
         Assert.assertEquals(100, txn.findWithPropSortedByValue("Issue", "description").size());
         final PersistentEntity nonExistent = new PersistentEntity(getEntityStore(), new PersistentEntityId(111, 0));
         Assert.assertEquals(-1, txn.findWithPropSortedByValue("Issue", "description").indexOf(nonExistent));
@@ -486,21 +507,21 @@ public class FindTests extends EntityStoreTestBase {
     public void testFindWithPropIsCached() throws Exception {
         getEntityStore().getConfig().setCachingDisabled(false);
         testFindWithProp();
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         Assert.assertTrue(((EntityIteratorBase) txn.findWithProp("Issue", "description").iterator()).getIterable().isCachedInstance());
     }
 
     public void testFindWithPropSortedIsCached() throws Exception {
         getEntityStore().getConfig().setCachingDisabled(false);
         testFindWithPropSorted();
-        final PersistentStoreTransaction txn = getStoreTransaction();
+        final PersistentStoreTransaction txn = getStoreTransactionSafe();
         Assert.assertTrue(((EntityIteratorBase) txn.findWithPropSortedByValue("Issue", "description").iterator()).getIterable().isCachedInstance());
     }
 
     @TestFor(issue = "XD-524")
     public void testFindWithPropAndIntersectIsCached() throws Exception {
         testFindWithPropSortedIsCached();
-        final PersistentStoreTransaction txn = getStoreTransaction();
+        final PersistentStoreTransaction txn = getStoreTransactionSafe();
         EntityIterableBase withDescription = txn.findWithPropSortedByValue("Issue", "description");
         withDescription = getEntityStore().getEntityIterableCache().putIfNotCached(withDescription);
         Assert.assertTrue(((EntityIteratorBase) withDescription.iterator()).getIterable().isCachedInstance());
@@ -513,7 +534,7 @@ public class FindTests extends EntityStoreTestBase {
     @TestFor(issue = "XD-524")
     public void testFindWithPropAndUnionIsCached() throws Exception {
         testFindWithPropSortedIsCached();
-        final PersistentStoreTransaction txn = getStoreTransaction();
+        final PersistentStoreTransaction txn = getStoreTransactionSafe();
         EntityIterableBase withDescription = txn.findWithPropSortedByValue("Issue", "description");
         withDescription = getEntityStore().getEntityIterableCache().putIfNotCached(withDescription);
         Assert.assertTrue(((EntityIteratorBase) withDescription.iterator()).getIterable().isCachedInstance());
@@ -526,7 +547,7 @@ public class FindTests extends EntityStoreTestBase {
     @TestFor(issue = "XD-524")
     public void testFindWithPropAndMinusIsCached() throws Exception {
         testFindWithPropSortedIsCached();
-        final PersistentStoreTransaction txn = getStoreTransaction();
+        final PersistentStoreTransaction txn = getStoreTransactionSafe();
         EntityIterableBase withDescription = txn.findWithPropSortedByValue("Issue", "description");
         withDescription = getEntityStore().getEntityIterableCache().putIfNotCached(withDescription);
         Assert.assertTrue(((EntityIteratorBase) withDescription.iterator()).getIterable().isCachedInstance());
@@ -539,7 +560,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     public void testFindWithBlob() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         for (int i = 0; i < 100; ++i) {
             final Entity entity = txn.newEntity("Issue");
             entity.setBlobString("description", "Test issue #" + i);
@@ -551,7 +572,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     public void testFindComparableSet() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         final Entity issue = txn.newEntity("Issue");
         final ComparableSet<Integer> randomSet = new ComparableSet<>();
         final Random rnd = new Random();
@@ -579,7 +600,7 @@ public class FindTests extends EntityStoreTestBase {
 
     @TestFor(issue = "XD-510")
     public void testFindComparableSetRange() throws InterruptedException {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         final Entity issue = txn.newEntity("Issue");
         final ComparableSet<String> set = new ComparableSet<>();
         set.addItem("Eugene");
@@ -598,7 +619,7 @@ public class FindTests extends EntityStoreTestBase {
 
     @TestFor(issue = "XD-511")
     public void testFindComparableSetCaseInsensitive() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         final Entity issue = txn.newEntity("Issue");
         final ComparableSet<String> set = new ComparableSet<>();
         set.addItem("Eugene");
@@ -621,13 +642,13 @@ public class FindTests extends EntityStoreTestBase {
     public void testComparableSetPropertiesIterable() {
         getEntityStore().getConfig().setCachingDisabled(true); // disable caching to avoid background exceptions
         testFindComparableSetCaseInsensitive();
-        final PersistentStoreTransaction txn = getStoreTransaction();
+        final PersistentStoreTransaction txn = getStoreTransactionSafe();
         Assert.assertTrue(txn.findWithPropSortedByValue("Issue", "commenters").iterator().hasNext());
     }
 
     @TestFor(issue = "XD-577")
     public void testSuccessiveInvalidationAndUpdateCachedResult() {
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         final Entity issue = txn.newEntity("Issue");
         issue.setProperty("summary", "summary");
         Assert.assertEquals(1L, txn.findStartingWith("Issue", "summary", "summary").size());
@@ -646,7 +667,7 @@ public class FindTests extends EntityStoreTestBase {
         } catch (InterruptedException ignore) {
         }
 
-        final StoreTransaction txn = getStoreTransaction();
+        final StoreTransaction txn = getStoreTransactionSafe();
         final Entity issue = txn.getAll("Issue").getFirst();
         final ComparableSet<String> set = (ComparableSet<String>) issue.getProperty("commenters");
         set.addItem("bot");
