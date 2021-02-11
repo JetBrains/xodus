@@ -34,6 +34,11 @@ static def shouldDeploy(project) {
     return project.version.length() > 0 && !(project.name in ['benchmarks', 'samples'])
 }
 
+static def shouldApplyDokka(project) {
+    return project.version.length() > 0 && !(project.name in ['benchmarks', 'samples', 'query'])
+}
+
+
 wrapper {
     gradleVersion = '6.5'
 }
@@ -165,7 +170,7 @@ subprojects {
             apiVersion = "$kotlinLangVersion"
         }
     }
-    if (project.name != "benchmarks") {
+    if (shouldApplyDokka(project)) {
         dokkaJavadoc {
             dokkaSourceSets {
                 configureEach {
