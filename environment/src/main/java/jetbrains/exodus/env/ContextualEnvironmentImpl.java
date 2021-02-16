@@ -59,6 +59,12 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
         return getAllStoreNames(getAndCheckCurrentTransaction());
     }
 
+    @Override
+    public @NotNull ContextualBitmapImpl openBitmap(@NotNull String name) {
+        final ContextualStoreImpl store = openStore(name.concat("#bitmap"), StoreConfig.WITHOUT_DUPLICATES);
+        return new ContextualBitmapImpl(store);
+    }
+
     @NotNull
     @Override
     public ContextualStoreImpl openStore(@NotNull final String name, @NotNull final StoreConfig config) {

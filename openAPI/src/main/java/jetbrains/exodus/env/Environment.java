@@ -64,6 +64,18 @@ public interface Environment extends Closeable, Backupable {
     String getLocation();
 
     /**
+     * Opens existing or creates new instance of Bitmap. Internally opens existing or creates new {@linkplain Store store}
+     * with specific name and {@linkplain StoreConfig config} = StoreConfig.WITHOUT_DUPLICATES
+     * inside a {@code transaction}.
+     *
+     * @param name the name of opened store is formed from specified {@code name} and suffix "#bitmap".
+     * @param transaction {@linkplain Transaction} used to create store
+     * @return {@linkplain Bitmap} instance
+     */
+    @NotNull
+    Bitmap openBitmap(@NotNull String name, @NotNull Transaction transaction);
+
+    /**
      * Opens existing or creates new {@linkplain Store store} with specified {@code name} and
      * {@linkplain StoreConfig config} inside a {@code transaction}. {@linkplain StoreConfig} provides meta-information
      * used to create store. If it is known that the store with specified name exists, then

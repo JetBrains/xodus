@@ -30,6 +30,17 @@ import java.util.List;
 public interface ContextualEnvironment extends Environment {
 
     /**
+     * Opens existing or creates new instance of Bitmap. Internally opens existing or creates new {@linkplain Store store}
+     * with specific name and {@linkplain StoreConfig config} = StoreConfig.WITHOUT_DUPLICATES
+     * inside a transaction started in current thread.
+     *
+     * @param name the name of opened store is formed from specified {@code name} and suffix "#bitmap".
+     * @return {@linkplain Bitmap} instance
+     */
+    @NotNull
+    ContextualBitmap openBitmap(@NotNull String name);
+
+    /**
      * Opens existing or creates new {@linkplain Store store} with specified {@code name} and
      * {@linkplain StoreConfig config} inside transaction started in current thread. Internally, it calls
      * {@linkplain #getAndCheckCurrentTransaction()} to ensure that transaction started in current thread exists.

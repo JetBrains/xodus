@@ -186,6 +186,12 @@ public class EnvironmentImpl implements Environment {
     }
 
     @Override
+    public @NotNull BitmapImpl openBitmap(@NotNull String name, @NotNull Transaction transaction) {
+        final StoreImpl store = openStore(name.concat("#bitmap"), StoreConfig.WITHOUT_DUPLICATES, transaction);
+        return new BitmapImpl(store);
+    }
+
+    @Override
     @NotNull
     public EnvironmentConfig getEnvironmentConfig() {
         return ec;
