@@ -135,13 +135,13 @@ object Environments {
                 files.forEach { fileAddress ->
                     val file = File(location, LogUtil.getLogFilename(fileAddress))
                     if (!FileDataWriter.renameFile(file)) {
-                        EnvironmentImpl.loggerError("Failed to reanme file: $file")
+                        EnvironmentImpl.loggerError("Failed to rename file: $file")
                         return@let
                     }
                 }
                 LogUtil.listFiles(tempDir).forEach { file ->
                     if (!file.renameTo(File(location, file.name))) {
-                        throw ExodusException("Failed to reanme file: $file")
+                        throw ExodusException("Failed to rename file: $file")
                     }
                 }
                 env = envCreator()
