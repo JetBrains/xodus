@@ -15,12 +15,13 @@
  */
 package jetbrains.exodus.env
 
-import jetbrains.exodus.log.LogConfig
-import org.junit.Assert.*
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
 class BitmapImplTest : EnvironmentTestsBase() {
+
     private lateinit var bitmap: BitmapImpl
 
     companion object {
@@ -32,13 +33,8 @@ class BitmapImplTest : EnvironmentTestsBase() {
 
     @Before
     override fun setUp() {
-        val readerWriterPair = createRW()
-        reader = readerWriterPair.first
-        writer = readerWriterPair.second
-        env = newEnvironmentInstance(LogConfig.create(reader, writer))
-        val txn: Transaction = env.beginTransaction()
-        bitmap = env.openBitmap("test", txn)
-        txn.commit()
+        super.setUp()
+        bitmap = env.computeInExclusiveTransaction { env.openBitmap("test", it) }
     }
 
     @Test

@@ -15,11 +15,10 @@
  */
 package jetbrains.exodus.env
 
-import jetbrains.exodus.bindings.LongBinding.signedLongToCompressedEntry
-import jetbrains.exodus.bindings.LongBinding.compressedEntryToSignedLong
-import jetbrains.exodus.bindings.LongBinding.longToCompressedEntry
+import jetbrains.exodus.bindings.LongBinding.*
 
 open class BitmapImpl(private val store: StoreImpl) : Bitmap {
+
     override fun getEnvironment() = store.environment
 
     override fun get(txn: Transaction, bit: Long): Boolean {

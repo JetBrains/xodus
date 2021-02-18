@@ -15,13 +15,14 @@
  */
 package jetbrains.exodus.env
 
-import jetbrains.exodus.env.Environments.newContextualInstance
 import jetbrains.exodus.log.LogConfig
-import org.junit.Assert.*
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
 internal class ContextualBitmapImplTest : EnvironmentTestsBase() {
+
     private lateinit var bitmap: ContextualBitmapImpl
     private lateinit var contextualEnv: ContextualEnvironmentImpl
 
@@ -34,12 +35,13 @@ internal class ContextualBitmapImplTest : EnvironmentTestsBase() {
 
     @Before
     override fun setUp() {
-        val readerWriterPair = createRW()
-        reader = readerWriterPair.first
-        writer = readerWriterPair.second
-        contextualEnv =
-            newContextualInstance(LogConfig.create(reader, writer), EnvironmentConfig()) as ContextualEnvironmentImpl
+        super.setUp()
+        contextualEnv = env as ContextualEnvironmentImpl
         bitmap = contextualEnv.openBitmap("test")
+    }
+
+    override fun createEnvironment() {
+        env = newContextualEnvironmentInstance(LogConfig.create(reader, writer))
     }
 
     @Test
