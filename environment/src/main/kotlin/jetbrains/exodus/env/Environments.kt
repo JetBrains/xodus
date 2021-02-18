@@ -52,6 +52,9 @@ object Environments {
     fun newInstance(config: LogConfig, ec: EnvironmentConfig): Environment = prepare { EnvironmentImpl(newLogInstance(config, ec), ec) }
 
     @JvmStatic
+    fun <T : EnvironmentImpl> newInstance(envCreator: () -> T): T = prepare(envCreator)
+
+    @JvmStatic
     fun newContextualInstance(dir: String, subDir: String, ec: EnvironmentConfig): ContextualEnvironment =
             prepare { ContextualEnvironmentImpl(newLogInstance(File(dir, subDir), ec), ec) }
 
