@@ -22,24 +22,32 @@ open class BitmapImpl(private val store: StoreImpl) : Bitmap {
     override fun getEnvironment() = store.environment
 
     override fun get(txn: Transaction, bit: Long): Boolean {
-        val keyBit = getKey(bit)
-        val storedBitmap = store.get(txn, signedLongToCompressedEntry(keyBit)) ?: return false
+        if (bit < 0) {
+            throw IllegalArgumentException("Bit number should be non-negative")
+        }
+        val key = getKey(bit)
+        val storedBitmap = store.get(txn, longToCompressedEntry(key)) ?: return false
         val bitIndex = getBitIndex(bit)
-        return compressedEntryToSignedLong(storedBitmap).shr(bitIndex).and(1L) == 1L
+        return entryToLong(storedBitmap).shr(bitIndex).and(1L) == 1L
     }
 
     override fun set(txn: Transaction, bit: Long, value: Boolean): Boolean {
-        val prevValue = this.get(txn, bit)
+        if (bit < 0) {
+            throw IllegalArgumentException("Bit number should be non-negative")
+        }
+        val key = getKey(bit)
+        val bitIndex = getBitIndex(bit)
+        val storedBitmap = store.get(txn, longToCompressedEntry(key))
+        val storedBitmapLong = if (storedBitmap == null) 0L else entryToLong(storedBitmap)
+
+        val prevValue = storedBitmapLong.shr(bitIndex).and(1L) == 1L
         if (prevValue != value) {
-            val key = getKey(bit)
-            val bitIndex = getBitIndex(bit)
-            val storedBitmap = store.get(txn, signedLongToCompressedEntry(key)) ?: longToCompressedEntry(0L)
-            val modifiedBitmap = if (value) {
-                compressedEntryToSignedLong(storedBitmap).or(1L.shl(bitIndex))
+             val modifiedBitmap = if (value) {
+                 storedBitmapLong.or(1L.shl(bitIndex))
             } else {
-                compressedEntryToSignedLong(storedBitmap).and(Long.MAX_VALUE - 1L.shl(bitIndex))
+                 storedBitmapLong.and(Long.MAX_VALUE - 1L.shl(bitIndex))
             }
-            store.put(txn, signedLongToCompressedEntry(key), signedLongToCompressedEntry(modifiedBitmap))
+            store.put(txn, longToCompressedEntry(key), longToEntry(modifiedBitmap))
 
             return true
         }
