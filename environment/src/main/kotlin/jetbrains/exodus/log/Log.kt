@@ -685,7 +685,9 @@ class Log(val config: LogConfig) : Closeable {
         val block = tip.blockSet.getBlock(address)
         val listeners = blockListeners.notifyListeners { it.beforeBlockDeleted(block, reader, writer) }
         try {
-            writer.removeBlock(address, rbt)
+            if (config.readerWriterProvider?.isReadonly != true) {
+                writer.removeBlock(address, rbt)
+            }
             // remove address of file of the list
             blockSetMutable?.remove(address)
             // clear cache
@@ -700,7 +702,9 @@ class Log(val config: LogConfig) : Closeable {
     }
 
     private fun truncateFile(address: Long, length: Long) {
-        writer.truncateBlock(address, length)
+        if (config.readerWriterProvider?.isReadonly != true) {
+            writer.truncateBlock(address, length)
+        }
         writer.openOrCreateBlock(address, length)
         // clear cache
         clearFileFromLogCache(address, length - length % cachePageSize)
