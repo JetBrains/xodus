@@ -47,7 +47,8 @@ class EntityTests : EntityStoreTestBase() {
                 "testSetPhantomLink",
                 "testAddPhantomLink",
                 "testTooBigProperty",
-                "testTransactionAt"
+                "testTransactionAt",
+                "testTransactionAtIsIdempotent"
         )
     }
 
@@ -581,11 +582,10 @@ class EntityTests : EntityStoreTestBase() {
     }
 
     fun testTransactionAt() {
-        var highAddress = 0L
-        val issue = entityStore.computeInTransaction { txn ->
+        val highAddress = entityStore.computeInTransaction { txn ->
             txn.newEntity("Issue").apply { setProperty("description", "1") }
             txn.flush()
-            highAddress = (txn as PersistentStoreTransaction).environmentTransaction.highAddress
+            (txn as PersistentStoreTransaction).highAddress
         }
         entityStore.computeInTransaction { txn ->
             txn.newEntity("Issue").apply { setProperty("description", "2") }
@@ -596,6 +596,17 @@ class EntityTests : EntityStoreTestBase() {
             Assert.assertNotNull(i)
             Assert.assertEquals("1", (i as PersistentEntity).getSnapshot(txn).getProperty("description"))
             txn.abort()
+        }
+    }
+
+    fun testTransactionAtIsIdempotent() {
+        entityStore.executeInTransaction { it.newEntity("Issue") }
+        val highAddress = entityStore.computeInTransaction { txn -> (txn as PersistentStoreTransaction).highAddress }
+        repeat(10) {
+            entityStore.executeInTransaction { it.newEntity("Issue") }
+            Assert.assertEquals(highAddress, entityStore.beginTransactionAt(highAddress).let { txn ->
+                highAddress.also { txn.abort() }
+            })
         }
     }
 
