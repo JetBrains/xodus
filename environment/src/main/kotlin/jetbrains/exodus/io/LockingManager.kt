@@ -26,13 +26,12 @@ import java.nio.channels.FileLock
 import java.nio.channels.OverlappingFileLockException
 import java.util.*
 
-class LockingManager internal constructor(private val dir: File, private val lockId: String?) {
+internal class LockingManager internal constructor(private val dir: File, private val lockId: String?) {
 
     private var lockFile: RandomAccessFile? = null
     private var lock: FileLock? = null
 
-    val usableSpace: Long
-        get() = getLockFile().usableSpace
+    val usableSpace: Long get() = dir.usableSpace
 
     fun lock(timeout: Long): Boolean {
         val started = System.currentTimeMillis()
