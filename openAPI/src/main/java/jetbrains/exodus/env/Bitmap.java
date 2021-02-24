@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.env;
 
+import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import org.jetbrains.annotations.NotNull;
 
 public interface Bitmap{
@@ -53,5 +54,12 @@ public interface Bitmap{
      */
     boolean clear(@NotNull Transaction txn, long bit);
 
-
+    /**
+     * Creates new instance of {@linkplain LongIterator}.
+     *
+     * @return new instance of {@linkplain LongIterator}
+     * @see LongIterator
+     */
+    @NotNull
+    LongIterator iterator(@NotNull Transaction txn);
 }

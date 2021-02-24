@@ -160,6 +160,43 @@ open class BitmapImplTest : EnvironmentTestsBase() {
     }
 
     @Test
+    fun `clear 62nd and 63rd consequent bits`() {
+        env.executeInTransaction { txn ->
+            bitmap.set(txn, 62L, true)
+            bitmap.set(txn, 63L, true)
+            assertTrue(bitmap.get(txn, 62L))
+            assertTrue(bitmap.get(txn, 63L))
+
+            bitmap.clear(txn, 62L)
+            assertFalse(bitmap.get(txn, 62L))
+            assertTrue(bitmap.get(txn, 63L))
+
+            bitmap.clear(txn, 63L)
+            assertFalse(bitmap.get(txn, 63L))
+        }
+    }
+
+    @Test
+    fun `clear random bits`() {
+        env.executeInTransaction { txn ->
+            val randomBits = mutableListOf<Long>()
+            for (i in 0..10) {
+                val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
+                randomBits.add(randomBit)
+                bitmap.set(txn, randomBit, true)
+            }
+
+            randomBits.forEach {
+                bitmap.clear(txn, it)
+            }
+
+            randomBits.forEach {
+                assertFalse(bitmap.get(txn, it))
+            }
+        }
+    }
+
+    @Test
     fun `set negative bit`() {
         TestUtil.runWithExpectedException({
             env.executeInTransaction { txn ->
