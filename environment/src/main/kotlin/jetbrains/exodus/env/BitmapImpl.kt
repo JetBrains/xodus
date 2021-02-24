@@ -42,12 +42,17 @@ open class BitmapImpl(private val store: StoreImpl) : Bitmap {
 
         val prevValue = storedBitmapLong.shr(bitIndex).and(1L) == 1L
         if (prevValue != value) {
-             val modifiedBitmap = if (value) {
-                 storedBitmapLong.or(1L.shl(bitIndex))
+            val modifiedBitmap = if (value) {
+                storedBitmapLong.or(1L.shl(bitIndex))
             } else {
-                 storedBitmapLong.and(Long.MAX_VALUE - 1L.shl(bitIndex))
+                storedBitmapLong.xor(1L.shl(bitIndex))
             }
-            store.put(txn, longToCompressedEntry(key), longToEntry(modifiedBitmap))
+
+            if (modifiedBitmap == 0L) {
+                store.delete(txn, longToCompressedEntry(key))
+            } else {
+                store.put(txn, longToCompressedEntry(key), longToEntry(modifiedBitmap))
+            }
 
             return true
         }

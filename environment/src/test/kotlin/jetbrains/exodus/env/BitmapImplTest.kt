@@ -21,9 +21,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-class BitmapImplTest : EnvironmentTestsBase() {
+open class BitmapImplTest : EnvironmentTestsBase() {
 
-    private lateinit var bitmap: BitmapImpl
+    protected lateinit var bitmap: BitmapImpl
 
     companion object {
         private const val bit0 = 0L
@@ -50,21 +50,8 @@ class BitmapImplTest : EnvironmentTestsBase() {
     fun `set bits`() {
         env.executeInTransaction { txn ->
             assertFalse(bitmap.set(txn, bit0, false))
-            assertFalse(bitmap.get(txn, bit0))
-
             assertTrue(bitmap.set(txn, bit42, true))
-            assertTrue(bitmap.get(txn, bit42))
-
             assertTrue(bitmap.set(txn, bit6040, true))
-            assertTrue(bitmap.get(txn, bit6040))
-        }
-    }
-
-
-    @Test
-    fun `set 63 bit`() {
-        env.executeInTransaction { txn ->
-            assertTrue(bitmap.set(txn, bit63, true))
         }
     }
 
@@ -126,23 +113,49 @@ class BitmapImplTest : EnvironmentTestsBase() {
     }
 
     @Test
-    fun `set and clear bits`() {
+    fun `all operations for 63 bit`() {
+        allOperationsForOneBit(bit63)
+    }
+
+    @Test
+    fun `all operations for 1691827968276783104 bit`() {
+        allOperationsForOneBit(1691827968276783104)
+    }
+
+    @Test
+    fun `all operations for 62nd and 63rd bits`() {
         env.executeInTransaction { txn ->
-            assertTrue(bitmap.set(txn, bit0, true))
-            assertTrue(bitmap.set(txn, bit42, true))
-            assertTrue(bitmap.set(txn, bit6040, true))
+            bitmap.set(txn, 62L, true)
+            bitmap.set(txn, 63L, true)
+            assertTrue(bitmap.get(txn, 62L))
+            assertTrue(bitmap.get(txn, 63L))
 
-            assertTrue(bitmap.get(txn, bit0))
-            assertTrue(bitmap.get(txn, bit42))
-            assertTrue(bitmap.get(txn, bit6040))
+            bitmap.clear(txn, 62L)
+            assertFalse(bitmap.get(txn, 62L))
+            assertTrue(bitmap.get(txn, 63L))
 
-            assertTrue(bitmap.clear(txn, bit0))
-            assertTrue(bitmap.clear(txn, bit42))
-            assertTrue(bitmap.clear(txn, bit6040))
+            bitmap.clear(txn, 63L)
+            assertFalse(bitmap.get(txn, 63L))
+        }
+    }
 
-            assertFalse(bitmap.get(txn, bit0))
-            assertFalse(bitmap.get(txn, bit42))
-            assertFalse(bitmap.get(txn, bit6040))
+    @Test
+    fun `all operations for random bits`() {
+        env.executeInTransaction { txn ->
+            val randomBits = mutableListOf<Long>()
+            for (i in 0..10) {
+                val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
+                randomBits.add(randomBit)
+                assertTrue(bitmap.set(txn, randomBit, true))
+            }
+
+            randomBits.forEach {
+                assertTrue(bitmap.clear(txn, it))
+            }
+
+            randomBits.forEach {
+                assertFalse(bitmap.get(txn, it))
+            }
         }
     }
 
@@ -171,5 +184,14 @@ class BitmapImplTest : EnvironmentTestsBase() {
                 bitmap.clear(txn, -1)
             }
         }, IllegalArgumentException::class.java)
+    }
+
+    fun allOperationsForOneBit(bit: Long) {
+        env.executeInTransaction { txn ->
+            assertTrue(bitmap.set(txn, bit, true))
+            assertTrue(bitmap.get(txn, bit))
+            assertTrue(bitmap.clear(txn, bit))
+            assertFalse(bitmap.get(txn, bit))
+        }
     }
 }

@@ -57,29 +57,17 @@ internal class ContextualBitmapImplTest : EnvironmentTestsBase() {
     fun `set bits`() {
         contextualEnv.executeInTransaction {
             assertFalse(bitmap.set(bit0, false))
-            assertFalse(bitmap.get(bit0))
-
             assertTrue(bitmap.set(bit42, true))
-            assertTrue(bitmap.get(bit42))
-
             assertTrue(bitmap.set(bit6040, true))
-            assertTrue(bitmap.get(bit6040))
-        }
-    }
-
-    @Test
-    fun `set 63 bit`() {
-        contextualEnv.executeInTransaction { txn ->
-            assertTrue(bitmap.set(txn, bit63, true))
         }
     }
 
     @Test
     fun `set and get 100 random bits`() {
-        val randomBits = mutableListOf<Long>()
-
         contextualEnv.executeInTransaction {
-            for (i in 0..100) {
+            val randomBits = mutableListOf<Long>()
+
+            for(i in 0..100) {
                 val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
                 randomBits.add(randomBit)
 
@@ -132,31 +120,57 @@ internal class ContextualBitmapImplTest : EnvironmentTestsBase() {
     }
 
     @Test
-    fun `set and clear bits`() {
+    fun `all operations for 63 bit`() {
+        allOperationsForOneBit(bit63)
+    }
+
+    @Test
+    fun `all operations for 1691827968276783104 bit`() {
+        allOperationsForOneBit(1691827968276783104)
+    }
+
+    @Test
+    fun `all operations for 62nd and 63rd bits`() {
         contextualEnv.executeInTransaction {
-            assertTrue(bitmap.set(bit0, true))
-            assertTrue(bitmap.set(bit42, true))
-            assertTrue(bitmap.set(bit6040, true))
+            bitmap.set(62L, true)
+            bitmap.set(63L, true)
+            assertTrue(bitmap.get(62L))
+            assertTrue(bitmap.get(63L))
 
-            assertTrue(bitmap.get(bit0))
-            assertTrue(bitmap.get(bit42))
-            assertTrue(bitmap.get(bit6040))
+            bitmap.clear(62L)
+            assertFalse(bitmap.get(62L))
+            assertTrue(bitmap.get(63L))
 
-            assertTrue(bitmap.clear(bit0))
-            assertTrue(bitmap.clear(bit42))
-            assertTrue(bitmap.clear(bit6040))
+            bitmap.clear(63L)
+            assertFalse(bitmap.get(63L))
+        }
+    }
 
-            assertFalse(bitmap.get(bit0))
-            assertFalse(bitmap.get(bit42))
-            assertFalse(bitmap.get(bit6040))
+    @Test
+    fun `all operations for random bits`() {
+        contextualEnv.executeInTransaction {
+            val randomBits = mutableListOf<Long>()
+            for (i in 0..10) {
+                val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
+                randomBits.add(randomBit)
+                assertTrue(bitmap.set(randomBit, true))
+            }
+
+            randomBits.forEach {
+                assertTrue(bitmap.clear(it))
+            }
+
+            randomBits.forEach {
+                assertFalse(bitmap.get(it))
+            }
         }
     }
 
     @Test
     fun `set negative bit`() {
         TestUtil.runWithExpectedException({
-            contextualEnv.executeInTransaction { txn ->
-                bitmap.set(txn, -1, true)
+            contextualEnv.executeInTransaction {
+                bitmap.set(-1, true)
             }
         }, IllegalArgumentException::class.java)
     }
@@ -164,8 +178,8 @@ internal class ContextualBitmapImplTest : EnvironmentTestsBase() {
     @Test
     fun `get negative bit`() {
         TestUtil.runWithExpectedException({
-            contextualEnv.executeInTransaction { txn ->
-                bitmap.get(txn, -1)
+            contextualEnv.executeInTransaction {
+                bitmap.get(-1)
             }
         }, IllegalArgumentException::class.java)
     }
@@ -173,9 +187,18 @@ internal class ContextualBitmapImplTest : EnvironmentTestsBase() {
     @Test
     fun `clear negative bit`() {
         TestUtil.runWithExpectedException({
-            contextualEnv.executeInTransaction { txn ->
-                bitmap.clear(txn, -1)
+            contextualEnv.executeInTransaction {
+                bitmap.clear(-1)
             }
         }, IllegalArgumentException::class.java)
+    }
+
+    fun allOperationsForOneBit(bit: Long) {
+        contextualEnv.executeInTransaction {
+            assertTrue(bitmap.set(bit, true))
+            assertTrue(bitmap.get(bit))
+            assertTrue(bitmap.clear(bit))
+            assertFalse(bitmap.get(bit))
+        }
     }
 }
