@@ -657,6 +657,10 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
     }
 
+    public long getHighAddress() {
+        return getEnvironmentTransaction().getHighAddress();
+    }
+
     @NotNull
     EntityIterableCacheAdapter getLocalCache() {
         return mutableCache != null ? mutableCache : localCache;
