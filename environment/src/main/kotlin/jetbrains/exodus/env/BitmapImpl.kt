@@ -19,8 +19,6 @@ import jetbrains.exodus.bindings.LongBinding.*
 
 open class BitmapImpl(private val store: StoreImpl) : Bitmap {
 
-    private var bitmapIterator: BitmapIterator? = null
-
     override fun getEnvironment() = store.environment
 
     override fun get(txn: Transaction, bit: Long): Boolean {
@@ -68,8 +66,5 @@ open class BitmapImpl(private val store: StoreImpl) : Bitmap {
 
     private fun getBitIndex(bit: Long): Int = (bit % 64).toInt()
 
-    override fun iterator(txn: Transaction): BitmapIterator {
-        bitmapIterator = BitmapIterator(txn, store)
-        return bitmapIterator as BitmapIterator
-    }
+    override fun iterator(txn: Transaction): BitmapIterator = BitmapIterator(txn, store)
 }
