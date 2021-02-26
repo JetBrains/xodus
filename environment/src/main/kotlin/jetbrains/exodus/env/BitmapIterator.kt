@@ -30,33 +30,26 @@ class BitmapIterator(val txn: Transaction, var store: StoreImpl) : LongIterator 
     private var value = 0L
 
     override fun remove() {
-        if (current == null) {
-            throw IllegalStateException()
+        current?.let { current ->
+            val keyEntry = LongBinding.longToCompressedEntry(current.key)
+            val bitmap = store.get(txn, keyEntry)?.let { entryToLong(it) } ?: 0L
+            (bitmap xor (1L shl current.index)).let {
+                if (it == 0L) {
+                    store.delete(txn, keyEntry)
+                } else {
+                    store.put(txn, keyEntry, LongBinding.longToEntry(it))
+                }
+            }
+            this.current = null
+            return
         }
-
-        val compressedKey = LongBinding.longToCompressedEntry(current!!.shr(6))
-        val bitIndex = (current!! % 64).toInt()
-        val storedBitmap = store.get(txn, compressedKey)
-        val storedBitmapLong = if (storedBitmap == null) 0L else entryToLong(storedBitmap)
-        val modifiedBitmap = storedBitmapLong.xor(1L.shl(bitIndex))
-        if (modifiedBitmap == 0L) {
-            store.delete(txn, compressedKey)
-        } else {
-            store.put(txn, compressedKey, LongBinding.longToEntry(modifiedBitmap))
-        }
-        current = null
+        throw IllegalStateException()
     }
 
     override fun hasNext(): Boolean {
-        if (next != null) {
-            return true
-        }
-
-        setNext()
         if (next == null) {
-            cursor.close()
+            setNext()
         }
-
         return next != null
     }
 
@@ -65,10 +58,11 @@ class BitmapIterator(val txn: Transaction, var store: StoreImpl) : LongIterator 
     override fun nextLong(): Long {
         if (hasNext()) {
             current = next
-            setNext()
-            return current!!
+            next?.also {
+                setNext()
+                return it
+            }
         }
-
         throw NoSuchElementException()
     }
 
@@ -80,18 +74,19 @@ class BitmapIterator(val txn: Transaction, var store: StoreImpl) : LongIterator 
 
         if (value != 0L) {
             val ind = smallestBitIndex(value)
-            next = key * 64 + ind
-            value -= 1L.shl(ind)
+            next = (key shl 6) + ind
+            value -= 1L shl ind
         } else {
             next = null
+            cursor.close()
         }
     }
 
     private fun smallestBitIndex(n: Long): Int {
-        for(i in 0..62) {
-            if (n % 1L.shl(i + 1) != 0L) {
-                return i
-            }
+        var bits = n
+        for (i in 0..62) {
+            if (bits and 1L == 1L) return i
+            bits = bits shr 1
         }
         return 63
     }

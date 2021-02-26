@@ -17,54 +17,48 @@ package jetbrains.exodus.env
 
 import jetbrains.exodus.bindings.LongBinding.*
 
+private typealias Bit = Long
+
 open class BitmapImpl(private val store: StoreImpl) : Bitmap {
 
     override fun getEnvironment() = store.environment
 
-    override fun get(txn: Transaction, bit: Long): Boolean {
-        if (bit < 0) {
-            throw IllegalArgumentException("Bit number should be non-negative")
-        }
-        val key = getKey(bit)
-        val storedBitmap = store.get(txn, longToCompressedEntry(key)) ?: return false
-        val bitIndex = getBitIndex(bit)
-        return entryToLong(storedBitmap).shr(bitIndex).and(1L) == 1L
+    override fun get(txn: Transaction, bit: Bit): Boolean {
+        val key = bit.ensureNonNegative().key
+        val bitmapEntry = store.get(txn, longToCompressedEntry(key)) ?: return false
+        val mask = 1L shl bit.index
+        return entryToLong(bitmapEntry) and mask != 0L
     }
 
-    override fun set(txn: Transaction, bit: Long, value: Boolean): Boolean {
-        if (bit < 0) {
-            throw IllegalArgumentException("Bit number should be non-negative")
-        }
-        val key = getKey(bit)
-        val bitIndex = getBitIndex(bit)
-        val storedBitmap = store.get(txn, longToCompressedEntry(key))
-        val storedBitmapLong = if (storedBitmap == null) 0L else entryToLong(storedBitmap)
-
-        val prevValue = storedBitmapLong.shr(bitIndex).and(1L) == 1L
-        if (prevValue != value) {
-            val modifiedBitmap = if (value) {
-                storedBitmapLong.or(1L.shl(bitIndex))
+    override fun set(txn: Transaction, bit: Bit, value: Boolean): Boolean {
+        val key = bit.ensureNonNegative().key
+        val keyEntry = longToCompressedEntry(key)
+        val mask = 1L shl bit.index
+        val bitmap = store.get(txn, keyEntry)?.let { entryToLong(it) } ?: 0L
+        val prevValue = bitmap and mask != 0L
+        if (prevValue == value) return false
+        (bitmap xor mask).let {
+            if (it == 0L) {
+                store.delete(txn, keyEntry)
             } else {
-                storedBitmapLong.xor(1L.shl(bitIndex))
+                store.put(txn, keyEntry, longToEntry(it))
             }
-
-            if (modifiedBitmap == 0L) {
-                store.delete(txn, longToCompressedEntry(key))
-            } else {
-                store.put(txn, longToCompressedEntry(key), longToEntry(modifiedBitmap))
-            }
-
-            return true
         }
-
-        return false
+        return true
     }
 
-    override fun clear(txn: Transaction, bit: Long): Boolean = this.set(txn, bit, false)
-
-    private fun getKey(bit: Long): Long = bit.shr(6)
-
-    private fun getBitIndex(bit: Long): Int = (bit % 64).toInt()
+    override fun clear(txn: Transaction, bit: Bit): Boolean = this.set(txn, bit, false)
 
     override fun iterator(txn: Transaction): BitmapIterator = BitmapIterator(txn, store)
 }
+
+internal fun Bit.ensureNonNegative() =
+        if (this < 0L) {
+            throw IllegalArgumentException("Bit number should be non-negative")
+        } else {
+            this
+        }
+
+internal val Bit.key: Bit get() = this shr 6
+
+internal val Bit.index: Int get() = (this and 63).toInt()
