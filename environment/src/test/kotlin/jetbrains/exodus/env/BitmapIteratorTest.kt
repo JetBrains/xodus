@@ -17,7 +17,6 @@ package jetbrains.exodus.env
 
 import jetbrains.exodus.TestUtil
 import org.junit.Assert.*
-import org.junit.Before
 import org.junit.Test
 
 class BitmapIteratorTest : BitmapImplTest() {
@@ -183,7 +182,7 @@ class BitmapIteratorTest : BitmapImplTest() {
         }
     }
 
-    /*@Test
+    @Test
     fun `remove random bits`() {
         env.executeInTransaction { txn ->
             val randomBits = mutableListOf<Long>()
@@ -204,7 +203,7 @@ class BitmapIteratorTest : BitmapImplTest() {
                 assertFalse(bitmap.get(txn, it))
             }
         }
-    }*/
+    }
 
     private fun oneBitTest(bit: Long) {
         env.executeInTransaction { txn ->
@@ -214,6 +213,4 @@ class BitmapIteratorTest : BitmapImplTest() {
             assertEquals(bit, ind)
         }
     }
-
-
 }
