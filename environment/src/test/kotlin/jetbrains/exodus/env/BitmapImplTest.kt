@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.env
 
-import jetbrains.exodus.TestUtil
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -196,34 +195,28 @@ open class BitmapImplTest : EnvironmentTestsBase() {
         }
     }
 
-    @Test
+    @Test(expected = IllegalArgumentException::class)
     fun `set negative bit`() {
-        TestUtil.runWithExpectedException({
-            env.executeInTransaction { txn ->
-                bitmap.set(txn, -1, true)
-            }
-        }, IllegalArgumentException::class.java)
+        env.executeInTransaction { txn ->
+            bitmap.set(txn, -1, true)
+        }
     }
 
-    @Test
+    @Test(expected = IllegalArgumentException::class)
     fun `get negative bit`() {
-        TestUtil.runWithExpectedException({
-            env.executeInTransaction { txn ->
-                bitmap.get(txn, -1)
-            }
-        }, IllegalArgumentException::class.java)
+        env.executeInTransaction { txn ->
+            bitmap.get(txn, -1)
+        }
     }
 
-    @Test
+    @Test(expected = IllegalArgumentException::class)
     fun `clear negative bit`() {
-        TestUtil.runWithExpectedException({
-            env.executeInTransaction { txn ->
-                bitmap.clear(txn, -1)
-            }
-        }, IllegalArgumentException::class.java)
+        env.executeInTransaction { txn ->
+            bitmap.clear(txn, -1)
+        }
     }
 
-    fun allOperationsForOneBit(bit: Long) {
+    private fun allOperationsForOneBit(bit: Long) {
         env.executeInTransaction { txn ->
             assertTrue(bitmap.set(txn, bit, true))
             assertTrue(bitmap.get(txn, bit))

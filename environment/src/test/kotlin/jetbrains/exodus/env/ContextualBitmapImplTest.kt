@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.env
 
-import jetbrains.exodus.TestUtil
 import jetbrains.exodus.log.LogConfig
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -166,34 +165,28 @@ internal class ContextualBitmapImplTest : EnvironmentTestsBase() {
         }
     }
 
-    @Test
+    @Test(expected = IllegalArgumentException::class)
     fun `set negative bit`() {
-        TestUtil.runWithExpectedException({
-            contextualEnv.executeInTransaction {
-                bitmap.set(-1, true)
-            }
-        }, IllegalArgumentException::class.java)
+        contextualEnv.executeInTransaction {
+            bitmap.set(-1, true)
+        }
     }
 
-    @Test
+    @Test(expected = IllegalArgumentException::class)
     fun `get negative bit`() {
-        TestUtil.runWithExpectedException({
-            contextualEnv.executeInTransaction {
-                bitmap.get(-1)
-            }
-        }, IllegalArgumentException::class.java)
+        contextualEnv.executeInTransaction {
+            bitmap.get(-1)
+        }
     }
 
-    @Test
+    @Test(expected = IllegalArgumentException::class)
     fun `clear negative bit`() {
-        TestUtil.runWithExpectedException({
-            contextualEnv.executeInTransaction {
-                bitmap.clear(-1)
-            }
-        }, IllegalArgumentException::class.java)
+        contextualEnv.executeInTransaction {
+            bitmap.clear(-1)
+        }
     }
 
-    fun allOperationsForOneBit(bit: Long) {
+    private fun allOperationsForOneBit(bit: Long) {
         contextualEnv.executeInTransaction {
             assertTrue(bitmap.set(bit, true))
             assertTrue(bitmap.get(bit))
