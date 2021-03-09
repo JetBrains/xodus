@@ -62,4 +62,13 @@ public interface Bitmap{
      */
     @NotNull
     LongIterator iterator(@NotNull Transaction txn);
+
+    /**
+     * Creates new instance of reverse {@linkplain LongIterator}.
+     *
+     * @return new instance of {@linkplain LongIterator}
+     * @see LongIterator
+     */
+    @NotNull
+    LongIterator reverseIterator(@NotNull Transaction txn);
 }

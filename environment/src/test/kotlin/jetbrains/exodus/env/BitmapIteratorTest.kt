@@ -37,12 +37,35 @@ class BitmapIteratorTest : BitmapImplTest() {
     }
 
     @Test
+    fun `reversed hasNext for empty`() {
+        env.executeInTransaction { txn ->
+            val iter = bitmap.reverseIterator(txn)
+            assertFalse(iter.hasNext())
+        }
+    }
+
+    @Test
     fun `hasNext for bitmap with 1 set bit`() {
         env.executeInTransaction { txn ->
             for (i in 0..20) {
                 val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
                 bitmap.set(txn, randomBit, true)
                 val iter = bitmap.iterator(txn)
+                assertTrue(iter.hasNext())
+                assertEquals(iter.next(), randomBit)
+                assertFalse(iter.hasNext())
+                bitmap.clear(txn, randomBit)
+            }
+        }
+    }
+
+    @Test
+    fun `reversed hasNext for bitmap with 1 set bit`() {
+        env.executeInTransaction { txn ->
+            for (i in 0..20) {
+                val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
+                bitmap.set(txn, randomBit, true)
+                val iter = bitmap.reverseIterator(txn)
                 assertTrue(iter.hasNext())
                 assertEquals(iter.next(), randomBit)
                 assertFalse(iter.hasNext())
@@ -68,11 +91,37 @@ class BitmapIteratorTest : BitmapImplTest() {
     }
 
     @Test
+    fun `reversed hasNext twice for bitmap with 1 set bit`() {
+        env.executeInTransaction { txn ->
+            val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
+            bitmap.set(txn, randomBit, true)
+            val iter = bitmap.reverseIterator(txn)
+
+            assertTrue(iter.hasNext())
+            assertTrue(iter.hasNext())
+
+            assertEquals(iter.next(), randomBit)
+            assertFalse(iter.hasNext())
+            bitmap.clear(txn, randomBit)
+        }
+    }
+
+    @Test
     fun `hasNext after set and clear`() {
         env.executeInTransaction { txn ->
             bitmap.set(txn, bit0, true)
             bitmap.clear(txn, bit0)
             val iter = bitmap.iterator(txn)
+            assertEquals(false, iter.hasNext())
+        }
+    }
+
+    @Test
+    fun `reversed hasNext after set and clear`() {
+        env.executeInTransaction { txn ->
+            bitmap.set(txn, bit0, true)
+            bitmap.clear(txn, bit0)
+            val iter = bitmap.reverseIterator(txn)
             assertEquals(false, iter.hasNext())
         }
     }
@@ -88,6 +137,17 @@ class BitmapIteratorTest : BitmapImplTest() {
         oneBitTest(randomBit)
     }
 
+    @Test
+    fun `reversed iterator for bitmap with 1 set bit without hasNext check`() {
+        oneBitTest(bit0)
+        oneBitTest(bit1)
+        oneBitTest(bit42)
+        oneBitTest(bit63)
+        oneBitTest(1691827968276783104)
+        val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
+        oneBitTest(randomBit, -1)
+    }
+
 
     @Test
     fun `iterator for bitmap with 3 set bits without hasNext check`() {
@@ -101,6 +161,21 @@ class BitmapIteratorTest : BitmapImplTest() {
             assertEquals(randomBit, iterBitmap.next())
             assertEquals(randomBit + 1, iterBitmap.next())
             assertEquals(randomBit + 10, iterBitmap.next())
+        }
+    }
+
+    @Test
+    fun `reversed iterator for bitmap with 3 set bits without hasNext check`() {
+        env.executeInTransaction { txn ->
+            val randomBit = (Math.random() * Long.MAX_VALUE).toLong() - 10
+            bitmap.set(txn, randomBit, true)
+            bitmap.set(txn, randomBit + 1, true)
+            bitmap.set(txn, randomBit + 10, true)
+
+            val iterBitmap = bitmap.reverseIterator(txn)
+            assertEquals(randomBit + 10, iterBitmap.next())
+            assertEquals(randomBit + 1, iterBitmap.next())
+            assertEquals(randomBit, iterBitmap.next())
         }
     }
 
@@ -123,11 +198,43 @@ class BitmapIteratorTest : BitmapImplTest() {
         }
     }
 
+
+    @Test
+    fun `reverse iterator for bitmap with many set bits`() {
+        env.executeInTransaction { txn ->
+            val randomBits = mutableListOf<Long>()
+            for (i in 0..100) {
+                val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
+                randomBits.add(randomBit)
+                bitmap.set(txn, randomBit, true)
+            }
+
+            randomBits.sortDescending()
+
+            val iterBitmap = bitmap.reverseIterator(txn)
+            val iterList = randomBits.iterator()
+            while (iterBitmap.hasNext()) {
+                assertEquals(iterList.next(), iterBitmap.next())
+            }
+            assertFalse(iterList.hasNext())
+        }
+    }
+
     @Test
     fun `call remove on empty element`() {
         TestUtil.runWithExpectedException({
             env.executeInTransaction { txn ->
                 val iter = bitmap.iterator(txn)
+                iter.remove()
+            }
+        }, IllegalStateException::class.java)
+    }
+
+    @Test
+    fun `reverse call remove on empty element`() {
+        TestUtil.runWithExpectedException({
+            env.executeInTransaction { txn ->
+                val iter = bitmap.reverseIterator(txn)
                 iter.remove()
             }
         }, IllegalStateException::class.java)
@@ -205,10 +312,35 @@ class BitmapIteratorTest : BitmapImplTest() {
         }
     }
 
-    private fun oneBitTest(bit: Long) {
+    @Test
+    fun `reverse remove random bits`() {
+        env.executeInTransaction { txn ->
+            val randomBits = mutableListOf<Long>()
+            for (i in 0..10) {
+                val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
+                randomBits.add(randomBit)
+                bitmap.set(txn, randomBit, true)
+            }
+            randomBits.sortDescending()
+
+            val iter = bitmap.reverseIterator(txn)
+            while (iter.hasNext()) {
+                iter.next()
+                iter.remove()
+            }
+
+            randomBits.forEach {
+                assertFalse(bitmap.get(txn, it))
+            }
+        }
+    }
+
+    private fun oneBitTest(bit: Long, direction: Int = 1) {
         env.executeInTransaction { txn ->
             bitmap.set(txn, bit, true)
-            val ind = bitmap.iterator(txn).next()
+            val ind =
+                if (direction == 1) bitmap.iterator(txn).next()
+                else bitmap.reverseIterator(txn).next()
             bitmap.clear(txn, bit)
             assertEquals(bit, ind)
         }

@@ -21,7 +21,7 @@ import jetbrains.exodus.bindings.LongBinding.entryToLong
 import jetbrains.exodus.core.dataStructures.hash.LongIterator
 import java.util.*
 
-class BitmapIterator(val txn: Transaction, var store: StoreImpl) : LongIterator {
+class BitmapIterator(val txn: Transaction, var store: StoreImpl, private val direction: Int = 1) : LongIterator {
 
     private val cursor = store.openCursor(txn)
     private var current: Long? = null
@@ -68,14 +68,14 @@ class BitmapIterator(val txn: Transaction, var store: StoreImpl) : LongIterator 
     }
 
     private fun setNext() {
-        while (value == 0L && cursor.next) {
+        while (value == 0L && (direction == 1 && cursor.next || direction == -1 && cursor.prev)) {
             key = compressedEntryToLong(cursor.key)
             value = entryToLong(cursor.value)
-            bitIndex = 0
+            bitIndex = if (direction == 1) 0 else 63
         }
 
         if (value != 0L) {
-            setIndexOfNextBit()
+            setNextBitIndex()
             next = (key shl 6) + bitIndex
             value -= 1L shl bitIndex
         } else {
@@ -84,9 +84,9 @@ class BitmapIterator(val txn: Transaction, var store: StoreImpl) : LongIterator 
         }
     }
 
-    private fun setIndexOfNextBit() {
-        while (value and (1L shl bitIndex) == 0L) {
-            bitIndex += 1
+    private fun setNextBitIndex() {
+        while (value and 1L.shl(bitIndex) == 0L) {
+            bitIndex += if (direction == 1) 1 else -1
         }
     }
 

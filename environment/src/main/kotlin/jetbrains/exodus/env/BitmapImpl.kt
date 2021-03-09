@@ -50,6 +50,8 @@ open class BitmapImpl(private val store: StoreImpl) : Bitmap {
     override fun clear(txn: Transaction, bit: Bit): Boolean = this.set(txn, bit, false)
 
     override fun iterator(txn: Transaction): BitmapIterator = BitmapIterator(txn, store)
+
+    override fun reverseIterator(txn: Transaction): BitmapIterator = BitmapIterator(txn, store, -1)
 }
 
 internal fun Bit.ensureNonNegative() =
