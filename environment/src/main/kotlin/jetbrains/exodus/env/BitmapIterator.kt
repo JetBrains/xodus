@@ -19,6 +19,7 @@ import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.bindings.LongBinding.compressedEntryToLong
 import jetbrains.exodus.bindings.LongBinding.entryToLong
 import jetbrains.exodus.core.dataStructures.hash.LongIterator
+import java.lang.IllegalArgumentException
 import java.util.*
 
 class BitmapIterator(val txn: Transaction, var store: StoreImpl, private val direction: Int = 1) : LongIterator {
@@ -29,6 +30,12 @@ class BitmapIterator(val txn: Transaction, var store: StoreImpl, private val dir
     private var key = 0L
     private var value = 0L
     private var bitIndex = 1
+
+    init {
+        if (direction != 1 && direction != -1) {
+            throw IllegalArgumentException("direction can only be 1 or -1")
+        }
+    }
 
     override fun remove() {
         current?.let { current ->
@@ -68,7 +75,7 @@ class BitmapIterator(val txn: Transaction, var store: StoreImpl, private val dir
     }
 
     private fun setNext() {
-        while (value == 0L && (direction == 1 && cursor.next || direction == -1 && cursor.prev)) {
+        while (value == 0L && if (direction == 1) cursor.next else cursor.prev) {
             key = compressedEntryToLong(cursor.key)
             value = entryToLong(cursor.value)
             bitIndex = if (direction == 1) 0 else 63
@@ -86,7 +93,7 @@ class BitmapIterator(val txn: Transaction, var store: StoreImpl, private val dir
 
     private fun setNextBitIndex() {
         while (value and 1L.shl(bitIndex) == 0L) {
-            bitIndex += if (direction == 1) 1 else -1
+            bitIndex += direction
         }
     }
 
