@@ -27,7 +27,6 @@ import jetbrains.exodus.entitystore.tables.*
 import jetbrains.exodus.env.Cursor
 import jetbrains.exodus.env.ReadonlyTransactionException
 import jetbrains.exodus.env.Store
-import jetbrains.exodus.env.StoreConfig
 import mu.KLogging
 import java.util.*
 import kotlin.experimental.xor
@@ -51,20 +50,6 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                         logger.error("Failed to delete $item")
                     }
                 }
-            }
-        }
-    }
-
-    fun refactorEntitiesTables() {
-        store.executeInReadonlyTransaction { tx ->
-            val txn = tx as PersistentStoreTransaction
-            for (entityType in store.getEntityTypes(txn)) {
-                val entityTypeId = store.getEntityTypeId(txn, entityType, false)
-                val sourceName = store.namingRules.getEntitiesTableName(entityTypeId)
-                val targetName = sourceName + "_temp"
-                logInfo("Refactoring $sourceName to key-prefixed store.")
-                transactionalCopyAndRemoveEntitiesStore(sourceName, targetName)
-                transactionalCopyAndRemoveEntitiesStore(targetName, sourceName)
             }
         }
     }
@@ -625,18 +610,6 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
         }
     }
 
-    fun refactorRemoveHistoryStores() {
-        val environment = store.environment
-        environment.executeInReadonlyTransaction { txn ->
-            val persistentStoreName = store.name
-            for (storeName in environment.getAllStoreNames(txn)) {
-                if (storeName.startsWith(persistentStoreName) && storeName.endsWith("#history")) {
-                    environment.executeInTransaction { txn -> environment.removeStore(storeName, txn) }
-                }
-            }
-        }
-    }
-
     private fun safeExecuteRefactoringForEachEntityType(message: String,
                                                         executable: (String, PersistentStoreTransaction) -> Unit) {
         store.executeInReadonlyTransaction { txn ->
@@ -658,26 +631,6 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
         } catch (t: Throwable) {
             logger.error("Failed to execute refactoring for entity type: $entityType", t)
             throwJVMError(t)
-        }
-    }
-
-    private fun transactionalCopyAndRemoveEntitiesStore(sourceName: String, targetName: String) {
-        val env = store.environment
-        env.executeInTransaction { txn ->
-            val store = env.openStore(sourceName, StoreConfig.USE_EXISTING, txn)
-            val storeCopy = env.openStore(targetName, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn)
-            val cursor = store.openCursor(txn)
-            var lastKey: ArrayByteIterable? = null
-            while (cursor.next) {
-                val key = ArrayByteIterable(cursor.key)
-                if (lastKey != null && lastKey >= key) {
-                    throw IllegalStateException("Invalid key order")
-                }
-                storeCopy.putRight(txn, key, ArrayByteIterable(cursor.value))
-                lastKey = key
-            }
-            cursor.close()
-            env.removeStore(sourceName, txn)
         }
     }
 
