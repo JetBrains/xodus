@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.env
 
+import jetbrains.exodus.ArrayByteIterable
+import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.bindings.LongBinding.*
 
 private typealias Bit = Long
@@ -27,21 +29,21 @@ open class BitmapImpl(private val store: StoreImpl) : Bitmap {
         val key = bit.ensureNonNegative().key
         val bitmapEntry = store.get(txn, longToCompressedEntry(key)) ?: return false
         val mask = 1L shl bit.index
-        return entryToLong(bitmapEntry) and mask != 0L
+        return bitmapEntry.indexEntryToLong() and mask != 0L
     }
 
     override fun set(txn: Transaction, bit: Bit, value: Boolean): Boolean {
         val key = bit.ensureNonNegative().key
         val keyEntry = longToCompressedEntry(key)
         val mask = 1L shl bit.index
-        val bitmap = store.get(txn, keyEntry)?.let { entryToLong(it) } ?: 0L
+        val bitmap = store.get(txn, keyEntry)?.indexEntryToLong() ?: 0L
         val prevValue = bitmap and mask != 0L
         if (prevValue == value) return false
         (bitmap xor mask).let {
             if (it == 0L) {
                 store.delete(txn, keyEntry)
             } else {
-                store.put(txn, keyEntry, longToEntry(it))
+                store.put(txn, keyEntry, it.toEntry(bit.index))
             }
         }
         return true
@@ -60,6 +62,41 @@ internal fun Bit.ensureNonNegative() =
         } else {
             this
         }
+
+fun Bit.toEntry(changedIndex: Int): ArrayByteIterable {
+    ByteArray(1).let { entry ->
+        return when {
+            this == Long.MIN_VALUE -> {
+                entry[0] = 1.toByte()
+                ArrayByteIterable(entry)
+            }
+            this or (1L shl changedIndex) == 0L -> {
+                entry[0] = (changedIndex + 2).toByte()
+                ArrayByteIterable(entry)
+            }
+            this xor (1L shl changedIndex) == Long.MIN_VALUE -> {
+                entry[0] = (changedIndex + 66).toByte()
+                ArrayByteIterable(entry)
+            }
+            else -> longToEntry(this)
+        }
+    }
+}
+
+fun ByteIterable.indexEntryToLong(): Long {
+    if (this.length == 1) {
+        this.iterator().next().toInt().let {
+            return when {
+                it == 1 -> Long.MIN_VALUE
+                it < 66 -> Long.MIN_VALUE and (1L shl (it - 2))
+                else -> Long.MIN_VALUE xor (1L shl (it - 66))
+            }
+        }
+    }
+
+    return entryToLong(this)
+}
+
 
 internal val Bit.key: Bit get() = this shr 6
 

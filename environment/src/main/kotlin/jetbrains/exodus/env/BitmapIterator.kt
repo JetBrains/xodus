@@ -17,7 +17,6 @@ package jetbrains.exodus.env
 
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.bindings.LongBinding.compressedEntryToLong
-import jetbrains.exodus.bindings.LongBinding.entryToLong
 import jetbrains.exodus.core.dataStructures.hash.LongIterator
 import java.lang.IllegalArgumentException
 import java.util.*
@@ -40,12 +39,12 @@ class BitmapIterator(val txn: Transaction, var store: StoreImpl, private val dir
     override fun remove() {
         current?.let { current ->
             val keyEntry = LongBinding.longToCompressedEntry(current.key)
-            val bitmap = store.get(txn, keyEntry)?.let { entryToLong(it) } ?: 0L
+            val bitmap = store.get(txn, keyEntry)?.indexEntryToLong() ?: 0L
             (bitmap xor (1L shl current.index)).let {
                 if (it == 0L) {
                     store.delete(txn, keyEntry)
                 } else {
-                    store.put(txn, keyEntry, LongBinding.longToEntry(it))
+                    store.put(txn, keyEntry, it.toEntry(current.index))
                 }
             }
             this.current = null
@@ -77,7 +76,7 @@ class BitmapIterator(val txn: Transaction, var store: StoreImpl, private val dir
     private fun setNext() {
         while (value == 0L && if (direction == 1) cursor.next else cursor.prev) {
             key = compressedEntryToLong(cursor.key)
-            value = entryToLong(cursor.value)
+            value = cursor.value.indexEntryToLong()
             bitIndex = if (direction == 1) 0 else 63
         }
 
