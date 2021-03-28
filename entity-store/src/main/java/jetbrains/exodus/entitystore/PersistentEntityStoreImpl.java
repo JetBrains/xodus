@@ -299,12 +299,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             if (config.getRefactoringDeleteRedundantBlobs()) {
                 refactorings.refactorDeleteRedundantBlobs();
             }
-            if (fromScratch || Settings.get(internalSettings, "Entities' stores key-prefixed") == null) {
-                if (!fromScratch) {
-                    refactorings.refactorEntitiesTables();
-                }
-                Settings.set(internalSettings, "Entities' stores key-prefixed", "yes");
-            }
             if (fromScratch || Settings.get(internalSettings, "Null-indices present 2") == null || config.getRefactoringNullIndices()) {
                 if (!fromScratch) {
                     Settings.delete(internalSettings, "Null-indices present"); // don't waste space
@@ -341,12 +335,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     refactorings.refactorFixNegativeFloatAndDoubleProps(internalSettings);
                 }
                 Settings.set(internalSettings, "refactorFixNegativeFloatAndDoubleProps() applied", "y");
-            }
-            if (fromScratch || Settings.get(internalSettings, "Entities history deleted") == null) {
-                if (!fromScratch) {
-                    refactorings.refactorRemoveHistoryStores();
-                }
-                Settings.set(internalSettings, "Entities history deleted", "y");
             }
             if (fromScratch || Settings.get(internalSettings, "Link null-indices present") == null) {
                 if (!fromScratch) {

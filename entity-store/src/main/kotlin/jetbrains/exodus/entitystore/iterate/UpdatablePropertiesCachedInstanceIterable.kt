@@ -151,13 +151,13 @@ private constructor(txn: PersistentStoreTransaction?,
     private inner class PropertyValueCachedInstanceIterator(private val value: Comparable<Any>)
         : PropertiesCachedInstanceIteratorBase(currentTree.tailIterator(createEntry(value, 0) as IndexEntry<Comparable<Any>>)) {
 
-        override fun checkIndexEntry(entry: IndexEntry<Comparable<Any>>?) = entry != null && entry.propValue == value
+        override fun checkIndexEntry(entry: IndexEntry<Comparable<Any>>?) = entry != null && entry.isEqual(value)
     }
 
     private inner class PropertyRangeCachedInstanceIterator(min: Comparable<Any>, private val max: Comparable<Any>)
         : PropertiesCachedInstanceIteratorBase(currentTree.tailIterator(createEntry(min, 0) as IndexEntry<Comparable<Any>>)) {
 
-        override fun checkIndexEntry(entry: IndexEntry<Comparable<Any>>?) = entry != null && entry.propValue <= max
+        override fun checkIndexEntry(entry: IndexEntry<Comparable<Any>>?) = entry != null && entry.isLessThanOrEqual(max)
     }
 
     companion object {
@@ -236,6 +236,10 @@ private abstract class IndexEntry<T : Comparable<T>>(val localId: Long) : Compar
         }
         return result
     }
+
+    open fun isEqual(right: T) = propValue == right
+
+    open fun isLessThanOrEqual(max: T) = propValue <= max
 }
 
 private class ComparableIndexEntry(override val propValue: Comparable<Any>, localId: Long) : IndexEntry<Comparable<Any>>(localId)
@@ -257,6 +261,10 @@ private class LongIndexEntry(override val propValue: Long, localId: Long) : Inde
             }
         }
     }
+
+    override fun isEqual(right: Long) = propValue == right
+
+    override fun isLessThanOrEqual(max: Long) = propValue <= max
 }
 
 private class IntIndexEntry(override val propValue: Int, localId: Long) : IndexEntry<Int>(localId) {
@@ -276,6 +284,10 @@ private class IntIndexEntry(override val propValue: Int, localId: Long) : IndexE
             }
         }
     }
+
+    override fun isEqual(right: Int) = propValue == right
+
+    override fun isLessThanOrEqual(max: Int) = propValue <= max
 }
 
 private class BooleanIndexEntry(override val propValue: Boolean, localId: Long) : IndexEntry<Boolean>(localId) {
@@ -295,6 +307,10 @@ private class BooleanIndexEntry(override val propValue: Boolean, localId: Long) 
             }
         }
     }
+
+    override fun isEqual(right: Boolean) = propValue == right
+
+    override fun isLessThanOrEqual(max: Boolean) = propValue <= max
 }
 
 private class FloatIndexEntry(override val propValue: Float, localId: Long) : IndexEntry<Float>(localId) {
@@ -314,6 +330,10 @@ private class FloatIndexEntry(override val propValue: Float, localId: Long) : In
             }
         }
     }
+
+    override fun isEqual(right: Float) = propValue == right
+
+    override fun isLessThanOrEqual(max: Float) = propValue <= max
 }
 
 private class DoubleIndexEntry(override val propValue: Double, localId: Long) : IndexEntry<Double>(localId) {
@@ -333,6 +353,10 @@ private class DoubleIndexEntry(override val propValue: Double, localId: Long) : 
             }
         }
     }
+
+    override fun isEqual(right: Double) = propValue == right
+
+    override fun isLessThanOrEqual(max: Double) = propValue <= max
 }
 
 private class ByteIndexEntry(override val propValue: Byte, localId: Long) : IndexEntry<Byte>(localId) {
@@ -351,6 +375,10 @@ private class ByteIndexEntry(override val propValue: Byte, localId: Long) : Inde
             }
         }
     }
+
+    override fun isEqual(right: Byte) = propValue == right
+
+    override fun isLessThanOrEqual(max: Byte) = propValue <= max
 }
 
 private class ShortIndexEntry(override val propValue: Short, localId: Long) : IndexEntry<Short>(localId) {
@@ -369,4 +397,8 @@ private class ShortIndexEntry(override val propValue: Short, localId: Long) : In
             }
         }
     }
+
+    override fun isEqual(right: Short) = propValue == right
+
+    override fun isLessThanOrEqual(max: Short) = propValue <= max
 }
