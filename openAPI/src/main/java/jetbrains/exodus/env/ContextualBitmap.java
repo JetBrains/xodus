@@ -49,4 +49,8 @@ public interface ContextualBitmap extends Bitmap {
      * @return {@code true} if value was changed and false otherwise
      */
     boolean clear(long bit);
+
+    Long getFirst();
+
+    Long getLast();
 }

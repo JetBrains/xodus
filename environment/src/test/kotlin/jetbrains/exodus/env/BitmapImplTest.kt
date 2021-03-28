@@ -15,8 +15,7 @@
  */
 package jetbrains.exodus.env
 
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
+import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 
@@ -34,7 +33,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
     @Before
     override fun setUp() {
         super.setUp()
-        bitmap = env.computeInExclusiveTransaction { env.openBitmap("test", it) }
+        bitmap = env.computeInExclusiveTransaction { env.openBitmap("test", StoreConfig.WITHOUT_DUPLICATES, it) }
     }
 
     @Test
@@ -59,7 +58,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
         env.executeInTransaction { txn ->
             val randomBits = mutableListOf<Long>()
 
-            for(i in 0..100) {
+            for (i in 0..100) {
                 val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
                 randomBits.add(randomBit)
 
@@ -213,6 +212,34 @@ open class BitmapImplTest : EnvironmentTestsBase() {
     fun `clear negative bit`() {
         env.executeInTransaction { txn ->
             bitmap.clear(txn, -1)
+        }
+    }
+
+    @Test
+    fun `getFirst and getLast on empty bitmap`() {
+        env.executeInTransaction { txn ->
+            assertEquals(-1L, bitmap.getFirst(txn))
+            assertEquals(-1L, bitmap.getLast(txn))
+        }
+    }
+
+    @Test
+    fun `getFirst and getLast on  bitmap with one element`() {
+        env.executeInTransaction { txn ->
+            bitmap.set(txn, bit42, true)
+            assertEquals(bit42, bitmap.getFirst(txn))
+            assertEquals(bit42, bitmap.getLast(txn))
+        }
+    }
+
+    @Test
+    fun `getFirst and getLast on  bitmap with tree elements`() {
+        env.executeInTransaction { txn ->
+            bitmap.set(txn, bit42, true)
+            bitmap.set(txn, bit63, true)
+            bitmap.set(txn, bit6040, true)
+            assertEquals(bit42, bitmap.getFirst(txn))
+            assertEquals(bit6040, bitmap.getLast(txn))
         }
     }
 

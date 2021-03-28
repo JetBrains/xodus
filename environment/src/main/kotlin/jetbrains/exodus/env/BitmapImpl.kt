@@ -54,6 +54,24 @@ open class BitmapImpl(private val store: StoreImpl) : Bitmap {
     override fun iterator(txn: Transaction): BitmapIterator = BitmapIterator(txn, store)
 
     override fun reverseIterator(txn: Transaction): BitmapIterator = BitmapIterator(txn, store, -1)
+
+    override fun getFirst(txn: Transaction): Long {
+        iterator(txn).let {
+            if (it.hasNext()) {
+                return it.next()
+            }
+            return -1L
+        }
+    }
+
+    override fun getLast(txn: Transaction): Long {
+        reverseIterator(txn).let {
+            if (it.hasNext()) {
+                return it.next()
+            }
+            return -1L
+        }
+    }
 }
 
 internal fun Bit.ensureNonNegative() =

@@ -71,4 +71,8 @@ public interface Bitmap{
      */
     @NotNull
     LongIterator reverseIterator(@NotNull Transaction txn);
+
+    Long getFirst(@NotNull Transaction txn);
+
+    Long getLast(@NotNull Transaction txn);
 }

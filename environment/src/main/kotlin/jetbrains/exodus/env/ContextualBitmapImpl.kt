@@ -23,4 +23,8 @@ class ContextualBitmapImpl (private val store: ContextualStoreImpl) : Contextual
     override fun set(bit: Long, value: Boolean) = set(environment.andCheckCurrentTransaction, bit, value)
 
     override fun clear(bit: Long) = clear(environment.andCheckCurrentTransaction, bit)
+
+    override fun getFirst(): Long = getFirst(environment.andCheckCurrentTransaction)
+
+    override fun getLast(): Long = getLast(environment.andCheckCurrentTransaction)
 }

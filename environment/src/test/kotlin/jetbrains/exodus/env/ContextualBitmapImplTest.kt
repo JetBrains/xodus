@@ -37,7 +37,7 @@ internal class ContextualBitmapImplTest : EnvironmentTestsBase() {
     override fun setUp() {
         super.setUp()
         contextualEnv = env as ContextualEnvironmentImpl
-        bitmap = contextualEnv.openBitmap("test")
+        bitmap = contextualEnv.openBitmap("test", StoreConfig.WITHOUT_DUPLICATES)
     }
 
     override fun createEnvironment() {
