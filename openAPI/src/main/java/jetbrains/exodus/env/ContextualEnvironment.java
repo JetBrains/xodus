@@ -38,7 +38,7 @@ public interface ContextualEnvironment extends Environment {
      * @return {@linkplain Bitmap} instance
      */
     @NotNull
-    ContextualBitmap openBitmap(@NotNull String name);
+    ContextualBitmap openBitmap(@NotNull String name, @NotNull StoreConfig config);
 
     /**
      * Opens existing or creates new {@linkplain Store store} with specified {@code name} and

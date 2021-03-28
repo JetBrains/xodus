@@ -73,7 +73,7 @@ public interface Environment extends Closeable, Backupable {
      * @return {@linkplain Bitmap} instance
      */
     @NotNull
-    Bitmap openBitmap(@NotNull String name, @NotNull Transaction transaction);
+    Bitmap openBitmap(@NotNull String name, @NotNull StoreConfig config, @NotNull Transaction transaction);
 
     /**
      * Opens existing or creates new {@linkplain Store store} with specified {@code name} and

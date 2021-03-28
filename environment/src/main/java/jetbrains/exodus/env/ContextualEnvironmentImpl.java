@@ -60,8 +60,11 @@ public class ContextualEnvironmentImpl extends EnvironmentImpl implements Contex
     }
 
     @Override
-    public @NotNull ContextualBitmapImpl openBitmap(@NotNull String name) {
-        final ContextualStoreImpl store = openStore(name.concat("#bitmap"), StoreConfig.WITHOUT_DUPLICATES);
+    public @NotNull ContextualBitmapImpl openBitmap(@NotNull String name, @NotNull final StoreConfig config) {
+        if (config == StoreConfig.WITH_DUPLICATES || config == StoreConfig.WITH_DUPLICATES_WITH_PREFIXING) {
+            throw new ExodusException("Bitmap can't be opened on the store with duplicates");
+        }
+        final ContextualStoreImpl store = openStore(name.concat("#bitmap"), config);
         return new ContextualBitmapImpl(store);
     }
 

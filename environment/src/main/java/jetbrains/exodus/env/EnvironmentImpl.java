@@ -186,8 +186,13 @@ public class EnvironmentImpl implements Environment {
     }
 
     @Override
-    public @NotNull BitmapImpl openBitmap(@NotNull String name, @NotNull Transaction transaction) {
-        final StoreImpl store = openStore(name.concat("#bitmap"), StoreConfig.WITHOUT_DUPLICATES, transaction);
+    public @NotNull BitmapImpl openBitmap(@NotNull String name,
+                                          @NotNull final StoreConfig config,
+                                          @NotNull Transaction transaction) {
+        if (config == StoreConfig.WITH_DUPLICATES || config == StoreConfig.WITH_DUPLICATES_WITH_PREFIXING) {
+            throw new ExodusException("Bitmap can't be opened on the store with duplicates");
+        }
+        final StoreImpl store = openStore(name.concat("#bitmap"), config, transaction);
         return new BitmapImpl(store);
     }
 
