@@ -82,6 +82,12 @@ internal fun Bit.ensureNonNegative() =
         }
 
 fun Bit.toEntry(changedIndex: Int): ArrayByteIterable {
+    if (this != Long.MIN_VALUE &&
+        this or (1L shl changedIndex) != 0L &&
+        this xor (1L shl changedIndex) != Long.MIN_VALUE) {
+        return longToEntry(this)
+    }
+
     ByteArray(1).let { entry ->
         return when {
             this == Long.MIN_VALUE -> {
@@ -92,27 +98,26 @@ fun Bit.toEntry(changedIndex: Int): ArrayByteIterable {
                 entry[0] = (changedIndex + 2).toByte()
                 ArrayByteIterable(entry)
             }
-            this xor (1L shl changedIndex) == Long.MIN_VALUE -> {
+            else -> {
                 entry[0] = (changedIndex + 66).toByte()
                 ArrayByteIterable(entry)
             }
-            else -> longToEntry(this)
         }
     }
 }
 
 fun ByteIterable.indexEntryToLong(): Long {
-    if (this.length == 1) {
-        this.iterator().next().toInt().let {
-            return when {
-                it == 1 -> Long.MIN_VALUE
-                it < 66 -> Long.MIN_VALUE and (1L shl (it - 2))
-                else -> Long.MIN_VALUE xor (1L shl (it - 66))
-            }
-        }
+    if (this.length != 1) {
+        return entryToLong(this)
     }
 
-    return entryToLong(this)
+    this.iterator().next().toInt().let {
+        return when {
+            it == 1 -> Long.MIN_VALUE
+            it < 66 -> Long.MIN_VALUE and (1L shl (it - 2))
+            else -> Long.MIN_VALUE xor (1L shl (it - 66))
+        }
+    }
 }
 
 
