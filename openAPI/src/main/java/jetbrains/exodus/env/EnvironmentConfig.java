@@ -89,6 +89,8 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public static final String MEMORY_USAGE_PERCENTAGE = "exodus.memoryUsagePercentage";
 
+    public static final String USE_VERSION1_FORMAT = "exodus.useVersion1Format";
+
     /**
      * Defines id of {@linkplain StreamCipherProvider} which will be used to encrypt the database. Default value is
      * {@code null}, which means that the database won't be encrypted. The setting cannot be changed for existing databases.
@@ -703,6 +705,7 @@ public class EnvironmentConfig extends AbstractConfig {
         //noinspection unchecked
         super(new Pair[]{
             new Pair(MEMORY_USAGE_PERCENTAGE, 50),
+            new Pair(USE_VERSION1_FORMAT, true),
             new Pair(CIPHER_ID, null),
             new Pair(CIPHER_KEY, null),
             new Pair(CIPHER_BASIC_IV, 0L),
@@ -840,6 +843,14 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public EnvironmentConfig setMemoryUsagePercentage(final int memoryUsagePercentage) {
         return setSetting(MEMORY_USAGE_PERCENTAGE, memoryUsagePercentage);
+    }
+
+    public boolean getUseVersion1Format() {
+        return (Boolean) getSetting(USE_VERSION1_FORMAT);
+    }
+
+    public EnvironmentConfig setUseVersion1Format(final boolean useVersion1Format) {
+        return setSetting(USE_VERSION1_FORMAT, useVersion1Format);
     }
 
     /**
