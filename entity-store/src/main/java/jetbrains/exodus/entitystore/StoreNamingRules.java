@@ -120,8 +120,13 @@ final class StoreNamingRules {
     }
 
     @NotNull
-    String getBlobsTableName(final int entityTypeId) {
+    String getBlobsObsoleteTableName(final int entityTypeId) {
         return getFQName(BLOBS_TABLE_PREFIX, entityTypeId);
+    }
+
+    @NotNull
+    String getBlobsTableName(final int entityTypeId) {
+        return getFQName(BLOBS_TABLE_PREFIX, entityTypeId, "#v2");
     }
 
     String getBlobFileLengthsTable() {
