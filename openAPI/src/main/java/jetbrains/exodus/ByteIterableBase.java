@@ -184,6 +184,11 @@ public abstract class ByteIterableBase implements ByteIterable {
         return result;
     }
 
+    @NotNull
+    public static byte[] readIterable(@NotNull final ByteIterable it) {
+        return readIterator(it.iterator(), it.getLength());
+    }
+
     private static void fillBytes(@NotNull final ByteIterator it, @NotNull final LightOutputStream output) {
         do {
             output.write(it.next());

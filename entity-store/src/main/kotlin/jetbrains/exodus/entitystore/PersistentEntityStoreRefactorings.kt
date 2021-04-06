@@ -17,9 +17,7 @@
 
 package jetbrains.exodus.entitystore
 
-import jetbrains.exodus.ArrayByteIterable
-import jetbrains.exodus.ByteIterable
-import jetbrains.exodus.CompoundByteIterable
+import jetbrains.exodus.*
 import jetbrains.exodus.bindings.*
 import jetbrains.exodus.core.dataStructures.hash.*
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLong23TreeSet
@@ -30,6 +28,8 @@ import jetbrains.exodus.env.Cursor
 import jetbrains.exodus.env.ReadonlyTransactionException
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
+import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
+import jetbrains.exodus.util.ByteArraySizedInputStream
 import mu.KLogging
 import java.util.*
 import kotlin.experimental.xor
@@ -627,7 +627,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
 
         store.executeInReadonlyTransaction { txn ->
             for (entityType in store.getEntityTypes(txn as PersistentStoreTransaction).toList()) {
-                val settingName = "refactorBlobsToVersion2Format($entityType) applied"
+                val settingName = "refactorBlobsToVersion2Format($entityType)"
                 if (Settings.get(txn.environmentTransaction, settings, settingName) != "y") {
                     logInfo("Refactor blobs to version 2 format for [$entityType]")
                     val entityTypeId = store.getEntityTypeId(txn, entityType, false)
@@ -653,7 +653,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                                     }
                                 }
                             } catch (t: Throwable) {
-                                logger.error("Error reading blobs for [$entityType]", t)
+                                logger.error("$settingName: error reading blobs", t)
                                 throwJVMError(t)
                             }
                         }
@@ -676,6 +676,74 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                 }
                 store.environment.executeInExclusiveTransaction { txn ->
                     Settings.set(txn, settings, settingName, "y")
+                }
+            }
+        }
+    }
+
+    fun refactorDeduplicateInPlaceBlobs(settings: Store) {
+
+        class DuplicateFoundException : ExodusException()
+
+        store.executeInReadonlyTransaction { txn ->
+            for (entityType in store.getEntityTypes(txn as PersistentStoreTransaction).toList()) {
+                val settingName = "refactorDeduplicateInPlaceBlobs($entityType) applied"
+                val envTxn = txn.environmentTransaction
+                val lastApplied = Settings.get(envTxn, settings, settingName)
+                if (lastApplied?.toLong() ?: 0L + store.config.refactoringDeduplicateBlobsEvery > System.currentTimeMillis()) continue
+                logInfo("Deduplicate in-place blobs for [$entityType]")
+                val entityTypeId = store.getEntityTypeId(txn, entityType, false)
+                val inPlaceBlobs = IntHashMap<PropertyKey>()
+                val blobs = store.getBlobsTable(txn, entityTypeId);
+                val blobHashes = store.getBlobHashesTable(txn, entityTypeId)
+                blobs.primaryIndex.openCursor(envTxn).use { cursor ->
+                    while (cursor.next) {
+                        try {
+                            val blobKey = PropertyKey.entryToPropertyKey(cursor.key)
+                            val it = cursor.value.iterator()
+                            val blobHandle = LongBinding.readCompressed(it)
+                            // if in-place blob in the v2 format
+                            if (blobHandle == 1L) {
+                                val size = CompressedUnsignedLongByteIterable.getLong(it).toInt()
+                                val stream = ByteArraySizedInputStream(ByteIterableBase.readIterator(it, size))
+                                val streamHash = stream.hashCode()
+                                inPlaceBlobs[streamHash]?.let { key ->
+                                    val testValue = blobs.get(envTxn, key)
+                                    testValue?.iterator()?.let {
+                                        // skip handle
+                                        LongBinding.readCompressed(it)
+                                        // if duplicate
+                                        if (size == CompressedUnsignedLongByteIterable.getLong(it).toInt() && stream ==
+                                            ByteArraySizedInputStream(ByteIterableBase.readIterator(it, size))) {
+                                            store.environment.executeInExclusiveTransaction { txn ->
+                                                val hashEntry = IntegerBinding.intToEntry(streamHash)
+                                                blobHashes.database.put(txn, hashEntry,
+                                                    ArrayByteIterable(stream.toByteArray(), size))
+                                                val refValue = CompoundByteIterable(arrayOf(
+                                                    store.blobHandleToEntry(IN_PLACE_BLOB_REFERENCE_HANDLE),
+                                                    CompressedUnsignedLongByteIterable.getIterable(size.toLong()),
+                                                    hashEntry
+                                                ))
+                                                blobs.put(txn, key.entityLocalId, key.propertyId, refValue)
+                                                blobs.put(txn, blobKey.entityLocalId, blobKey.propertyId, refValue)
+                                            }
+                                            throw DuplicateFoundException()
+                                        }
+                                    }
+                                }
+                                inPlaceBlobs.putIfAbsent(streamHash, blobKey)
+                            }
+                        } catch (found: DuplicateFoundException) {
+                            // it's okay, do nothing
+                        } catch (t: Throwable) {
+                            logger.error("refactorDeduplicateInPlaceBlobs(): error reading blobs for [$entityType]",
+                                t)
+                            throwJVMError(t)
+                        }
+                    }
+                }
+                store.environment.executeInExclusiveTransaction { txn ->
+                    Settings.set(txn, settings, settingName, System.currentTimeMillis().toString())
                 }
             }
         }

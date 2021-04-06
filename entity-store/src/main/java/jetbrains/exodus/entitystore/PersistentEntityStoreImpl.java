@@ -73,6 +73,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     static final long BLOB_HANDLE_ADDEND = 16L;
     static final long EMPTY_BLOB_HANDLE = Long.MAX_VALUE;
     static final long IN_PLACE_BLOB_HANDLE = EMPTY_BLOB_HANDLE - 1;
+    static final long IN_PLACE_BLOB_REFERENCE_HANDLE = EMPTY_BLOB_HANDLE - 2;
 
     @NotNull
     private static final ByteArrayInputStream EMPTY_INPUT_STREAM = new ByteArrayInputStream(new byte[0]);
@@ -113,6 +114,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private OpenTablesCache propertiesTables;
     OpenTablesCache linksTables;
     private OpenTablesCache blobsTables;
+    private OpenTablesCache blobHashesTables;
     private Store blobFileLengths;
     private Store internalSettings;
     private Store sequences;
@@ -254,6 +256,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 useVersion1Format() ?
                     namingRulez.getBlobsObsoleteTableName(entityTypeId) : namingRulez.getBlobsTableName(entityTypeId),
                 useVersion1Format() ? StoreConfig.WITHOUT_DUPLICATES : StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING));
+            blobHashesTables = new OpenTablesCache((t, entityTypeId) -> new SingleColumnTable(t,
+                namingRulez.getBlobHashesTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING));
             final String internalSettingsName = namingRulez.getInternalSettingsName();
             final Store settings = environment.openStore(internalSettingsName,
                 StoreConfig.WITHOUT_DUPLICATES, envTxn, false);
@@ -348,6 +352,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
                 Settings.set(internalSettings, "refactorBlobsForVersion2Format() applied", "y");
             }
+            if (!fromScratch && !useVersion1Format()) {
+                refactorings.refactorDeduplicateInPlaceBlobs(internalSettings);
+            }
             if (fromScratch || Settings.get(internalSettings, "Link null-indices present") == null) {
                 if (!fromScratch) {
                     refactorings.refactorCreateNullLinkIndices();
@@ -410,7 +417,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     private void replicate(@NotNull PersistentEntityStoreReplicator replicator, @Nullable BlobVault blobVault) {
         if (blobVault != null) {
-            throw new UnsupportedOperationException("Can only replicate default blob valut");
+            throw new UnsupportedOperationException("Can only replicate default blob value");
         }
 
         final long highBlobHandle = computeInReadonlyTransaction(tx -> {
@@ -963,7 +970,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
     }
 
-    public long getBlobSize(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity entity, @NotNull final String blobName) throws IOException {
+    public long getBlobSize(@NotNull final PersistentStoreTransaction txn,
+                            @NotNull final PersistentEntity entity,
+                            @NotNull final String blobName) throws IOException {
         final Pair<Long, ByteIterator> blobInfo = getBlobHandleAndValue(txn, entity, blobName);
         if (blobInfo == null) {
             return -1;
@@ -972,7 +981,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (blobHandle == EMPTY_BLOB_HANDLE) {
             return 0;
         }
-        if (blobHandle == IN_PLACE_BLOB_HANDLE) {
+        if (blobHandle == IN_PLACE_BLOB_HANDLE || blobHandle == IN_PLACE_BLOB_REFERENCE_HANDLE) {
             return CompressedUnsignedLongByteIterable.getLong(blobInfo.getSecond());
         }
         final long result = txn.getBlobSize(blobHandle);
@@ -1060,7 +1069,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 blobHandle = EMPTY_BLOB_HANDLE;
             else if (blobHandle == 1L)
                 blobHandle = IN_PLACE_BLOB_HANDLE;
-            else
+            else if (blobHandle == 2L) {
+                blobHandle = IN_PLACE_BLOB_REFERENCE_HANDLE;
+            } else
                 blobHandle -= BLOB_HANDLE_ADDEND;
         }
         return new Pair<>(blobHandle, valueIterator);
@@ -1078,10 +1089,21 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (blobHandle == EMPTY_BLOB_HANDLE) {
             return new Pair<>(blobHandle, null);
         }
-        if (blobHandle == IN_PLACE_BLOB_HANDLE) {
+        if (blobHandle == IN_PLACE_BLOB_HANDLE || blobHandle == IN_PLACE_BLOB_REFERENCE_HANDLE) {
             final ByteIterator valueIterator = blobInfo.getSecond();
             final int size = (int) CompressedUnsignedLongByteIterable.getLong(valueIterator);
-            return new Pair<>(blobHandle, new ByteArraySizedInputStream(ByteIterableBase.readIterator(valueIterator, size)));
+            if (blobHandle == IN_PLACE_BLOB_HANDLE) {
+                return new Pair<>(blobHandle,
+                    new ByteArraySizedInputStream(ByteIterableBase.readIterator(valueIterator, size)));
+            }
+            final ByteIterable hashEntry = new ArrayByteIterable(valueIterator);
+            final ByteIterable duplicateEntry = getBlobHashesTable(txn,
+                entity.getId().getTypeId()).getDatabase().get(txn.getEnvironmentTransaction(), hashEntry);
+            if (duplicateEntry == null) {
+                throw new EntityStoreException("No duplicate entry is available to in-place blob reference");
+            }
+            return new Pair<>(blobHandle,
+                new ByteArraySizedInputStream(ByteIterableBase.readIterator(duplicateEntry.iterator(), size)));
         }
         return new Pair<>(blobHandle, txn.getBlobStream(blobHandle));
     }
@@ -1145,7 +1167,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final long entityLocalId = id.getLocalId();
         final int blobId = getPropertyId(txn, blobName, true);
         txn.invalidateCachedBlobString(entity, blobId);
-        final BlobsTable blobs = getBlobsTable(txn, id.getTypeId());
+        final int typeId = id.getTypeId();
+        final BlobsTable blobs = getBlobsTable(txn, typeId);
         final Transaction envTxn = txn.getEnvironmentTransaction();
         final ByteIterable value = blobs.get(envTxn, entityLocalId, blobId);
         if (value != null) {
@@ -1158,6 +1181,20 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         } else if (size <= config.getMaxInPlaceBlobSize()) {
             if (stream == null) {
                 throw new NullPointerException("In-memory blob content is expected");
+            }
+            if (!useVersion1Format()) {
+                // check for duplicate
+                final ByteIterable hashEntry = findDuplicate(txn, typeId, stream);
+                if (hashEntry != null) {
+                    blobs.put(envTxn, entityLocalId, blobId,
+                        new CompoundByteIterable(new ByteIterable[]{
+                            blobHandleToEntry(IN_PLACE_BLOB_REFERENCE_HANDLE),
+                            CompressedUnsignedLongByteIterable.getIterable(size),
+                            hashEntry
+                        })
+                    );
+                    return IN_PLACE_BLOB_REFERENCE_HANDLE;
+                }
             }
             blobHandle = IN_PLACE_BLOB_HANDLE;
             blobs.put(envTxn, entityLocalId, blobId,
@@ -1174,6 +1211,17 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return blobHandle;
     }
 
+    @Nullable
+    ByteIterable findDuplicate(@NotNull final PersistentStoreTransaction txn,
+                               final int typeId,
+                               @NotNull final ByteArraySizedInputStream stream) {
+        final ArrayByteIterable duplicateKey = IntegerBinding.intToEntry(stream.hashCode());
+        final ByteIterable duplicateEntry =
+            getBlobHashesTable(txn, typeId).getDatabase().get(txn.getEnvironmentTransaction(), duplicateKey);
+        return (duplicateEntry != null && stream.equals(
+            new ByteArraySizedInputStream(ByteIterableBase.readIterable(duplicateEntry)))) ? duplicateKey : null;
+    }
+
     boolean useVersion1Format() {
         return environment.getEnvironmentConfig().getUseVersion1Format();
     }
@@ -1184,6 +1232,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 blobHandle = 0L;
             else if (blobHandle == IN_PLACE_BLOB_HANDLE)
                 blobHandle = 1L;
+            else if (blobHandle == IN_PLACE_BLOB_REFERENCE_HANDLE)
+                blobHandle = 2L;
             else
                 blobHandle += BLOB_HANDLE_ADDEND;
         }
@@ -1667,6 +1717,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         propertiesTables.remove(entityTypeId);
         linksTables.remove(entityTypeId);
         blobsTables.remove(entityTypeId);
+        blobHashesTables.remove(entityTypeId);
 
         final String entityTableName = namingRulez.getEntitiesTableName(entityTypeId);
         final String propertiesTableName = namingRulez.getPropertiesTableName(entityTypeId);
@@ -1869,6 +1920,11 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return (BlobsTable) blobsTables.get(txn, entityTypeId);
     }
 
+    @NotNull
+    SingleColumnTable getBlobHashesTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
+        return (SingleColumnTable) blobHashesTables.get(txn, entityTypeId);
+    }
+
     public Long getBlobFileLength(long blobHandle, Transaction txn) {
         final ByteIterable resultEntry = blobFileLengths.get(txn, LongBinding.longToCompressedEntry(blobHandle));
         return resultEntry == null ? null : LongBinding.compressedEntryToLong(resultEntry);
@@ -1955,7 +2011,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     static boolean isEmptyOrInPlaceBlobHandle(final long blobHandle) {
-        return EMPTY_BLOB_HANDLE == blobHandle || IN_PLACE_BLOB_HANDLE == blobHandle;
+        return EMPTY_BLOB_HANDLE == blobHandle ||
+            IN_PLACE_BLOB_HANDLE == blobHandle ||
+            IN_PLACE_BLOB_REFERENCE_HANDLE == blobHandle;
     }
 
     public static void loggerWarn(@NotNull final String message) {

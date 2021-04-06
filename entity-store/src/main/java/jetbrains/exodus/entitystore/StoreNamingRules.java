@@ -129,6 +129,11 @@ final class StoreNamingRules {
         return getFQName(BLOBS_TABLE_PREFIX, entityTypeId, "#v2");
     }
 
+    @NotNull
+    String getBlobHashesTableName(final int entityTypeId) {
+        return getFQName(BLOBS_TABLE_PREFIX, entityTypeId, "#hashes");
+    }
+
     String getBlobFileLengthsTable() {
         return getFQName(BLOB_FILE_LENGTHS);
     }
