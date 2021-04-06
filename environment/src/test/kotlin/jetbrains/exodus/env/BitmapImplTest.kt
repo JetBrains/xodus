@@ -243,6 +243,44 @@ open class BitmapImplTest : EnvironmentTestsBase() {
         }
     }
 
+    @Test
+    fun `count for empty`() {
+        env.executeInTransaction { txn ->
+            assertEquals(0, bitmap.count(txn))
+        }
+    }
+
+    @Test
+    fun `count for set and clear all bits`() {
+        env.executeInTransaction { txn ->
+            val randomBits = mutableListOf<Long>()
+            for (i in 0..10) {
+                val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
+                randomBits.add(randomBit)
+                bitmap.set(txn, randomBit, true)
+            }
+            assertEquals(randomBits.size.toLong(), bitmap.count(txn))
+
+            randomBits.forEach {
+                bitmap.clear(txn, it)
+            }
+            assertEquals(0L, bitmap.count(txn))
+        }
+    }
+
+    @Test
+    fun `count for lots of set bits`() {
+        env.executeInTransaction { txn ->
+            val randomBits = mutableListOf<Long>()
+            for (i in 0..100) {
+                val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
+                randomBits.add(randomBit)
+                bitmap.set(txn, randomBit, true)
+            }
+            assertEquals(randomBits.size.toLong(), bitmap.count(txn))
+        }
+    }
+
     private fun allOperationsForOneBit(bit: Long) {
         env.executeInTransaction { txn ->
             assertTrue(bitmap.set(txn, bit, true))

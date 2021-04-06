@@ -23,6 +23,8 @@ private typealias Bit = Long
 
 open class BitmapImpl(private val store: StoreImpl) : Bitmap {
 
+    protected var size = 0L
+
     override fun getEnvironment() = store.environment
 
     override fun get(txn: Transaction, bit: Bit): Boolean {
@@ -46,6 +48,7 @@ open class BitmapImpl(private val store: StoreImpl) : Bitmap {
                 store.put(txn, keyEntry, it.toEntry(bit.index))
             }
         }
+        size += if (value) 1L else -1L
         return true
     }
 
@@ -72,6 +75,8 @@ open class BitmapImpl(private val store: StoreImpl) : Bitmap {
             return -1L
         }
     }
+
+    override fun count(txn: Transaction): Long = this.size
 }
 
 internal fun Bit.ensureNonNegative() =
