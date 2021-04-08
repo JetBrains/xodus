@@ -50,4 +50,32 @@ public class ByteArraySizedInputStream extends ByteArrayInputStream {
     public ByteArraySizedInputStream copy() {
         return new ByteArraySizedInputStream(buf, pos, count);
     }
+
+    @Override
+    public int hashCode() {
+        int result = size() + 1;
+        final int mark = this.mark;
+        final int count = this.count;
+        final byte[] buf = this.buf;
+        for (int i = mark; i < count; ++i) {
+            result = result * 31 + buf[i];
+        }
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof ByteArraySizedInputStream)) return false;
+        final ByteArraySizedInputStream right = (ByteArraySizedInputStream) obj;
+        final int size = size();
+        if (size != right.size()) return false;
+        final int mark = this.mark;
+        final byte[] buf = this.buf;
+        final int rMark = right.mark;
+        final byte[] rBuf = this.buf;
+        for (int i = 0; i < size; ++i) {
+            if (buf[i + mark] != rBuf[i + rMark]) return false;
+        }
+        return true;
+    }
 }

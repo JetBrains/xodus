@@ -17,9 +17,7 @@
 
 package jetbrains.exodus.entitystore
 
-import jetbrains.exodus.ArrayByteIterable
-import jetbrains.exodus.ByteIterable
-import jetbrains.exodus.CompoundByteIterable
+import jetbrains.exodus.*
 import jetbrains.exodus.bindings.*
 import jetbrains.exodus.core.dataStructures.hash.*
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLong23TreeSet
@@ -30,6 +28,8 @@ import jetbrains.exodus.env.Cursor
 import jetbrains.exodus.env.ReadonlyTransactionException
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
+import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
+import jetbrains.exodus.util.ByteArraySizedInputStream
 import mu.KLogging
 import java.util.*
 import kotlin.experimental.xor
@@ -113,8 +113,8 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
     }
 
     fun refactorCreateNullLinkIndices() {
-        store.executeInReadonlyTransaction { tx ->
-            val txn = tx as PersistentStoreTransaction
+        store.executeInReadonlyTransaction { txn ->
+            txn as PersistentStoreTransaction
             for (entityType in store.getEntityTypes(txn)) {
                 logInfo("Refactoring creating null-value link indices for [$entityType]")
                 safeExecuteRefactoringForEntityType(entityType,
@@ -209,8 +209,8 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
     }
 
     fun refactorDropEmptyPrimaryLinkTables() {
-        store.executeInReadonlyTransaction { tx ->
-            val txn = tx as PersistentStoreTransaction
+        store.executeInReadonlyTransaction { txn ->
+            txn as PersistentStoreTransaction
             for (entityType in store.getEntityTypes(txn)) {
                 runReadonlyTransactionSafeForEntityType(entityType, Runnable {
                     val envTxn = txn.environmentTransaction
@@ -227,8 +227,8 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
     }
 
     fun refactorMakeLinkTablesConsistent(internalSettings: Store) {
-        store.executeInReadonlyTransaction { tx ->
-            val txn = tx as PersistentStoreTransaction
+        store.executeInReadonlyTransaction { txn ->
+            txn as PersistentStoreTransaction
             for (entityType in store.getEntityTypes(txn)) {
                 logInfo("Refactoring making links' tables consistent for [$entityType]")
                 runReadonlyTransactionSafeForEntityType(entityType, Runnable {
@@ -365,8 +365,8 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
     }
 
     fun refactorMakePropTablesConsistent() {
-        store.executeInReadonlyTransaction { tx ->
-            val txn = tx as PersistentStoreTransaction
+        store.executeInReadonlyTransaction { txn ->
+            txn as PersistentStoreTransaction
             for (entityType in store.getEntityTypes(txn)) {
                 logInfo("Refactoring making props' tables consistent for [$entityType]")
                 runReadonlyTransactionSafeForEntityType(entityType, Runnable {
@@ -627,56 +627,124 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
 
         store.executeInReadonlyTransaction { txn ->
             for (entityType in store.getEntityTypes(txn as PersistentStoreTransaction).toList()) {
-                store.executeInReadonlyTransaction { txn ->
-                    txn as PersistentStoreTransaction
-                    val settingName = "refactorBlobsToVersion2Format($entityType) applied"
-                    if (Settings.get(txn.environmentTransaction, settings, settingName) != "y") {
-                        logInfo("Refactor blobs to version 2 format for [$entityType]")
-                        val entityTypeId = store.getEntityTypeId(txn, entityType, false)
-                        val inPlaceBlobs = ArrayList<Pair<PropertyKey, ArrayByteIterable>>()
-                        val blobHandles = ArrayList<Pair<PropertyKey, Long>>()
-                        val blobsObsoleteTableName = store.namingRules.getBlobsObsoleteTableName(entityTypeId)
-                        val oldBlobsTable = BlobsTable(store, txn, blobsObsoleteTableName, StoreConfig.USE_EXISTING)
-                        oldBlobsTable.primaryIndex.openCursor(txn.environmentTransaction).use { cursor ->
-                            while (cursor.next) {
-                                try {
-                                    val blobKey = PropertyKey.entryToPropertyKey(cursor.key)
-                                    val it = cursor.value.iterator()
-                                    when (val blobHandle = LongBinding.readCompressed(it)) {
-                                        IN_PLACE_BLOB_HANDLE -> {
-                                            inPlaceBlobs.add(blobKey to ArrayByteIterable(it))
-                                            if (inPlaceBlobs.size > 100) {
-                                                dumpInPlaceBlobs(entityTypeId, inPlaceBlobs)
-                                                inPlaceBlobs.clear()
-                                            }
-                                        }
-                                        else -> {
-                                            blobHandles.add(blobKey to blobHandle)
-                                        }
+                val settingName = "refactorBlobsToVersion2Format($entityType)"
+                val envTxn = txn.environmentTransaction
+                if (Settings.get(envTxn, settings, settingName) == "y") continue
+                val entityTypeId = store.getEntityTypeId(txn, entityType, false)
+                val blobsObsoleteTableName = store.namingRules.getBlobsObsoleteTableName(entityTypeId)
+                if (!store.environment.storeExists(blobsObsoleteTableName, envTxn)) continue
+                logInfo("Refactor blobs to version 2 format for [$entityType]")
+                val inPlaceBlobs = ArrayList<Pair<PropertyKey, ArrayByteIterable>>()
+                val blobHandles = ArrayList<Pair<PropertyKey, Long>>()
+                val oldBlobsTable = BlobsTable(store, txn, blobsObsoleteTableName, StoreConfig.USE_EXISTING)
+                oldBlobsTable.primaryIndex.openCursor(envTxn).use { cursor ->
+                    while (cursor.next) {
+                        try {
+                            val blobKey = PropertyKey.entryToPropertyKey(cursor.key)
+                            val it = cursor.value.iterator()
+                            when (val blobHandle = LongBinding.readCompressed(it)) {
+                                IN_PLACE_BLOB_HANDLE -> {
+                                    inPlaceBlobs.add(blobKey to ArrayByteIterable(it))
+                                    if (inPlaceBlobs.size > 100) {
+                                        dumpInPlaceBlobs(entityTypeId, inPlaceBlobs)
+                                        inPlaceBlobs.clear()
                                     }
-                                } catch (t: Throwable) {
-                                    logger.error("Error reading blobs for [$entityType]", t)
-                                    throwJVMError(t)
+                                }
+                                else -> {
+                                    blobHandles.add(blobKey to blobHandle)
                                 }
                             }
-                        }
-                        if (inPlaceBlobs.isNotEmpty()) {
-                            dumpInPlaceBlobs(entityTypeId, inPlaceBlobs)
-                        }
-                        store.executeInExclusiveTransaction { txn ->
-                            txn as PersistentStoreTransaction
-                            val blobsTable = store.getBlobsTable(txn, entityTypeId)
-                            blobHandles.forEach { (blobKey, handle) ->
-                                blobsTable.put(txn.environmentTransaction,
-                                    blobKey.entityLocalId, blobKey.propertyId, store.blobHandleToEntry(handle))
-                            }
-                            with(store.environment) {
-                                removeStore(oldBlobsTable.primaryIndex.name, txn.environmentTransaction)
-                                removeStore(oldBlobsTable.allBlobsIndex.name, txn.environmentTransaction)
-                            }
+                        } catch (t: Throwable) {
+                            logger.error("$settingName: error reading blobs", t)
+                            throwJVMError(t)
                         }
                     }
-                    Settings.set(txn.environmentTransaction, settings, settingName, "y")
+                }
+                if (inPlaceBlobs.isNotEmpty()) {
+                    dumpInPlaceBlobs(entityTypeId, inPlaceBlobs)
+                }
+                store.executeInExclusiveTransaction { txn ->
+                    txn as PersistentStoreTransaction
+                    val blobsTable = store.getBlobsTable(txn, entityTypeId)
+                    blobHandles.forEach { (blobKey, handle) ->
+                        blobsTable.put(txn.environmentTransaction,
+                            blobKey.entityLocalId, blobKey.propertyId, store.blobHandleToEntry(handle))
+                    }
+                    with(store.environment) {
+                        removeStore(oldBlobsTable.primaryIndex.name, txn.environmentTransaction)
+                        removeStore(oldBlobsTable.allBlobsIndex.name, txn.environmentTransaction)
+                    }
+                }
+                store.environment.executeInExclusiveTransaction { txn ->
+                    Settings.set(txn, settings, settingName, "y")
+                }
+            }
+        }
+    }
+
+    fun refactorDeduplicateInPlaceBlobs(settings: Store) {
+
+        class DuplicateFoundException : ExodusException()
+
+        store.executeInReadonlyTransaction { txn ->
+            for (entityType in store.getEntityTypes(txn as PersistentStoreTransaction).toList()) {
+                val settingName = "refactorDeduplicateInPlaceBlobs($entityType) applied"
+                val envTxn = txn.environmentTransaction
+                val lastApplied = Settings.get(envTxn, settings, settingName)
+                if (lastApplied?.toLong() ?: 0L + store.config.refactoringDeduplicateBlobsEvery > System.currentTimeMillis()) continue
+                logInfo("Deduplicate in-place blobs for [$entityType]")
+                val entityTypeId = store.getEntityTypeId(txn, entityType, false)
+                val inPlaceBlobs = IntHashMap<PropertyKey>()
+                val blobs = store.getBlobsTable(txn, entityTypeId);
+                val blobHashes = store.getBlobHashesTable(txn, entityTypeId)
+                blobs.primaryIndex.openCursor(envTxn).use { cursor ->
+                    while (cursor.next) {
+                        try {
+                            val blobKey = PropertyKey.entryToPropertyKey(cursor.key)
+                            val it = cursor.value.iterator()
+                            val blobHandle = LongBinding.readCompressed(it)
+                            // if in-place blob in the v2 format
+                            if (blobHandle == 1L) {
+                                val size = CompressedUnsignedLongByteIterable.getLong(it).toInt()
+                                val stream = ByteArraySizedInputStream(ByteIterableBase.readIterator(it, size))
+                                val streamHash = stream.hashCode()
+                                inPlaceBlobs[streamHash]?.let { key ->
+                                    val testValue = blobs.get(envTxn, key)
+                                    testValue?.iterator()?.let {
+                                        // skip handle
+                                        LongBinding.readCompressed(it)
+                                        // if duplicate
+                                        if (size == CompressedUnsignedLongByteIterable.getLong(it).toInt() && stream ==
+                                            ByteArraySizedInputStream(ByteIterableBase.readIterator(it, size))) {
+                                            store.environment.executeInExclusiveTransaction { txn ->
+                                                val hashEntry = IntegerBinding.intToEntry(streamHash)
+                                                blobHashes.database.put(txn, hashEntry,
+                                                    ArrayByteIterable(stream.toByteArray(), size))
+                                                val refValue = CompoundByteIterable(arrayOf(
+                                                    store.blobHandleToEntry(IN_PLACE_BLOB_REFERENCE_HANDLE),
+                                                    CompressedUnsignedLongByteIterable.getIterable(size.toLong()),
+                                                    hashEntry
+                                                ))
+                                                blobs.put(txn, key.entityLocalId, key.propertyId, refValue)
+                                                blobs.put(txn, blobKey.entityLocalId, blobKey.propertyId, refValue)
+                                            }
+                                            throw DuplicateFoundException()
+                                        }
+                                    }
+                                }
+                                inPlaceBlobs.putIfAbsent(streamHash, blobKey)
+                            }
+                        } catch (found: DuplicateFoundException) {
+                            // it's okay, do nothing
+                        } catch (t: Throwable) {
+                            logger.error("refactorDeduplicateInPlaceBlobs(): error reading blobs for [$entityType]",
+                                t)
+                            throwJVMError(t)
+                        }
+                    }
+                }
+                store.environment.executeInExclusiveTransaction { txn ->
+                    Settings.set(txn, settings, settingName, System.currentTimeMillis().toString())
                 }
             }
         }
