@@ -346,7 +346,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
                 Settings.set(internalSettings, "refactorFixNegativeFloatAndDoubleProps() applied", "y");
             }
-            if (fromScratch || Settings.get(internalSettings, "refactorBlobsForVersion2Format() applied") == null) {
+            if (!useVersion1Format() && (fromScratch || Settings.get(internalSettings, "refactorBlobsForVersion2Format() applied") == null)) {
                 if (!fromScratch) {
                     refactorings.refactorBlobsToVersion2Format(internalSettings);
                 }
