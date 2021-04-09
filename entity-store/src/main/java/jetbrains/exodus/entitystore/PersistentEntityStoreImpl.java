@@ -1751,12 +1751,16 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private void truncateStores(@NotNull final PersistentStoreTransaction txn, @NotNull Iterable<String> unsafe, @NotNull Iterable<String> safe) {
         final Transaction envTxn = txn.getEnvironmentTransaction();
         for (final String name : unsafe) {
-            environment.truncateStore(name, envTxn);
+            if (environment.storeExists(name, envTxn)) {
+                environment.truncateStore(name, envTxn);
+            }
         }
 
         for (final String name : safe) {
             try {
-                environment.truncateStore(name, envTxn);
+                if (environment.storeExists(name, envTxn)) {
+                    environment.truncateStore(name, envTxn);
+                }
             } catch (ExodusException e) {
                 //ignore
             }
