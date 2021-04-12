@@ -131,7 +131,7 @@ subprojects {
         classifier = 'javadoc'
         duplicatesStrategy 'exclude'
         includeEmptyDirs false
-        from javadoc.destinationDir
+        from javadoc.outputDirectory
     }
     javadoc.failOnError = false
     // work around for Java 8 javadoc which is too strict
