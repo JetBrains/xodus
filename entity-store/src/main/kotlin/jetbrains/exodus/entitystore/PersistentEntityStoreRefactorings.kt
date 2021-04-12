@@ -695,8 +695,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                 logInfo("Deduplicate in-place blobs for [$entityType]")
                 val entityTypeId = store.getEntityTypeId(txn, entityType, false)
                 val inPlaceBlobs = IntHashMap<PropertyKey>()
-                val blobs = store.getBlobsTable(txn, entityTypeId);
-                val blobHashes = store.getBlobHashesTable(txn, entityTypeId)
+                val blobs = store.getBlobsTable(txn, entityTypeId)
                 blobs.primaryIndex.openCursor(envTxn).use { cursor ->
                     while (cursor.next) {
                         try {
@@ -717,6 +716,9 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                                         if (size == CompressedUnsignedLongByteIterable.getLong(it).toInt() && stream ==
                                             ByteArraySizedInputStream(ByteIterableBase.readIterator(it, size))) {
                                             store.environment.executeInExclusiveTransaction { txn ->
+                                                val blobHashes =
+                                                    store.getBlobHashesTable(txn as PersistentStoreTransaction,
+                                                        entityTypeId)
                                                 val hashEntry = IntegerBinding.intToEntry(streamHash)
                                                 blobHashes.database.put(txn, hashEntry,
                                                     ArrayByteIterable(stream.toByteArray(), size))
