@@ -193,7 +193,7 @@ subprojects {
     }
 
     afterEvaluate { project ->
-        if (shouldDeploy(project)) {
+        if (shouldDeploy(project) && !(isDailyBuild && project.name == 'tools')) {
             uploadArchives {
                 repositories {
                     mavenDeployer {
