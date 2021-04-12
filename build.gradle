@@ -203,7 +203,7 @@ subprojects {
                         beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
 
                         if (isDailyBuild) {
-                            repository(url: "https://api.bintray.com/maven/jetbrains/xodus/" + archivesBaseName + "/;publish=1") {
+                            repository(url: "https://packages.jetbrains.team/maven/p/xodus/xodus-daily") {
                                 authentication(userName: mavenPublishUsername, password: mavenPublishPassword)
                             }
                         } else {
