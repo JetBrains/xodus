@@ -691,7 +691,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                 val settingName = "refactorDeduplicateInPlaceBlobs($entityType) applied"
                 val envTxn = txn.environmentTransaction
                 val lastApplied = Settings.get(envTxn, settings, settingName)
-                if (lastApplied?.toLong() ?: 0L +
+                if ((lastApplied?.toLong() ?: 0L) +
                     (store.config.refactoringDeduplicateBlobsEvery * 24L * 3600L * 1000L) > System.currentTimeMillis()) continue
                 logInfo("Deduplicate in-place blobs for [$entityType]")
                 val entityTypeId = store.getEntityTypeId(txn, entityType, false)
