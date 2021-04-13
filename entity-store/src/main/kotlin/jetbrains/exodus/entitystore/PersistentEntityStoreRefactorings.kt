@@ -716,20 +716,20 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                                         // if duplicate
                                         if (size == CompressedUnsignedLongByteIterable.getLong(it).toInt() && stream ==
                                             ByteArraySizedInputStream(ByteIterableBase.readIterator(it, size))) {
-                                            store.environment.executeInExclusiveTransaction { txn ->
-                                                val blobHashes =
-                                                    store.getBlobHashesTable(txn as PersistentStoreTransaction,
-                                                        entityTypeId)
+                                            store.executeInExclusiveTransaction { txn ->
+                                                val blobHashes = store.getBlobHashesTable(
+                                                    txn as PersistentStoreTransaction, entityTypeId)
                                                 val hashEntry = IntegerBinding.intToEntry(streamHash)
-                                                blobHashes.database.put(txn, hashEntry,
+                                                val envTxn = txn.environmentTransaction
+                                                blobHashes.database.put(envTxn, hashEntry,
                                                     ArrayByteIterable(stream.toByteArray(), size))
                                                 val refValue = CompoundByteIterable(arrayOf(
                                                     store.blobHandleToEntry(IN_PLACE_BLOB_REFERENCE_HANDLE),
                                                     CompressedUnsignedLongByteIterable.getIterable(size.toLong()),
                                                     hashEntry
                                                 ))
-                                                blobs.put(txn, key.entityLocalId, key.propertyId, refValue)
-                                                blobs.put(txn, blobKey.entityLocalId, blobKey.propertyId, refValue)
+                                                blobs.put(envTxn, key.entityLocalId, key.propertyId, refValue)
+                                                blobs.put(envTxn, blobKey.entityLocalId, blobKey.propertyId, refValue)
                                             }
                                             throw DuplicateFoundException()
                                         }
