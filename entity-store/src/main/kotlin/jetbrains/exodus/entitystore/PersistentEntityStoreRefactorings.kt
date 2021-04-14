@@ -687,12 +687,13 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
         class DuplicateFoundException : ExodusException()
 
         store.executeInReadonlyTransaction { txn ->
+            val config = store.config
             for (entityType in store.getEntityTypes(txn as PersistentStoreTransaction).toList()) {
                 val settingName = "refactorDeduplicateInPlaceBlobs($entityType) applied"
                 val envTxn = txn.environmentTransaction
                 val lastApplied = Settings.get(envTxn, settings, settingName)
                 if ((lastApplied?.toLong() ?: 0L) +
-                    (store.config.refactoringDeduplicateBlobsEvery * 24L * 3600L * 1000L) > System.currentTimeMillis()) continue
+                    (config.refactoringDeduplicateBlobsEvery.toLong() * 24L * 3600L * 1000L) > System.currentTimeMillis()) continue
                 logInfo("Deduplicate in-place blobs for [$entityType]")
                 val entityTypeId = store.getEntityTypeId(txn, entityType, false)
                 val inPlaceBlobs = IntHashMap<PropertyKey>()
@@ -706,6 +707,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                             // if in-place blob in the v2 format
                             if (blobHandle == 1L) {
                                 val size = CompressedUnsignedLongByteIterable.getLong(it).toInt()
+                                if (size < config.refactoringDeduplicateBlobsMinSize) continue
                                 val stream = ByteArraySizedInputStream(ByteIterableBase.readIterator(it, size))
                                 val streamHash = stream.hashCode()
                                 inPlaceBlobs[streamHash]?.let { key ->
