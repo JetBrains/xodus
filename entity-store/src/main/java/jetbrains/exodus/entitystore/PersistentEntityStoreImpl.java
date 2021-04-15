@@ -353,7 +353,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 Settings.set(internalSettings, "refactorBlobsForVersion2Format() applied", "y");
             }
             if (!fromScratch && !useVersion1Format()) {
-                refactorings.refactorDeduplicateInPlaceBlobs(internalSettings);
+                refactorings.refactorDeduplicateInPlaceBlobsPeriodically(internalSettings);
             }
             if (fromScratch || Settings.get(internalSettings, "Link null-indices present") == null) {
                 if (!fromScratch) {

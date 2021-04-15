@@ -682,7 +682,13 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
         }
     }
 
-    fun refactorDeduplicateInPlaceBlobs(settings: Store) {
+    fun refactorDeduplicateInPlaceBlobsPeriodically(settings: Store) {
+        store.environment.executeBeforeGc {
+            refactorDeduplicateInPlaceBlobs(settings)
+        }
+    }
+
+    private fun refactorDeduplicateInPlaceBlobs(settings: Store) {
 
         class DuplicateFoundException : ExodusException()
 
