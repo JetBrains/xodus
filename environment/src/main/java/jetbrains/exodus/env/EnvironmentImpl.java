@@ -528,6 +528,11 @@ public class EnvironmentImpl implements Environment {
         gc.resume();
     }
 
+    @Override
+    public void executeBeforeGc(Runnable action) {
+        gc.addBeforeGcAction(action);
+    }
+
     public BTreeBalancePolicy getBTreeBalancePolicy() {
         // we don't care of possible race condition here
         if (balancePolicy == null) {

@@ -20,7 +20,13 @@ import java.util.*
 
 internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
 
+    private val beforeGcActions = ArrayList<Runnable>()
+
     override fun getName() = "Background cleaner"
+
+    fun addBeforeGcAction(action: Runnable) {
+        beforeGcActions += action
+    }
 
     override fun doJob() {
         val gc = this.gc ?: return
@@ -71,6 +77,14 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
     }
 
     private fun doCleanLog(log: Log, gc: GarbageCollector) {
+
+        GarbageCollector.loggingInfo { "Executing before GC actions for ${log.location}" }
+        try {
+            beforeGcActions.forEach { it.run() }
+        } catch (t: Throwable) {
+            GarbageCollector.loggingError(t) { "Failed to execute before GC actions for ${log.location}" }
+        }
+
         val up = gc.utilizationProfile
 
         GarbageCollector.loggingInfo { "Starting background cleaner loop for ${log.location}, free space: ${up.totalFreeSpacePercent()}%" }
