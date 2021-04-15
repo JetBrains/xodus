@@ -126,7 +126,7 @@ final class StoreNamingRules {
 
     @NotNull
     String getBlobsTableName(final int entityTypeId) {
-        return getFQName(BLOBS_TABLE_PREFIX, entityTypeId, "#v2");
+        return getFQName(BLOBS_TABLE_PREFIX, entityTypeId, "v2");
     }
 
     @NotNull

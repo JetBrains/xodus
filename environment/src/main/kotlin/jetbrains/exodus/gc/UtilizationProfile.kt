@@ -274,7 +274,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
                     }
                 }
             } catch (t: Throwable) {
-                GarbageCollector.loggingError({ "Failed to load utilization from $path" }, t)
+                GarbageCollector.loggingError(t) { "Failed to load utilization from $path" }
             }
 
             // if an error occurs during reading the file, then GC will be too pessimistic, i.e. it will clean

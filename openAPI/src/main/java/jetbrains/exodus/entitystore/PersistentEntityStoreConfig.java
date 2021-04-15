@@ -119,6 +119,12 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     public static final String REFACTORING_DEDUPLICATE_BLOBS_EVERY = "exodus.entityStore.refactoring.deduplicateBlobsEvery";
 
     /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
+    public static final String REFACTORING_DEDUPLICATE_BLOBS_MIN_SIZE = "exodus.entityStore.refactoring.deduplicateBlobsMinSize";
+
+    /**
      * Defines the maximum size in bytes of an "in-place" blob. In-place blob saves its content in
      * {@linkplain Environment} (in .xd files), not in {@linkplain BlobVault}. "In-place" blobs are normally small
      * blobs, saving them in {@code Environment} allows to reduce the nu,ber of files in {@code BlobVault}.
@@ -347,6 +353,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
             new Pair(REFACTORING_HEAVY_PROPS, false),
             new Pair(REFACTORING_DELETE_REDUNDANT_BLOBS, false),
             new Pair(REFACTORING_DEDUPLICATE_BLOBS_EVERY, 30),
+            new Pair(REFACTORING_DEDUPLICATE_BLOBS_MIN_SIZE, 10),
             new Pair(MAX_IN_PLACE_BLOB_SIZE, 10000),
             new Pair(BLOB_STRINGS_CACHE_SHARED, true),
             new Pair(BLOB_STRINGS_CACHE_MAX_VALUE_SIZE, 100000L),
@@ -449,6 +456,14 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
 
     public PersistentEntityStoreConfig setRefactoringDeduplicateBlobsEvery(final int days) {
         return setSetting(REFACTORING_DEDUPLICATE_BLOBS_EVERY, days);
+    }
+
+    public int getRefactoringDeduplicateBlobsMinSize() {
+        return getRefactoringForceAll() ? 0 : (Integer) getSetting(REFACTORING_DEDUPLICATE_BLOBS_MIN_SIZE);
+    }
+
+    public PersistentEntityStoreConfig setRefactoringDeduplicateBlobsMinSize(final int size) {
+        return setSetting(REFACTORING_DEDUPLICATE_BLOBS_MIN_SIZE, size);
     }
 
     public int getMaxInPlaceBlobSize() {

@@ -22,7 +22,7 @@ import mu.KLogging
 
 internal class BackgroundCleaner(private val gc: GarbageCollector) {
 
-    private val backgroundCleaningJob: BackgroundCleaningJob = BackgroundCleaningJob(gc)
+    private val backgroundCleaningJob = BackgroundCleaningJob(gc)
     private var processor: JobProcessorAdapter
     internal var threadId: Long = 0
     @Volatile
@@ -61,6 +61,8 @@ internal class BackgroundCleaner(private val gc: GarbageCollector) {
     }
 
     fun getJobProcessor() = processor
+
+    fun addBeforeGcAction(action: Runnable) = backgroundCleaningJob.addBeforeGcAction(action)
 
     val isFinished: Boolean get() = processor.isFinished
 

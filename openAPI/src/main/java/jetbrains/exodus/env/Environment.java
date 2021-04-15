@@ -372,4 +372,9 @@ public interface Environment extends Closeable, Backupable {
      * @see EnvironmentConfig#getCipherBasicIV()
      */
     long getCipherBasicIV();
+
+    /**
+     * Defines an action to be executed before running database GC cycle in the background cleaner thread.
+     */
+    void executeBeforeGc(Runnable action);
 }

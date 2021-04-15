@@ -31,6 +31,10 @@ public interface EntityStoreConfigMBean {
 
     boolean getRefactoringDeleteRedundantBlobs();
 
+    int getRefactoringDeduplicateBlobsEvery();
+
+    int getRefactoringDeduplicateBlobsMinSize();
+
     int getMaxInPlaceBlobSize();
 
     void setMaxInPlaceBlobSize(int blobSize);

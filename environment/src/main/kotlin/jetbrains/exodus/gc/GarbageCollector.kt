@@ -99,6 +99,8 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         }, Priority.highest)
     }
 
+    fun addBeforeGcAction(action: Runnable) = cleaner.addBeforeGcAction(action)
+
     fun wake(estimateTotalUtilization: Boolean = false) {
         if (ec.isGcEnabled) {
             environment.executeTransactionSafeTask {
@@ -355,7 +357,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             logger.info { message() }
         }
 
-        internal fun loggingError(message: () -> String, t: Throwable? = null) {
+        internal fun loggingError(t: Throwable?, message: () -> String) {
             if (t == null) {
                 logger.error { message() }
             } else {

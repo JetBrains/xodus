@@ -569,7 +569,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         }
     }
 
-    protected EntityIterableBase asProbablyCached() {
+    public EntityIterableBase asProbablyCached() {
         if (store == null) {
             return EntityIterableBase.EMPTY;
         }

@@ -64,6 +64,16 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
+    public int getRefactoringDeduplicateBlobsEvery() {
+        return config.getRefactoringDeduplicateBlobsEvery();
+    }
+
+    @Override
+    public int getRefactoringDeduplicateBlobsMinSize() {
+        return config.getRefactoringDeduplicateBlobsMinSize();
+    }
+
+    @Override
     public int getMaxInPlaceBlobSize() {
         return config.getMaxInPlaceBlobSize();
     }
