@@ -164,7 +164,7 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
 
     private fun warnCantFsyncDirectory() {
         this.dirChannel = null
-        logger.warn("Can't open directory channel. Log directory fsync won't be performed.")
+        warnIfWindows
     }
 
     private fun removeFileFromFileCache(file: File) {
@@ -181,16 +181,19 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
     companion object : KLogging() {
 
         private const val DELETED_FILE_EXTENSION = ".del"
+        private val warnIfWindows by lazy {
+            logger.warn("Can't open directory channel. Log directory fsync won't be performed.")
+        }
         private val setUninterruptibleMethod =
-                if (JVMConstants.IS_JAVA9_OR_HIGHER) {
-                    UnsafeHolder.doPrivileged {
-                        try {
-                            Class.forName("sun.nio.ch.FileChannelImpl").getDeclaredMethod("setUninterruptible").apply {
-                                isAccessible = true
-                                logger.info { "Uninterruptible file channel will be used" }
-                            }
-                        } catch (t: Throwable) {
-                            logger.info(t) { "Interruptible file channel will be used" }
+            if (JVMConstants.IS_JAVA9_OR_HIGHER) {
+                UnsafeHolder.doPrivileged {
+                    try {
+                        Class.forName("sun.nio.ch.FileChannelImpl").getDeclaredMethod("setUninterruptible").apply {
+                            isAccessible = true
+                            logger.info { "Uninterruptible file channel will be used" }
+                        }
+                    } catch (t: Throwable) {
+                        logger.info(t) { "Interruptible file channel will be used" }
                             null
                         }
                     }
