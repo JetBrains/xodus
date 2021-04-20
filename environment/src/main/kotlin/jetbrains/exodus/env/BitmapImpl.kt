@@ -18,12 +18,12 @@ package jetbrains.exodus.env
 import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.bindings.LongBinding.*
+import kotlin.experimental.and
+import kotlin.experimental.xor
 
 private typealias Bit = Long
 
 open class BitmapImpl(private val store: StoreImpl) : Bitmap {
-
-    protected var size = 0L
 
     override fun getEnvironment() = store.environment
 
@@ -48,7 +48,6 @@ open class BitmapImpl(private val store: StoreImpl) : Bitmap {
                 store.put(txn, keyEntry, it.toEntry(bit.index))
             }
         }
-        size += if (value) 1L else -1L
         return true
     }
 
@@ -76,7 +75,48 @@ open class BitmapImpl(private val store: StoreImpl) : Bitmap {
         }
     }
 
-    override fun count(txn: Transaction): Long = this.size
+    override fun count(txn: Transaction): Long {
+        store.openCursor(txn).let { cursor ->
+            var size = 0L
+            while (cursor.next) {
+                cursor.value.let {
+                    if (it.length == 1) {
+                        it.iterator().next().toInt().let { marker ->
+                            size += when {
+                                marker == 1 -> 64L
+                                marker < 66 -> 1L
+                                else -> 63L
+                            }
+                        }
+                    } else {
+                        size += it.countBits()
+                    }
+                }
+            }
+            return size
+        }
+    }
+}
+
+internal fun ByteIterable.countBits(): Int {
+    var size = 0
+    this.iterator().let {
+        size += (it.next() xor (0x80).toByte()).countBits()
+        while(it.hasNext()) {
+            size += it.next().countBits()
+        }
+    }
+    return size
+}
+
+internal fun Byte.countBits(): Int {
+    var size = 0
+    var byte = this
+    while (byte != 0.toByte()) {
+        size += 1
+        byte = byte and (byte - 1).toByte()
+    }
+    return size
 }
 
 internal fun Bit.ensureNonNegative() =

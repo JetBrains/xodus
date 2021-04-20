@@ -182,15 +182,14 @@ class BitmapIteratorTest : BitmapImplTest() {
     @Test
     fun `iterator for bitmap with many set bits`() {
         env.executeInTransaction { txn ->
-            val randomBits = mutableListOf<Long>()
+            val randomBits = mutableSetOf<Long>()
             for (i in 0..100) {
                 val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
                 randomBits.add(randomBit)
                 bitmap.set(txn, randomBit, true)
             }
-            randomBits.sort()
             val iterBitmap = bitmap.iterator(txn)
-            val iterList = randomBits.iterator()
+            val iterList = randomBits.sorted().iterator()
             while (iterBitmap.hasNext()) {
                 assertEquals(iterList.next(), iterBitmap.next())
             }
@@ -202,17 +201,15 @@ class BitmapIteratorTest : BitmapImplTest() {
     @Test
     fun `reverse iterator for bitmap with many set bits`() {
         env.executeInTransaction { txn ->
-            val randomBits = mutableListOf<Long>()
+            val randomBits = mutableSetOf<Long>()
             for (i in 0..100) {
                 val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
                 randomBits.add(randomBit)
                 bitmap.set(txn, randomBit, true)
             }
 
-            randomBits.sortDescending()
-
             val iterBitmap = bitmap.reverseIterator(txn)
-            val iterList = randomBits.iterator()
+            val iterList = randomBits.sortedDescending().iterator()
             while (iterBitmap.hasNext()) {
                 assertEquals(iterList.next(), iterBitmap.next())
             }
@@ -292,13 +289,12 @@ class BitmapIteratorTest : BitmapImplTest() {
     @Test
     fun `remove random bits`() {
         env.executeInTransaction { txn ->
-            val randomBits = mutableListOf<Long>()
+            val randomBits = mutableSetOf<Long>()
             for (i in 0..10) {
                 val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
                 randomBits.add(randomBit)
                 bitmap.set(txn, randomBit, true)
             }
-            randomBits.sort()
 
             val iter = bitmap.iterator(txn)
             while (iter.hasNext()) {
@@ -306,7 +302,7 @@ class BitmapIteratorTest : BitmapImplTest() {
                 iter.remove()
             }
 
-            randomBits.forEach {
+            randomBits.sorted().forEach {
                 assertFalse(bitmap.get(txn, it))
             }
         }
@@ -315,13 +311,12 @@ class BitmapIteratorTest : BitmapImplTest() {
     @Test
     fun `reverse remove random bits`() {
         env.executeInTransaction { txn ->
-            val randomBits = mutableListOf<Long>()
+            val randomBits = mutableSetOf<Long>()
             for (i in 0..10) {
                 val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
                 randomBits.add(randomBit)
                 bitmap.set(txn, randomBit, true)
             }
-            randomBits.sortDescending()
 
             val iter = bitmap.reverseIterator(txn)
             while (iter.hasNext()) {
@@ -329,7 +324,7 @@ class BitmapIteratorTest : BitmapImplTest() {
                 iter.remove()
             }
 
-            randomBits.forEach {
+            randomBits.sortedDescending().forEach {
                 assertFalse(bitmap.get(txn, it))
             }
         }

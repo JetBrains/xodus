@@ -56,7 +56,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
     @Test
     fun `set and get 100 random bits`() {
         env.executeInTransaction { txn ->
-            val randomBits = mutableListOf<Long>()
+            val randomBits = mutableSetOf<Long>()
 
             for (i in 0..100) {
                 val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
@@ -140,7 +140,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
     @Test
     fun `all operations for random bits`() {
         env.executeInTransaction { txn ->
-            val randomBits = mutableListOf<Long>()
+            val randomBits = mutableSetOf<Long>()
             for (i in 0..10) {
                 val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
                 randomBits.add(randomBit)
@@ -177,7 +177,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
     @Test
     fun `clear random bits`() {
         env.executeInTransaction { txn ->
-            val randomBits = mutableListOf<Long>()
+            val randomBits = mutableSetOf<Long>()
             for (i in 0..10) {
                 val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
                 randomBits.add(randomBit)
@@ -253,7 +253,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
     @Test
     fun `count for set and clear all bits`() {
         env.executeInTransaction { txn ->
-            val randomBits = mutableListOf<Long>()
+            val randomBits = mutableSetOf<Long>()
             for (i in 0..10) {
                 val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
                 randomBits.add(randomBit)
@@ -271,9 +271,22 @@ open class BitmapImplTest : EnvironmentTestsBase() {
     @Test
     fun `count for lots of set bits`() {
         env.executeInTransaction { txn ->
-            val randomBits = mutableListOf<Long>()
+            val randomBits = mutableSetOf<Long>()
             for (i in 0..100) {
                 val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
+                randomBits.add(randomBit)
+                bitmap.set(txn, randomBit, true)
+            }
+            assertEquals(randomBits.size.toLong(), bitmap.count(txn))
+        }
+    }
+
+    @Test
+    fun `count for lots of set bits in small interval`() {
+        env.executeInTransaction { txn ->
+            val randomBits = mutableSetOf<Long>()
+            for (i in 0..100) {
+                val randomBit = (Math.random() * 1000L).toLong()
                 randomBits.add(randomBit)
                 bitmap.set(txn, randomBit, true)
             }
