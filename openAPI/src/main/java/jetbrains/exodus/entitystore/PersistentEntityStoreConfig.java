@@ -224,6 +224,16 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     public static final String ENTITY_ITERABLE_CACHE_COUNTS_CACHE_SIZE = "exodus.entityStore.entityIterableCache.countsCacheSize";
 
     /**
+     * Defines life time in milliseconds of a single cache count. Is applicable only if
+     * {@linkplain #CACHING_DISABLED} is {@code false}. Default value is {@code 30000L}.
+     *
+     * <p>Mutable at runtime: no
+     *
+     * @see #CACHING_DISABLED
+     */
+    public static final String ENTITY_ITERABLE_CACHE_COUNTS_LIFETIME = "exodus.entityStore.entityIterableCache.countsLifeTime";
+
+    /**
      * Defines the number of thread which EntityIterableCache uses for its background caching activity.
      * EntityIterableCache is operable only if {@linkplain #CACHING_DISABLED} is {@code false}.
      * Default value is {@code 2}, if CPU count is greater than {@code 3}, otherwise it is {@code 1}.
@@ -366,6 +376,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
             new Pair(DEBUG_ALLOW_IN_MEMORY_SORT, true),
             new Pair(ENTITY_ITERABLE_CACHE_SIZE, defaultEntityIterableCacheSize()),
             new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHE_SIZE, 65536),
+            new Pair(ENTITY_ITERABLE_CACHE_COUNTS_LIFETIME, 30000L),
             new Pair(ENTITY_ITERABLE_CACHE_THREAD_COUNT, Runtime.getRuntime().availableProcessors() > 8 ? 4 : 2),
             new Pair(ENTITY_ITERABLE_CACHE_CACHING_TIMEOUT, 10000L),
             new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHING_TIMEOUT, 100000L),
@@ -570,6 +581,14 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
 
     public PersistentEntityStoreConfig setEntityIterableCacheCountsCacheSize(final int size) {
         return setSetting(ENTITY_ITERABLE_CACHE_COUNTS_CACHE_SIZE, size);
+    }
+
+    public long getEntityIterableCacheCountsLifeTime() {
+        return (Long) getSetting(ENTITY_ITERABLE_CACHE_COUNTS_LIFETIME);
+    }
+
+    public PersistentEntityStoreConfig setEntityIterableCacheCountsLifeTime(final long lifeTime) {
+        return setSetting(ENTITY_ITERABLE_CACHE_COUNTS_LIFETIME, lifeTime);
     }
 
     public int getEntityIterableCacheThreadCount() {

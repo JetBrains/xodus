@@ -1963,7 +1963,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @Override
     @NotNull
     public EntityStoreSharedAsyncProcessor getAsyncProcessor() {
-        return iterableCache.processor;
+        return iterableCache.getProcessor();
     }
 
     @NotNull

@@ -169,6 +169,16 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
+    public long getEntityIterableCacheCountsLifeTime() {
+        return config.getEntityIterableCacheCountsLifeTime();
+    }
+
+    @Override
+    public void setEntityIterableCacheCountsLifeTime(long lifeTime) {
+        config.setEntityIterableCacheCountsLifeTime(lifeTime);
+    }
+
+    @Override
     public int getEntityIterableCacheThreadCount() {
         return config.getEntityIterableCacheThreadCount();
     }

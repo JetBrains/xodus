@@ -81,8 +81,9 @@ internal open class EntityIterableCacheAdapter
     fun getStickyObjectUnsafe(handle: EntityIterableHandle): Updatable? = stickyObjects[handle]
 
     fun getStickyObject(handle: EntityIterableHandle): Updatable {
-        return getStickyObjectUnsafe(handle)
-                ?: throw IllegalStateException("Sticky object not found, handle: " + EntityIterableCache.getStringPresentation(config, handle))
+        return getStickyObjectUnsafe(handle) ?: throw IllegalStateException(
+            "Sticky object not found, handle=${EntityIterableCache.toString(config, handle)}"
+        )
     }
 
     private fun parseCachedObject(key: EntityIterableHandle, item: CacheItem?): CachedInstanceIterable? {
@@ -121,7 +122,10 @@ internal open class EntityIterableCacheAdapter
     internal class NonAdjustablePersistentObjectCache<K, V> : PersistentObjectCache<K, V> {
 
         constructor(size: Int) : super(size)
-        constructor(source: NonAdjustablePersistentObjectCache<K, V>, listener: EvictListener<K, V>?) : super(source, listener)
+        constructor(source: NonAdjustablePersistentObjectCache<K, V>, listener: EvictListener<K, V>?) : super(
+            source,
+            listener
+        )
 
         override fun getClone(listener: EvictListener<K, V>?): NonAdjustablePersistentObjectCache<K, V> {
             return NonAdjustablePersistentObjectCache(this, listener)
