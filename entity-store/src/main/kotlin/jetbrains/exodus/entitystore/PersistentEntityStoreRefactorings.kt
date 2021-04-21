@@ -682,7 +682,22 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
         }
     }
 
-    fun refactorDeduplicateInPlaceBlobs(settings: Store) {
+    fun refactorDeduplicateInPlaceBlobsPeriodically(settings: Store) {
+        store.environment.executeBeforeGc {
+            refactorDeduplicateInPlaceBlobs(settings)
+        }
+    }
+
+    @Deprecated(message = "This method can be used in tests only.")
+    internal fun refactorDeduplicateInPlaceBlobs() {
+        val env = store.environment
+        val store = env.computeInTransaction { txn ->
+            env.openStore("TestSettings", StoreConfig.WITHOUT_DUPLICATES, txn)
+        }
+        refactorDeduplicateInPlaceBlobs(store)
+    }
+
+    private fun refactorDeduplicateInPlaceBlobs(settings: Store) {
 
         class DuplicateFoundException : ExodusException()
 

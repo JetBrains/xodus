@@ -856,7 +856,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             linksCache.clear();
             blobStringsCache.clear();
         }
-        localCache = store.getEntityIterableCache().getCacheAdapter();
+        localCache = (EntityIterableCacheAdapter) store.getEntityIterableCache().getCacheAdapter();
         mutableCache = null;
         mutatedInTxn = null;
         blobStreams = null;

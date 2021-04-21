@@ -352,7 +352,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 Settings.set(internalSettings, "refactorBlobsForVersion2Format() applied", "y");
             }
             if (!fromScratch && !useVersion1Format()) {
-                refactorings.refactorDeduplicateInPlaceBlobs(internalSettings);
+                refactorings.refactorDeduplicateInPlaceBlobsPeriodically(internalSettings);
             }
             if (fromScratch || Settings.get(internalSettings, "Link null-indices present") == null) {
                 if (!fromScratch) {
@@ -986,7 +986,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (blobHandle == EMPTY_BLOB_HANDLE) {
             return 0;
         }
-        if (blobHandle == IN_PLACE_BLOB_HANDLE || blobHandle == IN_PLACE_BLOB_REFERENCE_HANDLE) {
+        if (isInPlaceBlobHandle(blobHandle)) {
             return CompressedUnsignedLongByteIterable.getLong(blobInfo.getSecond());
         }
         final long result = txn.getBlobSize(blobHandle);
@@ -1094,7 +1094,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (blobHandle == EMPTY_BLOB_HANDLE) {
             return new Pair<>(blobHandle, null);
         }
-        if (blobHandle == IN_PLACE_BLOB_HANDLE || blobHandle == IN_PLACE_BLOB_REFERENCE_HANDLE) {
+        if (isInPlaceBlobHandle(blobHandle)) {
             final ByteIterator valueIterator = blobInfo.getSecond();
             final int size = (int) CompressedUnsignedLongByteIterable.getLong(valueIterator);
             if (blobHandle == IN_PLACE_BLOB_HANDLE) {
@@ -1252,6 +1252,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
         if (result == 0L) return EMPTY_BLOB_HANDLE;
         if (result == 1L) return IN_PLACE_BLOB_HANDLE;
+        if (result == 2L) return IN_PLACE_BLOB_REFERENCE_HANDLE;
         return result - BLOB_HANDLE_ADDEND;
     }
 
@@ -1990,7 +1991,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @Override
     @NotNull
     public EntityStoreSharedAsyncProcessor getAsyncProcessor() {
-        return iterableCache.processor;
+        return iterableCache.getProcessor();
     }
 
     @NotNull
@@ -2042,10 +2043,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return namingRulez;
     }
 
+    static boolean isInPlaceBlobHandle(final long blobHandle) {
+        return IN_PLACE_BLOB_HANDLE == blobHandle || IN_PLACE_BLOB_REFERENCE_HANDLE == blobHandle;
+    }
+
     static boolean isEmptyOrInPlaceBlobHandle(final long blobHandle) {
-        return EMPTY_BLOB_HANDLE == blobHandle ||
-            IN_PLACE_BLOB_HANDLE == blobHandle ||
-            IN_PLACE_BLOB_REFERENCE_HANDLE == blobHandle;
+        return EMPTY_BLOB_HANDLE == blobHandle || isInPlaceBlobHandle(blobHandle);
     }
 
     public static void loggerWarn(@NotNull final String message) {

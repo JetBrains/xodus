@@ -25,7 +25,7 @@ internal class PersistentEntityStoreSettingsListener(private val store: Persiste
             // if caching is switched on/off then clear EntityIterableCache
             store.entityIterableCache.clear()
             val cachingDisabled = store.config.isCachingDisabled
-            store.entityIterableCache.isCachingDisabled = cachingDisabled
+            store.entityIterableCache.cachingDisabled = cachingDisabled
         }
     }
 

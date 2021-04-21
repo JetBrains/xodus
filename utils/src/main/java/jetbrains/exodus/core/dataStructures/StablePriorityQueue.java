@@ -18,6 +18,7 @@ package jetbrains.exodus.core.dataStructures;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.LinkedHashSet;
 import jetbrains.exodus.core.execution.locks.CriticalSection;
+import jetbrains.exodus.core.execution.locks.Guard;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -112,9 +113,11 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
 
     @Override
     public void clear() {
-        theQueue.clear();
-        priorities.clear();
-        size.set(0);
+        try (Guard ignored = lock()) {
+            theQueue.clear();
+            priorities.clear();
+            size.set(0);
+        }
     }
 
     @Override
