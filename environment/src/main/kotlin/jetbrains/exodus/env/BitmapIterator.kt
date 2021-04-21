@@ -26,7 +26,7 @@ class BitmapIterator(
     private val direction: Int = 1
 ) : LongIterator, Closeable {
 
-    private val cursor = store.openCursor(txn)
+    val cursor: Cursor = store.openCursor(txn)
     private var current: Long? = null
     private var next: Long? = null
     private var key = 0L

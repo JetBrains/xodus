@@ -23,7 +23,7 @@ import kotlin.experimental.xor
 
 private typealias Bit = Long
 
-open class BitmapImpl(private val store: StoreImpl) : Bitmap {
+open class BitmapImpl(open val store: StoreImpl) : Bitmap {
 
     override fun getEnvironment() = store.environment
 
@@ -58,20 +58,14 @@ open class BitmapImpl(private val store: StoreImpl) : Bitmap {
     override fun reverseIterator(txn: Transaction): BitmapIterator = BitmapIterator(txn, store, -1)
 
     override fun getFirst(txn: Transaction): Long {
-        iterator(txn).let {
-            if (it.hasNext()) {
-                return it.next()
-            }
-            return -1L
+        return iterator(txn).use {
+            if (it.hasNext()) it.next() else -1L
         }
     }
 
     override fun getLast(txn: Transaction): Long {
-        reverseIterator(txn).let {
-            if (it.hasNext()) {
-                return it.next()
-            }
-            return -1L
+        return reverseIterator(txn).use {
+            if (it.hasNext()) it.next() else -1L
         }
     }
 

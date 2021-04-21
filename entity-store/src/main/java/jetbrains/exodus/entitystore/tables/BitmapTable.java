@@ -17,31 +17,31 @@ package jetbrains.exodus.entitystore.tables;
 
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
-import jetbrains.exodus.env.Store;
+import jetbrains.exodus.env.BitmapImpl;
 import jetbrains.exodus.env.StoreConfig;
 import org.jetbrains.annotations.NotNull;
 
-public class SingleColumnTable extends Table {
+public class BitmapTable extends Table {
 
     @NotNull
-    private final Store database;
-    ;
+    private final BitmapImpl bitmap;
 
-    public SingleColumnTable(@NotNull final PersistentStoreTransaction txn,
-                             @NotNull final String name,
-                             @NotNull final StoreConfig config) {
+    public BitmapTable(@NotNull final PersistentStoreTransaction txn,
+                       @NotNull final String name,
+                       @NotNull final StoreConfig config) {
         final PersistentEntityStoreImpl store = txn.getStore();
-        database = store.getEnvironment().openStore(name, config, txn.getEnvironmentTransaction());
-        store.trackTableCreation(database, txn);
+        bitmap = (BitmapImpl) store.getEnvironment().openBitmap(name, config, txn.getEnvironmentTransaction());
+        store.trackTableCreation(bitmap.getStore(), txn);
     }
 
     @NotNull
-    public Store getDatabase() {
-        return database;
+    public BitmapImpl getBitmap() {
+        return bitmap;
     }
 
     @Override
     public boolean canBeCached() {
-        return !database.getConfig().temporaryEmpty;
+        return !bitmap.getStore().getConfig().temporaryEmpty;
     }
 }
+

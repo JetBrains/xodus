@@ -19,9 +19,10 @@ import jetbrains.exodus.*;
 import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.bindings.*;
 import jetbrains.exodus.core.dataStructures.Pair;
-import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
+import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
+import jetbrains.exodus.core.dataStructures.hash.IntHashSet;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction.TransactionType;
@@ -245,8 +246,13 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             propertyCustomTypeIds = new PersistentSequentialDictionary(getSequence(txn, namingRulez.getPropertyCustomTypesSequence()),
                 new TwoColumnTable(txn, namingRulez.getPropertyCustomTypesTable(), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING));
 
-            entitiesTables = new OpenTablesCache((t, entityTypeId) -> new SingleColumnTable(t,
-                namingRulez.getEntitiesTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING));
+            entitiesTables = new OpenTablesCache((t, entityTypeId) ->
+            {
+                final String entitiesTableName = namingRulez.getEntitiesTableName(entityTypeId);
+                return useVersion1Format() ?
+                    new SingleColumnTable(t, entitiesTableName, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING) :
+                    new BitmapTable(t, entitiesTableName, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING);
+            });
             propertiesTables = new OpenTablesCache((t, entityTypeId) -> new PropertiesTable(t,
                 namingRulez.getPropertiesTableName(entityTypeId), StoreConfig.WITHOUT_DUPLICATES));
             linksTables = new OpenTablesCache((t, entityTypeId) -> new LinksTable(t,
@@ -272,9 +278,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (!config.getRefactoringSkipAll() && !environment.getEnvironmentConfig().getEnvIsReadonly()) {
             applyRefactorings(fromScratch); // this method includes refactorings that could be clustered into separate txns
         }
-        executeInTransaction(txn -> {
-            preloadTables((PersistentStoreTransaction) txn); // pre-load tables for all entity types to avoid lazy load of the tables
-        });
     }
 
     private void initBasicStores(Transaction envTxn) {
@@ -927,7 +930,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     @NotNull
-    public LongIterator getEntitiesBitmapIterator(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
+    public BitmapIterator getEntitiesBitmapIterator(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
         return getEntitiesBitmapTable(txn, entityTypeId).iterator(txn.getEnvironmentTransaction());
     }
 
@@ -1227,7 +1230,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             new ByteArraySizedInputStream(ByteIterableBase.readIterable(duplicateEntry)))) ? duplicateKey : null;
     }
 
-    boolean useVersion1Format() {
+    public boolean useVersion1Format() {
         return environment.getEnvironmentConfig().getUseVersion1Format();
     }
 
@@ -1598,16 +1601,14 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
             }
         }
-        if (useVersion1Format() &&
-                getEntitiesBitmapTable(txn, entityTypeId).clear(txn.getEnvironmentTransaction(), entityLocalId)) {
+        final Transaction envTxn = txn.getEnvironmentTransaction();
+        final boolean result = useVersion1Format() ?
+            getEntitiesTable(txn, entityTypeId).delete(envTxn, key) :
+            getEntitiesBitmapTable(txn, entityTypeId).clear(envTxn, entityLocalId);
+        if (result) {
             txn.entityDeleted(id);
-            return true;
         }
-        if (getEntitiesTable(txn, entityTypeId).delete(txn.getEnvironmentTransaction(), key)) {
-            txn.entityDeleted(id);
-            return true;
-        }
-        return false;
+        return result;
     }
 
     /**
@@ -1867,16 +1868,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
     }
 
-    private void preloadTables(final PersistentStoreTransaction txn) {
-        // preload tables
-        for (final String entityType : getEntityTypes(txn)) {
-            final int id = getEntityTypeId(txn, entityType, false);
-            if (id == -1) {
-                throw new IllegalStateException("Entity types iterator returned non-existent id");
-            }
-        }
-    }
-
     private void preloadTables(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
         if (useVersion1Format()) {
             getEntitiesTable(txn, entityTypeId);
@@ -1934,8 +1925,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     @NotNull
-    public Bitmap getEntitiesBitmapTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-        return ((SingleColumnTable) entitiesTables.get(txn, entityTypeId)).getDatabaseBitmap();
+    public BitmapImpl getEntitiesBitmapTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
+        return ((BitmapTable) entitiesTables.get(txn, entityTypeId)).getBitmap();
     }
 
     @NotNull
