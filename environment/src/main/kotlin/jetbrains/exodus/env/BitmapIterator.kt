@@ -18,10 +18,13 @@ package jetbrains.exodus.env
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.bindings.LongBinding.compressedEntryToLong
 import jetbrains.exodus.core.dataStructures.hash.LongIterator
-import java.lang.IllegalArgumentException
-import java.util.*
+import java.io.Closeable
 
-class BitmapIterator(val txn: Transaction, var store: StoreImpl, private val direction: Int = 1) : LongIterator {
+class BitmapIterator(
+    val txn: Transaction,
+    var store: StoreImpl,
+    private val direction: Int = 1
+) : LongIterator, Closeable {
 
     private val cursor = store.openCursor(txn)
     private var current: Long? = null
@@ -73,6 +76,8 @@ class BitmapIterator(val txn: Transaction, var store: StoreImpl, private val dir
         throw NoSuchElementException()
     }
 
+    override fun close() = cursor.close()
+
     private fun setNext() {
         while (value == 0L && if (direction == 1) cursor.next else cursor.prev) {
             key = compressedEntryToLong(cursor.key)
@@ -95,5 +100,4 @@ class BitmapIterator(val txn: Transaction, var store: StoreImpl, private val dir
             bitIndex += direction
         }
     }
-
 }
