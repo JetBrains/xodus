@@ -1551,6 +1551,14 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     public int getLastVersion(@NotNull final PersistentStoreTransaction txn, @NotNull final EntityId id) {
+        if (useVersion1Format()) {
+            final Store entities = getEntitiesTable(txn, id.getTypeId());
+            final ByteIterable versionEntry = entities.get(txn.getEnvironmentTransaction(), LongBinding.longToCompressedEntry(id.getLocalId()));
+            if (versionEntry == null) {
+                return -1;
+            }
+            return IntegerBinding.compressedEntryToInt(versionEntry);
+        }
         final Bitmap entities = getEntitiesBitmapTable(txn, id.getTypeId());
         final boolean versionEntry = entities.get(txn.getEnvironmentTransaction(), id.getLocalId());
         if (!versionEntry) {
@@ -1576,6 +1584,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final PersistentEntityId id = entity.getId();
         final int entityTypeId = id.getTypeId();
         final long entityLocalId = id.getLocalId();
+        final ByteIterable key = LongBinding.longToCompressedEntry(entityLocalId);
         if (config.isDebugSearchForIncomingLinksOnDelete()) {
             // search for incoming links
             final List<String> allLinkNames = getAllLinkNames(txn);
@@ -1588,7 +1597,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
             }
         }
-        if (getEntitiesBitmapTable(txn, entityTypeId).clear(txn.getEnvironmentTransaction(), entityLocalId)) {
+        if (useVersion1Format() &&
+                getEntitiesBitmapTable(txn, entityTypeId).clear(txn.getEnvironmentTransaction(), entityLocalId)) {
+            txn.entityDeleted(id);
+            return true;
+        }
+        if (getEntitiesTable(txn, entityTypeId).delete(txn.getEnvironmentTransaction(), key)) {
             txn.entityDeleted(id);
             return true;
         }
@@ -1863,7 +1877,11 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     private void preloadTables(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-        getEntitiesBitmapTable(txn, entityTypeId);
+        if (useVersion1Format()) {
+            getEntitiesTable(txn, entityTypeId);
+        } else {
+            getEntitiesBitmapTable(txn, entityTypeId);
+        }
         getPropertiesTable(txn, entityTypeId);
         getLinksTable(txn, entityTypeId);
         getBlobsTable(txn, entityTypeId);

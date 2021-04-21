@@ -250,7 +250,12 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         try {
             final int entityTypeId = store.getEntityTypeId(this, entityType, true);
             final long entityLocalId = store.getEntitiesSequence(this, entityTypeId).increment();
-            store.getEntitiesBitmapTable(this, entityTypeId).set(txn, entityLocalId, true);
+            if (store.useVersion1Format()) {
+                store.getEntitiesTable(this, entityTypeId).putRight(
+                    txn, LongBinding.longToCompressedEntry(entityLocalId), ZERO_VERSION_ENTRY);
+            } else {
+                store.getEntitiesBitmapTable(this, entityTypeId).set(txn, entityLocalId, true);
+            }
             final PersistentEntityId id = new PersistentEntityId(entityTypeId, entityLocalId);
             // update iterables' cache
             new EntityAddedHandleCheckerImpl(this, id, mutableCache(), mutatedInTxn).updateCache();
@@ -264,8 +269,13 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     public void saveEntity(@NotNull final Entity entity) {
         try {
             final EntityId entityId = entity.getId();
-            final Bitmap bitmapEntitiesTable = store.getEntitiesBitmapTable(this, entityId.getTypeId());
-            bitmapEntitiesTable.set(txn, entityId.getLocalId(), true);
+            if (store.useVersion1Format()) {
+                final Store entitiesTable = store.getEntitiesTable(this, entityId.getTypeId());
+                entitiesTable.put(txn, LongBinding.longToCompressedEntry(entityId.getLocalId()), ZERO_VERSION_ENTRY);
+            } else {
+                final Bitmap bitmapEntitiesTable = store.getEntitiesBitmapTable(this, entityId.getTypeId());
+                bitmapEntitiesTable.set(txn, entityId.getLocalId(), true);
+            }
             new EntityAddedHandleCheckerImpl(this, entityId, mutableCache(), mutatedInTxn).updateCache();
         } catch (Exception e) {
             throw ExodusException.toEntityStoreException(e);
