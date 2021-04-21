@@ -19,6 +19,7 @@ import jetbrains.exodus.entitystore.util.EntityIdSetFactory
 import jetbrains.exodus.entitystore.util.ImmutableSingleTypeEntityIdBitSet
 import org.junit.Assert
 import java.util.*
+import kotlin.math.max
 
 class EntityIdSetTest : EntityStoreTestBase() {
 
@@ -87,7 +88,7 @@ class EntityIdSetTest : EntityStoreTestBase() {
         var prevValue = data[0] - 20
         for (i in data.indices) {
             val value = data[i]
-            for (k in prevValue + 1 until value) {
+            for (k in max(0, prevValue + 1) until value) {
                 assertFalse(set.contains(typeId, k))
                 assertEquals(-1, set.indexOf(PersistentEntityId(typeId, k)))
             }
