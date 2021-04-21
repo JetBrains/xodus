@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.tables;
 
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.env.Bitmap;
 import jetbrains.exodus.env.Store;
 import jetbrains.exodus.env.StoreConfig;
 import org.jetbrains.annotations.NotNull;
@@ -25,18 +26,27 @@ public class SingleColumnTable extends Table {
 
     @NotNull
     private final Store database;
+    @NotNull
+    private final Bitmap databaseBitmap;
 
     public SingleColumnTable(@NotNull final PersistentStoreTransaction txn,
                              @NotNull final String name,
                              @NotNull final StoreConfig config) {
         final PersistentEntityStoreImpl store = txn.getStore();
         database = store.getEnvironment().openStore(name, config, txn.getEnvironmentTransaction());
+        databaseBitmap = store.getEnvironment()
+                .openBitmap("database", config, txn.getEnvironmentTransaction());
         store.trackTableCreation(database, txn);
     }
 
     @NotNull
     public Store getDatabase() {
         return database;
+    }
+
+    @NotNull
+    public Bitmap getDatabaseBitmap() {
+        return databaseBitmap;
     }
 
     @Override

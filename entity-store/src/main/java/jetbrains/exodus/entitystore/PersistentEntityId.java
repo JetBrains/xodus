@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.entitystore.iterate.EntityIterableHandleBase;
 import org.jetbrains.annotations.NotNull;
 
@@ -47,6 +48,9 @@ public class PersistentEntityId implements EntityId {
      * @param entityLocalId local entity id within entity type.
      */
     public PersistentEntityId(final int entityTypeId, final long entityLocalId) {
+        if (entityLocalId < 0) {
+            throw new ExodusException("LocalId can't be negative");
+        }
         this.entityTypeId = entityTypeId;
         this.entityLocalId = entityLocalId;
     }

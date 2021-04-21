@@ -19,10 +19,9 @@ import jetbrains.exodus.*;
 import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.bindings.*;
 import jetbrains.exodus.core.dataStructures.Pair;
+import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
-import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
-import jetbrains.exodus.core.dataStructures.hash.IntHashSet;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction.TransactionType;
@@ -922,8 +921,14 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     @NotNull
+    @Deprecated
     public Cursor getEntitiesIndexCursor(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
         return getEntitiesTable(txn, entityTypeId).openCursor(txn.getEnvironmentTransaction());
+    }
+
+    @NotNull
+    public LongIterator getEntitiesBitmapIterator(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
+        return getEntitiesBitmapTable(txn, entityTypeId).iterator(txn.getEnvironmentTransaction());
     }
 
     @NotNull
@@ -1546,12 +1551,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     public int getLastVersion(@NotNull final PersistentStoreTransaction txn, @NotNull final EntityId id) {
-        final Store entities = getEntitiesTable(txn, id.getTypeId());
-        final ByteIterable versionEntry = entities.get(txn.getEnvironmentTransaction(), LongBinding.longToCompressedEntry(id.getLocalId()));
-        if (versionEntry == null) {
+        final Bitmap entities = getEntitiesBitmapTable(txn, id.getTypeId());
+        final boolean versionEntry = entities.get(txn.getEnvironmentTransaction(), id.getLocalId());
+        if (!versionEntry) {
             return -1;
         }
-        return IntegerBinding.compressedEntryToInt(versionEntry);
+        return 0;
     }
 
     @Override
@@ -1571,7 +1576,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final PersistentEntityId id = entity.getId();
         final int entityTypeId = id.getTypeId();
         final long entityLocalId = id.getLocalId();
-        final ByteIterable key = LongBinding.longToCompressedEntry(entityLocalId);
         if (config.isDebugSearchForIncomingLinksOnDelete()) {
             // search for incoming links
             final List<String> allLinkNames = getAllLinkNames(txn);
@@ -1584,7 +1588,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
             }
         }
-        if (getEntitiesTable(txn, entityTypeId).delete(txn.getEnvironmentTransaction(), key)) {
+        if (getEntitiesBitmapTable(txn, entityTypeId).clear(txn.getEnvironmentTransaction(), entityLocalId)) {
             txn.entityDeleted(id);
             return true;
         }
@@ -1859,7 +1863,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     private void preloadTables(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-        getEntitiesTable(txn, entityTypeId);
+        getEntitiesBitmapTable(txn, entityTypeId);
         getPropertiesTable(txn, entityTypeId);
         getLinksTable(txn, entityTypeId);
         getBlobsTable(txn, entityTypeId);
@@ -1905,8 +1909,14 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     @NotNull
+    @Deprecated
     public Store getEntitiesTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
         return ((SingleColumnTable) entitiesTables.get(txn, entityTypeId)).getDatabase();
+    }
+
+    @NotNull
+    public Bitmap getEntitiesBitmapTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
+        return ((SingleColumnTable) entitiesTables.get(txn, entityTypeId)).getDatabaseBitmap();
     }
 
     @NotNull

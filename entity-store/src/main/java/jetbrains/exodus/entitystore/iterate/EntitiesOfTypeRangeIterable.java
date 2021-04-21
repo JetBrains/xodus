@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.bindings.LongBinding;
+import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.env.Cursor;
 import org.jetbrains.annotations.NotNull;
@@ -63,6 +64,10 @@ public class EntitiesOfTypeRangeIterable extends EntityIterableBase {
 
     private Cursor openCursor(@NotNull final PersistentStoreTransaction txn) {
         return getStore().getEntitiesIndexCursor(txn, entityTypeId);
+    }
+
+    private LongIterator openBitmapIterator(@NotNull final PersistentStoreTransaction txn) {
+        return getStore().getEntitiesBitmapIterator(txn, entityTypeId);
     }
 
     @Override

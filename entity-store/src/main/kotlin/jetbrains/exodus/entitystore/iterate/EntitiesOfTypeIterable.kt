@@ -16,9 +16,11 @@
 package jetbrains.exodus.entitystore.iterate
 
 import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.core.dataStructures.hash.LongIterator
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase.registerType
 import jetbrains.exodus.env.Cursor
+import org.jetbrains.annotations.NotNull
 
 /**
  * Iterates all entities of specified entity type.
@@ -99,6 +101,29 @@ open class EntitiesOfTypeIterable(txn: PersistentStoreTransaction, private val e
             return if (!cursor.prev) {
                 null
             } else entityId
+        }
+    }
+
+    class EntitiesOfTypeBitmapIterator(
+        iterable: EntitiesOfTypeIterable,
+        val iterator: @NotNull LongIterator
+    ) : EntityIteratorBase(iterable) {
+
+        private val entityTypeId = iterable.entityTypeId
+        private var entityKey: Long = -1L
+
+        private val entityId: EntityId
+            get() = PersistentEntityId(entityTypeId, entityKey)
+
+        public override fun hasNextImpl(): Boolean = iterator.hasNext()
+
+        public override fun nextIdImpl(): EntityId? {
+            if (hasNextImpl()) {
+                iterable.explain(EntityIterableType.ALL_ENTITIES)
+                entityKey = iterator.nextLong()
+                return entityId
+            }
+            return null
         }
     }
 
