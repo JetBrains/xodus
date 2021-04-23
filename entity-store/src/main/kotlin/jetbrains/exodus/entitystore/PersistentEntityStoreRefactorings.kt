@@ -19,6 +19,7 @@ package jetbrains.exodus.entitystore
 
 import jetbrains.exodus.*
 import jetbrains.exodus.bindings.*
+import jetbrains.exodus.core.dataStructures.LongArrayList
 import jetbrains.exodus.core.dataStructures.hash.*
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLong23TreeSet
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLongSet
@@ -683,6 +684,19 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
     }
 
     fun refactorEntitiesTablesToBitmap(settings: Store) {
+
+        fun dumpEntitiesAndFlush(tableName: String, entityIds: LongArrayList) {
+            store.executeInExclusiveTransaction { txn ->
+                txn as PersistentStoreTransaction
+                val entityOfTypeBitmap = store.environment.openBitmap(tableName, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn.environmentTransaction)
+                val oldEntitiesTable = SingleColumnTable(txn, tableName, StoreConfig.USE_EXISTING)
+                entityIds.toArray().forEach { id ->
+                    entityOfTypeBitmap.set(txn.environmentTransaction, id, true)
+                }
+                store.environment.removeStore(oldEntitiesTable.database.name, txn.environmentTransaction)
+            }
+        }
+
         store.executeInReadonlyTransaction { txn ->
             for (entityType in store.getEntityTypes(txn as PersistentStoreTransaction).toList()) {
                 val settingName = "refactorEntitiesTablesToBitmap($entityType)"
@@ -692,19 +706,14 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                 val entitiesObsoleteTableName = store.namingRules.getEntitiesTableName(entityTypeId)
                 if (!store.environment.storeExists(entitiesObsoleteTableName, envTxn)) continue
                 logInfo("Refactor entities of [$entityType] type table into bitmap table")
-                val entityOfTypeBitmap = store.environment.openBitmap(entitiesObsoleteTableName, StoreConfig.WITHOUT_DUPLICATES, envTxn)
-                val oldEntitiesTable = SingleColumnTable(txn, entitiesObsoleteTableName, StoreConfig.USE_EXISTING)
+                val entityIds = LongArrayList()
                 store.getEntitiesIndexCursor(txn, entityTypeId).use { cursor ->
                     while (cursor.next) {
-                        entityOfTypeBitmap.set(envTxn, LongBinding.compressedEntryToLong(cursor.key), true)
+                        entityIds.add(LongBinding.compressedEntryToLong(cursor.key))
                     }
                 }
-                store.executeInExclusiveTransaction { txn ->
-                    txn as PersistentStoreTransaction
-                    with(store.environment) {
-                        removeStore(oldEntitiesTable.database.name, txn.environmentTransaction)
-                        removeStore(oldEntitiesTable.database.name, txn.environmentTransaction)
-                    }
+                if (!entityIds.isEmpty) {
+                    dumpEntitiesAndFlush(entitiesObsoleteTableName, entityIds)
                 }
                 store.environment.executeInExclusiveTransaction { txn ->
                     Settings.set(txn, settings, settingName, "y")
