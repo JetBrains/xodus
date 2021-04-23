@@ -109,7 +109,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
         return it
     }
 
-    private fun getCachedCount(handle: EntityIterableHandle): Long? {
+    fun getCachedCount(handle: EntityIterableHandle): Long? {
         val identity = handle.identity
         iterableCountsCache.tryKey(identity)?.let { (count, time) ->
             if (System.currentTimeMillis() - time <= config.entityIterableCacheCountsLifeTime) {
