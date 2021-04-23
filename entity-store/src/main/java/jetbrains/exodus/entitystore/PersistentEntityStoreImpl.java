@@ -354,6 +354,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
                 Settings.set(internalSettings, "refactorBlobsForVersion2Format() applied", "y");
             }
+            if (!useVersion1Format() && (fromScratch || Settings.get(internalSettings, "refactorEntitiesTablesToBitmap() applied") == null)) {
+                if (!fromScratch) {
+                    refactorings.refactorEntitiesTablesToBitmap(internalSettings);
+                }
+                Settings.set(internalSettings, "refactorEntitiesTablesToBitmap() applied", "y");
+            }
             if (!fromScratch && !useVersion1Format()) {
                 refactorings.refactorDeduplicateInPlaceBlobsPeriodically(internalSettings);
             }

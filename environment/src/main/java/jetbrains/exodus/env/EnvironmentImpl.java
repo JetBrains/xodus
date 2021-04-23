@@ -190,7 +190,7 @@ public class EnvironmentImpl implements Environment {
                                           @NotNull final StoreConfig config,
                                           @NotNull Transaction transaction) {
         if (config.duplicates) {
-            throw new ExodusException("Bitmap can't be opened atop of the store with duplicates");
+            throw new ExodusException("Bitmap can't be opened at top of the store with duplicates");
         }
         final StoreImpl store = openStore(name.concat("#bitmap"), config, transaction);
         return new BitmapImpl(store);

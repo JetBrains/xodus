@@ -25,7 +25,6 @@ public class SingleColumnTable extends Table {
 
     @NotNull
     private final Store database;
-    ;
 
     public SingleColumnTable(@NotNull final PersistentStoreTransaction txn,
                              @NotNull final String name,

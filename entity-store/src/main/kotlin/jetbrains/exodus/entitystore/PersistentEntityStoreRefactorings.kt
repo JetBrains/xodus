@@ -682,6 +682,37 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
         }
     }
 
+    fun refactorEntitiesTablesToBitmap(settings: Store) {
+        store.executeInReadonlyTransaction { txn ->
+            for (entityType in store.getEntityTypes(txn as PersistentStoreTransaction).toList()) {
+                val settingName = "refactorEntitiesTablesToBitmap($entityType)"
+                val envTxn = txn.environmentTransaction
+                if (Settings.get(envTxn, settings, settingName) == "y") continue
+                val entityTypeId = store.getEntityTypeId(txn, entityType, false)
+                val entitiesObsoleteTableName = store.namingRules.getEntitiesTableName(entityTypeId)
+                if (!store.environment.storeExists(entitiesObsoleteTableName, envTxn)) continue
+                logInfo("Refactor entities of [$entityType] type table into bitmap table")
+                val entityOfTypeBitmap = store.environment.openBitmap(entitiesObsoleteTableName, StoreConfig.WITHOUT_DUPLICATES, envTxn)
+                val oldEntitiesTable = SingleColumnTable(txn, entitiesObsoleteTableName, StoreConfig.USE_EXISTING)
+                store.getEntitiesIndexCursor(txn, entityTypeId).use { cursor ->
+                    while (cursor.next) {
+                        entityOfTypeBitmap.set(envTxn, LongBinding.compressedEntryToLong(cursor.key), true)
+                    }
+                }
+                store.executeInExclusiveTransaction { txn ->
+                    txn as PersistentStoreTransaction
+                    with(store.environment) {
+                        removeStore(oldEntitiesTable.database.name, txn.environmentTransaction)
+                        removeStore(oldEntitiesTable.database.name, txn.environmentTransaction)
+                    }
+                }
+                store.environment.executeInExclusiveTransaction { txn ->
+                    Settings.set(txn, settings, settingName, "y")
+                }
+            }
+        }
+    }
+
     fun refactorDeduplicateInPlaceBlobsPeriodically(settings: Store) {
         store.environment.executeBeforeGc {
             refactorDeduplicateInPlaceBlobs(settings)
