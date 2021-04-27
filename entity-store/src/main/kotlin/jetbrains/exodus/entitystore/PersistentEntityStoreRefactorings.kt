@@ -704,7 +704,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                 if (Settings.get(envTxn, settings, settingName) == "y") continue
                 val entityTypeId = store.getEntityTypeId(txn, entityType, false)
                 val entitiesObsoleteTableName = store.namingRules.getEntitiesTableName(entityTypeId)
-                if (!store.environment.storeExists(entitiesObsoleteTableName, envTxn)) continue
+                if (!store.environment.storeExists("$entitiesObsoleteTableName#bitmap", envTxn)) continue
                 logInfo("Refactor entities of [$entityType] type table into bitmap table")
                 val entityIds = LongArrayList()
                 store.getEntitiesIndexCursor(txn, entityTypeId).use { cursor ->
