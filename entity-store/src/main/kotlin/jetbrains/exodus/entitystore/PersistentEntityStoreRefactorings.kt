@@ -29,6 +29,7 @@ import jetbrains.exodus.env.Cursor
 import jetbrains.exodus.env.ReadonlyTransactionException
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
+import jetbrains.exodus.env.StoreConfig.USE_EXISTING
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
 import jetbrains.exodus.util.ByteArraySizedInputStream
 import mu.KLogging
@@ -637,7 +638,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                 logInfo("Refactor blobs to version 2 format for [$entityType]")
                 val inPlaceBlobs = ArrayList<Pair<PropertyKey, ArrayByteIterable>>()
                 val blobHandles = ArrayList<Pair<PropertyKey, Long>>()
-                val oldBlobsTable = BlobsTable(store, txn, blobsObsoleteTableName, StoreConfig.USE_EXISTING)
+                val oldBlobsTable = BlobsTable(store, txn, blobsObsoleteTableName, USE_EXISTING)
                 oldBlobsTable.primaryIndex.openCursor(envTxn).use { cursor ->
                     while (cursor.next) {
                         try {
@@ -688,8 +689,12 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
         fun dumpEntitiesAndFlush(tableName: String, entityIds: LongArrayList) {
             store.executeInExclusiveTransaction { txn ->
                 txn as PersistentStoreTransaction
-                val entityOfTypeBitmap = store.environment.openBitmap(tableName, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, txn.environmentTransaction)
-                val oldEntitiesTable = SingleColumnTable(txn, tableName, StoreConfig.USE_EXISTING)
+                val entityOfTypeBitmap = store.environment.openBitmap(
+                    tableName,
+                    StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING,
+                    txn.environmentTransaction
+                )
+                val oldEntitiesTable = SingleColumnTable(txn, tableName, USE_EXISTING)
                 entityIds.toArray().forEach { id ->
                     entityOfTypeBitmap.set(txn.environmentTransaction, id, true)
                 }
@@ -703,17 +708,17 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                 val envTxn = txn.environmentTransaction
                 if (Settings.get(envTxn, settings, settingName) == "y") continue
                 val entityTypeId = store.getEntityTypeId(txn, entityType, false)
-                val entitiesObsoleteTableName = store.namingRules.getEntitiesTableName(entityTypeId)
-                if (!store.environment.storeExists("$entitiesObsoleteTableName#bitmap", envTxn)) continue
+                val obsoleteTableName = store.namingRules.getEntitiesTableName(entityTypeId)
+                if (!store.environment.storeExists(obsoleteTableName, envTxn)) continue
                 logInfo("Refactor entities of [$entityType] type table into bitmap table")
                 val entityIds = LongArrayList()
-                store.getEntitiesIndexCursor(txn, entityTypeId).use { cursor ->
+                SingleColumnTable(txn, obsoleteTableName, USE_EXISTING).database.openCursor(envTxn).use { cursor ->
                     while (cursor.next) {
                         entityIds.add(LongBinding.compressedEntryToLong(cursor.key))
                     }
                 }
                 if (!entityIds.isEmpty) {
-                    dumpEntitiesAndFlush(entitiesObsoleteTableName, entityIds)
+                    dumpEntitiesAndFlush(obsoleteTableName, entityIds)
                 }
                 store.environment.executeInExclusiveTransaction { txn ->
                     Settings.set(txn, settings, settingName, "y")
