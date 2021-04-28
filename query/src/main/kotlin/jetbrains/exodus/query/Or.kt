@@ -39,13 +39,16 @@ class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
         }
     }
 
-    private var analyzed = false
-
-    override fun instantiate(entityType: String, queryEngine: QueryEngine, metaData: ModelMetaData): Iterable<Entity> {
-        if (!analyzed && depth >= Utils.reduceUnionsOfLinksDepth) {
+    override fun instantiate(
+        entityType: String,
+        queryEngine: QueryEngine,
+        metaData: ModelMetaData,
+        context: InstantiateContext
+    ): Iterable<Entity> {
+        if (depth >= Utils.reduceUnionsOfLinksDepth && !context.visited.contains(this)) {
             val linkNames = hashMapOf<String, EntityIdSetIterable>()
             val txn = queryEngine.persistentStore.andCheckCurrentTransaction
-            if (isUnionOfLinks(txn, linkNames)) {
+            if (isUnionOfLinks(txn, linkNames, context)) {
                 val all = (queryEngine.instantiateGetAll(txn, entityType) as EntityIterableBase).source
                 var result: Iterable<Entity> = EntityIterableBase.EMPTY
                 linkNames.forEach { (linkName, ids) ->
@@ -60,7 +63,7 @@ class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
         while (stack.isNotEmpty()) {
             val node = stack.pop()
             if (node !is Or) {
-                result = queryEngine.unionAdjusted(result, node.instantiate(entityType, queryEngine, metaData))
+                result = queryEngine.unionAdjusted(result, node.instantiate(entityType, queryEngine, metaData, context))
             } else {
                 stack.push(node.left)
                 stack.push(node.right)
@@ -88,14 +91,17 @@ class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
         return "or"
     }
 
-    private fun isUnionOfLinks(txn: PersistentStoreTransaction, linkNames: MutableMap<String, EntityIdSetIterable>): Boolean {
-        if (analyzed) return false
+    private fun isUnionOfLinks(
+        txn: PersistentStoreTransaction,
+        linkNames: MutableMap<String, EntityIdSetIterable>,
+        context: InstantiateContext
+    ): Boolean {
+        if (context.visited.contains(this)) return false
         val stack = ArrayDeque<Or>()
         stack.push(this)
         while (stack.isNotEmpty()) {
             val or = stack.pop()
-            if (or.analyzed) continue
-            or.analyzed = true
+            if (!context.visited.add(or)) continue
             or.left.let { left ->
                 if (left is Or) {
                     stack.push(left)

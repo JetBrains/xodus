@@ -25,7 +25,7 @@ public class UnaryNot extends UnaryNode {
     }
 
     @Override
-    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData) {
+    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
         throw new RuntimeException("Can't instantiate single UnaryNot query!");
     }
 

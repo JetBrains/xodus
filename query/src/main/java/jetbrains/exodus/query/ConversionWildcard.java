@@ -42,7 +42,7 @@ abstract class ConversionWildcard<E extends NodeBase> extends NodeBase {
     public abstract Class getClazz();
 
     @Override
-    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData) {
+    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
         throw new UnsupportedOperationException("Can't instantiate wildcard node.");
     }
 

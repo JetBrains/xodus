@@ -25,8 +25,8 @@ public class Root extends UnaryNode {
     }
 
     @Override
-    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData) {
-        return getChild().instantiate(entityType, queryEngine, metaData);
+    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
+        return getChild().instantiate(entityType, queryEngine, metaData, context);
     }
 
     @Override

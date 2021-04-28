@@ -23,7 +23,7 @@ import jetbrains.exodus.query.metadata.ModelMetaData;
 public class GetAll extends NodeBase {
 
     @Override
-    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData) {
+    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
         queryEngine.assertOperational();
         return queryEngine.instantiateGetAll(entityType);
     }

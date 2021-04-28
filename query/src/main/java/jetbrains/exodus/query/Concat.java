@@ -37,9 +37,9 @@ public class Concat extends BinaryOperator {
     }
 
     @Override
-    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData) {
-        return queryEngine.concatAdjusted(leftSorts.apply(entityType, getLeft().instantiate(entityType, queryEngine, metaData), queryEngine),
-                rightSorts.apply(entityType, getRight().instantiate(entityType, queryEngine, metaData), queryEngine));
+    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
+        return queryEngine.concatAdjusted(leftSorts.apply(entityType, getLeft().instantiate(entityType, queryEngine, metaData, context), queryEngine),
+            rightSorts.apply(entityType, getRight().instantiate(entityType, queryEngine, metaData, context), queryEngine));
     }
 
     @Override

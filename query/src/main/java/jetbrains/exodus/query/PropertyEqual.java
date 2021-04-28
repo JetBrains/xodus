@@ -42,7 +42,7 @@ public class PropertyEqual extends NodeBase {
     }
 
     @Override
-    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData) {
+    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
         queryEngine.assertOperational();
         return queryEngine.getPersistentStore().getAndCheckCurrentTransaction().find(entityType, name, value);
     }
