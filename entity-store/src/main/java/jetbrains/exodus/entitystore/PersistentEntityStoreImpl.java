@@ -1910,6 +1910,10 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return ((SingleColumnTable) entitiesTables.get(txn, entityTypeId)).getDatabase();
     }
 
+    public long getEntitiesCount(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
+        return getEntitiesTable(txn, entityTypeId).count(txn.getEnvironmentTransaction());
+    }
+
     @NotNull
     public PropertiesTable getPropertiesTable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
         return (PropertiesTable) propertiesTables.get(txn, entityTypeId);
