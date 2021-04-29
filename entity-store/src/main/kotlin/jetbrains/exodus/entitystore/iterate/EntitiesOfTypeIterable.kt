@@ -71,11 +71,7 @@ open class EntitiesOfTypeIterable(txn: PersistentStoreTransaction, private val e
     override fun createCachedInstance(txn: PersistentStoreTransaction): CachedInstanceIterable =
         UpdatableEntityIdSortedSetCachedInstanceIterable(txn, this)
 
-    override fun countImpl(txn: PersistentStoreTransaction) =
-        if (store.useVersion1Format())
-            store.getEntitiesTable(txn, entityTypeId).count(txn.environmentTransaction)
-        else
-            store.getEntitiesBitmapTable(txn, entityTypeId).count(txn.environmentTransaction)
+    override fun countImpl(txn: PersistentStoreTransaction) = store.getEntitiesCount(txn, entityTypeId)
 
     class EntitiesOfTypeIterator(iterable: EntitiesOfTypeIterable, index: Cursor) : EntityIteratorBase(iterable) {
 

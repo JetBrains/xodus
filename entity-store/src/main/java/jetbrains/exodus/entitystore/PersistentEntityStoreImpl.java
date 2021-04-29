@@ -1931,7 +1931,10 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     public long getEntitiesCount(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
-        return getEntitiesTable(txn, entityTypeId).count(txn.getEnvironmentTransaction());
+        if (useVersion1Format()) {
+            return getEntitiesTable(txn, entityTypeId).count(txn.getEnvironmentTransaction());
+        }
+        return getEntitiesBitmapTable(txn, entityTypeId).count(txn.getEnvironmentTransaction());
     }
 
     @NotNull
