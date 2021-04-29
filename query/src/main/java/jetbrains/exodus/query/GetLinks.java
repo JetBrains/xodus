@@ -40,7 +40,7 @@ public class GetLinks extends NodeBase {
     }
 
     @Override
-    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData) {
+    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
         if (id != null) {
             final PersistentEntity source = new PersistentEntity(queryEngine.getPersistentStore(), (PersistentEntityId) id);
             return source.getLinks(linkName);

@@ -37,7 +37,7 @@ public class LinkEqual extends NodeBase {
     }
 
     @Override
-    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData) {
+    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
         if (id instanceof PersistentEntityId) {
             queryEngine.assertOperational();
             final PersistentEntityStoreImpl store = queryEngine.getPersistentStore();

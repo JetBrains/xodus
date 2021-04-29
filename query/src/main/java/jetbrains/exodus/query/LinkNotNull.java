@@ -30,7 +30,7 @@ public class LinkNotNull extends NodeBase {
     }
 
     @Override
-    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData) {
+    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
         queryEngine.assertOperational();
         final PersistentStoreTransaction txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
         return txn.findWithLinks(entityType, name);

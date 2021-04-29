@@ -15,13 +15,15 @@
  */
 package jetbrains.exodus.query;
 
-
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.core.dataStructures.hash.HashMap;
+import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 import jetbrains.exodus.util.StringInterner;
 
 import java.util.*;
+
 
 @SuppressWarnings("HardcodedLineSeparator")
 public abstract class NodeBase {
@@ -48,7 +50,10 @@ public abstract class NodeBase {
         throw new ExodusException(getClass() + ": can't replace child.");
     }
 
-    public abstract Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData);
+    public abstract Iterable<Entity> instantiate(String entityType,
+                                                 QueryEngine queryEngine,
+                                                 ModelMetaData metaData,
+                                                 InstantiateContext context);
 
     public abstract NodeBase getClone();
 
@@ -294,5 +299,10 @@ public abstract class NodeBase {
             }
             leaves.put(wildcard, node);
         }
+    }
+
+    public static class InstantiateContext {
+
+        final Set<NodeBase> visited = new HashSet<>();
     }
 }

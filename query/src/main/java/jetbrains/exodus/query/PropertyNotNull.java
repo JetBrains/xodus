@@ -33,13 +33,13 @@ public class PropertyNotNull extends NodeBase {
     }
 
     @Override
-    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData) {
+    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
         final EntityMetaData emd = metaData == null ? null : metaData.getEntityMetaData(entityType);
         final PropertyMetaData pmd = emd == null ? null : emd.getPropertyMetaData(name);
         queryEngine.assertOperational();
         final PersistentStoreTransaction txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
         return pmd == null || pmd.getType() == PropertyType.PRIMITIVE ?
-                txn.findWithProp(entityType, name) : txn.findWithBlob(entityType, name);
+            txn.findWithProp(entityType, name) : txn.findWithBlob(entityType, name);
     }
 
     @Override

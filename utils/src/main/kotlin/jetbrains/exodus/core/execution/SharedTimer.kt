@@ -35,6 +35,20 @@ object SharedTimer : KLogging() {
     }
 
     @JvmStatic
+    fun registerNonExpirablePeriodicTask(task: () -> Unit) {
+        processor.queue(object : Job() {
+            override fun execute() {
+                registeredTasks.add(object : ExpirablePeriodicTask {
+                    override val isExpired: Boolean get() = false
+                    override fun run() {
+                        task()
+                    }
+                })
+            }
+        })
+    }
+
+    @JvmStatic
     fun registerPeriodicTask(task: ExpirablePeriodicTask) {
         processor.queue(object : Job() {
             override fun execute() {

@@ -43,7 +43,7 @@ public abstract class Sort extends UnaryNode {
     }
 
     @Override
-    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData) {
+    public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
         throw new RuntimeException(getClass() + " node in optimized tree.");
     }
 

@@ -16,31 +16,42 @@
 package jetbrains.exodus.system
 
 import com.sun.management.OperatingSystemMXBean
+import jetbrains.exodus.core.execution.SharedTimer
 import java.lang.management.ManagementFactory
-import java.lang.ref.WeakReference
 
 object OperatingSystem {
 
     private val osBean: OperatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean() as OperatingSystemMXBean
-    private var cachedPhysicalMemorySize = WeakReference<Long>(null)
-    private var cachedSystemCpuLoad = WeakReference<Double>(null)
+    private var cachedFreePhysicalMemorySize = Long.MIN_VALUE
+    private var cachedSystemCpuLoad = Double.MIN_VALUE
+    private val periodicInvalidate by lazy {
+        SharedTimer.registerNonExpirablePeriodicTask {
+            cachedFreePhysicalMemorySize = Long.MIN_VALUE
+            cachedSystemCpuLoad = Double.MIN_VALUE
+        }
+    }
 
     @JvmStatic
     fun getFreePhysicalMemorySize(): Long {
-        var result = cachedPhysicalMemorySize.get()
-        if (result == null) {
-            result = osBean.freePhysicalMemorySize
-            cachedPhysicalMemorySize = WeakReference(result)
+        cachedFreePhysicalMemorySize.let { memSize ->
+            return if (memSize < 0L) {
+                periodicInvalidate
+                osBean.freePhysicalMemorySize.also { cachedFreePhysicalMemorySize = it }
+            } else {
+                memSize
+            }
         }
-        return result
     }
 
+    @JvmStatic
     fun getSystemCpuLoad(): Double {
-        var result = cachedSystemCpuLoad.get()
-        if (result == null) {
-            result = osBean.systemCpuLoad
-            cachedSystemCpuLoad = WeakReference(result)
+        cachedSystemCpuLoad.let { cpuLoad ->
+            return if (cpuLoad < 0) {
+                periodicInvalidate
+                osBean.systemCpuLoad.also { cachedSystemCpuLoad = it }
+            } else {
+                cpuLoad
+            }
         }
-        return result
     }
 }

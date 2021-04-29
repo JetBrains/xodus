@@ -163,8 +163,8 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
         final ModelMetaData mmd = queryEngine.getModelMetaData();
         @Nullable final EntityMetaData emd = mmd == null ? null : mmd.getEntityMetaData(entityType);
         Iterable<Entity> result = (emd != null && emd.isAbstract()) ?
-                EntityIterableBase.EMPTY :
-                ast.getClone().instantiate(entityType, queryEngine, mmd);
+            EntityIterableBase.EMPTY :
+            ast.getClone().instantiate(entityType, queryEngine, mmd, new NodeBase.InstantiateContext());
         if (!(emd == null || ast.polymorphic())) {
             for (String subType : emd.getSubTypes()) {
                 if (Utils.getUnionSubtypes()) {

@@ -26,7 +26,6 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Iterator;
 
-@SuppressWarnings("SpellCheckingInspection")
 public class And extends CommutativeOperator {
 
     private static final boolean traceFindLinks = Boolean.getBoolean("jetbrains.exodus.query.traceFindLinks");
@@ -36,15 +35,19 @@ public class And extends CommutativeOperator {
     }
 
     @Override
-    public Iterable<Entity> instantiate(final String entityType, final QueryEngine queryEngine, final ModelMetaData metaData) {
+    public Iterable<Entity> instantiate(final String entityType,
+                                        final QueryEngine queryEngine,
+                                        final ModelMetaData metaData,
+                                        final InstantiateContext context) {
         final NodeBase left = getLeft();
         final NodeBase right = getRight();
-        final Instantiatable directClosure = () -> queryEngine.intersectAdjusted(left.instantiate(entityType, queryEngine, metaData), right.instantiate(entityType, queryEngine, metaData));
+        final Instantiatable directClosure = () -> queryEngine.intersectAdjusted(
+            left.instantiate(entityType, queryEngine, metaData, context), right.instantiate(entityType, queryEngine, metaData, context));
         if (left instanceof LinksEqualDecorator) {
-            return instantiateCustom(entityType, queryEngine, metaData, right, (LinksEqualDecorator) left, directClosure);
+            return instantiateCustom(entityType, queryEngine, metaData, context, right, (LinksEqualDecorator) left, directClosure);
         }
         if (right instanceof LinksEqualDecorator) {
-            return instantiateCustom(entityType, queryEngine, metaData, left, (LinksEqualDecorator) right, directClosure);
+            return instantiateCustom(entityType, queryEngine, metaData, context, left, (LinksEqualDecorator) right, directClosure);
         }
         return directClosure.instantiate();
     }
@@ -84,13 +87,14 @@ public class And extends CommutativeOperator {
     private static Iterable<Entity> instantiateCustom(@NotNull final String entityType,
                                                       @NotNull final QueryEngine queryEngine,
                                                       @NotNull final ModelMetaData metaData,
+                                                      @NotNull final InstantiateContext context,
                                                       @NotNull final NodeBase self,
                                                       @NotNull final LinksEqualDecorator decorator,
                                                       @NotNull final Instantiatable directClosure) {
-        final Iterable<Entity> selfInstance = self.instantiate(entityType, queryEngine, metaData);
+        final Iterable<Entity> selfInstance = self.instantiate(entityType, queryEngine, metaData, context);
         if (selfInstance instanceof EntityIterableBase) {
             final EntityIterable result = ((EntityIterableBase) selfInstance).findLinks(
-                ((EntityIterableBase) decorator.instantiateDecorated(decorator.getLinkEntityType(), queryEngine, metaData)).getSource(),
+                ((EntityIterableBase) decorator.instantiateDecorated(decorator.getLinkEntityType(), queryEngine, metaData, context)).getSource(),
                 decorator.getLinkName());
             if (traceFindLinks) {
                 final Iterator<Entity> directIt = directClosure.instantiate().iterator();

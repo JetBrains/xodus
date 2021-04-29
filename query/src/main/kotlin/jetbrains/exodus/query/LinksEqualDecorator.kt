@@ -23,19 +23,31 @@ import jetbrains.exodus.query.metadata.ModelMetaData
 @Suppress("EqualsOrHashCode")
 class LinksEqualDecorator(val linkName: String, var decorated: NodeBase, val linkEntityType: String) : NodeBase() {
 
-    override fun instantiate(entityType: String, queryEngine: QueryEngine, metaData: ModelMetaData): Iterable<Entity> {
+    override fun instantiate(
+        entityType: String,
+        queryEngine: QueryEngine,
+        metaData: ModelMetaData,
+        context: InstantiateContext
+    ): Iterable<Entity> {
         queryEngine.assertOperational()
         return (queryEngine.instantiateGetAll(entityType) as EntityIterableBase)
-                .findLinks(instantiateDecorated(linkEntityType, queryEngine, metaData), linkName)
+            .findLinks(instantiateDecorated(linkEntityType, queryEngine, metaData, context), linkName)
     }
 
     override fun getClone(): NodeBase = LinksEqualDecorator(linkName, decorated.clone, linkEntityType)
 
-    protected fun instantiateDecorated(entityType: String, queryEngine: QueryEngine, metaData: ModelMetaData?): Iterable<Entity> {
+    protected fun instantiateDecorated(
+        entityType: String,
+        queryEngine: QueryEngine,
+        metaData: ModelMetaData?,
+        context: InstantiateContext
+    ): Iterable<Entity> {
         val emd = metaData?.getEntityMetaData(entityType)
-        var result = if (emd?.isAbstract == true) EntityIterableBase.EMPTY else decorated.instantiate(entityType, queryEngine, metaData)
+        var result =
+            if (emd?.isAbstract == true) EntityIterableBase.EMPTY
+            else decorated.instantiate(entityType, queryEngine, metaData, context)
         for (subType in emd?.subTypes ?: emptyList()) {
-            result = queryEngine.unionAdjusted(result, instantiateDecorated(subType, queryEngine, metaData))
+            result = queryEngine.unionAdjusted(result, instantiateDecorated(subType, queryEngine, metaData, context))
         }
         return result
     }
@@ -66,7 +78,11 @@ class LinksEqualDecorator(val linkName: String, var decorated: NodeBase, val lin
             return false
         }
         val decorator = other
-        return if (!safe_equals(linkName, decorator.linkName) || !safe_equals(linkEntityType, decorator.linkEntityType)) {
+        return if (!safe_equals(linkName, decorator.linkName) || !safe_equals(
+                linkEntityType,
+                decorator.linkEntityType
+            )
+        ) {
             false
         } else safe_equals(decorated, decorator.decorated)
     }
