@@ -1569,12 +1569,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             }
             return IntegerBinding.compressedEntryToInt(versionEntry);
         }
-        final Bitmap entities = getEntitiesBitmapTable(txn, id.getTypeId());
-        final boolean versionEntry = entities.get(txn.getEnvironmentTransaction(), id.getLocalId());
-        if (!versionEntry) {
-            return -1;
-        }
-        return 0;
+        final Bitmap bitmap = getEntitiesBitmapTable(txn, id.getTypeId());
+        final boolean exists = bitmap.get(txn.getEnvironmentTransaction(), id.getLocalId());
+        return exists ? 0 : -1;
     }
 
     @Override
