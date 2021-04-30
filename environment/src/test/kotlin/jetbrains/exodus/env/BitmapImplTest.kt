@@ -15,20 +15,19 @@
  */
 package jetbrains.exodus.env
 
+import jetbrains.exodus.bindings.LongBinding
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 
+private const val bit0 = 0L
+private const val bit63 = 63L
+private const val bit42 = 42L
+private const val bit6040 = 6040L
+
 open class BitmapImplTest : EnvironmentTestsBase() {
 
     protected lateinit var bitmap: BitmapImpl
-
-    companion object {
-        private const val bit0 = 0L
-        private const val bit63 = 63L
-        private const val bit42 = 42L
-        private const val bit6040 = 6040L
-    }
 
     @Before
     override fun setUp() {
@@ -50,6 +49,20 @@ open class BitmapImplTest : EnvironmentTestsBase() {
             assertFalse(bitmap.set(txn, bit0, false))
             assertTrue(bitmap.set(txn, bit42, true))
             assertTrue(bitmap.set(txn, bit6040, true))
+        }
+    }
+
+    @Test
+    fun `successive bits get compressed`() {
+        (0L..63L).forEach { bit ->
+            env.executeInTransaction { txn ->
+                bitmap.set(txn, bit, true)
+            }
+            if (bit == 0L || bit == 62L || bit == 63L) {
+                env.executeInReadonlyTransaction { txn ->
+                    assertEquals(1, bitmap.store.get(txn, LongBinding.longToCompressedEntry(0L))?.length)
+                }
+            }
         }
     }
 
