@@ -30,7 +30,7 @@ internal class ClusterIterator @JvmOverloads constructor(private val vfs: Virtua
                                                          private val fd: Long,
                                                          position: Long = 0L) : Closeable {
     private val cursor: Cursor = vfs.contents.openCursor(txn)
-    private val cancellingPolicy: IOCancellingPolicy? by lazy {
+    private val cancellingPolicy: IOCancellingPolicy? by lazy(LazyThreadSafetyMode.NONE) {
         vfs.cancellingPolicyProvider?.run {
             txn.getUserObject(CANCELLING_POLICY_KEY) as IOCancellingPolicy? ?: policy.apply {
                 txn.setUserObject(CANCELLING_POLICY_KEY, this)

@@ -32,7 +32,6 @@ import jetbrains.exodus.util.IdGenerator
 import mu.KLogging
 import java.io.Closeable
 import java.io.File
-import java.util.*
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.experimental.xor
 
@@ -84,8 +83,6 @@ class Log(val config: LogConfig) : Closeable {
 
     /**
      * Returns addresses of log files from the newest to the oldest ones.
-     *
-     * @return array of file addresses.
      */
     val allFileAddresses: LongArray
         get() = tip.blockSet.array
@@ -203,6 +200,10 @@ class Log(val config: LogConfig) : Closeable {
             this.internalTip.set(proposedTip.withApprovedAddress(approvedHighAddress))
         }
         sync()
+
+        if (config.isWarmup) {
+
+        }
     }
 
     private fun checkLogConsistency(blockSetMutable: BlockSet.Mutable) {

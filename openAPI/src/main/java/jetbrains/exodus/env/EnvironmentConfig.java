@@ -238,7 +238,7 @@ public class EnvironmentConfig extends AbstractConfig {
     public static final String LOG_CACHE_GENERATION_COUNT = "exodus.log.cache.generationCount";
 
     /**
-     * If is set to {@code true} the LogCache uses {@linkplain java.lang.ref.SoftReference soft references} for
+     * If is set to {@code true} LogCache uses {@linkplain java.lang.ref.SoftReference soft references} for
      * holding cached pages. The cache still uses not more memory than it is configured by {@linkplain #MEMORY_USAGE} or
      * {@linkplain #MEMORY_USAGE_PERCENTAGE} settings, but JVM GC can reclaim memory used by the cache on
      * a heavy load surge. On the other hand, use of soft references results in greater JVM GC load and greater
@@ -255,6 +255,13 @@ public class EnvironmentConfig extends AbstractConfig {
      * <p>Mutable at runtime: yes
      */
     public static final String LOG_CACHE_READ_AHEAD_MULTIPLE = "exodus.log.cache.readAheadMultiple";
+
+    /**
+     * If is set to {@code true} LogCache will populate itself with database file pages right after the database is
+     * opened using this {@code EnvironmentConfig} instance. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
+    public static final String LOG_CACHE_WARMUP = "exodus.log.cache.warmup";
 
     /**
      * If is set to {@code true} then the Log constructor fails if the database directory is not clean. Can be useful
@@ -723,6 +730,7 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(LOG_CACHE_GENERATION_COUNT, 2),
             new Pair(LOG_CACHE_USE_SOFT_REFERENCES, false),
             new Pair(LOG_CACHE_READ_AHEAD_MULTIPLE, 1),
+            new Pair(LOG_CACHE_WARMUP, false),
             new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
             new Pair(LOG_CLEAR_INVALID, false),
             new Pair(LOG_SYNC_PERIOD, 10000L),
@@ -1279,26 +1287,33 @@ public class EnvironmentConfig extends AbstractConfig {
     }
 
     /**
-     * Returns {@code true} the LogCache uses {@linkplain java.lang.ref.SoftReference soft references} for
+     * Returns {@code true} LogCache uses {@linkplain java.lang.ref.SoftReference soft references} for
      * holding cached pages. The cache still uses not more memory than it is configured by {@linkplain #MEMORY_USAGE} or
      * {@linkplain #MEMORY_USAGE_PERCENTAGE} settings, but JVM GC can reclaim memory used by the cache on
      * a heavy load surge. On the other hand, use of soft references results in greater JVM GC load and greater
      * general CPU consumption by the cache. So one can choose either memory-flexible, or CPU-optimal cache.
      * Default value is {@code false}.
      * <p>Mutable at runtime: no
+     *
+     * @return {@code true} if LogCache should use {@linkplain java.lang.ref.SoftReference soft references} for
+     * holding cached pages
      */
     public boolean getLogCacheUseSoftReferences() {
         return (Boolean) getSetting(LOG_CACHE_USE_SOFT_REFERENCES);
     }
 
     /**
-     * Set {@code true} if the LogCache should use {@linkplain java.lang.ref.SoftReference soft references} for
+     * Set {@code true} if LogCache should use {@linkplain java.lang.ref.SoftReference soft references} for
      * holding cached pages. The cache still uses not more memory than it is configured by {@linkplain #MEMORY_USAGE} or
      * {@linkplain #MEMORY_USAGE_PERCENTAGE} settings, but JVM GC can reclaim memory used by the cache on
      * a heavy load surge. On the other hand, use of soft references results in greater JVM GC load and greater
      * general CPU consumption by the cache. So one can choose either memory-flexible, or CPU-optimal cache.
      * Default value is {@code false}.
      * <p>Mutable at runtime: no
+     *
+     * @param useSoftReferences {@code true} if LogCache should use
+     *                          {@linkplain java.lang.ref.SoftReference soft references} for holding cached pages
+     * @return this {@code EnvironmentConfig} instance
      */
     public EnvironmentConfig setLogCacheUseSoftReferences(final boolean useSoftReferences) {
         return setSetting(LOG_CACHE_USE_SOFT_REFERENCES, useSoftReferences);
@@ -1328,6 +1343,29 @@ public class EnvironmentConfig extends AbstractConfig {
             throw new InvalidSettingException("LogCache read ahead multiple should greater than 0");
         }
         return setSetting(LOG_CACHE_READ_AHEAD_MULTIPLE, readAheadMultiple);
+    }
+
+    /**
+     * Returns {@code true} if LogCache will populate itself with database file pages right after the database is
+     * opened using this {@code EnvironmentConfig} instance. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     *
+     * @return {@code true} if LogCache will populate itself with database file pages
+     */
+    public boolean getLogCacheWarmup() {
+        return (Boolean) getSetting(LOG_CACHE_WARMUP);
+    }
+
+    /**
+     * Set {@code true} if LogCache should populate itself with database file pages right after the database is
+     * opened using this {@code EnvironmentConfig} instance. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     *
+     * @param warmup {@code true} if LogCache should populate itself with database file pages
+     * @return this {@code EnvironmentConfig} instance
+     */
+    public EnvironmentConfig setLogCacheWarmup(final boolean warmup) {
+        return setSetting(LOG_CACHE_WARMUP, warmup);
     }
 
     /**

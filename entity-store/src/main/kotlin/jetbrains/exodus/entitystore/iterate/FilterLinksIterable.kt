@@ -55,7 +55,7 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
             private val usedCursors = IntHashMap<Cursor>(6, 2f)
             private val auxStream = LightOutputStream()
             private val auxArray = IntArray(8)
-            private val idSet by lazy { filter.toSet(txn) }
+            private val idSet by lazy(LazyThreadSafetyMode.NONE) { filter.toSet(txn) }
             private var nextId: EntityId? = PersistentEntityId.EMPTY_ID
 
             override fun hasNextImpl(): Boolean {
