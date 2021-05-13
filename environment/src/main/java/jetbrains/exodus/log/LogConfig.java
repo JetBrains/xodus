@@ -47,6 +47,7 @@ public class LogConfig {
     private int cacheOpenFilesCount;
     private boolean cleanDirectoryExpected;
     private boolean clearInvalidLog;
+    private boolean warmup;
     private long syncPeriod;
     private boolean fullFileReadonly;
     private StreamCipherProvider cipherProvider;
@@ -248,6 +249,15 @@ public class LogConfig {
 
     public LogConfig setClearInvalidLog(boolean clearInvalidLog) {
         this.clearInvalidLog = clearInvalidLog;
+        return this;
+    }
+
+    public boolean isWarmup() {
+        return warmup;
+    }
+
+    public LogConfig setWarmup(boolean warmup) {
+        this.warmup = warmup;
         return this;
     }
 

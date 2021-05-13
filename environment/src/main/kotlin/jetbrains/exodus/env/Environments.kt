@@ -103,6 +103,7 @@ object Environments {
             cacheGenerationCount = ec.logCacheGenerationCount
             isCleanDirectoryExpected = ec.isLogCleanDirectoryExpected
             isClearInvalidLog = ec.isLogClearInvalid
+            isWarmup = ec.logCacheWarmup
             syncPeriod = ec.logSyncPeriod
             isFullFileReadonly = ec.isLogFullFileReadonly
             cipherProvider = ec.cipherId?.let { cipherId -> newCipherProvider(cipherId) }
