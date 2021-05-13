@@ -730,7 +730,7 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(LOG_CACHE_GENERATION_COUNT, 2),
             new Pair(LOG_CACHE_USE_SOFT_REFERENCES, false),
             new Pair(LOG_CACHE_READ_AHEAD_MULTIPLE, 1),
-            new Pair(LOG_CACHE_WARMUP, true),
+            new Pair(LOG_CACHE_WARMUP, false),
             new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
             new Pair(LOG_CLEAR_INVALID, false),
             new Pair(LOG_SYNC_PERIOD, 10000L),
