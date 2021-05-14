@@ -22,7 +22,11 @@ internal fun Log.warmup() {
     val pageSize = config.cachePageSize
     val fileLength = config.fileSize * 1024L
     val it = DataIterator(this)
-    allFileAddresses.reversed().forEach { address ->
+    val files = allFileAddresses.reversed()
+    val size = files.size
+    Log.logger.info("Warming LogCache up with $size ${if (size > 1) "files" else "file"} at $location")
+    files.forEach { address ->
+        Log.logger.info("Warming up ${LogUtil.getLogFilename(address)}")
         var pageAddress = address
         while (pageAddress < address + fileLength && pageAddress + pageSize < highAddress) {
             it.checkPage(pageAddress)
