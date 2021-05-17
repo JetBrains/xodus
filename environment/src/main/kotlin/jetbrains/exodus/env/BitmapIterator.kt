@@ -106,16 +106,23 @@ class BitmapIterator(
     fun getSearchBit(bit: Long): Boolean {
         val searchKey = bit.key
         val searchIndex = bit.index
-        val mask = 1L shl searchIndex
-        cursor.getSearchKey(LongBinding.longToCompressedEntry(searchKey))?.asLong?.let {
-            if (it and mask != 0L) {
-                key = searchKey
-                value = it - mask
-                bitIndex = searchIndex
-                current = bit
-                setNext()
-                return true
+        if (cursor.getSearchKey(LongBinding.longToCompressedEntry(searchKey)) != null) {
+            val navigatedKey = compressedEntryToLong(cursor.key)
+            key = navigatedKey
+            value = cursor.value.asLong
+            bitIndex = if (navigatedKey != searchKey) 0
+            else {
+                if (direction > 0) {
+                    // clear lower bits
+                    value = (value shr searchIndex) shl searchIndex
+                } else {
+                    // clear higher bits
+                    value = (value shl (Long.SIZE_BITS - searchIndex)) shr (Long.SIZE_BITS - searchIndex)
+                }
+                searchIndex
             }
+            setNext()
+            return true
         }
         return false
     }
