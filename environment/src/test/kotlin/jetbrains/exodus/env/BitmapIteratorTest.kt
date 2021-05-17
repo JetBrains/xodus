@@ -330,6 +330,77 @@ class BitmapIteratorTest : BitmapImplTest() {
         }
     }
 
+    @Test
+    fun `navigate to the only set bit`() {
+        env.executeInTransaction { txn ->
+            for (i in 0..20) {
+                val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
+                bitmap.set(txn, randomBit, true)
+                assertEquals(1, bitmap.count(txn))
+                bitmap.iterator(txn).let {
+                    assertTrue(it.getSearchBit(randomBit))
+                    assertFalse(it.hasNext())
+                }
+                bitmap.clear(txn, randomBit)
+            }
+        }
+    }
+
+    @Test
+    fun `navigate to the second set bit`() {
+        env.executeInTransaction { txn ->
+            val randomBit = (Math.random() * Long.MAX_VALUE).toLong() - 20
+            bitmap.set(txn, randomBit, true)
+            bitmap.set(txn, randomBit + 10, true)
+            bitmap.set(txn, randomBit + 20, true)
+            bitmap.iterator(txn).let {
+                assertTrue(it.getSearchBit(randomBit + 10))
+                assertTrue(it.hasNext())
+            }
+        }
+    }
+
+    @Test
+    fun `iterate from the random bit`() {
+        env.executeInTransaction { txn ->
+            val randomBit = (Math.random() * Long.MAX_VALUE).toLong() - 20
+            bitmap.set(txn, randomBit, true)
+            bitmap.set(txn, randomBit + 10, true)
+            bitmap.set(txn, randomBit + 11, true)
+            bitmap.iterator(txn).let { iter ->
+                assertTrue(iter.getSearchBit(randomBit + 10))
+                assertEquals(randomBit + 11, iter.next())
+            }
+        }
+    }
+
+    @Test
+    fun `iterate from the bit with big step`() {
+        env.executeInTransaction { txn ->
+            bitmap.set(txn, bit42, true)
+            bitmap.set(txn, bit42 + 10, true)
+            bitmap.set(txn, bit42 + 20, true)
+            bitmap.iterator(txn).let { iter ->
+                assertTrue(iter.getSearchBit(bit42 + 10))
+                assertEquals(bit42 + 20, iter.next())
+            }
+        }
+    }
+
+    @Test
+    fun `iterate from the random bit with big step`() {
+        env.executeInTransaction { txn ->
+            val randomBit = (Math.random() * Long.MAX_VALUE).toLong() - 20
+            bitmap.set(txn, randomBit, true)
+            bitmap.set(txn, randomBit + 10, true)
+            bitmap.set(txn, randomBit + 20, true)
+            bitmap.iterator(txn).let { iter ->
+                assertTrue(iter.getSearchBit(randomBit + 10))
+                assertEquals(randomBit + 20, iter.next())
+            }
+        }
+    }
+
     private fun oneBitTest(bit: Long, direction: Int = 1) {
         env.executeInTransaction { txn ->
             bitmap.set(txn, bit, true)
