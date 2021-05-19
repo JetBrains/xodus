@@ -439,6 +439,45 @@ class BitmapIteratorTest : BitmapImplTest() {
         }
     }
 
+    @Test
+    fun `navigate to not existing bit between existing and move cursor to bigger one`() {
+        env.executeInTransaction { txn ->
+            bitmap.set(txn, 0, true)
+            bitmap.set(txn, 10, true)
+            bitmap.set(txn, 128, true)
+            bitmap.iterator(txn).let {
+                assertTrue(it.getSearchBit(65))
+                assertEquals(128, it.next())
+            }
+        }
+    }
+
+    @Test
+    fun `reversed navigate to not existing bit between existing and move cursor to smaller one`() {
+        env.executeInTransaction { txn ->
+            bitmap.set(txn, 0, true)
+            bitmap.set(txn, 10, true)
+            bitmap.set(txn, 128, true)
+            bitmap.reverseIterator(txn).let {
+                assertTrue(it.getSearchBit(65))
+                assertEquals(10, it.next())
+            }
+        }
+    }
+
+    @Test
+    fun `reversed navigate to smaller bit`() {
+        env.executeInTransaction { txn ->
+            bitmap.set(txn, 0, true)
+            bitmap.set(txn, 10, true)
+            bitmap.set(txn, 65, true)
+            bitmap.reverseIterator(txn).let {
+                assertTrue(it.getSearchBit(128))
+                assertEquals(65, it.next())
+            }
+        }
+    }
+
     private fun oneBitTest(bit: Long, direction: Int = 1) {
         env.executeInTransaction { txn ->
             bitmap.set(txn, bit, true)
