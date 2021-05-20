@@ -30,6 +30,7 @@ import jetbrains.exodus.env.ReadonlyTransactionException
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import jetbrains.exodus.env.StoreConfig.USE_EXISTING
+import jetbrains.exodus.env.StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
 import jetbrains.exodus.util.ByteArraySizedInputStream
 import mu.KLogging
@@ -68,9 +69,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                 val envTxn = txn.environmentTransaction
                 while (cursor.next) {
                     val propertyKey = PropertyKey.entryToPropertyKey(cursor.key)
-                    allPropsIndex.put(envTxn,
-                        IntegerBinding.intToCompressedEntry(propertyKey.propertyId),
-                        LongBinding.longToCompressedEntry(propertyKey.entityLocalId))
+                    allPropsIndex.put(envTxn, propertyKey.propertyId, propertyKey.entityLocalId)
                 }
             }
         }
@@ -508,7 +507,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                         logInfo("${phantomPairs.size} phantom secondary keys found and fixed for [$entityType]")
                     }
                     val phantomIds: MutableList<Pair<Int, Long>> = ArrayList()
-                    val c = propTable.allPropsIndex.openCursor(envTxn)
+                    val c = propTable.allPropsIndex.getStore().openCursor(envTxn)
                     while (c.next) {
                         val propId = IntegerBinding.compressedEntryToInt(c.key)
                         val localId = LongBinding.compressedEntryToLong(c.value)
@@ -528,9 +527,8 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                             val allPropsIndex = propTable.allPropsIndex
                             val envTxn = (txn as PersistentStoreTransaction).environmentTransaction
                             for ((key, value) in allPropsMap) {
-                                val keyEntry = IntegerBinding.intToCompressedEntry(key)
                                 for (localId in value) {
-                                    allPropsIndex.put(envTxn, keyEntry, LongBinding.longToCompressedEntry(localId))
+                                    allPropsIndex.put(envTxn, key, localId)
                                     ++count
                                 }
                             }
@@ -542,10 +540,13 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                         store.executeInTransaction { txn ->
                             val allPropsIndex = propTable.allPropsIndex
                             val envTxn = (txn as PersistentStoreTransaction).environmentTransaction
-                            allPropsIndex.openCursor(envTxn).use { c ->
+                            allPropsIndex.getStore().openCursor(envTxn).use { c ->
                                 for (phantom in phantomIds) {
-                                    if (c.getSearchBoth(IntegerBinding.intToCompressedEntry(phantom.first),
-                                            LongBinding.longToCompressedEntry(phantom.second))) {
+                                    if (c.getSearchBoth(
+                                            IntegerBinding.intToCompressedEntry(phantom.first),
+                                            LongBinding.longToCompressedEntry(phantom.second)
+                                        )
+                                    ) {
                                         c.deleteCurrent()
                                     }
                                 }
@@ -669,8 +670,10 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                     txn as PersistentStoreTransaction
                     val blobsTable = store.getBlobsTable(txn, entityTypeId)
                     blobHandles.forEach { (blobKey, handle) ->
-                        blobsTable.put(txn.environmentTransaction,
-                            blobKey.entityLocalId, blobKey.propertyId, store.blobHandleToEntry(handle))
+                        blobsTable.put(
+                            txn.environmentTransaction,
+                            blobKey.entityLocalId, blobKey.propertyId, store.blobHandleToEntry(handle)
+                        )
                     }
                     with(store.environment) {
                         removeStore(oldBlobsTable.primaryIndex.name, txn.environmentTransaction)
@@ -724,6 +727,23 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                     Settings.set(txn, settings, settingName, "y")
                 }
             }
+        }
+    }
+
+    fun refactorAllPropIndexToBitmap() {
+        safeExecuteRefactoringForEachEntityType("Refactoring allPropsIndex into bitmap tables") { entityType, txn ->
+            val entityTypeId = store.getEntityTypeId(txn, entityType, false)
+            val obsoleteName = store.namingRules.getEntitiesTableName(entityTypeId) + "#all_idx"
+            val envTxn = txn.environmentTransaction
+            val allPropsIndexBitmap = store.environment.openBitmap(obsoleteName, WITHOUT_DUPLICATES_WITH_PREFIXING, envTxn)
+            store.getPropertiesTable(txn, entityTypeId).allPropsIndex.getStore().openCursor(envTxn).let { c ->
+                while (c.next) {
+                    val propertyId = IntegerBinding.compressedEntryToInt(c.key)
+                    val localId = LongBinding.compressedEntryToLong(c.value)
+                    allPropsIndexBitmap.set(envTxn,(propertyId.toLong() shl 32) + localId, true)
+                }
+            }
+            store.environment.removeStore(obsoleteName, txn.environmentTransaction)
         }
     }
 

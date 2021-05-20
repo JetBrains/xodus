@@ -42,7 +42,7 @@ public final class PropertiesTable extends Table {
     private final PersistentEntityStoreImpl store;
     private final Store primaryStore;
     private final IntHashMap<Store> valueIndexes;
-    private final Store allPropsIndex;
+    private final AllPropsIndex allPropsIndex;
 
     public PropertiesTable(@NotNull final PersistentStoreTransaction txn,
                            @NotNull final String name,
@@ -51,9 +51,14 @@ public final class PropertiesTable extends Table {
         final Transaction envTxn = txn.getEnvironmentTransaction();
         final Environment env = store.getEnvironment();
         primaryStore = env.openStore(name, primaryConfig, envTxn);
-        allPropsIndex = env.openStore(name + ALL_IDX, StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, envTxn);
+        if (!store.getEnvironment().getEnvironmentConfig().getUseVersion1Format() &&
+            store.getConfig().getUseIntForLocalId()) {
+            allPropsIndex = new BitmapAllPropsIndex(txn, name);
+        } else {
+            allPropsIndex = new StoreAllPropsIndex(txn, name);
+        }
         store.trackTableCreation(primaryStore, txn);
-        store.trackTableCreation(allPropsIndex, txn);
+        store.trackTableCreation(allPropsIndex.getStore(), txn);
         valueIndexes = new IntHashMap<>();
     }
 
@@ -83,7 +88,7 @@ public final class PropertiesTable extends Table {
         boolean success = primaryStore.put(envTxn, key, value);
         final ByteIterable secondaryValue = LongBinding.longToCompressedEntry(localId);
         if (oldValue == null) {
-            if (!allPropsIndex.put(envTxn, IntegerBinding.intToCompressedEntry(propertyId), secondaryValue)) {
+            if (!allPropsIndex.put(envTxn, propertyId, localId)) {
                 success = false;
             }
         } else {
@@ -118,14 +123,14 @@ public final class PropertiesTable extends Table {
         return primaryStore.delete(envTxn, key) &&
                 deleteFromStore(envTxn, getOrCreateValueIndex(txn, propertyId),
                         secondaryValue, createSecondaryKeys(store.getPropertyTypes(), value, type)) &&
-                deleteFromStore(envTxn, allPropsIndex, secondaryValue, IntegerBinding.intToCompressedEntry(propertyId));
+                allPropsIndex.remove(envTxn, propertyId, localId);
     }
 
     public Store getPrimaryIndex() {
         return primaryStore;
     }
 
-    public Store getAllPropsIndex() {
+    public AllPropsIndex getAllPropsIndex() {
         return allPropsIndex;
     }
 
@@ -212,6 +217,6 @@ public final class PropertiesTable extends Table {
 
     @Override
     public boolean canBeCached() {
-        return !primaryStore.getConfig().temporaryEmpty && !allPropsIndex.getConfig().temporaryEmpty;
+        return !primaryStore.getConfig().temporaryEmpty && !allPropsIndex.getStore().getConfig().temporaryEmpty;
     }
 }

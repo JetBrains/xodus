@@ -360,6 +360,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
                 Settings.set(internalSettings, "refactorEntitiesTablesToBitmap() applied", "y");
             }
+            if (!useVersion1Format() && useIntForLocalId() && (fromScratch || Settings.get(internalSettings, "refactorAllPropIndexToBitmap() applied") == null)) {
+                if (!fromScratch) {
+                    refactorings.refactorAllPropIndexToBitmap();
+                }
+                Settings.set(internalSettings, "refactorAllPropIndexToBitmap() applied", "y");
+            }
             if (!fromScratch && !useVersion1Format()) {
                 refactorings.refactorDeduplicateInPlaceBlobsPeriodically(internalSettings);
             }
@@ -920,8 +926,11 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     @NotNull
-    public Cursor getEntityWithPropCursor(@NotNull final PersistentStoreTransaction txn, int entityTypeId) {
-        return getPropertiesTable(txn, entityTypeId).getAllPropsIndex().openCursor(txn.getEnvironmentTransaction());
+    public Iterable<Pair<Integer, Long>> getEntityWithPropCursor(@NotNull final PersistentStoreTransaction txn,
+                                                                 int entityTypeId, int propertyId) {
+        return getPropertiesTable(txn, entityTypeId)
+            .getAllPropsIndex()
+            .iterable(txn.getEnvironmentTransaction(), propertyId);
     }
 
     @NotNull
@@ -1089,6 +1098,10 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 blobHandle -= BLOB_HANDLE_ADDEND;
         }
         return new Pair<>(blobHandle, valueIterator);
+    }
+
+    public boolean useIntForLocalId() {
+        return config.getUseIntForLocalId();
     }
 
     @Nullable

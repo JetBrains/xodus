@@ -346,6 +346,12 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
      */
     public static final String REPLICATOR = "exodus.entityStore.replicator";
 
+    /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
+    public static final String USE_INT_FOR_LOCAL_ID = "exodus.entityStore.useIntForLocalId";
+
     private static final int MAX_DEFAULT_ENTITY_ITERABLE_CACHE_SIZE = 4096;
 
     public PersistentEntityStoreConfig() {
@@ -356,6 +362,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     public PersistentEntityStoreConfig(@NotNull final ConfigurationStrategy strategy) {
         super(new Pair[]{
             new Pair(REFACTORING_SKIP_ALL, false),
+            new Pair(USE_INT_FOR_LOCAL_ID, false),
             new Pair(REFACTORING_FORCE_ALL, false),
             new Pair(REFACTORING_NULL_INDICES, false),
             new Pair(REFACTORING_BLOB_NULL_INDICES, false),
@@ -509,6 +516,14 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     @Deprecated
     public PersistentEntityStoreConfig setBlobStringsCacheSize(final int blobStringsCacheSize) {
         return setSetting(BLOB_STRINGS_CACHE_SIZE, blobStringsCacheSize);
+    }
+
+    public boolean getUseIntForLocalId() {
+        return (Boolean) getSetting(USE_INT_FOR_LOCAL_ID);
+    }
+
+    public PersistentEntityStoreConfig setUseIntForLocalId(final boolean useUseIntForLocalId) {
+        return setSetting(USE_INT_FOR_LOCAL_ID, useUseIntForLocalId);
     }
 
     public boolean isCachingDisabled() {
