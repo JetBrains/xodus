@@ -694,7 +694,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                 txn as PersistentStoreTransaction
                 val entityOfTypeBitmap = store.environment.openBitmap(
                     tableName,
-                    StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING,
+                    WITHOUT_DUPLICATES_WITH_PREFIXING,
                     txn.environmentTransaction
                 )
                 val oldEntitiesTable = SingleColumnTable(txn, tableName, USE_EXISTING)
@@ -731,19 +731,29 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
     }
 
     fun refactorAllPropIndexToBitmap() {
-        safeExecuteRefactoringForEachEntityType("Refactoring allPropsIndex into bitmap tables") { entityType, txn ->
-            val entityTypeId = store.getEntityTypeId(txn, entityType, false)
-            val obsoleteName = store.namingRules.getEntitiesTableName(entityTypeId) + "#all_idx"
-            val envTxn = txn.environmentTransaction
-            val allPropsIndexBitmap = store.environment.openBitmap(obsoleteName, WITHOUT_DUPLICATES_WITH_PREFIXING, envTxn)
-            store.getPropertiesTable(txn, entityTypeId).allPropsIndex.getStore().openCursor(envTxn).let { c ->
-                while (c.next) {
-                    val propertyId = IntegerBinding.compressedEntryToInt(c.key)
-                    val localId = LongBinding.compressedEntryToLong(c.value)
-                    allPropsIndexBitmap.set(envTxn,(propertyId.toLong() shl 32) + localId, true)
-                }
+        store.executeInReadonlyTransaction { txn ->
+            for (entityType in store.getEntityTypes(txn as PersistentStoreTransaction)) {
+                val entityTypeId = store.getEntityTypeId(txn, entityType, false)
+                val obsoleteName = store.namingRules.getPropertiesTableName(entityTypeId) + "#all_idx"
+                if (!store.environment.storeExists(obsoleteName, txn.environmentTransaction)) continue
+                logInfo("Refactoring allPropsIndex into bitmap tables for [$entityType]")
+                safeExecuteRefactoringForEntityType(entityType,
+                    StoreTransactionalExecutable { txn ->
+                        txn as PersistentStoreTransaction
+                        val envTxn = txn.environmentTransaction
+                        val allPropsIndexBitmap = store.environment.openBitmap(obsoleteName, WITHOUT_DUPLICATES_WITH_PREFIXING, envTxn)
+                        store.getPropertiesTable(txn, entityTypeId)
+                            .allPropsIndex.getStore().openCursor(envTxn).let { c ->
+                            while (c.next) {
+                                val propertyId = IntegerBinding.compressedEntryToInt(c.key)
+                                val localId = LongBinding.compressedEntryToLong(c.value)
+                                allPropsIndexBitmap.set(envTxn,(propertyId.toLong() shl 32) + localId, true)
+                            }
+                        }
+                        store.environment.removeStore(obsoleteName, envTxn)
+                    }
+                )
             }
-            store.environment.removeStore(obsoleteName, txn.environmentTransaction)
         }
     }
 
