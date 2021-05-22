@@ -307,6 +307,17 @@ open class BitmapImplTest : EnvironmentTestsBase() {
         }
     }
 
+    @Test
+    fun `sequential set`() {
+        env.executeInTransaction { txn ->
+            for (i in 0L..1000L) {
+                assertEquals(i, bitmap.count(txn))
+                assertTrue(bitmap.set(txn, i, true))
+                assertTrue(i.toString(), bitmap.get(txn, i))
+            }
+        }
+    }
+
     private fun allOperationsForOneBit(bit: Long) {
         env.executeInTransaction { txn ->
             assertTrue(bitmap.set(txn, bit, true))

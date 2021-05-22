@@ -76,7 +76,7 @@ open class BitmapImpl(open val store: StoreImpl) : Bitmap {
             while (cursor.next) {
                 cursor.value.let {
                     if (it.length == 1) {
-                        it.iterator().next().toInt().let { tag ->
+                        (it.iterator().next().toInt() and 0xff).let { tag ->
                             size += when {
                                 tag == 0 -> 64L
                                 tag < Long.SIZE_BITS + 1 -> 1L
@@ -126,7 +126,7 @@ open class BitmapImpl(open val store: StoreImpl) : Bitmap {
                 if (this.length != 1) {
                     return LongBinding.entryToLong(this)
                 }
-                this.iterator().next().toInt().let { tag ->
+                (this.iterator().next().toInt() and 0xff).let { tag ->
                     return when {
                         tag == 0 -> ALL_ONES
                         tag < Long.SIZE_BITS + 1 -> 1L shl (tag - 1)
