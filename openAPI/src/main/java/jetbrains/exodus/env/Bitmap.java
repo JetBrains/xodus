@@ -18,7 +18,7 @@ package jetbrains.exodus.env;
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import org.jetbrains.annotations.NotNull;
 
-public interface Bitmap{
+public interface Bitmap {
 
     /**
      * @return {@linkplain Environment environment} which the bitmap was opened for.
@@ -27,7 +27,7 @@ public interface Bitmap{
     Environment getEnvironment();
 
     /**
-     * Returns boolean value according to the value of bit with handled number.
+     * Returns boolean value according to the value of bit with specified number.
      *
      * @param txn {@linkplain Transaction transaction} instance
      * @param bit requested bit number
@@ -36,27 +36,29 @@ public interface Bitmap{
     boolean get(@NotNull Transaction txn, long bit);
 
     /**
-     * Sets value to bit with handled number.
+     * Sets value to bit with specified number.
      *
-     * @param txn {@linkplain Transaction transaction} instance
-     * @param bit requested bit number
+     * @param txn   {@linkplain Transaction transaction} instance
+     * @param bit   bit number
      * @param value boolean value which will be set
-     * @return {@code true} if value was changed and false otherwise
+     * @return {@code true} if value was changed
      */
     boolean set(@NotNull Transaction txn, long bit, boolean value);
 
     /**
-     * Specifies the requested bit by {@code false} value.
+     * Sets the specified bit to {@code false}.
      *
      * @param txn {@linkplain Transaction transaction} instance
-     * @param bit requested bit number
-     * @return {@code true} if value was changed and false otherwise
+     * @param bit bit number
+     * @return {@code true} if value was changed
      */
     boolean clear(@NotNull Transaction txn, long bit);
 
     /**
-     * Creates new instance of {@linkplain LongIterator}.
+     * Creates new instance of {@linkplain LongIterator} which iterates bit numbers with the value {@code true}
+     * in ascending order.
      *
+     * @param txn {@linkplain Transaction transaction} instance
      * @return new instance of {@linkplain LongIterator}
      * @see LongIterator
      */
@@ -64,18 +66,48 @@ public interface Bitmap{
     LongIterator iterator(@NotNull Transaction txn);
 
     /**
-     * Creates new instance of reverse {@linkplain LongIterator}.
+     * Creates new instance of {@linkplain LongIterator} which iterates bit numbers with the value {@code true}
+     * in descending order.
      *
+     * @param txn {@linkplain Transaction transaction} instance
      * @return new instance of {@linkplain LongIterator}
      * @see LongIterator
      */
     @NotNull
     LongIterator reverseIterator(@NotNull Transaction txn);
 
+    /**
+     * Returns the first (the least) bit number with the value {@code true}.
+     *
+     * @param txn {@linkplain Transaction transaction} instance
+     * @return number of the first set bit
+     */
     long getFirst(@NotNull Transaction txn);
 
+    /**
+     * Returns the last (the greatest) bit number with the value {@code true}.
+     *
+     * @param txn {@linkplain Transaction transaction} instance
+     * @return number of the last set bit
+     */
     long getLast(@NotNull Transaction txn);
 
+    /**
+     * Returns total number of bits with the value {@code true}.
+     *
+     * @param txn {@linkplain Transaction transaction} instance
+     * @return number of set bits
+     */
     long count(@NotNull Transaction txn);
 
+    /**
+     * Returns  number of bits with the value {@code true} in the range {@code [firstBit, lastBit]}. The range includes
+     * both {@code firstBit} and {@code lastBit}.
+     *
+     * @param txn      {@linkplain Transaction transaction} instance
+     * @param firstBit the first (the least) bit of the range
+     * @param lastBit  the last (the greatest) bit of the range
+     * @return number of set bits in the range
+     */
+    long count(@NotNull Transaction txn, long firstBit, long lastBit);
 }

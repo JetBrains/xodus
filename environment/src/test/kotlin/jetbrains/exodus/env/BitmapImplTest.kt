@@ -308,6 +308,26 @@ open class BitmapImplTest : EnvironmentTestsBase() {
     }
 
     @Test
+    fun `count in range`() {
+        env.executeInTransaction { txn ->
+            bitmap.set(txn, 0, true)
+            bitmap.set(txn, 32, true)
+            bitmap.set(txn, 64, true)
+            bitmap.set(txn, 128, true)
+            assertEquals(4L, bitmap.count(txn, 0L, 128L))
+            assertEquals(3L, bitmap.count(txn, 1L, 128L))
+            assertEquals(2L, bitmap.count(txn, 1L, 127L))
+            assertEquals(2L, bitmap.count(txn, 33L, 128L))
+            assertEquals(2L, bitmap.count(txn, 64L, 128L))
+            assertEquals(1L, bitmap.count(txn, 64L, 127L))
+            assertEquals(1L, bitmap.count(txn, 65L, 128L))
+            assertEquals(0L, bitmap.count(txn, 65L, 127L))
+            assertEquals(0L, bitmap.count(txn, 129L, 1000L))
+            assertEquals(0L, bitmap.count(txn, 33L, 63L))
+        }
+    }
+
+    @Test
     fun `sequential set`() {
         env.executeInTransaction { txn ->
             for (i in 0L..1000L) {

@@ -18,6 +18,7 @@ package jetbrains.exodus.env
 import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.bindings.LongBinding.compressedEntryToLong
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap
 import kotlin.experimental.and
 import kotlin.experimental.xor
@@ -71,24 +72,56 @@ open class BitmapImpl(open val store: StoreImpl) : Bitmap {
     }
 
     override fun count(txn: Transaction): Long {
-        store.openCursor(txn).let { cursor ->
-            var size = 0L
-            while (cursor.next) {
-                cursor.value.let {
-                    if (it.length == 1) {
-                        (it.iterator().next().toInt() and 0xff).let { tag ->
-                            size += when {
-                                tag == 0 -> 64L
-                                tag < Long.SIZE_BITS + 1 -> 1L
-                                else -> 63L
-                            }
-                        }
-                    } else {
-                        size += it.countBits()
+        store.openCursor(txn).use { cursor ->
+            var count = 0L
+            cursor.forEach {
+                count += value.countBits
+            }
+            return count
+        }
+    }
+
+    override fun count(txn: Transaction, firstBit: Bit, lastBit: Bit): Long {
+        if (firstBit > lastBit) throw IllegalArgumentException("firstBit > lastBit")
+        if (firstBit == lastBit) {
+            return if (get(txn, firstBit)) 1L else 0L
+        }
+        store.openCursor(txn).use { cursor ->
+            val firstKey = firstBit.ensureNonNegative().key
+            val lastKey = lastBit.ensureNonNegative().key
+            val keyEntry = LongBinding.longToCompressedEntry(firstKey)
+            val valueEntry = cursor.getSearchKeyRange(keyEntry) ?: return 0L
+            var count = 0L
+            val key = compressedEntryToLong(cursor.key)
+            if (key in (firstKey + 1) until lastKey) {
+                count += valueEntry.countBits
+            } else {
+                val bits = valueEntry.asLong
+                val lowBit = if (key == firstKey) firstBit.index else 0
+                val highBit = if (key == lastKey) lastBit.index else Long.SIZE_BITS - 1
+                for (i in lowBit..highBit) {
+                    if (bits and (1L shl i) != 0L) {
+                        ++count
                     }
                 }
             }
-            return size
+            cursor.forEach {
+                val currentKey = compressedEntryToLong(this.key)
+                if (currentKey < lastKey) {
+                    count += value.countBits
+                } else {
+                    if (currentKey == lastKey) {
+                        val bits = value.asLong
+                        for (i in 0..lastBit.index) {
+                            if (bits and (1L shl i) != 0L) {
+                                ++count
+                            }
+                        }
+                    }
+                    return count
+                }
+            }
+            return count
         }
     }
 
@@ -134,18 +167,28 @@ open class BitmapImpl(open val store: StoreImpl) : Bitmap {
                     }
                 }
             }
-    }
-}
 
-private fun ByteIterable.countBits(): Int {
-    var size = 0
-    this.iterator().let {
-        size += (it.next() xor (0x80).toByte()).countBits()
-        while (it.hasNext()) {
-            size += it.next().countBits()
-        }
+        private val ByteIterable.countBits: Int
+            get() {
+                this.iterator().let {
+                    if (length == 1) {
+                        return (it.next().toInt() and 0xff).let { tag ->
+                            when {
+                                tag == 0 -> 64
+                                tag < Long.SIZE_BITS + 1 -> 1
+                                else -> 63
+                            }
+                        }
+                    }
+                    var size = 0
+                    size += (it.next() xor (0x80).toByte()).countBits()
+                    while (it.hasNext()) {
+                        size += it.next().countBits()
+                    }
+                    return size
+                }
+            }
     }
-    return size
 }
 
 private fun Byte.countBits(): Int {

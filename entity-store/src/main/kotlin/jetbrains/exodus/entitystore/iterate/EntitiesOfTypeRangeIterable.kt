@@ -93,8 +93,7 @@ class EntitiesOfTypeRangeIterable(
                 result
             }
         } else {
-            // TODO: consider more effective counting on Bitmap
-            super.countImpl(txn)
+            store.getEntitiesBitmapTable(txn, entityTypeId).count(txn.environmentTransaction, min, max)
         }
     }
 
