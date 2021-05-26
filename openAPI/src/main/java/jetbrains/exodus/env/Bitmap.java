@@ -21,22 +21,22 @@ import org.jetbrains.annotations.NotNull;
 public interface Bitmap {
 
     /**
-     * @return {@linkplain Environment environment} which the bitmap was opened for.
+     * @return {@linkplain Environment environment} which the bitmap was opened for
      */
     @NotNull
     Environment getEnvironment();
 
     /**
-     * Returns boolean value according to the value of bit with specified number.
+     * Returns {@code true} if the specified bit is set.
      *
      * @param txn {@linkplain Transaction transaction} instance
-     * @param bit requested bit number
-     * @return boolean value
+     * @param bit bit number
+     * @return {@code true} if specified bit is set
      */
     boolean get(@NotNull Transaction txn, long bit);
 
     /**
-     * Sets value to bit with specified number.
+     * Sets {@code value} of the specified bit.
      *
      * @param txn   {@linkplain Transaction transaction} instance
      * @param bit   bit number
@@ -77,7 +77,7 @@ public interface Bitmap {
     LongIterator reverseIterator(@NotNull Transaction txn);
 
     /**
-     * Returns the first (the least) bit number with the value {@code true}.
+     * Returns the first (the least) bit with the value {@code true}.
      *
      * @param txn {@linkplain Transaction transaction} instance
      * @return number of the first set bit
@@ -85,7 +85,7 @@ public interface Bitmap {
     long getFirst(@NotNull Transaction txn);
 
     /**
-     * Returns the last (the greatest) bit number with the value {@code true}.
+     * Returns the last (the greatest) bit with the value {@code true}.
      *
      * @param txn {@linkplain Transaction transaction} instance
      * @return number of the last set bit

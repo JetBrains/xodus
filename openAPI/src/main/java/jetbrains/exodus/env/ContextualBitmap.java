@@ -15,42 +15,90 @@
  */
 package jetbrains.exodus.env;
 
+import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import org.jetbrains.annotations.NotNull;
 
 public interface ContextualBitmap extends Bitmap {
 
     /**
-     * @return {@linkplain ContextualEnvironment environment} which the bitmap was opened for.
+     * @return {@linkplain ContextualEnvironment environment} which the bitmap was opened for
      */
     @NotNull
     ContextualEnvironment getEnvironment();
 
     /**
-     * Returns boolean value according to the value of bit with handled number.
+     * Returns {@code true} if the specified bit is set.
      *
-     * @param bit requested bit number
-     * @return boolean value
+     * @param bit bit number
+     * @return {@code true} if specified bit is set
      */
     boolean get(long bit);
 
     /**
-     * Sets value to bit with handled number.
+     * Sets {@code value} of the specified bit.
      *
-     * @param bit requested bit number
+     * @param bit   bit number
      * @param value boolean value which will be set
-     * @return {@code true} if value was changed and false otherwise
+     * @return {@code true} if value was changed
      */
     boolean set(long bit, boolean value);
 
     /**
-     * Specifies the requested bit by {@code false} value.
+     * Sets the specified bit to {@code false}.
      *
-     * @param bit requested bit number
-     * @return {@code true} if value was changed and false otherwise
+     * @param bit bit number
+     * @return {@code true} if value was changed
      */
     boolean clear(long bit);
 
+    /**
+     * Creates new instance of {@linkplain LongIterator} which iterates bit numbers with the value {@code true}
+     * in ascending order.
+     *
+     * @return new instance of {@linkplain LongIterator}
+     * @see LongIterator
+     */
+    @NotNull
+    LongIterator iterator();
+
+    /**
+     * Creates new instance of {@linkplain LongIterator} which iterates bit numbers with the value {@code true}
+     * in descending order.
+     *
+     * @return new instance of {@linkplain LongIterator}
+     * @see LongIterator
+     */
+    @NotNull
+    LongIterator reverseIterator();
+
+    /**
+     * Returns the first (the least) bit with the value {@code true}.
+     *
+     * @return number of the first set bit
+     */
     Long getFirst();
 
+    /**
+     * Returns the last (the greatest) bit with the value {@code true}.
+     *
+     * @return number of the last set bit
+     */
     Long getLast();
+
+    /**
+     * Returns total number of bits with the value {@code true}.
+     *
+     * @return number of set bits
+     */
+    long count();
+
+    /**
+     * Returns  number of bits with the value {@code true} in the range {@code [firstBit, lastBit]}. The range includes
+     * both {@code firstBit} and {@code lastBit}.
+     *
+     * @param firstBit the first (the least) bit of the range
+     * @param lastBit  the last (the greatest) bit of the range
+     * @return number of set bits in the range
+     */
+    long count(long firstBit, long lastBit);
 }

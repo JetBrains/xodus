@@ -19,13 +19,23 @@ class ContextualBitmapImpl(override val store: ContextualStoreImpl) : Contextual
 
     override fun getEnvironment() = store.environment
 
-    override fun get(bit: Long): Boolean = get(environment.andCheckCurrentTransaction, bit)
+    override fun get(bit: Long): Boolean = get(currentTransaction, bit)
 
-    override fun set(bit: Long, value: Boolean) = set(environment.andCheckCurrentTransaction, bit, value)
+    override fun set(bit: Long, value: Boolean) = set(currentTransaction, bit, value)
 
-    override fun clear(bit: Long) = clear(environment.andCheckCurrentTransaction, bit)
+    override fun clear(bit: Long) = clear(currentTransaction, bit)
 
-    override fun getFirst(): Long = getFirst(environment.andCheckCurrentTransaction)
+    override fun iterator() = iterator(currentTransaction)
 
-    override fun getLast(): Long = getLast(environment.andCheckCurrentTransaction)
+    override fun reverseIterator() = reverseIterator(currentTransaction)
+
+    override fun getFirst(): Long = getFirst(currentTransaction)
+
+    override fun getLast(): Long = getLast(currentTransaction)
+
+    override fun count() = count(currentTransaction)
+
+    override fun count(firstBit: Long, lastBit: Long) = count(currentTransaction, firstBit, lastBit)
+
+    private val currentTransaction: Transaction get() = environment.andCheckCurrentTransaction
 }
