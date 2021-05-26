@@ -25,10 +25,7 @@ import jetbrains.exodus.core.dataStructures.persistent.PersistentLong23TreeSet
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLongSet
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl.*
 import jetbrains.exodus.entitystore.tables.*
-import jetbrains.exodus.env.Cursor
-import jetbrains.exodus.env.ReadonlyTransactionException
-import jetbrains.exodus.env.Store
-import jetbrains.exodus.env.StoreConfig
+import jetbrains.exodus.env.*
 import jetbrains.exodus.env.StoreConfig.USE_EXISTING
 import jetbrains.exodus.env.StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
@@ -675,10 +672,8 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                             blobKey.entityLocalId, blobKey.propertyId, store.blobHandleToEntry(handle)
                         )
                     }
-                    with(store.environment) {
-                        removeStore(oldBlobsTable.primaryIndex.name, txn.environmentTransaction)
-                        removeStore(oldBlobsTable.allBlobsIndex.name, txn.environmentTransaction)
-                    }
+                    safeRemoveStore(oldBlobsTable.primaryIndex.name, txn.environmentTransaction)
+                    safeRemoveStore(oldBlobsTable.allBlobsIndex.name, txn.environmentTransaction)
                 }
                 store.environment.executeInExclusiveTransaction { txn ->
                     Settings.set(txn, settings, settingName, "y")
@@ -701,7 +696,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                 entityIds.toArray().forEach { id ->
                     entityOfTypeBitmap.set(txn.environmentTransaction, id, true)
                 }
-                store.environment.removeStore(oldEntitiesTable.database.name, txn.environmentTransaction)
+                safeRemoveStore(oldEntitiesTable.database.name, txn.environmentTransaction)
             }
         }
 
@@ -750,7 +745,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                                 allPropsIndexBitmap.set(envTxn,(propertyId.toLong() shl 32) + localId, true)
                             }
                         }
-                        store.environment.removeStore(obsoleteName, envTxn)
+                        safeRemoveStore(obsoleteName, envTxn)
                     }
                 )
             }
@@ -859,8 +854,10 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
         }
     }
 
-    private fun safeExecuteRefactoringForEntityType(entityType: String,
-                                                    executable: StoreTransactionalExecutable) {
+    private fun safeExecuteRefactoringForEntityType(
+        entityType: String,
+        executable: StoreTransactionalExecutable
+    ) {
         try {
             store.executeInTransaction(executable)
         } catch (t: Throwable) {
@@ -869,10 +866,24 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
         }
     }
 
+    private fun safeRemoveStore(name: String, txn: Transaction) {
+        try {
+            with(txn.environment) {
+                if (storeExists(name, txn)) {
+                    removeStore(name, txn);
+                }
+            }
+        } catch (e: ExodusException) {
+            logger.error("Failed to remove store $name", e)
+        }
+    }
+
     companion object : KLogging() {
 
-        private fun runReadonlyTransactionSafeForEntityType(entityType: String,
-                                                            runnable: Runnable) {
+        private fun runReadonlyTransactionSafeForEntityType(
+            entityType: String,
+            runnable: Runnable
+        ) {
             try {
                 runnable.run()
             } catch (ignore: ReadonlyTransactionException) {
