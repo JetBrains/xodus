@@ -25,8 +25,11 @@ import jetbrains.exodus.env.EnvironmentConfig
 import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.Environments
 import jetbrains.exodus.env.StoreConfig
+import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogUtil
+import org.junit.After
 import org.junit.Assert
+import org.junit.Before
 import org.junit.Test
 import java.io.File
 
@@ -35,18 +38,31 @@ private val expectedException = InvalidCipherParametersException::class.java
 
 class InvalidCipherParametersTest {
 
+    private lateinit var dir: File
+
+    @Before
+    fun setUp() {
+        Log.invalidateSharedCache()
+        dir = TestUtil.createTempDir()
+    }
+
+    @After
+    fun tearDown() {
+        Log.invalidateSharedCache()
+    }
+
     @TestFor(issue = "XD-666")
     @Test
     fun testCreatePlainOpenPlain() {
-        val dir = TestUtil.createTempDir()
-        Assert.assertEquals(createEnvironment(dir, null, null, null),
-                openEnvironment(dir, null, null, null))
+        Assert.assertEquals(
+            createEnvironment(dir, null, null, null),
+            openEnvironment(dir, null, null, null)
+        )
     }
 
     @TestFor(issue = "XD-666")
     @Test
     fun testCreatePlainOpenCiphered() {
-        val dir = TestUtil.createTempDir()
         val highAddress = createEnvironment(dir, null, null, null)
         Assert.assertEquals(highAddress,
                 openEnvironment(dir, CHACHA_CIPHER_ID,
@@ -57,7 +73,6 @@ class InvalidCipherParametersTest {
     @TestFor(issue = "XD-666")
     @Test
     fun testCreateCipheredOpenPlain() {
-        val dir = TestUtil.createTempDir()
         val highAddress = createEnvironment(dir, CHACHA_CIPHER_ID,
                 "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0)
         Assert.assertEquals(highAddress, openEnvironment(dir, null, null, null, expectedException))
@@ -68,7 +83,6 @@ class InvalidCipherParametersTest {
     @TestFor(issue = "XD-666")
     @Test
     fun testCreateCipheredOpenCipheredBadId() {
-        val dir = TestUtil.createTempDir()
         val highAddress = createEnvironment(dir, CHACHA_CIPHER_ID,
                 "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0)
         Assert.assertEquals(highAddress, openEnvironment(dir, SALSA20_CIPHER_ID,
@@ -80,7 +94,6 @@ class InvalidCipherParametersTest {
     @TestFor(issue = "XD-666")
     @Test
     fun testCreateCipheredOpenCipheredBadKey() {
-        val dir = TestUtil.createTempDir()
         val highAddress = createEnvironment(dir, CHACHA_CIPHER_ID,
                 "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0)
         Assert.assertEquals(highAddress, openEnvironment(dir, CHACHA_CIPHER_ID,
@@ -92,7 +105,6 @@ class InvalidCipherParametersTest {
     @TestFor(issue = "XD-666")
     @Test
     fun testCreateCipheredOpenCipheredBadBasicIV() {
-        val dir = TestUtil.createTempDir()
         val highAddress = createEnvironment(dir, CHACHA_CIPHER_ID,
                 "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0)
         Assert.assertEquals(highAddress, openEnvironment(dir, CHACHA_CIPHER_ID,
@@ -109,8 +121,7 @@ private fun createEnvironment(dir: File, cipherId: String?, cipherKey: String?, 
     ec.gcFilesDeletionDelay = 0
     Environments.newInstance(dir, ec).use { env ->
         val store = env.computeInTransaction { txn ->
-            env.openStore(
-                    "NaturalInteger", StoreConfig.WITHOUT_DUPLICATES, txn)
+            env.openStore("NaturalInteger", StoreConfig.WITHOUT_DUPLICATES, txn)
         }
         for (i in 0 until ENTRIES) {
             env.executeInTransaction { txn ->

@@ -23,7 +23,7 @@ import jetbrains.exodus.util.MathUtil
 
 internal abstract class LogCache {
 
-    protected val memoryUsage: Long
+    internal val memoryUsage: Long
     protected val memoryUsagePercentage: Int
     internal val pageSize: Int
 

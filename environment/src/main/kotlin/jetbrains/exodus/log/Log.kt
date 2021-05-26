@@ -202,7 +202,7 @@ class Log(val config: LogConfig) : Closeable {
         sync()
 
         if (config.isWarmup) {
-
+            warmup()
         }
     }
 
