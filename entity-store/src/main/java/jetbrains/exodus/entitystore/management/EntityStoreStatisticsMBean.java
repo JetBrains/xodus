@@ -47,5 +47,7 @@ public interface EntityStoreStatisticsMBean {
 
     float getEntityIterableCacheCountHitRate();
 
+    int getEntityIterableCacheCount();
+
     float getBlobStringsCacheHitRate();
 }
