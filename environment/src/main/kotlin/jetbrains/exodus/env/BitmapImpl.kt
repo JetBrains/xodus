@@ -20,8 +20,6 @@ import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.bindings.LongBinding.compressedEntryToLong
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap
-import kotlin.experimental.and
-import kotlin.experimental.xor
 
 private typealias Bit = Long
 
@@ -159,7 +157,7 @@ open class BitmapImpl(open val store: StoreImpl) : Bitmap {
                 if (this.length != 1) {
                     return LongBinding.entryToLong(this)
                 }
-                (this.iterator().next().toInt() and 0xff).let { tag ->
+                this.iterator().next().unsigned.let { tag ->
                     return when {
                         tag == 0 -> ALL_ONES
                         tag < Long.SIZE_BITS + 1 -> 1L shl (tag - 1)
@@ -172,7 +170,7 @@ open class BitmapImpl(open val store: StoreImpl) : Bitmap {
             get() {
                 this.iterator().let {
                     if (length == 1) {
-                        return (it.next().toInt() and 0xff).let { tag ->
+                        return it.next().unsigned.let { tag ->
                             when {
                                 tag == 0 -> 64
                                 tag < Long.SIZE_BITS + 1 -> 1
@@ -181,9 +179,9 @@ open class BitmapImpl(open val store: StoreImpl) : Bitmap {
                         }
                     }
                     var size = 0
-                    size += (it.next() xor (0x80).toByte()).countBits()
+                    size += (it.next().unsigned xor 0x80).countOneBits()
                     while (it.hasNext()) {
-                        size += it.next().countBits()
+                        size += it.next().unsigned.countOneBits()
                     }
                     return size
                 }
@@ -191,19 +189,11 @@ open class BitmapImpl(open val store: StoreImpl) : Bitmap {
     }
 }
 
-private fun Byte.countBits(): Int {
-    var size = 0
-    var byte = this
-    while (byte != 0.toByte()) {
-        size += 1
-        byte = byte and (byte - 1).toByte()
-    }
-    return size
-}
-
-private fun Bit.ensureNonNegative() =
-    this.also { if (it < 0L) throw IllegalArgumentException("Bit number should be non-negative") }
-
 internal val Bit.key: Bit get() = this shr 6
 
 internal val Bit.index: Int get() = (this and 63).toInt()
+
+private val Byte.unsigned: Int get() = this.toInt() and 0xff
+
+private fun Bit.ensureNonNegative() =
+    this.also { if (it < 0L) throw IllegalArgumentException("Bit number should be non-negative") }
