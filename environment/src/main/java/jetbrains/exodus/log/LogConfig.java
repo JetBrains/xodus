@@ -54,8 +54,10 @@ public class LogConfig {
     private byte[] cipherKey;
     private long cipherBasicIV;
     private boolean lockIgnored;
+    private boolean useV1Format;
 
     public LogConfig() {
+        useV1Format = EnvironmentConfig.DEFAULT.getUseVersion1Format();
     }
 
     public LogConfig setLocation(@NotNull final String location) {
@@ -309,10 +311,6 @@ public class LogConfig {
         return this;
     }
 
-    public static LogConfig create(@NotNull final DataReader reader, @NotNull final DataWriter writer) {
-        return new LogConfig().setReaderWriter(reader, writer);
-    }
-
     @Nullable
     public DataReaderWriterProvider getReaderWriterProvider() {
         if (readerWriterProviderInstance == null && readerWriterProvider != null) {
@@ -339,6 +337,18 @@ public class LogConfig {
     public boolean isReadonlyReaderWriterProvider() {
         final DataReaderWriterProvider provider = getReaderWriterProvider();
         return provider != null && provider.isReadonly();
+    }
+
+    public boolean useV1Format() {
+        return useV1Format;
+    }
+
+    public void setUseV1Format(boolean useV1Format) {
+        this.useV1Format = useV1Format;
+    }
+
+    public static LogConfig create(@NotNull final DataReader reader, @NotNull final DataWriter writer) {
+        return new LogConfig().setReaderWriter(reader, writer);
     }
 
     private void createReaderWriter() {

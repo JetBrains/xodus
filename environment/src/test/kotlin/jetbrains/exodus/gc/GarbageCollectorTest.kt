@@ -33,24 +33,6 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
     }
 
     @Test
-    fun reclaimTreeWithRootInLastFile() {
-        set1KbFileWithoutGC()
-        val log = env.log
-        val startAddress = createStore("store", 100)
-        Assert.assertEquals(2, log.numberOfFiles)
-        createStore("corrupted", 160)
-        Assert.assertEquals(4, log.numberOfFiles)
-        val fileAddress = 2 * log.fileLengthBound
-        log.forgetFile(fileAddress)
-        log.removeFile(fileAddress)
-        val store = openStoreAutoCommit("store")
-        val itr = log.getLoggableIterator(startAddress)
-        val txn = env.beginTransaction()
-        Assert.assertTrue(txn.getTree(store).mutableCopy.reclaim(itr.next(), itr))
-        txn.abort()
-    }
-
-    @Test
     fun updateSameKeyWithoutDuplicates() {
         set1KbFileWithoutGC()
         val key = StringBinding.stringToEntry("key")
@@ -280,7 +262,10 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
         env.gc.cleanEntireLog()
 
         for (i in 0 until count) {
-            Assert.assertEquals(i.toLong(), IntegerBinding.entryToInt(getAutoCommit(store, IntegerBinding.intToEntry(i))).toLong())
+            Assert.assertEquals(
+                i.toLong(),
+                IntegerBinding.entryToInt(getAutoCommit(store, IntegerBinding.intToEntry(i))).toLong()
+            )
         }
     }
 

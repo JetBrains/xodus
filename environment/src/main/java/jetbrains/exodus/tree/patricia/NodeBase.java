@@ -98,6 +98,7 @@ abstract class NodeBase implements INode {
 
     abstract MutableNode getMutableCopy(@NotNull final PatriciaTreeMutable mutableTree);
 
+    @Nullable
     abstract NodeBase getChild(@NotNull final PatriciaTreeBase tree, final byte b);
 
     @NotNull

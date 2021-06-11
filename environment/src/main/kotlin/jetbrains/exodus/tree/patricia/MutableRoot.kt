@@ -13,27 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.tree.patricia;
+package jetbrains.exodus.tree.patricia
 
-import jetbrains.exodus.tree.MutableTreeRoot;
-import org.jetbrains.annotations.NotNull;
+import jetbrains.exodus.tree.MutableTreeRoot
 
-final class MutableRoot extends MutableNode implements MutableTreeRoot {
+internal open class MutableRoot : MutableNode, MutableTreeRoot {
 
-    final long sourceAddress;
+    val sourceAddress: Long
 
-    MutableRoot(@NotNull final ImmutableNode origin) {
-        super(origin);
-        sourceAddress = origin.getAddress();
+    constructor(origin: ImmutableNode) : super(origin) {
+        sourceAddress = origin.address
     }
 
-    MutableRoot(@NotNull final MutableNode node, long sourceAddress) {
-        super(node.keySequence, node.value, node.children);
-        this.sourceAddress = sourceAddress;
+    constructor(node: MutableNode, sourceAddress: Long) : super(node.keySequence, node.value, node.children) {
+        this.sourceAddress = sourceAddress
     }
 
-    @Override
-    protected boolean isRoot() {
-        return true;
-    }
+    override val isRoot: Boolean get() = true
 }

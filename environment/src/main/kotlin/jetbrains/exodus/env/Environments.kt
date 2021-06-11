@@ -109,6 +109,7 @@ object Environments {
             cipherProvider = ec.cipherId?.let { cipherId -> newCipherProvider(cipherId) }
             cipherKey = ec.cipherKey
             cipherBasicIV = ec.cipherBasicIV
+            setUseV1Format(ec.useVersion1Format)
         })
     }
 
