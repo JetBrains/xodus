@@ -16,7 +16,10 @@
 package jetbrains.exodus.entitystore.tables;
 
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.bindings.*;
+import jetbrains.exodus.bindings.ComparableBinding;
+import jetbrains.exodus.bindings.ComparableSet;
+import jetbrains.exodus.bindings.ComparableValueType;
+import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.entitystore.EntityStoreException;
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
@@ -42,7 +45,7 @@ public final class PropertiesTable extends Table {
     private final PersistentEntityStoreImpl store;
     private final Store primaryStore;
     private final IntHashMap<Store> valueIndexes;
-    private final AllPropsIndex allPropsIndex;
+    private final FieldIndex allPropsIndex;
 
     public PropertiesTable(@NotNull final PersistentStoreTransaction txn,
                            @NotNull final String name,
@@ -51,14 +54,8 @@ public final class PropertiesTable extends Table {
         final Transaction envTxn = txn.getEnvironmentTransaction();
         final Environment env = store.getEnvironment();
         primaryStore = env.openStore(name, primaryConfig, envTxn);
-        if (!store.getEnvironment().getEnvironmentConfig().getUseVersion1Format() &&
-            store.getConfig().getUseIntForLocalId()) {
-            allPropsIndex = new BitmapAllPropsIndex(txn, name);
-        } else {
-            allPropsIndex = new StoreAllPropsIndex(txn, name);
-        }
+        allPropsIndex = FieldIndex.fieldIndex(txn, name);
         store.trackTableCreation(primaryStore, txn);
-        store.trackTableCreation(allPropsIndex.getStore(), txn);
         valueIndexes = new IntHashMap<>();
     }
 
@@ -130,7 +127,7 @@ public final class PropertiesTable extends Table {
         return primaryStore;
     }
 
-    public AllPropsIndex getAllPropsIndex() {
+    public FieldIndex getAllPropsIndex() {
         return allPropsIndex;
     }
 

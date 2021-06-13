@@ -15,10 +15,10 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
-import jetbrains.exodus.bindings.IntegerBinding;
-import jetbrains.exodus.bindings.LongBinding;
-import jetbrains.exodus.entitystore.*;
-import jetbrains.exodus.env.Cursor;
+import jetbrains.exodus.entitystore.EntityIterableHandle;
+import jetbrains.exodus.entitystore.EntityIterableType;
+import jetbrains.exodus.entitystore.EntityIterator;
+import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import org.jetbrains.annotations.NotNull;
 
 public class EntitiesWithBlobIterable extends EntityIterableBase {
@@ -53,7 +53,8 @@ public class EntitiesWithBlobIterable extends EntityIterableBase {
     @NotNull
     @Override
     public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
-        return new BlobsIterator(getStore().getEntityWithBlobCursor(txn, entityTypeId));
+        return new FieldIndexIterator(this, entityTypeId, blobId,
+            getStore().getEntityWithBlobIterable(txn, entityTypeId, blobId));
     }
 
     @NotNull
@@ -86,35 +87,6 @@ public class EntitiesWithBlobIterable extends EntityIterableBase {
         @Override
         public int getEntityTypeId() {
             return entityTypeId;
-        }
-    }
-
-    public final class BlobsIterator extends EntityIteratorBase {
-
-        private boolean hasNext;
-
-        public BlobsIterator(@NotNull final Cursor cursor) {
-            super(EntitiesWithBlobIterable.this);
-            setCursor(cursor);
-            hasNext = cursor.getSearchKey(IntegerBinding.intToCompressedEntry(blobId)) != null;
-        }
-
-        @Override
-        protected boolean hasNextImpl() {
-            return hasNext;
-        }
-
-        @Override
-        protected EntityId nextIdImpl() {
-            if (hasNext) {
-                explain(getType());
-                final Cursor cursor = getCursor();
-                final long localId = LongBinding.compressedEntryToLong(cursor.getValue());
-                final EntityId result = new PersistentEntityId(entityTypeId, localId);
-                hasNext = cursor.getNextDup();
-                return result;
-            }
-            return null;
         }
     }
 }

@@ -17,27 +17,47 @@ package jetbrains.exodus.entitystore.tables
 
 import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.bindings.LongBinding
-import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.core.dataStructures.Pair
+import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.env.*
 
-sealed class AllPropsIndex {
+/**
+ * Field index saves pairs (fieldId, localId) where fieldId is an id of property, link or blob,
+ * and localId is a local id of the entity having a value of property, link or blob.
+ * Use [iterable], to get all entities (their localIds) having specified property, link or blob.
+ */
+sealed class FieldIndex {
+
     abstract fun getStore(): Store
 
-    abstract fun put(envTxn: Transaction, propertyId: Int, localId: Long): Boolean
+    abstract fun put(envTxn: Transaction, fieldId: Int, localId: Long): Boolean
 
-    abstract fun remove(envTxn: Transaction, propertyId: Int, localId: Long): Boolean
+    abstract fun remove(envTxn: Transaction, fieldId: Int, localId: Long): Boolean
 
-    abstract fun iterable(envTxn: Transaction, propertyId: Int): Iterable<Pair<Int, Long>>
+    abstract fun iterable(envTxn: Transaction, fieldId: Int): Iterable<Pair<Int, Long>>
+
+    companion object {
+
+        @JvmStatic
+        fun fieldIndex(txn: PersistentStoreTransaction, name: String): FieldIndex {
+            val store = txn.store
+            return if (!store.environment.environmentConfig.useVersion1Format && store.config.useIntForLocalId) {
+                BitmapFieldIndex(txn, name)
+            } else {
+                StoreFieldIndex(txn, name)
+            }.also { store.trackTableCreation(it.getStore(), txn) }
+        }
+    }
 }
 
-class StoreAllPropsIndex(txn: PersistentStoreTransaction, name: String) : AllPropsIndex() {
-    private val allPropsIndex: Store
+private class StoreFieldIndex(txn: PersistentStoreTransaction, name: String) : FieldIndex() {
+
+    private val theIndex: Store
 
     init {
         txn.store.environment.let { env ->
             txn.environmentTransaction.let { envTxn ->
-                allPropsIndex = env.openStore(
+                theIndex = env.openStore(
                     name + Table.ALL_IDX,
                     StoreConfig.WITH_DUPLICATES_WITH_PREFIXING,
                     envTxn
@@ -46,20 +66,20 @@ class StoreAllPropsIndex(txn: PersistentStoreTransaction, name: String) : AllPro
         }
     }
 
-    override fun getStore(): Store = allPropsIndex
+    override fun getStore(): Store = theIndex
 
-    override fun put(envTxn: Transaction, propertyId: Int, localId: Long): Boolean =
-        allPropsIndex.put(
+    override fun put(envTxn: Transaction, fieldId: Int, localId: Long): Boolean =
+        theIndex.put(
             envTxn,
-            IntegerBinding.intToCompressedEntry(propertyId),
+            IntegerBinding.intToCompressedEntry(fieldId),
             LongBinding.longToCompressedEntry(localId)
         )
 
-    override fun remove(envTxn: Transaction, propertyId: Int, localId: Long): Boolean {
+    override fun remove(envTxn: Transaction, fieldId: Int, localId: Long): Boolean {
         var result = true
-        val key = IntegerBinding.intToCompressedEntry(propertyId)
+        val key = IntegerBinding.intToCompressedEntry(fieldId)
         val value = LongBinding.longToCompressedEntry(localId)
-        allPropsIndex.openCursor(envTxn).let { cursor ->
+        theIndex.openCursor(envTxn).let { cursor ->
             if (!cursor.getSearchBoth(key, value)) {
                 // repeat for debugging
                 cursor.getSearchBoth(key, value)
@@ -74,17 +94,18 @@ class StoreAllPropsIndex(txn: PersistentStoreTransaction, name: String) : AllPro
         return result
     }
 
-    override fun iterable(envTxn: Transaction, propertyId: Int) =
-        Iterable { StoreAllPropsIndexIterator(envTxn, allPropsIndex, propertyId) }
+    override fun iterable(envTxn: Transaction, fieldId: Int) =
+        Iterable { StoreFieldIndexIterator(envTxn, theIndex, fieldId) }
 }
 
-class BitmapAllPropsIndex(txn: PersistentStoreTransaction, name: String) : AllPropsIndex() {
-    private val allPropsIndex: BitmapImpl
+private class BitmapFieldIndex(txn: PersistentStoreTransaction, name: String) : FieldIndex() {
+
+    private val theIndex: BitmapImpl
 
     init {
         txn.store.environment.let { env ->
             txn.environmentTransaction.let { envTxn ->
-                allPropsIndex = env.openBitmap(
+                theIndex = env.openBitmap(
                     name + Table.ALL_IDX,
                     StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING,
                     envTxn
@@ -93,21 +114,21 @@ class BitmapAllPropsIndex(txn: PersistentStoreTransaction, name: String) : AllPr
         }
     }
 
-    override fun getStore(): Store = allPropsIndex.store
+    override fun getStore(): Store = theIndex.store
 
-    override fun put(envTxn: Transaction, propertyId: Int, localId: Long): Boolean =
-        allPropsIndex.set(envTxn, toBitIndex(propertyId, localId), true)
+    override fun put(envTxn: Transaction, fieldId: Int, localId: Long): Boolean =
+        theIndex.set(envTxn, toBitIndex(fieldId, localId), true)
 
-    override fun remove(envTxn: Transaction, propertyId: Int, localId: Long): Boolean =
-        allPropsIndex.clear(envTxn, toBitIndex(propertyId, localId))
+    override fun remove(envTxn: Transaction, fieldId: Int, localId: Long): Boolean =
+        theIndex.clear(envTxn, toBitIndex(fieldId, localId))
 
-    override fun iterable(envTxn: Transaction, propertyId: Int) =
+    override fun iterable(envTxn: Transaction, fieldId: Int) =
         Iterable {
             object : Iterator<Pair<Int, Long>> {
-                private val bitmapIterator: BitmapIterator = allPropsIndex.iterator(envTxn)
+                private val bitmapIterator: BitmapIterator = theIndex.iterator(envTxn)
 
                 init {
-                    bitmapIterator.getSearchBit(propertyId.toLong() shl 32)
+                    bitmapIterator.getSearchBit(fieldId.toLong() shl 32)
                 }
 
                 override fun hasNext(): Boolean = bitmapIterator.hasNext()
@@ -124,7 +145,7 @@ class BitmapAllPropsIndex(txn: PersistentStoreTransaction, name: String) : AllPr
     private fun toBitIndex(propertyId: Int, localId: Long) = (propertyId.toLong() shl 32) + localId
 }
 
-class StoreAllPropsIndexIterator(
+private class StoreFieldIndexIterator(
     val txn: Transaction,
     val store: Store,
     val propertyId: Int

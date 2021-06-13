@@ -16,23 +16,19 @@
 package jetbrains.exodus.entitystore.tables;
 
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.bindings.IntegerBinding;
-import jetbrains.exodus.bindings.LongBinding;
-import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
-import jetbrains.exodus.env.*;
+import jetbrains.exodus.env.Cursor;
+import jetbrains.exodus.env.StoreConfig;
+import jetbrains.exodus.env.Transaction;
 import org.jetbrains.annotations.NotNull;
 
 public final class LinksTable extends TwoColumnTable {
-    private final Store allLinksIndex;
+
+    private final FieldIndex allLinksIndex;
 
     public LinksTable(@NotNull PersistentStoreTransaction txn, @NotNull String name, @NotNull StoreConfig config) {
         super(txn, name, config);
-        PersistentEntityStoreImpl store = txn.getStore();
-        final Transaction envTxn = txn.getEnvironmentTransaction();
-        final Environment env = store.getEnvironment();
-        allLinksIndex = env.openStore(name + ALL_IDX, StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, envTxn);
-        store.trackTableCreation(allLinksIndex, txn);
+        allLinksIndex = FieldIndex.fieldIndex(txn, name);
     }
 
     @Override
@@ -58,7 +54,7 @@ public final class LinksTable extends TwoColumnTable {
         final PropertyKey linkKey = new PropertyKey(localId, linkId);
         boolean success = super.put(txn, PropertyKey.propertyKeyToEntry(linkKey), value);
         if (noOldValue) {
-            success |= allLinksIndex.put(txn, IntegerBinding.intToCompressedEntry(linkId), LongBinding.longToCompressedEntry(localId));
+            success |= allLinksIndex.put(txn, linkId, localId);
         }
         return success;
     }
@@ -82,24 +78,15 @@ public final class LinksTable extends TwoColumnTable {
     }
 
     public boolean deleteAllIndex(@NotNull Transaction txn, int linkId, long localId) {
-        return deletePair(allLinksIndex.openCursor(txn), IntegerBinding.intToCompressedEntry(linkId), LongBinding.longToCompressedEntry(localId));
+        return allLinksIndex.remove(txn, linkId, localId);
     }
 
-    public Store getAllLinksIndex() {
+    public FieldIndex getAllLinksIndex() {
         return allLinksIndex;
     }
 
     @Override
     public boolean canBeCached() {
-        return super.canBeCached() && !allLinksIndex.getConfig().temporaryEmpty;
-    }
-
-    private static boolean deletePair(@NotNull final Cursor c, @NotNull final ByteIterable key, @NotNull final ByteIterable value) {
-        boolean result = c.getSearchBoth(key, value);
-        if (result) {
-            result = c.deleteCurrent();
-        }
-        c.close();
-        return result;
+        return super.canBeCached() && !allLinksIndex.getStore().getConfig().temporaryEmpty;
     }
 }

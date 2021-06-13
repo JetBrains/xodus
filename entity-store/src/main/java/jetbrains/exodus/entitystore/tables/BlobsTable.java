@@ -16,18 +16,19 @@
 package jetbrains.exodus.entitystore.tables;
 
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.bindings.IntegerBinding;
-import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
-import jetbrains.exodus.env.*;
+import jetbrains.exodus.env.Environment;
+import jetbrains.exodus.env.Store;
+import jetbrains.exodus.env.StoreConfig;
+import jetbrains.exodus.env.Transaction;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public final class BlobsTable extends Table {
 
     private final Store primaryStore;
-    private final Store allBlobsIndex;
+    private final FieldIndex allBlobsIndex;
 
     public BlobsTable(@NotNull final PersistentEntityStoreImpl store,
                       @NotNull final PersistentStoreTransaction txn,
@@ -36,9 +37,8 @@ public final class BlobsTable extends Table {
         final Transaction envTxn = txn.getEnvironmentTransaction();
         final Environment env = store.getEnvironment();
         primaryStore = env.openStore(name, primaryConfig, envTxn);
-        allBlobsIndex = env.openStore(name + ALL_IDX, StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, envTxn);
+        allBlobsIndex = FieldIndex.fieldIndex(txn, name);
         store.trackTableCreation(primaryStore, txn);
-        store.trackTableCreation(allBlobsIndex, txn);
     }
 
     @Nullable
@@ -62,18 +62,12 @@ public final class BlobsTable extends Table {
     public void put(@NotNull final Transaction txn, final long localId,
                     final int blobId, @NotNull final ByteIterable value) {
         primaryStore.put(txn, PropertyKey.propertyKeyToEntry(new PropertyKey(localId, blobId)), value);
-        allBlobsIndex.put(txn, IntegerBinding.intToCompressedEntry(blobId), LongBinding.longToCompressedEntry(localId));
+        allBlobsIndex.put(txn, blobId, localId);
     }
 
     public void delete(@NotNull final Transaction txn, final long localId, final int blobId) {
         final ByteIterable key = PropertyKey.propertyKeyToEntry(new PropertyKey(localId, blobId));
-        boolean success = primaryStore.delete(txn, key);
-        try (Cursor cursor = allBlobsIndex.openCursor(txn)) {
-            if (!cursor.getSearchBoth(IntegerBinding.intToCompressedEntry(blobId), LongBinding.longToCompressedEntry(localId)) ||
-                    !cursor.deleteCurrent()) {
-                success = false;
-            }
-        }
+        boolean success = primaryStore.delete(txn, key) && allBlobsIndex.remove(txn, blobId, localId);
         checkStatus(success, "Failed to delete");
     }
 
@@ -81,12 +75,12 @@ public final class BlobsTable extends Table {
         return primaryStore;
     }
 
-    public Store getAllBlobsIndex() {
+    public FieldIndex getAllBlobsIndex() {
         return allBlobsIndex;
     }
 
     @Override
     public boolean canBeCached() {
-        return !primaryStore.getConfig().temporaryEmpty && !allBlobsIndex.getConfig().temporaryEmpty;
+        return !primaryStore.getConfig().temporaryEmpty && !allBlobsIndex.getStore().getConfig().temporaryEmpty;
     }
 }

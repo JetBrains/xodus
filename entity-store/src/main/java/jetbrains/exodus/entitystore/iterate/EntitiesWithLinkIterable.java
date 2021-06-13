@@ -15,13 +15,11 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.bindings.IntegerBinding;
-import jetbrains.exodus.bindings.LongBinding;
-import jetbrains.exodus.entitystore.*;
-import jetbrains.exodus.env.Cursor;
+import jetbrains.exodus.entitystore.EntityId;
+import jetbrains.exodus.entitystore.EntityIterableHandle;
+import jetbrains.exodus.entitystore.EntityIterableType;
+import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 public class EntitiesWithLinkIterable extends EntityIterableBase {
 
@@ -57,48 +55,14 @@ public class EntitiesWithLinkIterable extends EntityIterableBase {
     @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
-        return new LinksIterator(openCursor(txn));
+        return new FieldIndexIterator(this, entityTypeId, linkId,
+            getStore().getEntityWithLinkIterable(txn, entityTypeId, linkId));
     }
 
     @Override
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
         return new EntitiesWithLinkIterableHandle();
-    }
-
-    private Cursor openCursor(@NotNull final PersistentStoreTransaction txn) {
-        return getStore().getEntityWithLinkCursor(txn, entityTypeId);
-    }
-
-    private final class LinksIterator extends EntityIteratorBase {
-
-        private boolean hasNext;
-
-        private LinksIterator(@NotNull final Cursor index) {
-            super(EntitiesWithLinkIterable.this);
-            setCursor(index);
-            final ByteIterable key = IntegerBinding.intToCompressedEntry(linkId);
-            hasNext = index.getSearchKey(key) != null;
-        }
-
-        @Override
-        public boolean hasNextImpl() {
-            return hasNext;
-        }
-
-        @Override
-        @Nullable
-        public EntityId nextIdImpl() {
-            if (hasNextImpl()) {
-                explain(getType());
-                final Cursor cursor = getCursor();
-                final long localId = LongBinding.compressedEntryToLong(cursor.getValue());
-                final EntityId result = new PersistentEntityId(entityTypeId, localId);
-                hasNext = cursor.getNextDup();
-                return result;
-            }
-            return null;
-        }
     }
 
     protected class EntitiesWithLinkIterableHandle extends ConstantEntityIterableHandle {

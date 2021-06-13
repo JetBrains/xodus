@@ -15,12 +15,9 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
-import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.entitystore.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.Iterator;
 
 public class EntitiesWithPropertyIterable extends EntityIterableBase {
 
@@ -51,7 +48,8 @@ public class EntitiesWithPropertyIterable extends EntityIterableBase {
     @NotNull
     @Override
     public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
-       return new PropertiesIterator(getStore().getEntityWithPropCursor(txn, entityTypeId, propertyId));
+        return new FieldIndexIterator(this, entityTypeId, propertyId,
+            getStore().getEntityWithPropIterable(txn, entityTypeId, propertyId));
     }
 
     @NotNull
@@ -111,7 +109,7 @@ public class EntitiesWithPropertyIterable extends EntityIterableBase {
             final Comparable newValue = handleChecker.getNewValue();
             if (oldValue == null || newValue == null) {
                 UpdatableEntityIdSortedSetCachedInstanceIterable iterable
-                        = PersistentStoreTransaction.getUpdatable(handleChecker, this, UpdatableEntityIdSortedSetCachedInstanceIterable.class);
+                    = PersistentStoreTransaction.getUpdatable(handleChecker, this, UpdatableEntityIdSortedSetCachedInstanceIterable.class);
                 if (iterable != null) {
                     final long localId = handleChecker.getLocalId();
                     if (oldValue == null) {
@@ -123,43 +121,6 @@ public class EntitiesWithPropertyIterable extends EntityIterableBase {
                 }
             }
             return false;
-        }
-    }
-
-    public final class PropertiesIterator extends EntityIteratorBase {
-
-        private final Iterator<Pair<Integer, Long>> iterator;
-        private EntityId entityId;
-
-        public PropertiesIterator(@NotNull final Iterable<Pair<Integer, Long>> iterable) {
-            super(EntitiesWithPropertyIterable.this);
-            iterator = iterable.iterator();
-            advance();
-        }
-
-        @Override
-        protected boolean hasNextImpl() {
-            return entityId != null;
-        }
-
-        @Override
-        protected EntityId nextIdImpl() {
-            if (hasNextImpl()) {
-                EntityId entityId = this.entityId;
-                advance();
-                return entityId;
-            }
-            return null;
-        }
-
-        private void advance() {
-            entityId = null;
-            if (iterator.hasNext()) {
-                final Pair<Integer, Long> next = iterator.next();
-                if (next.getFirst() == propertyId) {
-                    entityId = new PersistentEntityId(entityTypeId, next.getSecond());
-                }
-            }
         }
     }
 }

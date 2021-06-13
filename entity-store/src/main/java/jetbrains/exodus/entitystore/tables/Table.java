@@ -21,7 +21,7 @@ import org.jetbrains.annotations.NotNull;
 
 public abstract class Table {
     @NonNls
-    protected static final String ALL_IDX = "#all_idx";
+    public static final String ALL_IDX = "#all_idx";
 
     public static void checkStatus(final boolean success, @NotNull final String message) {
         if (!success) {

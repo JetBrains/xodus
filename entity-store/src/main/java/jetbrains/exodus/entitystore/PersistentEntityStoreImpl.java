@@ -926,16 +926,18 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     @NotNull
-    public Iterable<Pair<Integer, Long>> getEntityWithPropCursor(@NotNull final PersistentStoreTransaction txn,
-                                                                 int entityTypeId, int propertyId) {
+    public Iterable<Pair<Integer, Long>> getEntityWithPropIterable(@NotNull final PersistentStoreTransaction txn,
+                                                                   int entityTypeId, int propertyId) {
         return getPropertiesTable(txn, entityTypeId)
             .getAllPropsIndex()
             .iterable(txn.getEnvironmentTransaction(), propertyId);
     }
 
     @NotNull
-    public Cursor getEntityWithBlobCursor(@NotNull final PersistentStoreTransaction txn, int entityTypeId) {
-        return getBlobsTable(txn, entityTypeId).getAllBlobsIndex().openCursor(txn.getEnvironmentTransaction());
+    public Iterable<Pair<Integer, Long>> getEntityWithBlobIterable(@NotNull final PersistentStoreTransaction txn,
+                                                                   final int entityTypeId,
+                                                                   final int blobId) {
+        return getBlobsTable(txn, entityTypeId).getAllBlobsIndex().iterable(txn.getEnvironmentTransaction(), blobId);
     }
 
     @NotNull
@@ -960,8 +962,10 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     @NotNull
-    public Cursor getEntityWithLinkCursor(@NotNull final PersistentStoreTransaction txn, int entityTypeId) {
-        return getLinksTable(txn, entityTypeId).getAllLinksIndex().openCursor(txn.getEnvironmentTransaction());
+    public Iterable<Pair<Integer, Long>> getEntityWithLinkIterable(@NotNull final PersistentStoreTransaction txn,
+                                                                   final int entityTypeId,
+                                                                   final int linkId) {
+        return getLinksTable(txn, entityTypeId).getAllLinksIndex().iterable(txn.getEnvironmentTransaction(), linkId);
     }
 
     /**
