@@ -22,6 +22,7 @@ import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable.fillBytes
+import jetbrains.exodus.log.CompressedUnsignedLongByteIterable.getCompressedSize
 import jetbrains.exodus.log.Loggable
 import jetbrains.exodus.log.SingleByteIterable
 import jetbrains.exodus.log.TooBigLoggableException
@@ -334,6 +335,17 @@ internal open class MutableNode : NodeBase {
         val baseAddress = children.minOf { r -> r.suffixAddress }
         val bytesPerAddress = children.maxOf { r ->
             CompressedUnsignedLongArrayByteIterable.logarithm(r.suffixAddress - baseAddress)
+        }
+        // if this is a sparse node make sure v2 format would result in a more compact saving
+        if (childrenCount <= 32) {
+            val bytesPerAddressV1 =
+                children.maxOf { r -> CompressedUnsignedLongArrayByteIterable.logarithm(r.suffixAddress) }
+            if (bytesPerAddress == bytesPerAddressV1 ||
+                (bytesPerAddressV1 - bytesPerAddress) * childrenCount <= getCompressedSize(baseAddress) + 1
+            ) {
+                saveChildrenV1(childrenCount, nodeStream)
+                return
+            }
         }
         fillBytes((((childrenCount + VERSION2_CHILDREN_COUNT_BOUND) shl 3) + bytesPerAddress - 1).toLong(), nodeStream)
         fillBytes(baseAddress, nodeStream)
