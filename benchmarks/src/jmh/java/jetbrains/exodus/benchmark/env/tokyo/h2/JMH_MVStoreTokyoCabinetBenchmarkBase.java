@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.benchmark.h2;
+package jetbrains.exodus.benchmark.env.tokyo.h2;
 
 import jetbrains.exodus.benchmark.TokyoCabinetBenchmark;
 import org.h2.mvstore.MVStore;

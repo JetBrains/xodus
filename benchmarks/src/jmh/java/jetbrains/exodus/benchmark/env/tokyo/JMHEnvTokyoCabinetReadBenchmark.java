@@ -13,25 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.benchmark.h2;
+package jetbrains.exodus.benchmark.env.tokyo;
 
+import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.ByteIterator;
+import jetbrains.exodus.env.Cursor;
+import jetbrains.exodus.env.StoreConfig;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.*;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
-public class JMH_MVStoreTokyoCabinetReadBenchmark extends JMH_MVStoreTokyoCabinetBenchmarkBase {
+public class JMHEnvTokyoCabinetReadBenchmark extends JMHEnvTokyoCabinetBenchmarkBase {
 
     @Setup(Level.Invocation)
     public void beforeBenchmark() throws IOException {
         setup();
-        executeInTransaction(store -> writeSuccessiveKeys(createTestMap(store)));
+        writeSuccessiveKeys();
     }
 
     @Benchmark
@@ -40,11 +43,12 @@ public class JMH_MVStoreTokyoCabinetReadBenchmark extends JMH_MVStoreTokyoCabine
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
     public void successiveRead(final Blackhole bh) {
-        executeInTransaction(store -> {
-            final Map<Object, Object> map = createTestMap(store);
-            for (Map.Entry entry : map.entrySet()) {
-                bh.consume(entry.getKey());
-                bh.consume(entry.getValue());
+        env.executeInReadonlyTransaction(txn -> {
+            try (Cursor c = store.openCursor(txn)) {
+                while (c.getNext()) {
+                    consumeBytes(bh, c.getKey());
+                    consumeBytes(bh, c.getValue());
+                }
             }
         });
     }
@@ -55,12 +59,25 @@ public class JMH_MVStoreTokyoCabinetReadBenchmark extends JMH_MVStoreTokyoCabine
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
     public void randomRead(final Blackhole bh) {
-        executeInTransaction(store -> {
-            final Map<Object, Object> map = createTestMap(store);
-            for (final String key : randomKeys) {
-                bh.consume(map.get(key));
+        env.executeInReadonlyTransaction(txn -> {
+            try (Cursor c = store.openCursor(txn)) {
+                for (final ByteIterable key : randomKeys) {
+                    c.getSearchKey(key);
+                    consumeBytes(bh, c.getValue());
+                }
             }
         });
     }
-}
 
+    @Override
+    protected StoreConfig getStoreConfig() {
+        return StoreConfig.WITHOUT_DUPLICATES;
+    }
+
+    private static void consumeBytes(final Blackhole bh, final ByteIterable it) {
+        final ByteIterator iterator = it.iterator();
+        while (iterator.hasNext()) {
+            bh.consume(iterator.next());
+        }
+    }
+}

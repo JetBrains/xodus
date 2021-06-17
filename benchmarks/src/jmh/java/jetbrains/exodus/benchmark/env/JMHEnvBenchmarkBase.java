@@ -15,10 +15,9 @@
  */
 package jetbrains.exodus.benchmark.env;
 
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.benchmark.TokyoCabinetBenchmark;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.log.Log;
+import org.jetbrains.annotations.NotNull;
 import org.junit.rules.TemporaryFolder;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.TearDown;
@@ -26,23 +25,20 @@ import org.openjdk.jmh.annotations.TearDown;
 import java.io.File;
 import java.io.IOException;
 
-abstract class JMHEnvTokyoCabinetBenchmarkBase {
-
-    private static final ByteIterable[] successiveKeys = TokyoCabinetBenchmark.getSuccessiveEntries(TokyoCabinetBenchmark.KEYS_COUNT);
-    static final ByteIterable[] randomKeys = TokyoCabinetBenchmark.getRandomEntries(TokyoCabinetBenchmark.KEYS_COUNT);
+public abstract class JMHEnvBenchmarkBase {
 
     private TemporaryFolder temporaryFolder;
-    Environment env;
-    Store store;
+    public Environment env;
+    public Store store;
 
     public void setup() throws IOException {
         Log.invalidateSharedCache();
-        TokyoCabinetBenchmark.shuffleKeys(randomKeys);
         temporaryFolder = new TemporaryFolder();
         temporaryFolder.create();
         final File testsDirectory = temporaryFolder.newFolder("data");
-        env = Environments.newInstance(testsDirectory, new EnvironmentConfig().setLogFileSize(32768));
-        store = env.computeInTransaction(txn -> env.openStore("TokyoCabinetBenchmarkStore", getConfig(), txn));
+        env = Environments.newInstance(testsDirectory,
+            adjustEnvironmentConfig(new EnvironmentConfig().setLogFileSize(32768)));
+        store = env.computeInTransaction(txn -> env.openStore("JMHEnvBenchmark", getStoreConfig(), txn));
     }
 
     @TearDown(Level.Invocation)
@@ -56,13 +52,9 @@ abstract class JMHEnvTokyoCabinetBenchmarkBase {
         }
     }
 
-    void writeSuccessiveKeys() {
-        env.executeInTransaction(txn -> {
-            for (final ByteIterable key : successiveKeys) {
-                store.add(txn, key, key);
-            }
-        });
-    }
+    protected abstract StoreConfig getStoreConfig();
 
-    protected abstract StoreConfig getConfig();
+    protected EnvironmentConfig adjustEnvironmentConfig(@NotNull final EnvironmentConfig ec) {
+        return ec;
+    }
 }

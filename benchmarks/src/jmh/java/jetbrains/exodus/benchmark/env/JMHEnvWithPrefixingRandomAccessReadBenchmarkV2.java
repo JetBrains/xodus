@@ -15,12 +15,13 @@
  */
 package jetbrains.exodus.benchmark.env;
 
-import jetbrains.exodus.env.StoreConfig;
+import jetbrains.exodus.env.EnvironmentConfig;
+import org.jetbrains.annotations.NotNull;
 
-public class JMHEnvWithPrefixingTokyoCabinetWriteBenchmark extends JMHEnvTokyoCabinetWriteBenchmark {
+public class JMHEnvWithPrefixingRandomAccessReadBenchmarkV2 extends JMHEnvWithPrefixingRandomAccessReadBenchmarkV1 {
 
     @Override
-    protected StoreConfig getConfig() {
-        return StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING;
+    protected EnvironmentConfig adjustEnvironmentConfig(@NotNull EnvironmentConfig ec) {
+        return super.adjustEnvironmentConfig(ec).setUseVersion1Format(false);
     }
 }

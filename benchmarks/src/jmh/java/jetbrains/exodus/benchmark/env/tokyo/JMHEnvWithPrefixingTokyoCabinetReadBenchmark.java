@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.benchmark.env;
+package jetbrains.exodus.benchmark.env.tokyo;
 
 import jetbrains.exodus.env.StoreConfig;
 
 public class JMHEnvWithPrefixingTokyoCabinetReadBenchmark extends JMHEnvTokyoCabinetReadBenchmark {
 
     @Override
-    protected StoreConfig getConfig() {
+    protected StoreConfig getStoreConfig() {
         return StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING;
     }
 }

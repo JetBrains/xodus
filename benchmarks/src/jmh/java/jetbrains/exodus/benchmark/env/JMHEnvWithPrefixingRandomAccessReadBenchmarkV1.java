@@ -15,22 +15,27 @@
  */
 package jetbrains.exodus.benchmark.env;
 
-import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.bindings.IntegerBinding;
+import jetbrains.exodus.env.EnvironmentConfig;
 import jetbrains.exodus.env.StoreConfig;
+import org.jetbrains.annotations.NotNull;
 import org.openjdk.jmh.annotations.*;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.*;
+import static jetbrains.exodus.benchmark.env.JMHEnvWithPrefixingRandomAccessWriteBenchmarkV1.*;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
-public class JMHEnvTokyoCabinetWriteBenchmark extends JMHEnvTokyoCabinetBenchmarkBase {
+
+public class JMHEnvWithPrefixingRandomAccessReadBenchmarkV1 extends JMHEnvBenchmarkBase {
 
     @Setup(Level.Invocation)
     public void beforeBenchmark() throws IOException {
+        shuffleKeys();
         setup();
+        writeChunked(env, store);
     }
 
     @Benchmark
@@ -38,26 +43,21 @@ public class JMHEnvTokyoCabinetWriteBenchmark extends JMHEnvTokyoCabinetBenchmar
     @Warmup(iterations = WARMUP_ITERATIONS)
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
-    public void successiveWrite() {
-        writeSuccessiveKeys();
-    }
-
-    @Benchmark
-    @BenchmarkMode(Mode.SingleShotTime)
-    @Warmup(iterations = WARMUP_ITERATIONS)
-    @Measurement(iterations = MEASUREMENT_ITERATIONS)
-    @Fork(FORKS)
-    public void randomWrite() {
-        env.executeInTransaction(txn -> {
-            for (final ByteIterable key : randomKeys) {
-                store.add(txn, key, key);
+    public void read() {
+        env.executeInReadonlyTransaction(txn -> {
+            for (int key : keys) {
+                store.get(txn, IntegerBinding.intToEntry(key));
             }
         });
     }
 
     @Override
-    protected StoreConfig getConfig() {
-        return StoreConfig.WITHOUT_DUPLICATES;
+    protected StoreConfig getStoreConfig() {
+        return StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING;
+    }
+
+    @Override
+    protected EnvironmentConfig adjustEnvironmentConfig(@NotNull EnvironmentConfig ec) {
+        return ec.setGcEnabled(false).setUseVersion1Format(true);
     }
 }
-
