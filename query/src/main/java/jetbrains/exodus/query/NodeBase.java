@@ -17,7 +17,6 @@ package jetbrains.exodus.query;
 
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
-import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 import jetbrains.exodus.util.StringInterner;
@@ -303,6 +302,6 @@ public abstract class NodeBase {
 
     public static class InstantiateContext {
 
-        final Set<NodeBase> visited = new HashSet<>();
+        final Set<NodeBase> visited = Collections.newSetFromMap(new IdentityHashMap<>());
     }
 }
