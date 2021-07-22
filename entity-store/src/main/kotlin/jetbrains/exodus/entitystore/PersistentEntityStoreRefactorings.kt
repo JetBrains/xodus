@@ -710,7 +710,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                 val entityTypeId = store.getEntityTypeId(txn, entityType, false)
                 val obsoleteTableName = store.namingRules.getEntitiesTableName(entityTypeId)
                 if (!store.environment.storeExists(obsoleteTableName, envTxn)) continue
-                logInfo("Refactor entities of [$entityType] type table into bitmap table")
+                logInfo("Refactor entities of [$entityType] type table to bitmap")
                 val entityIds = LongArrayList()
                 SingleColumnTable(txn, obsoleteTableName, USE_EXISTING).database.openCursor(envTxn).use { cursor ->
                     while (cursor.next) {
@@ -727,29 +727,21 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
         }
     }
 
-    fun refactorAllPropIndexToBitmap() {
-        store.executeInReadonlyTransaction { txn ->
-            for (entityType in store.getEntityTypes(txn as PersistentStoreTransaction)) {
-                val entityTypeId = store.getEntityTypeId(txn, entityType, false)
-                val obsoleteName = store.namingRules.getPropertiesTableName(entityTypeId) + Table.ALL_IDX
-                if (!store.environment.storeExists(obsoleteName, txn.environmentTransaction)) continue
-                logInfo("Refactoring allPropsIndex into bitmap tables for [$entityType]")
-                safeExecuteRefactoringForEntityType(entityType) { txn ->
-                    txn as PersistentStoreTransaction
-                    val envTxn = txn.environmentTransaction
-                    val allPropsIndexBitmap =
-                        store.environment.openBitmap(obsoleteName, WITHOUT_DUPLICATES_WITH_PREFIXING, envTxn)
-                    store.getPropertiesTable(txn, entityTypeId)
-                        .allPropsIndex.getStore().openCursor(envTxn).let { c ->
-                            while (c.next) {
-                                val propertyId = IntegerBinding.compressedEntryToInt(c.key)
-                                val localId = LongBinding.compressedEntryToLong(c.value)
-                                allPropsIndexBitmap.set(envTxn, (propertyId.toLong() shl 32) + localId, true)
-                            }
-                        }
-                    safeRemoveStore(obsoleteName, envTxn)
-                }
-            }
+    fun refactorAllPropsIndexToBitmap() {
+        refactorAllIdxToBitmap("allPropsIndex") { entityTypeId ->
+            store.namingRules.getPropertiesTableName(entityTypeId) + Table.ALL_IDX
+        }
+    }
+
+    fun refactorAllLinksIndexToBitmap() {
+        refactorAllIdxToBitmap("allLinksIndex") { entityTypeId ->
+            store.namingRules.getLinksTableName(entityTypeId) + Table.ALL_IDX
+        }
+    }
+
+    fun refactorAllBlobsIndexToBitmap() {
+        refactorAllIdxToBitmap("allBlobsIndex") { entityTypeId ->
+            store.namingRules.getBlobsTableName(entityTypeId) + Table.ALL_IDX
         }
     }
 
@@ -844,6 +836,31 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                 }
                 store.environment.executeInExclusiveTransaction { txn ->
                     Settings.set(txn, settings, settingName, System.currentTimeMillis().toString())
+                }
+            }
+        }
+    }
+
+    private fun refactorAllIdxToBitmap(indexName: String, getIndexName: (Int) -> String) {
+        store.executeInReadonlyTransaction { txn ->
+            for (entityType in store.getEntityTypes(txn as PersistentStoreTransaction)) {
+                val entityTypeId = store.getEntityTypeId(txn, entityType, false)
+                val obsoleteName = getIndexName(entityTypeId)
+                if (!store.environment.storeExists(obsoleteName, txn.environmentTransaction)) continue
+                logInfo("Refactoring $indexName to bitmaps for [$entityType]")
+                safeExecuteRefactoringForEntityType(entityType) { txn ->
+                    txn as PersistentStoreTransaction
+                    val envTxn = txn.environmentTransaction
+                    val allPropsIndexBitmap =
+                        envTxn.environment.openBitmap(obsoleteName, WITHOUT_DUPLICATES_WITH_PREFIXING, envTxn)
+                    envTxn.environment.openStore(obsoleteName, USE_EXISTING, envTxn).openCursor(envTxn).let { c ->
+                        while (c.next) {
+                            val propertyId = IntegerBinding.compressedEntryToInt(c.key)
+                            val localId = LongBinding.compressedEntryToLong(c.value)
+                            allPropsIndexBitmap.set(envTxn, (propertyId.toLong() shl 32) + localId, true)
+                        }
+                    }
+                    safeRemoveStore(obsoleteName, envTxn)
                 }
             }
         }

@@ -360,11 +360,23 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
                 Settings.set(internalSettings, "refactorEntitiesTablesToBitmap() applied", "y");
             }
-            if (!useVersion1Format() && useIntForLocalId() && (fromScratch || Settings.get(internalSettings, "refactorAllPropIndexToBitmap() applied") == null)) {
+            if (!useVersion1Format() && useIntForLocalId() && (fromScratch || Settings.get(internalSettings, "refactorAllPropsIndexToBitmap() applied") == null)) {
                 if (!fromScratch) {
-                    refactorings.refactorAllPropIndexToBitmap();
+                    refactorings.refactorAllPropsIndexToBitmap();
                 }
-                Settings.set(internalSettings, "refactorAllPropIndexToBitmap() applied", "y");
+                Settings.set(internalSettings, "refactorAllPropsIndexToBitmap() applied", "y");
+            }
+            if (!useVersion1Format() && useIntForLocalId() && (fromScratch || Settings.get(internalSettings, "refactorAllLinksIndexToBitmap() applied") == null)) {
+                if (!fromScratch) {
+                    refactorings.refactorAllLinksIndexToBitmap();
+                }
+                Settings.set(internalSettings, "refactorAllLinksIndexToBitmap() applied", "y");
+            }
+            if (!useVersion1Format() && useIntForLocalId() && (fromScratch || Settings.get(internalSettings, "refactorAllBlobsIndexToBitmap() applied") == null)) {
+                if (!fromScratch) {
+                    refactorings.refactorAllBlobsIndexToBitmap();
+                }
+                Settings.set(internalSettings, "refactorAllBlobsIndexToBitmap() applied", "y");
             }
             if (!fromScratch && !useVersion1Format()) {
                 refactorings.refactorDeduplicateInPlaceBlobsPeriodically(internalSettings);
@@ -1104,7 +1116,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return new Pair<>(blobHandle, valueIterator);
     }
 
-    public boolean useIntForLocalId() {
+    private boolean useIntForLocalId() {
         return config.getUseIntForLocalId();
     }
 

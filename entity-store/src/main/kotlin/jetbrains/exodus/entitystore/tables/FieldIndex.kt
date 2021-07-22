@@ -55,14 +55,12 @@ private class StoreFieldIndex(txn: PersistentStoreTransaction, name: String) : F
     private val theIndex: Store
 
     init {
-        txn.store.environment.let { env ->
-            txn.environmentTransaction.let { envTxn ->
-                theIndex = env.openStore(
-                    name + Table.ALL_IDX,
-                    StoreConfig.WITH_DUPLICATES_WITH_PREFIXING,
-                    envTxn
-                )
-            }
+        txn.environmentTransaction.let { envTxn ->
+            theIndex = envTxn.environment.openStore(
+                name + Table.ALL_IDX,
+                StoreConfig.WITH_DUPLICATES_WITH_PREFIXING,
+                envTxn
+            )
         }
     }
 
@@ -103,14 +101,12 @@ private class BitmapFieldIndex(txn: PersistentStoreTransaction, name: String) : 
     private val theIndex: BitmapImpl
 
     init {
-        txn.store.environment.let { env ->
-            txn.environmentTransaction.let { envTxn ->
-                theIndex = env.openBitmap(
-                    name + Table.ALL_IDX,
-                    StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING,
-                    envTxn
-                ) as BitmapImpl
-            }
+        txn.environmentTransaction.let { envTxn ->
+            theIndex = envTxn.environment.openBitmap(
+                name + Table.ALL_IDX,
+                StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING,
+                envTxn
+            ) as BitmapImpl
         }
     }
 
