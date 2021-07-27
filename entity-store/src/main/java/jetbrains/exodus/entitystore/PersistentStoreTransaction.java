@@ -327,6 +327,13 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     public EntityIterable find(@NotNull final String entityType,
                                @NotNull final String propertyName,
                                @NotNull final Comparable value) {
+        if (value instanceof Boolean) {
+            final EntityIterableBase withProp = findWithProp(entityType, propertyName);
+            if ((Boolean) value) {
+                return withProp;
+            }
+            return getAll(entityType).minus(withProp);
+        }
         return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
             new PropertyValueIterable(this, entityTypeId, propertyId, value));
     }
@@ -335,6 +342,20 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     @NotNull
     public EntityIterable find(@NotNull final String entityType, @NotNull final String propertyName,
                                @NotNull final Comparable minValue, @NotNull final Comparable maxValue) {
+        if (minValue instanceof Boolean) {
+            final boolean min = (Boolean) minValue;
+            final boolean max = (Boolean) maxValue;
+            if (min == max) {
+                if (min) {
+                    return findWithProp(entityType, propertyName);
+                }
+            } else {
+                if (max) {
+                    return getAll(entityType);
+                }
+            }
+            return EntityIterableBase.EMPTY;
+        }
         return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
             new PropertyRangeIterable(this, entityTypeId, propertyId, minValue, maxValue));
     }
