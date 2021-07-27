@@ -22,12 +22,13 @@ import jetbrains.exodus.env.TransactionBase
 internal class ComputeUtilizationFromScratchJob(gc: GarbageCollector) : GcJob(gc) {
 
     override fun doJob() {
-        GarbageCollector.loggingInfo { "Started calculation of log utilization from scratch" }
+        val gc = this.gc ?: return
+        val usedSpace = LongHashMap<Long>()
+        val env = gc.environment
+        val location = env.location
+        GarbageCollector.loggingInfo { "Started calculation of log utilization from scratch at $location" }
         try {
-            val gc = this.gc ?: return
             val up = gc.utilizationProfile
-            val usedSpace = LongHashMap<Long>()
-            val env = gc.environment
             var goon = true
             while (goon) {
                 env.executeInReadonlyTransaction { txn ->
@@ -63,7 +64,7 @@ internal class ComputeUtilizationFromScratchJob(gc: GarbageCollector) : GcJob(gc
                 up.estimateTotalBytesAndWakeGcIfNecessary()
             }
         } finally {
-            GarbageCollector.loggingInfo { "Finished calculation of log utilization from scratch" }
+            GarbageCollector.loggingInfo { "Finished calculation of log utilization from scratch at $location" }
         }
     }
 }
