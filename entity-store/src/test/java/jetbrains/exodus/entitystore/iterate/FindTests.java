@@ -674,4 +674,15 @@ public class FindTests extends EntityStoreTestBase {
 
         issue.setProperty("commenters", set);
     }
+
+    @TestFor(issue = "XD-845")
+    public void testSearchByFalse() {
+        final PersistentStoreTransaction txn = getStoreTransactionSafe();
+        final Entity deletedIssue = txn.newEntity("Issue");
+        deletedIssue.setProperty("deleted", true);
+        final Entity notDeletedIssue = txn.newEntity("Issue");
+        notDeletedIssue.setProperty("deleted", false);
+        Assert.assertEquals(1L, txn.findWithPropSortedByValue("Issue", "deleted").size());
+        Assert.assertEquals(1L, txn.getAll("Issue").minus(txn.findWithProp("Issue", "deleted")).size());
+    }
 }

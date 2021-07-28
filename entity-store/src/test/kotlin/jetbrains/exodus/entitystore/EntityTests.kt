@@ -242,8 +242,7 @@ class EntityTests : EntityStoreTestBase() {
         Assert.assertNotNull(sameEntity)
         Assert.assertEquals(entity.type, sameEntity.type)
         Assert.assertEquals(entity.id, sameEntity.id)
-        Assert.assertNotNull(entity.getProperty("ready"))
-        Assert.assertEquals(false, entity.getProperty("ready"))
+        Assert.assertNull(entity.getProperty("ready"))
     }
 
     fun testHeterogeneousProperties() {

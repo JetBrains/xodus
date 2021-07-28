@@ -835,7 +835,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                                @NotNull final PersistentEntity entity,
                                @NotNull final String propertyName,
                                @NotNull final Comparable value) {
-        if (value instanceof ComparableSet && ((ComparableSet) value).isEmpty()) {
+        if ((value instanceof ComparableSet && ((ComparableSet) value).isEmpty()) ||
+            (value instanceof Boolean && value.equals(false))) {
             return deleteProperty(txn, entity, propertyName);
         }
         final PropertyValue propValue = propertyTypes.dataToPropertyValue(value);

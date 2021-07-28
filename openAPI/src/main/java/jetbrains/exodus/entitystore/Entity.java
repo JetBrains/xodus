@@ -113,7 +113,8 @@ public interface Entity extends Comparable<Entity> {
     Comparable getProperty(@NotNull final String propertyName);
 
     /**
-     * Sets property with specified name to specified value.
+     * Sets property with specified name to specified value. If the property value is equal to {@code false},
+     * it is the same as calling {@linkplain #deleteProperty(String)}.
      *
      * @param propertyName name of the property
      * @param value        property value
