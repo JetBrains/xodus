@@ -311,12 +311,13 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             if (config.getRefactoringDeleteRedundantBlobs()) {
                 refactorings.refactorDeleteRedundantBlobs();
             }
-            if (fromScratch || Settings.get(internalSettings, "Null-indices present 2") == null || config.getRefactoringNullIndices()) {
+            if (fromScratch || Settings.get(internalSettings, "Null-indices present 3") == null || config.getRefactoringNullIndices()) {
                 if (!fromScratch) {
                     Settings.delete(internalSettings, "Null-indices present"); // don't waste space
+                    Settings.delete(internalSettings, "Null-indices present 2"); // don't waste space
                     refactorings.refactorCreateNullPropertyIndices();
                 }
-                Settings.set(internalSettings, "Null-indices present 2", "yes");
+                Settings.set(internalSettings, "Null-indices present 3", "yes");
             }
             if (fromScratch || Settings.get(internalSettings, "Blobs' null-indices present") == null || config.getRefactoringBlobNullIndices()) {
                 if (!fromScratch) {

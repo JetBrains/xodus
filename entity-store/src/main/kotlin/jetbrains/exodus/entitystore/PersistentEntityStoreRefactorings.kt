@@ -66,7 +66,12 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                 val envTxn = txn.environmentTransaction
                 while (cursor.next) {
                     val propertyKey = PropertyKey.entryToPropertyKey(cursor.key)
-                    allPropsIndex.put(envTxn, propertyKey.propertyId, propertyKey.entityLocalId)
+                    val data = store.propertyTypes.entryToPropertyValue(cursor.value).data
+                    if (data !is Boolean || data == true) {
+                        allPropsIndex.put(envTxn, propertyKey.propertyId, propertyKey.entityLocalId)
+                    } else {
+                        allPropsIndex.remove(envTxn, propertyKey.propertyId, propertyKey.entityLocalId)
+                    }
                 }
             }
         }
