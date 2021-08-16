@@ -20,6 +20,7 @@ import jetbrains.exodus.entitystore.EntityIterableType
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.iterate.*
+import jetbrains.exodus.kotlin.notNull
 
 class IntersectionIterable @JvmOverloads constructor(txn: PersistentStoreTransaction?,
                                                      iterable1: EntityIterableBase,
@@ -108,7 +109,7 @@ class IntersectionIterable @JvmOverloads constructor(txn: PersistentStoreTransac
                     if (e1 !== e2 && (e1 == null || e2 == null)) {
                         continue
                     }
-                    val cmp = if (e1 === e2) 0 else e1!!.compareTo(e2!!)
+                    val cmp = if (e1 === e2) 0 else e1.notNull.compareTo(e2.notNull)
                     if (cmp < 0) {
                         e1 = null
                     } else if (cmp > 0) {

@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.core.dataStructures.persistent
 
+import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.util.Random
 import org.junit.Assert
 import org.junit.Test
@@ -246,20 +247,20 @@ open class PersistentBitTreeLongSetTest {
         for (i in p.indices) {
             if (i and 15 == 0) {
                 if (i > 0) {
-                    set!!.endWrite()
+                    set?.endWrite()
                     Assert.assertEquals(i.toLong(), source.beginRead().size().toLong())
                 }
                 set = source.beginWrite()
             }
-            Assert.assertEquals(i.toLong(), set!!.size().toLong())
-            set.add(p[i])
-            Assert.assertEquals((i + 1).toLong(), set.size().toLong())
+            Assert.assertEquals(i.toLong(), set.notNull.size().toLong())
+            set.notNull.add(p[i])
+            Assert.assertEquals((i + 1).toLong(), set.notNull.size().toLong())
             for (j in 0..2) {
-                set.add(p[random.nextInt(i + 1)])
-                Assert.assertEquals((i + 1).toLong(), set.size().toLong())
+                set.notNull.add(p[random.nextInt(i + 1)])
+                Assert.assertEquals((i + 1).toLong(), set.notNull.size().toLong())
             }
         }
-        set!!.endWrite()
+        set?.endWrite()
         Assert.assertEquals(p.size.toLong(), source.beginRead().size().toLong())
 
         p = genPermutation(random, p.size)
@@ -267,20 +268,20 @@ open class PersistentBitTreeLongSetTest {
         for (i in p.indices) {
             if (i and 15 == 0) {
                 if (i > 0) {
-                    set!!.endWrite()
+                    set?.endWrite()
                     Assert.assertEquals((p.size - i).toLong(), source.beginRead().size().toLong())
                 }
                 set = source.beginWrite()
             }
-            Assert.assertEquals((p.size - i).toLong(), set!!.size().toLong())
-            set.remove(p[i])
-            Assert.assertEquals((p.size - i - 1).toLong(), set.size().toLong())
+            Assert.assertEquals((p.size - i).toLong(), set.notNull.size().toLong())
+            set.notNull.remove(p[i])
+            Assert.assertEquals((p.size - i - 1).toLong(), set.notNull.size().toLong())
             for (j in 0..2) {
-                set.remove(p[random.nextInt(i + 1)])
-                Assert.assertEquals((p.size - i - 1).toLong(), set.size().toLong())
+                set.notNull.remove(p[random.nextInt(i + 1)])
+                Assert.assertEquals((p.size - i - 1).toLong(), set.notNull.size().toLong())
             }
         }
-        set!!.endWrite()
+        set?.endWrite()
         Assert.assertEquals(0, source.beginRead().size().toLong())
     }
 
@@ -300,7 +301,7 @@ open class PersistentBitTreeLongSetTest {
 
     companion object {
 
-        private val ENTRIES_TO_ADD = 5000
+        private const val ENTRIES_TO_ADD = 5000
 
         private fun checkInsertRemove(random: Random, set: PersistentLongSet, count: Int) {
             val write = set.beginWrite()

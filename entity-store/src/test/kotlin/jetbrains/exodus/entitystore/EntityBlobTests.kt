@@ -130,9 +130,9 @@ class EntityBlobTests : EntityStoreTestBase() {
         val issue = txn.newEntity("Issue")
         issue.setBlobString("blank", builder.toString())
         txn.flush()
-        val blank = issue.getBlobString("blank")
+        val blank = issue.getBlobString("blank").notNull
         for (i in 0 until blobStringSize) {
-            Assert.assertEquals(' '.toLong(), blank!![i].toLong())
+            Assert.assertEquals(' '.toLong(), blank[i].toLong())
         }
     }
 

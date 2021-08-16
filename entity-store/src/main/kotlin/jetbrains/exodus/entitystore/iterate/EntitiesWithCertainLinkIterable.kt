@@ -17,11 +17,10 @@ package jetbrains.exodus.entitystore.iterate
 
 import jetbrains.exodus.core.dataStructures.LongArrayList
 import jetbrains.exodus.entitystore.*
-import jetbrains.exodus.entitystore.iterate.EntityIterableBase.registerType
 import jetbrains.exodus.entitystore.iterate.cached.SingleTypeUnsortedEntityIdArrayCachedInstanceIterable
 import jetbrains.exodus.entitystore.tables.LinkValue
 import jetbrains.exodus.entitystore.tables.PropertyKey
-import java.util.*
+import jetbrains.exodus.kotlin.notNull
 
 /**
  * Iterates over entities of specified entity type having specified link to a targetId.
@@ -75,7 +74,7 @@ internal class EntitiesWithCertainLinkIterable(txn: PersistentStoreTransaction,
         var min = java.lang.Long.MAX_VALUE
         var max = java.lang.Long.MIN_VALUE
         while (it.hasNext()) {
-            val localId = it.nextId()!!.localId
+            val localId = it.nextId().notNull.localId
             localIds.add(localId)
             targets.add(it.targetId)
             if (min > localId) {

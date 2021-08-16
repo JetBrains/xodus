@@ -18,6 +18,7 @@ package jetbrains.exodus.entitystore
 import jetbrains.exodus.TestFor
 import jetbrains.exodus.TestUtil
 import jetbrains.exodus.backup.BackupStrategy
+import jetbrains.exodus.kotlin.notNull
 import org.junit.Assert
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -36,14 +37,14 @@ class BlobVaultTests : EntityStoreTestBase() {
         val blobVault = store.blobVault.sourceVault as FileSystemBlobVaultOld
         Assert.assertEquals("blobs/2/0.blob", blobVault.getBlobKey(512))
         val vaultLocation = blobVault.vaultLocation
-        Assert.assertEquals(257, vaultLocation.listFiles()!!.size.toLong()) // + "version" file
-        Assert.assertEquals(256, vaultLocation.listFiles { _, name -> name.endsWith(PersistentEntityStoreImpl.BLOBS_EXTENSION) }!!.size.toLong())
+        Assert.assertEquals(257, vaultLocation.listFiles().notNull.size.toLong()) // + "version" file
+        Assert.assertEquals(256, vaultLocation.listFiles { _, name -> name.endsWith(PersistentEntityStoreImpl.BLOBS_EXTENSION) }.notNull.size.toLong())
         for (i in 0..255) {
             txn.newEntity("E").setBlob("b", ByteArrayInputStream("content".toByteArray()))
         }
         Assert.assertTrue(txn.flush())
-        Assert.assertEquals(258, vaultLocation.listFiles()!!.size.toLong())
-        Assert.assertEquals(256, vaultLocation.listFiles { _, name -> name.endsWith(PersistentEntityStoreImpl.BLOBS_EXTENSION) }!!.size.toLong())
+        Assert.assertEquals(258, vaultLocation.listFiles().notNull.size.toLong())
+        Assert.assertEquals(256, vaultLocation.listFiles { _, name -> name.endsWith(PersistentEntityStoreImpl.BLOBS_EXTENSION) }.notNull.size.toLong())
     }
 
     fun testHandleToFileAndFileToHandle() {

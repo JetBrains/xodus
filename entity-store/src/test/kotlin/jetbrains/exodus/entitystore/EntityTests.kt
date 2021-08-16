@@ -22,6 +22,7 @@ import jetbrains.exodus.bindings.ComparableSet
 import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.env.Environments
 import jetbrains.exodus.env.newEnvironmentConfig
+import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.log.TooBigLoggableException
 import jetbrains.exodus.util.ByteArraySizedInputStream
 import jetbrains.exodus.util.DeferredIO
@@ -136,7 +137,7 @@ class EntityTests : EntityStoreTestBase() {
         Assert.assertEquals(entity.id, sameEntity.id)
         var rawValue = entity.getRawProperty("description")
         Assert.assertNotNull(rawValue)
-        Assert.assertEquals("it doesn't work", entityStore.propertyTypes.entryToPropertyValue(rawValue!!).data)
+        Assert.assertEquals("it doesn't work", entityStore.propertyTypes.entryToPropertyValue(rawValue.notNull).data)
         entity.setProperty("description", "it works")
         txn.flush()
         sameEntity = txn.getEntity(entity.id)
@@ -145,7 +146,7 @@ class EntityTests : EntityStoreTestBase() {
         Assert.assertEquals(entity.id, sameEntity.id)
         rawValue = entity.getRawProperty("description")
         Assert.assertNotNull(rawValue)
-        Assert.assertEquals("it works", entityStore.propertyTypes.entryToPropertyValue(rawValue!!).data)
+        Assert.assertEquals("it works", entityStore.propertyTypes.entryToPropertyValue(rawValue.notNull).data)
     }
 
     fun testIntProperty() {
@@ -222,7 +223,7 @@ class EntityTests : EntityStoreTestBase() {
         val dateProp = entity.getProperty("date")
         Assert.assertNotNull(dateProp)
         Assert.assertEquals(date.time, dateProp)
-        Assert.assertTrue(Date().time >= (dateProp as Long?)!!)
+        Assert.assertTrue(Date().time >= dateProp as Long)
     }
 
     fun testBooleanProperty() {
@@ -235,7 +236,7 @@ class EntityTests : EntityStoreTestBase() {
         Assert.assertNotNull(sameEntity)
         Assert.assertEquals(entity.type, sameEntity.type)
         Assert.assertEquals(entity.id, sameEntity.id)
-        Assert.assertTrue((entity.getProperty("ready") as Boolean?)!!)
+        Assert.assertTrue(entity.getProperty("ready") as Boolean)
         entity.setProperty("ready", false)
         txn.flush()
         sameEntity = txn.getEntity(entity.id)

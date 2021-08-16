@@ -24,6 +24,7 @@ import jetbrains.exodus.entitystore.tables.LinkValue
 import jetbrains.exodus.entitystore.tables.PropertyKey
 import jetbrains.exodus.entitystore.util.EntityIdSetFactory
 import jetbrains.exodus.env.Cursor
+import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.util.LightOutputStream
 import java.util.*
 
@@ -124,7 +125,7 @@ class SelectManyIterable(txn: PersistentStoreTransaction,
                         }
                     } else {
                         while (true) {
-                            val linkValue = LinkValue.entryToLinkValue(value!!)
+                            val linkValue = LinkValue.entryToLinkValue(value.notNull)
                             val nextId = linkValue.entityId
                             if (!usedIds.contains(nextId)) {
                                 usedIds = usedIds.add(nextId)

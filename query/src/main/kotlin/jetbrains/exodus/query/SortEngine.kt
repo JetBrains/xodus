@@ -19,10 +19,10 @@ import jetbrains.exodus.ExodusException
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.iterate.EntitiesOfTypeIterable
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
+import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.query.metadata.AssociationType
 import jetbrains.exodus.query.metadata.EntityMetaData
 import jetbrains.exodus.query.metadata.ModelMetaData
-import java.util.*
 
 open class SortEngine {
 
@@ -109,7 +109,7 @@ open class SortEngine {
                         }
                         if (sourceCount > MAX_ENTRIES_TO_SORT_IN_MEMORY || enumCount <= MAX_ENUM_COUNT_TO_SORT_LINKS) {
                             val linksGetter = propertyGetter(propName, isReadOnlyTxn)
-                            val distinctSortedLinks = mergeSorted(mmd.getEntityMetaData(enumType)!!, object : IterableGetter {
+                            val distinctSortedLinks = mergeSorted(mmd.getEntityMetaData(enumType).notNull, object : IterableGetter {
                                 override fun getIterable(type: String): EntityIterableBase {
                                     queryEngine.assertOperational()
                                     return txn.sort(type, propName, distinctLinks, asc) as EntityIterableBase

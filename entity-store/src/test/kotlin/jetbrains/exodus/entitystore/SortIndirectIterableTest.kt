@@ -41,7 +41,7 @@ class SortIndirectIterableTest : EntityStoreTestBase() {
         txn.flush()
 
         // Sort one issue with link by the link.
-        val singleNotNullIterable = SingleEntityIterable(txn, issue.getLink(LINK_NAME)!!.id)
+        val singleNotNullIterable = SingleEntityIterable(txn, issue.getLink(LINK_NAME)?.id)
         checkSortedCount(txn, singleNotNullIterable, 1)
 
         // Create another Issue entity with no links.

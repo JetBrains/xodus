@@ -16,6 +16,7 @@
 package jetbrains.exodus.query
 
 import jetbrains.exodus.entitystore.Selector
+import jetbrains.exodus.kotlin.notNull
 import java.util.*
 
 private val noQueue = arrayOf<Any?>()
@@ -117,7 +118,7 @@ class PriorityMap<E>(initialCapacity: Int, private val comparator: Comparator<Co
         val v = data[s]
         data[s] = null
         if (s != 0) {
-            down(0, x, v!!)
+            down(0, x, v.notNull)
         }
         return result
     }
@@ -164,38 +165,6 @@ class PriorityMap<E>(initialCapacity: Int, private val comparator: Comparator<Co
         data[k] = v
     }
 
-    /*@Suppress("UNCHECKED_CAST")
-    private fun removeAt(i: Int): E? {
-        modCount++
-        val s = --size
-        if (s == i) {
-            queue[i] = null
-            data[i] = null
-        } else {
-            val moved = queue[s] as E
-            queue[s] = null
-            val v = data[s]
-            down(i, moved, v!!)
-            if (queue[i] === moved) {
-                up(i, moved, v)
-                if (queue[i] !== moved) {
-                    return moved
-                }
-            }
-        }
-        return null
-    }
-
-    private fun removeEq(o: Any): Boolean {
-        for (i in 0 until size) {
-            if (o === queue[i]) {
-                removeAt(i)
-                return true
-            }
-        }
-        return false
-    }*/
-
     private inner class Itr : MutableIterator<E> {
         private var cursor = 0
         private var lastRet = -1
@@ -204,7 +173,7 @@ class PriorityMap<E>(initialCapacity: Int, private val comparator: Comparator<Co
         private var expectedModCount = modCount
 
         override fun hasNext(): Boolean {
-            return cursor < size || forgetMeNot != null && !forgetMeNot!!.isEmpty()
+            return cursor < size || !forgetMeNot.isNullOrEmpty()
         }
 
         @Suppress("UNCHECKED_CAST")
@@ -219,7 +188,7 @@ class PriorityMap<E>(initialCapacity: Int, private val comparator: Comparator<Co
             }
             if (forgetMeNot != null) {
                 lastRet = -1
-                lastRetElt = forgetMeNot!!.poll()
+                lastRetElt = forgetMeNot?.poll()
                 lastRetElt?.let { return it }
             }
             throw NoSuchElementException()
@@ -227,27 +196,6 @@ class PriorityMap<E>(initialCapacity: Int, private val comparator: Comparator<Co
 
         override fun remove() {
             TODO()
-            /* if (expectedModCount != modCount) {
-                 throw ConcurrentModificationException()
-             }
-             if (lastRet != -1) {
-                 val moved = removeAt(lastRet)
-                 lastRet = -1
-                 if (moved == null) {
-                     cursor--
-                 } else {
-                     if (forgetMeNot == null) {
-                         forgetMeNot = ArrayDeque()
-                     }
-                     forgetMeNot!!.add(moved)
-                 }
-             } else {
-                 lastRetElt?.let {
-                     removeEq(it)
-                     lastRetElt = null
-                 } ?: throw IllegalStateException()
-             }
-             expectedModCount = modCount*/
         }
     }
 }

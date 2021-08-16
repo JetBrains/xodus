@@ -25,7 +25,7 @@ import java.io.IOException
 
 class FileByteIterableTest {
 
-    private var file: File? = null
+    private lateinit var file: File
 
     @Before
     @Throws(Exception::class)
@@ -36,8 +36,8 @@ class FileByteIterableTest {
     @After
     @Throws(Exception::class)
     fun tearDown() {
-        if (file!!.delete()) {
-            val dir = file!!.parentFile
+        if (file.delete()) {
+            val dir = file.parentFile
             if (!dir.delete()) {
                 dir.deleteOnExit()
             }
@@ -47,23 +47,26 @@ class FileByteIterableTest {
     @Test
     @Throws(IOException::class)
     fun testEmptyIterable() {
-        val it = FileByteIterable(file!!)
+        val it = FileByteIterable(file)
         Assert.assertEquals(0, compare(it.iterator(), ByteIterable.EMPTY_ITERATOR).toLong())
     }
 
     @Test
     @Throws(IOException::class)
     fun testSingleIterable() {
-        FileOutputStream(file!!).use { output -> output.write(MANDELSTAM.toByteArray(charset("UTF-8"))) }
-        val it = FileByteIterable(file!!)
-        Assert.assertEquals(0, compare(it.iterator(), ArrayByteIterable(MANDELSTAM.toByteArray(charset("UTF-8"))).iterator()).toLong())
+        FileOutputStream(file).use { output -> output.write(MANDELSTAM.toByteArray(charset("UTF-8"))) }
+        val it = FileByteIterable(file)
+        Assert.assertEquals(
+            0,
+            compare(it.iterator(), ArrayByteIterable(MANDELSTAM.toByteArray(charset("UTF-8"))).iterator()).toLong()
+        )
     }
 
     @Test
     @Throws(IOException::class)
     fun testMultipleIterables() {
         val count = 10
-        FileOutputStream(file!!).use { output ->
+        FileOutputStream(file).use { output ->
             for (i in 0 until count) {
                 output.write(MANDELSTAM.toByteArray(charset("UTF-8")))
             }
@@ -73,7 +76,13 @@ class FileByteIterableTest {
         var i = 0
         var offset = 0
         while (i < count) {
-            Assert.assertEquals(0, compare(FileByteIterable(file!!, offset.toLong(), length).iterator(), ArrayByteIterable(sampleBytes).iterator()).toLong())
+            Assert.assertEquals(
+                0,
+                compare(
+                    FileByteIterable(file, offset.toLong(), length).iterator(),
+                    ArrayByteIterable(sampleBytes).iterator()
+                ).toLong()
+            )
             ++i
             offset += length
         }
@@ -100,9 +109,9 @@ class FileByteIterableTest {
     }
 }
 
-private val MANDELSTAM = """"�? не ограблен я, и не надломлен,
+private val MANDELSTAM = """"И не ограблен я, и не надломлен,
                         "Но только что всего переогромлен.
                         "Как «Слово о Полку», струна моя туга,
-                        "�? в голосе моем после удушья
+                        "И в голосе моем после удушья
                         "Звучит земля — последнее оружье —
                         "Сухая влажность черноземных га...""".trimIndent()

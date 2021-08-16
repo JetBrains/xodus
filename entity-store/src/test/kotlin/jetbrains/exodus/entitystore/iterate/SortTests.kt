@@ -19,6 +19,7 @@ import jetbrains.exodus.TestFor
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.EntityStoreTestBase
+import jetbrains.exodus.kotlin.notNull
 import org.junit.Assert
 
 class SortTests : EntityStoreTestBase() {
@@ -320,9 +321,9 @@ class SortTests : EntityStoreTestBase() {
         val start = System.currentTimeMillis()
         val unsorted = txn.findWithProp("Issue", "hasComment")
         val sorted = txn.sort("Issue", "body", unsorted, true)
-        Assert.assertEquals("9", sorted.last!!.getProperty("body"))
-        Assert.assertEquals("0", sorted.first!!.getProperty("body"))
-        Assert.assertEquals("0", txn.sort("Issue", "no prop", sorted, true).first!!.getProperty("body"))
+        Assert.assertEquals("9", sorted.last?.getProperty("body"))
+        Assert.assertEquals("0", sorted.first?.getProperty("body"))
+        Assert.assertEquals("0", txn.sort("Issue", "no prop", sorted, true).first?.getProperty("body"))
         println("Sorting took " + (System.currentTimeMillis() - start))
     }
 
@@ -349,11 +350,11 @@ class SortTests : EntityStoreTestBase() {
         val unsorted = txn.findWithProp("Issue", "hasComment")
         var sorted: EntityIterable
         sorted = txn.sort("Issue", "body", unsorted, true)
-        Assert.assertNull(sorted.last!!.getProperty("body"))
-        Assert.assertEquals(0, sorted.first!!.getProperty("body"))
-        Assert.assertEquals(0, txn.sort("Issue", "no prop", sorted, true).first!!.getProperty("body"))
+        Assert.assertNull(sorted.last?.getProperty("body"))
+        Assert.assertEquals(0, sorted.first?.getProperty("body"))
+        Assert.assertEquals(0, txn.sort("Issue", "no prop", sorted, true).first?.getProperty("body"))
         sorted = txn.sort("Issue", "body", unsorted, false)
-        Assert.assertNotNull(sorted.first!!.getProperty("body"))
+        Assert.assertNotNull(sorted.first?.getProperty("body"))
         println("Sorting took " + (System.currentTimeMillis() - start))
     }
 
@@ -449,12 +450,12 @@ class SortTests : EntityStoreTestBase() {
                 val str1 = last.getProperty("body")
                 val str2 = issue.getProperty("body") as String?
                 if (str1 != null && str2 != null) {
-                    val bodycmp = str1.compareTo(str2)
-                    Assert.assertTrue(bodycmp <= 0)
+                    val bodyCmp = str1.compareTo(str2)
+                    Assert.assertTrue(bodyCmp <= 0)
                     val intProp = last.getProperty("size")
                     Assert.assertNotNull(intProp)
-                    val sizecmp = intProp!!.compareTo((issue.getProperty("size") as Int?)!!)
-                    if (stable && bodycmp == 0) {
+                    val sizecmp = intProp.notNull.compareTo(issue.getProperty("size") as Int)
+                    if (stable && bodyCmp == 0) {
                         Assert.assertEquals(asc, sizecmp < 0)
                     }
                 }

@@ -22,6 +22,7 @@ import jetbrains.exodus.backup.VirtualFileDescriptor
 import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.core.execution.JobProcessorExceptionHandler
 import jetbrains.exodus.core.execution.ThreadJobProcessor
+import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.util.CompressBackupUtil
 import jetbrains.exodus.util.IOUtil
 import jetbrains.exodus.util.Random
@@ -45,7 +46,7 @@ class BackupTests : EntityStoreTestBase() {
         store.executeInTransaction { txn ->
             val issue = txn.newEntity("Issue")
             randomDescription[0] = Math.random().toString()
-            issue.setBlobString("description", randomDescription[0]!!)
+            issue.setBlobString("description", randomDescription[0].notNull)
         }
         val backupDir = TestUtil.createTempDir()
         try {
@@ -59,7 +60,7 @@ class BackupTests : EntityStoreTestBase() {
                         assertEquals(1, txn.getAll("Issue").size())
                         val issue = txn.getAll("Issue").first
                         assertNotNull(issue)
-                        assertEquals(randomDescription[0], issue!!.getBlobString("description"))
+                        assertEquals(randomDescription[0], issue?.getBlobString("description"))
                     }
                 }
             } finally {
@@ -144,7 +145,7 @@ class BackupTests : EntityStoreTestBase() {
                             store.executeInTransaction { txn ->
                                 val issue = txn.getAll("Issue").skip(rnd.nextInt(issueCount - 1)).first
                                 TestCase.assertNotNull(issue)
-                                issue!!.setBlobString("description", Math.random().toString())
+                                issue?.setBlobString("description", Math.random().toString())
                                 print("\r" + ++backgroundChanges[0])
                             }
                         }
@@ -170,7 +171,7 @@ class BackupTests : EntityStoreTestBase() {
                         for (issue in txn.getAll("Issue")) {
                             val description = issue.getBlobString("description")
                             TestCase.assertNotNull(description)
-                            TestCase.assertFalse(description!!.isEmpty())
+                            TestCase.assertFalse(description.isNullOrEmpty())
                         }
                     }
                     val blobVault = newStore.blobVault.sourceVault as FileSystemBlobVault

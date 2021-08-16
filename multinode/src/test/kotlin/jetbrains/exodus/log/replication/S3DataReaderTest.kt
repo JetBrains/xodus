@@ -201,9 +201,9 @@ class S3DataReaderTest {
         with(newReader()) {
             writer.truncateBlock(LOG_BLOCK_ALIGNMENT.toLong(), 100)
 
-            s3Objects.let {
-                assertNotNull(it)
-                assertEquals(3, it!!.size)
+            assertNotNull(s3Objects)
+            s3Objects?.let {
+                assertEquals(3, it.size)
                 with(it.first { it.key() == file0 }) {
                     assertEquals(LOG_BLOCK_ALIGNMENT, size().toInt())
                 }
@@ -212,7 +212,7 @@ class S3DataReaderTest {
                     assertEquals(100, size().toInt())
                 }
 
-                with(it.first { it.key() == file2!! }) {
+                with(it.first { it.key() == file2 }) {
                     assertEquals(100, size().toInt())
                 }
             }
