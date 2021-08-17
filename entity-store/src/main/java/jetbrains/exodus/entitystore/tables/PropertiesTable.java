@@ -201,11 +201,12 @@ public final class PropertiesTable extends Table {
                     // repeat for debugging
                     cursor.getSearchBoth(key, value);
                     result = false;
-                }
-                if (!cursor.deleteCurrent()) {
-                    // repeat for debugging
-                    cursor.deleteCurrent();
-                    result = false;
+                } else {
+                    if (!cursor.deleteCurrent()) {
+                        // repeat for debugging
+                        cursor.deleteCurrent();
+                        result = false;
+                    }
                 }
             }
             return result;

@@ -82,8 +82,7 @@ private class StoreFieldIndex(txn: PersistentStoreTransaction, name: String) : F
                 // repeat for debugging
                 cursor.getSearchBoth(key, value)
                 result = false
-            }
-            if (!cursor.deleteCurrent()) {
+            } else if (!cursor.deleteCurrent()) {
                 // repeat for debugging
                 cursor.deleteCurrent()
                 result = false
