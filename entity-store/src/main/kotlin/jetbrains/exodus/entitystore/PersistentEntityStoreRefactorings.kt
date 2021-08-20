@@ -871,26 +871,20 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
         }
     }
 
-    private fun safeExecuteRefactoringForEachEntityType(
-        message: String,
-        executable: (String, PersistentStoreTransaction) -> Unit
-    ) {
-        store.executeInReadonlyTransaction { txn ->
-            for (entityType in store.getEntityTypes(txn as PersistentStoreTransaction)) {
-                logInfo("$message for [$entityType]")
-                safeExecuteRefactoringForEntityType(entityType,
-                    StoreTransactionalExecutable { txn ->
-                        executable(entityType, txn as PersistentStoreTransaction)
-                    }
-                )
+    private fun safeExecuteRefactoringForEachEntityType(message: String,
+                                                        executable: (String, PersistentStoreTransaction) -> Unit) {
+        val entityTypes = store.computeInReadonlyTransaction { txn ->
+            store.getEntityTypes(txn as PersistentStoreTransaction)
+        }
+        for (entityType in entityTypes) {
+            logInfo("$message for [$entityType]")
+            safeExecuteRefactoringForEntityType(entityType) { txn ->
+                executable(entityType, txn as PersistentStoreTransaction)
             }
         }
     }
 
-    private fun safeExecuteRefactoringForEntityType(
-        entityType: String,
-        executable: StoreTransactionalExecutable
-    ) {
+    private fun safeExecuteRefactoringForEntityType(entityType: String, executable: StoreTransactionalExecutable) {
         try {
             store.executeInTransaction(executable)
         } catch (t: Throwable) {
@@ -913,10 +907,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
 
     companion object : KLogging() {
 
-        private fun runReadonlyTransactionSafeForEntityType(
-            entityType: String,
-            runnable: Runnable
-        ) {
+        private fun runReadonlyTransactionSafeForEntityType(entityType: String,runnable: Runnable) {
             try {
                 runnable.run()
             } catch (ignore: ReadonlyTransactionException) {
