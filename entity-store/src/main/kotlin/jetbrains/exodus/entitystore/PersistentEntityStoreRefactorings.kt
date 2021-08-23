@@ -858,7 +858,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                     val envTxn = txn.environmentTransaction
                     val allPropsIndexBitmap =
                         envTxn.environment.openBitmap(obsoleteName, WITHOUT_DUPLICATES_WITH_PREFIXING, envTxn)
-                    envTxn.environment.openStore(obsoleteName, USE_EXISTING, envTxn).openCursor(envTxn).let { c ->
+                    envTxn.environment.openStore(obsoleteName, USE_EXISTING, envTxn).openCursor(envTxn).use { c ->
                         while (c.next) {
                             val propertyId = IntegerBinding.compressedEntryToInt(c.key)
                             val localId = LongBinding.compressedEntryToLong(c.value)

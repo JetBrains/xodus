@@ -77,7 +77,7 @@ private class StoreFieldIndex(txn: PersistentStoreTransaction, name: String) : F
         var result = true
         val key = IntegerBinding.intToCompressedEntry(fieldId)
         val value = LongBinding.longToCompressedEntry(localId)
-        theIndex.openCursor(envTxn).let { cursor ->
+        theIndex.openCursor(envTxn).use { cursor ->
             if (!cursor.getSearchBoth(key, value)) {
                 // repeat for debugging
                 cursor.getSearchBoth(key, value)
@@ -94,6 +94,8 @@ private class StoreFieldIndex(txn: PersistentStoreTransaction, name: String) : F
     override fun iterable(envTxn: Transaction, fieldId: Int) =
         Iterable { StoreFieldIndexIterator(envTxn, theIndex, fieldId) }
 }
+
+// TODO: iterators should avoid cursor leaks
 
 private class BitmapFieldIndex(txn: PersistentStoreTransaction, name: String) : FieldIndex() {
 
