@@ -1006,7 +1006,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 final ByteIterable value = cursor.getValue();
                 final PropertyValue propValue = propertyTypes.entryToPropertyValue(value);
                 txn.propertyChanged(id, propertyId, propValue.getData(), null);
-                properties.deleteNoFail(txn, entityLocalId, value, propertyId, propValue.getType());
+                properties.delete(txn, entityLocalId, value, propertyId, propValue.getType());
             }
         }
     }

@@ -106,21 +106,13 @@ public final class PropertiesTable extends Table {
                        @NotNull final ByteIterable value,
                        final int propertyId,
                        @NotNull final ComparableValueType type) {
-        checkStatus(deleteNoFail(txn, localId, value, propertyId, type), "Failed to delete");
-    }
-
-    public boolean deleteNoFail(@NotNull final PersistentStoreTransaction txn,
-                                final long localId,
-                                @NotNull final ByteIterable value,
-                                int propertyId,
-                                @NotNull final ComparableValueType type) {
         final ByteIterable key = PropertyKey.propertyKeyToEntry(new PropertyKey(localId, propertyId));
         final Transaction envTxn = txn.getEnvironmentTransaction();
         final ByteIterable secondaryValue = LongBinding.longToCompressedEntry(localId);
-        return primaryStore.delete(envTxn, key) &&
-                deleteFromStore(envTxn, getOrCreateValueIndex(txn, propertyId),
-                        secondaryValue, createSecondaryKeys(store.getPropertyTypes(), value, type)) &&
-                allPropsIndex.remove(envTxn, propertyId, localId);
+        primaryStore.delete(envTxn, key);
+        deleteFromStore(envTxn, getOrCreateValueIndex(txn, propertyId),
+            secondaryValue, createSecondaryKeys(store.getPropertyTypes(), value, type));
+        allPropsIndex.remove(envTxn, propertyId, localId);
     }
 
     public Store getPrimaryIndex() {
