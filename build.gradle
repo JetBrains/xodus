@@ -9,7 +9,7 @@ buildscript {
     ext.nexusPluginVersion = '0.21.2'
     ext.junitVersion = '4.13'
     ext.slf4jVersion = '1.7.30'
-    ext.commonsCompressVersion = '1.20'
+    ext.commonsCompressVersion = '1.21'
 }
 
 plugins {
