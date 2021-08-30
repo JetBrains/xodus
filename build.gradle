@@ -7,7 +7,7 @@ buildscript {
     ext.annotationsVersion = '19.0.0'
     ext.licensePluginVersion = '0.15.0'
     ext.nexusPluginVersion = '0.21.2'
-    ext.junitVersion = '4.13'
+    ext.junitVersion = '4.13.2'
     ext.slf4jVersion = '1.7.30'
     ext.commonsCompressVersion = '1.21'
 }
