@@ -113,13 +113,13 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     public static final String REFACTORING_DELETE_REDUNDANT_BLOBS = "exodus.entityStore.refactoring.deleteRedundantBlobs";
 
     /**
-     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code 30}.
      * <p>Mutable at runtime: no
      */
     public static final String REFACTORING_DEDUPLICATE_BLOBS_EVERY = "exodus.entityStore.refactoring.deduplicateBlobsEvery";
 
     /**
-     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code 10}.
      * <p>Mutable at runtime: no
      */
     public static final String REFACTORING_DEDUPLICATE_BLOBS_MIN_SIZE = "exodus.entityStore.refactoring.deduplicateBlobsMinSize";
