@@ -794,13 +794,15 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                                 val stream = ByteArraySizedInputStream(ByteIterableBase.readIterator(it, size))
                                 val streamHash = stream.hashCode()
                                 inPlaceBlobs[streamHash]?.let { key ->
+                                    // due to snapshot isolation, we can read a value by stored in memory key
+                                    // as many times as we wish even if the value is being changed in nested txns
                                     val testValue = blobs.get(envTxn, key)
-                                    testValue?.iterator()?.let {
+                                    testValue?.iterator()?.let { testIt ->
                                         // skip handle
-                                        LongBinding.readCompressed(it)
+                                        LongBinding.readCompressed(testIt)
                                         // if duplicate
-                                        if (size == CompressedUnsignedLongByteIterable.getLong(it).toInt() && stream ==
-                                            ByteArraySizedInputStream(ByteIterableBase.readIterator(it, size))
+                                        if (size == CompressedUnsignedLongByteIterable.getLong(testIt).toInt() && stream ==
+                                            ByteArraySizedInputStream(ByteIterableBase.readIterator(testIt, size))
                                         ) {
                                             store.executeInExclusiveTransaction { txn ->
                                                 val blobHashes = store.getBlobHashesTable(
