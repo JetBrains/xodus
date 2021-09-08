@@ -139,13 +139,13 @@ private class BitmapFieldIndex(txn: PersistentStoreTransaction, name: String) : 
             }
         }
 
-    private fun toBitIndex(propertyId: Int, localId: Long) = (propertyId.toLong() shl 32) + localId
+    private fun toBitIndex(fieldId: Int, localId: Long) = (fieldId.toLong() shl 32) + localId
 }
 
 private class StoreFieldIndexIterator(
     val txn: Transaction,
     val store: Store,
-    val propertyId: Int
+    val fieldId: Int
 ) : Iterator<Pair<Int, Long>> {
 
     private val cursor: Cursor = store.openCursor(txn)
@@ -153,7 +153,7 @@ private class StoreFieldIndexIterator(
     private var hasNext: Boolean = false
 
     init {
-        hasNext = cursor.getSearchKeyRange(IntegerBinding.intToCompressedEntry(propertyId)) != null
+        hasNext = cursor.getSearchKeyRange(IntegerBinding.intToCompressedEntry(fieldId)) != null
         setNext()
     }
 
