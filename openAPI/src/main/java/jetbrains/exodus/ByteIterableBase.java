@@ -20,6 +20,8 @@ import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Arrays;
+
 /**
  * Base class for most of {@link ByteIterable} implementations.
  */
@@ -169,7 +171,6 @@ public abstract class ByteIterableBase implements ByteIterable {
         }
     }
 
-    @NotNull
     public static byte[] readIterator(@NotNull final ByteIterator it, final int size) {
         if (size == 0) {
             return EMPTY_BYTES;
@@ -179,6 +180,24 @@ public abstract class ByteIterableBase implements ByteIterable {
         }
         final byte[] result = new byte[size];
         for (int i = 0; i < size; i++) {
+            result[i] = it.next();
+        }
+        return result;
+    }
+
+    // same as readIterator() but wuth respect to it.hasNext()
+    public static byte[] readIteratorSafe(@NotNull final ByteIterator it, final int size) {
+        if (size == 0) {
+            return EMPTY_BYTES;
+        }
+        if (size == 1) {
+            return it.hasNext() ? SINGLE_BYTES[(it.next() & 0xff)] : EMPTY_BYTES;
+        }
+        final byte[] result = new byte[size];
+        for (int i = 0; i < size; i++) {
+            if (!it.hasNext()) {
+                return i == 0 ? EMPTY_BYTES : Arrays.copyOf(result, i);
+            }
             result[i] = it.next();
         }
         return result;

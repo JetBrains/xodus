@@ -1148,7 +1148,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 throw new EntityStoreException("No duplicate entry is available to in-place blob reference");
             }
             return new Pair<>(blobHandle,
-                new ByteArraySizedInputStream(ByteIterableBase.readIterator(duplicateEntry.iterator(), size)));
+                new ByteArraySizedInputStream(ByteIterableBase.readIteratorSafe(duplicateEntry.iterator(), size)));
         }
         return new Pair<>(blobHandle, txn.getBlobStream(blobHandle));
     }
