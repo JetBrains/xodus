@@ -65,12 +65,15 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
             store.getPrimaryPropertyIndexCursor(txn, entityTypeId).use { cursor ->
                 val envTxn = txn.environmentTransaction
                 while (cursor.next) {
-                    val propertyKey = PropertyKey.entryToPropertyKey(cursor.key)
-                    val data = store.propertyTypes.entryToPropertyValue(cursor.value).data
+                    val propKey = PropertyKey.entryToPropertyKey(cursor.key)
+                    val propValue = store.propertyTypes.entryToPropertyValue(cursor.value)
+                    val data = propValue.data
+                    val fieldId = propKey.propertyId
+                    val localId = propKey.entityLocalId
                     if (data !is Boolean || data == true) {
-                        allPropsIndex.put(envTxn, propertyKey.propertyId, propertyKey.entityLocalId)
+                        allPropsIndex.put(envTxn, fieldId, localId)
                     } else {
-                        allPropsIndex.remove(envTxn, propertyKey.propertyId, propertyKey.entityLocalId)
+                        props.delete(txn, localId, cursor.value, fieldId, propValue.type)
                     }
                 }
             }
