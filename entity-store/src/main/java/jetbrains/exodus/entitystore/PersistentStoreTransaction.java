@@ -287,7 +287,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     public PersistentEntity getEntity(@NotNull final EntityId id) {
         final int version = store.getLastVersion(this, id);
         if (version < 0) {
-            throw new EntityRemovedInDatabaseException(store.getEntityType(this, id.getTypeId()));
+            throw new EntityRemovedInDatabaseException(store.getEntityType(this, id.getTypeId()), id);
         }
         return new PersistentEntity(store, (PersistentEntityId) id);
     }

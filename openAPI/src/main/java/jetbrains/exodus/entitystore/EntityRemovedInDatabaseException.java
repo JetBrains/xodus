@@ -24,10 +24,17 @@ package jetbrains.exodus.entitystore;
 public class EntityRemovedInDatabaseException extends EntityStoreException {
 
     /**
-     * @param entityType type of an entity that was not found in database
+     * @param entityType type of the entity that was not found in database
      */
     public EntityRemovedInDatabaseException(final String entityType) {
         super(entityType + " was removed.");
     }
 
+    /**
+     * @param entityType type of the entity that was not found in database
+     * @param id         id of the entity that was not found in database
+     */
+    public EntityRemovedInDatabaseException(final String entityType, final EntityId id) {
+        super(entityType + '[' + id + "] was removed.");
+    }
 }
