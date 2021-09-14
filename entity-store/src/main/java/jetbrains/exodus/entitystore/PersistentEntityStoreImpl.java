@@ -311,6 +311,39 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             if (config.getRefactoringDeleteRedundantBlobs()) {
                 refactorings.refactorDeleteRedundantBlobs();
             }
+            if (!useVersion1Format() && (fromScratch || Settings.get(internalSettings, "refactorBlobsForVersion2Format() applied") == null)) {
+                if (!fromScratch) {
+                    refactorings.refactorBlobsToVersion2Format(internalSettings);
+                }
+                Settings.set(internalSettings, "refactorBlobsForVersion2Format() applied", "y");
+            }
+            if (!useVersion1Format() && (fromScratch || Settings.get(internalSettings, "refactorEntitiesTablesToBitmap() applied") == null)) {
+                if (!fromScratch) {
+                    refactorings.refactorEntitiesTablesToBitmap(internalSettings);
+                }
+                Settings.set(internalSettings, "refactorEntitiesTablesToBitmap() applied", "y");
+            }
+            if (!useVersion1Format() && useIntForLocalId() && (fromScratch || Settings.get(internalSettings, "refactorAllPropsIndexToBitmap() applied") == null)) {
+                if (!fromScratch) {
+                    refactorings.refactorAllPropsIndexToBitmap();
+                }
+                Settings.set(internalSettings, "refactorAllPropsIndexToBitmap() applied", "y");
+            }
+            if (!useVersion1Format() && useIntForLocalId() && (fromScratch || Settings.get(internalSettings, "refactorAllLinksIndexToBitmap() applied") == null)) {
+                if (!fromScratch) {
+                    refactorings.refactorAllLinksIndexToBitmap();
+                }
+                Settings.set(internalSettings, "refactorAllLinksIndexToBitmap() applied", "y");
+            }
+            if (!useVersion1Format() && useIntForLocalId() && (fromScratch || Settings.get(internalSettings, "refactorAllBlobsIndexToBitmap() applied") == null)) {
+                if (!fromScratch) {
+                    refactorings.refactorAllBlobsIndexToBitmap();
+                }
+                Settings.set(internalSettings, "refactorAllBlobsIndexToBitmap() applied", "y");
+            }
+            if (!fromScratch && !useVersion1Format()) {
+                refactorings.refactorDeduplicateInPlaceBlobsPeriodically(internalSettings);
+            }
             if (fromScratch || Settings.get(internalSettings, "Null-indices refactored") == null || config.getRefactoringNullIndices()) {
                 if (!fromScratch) {
                     Settings.delete(internalSettings, "Null-indices present"); // don't waste space
@@ -349,39 +382,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     refactorings.refactorFixNegativeFloatAndDoubleProps(internalSettings);
                 }
                 Settings.set(internalSettings, "refactorFixNegativeFloatAndDoubleProps() applied", "y");
-            }
-            if (!useVersion1Format() && (fromScratch || Settings.get(internalSettings, "refactorBlobsForVersion2Format() applied") == null)) {
-                if (!fromScratch) {
-                    refactorings.refactorBlobsToVersion2Format(internalSettings);
-                }
-                Settings.set(internalSettings, "refactorBlobsForVersion2Format() applied", "y");
-            }
-            if (!useVersion1Format() && (fromScratch || Settings.get(internalSettings, "refactorEntitiesTablesToBitmap() applied") == null)) {
-                if (!fromScratch) {
-                    refactorings.refactorEntitiesTablesToBitmap(internalSettings);
-                }
-                Settings.set(internalSettings, "refactorEntitiesTablesToBitmap() applied", "y");
-            }
-            if (!useVersion1Format() && useIntForLocalId() && (fromScratch || Settings.get(internalSettings, "refactorAllPropsIndexToBitmap() applied") == null)) {
-                if (!fromScratch) {
-                    refactorings.refactorAllPropsIndexToBitmap();
-                }
-                Settings.set(internalSettings, "refactorAllPropsIndexToBitmap() applied", "y");
-            }
-            if (!useVersion1Format() && useIntForLocalId() && (fromScratch || Settings.get(internalSettings, "refactorAllLinksIndexToBitmap() applied") == null)) {
-                if (!fromScratch) {
-                    refactorings.refactorAllLinksIndexToBitmap();
-                }
-                Settings.set(internalSettings, "refactorAllLinksIndexToBitmap() applied", "y");
-            }
-            if (!useVersion1Format() && useIntForLocalId() && (fromScratch || Settings.get(internalSettings, "refactorAllBlobsIndexToBitmap() applied") == null)) {
-                if (!fromScratch) {
-                    refactorings.refactorAllBlobsIndexToBitmap();
-                }
-                Settings.set(internalSettings, "refactorAllBlobsIndexToBitmap() applied", "y");
-            }
-            if (!fromScratch && !useVersion1Format()) {
-                refactorings.refactorDeduplicateInPlaceBlobsPeriodically(internalSettings);
             }
             if (fromScratch || Settings.get(internalSettings, "Link null-indices present") == null) {
                 if (!fromScratch) {
