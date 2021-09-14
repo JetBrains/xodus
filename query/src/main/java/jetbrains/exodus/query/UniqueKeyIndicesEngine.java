@@ -164,7 +164,6 @@ public class UniqueKeyIndicesEngine {
                 ArrayByteIterable propsEntry = propertyTypes.dataArrayToEntry(props);
                 if (!indexTable.getDatabase().add(txn.getEnvironmentTransaction(), propsEntry, LongBinding.longToCompressedEntry(entity.getId().getLocalId()))) {
                     ByteIterable oldEntityIdEntry = indexTable.getDatabase().get(txn.getEnvironmentTransaction(), propsEntry);
-                    assert oldEntityIdEntry != null;
                     long oldEntityId = LongBinding.compressedEntryToLong(oldEntityIdEntry);
                     throw new EntityStoreException("Failed to insert unique key (already exists), index: " + index + ", values = " + Arrays.toString(props) + ", new entity = " + entity + ", old entity id = " + oldEntityId + ", index owner entity type = " + index.getOwnerEntityType());
                 }

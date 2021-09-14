@@ -134,7 +134,6 @@ public class TreeCursorMutable extends TreeCursor implements ITreeCursorMutable 
         // don't call back treeChanged() for current cursor
         boolean result = tree.isAllowingDuplicates() ? tree.delete(key, value, this) : tree.delete(key, null, this);
 
-        assert result;
         wasDelete = true;
 
         // root may be changed by tree.delete, so reset cursor with new root

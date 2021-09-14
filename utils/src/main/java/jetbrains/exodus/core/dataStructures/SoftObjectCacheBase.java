@@ -17,9 +17,9 @@ package jetbrains.exodus.core.dataStructures;
 
 import jetbrains.exodus.core.dataStructures.hash.HashUtil;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.lang.ref.SoftReference;
+import java.util.Arrays;
 
 public abstract class SoftObjectCacheBase<K, V> extends ObjectCacheBase<K, V> {
 
@@ -40,9 +40,7 @@ public abstract class SoftObjectCacheBase<K, V> extends ObjectCacheBase<K, V> {
     }
 
     public void clear() {
-        for (int i = 0; i < chunks.length; i++) {
-            chunks[i] = null;
-        }
+        Arrays.fill(chunks, null);
     }
 
     @Override
@@ -78,7 +76,6 @@ public abstract class SoftObjectCacheBase<K, V> extends ObjectCacheBase<K, V> {
     @Override
     public V cacheObject(@NotNull final K key, @NotNull final V value) {
         final ObjectCacheBase<K, V> chunk = getChunk(key, true);
-        assert chunk != null;
         try (CriticalSection ignored = chunk.newCriticalSection()) {
             return chunk.cacheObject(key, value);
         }
@@ -115,7 +112,6 @@ public abstract class SoftObjectCacheBase<K, V> extends ObjectCacheBase<K, V> {
 
     protected abstract ObjectCacheBase<K, V> newChunk(final int chunkSize);
 
-    @Nullable
     private ObjectCacheBase<K, V> getChunk(@NotNull final K key, final boolean create) {
         final int hc = key.hashCode();
         final int chunkIndex = ((hc + (hc >> 31)) & 0x7fffffff) % chunks.length;

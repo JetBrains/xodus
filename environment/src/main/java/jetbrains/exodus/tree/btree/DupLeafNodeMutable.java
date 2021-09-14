@@ -60,7 +60,6 @@ class DupLeafNodeMutable extends BaseLeafNodeMutable {
 
     @Override
     public long save(ITree mainTree) {
-        assert mainTree == dupTree;
         if (address != Loggable.NULL_ADDRESS) {
             throw new IllegalStateException("Leaf already saved");
         }
