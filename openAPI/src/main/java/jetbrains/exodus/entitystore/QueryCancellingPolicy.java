@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.entitystore;
 
+import org.jetbrains.annotations.Nullable;
+
 /**
  * Use {@linkplain StoreTransaction#setQueryCancellingPolicy(QueryCancellingPolicy)} to set an instance of
  * {@code QueryCancellingPolicy} to be able to interrupt iteration over {@linkplain EntityIterable} instances
@@ -54,4 +56,10 @@ public interface QueryCancellingPolicy {
      * exception which application code can handle.
      */
     void doCancel();
+
+    static void cancelIfNecessary(@Nullable final QueryCancellingPolicy policy) {
+        if (policy != null && policy != QueryCancellingPolicy.NONE && policy.needToCancel()) {
+            policy.doCancel();
+        }
+    }
 }

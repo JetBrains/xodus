@@ -103,6 +103,7 @@ public class PersistentEntity implements Entity, TxnProvider {
     @Nullable
     public ByteIterable getRawProperty(@NotNull final String propertyName) {
         final PersistentStoreTransaction txn = getTransaction();
+        QueryCancellingPolicy.cancelIfNecessary(txn.getQueryCancellingPolicy());
         final int propertyId = store.getPropertyId(txn, propertyName, false);
         return propertyId < 0 ? null : store.getRawProperty(txn, id, propertyId);
     }
@@ -110,7 +111,9 @@ public class PersistentEntity implements Entity, TxnProvider {
     @Override
     @Nullable
     public Comparable getProperty(@NotNull final String propertyName) {
-        return store.getProperty(getTransaction(), this, propertyName);
+        final PersistentStoreTransaction txn = getTransaction();
+        QueryCancellingPolicy.cancelIfNecessary(txn.getQueryCancellingPolicy());
+        return store.getProperty(txn, this, propertyName);
     }
 
     @Override
@@ -132,8 +135,10 @@ public class PersistentEntity implements Entity, TxnProvider {
     }
 
     public boolean hasBlob(@NotNull final String blobName) {
+        final PersistentStoreTransaction txn = getTransaction();
+        QueryCancellingPolicy.cancelIfNecessary(txn.getQueryCancellingPolicy());
         try {
-            return store.getBlobHandleAndValue(getTransaction(), this, blobName) != null;
+            return store.getBlobHandleAndValue(txn, this, blobName) != null;
         } catch (Exception e) {
             throw ExodusException.toEntityStoreException(e);
         }
@@ -142,8 +147,10 @@ public class PersistentEntity implements Entity, TxnProvider {
     @Override
     @Nullable
     public InputStream getBlob(@NotNull final String blobName) {
+        final PersistentStoreTransaction txn = getTransaction();
+        QueryCancellingPolicy.cancelIfNecessary(txn.getQueryCancellingPolicy());
         try {
-            return store.getBlob(getTransaction(), this, blobName);
+            return store.getBlob(txn, this, blobName);
         } catch (Exception e) {
             throw ExodusException.toEntityStoreException(e);
         }
@@ -151,8 +158,10 @@ public class PersistentEntity implements Entity, TxnProvider {
 
     @Override
     public long getBlobSize(@NotNull String blobName) {
+        final PersistentStoreTransaction txn = getTransaction();
+        QueryCancellingPolicy.cancelIfNecessary(txn.getQueryCancellingPolicy());
         try {
-            return store.getBlobSize(getTransaction(), this, blobName);
+            return store.getBlobSize(txn, this, blobName);
         } catch (Exception e) {
             throw ExodusException.toEntityStoreException(e);
         }
@@ -161,8 +170,10 @@ public class PersistentEntity implements Entity, TxnProvider {
     @Override
     @Nullable
     public String getBlobString(@NotNull final String blobName) {
+        final PersistentStoreTransaction txn = getTransaction();
+        QueryCancellingPolicy.cancelIfNecessary(txn.getQueryCancellingPolicy());
         try {
-            return store.getBlobString(getTransaction(), this, blobName);
+            return store.getBlobString(txn, this, blobName);
         } catch (Exception e) {
             throw ExodusException.toEntityStoreException(e);
         }
@@ -231,6 +242,7 @@ public class PersistentEntity implements Entity, TxnProvider {
     @Nullable
     public Entity getLink(@NotNull final String linkName) {
         final PersistentStoreTransaction txn = getTransaction();
+        QueryCancellingPolicy.cancelIfNecessary(txn.getQueryCancellingPolicy());
         final int linkId = store.getLinkId(txn, linkName, false);
         return linkId < 0 ? null : store.getLink(txn, this, linkId);
     }

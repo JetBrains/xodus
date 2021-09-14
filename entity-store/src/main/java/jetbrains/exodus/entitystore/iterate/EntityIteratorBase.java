@@ -115,10 +115,7 @@ public abstract class EntityIteratorBase implements EntityIterator {
         throwNoSuchElementExceptionIfNecessary();
         if ((++nextIdCounter & 0x1ff) == 0) {
             // do not check QueryCancellingPolicy too often
-            final QueryCancellingPolicy cancellingPolicy = getQueryCancellingPolicy();
-            if (cancellingPolicy != QueryCancellingPolicy.NONE && cancellingPolicy.needToCancel()) {
-                cancellingPolicy.doCancel();
-            }
+            QueryCancellingPolicy.cancelIfNecessary(getQueryCancellingPolicy());
         }
         return nextIdImpl();
     }
