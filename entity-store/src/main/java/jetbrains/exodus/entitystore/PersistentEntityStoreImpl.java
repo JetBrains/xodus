@@ -1548,19 +1548,25 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final EntityId id = entity.getId();
         final long entityLocalId = id.getLocalId();
         PropertyKey linkKey = new PropertyKey(entityLocalId, 0);
-        try (final Cursor index = getLinksTable(txn, id.getTypeId()).getFirstIndexCursor(txn.getEnvironmentTransaction())) {
-            for (boolean success = index.getSearchKeyRange(PropertyKey.propertyKeyToEntry(linkKey)) != null; success; success = index.getNextNoDup()) {
-                linkKey = PropertyKey.entryToPropertyKey(index.getKey());
-                if (linkKey.getEntityLocalId() != entityLocalId) {
-                    break;
-                }
-                final String linkName = getLinkName(txn, linkKey.getPropertyId());
-                if (linkName != null) {
-                    result.add(linkName);
-                }
-            }
-            return result;
+        final Transaction envTxn = txn.getEnvironmentTransaction();
+        final int typeId = id.getTypeId();
+        final String cacheKey = "getLinkNames() cursor " + typeId;
+        Cursor index = (Cursor) envTxn.getUserObject(cacheKey);
+        if (index == null) {
+            index = getLinksTable(txn, typeId).getFirstIndexCursor(envTxn);
+            envTxn.setUserObject(cacheKey, index);
         }
+        for (boolean success = index.getSearchKeyRange(PropertyKey.propertyKeyToEntry(linkKey)) != null; success; success = index.getNextNoDup()) {
+            linkKey = PropertyKey.entryToPropertyKey(index.getKey());
+            if (linkKey.getEntityLocalId() != entityLocalId) {
+                break;
+            }
+            final String linkName = getLinkName(txn, linkKey.getPropertyId());
+            if (linkName != null) {
+                result.add(linkName);
+            }
+        }
+        return result;
     }
 
     @NotNull
