@@ -17,7 +17,6 @@ package jetbrains.exodus.entitystore.tables;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
-import jetbrains.exodus.env.Cursor;
 import jetbrains.exodus.env.StoreConfig;
 import jetbrains.exodus.env.Transaction;
 import org.jetbrains.annotations.NotNull;
@@ -31,21 +30,6 @@ public final class LinksTable extends TwoColumnTable {
         allLinksIndex = FieldIndex.fieldIndex(txn, name);
     }
 
-    @Override
-    public boolean put(@NotNull Transaction txn, @NotNull ByteIterable first, @NotNull ByteIterable second) {
-        return super.put(txn, first, second); // TODO: replace inheritance with delegation
-    }
-
-    @Override
-    public @NotNull Cursor getFirstIndexCursor(@NotNull Transaction txn) {
-        return super.getFirstIndexCursor(txn);
-    }
-
-    @Override
-    public @NotNull Cursor getSecondIndexCursor(@NotNull Transaction txn) {
-        return super.getSecondIndexCursor(txn);
-    }
-
     public boolean put(@NotNull Transaction txn,
                        final long localId,
                        @NotNull ByteIterable value,
@@ -57,11 +41,6 @@ public final class LinksTable extends TwoColumnTable {
             success |= allLinksIndex.put(txn, linkId, localId);
         }
         return success;
-    }
-
-    @Override
-    public boolean delete(@NotNull Transaction txn, @NotNull ByteIterable first, @NotNull ByteIterable second) {
-        return super.delete(txn, first, second); // TODO: replace inheritance with delegation
     }
 
     public boolean delete(@NotNull Transaction txn,
