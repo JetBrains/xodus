@@ -52,7 +52,7 @@ open class ConcurrentIntObjectCache<V>
     override fun unlock() {}
 
     override fun cacheObject(key: Int, x: V): V? {
-        var cacheIndex = HashUtil.indexFor(key, generationSize, mask) * numberOfGenerations
+        var cacheIndex = indexFor(key)
         repeat(numberOfGenerations) {
             val entry = cache[cacheIndex]
             if (entry.key == key) {
@@ -67,7 +67,7 @@ open class ConcurrentIntObjectCache<V>
     }
 
     override fun remove(key: Int): V? {
-        var cacheIndex = HashUtil.indexFor(key, generationSize, mask) * numberOfGenerations
+        var cacheIndex = indexFor(key)
         repeat(numberOfGenerations) {
             val entry = cache[cacheIndex]
             if (entry.key == key) {
@@ -82,7 +82,7 @@ open class ConcurrentIntObjectCache<V>
 
     override fun tryKey(key: Int): V? {
         incAttempts()
-        var cacheIndex = HashUtil.indexFor(key, generationSize, mask) * numberOfGenerations
+        var cacheIndex = indexFor(key)
         var entry = cache[cacheIndex]
         if (entry.key == key) {
             incHits()
@@ -102,7 +102,7 @@ open class ConcurrentIntObjectCache<V>
     }
 
     override fun getObject(key: Int): V? {
-        var cacheIndex = HashUtil.indexFor(key, generationSize, mask) * numberOfGenerations
+        var cacheIndex = indexFor(key)
         repeat(numberOfGenerations) {
             val entry = cache[cacheIndex]
             if (entry.key == key) {
@@ -113,9 +113,9 @@ open class ConcurrentIntObjectCache<V>
         return null
     }
 
-    override fun count(): Int {
-        throw UnsupportedOperationException()
-    }
+    override fun count(): Int = throw UnsupportedOperationException()
+
+    private fun indexFor(key: Int) = HashUtil.indexFor(key, generationSize, mask) * numberOfGenerations
 
     private class CacheEntry<V>(val key: Int, var value: V?) {}
 }
