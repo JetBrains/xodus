@@ -33,6 +33,7 @@ import jetbrains.exodus.log.Log
 import jetbrains.exodus.tree.ExpiredLoggableCollection
 import java.io.File
 import java.util.*
+import kotlin.math.max
 import kotlin.math.min
 
 class UtilizationProfile(private val env: EnvironmentImpl, private val gc: GarbageCollector) {
@@ -138,10 +139,12 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
                 }
             }
             // save profile of up-to-date files
-            for (entry in filesUtilization.synchronized { ArrayList(entries) }) {
-                store.put(txn,
+            filesUtilization.synchronized {
+                entries.forEach { entry ->
+                    store.put(txn,
                         LongBinding.longToCompressedEntry(entry.key),
                         CompressedUnsignedLongByteIterable.getIterable(entry.value.value))
+                }
             }
         }
     }
@@ -303,7 +306,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
 
     internal fun setUtilization(usedSpace: LongHashMap<Long>) = filesUtilization.synchronized {
         for ((fileAddress, usedBytes) in usedSpace) {
-            (this[fileAddress] ?: MutableLong(0L).also { this[fileAddress] = it }).value += (fileSize - usedBytes)
+            (this[fileAddress] ?: MutableLong(0L).also { this[fileAddress] = it }).value += max((fileSize - usedBytes), 0L)
         }
     }
 
@@ -314,7 +317,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
      * Is used instead of [Long] for saving free bytes per file in  order to update the value in-place, so
      * reducing number of lookups in the [LongHashMap][.filesUtilization].
      */
-    private class MutableLong internal constructor(var value: Long) {
+    private class MutableLong constructor(var value: Long) {
 
         override fun toString(): String {
             return value.toString()
