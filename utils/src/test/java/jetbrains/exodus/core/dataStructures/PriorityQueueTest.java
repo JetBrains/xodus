@@ -23,6 +23,7 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.*;
@@ -67,6 +68,29 @@ public abstract class PriorityQueueTest {
         assertEquals("5", queue.pop());
         assertEquals("6", queue.pop());
         assertEquals("8", queue.pop());
+    }
+
+    @Test
+    public void pushIterate() {
+        final PriorityQueue<Priority, String> queue = populateQueue();
+        final Iterator<String> it = queue.iterator();
+        assertTrue(it.hasNext());
+        assertEquals("7", it.next());
+        assertTrue(it.hasNext());
+        assertEquals("2", it.next());
+        assertTrue(it.hasNext());
+        assertEquals("4", it.next());
+        assertTrue(it.hasNext());
+        assertEquals("1", it.next());
+        assertTrue(it.hasNext());
+        assertEquals("3", it.next());
+        assertTrue(it.hasNext());
+        assertEquals("5", it.next());
+        assertTrue(it.hasNext());
+        assertEquals("6", it.next());
+        assertTrue(it.hasNext());
+        assertEquals("8", it.next());
+        assertFalse(it.hasNext());
     }
 
     @Test

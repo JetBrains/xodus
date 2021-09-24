@@ -23,14 +23,13 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class ConcurrentStablePriorityQueue<P extends Comparable<? super P>, E> extends PriorityQueue<P, E> {
 
     private final AtomicReference<
-            Pair<Persistent23Tree<TreeNode<P, E>>, PersistentHashSet<IdentifiedTreeNode<P, E>>>> rootPair;
+        Pair<Persistent23Tree<TreeNode<P, E>>, PersistentHashSet<IdentifiedTreeNode<P, E>>>> rootPair;
 
     public ConcurrentStablePriorityQueue() {
         rootPair = new AtomicReference<>();
@@ -148,7 +147,7 @@ public class ConcurrentStablePriorityQueue<P extends Comparable<? super P>, E> e
             mutableValues.endWrite();
             // if the queue becomes empty the newPair reference can be null
             newPair = queue.isEmpty() ? null :
-                    new Pair<>(queue, values);
+                new Pair<>(queue, values);
             // commit pair if no other pair was already committed
         } while (!rootPair.compareAndSet(currentPair, newPair));
 
@@ -173,10 +172,9 @@ public class ConcurrentStablePriorityQueue<P extends Comparable<? super P>, E> e
     public @NotNull Iterator<E> iterator() {
         final Pair<Persistent23Tree<TreeNode<P, E>>, PersistentHashSet<IdentifiedTreeNode<P, E>>> currentPair = getCurrent();
         if (currentPair == null) {
-            final List<E> objects = Collections.emptyList();
-            return objects.iterator();
+            return Collections.emptyIterator();
         }
-        final Iterator<TreeNode<P, E>> iterator = currentPair.getFirst().iterator();
+        final Iterator<TreeNode<P, E>> iterator = currentPair.getFirst().reverseIterator();
         return new Iterator<E>() {
             @Override
             public boolean hasNext() {

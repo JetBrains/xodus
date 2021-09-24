@@ -163,7 +163,7 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
         private Iterator<E> currentIt;
 
         private QueueIterator() {
-            priorityIt = theQueue.entrySet().iterator();
+            priorityIt = theQueue.descendingMap().entrySet().iterator();
             //noinspection unchecked
             currentIt = Collections.EMPTY_LIST.iterator();
             checkCurrentIterator();
