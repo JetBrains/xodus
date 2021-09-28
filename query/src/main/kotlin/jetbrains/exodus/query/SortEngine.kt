@@ -83,7 +83,7 @@ open class SortEngine {
                     MultipleLinkComparableGetter(linkName, propName, asc, isReadOnlyTxn)
                 else
                     SingleLinkComparableGetter(linkName, propName, txn)
-                val i = queryEngine.toEntityIterable(src)
+                val i = queryEngine.toEntityIterable(src.notNull)
                 if (queryEngine.isPersistentIterable(i) && i is EntityIterableBase) {
                     val s = i.source
                     if (s === EntityIterableBase.EMPTY) {
