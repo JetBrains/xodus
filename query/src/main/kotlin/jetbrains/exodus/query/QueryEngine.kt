@@ -26,8 +26,9 @@ import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.query.Or.Companion.or
 import jetbrains.exodus.query.Utils.isTypeOf
 import jetbrains.exodus.query.metadata.ModelMetaData
+import mu.KLogging
 
-open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: PersistentEntityStoreImpl) {
+open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: PersistentEntityStoreImpl) : KLogging() {
 
     val uniqueKeyIndicesEngine = MetaDataAwareUniqueKeyIndicesEngine(persistentStore, modelMetaData)
     var sortEngine: SortEngine? = null
@@ -308,27 +309,33 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
     open fun wrap(it: EntityIterable): EntityIterable = it
 
     protected open fun inMemorySelectDistinct(it: Iterable<Entity>, linkName: String): Iterable<Entity> {
-        throw UnsupportedOperationException("NOT IMPLEMENTED YET")
+        reportInMemoryError()
+        return it.asSequence().map { it.getLink(linkName) }.filterNotNull().distinct().asIterable()
     }
 
     protected open fun inMemorySelectManyDistinct(it: Iterable<Entity>, linkName: String): Iterable<Entity> {
-        throw UnsupportedOperationException("NOT IMPLEMENTED YET")
+        reportInMemoryError()
+        return it.asSequence().flatMap { it.getLinks(linkName) }.distinct().asIterable()
     }
 
     protected open fun inMemoryIntersect(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
-        throw UnsupportedOperationException("NOT IMPLEMENTED YET")
+        reportInMemoryError()
+        return left.intersect(right)
     }
 
     protected open fun inMemoryUnion(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
-        throw UnsupportedOperationException("NOT IMPLEMENTED YET")
+        reportInMemoryError()
+        return left.union(right)
     }
 
     protected open fun inMemoryConcat(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
-        throw UnsupportedOperationException("NOT IMPLEMENTED YET")
+        reportInMemoryError()
+        return left.toMutableList().apply { addAll(right) }
     }
 
     protected open fun inMemoryExclude(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
-        throw UnsupportedOperationException("NOT IMPLEMENTED YET")
+        reportInMemoryError()
+        return left.minus(right)
     }
 
     protected open fun wrap(entity: Entity): Iterable<Entity>? {
@@ -347,6 +354,10 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
     private fun selectManyDistinctImpl(it: EntityIterableBase, linkName: String): Iterable<Entity> {
         assertOperational()
         return wrap(it.source.selectManyDistinct(linkName))
+    }
+
+    private fun reportInMemoryError() {
+        logger.error("QueryEngine does in-memory computations", Throwable())
     }
 }
 
