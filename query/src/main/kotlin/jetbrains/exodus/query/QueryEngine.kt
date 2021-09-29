@@ -30,9 +30,15 @@ import mu.KLogging
 
 open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: PersistentEntityStoreImpl) : KLogging() {
 
-    val uniqueKeyIndicesEngine = MetaDataAwareUniqueKeyIndicesEngine(persistentStore, modelMetaData)
+    private var _sortEngine: SortEngine? = null
 
-    open var sortEngine: SortEngine? = null
+    open var sortEngine: SortEngine?
+        get() = _sortEngine
+        set(value) {
+            _sortEngine = value.notNull.apply { queryEngine = this@QueryEngine }
+        }
+
+    val uniqueKeyIndicesEngine = MetaDataAwareUniqueKeyIndicesEngine(persistentStore, modelMetaData)
 
     open fun queryGetAll(entityType: String): TreeKeepingEntityIterable = query(null, entityType, NodeFactory.all())
 
