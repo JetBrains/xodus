@@ -26,6 +26,7 @@ import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.query.Or.Companion.or
 import jetbrains.exodus.query.Utils.isTypeOf
 import jetbrains.exodus.query.metadata.ModelMetaData
+import jetbrains.exodus.util.doIfTrue
 import mu.KLogging
 
 open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: PersistentEntityStoreImpl) : KLogging() {
@@ -364,7 +365,9 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
     }
 
     private fun reportInMemoryError() {
-        logger.error("QueryEngine does in-memory computations", Throwable())
+        doIfTrue("jetbrains.exodus.query.reportInMemoryQueries") {
+            logger.error("QueryEngine does in-memory computations", Throwable())
+        }
     }
 }
 
