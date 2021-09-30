@@ -22,6 +22,7 @@ import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase.EMPTY
 import jetbrains.exodus.entitystore.iterate.SingleEntityIterable
+import jetbrains.exodus.entitystore.util.EntityIdSetFactory
 import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.query.Or.Companion.or
 import jetbrains.exodus.query.Utils.isTypeOf
@@ -318,12 +319,16 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
 
     protected open fun inMemorySelectDistinct(it: Iterable<Entity>, linkName: String): Iterable<Entity> {
         reportInMemoryError()
-        return it.asSequence().map { it.getLink(linkName) }.filterNotNull().distinct().asIterable()
+        val ids = EntityIdSetFactory.newSet()
+        return it.asSequence().map { it.getLink(linkName) }.filterNotNull()
+            .filter { if (ids.contains(it.id)) false else true.apply { ids.add(it.id) } }.asIterable()
     }
 
     protected open fun inMemorySelectManyDistinct(it: Iterable<Entity>, linkName: String): Iterable<Entity> {
         reportInMemoryError()
-        return it.asSequence().flatMap { it.getLinks(linkName) }.distinct().asIterable()
+        val ids = EntityIdSetFactory.newSet()
+        return it.asSequence().flatMap { it.getLinks(linkName) }.filterNotNull()
+            .filter { if (ids.contains(it.id)) false else true.apply { ids.add(it.id) } }.asIterable()
     }
 
     protected open fun inMemoryIntersect(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
