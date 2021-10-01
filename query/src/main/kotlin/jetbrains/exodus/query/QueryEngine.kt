@@ -276,7 +276,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
                 if (isEmpty()) return EMPTY
                 if (size == 1) {
                     wrap(iterator().next())?.let {
-                        return it
+                        return adjustEntityIterable(it)
                     }
                 }
             }
