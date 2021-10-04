@@ -1875,7 +1875,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     @Nullable
-    String getLinkName(@NotNull final PersistentStoreTransaction txn, final int linkId) {
+    public String getLinkName(@NotNull final PersistentStoreTransaction txn, final int linkId) {
         return linkIds.getName(txn, linkId);
     }
 
