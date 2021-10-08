@@ -26,7 +26,6 @@ import jetbrains.exodus.vfs.VirtualFileSystem
 import org.apache.lucene.index.IndexFileNames
 import org.apache.lucene.store.*
 import org.apache.lucene.store.IOContext.Context.MERGE
-import java.io.IOException
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
 
@@ -67,7 +66,7 @@ class ExodusDirectory(val environment: ContextualEnvironment,
     override fun createOutput(name: String, context: IOContext): IndexOutput = ExodusIndexOutput(this, name)
 
     override fun createTempOutput(prefix: String, suffix: String, context: IOContext) =
-            createOutput(IndexFileNames.segmentFileName(prefix, suffix + '_'.toString() + nextTicks(), "tmp"), context)
+        createOutput(IndexFileNames.segmentFileName(prefix, suffix + '_'.toString() + nextTicks(), "tmp"), context)
 
     override fun sync(names: Collection<String>) = syncMetaData()
 
@@ -77,7 +76,6 @@ class ExodusDirectory(val environment: ContextualEnvironment,
 
     override fun syncMetaData() = (environment as EnvironmentImpl).flushAndSync()
 
-    @Throws(IOException::class)
     override fun openInput(name: String, context: IOContext): IndexInput {
         try {
             return ExodusIndexInput(this,
@@ -93,16 +91,18 @@ class ExodusDirectory(val environment: ContextualEnvironment,
     }
 
     override fun openChecksumInput(name: String, context: IOContext): ChecksumIndexInput =
-            FastSkippingBufferedChecksumIndexInput(openInput(name, context))
+        FastSkippingBufferedChecksumIndexInput(openInput(name, context))
 
     override fun obtainLock(name: String) = NoLockFactory.INSTANCE.obtainLock(this, name)
+
+    override fun getPendingDeletions(): MutableSet<String> = Collections.emptySet()
 
     override fun close() = vfs.shutdown()
 
     internal fun nextTicks() = ticks.getAndIncrement()
 
     internal fun openExistingFile(txn: Transaction, name: String) =
-            vfs.openFile(txn, name, false) ?: throw FileNotFoundException(name)
+        vfs.openFile(txn, name, false) ?: throw FileNotFoundException(name)
 
     companion object {
 

@@ -1,5 +1,5 @@
 buildscript {
-    ext.luceneVersion = '7.7.3'
+    ext.luceneVersion = '8.10.0'
 }
 dependencies {
     api project(':vfs')

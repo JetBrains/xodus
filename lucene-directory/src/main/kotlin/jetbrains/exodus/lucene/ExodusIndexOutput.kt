@@ -17,7 +17,6 @@ package jetbrains.exodus.lucene
 
 import org.apache.lucene.store.BufferedChecksum
 import org.apache.lucene.store.IndexOutput
-import java.io.IOException
 import java.io.OutputStream
 import java.util.zip.CRC32
 
@@ -35,21 +34,18 @@ internal class ExodusIndexOutput(directory: ExodusDirectory,
         output = vfs.writeFile(directory.environment.andCheckCurrentTransaction, file)
     }
 
-    @Throws(IOException::class)
     override fun close() = output.close()
 
     override fun getFilePointer() = currentPosition
 
     override fun getChecksum() = crc.value
 
-    @Throws(IOException::class)
     override fun writeByte(b: Byte) {
         output.write(b.toInt())
         ++currentPosition
         crc.update(b.toInt())
     }
 
-    @Throws(IOException::class)
     override fun writeBytes(b: ByteArray, offset: Int, length: Int) {
         if (length > 0) {
             if (length == 1) {

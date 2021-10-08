@@ -136,7 +136,6 @@ internal class LockingManager internal constructor(private val dir: File, privat
         throw ExodusException("Failed to lock file $LOCK_FILE_NAME", e)
     }
 
-    @Throws(IOException::class)
     private fun close() {
         lock?.release()
         lockFile?.apply {

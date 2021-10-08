@@ -30,7 +30,6 @@ import junit.framework.TestCase
 import org.apache.commons.compress.archivers.zip.ZipFile
 import java.io.File
 import java.io.FileOutputStream
-import java.io.IOException
 
 class BackupTests : EntityStoreTestBase() {
 
@@ -197,7 +196,6 @@ class BackupTests : EntityStoreTestBase() {
 
     companion object {
 
-        @Throws(IOException::class)
         fun extractEntireZip(zip: File, restoreDir: File) {
             ZipFile(zip).use { zipFile ->
                 val zipEntries = zipFile.entries

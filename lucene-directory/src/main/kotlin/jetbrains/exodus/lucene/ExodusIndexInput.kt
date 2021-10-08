@@ -15,13 +15,14 @@
  */
 package jetbrains.exodus.lucene
 
+import jetbrains.exodus.ExodusException
 import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.log.DataCorruptionException
 import jetbrains.exodus.vfs.File
 import jetbrains.exodus.vfs.VfsInputStream
 import org.apache.lucene.store.BufferedIndexInput
 import org.apache.lucene.store.IndexInput
-import java.io.IOException
+import java.nio.ByteBuffer
 import kotlin.math.max
 import kotlin.math.min
 
@@ -61,20 +62,23 @@ internal open class ExodusIndexInput(private val directory: ExodusDirectory,
         }
     }
 
-    @Throws(IOException::class)
-    override fun readInternal(b: ByteArray, offset: Int, length: Int) {
+    override fun readInternal(b: ByteBuffer) {
+        if (!b.hasArray()) {
+            throw ExodusException("ExodusIndexInput.readInternal(ByteBuffer) expects a buffer with accessible array")
+        }
         while (true) {
             try {
-                currentPosition += getInput().read(b, offset, length).toLong()
+                val offset = b.position()
+                val read = getInput().read(b.array(), offset, b.limit() - offset)
+                b.position(offset + read)
+                currentPosition += read.toLong()
                 return
             } catch (e: DataCorruptionException) {
                 handleFalseDataCorruption(e)
             }
-
         }
     }
 
-    @Throws(IOException::class)
     override fun seekInternal(pos: Long) {
         if (pos != currentPosition) {
             val input = input
@@ -98,7 +102,7 @@ internal open class ExodusIndexInput(private val directory: ExodusDirectory,
     }
 
     override fun slice(sliceDescription: String, offset: Long, length: Long): IndexInput =
-            SlicedExodusIndexInput(this, offset, length)
+        SlicedExodusIndexInput(this, offset, length)
 
     private fun getInput(): VfsInputStream = input.let {
         if (it == null || it.isObsolete) {
@@ -132,6 +136,6 @@ internal open class ExodusIndexInput(private val directory: ExodusDirectory,
         override fun seekInternal(pos: Long) = super.seekInternal(pos + fileOffset)
 
         override fun slice(sliceDescription: String, offset: Long, length: Long) =
-                base.slice(sliceDescription, fileOffset + offset, length)
+            base.slice(sliceDescription, fileOffset + offset, length)
     }
 }

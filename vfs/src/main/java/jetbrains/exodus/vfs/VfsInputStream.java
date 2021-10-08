@@ -58,7 +58,7 @@ public class VfsInputStream extends InputStream {
     }
 
     @Override
-    public int read(@NotNull byte @NotNull [] b, int off, int len) {
+    public int read(byte @NotNull [] b, int off, int len) {
         Cluster current = clusterIterator.getCurrent();
         if (current == null) {
             return -1;

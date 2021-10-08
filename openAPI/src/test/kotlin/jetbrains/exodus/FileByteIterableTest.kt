@@ -21,7 +21,6 @@ import org.junit.Before
 import org.junit.Test
 import java.io.File
 import java.io.FileOutputStream
-import java.io.IOException
 
 class FileByteIterableTest {
 
@@ -45,14 +44,12 @@ class FileByteIterableTest {
     }
 
     @Test
-    @Throws(IOException::class)
     fun testEmptyIterable() {
         val it = FileByteIterable(file)
         Assert.assertEquals(0, compare(it.iterator(), ByteIterable.EMPTY_ITERATOR).toLong())
     }
 
     @Test
-    @Throws(IOException::class)
     fun testSingleIterable() {
         FileOutputStream(file).use { output -> output.write(MANDELSTAM.toByteArray(charset("UTF-8"))) }
         val it = FileByteIterable(file)
@@ -63,7 +60,6 @@ class FileByteIterableTest {
     }
 
     @Test
-    @Throws(IOException::class)
     fun testMultipleIterables() {
         val count = 10
         FileOutputStream(file).use { output ->

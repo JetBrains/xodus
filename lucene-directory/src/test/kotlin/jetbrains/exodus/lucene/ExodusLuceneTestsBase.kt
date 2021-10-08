@@ -20,7 +20,7 @@ import jetbrains.exodus.env.EnvironmentTestsBase
 import jetbrains.exodus.env.StoreConfig
 import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.log.LogConfig
-import jetbrains.exodus.lucene.codecs.Lucene70CodecWithNoFieldCompression
+import jetbrains.exodus.lucene.codecs.Lucene87CodecWithNoFieldCompression
 import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.analysis.CharArraySet
 import org.apache.lucene.analysis.StopwordAnalyzerBase
@@ -31,7 +31,6 @@ import org.apache.lucene.search.IndexSearcher
 import org.apache.lucene.store.Directory
 import org.junit.After
 import org.junit.Before
-import java.io.IOException
 
 abstract class ExodusLuceneTestsBase : EnvironmentTestsBase() {
 
@@ -125,29 +124,25 @@ abstract class ExodusLuceneTestsBase : EnvironmentTestsBase() {
     protected fun createIndexWriterConfig() {
         indexConfig = IndexWriterConfig(analyzer)
         indexConfig.mergeScheduler = SerialMergeScheduler()
-        indexConfig.codec = Lucene70CodecWithNoFieldCompression()
+        indexConfig.codec = Lucene87CodecWithNoFieldCompression()
     }
 
-    @Throws(IOException::class)
     protected fun createIndexWriter() {
         closeIndexWriter()
         createIndexWriterConfig()
         indexWriter = IndexWriter(directory, indexConfig)
     }
 
-    @Throws(IOException::class)
     protected fun createIndexReader(): IndexReader {
         closeIndexReader()
         return DirectoryReader.open(directory).apply { indexReader = this }
     }
 
-    @Throws(IOException::class)
     protected fun createIndexSearcher() {
         flushTransaction()
         indexSearcher = IndexSearcher(createIndexReader())
     }
 
-    @Throws(IOException::class)
     protected fun createMoreLikeThis() {
         closeMoreLikeThis()
         createIndexSearcher()
@@ -158,7 +153,6 @@ abstract class ExodusLuceneTestsBase : EnvironmentTestsBase() {
         }
     }
 
-    @Throws(IOException::class)
     protected fun closeIndexWriter() {
         indexWriter?.apply {
             close()
@@ -166,7 +160,6 @@ abstract class ExodusLuceneTestsBase : EnvironmentTestsBase() {
         }
     }
 
-    @Throws(IOException::class)
     protected fun closeIndexReader() {
         indexReader?.apply {
             close()

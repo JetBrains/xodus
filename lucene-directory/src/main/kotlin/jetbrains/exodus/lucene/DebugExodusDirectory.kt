@@ -19,7 +19,6 @@ import jetbrains.exodus.env.ContextualEnvironment
 import jetbrains.exodus.env.StoreConfig
 import org.apache.lucene.index.IndexFileNames
 import org.apache.lucene.store.*
-import java.io.IOException
 
 class DebugExodusDirectory : Directory {
 
@@ -35,13 +34,11 @@ class DebugExodusDirectory : Directory {
 
     override fun listAll(): Array<String> = debugDirectory.listAll()
 
-    @Throws(IOException::class)
     override fun deleteFile(name: String) {
         directory.deleteFile(name)
         debugDirectory.deleteFile(name)
     }
 
-    @Throws(IOException::class)
     override fun fileLength(name: String): Long {
         val result = directory.fileLength(name)
         if (result != debugDirectory.fileLength(name)) {
@@ -50,42 +47,44 @@ class DebugExodusDirectory : Directory {
         return result
     }
 
-    @Throws(IOException::class)
     override fun createOutput(name: String, context: IOContext): IndexOutput {
         return DebugIndexOutput(name, context)
     }
 
-    @Throws(IOException::class)
     override fun createTempOutput(prefix: String, suffix: String, context: IOContext): IndexOutput {
         return createOutput(IndexFileNames.segmentFileName(prefix, suffix + '_' + directory.nextTicks(), "tmp"), context)
     }
 
-    @Throws(IOException::class)
     override fun sync(names: Collection<String>) {
         directory.sync(names)
         debugDirectory.sync(names)
     }
 
-    @Throws(IOException::class)
     override fun rename(source: String, dest: String) {
         directory.rename(source, dest)
         debugDirectory.rename(source, dest)
     }
 
-    @Throws(IOException::class)
     override fun syncMetaData() {
         directory.syncMetaData()
         debugDirectory.syncMetaData()
     }
 
-    @Throws(IOException::class)
     override fun openInput(name: String, context: IOContext): IndexInput {
         return DebugIndexInput(name, context)
     }
 
-    @Throws(IOException::class)
     override fun obtainLock(name: String): Lock {
         return debugDirectory.obtainLock(name)
+    }
+
+    override fun getPendingDeletions(): MutableSet<String> {
+        return directory.pendingDeletions.also {
+            val debugDeletions = debugDirectory.pendingDeletions
+            if (it.size != debugDeletions.size || !it.containsAll(debugDeletions)) {
+                throwDebugMismatch()
+            }
+        }
     }
 
     override fun close() {
@@ -97,13 +96,12 @@ class DebugExodusDirectory : Directory {
         throw RuntimeException("Debug directory mismatch")
     }
 
-    private inner class DebugIndexOutput(name: String, context: IOContext)
-        : IndexOutput("DebugIndexOutput[$name]", name) {
+    private inner class DebugIndexOutput(name: String, context: IOContext) :
+        IndexOutput("DebugIndexOutput[$name]", name) {
 
         private val output: IndexOutput = directory.createOutput(name, context)
         private val debugOutput: IndexOutput = debugDirectory.createOutput(name, context)
 
-        @Throws(IOException::class)
         override fun close() {
             output.close()
             debugOutput.close()
@@ -117,7 +115,6 @@ class DebugExodusDirectory : Directory {
             return result
         }
 
-        @Throws(IOException::class)
         override fun getChecksum(): Long {
             val result = output.checksum
             if (result != debugOutput.checksum) {
@@ -126,14 +123,12 @@ class DebugExodusDirectory : Directory {
             return result
         }
 
-        @Throws(IOException::class)
         override fun writeByte(b: Byte) {
             output.writeByte(b)
             debugOutput.writeByte(b)
             filePointer
         }
 
-        @Throws(IOException::class)
         override fun writeBytes(b: ByteArray, offset: Int, length: Int) {
             output.writeBytes(b, offset, length)
             debugOutput.writeBytes(b, offset, length)
@@ -142,7 +137,7 @@ class DebugExodusDirectory : Directory {
     }
 
     private inner class DebugIndexInput(private var name: String, context: IOContext, position: Long = 0L) :
-            IndexInput("DebugIndexInput[$name]") {
+        IndexInput("DebugIndexInput[$name]") {
 
         private var input = directory.openInput(name, context)
         private var debugInput = debugDirectory.openInput(name, context)
@@ -156,7 +151,6 @@ class DebugExodusDirectory : Directory {
             }
         }
 
-        @Throws(IOException::class)
         override fun close() {
             input.close()
             debugInput.close()
@@ -170,7 +164,6 @@ class DebugExodusDirectory : Directory {
             return result
         }
 
-        @Throws(IOException::class)
         override fun seek(pos: Long) {
             input.seek(pos)
             debugInput.seek(pos)
@@ -187,7 +180,6 @@ class DebugExodusDirectory : Directory {
             return result
         }
 
-        @Throws(IOException::class)
         override fun readByte(): Byte {
             val result = input.readByte()
             val debugByte = debugInput.readByte()
@@ -197,7 +189,6 @@ class DebugExodusDirectory : Directory {
             return result
         }
 
-        @Throws(IOException::class)
         override fun readBytes(b: ByteArray, offset: Int, len: Int) {
             val before = filePointer
             input.readBytes(b, offset, len)
@@ -219,7 +210,6 @@ class DebugExodusDirectory : Directory {
             return result
         }
 
-        @Throws(IOException::class)
         override fun slice(sliceDescription: String, offset: Long, length: Long): IndexInput {
             val result = super.clone() as DebugIndexInput
             result.name = name

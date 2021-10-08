@@ -55,7 +55,7 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
         closeIndexWriter()
         createIndexSearcher()
         val docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.SUMMARY, "sukhoi"), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
     }
 
     @Test
@@ -64,75 +64,75 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
         closeIndexWriter()
         createIndexSearcher()
         val docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.SUMMARY, "sukhoii"), Integer.MAX_VALUE)
-        Assert.assertEquals(0, docs.totalHits)
+        Assert.assertEquals(0, docs.totalHits.value)
     }
 
     @Test
     fun addSearchAnalyzed() {
         addSearchMatch()
         var docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "market"), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "develop"), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "setting"), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "settings"), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
     }
 
     @Test
     fun addSearchWildcards() {
         addSearchMatch()
         var docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "mark*"), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "develo*"), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "?roject"), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "*roject"), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "??oject"), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "*rojec?"), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "?roj*"), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "*roje*"), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "*ukhoi"), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
     }
 
     @Test
     fun addSearchPhrase() {
         addSearchMatch()
         var docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "\"Long-term Cooperation Agreement\""), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "\"could now start selling\""), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "\"On 10 October 2003\""), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "\"[8]\""), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "\"on the plane\""), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "\"development of the\""), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
     }
 
     @Test
     fun addSearchExactMatch() {
         addSearchMatch()
         var docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "\"aftersales\""), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "\"2005-2009\""), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "\"2000.[4]\""), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "\".[6] The\""), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "\".[8]\""), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
     }
 
     @Test
@@ -141,34 +141,34 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
         var query = getQuery(ExodusLuceneTestsBase.DESCRIPTION, "\"could now start selling\"")
         Assert.assertTrue(query is PhraseQuery)
         var docs = indexSearcher.search(query, Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         query = getQuery(ExodusLuceneTestsBase.DESCRIPTION, "\"the fourth stage\"")
         Assert.assertTrue(query is PhraseQuery)
         docs = indexSearcher.search(query, Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         removeStopWord("on")
         query = getQuery(ExodusLuceneTestsBase.DESCRIPTION, "\"on the plane\"")
         Assert.assertTrue(query is PhraseQuery)
         docs = indexSearcher.search(query, Integer.MAX_VALUE)
-        Assert.assertEquals(0, docs.totalHits)
+        Assert.assertEquals(0, docs.totalHits.value)
         removeStopWord("as")
         query = getQuery(ExodusLuceneTestsBase.DESCRIPTION, "\"as a player\"")
         Assert.assertTrue(query is PhraseQuery)
         docs = indexSearcher.search(query, Integer.MAX_VALUE)
-        Assert.assertEquals(0, docs.totalHits)
+        Assert.assertEquals(0, docs.totalHits.value)
     }
 
     @Test
     fun searchExceptions() {
         addSearchMatch()
         var docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "java.lang.NullPointerException"), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "\"java.lang.NullPointerException\""), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "java*"), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "*java*"), Integer.MAX_VALUE)
-        Assert.assertEquals(1, docs.totalHits)
+        Assert.assertEquals(1, docs.totalHits.value)
     }
 
     @Test
@@ -180,9 +180,9 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
         closeIndexWriter()
         createIndexSearcher()
         var docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "market"), Integer.MAX_VALUE)
-        Assert.assertEquals(100, docs.totalHits)
+        Assert.assertEquals(100, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "develop"), Integer.MAX_VALUE)
-        Assert.assertEquals(100, docs.totalHits)
+        Assert.assertEquals(100, docs.totalHits.value)
     }
 
     @Test
@@ -196,9 +196,9 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
         closeIndexWriter()
         createIndexSearcher()
         var docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "market"), Integer.MAX_VALUE)
-        Assert.assertEquals(500, docs.totalHits)
+        Assert.assertEquals(500, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "develop"), Integer.MAX_VALUE)
-        Assert.assertEquals(500, docs.totalHits)
+        Assert.assertEquals(500, docs.totalHits.value)
     }
 
     @Test
@@ -212,9 +212,9 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
         closeIndexWriter()
         createIndexSearcher()
         var docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "market"), Integer.MAX_VALUE)
-        Assert.assertEquals(5000, docs.totalHits)
+        Assert.assertEquals(5000, docs.totalHits.value)
         docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "develop"), Integer.MAX_VALUE)
-        Assert.assertEquals(5000, docs.totalHits)
+        Assert.assertEquals(5000, docs.totalHits.value)
     }
 
     @Test
@@ -229,9 +229,9 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
                     try {
                         for (j in 0..499) {
                             var docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "market"), Integer.MAX_VALUE)
-                            Assert.assertEquals(5000, docs.totalHits)
+                            Assert.assertEquals(5000, docs.totalHits.value)
                             docs = indexSearcher.search(getQuery(ExodusLuceneTestsBase.DESCRIPTION, "develop"), Integer.MAX_VALUE)
-                            Assert.assertEquals(5000, docs.totalHits)
+                            Assert.assertEquals(5000, docs.totalHits.value)
                             docs.scoreDocs.forEach {
                                 val doc = indexSearcher.doc(it.doc, setOf("doc_id"))
                                 Integer.parseInt(doc.get("doc_id"))
@@ -318,7 +318,7 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
     private fun assertMoreLikeThis(text: String, field: String, result: Int) {
         val like = moreLikeThis?.like(field, StringReader(text))
         val docs = indexSearcher.search(like, Integer.MAX_VALUE)
-        Assert.assertEquals(result.toLong(), docs.totalHits)
+        Assert.assertEquals(result.toLong(), docs.totalHits.value)
     }
 
     private fun addSingleDocument() {
