@@ -15,5 +15,5 @@
  */
 package jetbrains.exodus.lucene
 
-data class ExodusDirectoryConfig(var inputBufferSize: Int = BUFFER_SIZE,
-                                 var inputMergeBufferSize: Int = MERGE_BUFFER_SIZE)
+data class ExodusDirectoryConfig(var inputBufferSize: Int = 1024,
+                                 var inputMergeBufferSize: Int = 4096)
