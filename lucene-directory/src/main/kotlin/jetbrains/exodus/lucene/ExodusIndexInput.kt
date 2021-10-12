@@ -26,9 +26,6 @@ import java.nio.ByteBuffer
 import kotlin.math.max
 import kotlin.math.min
 
-internal const val BUFFER_SIZE = 512
-internal const val MERGE_BUFFER_SIZE = 4096
-
 internal open class ExodusIndexInput(private val directory: ExodusDirectory,
                                      private val file: File,
                                      bufferSize: Int) :
@@ -125,7 +122,7 @@ internal open class ExodusIndexInput(private val directory: ExodusDirectory,
     private class SlicedExodusIndexInput(private val base: ExodusIndexInput,
                                          private val fileOffset: Long,
                                          private val length: Long) :
-            ExodusIndexInput(base.directory, base.file, max(min(BUFFER_SIZE.toLong(), length).toInt(), MIN_BUFFER_SIZE)) {
+            ExodusIndexInput(base.directory, base.file, max(min(base.bufferSize.toLong(), length).toInt(), MIN_BUFFER_SIZE)) {
 
         override fun length() = length
 
