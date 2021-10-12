@@ -63,6 +63,10 @@ public class VfsInputStream extends InputStream {
         if (current == null) {
             return -1;
         }
+        if (current.getSize() > 0 && len == 1) {
+            b[off] = current.next();
+            return 1;
+        }
         int readBytes = 0;
         while (current != null) {
             readBytes += current.nextBytes(b, off + readBytes, len - readBytes);
