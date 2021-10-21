@@ -19,6 +19,7 @@ package jetbrains.exodus.entitystore
 
 import jetbrains.exodus.*
 import jetbrains.exodus.bindings.*
+import jetbrains.exodus.core.dataStructures.IntArrayList
 import jetbrains.exodus.core.dataStructures.LongArrayList
 import jetbrains.exodus.core.dataStructures.hash.*
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLong23TreeSet
@@ -28,6 +29,7 @@ import jetbrains.exodus.entitystore.tables.*
 import jetbrains.exodus.env.*
 import jetbrains.exodus.env.StoreConfig.USE_EXISTING
 import jetbrains.exodus.env.StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING
+import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
 import jetbrains.exodus.util.ByteArraySizedInputStream
 import mu.KLogging
@@ -58,22 +60,53 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
     }
 
     fun refactorCreateNullPropertyIndices() {
-        safeExecuteRefactoringForEachEntityType("Refactoring creating null-value property indices") { entityType, txn ->
-            val entityTypeId = store.getEntityTypeId(txn, entityType, false)
-            val props = store.getPropertiesTable(txn, entityTypeId)
-            val allPropsIndex = props.allPropsIndex
-            store.getPrimaryPropertyIndexCursor(txn, entityTypeId).use { cursor ->
-                val envTxn = txn.environmentTransaction
-                while (cursor.next) {
-                    val propKey = PropertyKey.entryToPropertyKey(cursor.key)
-                    val propValue = store.propertyTypes.entryToPropertyValue(cursor.value)
-                    val data = propValue.data
-                    val fieldId = propKey.propertyId
-                    val localId = propKey.entityLocalId
-                    if (data !is Boolean || data == true) {
-                        allPropsIndex.put(envTxn, fieldId, localId)
-                    } else {
-                        props.delete(txn, localId, cursor.value, fieldId, propValue.type)
+        store.executeInReadonlyTransaction { txn ->
+            txn as PersistentStoreTransaction
+            var cursorValueToDelete: ArrayByteIterable? = null
+            var propTypeToDelete: ComparableValueType? = null
+            for (entityType in store.getEntityTypes(txn)) {
+                logInfo("Refactoring creating null-value property indices for [$entityType]")
+                val entityTypeId = store.getEntityTypeId(txn, entityType, false)
+                val aFieldIds = IntArrayList()
+                val aLocalIds = LongArrayList()
+                val dFieldIds = IntArrayList()
+                val dLocalIds = LongArrayList()
+                store.getPrimaryPropertyIndexCursor(txn, entityTypeId).use { cursor ->
+                    while (cursor.next) {
+                        val propKey = PropertyKey.entryToPropertyKey(cursor.key)
+                        val cursorValue = ArrayByteIterable(cursor.value)
+                        val propValue = store.propertyTypes.entryToPropertyValue(cursorValue)
+                        val data = propValue.data
+                        val fieldId = propKey.propertyId
+                        val localId = propKey.entityLocalId
+                        if (data !is Boolean || data == true) {
+                            aFieldIds.add(fieldId)
+                            aLocalIds.add(localId)
+                        } else {
+                            dFieldIds.add(fieldId)
+                            dLocalIds.add(localId)
+                            cursorValueToDelete = cursorValue
+                            propTypeToDelete = propValue.type
+                        }
+                    }
+                }
+                val props = store.getPropertiesTable(txn, entityTypeId)
+                if (!aFieldIds.isEmpty) {
+                    store.environment.executeInExclusiveTransaction { txn ->
+                        val allPropsIndex = props.allPropsIndex
+                        for (i in 0 until aFieldIds.size()) {
+                            allPropsIndex.put(txn, aFieldIds[i], aLocalIds[i])
+                        }
+                    }
+                }
+                if (!dFieldIds.isEmpty) {
+                    store.executeInExclusiveTransaction { txn ->
+                        txn as PersistentStoreTransaction
+                        for (i in 0 until dFieldIds.size()) {
+                            props.delete(
+                                txn, dLocalIds[i], cursorValueToDelete.notNull, dFieldIds[i], propTypeToDelete.notNull
+                            )
+                        }
                     }
                 }
             }
