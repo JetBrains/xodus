@@ -67,10 +67,40 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
             for (entityType in store.getEntityTypes(txn)) {
                 logInfo("Refactoring creating null-value property indices for [$entityType]")
                 val entityTypeId = store.getEntityTypeId(txn, entityType, false)
+                val props = store.getPropertiesTable(txn, entityTypeId)
                 val aFieldIds = IntArrayList()
                 val aLocalIds = LongArrayList()
                 val dFieldIds = IntArrayList()
                 val dLocalIds = LongArrayList()
+
+                fun dumpAdded() {
+                    if (!aFieldIds.isEmpty) {
+                        store.environment.executeInExclusiveTransaction { txn ->
+                            val allPropsIndex = props.allPropsIndex
+                            for (i in 0 until aFieldIds.size()) {
+                                allPropsIndex.put(txn, aFieldIds[i], aLocalIds[i])
+                            }
+                        }
+                        aFieldIds.clear()
+                        aLocalIds.clear()
+                    }
+                }
+
+                fun dumpDeleted() {
+                    if (!dFieldIds.isEmpty) {
+                        store.executeInExclusiveTransaction { txn ->
+                            txn as PersistentStoreTransaction
+                            for (i in 0 until dFieldIds.size()) {
+                                props.delete(
+                                    txn, dLocalIds[i], cursorValueToDelete.notNull, dFieldIds[i], propTypeToDelete.notNull
+                                )
+                            }
+                        }
+                        dFieldIds.clear()
+                        dLocalIds.clear()
+                    }
+                }
+
                 store.getPrimaryPropertyIndexCursor(txn, entityTypeId).use { cursor ->
                     while (cursor.next) {
                         val propKey = PropertyKey.entryToPropertyKey(cursor.key)
@@ -82,33 +112,22 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                         if (data !is Boolean || data == true) {
                             aFieldIds.add(fieldId)
                             aLocalIds.add(localId)
+                            if (aFieldIds.size() == 1000) {
+                                dumpAdded()
+                            }
                         } else {
                             dFieldIds.add(fieldId)
                             dLocalIds.add(localId)
                             cursorValueToDelete = cursorValue
                             propTypeToDelete = propValue.type
+                            if (dFieldIds.size() == 1000) {
+                                dumpDeleted()
+                            }
                         }
                     }
                 }
-                val props = store.getPropertiesTable(txn, entityTypeId)
-                if (!aFieldIds.isEmpty) {
-                    store.environment.executeInExclusiveTransaction { txn ->
-                        val allPropsIndex = props.allPropsIndex
-                        for (i in 0 until aFieldIds.size()) {
-                            allPropsIndex.put(txn, aFieldIds[i], aLocalIds[i])
-                        }
-                    }
-                }
-                if (!dFieldIds.isEmpty) {
-                    store.executeInExclusiveTransaction { txn ->
-                        txn as PersistentStoreTransaction
-                        for (i in 0 until dFieldIds.size()) {
-                            props.delete(
-                                txn, dLocalIds[i], cursorValueToDelete.notNull, dFieldIds[i], propTypeToDelete.notNull
-                            )
-                        }
-                    }
-                }
+                dumpAdded()
+                dumpDeleted()
             }
         }
     }
