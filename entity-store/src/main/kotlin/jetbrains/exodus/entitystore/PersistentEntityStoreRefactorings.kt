@@ -430,19 +430,14 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                     val propTable = store.getPropertiesTable(txn, entityTypeId)
                     val envTxn = txn.environmentTransaction
                     val props = IntHashMap<LongHashMap<PropertyValue>>()
-                    val all: LongSet = PackedLongHashSet()
-                    store.getEntitiesIndexCursor(txn, entityTypeId).use { cursor ->
-                        while (cursor.next) {
-                            all.add(LongBinding.compressedEntryToLong(cursor.key))
-                        }
-                    }
+                    val all = (txn.getAll(entityType) as EntityIterableBase).toSet(txn)
                     val propertyTypes = store.propertyTypes
-                    val entitiesToDelete: LongSet = LongHashSet()
+                    val entitiesToDelete = LongHashSet()
                     store.getPrimaryPropertyIndexCursor(txn, propTable).use { cursor ->
                         while (cursor.next) {
                             val propKey = PropertyKey.entryToPropertyKey(cursor.key)
                             val localId = propKey.entityLocalId
-                            if (!all.contains(localId)) {
+                            if (!all.contains(entityTypeId, localId)) {
                                 entitiesToDelete.add(localId)
                                 continue
                             }
@@ -457,15 +452,15 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                         }
                     }
                     if (!entitiesToDelete.isEmpty()) {
-                        store.executeInTransaction { tx ->
-                            val txn = tx as PersistentStoreTransaction
+                        store.executeInExclusiveTransaction { txn ->
+                            txn as PersistentStoreTransaction
                             for (localId in entitiesToDelete) {
                                 store.deleteEntity(txn,
                                     PersistentEntity(store, PersistentEntityId(entityTypeId, localId)))
                             }
                         }
                     }
-                    val missingPairs: MutableList<Pair<Int, Pair<ByteIterable, ByteIterable>>> = ArrayList()
+                    val missingPairs = ArrayList<Pair<Int, Pair<ByteIterable, ByteIterable>>>()
                     val allPropsMap = IntHashMap<MutableSet<Long>>()
                     for (propId in props.keys) {
                         val valueIndex = propTable.getValueIndex(txn, propId, false)
@@ -481,14 +476,14 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                                 propertyTypes, PropertyTypes.propertyValueToEntry(propValue), propValue.type)) {
                                 val secondaryValue: ByteIterable = LongBinding.longToCompressedEntry(localId)
                                 if (valueCursor == null || !valueCursor.getSearchBoth(secondaryKey, secondaryValue)) {
-                                    missingPairs.add(Pair(propId, Pair(secondaryKey, secondaryValue)))
+                                    missingPairs.add(propId to (secondaryKey to secondaryValue))
                                 }
                             }
                         }
                         valueCursor?.close()
                     }
                     if (missingPairs.isNotEmpty()) {
-                        store.executeInTransaction { tx ->
+                        store.executeInExclusiveTransaction { tx ->
                             val txn = tx as PersistentStoreTransaction
                             for (pair in missingPairs) {
                                 val valueIndex = propTable.getValueIndex(txn, pair.first, true)
@@ -501,7 +496,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                         }
                         logInfo("${missingPairs.size} missing secondary keys found and fixed for [$entityType]")
                     }
-                    val phantomPairs: MutableList<Pair<Int, Pair<ByteIterable, ByteIterable>>> = ArrayList()
+                    val phantomPairs = ArrayList<Pair<Int, Pair<ByteIterable, ByteIterable>>>()
                     for ((propId, value1) in propTable.valueIndices) {
                         val entitiesToValues = props[propId]
                         val c = value1.openCursor(envTxn)
@@ -518,7 +513,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                                     @Suppress("UNCHECKED_CAST")
                                     dataClass = (data as ComparableSet<Comparable<Any>>).itemClass
                                     if (dataClass == null) {
-                                        phantomPairs.add(Pair(propId, Pair(keyEntry, valueEntry)))
+                                        phantomPairs.add(propId to (ArrayByteIterable(keyEntry) to ArrayByteIterable(valueEntry)))
                                         continue
                                     }
                                     objectBinding = propertyTypes.getPropertyType(dataClass).binding
@@ -542,12 +537,12 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                                     throwJVMError(t)
                                 }
                             }
-                            phantomPairs.add(Pair(propId, Pair(keyEntry, valueEntry)))
+                            phantomPairs.add(propId to (ArrayByteIterable(keyEntry) to ArrayByteIterable(valueEntry)))
                         }
                         c.close()
                     }
                     if (phantomPairs.isNotEmpty()) {
-                        store.executeInTransaction { tx ->
+                        store.executeInExclusiveTransaction { tx ->
                             val txn = tx as PersistentStoreTransaction
                             val envTxn = txn.environmentTransaction
                             for (pair in phantomPairs) {
@@ -561,23 +556,19 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                         }
                         logInfo("${phantomPairs.size} phantom secondary keys found and fixed for [$entityType]")
                     }
-                    val phantomIds: MutableList<Pair<Int, Long>> = ArrayList()
-                    val c = propTable.allPropsIndex.getStore().openCursor(envTxn)
-                    while (c.next) {
-                        val propId = IntegerBinding.compressedEntryToInt(c.key)
-                        val localId = LongBinding.compressedEntryToLong(c.value)
+                    val phantomIds = ArrayList<Pair<Int, Long>>()
+                    propTable.allPropsIndex.iterable(envTxn, 0).forEach { pair ->
+                        val propId = pair.first
+                        val localId = pair.second
                         val localIds = allPropsMap[propId]
                         if (localIds == null || !localIds.remove(localId)) {
                             phantomIds.add(Pair(propId, localId))
-                        } else {
-                            if (localIds.isEmpty()) {
-                                allPropsMap.remove(propId)
-                            }
+                        } else if (localIds.isEmpty()) {
+                            allPropsMap.remove(propId)
                         }
                     }
-                    c.close()
                     if (!allPropsMap.isEmpty()) {
-                        val added = store.computeInTransaction { txn ->
+                        val added = store.computeInExclusiveTransaction { txn ->
                             var count = 0
                             val allPropsIndex = propTable.allPropsIndex
                             val envTxn = (txn as PersistentStoreTransaction).environmentTransaction
@@ -592,19 +583,10 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                         logInfo("$added missing id pairs found and fixed for [$entityType]")
                     }
                     if (phantomIds.isNotEmpty()) {
-                        store.executeInTransaction { txn ->
-                            val allPropsIndex = propTable.allPropsIndex
+                        store.executeInExclusiveTransaction { txn ->
                             val envTxn = (txn as PersistentStoreTransaction).environmentTransaction
-                            allPropsIndex.getStore().openCursor(envTxn).use { c ->
-                                for (phantom in phantomIds) {
-                                    if (c.getSearchBoth(
-                                            IntegerBinding.intToCompressedEntry(phantom.first),
-                                            LongBinding.longToCompressedEntry(phantom.second)
-                                        )
-                                    ) {
-                                        c.deleteCurrent()
-                                    }
-                                }
+                            phantomIds.forEach { phantom ->
+                                propTable.allPropsIndex.remove(envTxn,phantom.first, phantom.second)
                             }
                         }
                         logInfo("${phantomIds.size} phantom id pairs found and fixed for [$entityType]")
