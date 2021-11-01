@@ -314,7 +314,8 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                                     linkValue = LinkValue.entryToLinkValue(second)
                                     deletedLinkTypes.add(linkValue.entityId.typeId)
                                     deletedLinkIds.add(linkValue.linkId)
-                                } catch (ignore: ArrayIndexOutOfBoundsException) {
+                                } catch (_: ExodusException) {
+                                } catch (_: ArrayIndexOutOfBoundsException) {
                                 }
                                 do {
                                     deleteLinks.add(ArrayByteIterable(first) to ArrayByteIterable(second))
@@ -466,17 +467,19 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                         val valueIndex = propTable.getValueIndex(txn, propId, false)
                         val valueCursor = valueIndex?.openCursor(envTxn)
                         val entitiesToValues = props[propId]
-                        val localIdSet: Set<Long> = entitiesToValues.keys
-                        val sortedLocalIdSet = TreeSet(localIdSet)
-                        allPropsMap[propId] = sortedLocalIdSet
-                        val localIds = sortedLocalIdSet.toTypedArray()
-                        for (localId in localIds) {
-                            val propValue = checkNotNull(entitiesToValues[localId])
-                            for (secondaryKey in PropertiesTable.createSecondaryKeys(
-                                propertyTypes, PropertyTypes.propertyValueToEntry(propValue), propValue.type)) {
-                                val secondaryValue: ByteIterable = LongBinding.longToCompressedEntry(localId)
-                                if (valueCursor == null || !valueCursor.getSearchBoth(secondaryKey, secondaryValue)) {
-                                    missingPairs.add(propId to (secondaryKey to secondaryValue))
+                        entitiesToValues?.let {
+                            val localIdSet: Set<Long> = entitiesToValues.keys
+                            val sortedLocalIdSet = TreeSet(localIdSet)
+                            allPropsMap[propId] = sortedLocalIdSet
+                            val localIds = sortedLocalIdSet.toTypedArray()
+                            for (localId in localIds) {
+                                val propValue = checkNotNull(entitiesToValues[localId])
+                                for (secondaryKey in PropertiesTable.createSecondaryKeys(
+                                    propertyTypes, PropertyTypes.propertyValueToEntry(propValue), propValue.type)) {
+                                    val secondaryValue: ByteIterable = LongBinding.longToCompressedEntry(localId)
+                                    if (valueCursor == null || !valueCursor.getSearchBoth(secondaryKey, secondaryValue)) {
+                                        missingPairs.add(propId to (secondaryKey to secondaryValue))
+                                    }
                                 }
                             }
                         }
@@ -498,7 +501,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                     }
                     val phantomPairs = ArrayList<Pair<Int, Pair<ByteIterable, ByteIterable>>>()
                     for ((propId, value1) in propTable.valueIndices) {
-                        val entitiesToValues = props[propId]
+                        val entitiesToValues = props[propId] ?: continue
                         val c = value1.openCursor(envTxn)
                         while (c.next) {
                             val keyEntry = c.key
