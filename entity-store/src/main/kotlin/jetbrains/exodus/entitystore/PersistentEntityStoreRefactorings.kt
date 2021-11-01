@@ -25,6 +25,7 @@ import jetbrains.exodus.core.dataStructures.hash.*
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLong23TreeSet
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLongSet
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl.*
+import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.tables.*
 import jetbrains.exodus.env.*
 import jetbrains.exodus.env.StoreConfig.USE_EXISTING
@@ -272,7 +273,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
         store.executeInReadonlyTransaction { txn ->
             txn as PersistentStoreTransaction
             for (entityType in store.getEntityTypes(txn)) {
-                runReadonlyTransactionSafeForEntityType(entityType, Runnable {
+                runReadonlyTransactionSafeForEntityType(entityType) {
                     val envTxn = txn.environmentTransaction
                     val entityTypeId = store.getEntityTypeId(txn, entityType, false)
                     val linksTable = store.getLinksTable(txn, entityTypeId)
@@ -281,7 +282,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                         store.environment.executeInTransaction { txn -> linksTable.truncateFirst(txn) }
                         logInfo("Drop links' tables when primary index is empty for [$entityType]")
                     }
-                })
+                }
             }
         }
     }
@@ -291,19 +292,14 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
             txn as PersistentStoreTransaction
             for (entityType in store.getEntityTypes(txn)) {
                 logInfo("Refactoring making links' tables consistent for [$entityType]")
-                runReadonlyTransactionSafeForEntityType(entityType, Runnable {
-                    val redundantLinks: MutableCollection<Pair<ByteIterable, ByteIterable>> = ArrayList()
-                    val deleteLinks: MutableCollection<Pair<ByteIterable, ByteIterable>> = ArrayList()
+                runReadonlyTransactionSafeForEntityType(entityType) {
+                    val redundantLinks = ArrayList<Pair<ByteIterable, ByteIterable>>()
+                    val deleteLinks = ArrayList<Pair<ByteIterable, ByteIterable>>()
                     val entityTypeId = store.getEntityTypeId(txn, entityType, false)
                     val linksTable = store.getLinksTable(txn, entityTypeId)
                     val envTxn = txn.environmentTransaction
-                    val all: LongSet = PackedLongHashSet()
-                    val linkFilter: LongSet = PackedLongHashSet()
-                    store.getEntitiesIndexCursor(txn, entityTypeId).use { cursor ->
-                        while (cursor.next) {
-                            all.add(LongBinding.compressedEntryToLong(cursor.key))
-                        }
-                    }
+                    val all = (txn.getAll(entityType) as EntityIterableBase).toSet(txn)
+                    val linkFilter = PackedLongHashSet()
                     val redundantLinkTypes = IntHashSet()
                     val deletedLinkTypes = IntHashSet()
                     val deletedLinkIds = IntHashSet()
@@ -313,7 +309,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                             val second = cursor.value
                             var linkValue: LinkValue? = null
                             val localId = LongBinding.compressedEntryToLong(first)
-                            if (!all.contains(localId)) {
+                            if (!all.contains(entityTypeId, localId)) {
                                 try {
                                     linkValue = LinkValue.entryToLinkValue(second)
                                     deletedLinkTypes.add(linkValue.entityId.typeId)
@@ -321,7 +317,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                                 } catch (ignore: ArrayIndexOutOfBoundsException) {
                                 }
                                 do {
-                                    deleteLinks.add(Pair(first, second))
+                                    deleteLinks.add(ArrayByteIterable(first) to ArrayByteIterable(second))
                                 } while (cursor.nextDup)
                                 continue
                             } else {
@@ -331,7 +327,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                                 try {
                                     linkValue = LinkValue.entryToLinkValue(second)
                                 } catch (ignore: ArrayIndexOutOfBoundsException) {
-                                    deleteLinks.add(Pair(first, second))
+                                    deleteLinks.add(ArrayByteIterable(first) to ArrayByteIterable(second))
                                 }
                             }
                             if (linkValue != null) {
@@ -340,20 +336,20 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                                 if (store.getLastVersion(txn, targetEntityId) < 0) {
                                     deletedLinkTypes.add(targetEntityId.typeId)
                                     deletedLinkIds.add(linkValue.linkId)
-                                    deleteLinks.add(Pair(first, second))
+                                    deleteLinks.add(ArrayByteIterable(first) to ArrayByteIterable(second))
                                     continue
                                 } else {
                                     linkFilter.add((first.hashCode().toLong() shl 31) + second.hashCode().toLong())
                                 }
                                 if (!linksTable.contains2(envTxn, first, second)) {
                                     redundantLinkTypes.add(targetEntityId.typeId)
-                                    redundantLinks.add(Pair(first, second))
+                                    redundantLinks.add(ArrayByteIterable(first) to ArrayByteIterable(second))
                                 }
                             }
                         }
                     }
-                    if (!redundantLinks.isEmpty()) {
-                        store.environment.executeInTransaction { txn ->
+                    if (redundantLinks.isNotEmpty()) {
+                        store.environment.executeInExclusiveTransaction { txn ->
                             for (badLink in redundantLinks) {
                                 linksTable.put(txn, badLink.first, badLink.second)
                             }
@@ -367,7 +363,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                             val first = cursor.value
                             if (!linkFilter.contains((first.hashCode().toLong() shl 31) + second.hashCode().toLong())) {
                                 if (!linksTable.contains(envTxn, first, second)) {
-                                    redundantLinks.add(Pair(first, second))
+                                    redundantLinks.add(ArrayByteIterable(first) to ArrayByteIterable(second))
                                 }
                             }
                         }
@@ -375,7 +371,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                     val redundantLinksSize = redundantLinks.size
                     val deleteLinksSize = deleteLinks.size
                     if (redundantLinksSize > 0 || deleteLinksSize > 0) {
-                        store.environment.executeInTransaction { txn ->
+                        store.environment.executeInExclusiveTransaction { txn ->
                             for (redundantLink in redundantLinks) {
                                 deletePair(linksTable.getSecondIndexCursor(txn),
                                     redundantLink.first,
@@ -419,7 +415,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                         }
                     }
                     Settings.delete(internalSettings, "Link null-indices present") // reset link null indices
-                })
+                }
             }
         }
     }
@@ -429,7 +425,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
             txn as PersistentStoreTransaction
             for (entityType in store.getEntityTypes(txn)) {
                 logInfo("Refactoring making props' tables consistent for [$entityType]")
-                runReadonlyTransactionSafeForEntityType(entityType, Runnable {
+                runReadonlyTransactionSafeForEntityType(entityType) {
                     val entityTypeId = store.getEntityTypeId(txn, entityType, false)
                     val propTable = store.getPropertiesTable(txn, entityTypeId)
                     val envTxn = txn.environmentTransaction
@@ -613,7 +609,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
                         }
                         logInfo("${phantomIds.size} phantom id pairs found and fixed for [$entityType]")
                     }
-                })
+                }
             }
         }
     }
@@ -964,9 +960,9 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
 
     companion object : KLogging() {
 
-        private fun runReadonlyTransactionSafeForEntityType(entityType: String,runnable: Runnable) {
+        private fun runReadonlyTransactionSafeForEntityType(entityType: String, action: () -> Unit) {
             try {
-                runnable.run()
+                action()
             } catch (ignore: ReadonlyTransactionException) {
                 // that fixes XD-377, XD-492 and similar not reported issues
             } catch (t: Throwable) {
@@ -976,10 +972,11 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
         }
 
         private fun deletePair(c: Cursor, key: ByteIterable, value: ByteIterable) {
-            if (c.getSearchBoth(key, value)) {
-                c.deleteCurrent()
+            c.use {
+                if (c.getSearchBoth(key, value)) {
+                    c.deleteCurrent()
+                }
             }
-            c.close()
         }
 
         private fun throwJVMError(t: Throwable) {
