@@ -133,22 +133,18 @@ public class EntityMetaDataImpl implements EntityMetaData {
     @Override
     public Collection<String> getAllSubTypes() {
         if (!hasSubTypes()) return Collections.emptyList();
-
-        updateAllSubTypes();
-
-        return allSubTypes;
-    }
-
-    private void updateAllSubTypes() {
-        if (allSubTypes == null) {
+        List<String> result = allSubTypes;
+        if (result == null) {
             synchronized (this) {
-                if (allSubTypes == null) {
-                    List<String> _allSubTypes = new ArrayList<>();
-                    collectSubTypes(this, _allSubTypes);
-                    allSubTypes = _allSubTypes;
+                result = allSubTypes;
+                if (result == null) {
+                    result = new ArrayList<>();
+                    collectSubTypes(this, result);
+                    allSubTypes = result;
                 }
             }
         }
+        return result;
     }
 
     private void collectSubTypes(EntityMetaDataImpl emd, List<String> result) {
