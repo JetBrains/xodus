@@ -16,6 +16,7 @@
 package jetbrains.exodus.log
 
 import jetbrains.exodus.core.execution.RunnableJob
+import jetbrains.exodus.core.execution.executeIterable
 import jetbrains.exodus.util.DeferredIO
 import java.lang.Integer.max
 
@@ -24,7 +25,8 @@ import java.lang.Integer.max
  */
 internal fun Log.warmup() {
     // do warmup asynchronously
-    DeferredIO.getJobProcessor().queue(RunnableJob {
+    val processor = DeferredIO.getJobProcessor()
+    processor.queue(RunnableJob {
         // number of files to walk through at maximum
         val maxFiles = cache.memoryUsage / fileLengthBound
         val files = allFileAddresses.take(max(1, maxFiles.toInt())).reversed()
@@ -32,7 +34,7 @@ internal fun Log.warmup() {
         val it = DataIterator(this)
         val pageSize = config.cachePageSize
         Log.logger.info("Warming LogCache up with newest $size ${if (size > 1) "files" else "file"} at $location")
-        files.forEach { address ->
+        processor.executeIterable(files) { address ->
             Log.logger.info("Warming up ${LogUtil.getLogFilename(address)}")
             var pageAddress = address
             while (pageAddress < address + fileLengthBound && pageAddress + pageSize < highAddress) {
