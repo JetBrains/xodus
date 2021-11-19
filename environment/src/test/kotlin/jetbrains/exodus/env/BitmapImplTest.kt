@@ -32,7 +32,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
     @Before
     override fun setUp() {
         super.setUp()
-        bitmap = env.computeInExclusiveTransaction { env.openBitmap("test", StoreConfig.WITHOUT_DUPLICATES, it) }
+        bitmap = env.computeInExclusiveTransaction { env.openBitmap("test", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, it) }
     }
 
     @Test

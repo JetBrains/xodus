@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.env
 
+import jetbrains.exodus.TestFor
 import jetbrains.exodus.TestUtil
 import org.junit.Assert.*
 import org.junit.Test
@@ -474,6 +475,24 @@ class BitmapIteratorTest : BitmapImplTest() {
             bitmap.reverseIterator(txn).let {
                 assertTrue(it.getSearchBit(128))
                 assertEquals(65, it.next())
+            }
+        }
+    }
+
+    @Test
+    @TestFor(issue = "XD-848")
+    fun `search bit with patricia v2 format`() {
+        val startBit = 2048L + 64L
+        env.executeInTransaction { txn ->
+            bitmap.set(txn, 1024L, true)
+            for (i in 0L..33L) {
+                bitmap.set(txn, startBit + (i * 64), true)
+            }
+        }
+        env.executeInReadonlyTransaction { txn ->
+            bitmap.iterator(txn).let {
+                assertTrue(it.getSearchBit(startBit - 64L))
+                assertEquals(startBit, it.next())
             }
         }
     }

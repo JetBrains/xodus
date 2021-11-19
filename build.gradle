@@ -101,6 +101,10 @@ subprojects {
             systemProperty 'exodus.cipherId', 'jetbrains.exodus.crypto.streamciphers.JBChaChaStreamCipherProvider'
             systemProperty 'exodus.cipherKey', '000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f'
             systemProperty 'exodus.cipherBasicIV', '314159262718281828'
+            // force v2 database format in tests
+            systemProperty 'exodus.useVersion1Format', 'false'
+            // force using bitmaps in entity-store implementation
+            systemProperty 'exodus.entityStore.useIntForLocalId', 'true'
             // uncomment the following line to run tests in-memory
             //systemProperty 'exodus.log.readerWriterProvider', 'jetbrains.exodus.io.inMemory.MemoryDataReaderWriterProvider'
         }
