@@ -19,6 +19,7 @@ import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
 import jetbrains.exodus.entitystore.StoreTransaction
+import jetbrains.exodus.entitystore.iterate.EntityIdSet
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase.EMPTY
 import jetbrains.exodus.entitystore.iterate.SingleEntityIterable
@@ -319,21 +320,22 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
 
     protected open fun inMemorySelectDistinct(it: Iterable<Entity>, linkName: String): Iterable<Entity> {
         reportInMemoryError()
-        val ids = EntityIdSetFactory.newSet()
+        var ids = EntityIdSetFactory.newSet()
         return it.asSequence().map { it.getLink(linkName) }.filterNotNull()
-            .filter { if (ids.contains(it.id)) false else true.apply { ids.add(it.id) } }.asIterable()
+            .filter { if (it.id in ids) false else true.apply { ids = ids.add(it.id) } }.asIterable()
     }
 
     protected open fun inMemorySelectManyDistinct(it: Iterable<Entity>, linkName: String): Iterable<Entity> {
         reportInMemoryError()
-        val ids = EntityIdSetFactory.newSet()
+        var ids = EntityIdSetFactory.newSet()
         return it.asSequence().flatMap { it.getLinks(linkName) }.filterNotNull()
-            .filter { if (ids.contains(it.id)) false else true.apply { ids.add(it.id) } }.asIterable()
+            .filter { if (it.id in ids) false else true.apply { ids = ids.add(it.id) } }.asIterable()
     }
 
     protected open fun inMemoryIntersect(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
         reportInMemoryError()
-        return left.intersect(right)
+        val ids = right.asEntityIdSet
+        return left.filter { it.id in ids }
     }
 
     protected open fun inMemoryUnion(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
@@ -348,7 +350,8 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
 
     protected open fun inMemoryExclude(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
         reportInMemoryError()
-        return left.minus(right)
+        val ids = right.asEntityIdSet
+        return left.filter { it.id !in ids }
     }
 
     protected open fun wrap(entity: Entity): Iterable<Entity>? {
@@ -374,6 +377,13 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
             logger.error("QueryEngine does in-memory computations", Throwable())
         }
     }
+
+    private val Iterable<Entity>.asEntityIdSet: EntityIdSet
+        get() {
+            var ids = EntityIdSetFactory.newSet()
+            forEach { ids = ids.add(it.id) }
+            return ids
+        }
 }
 
 private val Iterable<Entity>?.isEmpty: Boolean
