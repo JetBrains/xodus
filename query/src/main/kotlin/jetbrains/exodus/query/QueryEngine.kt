@@ -331,7 +331,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
     protected open fun inMemoryIntersect(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
         reportInMemoryError()
         val ids = right.asEntityIdSet
-        return left.filter { it.id in ids }
+        return if (ids.isEmpty) right else left.filter { it.id in ids }
     }
 
     protected open fun inMemoryUnion(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
@@ -347,7 +347,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
     protected open fun inMemoryExclude(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
         reportInMemoryError()
         val ids = right.asEntityIdSet
-        return left.filter { it.id !in ids }
+        return if (ids.isEmpty) left else left.filter { it.id !in ids }
     }
 
     protected open fun wrap(entity: Entity): Iterable<Entity>? {
