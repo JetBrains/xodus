@@ -320,16 +320,12 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
 
     protected open fun inMemorySelectDistinct(it: Iterable<Entity>, linkName: String): Iterable<Entity> {
         reportInMemoryError()
-        var ids = EntityIdSetFactory.newSet()
-        return it.asSequence().map { it.getLink(linkName) }.filterNotNull()
-            .filter { if (it.id in ids) false else true.apply { ids = ids.add(it.id) } }.asIterable()
+        return it.toList().mapNotNull { it.getLink(linkName) }.distinct()
     }
 
     protected open fun inMemorySelectManyDistinct(it: Iterable<Entity>, linkName: String): Iterable<Entity> {
         reportInMemoryError()
-        var ids = EntityIdSetFactory.newSet()
-        return it.asSequence().flatMap { it.getLinks(linkName) }.filterNotNull()
-            .filter { if (it.id in ids) false else true.apply { ids = ids.add(it.id) } }.asIterable()
+        return it.toList().flatMap { it.getLinks(linkName) }.filterNotNull().distinct()
     }
 
     protected open fun inMemoryIntersect(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
@@ -377,13 +373,6 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
             logger.error("QueryEngine does in-memory computations", Throwable())
         }
     }
-
-    private val Iterable<Entity>.asEntityIdSet: EntityIdSet
-        get() {
-            var ids = EntityIdSetFactory.newSet()
-            forEach { ids = ids.add(it.id) }
-            return ids
-        }
 }
 
 private val Iterable<Entity>?.isEmpty: Boolean
@@ -406,4 +395,16 @@ private fun retrieveStaticType(left: Iterable<Entity>, right: Iterable<Entity>):
         }
     }
     return null
+}
+
+private val Iterable<Entity>.asEntityIdSet: EntityIdSet
+    get() {
+        var ids = EntityIdSetFactory.newSet()
+        forEach { ids = ids.add(it.id) }
+        return ids
+    }
+
+private fun List<Entity>.distinct(): Iterable<Entity> {
+    var ids = EntityIdSetFactory.newSet()
+    return filter { (it.id !in ids).apply { if (this) ids = ids.add(it.id) } }
 }
