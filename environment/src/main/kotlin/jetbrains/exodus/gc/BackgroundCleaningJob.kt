@@ -38,8 +38,6 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
             return
         }
 
-        if (!canContinue()) return
-
         // is invoked too early?
         val minTimeToInvokeCleaner = gc.startTime
         val currentTime = System.currentTimeMillis()
@@ -61,6 +59,10 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
         val log = env.log
         // are there enough files in the log?
         if (gc.minFileAge < log.numberOfFiles) {
+            if (!canContinue()) {
+                wakeAt(gc, System.currentTimeMillis() + gcRunPeriod)
+                return
+            }
             cleaner.isCleaning = true
             try {
                 doCleanLog(log, gc)
@@ -128,7 +130,13 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
     }
 
     private fun wakeAt(gc: GarbageCollector, time: Long) {
-        GarbageCollector.loggingInfo { "Queueing BackgroundCleaningJob[${gc.environment.location}] to wake up at [${Date(time)}]" }
+        GarbageCollector.loggingInfo {
+            "Queueing BackgroundCleaningJob[${gc.environment.location}] to wake up at [${
+                Date(
+                    time
+                )
+            }]"
+        }
         gc.wakeAt(time)
     }
 }

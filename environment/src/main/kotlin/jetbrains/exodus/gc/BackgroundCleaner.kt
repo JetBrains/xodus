@@ -25,19 +25,21 @@ internal class BackgroundCleaner(private val gc: GarbageCollector) {
     private val backgroundCleaningJob = BackgroundCleaningJob(gc)
     private var processor: JobProcessorAdapter
     internal var threadId: Long = 0
+
     @Volatile
     var isSuspended: Boolean = false
         private set
+
     @Volatile
     var isCleaning: Boolean = false
 
     init {
         processor = setJobProcessor(
-                if (gc.environment.environmentConfig.isLogCacheShared) {
-                    DelegatingJobProcessor(ThreadJobProcessorPool.getOrCreateJobProcessor("Exodus shared background cleaner"))
-                } else {
-                    ThreadJobProcessor("Exodus background cleaner for " + gc.environment.location)
-                }
+            if (gc.environment.environmentConfig.isLogCacheShared) {
+                DelegatingJobProcessor(ThreadJobProcessorPool.getOrCreateJobProcessor("Exodus shared background cleaner"))
+            } else {
+                ThreadJobProcessor("Exodus background cleaner for " + gc.environment.location)
+            }
         )
     }
 
@@ -89,7 +91,10 @@ internal class BackgroundCleaner(private val gc: GarbageCollector) {
         }
     }
 
-    fun resume() = backgroundCleaningJob.synchronized { isSuspended = false }
+    fun resume() = backgroundCleaningJob.synchronized {
+        isSuspended = false
+        queueCleaningJob()
+    }
 
     fun queueCleaningJob() {
         if (gc.environment.environmentConfig.isGcEnabled) {
