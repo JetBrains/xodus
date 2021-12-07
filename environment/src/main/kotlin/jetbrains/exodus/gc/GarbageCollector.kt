@@ -365,6 +365,10 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             }
         }
 
+        internal fun loggingDebug(message: () -> String) {
+            logger.debug { message() }
+        }
+
         internal fun formatBytes(bytes: Long) = if (bytes == Long.MAX_VALUE) "Unknown" else "${bytes / 1000}Kb"
     }
 }

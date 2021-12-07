@@ -130,12 +130,9 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
     }
 
     private fun wakeAt(gc: GarbageCollector, time: Long) {
-        GarbageCollector.loggingInfo {
-            "Queueing BackgroundCleaningJob[${gc.environment.location}] to wake up at [${
-                Date(
-                    time
-                )
-            }]"
+        GarbageCollector.loggingDebug {
+            val location = gc.environment.location
+            "Queueing BackgroundCleaningJob[$location] to wake up at [${Date(time)}]"
         }
         gc.wakeAt(time)
     }
