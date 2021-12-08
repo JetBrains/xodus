@@ -48,10 +48,56 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
         return super.union(right)
     }
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
+    override fun getIteratorImpl(txn: PersistentStoreTransaction) = getIterator(txn, reverse = false)
+
+    override fun getReverseIteratorImpl(txn: PersistentStoreTransaction) = getIterator(txn, reverse = true)
+
+    override fun getHandleImpl(): EntityIterableHandle {
+        return object : EntityIterableHandleDecorator(store, EntityIterableType.FILTER_LINKS, source.handle) {
+            private val linkIds = mergeFieldIds(intArrayOf(linkId), mergeFieldIds(decorated.linkIds, filter.handle.linkIds))
+
+            override fun getLinkIds() = linkIds
+
+            override fun toString(builder: StringBuilder) {
+                super.toString(builder)
+                builder.append(linkId)
+                builder.append('-')
+                applyDecoratedToBuilder(builder)
+                builder.append('-')
+                (filter.handle as EntityIterableHandleBase).toString(builder)
+            }
+
+            override fun hashCode(hash: EntityIterableHandleHash) {
+                hash.apply(linkId)
+                hash.applyDelimiter()
+                super.hashCode(hash)
+                hash.applyDelimiter()
+                hash.apply(filter.handle)
+            }
+
+            override fun isMatchedLinkAdded(source: EntityId, target: EntityId, linkId: Int): Boolean {
+                return linkId == this@FilterLinksIterable.linkId ||
+                    decorated.isMatchedLinkAdded(source, target, linkId) ||
+                    filter.handle.isMatchedLinkAdded(source, target, linkId)
+            }
+
+            override fun isMatchedLinkDeleted(source: EntityId, target: EntityId, linkId: Int): Boolean {
+                return linkId == this@FilterLinksIterable.linkId ||
+                    decorated.isMatchedLinkDeleted(source, target, linkId) ||
+                    filter.handle.isMatchedLinkDeleted(source, target, linkId)
+            }
+        }
+    }
+
+    override fun isSortedById(): Boolean {
+        return source.isSortedById
+    }
+
+    private fun getIterator(txn: PersistentStoreTransaction, reverse: Boolean): EntityIterator {
         return EntityIteratorFixingDecorator(this, object : EntityIteratorBase(this) {
 
-            private val sourceIt = source.iterator() as EntityIteratorBase
+            private val sourceIt =
+                (if (reverse) source.getReverseIteratorImpl(txn) else source.getIteratorImpl(txn)) as EntityIteratorBase
             private val usedCursors = IntHashMap<Cursor>(6, 2f)
             private val auxStream = LightOutputStream()
             private val auxArray = IntArray(8)
@@ -73,7 +119,8 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
                             usedCursors[typeId] = cursor
                         }
                         val value = cursor.getSearchKey(
-                                PropertyKey.propertyKeyToEntry(auxStream, auxArray, id.localId, linkId))
+                            PropertyKey.propertyKeyToEntry(auxStream, auxArray, id.localId, linkId)
+                        )
                         if (value != null) {
                             if (idSet.contains(LinkValue.entryToLinkValue(value).entityId)) {
                                 return true
@@ -107,53 +154,14 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
         })
     }
 
-    override fun getHandleImpl(): EntityIterableHandle {
-        return object : EntityIterableHandleDecorator(store, EntityIterableType.FILTER_LINKS, source.handle) {
-            private val linkIds = mergeFieldIds(intArrayOf(linkId), mergeFieldIds(decorated.linkIds, filter.handle.linkIds))
-
-            override fun getLinkIds() = linkIds
-
-            override fun toString(builder: StringBuilder) {
-                super.toString(builder)
-                builder.append(linkId)
-                builder.append('-')
-                applyDecoratedToBuilder(builder)
-                builder.append('-')
-                (filter.handle as EntityIterableHandleBase).toString(builder)
-            }
-
-            override fun hashCode(hash: EntityIterableHandleHash) {
-                hash.apply(linkId)
-                hash.applyDelimiter()
-                super.hashCode(hash)
-                hash.applyDelimiter()
-                hash.apply(filter.handle)
-            }
-
-            override fun isMatchedLinkAdded(source: EntityId, target: EntityId, linkId: Int): Boolean {
-                return linkId == this@FilterLinksIterable.linkId ||
-                        decorated.isMatchedLinkAdded(source, target, linkId) ||
-                        filter.handle.isMatchedLinkAdded(source, target, linkId)
-            }
-
-            override fun isMatchedLinkDeleted(source: EntityId, target: EntityId, linkId: Int): Boolean {
-                return linkId == this@FilterLinksIterable.linkId ||
-                        decorated.isMatchedLinkDeleted(source, target, linkId) ||
-                        filter.handle.isMatchedLinkDeleted(source, target, linkId)
-            }
-        }
-    }
-
-    override fun isSortedById(): Boolean {
-        return source.isSortedById
-    }
-
     companion object {
 
         init {
             EntityIterableBase.registerType(EntityIterableType.FILTER_LINKS) { txn, _, parameters ->
-                FilterLinksIterable(txn, Integer.valueOf(parameters[0] as String),
-                        parameters[1] as EntityIterableBase, parameters[2] as EntityIterable)
+                FilterLinksIterable(
+                    txn, Integer.valueOf(parameters[0] as String),
+                    parameters[1] as EntityIterableBase, parameters[2] as EntityIterable
+                )
             }
         }
     }
