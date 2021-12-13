@@ -19,9 +19,11 @@ import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.env.Cursor
 import jetbrains.exodus.kotlin.notNull
 
-abstract class PropertyRangeOrValueIterableBase(txn: PersistentStoreTransaction,
-                                                private val entityTypeId: Int,
-                                                val propertyId: Int) : EntityIterableBase(txn) {
+abstract class PropertyRangeOrValueIterableBase(
+    txn: PersistentStoreTransaction,
+    private val entityTypeId: Int,
+    val propertyId: Int
+) : EntityIterableBase(txn) {
 
     private var propertiesIterable: PropertiesIterable? = null
         get() {
@@ -36,6 +38,5 @@ abstract class PropertyRangeOrValueIterableBase(txn: PersistentStoreTransaction,
         return store.getPropertyValuesIndexCursor(txn, entityTypeId, propertyId)
     }
 
-    protected val propertyValueIndex: EntityIterableBase
-        get() = store.entityIterableCache.putIfNotCached(propertiesIterable.notNull)
+    protected val propertyValueIndex: EntityIterableBase get() = propertiesIterable.notNull.asProbablyCached()
 }

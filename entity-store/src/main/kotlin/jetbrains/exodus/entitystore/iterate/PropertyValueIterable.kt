@@ -31,6 +31,7 @@ class PropertyValueIterable(
 
     private val value = PropertyTypes.toLowerCase(value)
     private val valueClass = value.javaClass
+    private var forceCached = false
 
     companion object {
         init {
@@ -54,7 +55,7 @@ class PropertyValueIterable(
         }
     }
 
-    override fun canBeCached() = value is Boolean || super.canBeCached()
+    override fun canBeCached() = forceCached || value is Boolean || super.canBeCached()
 
     override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase {
         val it = propertyValueIndex
@@ -62,10 +63,27 @@ class PropertyValueIterable(
             val cached = it as UpdatablePropertiesCachedInstanceIterable
             return if (value.javaClass != cached.getPropertyValueClass()) {
                 EntityIteratorBase.EMPTY
-            } else cached.getPropertyValueIterator(value as Comparable<Any>)
+            } else {
+                cached.getPropertyValueIterator(value as Comparable<Any>)
+            }
         }
         val valueIdx = openCursor(txn) ?: return EntityIteratorBase.EMPTY
-        return PropertyValueIterator(valueIdx)
+        return PropertyValueIterator(valueIdx, reverse = false)
+    }
+
+    override fun getReverseIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
+        val it = propertyValueIndex
+        if (it.isCachedInstance) {
+            val cached = it as UpdatablePropertiesCachedInstanceIterable
+            return if (value.javaClass != cached.getPropertyValueClass()) {
+                EntityIteratorBase.EMPTY
+            } else {
+                forceCached = true
+                getOrCreateCachedInstance(txn).getReverseIteratorImpl(txn)
+            }
+        }
+        val valueIdx = openCursor(txn) ?: return EntityIteratorBase.EMPTY
+        return PropertyValueIterator(valueIdx, reverse = true)
     }
 
     override fun nonCachedHasFastCountAndIsEmpty() = true
@@ -130,7 +148,10 @@ class PropertyValueIterable(
         return valueIdx == null || SingleKeyCursorIsEmptyChecker(valueIdx, key).isEmpty
     }
 
-    private inner class PropertyValueIterator(cursor: Cursor) : EntityIteratorBase(this@PropertyValueIterable) {
+    private inner class PropertyValueIterator(
+        cursor: Cursor,
+        val reverse: Boolean = false
+    ) : EntityIteratorBase(this@PropertyValueIterable) {
 
         private var hasNext = false
         private val valueBytes: ArrayByteIterable
@@ -139,7 +160,18 @@ class PropertyValueIterable(
             setCursor(cursor)
             val binding = store.propertyTypes.dataToPropertyValue(value).binding
             valueBytes = binding.objectToEntry(value)
-            checkHasNext(getCursor().getSearchKey(valueBytes) != null)
+            val entry = cursor.getSearchKey(valueBytes)
+            if (entry != null) {
+                if (reverse) {
+                    if (cursor.nextNoDup) {
+                        checkHasNext(cursor.prev)
+                    } else {
+                        checkHasNext(cursor.last)
+                    }
+                } else {
+                    checkHasNext(true)
+                }
+            }
         }
 
         public override fun hasNextImpl() = hasNext
@@ -149,7 +181,7 @@ class PropertyValueIterable(
                 explain(EntityIterableType.ENTITIES_BY_PROP_VALUE)
                 val cursor = cursor
                 return PersistentEntityId(entityTypeId, LongBinding.compressedEntryToLong(cursor.value)).also {
-                    checkHasNext(cursor.nextDup)
+                    checkHasNext(if (reverse) cursor.prevNoDup else cursor.nextDup)
                 }
             }
             return null
