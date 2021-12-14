@@ -15,17 +15,16 @@
  */
 package jetbrains.exodus.entitystore.iterate.binop
 
-import jetbrains.exodus.entitystore.EntityId
-import jetbrains.exodus.entitystore.EntityIterableType
-import jetbrains.exodus.entitystore.PersistentEntityId
-import jetbrains.exodus.entitystore.PersistentStoreTransaction
+import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.iterate.*
 import jetbrains.exodus.kotlin.notNull
 
-class IntersectionIterable @JvmOverloads constructor(txn: PersistentStoreTransaction?,
-                                                     iterable1: EntityIterableBase,
-                                                     iterable2: EntityIterableBase,
-                                                     preserveRightOrder: Boolean = false) : BinaryOperatorEntityIterable(txn, iterable1, iterable2, !preserveRightOrder) {
+class IntersectionIterable @JvmOverloads constructor(
+    txn: PersistentStoreTransaction?,
+    iterable1: EntityIterableBase,
+    iterable2: EntityIterableBase,
+    preserveRightOrder: Boolean = false
+) : BinaryOperatorEntityIterable(txn, iterable1, iterable2, !preserveRightOrder) {
 
     init {
         if (preserveRightOrder) {
@@ -42,28 +41,33 @@ class IntersectionIterable @JvmOverloads constructor(txn: PersistentStoreTransac
     override fun getIterableType() = EntityIterableType.INTERSECT
 
     override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase {
-        val iterable1 = this.iterable1
-        val iterable2 = this.iterable2
-        val iterator: EntityIteratorBase
-        if (isSortedById) {
+        val iterator = if (isSortedById) {
             if (iterable1.isSortedById) {
-                iterator = if (iterable2.isSortedById)
+                if (iterable2.isSortedById)
                     SortedIterator(this, iterable1, iterable2)
                 else
                     UnsortedIterator(this, txn, iterable2, iterable1)
             } else {
                 // iterable2 is sorted for sure
-                iterator = UnsortedIterator(this, txn, iterable1, iterable2)
+                UnsortedIterator(this, txn, iterable1, iterable2)
             }
         } else {
             // both unsorted or order preservation needed
             // XD-821: EntityIdSetIterable cannot be passed as second parameter to ctor of UnsortedIterator
-            iterator = if (iterable2 is EntityIdSetIterable)
+            if (iterable2 is EntityIdSetIterable)
                 UnsortedIterator(this, txn, iterable2, iterable1)
             else
                 UnsortedIterator(this, txn, iterable1, iterable2)
         }
         return EntityIteratorFixingDecorator(this, iterator)
+    }
+
+    override fun getReverseIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
+        return if (iterable1.isSortedById && iterable2.isSortedById) {
+            EntityIteratorFixingDecorator(this, SortedReverseIterator(txn, this, iterable1, iterable2))
+        } else {
+            super.getReverseIteratorImpl(txn)
+        }
     }
 
     override fun countImpl(txn: PersistentStoreTransaction) = if (isEmptyFast(txn)) 0 else super.countImpl(txn)
@@ -72,17 +76,26 @@ class IntersectionIterable @JvmOverloads constructor(txn: PersistentStoreTransac
 
     override fun isEmptyFast(txn: PersistentStoreTransaction): Boolean {
         return super.isEmptyFast(txn) ||
-                ((iterable1.isCached || iterable1.nonCachedHasFastCountAndIsEmpty()) && iterable1.isEmptyImpl(txn)) ||
-                ((iterable2.isCached || iterable2.nonCachedHasFastCountAndIsEmpty()) && iterable2.isEmptyImpl(txn))
+            ((iterable1.isCached || iterable1.nonCachedHasFastCountAndIsEmpty()) && iterable1.isEmptyImpl(txn)) ||
+            ((iterable2.isCached || iterable2.nonCachedHasFastCountAndIsEmpty()) && iterable2.isEmptyImpl(txn))
     }
 
-    private class SortedIterator constructor(iterable: EntityIterableBase,
-                                             iterable1: EntityIterableBase,
-                                             iterable2: EntityIterableBase) : NonDisposableEntityIterator(iterable) {
+    private abstract class SortedIteratorBase(
+        iterable: EntityIterableBase,
+        getIterators: () -> Pair<EntityIteratorBase, EntityIteratorBase>
+    ) : NonDisposableEntityIterator(iterable) {
 
-        private val iterator1 = iterable1.iterator() as EntityIteratorBase
-        private val iterator2 = iterable2.iterator() as EntityIteratorBase
-        private var nextId: EntityId? = null
+        private val iterator1: EntityIteratorBase
+        private val iterator2: EntityIteratorBase
+        protected var nextId: EntityId? = null
+
+        init {
+            val (it1, it2) = getIterators()
+            iterator1 = it1
+            iterator2 = it2
+        }
+
+        public override fun nextIdImpl() = nextId
 
         override fun hasNextImpl(): Boolean {
             var next = nextId
@@ -109,7 +122,7 @@ class IntersectionIterable @JvmOverloads constructor(txn: PersistentStoreTransac
                     if (e1 !== e2 && (e1 == null || e2 == null)) {
                         continue
                     }
-                    val cmp = if (e1 === e2) 0 else e1.notNull.compareTo(e2.notNull)
+                    val cmp = compare(e1.notNull, e2.notNull)
                     if (cmp < 0) {
                         e1 = null
                     } else if (cmp > 0) {
@@ -125,13 +138,42 @@ class IntersectionIterable @JvmOverloads constructor(txn: PersistentStoreTransac
             return false
         }
 
-        public override fun nextIdImpl() = nextId
+        abstract fun compare(e1: EntityId, e2: EntityId): Int
     }
 
-    private class UnsortedIterator constructor(iterable: EntityIterableBase,
-                                               private val txn: PersistentStoreTransaction,
-                                               private val iterable1: EntityIterableBase,
-                                               iterable2: EntityIterableBase) : NonDisposableEntityIterator(iterable) {
+    private class SortedIterator(
+        iterable: EntityIterableBase, iterable1: EntityIterableBase, iterable2: EntityIterableBase
+    ) : SortedIteratorBase(
+        iterable,
+        {
+            (iterable1.iterator() as EntityIteratorBase) to
+                (iterable2.iterator() as EntityIteratorBase)
+        }) {
+
+        override fun compare(e1: EntityId, e2: EntityId) = if (e1 === e2) 0 else e1.compareTo(e2)
+    }
+
+    private class SortedReverseIterator(
+        txn: PersistentStoreTransaction,
+        iterable: EntityIterableBase,
+        iterable1: EntityIterableBase,
+        iterable2: EntityIterableBase
+    ) : SortedIteratorBase(
+        iterable,
+        {
+            (iterable1.getReverseIteratorImpl(txn) as EntityIteratorBase) to
+                (iterable2.getReverseIteratorImpl(txn) as EntityIteratorBase)
+        }) {
+
+        override fun compare(e1: EntityId, e2: EntityId) = if (e1 === e2) 0 else e2.compareTo(e1)
+    }
+
+    private class UnsortedIterator(
+        iterable: EntityIterableBase,
+        private val txn: PersistentStoreTransaction,
+        private val iterable1: EntityIterableBase,
+        iterable2: EntityIterableBase
+    ) : NonDisposableEntityIterator(iterable) {
         private val iterator2 = iterable2.iterator() as EntityIteratorBase
         private var entityIdSet: EntityIdSet? = null
         private var nextId: EntityId? = null
@@ -150,15 +192,17 @@ class IntersectionIterable @JvmOverloads constructor(txn: PersistentStoreTransac
         public override fun nextIdImpl() = nextId
 
         private fun getEntityIdSet() =
-                entityIdSet ?: iterable1.toSet(txn).apply { entityIdSet = this }
+            entityIdSet ?: iterable1.toSet(txn).apply { entityIdSet = this }
     }
 
     companion object {
 
         init {
             EntityIterableBase.registerType(EntityIterableType.INTERSECT) { txn, _, parameters ->
-                IntersectionIterable(txn,
-                        parameters[0] as EntityIterableBase, parameters[1] as EntityIterableBase)
+                IntersectionIterable(
+                    txn,
+                    parameters[0] as EntityIterableBase, parameters[1] as EntityIterableBase
+                )
             }
         }
     }
