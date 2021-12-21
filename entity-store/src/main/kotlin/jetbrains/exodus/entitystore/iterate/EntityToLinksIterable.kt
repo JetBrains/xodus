@@ -32,6 +32,9 @@ class EntityToLinksIterable(
 
     override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase = LinksIterator(openCursor(txn))
 
+    override fun getReverseIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase =
+        LinksReverseIterator(openCursor(txn))
+
     override fun nonCachedHasFastCountAndIsEmpty() = true
 
     override fun getHandleImpl(): EntityIterableHandle {
@@ -71,16 +74,7 @@ class EntityToLinksIterable(
     override fun getLast(): Entity? {
         val txn = store.andCheckCurrentTransaction
         openCursor(txn).use { cursor ->
-            val lastKey = getKey(PersistentEntityId(entityId.typeId, entityId.localId + 1))
-            if (cursor.getSearchKeyRange(lastKey) == null) {
-                if (!cursor.last) {
-                    return null
-                }
-            } else {
-                if (!cursor.prev) {
-                    return null
-                }
-            }
+            if (!navigateToLast(cursor)) return null
             val key = LinkValue.entryToLinkValue(cursor.key)
             return if (key.entityId != entityId || key.linkId != linkId) {
                 null
@@ -103,6 +97,20 @@ class EntityToLinksIterable(
 
     private fun getKey(entityId: EntityId) = LinkValue.linkValueToEntry(LinkValue(entityId, linkId))
 
+    private fun navigateToLast(cursor: Cursor): Boolean {
+        val lastKey = getKey(PersistentEntityId(entityId.typeId, entityId.localId + 1))
+        if (cursor.getSearchKeyRange(lastKey) == null) {
+            if (!cursor.last) {
+                return false
+            }
+        } else {
+            if (!cursor.prev) {
+                return false
+            }
+        }
+        return true
+    }
+
     private inner class LinksIterator(index: Cursor) : EntityIteratorBase(this@EntityToLinksIterable) {
 
         init {
@@ -116,11 +124,30 @@ class EntityToLinksIterable(
         public override fun nextIdImpl(): EntityId? {
             if (hasNextImpl()) {
                 explain(EntityIterableType.ENTITY_TO_LINKS)
-                val cursor = cursor
-                val result: EntityId =
-                    PersistentEntityId(typeId, PropertyKey.entryToPropertyKey(cursor.value).entityLocalId)
-                hasNext = cursor.nextDup
-                return result
+                return PersistentEntityId(typeId, PropertyKey.entryToPropertyKey(cursor.value).entityLocalId).also {
+                    hasNext = cursor.nextDup
+                }
+            }
+            return null
+        }
+    }
+
+    private inner class LinksReverseIterator(index: Cursor) : EntityIteratorBase(this@EntityToLinksIterable) {
+
+        init {
+            cursor = index
+        }
+
+        private var hasNext = navigateToLast(index)
+
+        public override fun hasNextImpl() = hasNext
+
+        public override fun nextIdImpl(): EntityId? {
+            if (hasNextImpl()) {
+                explain(EntityIterableType.ENTITY_TO_LINKS)
+                return PersistentEntityId(typeId, PropertyKey.entryToPropertyKey(cursor.value).entityLocalId).also {
+                    hasNext = cursor.prevDup
+                }
             }
             return null
         }

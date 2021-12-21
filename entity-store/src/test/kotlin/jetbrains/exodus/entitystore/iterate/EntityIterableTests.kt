@@ -608,6 +608,25 @@ class EntityIterableTests : EntityStoreTestBase() {
         Assert.assertFalse(reverseIterator.hasNext())
     }
 
+    fun testFindLinksToReverse() {
+        entityStore.config.isCachingDisabled = true
+        val txn = storeTransaction
+        val users = createNUsers(txn, 10)
+        val group = txn.newEntity("UserGroup")
+        for (user in users) {
+            user.setLink("inGroup", group)
+        }
+        txn.flush()
+        val inGroup = txn.findLinks("User", group, "inGroup")
+        Assert.assertEquals(users.size, inGroup.size().toInt())
+        inGroup.forEachIndexed { i, user ->
+            Assert.assertEquals(users[i], user)
+        }
+        inGroup.reverse().forEachIndexed { i, user ->
+            Assert.assertEquals(users[users.size - i - 1], user)
+        }
+    }
+
     @TestFor(issue = "XD-826")
     fun testIntersectOfFindLinks() {
         val txn = storeTransaction
