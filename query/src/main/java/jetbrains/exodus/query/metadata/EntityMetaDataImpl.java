@@ -354,18 +354,28 @@ public class EntityMetaDataImpl implements EntityMetaData {
     @Override
     @NotNull
     public Set<Index> getIndexes() {
-        updateIndexes();
-
-        return indexes;
+        Set<Index> result;
+        while (true) {
+            result = indexes;
+            if (result != null) break;
+            updateIndexes();
+        }
+        return result;
     }
 
     @Override
     @NotNull
     public Set<Index> getIndexes(String field) {
-        updateIndexes();
-
-        Set<Index> res = fieldToIndexes.get(field);
-        return res == null ? Collections.emptySet() : res;
+        Set<Index> result;
+        while (true) {
+            final Map<String, Set<Index>> fieldToIndexes = this.fieldToIndexes;
+            if (fieldToIndexes != null) {
+                result = fieldToIndexes.get(field);
+                break;
+            }
+            updateIndexes();
+        }
+        return result == null ? Collections.emptySet() : result;
     }
 
     private void updateIndexes() {
