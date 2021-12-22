@@ -74,14 +74,12 @@ class EntityToLinksIterable(
     override fun getLast(): Entity? {
         val txn = store.andCheckCurrentTransaction
         openCursor(txn).use { cursor ->
-            if (!navigateToLast(cursor)) return null
-            val key = LinkValue.entryToLinkValue(cursor.key)
-            return if (key.entityId != entityId || key.linkId != linkId) {
-                null
-            } else txn.getEntity(
-                PersistentEntityId(typeId, PropertyKey.entryToPropertyKey(cursor.value).entityLocalId)
-            )
+            if (navigateToLast(cursor))  {
+                return txn.getEntity(
+                    PersistentEntityId(typeId, PropertyKey.entryToPropertyKey(cursor.value).entityLocalId))
+            }
         }
+        return null
     }
 
     override fun countImpl(txn: PersistentStoreTransaction) = SingleKeyCursorCounter(openCursor(txn), firstKey).count
@@ -108,7 +106,8 @@ class EntityToLinksIterable(
                 return false
             }
         }
-        return true
+        val key = LinkValue.entryToLinkValue(cursor.key)
+        return key.entityId == entityId && key.linkId == linkId
     }
 
     private inner class LinksIterator(index: Cursor) : EntityIteratorBase(this@EntityToLinksIterable) {

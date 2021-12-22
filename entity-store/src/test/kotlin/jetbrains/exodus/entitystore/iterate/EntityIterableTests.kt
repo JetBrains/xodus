@@ -612,12 +612,22 @@ class EntityIterableTests : EntityStoreTestBase() {
         entityStore.config.isCachingDisabled = true
         val txn = storeTransaction
         val users = createNUsers(txn, 10)
+        val profile = txn.newEntity("Profile")
+        users.forEach { user ->
+            user.setLink("profile", profile)
+        }
         val group = txn.newEntity("UserGroup")
-        for (user in users) {
+        // make sure id for the link "inGroup" is created
+        users[0].setLink("inGroup", group)
+        users[0].deleteLink("inGroup", group)
+        txn.flush()
+        var inGroup = txn.findLinks("User", group, "inGroup").reverse()
+        Assert.assertEquals(0, inGroup.toList().size)
+        users.forEach { user ->
             user.setLink("inGroup", group)
         }
         txn.flush()
-        val inGroup = txn.findLinks("User", group, "inGroup")
+        inGroup = txn.findLinks("User", group, "inGroup")
         Assert.assertEquals(users.size, inGroup.size().toInt())
         inGroup.forEachIndexed { i, user ->
             Assert.assertEquals(users[i], user)
