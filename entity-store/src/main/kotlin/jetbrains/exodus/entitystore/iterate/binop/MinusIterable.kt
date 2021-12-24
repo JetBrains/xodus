@@ -53,7 +53,7 @@ class MinusIterable(
     }
 
     override fun getReverseIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
-        return if (isSortedById) {
+        return if (isSortedById && iterable2.isSortedById) {
             EntityIteratorFixingDecorator(
                 this,
                 SortedReverseIterator(this, txn, iterable1, iterable2)
