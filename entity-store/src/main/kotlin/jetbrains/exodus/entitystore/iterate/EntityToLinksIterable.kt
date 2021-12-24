@@ -46,7 +46,7 @@ class EntityToLinksIterable(
                 super.toString(builder)
                 (entityId as PersistentEntityId).toString(builder)
                 builder.append('-')
-                builder.append(entityTypeId)
+                builder.append(typeId)
                 builder.append('-')
                 builder.append(linkId)
             }
@@ -54,7 +54,7 @@ class EntityToLinksIterable(
             override fun hashCode(hash: EntityIterableHandleHash) {
                 (entityId as PersistentEntityId).toHash(hash)
                 hash.applyDelimiter()
-                hash.apply(entityTypeId)
+                hash.apply(typeId)
                 hash.applyDelimiter()
                 hash.apply(linkId)
             }
@@ -62,7 +62,7 @@ class EntityToLinksIterable(
             override fun getEntityTypeId() = typeId
 
             override fun isMatchedLinkAdded(source: EntityId, target: EntityId, linkId: Int): Boolean {
-                return entityTypeId == source.typeId && entityId == target
+                return typeId == source.typeId && entityId == target
             }
 
             override fun isMatchedLinkDeleted(source: EntityId, target: EntityId, linkId: Int): Boolean {
