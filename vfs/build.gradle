@@ -2,5 +2,5 @@ dependencies {
     api project(':environment')
     testImplementation project(':environment').sourceSets.test.output
     testImplementation project(':utils').sourceSets.test.output
-    testImplementation 'io.airlift:aircompressor:0.8'
+    testImplementation 'io.airlift:aircompressor:0.21'
 }
