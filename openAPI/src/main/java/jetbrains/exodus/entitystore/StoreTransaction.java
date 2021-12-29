@@ -268,8 +268,8 @@ public interface StoreTransaction {
      *
      * @param entityType   entity type
      * @param propertyName name of the property to search for
-     * @param minValue     minimum value of the property (inclusively, >=).
-     * @param maxValue     maximum value of the property (inclusively <=).
+     * @param minValue     minimum value of the property (inclusively, {@code >=}).
+     * @param maxValue     maximum value of the property (inclusively {@code <=}).
      * @return {@linkplain EntityIterable} instance
      * @see EntityIterable
      */
