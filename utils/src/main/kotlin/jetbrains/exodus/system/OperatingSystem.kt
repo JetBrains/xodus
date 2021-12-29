@@ -36,7 +36,7 @@ object OperatingSystem {
         cachedFreePhysicalMemorySize.let { memSize ->
             return if (memSize < 0L) {
                 periodicInvalidate
-                osBean.freeMemorySize.also { cachedFreePhysicalMemorySize = it }
+                osBean.freePhysicalMemorySize.also { cachedFreePhysicalMemorySize = it }
             } else {
                 memSize
             }
@@ -48,7 +48,7 @@ object OperatingSystem {
         cachedSystemCpuLoad.let { cpuLoad ->
             return if (cpuLoad < 0) {
                 periodicInvalidate
-                osBean.cpuLoad.also { cachedSystemCpuLoad = it }
+                osBean.systemCpuLoad.also { cachedSystemCpuLoad = it }
             } else {
                 cpuLoad
             }
