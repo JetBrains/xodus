@@ -17,6 +17,8 @@ package jetbrains.exodus.io
 
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.OutOfDiskSpaceException
+import jetbrains.exodus.io.FileDataReader.FileBlock
+import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.system.JVMConstants
 import jetbrains.exodus.util.SharedRandomAccessFile
@@ -33,7 +35,7 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
     private var dirChannel: FileChannel? = null
     private val lockingManager: LockingManager
     private var file: RandomAccessFile? = null
-    private var block: Block? = null
+    private var block: FileBlock? = null
     private var useNio = false
 
     init {
@@ -54,12 +56,12 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
 
     override fun write(b: ByteArray, off: Int, len: Int): Block {
         try {
-            (file ?: throw ExodusException("Can't write, FileDataWriter is closed")).write(b, off, len)
+            ensureFile("Can't write, FileDataWriter is closed").write(b, off, len)
         } catch (ioe: IOException) {
             if (lockingManager.usableSpace < len) {
                 throw OutOfDiskSpaceException(ioe)
             }
-            throw ExodusException("Can't write", ioe)
+            throw ioe
         }
         return block ?: throw ExodusException("Can't write, FileDataWriter is closed")
     }
@@ -81,15 +83,11 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
     }
 
     override fun closeImpl() {
-        try {
-            (file ?: throw ExodusException("Can't close already closed FileDataWriter")).close()
-            file = null
-            dirChannel?.close()
-            dirChannel = null
-            block = null
-        } catch (e: IOException) {
-            throw ExodusException("Can't close FileDataWriter", e)
-        }
+        ensureFile("Can't close already closed FileDataWriter").close()
+        file = null
+        dirChannel?.close()
+        dirChannel = null
+        block = null
     }
 
     override fun clearImpl() {
@@ -103,34 +101,14 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
         }
     }
 
-    override fun openOrCreateBlockImpl(address: Long, length: Long): Block {
-        val result = FileDataReader.FileBlock(address, reader)
-        try {
-            val f = RandomAccessFile(result.apply {
-                if (!canWrite()) {
-                    setWritable(this)
-                }
-            }, "rw")
-            f.seek(length)
-            if (length != f.length()) {
-                f.setLength(length)
-                forceSync(f)
-            }
-            file = f
-            block = result
-            return result
-        } catch (ioe: IOException) {
-            throw ExodusException(ioe)
-        }
-    }
+    override fun openOrCreateBlockImpl(address: Long, length: Long) =
+        FileBlock(address, reader).also { openOrCreateFile(it, length) }
+
 
     override fun syncDirectory() {
         dirChannel?.let { channel ->
             try {
-                setUninterruptibleMethod?.run {
-                    invoke(channel)
-                }
-                channel.force(false)
+                channel.asUninterruptible().force(false)
             } catch (e: IOException) {
                 // just warn as XD-698 requires
                 warnCantFsyncDirectory()
@@ -139,7 +117,7 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
     }
 
     override fun removeBlock(blockAddress: Long, rbt: RemoveBlockType) {
-        val file = FileDataReader.FileBlock(blockAddress, reader)
+        val file = FileBlock(blockAddress, reader)
         removeFileFromFileCache(file)
         setWritable(file)
         val deleted = if (rbt == RemoveBlockType.Delete) file.delete() else renameFile(file)
@@ -151,15 +129,11 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
     }
 
     override fun truncateBlock(blockAddress: Long, length: Long) {
-        val file = FileDataReader.FileBlock(blockAddress, reader)
+        val file = FileBlock(blockAddress, reader)
         removeFileFromFileCache(file)
         setWritable(file)
-        try {
-            SharedRandomAccessFile(file, "rw").use { f -> f.setLength(length) }
-            logger.info { "Truncated file ${file.absolutePath} to length = $length" }
-        } catch (e: IOException) {
-            throw ExodusException("Failed to truncate file " + file.absolutePath, e)
-        }
+        SharedRandomAccessFile(file, "rw").use { f -> f.setLength(length) }
+        logger.info { "Truncated file ${file.absolutePath} to length = $length" }
     }
 
     private fun warnCantFsyncDirectory() {
@@ -168,14 +142,36 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
     }
 
     private fun removeFileFromFileCache(file: File) {
-        try {
-            SharedOpenFilesCache.getInstance().removeFile(file)
-            if (useNio) {
-                SharedMappedFilesCache.getInstance().removeFileBuffer(file)
-            }
-        } catch (e: IOException) {
-            throw ExodusException(e)
+        SharedOpenFilesCache.getInstance().removeFile(file)
+        if (useNio) {
+            SharedMappedFilesCache.getInstance().removeFileBuffer(file)
         }
+    }
+
+    private fun openOrCreateFile(block: FileBlock, length: Long): RandomAccessFile {
+        val result = RandomAccessFile(block.apply {
+            if (!canWrite()) {
+                setWritable(this)
+            }
+        }, "rw")
+        result.seek(length)
+        if (length != result.length()) {
+            result.setLength(length)
+            forceSync(result)
+        }
+        file = result
+        this.block = block
+        return result
+    }
+
+    private fun ensureFile(errorMsg: String): RandomAccessFile {
+        file?.let { file ->
+            if (file.channel.isOpen) {
+                return file
+            }
+            return openOrCreateFile(block.notNull, file.length()).also { file.close() }
+        }
+        throw ExodusException(errorMsg)
     }
 
     companion object : KLogging() {
@@ -201,6 +197,13 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
                     null
                 }
 
+        private fun FileChannel.asUninterruptible(): FileChannel {
+            setUninterruptibleMethod?.run {
+                invoke(this)
+            }
+            return this
+        }
+
         fun renameFile(file: File): Boolean {
             val name = file.name
             return file.renameTo(File(file.parent,
@@ -209,16 +212,12 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
 
         private fun forceSync(file: RandomAccessFile) {
             try {
-                file.channel.also { channel ->
-                    setUninterruptibleMethod?.run {
-                        invoke(channel)
-                    }
-                }.force(false)
+                file.channel.asUninterruptible().force(false)
             } catch (e: ClosedChannelException) {
                 // ignore
             } catch (ioe: IOException) {
                 if (file.channel.isOpen) {
-                    throw ExodusException(ioe)
+                    throw ioe
                 }
             }
         }
