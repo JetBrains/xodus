@@ -25,7 +25,7 @@ import java.security.NoSuchAlgorithmException;
 public class MessageDigestTest {
 
     /**
-     * samples taken from http://en.wikipedia.org/wiki/SHA_hash_functions
+     * samples taken from https://en.wikipedia.org/wiki/SHA_hash_functions
      */
     private static final String LAZY_DOG = "The quick brown fox jumps over the lazy dog";
     private static final String LAZY_COG = "The quick brown fox jumps over the lazy cog";

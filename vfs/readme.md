@@ -49,7 +49,7 @@ final OutputStream output = vfs.appendFile(txn, file);
 
 ## Lucene Directory
 
-[ExodusDirectory](https://github.com/JetBrains/xodus/blob/master/lucene-directory/src/main/java/jetbrains/exodus/lucene/ExodusDirectory.java) is a good sample of using `VirtualFileSystem`. It implements `org.apache.lucene.store.Directory` and stores the contents of a full-text index that was created by [Apache Lucene](http://lucene.apache.org) in Xodus. See the [tests](https://github.com/JetBrains/xodus/tree/master/lucene-directory/src/test/java/jetbrains/exodus/lucene) to find out how `ExodusDirectory` can be used.
+[ExodusDirectory](https://github.com/JetBrains/xodus/blob/master/lucene-directory/src/main/java/jetbrains/exodus/lucene/ExodusDirectory.java) is a good sample of using `VirtualFileSystem`. It implements `org.apache.lucene.store.Directory` and stores the contents of a full-text index that was created by [Apache Lucene](https://lucene.apache.org) in Xodus. See the [tests](https://github.com/JetBrains/xodus/tree/master/lucene-directory/src/test/java/jetbrains/exodus/lucene) to find out how `ExodusDirectory` can be used.
 
 To use `ExodusDirectory` in your application, define a dependency on the `xodus-lucene-directory` artifacts:
 ```xml

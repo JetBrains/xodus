@@ -6,14 +6,14 @@
 
 #### Tokyo Cabinet Benchmark
 
-[Tokyo Cabinet Benchmark](http://fallabs.com/tokyocabinet/benchmark.pdf) is useful for comparing the performance of key/value storages. For one million 8-char string keys ('00000000', '00000001', etc.) and values equal to the keys, four operations are measured:
+[Tokyo Cabinet Benchmark](https://fallabs.com/tokyocabinet/benchmark.pdf) is useful for comparing the performance of key/value storages. For one million 8-char string keys ('00000000', '00000001', etc.) and values equal to the keys, four operations are measured:
 
 1. writing all key/value pairs in ascending order;
 2. writing all key/value pairs in random order;
 3. reading all key/value pairs in ascending order;
 4. reading all key/value pairs in random order.
 
-Currently, benchmark results are available for [Xodus stores](https://github.com/JetBrains/xodus/wiki/Environments#stores) with key prefixing (Patricia tree) and without (BTree), [MapDb](https://github.com/jankotek/MapDB) tree map, [Chronicle Map](https://github.com/OpenHFT/Chronicle-Map), [H2 MVStore Map](http://www.h2database.com/html/mvstore.html), [LMDB JNI](https://github.com/deephacks/lmdbjni) and [Akiban PersistIt](https://github.com/pbeaman/persistit). All the scores are in seconds per single benchmark run for one million keys. Excerpt of the output of the build running benchmarks is as follows:
+Currently, benchmark results are available for [Xodus stores](https://github.com/JetBrains/xodus/wiki/Environments#stores) with key prefixing (Patricia tree) and without (BTree), [MapDb](https://github.com/jankotek/MapDB) tree map, [Chronicle Map](https://github.com/OpenHFT/Chronicle-Map), [H2 MVStore Map](https://www.h2database.com/html/mvstore.html), [LMDB JNI](https://github.com/deephacks/lmdbjni) and [Akiban PersistIt](https://github.com/pbeaman/persistit). All the scores are in seconds per single benchmark run for one million keys. Excerpt of the output of the build running benchmarks is as follows:
 
 ```
 Benchmark                                                             Mode  Cnt    Score   Error   Units
@@ -52,13 +52,13 @@ The same results in table form:
 <tr><td></td><th>Random Read</th><th>Successive Read</th><th>Random Write</th><th>Successive Write</th></tr>
 <tr><th><a href="https://github.com/JetBrains/xodus/wiki/Environments#stores">Xodus store</a> with key prefixing (Patricia)</th><td>0.994</td><td>0.240</td><td>1.486</td><td>0.461</td></tr>
 <tr><th><a href="https://github.com/JetBrains/xodus/wiki/Environments#stores">Xodus store</a> without key prefixing (BTree)</th><td>1.880</td><td>0.156</td><td>1.888</td><td>0.462</td></tr>
-<tr><th><a href="http://www.oracle.com/us/products/database/berkeley-db/je/overview/index.html">BDB JE</a> database with key prefixing</th><td>3.493</td><td>1.307</td><td>5.937</td><td>3.416</td></tr>
-<tr><th><a href="http://www.oracle.com/us/products/database/berkeley-db/je/overview/index.html">BDB JE</a> database  without key prefixing</th><td>3.288</td><td>1.251</td><td>5.831</td><td>3.458</td></tr>
+<tr><th><a href="https://www.oracle.com/us/products/database/berkeley-db/je/overview/index.html">BDB JE</a> database with key prefixing</th><td>3.493</td><td>1.307</td><td>5.937</td><td>3.416</td></tr>
+<tr><th><a href="https://www.oracle.com/us/products/database/berkeley-db/je/overview/index.html">BDB JE</a> database  without key prefixing</th><td>3.288</td><td>1.251</td><td>5.831</td><td>3.458</td></tr>
 <tr><th><a href="https://github.com/jankotek/MapDB">MapDB</a> tree map</th><td>7.154</td><td>0.126</td><td>9.075</td><td>11.982</td></tr>
 <tr><th><a href="https://github.com/OpenHFT/Chronicle-Map">Chronicle Map</a></th><td>0.553</td><td>0.180</td><td>0.726</td><td>0.675</td></tr>
-<tr><th><a href="http://www.h2database.com/html/mvstore.html">H2 MVStore Map</a></th><td>13.092</td><td>0.109</td><td>1.860</td><td>0.517</td></tr>
+<tr><th><a href="https://www.h2database.com/html/mvstore.html">H2 MVStore Map</a></th><td>13.092</td><td>0.109</td><td>1.860</td><td>0.517</td></tr>
 <tr><th><a href="https://github.com/deephacks/lmdbjni">LMDB JNI</a></th><td>0.825</td><td>0.098</td><td>0.831</td><td>0.178</td></tr>
 <tr><th><a href="https://github.com/pbeaman/persistit">Akiban PersistIt</a></th><td>1.316</td><td>0.857</td><td>1.763</td><td>0.632</td></tr>
 </table>
 
-Results for [BerkeleyDb JE](http://www.oracle.com/us/products/database/berkeley-db/je/overview/index.html) are obtained in a similar environment as above (another JRE used), but the code of benchmark cannot be distributed under [Apache 2.0 License](http://www.apache.org/licenses/LICENSE-2.0.html).
+Results for [BerkeleyDb JE](https://www.oracle.com/us/products/database/berkeley-db/je/overview/index.html) are obtained in a similar environment as above (another JRE used), but the code of benchmark cannot be distributed under [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0.html).
