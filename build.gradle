@@ -241,7 +241,7 @@ subprojects {
                                     id 'JetBrains'
                                     name 'JetBrains Team'
                                     organization 'JetBrains s.r.o'
-                                    organizationUrl 'http://www.jetbrains.com'
+                                    organizationUrl 'https://www.jetbrains.com'
                                 }
                             }
                         }
