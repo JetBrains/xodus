@@ -198,9 +198,7 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
                 }
 
         private fun FileChannel.asUninterruptible(): FileChannel {
-            setUninterruptibleMethod?.run {
-                invoke(this)
-            }
+            setUninterruptibleMethod?.invoke(this)
             return this
         }
 
