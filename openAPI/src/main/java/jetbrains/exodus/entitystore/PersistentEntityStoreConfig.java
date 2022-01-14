@@ -224,7 +224,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     public static final String ENTITY_ITERABLE_CACHE_COUNTS_CACHE_SIZE = "exodus.entityStore.entityIterableCache.countsCacheSize";
 
     /**
-     * Defines life time in milliseconds of a single cache count. Is applicable only if
+     * Defines minimum lifetime in milliseconds of a single cache count. Is applicable only if
      * {@linkplain #CACHING_DISABLED} is {@code false}. Default value is {@code 30000L}.
      *
      * <p>Mutable at runtime: no

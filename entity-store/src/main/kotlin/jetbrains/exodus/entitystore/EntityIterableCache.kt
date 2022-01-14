@@ -24,6 +24,7 @@ import jetbrains.exodus.core.execution.SharedTimer.registerPeriodicTask
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.env.ReadonlyTransactionException
 import mu.KLogging
+import java.lang.Long.max
 import java.lang.ref.WeakReference
 
 typealias ConcurrentCache = ConcurrentObjectCache<Any, Long>
@@ -112,7 +113,8 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
     fun getCachedCount(handle: EntityIterableHandle): Long? {
         val identity = handle.identity
         iterableCountsCache.tryKey(identity)?.let { (count, time) ->
-            if (System.currentTimeMillis() - time <= config.entityIterableCacheCountsLifeTime) {
+            // the greater is count, the longer it can live in the cache
+            if (System.currentTimeMillis() - time <= max(config.entityIterableCacheCountsLifeTime, count)) {
                 stats.incTotalCountHits()
                 return count;
             }
