@@ -123,5 +123,7 @@ public interface EntityStoreConfigMBean {
 
     boolean getGatherStatistics();
 
+    void startBlobsDeduplication();
+
     void close();
 }

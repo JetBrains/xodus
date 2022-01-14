@@ -89,9 +89,11 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         openStoresCache.clear()
     }
 
+    fun getCleanerJobProcessor() = cleaner.getJobProcessor()
+
     @Suppress("unused")
     fun setCleanerJobProcessor(processor: JobProcessorAdapter) {
-        cleaner.getJobProcessor().queue(object : Job() {
+        getCleanerJobProcessor().queue(object : Job() {
             override fun execute() {
                 cleaner.setJobProcessor(processor)
                 wake(true)
@@ -156,7 +158,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
      * For tests only!!!
      */
     fun waitForPendingGC() {
-        cleaner.getJobProcessor().waitForLatchJob(object : LatchJob() {
+        getCleanerJobProcessor().waitForLatchJob(object : LatchJob() {
             override fun execute() {
                 release()
             }
@@ -191,7 +193,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
 
     internal fun deletePendingFiles() {
         if (!cleaner.isCurrentThread) {
-            cleaner.getJobProcessor().queue(GcJob(this) {
+            getCleanerJobProcessor().queue(GcJob(this) {
                 deletePendingFiles()
             })
         } else {

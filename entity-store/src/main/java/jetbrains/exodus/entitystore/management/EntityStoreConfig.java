@@ -15,8 +15,11 @@
  */
 package jetbrains.exodus.entitystore.management;
 
+import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.entitystore.PersistentEntityStoreConfig;
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
+import jetbrains.exodus.entitystore.PersistentEntityStoreRefactorings;
+import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.management.MBeanBase;
 import org.jetbrains.annotations.NotNull;
 
@@ -291,6 +294,16 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     @Override
     public boolean getGatherStatistics() {
         return config.getGatherStatistics();
+    }
+
+    @Override
+    public void startBlobsDeduplication() {
+        ((EnvironmentImpl)store.getEnvironment()).getGC().getCleanerJobProcessor().queue(new Job() {
+            @Override
+            protected void execute() {
+                new PersistentEntityStoreRefactorings(store).refactorDeduplicateInPlaceBlobs();
+            }
+        });
     }
 
     @Override

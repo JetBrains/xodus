@@ -37,7 +37,7 @@ import mu.KLogging
 import java.util.*
 import kotlin.experimental.xor
 
-internal class PersistentEntityStoreRefactorings(private val store: PersistentEntityStoreImpl) {
+class PersistentEntityStoreRefactorings(private val store: PersistentEntityStoreImpl) {
 
     fun refactorDeleteRedundantBlobs() {
         val blobVault = store.blobVault
@@ -793,7 +793,7 @@ internal class PersistentEntityStoreRefactorings(private val store: PersistentEn
     }
 
     @Deprecated(message = "This method can be used in tests only.")
-    internal fun refactorDeduplicateInPlaceBlobs() {
+    fun refactorDeduplicateInPlaceBlobs() {
         val env = store.environment
         val store = env.computeInTransaction { txn ->
             env.openStore("TestSettings", StoreConfig.WITHOUT_DUPLICATES, txn)
