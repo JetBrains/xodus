@@ -51,6 +51,7 @@ public abstract class TransactionBase implements Transaction {
     private final boolean wasCreatedExclusive;
     @Nullable
     private StackTrace traceFinish;
+    private boolean disableStoreGetCache;
 
     public TransactionBase(@NotNull final EnvironmentImpl env, final boolean isExclusive) {
         this.env = env;
@@ -143,6 +144,14 @@ public abstract class TransactionBase implements Transaction {
                 new TransactionFinishedException() :
                 new TransactionFinishedException(traceFinish);
         }
+    }
+
+    public boolean isDisableStoreGetCache() {
+        return disableStoreGetCache;
+    }
+
+    public void setDisableStoreGetCache(boolean disableStoreGetCache) {
+        this.disableStoreGetCache = disableStoreGetCache;
     }
 
     @NotNull
