@@ -642,7 +642,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         try {
             builder.append(store.getLocation());
             builder.append(", thread = ");
-            builder.append(Thread.currentThread().toString());
+            builder.append(Thread.currentThread());
             return builder.toString();
         } finally {
             StringBuilderSpinAllocator.dispose(builder);
@@ -1012,7 +1012,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         return null;
     }
 
-    private static <V> ObjectCacheBase<PropertyId, V> createObjectCache(final int size) {
+    private <V> ObjectCacheBase<PropertyId, V> createObjectCache(final int size) {
         return size == 0 ?
             new FakeObjectCache<>() :
             new TransactionObjectCache<>(size);
@@ -1349,10 +1349,10 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
     }
 
-    private static final class TransactionObjectCache<V> extends ObjectCacheDecorator<PropertyId, V> {
+    private final class TransactionObjectCache<V> extends ObjectCacheDecorator<PropertyId, V> {
 
         private TransactionObjectCache(final int size) {
-            super(size);
+            super(size, () -> !((TransactionBase) txn).isDisableStoreGetCache());
         }
 
         @Override

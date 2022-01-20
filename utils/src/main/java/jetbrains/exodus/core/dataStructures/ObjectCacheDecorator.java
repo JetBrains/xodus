@@ -19,6 +19,8 @@ import jetbrains.exodus.core.execution.SharedTimer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.function.BooleanSupplier;
+
 /**
  * Cache decorator for lazy cache creation.
  */
@@ -26,6 +28,8 @@ public abstract class ObjectCacheDecorator<K, V> extends ObjectCacheBase<K, V> {
 
     private static final ObjectCacheBase FAKE_CACHE = new FakeObjectCache<>();
 
+    @NotNull
+    private final BooleanSupplier shouldCache;
     @Nullable
     private ObjectCacheBase<K, V> decorated;
 
@@ -34,7 +38,12 @@ public abstract class ObjectCacheDecorator<K, V> extends ObjectCacheBase<K, V> {
     }
 
     public ObjectCacheDecorator(final int size) {
+        this(size, () -> true);
+    }
+
+    public ObjectCacheDecorator(final int size, @NotNull final BooleanSupplier shouldCache) {
         super(size);
+        this.shouldCache = shouldCache;
     }
 
     public void clear() {
@@ -117,16 +126,16 @@ public abstract class ObjectCacheDecorator<K, V> extends ObjectCacheBase<K, V> {
 
     protected abstract ObjectCacheBase<K, V> createdDecorated();
 
+    @SuppressWarnings("unchecked")
     @NotNull
     private ObjectCacheBase<K, V> getCache(final boolean create) {
         if (decorated == null) {
             if (!create) {
-                //noinspection unchecked
                 return FAKE_CACHE;
             }
             decorated = createdDecorated();
 
         }
-        return decorated;
+        return shouldCache.getAsBoolean() ? decorated : FAKE_CACHE;
     }
 }
