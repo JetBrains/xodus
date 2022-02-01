@@ -20,6 +20,7 @@ import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.tables.PropertyValue;
+import jetbrains.exodus.env.TransactionBase;
 import jetbrains.exodus.util.MathUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -400,16 +401,22 @@ public final class SortIterable extends EntityIterableDecoratorBase {
                 throw new IllegalStateException("Property name is not registered");
             }
 
-            final EntityIterator it = source.iterator();
-
-            while (it.hasNext()) {
-                final PersistentEntityId nextId = (PersistentEntityId) it.nextId();
-                if (nextId == null) {
-                    hasNull = true;
-                } else if (nextId.getTypeId() == sourceTypeId) {
-                    final PropertyValue propValue = store.getPropertyValue(txn, new PersistentEntity(store, nextId), propertyId);
-                    pairs.add(new IdValuePair(nextId.getLocalId(), propValue == null ? null : propValue.getData()));
+            final TransactionBase envTxn = (TransactionBase) txn.getEnvironmentTransaction();
+            final boolean isStoreGetCacheDisabled = envTxn.isDisableStoreGetCache();
+            try {
+                envTxn.setDisableStoreGetCache(true);
+                final EntityIterator it = source.iterator();
+                while (it.hasNext()) {
+                    final PersistentEntityId nextId = (PersistentEntityId) it.nextId();
+                    if (nextId == null) {
+                        hasNull = true;
+                    } else if (nextId.getTypeId() == sourceTypeId) {
+                        final PropertyValue propValue = store.getPropertyValue(txn, new PersistentEntity(store, nextId), propertyId);
+                        pairs.add(new IdValuePair(nextId.getLocalId(), propValue == null ? null : propValue.getData()));
+                    }
                 }
+            } finally {
+                envTxn.setDisableStoreGetCache(isStoreGetCacheDisabled);
             }
 
             // finally sort
