@@ -106,8 +106,8 @@ class CompoundByteIterator extends ByteIteratorWithAddress implements BlockByteI
                 "CompoundByteIterator: no more bytes available", log, getAddress());
         }
         int read = current.nextBytes(array, off, len);
+        hasNextValid = false;
         if (read < len) {
-            hasNextValid = false;
             while (read < len) {
                 array[off + read] = next();
                 ++read;
