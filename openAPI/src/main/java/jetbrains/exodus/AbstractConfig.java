@@ -188,7 +188,8 @@ public abstract class AbstractConfig {
                                       @NotNull final String propName,
                                       final boolean defaultValue) {
         final String value = strategy.getProperty(propName);
-        return value == null ? defaultValue : "true".equalsIgnoreCase(value);
+        //noinspection deprecation,UnnecessaryBoxing,BooleanConstructorCall
+        return value == null ? defaultValue : new Boolean("true".equalsIgnoreCase(value));
     }
 
     private static Integer getInteger(@NotNull final ConfigurationStrategy strategy,
@@ -197,7 +198,8 @@ public abstract class AbstractConfig {
         final String v = strategy.getProperty(propName);
         if (v != null) {
             try {
-                return Integer.decode(v);
+                //noinspection CachedNumberConstructorCall,deprecation,BoxingBoxedValue
+                return new Integer(Integer.decode(v));
             } catch (NumberFormatException ignored) {
             }
         }
@@ -210,7 +212,8 @@ public abstract class AbstractConfig {
         final String v = strategy.getProperty(propName);
         if (v != null) {
             try {
-                return Long.decode(v);
+                //noinspection CachedNumberConstructorCall,deprecation,BoxingBoxedValue
+                return new Long(Long.decode(v));
             } catch (NumberFormatException ignored) {
             }
         }
