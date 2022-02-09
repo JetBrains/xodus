@@ -55,7 +55,7 @@ fun main(args: Array<String>) {
     for (arg in args) {
         if (arg.startsWith('-')) {
             hasOptions = true
-            when (arg.toLowerCase().substring(1)) {
+            when (arg.lowercase().substring(1)) {
                 "ls" -> collectLogStats = true
                 "r" -> validateRoots = true
                 "t" -> traverse = true
@@ -204,10 +204,10 @@ class Reflect(directory: File) {
                             cipherKey: String? = null,
                             cipherBasicIV: Long? = null): EnvironmentImpl {
             val files = LogUtil.listFiles(directory)
-            files.sortWith(Comparator { left, right ->
+            files.sortWith { left, right ->
                 val cmp = LogUtil.getAddress(left.name) - LogUtil.getAddress(right.name)
                 if (cmp < 0) -1 else if (cmp > 0) 1 else 0
-            })
+            }
             val filesLength = files.size
             if (filesLength == 0) {
                 throw ExodusException("No database files found at $directory")

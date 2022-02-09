@@ -32,7 +32,7 @@ fun main(args: Array<String>) {
     var duOption = false
     for (arg in args) {
         if (arg.startsWith('-')) {
-            when (arg.toLowerCase().substring(1)) {
+            when (arg.lowercase().substring(1)) {
                 "d" -> dOption = true
                 "du" -> duOption = true
                 else -> {

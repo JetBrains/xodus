@@ -30,7 +30,7 @@ fun main(args: Array<String>) {
     if (args.isEmpty()) {
         printUsage()
     }
-    when (args[0].toLowerCase()) {
+    when (args[0].lowercase()) {
         "reflect" -> jetbrains.exodus.env.main(args.skipFirst)
         "refactorings" -> jetbrains.exodus.entityStore.main(args.skipFirst)
         "scytale" -> jetbrains.exodus.crypto.main(args.skipFirst)

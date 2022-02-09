@@ -26,11 +26,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 
 @SuppressWarnings({"HardcodedLineSeparator"})
 public class VfsStreamsTests extends VfsTestsBase {
 
-    private static final String UTF_8 = "UTF-8";
     private static final String HOEGAARDEN = "hoegaarden";
     private static final String RENAT_GILFANOV =
         "Ночью здесь человек лежал, глядя в неба тьму,\n" +
@@ -39,7 +39,7 @@ public class VfsStreamsTests extends VfsTestsBase {
             "Потом наступил прибой, но воды ни прибыло.\n" +
             "От жёлтой полоски света, крадущейся с корабля\n" +
             "По чёрному дёгтю волн, от мерного их брожения\n" +
-            "Рыбы впадали в транс. �? северный ветер, как конопля,\n" +
+            "Рыбы впадали в транс. И северный ветер, как конопля,\n" +
             "Бродил по извилинам волн, воспаляя воображение.\n" +
             "Лежащий глядел в то место, откуда бывает снег,\n" +
             "Где, обозначенный красной точкою, медленно двигался к катастрофе\n" +
@@ -68,7 +68,7 @@ public class VfsStreamsTests extends VfsTestsBase {
             "и дребезжанья окон.\n" +
             "Мысль не имеет приметы,\n" +
             "лишь имя длиной в строку.\n" +
-            "�?мя то \"смерть\", и это\n" +
+            "�?мя то \"смерть\", и это\n" +
             "нравится старику.";
 
     @Test
@@ -76,7 +76,7 @@ public class VfsStreamsTests extends VfsTestsBase {
         final Transaction txn = env.beginTransaction();
         final File file0 = vfs.createFile(txn, "file0");
         final OutputStream outputStream = vfs.appendFile(txn, file0);
-        outputStream.write(HOEGAARDEN.getBytes(UTF_8));
+        outputStream.write(HOEGAARDEN.getBytes(StandardCharsets.UTF_8));
         outputStream.close();
         txn.flush();
         final InputStream inputStream = vfs.readFile(txn, file0);
@@ -90,7 +90,7 @@ public class VfsStreamsTests extends VfsTestsBase {
         final Transaction txn = env.beginTransaction();
         final File file0 = vfs.createFile(txn, "file0");
         final OutputStream outputStream = vfs.appendFile(txn, file0);
-        outputStream.write(HOEGAARDEN.getBytes(UTF_8));
+        outputStream.write(HOEGAARDEN.getBytes(StandardCharsets.UTF_8));
         outputStream.close();
         final InputStream inputStream = vfs.readFile(txn, file0);
         Assert.assertEquals(HOEGAARDEN, streamAsString(inputStream));
@@ -147,7 +147,7 @@ public class VfsStreamsTests extends VfsTestsBase {
         final Transaction txn = env.beginTransaction();
         final File file0 = vfs.createFile(txn, "file0");
         final OutputStream outputStream = vfs.appendFile(txn, file0);
-        final byte[] bytes = HOEGAARDEN.getBytes(UTF_8);
+        final byte[] bytes = HOEGAARDEN.getBytes(StandardCharsets.UTF_8);
         outputStream.write(bytes);
         outputStream.close();
         txn.commit();
@@ -175,7 +175,7 @@ public class VfsStreamsTests extends VfsTestsBase {
         final Transaction txn = env.beginTransaction();
         final File file0 = vfs.createFile(txn, "file0");
         final OutputStream outputStream = vfs.appendFile(txn, file0);
-        outputStream.write((HOEGAARDEN + HOEGAARDEN + HOEGAARDEN + HOEGAARDEN).getBytes(UTF_8));
+        outputStream.write((HOEGAARDEN + HOEGAARDEN + HOEGAARDEN + HOEGAARDEN).getBytes(StandardCharsets.UTF_8));
         outputStream.close();
         txn.flush();
         InputStream inputStream = vfs.readFile(txn, file0, 0);
@@ -198,11 +198,11 @@ public class VfsStreamsTests extends VfsTestsBase {
         final Transaction txn = env.beginTransaction();
         final File file0 = vfs.createFile(txn, "file0");
         OutputStream outputStream = vfs.appendFile(txn, file0);
-        outputStream.write(HOEGAARDEN.getBytes(UTF_8));
+        outputStream.write(HOEGAARDEN.getBytes(StandardCharsets.UTF_8));
         outputStream.close();
         txn.flush();
         outputStream = vfs.writeFile(txn, file0);
-        outputStream.write("x".getBytes(UTF_8));
+        outputStream.write("x".getBytes(StandardCharsets.UTF_8));
         outputStream.close();
         txn.flush();
         final InputStream inputStream = vfs.readFile(txn, file0);
@@ -216,18 +216,18 @@ public class VfsStreamsTests extends VfsTestsBase {
         final Transaction txn = env.beginTransaction();
         final File file0 = vfs.createFile(txn, "file0");
         OutputStream outputStream = vfs.appendFile(txn, file0);
-        outputStream.write((HOEGAARDEN + HOEGAARDEN + HOEGAARDEN + HOEGAARDEN).getBytes(UTF_8));
+        outputStream.write((HOEGAARDEN + HOEGAARDEN + HOEGAARDEN + HOEGAARDEN).getBytes(StandardCharsets.UTF_8));
         outputStream.close();
         txn.flush();
         outputStream = vfs.writeFile(txn, file0);
-        outputStream.write("x".getBytes(UTF_8));
-        outputStream.write(HOEGAARDEN.substring(1).getBytes(UTF_8));
-        outputStream.write("x".getBytes(UTF_8));
-        outputStream.write(HOEGAARDEN.substring(1).getBytes(UTF_8));
-        outputStream.write("x".getBytes(UTF_8));
-        outputStream.write(HOEGAARDEN.substring(1).getBytes(UTF_8));
-        outputStream.write("x".getBytes(UTF_8));
-        outputStream.write(HOEGAARDEN.substring(1).getBytes(UTF_8));
+        outputStream.write("x".getBytes(StandardCharsets.UTF_8));
+        outputStream.write(HOEGAARDEN.substring(1).getBytes(StandardCharsets.UTF_8));
+        outputStream.write("x".getBytes(StandardCharsets.UTF_8));
+        outputStream.write(HOEGAARDEN.substring(1).getBytes(StandardCharsets.UTF_8));
+        outputStream.write("x".getBytes(StandardCharsets.UTF_8));
+        outputStream.write(HOEGAARDEN.substring(1).getBytes(StandardCharsets.UTF_8));
+        outputStream.write("x".getBytes(StandardCharsets.UTF_8));
+        outputStream.write(HOEGAARDEN.substring(1).getBytes(StandardCharsets.UTF_8));
         outputStream.close();
         txn.flush();
         final InputStream inputStream = vfs.readFile(txn, file0);
@@ -243,22 +243,22 @@ public class VfsStreamsTests extends VfsTestsBase {
         final Transaction txn = env.beginTransaction();
         final File file0 = vfs.createFile(txn, "file0");
         OutputStream outputStream = vfs.appendFile(txn, file0);
-        outputStream.write((HOEGAARDEN + HOEGAARDEN + HOEGAARDEN + HOEGAARDEN).getBytes(UTF_8));
+        outputStream.write((HOEGAARDEN + HOEGAARDEN + HOEGAARDEN + HOEGAARDEN).getBytes(StandardCharsets.UTF_8));
         outputStream.close();
         txn.flush();
         outputStream = vfs.writeFile(txn, file0);
-        outputStream.write("x".getBytes(UTF_8));
-        outputStream.write(HOEGAARDEN.substring(1).getBytes(UTF_8));
-        outputStream.write("x".getBytes(UTF_8));
-        outputStream.write(HOEGAARDEN.substring(1).getBytes(UTF_8));
-        outputStream.write("x".getBytes(UTF_8));
-        outputStream.write(HOEGAARDEN.substring(1).getBytes(UTF_8));
-        outputStream.write("x".getBytes(UTF_8));
-        outputStream.write(HOEGAARDEN.substring(1).getBytes(UTF_8));
+        outputStream.write("x".getBytes(StandardCharsets.UTF_8));
+        outputStream.write(HOEGAARDEN.substring(1).getBytes(StandardCharsets.UTF_8));
+        outputStream.write("x".getBytes(StandardCharsets.UTF_8));
+        outputStream.write(HOEGAARDEN.substring(1).getBytes(StandardCharsets.UTF_8));
+        outputStream.write("x".getBytes(StandardCharsets.UTF_8));
+        outputStream.write(HOEGAARDEN.substring(1).getBytes(StandardCharsets.UTF_8));
+        outputStream.write("x".getBytes(StandardCharsets.UTF_8));
+        outputStream.write(HOEGAARDEN.substring(1).getBytes(StandardCharsets.UTF_8));
         outputStream.close();
         txn.flush();
         outputStream = vfs.appendFile(txn, file0);
-        outputStream.write(HOEGAARDEN.getBytes(UTF_8));
+        outputStream.write(HOEGAARDEN.getBytes(StandardCharsets.UTF_8));
         outputStream.close();
         txn.flush();
         final InputStream inputStream = vfs.readFile(txn, file0);
@@ -282,24 +282,24 @@ public class VfsStreamsTests extends VfsTestsBase {
         final Transaction txn = env.beginTransaction();
         final File file0 = vfs.createFile(txn, "file0");
         OutputStream outputStream = vfs.appendFile(txn, file0);
-        outputStream.write((HOEGAARDEN + HOEGAARDEN + HOEGAARDEN + HOEGAARDEN).getBytes(UTF_8));
+        outputStream.write((HOEGAARDEN + HOEGAARDEN + HOEGAARDEN + HOEGAARDEN).getBytes(StandardCharsets.UTF_8));
         outputStream.close();
         txn.flush();
         Assert.assertEquals(40, vfs.getFileLength(txn, file0));
         outputStream = vfs.writeFile(txn, file0, 0);
-        outputStream.write("x".getBytes(UTF_8));
+        outputStream.write("x".getBytes(StandardCharsets.UTF_8));
         outputStream.close();
         Assert.assertEquals(40, vfs.getFileLength(txn, file0));
         outputStream = vfs.writeFile(txn, file0, 10);
-        outputStream.write("x".getBytes(UTF_8));
+        outputStream.write("x".getBytes(StandardCharsets.UTF_8));
         outputStream.close();
         Assert.assertEquals(40, vfs.getFileLength(txn, file0));
         outputStream = vfs.writeFile(txn, file0, 20);
-        outputStream.write("x".getBytes(UTF_8));
+        outputStream.write("x".getBytes(StandardCharsets.UTF_8));
         outputStream.close();
         Assert.assertEquals(40, vfs.getFileLength(txn, file0));
         outputStream = vfs.writeFile(txn, file0, 30);
-        outputStream.write("x".getBytes(UTF_8));
+        outputStream.write("x".getBytes(StandardCharsets.UTF_8));
         outputStream.close();
         txn.flush();
         Assert.assertEquals(40, vfs.getFileLength(txn, file0));
@@ -316,11 +316,11 @@ public class VfsStreamsTests extends VfsTestsBase {
         final Transaction txn = env.beginTransaction();
         final File file0 = vfs.createFile(txn, "file0");
         OutputStream outputStream = vfs.appendFile(txn, file0);
-        outputStream.write((HOEGAARDEN + HOEGAARDEN + HOEGAARDEN + HOEGAARDEN).getBytes(UTF_8));
+        outputStream.write((HOEGAARDEN + HOEGAARDEN + HOEGAARDEN + HOEGAARDEN).getBytes(StandardCharsets.UTF_8));
         outputStream.close();
         txn.flush();
         outputStream = vfs.writeFile(txn, file0, 1000000);
-        outputStream.write("x".getBytes(UTF_8));
+        outputStream.write("x".getBytes(StandardCharsets.UTF_8));
         outputStream.close();
         txn.flush();
         final InputStream inputStream = vfs.readFile(txn, file0);
@@ -373,7 +373,7 @@ public class VfsStreamsTests extends VfsTestsBase {
         txn.flush();
         Thread.sleep(20);
         final OutputStream outputStream = vfs.appendFile(txn, file0);
-        outputStream.write(RENAT_GILFANOV.getBytes(UTF_8));
+        outputStream.write(RENAT_GILFANOV.getBytes(StandardCharsets.UTF_8));
         outputStream.close();
         txn.flush();
         file0 = vfs.openFile(txn, "file0", false);
@@ -391,7 +391,7 @@ public class VfsStreamsTests extends VfsTestsBase {
         for (int i = 0; i < 300; ++i) {
             final File file0 = vfs.openFile(txn, "file0", false);
             Assert.assertNotNull(file0);
-            Assert.assertEquals((long) i, vfs.getFileLength(txn, file0));
+            Assert.assertEquals(i, vfs.getFileLength(txn, file0));
             final OutputStream outputStream = vfs.appendFile(txn, file0);
             outputStream.write(i);
             outputStream.close();
@@ -407,7 +407,7 @@ public class VfsStreamsTests extends VfsTestsBase {
         OutputStream outputStream;
         for (int i = 0; i < 4; ++i) {
             outputStream = vfs.writeFile(txn, file, i);
-            outputStream.write(HOEGAARDEN.getBytes(UTF_8));
+            outputStream.write(HOEGAARDEN.getBytes(StandardCharsets.UTF_8));
             outputStream.close();
         }
         txn.flush();
@@ -423,7 +423,7 @@ public class VfsStreamsTests extends VfsTestsBase {
         vfs.getConfig().setClusteringStrategy(new ClusteringStrategy.LinearClusteringStrategy(8));
         final File file = vfs.createFile(txn, "file0");
         OutputStream outputStream = vfs.writeFile(txn, file);
-        final byte[] bytes = HOEGAARDEN.getBytes(UTF_8);
+        final byte[] bytes = HOEGAARDEN.getBytes(StandardCharsets.UTF_8);
         outputStream.write(bytes);
         outputStream.close();
         outputStream = vfs.writeFile(txn, file, bytes.length);
@@ -442,7 +442,7 @@ public class VfsStreamsTests extends VfsTestsBase {
         vfs.getConfig().setClusteringStrategy(new ClusteringStrategy.LinearClusteringStrategy(8));
         final File file = vfs.createFile(txn, "file0");
         OutputStream outputStream = vfs.writeFile(txn, file);
-        final byte[] bytes = HOEGAARDEN.getBytes(UTF_8);
+        final byte[] bytes = HOEGAARDEN.getBytes(StandardCharsets.UTF_8);
         outputStream.write(bytes);
         outputStream.close();
         outputStream = vfs.appendFile(txn, file);
@@ -460,7 +460,7 @@ public class VfsStreamsTests extends VfsTestsBase {
         config.setClusteringStrategy(strategy);
         vfs = new VirtualFileSystem(getEnvironment(), config);
         final Transaction txn = env.beginTransaction();
-        final byte[] bytes = RENAT_GILFANOV.getBytes(UTF_8);
+        final byte[] bytes = RENAT_GILFANOV.getBytes(StandardCharsets.UTF_8);
         final File file0 = vfs.createFile(txn, "file0");
         final OutputStream outputStream0 = vfs.appendFile(txn, file0);
         outputStream0.write(bytes);
@@ -475,8 +475,8 @@ public class VfsStreamsTests extends VfsTestsBase {
         final InputStream inputStream1 = vfs.readFile(txn, file1);
         Assert.assertEquals(RENAT_GILFANOV, streamAsString(inputStream1));
         inputStream1.close();
-        Assert.assertEquals((long) bytes.length, vfs.getFileLength(txn, file0));
-        Assert.assertEquals((long) bytes.length, vfs.getFileLength(txn, file1));
+        Assert.assertEquals(bytes.length, vfs.getFileLength(txn, file0));
+        Assert.assertEquals(bytes.length, vfs.getFileLength(txn, file1));
         txn.commit();
     }
 
@@ -488,7 +488,7 @@ public class VfsStreamsTests extends VfsTestsBase {
         Transaction txn = env.beginTransaction();
         final File file0 = vfs.createFile(txn, "file0");
         OutputStream outputStream = vfs.writeFile(txn, file0);
-        outputStream.write(HOEGAARDEN.getBytes(UTF_8));
+        outputStream.write(HOEGAARDEN.getBytes(StandardCharsets.UTF_8));
         outputStream.close();
         InputStream inputStream = vfs.readFile(txn, file0);
         String actualRead = streamAsString(inputStream);
@@ -497,7 +497,7 @@ public class VfsStreamsTests extends VfsTestsBase {
         txn.commit();
         txn = env.beginTransaction();
         outputStream = vfs.writeFile(txn, file0);
-        outputStream.write(RENAT_GILFANOV.getBytes(UTF_8));
+        outputStream.write(RENAT_GILFANOV.getBytes(StandardCharsets.UTF_8));
         outputStream.close();
         inputStream = vfs.readFile(txn, file0);
         actualRead = streamAsString(inputStream);
@@ -507,7 +507,7 @@ public class VfsStreamsTests extends VfsTestsBase {
     }
 
     private static String streamAsString(@NotNull final InputStream inputStream) throws IOException {
-        final InputStreamReader streamReader = new InputStreamReader(inputStream, UTF_8);
+        final InputStreamReader streamReader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
         final StringBuilder result = new StringBuilder();
         int c;
         while ((c = streamReader.read()) != -1) {

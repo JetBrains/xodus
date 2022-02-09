@@ -35,12 +35,7 @@ public abstract class AbstractConfig {
     @NonNls
     private static final String UNSUPPORTED_TYPE_ERROR_MSG = "Unsupported value type";
     @NonNls
-    private final static ThreadLocal<Boolean> listenersSuppressed = new ThreadLocal<Boolean>() {
-        @Override
-        protected Boolean initialValue() {
-            return false;
-        }
-    };
+    private final static ThreadLocal<Boolean> listenersSuppressed = ThreadLocal.withInitial(() -> false);
     @NotNull
     private final Map<String, Object> settings;
     @NotNull
@@ -193,8 +188,7 @@ public abstract class AbstractConfig {
                                       @NotNull final String propName,
                                       final boolean defaultValue) {
         final String value = strategy.getProperty(propName);
-        //noinspection BooleanConstructorCall,UnnecessaryBoxing
-        return value == null ? defaultValue : new Boolean("true".equalsIgnoreCase(value));
+        return value == null ? defaultValue : "true".equalsIgnoreCase(value);
     }
 
     private static Integer getInteger(@NotNull final ConfigurationStrategy strategy,
@@ -203,8 +197,7 @@ public abstract class AbstractConfig {
         final String v = strategy.getProperty(propName);
         if (v != null) {
             try {
-                //noinspection BoxingBoxedValue
-                return new Integer(Integer.decode(v));
+                return Integer.decode(v);
             } catch (NumberFormatException ignored) {
             }
         }
@@ -217,8 +210,7 @@ public abstract class AbstractConfig {
         final String v = strategy.getProperty(propName);
         if (v != null) {
             try {
-                //noinspection BoxingBoxedValue
-                return new Long(Long.decode(v));
+                return Long.decode(v);
             } catch (NumberFormatException ignored) {
             }
         }
@@ -229,7 +221,7 @@ public abstract class AbstractConfig {
                                     @NotNull final String propName,
                                     final String defaultValue) {
         final String v = strategy.getProperty(propName);
-        //noinspection RedundantStringConstructorCall
+        //noinspection StringOperationCanBeSimplified
         return v == null ? defaultValue : new String(v);
     }
 

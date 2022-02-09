@@ -46,7 +46,7 @@ fun main(args: Array<String>) {
     while (i < args.size) {
         val arg = args[i]
         if (arg.startsWith('-') && arg.length < 3) {
-            when (arg.toLowerCase().substring(1)) {
+            when (arg.lowercase().substring(1)) {
                 "b" -> bucket = args[++i]
                 "h" -> host = args[++i]
                 "p" -> port = Integer.parseInt(args[++i])

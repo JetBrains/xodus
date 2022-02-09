@@ -175,7 +175,7 @@ class BackupTests : EntityStoreTestBase() {
                     }
                     val blobVault = newStore.blobVault.sourceVault as FileSystemBlobVault
                     for (fd in blobVault.backupStrategy.contents) {
-                        (fd as BackupStrategy.FileDescriptor).file?.let { file ->
+                        (fd as BackupStrategy.FileDescriptor).file.let { file ->
                             if (file.isFile && file.name != FileSystemBlobVaultOld.VERSION_FILE) {
                                 TestCase.assertTrue("" + blobVault.getBlobHandleByFile(file) + " > " + lastUsedBlobHandle[0],
                                         blobVault.getBlobHandleByFile(file) <= lastUsedBlobHandle[0])

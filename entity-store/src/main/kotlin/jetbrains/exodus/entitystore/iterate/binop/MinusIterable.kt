@@ -103,7 +103,7 @@ class MinusIterable(
                 }
                 if (currentMinuend === currentSubtrahend) {
                     currentSubtrahend = null
-                    currentMinuend = currentSubtrahend
+                    currentMinuend = null
                     continue
                 }
                 val cmp = currentMinuend?.compareTo(currentSubtrahend) ?: throw throw IllegalStateException("Can't be")
@@ -158,7 +158,7 @@ class MinusIterable(
                 }
                 if (currentMinuend === currentSubtrahend) {
                     currentSubtrahend = null
-                    currentMinuend = currentSubtrahend
+                    currentMinuend = null
                     continue
                 }
                 val cmp = currentMinuend?.compareTo(currentSubtrahend) ?: throw throw IllegalStateException("Can't be")
@@ -211,7 +211,7 @@ class MinusIterable(
 
     companion object {
         init {
-            registerType(EntityIterableType.MINUS) { txn, store, parameters ->
+            registerType(EntityIterableType.MINUS) { txn, _, parameters ->
                 MinusIterable(
                     txn,
                     parameters[0] as EntityIterableBase, parameters[1] as EntityIterableBase

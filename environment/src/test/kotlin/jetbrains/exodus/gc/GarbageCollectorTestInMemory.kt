@@ -61,7 +61,7 @@ open class GarbageCollectorTestInMemory : GarbageCollectorTest() {
         txn.commit()
         try {
             while (System.currentTimeMillis() - started < TEST_DURATION) {
-                env.executeInTransaction { txn ->
+                env.executeInTransaction { envTxn ->
                     var randomInt = rnd.nextInt() and 0x3fffffff
                     val count = 4 + randomInt and 0x1f
                     var j = 0
@@ -69,8 +69,8 @@ open class GarbageCollectorTestInMemory : GarbageCollectorTest() {
                         val intKey = randomInt and 0x3fff
                         val key = IntegerBinding.intToCompressedEntry(intKey)
                         val valueLength = 50 + randomInt % 100
-                        store.put(txn, key, ArrayByteIterable(ByteArray(valueLength)))
-                        storeDups.put(txn, key, IntegerBinding.intToEntry(randomInt % 32))
+                        store.put(envTxn, key, ArrayByteIterable(ByteArray(valueLength)))
+                        storeDups.put(envTxn, key, IntegerBinding.intToEntry(randomInt % 32))
                         randomInt += ++j
                     }
                 }

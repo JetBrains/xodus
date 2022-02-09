@@ -1834,7 +1834,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
      * @param propertyName name of the property.
      * @param allowCreate  if set to true and if there is no property named as propertyName,
      *                     create the new id for the propertyName.
-     * @return < 0 if there is no such property and create=false, else id of the property
+     * @return {@code < 0} if there is no such property and create=false, else id of the property
      */
     public int getPropertyId(@NotNull final PersistentStoreTransaction txn, @NotNull final String propertyName, final boolean allowCreate) {
         return allowCreate ? propertyIds.getOrAllocateId(txn, propertyName) : propertyIds.getId(txn, propertyName);
@@ -1860,7 +1860,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
      * @param linkName    name of the link.
      * @param allowCreate if set to true and if there is no link named as linkName,
      *                    create the new id for the linkName.
-     * @return < 0 if there is no such link and create=false, else id of the link
+     * @return {@code < 0} if there is no such link and create=false, else id of the link
      */
     public int getLinkId(@NotNull final PersistentStoreTransaction txn, @NotNull final String linkName, final boolean allowCreate) {
         return allowCreate ? linkIds.getOrAllocateId(txn, linkName) : linkIds.getId(txn, linkName);
@@ -2124,7 +2124,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private PersistentEntity getEntityAssertPhantomLink(@NotNull final PersistentStoreTransaction txn, @NotNull final EntityId id) {
         final int version = getLastVersion(txn, id);
         if (version < 0) {
-            throw new PhantomLinkException(getEntityType(txn, id.getTypeId()) + '[' + id.toString() + ']');
+            throw new PhantomLinkException(getEntityType(txn, id.getTypeId()) + '[' + id + ']');
         }
         return new PersistentEntity(this, (PersistentEntityId) id);
     }

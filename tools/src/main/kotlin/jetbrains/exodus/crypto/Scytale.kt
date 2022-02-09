@@ -46,7 +46,7 @@ fun main(args: Array<String>) {
 
     for (arg in args) {
         if (arg.startsWith('-') && arg.length < 3) {
-            when (arg.toLowerCase().substring(1)) {
+            when (arg.lowercase().substring(1)) {
                 "g" -> gzip = true
                 "z" -> compress = true
                 "o" -> overwrite = true
@@ -66,7 +66,7 @@ fun main(args: Array<String>) {
             } else if (basicIV == null) {
                 basicIV = parseIV(arg)
             } else {
-                type = arg.toLowerCase()
+                type = arg.lowercase()
                 break
             }
         }
