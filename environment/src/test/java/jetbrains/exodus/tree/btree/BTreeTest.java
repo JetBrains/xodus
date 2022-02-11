@@ -29,7 +29,7 @@ import static org.junit.Assert.assertFalse;
 public class BTreeTest extends BTreeTestBase {
 
     @Test
-    public void testSplitRight2() throws IOException {
+    public void testSplitRight2() {
         int s = 1000;
         tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
 
@@ -50,7 +50,7 @@ public class BTreeTest extends BTreeTestBase {
     }
 
     @Test
-    public void testPutRightSplitRight() throws IOException {
+    public void testPutRightSplitRight() {
         int s = 1000;
         tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
 
@@ -71,7 +71,7 @@ public class BTreeTest extends BTreeTestBase {
     }
 
     @Test
-    public void testSplitLeft() throws IOException {
+    public void testSplitLeft() {
         int s = 50;
         tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
 
@@ -92,7 +92,7 @@ public class BTreeTest extends BTreeTestBase {
     }
 
     @Test
-    public void testSplitRandom() throws IOException {
+    public void testSplitRandom() {
         int s = 10000;
         List<INode> lns = createLNs(s);
 
@@ -119,7 +119,7 @@ public class BTreeTest extends BTreeTestBase {
     }
 
     @Test
-    public void testPutOverwriteTreeWithoutDuplicates() throws IOException {
+    public void testPutOverwriteTreeWithoutDuplicates() {
         // add existing key to tree that supports duplicates
         tm = new BTreeEmpty(log, createTestSplittingPolicy(), false, 1).getMutableCopy();
 
@@ -148,7 +148,7 @@ public class BTreeTest extends BTreeTestBase {
     }
 
     @Test
-    public void testPutOverwriteTreeWithDuplicates() throws IOException {
+    public void testPutOverwriteTreeWithDuplicates() {
         // add existing key to tree that supports duplicates
         tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
 
@@ -184,7 +184,7 @@ public class BTreeTest extends BTreeTestBase {
     }
 
     @Test
-    public void testPutAndDelete() throws IOException {
+    public void testPutAndDelete() {
         tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
 
         for (int i = 0; i < 100; i++) {

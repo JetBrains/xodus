@@ -123,7 +123,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
     }
 
     @Test
-    public void testDeleteDuplicates() throws IOException {
+    public void testDeleteDuplicates() {
         tm = new BTreeEmpty(log, true, 1).getMutableCopy();
 
         getTreeMutable().put(kv(1, "11"));
@@ -146,7 +146,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
     }
 
     @Test
-    public void testDeleteDuplicates2() throws IOException {
+    public void testDeleteDuplicates2() {
         tm = new BTreeEmpty(log, true, 1).getMutableCopy();
 
         getTreeMutable().put(kv(1, "11"));

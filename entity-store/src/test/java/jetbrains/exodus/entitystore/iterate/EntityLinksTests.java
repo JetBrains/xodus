@@ -88,7 +88,7 @@ public class EntityLinksTests extends EntityStoreTestBase {
         Assert.assertEquals(10, (int) txn.findWithLinks("Issue", "comment").size());
     }
 
-    public void testAddAndDeleteSomeLinks() throws Exception {
+    public void testAddAndDeleteSomeLinks() {
         testAddAndIterateLinks();
         final StoreTransaction txn = getStoreTransaction();
         final Entity issue;
@@ -117,7 +117,7 @@ public class EntityLinksTests extends EntityStoreTestBase {
         Assert.assertEquals(5, i);
     }
 
-    public void testAddAndDeleteAllLinks() throws Exception {
+    public void testAddAndDeleteAllLinks() {
         testAddAndIterateLinks();
         final StoreTransaction txn = getStoreTransaction();
         final Entity issue;
@@ -131,7 +131,7 @@ public class EntityLinksTests extends EntityStoreTestBase {
         Assert.assertFalse(issue.getLinks("comment").iterator().hasNext());
     }
 
-    public void testFindLinks() throws Exception {
+    public void testFindLinks() {
         testAddAndIterateLinks();
         final StoreTransaction txn = getStoreTransaction();
         final Entity issue;
@@ -147,7 +147,7 @@ public class EntityLinksTests extends EntityStoreTestBase {
         }
     }
 
-    public void testFindLinks2() throws Exception {
+    public void testFindLinks2() {
         testAddAndIterateLinks();
         final StoreTransaction txn = getStoreTransaction();
         Assert.assertEquals(txn.findLinks("Comment", txn.getAll("Issue"), "issue").size(),
@@ -239,7 +239,7 @@ public class EntityLinksTests extends EntityStoreTestBase {
         Assert.assertEquals(2, (int) txn.findLinks("Issue", comment, "comment").size());
     }
 
-    public void testFindLinks3() throws Exception {
+    public void testFindLinks3() {
         testAddAndIterateLinks();
         final StoreTransaction txn = getStoreTransaction();
         final Entity issue = txn.getAll("Issue").iterator().next();
@@ -267,14 +267,14 @@ public class EntityLinksTests extends EntityStoreTestBase {
         Assert.assertEquals(state1, issue1.getLink("state"));
     }
 
-    public void testFindWithLinks() throws Exception {
+    public void testFindWithLinks() {
         testAddAndIterateLinks();
         final StoreTransaction txn = getStoreTransaction();
         Assert.assertEquals(0, (int) txn.findWithLinks("Issue", "issue").size());
         Assert.assertEquals(1, (int) txn.findWithLinks("Issue", "comment").size());
     }
 
-    public void testFindWithLinks2() throws Exception {
+    public void testFindWithLinks2() {
         testAddAndIterateLinks();
         final StoreTransaction txn = getStoreTransaction();
         Assert.assertEquals(0, (int) txn.findWithLinks("Issue", "issue", "Comment", "comment").size());

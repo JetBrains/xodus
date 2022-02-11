@@ -123,7 +123,7 @@ public class BTreePutSpecificTest extends BTreeTestBase {
     }
 
     @Test
-    public void testPutDuplicateTreeWithDuplicatesAfterSaveNoOrigDups() throws IOException {
+    public void testPutDuplicateTreeWithDuplicatesAfterSaveNoOrigDups() {
         tm = new BTreeEmpty(log, new BTreeBalancePolicy(4), true, 1).getMutableCopy();
 
         // no duplicates
@@ -153,7 +153,7 @@ public class BTreePutSpecificTest extends BTreeTestBase {
     }
 
     @Test
-    public void testPutDuplicateTreeWithDuplicatesAfterSaveOrigDupsPresent() throws IOException {
+    public void testPutDuplicateTreeWithDuplicatesAfterSaveOrigDupsPresent() {
         tm = new BTreeEmpty(log, new BTreeBalancePolicy(4), true, 1).getMutableCopy();
 
         // dups present
@@ -216,7 +216,7 @@ public class BTreePutSpecificTest extends BTreeTestBase {
     }
 
     @Test
-    public void testSplitRight() throws IOException {
+    public void testSplitRight() {
         tm = new BTreeEmpty(log,
                 new BTreeBalancePolicy(5) {
                     @Override

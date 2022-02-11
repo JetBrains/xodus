@@ -61,7 +61,7 @@ public abstract class EntityStoreTestBase extends TestBase {
         }
     }
 
-    protected PersistentEntityStoreImpl openStore() throws Exception {
+    protected PersistentEntityStoreImpl openStore() {
         return store = createStoreInternal(getDatabaseFolder());
     }
 
@@ -72,7 +72,7 @@ public abstract class EntityStoreTestBase extends TestBase {
         return databaseFolder;
     }
 
-    protected PersistentEntityStoreImpl createStoreInternal(String dbTempFolder) throws Exception {
+    protected PersistentEntityStoreImpl createStoreInternal(String dbTempFolder) {
         return createStore(dbTempFolder);
     }
 

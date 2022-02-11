@@ -27,7 +27,7 @@ import static org.junit.Assert.assertTrue;
 public class BTreeSimpleTest extends BTreeTestBase {
 
     @Test
-    public void testEmptyTree() throws IOException {
+    public void testEmptyTree() {
         checkEmptyTree(t = new BTreeEmpty(log, false, 1));
 
         tm = new BTreeEmpty(log, false, 1).getMutableCopy();
@@ -43,7 +43,7 @@ public class BTreeSimpleTest extends BTreeTestBase {
     }
 
     @Test
-    public void testPutSaveGet() throws IOException {
+    public void testPutSaveGet() {
         // put
         tm = new BTreeEmpty(log, false, 1).getMutableCopy();
 

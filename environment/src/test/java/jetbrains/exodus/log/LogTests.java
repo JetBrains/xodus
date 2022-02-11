@@ -49,7 +49,7 @@ public class LogTests extends LogTestsBase {
     }
 
     @Test
-    public void testHighestPage() throws IOException {
+    public void testHighestPage() {
         initLog(1);
 
         final Loggable emptyLoggable = NullLoggable.create();
@@ -236,7 +236,7 @@ public class LogTests extends LogTestsBase {
 
     @Test
     @TestFor(issue = "XD-484")
-    public void testSetHighAddress_XD_484() throws IOException {
+    public void testSetHighAddress_XD_484() {
         testSetHighAddress2();
         closeLog();
         Assert.assertEquals(0L, getLog().getHighAddress());
@@ -348,7 +348,7 @@ public class LogTests extends LogTestsBase {
     }
 
     @Test
-    public void testClearInvalidLog() throws IOException {
+    public void testClearInvalidLog() {
         initLog(2);
         getLog().beginWrite();
         for (int i = 0; i < 2048; ++i) {
@@ -365,7 +365,7 @@ public class LogTests extends LogTestsBase {
     }
 
     @Test
-    public void testClearInvalidLog2() throws IOException {
+    public void testClearInvalidLog2() {
         initLog(2);
         getLog().beginWrite();
         for (int i = 0; i < 2048; ++i) {

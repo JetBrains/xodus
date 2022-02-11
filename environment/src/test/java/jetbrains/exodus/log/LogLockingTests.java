@@ -37,7 +37,7 @@ public class LogLockingTests extends LogTestsBase {
     }
 
     @Test
-    public void testLockContents() throws IOException {
+    public void testLockContents() {
         initLog(1);
         final DataWriter writer = log.getConfig().getWriter();
         closeLog();
@@ -45,7 +45,7 @@ public class LogLockingTests extends LogTestsBase {
     }
 
     @Test
-    public void testDirectoryAlreadyLocked() throws IOException {
+    public void testDirectoryAlreadyLocked() {
         initLog(1);
         File xdLockFile = new File(getLogDirectory(), "xd.lck");
         Assert.assertTrue(xdLockFile.exists());

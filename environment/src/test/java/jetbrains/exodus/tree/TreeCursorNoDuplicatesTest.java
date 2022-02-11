@@ -53,7 +53,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void testGetNext() throws IOException {
+    public void testGetNext() {
         final GetNext getNext = Cursor::getNext;
         check(tm, getNext);
         long a = saveTree();
@@ -103,7 +103,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void testCount() throws IOException {
+    public void testCount() {
         final GetNext getNext = c -> c.getNext() && c.count() == 1;
         check(tm, getNext);
         long a = saveTree();
@@ -114,7 +114,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void testGetNextNoDup() throws IOException {
+    public void testGetNextNoDup() {
         final GetNext getNextNoDup = Cursor::getNextNoDup;
         check(tm, getNextNoDup);
         long a = saveTree();
@@ -278,7 +278,7 @@ public abstract class TreeCursorNoDuplicatesTest extends CursorTestBase {
     }
 
     @Test
-    public void testGetPrev() throws IOException {
+    public void testGetPrev() {
         final GetPrev getPrev = Cursor::getPrev;
         long a = saveTree();
         reopen();

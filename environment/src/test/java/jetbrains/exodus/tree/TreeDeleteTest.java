@@ -27,7 +27,7 @@ import static org.junit.Assert.*;
 public abstract class TreeDeleteTest extends TreeBaseTest {
 
     @Test
-    public void testDeleteNoDuplicates() throws IOException {
+    public void testDeleteNoDuplicates() {
         tm = createMutableTree(false, 1);
 
         tm.put(kv(1, "1"));
@@ -47,7 +47,7 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
     }
 
     @Test
-    public void testDeleteNoDuplicates2() throws IOException {
+    public void testDeleteNoDuplicates2() {
         tm = createMutableTree(false, 1);
 
         tm.put(key("1"), value("1"));
@@ -141,7 +141,7 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
     } */
 
     @Test
-    public void testDeleteNotExistingKey() throws IOException {
+    public void testDeleteNotExistingKey() {
         tm = createMutableTree(false, 1);
 
         getTreeMutable().put(kv(1, "1"));
@@ -170,7 +170,7 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
     }
 
     @Test
-    public void testDeleteNotExistingKey2() throws IOException {
+    public void testDeleteNotExistingKey2() {
         tm = createMutableTree(false, 1);
 
         getTreeMutable().put(kv(1, "1"));
@@ -205,7 +205,7 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
     }
 
     @Test
-    public void testPutDeleteRandomWithoutDuplicates() throws Throwable {
+    public void testPutDeleteRandomWithoutDuplicates() {
         tm = createMutableTree(false, 1);
 
         final IntHashMap<String> map = new IntHashMap<>();

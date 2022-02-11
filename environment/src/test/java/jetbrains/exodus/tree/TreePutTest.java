@@ -121,7 +121,7 @@ public abstract class TreePutTest extends TreeBaseTest {
     }
 
     @Test
-    public void testPutReopen() throws IOException {
+    public void testPutReopen() {
         tm = createMutableTree(false, 1);
         tm.put(key("1"), value("1"));
         final long address = saveTree();
@@ -133,7 +133,7 @@ public abstract class TreePutTest extends TreeBaseTest {
     }
 
     @Test
-    public void testPutReopen2() throws IOException {
+    public void testPutReopen2() {
         tm = createMutableTree(false, 1);
         tm.put(key("11"), value("1"));
         final long address = saveTree();
@@ -145,7 +145,7 @@ public abstract class TreePutTest extends TreeBaseTest {
     }
 
     @Test
-    public void testPutReopen3() throws IOException {
+    public void testPutReopen3() {
         tm = createMutableTree(false, 1);
         tm.put(key("1"), value("1"));
         tm.put(key("2"), value("1"));
@@ -159,7 +159,7 @@ public abstract class TreePutTest extends TreeBaseTest {
     }
 
     @Test
-    public void testPutReopen4() throws IOException {
+    public void testPutReopen4() {
         tm = createMutableTree(false, 1);
         tm.put(key("1"), value("1"));
         tm.put(key("2"), value("1"));
@@ -235,7 +235,7 @@ public abstract class TreePutTest extends TreeBaseTest {
     }
 
     @Test
-    public void xd_329() throws IOException {
+    public void xd_329() {
         tm = createMutableTree(false, 1);
         final long count = 17;
         for (long i = 0; i < count; ++i) {
@@ -248,7 +248,7 @@ public abstract class TreePutTest extends TreeBaseTest {
     }
 
     @Test
-    public void xd_329_with_ints() throws IOException {
+    public void xd_329_with_ints() {
         tm = createMutableTree(false, 1);
         final int count = 33;
         for (int i = 0; i < count; ++i) {
@@ -261,7 +261,7 @@ public abstract class TreePutTest extends TreeBaseTest {
     }
 
     @Test
-    public void testPutKeysWithSamePrefixReopen() throws IOException {
+    public void testPutKeysWithSamePrefixReopen() {
         tm = createMutableTree(false, 1);
 
         StringBuilder key = new StringBuilder();
@@ -309,7 +309,7 @@ public abstract class TreePutTest extends TreeBaseTest {
     }
 
     @Test
-    public void testPutRandomWithoutDuplicates2() throws Throwable {
+    public void testPutRandomWithoutDuplicates2() {
         tm = createMutableTree(false, 1);
 
         final IntHashMap<String> map = new IntHashMap<>();
@@ -340,7 +340,7 @@ public abstract class TreePutTest extends TreeBaseTest {
     }
 
     @Test
-    public void testPutRightRandomWithoutDuplicates() throws Throwable {
+    public void testPutRightRandomWithoutDuplicates() {
         tm = createMutableTree(false, 1);
 
         final IntHashMap<String> map = new IntHashMap<>();
@@ -370,7 +370,7 @@ public abstract class TreePutTest extends TreeBaseTest {
     }
 
     @Test
-    public void testAddRandomWithoutDuplicates() throws Throwable {
+    public void testAddRandomWithoutDuplicates() {
         tm = createMutableTree(false, 1);
 
         final IntHashMap<String> map = new IntHashMap<>();
@@ -414,7 +414,7 @@ public abstract class TreePutTest extends TreeBaseTest {
 
     @Test
     @TestFor(issue = "XD-539")
-    public void createHugeTree() throws Throwable {
+    public void createHugeTree() {
         if (Runtime.getRuntime().maxMemory() < 4000000000L) {
             return;
         }

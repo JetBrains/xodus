@@ -24,7 +24,7 @@ import static org.junit.Assert.assertEquals;
 
 public class BTreeSpecificCursorNoDuplicatesTest extends BTreeTestBase {
     @Test
-    public void testGetSearchKeyRange3() throws IOException {
+    public void testGetSearchKeyRange3() {
         tm = createEmptyTreeForCursor(1).getMutableCopy();
 
         getTreeMutable().put(kv(1, "v1"));

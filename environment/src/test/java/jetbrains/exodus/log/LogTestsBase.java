@@ -51,7 +51,7 @@ class LogTestsBase {
     }
 
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() {
         closeLog();
         final File testsDirectory = getLogDirectory();
         IOUtil.deleteRecursively(testsDirectory);

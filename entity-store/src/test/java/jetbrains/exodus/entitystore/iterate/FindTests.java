@@ -455,7 +455,7 @@ public class FindTests extends EntityStoreTestBase {
         Assert.assertEquals(100, (int) txn.findStartingWith("Issue", "description", "Test").size());
     }
 
-    public void testFindWithProp() throws Exception {
+    public void testFindWithProp() {
         testFindSingleEntityByPropertyValue();
         final StoreTransaction txn = getStoreTransactionSafe();
         Assert.assertEquals(100, txn.findWithProp("Issue", "description").size());
@@ -493,7 +493,7 @@ public class FindTests extends EntityStoreTestBase {
         assertFalse(itr.hasNext());
     }
 
-    public void testFindWithPropSorted() throws Exception {
+    public void testFindWithPropSorted() {
         testFindSingleEntityByPropertyValue();
         final PersistentStoreTransaction txn = getStoreTransactionSafe();
         Assert.assertEquals(100, txn.findWithPropSortedByValue("Issue", "description").size());
@@ -504,14 +504,14 @@ public class FindTests extends EntityStoreTestBase {
         Assert.assertEquals(0, txn.findWithPropSortedByValue("No such type", "size").size());
     }
 
-    public void testFindWithPropIsCached() throws Exception {
+    public void testFindWithPropIsCached() {
         getEntityStore().getConfig().setCachingDisabled(false);
         testFindWithProp();
         final StoreTransaction txn = getStoreTransactionSafe();
         Assert.assertTrue(((EntityIteratorBase) txn.findWithProp("Issue", "description").iterator()).getIterable().isCachedInstance());
     }
 
-    public void testFindWithPropSortedIsCached() throws Exception {
+    public void testFindWithPropSortedIsCached() {
         getEntityStore().getConfig().setCachingDisabled(false);
         testFindWithPropSorted();
         final PersistentStoreTransaction txn = getStoreTransactionSafe();
@@ -519,7 +519,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     @TestFor(issue = "XD-524")
-    public void testFindWithPropAndIntersectIsCached() throws Exception {
+    public void testFindWithPropAndIntersectIsCached() {
         testFindWithPropSortedIsCached();
         final PersistentStoreTransaction txn = getStoreTransactionSafe();
         EntityIterableBase withDescription = txn.findWithPropSortedByValue("Issue", "description");
@@ -532,7 +532,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     @TestFor(issue = "XD-524")
-    public void testFindWithPropAndUnionIsCached() throws Exception {
+    public void testFindWithPropAndUnionIsCached() {
         testFindWithPropSortedIsCached();
         final PersistentStoreTransaction txn = getStoreTransactionSafe();
         EntityIterableBase withDescription = txn.findWithPropSortedByValue("Issue", "description");
@@ -545,7 +545,7 @@ public class FindTests extends EntityStoreTestBase {
     }
 
     @TestFor(issue = "XD-524")
-    public void testFindWithPropAndMinusIsCached() throws Exception {
+    public void testFindWithPropAndMinusIsCached() {
         testFindWithPropSortedIsCached();
         final PersistentStoreTransaction txn = getStoreTransactionSafe();
         EntityIterableBase withDescription = txn.findWithPropSortedByValue("Issue", "description");

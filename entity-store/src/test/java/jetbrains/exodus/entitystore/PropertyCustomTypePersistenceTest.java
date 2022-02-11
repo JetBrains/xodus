@@ -32,7 +32,7 @@ public class PropertyCustomTypePersistenceTest extends EntityStoreTestBase {
     }
 
     @TestFor(issue = "XD-555")
-    public void testPersistentCustomPropertyType() throws Exception {
+    public void testPersistentCustomPropertyType() {
         PersistentEntityStoreImpl store = getEntityStore();
 
         registerDatatype(store);
@@ -56,7 +56,7 @@ public class PropertyCustomTypePersistenceTest extends EntityStoreTestBase {
     }
 
     @TestFor(issue = "XD-833")
-    public void testPersistentCustomPropertyTypeSet() throws Exception {
+    public void testPersistentCustomPropertyTypeSet() {
         PersistentEntityStoreImpl store = getEntityStore();
 
         registerDatatype(store);

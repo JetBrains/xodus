@@ -23,7 +23,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * This annotation binds production class with it's tests
+ * This annotation binds production class with its tests
  *
  * @author eugene.petrenko@gmail.com
  */
@@ -34,7 +34,7 @@ public @interface TestFor {
     /**
      * Binds implementation class with a test to be able to find the class by the test.
      */
-    @NotNull Class[] testForClass() default {};
+    Class[] testForClass() default {};
 
     /**
      * Binds test with issues.

@@ -42,7 +42,7 @@ public class BTreeCursorNoDuplicatesTest extends TreeCursorNoDuplicatesTest {
     }
 
     @Test
-    public void testGetNextDup() throws IOException {
+    public void testGetNextDup() {
         final TreeAwareRunnable genNextDup = new TreeAwareRunnable(getTreeMutable()) {
             @Override
             public void run() {
