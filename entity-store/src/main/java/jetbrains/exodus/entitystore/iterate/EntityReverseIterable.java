@@ -72,6 +72,11 @@ public final class EntityReverseIterable extends EntityIterableDecoratorBase {
     }
 
     @Override
+    public @NotNull EntityIterator getReverseIteratorImpl(@NotNull PersistentStoreTransaction txn) {
+        return source.getIteratorImpl(txn);
+    }
+
+    @Override
     @NotNull
     protected EntityIterableHandle getHandleImpl() {
         return new EntityIterableHandleDecorator(getStore(), EntityReverseIterable.getType(), source.getHandle()) {

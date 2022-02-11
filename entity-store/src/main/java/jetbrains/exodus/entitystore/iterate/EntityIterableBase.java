@@ -144,6 +144,11 @@ public abstract class EntityIterableBase implements EntityIterable {
     }
 
     @NotNull
+    public EntityIterator getReverseIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+        throw new UnsupportedOperationException("getReverseIterator not implemented");
+    }
+
+    @NotNull
     @Override
     public PersistentStoreTransaction getTransaction() {
         return txnGetter.getTxn(this);
@@ -543,11 +548,6 @@ public abstract class EntityIterableBase implements EntityIterable {
     @NotNull
     public EntityIdSet toSet(@NotNull final PersistentStoreTransaction txn) {
         return getOrCreateCachedInstance(txn).toSet(txn);
-    }
-
-    @NotNull
-    public EntityIterator getReverseIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
-        throw new UnsupportedOperationException("getReverseIterator not implemented");
     }
 
     protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
