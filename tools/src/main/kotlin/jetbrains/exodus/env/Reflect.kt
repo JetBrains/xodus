@@ -29,7 +29,6 @@ import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.log.NullLoggable
 import jetbrains.exodus.tree.LongIterator
 import jetbrains.exodus.tree.patricia.PatriciaTreeBase
-import mu.KLogging
 import java.io.File
 import java.io.PrintWriter
 import java.util.*
@@ -107,7 +106,7 @@ fun main(args: Array<String>) {
                 exitProcess(reflect.traverse(dumpUtilizationToFile, persistentEntityStoreInfo))
             }
             if (copy) {
-                reflect.env.copyTo(File(envPath2), forcePrefixing, Reflect.logger) {
+                reflect.env.copyTo(File(envPath2), forcePrefixing) {
                     println(it)
                 }
             }
@@ -139,7 +138,7 @@ internal fun printUsage() {
 
 class Reflect(directory: File) {
 
-    companion object : KLogging() {
+    companion object {
 
         private val DEFAULT_PAGE_SIZE = EnvironmentConfig.DEFAULT.logCachePageSize
         private const val MAX_VALID_LOGGABLE_TYPE = PatriciaTreeBase.MAX_VALID_LOGGABLE_TYPE.toInt()
@@ -212,7 +211,7 @@ class Reflect(directory: File) {
             if (filesLength == 0) {
                 throw ExodusException("No database files found at $directory")
             }
-            logger.info { "Files found: $filesLength" }
+            println("Files found: $filesLength")
 
             var maxFileSize = 0L
             files.forEachIndexed { i, f ->
@@ -224,10 +223,10 @@ class Reflect(directory: File) {
                 }
                 maxFileSize = max(maxFileSize, length)
             }
-            logger.info { "Maximum file length: $maxFileSize" }
+            println("Maximum file length: $maxFileSize")
 
             val pageSize = if (maxFileSize % DEFAULT_PAGE_SIZE == 0L || filesLength == 1) DEFAULT_PAGE_SIZE else LogUtil.LOG_BLOCK_ALIGNMENT
-            logger.info { "Computed page size: $pageSize" }
+            println("Computed page size: $pageSize")
 
             val reader = FileDataReader(directory)
             val writer = FileDataWriter(reader)
@@ -260,7 +259,7 @@ class Reflect(directory: File) {
     internal fun cleanFile(file: String) {
         env.suspendGC()
         try {
-            logger.info { "Cleaning $file" }
+            println("Cleaning $file")
             env.gc.doCleanFile(LogUtil.getAddress(file))
         } finally {
             env.resumeGC()
@@ -275,7 +274,7 @@ class Reflect(directory: File) {
                 if (loggable.type == DatabaseRoot.DATABASE_ROOT_TYPE) {
                     ++totalRoots
                     if (!DatabaseRoot(loggable).isValid) {
-                        logger.error("Invalid root at address: ${loggable.address}")
+                        println("Invalid root at address: ${loggable.address}")
                     }
                 }
                 if (loggable.address + loggable.length() >= endAddress) return@forEach
@@ -346,12 +345,11 @@ class Reflect(directory: File) {
                     val tree = (txn as TransactionBase).getTree(store)
                     fetchUsedSpace(name, tree.addressIterator(), usedSpace, usedSpacePerStore)
                     if (tree.size != storeSize) {
-                        logger.error { "Stored size (${tree.size}) isn't equal to actual size ($storeSize)" }
+                        println("Stored size (${tree.size}) isn't equal to actual size ($storeSize)")
                     }
                 }
             } catch (t: Throwable) {
                 println("Can't fetch used space for store $name: $t")
-                logger.error("Can't fetch used space for store $name", t)
                 wereErrors = true
             }
         }
@@ -388,10 +386,10 @@ class Reflect(directory: File) {
                 usedSpacePerStore[name] = (usedSpacePerStore[name] ?: 0L) + dataLength
                 val type = loggable.type.toInt()
                 if (type > MAX_VALID_LOGGABLE_TYPE) {
-                    logger.error { "Wrong loggable type: $type" }
+                    println("Wrong loggable type: $type")
                 }
             } catch (e: ExodusException) {
-                logger.error("Can't read loggable", e)
+                println("Can't read loggable: $e")
             }
         }
     }
@@ -400,7 +398,7 @@ class Reflect(directory: File) {
         for ((address, usedBytes) in usedSpace) {
             val size = log.getFileSize(address)
             if (size <= 0) {
-                logger.error("Empty file unexpected")
+                println("Empty file unexpected")
             } else {
                 val msg = if (usedBytes == null) {
                     ": unknown"
