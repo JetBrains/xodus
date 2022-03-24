@@ -967,6 +967,11 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     @NotNull
+    public BitmapIterator getEntitiesBitmapReverseIterator(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
+        return getEntitiesBitmapTable(txn, entityTypeId).reverseIterator(txn.getEnvironmentTransaction());
+    }
+
+    @NotNull
     public Cursor getLinksFirstIndexCursor(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
         return getLinksTable(txn, entityTypeId).getFirstIndexCursor(txn.getEnvironmentTransaction());
     }

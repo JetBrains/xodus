@@ -30,9 +30,15 @@ open class EntitiesOfTypeIterable(txn: PersistentStoreTransaction, private val e
 
     override fun getIteratorImpl(txn: PersistentStoreTransaction) =
         if (store.useVersion1Format())
-            EntitiesOfTypeIterator(this, store.getEntitiesIndexCursor(txn, entityTypeId))
+            EntitiesOfTypeIterator(this, store.getEntitiesIndexCursor(txn, entityTypeId), reverse = false)
         else
             EntitiesOfTypeBitmapIterator(this, store.getEntitiesBitmapIterator(txn, entityTypeId))
+
+    override fun getReverseIteratorImpl(txn: PersistentStoreTransaction) =
+        if (store.useVersion1Format())
+            EntitiesOfTypeIterator(this, store.getEntitiesIndexCursor(txn, entityTypeId), reverse = true)
+        else
+            EntitiesOfTypeBitmapIterator(this, store.getEntitiesBitmapReverseIterator(txn, entityTypeId))
 
     override fun nonCachedHasFastCountAndIsEmpty() = true
 
@@ -74,7 +80,12 @@ open class EntitiesOfTypeIterable(txn: PersistentStoreTransaction, private val e
 
     override fun countImpl(txn: PersistentStoreTransaction) = store.getEntitiesCount(txn, entityTypeId)
 
-    class EntitiesOfTypeIterator(iterable: EntitiesOfTypeIterable, index: Cursor) : EntityIteratorBase(iterable) {
+    private class EntitiesOfTypeIterator(
+        iterable: EntitiesOfTypeIterable,
+        index: Cursor,
+        private val reverse: Boolean
+    ) :
+        EntityIteratorBase(iterable) {
 
         private var hasNext = false
         private var hasNextValid = false
@@ -89,7 +100,7 @@ open class EntitiesOfTypeIterable(txn: PersistentStoreTransaction, private val e
 
         public override fun hasNextImpl(): Boolean {
             if (!hasNextValid) {
-                hasNext = cursor.next
+                hasNext = if (reverse) cursor.prev else cursor.next
                 hasNextValid = true
             }
             return hasNext
@@ -108,10 +119,8 @@ open class EntitiesOfTypeIterable(txn: PersistentStoreTransaction, private val e
         override fun getLast(): EntityId? = if (!cursor.prev) null else entityId
     }
 
-    class EntitiesOfTypeBitmapIterator(
-        iterable: EntitiesOfTypeIterable,
-        val iterator: BitmapIterator
-    ) : EntityIteratorBase(iterable) {
+    private class EntitiesOfTypeBitmapIterator(iterable: EntitiesOfTypeIterable, val iterator: BitmapIterator) :
+        EntityIteratorBase(iterable) {
 
         init {
             cursor = iterator.cursor
