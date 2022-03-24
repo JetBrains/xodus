@@ -117,7 +117,8 @@ class BitmapIterator(
                     value = (value shr searchIndex) shl searchIndex
                 } else {
                     // clear higher bits
-                    value = (value shl (Long.SIZE_BITS - searchIndex)) ushr (Long.SIZE_BITS - searchIndex)
+                    val shiftBits = Long.SIZE_BITS - searchIndex - 1
+                    value = (value shl shiftBits) ushr shiftBits
                 }
                 searchIndex
             }

@@ -418,6 +418,7 @@ class BitmapIteratorTest : BitmapImplTest() {
             bitmap.set(txn, randomBit + 2, true)
             bitmap.reverseIterator(txn).let {
                 assertTrue(it.getSearchBit(randomBit + 2))
+                assertEquals(randomBit + 2, it.next())
                 assertEquals(randomBit + 1, it.next())
                 assertEquals(randomBit, it.next())
             }
@@ -425,6 +426,7 @@ class BitmapIteratorTest : BitmapImplTest() {
     }
 
     @Test
+    @TestFor(issue = "XD-854")
     fun `reversed iteration from the random bit with big step`() {
         env.executeInTransaction { txn ->
             val randomBit = Random.nextLong(Long.MAX_VALUE - 20)
@@ -433,7 +435,7 @@ class BitmapIteratorTest : BitmapImplTest() {
             bitmap.set(txn, randomBit + 20, true)
             bitmap.reverseIterator(txn).let {
                 assertTrue(it.getSearchBit(randomBit + 20))
-                assertEquals(randomBit + 10, it.next())
+                assertEquals(randomBit + 20, it.next())
                 assertTrue(it.getSearchBit(randomBit + 9))
                 assertEquals(randomBit, it.next())
             }
