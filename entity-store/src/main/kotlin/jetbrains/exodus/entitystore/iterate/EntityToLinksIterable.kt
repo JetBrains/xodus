@@ -32,8 +32,8 @@ class EntityToLinksIterable(
 
     override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase = LinksIterator(openCursor(txn))
 
-    /*override fun getReverseIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase =
-        LinksReverseIterator(openCursor(txn))*/
+    override fun getReverseIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase =
+        LinksReverseIterator(openCursor(txn))
 
     override fun nonCachedHasFastCountAndIsEmpty() = true
 
