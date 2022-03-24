@@ -209,7 +209,7 @@ internal class ImmutableNode : NodeBase {
                             index, ChildReference(b, addressByOffsetV2(offset))
                         )
                     }
-                    if (index < childrenCount - 1) {
+                    if (index < childrenCount) {
                         return ImmutableNodeBitsetChildrenV2Iterator(
                             index - 1, ChildReference(b, addressByOffsetV2(offset))
                         ).apply { next() }
