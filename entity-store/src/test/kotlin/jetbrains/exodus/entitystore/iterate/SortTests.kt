@@ -285,15 +285,15 @@ class SortTests : EntityStoreTestBase() {
     fun testInvalidationOfSortResults() {
         val txn = storeTransaction
         val issue = txn.newEntity("Issue")
-        issue.setProperty("description", "description")
         issue.setProperty("created", System.currentTimeMillis())
+        issue.setProperty("deleted", true)
         txn.flush()
-        val sortedByCreated = txn.sort("Issue", "created", txn.find("Issue", "description", "description"), true) as EntityIterableBase
+        val sortedByCreated = txn.sort("Issue", "created", txn.find("Issue", "deleted", true), true) as EntityIterableBase
         for (i in 0..9999999) {
             Assert.assertTrue(sortedByCreated.iterator().hasNext())
             Thread.yield()
             if (sortedByCreated.isCached) {
-                issue.setProperty("description", "new description")
+                issue.setProperty("deleted", false)
                 txn.flush()
                 Assert.assertFalse(sortedByCreated.iterator().hasNext())
                 return
