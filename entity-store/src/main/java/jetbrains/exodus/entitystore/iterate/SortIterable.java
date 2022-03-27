@@ -214,7 +214,7 @@ public final class SortIterable extends EntityIterableDecoratorBase {
     }
 
     @Override
-    public boolean canBeCached() {
+    public boolean isThreadSafe() {
         return source.isThreadSafe();
     }
 

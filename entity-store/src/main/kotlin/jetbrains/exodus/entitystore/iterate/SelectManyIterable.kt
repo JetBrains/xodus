@@ -33,7 +33,7 @@ class SelectManyIterable(txn: PersistentStoreTransaction,
                          private val linkId: Int,
                          private val distinct: Boolean = true) : EntityIterableDecoratorBase(txn, source) {
 
-    override fun canBeCached() = distinct
+    override fun canBeCached() = super.canBeCached() && distinct
 
     override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase = SelectManyDistinctIterator(txn)
 
