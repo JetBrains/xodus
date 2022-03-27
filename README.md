@@ -29,13 +29,13 @@ To start using Xodus, define dependencies:
 <dependency>
     <groupId>org.jetbrains.xodus</groupId>
     <artifactId>xodus-openAPI</artifactId>
-    <version>1.3.232</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 ```groovy
 // in Gradle project
 dependencies {
-    compile 'org.jetbrains.xodus:xodus-openAPI:1.3.232'
+    compile 'org.jetbrains.xodus:xodus-openAPI:2.0.0'
 }
 ```
 Read more about [managing dependencies](https://github.com/JetBrains/xodus/wiki/Managing-Dependencies).
@@ -44,7 +44,7 @@ There are three different ways to deal with data, which results in three differe
  
 ### Environments
 
-Add dependency on `org.jetbrains.xodus:xodus-environment:1.3.232`.
+Add dependency on `org.jetbrains.xodus:xodus-environment:2.0.0`.
 
 ```java
 try (Environment env = Environments.newInstance("/home/me/.myAppData")) {
@@ -56,7 +56,7 @@ try (Environment env = Environments.newInstance("/home/me/.myAppData")) {
 ```
 ### Entity Stores
 
-Add dependency on `org.jetbrains.xodus:xodus-entity-store:1.3.232`, `org.jetbrains.xodus:xodus-environment:1.3.232` and `org.jetbrains.xodus:xodus-vfs:1.3.232`.
+Add dependency on `org.jetbrains.xodus:xodus-entity-store:2.0.0`, `org.jetbrains.xodus:xodus-environment:2.0.0` and `org.jetbrains.xodus:xodus-vfs:2.0.0`.
 
 ```java
 try (PersistentEntityStore entityStore = PersistentEntityStores.newInstance("/home/me/.myAppData")) {
@@ -68,7 +68,7 @@ try (PersistentEntityStore entityStore = PersistentEntityStores.newInstance("/ho
 ```
 ### Virtual File Systems
 
-Add dependency on `org.jetbrains.xodus:xodus-vfs:1.3.232` and `org.jetbrains.xodus:xodus-environment:1.3.232`.
+Add dependency on `org.jetbrains.xodus:xodus-vfs:2.0.0` and `org.jetbrains.xodus:xodus-environment:2.0.0`.
 
 ```java
 try (Environment env = Environments.newInstance("/home/me/.myAppData")) {
