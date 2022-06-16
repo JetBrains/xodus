@@ -30,7 +30,8 @@ import java.io.RandomAccessFile
 import java.nio.channels.ClosedChannelException
 import java.nio.channels.FileChannel
 
-open class FileDataWriter @JvmOverloads constructor(private val reader: FileDataReader, lockId: String? = null) : AbstractDataWriter() {
+open class FileDataWriter @JvmOverloads constructor(private val reader: FileDataReader,
+                                                    lockId: String? = null) : AbstractDataWriter() {
 
     private var dirChannel: FileChannel? = null
     private val lockingManager: LockingManager
@@ -102,7 +103,7 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
     }
 
     override fun openOrCreateBlockImpl(address: Long, length: Long) =
-        FileBlock(address, reader).also { openOrCreateFile(it, length) }
+            FileBlock(address, reader).also { openOrCreateFile(it, length) }
 
 
     override fun syncDirectory() {
@@ -181,15 +182,19 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
             logger.warn("Can't open directory channel. Log directory fsync won't be performed.")
         }
         private val setUninterruptibleMethod =
-            if (JVMConstants.IS_JAVA9_OR_HIGHER) {
-                UnsafeHolder.doPrivileged {
-                    try {
-                        Class.forName("sun.nio.ch.FileChannelImpl").getDeclaredMethod("setUninterruptible").apply {
-                            isAccessible = true
-                            logger.info { "Uninterruptible file channel will be used" }
-                        }
-                    } catch (t: Throwable) {
-                        logger.info(t) { "Interruptible file channel will be used" }
+                if (JVMConstants.IS_JAVA9_OR_HIGHER) {
+                    UnsafeHolder.doPrivileged {
+                        try {
+                            Class.forName("sun.nio.ch.FileChannelImpl").getDeclaredMethod("setUninterruptible").apply {
+                                isAccessible = true
+                                logger.info { "Uninterruptible file channel will be used" }
+                            }
+                        } catch (t: Throwable) {
+                            if (t.javaClass.name == "java.lang.reflect.InaccessibleObjectException") {
+                                logger.info("Interruptible file channel will be used")
+                            } else {
+                                logger.info(t) { "Interruptible file channel will be used" }
+                            }
                             null
                         }
                     }
