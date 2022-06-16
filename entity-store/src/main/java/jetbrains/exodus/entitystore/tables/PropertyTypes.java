@@ -64,7 +64,8 @@ public final class PropertyTypes {
             }
         };
         final int typeId = comparableSetType.getTypeId();
-        final ComparableValueType newComparableSetType = new ComparableValueType(typeId, newBinding, comparableSetType.getClazz());
+        final ComparableValueType newComparableSetType =
+                new ComparableValueType(typeId, newBinding, comparableSetType.getClazz());
         typesByClass.put(ComparableSet.class, newComparableSetType);
         typesById.put(typeId, newComparableSetType);
     }

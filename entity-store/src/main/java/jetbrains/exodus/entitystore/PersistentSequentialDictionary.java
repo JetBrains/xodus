@@ -71,7 +71,9 @@ class PersistentSequentialDictionary implements FlushLog.Member {
             if (result != null) {
                 return result;
             }
-            final ByteIterable idEntry = table.get(txnProvider.getTransaction().getEnvironmentTransaction(), StringBinding.stringToEntry(name));
+            final ByteIterable idEntry =
+                    table.get(txnProvider.getTransaction().getEnvironmentTransaction(),
+                            StringBinding.stringToEntry(name));
             if (idEntry != null) {
                 final int id = IntegerBinding.compressedEntryToInt(idEntry);
                 putIdUnsafe(name, id);
