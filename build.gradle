@@ -174,7 +174,7 @@ subprojects {
                 }
             }
         }
-        withJavadocJar {
+        javadocJar {
             dependsOn dokkaJavadoc
             from dokkaJavadoc.outputDirectory
         }
