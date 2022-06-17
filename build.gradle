@@ -160,6 +160,12 @@ subprojects {
             apiVersion = "$kotlinLangVersion"
         }
     }
+
+    java {
+        withJavadocJar()
+        withSourcesJar()
+    }
+
     if (shouldApplyDokka(project)) {
         dokkaJavadoc {
             dokkaSourceSets {
@@ -168,16 +174,12 @@ subprojects {
                 }
             }
         }
-        javadocJar {
+        withJavadocJar {
             dependsOn dokkaJavadoc
             from dokkaJavadoc.outputDirectory
         }
     }
 
-    java {
-        withJavadocJar()
-        withSourcesJar()
-    }
 
     if (!isSnapshot && signingKeyId.length() > 0) {
         ext.'signing.keyId' = signingKeyId
