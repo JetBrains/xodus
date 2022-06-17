@@ -193,7 +193,11 @@ subprojects {
                 repositories {
                     maven {
                         url = mavenPublishUrl
-                        authentication(userName: mavenPublishUsername, password: mavenPublishPassword)
+
+                        credentials {
+                            username = mavenPublishUsername
+                            password = mavenPublishPassword
+                        }
                     }
                 }
                 publications {
