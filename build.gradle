@@ -201,7 +201,7 @@ subprojects {
                     }
                 }
                 publications {
-                    maven(MavenPublication) {
+                    mavenJava(MavenPublication) {
                         pom {
                             name 'Xodus'
                             description 'Xodus is pure Java transactional schema-less embedded database'
