@@ -5,7 +5,7 @@ buildscript {
     ext.dokkaVersion = '1.4.30'
     ext.kotlinLoggingVersion = '1.7.9'
     ext.annotationsVersion = '19.0.0'
-    ext.licensePluginVersion = '0.15.0'
+    ext.licensePluginVersion = '0.16.1'
     ext.nexusPluginVersion = '0.21.2'
     ext.junitVersion = '4.13.2'
     ext.slf4jVersion = '1.7.30'
@@ -40,7 +40,7 @@ static def shouldApplyDokka(project) {
 
 
 wrapper {
-    gradleVersion = '6.9.1'
+    gradleVersion = '7.4.2'
 }
 
 defaultTasks 'assemble'
@@ -66,9 +66,9 @@ subprojects {
     apply plugin: 'license'
     apply plugin: 'java'
     apply plugin: 'kotlin'
-    apply plugin: 'maven'
     apply plugin: 'signing'
     apply plugin: 'org.jetbrains.dokka'
+    apply plugin: 'maven-publish'
 
     sourceCompatibility = 1.8
     compileJava.options.encoding = 'UTF-8'
@@ -133,26 +133,12 @@ subprojects {
         //testLogging.showStandardStreams = true
     }
 
-    task javadocJar(type: Jar, dependsOn: javadoc) {
-        classifier = 'javadoc'
-        duplicatesStrategy 'exclude'
-        includeEmptyDirs false
-        from javadoc.outputDirectory
-    }
     javadoc.failOnError = false
     // work around for Java 8 javadoc which is too strict
     if (JavaVersion.current().isJava8Compatible()) {
         tasks.withType(Javadoc) {
             options.addStringOption('Xdoclint:none', '-quiet')
         }
-    }
-
-    task sourceJar(type: Jar) {
-        classifier = 'sources'
-        duplicatesStrategy 'exclude'
-        includeEmptyDirs false
-        from project.sourceSets.main.java
-        from project.sourceSets.main.kotlin
     }
 
     // configuring projects with Kotlin sources
@@ -188,8 +174,9 @@ subprojects {
         }
     }
 
-    artifacts {
-        archives jar, javadocJar, sourceJar
+    java {
+        withJavadocJar()
+        withSourcesJar()
     }
 
     if (!isSnapshot && signingKeyId.length() > 0) {
@@ -200,28 +187,20 @@ subprojects {
 
     afterEvaluate { project ->
         if (shouldDeploy(project) && !(isDailyBuild && project.name == 'tools')) {
-            uploadArchives {
+            publishing {
                 repositories {
-                    mavenDeployer {
-
-                        beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
-
-                        if (isDailyBuild) {
-                            repository(url: "https://packages.jetbrains.team/maven/p/xodus/xodus-daily") {
-                                authentication(userName: mavenPublishUsername, password: mavenPublishPassword)
-                            }
-                        } else {
-                            repository(url: mavenPublishUrl) {
-                                authentication(userName: mavenPublishUsername, password: mavenPublishPassword)
-                            }
-                        }
-
-                        pom.project {
+                    maven {
+                        url = mavenPublishUrl
+                        authentication(userName: mavenPublishUsername, password: mavenPublishPassword)
+                    }
+                }
+                publications {
+                    maven(MavenPublication) {
+                        pom {
                             name 'Xodus'
                             description 'Xodus is pure Java transactional schema-less embedded database'
                             packaging 'jar'
                             url 'https://github.com/JetBrains/xodus'
-
                             scm {
                                 url 'https://github.com/JetBrains/xodus'
                                 connection 'scm:git:https://github.com/JetBrains/xodus.git'
@@ -248,9 +227,10 @@ subprojects {
                     }
                 }
             }
+
             signing {
-                required { !isSnapshot && signingKeyId.length() > 0 && gradle.taskGraph.hasTask('uploadArchives') }
-                sign configurations.archives
+                required { !isSnapshot && signingKeyId.length() > 0 }
+                sign publishing.publications.mavenJava
             }
         }
     }
