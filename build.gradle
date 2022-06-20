@@ -5,7 +5,7 @@ buildscript {
     ext.dokkaVersion = '1.4.30'
     ext.kotlinLoggingVersion = '1.7.9'
     ext.annotationsVersion = '19.0.0'
-    ext.licensePluginVersion = '0.15.0'
+    ext.licensePluginVersion = '0.16.1'
     ext.nexusPluginVersion = '0.21.2'
     ext.junitVersion = '4.13.2'
     ext.slf4jVersion = '1.7.30'
@@ -29,6 +29,8 @@ def mavenPublishPassword = hasProperty('mavenPublishPassword') ? project.mavenPu
 def signingKeyId = hasProperty('signingKeyId') ? project.signingKeyId : ''
 def signingPassword = hasProperty('signingPassword') ? project.signingPassword : ''
 def signingSecretKeyRingFile = hasProperty('signingSecretKeyRingFile') ? project.signingSecretKeyRingFile : '../key.gpg'
+def publishUrl = isDailyBuild ?  "https://packages.jetbrains.team/maven/p/xodus/xodus-daily" : mavenPublishUrl
+
 
 static def shouldDeploy(project) {
     return project.version.length() > 0 && !(project.name in ['benchmarks', 'samples'])
@@ -40,7 +42,7 @@ static def shouldApplyDokka(project) {
 
 
 wrapper {
-    gradleVersion = '6.9.1'
+    gradleVersion = '7.4.2'
 }
 
 defaultTasks 'assemble'
@@ -66,9 +68,9 @@ subprojects {
     apply plugin: 'license'
     apply plugin: 'java'
     apply plugin: 'kotlin'
-    apply plugin: 'maven'
     apply plugin: 'signing'
     apply plugin: 'org.jetbrains.dokka'
+    apply plugin: 'maven-publish'
 
     sourceCompatibility = 1.8
     compileJava.options.encoding = 'UTF-8'
@@ -133,12 +135,6 @@ subprojects {
         //testLogging.showStandardStreams = true
     }
 
-    task javadocJar(type: Jar, dependsOn: javadoc) {
-        classifier = 'javadoc'
-        duplicatesStrategy 'exclude'
-        includeEmptyDirs false
-        from javadoc.outputDirectory
-    }
     javadoc.failOnError = false
     // work around for Java 8 javadoc which is too strict
     if (JavaVersion.current().isJava8Compatible()) {
@@ -147,17 +143,9 @@ subprojects {
         }
     }
 
-    task sourceJar(type: Jar) {
-        classifier = 'sources'
-        duplicatesStrategy 'exclude'
-        includeEmptyDirs false
-        from project.sourceSets.main.java
-        from project.sourceSets.main.kotlin
-    }
-
     // configuring projects with Kotlin sources
     dependencies {
-        implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
+        api "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
         implementation "io.github.microutils:kotlin-logging:$kotlinLoggingVersion"
     }
     compileKotlin {
@@ -174,6 +162,12 @@ subprojects {
             apiVersion = "$kotlinLangVersion"
         }
     }
+
+    java {
+        withJavadocJar()
+        withSourcesJar()
+    }
+
     if (shouldApplyDokka(project)) {
         dokkaJavadoc {
             dokkaSourceSets {
@@ -188,9 +182,6 @@ subprojects {
         }
     }
 
-    artifacts {
-        archives jar, javadocJar, sourceJar
-    }
 
     if (!isSnapshot && signingKeyId.length() > 0) {
         ext.'signing.keyId' = signingKeyId
@@ -200,57 +191,53 @@ subprojects {
 
     afterEvaluate { project ->
         if (shouldDeploy(project) && !(isDailyBuild && project.name == 'tools')) {
-            uploadArchives {
+            publishing {
                 repositories {
-                    mavenDeployer {
-
-                        beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
-
-                        if (isDailyBuild) {
-                            repository(url: "https://packages.jetbrains.team/maven/p/xodus/xodus-daily") {
-                                authentication(userName: mavenPublishUsername, password: mavenPublishPassword)
-                            }
-                        } else {
-                            repository(url: mavenPublishUrl) {
-                                authentication(userName: mavenPublishUsername, password: mavenPublishPassword)
-                            }
+                    maven {
+                        url = publishUrl
+                        credentials {
+                            username = mavenPublishUsername
+                            password = mavenPublishPassword
                         }
-
-                        pom.project {
-                            name 'Xodus'
-                            description 'Xodus is pure Java transactional schema-less embedded database'
-                            packaging 'jar'
-                            url 'https://github.com/JetBrains/xodus'
-
+                    }
+                }
+                publications {
+                    mavenJava(MavenPublication) {
+                        pom {
+                            name = 'Xodus'
+                            description = 'Xodus is pure Java transactional schema-less embedded database'
+                            packaging = 'jar'
+                            url = 'https://github.com/JetBrains/xodus'
                             scm {
-                                url 'https://github.com/JetBrains/xodus'
-                                connection 'scm:git:https://github.com/JetBrains/xodus.git'
-                                developerConnection 'scm:git:https://github.com/JetBrains/xodus.git'
+                                url = 'https://github.com/JetBrains/xodus'
+                                connection = 'scm:git:https://github.com/JetBrains/xodus.git'
+                                developerConnection = 'scm:git:https://github.com/JetBrains/xodus.git'
                             }
 
                             licenses {
                                 license {
-                                    name 'The Apache Software License, Version 2.0'
-                                    url 'https://www.apache.org/licenses/LICENSE-2.0.txt'
-                                    distribution 'repo'
+                                    name = 'The Apache Software License, Version 2.0'
+                                    url = 'https://www.apache.org/licenses/LICENSE-2.0.txt'
+                                    distribution = 'repo'
                                 }
                             }
 
                             developers {
                                 developer {
-                                    id 'JetBrains'
-                                    name 'JetBrains Team'
-                                    organization 'JetBrains s.r.o'
-                                    organizationUrl 'https://www.jetbrains.com'
+                                    id = 'JetBrains'
+                                    name = 'JetBrains Team'
+                                    organization = 'JetBrains s.r.o'
+                                    organizationUrl = 'https://www.jetbrains.com'
                                 }
                             }
                         }
                     }
                 }
             }
+
             signing {
-                required { !isSnapshot && signingKeyId.length() > 0 && gradle.taskGraph.hasTask('uploadArchives') }
-                sign configurations.archives
+                required { !isSnapshot && signingKeyId.length() > 0 }
+                sign publishing.publications.mavenJava
             }
         }
     }
