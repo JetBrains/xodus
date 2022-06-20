@@ -2,7 +2,7 @@ import org.apache.commons.lang3.SystemUtils
 
 buildscript {
     ext.jmhVersion = '1.21'
-    ext.jmhPlugin= '0.5.0'
+    ext.jmhPlugin = '0.5.0'
     ext.jmhReportPlugin = '0.9.0'
     repositories {
         jcenter()
@@ -65,8 +65,5 @@ jmhReport {
     jmhResultPath = project.file('build/reports/jmh/results.json')
     jmhReportOutput = project.file('build/reports/jmh')
 }
-tasks.jmh.finalizedBy tasks.jmhReport
 
-uploadArchives {
-    enabled = false
-}
+tasks.jmh.finalizedBy tasks.jmhReport
