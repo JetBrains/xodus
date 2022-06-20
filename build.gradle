@@ -188,11 +188,17 @@ subprojects {
     }
 
     afterEvaluate { project ->
+        if (isDailyBuild) {
+            publishUrl = "https://packages.jetbrains.team/maven/p/xodus/xodus-daily"
+        } else {
+            publishUrl = mavenPublishUrl
+        }
+
         if (shouldDeploy(project) && !(isDailyBuild && project.name == 'tools')) {
             publishing {
                 repositories {
                     maven {
-                        url = mavenPublishUrl
+                        url = publishUrl
 
                         credentials {
                             username = mavenPublishUsername
