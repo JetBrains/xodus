@@ -148,6 +148,9 @@ private constructor(txn: PersistentStoreTransaction?,
 
     private inner class ReversePropertiesCachedInstanceIterator : PropertiesCachedInstanceIteratorBase(currentTree.reverseIterator())
 
+    private inner class ReversePropertyRangeCachedInstanceIterator(private val min: Comparable<Any>,max: Comparable<Any>)
+        : PropertiesCachedInstanceIteratorBase(currentTree.reverseIterator())
+
     private inner class PropertyValueCachedInstanceIterator(private val value: Comparable<Any>)
         : PropertiesCachedInstanceIteratorBase(currentTree.tailIterator(createEntry(value, 0) as IndexEntry<Comparable<Any>>)) {
 

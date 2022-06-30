@@ -122,8 +122,8 @@ public class FindTests extends EntityStoreTestBase {
         }
         txn.flush();
         final EntityIterable issues = txn.
-            findContaining("Issue", "description", "T ISSUE #5", true).
-            intersect(project.getLinks("issues"));
+                findContaining("Issue", "description", "T ISSUE #5", true).
+                intersect(project.getLinks("issues"));
         int count = 0;
         for (final Entity issue : issues) {
             Assert.assertEquals("Test issue #5", ((String) issue.getProperty("description")).substring(1));
@@ -684,5 +684,31 @@ public class FindTests extends EntityStoreTestBase {
         notDeletedIssue.setProperty("deleted", false);
         Assert.assertEquals(1L, txn.findWithPropSortedByValue("Issue", "deleted").size());
         Assert.assertEquals(1L, txn.getAll("Issue").minus(txn.findWithProp("Issue", "deleted")).size());
+    }
+
+    public void testFindRangeReversed() {
+        final PersistentStoreTransaction txn = getStoreTransactionSafe();
+        for (int i = 0; i < 100; i++) {
+            Entity entity = txn.newEntity("Issue");
+            entity.setProperty("description", "Test issue #" + i % 10);
+            entity.setProperty("size", i);
+        }
+
+        txn.flush();
+
+        Assert.assertEquals(0, txn.find("Issue", "size", 101, 102).
+                reverse().size());
+        Assert.assertEquals(0, txn.find("Issue", "size", -2, -1).
+                reverse().size());
+        Assert.assertEquals(100, txn.find("Issue", "size", 0, 100).
+                reverse().size());
+        Assert.assertEquals(100, txn.find("Issue", "size", 0, 102).
+                reverse().size());
+        Assert.assertEquals(11, txn.find("Issue", "size", 0, 10).
+                reverse().size());
+        Assert.assertEquals(10, txn.find("Issue", "size", 90, 100).
+                reverse().size());
+        Assert.assertEquals(10, txn.find("Issue", "size", 90, 102).
+                reverse().size());
     }
 }

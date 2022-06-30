@@ -42,11 +42,11 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
                 long min = Long.parseLong((String) parameters[2]);
                 long max = Long.parseLong((String) parameters[3]);
                 return new PropertyRangeIterable(txn,
-                    Integer.parseInt((String) parameters[0]), Integer.parseInt((String) parameters[1]), min, max);
+                        Integer.parseInt((String) parameters[0]), Integer.parseInt((String) parameters[1]), min, max);
             } catch (NumberFormatException e) {
                 return new PropertyRangeIterable(txn,
-                    Integer.parseInt((String) parameters[0]), Integer.parseInt((String) parameters[1]),
-                    (Comparable) parameters[2], (Comparable) parameters[3]);
+                        Integer.parseInt((String) parameters[0]), Integer.parseInt((String) parameters[1]),
+                        (Comparable) parameters[2], (Comparable) parameters[3]);
             }
         });
     }
@@ -84,11 +84,34 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
             }
             return cached.getPropertyRangeIterator(min, max);
         }
+
         final Cursor valueIdx = openCursor(txn);
         if (valueIdx == null) {
             return EntityIteratorBase.EMPTY;
         }
         return new PropertyRangeIterator(valueIdx);
+    }
+
+    @Override
+    public @NotNull EntityIterator getReverseIteratorImpl(@NotNull PersistentStoreTransaction txn) {
+        final EntityIterableBase it = getPropertyValueIndex();
+        if (it.isCachedInstance()) {
+            final Class<? extends Comparable> minClass = min.getClass();
+            final Class<? extends Comparable> maxClass = max.getClass();
+
+            final UpdatablePropertiesCachedInstanceIterable cached = (UpdatablePropertiesCachedInstanceIterable) it;
+            if (minClass != maxClass || minClass != cached.getPropertyValueClass()) {
+                return EntityIteratorBase.EMPTY;
+            }
+
+            return super.getReverseIteratorImpl(txn);
+        }
+
+        final Cursor valueIdx = openCursor(txn);
+        if (valueIdx == null) {
+            return EntityIteratorBase.EMPTY;
+        }
+        return new PropertyRangeReverseIterator(valueIdx);
     }
 
     @Override
@@ -148,7 +171,7 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
                     final ComparableSet set = (ComparableSet) value;
                     // not null set should be non-empty
                     return isRangeAffectedByPrimitiveValue(set.getMinimum()) ||
-                        isRangeAffectedByPrimitiveValue(set.getMaximum());
+                            isRangeAffectedByPrimitiveValue(set.getMaximum());
                 }
                 return isRangeAffectedByPrimitiveValue(value);
             }
@@ -220,6 +243,59 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
 
         private void checkHasNext(final boolean success) {
             hasNext = success && max.compareTo(binding.entryToObject(getCursor().getKey())) >= 0;
+        }
+    }
+
+    private final class PropertyRangeReverseIterator extends EntityIteratorBase {
+        private boolean hasNext;
+
+        @NotNull
+        private final ComparableBinding binding;
+
+        private PropertyRangeReverseIterator(@NotNull final Cursor cursor) {
+            super(PropertyRangeIterable.this);
+            setCursor(cursor);
+
+            binding = getStore().getPropertyTypes().dataToPropertyValue(max).getBinding();
+            ByteIterable maxKey = binding.objectToEntry(max);
+
+            //move the cursor to the key equals to maximum value and value closest to maximum
+            final ByteIterable value = cursor.getSearchKeyRange(maxKey);
+            if (value == null) {
+                //all keys in store are either less than max or store is empty
+                //so lets check if the greatest key bigger or equals to min if there is any
+                checkHasNext(cursor.getLast());
+            } else if (binding.entryToObject(cursor.getKey()).compareTo(max) > 0) {
+                //found key is bigger than max lets check if the next smaller key is heigher than min
+                //because next key for sure is smaller than max
+                checkHasNext(cursor.getPrevNoDup());
+            } else {
+                //found key equals to max
+                hasNext = true;
+            }
+        }
+
+        private void checkHasNext(final boolean success) {
+            hasNext = success && min.compareTo(binding.entryToObject(getCursor().getKey())) >= 0;
+        }
+
+        @Override
+        protected boolean hasNextImpl() {
+            return hasNext;
+        }
+
+        @Override
+        protected @Nullable EntityId nextIdImpl() {
+            if (hasNext) {
+                explain(getType());
+                final Cursor cursor = getCursor();
+                final EntityId result =
+                        new PersistentEntityId(getEntityTypeId(), LongBinding.compressedEntryToLong(cursor.getValue()));
+                checkHasNext(cursor.getNext());
+                return result;
+            }
+
+            return null;
         }
     }
 }
