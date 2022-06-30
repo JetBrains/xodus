@@ -22,6 +22,7 @@ import jetbrains.exodus.log.LogUtil
 import mu.KLogging
 import java.io.File
 import java.io.IOException
+import java.io.RandomAccessFile
 
 class FileDataReader(val dir: File) : DataReader, KLogging() {
 
@@ -100,12 +101,28 @@ class FileDataReader(val dir: File) : DataReader, KLogging() {
                             }
                         }
                     }
+
                     f.seek(position)
-                    return f.read(output, offset, count)
+
+                    return readFully(f, output, offset, count)
                 }
             } catch (e: IOException) {
                 throw ExodusException("Can't read file $absolutePath", e)
             }
+        }
+
+        private fun readFully(file: RandomAccessFile, output: ByteArray, offset: Int, size: Int): Int {
+            var read = 0
+
+            while (read < size) {
+                val r = file.read(output, offset + read, size - read)
+                if (r == -1) {
+                    break
+                }
+                read += r
+            }
+
+            return read
         }
 
         override fun refresh() = this
