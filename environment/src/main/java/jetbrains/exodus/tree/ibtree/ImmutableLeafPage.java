@@ -47,13 +47,13 @@ final class ImmutableLeafPage extends ImmutableBasePage {
     @NotNull
     final List<ByteBuffer> valueView;
 
-    ImmutableLeafPage(Log log, int pageSize, long pageIndex, int baseicOffset) {
-        super(log, pageSize, pageIndex, baseicOffset);
+    ImmutableLeafPage(Log log, int pageSize, long pageIndex) {
+        super(log, pageSize, pageIndex);
         valueView = new ValueView();
     }
 
     private int getValuePosition(int index) {
-        final int position = bufferPosition(getEntries() * KEY_ENTRY_SIZE + index * VALUE_ENTRY_SIZE);
+        final int position = getEntries() * KEY_ENTRY_SIZE + index * VALUE_ENTRY_SIZE;
 
         assert page.alignmentOffset(position, Integer.BYTES) == 0;
 
@@ -61,8 +61,7 @@ final class ImmutableLeafPage extends ImmutableBasePage {
     }
 
     private int getValueSize(int index) {
-        final int position =
-                bufferPosition(getEntries() & KEY_ENTRY_SIZE + index * VALUE_ENTRY_SIZE + VALUE_POSITION_SIZE);
+        final int position = getEntries() & KEY_ENTRY_SIZE + index * VALUE_ENTRY_SIZE + VALUE_POSITION_SIZE;
 
         assert page.alignmentOffset(position, Integer.BYTES) == 0;
 

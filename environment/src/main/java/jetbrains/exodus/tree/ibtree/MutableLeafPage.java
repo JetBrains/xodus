@@ -27,24 +27,34 @@ final class MutableLeafPage implements MutablePage {
 
     final long pageIndex;
     final int pageSize;
+    final int pageOffset;
 
     @Nullable
     MutableInternalPage parent;
+    @NotNull
+    final ExpiredLoggableCollection expiredLoggables;
 
     boolean unbalanced;
 
     ByteBuffer firstKey;
 
     MutableLeafPage(@Nullable ImmutableLeafPage underlying, @NotNull Log log, long pageIndex, int pageSize,
+                    final int pageOffset,
+                    @NotNull ExpiredLoggableCollection expiredLoggables,
                     @Nullable MutableInternalPage parent) {
         this.underlying = underlying;
         this.log = log;
         this.pageIndex = pageIndex;
         this.pageSize = pageSize;
         this.parent = parent;
+        this.pageOffset = pageOffset;
+        this.expiredLoggables = expiredLoggables;
 
         keyView = new KeyView();
         valueView = new ValueView();
+
+        //page should contain at least single key
+        firstKey = keyView.get(0);
     }
 
     @Override
@@ -85,14 +95,14 @@ final class MutableLeafPage implements MutablePage {
     }
 
     @Override
-    public long save(int structureId, ExpiredLoggableCollection expiredLoggables) {
+    public long save(int structureId) {
         if (changedEntries == null) {
             assert underlying != null;
             return underlying.pageIndex;
         }
 
-        var buffer = log.createNewPage(BTreeBase.LEAF, structureId);
-
+        var buffer = log.createNewPage(BTreeBase.LEAF, structureId).slice(pageOffset,
+                pageSize - pageOffset);
         assert buffer.alignmentOffset(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET, Integer.BYTES) == 0;
         buffer.putInt(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET, 0);
 
@@ -102,8 +112,12 @@ final class MutableLeafPage implements MutablePage {
         int entryOffset = ImmutableLeafPage.KEYS_OFFSET +
                 (ImmutableLeafPage.KEY_ENTRY_SIZE + ImmutableLeafPage.VALUE_ENTRY_SIZE) * changedEntries.size();
 
-        int entryIndex = 0;
+        final int startEntryOffset = entryOffset;
+        int size = pageOffset +
+                ImmutableLeafPage.KEYS_OFFSET +
+                (ImmutableLeafPage.KEY_ENTRY_SIZE + ImmutableLeafPage.VALUE_ENTRY_SIZE) * changedEntries.size();
 
+        int entryIndex = 0;
         for (var entry : changedEntries) {
             final int keyPositionOffset = ImmutableLeafPage.KEYS_OFFSET + ImmutableLeafPage.KEY_ENTRY_SIZE * entryIndex;
 
@@ -125,14 +139,23 @@ final class MutableLeafPage implements MutablePage {
 
             entryIndex++;
         }
+        size += (entryOffset - startEntryOffset);
+        final int pages;
 
-        expiredLoggables.add(pageIndex * pageSize, pageSize);
+        if (size + pageOffset <= pageSize) {
+            pages = 1;
+        } else {
+            pages = (((size - (pageSize - pageOffset)) + pageSize - 1) / pageSize) + 1;
+        }
+
+        assert buffer.alignmentOffset(ImmutableLeafPage.PAGES_OFFSET, Short.BYTES) == 0;
+        buffer.putShort(ImmutableLeafPage.PAGES_OFFSET, (short) pages);
 
         return log.writeNewPage(buffer);
     }
 
     @Override
-    public void rebalance(ExpiredLoggableCollection loggables) {
+    public void rebalance() {
         if (unbalanced) {
             unbalanced = false;
 
@@ -153,7 +176,7 @@ final class MutableLeafPage implements MutablePage {
                     assert childIndex >= 0;
 
                     parent.delete(childIndex);
-                    parent.rebalance(loggables);
+                    parent.rebalance();
                     return;
                 }
 
@@ -178,7 +201,7 @@ final class MutableLeafPage implements MutablePage {
                     parent.delete(parentIndex);
                 }
 
-                parent.rebalance(loggables);
+                parent.rebalance();
             }
         }
     }
@@ -186,7 +209,8 @@ final class MutableLeafPage implements MutablePage {
     private int serializedSize() {
         assert changedEntries != null;
 
-        int size = ImmutableLeafPage.KEYS_OFFSET +
+        int size = pageOffset +
+                ImmutableLeafPage.KEYS_OFFSET +
                 (ImmutableLeafPage.KEY_ENTRY_SIZE + ImmutableLeafPage.VALUE_ENTRY_SIZE) * changedEntries.size();
 
         for (Entry entry : changedEntries) {
@@ -212,7 +236,8 @@ final class MutableLeafPage implements MutablePage {
                 parent = new MutableInternalPage();
             }
 
-            page = new MutableLeafPage(null, log, -1, pageSize);
+            page = new MutableLeafPage(null, log, -1, pageSize, 16,
+                    expiredLoggables, parent);
             parent.changedEntries.add(new MutableInternalPage.Entry(nextSiblingEntries.get(0).key, page,
                     nextSiblingEntries.size()));
 
@@ -227,7 +252,7 @@ final class MutableLeafPage implements MutablePage {
     private ObjectArrayList<Entry> splitAtPageSize() {
         assert changedEntries != null;
 
-        int size = ImmutableLeafPage.KEYS_OFFSET + ImmutableLeafPage.KEY_ENTRY_SIZE +
+        int size = pageOffset + ImmutableLeafPage.KEYS_OFFSET + ImmutableLeafPage.KEY_ENTRY_SIZE +
                 ImmutableLeafPage.VALUE_ENTRY_SIZE;
 
         int indexToSplit = 0;
@@ -261,6 +286,9 @@ final class MutableLeafPage implements MutablePage {
         if (underlying == null) {
             return;
         }
+
+        expiredLoggables.add(underlying.pageIndex * pageSize,
+                Short.toUnsignedInt(underlying.getPages()) * pageSize);
 
         final int size = underlying.getEntries();
         changedEntries = new ObjectArrayList<>(size);

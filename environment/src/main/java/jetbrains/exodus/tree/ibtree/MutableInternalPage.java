@@ -1,7 +1,6 @@
 package jetbrains.exodus.tree.ibtree;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import jetbrains.exodus.tree.ExpiredLoggableCollection;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -25,7 +24,7 @@ final class MutableInternalPage implements MutablePage {
     }
 
     MutablePage child(int index) {
-
+        return null;
     }
 
     void delete(int index) {
@@ -38,12 +37,12 @@ final class MutableInternalPage implements MutablePage {
 
 
     @Override
-    public long save(int structureId, ExpiredLoggableCollection expiredLoggables) {
+    public long save(int structureId) {
         return 0;
     }
 
     @Override
-    public void rebalance(ExpiredLoggableCollection loggabales) {
+    public void rebalance() {
     }
 
     @Override

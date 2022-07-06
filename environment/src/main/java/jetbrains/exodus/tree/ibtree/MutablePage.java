@@ -1,7 +1,5 @@
 package jetbrains.exodus.tree.ibtree;
 
-import jetbrains.exodus.tree.ExpiredLoggableCollection;
-
 import java.nio.ByteBuffer;
 
 interface MutablePage {
@@ -9,9 +7,9 @@ interface MutablePage {
 
     int find(ByteBuffer key);
 
-    long save(int structureId, ExpiredLoggableCollection expiredLoggables);
+    long save(int structureId);
 
-    void rebalance(ExpiredLoggableCollection loggables);
+    void rebalance();
 
     void spill();
 }

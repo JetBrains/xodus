@@ -38,18 +38,15 @@ abstract class ImmutableBasePage {
     @NotNull
     final List<ByteBuffer> keyView;
 
-    final int basicOffset;
-
-    protected ImmutableBasePage(Log log, int pageSize, long pageIndex, int basicOffset) {
+    protected ImmutableBasePage(Log log, int pageSize, long pageIndex) {
         this.log = log;
         this.pageSize = pageSize;
         this.pageIndex = pageIndex;
-        this.basicOffset = basicOffset;
 
         page = log.readPage(pageIndex);
 
         //ensure that allocated page aligned to ensure fastest memory access and stable offsets of the data
-        assert page.alignmentOffset(bufferPosition(0), Long.BYTES) == 0;
+        assert page.alignmentOffset(0, Long.BYTES) == 0;
         assert page.order() == ByteOrder.nativeOrder();
 
         keyView = new KeyView();
@@ -57,26 +54,26 @@ abstract class ImmutableBasePage {
 
     final ByteBuffer fetchByteChunk(final int position, final int size) {
         //byte chunk belongs to the first page
-        if (bufferPosition(position + size) <= page.limit()) {
-            return page.slice(bufferPosition(position), size).order(ByteOrder.nativeOrder());
+        if (position + size <= page.limit()) {
+            return page.slice(position, size).order(ByteOrder.nativeOrder());
         }
 
-        int startPositionIndex = position / pageSize;
-        int endPositionIndex = (position + size) / pageSize;
+        //size of the first page can be less than pageSize
+        int startPositionIndex = (position - page.limit()) / pageSize + 1;
+        int endPositionIndex = (position + size - page.limit()) / pageSize + 1;
 
         //byte chunk stored in single page
         if (startPositionIndex == endPositionIndex) {
             final ByteBuffer loadedPage = log.readPage(pageIndex + startPositionIndex);
-            final int offset = startPositionIndex * pageSize;
+            final int offset = (startPositionIndex - 1) * pageSize + page.limit();
             return loadedPage.slice(position - offset, size).order(ByteOrder.nativeOrder());
         }
 
         final ByteBuffer buffer = ByteBuffer.allocate(size);
 
         //offset to the position to the record relatively to the loaded page
-        int pageOffset = position - (position / pageSize) * pageSize;
-
-        int index = position / pageSize;
+        int pageOffset = position - ((position - page.limit()) / pageSize + 1) * pageSize;
+        int index = (position - page.limit()) / pageSize + 1;
 
         while (buffer.remaining() > 0) {
             final ByteBuffer loadedPage = log.readPage(pageIndex + index);
@@ -95,10 +92,6 @@ abstract class ImmutableBasePage {
         return Collections.binarySearch(keyView, key, ByteBufferComparator.INSTANCE);
     }
 
-    final int bufferPosition(int offset) {
-        return basicOffset + offset;
-    }
-
     private ByteBuffer getKey(int index) {
         final int keyPosition = getKeyPosition(index);
         final int ketSize = getKeySize(index);
@@ -107,19 +100,19 @@ abstract class ImmutableBasePage {
     }
 
     final int getEntries() {
-        assert page.alignmentOffset(bufferPosition(ENTRIES_OFFSET), Integer.BYTES) == 0;
+        assert page.alignmentOffset(ENTRIES_OFFSET, Integer.BYTES) == 0;
 
-        return page.getInt(bufferPosition(ENTRIES_OFFSET));
+        return page.getInt(ENTRIES_OFFSET);
     }
 
-    final int getPages() {
-        assert page.alignmentOffset(bufferPosition(PAGES_OFFSET), Short.BYTES) == 0;
+    final short getPages() {
+        assert page.alignmentOffset(PAGES_OFFSET, Short.BYTES) == 0;
 
-        return page.getShort(bufferPosition(PAGES_OFFSET));
+        return page.getShort(PAGES_OFFSET);
     }
 
     private int getKeyPosition(int index) {
-        final int position = bufferPosition(KEYS_OFFSET + index * KEY_ENTRY_SIZE);
+        final int position = KEYS_OFFSET + index * KEY_ENTRY_SIZE;
 
         assert page.alignmentOffset(position, Integer.BYTES) == 0;
 
@@ -127,7 +120,7 @@ abstract class ImmutableBasePage {
     }
 
     private int getKeySize(int index) {
-        final int position = bufferPosition(KEYS_OFFSET + index * KEY_ENTRY_SIZE + KEY_POSITION_SIZE);
+        final int position = KEYS_OFFSET + index * KEY_ENTRY_SIZE + KEY_POSITION_SIZE;
 
         assert page.alignmentOffset(position, Integer.BYTES) == 0;
 
