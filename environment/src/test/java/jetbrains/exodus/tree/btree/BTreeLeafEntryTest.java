@@ -27,7 +27,7 @@ import static org.junit.Assert.assertEquals;
 /**
  *
  */
-public class BTreeLeafNodeTest extends BTreeTestBase {
+public class BTreeLeafEntryTest extends BTreeTestBase {
 
     @Test
     public void testEquals() {

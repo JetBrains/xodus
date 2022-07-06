@@ -32,6 +32,7 @@ import jetbrains.exodus.util.IdGenerator
 import mu.KLogging
 import java.io.Closeable
 import java.io.File
+import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.experimental.xor
 
@@ -460,6 +461,11 @@ class Log(val config: LogConfig) : Closeable {
         return read(readIteratorFrom(address), address)
     }
 
+    fun readPage(address: Long) : ByteBuffer {
+
+        cache.getPage(this, address)
+    }
+
     fun getWrittenLoggableType(address: Long, max: Byte): Byte {
         return ensureWriter().getByte(address, max)
     }
@@ -530,6 +536,12 @@ class Log(val config: LogConfig) : Closeable {
             }
         }
         return result
+    }
+
+    fun createNewPage(type: Byte, structureId: Int) : ByteBuffer {
+    }
+
+    fun writeNewPage(page: ByteBuffer) : Long {
     }
 
     /**

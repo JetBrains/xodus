@@ -72,7 +72,7 @@ subprojects {
     apply plugin: 'org.jetbrains.dokka'
     apply plugin: 'maven-publish'
 
-    sourceCompatibility = 1.8
+    sourceCompatibility = 17
     compileJava.options.encoding = 'UTF-8'
     group = rootProject.group
     version = rootProject.version
@@ -150,14 +150,14 @@ subprojects {
     }
     compileKotlin {
         kotlinOptions {
-            jvmTarget = '1.8'
+            jvmTarget = '17'
             languageVersion = "$kotlinLangVersion"
             apiVersion = "$kotlinLangVersion"
         }
     }
     compileTestKotlin {
         kotlinOptions {
-            jvmTarget = '1.8'
+            jvmTarget = '17'
             languageVersion = "$kotlinLangVersion"
             apiVersion = "$kotlinLangVersion"
         }
