@@ -208,10 +208,10 @@ public class FindTests extends EntityStoreTestBase {
     public void testCreateCheckSize() {
         final StoreTransaction txn = getStoreTransactionSafe();
         for (int i = 0; i < 1000; ++i) {
-            Assert.assertEquals("Iteration " + i, (long) i, txn.getAll("Issue").size());
+            Assert.assertEquals("Iteration " + i, i, txn.getAll("Issue").size());
             txn.newEntity("Issue");
             txn.flush();
-            Assert.assertEquals("Iteration " + i, (long) (i + 1), txn.getAll("Issue").size());
+            Assert.assertEquals("Iteration " + i, i + 1, txn.getAll("Issue").size());
         }
     }
 
@@ -228,7 +228,7 @@ public class FindTests extends EntityStoreTestBase {
             }
             final EntityIterable it = txn.find("Issue", "size", "s" + i);
             if (!it.iterator().hasNext()) {
-                throw new RuntimeException("Iteration " + i + ", it " + it.toString());
+                throw new RuntimeException("Iteration " + i + ", it " + it);
             }
         }
     }
@@ -246,7 +246,7 @@ public class FindTests extends EntityStoreTestBase {
             }
             final EntityIterable it = txn.find("Issue", "size", "s" + i);
             if (!it.iterator().hasNext()) {
-                throw new RuntimeException("Iteration " + i + ", it " + it.toString());
+                throw new RuntimeException("Iteration " + i + ", it " + it);
             }
         }
     }
@@ -273,11 +273,11 @@ public class FindTests extends EntityStoreTestBase {
             it = txn.find("Issue", "size", Integer.toString(i)).intersect(links);
             final EntityIterator itt = it.iterator();
             if (!itt.hasNext()) {
-                throw new RuntimeException("0: Iteration " + i + ", it " + it.toString() + ", links " + links.toString());
+                throw new RuntimeException("0: Iteration " + i + ", it " + it + ", links " + links);
             }
             Assert.assertEquals(e, itt.next());
             if (itt.hasNext()) {
-                throw new RuntimeException("2: Iteration " + i + ", it " + it.toString() + ", links " + links.toString());
+                throw new RuntimeException("2: Iteration " + i + ", it " + it + ", links " + links);
             }
         }
     }
@@ -304,11 +304,11 @@ public class FindTests extends EntityStoreTestBase {
             it = txn.find("Issue", "size", Integer.toString(i)).intersect(links);
             final EntityIterator itt = it.iterator();
             if (!itt.hasNext()) {
-                throw new RuntimeException("0: Iteration " + i + ", it " + it.toString() + ", links " + links.toString());
+                throw new RuntimeException("0: Iteration " + i + ", it " + it + ", links " + links);
             }
             Assert.assertEquals(e, itt.next());
             if (itt.hasNext()) {
-                throw new RuntimeException("2: Iteration " + i + ", it " + it.toString() + ", links " + links.toString());
+                throw new RuntimeException("2: Iteration " + i + ", it " + it + ", links " + links);
             }
         }
     }

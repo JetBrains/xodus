@@ -43,10 +43,12 @@ class FileAsyncHandler(
     private val lastPageStartingLength = lastPage?.count ?: 0
 
     private lateinit var fileChannel: AsynchronousFileChannel
+
     @Volatile
     private var response: GetObjectResponse? = null
     private val lastPageLength = AtomicInteger()
     private val writeInProgressLock = Semaphore(1)
+
     @Volatile
     private var error: Throwable? = null
 
@@ -172,8 +174,8 @@ class FileAsyncHandler(
                     skip = 0
                 }
                 val bytes = lastPage.bytes
-                val length = minOf(bytes.size.toLong() - offset, writtenLength - skip).toInt()
-                attachment.copyBytes(skip, bytes, offset, length)
+                val length = minOf(bytes.limit().toLong() - offset, writtenLength - skip).toInt()
+                bytes.put(offset, bytes, skip, length)
                 lastPageLength.addAndGet(length)
             }
         }

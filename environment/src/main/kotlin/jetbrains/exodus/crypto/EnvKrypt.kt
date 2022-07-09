@@ -15,6 +15,9 @@
  */
 package jetbrains.exodus.crypto
 
+import jetbrains.exodus.log.LogUtil
+import java.nio.ByteBuffer
+
 /**
  * Crypts byte array in-place by blocks of length `alignment`.
  * Can be applied only to byte arrays which cannot be re-used for reading.
@@ -23,12 +26,13 @@ fun cryptBlocksMutable(cipherProvider: StreamCipherProvider,
                        cipherKey: ByteArray,
                        basicIV: Long,
                        address: Long,
-                       bytes: ByteArray,
+                       bytes: ByteBuffer,
                        offset: Int,
                        length: Int,
                        alignment: Int) {
     cryptBlocksImpl(cipherProvider, cipherKey, basicIV, address, bytes, offset, length, bytes, offset, alignment)
 }
+
 
 /**
  * Crypts immutable byte array by blocks of length `alignment`.
@@ -37,14 +41,15 @@ fun cryptBlocksImmutable(cipherProvider: StreamCipherProvider,
                          cipherKey: ByteArray,
                          basicIV: Long,
                          address: Long,
-                         bytes: ByteArray,
+                         bytes: ByteBuffer,
                          offset: Int,
                          length: Int,
-                         alignment: Int): ByteArray {
-    return ByteArray(length).also {
+                         alignment: Int): ByteBuffer {
+    return LogUtil.allocatePage(length).also {
         cryptBlocksImpl(cipherProvider, cipherKey, basicIV, address, bytes, offset, length, it, 0, alignment)
     }
 }
+
 
 /**
  * Crypts byte array by blocks of length `alignment`.
@@ -53,10 +58,10 @@ private fun cryptBlocksImpl(cipherProvider: StreamCipherProvider,
                             cipherKey: ByteArray,
                             basicIV: Long,
                             address: Long,
-                            input: ByteArray,
+                            input: ByteBuffer,
                             inputOffset: Int,
                             length: Int,
-                            output: ByteArray,
+                            output: ByteBuffer,
                             outputOffset: Int,
                             alignment: Int) {
     var iv = basicIV + ((address + inputOffset) / alignment)
@@ -77,7 +82,7 @@ private fun cryptBlocksImpl(cipherProvider: StreamCipherProvider,
             }
         }
         repeat(blockLen) {
-            output[outputOff++] = cipher.crypt(input[inputOff++])
+            output.put(outputOff++, cipher.crypt(input[inputOff++]))
         }
         ++iv
         len -= blockLen

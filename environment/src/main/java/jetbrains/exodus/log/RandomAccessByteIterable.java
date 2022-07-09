@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,9 +15,13 @@
  */
 package jetbrains.exodus.log;
 
-import jetbrains.exodus.ArrayByteIterable;
+import jetbrains.exodus.ByteBufferByteIterable;
+import jetbrains.exodus.ByteBufferComparator;
+import jetbrains.exodus.ByteBufferIterable;
 import jetbrains.exodus.ByteIterable;
 import org.jetbrains.annotations.NotNull;
+
+import java.nio.ByteBuffer;
 
 class RandomAccessByteIterable extends ByteIterableWithAddress {
 
@@ -47,43 +51,64 @@ class RandomAccessByteIterable extends ByteIterableWithAddress {
         return new RandomAccessByteIterable(getDataAddress() + offset, log);
     }
 
-    private static int compare(final int offset, final int len, final ByteIterable right, Log log, final long address) {
+    private static int compare(final int offset, final int len, final ByteIterable data, Log log, final long address) {
         final LogCache cache = log.cache;
         final int pageSize = log.getCachePageSize();
         final int mask = pageSize - 1;
-        long alignedAddress = address + offset;
-        long endAddress = alignedAddress + len;
-        endAddress -= ((int) endAddress) & mask;
-        int leftStep = ((int) alignedAddress) & mask;
-        alignedAddress -= leftStep;
-        ArrayByteIterable left = cache.getPageIterable(log, alignedAddress);
 
-        final int leftLen = left.getLength();
-        if (leftLen <= leftStep) { // alignment is >= 0 for sure
-            BlockNotFoundException.raise(log, alignedAddress);
+        long currentAddress = address + offset;
+        long startPageAddress = currentAddress - (currentAddress & mask);
+
+        int pageOffset = (int) (currentAddress - startPageAddress);
+
+        long endPageAddress = currentAddress + len;
+        endPageAddress += pageSize - (endPageAddress & mask);
+
+        ByteBuffer buffer;
+        if (data instanceof ByteBufferIterable) {
+            buffer = ((ByteBufferIterable) data).getByteBuffer().duplicate();
+        } else {
+            var array = data.getBytesUnsafe();
+            buffer = ByteBuffer.wrap(array, 0, data.getLength());
         }
-        byte[] leftArray = left.getBytesUnsafe();
-        final byte[] rightArray = right.getBytesUnsafe();
-        final int rightLen = right.getLength();
-        int rightStep = 0;
-        int limit = Math.min(len, Math.min(leftLen - leftStep, rightLen));
 
+        int startBufferLimit = buffer.limit();
+        ByteBuffer page = cache.getPage(log, startPageAddress).duplicate().position(pageOffset);
+        if (page.remaining() > len) {
+            page.limit(pageOffset + len);
+        } else if (page.remaining() < len) {
+            buffer.limit(Math.min(page.remaining(), startBufferLimit));
+        }
+
+        int comparedBytes = 0;
+
+        long pageAddress = startPageAddress;
         while (true) {
-            while (rightStep < limit) {
-                byte b1 = leftArray[leftStep++];
-                byte b2 = rightArray[rightStep++];
-                if (b1 != b2) {
-                    return (b1 & 0xff) - (b2 & 0xff);
-                }
+            int cmp = ByteBufferComparator.INSTANCE.compare(page, buffer);
+
+            if (cmp != 0) {
+                return cmp;
             }
-            if (rightStep == rightLen || alignedAddress >= endAddress) {
-                return len - rightLen;
+
+            pageAddress += pageSize;
+            comparedBytes += page.remaining();
+
+            if (pageAddress >= endPageAddress || comparedBytes >= len) {
+                break;
             }
-            // move left array to next cache page
-            left = cache.getPageIterable(log, alignedAddress += pageSize);
-            leftArray = left.getBytesUnsafe();
-            leftStep = 0;
-            limit = Math.min(len, Math.min(left.getLength() + rightStep, rightLen));
+
+            page = cache.getPage(log, pageAddress).duplicate();
+            buffer.position(comparedBytes);
+
+            int limit = len - comparedBytes;
+            if (page.limit() > limit) {
+                page.limit(limit);
+                buffer.limit(startBufferLimit);
+            } else if (page.limit() < limit) {
+                buffer.limit(Math.min(limit + comparedBytes, startBufferLimit));
+            }
         }
+
+        return len - comparedBytes;
     }
 }

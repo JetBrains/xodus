@@ -60,14 +60,6 @@ public class FileByteIterable implements ByteIterable {
         }
     }
 
-    /**
-     * @return nothing since unconditionally throws {@link UnsupportedOperationException}.
-     * @throws UnsupportedOperationException always since this operation is unsupported
-     */
-    @Override
-    public byte[] getBytesUnsafe() {
-        throw new UnsupportedOperationException();
-    }
 
     @Override
     public int getLength() {

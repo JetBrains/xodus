@@ -17,6 +17,7 @@ package jetbrains.exodus.log
 
 
 import jetbrains.exodus.ArrayByteIterable
+import jetbrains.exodus.ByteBufferIterable
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.InvalidSettingException
@@ -157,11 +158,13 @@ class Log(val config: LogConfig) : Closeable {
         } else {
             val currentHighAddress = lastFileAddress + blockSetMutable.getBlock(lastFileAddress).length()
             val highPageAddress = getHighPageAddress(currentHighAddress)
-            val highPageContent = ByteArray(cachePageSize)
-            val tmpTip = LogTip(highPageContent, highPageAddress, cachePageSize, currentHighAddress, currentHighAddress, blockSetImmutable)
+            val highPageContent = LogUtil.allocatePage(cachePageSize)
+            val tmpTip = LogTip(highPageContent, highPageAddress, cachePageSize, currentHighAddress, currentHighAddress,
+                    blockSetImmutable)
             this.internalTip = AtomicReference(tmpTip) // TODO: this is a hack to provide readBytes below with high address (for determining last file length)
             val highPageSize = if (currentHighAddress == 0L) 0 else readBytes(highPageContent, highPageAddress)
-            val proposedTip = LogTip(highPageContent, highPageAddress, highPageSize, currentHighAddress, currentHighAddress, blockSetImmutable)
+            val proposedTip = LogTip(highPageContent, highPageAddress, highPageSize, currentHighAddress,
+                    currentHighAddress, blockSetImmutable)
             this.internalTip.set(proposedTip)
             // here we should check whether last loggable is written correctly
             val lastFileLoggables = LoggableIterator(this, lastFileAddress)
@@ -267,7 +270,7 @@ class Log(val config: LogConfig) : Closeable {
         }
 
         // begin of test-only code
-        val testConfig = this.testConfig
+        @Suppress("DEPRECATION") val testConfig = this.testConfig
         if (testConfig != null && testConfig.isSettingHighAddressDenied) {
             throw ExodusException("Setting high address is denied")
         }
@@ -310,7 +313,7 @@ class Log(val config: LogConfig) : Closeable {
                 updatedTip = logTip.withResize(highPageSize, highAddress, approvedHighAddress, blockSetImmutable)
             } else {
                 updateLogIdentity()
-                val highPageContent = ByteArray(cachePageSize)
+                val highPageContent = LogUtil.allocatePage(cachePageSize)
                 if (highPageSize > 0 && readBytes(highPageContent, highPageAddress) < highPageSize) {
                     throw ExodusException("Can't read expected high page bytes")
                 }
@@ -428,14 +431,14 @@ class Log(val config: LogConfig) : Closeable {
         } else result
     }
 
-    fun getHighPage(alignedAddress: Long): ByteArray? {
+    fun getHighPage(alignedAddress: Long): ByteBuffer? {
         val tip = tip
         return if (tip.pageAddress == alignedAddress && tip.count >= 0) {
             tip.bytes
         } else null
     }
 
-    fun getCachedPage(pageAddress: Long): ByteArray {
+    fun getCachedPage(pageAddress: Long): ByteBuffer {
         return cache.getPage(this, pageAddress)
     }
 
@@ -461,9 +464,8 @@ class Log(val config: LogConfig) : Closeable {
         return read(readIteratorFrom(address), address)
     }
 
-    fun readPage(address: Long) : ByteBuffer {
-
-        cache.getPage(this, address)
+    fun readPage(pageIndex: Long): ByteBuffer {
+        return cache.getPage(this, pageIndex * cachePageSize)
     }
 
     fun getWrittenLoggableType(address: Long, max: Byte): Byte {
@@ -492,7 +494,7 @@ class Log(val config: LogConfig) : Closeable {
         val dataLength = CompressedUnsignedLongByteIterable.getInt(it)
         val dataAddress = it.address
         if (dataLength > 0 && it.availableInCurrentPage(dataLength)) {
-            return RandomAccessLoggableAndArrayByteIterable(
+            return RandomAccessLoggableAndByteBufferByteIterable(
                     address, type, structureId, dataAddress, it.currentPage, it.offset, dataLength)
         }
         val data = RandomAccessByteIterable(dataAddress, this)
@@ -538,10 +540,22 @@ class Log(val config: LogConfig) : Closeable {
         return result
     }
 
-    fun createNewPage(type: Byte, structureId: Int) : ByteBuffer {
-    }
+    fun writeNewPage(page: ByteBuffer): Long {
+        val writer = ensureWriter()
+        beforeWrite(writer)
 
-    fun writeNewPage(page: ByteBuffer) : Long {
+        //check that page will be aligned to the cache page, ideally size of the page cache should be aligned with
+        //size of disk page to avoid read or write amplification and to cache as less data as possible
+        val offset = cachePageSize - writer.highAddress.and((cachePageSize - 1).toLong()).toInt()
+
+        while (offset > 0) {
+            writer.write(NullLoggable.TYPE xor 0x80.toByte())
+        }
+
+        val pageIndex = writer.highAddress / cachePageSize
+        writer.write(page, page.limit())
+
+        return pageIndex
     }
 
     /**
@@ -747,7 +761,13 @@ class Log(val config: LogConfig) : Closeable {
 
     fun doPadWithNulls() {
         val writer = ensureWriter()
-        var bytesToWrite = fileLengthBound - writer.getLastWrittenFileLength(fileLengthBound)
+        val bytesToWrite = fileLengthBound - writer.getLastWrittenFileLength(fileLengthBound)
+
+        doPadWithNulls(writer, bytesToWrite)
+    }
+
+    private fun doPadWithNulls(writer: BufferedDataWriter, size: Long) {
+        var bytesToWrite = size
         if (bytesToWrite == 0L) {
             throw ExodusException("Nothing to pad")
         }
@@ -771,7 +791,7 @@ class Log(val config: LogConfig) : Closeable {
         }
     }
 
-    fun readBytes(output: ByteArray, address: Long): Int {
+    fun readBytes(output: ByteBuffer, address: Long): Int {
         val fileAddress = getFileAddress(address)
         val logTip = tip
         val files = logTip.blockSet.getFilesFrom(fileAddress)
@@ -780,7 +800,7 @@ class Log(val config: LogConfig) : Closeable {
             val fileSize = getFileSize(leftBound, logTip)
             if (leftBound == fileAddress && fileAddress + fileSize > address) {
                 val block = logTip.blockSet.getBlock(fileAddress)
-                val readBytes = block.read(output, address - fileAddress, 0, output.size)
+                val readBytes = block.read(output, address - fileAddress, 0, output.limit())
                 val cipherProvider = config.cipherProvider
                 if (cipherProvider != null) {
                     cryptBlocksMutable(cipherProvider, config.cipherKey, config.cipherBasicIV,
@@ -872,7 +892,7 @@ class Log(val config: LogConfig) : Closeable {
         return result
     }
 
-    fun writeContinuously(data: ByteArray, count: Int): Long {
+    fun writeContinuously(data: ByteBuffer, count: Int): Long {
         val writer = ensureWriter()
 
         val result = beforeWrite(writer)
@@ -881,7 +901,7 @@ class Log(val config: LogConfig) : Closeable {
             return -1L // protect file overflow
         }
         with(writer) {
-            write(data, count)
+            write(data.slice(), count)
             commit()
             incHighAddress(count.toLong())
             closeFullFileIfNecessary(this)
@@ -893,7 +913,7 @@ class Log(val config: LogConfig) : Closeable {
         val result = writer.highAddress
 
         // begin of test-only code
-        val testConfig = this.testConfig
+        @Suppress("DEPRECATION") val testConfig = this.testConfig
         if (testConfig != null) {
             val maxHighAddress = testConfig.maxHighAddress
             if (maxHighAddress in 0..result) {
@@ -954,6 +974,7 @@ class Log(val config: LogConfig) : Closeable {
      */
     @Deprecated("for tests only")
     fun setLogTestConfig(testConfig: LogTestConfig?) {
+        @Suppress("DEPRECATION")
         this.testConfig = testConfig
     }
 
@@ -967,7 +988,7 @@ class Log(val config: LogConfig) : Closeable {
         blockListeners.notifyListeners { it.blockModified(block, reader, writer) }
     }
 
-    private fun notifyReadBytes(bytes: ByteArray, count: Int) {
+    private fun notifyReadBytes(bytes: ByteBuffer, count: Int) {
         readBytesListeners.notifyListeners { it.bytesRead(bytes, count) }
     }
 
@@ -1064,15 +1085,17 @@ class Log(val config: LogConfig) : Closeable {
          */
         private fun writeByteIterable(writer: BufferedDataWriter, iterable: ByteIterable) {
             val length = iterable.length
-            if (iterable is ArrayByteIterable) {
+            if (iterable is ByteBufferIterable) {
+                writer.write(iterable.byteBuffer, length)
+            } else if (iterable is ArrayByteIterable) {
                 val bytes = iterable.getBytesUnsafe()
                 if (length == 1) {
                     writer.write(bytes[0])
                 } else {
-                    writer.write(bytes, length)
+                    writer.write(ByteBuffer.wrap(bytes), length)
                 }
             } else if (length >= 3) {
-                writer.write(iterable.bytesUnsafe, length)
+                writer.write(ByteBuffer.wrap(iterable.bytesUnsafe), length)
             } else {
                 val iterator = iterable.iterator()
                 writer.write(iterator.next())

@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,10 +22,12 @@ import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.ByteArrayInputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /**
  * {@linkplain ComparableBinding} for {@linkplain Long} values.
- *
+ * <p>
  * In addition to typical {@linkplain #longToEntry(long)} and {@linkplain #entryToLong(ByteIterable)} methods operating
  * with {@code ByteIterables} of length {@code 8}, {@code LongBinding} has a pair of methods for
  * serialization/deserialization of non-negative values to/from compressed entries:
@@ -178,6 +180,23 @@ public class LongBinding extends ComparableBinding {
         for (int i = 0; i < length; ++i) {
             result = (result << 8) + ((int) bytes[offset + i] & 0xff);
         }
+        return result;
+    }
+
+    public static long entryToUnsignedLong(@NotNull final ByteBuffer bytes, final int offset, final int length) {
+        if (length == Long.BYTES) {
+            if (bytes.order() == ByteOrder.BIG_ENDIAN) {
+                return bytes.getLong(offset);
+            } else {
+                bytes.duplicate().order(ByteOrder.BIG_ENDIAN).getLong(offset);
+            }
+        }
+
+        long result = 0;
+        for (int i = 0; i < length; ++i) {
+            result = (result << 8) + ((int) bytes.get(offset + i) & 0xff);
+        }
+
         return result;
     }
 

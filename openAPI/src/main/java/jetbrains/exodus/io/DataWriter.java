@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,6 +20,7 @@ import jetbrains.exodus.env.EnvironmentConfig;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.Closeable;
+import java.nio.ByteBuffer;
 
 /**
  * {@code DataWriter} defines the way how data is written to {@code Log}, how {@linkplain Block blocks} appear in
@@ -55,6 +56,8 @@ public interface DataWriter extends Closeable {
      * @see Block
      */
     Block write(byte[] b, int off, int len);
+
+    Block write(ByteBuffer b, int off, int len);
 
     /**
      * If applicable, forces flush of written data to underlying storage device. Transaction durability depends

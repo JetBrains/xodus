@@ -23,6 +23,8 @@ import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.log.*;
 import org.jetbrains.annotations.NotNull;
 
+import java.nio.ByteBuffer;
+
 abstract class BasePageImmutable extends BasePage {
 
     @NotNull
@@ -157,14 +159,14 @@ abstract class BasePageImmutable extends BasePage {
         final int bytesPerAddress = keyAddressLen;
         int high = size - 1;
         long leftAddress = -1L;
-        byte[] leftPage = null;
+        ByteBuffer leftPage = null;
         long rightAddress = -1L;
-        byte[] rightPage = null;
+        ByteBuffer rightPage = null;
         final BinarySearchIterator it = new BinarySearchIterator();
 
         while (low <= high) {
             final int mid = (low + high) >>> 1;
-            final long midAddress = dataAddress + (mid * bytesPerAddress);
+            final long midAddress = dataAddress + ((long)mid * bytesPerAddress);
             final int offset;
             it.offset = offset = ((int) midAddress) & (cachePageSize - 1); // cache page size is always a power of 2
             final long pageAddress = midAddress - offset;
@@ -207,8 +209,8 @@ abstract class BasePageImmutable extends BasePage {
 
     private static class BinarySearchIterator extends ByteIterator {
 
-        private byte[] page;
-        private byte[] nextPage;
+        private ByteBuffer page;
+        private ByteBuffer nextPage;
         private int offset;
 
         private CompoundByteIteratorBase asCompound() {
@@ -224,12 +226,12 @@ abstract class BasePageImmutable extends BasePage {
 
         @Override
         public boolean hasNext() {
-            return offset < page.length;
+            return offset < page.limit();
         }
 
         @Override
         public byte next() {
-            return page[offset++];
+            return page.get(offset++);
         }
 
         @Override

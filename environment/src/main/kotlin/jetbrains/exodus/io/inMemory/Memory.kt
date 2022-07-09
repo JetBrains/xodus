@@ -23,6 +23,7 @@ import jetbrains.exodus.log.LogUtil
 import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
+import java.nio.ByteBuffer
 
 open class Memory {
     private var lastBlock: Block? = null
@@ -110,6 +111,13 @@ open class Memory {
             size = newSize
         }
 
+        fun write(b: ByteBuffer, off: Int, len: Int) {
+            val newSize = size + len
+            ensureCapacity(newSize)
+            ByteBuffer.wrap(data).put(size, b, off, len)
+            size = newSize
+        }
+
         override fun read(output: ByteArray, position: Long, offset: Int, count: Int): Int {
             var result = count
             if (position < 0) {
@@ -125,6 +133,26 @@ open class Memory {
             System.arraycopy(data, position.toInt(), output, offset, result)
             return result
         }
+
+
+        override fun read(output: ByteBuffer, position: Long, offset: Int, count: Int): Int {
+            var result = count
+            if (position < 0) {
+                throw ExodusException("Block index out of range, underflow")
+            }
+            val maxRead = size - position
+            if (maxRead < 0) {
+                throw ExodusException("Block index out of range")
+            }
+            if (maxRead < result) {
+                result = maxRead.toInt()
+            }
+
+            ByteBuffer.wrap(data).put(position.toInt(), output, offset, result)
+
+            return result
+        }
+
 
         override fun refresh() = this
 

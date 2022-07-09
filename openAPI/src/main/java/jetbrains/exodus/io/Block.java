@@ -17,6 +17,8 @@ package jetbrains.exodus.io;
 
 import jetbrains.exodus.env.EnvironmentConfig;
 
+import java.nio.ByteBuffer;
+
 /**
  * {@code Block} represents single {@code .xd} file in {@code Log} on storage device - disk, memory, network file
  * system. etc. {@code Block} is identified in the log by its {@linkplain #getAddress() address}. {@code Block}
@@ -62,6 +64,8 @@ public interface Block {
      * @return actual number of bytes read
      */
     int read(byte[] output, long position, int offset, int count);
+
+    int read(ByteBuffer output, long position, int offest, int count);
 
     /**
      * For immutable {@code Block} implementations, this method returns fresh representation of the same {@code .xd}

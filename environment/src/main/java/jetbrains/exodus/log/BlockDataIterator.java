@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -23,12 +23,13 @@ import org.jetbrains.annotations.NotNull;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 
 public class BlockDataIterator extends ByteIteratorWithAddress {
 
     private final Log log;
     private final Block block;
-    private final byte[] lastPage;
+    private final ByteBuffer lastPage;
     private final long lastPageAddress;
     private long position;
     private final long end;
@@ -42,11 +43,12 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
         this.position = startAddress;
         this.end = block.getAddress() + block.length();
         this.lastPageAddress = log.getHighPageAddress(end);
-        this.lastPage = new byte[log.getCachePageSize()];
+        this.lastPage = LogUtil.allocatePage(log.getCachePageSize());
         final LogConfig config = log.getConfig();
         if (lastPageAddress == prevTip.pageAddress) {
             lastPageCount = prevTip.count;
-            System.arraycopy(prevTip.bytes, 0, lastPage, 0, prevTip.count); // fill with unencrypted bytes
+            // fill with unencrypted bytes
+            lastPage.put(0, prevTip.bytes, 0, prevTip.count);
         }
         this.stream = new BufferedInputStream(new BlockStream(config, block, position), log.getCachePageSize());
     }
@@ -103,7 +105,7 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
         return (int) (position - block.getAddress());
     }
 
-    public byte[] getLastPage() {
+    public ByteBuffer getLastPage() {
         return lastPage;
     }
 
@@ -154,12 +156,12 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
             if (n >= Integer.MAX_VALUE) {
                 throw new UnsupportedOperationException();
             }
-            final byte[] skipped = new byte[(int)n]; // TODO: try to optimize it i. e. by using BufferedInputStream#mark
+            final byte[] skipped = new byte[(int) n]; // TODO: try to optimize it i. e. by using BufferedInputStream#mark
             return read(skipped, 0, (int) n);
         }
 
         @Override
-        public int read(@NotNull byte @NotNull [] b, int off, int len) {
+        public int read(@NotNull byte[] b, int off, int len) {
             final int readLength = block.read(b, position - block.getAddress(), off, len);
             if (readLength > 0) {
                 if (crypt) {
@@ -183,8 +185,8 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
                         offset = (int) (position - lastPageAddress);
                         skip = 0;
                     }
-                    final int length = Math.min(lastPage.length - offset, readLength - skip);
-                    System.arraycopy(b, off + skip, lastPage, offset, length);
+                    final int length = Math.min(lastPage.limit() - offset, readLength - skip);
+                    lastPage.put(offset, b, off + skip, length);
                     lastPageCount += length;
                 }
                 position = nextPosition;

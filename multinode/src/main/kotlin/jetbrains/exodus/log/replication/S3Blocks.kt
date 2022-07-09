@@ -24,6 +24,7 @@ import jetbrains.exodus.io.Block
 import jetbrains.exodus.log.LogUtil
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import software.amazon.awssdk.services.s3.model.GetObjectResponse
+import java.nio.ByteBuffer
 import java.util.*
 
 internal abstract class BasicS3Block(internal val s3factory: S3FactoryBoilerplate,
@@ -54,9 +55,41 @@ internal abstract class BasicS3Block(internal val s3factory: S3FactoryBoilerplat
         ).get()
     }
 
+    override fun read(output: ByteBuffer, position: Long, offset: Int, count: Int): Int {
+        if (count <= 0) {
+            return 0
+        }
+
+        val range = "bytes=$position-${position + count - 1}"
+
+        S3DataReader.logger.debug { "Request range: $range in file $key" }
+
+
+        val buffer = output.slice(offset, output.limit() - offset)
+
+
+        return s3factory.s3.getObject(GetObjectRequest.builder()
+                .range(range)
+                .overrideConfiguration(s3factory.requestOverrideConfig)
+                .bucket(s3factory.bucket)
+                .key(key).build(),
+                ByteBufferAsyncResponseHandler<GetObjectResponse?>(buffer)
+        ).get()
+    }
+
     override fun refresh() = this
 
     internal fun readAndCompare(output: ByteArray, position: Long, offset: Int, count: Int): Int {
+        return read(output, position, offset, count).also { read ->
+            if (read < count) {
+                val msg = "Tried to read $count bytes from $key but got $read bytes"
+                S3DataReader.logger.error(msg)
+                throw ExodusException(msg)
+            }
+        }
+    }
+
+    internal fun readAndCompare(output: ByteBuffer, position: Long, offset: Int, count: Int): Int {
         return read(output, position, offset, count).also { read ->
             if (read < count) {
                 val msg = "Tried to read $count bytes from $key but got $read bytes"

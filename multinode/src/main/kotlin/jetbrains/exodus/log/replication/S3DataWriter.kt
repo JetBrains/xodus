@@ -80,6 +80,36 @@ class S3DataWriter(private val s3Sync: S3Client,
         }
     }
 
+    override fun write(bytes: ByteBuffer, off: Int, len: Int): Block {
+        val buffer = bytes.slice(off, len)
+
+        with(block ?: throw ExodusException("Can't write, S3DataWriter is closed")) {
+            val subBlockAddress = address + length()
+            val subBlockSize = len.toLong()
+            val key = "${getPartialFolderPrefix(address)}${getPartialFileName(subBlockAddress)}"
+            logger.info { "Put file of $key, length: $len" }
+            try {
+                s3Sync.putObject(PutObjectRequest.builder()
+                        .bucket(bucket)
+                        .overrideConfiguration(requestOverrideConfig)
+                        .key(key)
+                        .contentLength(subBlockSize)
+                        .build(), RequestBody.fromByteBuffer(buffer)
+                )
+                val blocksCopy = blocks.clone.apply {
+                    write {
+                        put(subBlockAddress, S3SubBlock(s3factory, subBlockAddress, subBlockSize, address))
+                    }
+                }
+                return S3FolderBlock(s3factory, address, size + subBlockSize, blocksCopy).apply { block = this }
+            } catch (e: Exception) {
+                val msg = "failed to update '$key' in S3"
+                logger.error(msg, e)
+                throw ExodusException(msg, e)
+            }
+        }
+    }
+
     override fun openOrCreateBlockImpl(address: Long, length: Long): Block {
         return newS3FolderBlock(this, address).apply {
             if (length() > length) {

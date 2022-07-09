@@ -22,6 +22,7 @@ import jetbrains.exodus.io.RemoveBlockType
 import jetbrains.exodus.log.LogUtil
 import mu.KLogging
 import org.jetbrains.annotations.NotNull
+import java.nio.ByteBuffer
 
 open class MemoryDataWriter(private val memory: Memory) : AbstractDataWriter() {
 
@@ -31,6 +32,12 @@ open class MemoryDataWriter(private val memory: Memory) : AbstractDataWriter() {
     private lateinit var data: Memory.Block
 
     override fun write(b: ByteArray, off: Int, len: Int): Block {
+        checkClosed()
+        data.write(b, off, len)
+        return data
+    }
+
+    override fun write(b: ByteBuffer, off: Int, len: Int): Block {
         checkClosed()
         data.write(b, off, len)
         return data

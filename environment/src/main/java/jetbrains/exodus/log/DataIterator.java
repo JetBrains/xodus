@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,6 +18,8 @@ package jetbrains.exodus.log;
 import jetbrains.exodus.bindings.LongBinding;
 import org.jetbrains.annotations.NotNull;
 
+import java.nio.ByteBuffer;
+
 public final class DataIterator extends ByteIteratorWithAddress {
 
     @NotNull
@@ -25,7 +27,7 @@ public final class DataIterator extends ByteIteratorWithAddress {
     private final int cachePageSize;
     private final long pageAddressMask;
     private long pageAddress;
-    private byte[] page;
+    private ByteBuffer page;
     private int offset;
     private int length;
 
@@ -59,9 +61,9 @@ public final class DataIterator extends ByteIteratorWithAddress {
     public byte next() {
         if (!hasNext()) {
             DataCorruptionException.raise(
-                "DataIterator: no more bytes available", log, getAddress());
+                    "DataIterator: no more bytes available", log, getAddress());
         }
-        return page[offset++];
+        return page.get(offset++);
     }
 
     @Override
@@ -122,12 +124,8 @@ public final class DataIterator extends ByteIteratorWithAddress {
         page = null;
     }
 
-    byte[] getCurrentPage() {
+    ByteBuffer getCurrentPage() {
         return page;
-    }
-
-    int getLength() {
-        return length;
     }
 
     boolean availableInCurrentPage(final int bytes) {

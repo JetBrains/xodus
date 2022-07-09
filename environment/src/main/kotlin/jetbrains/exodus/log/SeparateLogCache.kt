@@ -16,13 +16,15 @@
 package jetbrains.exodus.log
 
 import jetbrains.exodus.ArrayByteIterable
+import jetbrains.exodus.ByteBufferByteIterable
 import jetbrains.exodus.core.dataStructures.*
 import jetbrains.exodus.core.dataStructures.LongObjectCacheBase.Companion.DEFAULT_SIZE
+import java.nio.ByteBuffer
 import kotlin.math.min
 
 internal class SeparateLogCache : LogCache {
 
-    private val pagesCache: LongObjectCacheBase<ByteArray>
+    private val pagesCache: LongObjectCacheBase<ByteBuffer>
 
     constructor(memoryUsage: Long,
                 pageSize: Int,
@@ -88,23 +90,25 @@ internal class SeparateLogCache : LogCache {
 
     override fun hitRate() = pagesCache.hitRate()
 
-    override fun cachePage(log: Log, pageAddress: Long, page: ByteArray) = cachePage(pageAddress, page)
+    override fun cachePage(log: Log, pageAddress: Long, page: ByteBuffer) = cachePage(pageAddress, page)
 
-    override fun getPageIterable(log: Log, pageAddress: Long): ArrayByteIterable {
+    override fun getPageIterable(log: Log, pageAddress: Long): ByteBufferByteIterable {
         var page = pagesCache.tryKeyLocked(pageAddress)
         if (page != null) {
-            return ArrayByteIterable(page)
+            return ByteBufferByteIterable(page)
         }
         page = log.getHighPage(pageAddress)
         if (page != null) {
-            return ArrayByteIterable(page, min(log.highAddress - pageAddress, pageSize.toLong()).toInt())
+            return ByteBufferByteIterable(
+                    page.slice(0,
+                            min(log.highAddress - pageAddress, pageSize.toLong()).toInt()).order(page.order()))
         }
         page = readFullPage(log, pageAddress)
         cachePage(pageAddress, page)
-        return ArrayByteIterable(page)
+        return ByteBufferByteIterable(page)
     }
 
-    override fun getPage(log: Log, pageAddress: Long): ByteArray {
+    override fun getPage(log: Log, pageAddress: Long): ByteBuffer {
         var page = pagesCache.tryKeyLocked(pageAddress)
         if (page != null) {
             return page
@@ -118,7 +122,7 @@ internal class SeparateLogCache : LogCache {
         return page
     }
 
-    override fun getCachedPage(log: Log, pageAddress: Long): ByteArray? {
+    override fun getCachedPage(log: Log, pageAddress: Long): ByteBuffer? {
         var page = pagesCache.getObjectLocked(pageAddress)
         if (page != null) {
             return page
@@ -131,7 +135,7 @@ internal class SeparateLogCache : LogCache {
         pagesCache.removeLocked(pageAddress)
     }
 
-    private fun cachePage(cacheKey: Long, pageArray: ByteArray) {
+    private fun cachePage(cacheKey: Long, pageArray: ByteBuffer) {
         pagesCache.cacheObjectLocked(cacheKey, postProcessTailPage(pageArray))
     }
 }

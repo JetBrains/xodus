@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -197,7 +197,7 @@ public abstract class TreePutTest extends TreeBaseTest {
     @Test
     public void testPutRight3() {
         tm = createMutableTree(false, 1);
-        final int count = 10000;
+        final int count = 371;
         for (int i = 0; i < count; ++i) {
             tm.putRight(IntegerBinding.intToCompressedEntry(i), IntegerBinding.intToCompressedEntry(i));
             if (i % 32 == 0) {
@@ -212,7 +212,9 @@ public abstract class TreePutTest extends TreeBaseTest {
             Assert.assertTrue(cursor.getNext());
             final ByteIterable key = cursor.getKey();
             final ByteIterable value = cursor.getValue();
-            assertEquals(0, key.compareTo(value));
+            assertEquals("Key-value entry under the " + i + " iteration is broken, key "
+                    + IntegerBinding.readCompressed(key.iterator()) + " value " +
+                    IntegerBinding.readCompressed(value.iterator()), 0, key.compareTo(value));
             Assert.assertEquals(i, IntegerBinding.readCompressed(key.iterator()));
         }
         cursor.close();

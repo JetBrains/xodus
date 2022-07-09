@@ -19,6 +19,7 @@ import jetbrains.exodus.core.dataStructures.hash.LongIterator
 import jetbrains.exodus.core.dataStructures.persistent.PersistentBitTreeLongMap
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLongMap
 import jetbrains.exodus.io.Block
+import java.nio.ByteBuffer
 
 // block key is aligned block address, i.e. block address divided by blockSize
 sealed class BlockSet(val blockSize: Long, val set: PersistentLongMap<Block>) {
@@ -112,6 +113,7 @@ sealed class BlockSet(val blockSize: Long, val set: PersistentLongMap<Block>) {
         override fun length() = 0L
 
         override fun read(output: ByteArray, position: Long, offset: Int, count: Int) = 0
+        override fun read(output: ByteBuffer?, position: Long, offest: Int, count: Int): Int = 0
 
         override fun refresh() = this
     }

@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,6 +18,8 @@ package jetbrains.exodus.util;
 import jetbrains.exodus.ByteIterable;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Arrays;
+
 public class ByteIterableUtil {
 
     private ByteIterableUtil() {
@@ -28,42 +30,15 @@ public class ByteIterableUtil {
     }
 
     public static int compare(@NotNull final byte[] key1, final int len1, @NotNull final byte[] key2, final int len2) {
-        final int min = Math.min(len1, len2);
-
-        for (int i = 0; i < min; i++) {
-            final int cmp = (key1[i] & 0xff) - (key2[i] & 0xff);
-            if (cmp != 0) {
-                return cmp;
-            }
-        }
-
-        return len1 - len2;
+        return Arrays.compareUnsigned(key1, 0, len1, key2, 0, len2);
     }
 
     public static int compare(@NotNull final byte[] key1, final int len1, final int offset1, @NotNull final byte[] key2, final int len2) {
-        final int min = Math.min(len1, len2);
-
-        for (int i = 0; i < min; i++) {
-            final int cmp = (key1[i + offset1] & 0xff) - (key2[i] & 0xff);
-            if (cmp != 0) {
-                return cmp;
-            }
-        }
-
-        return len1 - len2;
+        return Arrays.compareUnsigned(key1, offset1, len1, key2, 0, len2);
     }
 
     public static int compare(@NotNull final byte[] key1, final int len1, final int offset1,
                               @NotNull final byte[] key2, final int len2, final int offset2) {
-        final int min = Math.min(len1, len2);
-
-        for (int i = 0; i < min; i++) {
-            final int cmp = (key1[i + offset1] & 0xff) - (key2[i + offset2] & 0xff);
-            if (cmp != 0) {
-                return cmp;
-            }
-        }
-
-        return len1 - len2;
+        return Arrays.compareUnsigned(key1, offset1, len1, key2, offset2, len2);
     }
 }

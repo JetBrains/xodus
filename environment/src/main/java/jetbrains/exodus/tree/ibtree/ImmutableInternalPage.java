@@ -18,6 +18,7 @@ import jetbrains.exodus.log.Log;
  *      </ol>
  *     </li>
  *     <li>Array each entry of which contains index of the child page</li>
+ *     <li>Array each entry of which contains total amount of children of pointed sub-tree</li>
  *     <li>Array of keys</li>
  * </ol>
  * <p>
@@ -29,10 +30,12 @@ import jetbrains.exodus.log.Log;
  * inside of the single page additional pages will be loaded from the log.
  */
 final class ImmutableInternalPage extends ImmutableBasePage {
-    private static final int CHILD_INDEX_SIZE = Long.BYTES;
+    static final int CHILD_INDEX_SIZE = Long.BYTES;
+    static final int SUBTREE_ENTITIES_COUNT_SIZE = Integer.BYTES;
 
-    ImmutableInternalPage(Log log, int pageSize, long pageIndex) {
-        super(log, pageSize, pageIndex);
+
+    ImmutableInternalPage(Log log, int pageSize, long pageIndex, int pageOffset) {
+        super(log, pageSize, pageIndex, pageOffset);
     }
 
     long getChildIndex(int index) {
@@ -44,9 +47,20 @@ final class ImmutableInternalPage extends ImmutableBasePage {
     }
 
     private int getChildIndexPosition(int index) {
-        final int initialOffset = getEntries() * KEY_ENTRY_SIZE + KEYS_OFFSET;
-        //align memory access to ensure fastest data processing
-        final int alignOffset = page.alignmentOffset(initialOffset, CHILD_INDEX_SIZE);
-        return initialOffset + alignOffset + index * CHILD_INDEX_SIZE;
+        final int offset = getEntriesCount() * KEY_ENTRY_SIZE + KEYS_OFFSET;
+        return offset + index * CHILD_INDEX_SIZE;
+    }
+
+    int getSubTreeEntitiesCount(int index) {
+        final int position = getSubTreeEntitiesCountPosition(index);
+
+        assert page.alignmentOffset(position, Integer.BYTES) == 0;
+
+        return page.getInt(position);
+    }
+
+    private int getSubTreeEntitiesCountPosition(int index) {
+        final int position = getEntriesCount() * (KEY_ENTRY_SIZE + CHILD_INDEX_SIZE) + KEYS_OFFSET;
+        return position + index * SUBTREE_ENTITIES_COUNT_SIZE;
     }
 }

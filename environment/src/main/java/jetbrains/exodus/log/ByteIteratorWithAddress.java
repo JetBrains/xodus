@@ -17,6 +17,8 @@ package jetbrains.exodus.log;
 
 import jetbrains.exodus.ByteIterator;
 
+import java.nio.ByteBuffer;
+
 public abstract class ByteIteratorWithAddress extends ByteIterator {
 
     public abstract long getAddress();
@@ -27,7 +29,7 @@ public abstract class ByteIteratorWithAddress extends ByteIterator {
         return false;
     }
 
-    byte[] getCurrentPage() {
+    ByteBuffer getCurrentPage() {
         throw new UnsupportedOperationException();
     }
 }

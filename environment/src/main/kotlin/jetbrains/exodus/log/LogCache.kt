@@ -15,11 +15,14 @@
  */
 package jetbrains.exodus.log
 
-import jetbrains.exodus.ArrayByteIterable
+
+import jetbrains.exodus.ByteBufferByteIterable
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.InvalidSettingException
 import jetbrains.exodus.core.dataStructures.ConcurrentIntObjectCache
 import jetbrains.exodus.util.MathUtil
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 internal abstract class LogCache {
 
@@ -72,17 +75,17 @@ internal abstract class LogCache {
 
     abstract fun hitRate(): Float
 
-    abstract fun cachePage(log: Log, pageAddress: Long, page: ByteArray)
+    abstract fun cachePage(log: Log, pageAddress: Long, page: ByteBuffer)
 
-    abstract fun getPage(log: Log, pageAddress: Long): ByteArray
+    abstract fun getPage(log: Log, pageAddress: Long): ByteBuffer
 
-    abstract fun getCachedPage(log: Log, pageAddress: Long): ByteArray?
+    abstract fun getCachedPage(log: Log, pageAddress: Long): ByteBuffer?
 
-    protected abstract fun getPageIterable(log: Log, pageAddress: Long): ArrayByteIterable
+    protected abstract fun getPageIterable(log: Log, pageAddress: Long): ByteBufferByteIterable
 
     internal abstract fun removePage(log: Log, pageAddress: Long)
 
-    protected fun readFullPage(log: Log, pageAddress: Long): ByteArray {
+    protected fun readFullPage(log: Log, pageAddress: Long): ByteBuffer {
         val fileAddress = log.getFileAddress(pageAddress)
         var readAheadMultiple = 1
         while (readAheadMultiple < log.config.cacheReadAheadMultiple) {
@@ -95,25 +98,25 @@ internal abstract class LogCache {
         return if (readAheadMultiple == 1) {
             allocPage().also { page -> readBytes(log, page, pageAddress) }
         } else {
-            val pages = ByteArray(pageSize * readAheadMultiple)
+            val pages = LogUtil.allocatePage(pageSize * readAheadMultiple)
+
             readBytes(log, pages, pageAddress)
             for (i in 1 until readAheadMultiple) {
-                val page = allocPage()
-                System.arraycopy(pages, pageSize * i, page, 0, pageSize)
-                cachePage(log, pageAddress + pageSize * i, page)
+                cachePage(log, pageAddress + pageSize * i,
+                        pages.slice(i * pageSize, (i + 1) * pageSize).order(pages.order()))
             }
-            allocPage().also { page ->
-                System.arraycopy(pages, 0, page, 0, pageSize)
+
+            pages.slice(0, pageSize).order(pages.order()).also { page ->
                 cachePage(log, pageAddress, page)
             }
         }
     }
 
-    fun allocPage() = ByteArray(pageSize)
+    fun allocPage(): ByteBuffer = LogUtil.allocatePage(pageSize)
 
-    private fun readBytes(log: Log, bytes: ByteArray, pageAddress: Long) {
+    private fun readBytes(log: Log, bytes: ByteBuffer, pageAddress: Long) {
         val bytesRead = log.readBytes(bytes, pageAddress)
-        if (bytesRead != bytes.size) {
+        if (bytesRead != bytes.limit()) {
             throw ExodusException("Can't read full page from log [" + log.location + "] with address "
                     + pageAddress + " (file " + LogUtil.getLogFilename(log.getFileAddress(pageAddress)) + "), offset: "
                     + pageAddress % log.fileLengthBound + ", read: " + bytesRead)
@@ -126,7 +129,7 @@ internal abstract class LogCache {
         protected const val DEFAULT_OPEN_FILES_COUNT = 16
         protected const val MINIMUM_MEM_USAGE_PERCENT = 5
         protected const val MAXIMUM_MEM_USAGE_PERCENT = 95
-        private val TAIL_PAGES_CACHE = ConcurrentIntObjectCache<ByteArray>(10)
+        private val TAIL_PAGES_CACHE = ConcurrentIntObjectCache<ByteBuffer>(10)
 
         private fun checkPageSize(pageSize: Int) {
             if (pageSize < MINIMUM_PAGE_SIZE) {
@@ -144,9 +147,9 @@ internal abstract class LogCache {
         }
 
         @JvmStatic
-        protected fun postProcessTailPage(page: ByteArray): ByteArray {
+        protected fun postProcessTailPage(page: ByteBuffer): ByteBuffer {
             if (isTailPage(page)) {
-                val length = page.size
+                val length = page.limit()
                 val cachedTailPage = getCachedTailPage(length)
                 if (cachedTailPage != null) {
                     return cachedTailPage
@@ -156,12 +159,13 @@ internal abstract class LogCache {
             return page
         }
 
-        fun getCachedTailPage(cachePageSize: Int): ByteArray? {
+        fun getCachedTailPage(cachePageSize: Int): ByteBuffer? {
             return TAIL_PAGES_CACHE.tryKey(cachePageSize)
         }
 
-        private fun isTailPage(page: ByteArray): Boolean {
-            for (b in page) {
+        private fun isTailPage(page: ByteBuffer): Boolean {
+            for (i in 0 until page.limit()) {
+                val b = page[i]
                 if (b != 0x80.toByte()) {
                     return false
                 }

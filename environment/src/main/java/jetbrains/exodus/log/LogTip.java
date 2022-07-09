@@ -20,11 +20,13 @@ import jetbrains.exodus.io.Block;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.nio.ByteBuffer;
+
 public class LogTip {
-    private static final byte[] NO_BYTES = new byte[0];
+    private static final ByteBuffer NO_BYTES = ByteBuffer.allocate(0);
 
     @NotNull
-    final byte[] bytes;
+    final ByteBuffer bytes;
     public final long pageAddress;
     public final int count;
 
@@ -52,7 +54,7 @@ public class LogTip {
     }
 
     // non-empty
-    public LogTip(@NotNull byte[] bytes,
+    public LogTip(@NotNull ByteBuffer bytes,
                   long pageAddress,
                   int count,
                   long highAddress,

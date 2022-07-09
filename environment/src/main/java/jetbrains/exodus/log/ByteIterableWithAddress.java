@@ -53,16 +53,6 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
 
     public abstract ByteIterableWithAddress clone(final int offset);
 
-    @Override
-    public byte[] getBytesUnsafe() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public int getLength() {
-        throw new UnsupportedOperationException();
-    }
-
     @NotNull
     @Override
     public ByteIterable subIterable(final int offset, final int length) {

@@ -43,10 +43,8 @@ class S3ToWriterFileFactory(
                 break
             }
             val count = buffer.remaining()
-            val output = ByteArray(count)
-            buffer.get(output)
             subscription.request(1)
-            if (log.writeContinuously(output, count) < 0) {
+            if (log.writeContinuously(buffer, count) < 0) {
                 throw IllegalStateException("Cannot write full file")
             }
             written += count

@@ -23,6 +23,7 @@ import jetbrains.exodus.crypto.toBinaryKey
 import jetbrains.exodus.util.HexUtil
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import java.nio.ByteBuffer
 
 class AsyncEncryptionTest {
     val salsa get() = newCipherProvider(SALSA20_CIPHER_ID)
@@ -51,13 +52,17 @@ class AsyncEncryptionTest {
     fun testCipherAsyncChunked() {
         val data = RENAT_GILFANOV.toByteArray()
 
-        val encryptedInPlace = cryptBlocksImmutable(salsa, key, basicIV, address, data, 0, data.size, alignment)
+        val encryptedInPlace = cryptBlocksImmutable(salsa, key, basicIV, address, ByteBuffer.wrap(data),
+                0, data.size, alignment)
 
         val encrypted = encryptStringByteByByte(data, true)
 
         println(String(encrypted))
 
-        assertEquals(HexUtil.byteArrayToString(encryptedInPlace), HexUtil.byteArrayToString(encrypted))
+        val output = ByteArray(encryptedInPlace.limit())
+        encryptedInPlace.get(output)
+
+        assertEquals(HexUtil.byteArrayToString(output), HexUtil.byteArrayToString(encrypted))
 
         val decrypted = encryptStringByteByByte(encrypted, true)
 
@@ -105,6 +110,5 @@ class AsyncEncryptionTest {
         }
     }
 
-    private fun makeDummyHeader(size: Int, chunked: Boolean)
-            = FileHeader("", "", size.toLong(), 0, address, chunked, true)
+    private fun makeDummyHeader(size: Int, chunked: Boolean) = FileHeader("", "", size.toLong(), 0, address, chunked, true)
 }

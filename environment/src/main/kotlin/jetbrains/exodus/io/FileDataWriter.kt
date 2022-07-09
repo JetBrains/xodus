@@ -27,6 +27,7 @@ import mu.KLogging
 import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
+import java.nio.ByteBuffer
 import java.nio.channels.ClosedChannelException
 import java.nio.channels.FileChannel
 
@@ -58,6 +59,26 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
     override fun write(b: ByteArray, off: Int, len: Int): Block {
         try {
             ensureFile("Can't write, FileDataWriter is closed").write(b, off, len)
+        } catch (ioe: IOException) {
+            if (lockingManager.usableSpace < len) {
+                throw OutOfDiskSpaceException(ioe)
+            }
+            throw ioe
+        }
+        return block ?: throw ExodusException("Can't write, FileDataWriter is closed")
+    }
+
+    override fun write(b: ByteBuffer, off: Int, len: Int): Block {
+        try {
+            var buffer = b;
+            val file = ensureFile("Can't write, FileDataWriter is closed")
+
+            if (off != 0 || len != b.limit()) {
+                buffer = b.slice(off, len)
+            }
+
+            file.channel.write(buffer)
+            b.rewind()
         } catch (ioe: IOException) {
             if (lockingManager.usableSpace < len) {
                 throw OutOfDiskSpaceException(ioe)

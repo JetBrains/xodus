@@ -23,6 +23,7 @@ import mu.KLogging
 import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
+import java.nio.ByteBuffer
 
 class FileDataReader(val dir: File) : DataReader, KLogging() {
 
@@ -111,6 +112,43 @@ class FileDataReader(val dir: File) : DataReader, KLogging() {
             }
         }
 
+        override fun read(output: ByteBuffer, position: Long, offset: Int, count: Int): Int {
+            var buffer = output
+            if (offset > 0 || count < output.limit()) {
+                buffer = output.slice(offset, count)
+            }
+
+            try {
+                val log = reader.log
+                val immutable = log?.isImmutableFile(address) ?: !canWrite()
+                val filesCache = SharedOpenFilesCache.getInstance()
+                val file = if (immutable && !reader.usedWithWatcher) filesCache.getCachedFile(this) else filesCache.openFile(this)
+                file.use { f ->
+                    if (reader.useNio &&
+                            /* only read-only (immutable) files can be mapped */ immutable) {
+                        try {
+                            SharedMappedFilesCache.getInstance().getFileBuffer(f).use { mappedBuffer ->
+                                val mapBuffer = mappedBuffer.buffer
+                                buffer.put(offset, mapBuffer, position.toInt(), count)
+                                return count
+                            }
+                        } catch (t: Throwable) {
+                            // if we failed to read mapped file, then try ordinary RandomAccessFile.read()
+                            if (logger.isWarnEnabled) {
+                                logger.warn("Failed to transfer bytes from memory mapped file", t)
+                            }
+                        }
+                    }
+
+                    f.seek(position)
+                    return readFully(f, buffer)
+                }
+            } catch (e: IOException) {
+                throw ExodusException("Can't read file $absolutePath", e)
+            }
+        }
+
+
         private fun readFully(file: RandomAccessFile, output: ByteArray, offset: Int, size: Int): Int {
             var read = 0
 
@@ -122,6 +160,22 @@ class FileDataReader(val dir: File) : DataReader, KLogging() {
                 read += r
             }
 
+            return read
+        }
+
+        private fun readFully(file: RandomAccessFile, output: ByteBuffer): Int {
+            var read = 0
+
+            val channel = file.channel
+            while (output.remaining() > 0) {
+                val r = channel.read(output)
+                if (r == -1) {
+                    break
+                }
+                read += r
+            }
+
+            output.rewind()
             return read
         }
 

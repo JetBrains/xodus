@@ -18,6 +18,7 @@ package jetbrains.exodus.io.inMemory
 import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.DataReader
 import mu.KLogging
+import java.nio.ByteBuffer
 
 open class MemoryDataReader(private val memory: Memory) : DataReader, KLogging() {
 
@@ -53,6 +54,10 @@ open class MemoryDataReader(private val memory: Memory) : DataReader, KLogging()
 
         override fun read(output: ByteArray, position: Long, offset: Int, count: Int) =
                 data.read(output, position, offset, count)
+
+        override fun read(output: ByteBuffer, position: Long, offest: Int, count: Int): Int =
+                data.read(output, position, offest, count)
+
 
         override fun refresh() = this
     }

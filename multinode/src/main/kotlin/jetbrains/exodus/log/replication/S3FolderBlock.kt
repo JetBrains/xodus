@@ -19,6 +19,7 @@ import jetbrains.exodus.core.dataStructures.persistent.PersistentBitTreeLongMap
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLongMap
 import jetbrains.exodus.core.dataStructures.persistent.read
 import jetbrains.exodus.core.dataStructures.persistent.write
+import java.nio.ByteBuffer
 import kotlin.math.min
 
 internal class S3FolderBlock(s3factory: S3FactoryBoilerplate,
@@ -32,6 +33,34 @@ internal class S3FolderBlock(s3factory: S3FactoryBoilerplate,
     //override fun length(): Long = blocks.read { fold(0L) { acc, value -> acc + value.value.length() } }
 
     override fun read(output: ByteArray, position: Long, offset: Int, count: Int): Int {
+        if (count <= 0) {
+            return 0
+        }
+        val blocks = mutableListOf<S3SubBlock>()
+        val leftBound = address + position
+        val rightBound = leftBound + count
+        this.blocks.read {
+            forEach {
+                with(it.value) {
+                    if (address >= leftBound) {
+                        if (address >= rightBound) return@forEach
+                    }
+                    blocks.add(this)
+                }
+            }
+        }
+        var totalRead = 0
+        blocks.forEach { block ->
+            val blockPosition = leftBound + totalRead - block.address
+            val bytesToRead = min((block.length() - blockPosition).toInt(), count - totalRead)
+            block.readAndCompare(output, blockPosition, offset + totalRead, bytesToRead).also {
+                totalRead += it
+            }
+        }
+        return totalRead
+    }
+
+    override fun read(output: ByteBuffer, position: Long, offset: Int, count: Int): Int {
         if (count <= 0) {
             return 0
         }

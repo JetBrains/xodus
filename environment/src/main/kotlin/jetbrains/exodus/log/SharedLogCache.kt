@@ -15,15 +15,16 @@
  */
 package jetbrains.exodus.log
 
-import jetbrains.exodus.ArrayByteIterable
+import jetbrains.exodus.ByteBufferByteIterable
 import jetbrains.exodus.core.dataStructures.*
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase.DEFAULT_SIZE
+import java.nio.ByteBuffer
 import kotlin.math.min
 
 internal class SharedLogCache : LogCache {
 
     private val pagesCache: LongObjectCacheBase<CachedValue>
-    internal val useSoftReferences: Boolean;
+    internal val useSoftReferences: Boolean
 
     constructor(memoryUsage: Long,
                 pageSize: Int,
@@ -92,10 +93,13 @@ internal class SharedLogCache : LogCache {
 
     override fun hitRate() = pagesCache.hitRate()
 
-    override fun cachePage(log: Log, pageAddress: Long, page: ByteArray) =
-            log.identity.let { logIdentity -> cachePage(getLogPageFingerPrint(logIdentity, pageAddress), logIdentity, pageAddress, page) }
+    override fun cachePage(log: Log, pageAddress: Long, page: ByteBuffer) =
+            log.identity.let { logIdentity ->
+                cachePage(getLogPageFingerPrint(logIdentity, pageAddress),
+                        logIdentity, pageAddress, page)
+            }
 
-    override fun getPage(log: Log, pageAddress: Long): ByteArray {
+    override fun getPage(log: Log, pageAddress: Long): ByteBuffer {
         val logIdentity = log.identity
         val key = getLogPageFingerPrint(logIdentity, pageAddress)
         val cachedValue = pagesCache.tryKeyLocked(key)
@@ -111,7 +115,7 @@ internal class SharedLogCache : LogCache {
         return page
     }
 
-    override fun getCachedPage(log: Log, pageAddress: Long): ByteArray? {
+    override fun getCachedPage(log: Log, pageAddress: Long): ByteBuffer? {
         val logIdentity = log.identity
         val key = getLogPageFingerPrint(logIdentity, pageAddress)
         val cachedValue = pagesCache.getObjectLocked(key)
@@ -120,20 +124,21 @@ internal class SharedLogCache : LogCache {
         } else log.getHighPage(pageAddress)
     }
 
-    override fun getPageIterable(log: Log, pageAddress: Long): ArrayByteIterable {
+    override fun getPageIterable(log: Log, pageAddress: Long): ByteBufferByteIterable {
         val logIdentity = log.identity
         val key = getLogPageFingerPrint(logIdentity, pageAddress)
         val cachedValue = pagesCache.tryKeyLocked(key)
         if (cachedValue != null && cachedValue.logIdentity == logIdentity && cachedValue.address == pageAddress) {
-            return ArrayByteIterable(cachedValue.page)
+            return ByteBufferByteIterable(cachedValue.page)
         }
         var page = log.getHighPage(pageAddress)
         if (page != null) {
-            return ArrayByteIterable(page, min(log.highAddress - pageAddress, pageSize.toLong()).toInt())
+            return ByteBufferByteIterable(page.slice(0,
+                    min(log.highAddress - pageAddress, pageSize.toLong()).toInt()).order(page.order()))
         }
         page = readFullPage(log, pageAddress)
         cachePage(key, logIdentity, pageAddress, page)
-        return ArrayByteIterable(page)
+        return ByteBufferByteIterable(page)
     }
 
     override fun removePage(log: Log, pageAddress: Long) {
@@ -141,11 +146,11 @@ internal class SharedLogCache : LogCache {
         pagesCache.removeLocked(key)
     }
 
-    private fun cachePage(key: Long, logIdentity: Int, address: Long, page: ByteArray) {
+    private fun cachePage(key: Long, logIdentity: Int, address: Long, page: ByteBuffer) {
         pagesCache.cacheObjectLocked(key, CachedValue(logIdentity, address, postProcessTailPage(page)))
     }
 
-    private class CachedValue(val logIdentity: Int, val address: Long, val page: ByteArray)
+    private class CachedValue(val logIdentity: Int, val address: Long, val page: ByteBuffer)
 }
 
 private fun getLogPageFingerPrint(logIdentity: Int, address: Long): Long = (address + logIdentity shl 32) + address + logIdentity

@@ -1,5 +1,6 @@
 package jetbrains.exodus.tree.ibtree;
 
+import jetbrains.exodus.ByteBufferComparator;
 import jetbrains.exodus.log.Log;
 import org.jetbrains.annotations.NotNull;
 
@@ -11,16 +12,16 @@ import java.util.List;
 import java.util.RandomAccess;
 
 abstract class ImmutableBasePage {
-    static final int PAGES_OFFSET = 0;
-    static final int PAGES_SIZE = Short.BYTES;
+    static final int PAGES_COUNT_OFFSET = 0;
+    static final int PAGES_COUNT_SIZE = Short.BYTES;
 
-    static final int KEY_PREFIX_LEN_OFFSET = PAGES_OFFSET + PAGES_SIZE;
+    static final int KEY_PREFIX_LEN_OFFSET = PAGES_COUNT_OFFSET + PAGES_COUNT_SIZE;
     static final int KEY_PREFIX_LEN_SIZE = Short.BYTES;
 
-    static final int ENTRIES_OFFSET = KEY_PREFIX_LEN_OFFSET + KEY_PREFIX_LEN_SIZE;
-    static final int ENTRIES_SIZE = Integer.BYTES;
+    static final int ENTRIES_COUNT_OFFSET = KEY_PREFIX_LEN_OFFSET + KEY_PREFIX_LEN_SIZE;
+    static final int ENTRIES_COUNT_SIZE = Integer.BYTES;
 
-    static final int KEYS_OFFSET = ENTRIES_OFFSET + ENTRIES_SIZE;
+    static final int KEYS_OFFSET = ENTRIES_COUNT_OFFSET + ENTRIES_COUNT_SIZE;
 
     static final int KEY_SIZE_SIZE = Integer.BYTES;
     static final int KEY_POSITION_SIZE = Integer.BYTES;
@@ -38,12 +39,19 @@ abstract class ImmutableBasePage {
     @NotNull
     final List<ByteBuffer> keyView;
 
-    protected ImmutableBasePage(Log log, int pageSize, long pageIndex) {
+    protected ImmutableBasePage(Log log, int pageSize, long pageIndex, int pageOffset) {
         this.log = log;
         this.pageSize = pageSize;
         this.pageIndex = pageIndex;
 
-        page = log.readPage(pageIndex);
+        final ByteBuffer loadedPage = log.readPage(pageIndex);
+        assert loadedPage.limit() == pageSize;
+
+        if (pageOffset > 0) {
+            page = loadedPage.slice(pageOffset, pageSize - pageOffset).order(ByteOrder.nativeOrder());
+        } else {
+            page = loadedPage;
+        }
 
         //ensure that allocated page aligned to ensure fastest memory access and stable offsets of the data
         assert page.alignmentOffset(0, Long.BYTES) == 0;
@@ -99,16 +107,16 @@ abstract class ImmutableBasePage {
         return fetchByteChunk(keyPosition, ketSize);
     }
 
-    final int getEntries() {
-        assert page.alignmentOffset(ENTRIES_OFFSET, Integer.BYTES) == 0;
+    final int getEntriesCount() {
+        assert page.alignmentOffset(ENTRIES_COUNT_OFFSET, Integer.BYTES) == 0;
 
-        return page.getInt(ENTRIES_OFFSET);
+        return page.getInt(ENTRIES_COUNT_OFFSET);
     }
 
-    final short getPages() {
-        assert page.alignmentOffset(PAGES_OFFSET, Short.BYTES) == 0;
+    final short getPagesCount() {
+        assert page.alignmentOffset(PAGES_COUNT_OFFSET, Short.BYTES) == 0;
 
-        return page.getShort(PAGES_OFFSET);
+        return page.getShort(PAGES_COUNT_OFFSET);
     }
 
     private int getKeyPosition(int index) {
@@ -143,7 +151,7 @@ abstract class ImmutableBasePage {
 
         @Override
         public int size() {
-            return getEntries();
+            return getEntriesCount();
         }
     }
 }

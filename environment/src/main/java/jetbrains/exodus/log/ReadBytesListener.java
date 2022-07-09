@@ -15,7 +15,9 @@
  */
 package jetbrains.exodus.log;
 
+import java.nio.ByteBuffer;
+
 public interface ReadBytesListener {
 
-    void bytesRead(final byte[] bytes, final int count);
+    void bytesRead(final ByteBuffer bytes, final int count);
 }
