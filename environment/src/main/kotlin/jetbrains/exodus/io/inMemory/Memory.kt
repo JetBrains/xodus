@@ -148,7 +148,7 @@ open class Memory {
                 result = maxRead.toInt()
             }
 
-            ByteBuffer.wrap(data).put(position.toInt(), output, offset, result)
+            output.put(offset, ByteBuffer.wrap(data), position.toInt(), result)
 
             return result
         }

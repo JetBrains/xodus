@@ -16,6 +16,7 @@
 package jetbrains.exodus.bindings;
 
 import jetbrains.exodus.ArrayByteIterable;
+import jetbrains.exodus.ByteBufferIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.util.LightOutputStream;
 import jetbrains.exodus.util.StringInterner;

@@ -64,7 +64,7 @@ internal class ByteBufferAsyncResponseHandler<R>(val output: ByteBuffer) : Async
             if (prevLength <= outputLength) {
                 val maxLength = minOf(outputLength - prevLength, length)
                 FunctionalUtils.invokeSafely {
-                    output.put(prevLength, byteBuffer, byteBuffer.remaining(), maxLength)
+                    output.put(prevLength, byteBuffer, byteBuffer.position(), maxLength)
                 }
 
             } else {

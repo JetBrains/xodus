@@ -25,7 +25,7 @@ import java.nio.ByteBuffer;
  * it unconditionally throws {@link UnsupportedOperationException}.
  */
 
-public class ByteBufferByteIterable implements ByteIterable, ByteBufferIterable {
+public final class ByteBufferByteIterable implements ByteIterable, ByteBufferIterable {
 
     @NotNull
     private final ByteBuffer buffer;  // this buffer should be immutable with position = 0
@@ -51,13 +51,11 @@ public class ByteBufferByteIterable implements ByteIterable, ByteBufferIterable 
         return new ByteBufferIterator(buffer.slice(offset, buffer.limit() - offset).order(buffer.order()));
     }
 
-    /**
-     * @return nothing since unconditionally throws {@link UnsupportedOperationException}.
-     * @throws UnsupportedOperationException always since this operation is unsupported
-     */
     @Override
     public byte[] getBytesUnsafe() {
-        throw new UnsupportedOperationException();
+        var data = new byte[buffer.limit()];
+        buffer.get(0, data);
+        return data;
     }
 
     @Override

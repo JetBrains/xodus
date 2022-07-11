@@ -175,7 +175,7 @@ class FileAsyncHandler(
                 }
                 val bytes = lastPage.bytes
                 val length = minOf(bytes.limit().toLong() - offset, writtenLength - skip).toInt()
-                bytes.put(offset, bytes, skip, length)
+                bytes.put(offset, attachment, skip, length)
                 lastPageLength.addAndGet(length)
             }
         }

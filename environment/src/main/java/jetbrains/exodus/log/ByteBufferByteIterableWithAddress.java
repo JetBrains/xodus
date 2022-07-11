@@ -95,6 +95,11 @@ public class ByteBufferByteIterableWithAddress extends ByteIterableWithAddress i
     }
 
     @Override
+    public int compareTo(@NotNull ByteIterable right) {
+        return compareTo(0, getLength(), right);
+    }
+
+    @Override
     public final ByteIterableWithAddress clone(final int offset) {
         return new ByteBufferByteIterableWithAddress(getDataAddress() + offset, buffer,
                 start + offset, end - start - offset);
@@ -116,11 +121,21 @@ public class ByteBufferByteIterableWithAddress extends ByteIterableWithAddress i
     @Override
     public final String toString() {
         var array = new byte[end - start];
-        buffer.get(0, array);
+        buffer.get(start, array);
 
         return Arrays.toString(array);
     }
 
+    @Override
+    public int hashCode() {
+        return buffer.slice(start, end - start).hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+
+        return obj == this || (obj instanceof ByteIterable && compareTo((ByteIterable) obj) == 0);
+    }
 
     @Override
     public final ByteBuffer getByteBuffer() {
@@ -185,7 +200,7 @@ public class ByteBufferByteIterableWithAddress extends ByteIterableWithAddress i
             }
 
             var secondArray = right.getBytesUnsafe();
-            var secondBuffer = ByteBuffer.wrap(secondArray);
+            var secondBuffer = ByteBuffer.wrap(secondArray, 0, right.getLength());
             return ByteBufferComparator.INSTANCE.compare(buffer, secondBuffer);
         }
 
@@ -222,6 +237,24 @@ public class ByteBufferByteIterableWithAddress extends ByteIterableWithAddress i
             return buffer.asReadOnlyBuffer().order(buffer.order());
         }
 
+        @Override
+        public int hashCode() {
+            return buffer.hashCode();
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj == this || ((obj instanceof ByteIterable) && compareTo((ByteIterable) obj) == 0);
+        }
+
+        @Override
+        public String toString() {
+            var array = new byte[buffer.limit()];
+            buffer.get(0, array);
+
+            return Arrays.toString(array);
+        }
+
         private static class SubIterableByteIterator extends ByteIterator implements BlockByteIterator {
             final ByteBuffer buffer;
 
@@ -249,7 +282,7 @@ public class ByteBufferByteIterableWithAddress extends ByteIterableWithAddress i
             @Override
             public int nextBytes(byte[] array, int off, int len) {
                 final int result = Math.min(buffer.remaining(), len);
-                buffer.get(array, off, len);
+                buffer.get(array, off, result);
                 return result;
             }
         }

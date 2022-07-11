@@ -34,11 +34,11 @@ public class ByteIterableUtil {
     }
 
     public static int compare(@NotNull final byte[] key1, final int len1, final int offset1, @NotNull final byte[] key2, final int len2) {
-        return Arrays.compareUnsigned(key1, offset1, len1, key2, 0, len2);
+        return Arrays.compareUnsigned(key1, offset1, offset1 + len1, key2, 0, len2);
     }
 
     public static int compare(@NotNull final byte[] key1, final int len1, final int offset1,
                               @NotNull final byte[] key2, final int len2, final int offset2) {
-        return Arrays.compareUnsigned(key1, offset1, len1, key2, offset2, len2);
+        return Arrays.compareUnsigned(key1, offset1, offset1 + len1, key2, offset2, offset2 + len2);
     }
 }
