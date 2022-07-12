@@ -18,36 +18,31 @@
 
 package jetbrains.exodus.benchmark.util;
 
-import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.OutputTimeUnit;
-import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.*;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.VarHandle;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.concurrent.TimeUnit;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-public class JMHLongByteBufferVsVarHandle {
-    private static final ByteBuffer buffer = ByteBuffer.allocate(8).order(ByteOrder.nativeOrder());
-    private static final VarHandle BUFFER_HANDLE = MethodHandles.byteBufferViewVarHandle(long.class,
-            ByteOrder.nativeOrder());
+@BenchmarkMode(Mode.AverageTime)
+public class JMHByteBufferDirectIndex {
+    private static final ByteBuffer buffer = ByteBuffer.allocate(1);
+    private static final byte[] array = new byte[1];
 
     @Benchmark
-    public long getBuffer() {
-        return buffer.getLong(0);
+    public byte getBuffer() {
+        return buffer.get(0);
     }
 
     @Benchmark
-    public long getVarHandle() {
-        return (long) BUFFER_HANDLE.get(0, buffer);
+    public byte indexArray() {
+        return array[0];
     }
 
     @Benchmark
-    public long baseLine() {
+    public byte baseLine() {
         return 0;
     }
+
 }

@@ -134,7 +134,6 @@ public final class LogUtil {
     }
 
     public static ByteBuffer allocatePage(int pageSize) {
-        return ByteBuffer.allocate(pageSize + Long.BYTES).alignedSlice(Long.BYTES).
-                slice(0, pageSize).order(ByteOrder.nativeOrder());
+        return ByteBuffer.allocate(pageSize).order(ByteOrder.nativeOrder());
     }
 }

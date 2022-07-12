@@ -39,16 +39,24 @@ public final class ByteBufferByteIterable implements ByteIterable, ByteBufferIte
     }
 
     @Override
-    public ByteBufferIterator iterator() {
-        return new ByteBufferIterator(buffer.slice());
-    }
-
-    public ByteBufferIterator iterator(int offset) {
-        if (offset >= buffer.limit()) {
-            return new ByteBufferIterator(ByteBuffer.allocate(0));
+    public ByteBufferIterableByteIterator iterator() {
+        if (buffer.hasArray()) {
+            return new ByteArrayIterator(buffer);
         }
 
-        return new ByteBufferIterator(buffer.slice(offset, buffer.limit() - offset).order(buffer.order()));
+        return new ByteBufferIterator(buffer.duplicate());
+    }
+
+    public ByteBufferIterableByteIterator iterator(int offset) {
+        if (offset >= buffer.limit()) {
+            return EMPTY_ITERATOR;
+        }
+
+        if (buffer.hasArray()) {
+            return new ByteArrayIterator(buffer.slice(offset, buffer.limit() - offset));
+        }
+
+        return new ByteBufferIterator(buffer.slice(offset, buffer.limit() - offset));
     }
 
     @Override
@@ -82,14 +90,70 @@ public final class ByteBufferByteIterable implements ByteIterable, ByteBufferIte
         return buffer;
     }
 
-    public static final ByteBufferIterator EMPTY_ITERATOR = new ByteBufferIterator(ByteBuffer.allocate(0));
+    public static final ByteBufferIterableByteIterator EMPTY_ITERATOR =
+            new ByteArrayIterator(ByteBuffer.allocate(0));
 
     @Override
     public ByteBuffer getByteBuffer() {
         return buffer.asReadOnlyBuffer().order(buffer.order());
     }
 
-    public static final class ByteBufferIterator extends ByteIterator {
+    public static abstract class ByteBufferIterableByteIterator extends ByteIterator {
+        public abstract int getOffset();
+
+        public abstract int nextBytes(byte[] array, int off, int len);
+    }
+
+    private static final class ByteArrayIterator extends ByteBufferIterableByteIterator {
+        private final int arrayOffset;
+        private final int len;
+        private final byte[] array;
+
+        private int offset;
+
+        private ByteArrayIterator(ByteBuffer buffer) {
+            assert buffer.hasArray();
+
+            arrayOffset = buffer.arrayOffset();
+            array = buffer.array();
+            len = buffer.limit();
+        }
+
+        @Override
+        public boolean hasNext() {
+            return offset < len;
+        }
+
+        @Override
+        public byte next() {
+            final int off = offset + arrayOffset;
+            final byte data = array[off];
+            offset++;
+            return data;
+        }
+
+        @Override
+        public long skip(long bytes) {
+            final int result = (int) Math.min(bytes, len - offset);
+            offset += result;
+
+            return result;
+        }
+
+        public int getOffset() {
+            return offset;
+        }
+
+        public int nextBytes(byte[] array, int off, int len) {
+            len = Math.min(len, this.len - offset);
+            System.arraycopy(this.array, offset + arrayOffset, array, off, len);
+
+            offset += len;
+            return len;
+        }
+    }
+
+    private static final class ByteBufferIterator extends ByteBufferIterableByteIterator {
         private final ByteBuffer buffer;
 
         private ByteBufferIterator(ByteBuffer buffer) {

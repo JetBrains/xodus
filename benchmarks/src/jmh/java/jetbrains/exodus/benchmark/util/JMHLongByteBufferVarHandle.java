@@ -18,10 +18,7 @@
 
 package jetbrains.exodus.benchmark.util;
 
-import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.OutputTimeUnit;
-import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.*;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
@@ -31,29 +28,33 @@ import java.util.concurrent.TimeUnit;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-public class JMHByteBufferBVarHandleDirectIndex {
-    private static final ByteBuffer buffer = ByteBuffer.allocate(1);
-    private static final byte[] array = new byte[1];
-    private static final VarHandle BUFFER_HANDLE = MethodHandles.byteBufferViewVarHandle(byte.class,
+@BenchmarkMode(Mode.AverageTime)
+public class JMHLongByteBufferVarHandle {
+    private static final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES).order(ByteOrder.nativeOrder());
+
+    private static final VarHandle BUFFER_HANDLE = MethodHandles.byteBufferViewVarHandle(long[].class,
+            ByteOrder.nativeOrder());
+
+    private static final byte[] array = new byte[8];
+    private static final VarHandle ARRAY_HANDLE = MethodHandles.byteArrayViewVarHandle(long[].class,
             ByteOrder.nativeOrder());
 
     @Benchmark
-    public byte getBuffer() {
-        return buffer.get(0);
+    public long getBuffer() {
+        return buffer.getLong(0);
     }
 
     @Benchmark
-    public byte indexArray() {
-        return array[0];
+    public long getVarHandle() {
+        return (long) BUFFER_HANDLE.get(buffer, 0);
     }
 
-    public byte handleGet() {
-        return (byte) BUFFER_HANDLE.get(0, buffer);
+    public long getArrayVarHandle() {
+        return (long) ARRAY_HANDLE.get(array, 0);
     }
 
     @Benchmark
-    public byte baseLine() {
+    public long baseLine() {
         return 0;
     }
-
 }

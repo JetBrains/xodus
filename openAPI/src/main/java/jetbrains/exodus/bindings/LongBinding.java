@@ -185,14 +185,6 @@ public class LongBinding extends ComparableBinding {
     }
 
     public static long entryToUnsignedLong(@NotNull final ByteBuffer bytes, int offset, final int length) {
-        if (length == Long.BYTES) {
-            if (bytes.order() == ByteOrder.BIG_ENDIAN) {
-                return bytes.getLong(offset);
-            } else {
-                bytes.duplicate().order(ByteOrder.BIG_ENDIAN).getLong(offset);
-            }
-        }
-
         if (bytes.hasArray()) {
             final byte[] array = bytes.array();
             offset += bytes.arrayOffset();

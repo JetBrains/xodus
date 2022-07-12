@@ -15,16 +15,13 @@
  */
 package jetbrains.exodus.log;
 
-import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteBufferByteIterable;
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ByteIterator;
 import org.jetbrains.annotations.NotNull;
 
 class CompoundByteIterator extends ByteIteratorWithAddress implements BlockByteIterator {
 
     @NotNull
-    private ByteBufferByteIterable.ByteBufferIterator current;
+    private ByteBufferByteIterable.ByteBufferIterableByteIterator current;
     private boolean hasNext;
     private boolean hasNextValid;
     private long currentAddress;
