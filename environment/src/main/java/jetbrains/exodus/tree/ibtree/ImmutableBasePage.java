@@ -1,6 +1,7 @@
 package jetbrains.exodus.tree.ibtree;
 
 import jetbrains.exodus.ByteBufferComparator;
+import jetbrains.exodus.ByteBufferIterable;
 import jetbrains.exodus.log.Log;
 import org.jetbrains.annotations.NotNull;
 
@@ -11,40 +12,59 @@ import java.util.Collections;
 import java.util.List;
 import java.util.RandomAccess;
 
+/**
+ * Representation of common layout of all pages both leaf and internal.
+ * Layout composed as following:
+ * <ol>
+ *     <li>Key prefix size. Size of the common prefix which was truncated for all keys in tree.
+ *     Currently not used but added to implement key compression without breaking of binary compatibility.</li>
+ *     <li>Count of the entries contained inside of the given page.</li>
+ *     <li>Array each entry of which contains either address of the loggable which contains key of the entry or pair
+ *     (key position, key size) where 'key position' is position of the key stored inside of this page,
+ *     key size is accordingly size of this key. To distinguish between those two meanings of the same value,
+ *     key addresses always negative and their sign should be changed to load key.</li>
+ *     <li> Array each entry of which contains either address of value of the entry if that is
+ *     {@link  ImmutableLeafPage} or address of the child page if that is
+ *     {@link ImmutableInternalPage}</li>
+ *     <li>Array of keys embedded into this page.</li>
+ * </ol>
+ * <p>
+ * All values are kept outside of the BTree page but keys are embedded if they are small enough.
+ * Internal pages also keep size of the whole (sub)tree at the header of the page.
+ * For all pages small is space kept to keep structure id and loggable type that why page offset is passed.
+ * Page offset should be quantised by {@link Long#BYTES} bytes.
+ */
 abstract class ImmutableBasePage {
-    static final int PAGES_COUNT_OFFSET = 0;
-    static final int PAGES_COUNT_SIZE = Short.BYTES;
+    static final int KEY_PREFIX_LEN_OFFSET = 0;
 
-    static final int KEY_PREFIX_LEN_OFFSET = PAGES_COUNT_OFFSET + PAGES_COUNT_SIZE;
-    static final int KEY_PREFIX_LEN_SIZE = Short.BYTES;
+    //we could use short here but in such case we risk to get unaligned memory access for subsequent reads
+    //so we use int
+    static final int KEY_PREFIX_LEN_SIZE = Integer.BYTES;
 
     static final int ENTRIES_COUNT_OFFSET = KEY_PREFIX_LEN_OFFSET + KEY_PREFIX_LEN_SIZE;
     static final int ENTRIES_COUNT_SIZE = Integer.BYTES;
 
     static final int KEYS_OFFSET = ENTRIES_COUNT_OFFSET + ENTRIES_COUNT_SIZE;
 
-    static final int KEY_SIZE_SIZE = Integer.BYTES;
-    static final int KEY_POSITION_SIZE = Integer.BYTES;
-    static final int KEY_ENTRY_SIZE = KEY_SIZE_SIZE + KEY_POSITION_SIZE;
-
     @NotNull
     final Log log;
 
     @NotNull
+    final ByteBuffer loadedPage;
+
+    @NotNull
     final ByteBuffer page;
-    final int pageSize;
-    final long pageIndex;
+    final long pageAddress;
 
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     @NotNull
     final List<ByteBuffer> keyView;
 
-    protected ImmutableBasePage(Log log, int pageSize, long pageIndex, int pageOffset) {
+    protected ImmutableBasePage(Log log, int pageSize, long pageAddress, int pageOffset) {
         this.log = log;
-        this.pageSize = pageSize;
-        this.pageIndex = pageIndex;
+        this.pageAddress = pageAddress;
 
-        final ByteBuffer loadedPage = log.readPage(pageIndex);
+        loadedPage = log.readPage(pageAddress);
         assert loadedPage.limit() == pageSize;
 
         if (pageOffset > 0) {
@@ -60,51 +80,42 @@ abstract class ImmutableBasePage {
         keyView = new KeyView();
     }
 
-    final ByteBuffer fetchByteChunk(final int position, final int size) {
-        //byte chunk belongs to the first page
-        if (position + size <= page.limit()) {
-            return page.slice(position, size).order(ByteOrder.nativeOrder());
-        }
-
-        //size of the first page can be less than pageSize
-        int startPositionIndex = (position - page.limit()) / pageSize + 1;
-        int endPositionIndex = (position + size - page.limit()) / pageSize + 1;
-
-        //byte chunk stored in single page
-        if (startPositionIndex == endPositionIndex) {
-            final ByteBuffer loadedPage = log.readPage(pageIndex + startPositionIndex);
-            final int offset = (startPositionIndex - 1) * pageSize + page.limit();
-            return loadedPage.slice(position - offset, size).order(ByteOrder.nativeOrder());
-        }
-
-        final ByteBuffer buffer = ByteBuffer.allocate(size);
-
-        //offset to the position to the record relatively to the loaded page
-        int pageOffset = position - ((position - page.limit()) / pageSize + 1) * pageSize;
-        int index = (position - page.limit()) / pageSize + 1;
-
-        while (buffer.remaining() > 0) {
-            final ByteBuffer loadedPage = log.readPage(pageIndex + index);
-
-            loadedPage.position(pageOffset);
-            loadedPage.limit(Math.min(buffer.remaining(), loadedPage.remaining()));
-            loadedPage.put(buffer);
-
-            pageOffset = 0;
-        }
-
-        return buffer.rewind().order(ByteOrder.nativeOrder());
-    }
-
     final int find(ByteBuffer key) {
         return Collections.binarySearch(keyView, key, ByteBufferComparator.INSTANCE);
     }
 
-    private ByteBuffer getKey(int index) {
-        final int keyPosition = getKeyPosition(index);
-        final int ketSize = getKeySize(index);
+    private int getKeyAddressPosition(final int index) {
+        return KEYS_OFFSET + index * Long.BYTES;
+    }
 
-        return fetchByteChunk(keyPosition, ketSize);
+    private ByteBuffer getKey(int index) {
+        final long keyAddress = getKeyAddress(index);
+
+        if (keyAddress < 0) {
+            var keyLoggable = log.read(-keyAddress);
+            assert keyLoggable.getType() == BTreeBase.KEY;
+
+            var data = keyLoggable.getData();
+            return data.getByteBuffer();
+        }
+
+        return getEmbeddedKey(keyAddress);
+    }
+
+    final ByteBuffer getEmbeddedKey(final long keyAddress) {
+        final int keyPosition = (int) keyAddress;
+        final int keySize = (int) (keyAddress >> Integer.SIZE);
+
+        return page.slice(keyPosition, keySize);
+    }
+
+    final long getKeyAddress(int index) {
+        final int keyAddressPosition = getKeyAddressPosition(index);
+        assert page.alignmentOffset(keyAddressPosition, Long.BYTES) == 0;
+
+        final long keyAddress = page.getLong(keyAddressPosition);
+
+        return keyAddress;
     }
 
     final int getEntriesCount() {
@@ -113,34 +124,24 @@ abstract class ImmutableBasePage {
         return page.getInt(ENTRIES_COUNT_OFFSET);
     }
 
-    final short getPagesCount() {
-        assert page.alignmentOffset(PAGES_COUNT_OFFSET, Short.BYTES) == 0;
-
-        return page.getShort(PAGES_COUNT_OFFSET);
-    }
-
-    private int getKeyPosition(int index) {
-        final int position = KEYS_OFFSET + index * KEY_ENTRY_SIZE;
-
-        assert page.alignmentOffset(position, Integer.BYTES) == 0;
-
-        return page.getInt(position);
-    }
-
-    private int getKeySize(int index) {
-        final int position = KEYS_OFFSET + index * KEY_ENTRY_SIZE + KEY_POSITION_SIZE;
-
-        assert page.alignmentOffset(position, Integer.BYTES) == 0;
-
-        return page.getInt(position);
-    }
-
     final ByteBuffer key(int index) {
         return keyView.get(index);
     }
 
     final ByteBuffer getKeyUnsafe(int index) {
         return getKey(index);
+    }
+
+    private int getChildAddressPosition(int index) {
+        return KEYS_OFFSET + getEntriesCount() * Long.BYTES + index * Long.BYTES;
+    }
+
+    final long getChildAddress(int index) {
+        final int childAddressPosition = getChildAddressPosition(index);
+
+        assert page.alignmentOffset(childAddressPosition, Long.BYTES) == 0;
+
+        return page.getLong(childAddressPosition);
     }
 
     final class KeyView extends AbstractList<ByteBuffer> implements RandomAccess {

@@ -31,7 +31,7 @@ internal abstract class LogCache {
     internal val pageSize: Int
 
     /**
-     * @param memoryUsage amount of memory which the cache is allowed to occupy (in bytes).
+     * @param memoryUsage treeSize of memory which the cache is allowed to occupy (in bytes).
      * @param pageSize    number of bytes in a page.
      * @throws InvalidSettingException if settings are invalid.
      */
@@ -50,7 +50,7 @@ internal abstract class LogCache {
     }
 
     /**
-     * @param memoryUsagePercentage amount of memory which the cache is allowed to occupy (in percents to the max memory value).
+     * @param memoryUsagePercentage treeSize of memory which the cache is allowed to occupy (in percents to the max memory value).
      * @param pageSize              number of bytes in a page.
      * @throws InvalidSettingException if settings are invalid.
      */

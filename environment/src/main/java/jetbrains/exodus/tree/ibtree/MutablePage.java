@@ -9,7 +9,9 @@ interface MutablePage {
 
     long save(int structureId);
 
-    void rebalance();
+    MutablePage rebalance();
 
     void spill();
+
+    long treeSize();
 }

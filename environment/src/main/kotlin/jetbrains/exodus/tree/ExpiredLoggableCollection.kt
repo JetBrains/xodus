@@ -32,6 +32,9 @@ class ExpiredLoggableCollection(private val parent: ExpiredLoggableCollection? =
     fun add(loggable: Loggable) = add(loggable.address, loggable.length())
 
     fun add(address: Long, length: Int) {
+        assert(address >= 0)
+        assert(length >= 0)
+
         addresses.add(address)
         lengths.add(length)
     }
@@ -65,6 +68,7 @@ class ExpiredLoggableCollection(private val parent: ExpiredLoggableCollection? =
     companion object {
         @JvmStatic
         val EMPTY = ExpiredLoggableCollection()
+
         @JvmStatic
         val FROM_SCRATCH = ExpiredLoggableCollection(calcUtilizationFromScratch = true)
     }

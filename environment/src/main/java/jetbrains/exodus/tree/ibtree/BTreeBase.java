@@ -8,9 +8,10 @@ abstract class BTreeBase implements ITree {
     public static final byte INTERNAL = 44;
     public static final byte LEAF = 45;
     public static final byte VALUE = 46;
+    public static final byte KEY = 47;
 
-    public static final byte INTERNAL_ROOT = 47;
-    public static final byte LEAF_ROOT = 48;
+    public static final byte INTERNAL_ROOT = 48;
+    public static final byte LEAF_ROOT = 49;
 
     @NotNull
     protected final Log log;

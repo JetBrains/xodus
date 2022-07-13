@@ -30,38 +30,36 @@ import java.util.concurrent.TimeUnit;
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @BenchmarkMode(Mode.AverageTime)
-public class JMHLongByteBufferVarHandle {
-    private static final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES).order(ByteOrder.nativeOrder());
+public class JMHIntByteBufferVarHandle {
+    private static final ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES).order(ByteOrder.nativeOrder());
 
-    private static final VarHandle BUFFER_HANDLE = MethodHandles.byteBufferViewVarHandle(long[].class,
+    private static final VarHandle BUFFER_HANDLE = MethodHandles.byteBufferViewVarHandle(int[].class,
             ByteOrder.nativeOrder());
 
-    private static final byte[] array = new byte[Long.BYTES];
-    private static final VarHandle ARRAY_HANDLE = MethodHandles.byteArrayViewVarHandle(long[].class,
+    private static final byte[] array = new byte[Integer.BYTES];
+    private static final VarHandle ARRAY_HANDLE = MethodHandles.byteArrayViewVarHandle(int[].class,
             ByteOrder.nativeOrder());
-
     static {
         ThreadLocalRandom.current().nextBytes(array);
         buffer.put(0, array);
     }
 
-
     @Benchmark
-    public long getBuffer() {
-        return buffer.getLong(0);
+    public int getBuffer() {
+        return buffer.getInt(0);
     }
 
     @Benchmark
-    public long getVarHandle() {
-        return (long) BUFFER_HANDLE.get(buffer, 0);
+    public int getVarHandle() {
+        return (int) BUFFER_HANDLE.get(buffer, 0);
     }
 
-    public long getArrayVarHandle() {
-        return (long) ARRAY_HANDLE.get(array, 0);
+    public int getArrayVarHandle() {
+        return (int) ARRAY_HANDLE.get(array, 0);
     }
 
     @Benchmark
-    public long baseLine() {
+    public int baseLine() {
         return 0;
     }
 }

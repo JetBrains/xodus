@@ -1,7 +1,7 @@
 package jetbrains.exodus.tree.ibtree;
 
-import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import jetbrains.exodus.ByteBufferByteIterable;
 import jetbrains.exodus.ByteBufferComparator;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
@@ -40,26 +40,36 @@ final class MutableInternalPage implements MutablePage {
     final Log log;
 
     final int pageSize;
+    final int maxKeySize;
     final int pageOffset;
 
-    final ByteBuffer firstKey;
+    ByteBufferHolder firstKey;
+
+    final long pageAddress;
 
     boolean unbalanced;
 
+    long cachedTreeSize = -1;
 
     MutableInternalPage(@Nullable ImmutableInternalPage underlying,
                         @NotNull ExpiredLoggableCollection expiredLoggables, @NotNull Log log,
                         int pageSize, int pageOffset,
                         @Nullable MutableInternalPage parent) {
+        if (underlying != null) {
+            pageAddress = underlying.pageAddress;
+        } else {
+            pageAddress = -1;
+        }
+
         this.expiredLoggables = expiredLoggables;
         this.log = log;
         this.pageSize = pageSize;
         this.parent = parent;
         this.pageOffset = pageOffset;
         this.underlying = underlying;
+        this.maxKeySize = pageSize / 4;
 
         keyView = new KeyView();
-        firstKey = keyView.get(0);
     }
 
     @Override
@@ -80,7 +90,9 @@ final class MutableInternalPage implements MutablePage {
 
         assert changedEntries != null;
 
-        changedEntries.remove(index);
+        var entry = changedEntries.remove(index);
+        entry.key.addExpiredLoggable(expiredLoggables);
+
         unbalanced = true;
     }
 
@@ -94,92 +106,148 @@ final class MutableInternalPage implements MutablePage {
     public long save(int structureId) {
         if (changedEntries == null) {
             assert underlying != null;
-            return underlying.pageIndex;
-        }
-
-        final LongArrayList childIndexes = new LongArrayList(changedEntries.size());
-        for (var entry : changedEntries) {
-            long childIndex = entry.mutablePage.save(structureId);
-            childIndexes.add(childIndex);
+            return underlying.pageAddress;
         }
 
         var newBuffer = LogUtil.allocatePage(pageSize);
         var buffer = newBuffer.slice(pageOffset, pageSize - pageOffset).
                 order(ByteOrder.nativeOrder());
 
-        assert buffer.alignmentOffset(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET, Integer.BYTES) == 0;
+        assert buffer.alignmentOffset(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET + Long.BYTES, Integer.BYTES) == 0;
         buffer.putInt(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET, 0);
 
-        assert buffer.alignmentOffset(ImmutableBasePage.ENTRIES_COUNT_OFFSET, Integer.BYTES) == 0;
+        assert buffer.alignmentOffset(ImmutableBasePage.ENTRIES_COUNT_OFFSET + Long.BYTES, Integer.BYTES) == 0;
         buffer.putInt(ImmutableBasePage.ENTRIES_COUNT_OFFSET, changedEntries.size());
 
-        int childIndexesOffset = ImmutableInternalPage.KEYS_OFFSET +
-                ImmutableInternalPage.KEY_ENTRY_SIZE * changedEntries.size();
+        int keyPositionsOffset = ImmutableBasePage.KEYS_OFFSET + Long.BYTES;
+        int childAddressesOffset = keyPositionsOffset + Long.BYTES * changedEntries.size();
+        int subTreeSizeOffset = childAddressesOffset + Long.BYTES * changedEntries.size();
+        int embeddedKeysOffset = subTreeSizeOffset + Integer.BYTES * changedEntries.size();
 
-        for (int i = 0; i < childIndexes.size(); i++) {
-            var childIndex = childIndexes.getLong(i);
-            assert buffer.alignmentOffset(childIndexesOffset, Long.BYTES) == 0;
-
-            buffer.putLong(childIndexesOffset, childIndex);
-
-            childIndexesOffset += ImmutableInternalPage.CHILD_INDEX_SIZE;
-        }
-
-        int subTreeEntitiesCountIndexOffset = ImmutableInternalPage.KEYS_OFFSET +
-                (ImmutableInternalPage.KEY_ENTRY_SIZE + ImmutableInternalPage.CHILD_INDEX_SIZE) *
-                        changedEntries.size();
-        for (Entry changedEntry : changedEntries) {
-            var childCount = changedEntry.entriesCount;
-
-            assert buffer.alignmentOffset(subTreeEntitiesCountIndexOffset, Integer.BYTES) == 0;
-            buffer.putInt(subTreeEntitiesCountIndexOffset, childCount);
-            subTreeEntitiesCountIndexOffset += ImmutableInternalPage.SUBTREE_ENTITIES_COUNT_SIZE;
-        }
-
-        int keyOffset = ImmutableInternalPage.KEYS_OFFSET +
-                (ImmutableInternalPage.KEY_ENTRY_SIZE + ImmutableInternalPage.SUBTREE_ENTITIES_COUNT_SIZE +
-                        ImmutableInternalPage.SUBTREE_ENTITIES_COUNT_SIZE) * changedEntries.size();
-
-        int keyPositionSizeOffset = ImmutableInternalPage.KEYS_OFFSET;
-
-        final int startKeyOffset = keyOffset;
-        int size = pageOffset + keyOffset;
-
+        int treeSize = 0;
         for (var entry : changedEntries) {
-            assert buffer.alignmentOffset(keyPositionSizeOffset, Integer.BYTES) == 0;
-            buffer.putInt(keyOffset, keyOffset);
-            keyPositionSizeOffset += ImmutableInternalPage.KEY_POSITION_SIZE;
+            var child = entry.mutablePage;
+            //we need to save child first to cache tree size, otherwise it could impact big performance
+            //overhead during save of the data
+            var childAddress = child.save(structureId);
 
-            final int keySize = entry.key.limit();
+            long subTreeSize = child.treeSize();
+            treeSize += subTreeSize;
 
-            assert buffer.alignmentOffset(keyPositionSizeOffset, Integer.BYTES) == 0;
-            buffer.putInt(keyPositionSizeOffset, keySize);
+            var key = entry.key;
+            var keyAddress = key.getAddress();
 
-            keyPositionSizeOffset += ImmutableInternalPage.KEY_SIZE_SIZE;
+            if (keyAddress == 0) {
+                var keyBuffer = key.getByteBuffer();
+                if (keyBuffer.limit() <= maxKeySize) {
+                    keyAddress = ((long) keyBuffer.limit() << Integer.SIZE) | embeddedKeysOffset;
+                    buffer.put(embeddedKeysOffset, keyBuffer, 0, keyBuffer.limit());
+                    embeddedKeysOffset += keyBuffer.limit();
+                } else {
+                    keyAddress = -log.write(BTreeBase.VALUE, structureId, new ByteBufferByteIterable(keyBuffer));
+                }
+            }
 
-            buffer.put(keyOffset, entry.key, 0, keySize);
-            keyOffset += keySize;
+            assert buffer.alignmentOffset(keyPositionsOffset, Long.BYTES) == 0;
+            buffer.putLong(keyPositionsOffset, keyAddress);
+            keyPositionsOffset += Long.BYTES;
+
+            assert buffer.alignmentOffset(childAddressesOffset, Long.BYTES) == 0;
+            buffer.putLong(childAddressesOffset, childAddress);
+            childAddressesOffset += Long.BYTES;
+
+            assert buffer.alignmentOffset(subTreeSizeOffset, Integer.BYTES) == 0;
+            buffer.putInt(subTreeSizeOffset, (int) subTreeSize);
+            subTreeSizeOffset += Integer.BYTES;
         }
 
-        size += (keyOffset - startKeyOffset);
+        assert buffer.alignmentOffset(0, Long.BYTES) == 0;
+        buffer.putLong(0, treeSize);
 
-        final int pages;
-        if (size + pageOffset <= pageSize) {
-            pages = 1;
-        } else {
-            pages = (((size - (pageSize - pageOffset)) + pageSize - 1) / pageSize) + 1;
-        }
-
-        assert buffer.alignmentOffset(ImmutableInternalPage.PAGES_COUNT_OFFSET, Short.BYTES) == 0;
-        buffer.putShort(ImmutableInternalPage.PAGES_COUNT_OFFSET, (short) pages);
+        cachedTreeSize = treeSize;
 
         return log.writeNewPage(newBuffer);
     }
 
     @Override
-    public void rebalance() {
+    public MutablePage rebalance() {
+        if (changedEntries == null) {
+            return null;
+        }
 
+        //re-balance children first, so if tree completely empty it will be collapsed
+        for (var entry : changedEntries) {
+            var newRoot = entry.mutablePage.rebalance();
+            //only root can promote another root
+            assert newRoot == null;
+        }
+
+        if (!unbalanced) {
+            return null;
+        }
+
+        assert changedEntries != null;
+
+        var threshold = pageSize / 4;
+        // Ignore if node is above threshold (25%) and has enough keys.
+        if (threshold < serializedSize() || changedEntries.size() < 2) {
+            // Root node has special handling.
+            if (parent == null) {
+                // If root node only has one node then collapse it.
+                if (changedEntries.size() == 1) {
+                    //page is already marked as expired by call of the fetch method
+                    //so we merely need to inform the tree that root is changed
+                    return changedEntries.get(0).mutablePage;
+                }
+
+                return null;
+            }
+
+            // If node has no keys then just remove it.
+            if (changedEntries.isEmpty()) {
+                int index = parent.find(firstKey.getByteBuffer());
+                parent.delete(index);
+                return null;
+            }
+
+            assert parent.numChildren() > 1 : "parent must have at least 2 children";
+
+            // Destination node is right sibling if idx == 0, otherwise left sibling.
+            // If both this node and the target node are too small then merge them.
+            var parentIndex = parent.find(firstKey.getByteBuffer());
+            if (parentIndex == 0) {
+                var nextSibling = (MutableInternalPage) parent.child(1);
+                nextSibling.fetch();
+
+                changedEntries.addAll(nextSibling.changedEntries);
+                parent.delete(1);
+            } else {
+                var prevSibling = (MutableInternalPage) parent.child(parentIndex - 1);
+                prevSibling.fetch();
+
+                assert prevSibling.changedEntries != null;
+
+                prevSibling.changedEntries.addAll(changedEntries);
+                parent.delete(parentIndex);
+            }
+        }
+
+        return null;
     }
+
+    private int serializedSize() {
+        assert changedEntries != null;
+
+        int size = pageOffset + ImmutableLeafPage.KEYS_OFFSET +
+                (2 * Long.BYTES + Integer.BYTES) * changedEntries.size();
+
+        for (Entry entry : changedEntries) {
+            size += entry.key.embeddedSize();
+        }
+
+        return size;
+    }
+
 
     @Override
     public void spill() {
@@ -213,15 +281,10 @@ final class MutableInternalPage implements MutablePage {
 
             page = new MutableInternalPage(null, expiredLoggables, log, pageSize, 16,
                     parent);
+            page.changedEntries = nextSiblingEntries;
+            page.firstKey = nextSiblingEntries.get(0).key;
 
-            //recursively sum entries of sub-tree
-            int totalEntries = changedEntries.size();
-
-            for (var entry : changedEntries) {
-                totalEntries += entry.entriesCount;
-            }
-
-            parent.addChild(page.firstKey, totalEntries, page);
+            parent.addChild(page.firstKey, page);
             parent.sortBeforeInternalSpill = true;
         }
 
@@ -241,19 +304,16 @@ final class MutableInternalPage implements MutablePage {
         var secondEntry = changedEntries.get(1);
 
 
-        int size = pageOffset + ImmutableInternalPage.KEYS_OFFSET + 2 * (ImmutableInternalPage.KEY_ENTRY_SIZE +
-                ImmutableInternalPage.CHILD_INDEX_SIZE + ImmutableInternalPage.SUBTREE_ENTITIES_COUNT_SIZE);
+        int size = pageOffset + ImmutableInternalPage.KEYS_OFFSET + 2 * (2 * Long.BYTES + Integer.BYTES);
 
-        size += firstEntry.key.limit();
-        size += secondEntry.key.limit();
+        size += firstEntry.key.embeddedSize();
+        size += secondEntry.key.embeddedSize();
 
         int indexSplitAt = 1;
 
         for (int i = 2; i < changedEntries.size(); i++) {
-            size += ImmutableInternalPage.KEY_ENTRY_SIZE +
-                    ImmutableInternalPage.CHILD_INDEX_SIZE + ImmutableInternalPage.SUBTREE_ENTITIES_COUNT_SIZE;
             var entry = changedEntries.get(0);
-            size += entry.key.limit();
+            size += 2 * Long.BYTES + Integer.BYTES + entry.key.embeddedSize();
 
             if (size > pageSize) {
                 break;
@@ -274,12 +334,12 @@ final class MutableInternalPage implements MutablePage {
         return result;
     }
 
-    void addChild(ByteBuffer key, int entriesCount, MutablePage page) {
+    void addChild(ByteBufferHolder key, MutablePage page) {
         fetch();
 
         assert changedEntries != null;
 
-        changedEntries.add(new Entry(key, page, entriesCount));
+        changedEntries.add(new Entry(key, page));
     }
 
     private void fetch() {
@@ -287,21 +347,27 @@ final class MutableInternalPage implements MutablePage {
             return;
         }
 
-        expiredLoggables.add(underlying.pageIndex * pageSize,
-                underlying.getPagesCount() * pageSize);
+        expiredLoggables.add(pageAddress, pageSize);
 
         final int size = underlying.getEntriesCount();
         changedEntries = new ObjectArrayList<>(size);
 
         for (int i = 0; i < size; i++) {
-            final ByteBuffer key = underlying.getKeyUnsafe(i);
-            final long childIndex = underlying.getChildIndex(i);
-            final int entriesCount = underlying.getSubTreeEntitiesCount(i);
+            var keyAddress = underlying.getKeyAddress(i);
 
-            var child = new ImmutableInternalPage(log, pageSize, childIndex, 16);
-            changedEntries.add(new Entry(key, new MutableInternalPage(child, expiredLoggables, log,
-                    pageSize, 16, parent), entriesCount));
+            ByteBufferHolder keyHolder;
+            if (keyAddress > 0) {
+                var keyBuffer = underlying.getEmbeddedKey(keyAddress);
+                keyHolder = new LoadedByteBufferHolder(keyBuffer, maxKeySize);
+            } else {
+                keyHolder = new LazyByteBufferHolder(log, -keyAddress);
+            }
 
+            var childAddress = underlying.getChildAddress(i);
+            var child = new ImmutableInternalPage(log, pageSize, childAddress, 16);
+
+            changedEntries.add(new Entry(keyHolder, new MutableInternalPage(child, expiredLoggables, log,
+                    pageSize, 16, parent)));
         }
     }
 
@@ -309,20 +375,38 @@ final class MutableInternalPage implements MutablePage {
         return keyView.size();
     }
 
-    static final class Entry implements Comparable<Entry> {
-        ByteBuffer key;
-        MutablePage mutablePage;
-        int entriesCount;
+    @Override
+    public long treeSize() {
+        if (underlying != null) {
+            return underlying.getTreeSize();
+        }
 
-        public Entry(ByteBuffer key, MutablePage mutablePage, int entriesCount) {
+        assert changedEntries != null;
+
+        if (cachedTreeSize >= 0) {
+            return cachedTreeSize;
+        }
+
+        int treeSize = 0;
+        for (var entry : changedEntries) {
+            treeSize += entry.mutablePage.treeSize();
+        }
+
+        return treeSize;
+    }
+
+    static final class Entry implements Comparable<Entry> {
+        ByteBufferHolder key;
+        MutablePage mutablePage;
+
+        public Entry(ByteBufferHolder key, MutablePage mutablePage) {
             this.key = key;
             this.mutablePage = mutablePage;
-            this.entriesCount = entriesCount;
         }
 
         @Override
         public int compareTo(@NotNull MutableInternalPage.Entry entry) {
-            return ByteBufferComparator.INSTANCE.compare(key, entry.key);
+            return ByteBufferComparator.INSTANCE.compare(key.getByteBuffer(), entry.key.getByteBuffer());
         }
     }
 
@@ -330,7 +414,7 @@ final class MutableInternalPage implements MutablePage {
         @Override
         public ByteBuffer get(int index) {
             if (changedEntries != null) {
-                return changedEntries.get(index).key;
+                return changedEntries.get(index).key.getByteBuffer();
             }
 
             assert underlying != null;

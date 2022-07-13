@@ -17,6 +17,8 @@ package jetbrains.exodus;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.nio.ByteBuffer;
+
 /**
  * If working with {@link jetbrains.exodus.env.Environment}, any key and value should be a ByteIterable.
  * ByteIterable is a mix of iterable and array. It allows to lazily enumerate bytes without boxing.
@@ -48,6 +50,13 @@ public interface ByteIterable extends Comparable<ByteIterable> {
         }
 
         return bytes;
+    }
+
+    default ByteBuffer getByteBuffer() {
+        var data = getBytesUnsafe();
+        var len = getLength();
+
+        return ByteBuffer.wrap(data, 0, len);
     }
 
     /**

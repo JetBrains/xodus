@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -167,8 +167,8 @@ public class ReadWriteTransaction extends TransactionBase {
         final EnvironmentImpl env = getEnvironment();
         final String storeName = getMetaTree().getStoreNameByStructureId(structureId, env);
         return storeName == null ?
-            new TemporaryEmptyStore(env) :
-            env.openStoreImpl(storeName, StoreConfig.USE_EXISTING, this, getTreeMetaInfo(storeName));
+                new TemporaryEmptyStore(env) :
+                env.openStoreImpl(storeName, StoreConfig.USE_EXISTING, this, getTreeMetaInfo(storeName));
     }
 
     @NotNull
@@ -245,13 +245,13 @@ public class ReadWriteTransaction extends TransactionBase {
         createdStores.clear();
         for (final Map.Entry<Integer, ITreeMutable> entry : entries) {
             final ITreeMutable treeMutable = entry.getValue();
-            expiredLoggables = expiredLoggables.mergeWith(treeMutable.getExpiredLoggables().trimToSize());
             MetaTreeImpl.saveTree(metaTreeMutable, treeMutable);
+            expiredLoggables = expiredLoggables.mergeWith(treeMutable.getExpiredLoggables().trimToSize());
         }
         clearImmutableTrees();
         mutableTrees.clear();
-        expiredLoggables = expiredLoggables.mergeWith(metaTreeMutable.getExpiredLoggables().trimToSize());
         out[0] = MetaTreeImpl.saveMetaTree(metaTreeMutable, getEnvironment(), expiredLoggables);
+        expiredLoggables = expiredLoggables.mergeWith(metaTreeMutable.getExpiredLoggables().trimToSize());
         return expiredLoggables;
     }
 

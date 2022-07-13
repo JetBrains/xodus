@@ -131,7 +131,7 @@ public class OptimizationPlan {
      */
     @SuppressWarnings("ObjectAllocationInLoop")
     public void add(NodeBase source, NodeBase dest) {
-        // amount of commutative nodes
+        // treeSize of commutative nodes
         int n = 0;
         for (NodeBase node : source.getDescendants()) {
             if (node instanceof CommutativeOperator) {

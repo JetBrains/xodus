@@ -1,6 +1,7 @@
 package jetbrains.exodus.tree.ibtree;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import jetbrains.exodus.ByteBufferByteIterable;
 import jetbrains.exodus.ByteBufferComparator;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
@@ -31,20 +32,30 @@ final class MutableLeafPage implements MutablePage {
     final int pageSize;
     final int pageOffset;
 
+    final int maxKeySize;
+
     @Nullable
     MutableInternalPage parent;
     @NotNull
     final ExpiredLoggableCollection expiredLoggables;
 
+    final long pageAddress;
+
     boolean unbalanced;
 
-    ByteBuffer firstKey;
+    ByteBufferHolder firstKey;
 
     MutableLeafPage(@Nullable ImmutableLeafPage underlying, @NotNull Log log, int pageSize,
                     final int pageOffset,
                     @NotNull ExpiredLoggableCollection expiredLoggables,
                     @Nullable MutableInternalPage parent) {
         this.underlying = underlying;
+        if (underlying != null) {
+            this.pageAddress = underlying.pageAddress;
+        } else {
+            this.pageAddress = -1;
+        }
+
         this.log = log;
         this.pageSize = pageSize;
         this.parent = parent;
@@ -54,8 +65,7 @@ final class MutableLeafPage implements MutablePage {
         keyView = new KeyView();
         valueView = new ValueView();
 
-        //page should contain at least single key
-        firstKey = keyView.get(0);
+        maxKeySize = pageSize / 4;
     }
 
     @Override
@@ -76,21 +86,33 @@ final class MutableLeafPage implements MutablePage {
         fetch();
 
         assert changedEntries != null;
-        changedEntries.set(index, new Entry(key, value));
+        var entry = changedEntries.get(index);
+
+        if (entry != null) {
+            entry.key.addExpiredLoggable(expiredLoggables);
+            entry.value.addExpiredLoggable(expiredLoggables);
+        }
+
+        changedEntries.set(index, new Entry(new LoadedByteBufferHolder(key, maxKeySize),
+                new LoadedByteBufferHolder(value, Integer.MAX_VALUE)));
     }
 
     void append(ByteBuffer key, ByteBuffer value) {
         fetch();
 
         assert changedEntries != null;
-        changedEntries.add(new Entry(key, value));
+        changedEntries.add(new Entry(new LoadedByteBufferHolder(key, maxKeySize),
+                new LoadedByteBufferHolder(value, Integer.MAX_VALUE)));
     }
 
     void delete(int index) {
         fetch();
 
         assert changedEntries != null;
-        changedEntries.remove(index);
+        var entry = changedEntries.remove(index);
+
+        entry.key.addExpiredLoggable(expiredLoggables);
+        entry.value.addExpiredLoggable(expiredLoggables);
 
         unbalanced = true;
     }
@@ -99,7 +121,7 @@ final class MutableLeafPage implements MutablePage {
     public long save(int structureId) {
         if (changedEntries == null) {
             assert underlying != null;
-            return underlying.pageIndex;
+            return underlying.pageAddress;
         }
 
         var newBuffer = LogUtil.allocatePage(pageSize);
@@ -112,60 +134,48 @@ final class MutableLeafPage implements MutablePage {
         assert buffer.alignmentOffset(ImmutableBasePage.ENTRIES_COUNT_OFFSET, Integer.BYTES) == 0;
         buffer.putInt(ImmutableBasePage.ENTRIES_COUNT_OFFSET, changedEntries.size());
 
-        int keyValueEntryOffset = ImmutableLeafPage.KEYS_OFFSET +
-                (ImmutableLeafPage.KEY_ENTRY_SIZE + ImmutableLeafPage.VALUE_ENTRY_SIZE) * changedEntries.size();
-
-        int keyPositionSizeOffset = ImmutableLeafPage.KEYS_OFFSET;
-        int valuePositionSizeOffset = keyPositionSizeOffset +
-                changedEntries.size() * ImmutableLeafPage.KEY_ENTRY_SIZE;
-
-        final int startEntryOffset = keyValueEntryOffset;
-        int size = pageOffset + keyValueEntryOffset;
+        int keyDataOffset = ImmutableBasePage.KEYS_OFFSET + changedEntries.size() * 2 * Long.BYTES;
+        int keysOffset = ImmutableBasePage.KEYS_OFFSET;
+        int valueAddressesOffset = ImmutableBasePage.KEYS_OFFSET + Long.BYTES * changedEntries.size();
 
         for (var entry : changedEntries) {
-            assert buffer.alignmentOffset(keyPositionSizeOffset, Integer.BYTES) == 0;
-            buffer.putInt(keyPositionSizeOffset, keyValueEntryOffset);
-            keyPositionSizeOffset += ImmutableLeafPage.KEY_POSITION_SIZE;
+            var key = entry.key;
+            var value = entry.value;
 
-            assert buffer.alignmentOffset(keyPositionSizeOffset, Integer.BYTES) == 0;
+            var keyAddress = key.getAddress();
+            if (keyAddress == 0) {
+                var keyBuffer = key.getByteBuffer();
 
-            final int keySize = entry.key.limit();
-            buffer.putInt(keyPositionSizeOffset, keySize);
-            keyPositionSizeOffset += ImmutableLeafPage.KEY_SIZE_SIZE;
+                if (keyBuffer.limit() <= maxKeySize) {
+                    keyAddress = ((long) keyBuffer.limit() << Integer.SIZE) | keyDataOffset;
+                    buffer.put(keyDataOffset, keyBuffer, 0, keyBuffer.limit());
+                    keyDataOffset += keyBuffer.limit();
+                } else {
+                    keyAddress -= log.write(BTreeBase.KEY, structureId, new ByteBufferByteIterable(keyBuffer));
+                }
+            }
 
-            buffer.put(keyValueEntryOffset, entry.key, 0, keySize);
-            keyValueEntryOffset += keySize;
+            assert buffer.alignmentOffset(keysOffset, Long.BYTES) == 0;
+            buffer.putLong(keysOffset, keyAddress);
+            keysOffset += Long.BYTES;
 
-            assert buffer.alignmentOffset(valuePositionSizeOffset, Integer.BYTES) == 0;
-            buffer.putInt(valuePositionSizeOffset, keyValueEntryOffset);
-            valuePositionSizeOffset += ImmutableLeafPage.VALUE_POSITION_SIZE;
+            var valueAddress = value.getAddress();
+            if (valueAddress == 0) {
+                var valueByteBuffer = value.getByteBuffer();
+                valueAddress = log.write(BTreeBase.VALUE, structureId, new ByteBufferByteIterable(valueByteBuffer));
+            }
 
-            assert buffer.alignmentOffset(valuePositionSizeOffset, Integer.BYTES) == 0;
-            final int valueSize = entry.value.limit();
-            buffer.putInt(valuePositionSizeOffset, valueSize);
-            valuePositionSizeOffset += ImmutableLeafPage.VALUE_SIZE_SIZE;
+            assert buffer.alignmentOffset(valueAddressesOffset, Long.BYTES) == 0;
 
-            buffer.put(keyValueEntryOffset, entry.value, 0, valueSize);
-            keyValueEntryOffset += valueSize;
+            buffer.putLong(valueAddressesOffset, valueAddress);
+            valueAddressesOffset += Long.BYTES;
         }
-
-        size += (keyValueEntryOffset - startEntryOffset);
-        final int pages;
-
-        if (size + pageOffset <= pageSize) {
-            pages = 1;
-        } else {
-            pages = (((size - (pageSize - pageOffset)) + pageSize - 1) / pageSize) + 1;
-        }
-
-        assert buffer.alignmentOffset(ImmutableLeafPage.PAGES_COUNT_OFFSET, Short.BYTES) == 0;
-        buffer.putShort(ImmutableLeafPage.PAGES_COUNT_OFFSET, (short) pages);
 
         return log.writeNewPage(newBuffer);
     }
 
     @Override
-    public void rebalance() {
+    public MutablePage rebalance() {
         if (unbalanced) {
             unbalanced = false;
 
@@ -173,28 +183,27 @@ final class MutableLeafPage implements MutablePage {
 
             assert changedEntries != null;
 
-            // Ignore if node is above threshold (25%)
-            if (serializedSize() < threshold) {
+            // Ignore if node is above threshold (25%) and contains at
+            if (serializedSize() < threshold || changedEntries.isEmpty()) {
                 // Root node has special handling.
                 if (parent == null) {
-                    return;
+                    return null;
                 }
 
                 // If node has no keys then just remove it.
                 if (changedEntries.isEmpty()) {
-                    final int childIndex = parent.find(firstKey);
+                    final int childIndex = parent.find(firstKey.getByteBuffer());
                     assert childIndex >= 0;
 
                     parent.delete(childIndex);
-                    parent.rebalance();
-                    return;
+                    return null;
                 }
 
                 assert parent.numChildren() > 1 : "parent must have at least 2 children";
 
                 // Destination node is right sibling if idx == 0, otherwise left sibling.
                 // If both this node and the target node are too small then merge them.
-                var parentIndex = parent.find(firstKey);
+                var parentIndex = parent.find(firstKey.getByteBuffer());
                 if (parentIndex == 0) {
                     var nextSibling = (MutableLeafPage) parent.child(1);
                     nextSibling.fetch();
@@ -210,22 +219,19 @@ final class MutableLeafPage implements MutablePage {
                     prevSibling.changedEntries.addAll(changedEntries);
                     parent.delete(parentIndex);
                 }
-
-                parent.rebalance();
             }
         }
+
+        return null;
     }
 
     private int serializedSize() {
         assert changedEntries != null;
 
-        int size = pageOffset +
-                ImmutableLeafPage.KEYS_OFFSET +
-                (ImmutableLeafPage.KEY_ENTRY_SIZE + ImmutableLeafPage.VALUE_ENTRY_SIZE) * changedEntries.size();
+        int size = pageOffset + ImmutableLeafPage.KEYS_OFFSET + 2 * Long.BYTES * changedEntries.size();
 
         for (Entry entry : changedEntries) {
-            size += entry.key.remaining();
-            size += entry.value.remaining();
+            size += entry.key.embeddedSize();
         }
 
         return size;
@@ -255,7 +261,10 @@ final class MutableLeafPage implements MutablePage {
             page = new MutableLeafPage(null, log, pageSize, 16,
                     expiredLoggables, parent);
 
-            parent.addChild(page.firstKey, nextSiblingEntries.size(), page);
+            page.changedEntries = nextSiblingEntries;
+            page.firstKey = nextSiblingEntries.get(0).key;
+
+            parent.addChild(page.firstKey, page);
             parent.sortBeforeInternalSpill = true;
         }
 
@@ -273,16 +282,15 @@ final class MutableLeafPage implements MutablePage {
         }
 
         var firstEntry = changedEntries.get(0);
-        int size = pageOffset + ImmutableLeafPage.KEYS_OFFSET + ImmutableLeafPage.KEY_ENTRY_SIZE +
-                ImmutableLeafPage.VALUE_ENTRY_SIZE + firstEntry.key.limit() + firstEntry.value.limit();
+        int size = pageOffset + ImmutableLeafPage.KEYS_OFFSET + 2 * Long.BYTES + firstEntry.key.embeddedSize();
 
         int indexToSplit = 0;
+
 
         for (int i = 1; i < changedEntries.size(); i++) {
             var entry = changedEntries.get(i);
 
-            size += entry.key.limit() + entry.value.limit() + ImmutableLeafPage.KEY_ENTRY_SIZE +
-                    ImmutableLeafPage.VALUE_ENTRY_SIZE;
+            size += 2 * Long.BYTES + entry.key.embeddedSize();
             if (size > pageSize) {
                 break;
             }
@@ -308,17 +316,24 @@ final class MutableLeafPage implements MutablePage {
             return;
         }
 
-        expiredLoggables.add(underlying.pageIndex * pageSize,
-                Short.toUnsignedInt(underlying.getPagesCount()) * pageSize);
+        expiredLoggables.add(pageAddress, pageSize);
 
         final int size = underlying.getEntriesCount();
         changedEntries = new ObjectArrayList<>(size);
 
         for (int i = 0; i < size; i++) {
-            final ByteBuffer key = underlying.getKeyUnsafe(i);
-            final ByteBuffer value = underlying.getValueUnsafe(i);
+            var keyAddress = underlying.getKeyAddress(i);
+            ByteBufferHolder keyHolder;
 
-            changedEntries.add(new Entry(key, value));
+            if (keyAddress < 0) {
+                keyHolder = new LazyByteBufferHolder(log, -keyAddress);
+            } else {
+                var key = underlying.getEmbeddedKey(keyAddress);
+                keyHolder = new LoadedByteBufferHolder(key, maxKeySize);
+            }
+
+            var valueHolder = new LazyByteBufferHolder(log, underlying.getChildAddress(i));
+            changedEntries.add(new Entry(keyHolder, valueHolder));
         }
 
         firstKey = changedEntries.get(0).key;
@@ -327,18 +342,23 @@ final class MutableLeafPage implements MutablePage {
         underlying = null;
     }
 
-    private static final class Entry implements Comparable<Entry> {
-        ByteBuffer key;
-        ByteBuffer value;
+    @Override
+    public long treeSize() {
+        return keyView.size();
+    }
 
-        Entry(ByteBuffer key, ByteBuffer value) {
+    private static final class Entry implements Comparable<Entry> {
+        ByteBufferHolder key;
+        ByteBufferHolder value;
+
+        Entry(ByteBufferHolder key, ByteBufferHolder value) {
             this.key = key;
             this.value = value;
         }
 
         @Override
         public int compareTo(@NotNull MutableLeafPage.Entry entry) {
-            return ByteBufferComparator.INSTANCE.compare(key, entry.key);
+            return ByteBufferComparator.INSTANCE.compare(key.getByteBuffer(), entry.key.getByteBuffer());
         }
     }
 
@@ -346,11 +366,11 @@ final class MutableLeafPage implements MutablePage {
         @Override
         public ByteBuffer get(int i) {
             if (changedEntries != null) {
-                return changedEntries.get(i).value;
+                return changedEntries.get(i).value.getByteBuffer();
             }
 
             assert underlying != null;
-            return underlying.value(i);
+            return underlying.getValue(i);
         }
 
         @Override
@@ -368,7 +388,7 @@ final class MutableLeafPage implements MutablePage {
         @Override
         public ByteBuffer get(int i) {
             if (changedEntries != null) {
-                return changedEntries.get(i).key;
+                return changedEntries.get(i).key.getByteBuffer();
             }
 
             assert underlying != null;
