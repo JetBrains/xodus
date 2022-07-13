@@ -464,7 +464,7 @@ class Log(val config: LogConfig) : Closeable {
         return read(readIteratorFrom(address), address)
     }
 
-    fun readPage(pageAddress: Long): ByteBuffer {
+    fun readLoggableAsPage(pageAddress: Long): ByteBuffer {
         if(pageAddress.and(cachePageSize.toLong() - 1) != 0) {
             throw IllegalStateException()
         }

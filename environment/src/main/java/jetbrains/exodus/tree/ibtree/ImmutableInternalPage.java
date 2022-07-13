@@ -30,10 +30,10 @@ final class ImmutableInternalPage extends ImmutableBasePage {
     @NotNull
     final ByteBuffer currentPage;
 
-    ImmutableInternalPage(Log log, int pageSize, long pageAddress, int pageOffset) {
-        super(log, pageSize, pageAddress, pageOffset + Long.BYTES);
+    ImmutableInternalPage(@NotNull Log log, @NotNull ByteBuffer page, long pageAddress) {
+        super(log, page.slice(Long.BYTES, page.limit() - Long.BYTES), pageAddress);
 
-        currentPage = loadedPage.slice(pageOffset, pageSize - pageOffset);
+        currentPage = page;
         assert currentPage.alignmentOffset(0, Long.BYTES) == 0;
     }
 

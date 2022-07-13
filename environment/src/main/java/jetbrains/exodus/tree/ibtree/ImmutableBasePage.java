@@ -1,7 +1,6 @@
 package jetbrains.exodus.tree.ibtree;
 
 import jetbrains.exodus.ByteBufferComparator;
-import jetbrains.exodus.ByteBufferIterable;
 import jetbrains.exodus.log.Log;
 import org.jetbrains.annotations.NotNull;
 
@@ -48,30 +47,19 @@ abstract class ImmutableBasePage {
 
     @NotNull
     final Log log;
-
-    @NotNull
-    final ByteBuffer loadedPage;
+    final long pageAddress;
 
     @NotNull
     final ByteBuffer page;
-    final long pageAddress;
 
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     @NotNull
     final List<ByteBuffer> keyView;
 
-    protected ImmutableBasePage(Log log, int pageSize, long pageAddress, int pageOffset) {
+    protected ImmutableBasePage(@NotNull final Log log, @NotNull final ByteBuffer page, long pageAddress) {
         this.log = log;
         this.pageAddress = pageAddress;
-
-        loadedPage = log.readPage(pageAddress);
-        assert loadedPage.limit() == pageSize;
-
-        if (pageOffset > 0) {
-            page = loadedPage.slice(pageOffset, pageSize - pageOffset).order(ByteOrder.nativeOrder());
-        } else {
-            page = loadedPage;
-        }
+        this.page = page;
 
         //ensure that allocated page aligned to ensure fastest memory access and stable offsets of the data
         assert page.alignmentOffset(0, Long.BYTES) == 0;
@@ -93,7 +81,7 @@ abstract class ImmutableBasePage {
 
         if (keyAddress < 0) {
             var keyLoggable = log.read(-keyAddress);
-            assert keyLoggable.getType() == BTreeBase.KEY;
+            assert keyLoggable.getType() == BTreeBase.KEY_NODE;
 
             var data = keyLoggable.getData();
             return data.getByteBuffer();
@@ -126,10 +114,6 @@ abstract class ImmutableBasePage {
 
     final ByteBuffer key(int index) {
         return keyView.get(index);
-    }
-
-    final ByteBuffer getKeyUnsafe(int index) {
-        return getKey(index);
     }
 
     private int getChildAddressPosition(int index) {
