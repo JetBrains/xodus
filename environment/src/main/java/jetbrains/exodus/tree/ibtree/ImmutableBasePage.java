@@ -23,7 +23,7 @@ import java.util.RandomAccess;
  *     key size is accordingly size of this key. To distinguish between those two meanings of the same value,
  *     key addresses always negative and their sign should be changed to load key.</li>
  *     <li> Array each entry of which contains either address of value of the entry if that is
- *     {@link  ImmutableLeafPage} or address of the child page if that is
+ *     {@link  ImmutableLeafPage} or address of the mutableChild page if that is
  *     {@link ImmutableInternalPage}</li>
  *     <li>Array of keys embedded into this page.</li>
  * </ol>
@@ -68,6 +68,8 @@ abstract class ImmutableBasePage {
         keyView = new KeyView();
     }
 
+    abstract long getTreeSize();
+
     final int find(ByteBuffer key) {
         return Collections.binarySearch(keyView, key, ByteBufferComparator.INSTANCE);
     }
@@ -81,7 +83,7 @@ abstract class ImmutableBasePage {
 
         if (keyAddress < 0) {
             var keyLoggable = log.read(-keyAddress);
-            assert keyLoggable.getType() == BTreeBase.KEY_NODE;
+            assert keyLoggable.getType() == ImmutableBTree.KEY_NODE;
 
             var data = keyLoggable.getData();
             return data.getByteBuffer();
@@ -101,9 +103,7 @@ abstract class ImmutableBasePage {
         final int keyAddressPosition = getKeyAddressPosition(index);
         assert page.alignmentOffset(keyAddressPosition, Long.BYTES) == 0;
 
-        final long keyAddress = page.getLong(keyAddressPosition);
-
-        return keyAddress;
+        return page.getLong(keyAddressPosition);
     }
 
     final int getEntriesCount() {

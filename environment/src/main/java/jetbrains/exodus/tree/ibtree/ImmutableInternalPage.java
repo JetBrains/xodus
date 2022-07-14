@@ -17,7 +17,7 @@ import java.nio.ByteBuffer;
  *     (key position, key size) where 'key position' is position of the key stored inside of this page,
  *     key size is accordingly size of this key. To distinguish between those two meanings of the same value,
  *     key addresses always negative and their sign should be changed to load key.</li>
- *     <li> Array each entry of which contains address of the child page.</li>
+ *     <li> Array each entry of which contains address of the mutableChild page.</li>
  *     <li>Array each entry of which contains treeSize of entries contained by subtree pointed related item of array
  *     described above.</li>
  *     <li>Array of keys embedded into this page.</li>
@@ -37,6 +37,7 @@ final class ImmutableInternalPage extends ImmutableBasePage {
         assert currentPage.alignmentOffset(0, Long.BYTES) == 0;
     }
 
+    @Override
     long getTreeSize() {
         assert currentPage.alignmentOffset(0, Long.BYTES) == 0;
         return page.getLong(0);

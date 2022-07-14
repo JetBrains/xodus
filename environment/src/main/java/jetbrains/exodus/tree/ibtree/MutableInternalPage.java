@@ -107,8 +107,8 @@ final class MutableInternalPage implements MutablePage {
         }
 
         var newBuffer = LogUtil.allocatePage(pageSize);
-        var buffer = newBuffer.slice(BTreeBase.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET,
-                        pageSize - BTreeBase.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET).
+        var buffer = newBuffer.slice(ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET,
+                        pageSize - ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET).
                 order(ByteOrder.nativeOrder());
 
         assert buffer.alignmentOffset(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET + Long.BYTES, Integer.BYTES) == 0;
@@ -125,7 +125,7 @@ final class MutableInternalPage implements MutablePage {
         int treeSize = 0;
         for (var entry : changedEntries) {
             var child = entry.mutablePage;
-            //we need to save child first to cache tree size, otherwise it could impact big performance
+            //we need to save mutableChild first to cache tree size, otherwise it could impact big performance
             //overhead during save of the data
             var childAddress = child.save(structureId);
 
@@ -142,7 +142,7 @@ final class MutableInternalPage implements MutablePage {
                     buffer.put(embeddedKeysOffset, keyBuffer, 0, keyBuffer.limit());
                     embeddedKeysOffset += keyBuffer.limit();
                 } else {
-                    keyAddress = -log.write(BTreeBase.VALUE_NODE, structureId, new ByteBufferByteIterable(keyBuffer));
+                    keyAddress = -log.write(ImmutableBTree.VALUE_NODE, structureId, new ByteBufferByteIterable(keyBuffer));
                 }
             }
 
@@ -236,7 +236,7 @@ final class MutableInternalPage implements MutablePage {
     private int serializedSize() {
         assert changedEntries != null;
 
-        int size = BTreeBase.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET + ImmutableLeafPage.KEYS_OFFSET +
+        int size = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET + ImmutableLeafPage.KEYS_OFFSET +
                 (2 * Long.BYTES + Integer.BYTES) * changedEntries.size();
 
         for (Entry entry : changedEntries) {
@@ -302,7 +302,7 @@ final class MutableInternalPage implements MutablePage {
         var secondEntry = changedEntries.get(1);
 
 
-        int size = BTreeBase.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET +
+        int size = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET +
                 ImmutableInternalPage.KEYS_OFFSET + 2 * (2 * Long.BYTES + Integer.BYTES);
 
         size += firstEntry.key.embeddedSize();
@@ -365,16 +365,16 @@ final class MutableInternalPage implements MutablePage {
             var childAddress = underlying.getChildAddress(i);
 
             var fullChildPage = log.readLoggableAsPage(childAddress);
-            var childPage = fullChildPage.slice(BTreeBase.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET,
-                    pageSize - BTreeBase.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET);
+            var childPage = fullChildPage.slice(ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET,
+                    pageSize - ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET);
             var type = fullChildPage.get(0);
 
             final MutablePage child;
 
-            if (type == BTreeBase.INTERNAL_PAGE) {
+            if (type == ImmutableBTree.INTERNAL_PAGE) {
                 var immutableChild = new ImmutableInternalPage(log, childPage, childAddress);
                 child = new MutableInternalPage(immutableChild, expiredLoggables, log, pageSize, this);
-            } else if (type == BTreeBase.LEAF_PAGE) {
+            } else if (type == ImmutableBTree.LEAF_PAGE) {
                 var immutableChild = new ImmutableLeafPage(log, childPage, childAddress);
                 child = new MutableLeafPage(immutableChild, log, pageSize, expiredLoggables, this);
             } else {

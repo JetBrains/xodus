@@ -24,13 +24,12 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @BenchmarkMode(Mode.AverageTime)
-public class JMHIntByteBufferVarHandle {
+public class JMHPutIntByteBufferVarHandle {
     private static final ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES).order(ByteOrder.nativeOrder());
 
     private static final VarHandle BUFFER_HANDLE = MethodHandles.byteBufferViewVarHandle(int[].class,
@@ -39,27 +38,30 @@ public class JMHIntByteBufferVarHandle {
     private static final byte[] array = new byte[Integer.BYTES];
     private static final VarHandle ARRAY_HANDLE = MethodHandles.byteArrayViewVarHandle(int[].class,
             ByteOrder.nativeOrder());
-    static {
-        ThreadLocalRandom.current().nextBytes(array);
-        buffer.put(0, array);
+
+    private int value;
+
+    @Benchmark
+    public void putBuffer() {
+        buffer.putInt(0, 42);
     }
 
     @Benchmark
-    public int getBuffer() {
-        return buffer.getInt(0);
+    public void putVarHandle() {
+        BUFFER_HANDLE.set(buffer, 0, 42);
     }
 
     @Benchmark
-    public int getVarHandle() {
-        return (int) BUFFER_HANDLE.get(buffer, 0);
-    }
-
-    public int getArrayVarHandle() {
-        return (int) ARRAY_HANDLE.get(array, 0);
+    public void putArrayVarHandle() {
+        ARRAY_HANDLE.set(array, 0, 42);
     }
 
     @Benchmark
-    public int baseLine() {
-        return 0;
+    public void baseLine() {
+    }
+
+    @Benchmark
+    public void setValue() {
+        this.value = 42;
     }
 }

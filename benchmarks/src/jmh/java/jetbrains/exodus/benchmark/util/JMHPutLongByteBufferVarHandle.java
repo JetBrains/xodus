@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @BenchmarkMode(Mode.AverageTime)
-public class JMHLongByteBufferVarHandle {
+public class JMHPutLongByteBufferVarHandle {
     private static final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES).order(ByteOrder.nativeOrder());
 
     private static final VarHandle BUFFER_HANDLE = MethodHandles.byteBufferViewVarHandle(long[].class,
@@ -40,28 +40,29 @@ public class JMHLongByteBufferVarHandle {
     private static final VarHandle ARRAY_HANDLE = MethodHandles.byteArrayViewVarHandle(long[].class,
             ByteOrder.nativeOrder());
 
-    static {
-        ThreadLocalRandom.current().nextBytes(array);
-        buffer.put(0, array);
-    }
-
+    private long value;
 
     @Benchmark
-    public long getBuffer() {
-        return buffer.getLong(0);
+    public void putBuffer() {
+        buffer.putLong(0, 42);
     }
 
     @Benchmark
-    public long getVarHandle() {
-        return (long) BUFFER_HANDLE.get(buffer, 0);
-    }
-
-    public long getArrayVarHandle() {
-        return (long) ARRAY_HANDLE.get(array, 0);
+    public void putVarHandle() {
+        BUFFER_HANDLE.set(buffer, 0, 42);
     }
 
     @Benchmark
-    public long baseLine() {
-        return 0;
+    public void putArrayVarHandle() {
+        ARRAY_HANDLE.set(array, 0, 42);
+    }
+
+    @Benchmark
+    public void baseLine() {
+    }
+
+    @Benchmark
+    public void setValue() {
+        this.value = 42;
     }
 }

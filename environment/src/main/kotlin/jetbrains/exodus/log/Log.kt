@@ -465,9 +465,6 @@ class Log(val config: LogConfig) : Closeable {
     }
 
     fun readLoggableAsPage(pageAddress: Long): ByteBuffer {
-        if(pageAddress.and(cachePageSize.toLong() - 1) != 0) {
-            throw IllegalStateException()
-        }
         return cache.getPage(this, pageAddress)
     }
 
@@ -1089,7 +1086,7 @@ class Log(val config: LogConfig) : Closeable {
         private fun writeByteIterable(writer: BufferedDataWriter, iterable: ByteIterable) {
             val length = iterable.length
             if (iterable is ByteBufferIterable) {
-                writer.write(iterable.byteBuffer, length)
+                writer.write((iterable as ByteBufferIterable).byteBuffer, length)
             } else if (iterable is ArrayByteIterable) {
                 val bytes = iterable.getBytesUnsafe()
                 if (length == 1) {

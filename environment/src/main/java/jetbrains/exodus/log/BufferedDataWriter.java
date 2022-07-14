@@ -27,7 +27,7 @@ import org.jetbrains.annotations.Nullable;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 
-public class BufferedDataWriter {
+public final class BufferedDataWriter {
 
     // immutable state
     @NotNull
