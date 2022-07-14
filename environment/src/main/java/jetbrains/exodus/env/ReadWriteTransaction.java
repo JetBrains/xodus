@@ -245,13 +245,13 @@ public class ReadWriteTransaction extends TransactionBase {
         createdStores.clear();
         for (final Map.Entry<Integer, ITreeMutable> entry : entries) {
             final ITreeMutable treeMutable = entry.getValue();
-            MetaTreeImpl.saveTree(metaTreeMutable, treeMutable);
             expiredLoggables = expiredLoggables.mergeWith(treeMutable.getExpiredLoggables().trimToSize());
+            MetaTreeImpl.saveTree(metaTreeMutable, treeMutable);
         }
         clearImmutableTrees();
         mutableTrees.clear();
-        out[0] = MetaTreeImpl.saveMetaTree(metaTreeMutable, getEnvironment(), expiredLoggables);
         expiredLoggables = expiredLoggables.mergeWith(metaTreeMutable.getExpiredLoggables().trimToSize());
+        out[0] = MetaTreeImpl.saveMetaTree(metaTreeMutable, getEnvironment(), expiredLoggables);
         return expiredLoggables;
     }
 
