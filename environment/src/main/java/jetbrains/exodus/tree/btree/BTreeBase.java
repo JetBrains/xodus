@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -115,8 +115,8 @@ public abstract class BTreeBase implements ITree {
     @Override
     public ITreeCursor openCursor() {
         return allowsDuplicates ?
-            new BTreeCursorDup(new BTreeTraverserDup(getRoot())) :
-            new TreeCursor(new BTreeTraverser(getRoot()));
+                new BTreeCursorDup(new BTreeTraverserDup(getRoot())) :
+                new TreeCursor(new BTreeTraverser(getRoot()));
     }
 
     protected final RandomAccessLoggable getLoggable(long address) {
@@ -203,12 +203,10 @@ public abstract class BTreeBase implements ITree {
         return getRoot().exists(key, value);
     }
 
-    @Override
     public void dump(PrintStream out) {
         getRoot().dump(out, 0, null);
     }
 
-    @Override
     public void dump(PrintStream out, INode.ToString renderer) {
         getRoot().dump(out, 0, renderer);
     }

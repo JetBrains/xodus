@@ -1,7 +1,6 @@
 package jetbrains.exodus.tree.ibtree;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayFIFOQueue;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import jetbrains.exodus.ByteBufferByteIterable;
 import jetbrains.exodus.ByteBufferIterable;
 import jetbrains.exodus.ByteIterable;
@@ -11,11 +10,10 @@ import jetbrains.exodus.tree.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-public class ImmutableBTree implements ITree {
+public final class ImmutableBTree implements ITree {
     static final int LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET = 2 * Long.BYTES;
 
     public static final byte INTERNAL_PAGE = 44;
@@ -30,9 +28,9 @@ public class ImmutableBTree implements ITree {
 
     final ImmutableBasePage root;
 
-    protected DataIterator dataIterator = null;
+    DataIterator dataIterator = null;
 
-    protected ImmutableBTree(@NotNull Log log, int structureId, int pageSize, long rootAddress) {
+    ImmutableBTree(@NotNull Log log, int structureId, int pageSize, long rootAddress) {
         this.log = log;
         this.structureId = structureId;
         this.pageSize = pageSize;
@@ -41,12 +39,12 @@ public class ImmutableBTree implements ITree {
     }
 
     @Override
-    public final @NotNull Log getLog() {
+    public @NotNull Log getLog() {
         return log;
     }
 
     @Override
-    public final @NotNull DataIterator getDataIterator(long address) {
+    public @NotNull DataIterator getDataIterator(long address) {
         if (dataIterator == null) {
             dataIterator = new DataIterator(log, address);
         } else {
@@ -58,12 +56,12 @@ public class ImmutableBTree implements ITree {
     }
 
     @Override
-    public final long getRootAddress() {
+    public long getRootAddress() {
         return root.pageAddress;
     }
 
     @Override
-    public final int getStructureId() {
+    public int getStructureId() {
         return structureId;
     }
 
@@ -108,7 +106,7 @@ public class ImmutableBTree implements ITree {
         }
     }
 
-    private ImmutableBasePage loadPage(long pageAddress) {
+    ImmutableBasePage loadPage(long pageAddress) {
         var page = log.readLoggableAsPage(pageAddress);
         var childPage = page.slice(LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET,
                 pageSize - LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET);
@@ -162,22 +160,12 @@ public class ImmutableBTree implements ITree {
 
     @Override
     public ITreeCursor openCursor() {
-        return null;
+        return new TreeImmutableCursor(this);
     }
 
     @Override
     public LongIterator addressIterator() {
         return new TreeAddressIterator();
-    }
-
-    @Override
-    public void dump(PrintStream out) {
-
-    }
-
-    @Override
-    public void dump(PrintStream out, INode.ToString renderer) {
-
     }
 
     @SuppressWarnings("ClassCanBeRecord")

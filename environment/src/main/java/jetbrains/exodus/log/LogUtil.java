@@ -28,6 +28,7 @@ import java.nio.ByteOrder;
 
 @SuppressWarnings("WeakerAccess")
 public final class LogUtil {
+    private static final int LONG_ALIGNMENT_OFFSET = ByteBuffer.allocate(0).alignmentOffset(0, Long.BYTES);
 
     public static final int LOG_BLOCK_ALIGNMENT = 1024; // log files are aligned by kilobytes
     public static final int LOG_FILE_NAME_LENGTH = 11;
@@ -134,8 +135,15 @@ public final class LogUtil {
     }
 
     public static ByteBuffer allocatePage(int pageSize) {
-        var buffer = ByteBuffer.allocate(pageSize).order(ByteOrder.nativeOrder());
-        assert buffer.alignmentOffset(0, Long.BYTES) == 0;
-        return buffer;
+        ByteBuffer buffer;
+
+        if (LONG_ALIGNMENT_OFFSET == 0) {
+            buffer = ByteBuffer.allocate(pageSize);
+        } else {
+            buffer = ByteBuffer.allocate(pageSize + LONG_ALIGNMENT_OFFSET).alignedSlice(Long.BYTES);
+        }
+
+
+        return buffer.order(ByteOrder.nativeOrder());
     }
 }

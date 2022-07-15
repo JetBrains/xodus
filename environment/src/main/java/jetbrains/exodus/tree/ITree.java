@@ -55,8 +55,4 @@ public interface ITree {
     ITreeCursor openCursor();
 
     LongIterator addressIterator();
-
-    void dump(PrintStream out);
-
-    void dump(PrintStream out, INode.ToString renderer);
 }
