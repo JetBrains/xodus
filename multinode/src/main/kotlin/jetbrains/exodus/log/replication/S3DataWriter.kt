@@ -34,6 +34,7 @@ import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import java.io.ByteArrayInputStream
+import java.lang.IllegalArgumentException
 import java.nio.ByteBuffer
 
 class S3DataWriter(private val s3Sync: S3Client,
@@ -108,6 +109,19 @@ class S3DataWriter(private val s3Sync: S3Client,
                 throw ExodusException(msg, e)
             }
         }
+    }
+
+    override fun write(buffers: Array<out ByteBuffer>): Block {
+        if (buffers.isEmpty()) {
+            throw IllegalArgumentException("At least sing page should be passed to write")
+        }
+
+        var lastBlock: Block? = null
+        for (buffer in buffers) {
+            lastBlock = write(buffer, 0, buffer.limit())
+        }
+
+        return lastBlock!!
     }
 
     override fun openOrCreateBlockImpl(address: Long, length: Long): Block {

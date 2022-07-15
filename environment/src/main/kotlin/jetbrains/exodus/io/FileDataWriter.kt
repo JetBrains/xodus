@@ -68,17 +68,15 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
         return block ?: throw ExodusException("Can't write, FileDataWriter is closed")
     }
 
-    override fun write(b: ByteBuffer, off: Int, len: Int): Block {
+    override fun write(buffer: ByteBuffer, off: Int, len: Int): Block {
         try {
-            var buffer = b;
             val file = ensureFile("Can't write, FileDataWriter is closed")
+            val bf = buffer.slice(off, len)
 
-            if (off != 0 || len != b.limit()) {
-                buffer = b.slice(off, len)
+            while (bf.remaining() > 0) {
+                file.channel.write(bf)
             }
 
-            file.channel.write(buffer)
-            b.rewind()
         } catch (ioe: IOException) {
             if (lockingManager.usableSpace < len) {
                 throw OutOfDiskSpaceException(ioe)
@@ -86,6 +84,47 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
             throw ioe
         }
         return block ?: throw ExodusException("Can't write, FileDataWriter is closed")
+    }
+
+    override fun write(buffers: Array<out ByteBuffer>): Block {
+        if (buffers.isEmpty()) {
+            return block ?: throw ExodusException("Can't write, FileDataWriter is closed")
+        }
+
+        assert(ensureSameSize(buffers))
+        val pageSize = buffers[0].limit()
+        val bytesToWrite = pageSize * buffers.size;
+        try {
+            val file = ensureFile("Can't write, FileDataWriter is closed")
+
+            var written = 0L
+            var offset = 0
+            while (written < bytesToWrite) {
+                written += file.channel.write(buffers, offset, buffers.size - offset)
+                offset = written.toInt() / pageSize
+            }
+
+        } catch (ioe: IOException) {
+            if (lockingManager.usableSpace < bytesToWrite) {
+                throw OutOfDiskSpaceException(ioe)
+            }
+
+            throw ioe
+        }
+
+        return block ?: throw ExodusException("Can't write, FileDataWriter is closed")
+    }
+
+    private fun ensureSameSize(buffers: Array<out ByteBuffer>): Boolean {
+        val limit = buffers[0].limit()
+
+        for (buffer in buffers) {
+            if (buffer.limit() != limit) {
+                return false
+            }
+        }
+
+        return true
     }
 
     override fun lock(timeout: Long): Boolean {

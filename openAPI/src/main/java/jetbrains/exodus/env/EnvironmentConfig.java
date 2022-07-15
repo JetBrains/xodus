@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -177,7 +177,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * <p>If the LogCache is shared ({@linkplain #LOG_CACHE_SHARED}) all {@linkplain Environment}s should be configured
      * to use single LogCache page size.
      *
-     * <p>Default value is {@code 64 * 1024}.
+     * <p>Default value is {@code 4 * 1024}.
      * <p>Mutable at runtime: no
      */
     public static final String LOG_CACHE_PAGE_SIZE = "exodus.log.cache.pageSize";
@@ -721,7 +721,7 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(LOG_FILE_SIZE, 8192L),
             new Pair(LOG_LOCK_TIMEOUT, 0L),
             new Pair(LOG_LOCK_ID, null),
-            new Pair(LOG_CACHE_PAGE_SIZE, 64 * 1024),
+            new Pair(LOG_CACHE_PAGE_SIZE, 4 * 1024),
             new Pair(LOG_CACHE_OPEN_FILES, 500),
             new Pair(LOG_CACHE_USE_NIO, false),
             new Pair(LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD, 1_000_000_000L), // ~1GB

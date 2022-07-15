@@ -57,7 +57,7 @@ class S3FileFactory(
 
         return getRemoteFile(expectedLength, startingLength, filename, handler).get().also {
             log.ensureWriter().apply {
-                incHighAddress(it.written)
+                highAddress += it.written
                 lastPageLength = it.lastPageLength
             }
         }

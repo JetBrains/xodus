@@ -25,7 +25,7 @@ import java.nio.ByteBuffer;
 /**
  * {@code DataWriter} defines the way how data is written to {@code Log}, how {@linkplain Block blocks} appear in
  * the log and how they are removed from the log.
- *
+ * <p>
  * {@code Log} blocks can be mutable and immutable. All blocks having length equal to {@linkplain EnvironmentConfig#getLogFileSize()
  * maximum log block size} are immutable. In any moment, only one block can be mutable. This has maximum {@linkplain
  * Block#getAddress() address}. {@code DataWriter} always writes to a single mutable block, that makes {@code log}
@@ -58,6 +58,8 @@ public interface DataWriter extends Closeable {
     Block write(byte[] b, int off, int len);
 
     Block write(ByteBuffer b, int off, int len);
+
+    Block write(@NotNull ByteBuffer[] buffers);
 
     /**
      * If applicable, forces flush of written data to underlying storage device. Transaction durability depends

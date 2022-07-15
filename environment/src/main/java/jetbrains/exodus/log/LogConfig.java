@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -26,7 +26,8 @@ import org.jetbrains.annotations.Nullable;
 
 public class LogConfig {
 
-    private static final int DEFAULT_FILE_SIZE = 1024; // in kilobytes
+    private static final int DEFAULT_FILE_SIZE = 64 * 1024; // in kilobytes
+    private static final int DEFAULT_MAX_WRITE_CACHE_SIZE = 64 * 1024 * 1024;
 
     private String location;
     private String readerWriterProvider;
@@ -55,6 +56,7 @@ public class LogConfig {
     private long cipherBasicIV;
     private boolean lockIgnored;
     private boolean useV1Format;
+    private int maxWriteCacheSize;
 
     public LogConfig() {
         useV1Format = EnvironmentConfig.DEFAULT.getUseVersion1Format();
@@ -77,8 +79,21 @@ public class LogConfig {
         return fileSize;
     }
 
+    public int getMaxWriteCacheSize() {
+        if (maxWriteCacheSize == 0) {
+            maxWriteCacheSize = DEFAULT_MAX_WRITE_CACHE_SIZE;
+        }
+
+        return maxWriteCacheSize;
+    }
+
     public LogConfig setFileSize(final long fileSize) {
         this.fileSize = fileSize;
+        return this;
+    }
+
+    public LogConfig setMaxWriteCacheSize(final int maxWriteCacheSize) {
+        this.maxWriteCacheSize = maxWriteCacheSize;
         return this;
     }
 

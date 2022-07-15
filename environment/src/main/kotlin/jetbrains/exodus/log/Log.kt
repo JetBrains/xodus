@@ -74,6 +74,8 @@ class Log(val config: LogConfig) : Closeable {
      */
     val fileLengthBound: Long
 
+    val maxWriteCacheSize: Int
+
     @Deprecated("for tests only")
     private var testConfig: LogTestConfig? = null
 
@@ -122,6 +124,10 @@ class Log(val config: LogConfig) : Closeable {
             throw InvalidSettingException("File size should be a multiple of cache page size.")
         }
         fileLengthBound = fileLength
+
+        val writeCacheSize = config.maxWriteCacheSize;
+        maxWriteCacheSize = fileLengthBound.coerceAtMost(writeCacheSize.toLong()).toInt()
+
         val blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
         if (reader is FileDataReader) {
             reader.setLog(this)
@@ -333,7 +339,7 @@ class Log(val config: LogConfig) : Closeable {
     }
 
     fun beginWrite(): LogTip {
-        val writer = BufferedDataWriter(this, this.writer, tip)
+        val writer = BufferedDataWriter(this, this.writer, tip, maxWriteCacheSize)
         this.bufferedWriter = writer
         return writer.startingTip
     }
@@ -351,6 +357,7 @@ class Log(val config: LogConfig) : Closeable {
 
     fun endWrite(): LogTip {
         val writer = ensureWriter()
+        writer.flush()
         val logTip = writer.startingTip
         val updatedTip = writer.updatedTip
         compareAndSetTip(logTip, updatedTip)
@@ -777,12 +784,11 @@ class Log(val config: LogConfig) : Closeable {
                 do {
                     writer.write(cachedTailPage, cachePageSize)
                     bytesToWrite -= cachePageSize.toLong()
-                    writer.incHighAddress(cachePageSize.toLong())
+                    writer.highAddress += cachePageSize.toLong()
                 } while (bytesToWrite >= cachePageSize)
             }
         }
         if (bytesToWrite == 0L) {
-            writer.commit()
             closeFullFileIfNecessary(writer)
         } else {
             while (bytesToWrite-- > 0) {
@@ -886,8 +892,7 @@ class Log(val config: LogConfig) : Closeable {
             }
 
         }
-        writer.commit()
-        writer.incHighAddress(recordLength.toLong())
+        writer.highAddress += recordLength.toLong()
         closeFullFileIfNecessary(writer)
         return result
     }
@@ -902,8 +907,7 @@ class Log(val config: LogConfig) : Closeable {
         }
         with(writer) {
             write(data.slice(), count)
-            commit()
-            incHighAddress(count.toLong())
+            highAddress += count.toLong()
             closeFullFileIfNecessary(this)
         }
         return result

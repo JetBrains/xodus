@@ -43,6 +43,14 @@ open class MemoryDataWriter(private val memory: Memory) : AbstractDataWriter() {
         return data
     }
 
+    override fun write(buffers: Array<out ByteBuffer>): Block {
+        for (buffer in buffers) {
+            write(buffer, 0, buffer.limit())
+        }
+
+        return data
+    }
+
     override fun removeBlock(blockAddress: Long, @NotNull rbt: RemoveBlockType) {
         if (!memory.removeBlock(blockAddress)) {
             throw ExodusException("There is no memory block by address $blockAddress")
