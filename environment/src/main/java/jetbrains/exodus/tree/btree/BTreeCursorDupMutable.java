@@ -17,6 +17,7 @@ package jetbrains.exodus.tree.btree;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.tree.ITreeMutable;
+import jetbrains.exodus.tree.ITreeMutableExt;
 import jetbrains.exodus.tree.MutableTreeRoot;
 import jetbrains.exodus.tree.TreeCursorMutable;
 import org.jetbrains.annotations.NotNull;
@@ -26,7 +27,7 @@ public class BTreeCursorDupMutable extends TreeCursorMutable {
     @NotNull
     protected final BTreeTraverserDup traverser; // hack to avoid casts
 
-    public BTreeCursorDupMutable(ITreeMutable tree, @NotNull BTreeTraverserDup traverser) {
+    public BTreeCursorDupMutable(ITreeMutableExt tree, @NotNull BTreeTraverserDup traverser) {
         super(tree, traverser);
         this.traverser = traverser;
     }

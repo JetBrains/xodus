@@ -30,7 +30,7 @@ internal class PatriciaTreeMutable(
     structureId: Int,
     treeSize: Long,
     immutableRoot: ImmutableNode
-) : PatriciaTreeBase(log, structureId), ITreeMutable {
+) : PatriciaTreeBase(log, structureId), ITreeMutableExt {
 
     private var root = MutableRoot(immutableRoot)
     private var expiredLoggables: ExpiredLoggableCollection? = null

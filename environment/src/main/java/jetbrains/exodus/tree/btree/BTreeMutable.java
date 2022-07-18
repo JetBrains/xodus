@@ -29,7 +29,7 @@ import java.util.Iterator;
 import java.util.Set;
 
 
-public class BTreeMutable extends BTreeBase implements ITreeMutable {
+public class BTreeMutable extends BTreeBase implements ITreeMutableExt {
 
     private static final int MAX_EXPIRED_LOGGABLES_TO_CONTINUE_RECLAIM_ON_A_NEW_FILE = 100000;
 

@@ -54,7 +54,7 @@ final class MutableInternalPage implements MutablePage {
                         @NotNull ExpiredLoggableCollection expiredLoggables, @NotNull Log log,
                         int pageSize, @Nullable MutableInternalPage parent) {
         if (underlying != null) {
-            pageAddress = underlying.pageAddress;
+            pageAddress = underlying.address;
         } else {
             pageAddress = -1;
         }
@@ -66,6 +66,10 @@ final class MutableInternalPage implements MutablePage {
         this.underlying = underlying;
         this.maxKeySize = pageSize / 4;
 
+        if (underlying == null) {
+            changedEntries = new ObjectArrayList<>();
+        }
+
         keyView = new KeyView();
     }
 
@@ -74,10 +78,18 @@ final class MutableInternalPage implements MutablePage {
         return keyView.get(index);
     }
 
-    MutablePage child(int index) {
+    MutablePage mutableChild(int index) {
         fetch();
 
         assert changedEntries != null;
+
+        return changedEntries.get(index).mutablePage;
+    }
+
+    MutablePage mutableChildIfExists(int index) {
+        if (changedEntries == null) {
+            return null;
+        }
 
         return changedEntries.get(index).mutablePage;
     }
@@ -103,7 +115,7 @@ final class MutableInternalPage implements MutablePage {
     public long save(int structureId) {
         if (changedEntries == null) {
             assert underlying != null;
-            return underlying.pageAddress;
+            return underlying.address;
         }
 
         var newBuffer = LogUtil.allocatePage(pageSize);
@@ -214,13 +226,13 @@ final class MutableInternalPage implements MutablePage {
             // If both this node and the target node are too small then merge them.
             var parentIndex = parent.find(firstKey.getByteBuffer());
             if (parentIndex == 0) {
-                var nextSibling = (MutableInternalPage) parent.child(1);
+                var nextSibling = (MutableInternalPage) parent.mutableChild(1);
                 nextSibling.fetch();
 
                 changedEntries.addAll(nextSibling.changedEntries);
                 parent.delete(1);
             } else {
-                var prevSibling = (MutableInternalPage) parent.child(parentIndex - 1);
+                var prevSibling = (MutableInternalPage) parent.mutableChild(parentIndex - 1);
                 prevSibling.fetch();
 
                 assert prevSibling.changedEntries != null;

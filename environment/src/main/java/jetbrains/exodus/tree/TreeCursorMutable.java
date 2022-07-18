@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -26,7 +26,7 @@ import org.jetbrains.annotations.Nullable;
  */
 public class TreeCursorMutable extends TreeCursor implements ITreeCursorMutable {
 
-    protected ITreeMutable tree;
+    protected ITreeMutableExt tree;
     protected boolean wasDelete = false;
     @Nullable
     protected ByteIterable nextAfterRemovedKey = null;
@@ -37,12 +37,12 @@ public class TreeCursorMutable extends TreeCursor implements ITreeCursorMutable 
     @Nullable
     private ByteIterable moveToValue = null;
 
-    public TreeCursorMutable(ITreeMutable tree, TreeTraverser traverser) {
+    public TreeCursorMutable(ITreeMutableExt tree, TreeTraverser traverser) {
         super(traverser);
         this.tree = tree;
     }
 
-    public TreeCursorMutable(ITreeMutable tree, TreeTraverser traverser, boolean alreadyIn) {
+    public TreeCursorMutable(ITreeMutableExt tree, TreeTraverser traverser, boolean alreadyIn) {
         super(traverser, alreadyIn);
         this.tree = tree;
     }

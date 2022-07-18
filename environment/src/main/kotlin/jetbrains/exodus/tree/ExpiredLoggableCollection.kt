@@ -52,6 +52,11 @@ class ExpiredLoggableCollection(private val parent: ExpiredLoggableCollection? =
             parent.parent?.let {
                 throw ExodusException("Can't merge 2 ExpiredLoggableCollections with both non-trivial parents")
             }
+
+            if (parent.size == 0) {
+                return this
+            }
+
             ExpiredLoggableCollection(this, parent.addresses, parent.lengths)
         } ?: ExpiredLoggableCollection(parent, addresses, lengths)
     }

@@ -6,6 +6,7 @@ import jetbrains.exodus.ByteBufferIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.log.DataIterator;
 import jetbrains.exodus.log.Log;
+import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.tree.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -35,7 +36,11 @@ public final class ImmutableBTree implements ITree {
         this.structureId = structureId;
         this.pageSize = pageSize;
 
-        this.root = loadPage(rootAddress);
+        if (rootAddress == Loggable.NULL_ADDRESS) {
+            this.root = null;
+        } else {
+            this.root = loadPage(rootAddress);
+        }
     }
 
     @Override
@@ -57,7 +62,11 @@ public final class ImmutableBTree implements ITree {
 
     @Override
     public long getRootAddress() {
-        return root.pageAddress;
+        if (root == null) {
+            return Loggable.NULL_ADDRESS;
+        }
+
+        return root.address;
     }
 
     @Override
@@ -76,6 +85,10 @@ public final class ImmutableBTree implements ITree {
     }
 
     private PageIndexPair find(ByteBuffer key) {
+        if (root == null) {
+            return null;
+        }
+
         var page = root;
         while (true) {
             int index = page.find(key);
@@ -145,7 +158,7 @@ public final class ImmutableBTree implements ITree {
 
     @Override
     public @NotNull ITreeMutable getMutableCopy() {
-        return null;
+        return new MutableBTree(this);
     }
 
     @Override
@@ -155,11 +168,19 @@ public final class ImmutableBTree implements ITree {
 
     @Override
     public long getSize() {
+        if (root == null) {
+            return 0;
+        }
+
         return root.getTreeSize();
     }
 
     @Override
     public ITreeCursor openCursor() {
+        if (root == null) {
+            return ITreeCursor.EMPTY_CURSOR;
+        }
+
         return new TreeImmutableCursor(this);
     }
 
@@ -184,6 +205,10 @@ public final class ImmutableBTree implements ITree {
 
 
         public TreeAddressIterator() {
+            if (root == null) {
+                return;
+            }
+
             if (root.getEntriesCount() > 0) {
                 var rootRef = new ElemRef(root, 0);
                 stack.enqueue(rootRef);
@@ -204,7 +229,7 @@ public final class ImmutableBTree implements ITree {
             var elemRef = stack.dequeue();
             var page = elemRef.page;
 
-            var address = page.pageAddress;
+            var address = page.address;
             var parentRef = stack.last();
 
             var parentPage = parentRef.page;

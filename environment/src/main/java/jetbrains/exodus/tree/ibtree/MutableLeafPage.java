@@ -49,7 +49,7 @@ final class MutableLeafPage implements MutablePage {
                     @Nullable MutableInternalPage parent) {
         this.underlying = underlying;
         if (underlying != null) {
-            this.pageAddress = underlying.pageAddress;
+            this.pageAddress = underlying.address;
         } else {
             this.pageAddress = -1;
         }
@@ -58,6 +58,10 @@ final class MutableLeafPage implements MutablePage {
         this.pageSize = pageSize;
         this.parent = parent;
         this.expiredLoggables = expiredLoggables;
+
+        if (underlying == null) {
+            changedEntries = new ObjectArrayList<>();
+        }
 
         keyView = new KeyView();
         valueView = new ValueView();
@@ -68,10 +72,6 @@ final class MutableLeafPage implements MutablePage {
     @Override
     public ByteBuffer key(int index) {
         return keyView.get(index);
-    }
-
-    ByteBuffer value(int index) {
-        return valueView.get(index);
     }
 
     @Override
@@ -91,7 +91,15 @@ final class MutableLeafPage implements MutablePage {
         }
 
         changedEntries.set(index, new Entry(new LoadedByteBufferHolder(key, maxKeySize),
-                new LoadedByteBufferHolder(value, Integer.MAX_VALUE)));
+                new LoadedByteBufferHolder(value, 0)));
+    }
+
+    void insert(int index, ByteBuffer key, ByteBuffer value) {
+        fetch();
+
+        assert changedEntries != null;
+        changedEntries.add(index, new Entry(new LoadedByteBufferHolder(key, maxKeySize),
+                new LoadedByteBufferHolder(value, 0)));
     }
 
     void append(ByteBuffer key, ByteBuffer value) {
@@ -99,7 +107,7 @@ final class MutableLeafPage implements MutablePage {
 
         assert changedEntries != null;
         changedEntries.add(new Entry(new LoadedByteBufferHolder(key, maxKeySize),
-                new LoadedByteBufferHolder(value, Integer.MAX_VALUE)));
+                new LoadedByteBufferHolder(value, 0)));
     }
 
     void delete(int index) {
@@ -118,7 +126,7 @@ final class MutableLeafPage implements MutablePage {
     public long save(int structureId) {
         if (changedEntries == null) {
             assert underlying != null;
-            return underlying.pageAddress;
+            return underlying.address;
         }
 
         var newBuffer = LogUtil.allocatePage(pageSize);
@@ -203,13 +211,13 @@ final class MutableLeafPage implements MutablePage {
                 // If both this node and the target node are too small then merge them.
                 var parentIndex = parent.find(firstKey.getByteBuffer());
                 if (parentIndex == 0) {
-                    var nextSibling = (MutableLeafPage) parent.child(1);
+                    var nextSibling = (MutableLeafPage) parent.mutableChild(1);
                     nextSibling.fetch();
 
                     changedEntries.addAll(nextSibling.changedEntries);
                     parent.delete(1);
                 } else {
-                    var prevSibling = (MutableLeafPage) parent.child(parentIndex - 1);
+                    var prevSibling = (MutableLeafPage) parent.mutableChild(parentIndex - 1);
                     prevSibling.fetch();
 
                     assert prevSibling.changedEntries != null;

@@ -32,10 +32,13 @@ public final class TreeImmutableCursor implements ITreeCursor {
     private boolean initiated = false;
 
     public TreeImmutableCursor(ImmutableBTree tree) {
+        assert tree.root != null;
         this.tree = tree;
     }
 
     private void initStack() {
+        assert tree.root != null;
+
         var page = tree.root;
         if (page.getEntriesCount() > 0) {
             var pageRef = new ElemRef(page, 0);
@@ -140,6 +143,8 @@ public final class TreeImmutableCursor implements ITreeCursor {
 
         stack.clear();
 
+        assert tree.root != null;
+
         var page = tree.root;
         var rootSize = page.getEntriesCount();
 
@@ -233,6 +238,8 @@ public final class TreeImmutableCursor implements ITreeCursor {
 
     @Nullable
     private ByteBufferByteIterable findByKey(@NotNull ByteIterable key) {
+        assert tree.root != null;
+
         var page = tree.root;
         if (page.getEntriesCount() == 0) {
             return null;
@@ -280,6 +287,8 @@ public final class TreeImmutableCursor implements ITreeCursor {
 
     @Nullable
     private ByteBufferByteIterable findByKeyRange(@NotNull ByteIterable key) {
+        assert tree.root != null;
+
         var page = tree.root;
         if (page.getEntriesCount() == 0) {
             return null;

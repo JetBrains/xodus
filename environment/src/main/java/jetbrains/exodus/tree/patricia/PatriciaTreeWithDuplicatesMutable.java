@@ -25,7 +25,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Iterator;
 
-final class PatriciaTreeWithDuplicatesMutable extends PatriciaTreeWithDuplicates implements ITreeMutable {
+final class PatriciaTreeWithDuplicatesMutable extends PatriciaTreeWithDuplicates implements ITreeMutableExt {
     PatriciaTreeWithDuplicatesMutable(@NotNull final ITreeMutable treeNoDuplicates) {
         super(treeNoDuplicates);
     }
@@ -146,7 +146,7 @@ final class PatriciaTreeWithDuplicatesMutable extends PatriciaTreeWithDuplicates
         return ((ITreeMutable) treeNoDuplicates).reclaim(loggable, loggables);
     }
 
-    private ITreeMutable getTreeNoDuplicates() {
-        return (ITreeMutable) treeNoDuplicates;
+    private ITreeMutableExt getTreeNoDuplicates() {
+        return (ITreeMutableExt) treeNoDuplicates;
     }
 }

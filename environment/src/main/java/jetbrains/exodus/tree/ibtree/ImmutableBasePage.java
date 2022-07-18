@@ -2,6 +2,7 @@ package jetbrains.exodus.tree.ibtree;
 
 import jetbrains.exodus.ByteBufferComparator;
 import jetbrains.exodus.log.Log;
+import jetbrains.exodus.tree.ExpiredLoggableCollection;
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.ByteBuffer;
@@ -47,7 +48,7 @@ abstract class ImmutableBasePage {
 
     @NotNull
     final Log log;
-    final long pageAddress;
+    final long address;
 
     @NotNull
     final ByteBuffer page;
@@ -56,9 +57,9 @@ abstract class ImmutableBasePage {
     @NotNull
     final List<ByteBuffer> keyView;
 
-    protected ImmutableBasePage(@NotNull final Log log, @NotNull final ByteBuffer page, long pageAddress) {
+    protected ImmutableBasePage(@NotNull final Log log, @NotNull final ByteBuffer page, long address) {
         this.log = log;
-        this.pageAddress = pageAddress;
+        this.address = address;
         this.page = page;
 
         //ensure that allocated page aligned to ensure fastest memory access and stable offsets of the data
@@ -115,6 +116,8 @@ abstract class ImmutableBasePage {
     final ByteBuffer key(int index) {
         return keyView.get(index);
     }
+
+    abstract MutablePage toMutable(ExpiredLoggableCollection expiredLoggables, MutableInternalPage parent);
 
     private int getChildAddressPosition(int index) {
         return KEYS_OFFSET + getEntriesCount() * Long.BYTES + index * Long.BYTES;
