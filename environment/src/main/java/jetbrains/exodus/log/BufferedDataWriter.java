@@ -28,19 +28,15 @@ public interface BufferedDataWriter {
 
     void setHighAddress(long highAddress);
 
-    MutablePage allocLastPage(long pageAddress);
+    void allocLastPage(long pageAddress);
 
     void write(byte b);
 
-    void write(ByteBuffer b, int len) throws ExodusException;
+    void write(ByteBuffer b, int len, boolean canBeConsumed) throws ExodusException;
 
     void flush();
 
     Block openOrCreateBlock(long address, long length);
-
-    void setLastPageLength(int lastPageLength);
-
-    int getLastPageLength();
 
     long getLastWrittenFileLength(long fileLengthBound);
 

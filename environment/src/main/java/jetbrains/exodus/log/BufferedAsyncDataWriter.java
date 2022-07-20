@@ -29,6 +29,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -104,19 +105,18 @@ public final class BufferedAsyncDataWriter implements BufferedDataWriter {
         this.highAddress = highAddress;
     }
 
-    public MutablePage allocLastPage(long pageAddress) {
+    public void allocLastPage(long pageAddress) {
         if (count > 0) {
             commit();
         }
 
         MutablePage result = currentPage;
         if (pageAddress == result.pageAddress) {
-            return result;
+            return;
         }
 
         result = new MutablePage(null, logCache.allocPage(), pageAddress, 0);
         currentPage = result;
-        return result;
     }
 
     public void write(byte b) {
@@ -131,7 +131,7 @@ public final class BufferedAsyncDataWriter implements BufferedDataWriter {
             currentPage.bytes.put(writtenCount, b);
             currentPage.writtenCount = writtenCount + 1;
         } else {
-            currentPage = allocNewPage();
+            currentPage = allocNewPage(null);
             currentPage.bytes.put(0, b);
             currentPage.writtenCount = 1;
         }
@@ -142,29 +142,46 @@ public final class BufferedAsyncDataWriter implements BufferedDataWriter {
         }
     }
 
-    public void write(ByteBuffer b, int len) throws ExodusException {
+    public void write(ByteBuffer b, int len, boolean canBeConsumed) throws ExodusException {
         int off = 0;
         final int count = this.count + len;
         MutablePage currentPage = this.currentPage;
         while (len > 0) {
             int bytesToWrite = pageSize - currentPage.writtenCount;
+
+            boolean pageConsumed = false;
+
             if (bytesToWrite == 0) {
-                currentPage = allocNewPage();
-                bytesToWrite = pageSize;
+                if (canBeConsumed && len == pageSize && pageCanBeConsumed(b)) {
+                    currentPage = allocNewPage(b);
+                    currentPage.writtenCount = pageSize;
+                    pageConsumed = true;
+                } else {
+                    currentPage = allocNewPage(null);
+                    bytesToWrite = pageSize;
+                }
             }
-            if (bytesToWrite > len) {
-                bytesToWrite = len;
+
+            if (!pageConsumed) {
+                if (bytesToWrite > len) {
+                    bytesToWrite = len;
+                }
+                currentPage.bytes.put(currentPage.writtenCount, b, off, bytesToWrite);
+                currentPage.writtenCount += bytesToWrite;
+                len -= bytesToWrite;
+                off += bytesToWrite;
             }
-            currentPage.bytes.put(currentPage.writtenCount, b, off, bytesToWrite);
-            currentPage.writtenCount += bytesToWrite;
-            len -= bytesToWrite;
-            off += bytesToWrite;
         }
+
         this.count = count;
 
         if (this.count >= pageSize) {
             commit();
         }
+    }
+
+    private boolean pageCanBeConsumed(ByteBuffer buffer) {
+        return buffer.limit() == pageSize && buffer.alignmentOffset(0, Long.BYTES) == 0;
     }
 
     private void commit() {
@@ -260,14 +277,6 @@ public final class BufferedAsyncDataWriter implements BufferedDataWriter {
 
     public Block openOrCreateBlock(long address, long length) {
         return child.openOrCreateBlock(address, length);
-    }
-
-    public void setLastPageLength(int lastPageLength) {
-        currentPage.setCounts(lastPageLength);
-    }
-
-    public int getLastPageLength() {
-        return currentPage.writtenCount;
     }
 
     public long getLastWrittenFileLength(long fileLengthBound) {
@@ -396,9 +405,17 @@ public final class BufferedAsyncDataWriter implements BufferedDataWriter {
         return null;
     }
 
-    private MutablePage allocNewPage() {
+    private MutablePage allocNewPage(ByteBuffer buffer) {
         MutablePage currentPage = this.currentPage;
-        return this.currentPage = new MutablePage(currentPage, logCache.allocPage(), currentPage.pageAddress + pageSize, 0);
+        if (buffer != null) {
+            this.currentPage = new MutablePage(currentPage, buffer.order(ByteOrder.nativeOrder()),
+                    currentPage.pageAddress + pageSize, 0);
+        } else {
+            this.currentPage = new MutablePage(currentPage, logCache.allocPage(),
+                    currentPage.pageAddress + pageSize, 0);
+        }
+
+        return this.currentPage;
     }
 
     private static final class PageWriteResult {

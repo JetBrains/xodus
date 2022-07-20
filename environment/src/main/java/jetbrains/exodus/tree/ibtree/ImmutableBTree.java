@@ -120,13 +120,15 @@ public final class ImmutableBTree implements ITree {
     }
 
     ImmutableBasePage loadPage(long pageAddress) {
-        var page = log.readLoggableAsPage(pageAddress);
+        var loggable = log.readLoggableAsPage(pageAddress);
+        var page = loggable.getBuffer();
+
         var childPage = page.slice(LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET,
                 pageSize - LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET);
 
         assert page.order() == ByteOrder.nativeOrder();
 
-        var type = page.get(0);
+        var type = loggable.getType();
         if (type == INTERNAL_PAGE) {
             return new ImmutableInternalPage(log, childPage, pageAddress);
         } else if (type == LEAF_PAGE) {

@@ -54,16 +54,7 @@ public class ByteBufferByteIterableWithAddress extends ByteIterableWithAddress i
 
     @Override
     public final int getCompressedUnsignedInt() {
-        int result = 0;
-        int shift = 0;
-        for (int i = start; ; ++i) {
-            final byte b = buffer.get(i);
-            result += (b & 0x7f) << shift;
-            if ((b & 0x80) != 0) {
-                return result;
-            }
-            shift += 7;
-        }
+        return CompressedUnsignedLongByteIterable.getInt(buffer, start)[0];
     }
 
     @Override

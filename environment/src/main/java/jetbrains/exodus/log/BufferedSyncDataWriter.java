@@ -92,19 +92,18 @@ public final class BufferedSyncDataWriter implements BufferedDataWriter {
         this.highAddress = highAddress;
     }
 
-    public MutablePage allocLastPage(long pageAddress) {
+    public void allocLastPage(long pageAddress) {
         if (count > 0) {
             commit();
         }
 
         MutablePage result = currentPage;
         if (pageAddress == result.pageAddress) {
-            return result;
+            return;
         }
 
         result = new MutablePage(null, logCache.allocPage(), pageAddress, 0);
         currentPage = result;
-        return result;
     }
 
     public void write(byte b) {
@@ -130,7 +129,7 @@ public final class BufferedSyncDataWriter implements BufferedDataWriter {
         }
     }
 
-    public void write(ByteBuffer b, int len) throws ExodusException {
+    public void write(ByteBuffer b, int len, boolean canBeConsumed) throws ExodusException {
         int off = 0;
         final int count = this.count + len;
         MutablePage currentPage = this.currentPage;
@@ -241,14 +240,6 @@ public final class BufferedSyncDataWriter implements BufferedDataWriter {
 
     public Block openOrCreateBlock(long address, long length) {
         return child.openOrCreateBlock(address, length);
-    }
-
-    public void setLastPageLength(int lastPageLength) {
-        currentPage.setCounts(lastPageLength);
-    }
-
-    public int getLastPageLength() {
-        return currentPage.writtenCount;
     }
 
     public long getLastWrittenFileLength(long fileLengthBound) {

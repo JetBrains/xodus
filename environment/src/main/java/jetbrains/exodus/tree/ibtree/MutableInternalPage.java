@@ -118,7 +118,7 @@ final class MutableInternalPage implements MutablePage {
             return underlying.address;
         }
 
-        var newBuffer = LogUtil.allocatePage(pageSize);
+        var newBuffer = LogUtil.allocatePage(serializedSize());
         var buffer = newBuffer.slice(ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET,
                         pageSize - ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET).
                 order(ByteOrder.nativeOrder());
@@ -176,7 +176,8 @@ final class MutableInternalPage implements MutablePage {
 
         cachedTreeSize = treeSize;
 
-        return log.writeNewPage(newBuffer);
+        return log.writeInsideSinglePage(ImmutableBTree.INTERNAL_PAGE, structureId,
+                newBuffer, ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET, true);
     }
 
     @Override
@@ -376,13 +377,11 @@ final class MutableInternalPage implements MutablePage {
 
             var childAddress = underlying.getChildAddress(i);
 
-            var fullChildPage = log.readLoggableAsPage(childAddress);
-            var childPage = fullChildPage.slice(ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET,
-                    pageSize - ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET);
-            var type = fullChildPage.get(0);
+            var childLoggable = log.readLoggableAsPage(childAddress);
+            var childPage = childLoggable.getBuffer();
+            var type = childLoggable.getType();
 
             final MutablePage child;
-
             if (type == ImmutableBTree.INTERNAL_PAGE) {
                 var immutableChild = new ImmutableInternalPage(log, childPage, childAddress);
                 child = new MutableInternalPage(immutableChild, expiredLoggables, log, pageSize, this);

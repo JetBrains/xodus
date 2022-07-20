@@ -35,6 +35,7 @@ import mu.KLogging
 import java.io.Closeable
 import java.io.File
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.experimental.xor
 
@@ -121,12 +122,18 @@ class Log(val config: LogConfig) : Closeable {
     init {
         tryLock()
         val fileLength = config.fileSize * 1024L
+
+        if (cachePageSize <= 0 || cachePageSize.countOneBits() != 1) {
+            throw throw InvalidSettingException("Cache page size should be positive and power of two." +
+                    " Provided page size is $cachePageSize")
+        }
+
         if (fileLength % cachePageSize != 0L) {
             throw InvalidSettingException("File size should be a multiple of cache page size.")
         }
         fileLengthBound = fileLength
 
-        val writeCacheSize = config.maxWriteCacheSize;
+        val writeCacheSize = config.maxWriteCacheSize
         maxWriteCacheSize = fileLengthBound.coerceAtMost(writeCacheSize.toLong()).toInt()
 
         val blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
@@ -340,7 +347,7 @@ class Log(val config: LogConfig) : Closeable {
     }
 
     fun beginWrite(): LogTip {
-        val writer : BufferedDataWriter
+        val writer: BufferedDataWriter
         if (this.writer is AsyncDataWriter) {
             writer = BufferedAsyncDataWriter(this, this.writer, tip, maxWriteCacheSize)
         } else {
@@ -478,8 +485,53 @@ class Log(val config: LogConfig) : Closeable {
         return read(readIteratorFrom(address), address)
     }
 
-    fun readLoggableAsPage(pageAddress: Long): ByteBuffer {
-        return cache.getPage(this, pageAddress)
+    /**
+     * Reads content of loggable into single ByteBuffer
+     */
+    fun readLoggableAsPage(address: Long): ByteBufferLoggable {
+        val loggableOffset = address.and((cachePageSize - 1).toLong()).toInt()
+        val pageAddress = address - loggableOffset
+
+        val page = cache.getPage(this, pageAddress)
+        var offset = 1
+
+        val type = page.get(loggableOffset) xor 0x80.toByte()
+        val structureId = CompressedUnsignedLongByteIterable.getInt(page, loggableOffset + offset)
+        offset += structureId[1]
+
+        val length = CompressedUnsignedLongByteIterable.getInt(page, offset + loggableOffset)
+        offset += structureId[1]
+
+        val loggableLength = length[0]
+        val dataOffset = loggableOffset + offset
+        val dataLength = loggableLength - offset
+
+        //fast path, page size always should be kept the same to follow it
+        if (loggableOffset + loggableLength <= cachePageSize) {
+            return ByteBufferLoggable(address, type, loggableLength, dataLength, structureId[0],
+                    page.slice(dataOffset, dataLength).order(ByteOrder.nativeOrder()))
+        }
+
+        var bytesToRead = dataLength
+        val buffer = LogUtil.allocatePage(bytesToRead)
+
+        var chunkSize = page.limit() - dataOffset
+        buffer.put(0, page, dataOffset, chunkSize)
+
+        bytesToRead -= chunkSize
+
+        val pagesToRead = (bytesToRead + cachePageSize - 1) / cachePageSize
+        val lastPageAddress = pageAddress + (pagesToRead - 1) * cachePageSize
+        val startPageAddress = pageAddress + cachePageSize
+
+        for (currentPageAddress in startPageAddress..lastPageAddress step cachePageSize.toLong()) {
+            chunkSize = bytesToRead.coerceAtMost(cachePageSize)
+            val currentPage = cache.getPage(this, currentPageAddress)
+
+            buffer.put(dataLength - bytesToRead, currentPage, 0, chunkSize)
+        }
+
+        return ByteBufferLoggable(address, type, loggableLength, dataLength, structureId[0], buffer)
     }
 
     fun getWrittenLoggableType(address: Long, max: Byte): Byte {
@@ -554,22 +606,68 @@ class Log(val config: LogConfig) : Closeable {
         return result
     }
 
-    fun writeNewPage(page: ByteBuffer): Long {
-        val writer = ensureWriter()
-        beforeWrite(writer)
-
-        //check that page will be aligned to the cache page, ideally size of the page cache should be aligned with
-        //size of disk page to avoid read or write amplification and to cache as less data as possible
-        val offset = cachePageSize - writer.highAddress.and((cachePageSize - 1).toLong()).toInt()
-
-        while (offset > 0) {
-            writer.write(NullLoggable.TYPE xor 0x80.toByte())
+    /**
+     * Write loggable with data contained inside ByteBuffer. All loggable metadata will be serialized
+     * inside provided ByteBuffer so it should be allocated space for them before saving.
+     *
+     * Loggable will be stored since the start of the new page in log file.
+     * Size of the loggable should not exceed size of the single page.
+     *
+     * @param expectedDataOffset Offset of the ByteBuffer since which data are stored
+     * @param canBeConsumed Provided ByteBuffer can be used directly as page of the page cache if
+     * it satisfies constrains provided by Log
+     */
+    fun writeInsideSinglePage(type: Byte, structureId: Int, page: ByteBuffer,
+                              expectedDataOffset: Int, canBeConsumed: Boolean): Long {
+        if (page.limit() > cachePageSize) {
+            throw ExodusException("Page can not exceed size of $cachePageSize")
         }
 
-        val pageIndex = writer.highAddress / cachePageSize
-        writer.write(page, page.limit())
+        serializedLoggableMetaDataInPage(type, structureId, page, expectedDataOffset)
 
-        return pageIndex
+        val writer = ensureWriter()
+        var address = beforeWrite(writer)
+
+        val pageOffset = (address and (cachePageSize - 1).toLong()).toInt()
+
+        if (pageOffset + page.limit() <= cachePageSize) {
+            writer.write(page, page.limit(), canBeConsumed)
+            writer.incHighAddress(page.limit().toLong())
+
+            closeFullFileIfNecessary(writer)
+            return address
+        }
+
+        val paddingBytes = cachePageSize - pageOffset
+        val filler = ByteArray(paddingBytes) { 0x80.toByte() }
+
+        writer.write(ByteBuffer.wrap(filler), paddingBytes, false)
+        writer.incHighAddress(paddingBytes.toLong())
+
+        closeFullFileIfNecessary(writer)
+
+        address = beforeWrite(writer)
+
+        writer.write(page, page.limit(), canBeConsumed)
+        writer.incHighAddress(page.limit().toLong())
+
+        closeFullFileIfNecessary(writer)
+
+        return address
+    }
+
+    private fun serializedLoggableMetaDataInPage(type: Byte, structureId: Int, page: ByteBuffer,
+                                                 expectedDataOffset: Int) {
+        page.put(0, type xor 0x80.toByte())
+
+        var offset = 1
+        offset = CompressedUnsignedLongByteIterable.putLong(structureId.toLong(), page, offset)
+        offset = CompressedUnsignedLongByteIterable.putLong(page.limit().toLong(), page, offset)
+
+        if (offset > expectedDataOffset) {
+            throw ExodusException("Unexpected data offset. Expected offset" +
+                    " $expectedDataOffset but calculated offset is $offset")
+        }
     }
 
     /**
@@ -759,6 +857,7 @@ class Log(val config: LogConfig) : Closeable {
         }
     }
 
+
     /**
      * Pad current file with null loggables. Null loggable takes only one byte in the log,
      * so each file of the log with arbitrary alignment can be padded with nulls.
@@ -768,15 +867,11 @@ class Log(val config: LogConfig) : Closeable {
      * loggable can begin in one file and end in another. Also, this simplifies reading algorithm:
      * if we started reading by address it definitely should finish within current file.
      */
-    fun padWithNulls() {
-        beforeWrite(ensureWriter())
-        doPadWithNulls()
-    }
-
     fun doPadWithNulls() {
         val writer = ensureWriter()
-        val bytesToWrite = fileLengthBound - writer.getLastWrittenFileLength(fileLengthBound)
+        beforeWrite(writer)
 
+        val bytesToWrite = fileLengthBound - writer.getLastWrittenFileLength(fileLengthBound)
         doPadWithNulls(writer, bytesToWrite)
     }
 
@@ -789,7 +884,7 @@ class Log(val config: LogConfig) : Closeable {
             val cachedTailPage = LogCache.getCachedTailPage(cachePageSize)
             if (cachedTailPage != null) {
                 do {
-                    writer.write(cachedTailPage, cachePageSize)
+                    writer.write(cachedTailPage, cachePageSize, false)
                     bytesToWrite -= cachePageSize.toLong()
                     writer.incHighAddress(cachePageSize.toLong())
                 } while (bytesToWrite >= cachePageSize)
@@ -901,22 +996,6 @@ class Log(val config: LogConfig) : Closeable {
         }
         writer.incHighAddress(recordLength.toLong())
         closeFullFileIfNecessary(writer)
-        return result
-    }
-
-    fun writeContinuously(data: ByteBuffer, count: Int): Long {
-        val writer = ensureWriter()
-
-        val result = beforeWrite(writer)
-
-        if (count > fileLengthBound - writer.getLastWrittenFileLength(fileLengthBound)) {
-            return -1L // protect file overflow
-        }
-        with(writer) {
-            write(data.slice(), count)
-            incHighAddress(count.toLong())
-            closeFullFileIfNecessary(this)
-        }
         return result
     }
 
@@ -1097,16 +1176,16 @@ class Log(val config: LogConfig) : Closeable {
         private fun writeByteIterable(writer: BufferedDataWriter, iterable: ByteIterable) {
             val length = iterable.length
             if (iterable is ByteBufferIterable) {
-                writer.write((iterable as ByteBufferIterable).byteBuffer, length)
+                writer.write((iterable as ByteBufferIterable).byteBuffer, length, false)
             } else if (iterable is ArrayByteIterable) {
                 val bytes = iterable.getBytesUnsafe()
                 if (length == 1) {
                     writer.write(bytes[0])
                 } else {
-                    writer.write(ByteBuffer.wrap(bytes), length)
+                    writer.write(ByteBuffer.wrap(bytes), length, false)
                 }
             } else if (length >= 3) {
-                writer.write(ByteBuffer.wrap(iterable.bytesUnsafe), length)
+                writer.write(ByteBuffer.wrap(iterable.bytesUnsafe), length, false)
             } else {
                 val iterator = iterable.iterator()
                 writer.write(iterator.next())

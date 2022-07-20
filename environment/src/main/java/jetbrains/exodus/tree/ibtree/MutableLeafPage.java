@@ -129,7 +129,7 @@ final class MutableLeafPage implements MutablePage {
             return underlying.address;
         }
 
-        var newBuffer = LogUtil.allocatePage(pageSize);
+        var newBuffer = LogUtil.allocatePage(serializedSize());
         var buffer = newBuffer.slice(ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET,
                         pageSize - ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET).
                 order(ByteOrder.nativeOrder());
@@ -177,7 +177,8 @@ final class MutableLeafPage implements MutablePage {
             valueAddressesOffset += Long.BYTES;
         }
 
-        return log.writeNewPage(newBuffer);
+        return log.writeInsideSinglePage(ImmutableBTree.LEAF_PAGE, structureId, newBuffer,
+                ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET, true);
     }
 
     @Override

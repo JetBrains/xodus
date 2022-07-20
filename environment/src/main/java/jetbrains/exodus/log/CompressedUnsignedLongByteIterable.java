@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,6 +18,8 @@ package jetbrains.exodus.log;
 import jetbrains.exodus.*;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
+
+import java.nio.ByteBuffer;
 
 /**
  * This ByteIterable cannot be used for representing comparable or signed longs.
@@ -65,6 +67,50 @@ public final class CompressedUnsignedLongByteIterable extends ByteIterableBase {
         }
     }
 
+    public static int putLong(long value, ByteBuffer buffer, int offset) {
+        if (value < 0) {
+            throw new IllegalArgumentException(String.valueOf(value));
+        }
+
+        if (buffer.hasArray()) {
+            return putLong(value, buffer.array(), buffer.arrayOffset() + offset);
+        }
+
+        int index = offset;
+        while (true) {
+            final byte b = (byte) (value & 0x7f);
+            if ((value >>= 7) == 0) {
+                buffer.put(index, (byte) (b | 0x80));
+                break;
+            }
+
+            buffer.put(index, b);
+            index++;
+        }
+
+        return index + 1;
+    }
+
+    public static int putLong(long value, byte[] buffer, int offset) {
+        if (value < 0) {
+            throw new IllegalArgumentException(String.valueOf(value));
+        }
+
+        int index = offset;
+        while (true) {
+            final byte b = (byte) (value & 0x7f);
+            if ((value >>= 7) == 0) {
+                buffer[index] = (byte) (b | 0x80);
+                break;
+            }
+
+            buffer[index] = b;
+            index++;
+        }
+
+        return index + 1;
+    }
+
     public static long getLong(final ByteIterable iterable) {
         return getLong(iterable.iterator());
     }
@@ -98,6 +144,42 @@ public final class CompressedUnsignedLongByteIterable extends ByteIterableBase {
             }
             shift += 7;
         } while (iterator.hasNext());
+        return throwBadCompressedNumber();
+    }
+
+    public static int[] getInt(final ByteBuffer buffer, int offset) {
+        if (buffer.hasArray()) {
+            return getInt(buffer.array(), buffer.arrayOffset() + offset, buffer.limit());
+        }
+
+        int result = 0;
+        int index = 0;
+        int limit = buffer.limit();
+
+        do {
+            final byte b = buffer.get(index + offset);
+            result += (b & 0x7f) << (index * 7);
+            if ((b & 0x80) != 0) {
+                return new int[]{result, index + 1};
+            }
+            index++;
+        } while (index < limit);
+
+        return throwBadCompressedNumber();
+    }
+
+    public static int[] getInt(final byte[] data, int offset, int len) {
+        int result = 0;
+        int index = 0;
+        do {
+            final byte b = data[index + offset];
+            result += (b & 0x7f) << (index * 7);
+            if ((b & 0x80) != 0) {
+                return new int[]{result, index + 1};
+            }
+            index++;
+        } while (index < len);
+
         return throwBadCompressedNumber();
     }
 
@@ -170,7 +252,7 @@ public final class CompressedUnsignedLongByteIterable extends ByteIterableBase {
         };
     }
 
-    private static int throwBadCompressedNumber() {
+    private static <T> T throwBadCompressedNumber() {
         throw new ExodusException("Bad compressed number");
     }
 }
