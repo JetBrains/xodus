@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.log.replication
 
-import jetbrains.exodus.log.BufferedDataWriter
+import jetbrains.exodus.log.MutablePage
 import org.reactivestreams.Publisher
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
@@ -38,7 +38,7 @@ class FileAsyncHandler(
         private val path: Path,
         private val startingLength: Long,
         private val lastPageStart: Long = 0,
-        private val lastPage: BufferedDataWriter.MutablePage? = null
+        private val lastPage: MutablePage? = null
 ) : AsyncResponseTransformer<GetObjectResponse, WriteResult> {
     private val lastPageStartingLength = lastPage?.count ?: 0
 

@@ -333,13 +333,16 @@ public class LogConfig {
             if (readerWriterProviderInstance == null) {
                 switch (readerWriterProvider) {
                     case DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER:
-                        readerWriterProviderInstance = new FileDataReaderWriterProvider();
+                        readerWriterProviderInstance = new FileDataReaderAsyncWriterProvider();
                         break;
                     case DataReaderWriterProvider.WATCHING_READER_WRITER_PROVIDER:
                         readerWriterProviderInstance = new WatchingFileDataReaderWriterProvider();
                         break;
                     case DataReaderWriterProvider.IN_MEMORY_READER_WRITER_PROVIDER:
                         readerWriterProviderInstance = new MemoryDataReaderWriterProvider();
+                        break;
+                    case DataReaderWriterProvider.SYNC_FILE_READER_WRITER_PROVIDER:
+                        readerWriterProviderInstance = new FileDataReaderWriterProvider();
                         break;
                     default:
                         throw new InvalidSettingException("Unknown DataReaderWriterProvider: " + readerWriterProvider);

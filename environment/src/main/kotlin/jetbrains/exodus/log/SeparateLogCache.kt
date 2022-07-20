@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.log
 
-import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteBufferByteIterable
 import jetbrains.exodus.core.dataStructures.*
 import jetbrains.exodus.core.dataStructures.LongObjectCacheBase.Companion.DEFAULT_SIZE
@@ -122,12 +121,16 @@ internal class SeparateLogCache : LogCache {
         return page
     }
 
-    override fun getCachedPage(log: Log, pageAddress: Long): ByteBuffer? {
+    override fun getCachedPage(log: Log, pageAddress: Long, useTip: Boolean): ByteBuffer? {
         var page = pagesCache.getObjectLocked(pageAddress)
         if (page != null) {
             return page
         }
-        page = log.getHighPage(pageAddress)
+
+        if (useTip) {
+            page = log.getHighPage(pageAddress)
+        }
+
         return page
     }
 

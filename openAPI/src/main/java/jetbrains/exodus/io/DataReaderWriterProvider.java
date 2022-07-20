@@ -46,7 +46,7 @@ public abstract class DataReaderWriterProvider {
     /**
      * Fully-qualified name of default {@code DataReaderWriteProvider}.
      */
-    public static final String DEFAULT_READER_WRITER_PROVIDER = "jetbrains.exodus.io.FileDataReaderWriterProvider";
+    public static final String DEFAULT_READER_WRITER_PROVIDER = "jetbrains.exodus.io.FileDataReaderAsyncWriterProvider";
 
     /**
      * Fully-qualified name of read-only watching {@code DataReaderWriteProvider}.
@@ -57,6 +57,8 @@ public abstract class DataReaderWriterProvider {
      * Fully-qualified name of in-memory {@code DataReaderWriteProvider}.
      */
     public static final String IN_MEMORY_READER_WRITER_PROVIDER = "jetbrains.exodus.io.MemoryDataReaderWriterProvider";
+
+    public static final String SYNC_FILE_READER_WRITER_PROVIDER = "jetbrains.exodus.io.FileDataReaderWriterProvider";
 
 
     /**

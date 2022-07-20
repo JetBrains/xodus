@@ -152,7 +152,7 @@ public class EnvironmentConfig extends AbstractConfig {
 
     /**
      * Defines the maximum size in kilobytes of a single {@code Log} file (.xd file). The setting cannot be changed
-     * for existing databases. Default value is {@code 8192L}.
+     * for existing databases. Default value is {@code 65536L}.
      * <p>Mutable at runtime: no
      */
     public static final String LOG_FILE_SIZE = "exodus.log.fileSize";
@@ -718,7 +718,7 @@ public class EnvironmentConfig extends AbstractConfig {
             new Pair(CIPHER_BASIC_IV, 0L),
             new Pair(PROFILER_ENABLED, false),
             new Pair(LOG_DURABLE_WRITE, false),
-            new Pair(LOG_FILE_SIZE, 8192L),
+            new Pair(LOG_FILE_SIZE, 65536L),
             new Pair(LOG_LOCK_TIMEOUT, 0L),
             new Pair(LOG_LOCK_ID, null),
             new Pair(LOG_CACHE_PAGE_SIZE, 4 * 1024),

@@ -115,13 +115,18 @@ internal class SharedLogCache : LogCache {
         return page
     }
 
-    override fun getCachedPage(log: Log, pageAddress: Long): ByteBuffer? {
+    override fun getCachedPage(log: Log, pageAddress: Long, useTip: Boolean): ByteBuffer? {
         val logIdentity = log.identity
         val key = getLogPageFingerPrint(logIdentity, pageAddress)
         val cachedValue = pagesCache.getObjectLocked(key)
+
         return if (cachedValue != null && cachedValue.logIdentity == logIdentity && cachedValue.address == pageAddress) {
             cachedValue.page
-        } else log.getHighPage(pageAddress)
+        } else if (useTip) {
+            log.getHighPage(pageAddress)
+        } else {
+            null
+        }
     }
 
     override fun getPageIterable(log: Log, pageAddress: Long): ByteBufferByteIterable {

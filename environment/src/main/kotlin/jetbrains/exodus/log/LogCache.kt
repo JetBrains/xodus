@@ -22,7 +22,6 @@ import jetbrains.exodus.InvalidSettingException
 import jetbrains.exodus.core.dataStructures.ConcurrentIntObjectCache
 import jetbrains.exodus.util.MathUtil
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
 internal abstract class LogCache {
 
@@ -79,7 +78,7 @@ internal abstract class LogCache {
 
     abstract fun getPage(log: Log, pageAddress: Long): ByteBuffer
 
-    abstract fun getCachedPage(log: Log, pageAddress: Long): ByteBuffer?
+    abstract fun getCachedPage(log: Log, pageAddress: Long, useTip: Boolean): ByteBuffer?
 
     protected abstract fun getPageIterable(log: Log, pageAddress: Long): ByteBufferByteIterable
 
@@ -90,7 +89,7 @@ internal abstract class LogCache {
         var readAheadMultiple = 1
         while (readAheadMultiple < log.config.cacheReadAheadMultiple) {
             if (log.getFileAddress(pageAddress + pageSize * readAheadMultiple) != fileAddress ||
-                    getCachedPage(log, pageAddress + pageSize * readAheadMultiple) != null) {
+                    getCachedPage(log, pageAddress + pageSize * readAheadMultiple, true) != null) {
                 break
             }
             ++readAheadMultiple

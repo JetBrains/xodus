@@ -23,6 +23,7 @@ import jetbrains.exodus.ExodusException
 import jetbrains.exodus.InvalidSettingException
 import jetbrains.exodus.core.dataStructures.LongArrayList
 import jetbrains.exodus.crypto.cryptBlocksMutable
+import jetbrains.exodus.io.AsyncDataWriter
 import jetbrains.exodus.io.DataReader
 import jetbrains.exodus.io.DataWriter
 import jetbrains.exodus.io.FileDataReader
@@ -339,7 +340,13 @@ class Log(val config: LogConfig) : Closeable {
     }
 
     fun beginWrite(): LogTip {
-        val writer = BufferedDataWriter(this, this.writer, tip, maxWriteCacheSize)
+        val writer : BufferedDataWriter
+        if (this.writer is AsyncDataWriter) {
+            writer = BufferedAsyncDataWriter(this, this.writer, tip, maxWriteCacheSize)
+        } else {
+            writer = BufferedSyncDataWriter(this, this.writer, tip, maxWriteCacheSize)
+        }
+
         this.bufferedWriter = writer
         return writer.startingTip
     }
@@ -784,7 +791,7 @@ class Log(val config: LogConfig) : Closeable {
                 do {
                     writer.write(cachedTailPage, cachePageSize)
                     bytesToWrite -= cachePageSize.toLong()
-                    writer.highAddress += cachePageSize.toLong()
+                    writer.incHighAddress(cachePageSize.toLong())
                 } while (bytesToWrite >= cachePageSize)
             }
         }
@@ -892,7 +899,7 @@ class Log(val config: LogConfig) : Closeable {
             }
 
         }
-        writer.highAddress += recordLength.toLong()
+        writer.incHighAddress(recordLength.toLong())
         closeFullFileIfNecessary(writer)
         return result
     }
@@ -907,7 +914,7 @@ class Log(val config: LogConfig) : Closeable {
         }
         with(writer) {
             write(data.slice(), count)
-            highAddress += count.toLong()
+            incHighAddress(count.toLong())
             closeFullFileIfNecessary(this)
         }
         return result

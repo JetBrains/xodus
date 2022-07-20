@@ -44,7 +44,7 @@ open class FileDataReaderWriterProvider : DataReaderWriterProvider() {
         }
     }
 
-    protected open fun newFileDataWriter(location: String, reader: DataReader) =
+    protected open fun newFileDataWriter(location: String, reader: DataReader) : DataWriter =
             FileDataWriter(reader as FileDataReader, env?.environmentConfig?.logLockId)
 
     companion object {

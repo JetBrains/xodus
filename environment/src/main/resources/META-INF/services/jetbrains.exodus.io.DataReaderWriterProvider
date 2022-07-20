@@ -1,3 +1,4 @@
+jetbrains.exodus.io.FileDataReaderAsyncWriterProvider
 jetbrains.exodus.io.FileDataReaderWriterProvider
 jetbrains.exodus.io.WatchingFileDataReaderWriterProvider
 jetbrains.exodus.io.inMemory.MemoryDataReaderWriterProvider
