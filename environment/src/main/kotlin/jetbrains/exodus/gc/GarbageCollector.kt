@@ -337,7 +337,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                         store = txn.openStoreByStructureId(structureId)
                         openStoresCache[structureId] = store
                     }
-                    store.reclaim(txn, loggable, loggables)
+                    store.reclaim(txn, loggable, loggables, log.fileLengthBound)
                 }
             }
         } catch (e: Throwable) {

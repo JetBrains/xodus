@@ -87,11 +87,11 @@ public final class TreeImmutableCursor implements ITreeCursor {
 
     @Override
     public boolean getNext() {
-        if (initiated) {
+        if (!initiated) {
             assert stack.isEmpty();
             initStack();
 
-            initiated = false;
+            initiated = true;
 
             return !stack.isEmpty();
         }
@@ -139,7 +139,7 @@ public final class TreeImmutableCursor implements ITreeCursor {
 
     @Override
     public boolean getLast() {
-        initiated = false;
+        initiated = true;
 
         stack.clear();
 

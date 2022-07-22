@@ -83,7 +83,7 @@ class ContextualTemporaryEmptyStore extends ContextualStoreImpl {
     @Override
     public void reclaim(@NotNull final Transaction transaction,
                         @NotNull final RandomAccessLoggable loggable,
-                        @NotNull final Iterator<RandomAccessLoggable> loggables) {
+                        @NotNull final Iterator<RandomAccessLoggable> loggables, long segmentSize) {
         // nothing to reclaim
     }
 

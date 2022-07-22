@@ -196,7 +196,7 @@ public final class MutableBTree implements ITreeMutable {
             var index = page.find(bufferKey);
             if (page instanceof MutableLeafPage mutablePage) {
                 if (index < 0) {
-                    mutablePage.insert(index, bufferKey, value.getByteBuffer());
+                    mutablePage.insert(-index - 1, bufferKey, value.getByteBuffer());
                     return true;
                 }
 
@@ -344,7 +344,11 @@ public final class MutableBTree implements ITreeMutable {
 
     @Override
     public long save() {
-        root.rebalance();
+        var newRoot = root.rebalance();
+        if (newRoot != null) {
+            root = newRoot;
+        }
+
         root.spill();
 
         return root.save(immutableTree.getStructureId());
@@ -356,7 +360,8 @@ public final class MutableBTree implements ITreeMutable {
     }
 
     @Override
-    public boolean reclaim(@NotNull RandomAccessLoggable loggable, @NotNull Iterator<RandomAccessLoggable> loggables) {
+    public boolean reclaim(@NotNull RandomAccessLoggable loggable, @NotNull Iterator<RandomAccessLoggable> loggables,
+                           long segmentSize) {
         return false;
     }
 

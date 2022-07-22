@@ -142,8 +142,8 @@ final class PatriciaTreeWithDuplicatesMutable extends PatriciaTreeWithDuplicates
 
     @Override
     public boolean reclaim(@NotNull final RandomAccessLoggable loggable,
-                           @NotNull final Iterator<RandomAccessLoggable> loggables) {
-        return ((ITreeMutable) treeNoDuplicates).reclaim(loggable, loggables);
+                           @NotNull final Iterator<RandomAccessLoggable> loggables, long segmentSize) {
+        return ((ITreeMutable) treeNoDuplicates).reclaim(loggable, loggables, segmentSize);
     }
 
     private ITreeMutableExt getTreeNoDuplicates() {

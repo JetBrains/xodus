@@ -298,7 +298,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutableExt {
 
     @Override
     public boolean reclaim(@NotNull RandomAccessLoggable loggable,
-                           @NotNull final Iterator<RandomAccessLoggable> loggables) {
+                           @NotNull final Iterator<RandomAccessLoggable> loggables, long segmentSize) {
         final BTreeReclaimTraverser context = new BTreeReclaimTraverser(this);
 
         loop:

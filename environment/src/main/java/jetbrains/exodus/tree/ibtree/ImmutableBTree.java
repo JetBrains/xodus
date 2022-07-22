@@ -15,12 +15,16 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 public final class ImmutableBTree implements ITree {
-    static final int LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET = 2 * Long.BYTES;
+    static final int LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET = Long.BYTES;
 
-    public static final byte INTERNAL_PAGE = 44;
-    public static final byte LEAF_PAGE = 45;
-    public static final byte VALUE_NODE = 46;
-    public static final byte KEY_NODE = 47;
+    public static final byte KEY_NODE = 44;
+    public static final byte VALUE_NODE = 45;
+
+    public static final byte INTERNAL_PAGE = 46;
+    public static final byte LEAF_PAGE = 47;
+
+    public static final byte INTERNAL_ROOT_PAGE = 48;
+    public static final byte LEAF_ROOT_PAGE = 49;
 
     @NotNull
     final Log log;
@@ -123,16 +127,13 @@ public final class ImmutableBTree implements ITree {
         var loggable = log.readLoggableAsPage(pageAddress);
         var page = loggable.getBuffer();
 
-        var childPage = page.slice(LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET,
-                pageSize - LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET);
-
         assert page.order() == ByteOrder.nativeOrder();
 
         var type = loggable.getType();
-        if (type == INTERNAL_PAGE) {
-            return new ImmutableInternalPage(log, childPage, pageAddress);
-        } else if (type == LEAF_PAGE) {
-            return new ImmutableLeafPage(log, childPage, pageAddress);
+        if (type == INTERNAL_PAGE || type == INTERNAL_ROOT_PAGE) {
+            return new ImmutableInternalPage(log, page, pageAddress);
+        } else if (type == LEAF_PAGE || type == LEAF_ROOT_PAGE) {
+            return new ImmutableLeafPage(log, page, pageAddress);
         } else {
             throw new IllegalStateException(String.format("Invalid loggable type %d.", type));
         }
@@ -165,7 +166,7 @@ public final class ImmutableBTree implements ITree {
 
     @Override
     public boolean isEmpty() {
-        return root.getTreeSize() != 0;
+        return root.getTreeSize() == 0;
     }
 
     @Override

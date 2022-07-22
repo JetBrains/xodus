@@ -140,7 +140,7 @@ public final class LogUtil {
         if (LONG_ALIGNMENT_OFFSET == 0) {
             buffer = ByteBuffer.allocate(pageSize);
         } else {
-            buffer = ByteBuffer.allocate(pageSize + LONG_ALIGNMENT_OFFSET).alignedSlice(Long.BYTES);
+            buffer = ByteBuffer.allocate(pageSize + Long.BYTES - LONG_ALIGNMENT_OFFSET).alignedSlice(Long.BYTES);
         }
 
 

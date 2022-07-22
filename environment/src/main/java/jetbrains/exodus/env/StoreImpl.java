@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -194,10 +194,10 @@ public class StoreImpl implements Store {
 
     public void reclaim(@NotNull final Transaction transaction,
                         @NotNull final RandomAccessLoggable loggable,
-                        @NotNull final Iterator<RandomAccessLoggable> loggables) {
+                        @NotNull final Iterator<RandomAccessLoggable> loggables, long segmentSize) {
         final ReadWriteTransaction txn = EnvironmentImpl.throwIfReadonly(transaction, "Can't reclaim in read-only transaction");
         final boolean hadTreeMutated = txn.hasTreeMutable(this);
-        if (!txn.getMutableTree(this).reclaim(loggable, loggables) && !hadTreeMutated) {
+        if (!txn.getMutableTree(this).reclaim(loggable, loggables, segmentSize) && !hadTreeMutated) {
             txn.removeTreeMutable(this);
         }
     }
@@ -212,15 +212,15 @@ public class StoreImpl implements Store {
         if (!metaInfo.isKeyPrefixing()) {
             final BTreeBalancePolicy balancePolicy = environment.getBTreeBalancePolicy();
             result = treeIsEmpty ?
-                new BTreeEmpty(log, balancePolicy, hasDuplicates, structureId) :
-                new BTree(log, balancePolicy, upToDateRootAddress, hasDuplicates, structureId);
+                    new BTreeEmpty(log, balancePolicy, hasDuplicates, structureId) :
+                    new BTree(log, balancePolicy, upToDateRootAddress, hasDuplicates, structureId);
         } else {
             if (treeIsEmpty) {
                 result = new PatriciaTreeEmpty(log, structureId, hasDuplicates);
             } else {
                 result = hasDuplicates ?
-                    new PatriciaTreeWithDuplicates(log, upToDateRootAddress, structureId) :
-                    new PatriciaTree(log, upToDateRootAddress, structureId);
+                        new PatriciaTreeWithDuplicates(log, upToDateRootAddress, structureId) :
+                        new PatriciaTree(log, upToDateRootAddress, structureId);
             }
         }
         return result;

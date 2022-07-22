@@ -120,7 +120,7 @@ final class MutableInternalPage implements MutablePage {
 
         var newBuffer = LogUtil.allocatePage(serializedSize());
         var buffer = newBuffer.slice(ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET,
-                        pageSize - ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET).
+                        newBuffer.limit() - ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET).
                 order(ByteOrder.nativeOrder());
 
         assert buffer.alignmentOffset(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET + Long.BYTES, Integer.BYTES) == 0;
@@ -176,8 +176,15 @@ final class MutableInternalPage implements MutablePage {
 
         cachedTreeSize = treeSize;
 
-        return log.writeInsideSinglePage(ImmutableBTree.INTERNAL_PAGE, structureId,
-                newBuffer, ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET, true);
+        byte type;
+        if (parent == null) {
+            type = ImmutableBTree.INTERNAL_ROOT_PAGE;
+        } else {
+            type = ImmutableBTree.INTERNAL_PAGE;
+        }
+
+        return log.writeInsideSinglePage(type, structureId,
+                newBuffer, true);
     }
 
     @Override

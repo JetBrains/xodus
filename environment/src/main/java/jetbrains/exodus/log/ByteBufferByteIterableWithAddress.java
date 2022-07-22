@@ -134,7 +134,7 @@ public class ByteBufferByteIterableWithAddress extends ByteIterableWithAddress i
 
     @Override
     public final ByteBuffer getByteBuffer() {
-        return buffer.slice(start, end).asReadOnlyBuffer().order(buffer.order());
+        return buffer.slice(start, end - start).asReadOnlyBuffer().order(buffer.order());
     }
 
     private final class ByteBufferIteratorWithAddress extends ByteIteratorWithAddress {

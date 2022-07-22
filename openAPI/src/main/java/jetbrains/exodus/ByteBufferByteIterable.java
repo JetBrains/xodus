@@ -19,6 +19,7 @@ import jetbrains.exodus.util.ByteIterableUtil;
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 /**
  * An adapter of {@link ByteBuffer} to {@link ByteIterable}. Doesn't support {@link #getBytesUnsafe()} as
@@ -31,7 +32,7 @@ public final class ByteBufferByteIterable implements ByteIterable, ByteBufferIte
     private final ByteBuffer buffer;  // this buffer should be immutable with position = 0
 
     public ByteBufferByteIterable(@NotNull final ByteBuffer buffer) {
-        this(buffer.slice(), buffer.remaining());
+        this.buffer = buffer;
     }
 
     private ByteBufferByteIterable(@NotNull final ByteBuffer buffer, final int length) {
@@ -63,7 +64,16 @@ public final class ByteBufferByteIterable implements ByteIterable, ByteBufferIte
     public byte[] getBytesUnsafe() {
         var data = new byte[buffer.limit()];
         buffer.get(0, data);
+
         return data;
+    }
+
+    @Override
+    public String toString() {
+        var data = new byte[buffer.limit()];
+        buffer.get(0, data);
+
+        return Arrays.toString(data);
     }
 
     @Override

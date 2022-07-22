@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -73,7 +73,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, false, 1))).getMutableCopy();
 
         final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(savedLeafAddress);
-        Assert.assertTrue(tm.reclaim(iter.next(), iter));
+        Assert.assertTrue(tm.reclaim(iter.next(), iter, log.getFileLengthBound()));
 
         final AddressIterator addressIterator = getTreeAddresses(getTree());
 
@@ -112,7 +112,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, false, 1))).getMutableCopy();
 
         final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(savedLeafAddress);
-        Assert.assertTrue(tm.reclaim(iter.next(), iter));
+        Assert.assertTrue(tm.reclaim(iter.next(), iter, log.getFileLengthBound()));
 
         System.out.println(tm.getExpiredLoggables().getSize());
 
@@ -141,7 +141,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         tm = ((BTree) (t = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, false, 1))).getMutableCopy();
 
         final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(rootAddress);
-        Assert.assertTrue(tm.reclaim(iter.next(), iter)); // root should be reclaimed
+        Assert.assertTrue(tm.reclaim(iter.next(), iter, log.getFileLengthBound())); // root should be reclaimed
     }
 
     @Test
@@ -157,7 +157,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         Assert.assertNotNull(savedLeaf);
 
         final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(savedLeaf.getAddress());
-        Assert.assertTrue(tm.reclaim(iter.next(), iter));
+        Assert.assertTrue(tm.reclaim(iter.next(), iter, log.getFileLengthBound()));
 
         final AddressIterator addressIterator = getTreeAddresses(getTree());
 
@@ -189,7 +189,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         }
 
         final BasePage page = getTree().loadPage(next.getAddress());
-        Assert.assertTrue(tm.reclaim(leaf, iter));
+        Assert.assertTrue(tm.reclaim(leaf, iter, log.getFileLengthBound()));
 
         final AddressIterator addressIterator = getTreeAddresses(getTree());
 
@@ -217,7 +217,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         Assert.assertNotNull(savedLeaf);
 
         final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(savedLeaf.getAddress());
-        Assert.assertTrue(tm.reclaim(iter.next(), iter));
+        Assert.assertTrue(tm.reclaim(iter.next(), iter, log.getFileLengthBound()));
 
         final AddressIterator addressIterator = getTreeAddresses(getTree());
 
@@ -262,7 +262,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
             loggable = iter.next();
         }
         Assert.assertTrue(loggable.getAddress() < savedLeaf.getAddress()); // some dup tree stored before our leaf */
-        Assert.assertTrue(tm.reclaim(iter.next(), iter));
+        Assert.assertTrue(tm.reclaim(iter.next(), iter, log.getFileLengthBound()));
 
         final AddressIterator addressIterator = getTreeAddresses(getTree());
 
@@ -299,7 +299,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         Assert.assertNotNull(savedLeaf);
 
         final Iterator<RandomAccessLoggable> iter = log.getLoggableIterator(savedLeaf.getAddress());
-        Assert.assertTrue(tm.reclaim(iter.next(), iter));
+        Assert.assertTrue(tm.reclaim(iter.next(), iter, log.getFileLengthBound()));
 
         final AddressIterator addressIterator = getTreeAddresses(getTree());
 
@@ -344,7 +344,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
             loggable = iter.next();
         }
         final BasePage page = dt.loadPage(loggable.getAddress());
-        Assert.assertTrue(tm.reclaim(loggable, iter));
+        Assert.assertTrue(tm.reclaim(loggable, iter, log.getFileLengthBound()));
 
         final AddressIterator addressIterator = getTreeAddresses(getTree());
 

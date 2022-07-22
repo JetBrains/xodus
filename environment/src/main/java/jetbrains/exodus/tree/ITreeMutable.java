@@ -123,9 +123,11 @@ public interface ITreeMutable extends ITree {
     /**
      * Same as reclaim with expirationChecker, but takes all loggables into account
      *
-     * @param loggable  a candidate to reclaim.
-     * @param loggables loggables following the candidate.
+     * @param loggable    a candidate to reclaim.
+     * @param loggables   loggables following the candidate.
+     * @param segmentSize maximum size of file segment
      * @return true if any loggable (the candidate or any among loggables) was reclaimed.
      */
-    boolean reclaim(@NotNull RandomAccessLoggable loggable, @NotNull Iterator<RandomAccessLoggable> loggables);
+    boolean reclaim(@NotNull RandomAccessLoggable loggable, @NotNull Iterator<RandomAccessLoggable> loggables,
+                    long segmentSize);
 }

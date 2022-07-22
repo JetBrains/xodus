@@ -412,6 +412,8 @@ public class LogTests extends LogTestsBase {
             addrs.put(writeData(CompressedUnsignedLongByteIterable.getIterable(i)), valueOf(i));
         }
         log.endWrite();
+
+        getLog().read(254408);
         for (Long addr : addrs.keySet()) {
             Assert.assertEquals((int) addrs.get(addr), (int) CompressedUnsignedLongByteIterable.getLong(getLog().read(addr).getData()));
             getLog().read(addr);

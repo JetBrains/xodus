@@ -263,8 +263,9 @@ internal class PatriciaTreeMutable(
     }
 
     override fun reclaim(
-        loggable: RandomAccessLoggable,
-        loggables: Iterator<RandomAccessLoggable>
+            loggable: RandomAccessLoggable,
+            loggables: Iterator<RandomAccessLoggable>,
+            segmentSize: Long
     ): Boolean {
         var l = loggable
         var minAddress = l.address

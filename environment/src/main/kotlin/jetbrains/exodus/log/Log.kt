@@ -29,6 +29,7 @@ import jetbrains.exodus.io.DataWriter
 import jetbrains.exodus.io.FileDataReader
 import jetbrains.exodus.io.RemoveBlockType
 import jetbrains.exodus.kotlin.notNull
+import jetbrains.exodus.tree.ibtree.ImmutableBTree
 import jetbrains.exodus.util.DeferredIO
 import jetbrains.exodus.util.IdGenerator
 import mu.KLogging
@@ -36,7 +37,9 @@ import java.io.Closeable
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.*
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.collections.ArrayList
 import kotlin.experimental.xor
 
 class Log(val config: LogConfig) : Closeable {
@@ -493,22 +496,38 @@ class Log(val config: LogConfig) : Closeable {
         val pageAddress = address - loggableOffset
 
         val page = cache.getPage(this, pageAddress)
-        var offset = 1
+        assert(page.order() == ByteOrder.nativeOrder())
 
         val type = page.get(loggableOffset) xor 0x80.toByte()
-        val structureId = CompressedUnsignedLongByteIterable.getInt(page, loggableOffset + offset)
-        offset += structureId[1]
+        val structureId: Int
+        val dataLength: Int
 
-        val length = CompressedUnsignedLongByteIterable.getInt(page, offset + loggableOffset)
-        offset += structureId[1]
+        if (type < ImmutableBTree.INTERNAL_PAGE || type > ImmutableBTree.LEAF_ROOT_PAGE) {
+            throw UnsupportedOperationException("This method can be used only to read loggables of BTree with" +
+                    " inlined keys")
+        } else {
+            val dataLengthStructureIdType = page.order(ByteOrder.BIG_ENDIAN).getLong(loggableOffset);
+            page.order(ByteOrder.nativeOrder())
 
-        val loggableLength = length[0]
-        val dataOffset = loggableOffset + offset
-        val dataLength = loggableLength - offset
+            dataLength = (dataLengthStructureIdType and 0xFF_FF_FF_FF).toInt()
+            structureId = (dataLengthStructureIdType shr 32).toInt() and 0x00_FF_FF_FF
+        }
+
+        val loggableLength = dataLength + Long.SIZE_BYTES
+        val dataOffset = loggableOffset + Long.SIZE_BYTES
 
         //fast path, page size always should be kept the same to follow it
         if (loggableOffset + loggableLength <= cachePageSize) {
-            return ByteBufferLoggable(address, type, loggableLength, dataLength, structureId[0],
+            val data: ByteBuffer
+            if (loggableLength == cachePageSize) {
+                data = page
+            } else {
+                data = page.slice(dataOffset, dataLength)
+            }
+
+            assert(data.alignmentOffset(0, Long.SIZE_BYTES) == 0)
+
+            return ByteBufferLoggable(address, type, loggableLength, dataLength, structureId,
                     page.slice(dataOffset, dataLength).order(ByteOrder.nativeOrder()))
         }
 
@@ -531,7 +550,7 @@ class Log(val config: LogConfig) : Closeable {
             buffer.put(dataLength - bytesToRead, currentPage, 0, chunkSize)
         }
 
-        return ByteBufferLoggable(address, type, loggableLength, dataLength, structureId[0], buffer)
+        return ByteBufferLoggable(address, type, loggableLength, dataLength, structureId, buffer)
     }
 
     fun getWrittenLoggableType(address: Long, max: Byte): Byte {
@@ -556,13 +575,24 @@ class Log(val config: LogConfig) : Closeable {
     }
 
     private fun read(type: Byte, it: ByteIteratorWithAddress, address: Long): RandomAccessLoggable {
-        val structureId = CompressedUnsignedLongByteIterable.getInt(it)
-        val dataLength = CompressedUnsignedLongByteIterable.getInt(it)
+        val structureId: Int
+        val dataLength: Int
+
+        if (type < ImmutableBTree.INTERNAL_PAGE || type > ImmutableBTree.LEAF_ROOT_PAGE) {
+            structureId = CompressedUnsignedLongByteIterable.getInt(it)
+            dataLength = CompressedUnsignedLongByteIterable.getInt(it)
+        } else {
+            val dataLengthStructureIdType = it.nextLong(Long.SIZE_BYTES - Byte.SIZE_BYTES) shr Byte.SIZE_BITS
+            dataLength = (dataLengthStructureIdType and 0xFF_FF_FF_FF).toInt()
+            structureId = (dataLengthStructureIdType shr 32).toInt() and 0x00_FF_FF_FF
+        }
+
         val dataAddress = it.address
         if (dataLength > 0 && it.availableInCurrentPage(dataLength)) {
             return RandomAccessLoggableAndByteBufferByteIterable(
                     address, type, structureId, dataAddress, it.currentPage, it.offset, dataLength)
         }
+
         val data = RandomAccessByteIterable(dataAddress, this)
         return RandomAccessLoggableImpl(address, type, data, dataLength, structureId)
     }
@@ -613,24 +643,44 @@ class Log(val config: LogConfig) : Closeable {
      * Loggable will be stored since the start of the new page in log file.
      * Size of the loggable should not exceed size of the single page.
      *
-     * @param expectedDataOffset Offset of the ByteBuffer since which data are stored
      * @param canBeConsumed Provided ByteBuffer can be used directly as page of the page cache if
      * it satisfies constrains provided by Log
      */
     fun writeInsideSinglePage(type: Byte, structureId: Int, page: ByteBuffer,
-                              expectedDataOffset: Int, canBeConsumed: Boolean): Long {
+                              canBeConsumed: Boolean): Long {
+        assert(page.order() == ByteOrder.nativeOrder())
+
+        if (type < ImmutableBTree.INTERNAL_PAGE || type > ImmutableBTree.LEAF_ROOT_PAGE) {
+            throw UnsupportedOperationException("This method can be used only to read loggables of BTree with" +
+                    " inlined keys")
+        }
+
         if (page.limit() > cachePageSize) {
             throw ExodusException("Page can not exceed size of $cachePageSize")
         }
 
-        serializedLoggableMetaDataInPage(type, structureId, page, expectedDataOffset)
+        //compact all loggable metadata into single long
+        val typeAndStructureIdDataLength = ((type.toLong() xor 0x80) shl (Long.SIZE_BITS - Byte.SIZE_BITS)) or
+                (structureId.toLong() shl Int.SIZE_BITS) or (page.limit() - Long.SIZE_BYTES).toLong()
+
+        page.order(ByteOrder.BIG_ENDIAN).putLong(0, typeAndStructureIdDataLength).order(ByteOrder.nativeOrder())
 
         val writer = ensureWriter()
         var address = beforeWrite(writer)
 
         val pageOffset = (address and (cachePageSize - 1).toLong()).toInt()
+        val alignmentOffset = page.alignmentOffset(pageOffset, Long.SIZE_BYTES)
 
-        if (pageOffset + page.limit() <= cachePageSize) {
+        if (pageOffset + alignmentOffset + page.limit() <= cachePageSize) {
+            if (alignmentOffset > 0) {
+                val filler = ByteArray(Long.SIZE_BYTES - alignmentOffset)
+                Arrays.fill(filler, 0x80.toByte())
+
+                writer.write(ByteBuffer.wrap(filler), filler.size, false)
+                writer.incHighAddress(filler.size.toLong())
+                address += filler.size
+            }
+
             writer.write(page, page.limit(), canBeConsumed)
             writer.incHighAddress(page.limit().toLong())
 
@@ -639,7 +689,9 @@ class Log(val config: LogConfig) : Closeable {
         }
 
         val paddingBytes = cachePageSize - pageOffset
-        val filler = ByteArray(paddingBytes) { 0x80.toByte() }
+        val filler = ByteArray(paddingBytes)
+
+        Arrays.fill(filler, 0x80.toByte())
 
         writer.write(ByteBuffer.wrap(filler), paddingBytes, false)
         writer.incHighAddress(paddingBytes.toLong())
@@ -654,20 +706,6 @@ class Log(val config: LogConfig) : Closeable {
         closeFullFileIfNecessary(writer)
 
         return address
-    }
-
-    private fun serializedLoggableMetaDataInPage(type: Byte, structureId: Int, page: ByteBuffer,
-                                                 expectedDataOffset: Int) {
-        page.put(0, type xor 0x80.toByte())
-
-        var offset = 1
-        offset = CompressedUnsignedLongByteIterable.putLong(structureId.toLong(), page, offset)
-        offset = CompressedUnsignedLongByteIterable.putLong(page.limit().toLong(), page, offset)
-
-        if (offset > expectedDataOffset) {
-            throw ExodusException("Unexpected data offset. Expected offset" +
-                    " $expectedDataOffset but calculated offset is $offset")
-        }
     }
 
     /**

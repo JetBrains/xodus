@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -58,13 +58,13 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
         log.forgetFile(address);
         log.removeFile(address); // emulate gc of first file
         Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(log.getFileAddress(fileSize * 2));
-        tm.reclaim(loggables.next(), loggables); // reclaim third file
+        tm.reclaim(loggables.next(), loggables, log.getFileLengthBound()); // reclaim third file
         saved = saveTree();
         reloadMutableTree(saved);
         log.forgetFile(fileSize * 2);
         log.removeFile(fileSize * 2); // remove reclaimed file
         loggables = log.getLoggableIterator(log.getFileAddress(fileSize));
-        tm.reclaim(loggables.next(), loggables); // reclaim second file
+        tm.reclaim(loggables.next(), loggables, log.getFileLengthBound()); // reclaim second file
         saved = saveTree();
         reloadMutableTree(saved);
         Assert.assertTrue(log.getNumberOfFiles() > 2); // make sure that some files were added
@@ -86,10 +86,10 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
         tm.put(key("k"), value("v3"));
         saveTree();
         Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(0);
-        tm.reclaim(loggables.next(), loggables);
+        tm.reclaim(loggables.next(), loggables, log.getFileLengthBound());
         loggables = log.getLoggableIterator(firstAddress);
         loggables.next();
-        tm.reclaim(loggables.next(), loggables);
+        tm.reclaim(loggables.next(), loggables, log.getFileLengthBound());
     }
 
     private void reloadMutableTree(long address) {
