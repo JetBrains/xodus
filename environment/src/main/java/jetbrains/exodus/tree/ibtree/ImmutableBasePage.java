@@ -34,7 +34,7 @@ import java.util.RandomAccess;
  * For all pages small is space kept to keep structure id and loggable type that why page offset is passed.
  * Page offset should be quantised by {@link Long#BYTES} bytes.
  */
-abstract class ImmutableBasePage {
+abstract class ImmutableBasePage implements TraversablePage {
     static final int KEY_PREFIX_LEN_OFFSET = 0;
 
     //we could use short here but in such case we risk to get unaligned memory access for subsequent reads
@@ -71,7 +71,7 @@ abstract class ImmutableBasePage {
 
     abstract long getTreeSize();
 
-    final int find(ByteBuffer key) {
+    public final int find(ByteBuffer key) {
         return Collections.binarySearch(keyView, key, ByteBufferComparator.INSTANCE);
     }
 
@@ -107,7 +107,7 @@ abstract class ImmutableBasePage {
         return page.getLong(keyAddressPosition);
     }
 
-    final int getEntriesCount() {
+    public final int getEntriesCount() {
         assert page.alignmentOffset(ENTRIES_COUNT_OFFSET, Integer.BYTES) == 0;
 
         return page.getInt(ENTRIES_COUNT_OFFSET);
@@ -117,7 +117,7 @@ abstract class ImmutableBasePage {
         return keyView.get(index);
     }
 
-    abstract MutablePage toMutable(ExpiredLoggableCollection expiredLoggables, MutableInternalPage parent);
+    abstract MutablePage toMutable(MutableBTree tree, ExpiredLoggableCollection expiredLoggables, MutableInternalPage parent);
 
     private int getChildAddressPosition(int index) {
         return KEYS_OFFSET + getEntriesCount() * Long.BYTES + index * Long.BYTES;

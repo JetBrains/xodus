@@ -5,6 +5,7 @@ import jetbrains.exodus.ByteBufferByteIterable;
 import jetbrains.exodus.ByteBufferComparator;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
+import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.tree.ExpiredLoggableCollection;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -50,9 +51,14 @@ final class MutableInternalPage implements MutablePage {
 
     long cachedTreeSize = -1;
 
-    MutableInternalPage(@Nullable ImmutableInternalPage underlying,
+    @NotNull
+    final MutableBTree tree;
+
+    MutableInternalPage(@NotNull MutableBTree tree, @Nullable ImmutableInternalPage underlying,
                         @NotNull ExpiredLoggableCollection expiredLoggables, @NotNull Log log,
                         int pageSize, @Nullable MutableInternalPage parent) {
+        this.tree = tree;
+
         if (underlying != null) {
             pageAddress = underlying.address;
         } else {
@@ -106,8 +112,33 @@ final class MutableInternalPage implements MutablePage {
     }
 
     @Override
+    public int getEntriesCount() {
+        return keyView.size();
+    }
+
+    @Override
+    public TraversablePage child(int index) {
+        if (changedEntries == null) {
+            assert underlying != null;
+            return underlying.child(index);
+        }
+
+        return changedEntries.get(index).mutablePage;
+    }
+
+    @Override
     public int find(ByteBuffer key) {
         return Collections.binarySearch(keyView, key, ByteBufferComparator.INSTANCE);
+    }
+
+    @Override
+    public boolean isInternalPage() {
+        return true;
+    }
+
+    @Override
+    public ByteBuffer getValue(int index) {
+        throw new UnsupportedOperationException("Internal page can not contain values");
     }
 
 
@@ -228,7 +259,7 @@ final class MutableInternalPage implements MutablePage {
                 return null;
             }
 
-            assert parent.numChildren() > 1 : "parent must have at least 2 children";
+            assert parent.getEntriesCount() > 1 : "parent must have at least 2 children";
 
             // Destination node is right sibling if idx == 0, otherwise left sibling.
             // If both this node and the target node are too small then merge them.
@@ -292,12 +323,12 @@ final class MutableInternalPage implements MutablePage {
             }
 
             if (parent == null) {
-                parent = new MutableInternalPage(null, expiredLoggables,
+                parent = new MutableInternalPage(tree, null, expiredLoggables,
                         log, pageSize,
                         null);
             }
 
-            page = new MutableInternalPage(null, expiredLoggables, log, pageSize,
+            page = new MutableInternalPage(tree, null, expiredLoggables, log, pageSize,
                     parent);
             page.changedEntries = nextSiblingEntries;
             page.firstKey = nextSiblingEntries.get(0).key;
@@ -390,21 +421,18 @@ final class MutableInternalPage implements MutablePage {
 
             final MutablePage child;
             if (type == ImmutableBTree.INTERNAL_PAGE) {
-                var immutableChild = new ImmutableInternalPage(log, childPage, childAddress);
-                child = new MutableInternalPage(immutableChild, expiredLoggables, log, pageSize, this);
+                var immutableChild = new ImmutableInternalPage(tree.immutableTree,
+                        log, childPage, childAddress);
+                child = new MutableInternalPage(tree, immutableChild, expiredLoggables, log, pageSize, this);
             } else if (type == ImmutableBTree.LEAF_PAGE) {
                 var immutableChild = new ImmutableLeafPage(log, childPage, childAddress);
-                child = new MutableLeafPage(immutableChild, log, pageSize, expiredLoggables, this);
+                child = new MutableLeafPage(tree, immutableChild, log, pageSize, expiredLoggables, this);
             } else {
                 throw new IllegalStateException(String.format("Unexpected type of loggable %d.", type));
             }
 
             changedEntries.add(new Entry(keyHolder, child));
         }
-    }
-
-    int numChildren() {
-        return keyView.size();
     }
 
     @Override
@@ -425,6 +453,15 @@ final class MutableInternalPage implements MutablePage {
         }
 
         return treeSize;
+    }
+
+    @Override
+    public long address() {
+        if (underlying != null) {
+            return underlying.address;
+        }
+
+        return Loggable.NULL_ADDRESS;
     }
 
     static final class Entry implements Comparable<Entry> {

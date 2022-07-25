@@ -5,6 +5,7 @@ import jetbrains.exodus.ByteBufferByteIterable;
 import jetbrains.exodus.ByteBufferComparator;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
+import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.tree.ExpiredLoggableCollection;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -44,9 +45,14 @@ final class MutableLeafPage implements MutablePage {
 
     ByteBufferHolder firstKey;
 
-    MutableLeafPage(@Nullable ImmutableLeafPage underlying, @NotNull Log log, int pageSize,
+    @NotNull
+    final MutableBTree tree;
+
+    MutableLeafPage(@NotNull MutableBTree tree, @Nullable ImmutableLeafPage underlying,
+                    @NotNull Log log, int pageSize,
                     @NotNull ExpiredLoggableCollection expiredLoggables,
                     @Nullable MutableInternalPage parent) {
+        this.tree = tree;
         this.underlying = underlying;
         if (underlying != null) {
             this.pageAddress = underlying.address;
@@ -75,8 +81,28 @@ final class MutableLeafPage implements MutablePage {
     }
 
     @Override
+    public int getEntriesCount() {
+        return keyView.size();
+    }
+
+    @Override
+    public TraversablePage child(int index) {
+        throw new UnsupportedOperationException("Leaf pages do not contain children");
+    }
+
+    @Override
     public int find(ByteBuffer key) {
         return Collections.binarySearch(keyView, key, ByteBufferComparator.INSTANCE);
+    }
+
+    @Override
+    public boolean isInternalPage() {
+        return false;
+    }
+
+    @Override
+    public ByteBuffer getValue(int index) {
+        return valueView.get(index);
     }
 
     void set(int index, ByteBuffer key, ByteBuffer value) {
@@ -212,7 +238,7 @@ final class MutableLeafPage implements MutablePage {
                     return null;
                 }
 
-                assert parent.numChildren() > 1 : "parent must have at least 2 children";
+                assert parent.getEntriesCount() > 1 : "parent must have at least 2 children";
 
                 // Destination node is right sibling if idx == 0, otherwise left sibling.
                 // If both this node and the target node are too small then merge them.
@@ -267,12 +293,12 @@ final class MutableLeafPage implements MutablePage {
             }
 
             if (parent == null) {
-                parent = new MutableInternalPage(null, expiredLoggables,
+                parent = new MutableInternalPage(tree, null, expiredLoggables,
                         log, pageSize,
                         null);
             }
 
-            page = new MutableLeafPage(null, log, pageSize,
+            page = new MutableLeafPage(tree, null, log, pageSize,
                     expiredLoggables, parent);
 
             page.changedEntries = nextSiblingEntries;
@@ -360,6 +386,15 @@ final class MutableLeafPage implements MutablePage {
     @Override
     public long treeSize() {
         return keyView.size();
+    }
+
+    @Override
+    public long address() {
+        if (underlying != null) {
+            return underlying.address;
+        }
+
+        return Loggable.NULL_ADDRESS;
     }
 
     private static final class Entry implements Comparable<Entry> {

@@ -1,20 +1,15 @@
 package jetbrains.exodus.tree.ibtree;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayFIFOQueue;
-import jetbrains.exodus.ByteBufferByteIterable;
-import jetbrains.exodus.ByteBufferIterable;
-import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.log.DataIterator;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.tree.*;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
-import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-public final class ImmutableBTree implements ITree {
+public final class ImmutableBTree implements BTree {
     static final int LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET = Long.BYTES;
 
     public static final byte KEY_NODE = 44;
@@ -78,51 +73,6 @@ public final class ImmutableBTree implements ITree {
         return structureId;
     }
 
-    @Override
-    public @Nullable ByteIterable get(@NotNull ByteIterable key) {
-        var pageIndexPair = find(key.getByteBuffer());
-        if (pageIndexPair == null) {
-            return null;
-        }
-
-        return new ByteBufferByteIterable(pageIndexPair.page.getValue(pageIndexPair.keyIndex));
-    }
-
-    private PageIndexPair find(ByteBuffer key) {
-        if (root == null) {
-            return null;
-        }
-
-        var page = root;
-        while (true) {
-            int index = page.find(key);
-
-            if (page instanceof ImmutableLeafPage) {
-                if (index < 0) {
-                    return null;
-                }
-
-                return new PageIndexPair((ImmutableLeafPage) page, index);
-            }
-
-            //there is no exact match of the key
-            if (index < 0) {
-                //index of the first page which contains all keys which are bigger than current one
-                index = -index - 1;
-
-                if (index > 0) {
-                    index--;
-                } else {
-                    //all keys in the tree bigger than provided
-                    return null;
-                }
-            }
-
-            var childAddress = page.getChildAddress(index);
-            page = loadPage(childAddress);
-        }
-    }
-
     ImmutableBasePage loadPage(long pageAddress) {
         var loggable = log.readLoggableAsPage(pageAddress);
         var page = loggable.getBuffer();
@@ -131,32 +81,12 @@ public final class ImmutableBTree implements ITree {
 
         var type = loggable.getType();
         if (type == INTERNAL_PAGE || type == INTERNAL_ROOT_PAGE) {
-            return new ImmutableInternalPage(log, page, pageAddress);
+            return new ImmutableInternalPage(this, log, page, pageAddress);
         } else if (type == LEAF_PAGE || type == LEAF_ROOT_PAGE) {
             return new ImmutableLeafPage(log, page, pageAddress);
         } else {
             throw new IllegalStateException(String.format("Invalid loggable type %d.", type));
         }
-    }
-
-    @Override
-    public boolean hasPair(@NotNull ByteIterable key, @NotNull ByteIterable value) {
-        var pageIndexPair = find(key.getByteBuffer());
-        if (pageIndexPair == null) {
-            return false;
-        }
-
-        var pageValue = pageIndexPair.page.getValue(pageIndexPair.keyIndex);
-        if (value instanceof ByteBufferIterable) {
-            return value.getByteBuffer().compareTo(pageValue) == 0;
-        }
-
-        return new ByteBufferByteIterable(pageValue).compareTo(value) == 0;
-    }
-
-    @Override
-    public boolean hasKey(@NotNull ByteIterable key) {
-        return find(key.getByteBuffer()) != null;
     }
 
     @Override
@@ -184,7 +114,7 @@ public final class ImmutableBTree implements ITree {
             return ITreeCursor.EMPTY_CURSOR;
         }
 
-        return new TreeImmutableCursor(this);
+        return new TreeImmutableCursor(this, this.root);
     }
 
     @Override
@@ -192,15 +122,9 @@ public final class ImmutableBTree implements ITree {
         return new TreeAddressIterator();
     }
 
-    @SuppressWarnings("ClassCanBeRecord")
-    private static final class PageIndexPair {
-        private final ImmutableLeafPage page;
-        private final int keyIndex;
-
-        private PageIndexPair(ImmutableLeafPage page, int keyIndex) {
-            this.page = page;
-            this.keyIndex = keyIndex;
-        }
+    @Override
+    public TraversablePage getRoot() {
+        return root;
     }
 
     private final class TreeAddressIterator implements LongIterator {

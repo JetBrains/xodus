@@ -28,9 +28,13 @@ import java.util.function.Function;
 public class BasicBTreeTest extends BTreeTestBase {
     @Test
     public void checkEmptyTree() {
-        createMutableTree(false, 1);
+        var tm = createMutableTree(false, 1);
+        checkEmptyTree(tm);
 
         long address = saveTree();
+
+        checkEmptyTree(tm);
+
         var t = openTree(address, false);
 
         checkEmptyTree(t);

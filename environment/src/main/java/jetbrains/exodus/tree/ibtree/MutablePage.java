@@ -2,7 +2,7 @@ package jetbrains.exodus.tree.ibtree;
 
 import java.nio.ByteBuffer;
 
-interface MutablePage {
+interface MutablePage extends TraversablePage {
     ByteBuffer key(int index);
 
     int find(ByteBuffer key);
@@ -14,4 +14,6 @@ interface MutablePage {
     void spill();
 
     long treeSize();
+
+    long address();
 }

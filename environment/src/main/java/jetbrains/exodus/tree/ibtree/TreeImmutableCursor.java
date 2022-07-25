@@ -26,20 +26,24 @@ import jetbrains.exodus.tree.ITreeCursor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public final class TreeImmutableCursor implements ITreeCursor {
-    private final ImmutableBTree tree;
-    private ObjectArrayFIFOQueue<ElemRef> stack = new ObjectArrayFIFOQueue<>();
+import java.nio.ByteBuffer;
+
+public class TreeImmutableCursor implements ITreeCursor {
+    private ObjectArrayFIFOQueue<ElemRef> stack = new ObjectArrayFIFOQueue<>(8);
     private boolean initiated = false;
 
-    public TreeImmutableCursor(ImmutableBTree tree) {
-        assert tree.root != null;
+    private final ITree tree;
+    protected TraversablePage root;
+
+    public TreeImmutableCursor(final ITree tree, final TraversablePage root) {
+        assert root != null;
+
+        this.root = root;
         this.tree = tree;
     }
 
     private void initStack() {
-        assert tree.root != null;
-
-        var page = tree.root;
+        var page = root;
         if (page.getEntriesCount() > 0) {
             var pageRef = new ElemRef(page, 0);
             stack.enqueue(pageRef);
@@ -50,16 +54,14 @@ public final class TreeImmutableCursor implements ITreeCursor {
 
     private void downToTheFirstEntry(ElemRef elemRef) {
         var page = elemRef.page;
-        if (page instanceof ImmutableInternalPage) {
+        if (page.isInternalPage()) {
             var childIndex = elemRef.index;
 
-            var childAddress = page.getChildAddress(childIndex);
-            page = tree.loadPage(childAddress);
+            page = page.child(childIndex);
             stack.enqueue(new ElemRef(page, 0));
 
-            while (page instanceof ImmutableInternalPage) {
-                childAddress = page.getChildAddress(0);
-                page = tree.loadPage(childAddress);
+            while (page.isInternalPage()) {
+                page = page.child(0);
                 stack.enqueue(new ElemRef(page, 0));
             }
         }
@@ -68,21 +70,17 @@ public final class TreeImmutableCursor implements ITreeCursor {
 
     private void downToTheLastEntry(ElemRef elemRef) {
         var page = elemRef.page;
-        if (page instanceof ImmutableInternalPage) {
+        if (page.isInternalPage()) {
             var childIndex = elemRef.index;
+            page = page.child(childIndex);
 
-            var childAddress = page.getChildAddress(childIndex);
-            page = tree.loadPage(childAddress);
-
-            while (page instanceof ImmutableInternalPage) {
+            while (page.isInternalPage()) {
                 var index = page.getEntriesCount() - 1;
-                childAddress = page.getChildAddress(index);
-                page = tree.loadPage(childAddress);
+                page = page.child(index);
 
                 stack.enqueue(new ElemRef(page, childIndex));
             }
         }
-
     }
 
     @Override
@@ -128,12 +126,12 @@ public final class TreeImmutableCursor implements ITreeCursor {
     }
 
     @Override
-    public boolean getNextDup() {
+    public final boolean getNextDup() {
         return getNext();
     }
 
     @Override
-    public boolean getNextNoDup() {
+    public final boolean getNextNoDup() {
         return getNext();
     }
 
@@ -143,9 +141,7 @@ public final class TreeImmutableCursor implements ITreeCursor {
 
         stack.clear();
 
-        assert tree.root != null;
-
-        var page = tree.root;
+        var page = root;
         var rootSize = page.getEntriesCount();
 
         if (rootSize == 0) {
@@ -198,35 +194,49 @@ public final class TreeImmutableCursor implements ITreeCursor {
     }
 
     @Override
-    public boolean getPrevDup() {
+    public final boolean getPrevDup() {
         return getPrev();
     }
 
     @Override
-    public boolean getPrevNoDup() {
+    public final boolean getPrevNoDup() {
         return getPrev();
     }
 
     @Override
-    public @NotNull ByteIterable getKey() {
+    public final @NotNull ByteIterable getKey() {
+        var key = doGetKey();
+        if (key == null) {
+            return ByteIterable.EMPTY;
+        }
+
+        return new ByteBufferByteIterable(key);
+    }
+
+    final ByteBuffer doGetKey() {
+        if (stack.isEmpty()) {
+            return null;
+        }
+
+        var last = stack.last();
+        var page = last.page;
+
+        assert !page.isInternalPage();
+
+        return page.getValue(last.index);
+    }
+
+
+    @Override
+    public final @NotNull ByteIterable getValue() {
         if (stack.isEmpty()) {
             return ByteIterable.EMPTY;
         }
 
         var last = stack.last();
-        var page = (ImmutableLeafPage) last.page;
+        var page = last.page;
 
-        return new ByteBufferByteIterable(page.keyView.get(last.index));
-    }
-
-    @Override
-    public @NotNull ByteIterable getValue() {
-        if (stack.isEmpty()) {
-            return ByteIterable.EMPTY;
-        }
-
-        var last = stack.last();
-        var page = (ImmutableLeafPage) last.page;
+        assert !page.isInternalPage();
 
         return new ByteBufferByteIterable(page.getValue(last.index));
     }
@@ -238,9 +248,7 @@ public final class TreeImmutableCursor implements ITreeCursor {
 
     @Nullable
     private ByteBufferByteIterable findByKey(@NotNull ByteIterable key) {
-        assert tree.root != null;
-
-        var page = tree.root;
+        var page = root;
         if (page.getEntriesCount() == 0) {
             return null;
         }
@@ -252,12 +260,10 @@ public final class TreeImmutableCursor implements ITreeCursor {
 
         while (true) {
             var index = page.find(keyBuffer);
-
-            if (page instanceof ImmutableLeafPage) {
+            if (!page.isInternalPage()) {
                 if (index >= 0) {
                     stack.enqueue(new ElemRef(page, index));
-
-                    return new ByteBufferByteIterable(((ImmutableLeafPage) page).getValue(index));
+                    return new ByteBufferByteIterable(page.getValue(index));
                 } else {
                     stack = stackBackup;
                     return null;
@@ -265,15 +271,12 @@ public final class TreeImmutableCursor implements ITreeCursor {
             } else {
                 if (index < 0) {
                     index = -index - 2;
-
                     if (index < 0) {
                         stack = stackBackup;
                         return null;
                     } else {
                         stack.enqueue(new ElemRef(page, index));
-
-                        var childAddress = page.getChildAddress(index);
-                        page = tree.loadPage(childAddress);
+                        page = page.child(index);
                     }
                 }
             }
@@ -282,14 +285,12 @@ public final class TreeImmutableCursor implements ITreeCursor {
 
     @Override
     public @Nullable ByteIterable getSearchKeyRange(@NotNull ByteIterable key) {
-        return findByKeyRange(key);
+        return findByKeyRange(key.getByteBuffer());
     }
 
     @Nullable
-    private ByteBufferByteIterable findByKeyRange(@NotNull ByteIterable key) {
-        assert tree.root != null;
-
-        var page = tree.root;
+    final ByteBufferByteIterable findByKeyRange(@NotNull ByteBuffer key) {
+        var page = root;
         if (page.getEntriesCount() == 0) {
             return null;
         }
@@ -297,40 +298,30 @@ public final class TreeImmutableCursor implements ITreeCursor {
         var stackBackup = stack;
         stack = new ObjectArrayFIFOQueue<>();
 
-        var keyBuffer = key.getByteBuffer();
-
         while (true) {
-            var index = page.find(keyBuffer);
+            var index = page.find(key);
 
-            if (page instanceof ImmutableLeafPage) {
+            if (!page.isInternalPage()) {
                 if (index >= 0) {
                     stack.enqueue(new ElemRef(page, index));
-
-                    return new ByteBufferByteIterable(((ImmutableLeafPage) page).getValue(index));
+                    return new ByteBufferByteIterable(page.getValue(index));
                 } else {
                     index = -index - 1;
-
                     if (index >= page.getEntriesCount()) {
                         stack = stackBackup;
                         return null;
                     }
-
                     stack.enqueue(new ElemRef(page, index));
-
-                    return new ByteBufferByteIterable(((ImmutableLeafPage) page).getValue(index));
+                    return new ByteBufferByteIterable(page.getValue(index));
                 }
             } else {
                 if (index < 0) {
                     index = -index - 1;
-
                     if (index > 0) {
                         index--;
                     }
-
                     stack.enqueue(new ElemRef(page, index));
-
-                    var childAddress = page.getChildAddress(index);
-                    page = tree.loadPage(childAddress);
+                    page = page.child(index);
                 }
             }
         }
@@ -346,9 +337,10 @@ public final class TreeImmutableCursor implements ITreeCursor {
         return foundValue.compareTo(value) == 0;
     }
 
+
     @Override
     public @Nullable ByteIterable getSearchBothRange(@NotNull ByteIterable key, @NotNull ByteIterable value) {
-        var foundValue = findByKeyRange(key);
+        var foundValue = findByKeyRange(key.getByteBuffer());
         if (foundValue == null) {
             return null;
         }
@@ -367,7 +359,7 @@ public final class TreeImmutableCursor implements ITreeCursor {
     }
 
     @Override
-    public int count() {
+    public final int count() {
         if (stack.isEmpty()) {
             return 0;
         }
@@ -390,15 +382,20 @@ public final class TreeImmutableCursor implements ITreeCursor {
     }
 
     @Override
-    public ITree getTree() {
+    public final ITree getTree() {
         return tree;
+    }
+
+    public final void reset() {
+        initiated = false;
+        stack.clear();
     }
 
     private static final class ElemRef {
         private int index;
-        private final ImmutableBasePage page;
+        private final TraversablePage page;
 
-        private ElemRef(ImmutableBasePage page, int index) {
+        private ElemRef(TraversablePage page, int index) {
             this.index = index;
             this.page = page;
         }

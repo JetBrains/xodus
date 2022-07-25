@@ -22,11 +22,21 @@ final class ImmutableLeafPage extends ImmutableBasePage {
     }
 
     @Override
-    MutablePage toMutable(ExpiredLoggableCollection expiredLoggables, MutableInternalPage parent) {
-        return new MutableLeafPage(this, log, log.getCachePageSize(), expiredLoggables, parent);
+    MutablePage toMutable(MutableBTree tree, ExpiredLoggableCollection expiredLoggables, MutableInternalPage parent) {
+        return new MutableLeafPage(tree, this, log, log.getCachePageSize(), expiredLoggables, parent);
     }
 
-    ByteBuffer getValue(final int index) {
+    @Override
+    public TraversablePage child(int index) {
+        throw new UnsupportedOperationException("Leaf page does not contain child pages");
+    }
+
+    @Override
+    public boolean isInternalPage() {
+        return false;
+    }
+
+    public ByteBuffer getValue(final int index) {
         final long valueAddress = getChildAddress(index);
         var loggable = log.read(valueAddress);
 

@@ -31,8 +31,12 @@ final class ImmutableInternalPage extends ImmutableBasePage {
     @NotNull
     final ByteBuffer currentPage;
 
-    ImmutableInternalPage(@NotNull Log log, @NotNull ByteBuffer page, long pageAddress) {
+    @NotNull
+    final ImmutableBTree tree;
+
+    ImmutableInternalPage(ImmutableBTree tree, @NotNull Log log, @NotNull ByteBuffer page, long pageAddress) {
         super(log, page.slice(Long.BYTES, page.limit() - Long.BYTES), pageAddress);
+        this.tree = tree;
 
         currentPage = page;
         assert currentPage.alignmentOffset(0, Long.BYTES) == 0;
@@ -45,8 +49,8 @@ final class ImmutableInternalPage extends ImmutableBasePage {
     }
 
     @Override
-    MutablePage toMutable(ExpiredLoggableCollection expiredLoggables, MutableInternalPage parent) {
-        return new MutableInternalPage(this, expiredLoggables, log, log.getCachePageSize(), parent);
+    MutablePage toMutable(MutableBTree tree, ExpiredLoggableCollection expiredLoggables, MutableInternalPage parent) {
+        return new MutableInternalPage(tree, this, expiredLoggables, log, log.getCachePageSize(), parent);
     }
 
     private int getSubTreeSizePosition(int index) {
@@ -58,5 +62,21 @@ final class ImmutableInternalPage extends ImmutableBasePage {
         assert page.alignmentOffset(position, Integer.BYTES) == 0;
 
         return page.getInt(position);
+    }
+
+    @Override
+    public TraversablePage child(int index) {
+        final long childAddress = getChildAddress(index);
+        return tree.loadPage(childAddress);
+    }
+
+    @Override
+    public boolean isInternalPage() {
+        return true;
+    }
+
+    @Override
+    public ByteBuffer getValue(int index) {
+        throw new UnsupportedOperationException("Internal page does not contain values.");
     }
 }
