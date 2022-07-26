@@ -17,22 +17,20 @@ import java.util.RandomAccess;
  * Layout composed as following:
  * <ol>
  *     <li>Key prefix size. Size of the common prefix which was truncated for all keys in tree.
- *     Currently not used but added to implement key compression without breaking of binary compatibility.</li>
- *     <li>Count of the entries contained inside of the given page.</li>
- *     <li>Array each entry of which contains either address of the loggable which contains key of the entry or pair
- *     (key position, key size) where 'key position' is position of the key stored inside of this page,
- *     key size is accordingly size of this key. To distinguish between those two meanings of the same value,
- *     key addresses always negative and their sign should be changed to load key.</li>
- *     <li> Array each entry of which contains either address of value of the entry if that is
+ *     Currently not used but added to implement key compression without breaking of binary compatibility</li>
+ *     <li>Count of the entries contained inside of the given page</li>
+ *     <li>Array each entry of which contains pair (key position, key size) where 'key position' is position
+ *     of the key stored inside of this page,  key size is accordingly size of this key.</li>
+ *     <li> Array each entry of which contains either (value position, value size) pair if that is
  *     {@link  ImmutableLeafPage} or address of the mutableChild page if that is
  *     {@link ImmutableInternalPage}</li>
- *     <li>Array of keys embedded into this page.</li>
+ *     <li>Array of sizes of  child sub-tries pointed by pointers above. Only for {@link ImmutableInternalPage}</li>
+ *     <li>Array of keys for {@link ImmutableLeafPage}</li>
+ *     <li>Array of values (only for {@link ImmutableLeafPage})</li>
  * </ol>
  * <p>
- * All values are kept outside of the BTree page but keys are embedded if they are small enough.
+ * <p>
  * Internal pages also keep size of the whole (sub)tree at the header of the page.
- * For all pages small is space kept to keep structure id and loggable type that why page offset is passed.
- * Page offset should be quantised by {@link Long#BYTES} bytes.
  */
 abstract class ImmutableBasePage implements TraversablePage {
     static final int KEY_PREFIX_LEN_OFFSET = 0;
@@ -75,36 +73,27 @@ abstract class ImmutableBasePage implements TraversablePage {
         return Collections.binarySearch(keyView, key, ByteBufferComparator.INSTANCE);
     }
 
-    private int getKeyAddressPosition(final int index) {
+    private int getKeyPositionSizeIndex(final int index) {
         return KEYS_OFFSET + index * Long.BYTES;
     }
 
     private ByteBuffer getKey(int index) {
-        final long keyAddress = getKeyAddress(index);
-
-        if (keyAddress < 0) {
-            var keyLoggable = log.read(-keyAddress);
-            assert keyLoggable.getType() == ImmutableBTree.KEY_NODE;
-
-            var data = keyLoggable.getData();
-            return data.getByteBuffer();
-        }
-
-        return getEmbeddedKey(keyAddress);
+        final int ketPositionSizeIndex = getKeyPositionSizeIndex(index);
+        return extractByteChunk(ketPositionSizeIndex);
     }
 
-    final ByteBuffer getEmbeddedKey(final long keyAddress) {
-        final int keyPosition = (int) keyAddress;
-        final int keySize = (int) (keyAddress >> Integer.SIZE);
+    final ByteBuffer extractByteChunk(int valuePositionSizeIndex) {
+        assert page.alignmentOffset(valuePositionSizeIndex, Integer.BYTES) == 0;
+        final int valuePosition = page.getInt(valuePositionSizeIndex);
 
-        return page.slice(keyPosition, keySize);
+        assert page.alignmentOffset(valuePositionSizeIndex + Integer.BYTES, Integer.BYTES) == 0;
+        final int valueSize = page.getInt(valuePositionSizeIndex + Integer.BYTES);
+
+        return page.slice(valuePosition, valueSize);
     }
 
-    final long getKeyAddress(int index) {
-        final int keyAddressPosition = getKeyAddressPosition(index);
-        assert page.alignmentOffset(keyAddressPosition, Long.BYTES) == 0;
-
-        return page.getLong(keyAddressPosition);
+    final int getChildAddressPositionIndex(int index) {
+        return KEYS_OFFSET + getEntriesCount() * Long.BYTES + index * Long.BYTES;
     }
 
     public final int getEntriesCount() {
@@ -113,23 +102,12 @@ abstract class ImmutableBasePage implements TraversablePage {
         return page.getInt(ENTRIES_COUNT_OFFSET);
     }
 
-    final ByteBuffer key(int index) {
+    public final ByteBuffer key(int index) {
         return keyView.get(index);
     }
 
-    abstract MutablePage toMutable(MutableBTree tree, ExpiredLoggableCollection expiredLoggables, MutableInternalPage parent);
-
-    private int getChildAddressPosition(int index) {
-        return KEYS_OFFSET + getEntriesCount() * Long.BYTES + index * Long.BYTES;
-    }
-
-    final long getChildAddress(int index) {
-        final int childAddressPosition = getChildAddressPosition(index);
-
-        assert page.alignmentOffset(childAddressPosition, Long.BYTES) == 0;
-
-        return page.getLong(childAddressPosition);
-    }
+    abstract MutablePage toMutable(MutableBTree tree, ExpiredLoggableCollection expiredLoggables,
+                                   MutableInternalPage parent);
 
     final class KeyView extends AbstractList<ByteBuffer> implements RandomAccess {
         @Override
@@ -141,5 +119,10 @@ abstract class ImmutableBasePage implements TraversablePage {
         public int size() {
             return getEntriesCount();
         }
+    }
+
+    @Override
+    public long address() {
+        return address;
     }
 }

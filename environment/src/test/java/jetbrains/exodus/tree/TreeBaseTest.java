@@ -280,7 +280,7 @@ public abstract class TreeBaseTest {
                 sb.append(new String(ln.getKey().getBytesUnsafe(), 0, ln.getKey().getLength()));
                 if (ln.hasValue()) {
                     sb.append(':');
-                    sb.append(new String(ln.getValue().getBytesUnsafe(), 0, ln.getValue().getLength()));
+                    sb.append(new String(ln.value().getBytesUnsafe(), 0, ln.value().getLength()));
                 }
                 return sb.toString();
             }

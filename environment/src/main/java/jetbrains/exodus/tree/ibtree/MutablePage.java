@@ -16,4 +16,6 @@ interface MutablePage extends TraversablePage {
     long treeSize();
 
     long address();
+
+    boolean fetch();
 }

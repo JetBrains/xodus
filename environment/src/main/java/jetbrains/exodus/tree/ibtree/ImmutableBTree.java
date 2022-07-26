@@ -12,14 +12,11 @@ import java.nio.ByteOrder;
 public final class ImmutableBTree implements BTree {
     static final int LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET = Long.BYTES;
 
-    public static final byte KEY_NODE = 44;
-    public static final byte VALUE_NODE = 45;
+    public static final byte INTERNAL_PAGE = 44;
+    public static final byte LEAF_PAGE = 45;
 
-    public static final byte INTERNAL_PAGE = 46;
-    public static final byte LEAF_PAGE = 47;
-
-    public static final byte INTERNAL_ROOT_PAGE = 48;
-    public static final byte LEAF_ROOT_PAGE = 49;
+    public static final byte INTERNAL_ROOT_PAGE = 46;
+    public static final byte LEAF_ROOT_PAGE = 47;
 
     @NotNull
     final Log log;
@@ -156,7 +153,7 @@ public final class ImmutableBTree implements BTree {
             var elemRef = stack.dequeue();
             var page = elemRef.page;
 
-            var address = page.address;
+            var address = page.address();
             var parentRef = stack.last();
 
             var parentPage = parentRef.page;
@@ -176,29 +173,17 @@ public final class ImmutableBTree implements BTree {
         }
 
         private void fetchAncestors(ElemRef elemRef) {
-            var childAddress = elemRef.page.getChildAddress(elemRef.index);
-            var child = loadPage(childAddress);
+            var child = elemRef.page.child(elemRef.index);
 
             var childRef = new ElemRef(child, 0);
             stack.enqueue(childRef);
 
             while (!(child instanceof ImmutableLeafPage)) {
-                childAddress = child.getChildAddress(0);
-                child = loadPage(childAddress);
+                child = child.child(0);
                 childRef = new ElemRef(child, 0);
 
                 stack.enqueue(childRef);
             }
-        }
-    }
-
-    private static final class ElemRef {
-        private final ImmutableBasePage page;
-        private int index;
-
-        private ElemRef(ImmutableBasePage page, int index) {
-            this.page = page;
-            this.index = index;
         }
     }
 }

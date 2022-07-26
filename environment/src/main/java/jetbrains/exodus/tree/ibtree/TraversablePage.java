@@ -29,5 +29,9 @@ public interface TraversablePage {
 
     boolean isInternalPage();
 
-    ByteBuffer getValue(int index);
+    ByteBuffer value(int index);
+
+    ByteBuffer key(int index);
+
+    long address();
 }

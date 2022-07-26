@@ -20,14 +20,13 @@ package jetbrains.exodus.tree.ibtree;
 
 import jetbrains.exodus.ByteBufferComparator;
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.log.DataIterator;
-import jetbrains.exodus.log.Log;
-import jetbrains.exodus.log.RandomAccessLoggable;
+import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Objects;
@@ -175,17 +174,7 @@ public final class MutableBTree implements IBTreeMutable {
                 var mutableInternalPage = (MutableInternalPage) page;
                 var numChildren = mutableInternalPage.getEntriesCount();
 
-                var mutableChild = mutableInternalPage.mutableChildIfExists(numChildren - 1);
-                if (mutableChild == null) {
-                    assert mutableInternalPage.underlying != null;
-
-                    var immutableChildAddress =
-                            mutableInternalPage.underlying.getChildAddress(numChildren - 1);
-                    var immutableChild = immutableTree.loadPage(immutableChildAddress);
-                    mutableChild = immutableChild.toMutable(this, expiredLoggables, mutableInternalPage);
-                }
-
-                page = mutableChild;
+                page = mutableInternalPage.mutableChild(numChildren - 1);
             }
         }
     }
@@ -194,14 +183,20 @@ public final class MutableBTree implements IBTreeMutable {
     public boolean add(@NotNull ByteIterable key, @NotNull ByteIterable value) {
         var bufferKey = key.getByteBuffer();
 
-        var page = root;
+        final var stack = new ArrayList<ElemRef>();
+        TraversablePage page = root;
 
         while (true) {
             var index = page.find(bufferKey);
-            if (page instanceof MutableLeafPage mutablePage) {
+            if (!page.isInternalPage()) {
                 if (index < 0) {
-                    mutablePage.insert(index, bufferKey, value.getByteBuffer());
+                    makeAllStackPagesMutable(stack);
 
+                    //reload page to insure that it is mutable page
+                    page = stack.get(stack.size() - 1).page;
+                    var mutablePage = (MutableLeafPage) page;
+
+                    mutablePage.insert(index, bufferKey, value.getByteBuffer());
                     TreeMutableCursor.notifyCursors(this);
                     return true;
                 }
@@ -216,8 +211,7 @@ public final class MutableBTree implements IBTreeMutable {
                     }
                 }
 
-                var internalPage = (MutableInternalPage) page;
-                page = internalPage.mutableChild(index);
+                page = page.child(index);
             }
         }
     }
@@ -290,7 +284,7 @@ public final class MutableBTree implements IBTreeMutable {
                         return true;
                     }
 
-                    var val = page.getValue(index);
+                    var val = page.value(index);
                     if (ByteBufferComparator.INSTANCE.compare(val, value) == 0) {
                         mutablePage.delete(index);
                         return true;
@@ -337,8 +331,166 @@ public final class MutableBTree implements IBTreeMutable {
     @Override
     public boolean reclaim(@NotNull RandomAccessLoggable loggable, @NotNull Iterator<RandomAccessLoggable> loggables,
                            long segmentSize) {
-        return false;
+        final long fileAddress = loggable.getAddress() / segmentSize;
+        final boolean isEmpty = isEmpty();
+
+        boolean reclaimed = false;
+        var address = loggable.getAddress();
+        ArrayList<ElemRef> stack;
+
+        if (!isEmpty) {
+            stack = new ArrayList<>(8);
+            stack.add(new ElemRef(root, 0));
+        } else {
+            stack = null;
+        }
+
+        loggableLoop:
+        while (true) {
+            var type = loggable.getType();
+            switch (type) {
+                case NullLoggable.TYPE:
+                    continue;
+                case ImmutableBTree.INTERNAL_PAGE:
+                case ImmutableBTree.LEAF_PAGE:
+                    if (isEmpty) {
+                        continue;
+                    }
+                    reclaimed = reclaimed | doReclaimPage(loggable, stack);
+                    break;
+                case ImmutableBTree.INTERNAL_ROOT_PAGE:
+                case ImmutableBTree.LEAF_ROOT_PAGE:
+                    reclaimed = reclaimed | doReclaimPage(loggable, stack);
+                    break loggableLoop;
+            }
+
+            if (loggables.hasNext()) {
+                loggable = loggables.next();
+            } else {
+                break;
+            }
+
+            address = loggable.getAddress();
+            if (address / segmentSize != fileAddress) {
+                break;
+            }
+        }
+
+        return reclaimed;
     }
+
+    private boolean doReclaimPage(final Loggable pageLoggable, final ArrayList<ElemRef> stack) {
+        var immutablePage = immutableTree.loadPage(pageLoggable.getAddress());
+        var firstKey = immutablePage.key(0);
+
+        moveToTheTopTillKeyInSearchRange(stack, firstKey);
+
+        var pageAddress = pageLoggable.getAddress();
+        var elemRef = stack.get(stack.size() - 1);
+
+        var page = elemRef.page;
+        if (page.address() == pageAddress) {
+            //convert all stack of pages to mutable pages
+            makeAllStackPagesMutable(stack);
+
+            return true;
+        }
+
+        //restart search from the last page
+        var index = page.find(firstKey);
+        if (index < 0) {
+            index = -index - 1;
+
+            //no pages containing key stored inside of leaf page
+            //because all pages contain key bigger than we are looking for
+            if (index == 0) {
+                return false;
+            }
+        }
+        elemRef.index = index;
+
+        while (true) {
+            page = page.child(index);
+
+            if (!page.isInternalPage()) {
+                if (page.address() != pageAddress) {
+                    return false;
+                }
+
+                //convert all stack of pages to mutable pages
+                makeAllStackPagesMutable(stack);
+
+                //make leaf page to be dirty so it will be saved again
+                var lastPage = stack.get(stack.size() - 1).page;
+                var childPage = lastPage.child(index);
+                ((MutablePage) childPage).fetch();
+            }
+
+            index = page.find(firstKey);
+
+            if (index < 0) {
+                index = -index - 1;
+
+                //no pages containing key stored inside of leaf page
+                //because all pages contain key bigger than we are looking for
+                if (index == 0) {
+                    return false;
+                }
+            }
+
+            stack.add(new ElemRef(page, index));
+        }
+    }
+
+    private void makeAllStackPagesMutable(final ArrayList<ElemRef> stack) {
+        var fetched = false;
+
+        for (int i = 0; i < stack.size(); i++) {
+            var elemRef = stack.get(i);
+
+            var mutablePage = (MutableInternalPage) elemRef.page;
+
+            if (!fetched) {
+                fetched = mutablePage.fetch();
+
+                if (fetched && i < stack.size() - 1) {
+                    //because top pages were converted into mutable page we need to replace all pages bellow
+                    stack.get(i + 1).page = mutablePage.mutableChild(elemRef.index);
+                }
+            } else if (i < stack.size() - 1) {
+                //because top pages were converted into mutable page we need to replace all pages bellow
+                stack.get(i + 1).page = mutablePage.mutableChild(elemRef.index);
+            }
+        }
+
+    }
+
+    private void moveToTheTopTillKeyInSearchRange(final ArrayList<ElemRef> stack, final ByteBuffer key) {
+        while (stack.size() > 1) {
+            var last = stack.get(stack.size() - 1);
+            var page = last.page;
+
+            if (!insideSearchRange(key, page)) {
+                stack.remove(stack.size() - 1);
+            } else {
+                break;
+            }
+        }
+    }
+
+    private boolean insideSearchRange(final ByteBuffer key, final TraversablePage page) {
+        assert page.isInternalPage();
+
+        var firstKey = page.key(0);
+
+        if (ByteBufferComparator.INSTANCE.compare(firstKey, key) < 0) {
+            return false;
+        }
+
+        var lastKey = page.key(page.getEntriesCount() - 1);
+        return ByteBufferComparator.INSTANCE.compare(key, lastKey) <= 0;
+    }
+
 
     @Override
     public @NotNull TraversablePage getRoot() {

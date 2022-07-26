@@ -223,7 +223,7 @@ public class TreeImmutableCursor implements ITreeCursor {
 
         assert !page.isInternalPage();
 
-        return page.getValue(last.index);
+        return page.value(last.index);
     }
 
 
@@ -238,7 +238,7 @@ public class TreeImmutableCursor implements ITreeCursor {
 
         assert !page.isInternalPage();
 
-        return new ByteBufferByteIterable(page.getValue(last.index));
+        return new ByteBufferByteIterable(page.value(last.index));
     }
 
     @Override
@@ -263,7 +263,7 @@ public class TreeImmutableCursor implements ITreeCursor {
             if (!page.isInternalPage()) {
                 if (index >= 0) {
                     stack.enqueue(new ElemRef(page, index));
-                    return new ByteBufferByteIterable(page.getValue(index));
+                    return new ByteBufferByteIterable(page.value(index));
                 } else {
                     stack = stackBackup;
                     return null;
@@ -304,7 +304,7 @@ public class TreeImmutableCursor implements ITreeCursor {
             if (!page.isInternalPage()) {
                 if (index >= 0) {
                     stack.enqueue(new ElemRef(page, index));
-                    return new ByteBufferByteIterable(page.getValue(index));
+                    return new ByteBufferByteIterable(page.value(index));
                 } else {
                     index = -index - 1;
                     if (index >= page.getEntriesCount()) {
@@ -312,7 +312,7 @@ public class TreeImmutableCursor implements ITreeCursor {
                         return null;
                     }
                     stack.enqueue(new ElemRef(page, index));
-                    return new ByteBufferByteIterable(page.getValue(index));
+                    return new ByteBufferByteIterable(page.value(index));
                 }
             } else {
                 if (index < 0) {

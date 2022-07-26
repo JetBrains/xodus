@@ -20,7 +20,7 @@ package jetbrains.exodus.tree.ibtree;
 
 final class ElemRef {
     int index;
-    final TraversablePage page;
+    TraversablePage page;
 
     ElemRef(TraversablePage page, int index) {
         this.index = index;

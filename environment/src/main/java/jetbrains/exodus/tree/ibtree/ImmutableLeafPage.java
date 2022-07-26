@@ -22,7 +22,8 @@ final class ImmutableLeafPage extends ImmutableBasePage {
     }
 
     @Override
-    MutablePage toMutable(MutableBTree tree, ExpiredLoggableCollection expiredLoggables, MutableInternalPage parent) {
+    public MutablePage toMutable(MutableBTree tree, ExpiredLoggableCollection expiredLoggables,
+                                 MutableInternalPage parent) {
         return new MutableLeafPage(tree, this, log, log.getCachePageSize(), expiredLoggables, parent);
     }
 
@@ -36,13 +37,11 @@ final class ImmutableLeafPage extends ImmutableBasePage {
         return false;
     }
 
-    public ByteBuffer getValue(final int index) {
-        final long valueAddress = getChildAddress(index);
-        var loggable = log.read(valueAddress);
+    public ByteBuffer value(final int index) {
+        final int valuePositionSizeIndex = getChildAddressPositionIndex(index);
 
-        assert loggable.getType() == ImmutableBTree.VALUE_NODE;
-
-        var data = loggable.getData();
-        return data.getByteBuffer();
+        return extractByteChunk(valuePositionSizeIndex);
     }
+
+
 }

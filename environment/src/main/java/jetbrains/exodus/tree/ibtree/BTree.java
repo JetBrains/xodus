@@ -39,7 +39,7 @@ interface BTree extends ITree {
             return null;
         }
 
-        return new ByteBufferByteIterable(pageIndexPair.page.getValue(pageIndexPair.index));
+        return new ByteBufferByteIterable(pageIndexPair.page.value(pageIndexPair.index));
     }
 
     default ElemRef find(ByteBuffer key) {
@@ -84,7 +84,7 @@ interface BTree extends ITree {
             return false;
         }
 
-        var pageValue = elemRef.page.getValue(elemRef.index);
+        var pageValue = elemRef.page.value(elemRef.index);
         if (value instanceof ByteBufferIterable) {
             return value.getByteBuffer().compareTo(pageValue) == 0;
         }
