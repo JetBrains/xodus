@@ -522,13 +522,13 @@ class Log(val config: LogConfig) : Closeable {
             if (loggableLength == cachePageSize) {
                 data = page
             } else {
-                data = page.slice(dataOffset, dataLength)
+                data = page.slice(dataOffset, dataLength).order(ByteOrder.nativeOrder())
             }
 
             assert(data.alignmentOffset(0, Long.SIZE_BYTES) == 0)
 
             return ByteBufferLoggable(address, type, loggableLength, dataLength, structureId,
-                    page.slice(dataOffset, dataLength).order(ByteOrder.nativeOrder()))
+                    data)
         }
 
         var bytesToRead = dataLength
@@ -582,7 +582,7 @@ class Log(val config: LogConfig) : Closeable {
             structureId = CompressedUnsignedLongByteIterable.getInt(it)
             dataLength = CompressedUnsignedLongByteIterable.getInt(it)
         } else {
-            val dataLengthStructureIdType = it.nextLong(Long.SIZE_BYTES - Byte.SIZE_BYTES) shr Byte.SIZE_BITS
+            val dataLengthStructureIdType = it.nextLong(Long.SIZE_BYTES - Byte.SIZE_BYTES)
             dataLength = (dataLengthStructureIdType and 0xFF_FF_FF_FF).toInt()
             structureId = (dataLengthStructureIdType shr 32).toInt() and 0x00_FF_FF_FF
         }

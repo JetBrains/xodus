@@ -5,6 +5,7 @@ import jetbrains.exodus.tree.ExpiredLoggableCollection;
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /**
  * Presentation of immutable internal page in BTree.
@@ -19,7 +20,7 @@ final class ImmutableInternalPage extends ImmutableBasePage {
     final ImmutableBTree tree;
 
     ImmutableInternalPage(@NotNull ImmutableBTree tree, @NotNull Log log, @NotNull ByteBuffer page, long pageAddress) {
-        super(log, page.slice(Long.BYTES, page.limit() - Long.BYTES), pageAddress);
+        super(log, page.slice(Long.BYTES, page.limit() - Long.BYTES).order(ByteOrder.nativeOrder()), pageAddress);
         this.tree = tree;
 
         currentPage = page;

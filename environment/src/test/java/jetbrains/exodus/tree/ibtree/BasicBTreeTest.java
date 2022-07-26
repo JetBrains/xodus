@@ -18,11 +18,19 @@
 
 package jetbrains.exodus.tree.ibtree;
 
+import jetbrains.exodus.ArrayByteIterable;
+import jetbrains.exodus.ByteBufferByteIterable;
+import jetbrains.exodus.ByteBufferComparator;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.tree.ITree;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Random;
+import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -87,6 +95,40 @@ public class BasicBTreeTest extends BTreeTestBase {
 
                 Assert.assertEquals(ByteIterable.EMPTY, cursor.getKey());
                 Assert.assertEquals(ByteIterable.EMPTY, cursor.getValue());
+            }
+        });
+    }
+
+    @Test
+    public void testInsert4Entries() {
+        final long seed = System.nanoTime();
+        System.out.println("testInsert4Entries seed : " + seed);
+
+        var tm = createMutableTree(false, 2);
+        var random = new Random(seed);
+
+        final TreeMap<ByteBuffer, ByteBuffer> expectedMap = new TreeMap<>(ByteBufferComparator.INSTANCE);
+        for (int i = 0; i < 4; i++) {
+            var keySize = random.nextInt(1, 16);
+            var key = new byte[keySize];
+            random.nextBytes(key);
+
+            var value = new byte[32];
+            random.nextBytes(value);
+
+            expectedMap.put(ByteBuffer.wrap(key), ByteBuffer.wrap(value));
+            tm.put(new ArrayByteIterable(key), new ArrayByteIterable(value));
+        }
+
+        checkTree(false, t -> {
+            var keys = new ArrayList<>(expectedMap.keySet());
+            Collections.shuffle(keys, random);
+
+            for (var key : keys) {
+                var value = t.get(new ByteBufferByteIterable(key));
+                var expectedValue = expectedMap.get(key);
+
+                Assert.assertEquals(new ByteBufferByteIterable(expectedValue), value);
             }
         });
     }

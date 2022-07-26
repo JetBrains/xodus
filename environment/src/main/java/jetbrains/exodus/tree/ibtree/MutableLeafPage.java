@@ -44,6 +44,7 @@ final class MutableLeafPage implements MutablePage {
 
     @NotNull
     final MutableBTree tree;
+    boolean spilled;
 
     MutableLeafPage(@NotNull MutableBTree tree, @Nullable ImmutableLeafPage underlying,
                     @NotNull Log log, int pageSize,
@@ -265,7 +266,7 @@ final class MutableLeafPage implements MutablePage {
 
     @Override
     public void spill() {
-        if (changedEntries == null) {
+        if (spilled || changedEntries == null) {
             return;
         }
 
@@ -282,6 +283,15 @@ final class MutableLeafPage implements MutablePage {
                 parent = new MutableInternalPage(tree, null, expiredLoggables,
                         log, pageSize,
                         null);
+                assert tree.root == this;
+
+                tree.root = parent;
+
+                if (firstKey == null) {
+                    firstKey = changedEntries.get(0).key;
+                }
+
+                parent.addChild(firstKey, this);
             }
 
             page = new MutableLeafPage(tree, null, log, pageSize,
@@ -293,6 +303,8 @@ final class MutableLeafPage implements MutablePage {
             parent.addChild(page.firstKey, page);
             parent.sortBeforeInternalSpill = true;
         }
+
+        spilled = true;
 
         //parent first spill children then itself
         //so we do not need sort children of parent or spill parent itself

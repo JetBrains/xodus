@@ -53,6 +53,8 @@ final class MutableInternalPage implements MutablePage {
     @NotNull
     final MutableBTree tree;
 
+    boolean spilled;
+
     MutableInternalPage(@NotNull MutableBTree tree, @Nullable ImmutableInternalPage underlying,
                         @NotNull ExpiredLoggableCollection expiredLoggables, @NotNull Log log,
                         int pageSize, @Nullable MutableInternalPage parent) {
@@ -145,15 +147,17 @@ final class MutableInternalPage implements MutablePage {
 
         //we add Long.BYTES to preserver (sub)tree size
         assert buffer.alignmentOffset(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET + Long.BYTES, Integer.BYTES) == 0;
-        buffer.putInt(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET, 0);
+        buffer.putInt(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET + Long.BYTES, 0);
 
         assert buffer.alignmentOffset(ImmutableBasePage.ENTRIES_COUNT_OFFSET + Long.BYTES, Integer.BYTES) == 0;
-        buffer.putInt(ImmutableBasePage.ENTRIES_COUNT_OFFSET, changedEntries.size());
+        buffer.putInt(ImmutableBasePage.ENTRIES_COUNT_OFFSET + Long.BYTES, changedEntries.size());
 
         int keyPositionsOffset = ImmutableBasePage.KEYS_OFFSET + Long.BYTES;
         int childAddressesOffset = keyPositionsOffset + Long.BYTES * changedEntries.size();
         int subTreeSizeOffset = childAddressesOffset + Long.BYTES * changedEntries.size();
         int keysDataOffset = subTreeSizeOffset + Integer.BYTES * changedEntries.size();
+
+        assert changedEntries.size() >= 2;
 
         int treeSize = 0;
         for (var entry : changedEntries) {
@@ -171,7 +175,7 @@ final class MutableInternalPage implements MutablePage {
             assert buffer.alignmentOffset(keyPositionsOffset, Integer.BYTES) == 0;
             assert buffer.alignmentOffset(keyPositionsOffset + Integer.BYTES, Integer.BYTES) == 0;
 
-            buffer.putInt(keyPositionsOffset, keysDataOffset);
+            buffer.putInt(keyPositionsOffset, keysDataOffset - Long.BYTES);
             buffer.putInt(keyPositionsOffset + Integer.BYTES, keySize);
 
             assert buffer.alignmentOffset(childAddressesOffset, Long.BYTES) == 0;
@@ -273,7 +277,7 @@ final class MutableInternalPage implements MutablePage {
         assert changedEntries != null;
 
         int size = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET + ImmutableLeafPage.KEYS_OFFSET +
-                (2 * Long.BYTES + Integer.BYTES) * changedEntries.size();
+                (2 * Long.BYTES + Integer.BYTES) * changedEntries.size() + Long.BYTES;
 
         for (Entry entry : changedEntries) {
             size += entry.key.limit();
@@ -285,7 +289,7 @@ final class MutableInternalPage implements MutablePage {
 
     @Override
     public void spill() {
-        if (changedEntries == null) {
+        if (spilled || changedEntries == null) {
             return;
         }
 
@@ -297,6 +301,7 @@ final class MutableInternalPage implements MutablePage {
         //new children were appended sort them
         if (sortBeforeInternalSpill) {
             changedEntries.sort(null);
+            firstKey = changedEntries.get(0).key;
         }
 
         var page = this;
@@ -311,6 +316,9 @@ final class MutableInternalPage implements MutablePage {
                 parent = new MutableInternalPage(tree, null, expiredLoggables,
                         log, pageSize,
                         null);
+                assert tree.root == this;
+                tree.root = parent;
+                parent.addChild(page.firstKey, page);
             }
 
             page = new MutableInternalPage(tree, null, expiredLoggables, log, pageSize,
@@ -321,6 +329,8 @@ final class MutableInternalPage implements MutablePage {
             parent.addChild(page.firstKey, page);
             parent.sortBeforeInternalSpill = true;
         }
+
+        spilled = true;
 
         //parent first spill children then itself
         //so we do not need sort children of parent or spill parent itself

@@ -20,6 +20,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Comparator;
 
 /**
  * An adapter of {@link ByteBuffer} to {@link ByteIterable}. Doesn't support {@link #getBytesUnsafe()} as
@@ -74,6 +75,16 @@ public final class ByteBufferByteIterable implements ByteIterable, ByteBufferIte
         buffer.get(0, data);
 
         return Arrays.toString(data);
+    }
+
+    @Override
+    public int hashCode() {
+        return buffer.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof ByteIterable && compareTo((ByteIterable) obj) == 0;
     }
 
     @Override

@@ -318,7 +318,13 @@ public final class MutableBTree implements IBTreeMutable {
             root = newRoot;
         }
 
+        var prevRoot = root;
         root.spill();
+
+        //re-spill the root if it was changed
+        if (root != prevRoot) {
+            root.spill();
+        }
 
         return root.save(immutableTree.getStructureId());
     }
