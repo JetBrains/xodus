@@ -158,7 +158,7 @@ public class TreeImmutableCursor implements ITreeCursor {
 
     @Override
     public boolean getPrev() {
-        if (initiated) {
+        if (!initiated) {
             return getLast();
         }
 
@@ -223,7 +223,7 @@ public class TreeImmutableCursor implements ITreeCursor {
 
         assert !page.isInternalPage();
 
-        return page.value(last.index);
+        return page.key(last.index);
     }
 
 

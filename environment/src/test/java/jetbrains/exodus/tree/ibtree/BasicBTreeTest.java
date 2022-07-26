@@ -18,6 +18,7 @@
 
 package jetbrains.exodus.tree.ibtree;
 
+import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.tree.ITree;
 import org.junit.Assert;
 import org.junit.Test;
@@ -63,6 +64,30 @@ public class BasicBTreeTest extends BTreeTestBase {
             Assert.assertFalse(t.hasPair(key(2), value("v1")));
             Assert.assertFalse(t.hasPair(key(2), value("v2")));
             Assert.assertFalse(t.hasKey(key(2)));
+
+            try (var cursor = t.openCursor()) {
+                Assert.assertTrue(cursor.getNext());
+
+                Assert.assertEquals(key(1), cursor.getKey());
+                Assert.assertEquals(value("v1"), cursor.getValue());
+
+                Assert.assertFalse(cursor.getNext());
+
+                Assert.assertEquals(ByteIterable.EMPTY, cursor.getKey());
+                Assert.assertEquals(ByteIterable.EMPTY, cursor.getValue());
+            }
+
+            try (var cursor = t.openCursor()) {
+                Assert.assertTrue(cursor.getPrev());
+
+                Assert.assertEquals(key(1), cursor.getKey());
+                Assert.assertEquals(value("v1"), cursor.getValue());
+
+                Assert.assertFalse(cursor.getNext());
+
+                Assert.assertEquals(ByteIterable.EMPTY, cursor.getKey());
+                Assert.assertEquals(ByteIterable.EMPTY, cursor.getValue());
+            }
         });
     }
 }
