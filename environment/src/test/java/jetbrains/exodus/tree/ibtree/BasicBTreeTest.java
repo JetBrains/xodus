@@ -125,13 +125,26 @@ public class BasicBTreeTest extends BTreeTestBase {
 
     @Test
     public void testInsert1KEntries() {
-        final long seed = 8444372607505L;// System.nanoTime();
+        final long seed = System.nanoTime();
         System.out.println("testInsert1KEntries seed : " + seed);
 
         var tm = createMutableTree(false, 2);
         var random = new Random(seed);
 
         var entriesCount = 1024;
+
+        insertAndCheckEntries(tm, random, entriesCount);
+    }
+
+    @Test
+    public void testInsert32KEntries() {
+        final long seed = System.nanoTime();
+        System.out.println("testInsert32KEntries seed : " + seed);
+
+        var tm = createMutableTree(false, 2);
+        var random = new Random(seed);
+
+        var entriesCount = 32 * 1024;
 
         insertAndCheckEntries(tm, random, entriesCount);
     }
@@ -154,6 +167,8 @@ public class BasicBTreeTest extends BTreeTestBase {
         Collections.shuffle(keys, random);
 
         checkTree(false, t -> {
+            Assert.assertEquals(expectedMap.size(), t.getSize());
+
             for (var key : keys) {
                 var value = t.get(new ByteBufferByteIterable(key));
                 var expectedValue = expectedMap.get(key);

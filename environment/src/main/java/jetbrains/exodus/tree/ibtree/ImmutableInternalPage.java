@@ -30,7 +30,7 @@ final class ImmutableInternalPage extends ImmutableBasePage {
     @Override
     long getTreeSize() {
         assert currentPage.alignmentOffset(0, Long.BYTES) == 0;
-        return page.getLong(0);
+        return currentPage.getLong(0);
     }
 
     @Override

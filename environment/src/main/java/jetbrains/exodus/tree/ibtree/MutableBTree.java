@@ -42,6 +42,8 @@ public final class MutableBTree implements IBTreeMutable {
     @NotNull
     MutablePage root;
 
+    long size;
+
     public MutableBTree(ImmutableBTree immutableTree) {
         this.immutableTree = immutableTree;
         this.log = immutableTree.log;
@@ -53,6 +55,8 @@ public final class MutableBTree implements IBTreeMutable {
         } else {
             this.root = immutableRoot.toMutable(this, expiredLoggables, null);
         }
+
+        size = root.treeSize();
     }
 
     @Override
@@ -87,7 +91,7 @@ public final class MutableBTree implements IBTreeMutable {
 
     @Override
     public long getSize() {
-        return root.treeSize();
+        return size;
     }
 
     @Override
@@ -138,6 +142,7 @@ public final class MutableBTree implements IBTreeMutable {
                     mutablePage.insert(-index - 1, bufferKey, value.getByteBuffer());
 
                     TreeMutableCursor.notifyCursors(this);
+                    size++;
                     return true;
                 }
 
@@ -169,6 +174,7 @@ public final class MutableBTree implements IBTreeMutable {
                 mutableLeafPage.append(key.getByteBuffer(), value.getByteBuffer());
 
                 TreeMutableCursor.notifyCursors(this);
+                size++;
                 return;
             } else {
                 var mutableInternalPage = (MutableInternalPage) page;
@@ -198,6 +204,8 @@ public final class MutableBTree implements IBTreeMutable {
 
                     mutablePage.insert(index, bufferKey, value.getByteBuffer());
                     TreeMutableCursor.notifyCursors(this);
+
+                    size++;
                     return true;
                 }
 
@@ -250,6 +258,7 @@ public final class MutableBTree implements IBTreeMutable {
         var result = doDelete(key.getByteBuffer(), null);
 
         if (result) {
+            size--;
             TreeMutableCursor.notifyCursors(this);
         }
 
@@ -268,6 +277,8 @@ public final class MutableBTree implements IBTreeMutable {
 
         if (doDelete(key.getByteBuffer(), bufferValue)) {
             TreeMutableCursor.notifyCursors(this, cursorToSkip);
+            size--;
+            return true;
         }
 
         return false;
@@ -338,6 +349,7 @@ public final class MutableBTree implements IBTreeMutable {
     @Override
     public boolean reclaim(@NotNull RandomAccessLoggable loggable, @NotNull Iterator<RandomAccessLoggable> loggables,
                            long segmentSize) {
+        System.out.println("Reclaim !");
         final long fileAddress = loggable.getAddress() / segmentSize;
         final boolean isEmpty = isEmpty();
 
