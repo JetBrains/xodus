@@ -156,6 +156,7 @@ public final class BufferedAsyncDataWriter implements BufferedDataWriter {
                     currentPage = allocNewPage(b);
                     currentPage.writtenCount = pageSize;
                     pageConsumed = true;
+                    len = 0;
                 } else {
                     currentPage = allocNewPage(null);
                     bytesToWrite = pageSize;

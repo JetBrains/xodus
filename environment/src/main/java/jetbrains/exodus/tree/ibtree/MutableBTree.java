@@ -322,7 +322,8 @@ public final class MutableBTree implements IBTreeMutable {
         root.spill();
 
         //re-spill the root if it was changed
-        if (root != prevRoot) {
+        while (root != prevRoot) {
+            prevRoot = root;
             root.spill();
         }
 

@@ -22,7 +22,7 @@ import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteBufferByteIterable;
 import jetbrains.exodus.ByteBufferComparator;
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.tree.ITree;
+import jetbrains.exodus.tree.ITreeMutable;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -31,8 +31,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Random;
 import java.util.TreeMap;
-import java.util.function.Consumer;
-import java.util.function.Function;
 
 public class BasicBTreeTest extends BTreeTestBase {
     @Test
@@ -107,8 +105,40 @@ public class BasicBTreeTest extends BTreeTestBase {
         var tm = createMutableTree(false, 2);
         var random = new Random(seed);
 
+        var entriesCount = 4;
+
+        insertAndCheckEntries(tm, random, entriesCount);
+    }
+
+    @Test
+    public void testInsert64Entries() {
+        final long seed = System.nanoTime();
+        System.out.println("testInsert64Entries seed : " + seed);
+
+        var tm = createMutableTree(false, 2);
+        var random = new Random(seed);
+
+        var entriesCount = 64;
+
+        insertAndCheckEntries(tm, random, entriesCount);
+    }
+
+    @Test
+    public void testInsert1KEntries() {
+        final long seed = 8444372607505L;// System.nanoTime();
+        System.out.println("testInsert1KEntries seed : " + seed);
+
+        var tm = createMutableTree(false, 2);
+        var random = new Random(seed);
+
+        var entriesCount = 1024;
+
+        insertAndCheckEntries(tm, random, entriesCount);
+    }
+
+    private void insertAndCheckEntries(ITreeMutable tm, Random random, int entriesCount) {
         final TreeMap<ByteBuffer, ByteBuffer> expectedMap = new TreeMap<>(ByteBufferComparator.INSTANCE);
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < entriesCount; i++) {
             var keySize = random.nextInt(1, 16);
             var key = new byte[keySize];
             random.nextBytes(key);
@@ -120,10 +150,10 @@ public class BasicBTreeTest extends BTreeTestBase {
             tm.put(new ArrayByteIterable(key), new ArrayByteIterable(value));
         }
 
-        checkTree(false, t -> {
-            var keys = new ArrayList<>(expectedMap.keySet());
-            Collections.shuffle(keys, random);
+        var keys = new ArrayList<>(expectedMap.keySet());
+        Collections.shuffle(keys, random);
 
+        checkTree(false, t -> {
             for (var key : keys) {
                 var value = t.get(new ByteBufferByteIterable(key));
                 var expectedValue = expectedMap.get(key);

@@ -299,12 +299,15 @@ final class MutableLeafPage implements MutablePage {
 
             page.changedEntries = nextSiblingEntries;
             page.firstKey = nextSiblingEntries.get(0).key;
+            page.spilled = true;
 
             parent.addChild(page.firstKey, page);
             parent.sortBeforeInternalSpill = true;
         }
 
         spilled = true;
+
+        assert changedEntries.size() <= 1 || serializedSize() <= pageSize;
 
         //parent first spill children then itself
         //so we do not need sort children of parent or spill parent itself

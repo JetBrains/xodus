@@ -129,7 +129,7 @@ subprojects {
         minHeapSize = '1g'
         maxHeapSize = '1g'
         jvmArgs = ['-ea'
-                   //, '-Dexodus.log.cache.useSoftReferences=true'
+                   , '-XX:+HeapDumpOnOutOfMemoryError'
                    //, '-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=2808'
         ]
         //testLogging.showStandardStreams = true

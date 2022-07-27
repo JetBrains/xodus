@@ -506,7 +506,7 @@ class Log(val config: LogConfig) : Closeable {
             throw UnsupportedOperationException("This method can be used only to read loggables of BTree with" +
                     " inlined keys")
         } else {
-            val dataLengthStructureIdType = page.order(ByteOrder.BIG_ENDIAN).getLong(loggableOffset);
+            val dataLengthStructureIdType = page.order(ByteOrder.BIG_ENDIAN).getLong(loggableOffset)
             page.order(ByteOrder.nativeOrder())
 
             dataLength = (dataLengthStructureIdType and 0xFF_FF_FF_FF).toInt()
@@ -518,15 +518,8 @@ class Log(val config: LogConfig) : Closeable {
 
         //fast path, page size always should be kept the same to follow it
         if (loggableOffset + loggableLength <= cachePageSize) {
-            val data: ByteBuffer
-            if (loggableLength == cachePageSize) {
-                data = page
-            } else {
-                data = page.slice(dataOffset, dataLength).order(ByteOrder.nativeOrder())
-            }
-
+            val data = page.slice(dataOffset, dataLength).order(ByteOrder.nativeOrder())
             assert(data.alignmentOffset(0, Long.SIZE_BYTES) == 0)
-
             return ByteBufferLoggable(address, type, loggableLength, dataLength, structureId,
                     data)
         }
@@ -540,7 +533,7 @@ class Log(val config: LogConfig) : Closeable {
         bytesToRead -= chunkSize
 
         val pagesToRead = (bytesToRead + cachePageSize - 1) / cachePageSize
-        val lastPageAddress = pageAddress + (pagesToRead - 1) * cachePageSize
+        val lastPageAddress = pageAddress + pagesToRead * cachePageSize
         val startPageAddress = pageAddress + cachePageSize
 
         for (currentPageAddress in startPageAddress..lastPageAddress step cachePageSize.toLong()) {
@@ -655,10 +648,6 @@ class Log(val config: LogConfig) : Closeable {
                     " inlined keys")
         }
 
-        if (page.limit() > cachePageSize) {
-            throw ExodusException("Page can not exceed size of $cachePageSize")
-        }
-
         //compact all loggable metadata into single long
         val typeAndStructureIdDataLength = ((type.toLong() xor 0x80) shl (Long.SIZE_BITS - Byte.SIZE_BITS)) or
                 (structureId.toLong() shl Int.SIZE_BITS) or (page.limit() - Long.SIZE_BYTES).toLong()
@@ -671,9 +660,10 @@ class Log(val config: LogConfig) : Closeable {
         val pageOffset = (address and (cachePageSize - 1).toLong()).toInt()
         val alignmentOffset = page.alignmentOffset(pageOffset, Long.SIZE_BYTES)
 
-        if (pageOffset + alignmentOffset + page.limit() <= cachePageSize) {
+        val paddingOffset = Long.SIZE_BYTES - alignmentOffset
+        if (pageOffset + paddingOffset + page.limit() <= cachePageSize) {
             if (alignmentOffset > 0) {
-                val filler = ByteArray(Long.SIZE_BYTES - alignmentOffset)
+                val filler = ByteArray(paddingOffset)
                 Arrays.fill(filler, 0x80.toByte())
 
                 writer.write(ByteBuffer.wrap(filler), filler.size, false)
@@ -699,6 +689,8 @@ class Log(val config: LogConfig) : Closeable {
         closeFullFileIfNecessary(writer)
 
         address = beforeWrite(writer)
+
+        assert(address % cachePageSize.toLong() == 0.toLong())
 
         writer.write(page, page.limit(), canBeConsumed)
         writer.incHighAddress(page.limit().toLong())

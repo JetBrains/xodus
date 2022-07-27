@@ -325,12 +325,14 @@ final class MutableInternalPage implements MutablePage {
                     parent);
             page.changedEntries = nextSiblingEntries;
             page.firstKey = nextSiblingEntries.get(0).key;
+            page.spilled = true;
 
             parent.addChild(page.firstKey, page);
             parent.sortBeforeInternalSpill = true;
         }
 
         spilled = true;
+        assert changedEntries.size() <= 2 || serializedSize() <= pageSize;
 
         //parent first spill children then itself
         //so we do not need sort children of parent or spill parent itself
@@ -349,7 +351,7 @@ final class MutableInternalPage implements MutablePage {
 
 
         int size = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET +
-                ImmutableInternalPage.KEYS_OFFSET + 2 * (2 * Long.BYTES + Integer.BYTES);
+                ImmutableInternalPage.KEYS_OFFSET + 2 * (2 * Long.BYTES + Integer.BYTES) + Long.BYTES;
 
         size += firstEntry.key.limit();
         size += secondEntry.key.limit();
@@ -357,7 +359,7 @@ final class MutableInternalPage implements MutablePage {
         int indexSplitAt = 1;
 
         for (int i = 2; i < changedEntries.size(); i++) {
-            var entry = changedEntries.get(0);
+            var entry = changedEntries.get(i);
             size += 2 * Long.BYTES + Integer.BYTES + entry.key.limit();
 
             if (size > pageSize) {
