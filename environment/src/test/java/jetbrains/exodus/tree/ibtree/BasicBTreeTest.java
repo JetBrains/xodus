@@ -22,15 +22,13 @@ import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteBufferByteIterable;
 import jetbrains.exodus.ByteBufferComparator;
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.env.Cursor;
 import jetbrains.exodus.tree.ITreeMutable;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Random;
-import java.util.TreeMap;
+import java.util.*;
 
 public class BasicBTreeTest extends BTreeTestBase {
     @Test
@@ -175,6 +173,42 @@ public class BasicBTreeTest extends BTreeTestBase {
 
                 Assert.assertEquals(new ByteBufferByteIterable(expectedValue), value);
             }
+
+            try (var cursor = t.openCursor()) {
+                checkForwardCursor(expectedMap.entrySet().iterator(), cursor);
+            }
+
+            try (var cursor = t.openCursor()) {
+                checkBackwardCursor(expectedMap.descendingMap().entrySet().iterator(), cursor);
+            }
         });
+    }
+
+    private void checkForwardCursor(Iterator<Map.Entry<ByteBuffer, ByteBuffer>> iterator, final Cursor cursor) {
+        while (iterator.hasNext()) {
+            Assert.assertTrue(cursor.getNext());
+
+            var entry = iterator.next();
+            Assert.assertEquals(entry.getKey(), cursor.getKey().getByteBuffer());
+            Assert.assertEquals(entry.getValue(), cursor.getValue().getByteBuffer());
+
+            Assert.assertEquals(1, cursor.count());
+        }
+
+        Assert.assertFalse(cursor.getNext());
+    }
+
+    private void checkBackwardCursor(Iterator<Map.Entry<ByteBuffer, ByteBuffer>> iterator, final Cursor cursor) {
+        while (iterator.hasNext()) {
+            Assert.assertTrue(cursor.getPrev());
+
+            var entry = iterator.next();
+            Assert.assertEquals(entry.getKey(), cursor.getKey().getByteBuffer());
+            Assert.assertEquals(entry.getValue(), cursor.getValue().getByteBuffer());
+
+            Assert.assertEquals(1, cursor.count());
+        }
+
+        Assert.assertFalse(cursor.getPrev());
     }
 }

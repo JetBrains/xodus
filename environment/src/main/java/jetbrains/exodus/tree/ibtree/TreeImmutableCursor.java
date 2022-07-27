@@ -72,13 +72,16 @@ public class TreeImmutableCursor implements ITreeCursor {
         var page = elemRef.page;
         if (page.isInternalPage()) {
             var childIndex = elemRef.index;
+
             page = page.child(childIndex);
+            var lastIndex = page.getEntriesCount() - 1;
+            stack.enqueue(new ElemRef(page, lastIndex));
 
             while (page.isInternalPage()) {
-                var index = page.getEntriesCount() - 1;
-                page = page.child(index);
+                page = page.child(lastIndex);
 
-                stack.enqueue(new ElemRef(page, childIndex));
+                lastIndex = page.getEntriesCount() - 1;
+                stack.enqueue(new ElemRef(page, lastIndex));
             }
         }
     }
@@ -107,7 +110,7 @@ public class TreeImmutableCursor implements ITreeCursor {
         }
 
         while (true) {
-            stack.dequeue();
+            stack.dequeueLast();
 
             if (stack.isEmpty()) {
                 return false;
@@ -175,7 +178,7 @@ public class TreeImmutableCursor implements ITreeCursor {
         }
 
         while (true) {
-            stack.dequeue();
+            stack.dequeueLast();
 
             if (stack.isEmpty()) {
                 return false;
