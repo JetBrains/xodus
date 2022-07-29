@@ -31,15 +31,26 @@ interface BTree extends ITree {
     @Nullable
     TraversablePage getRoot();
 
+    @Override
     @Nullable
-    default ByteIterable get(@NotNull ByteIterable key) {
-        var pageIndexPair = find(key.getByteBuffer());
+    default ByteBuffer get(final @NotNull ByteBuffer key) {
+        var pageIndexPair = find(key);
 
         if (pageIndexPair == null) {
             return null;
         }
 
-        return new ByteBufferByteIterable(pageIndexPair.page.value(pageIndexPair.index));
+        return pageIndexPair.page.value(pageIndexPair.index);
+    }
+
+    @Nullable
+    default ByteIterable get(@NotNull ByteIterable key) {
+        var result = get(key.getByteBuffer());
+        if (result == null) {
+            return null;
+        }
+
+        return new ByteBufferByteIterable(result);
     }
 
     default ElemRef find(ByteBuffer key) {
@@ -77,23 +88,29 @@ interface BTree extends ITree {
         }
     }
 
-
-    default boolean hasPair(@NotNull ByteIterable key, @NotNull ByteIterable value) {
-        var elemRef = find(key.getByteBuffer());
+    @Override
+    default boolean hasPair(final @NotNull ByteBuffer key, final @NotNull ByteBuffer value) {
+        var elemRef = find(key);
         if (elemRef == null) {
             return false;
         }
 
         var pageValue = elemRef.page.value(elemRef.index);
-        if (value instanceof ByteBufferIterable) {
-            return value.getByteBuffer().compareTo(pageValue) == 0;
-        }
 
-        return new ByteBufferByteIterable(pageValue).compareTo(value) == 0;
+
+        return pageValue.equals(value);
     }
 
+    default boolean hasPair(@NotNull ByteIterable key, @NotNull ByteIterable value) {
+        return hasPair(key.getByteBuffer(), value.getByteBuffer());
+    }
+
+    @Override
+    default boolean hasKey(final @NotNull ByteBuffer key) {
+        return find(key) != null;
+    }
 
     default boolean hasKey(@NotNull ByteIterable key) {
-        return find(key.getByteBuffer()) != null;
+        return hasKey(key.getByteBuffer());
     }
 }

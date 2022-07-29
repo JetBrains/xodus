@@ -371,10 +371,10 @@ public class TreeImmutableCursor implements ITreeCursor {
                     if (index > 0) {
                         index--;
                     }
-
-                    stack.enqueue(new ElemRef(page, index));
-                    page = page.child(index);
                 }
+
+                stack.enqueue(new ElemRef(page, index));
+                page = page.child(index);
             }
         }
     }

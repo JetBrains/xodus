@@ -130,23 +130,21 @@ public final class MutableBTree implements IBTreeMutable {
     }
 
     @Override
-    public boolean put(@NotNull ByteIterable key, @NotNull ByteIterable value) {
-        var bufferKey = key.getByteBuffer();
-
+    public boolean put(@NotNull ByteBuffer key, @NotNull ByteBuffer value) {
         var page = root;
 
         while (true) {
-            var index = page.find(bufferKey);
+            var index = page.find(key);
             if (page instanceof MutableLeafPage mutablePage) {
                 if (index < 0) {
-                    mutablePage.insert(-index - 1, bufferKey, value.getByteBuffer());
+                    mutablePage.insert(-index - 1, key, value);
 
                     TreeMutableCursor.notifyCursors(this);
                     size++;
                     return true;
                 }
 
-                mutablePage.set(index, bufferKey, value.getByteBuffer());
+                mutablePage.set(index, key, value);
 
                 TreeMutableCursor.notifyCursors(this);
                 return true;
@@ -166,12 +164,17 @@ public final class MutableBTree implements IBTreeMutable {
     }
 
     @Override
-    public void putRight(@NotNull ByteIterable key, @NotNull ByteIterable value) {
+    public boolean put(@NotNull ByteIterable key, @NotNull ByteIterable value) {
+        return put(key.getByteBuffer(), value.getByteBuffer());
+    }
+
+    @Override
+    public void putRight(@NotNull ByteBuffer key, @NotNull ByteBuffer value) {
         var page = root;
 
         while (true) {
             if (page instanceof MutableLeafPage mutableLeafPage) {
-                mutableLeafPage.append(key.getByteBuffer(), value.getByteBuffer());
+                mutableLeafPage.append(key, value);
 
                 TreeMutableCursor.notifyCursors(this);
                 size++;
@@ -186,14 +189,17 @@ public final class MutableBTree implements IBTreeMutable {
     }
 
     @Override
-    public boolean add(@NotNull ByteIterable key, @NotNull ByteIterable value) {
-        var bufferKey = key.getByteBuffer();
+    public void putRight(@NotNull ByteIterable key, @NotNull ByteIterable value) {
+        putRight(key.getByteBuffer(), value.getByteBuffer());
+    }
 
+    @Override
+    public boolean add(@NotNull ByteBuffer key, @NotNull ByteBuffer value) {
         final var stack = new ArrayList<ElemRef>();
         TraversablePage page = root;
 
         while (true) {
-            var index = page.find(bufferKey);
+            var index = page.find(key);
             if (!page.isInternalPage()) {
                 if (index < 0) {
                     makeAllStackPagesMutable(stack);
@@ -202,7 +208,7 @@ public final class MutableBTree implements IBTreeMutable {
                     page = stack.get(stack.size() - 1).page;
                     var mutablePage = (MutableLeafPage) page;
 
-                    mutablePage.insert(index, bufferKey, value.getByteBuffer());
+                    mutablePage.insert(index, key, value);
                     TreeMutableCursor.notifyCursors(this);
 
                     size++;
@@ -222,6 +228,11 @@ public final class MutableBTree implements IBTreeMutable {
                 page = page.child(index);
             }
         }
+    }
+
+    @Override
+    public boolean add(@NotNull ByteIterable key, @NotNull ByteIterable value) {
+        return add(key.getByteBuffer(), value.getByteBuffer());
     }
 
     @Override
@@ -254,8 +265,8 @@ public final class MutableBTree implements IBTreeMutable {
     }
 
     @Override
-    public boolean delete(@NotNull ByteIterable key) {
-        var result = doDelete(key.getByteBuffer(), null);
+    public boolean delete(@NotNull ByteBuffer key) {
+        var result = doDelete(key, null);
 
         if (result) {
             size--;
@@ -266,22 +277,29 @@ public final class MutableBTree implements IBTreeMutable {
     }
 
     @Override
-    public boolean delete(@NotNull ByteIterable key, @Nullable ByteIterable value,
-                          @Nullable ITreeCursorMutable cursorToSkip) {
-        ByteBuffer bufferValue;
-        if (value != null) {
-            bufferValue = value.getByteBuffer();
-        } else {
-            bufferValue = null;
-        }
+    public boolean delete(@NotNull ByteIterable key) {
+        return delete(key.getByteBuffer());
+    }
 
-        if (doDelete(key.getByteBuffer(), bufferValue)) {
+    @Override
+    public boolean delete(@NotNull ByteBuffer key, @Nullable ByteBuffer value, @Nullable ITreeCursorMutable cursorToSkip) {
+        if (doDelete(key, value)) {
             TreeMutableCursor.notifyCursors(this, cursorToSkip);
             size--;
             return true;
         }
 
         return false;
+    }
+
+    @Override
+    public boolean delete(@NotNull ByteIterable key, @Nullable ByteIterable value,
+                          @Nullable ITreeCursorMutable cursorToSkip) {
+        if (value == null) {
+            return delete(key.getByteBuffer(), null, cursorToSkip);
+        } else {
+            return delete(key.getByteBuffer(), value.getByteBuffer(), cursorToSkip);
+        }
     }
 
     private boolean doDelete(final ByteBuffer key, final ByteBuffer value) {

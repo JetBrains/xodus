@@ -15,11 +15,13 @@
  */
 package jetbrains.exodus.tree;
 
+import jetbrains.exodus.ByteBufferByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.nio.ByteBuffer;
 import java.util.Iterator;
 
 public interface ITreeMutable extends ITree {
@@ -40,6 +42,11 @@ public interface ITreeMutable extends ITree {
      */
     boolean put(@NotNull ByteIterable key, @NotNull ByteIterable value);
 
+
+    default boolean put(@NotNull ByteBuffer key, @NotNull ByteBuffer value) {
+        return put(new ByteBufferByteIterable(key), new ByteBufferByteIterable(value));
+    }
+
     /**
      * Add key/value pair with greatest (rightmost) key.
      * In duplicates tree, value must be greatest too.
@@ -48,6 +55,10 @@ public interface ITreeMutable extends ITree {
      * @param value value.
      */
     void putRight(@NotNull final ByteIterable key, @NotNull final ByteIterable value);
+
+    default void putRight(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value) {
+        putRight(new ByteBufferByteIterable(key), new ByteBufferByteIterable(value));
+    }
 
     /**
      * If tree supports duplicates and key already exists, then return false.
@@ -60,6 +71,10 @@ public interface ITreeMutable extends ITree {
      * @return false if key exists and tree is not supports duplicates
      */
     boolean add(@NotNull ByteIterable key, @NotNull ByteIterable value);
+
+    default boolean add(@NotNull ByteBuffer key, @NotNull ByteBuffer value) {
+        return add(new ByteBufferByteIterable(key), new ByteBufferByteIterable(value));
+    }
 
     /**
      * If tree supports duplicates, then add key/value pair.
@@ -97,6 +112,10 @@ public interface ITreeMutable extends ITree {
      */
     boolean delete(@NotNull final ByteIterable key);
 
+    default boolean delete(@NotNull final ByteBuffer key) {
+        return delete(new ByteBufferByteIterable(key));
+    }
+
     /**
      * Delete key/value pair, should be supported only by tree which allows duplicates if value is not null.
      *
@@ -106,6 +125,15 @@ public interface ITreeMutable extends ITree {
      * @return false if key/value pair wasn't found
      */
     boolean delete(@NotNull ByteIterable key, @Nullable ByteIterable value, @Nullable ITreeCursorMutable cursorToSkip);
+
+    default boolean delete(@NotNull ByteBuffer key, @Nullable ByteBuffer value,
+                           @Nullable ITreeCursorMutable cursorToSkip) {
+        if (value == null) {
+            return delete(new ByteBufferByteIterable(key), null, cursorToSkip);
+        }
+
+        return delete(new ByteBufferByteIterable(key), new ByteBufferByteIterable(value), cursorToSkip);
+    }
 
     /**
      * Save changes to log.
