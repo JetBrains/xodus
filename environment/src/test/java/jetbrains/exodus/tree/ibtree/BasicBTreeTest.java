@@ -31,66 +31,28 @@ import java.util.*;
 public class BasicBTreeTest extends BTreeTestBase {
     @Test
     public void checkEmptyTree() {
-        var tm = createMutableTree(false, 1);
-        checkEmptyTree(tm);
+        final long seed = System.nanoTime();
+        System.out.println("checkEmptyTree seed : " + seed);
 
-        long address = saveTree();
+        var tm = createMutableTree(false, 2);
+        var random = new Random(seed);
 
-        checkEmptyTree(tm);
+        var entriesCount = 0;
 
-        var t = openTree(address, false);
-
-        checkEmptyTree(t);
-
-        reopen();
-
-        t = openTree(address, false);
-        checkEmptyTree(t);
+        insertAndCheckEntries(tm, random, entriesCount);
     }
 
     @Test
     public void singlePutGet() {
-        var tm = createMutableTree(false, 1);
-        tm.put(key(1), value("v1"));
+        final long seed = System.nanoTime();
+        System.out.println("singlePutGet seed : " + seed);
 
-        checkTree(false, t -> {
-            Assert.assertEquals(1, t.getSize());
-            Assert.assertFalse(t.isEmpty());
+        var tm = createMutableTree(false, 2);
+        var random = new Random(seed);
 
-            Assert.assertEquals(value("v1"), t.get(key(1)));
-            Assert.assertTrue(t.hasKey(key(1)));
-            Assert.assertTrue(t.hasPair(key(1), value("v1")));
+        var entriesCount = 1;
 
-            Assert.assertNull(t.get(key(2)));
-            Assert.assertFalse(t.hasPair(key(1), value("v2")));
-            Assert.assertFalse(t.hasPair(key(2), value("v1")));
-            Assert.assertFalse(t.hasPair(key(2), value("v2")));
-            Assert.assertFalse(t.hasKey(key(2)));
-
-            try (var cursor = t.openCursor()) {
-                Assert.assertTrue(cursor.getNext());
-
-                Assert.assertEquals(key(1), cursor.getKey());
-                Assert.assertEquals(value("v1"), cursor.getValue());
-
-                Assert.assertFalse(cursor.getNext());
-
-                Assert.assertEquals(ByteIterable.EMPTY, cursor.getKey());
-                Assert.assertEquals(ByteIterable.EMPTY, cursor.getValue());
-            }
-
-            try (var cursor = t.openCursor()) {
-                Assert.assertTrue(cursor.getPrev());
-
-                Assert.assertEquals(key(1), cursor.getKey());
-                Assert.assertEquals(value("v1"), cursor.getValue());
-
-                Assert.assertFalse(cursor.getNext());
-
-                Assert.assertEquals(ByteIterable.EMPTY, cursor.getKey());
-                Assert.assertEquals(ByteIterable.EMPTY, cursor.getValue());
-            }
-        });
+        insertAndCheckEntries(tm, random, entriesCount);
     }
 
     @Test
