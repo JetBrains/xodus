@@ -20,7 +20,6 @@ package jetbrains.exodus.tree.ibtree;
 
 
 import jetbrains.exodus.ByteBufferByteIterable;
-import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.tree.ITreeCursorMutable;
 import jetbrains.exodus.tree.ITreeMutable;
 import org.jetbrains.annotations.NotNull;
@@ -63,6 +62,7 @@ public final class TreeMutableCursor extends TreeImmutableCursor implements ITre
     @Override
     public boolean getPrev() {
         var result = super.getPrev();
+
         if (result) {
             currentKey = doGetKey();
             assert currentKey != null;
@@ -72,27 +72,27 @@ public final class TreeMutableCursor extends TreeImmutableCursor implements ITre
     }
 
     @Override
-    public @Nullable ByteIterable getSearchKey(@NotNull ByteIterable key) {
+    public @Nullable ByteBuffer getSearchKey(@NotNull ByteBuffer key) {
         var result = super.getSearchKey(key);
         if (result != null) {
-            currentKey = result.getByteBuffer();
+            currentKey = doGetKey();
         }
 
         return result;
     }
 
     @Override
-    public @Nullable ByteIterable getSearchKeyRange(@NotNull ByteIterable key) {
+    public @Nullable ByteBuffer getSearchKeyRange(@NotNull ByteBuffer key) {
         var result = super.getSearchKeyRange(key);
         if (result != null) {
-            currentKey = result.getByteBuffer();
+            currentKey = doGetKey();
         }
 
-        return super.getSearchKeyRange(key);
+        return result;
     }
 
     @Override
-    public boolean getSearchBoth(@NotNull ByteIterable key, @NotNull ByteIterable value) {
+    public boolean getSearchBoth(@NotNull ByteBuffer key, @NotNull ByteBuffer value) {
         var result = super.getSearchBoth(key, value);
         if (result) {
             currentKey = doGetKey();
@@ -102,10 +102,10 @@ public final class TreeMutableCursor extends TreeImmutableCursor implements ITre
     }
 
     @Override
-    public @Nullable ByteIterable getSearchBothRange(@NotNull ByteIterable key, @NotNull ByteIterable value) {
+    public @Nullable ByteBuffer getSearchBothRange(@NotNull ByteBuffer key, @NotNull ByteBuffer value) {
         var result = super.getSearchBothRange(key, value);
         if (result != null) {
-            currentKey = result.getByteBuffer();
+            currentKey = doGetKey();
         }
 
         return result;
@@ -115,13 +115,15 @@ public final class TreeMutableCursor extends TreeImmutableCursor implements ITre
     public void treeChanged() {
         reset();
 
-        var result = findByKeyRange(currentKey);
-        if (result == null) {
-            currentKey = null;
-            return;
-        }
+        if (currentKey != null) {
+            var result = findByKeyRange(currentKey);
+            if (result == null) {
+                currentKey = null;
+                return;
+            }
 
-        currentKey = result.getByteBuffer();
+            currentKey = result;
+        }
     }
 
     @Override

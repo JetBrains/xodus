@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,7 +19,6 @@ import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.Map;
 
 import static org.junit.Assert.*;
@@ -79,66 +78,6 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
         assertNull(tm.get(key("11")));
         valueEquals("1", tm.get(key("1")));
     }
-
-    /*@Test
-    public void testDeleteNoDuplicates2() throws IOException {
-        tm = createMutableTree(false);
-
-        getTreeMutable().put(kv(1, "1"));
-        getTreeMutable().put(kv(2, "2"));
-        getTreeMutable().put(kv(3, "3"));
-        getTreeMutable().put(kv(4, "4"));
-        getTreeMutable().put(kv(5, "5"));
-
-        assertEquals(5, tm.getSize());
-
-        long a = saveTree();
-        tm = openTree(a, false).getMutableCopy();
-
-        System.out.println("Orig-----------------------");
-        dump(getTreeMutable());
-        assertEquals(5, tm.getSize());
-
-        tm.delete(key(1));
-        tm.delete(key(2));
-        tm.delete(key(3));
-
-        assertEquals(2, tm.getSize());
-        System.out.println("After delete-----------------------");
-        dump(getTreeMutable());
-        writeItems(tm);
-
-        a = saveTree();
-
-        assertEquals(2, tm.getSize());
-        System.out.println("After delete and save-----------------------");
-        dump(getTreeMutable());
-        writeItems(tm);
-
-        tm = openTree(a, false).getMutableCopy();
-        assertEquals(2, tm.getSize());
-        System.out.println("After delete, save and reopen-----------------------");
-        dump(getTreeMutable());
-        writeItems(tm);
-
-        tm.delete(key(4));
-        System.out.println("After delete 4-----------------------");
-        dump(getTreeMutable());
-        writeItems(tm);
-
-        tm.delete(key(5));
-        System.out.println("After delete 5-----------------------");
-        dump(getTreeMutable());
-        writeItems(tm);
-
-        assertEquals(0, tm.getSize());
-        a = saveTree();
-        t = openTree(a, false);
-
-        assertTrue(t.isEmpty());
-        assertEquals(0, t.getSize());
-        assertFalse(t.openCursor().getNext());
-    } */
 
     @Test
     public void testDeleteNotExistingKey() {

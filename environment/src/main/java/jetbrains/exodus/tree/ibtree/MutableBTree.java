@@ -338,7 +338,9 @@ public final class MutableBTree implements IBTreeMutable {
             root.spill();
         }
 
-        return root.save(immutableTree.getStructureId());
+        var address = root.save(immutableTree.getStructureId());
+        TreeMutableCursor.notifyCursors(this);
+        return address;
     }
 
     @Override

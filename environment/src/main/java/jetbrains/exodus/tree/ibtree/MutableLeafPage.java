@@ -138,7 +138,11 @@ final class MutableLeafPage implements MutablePage {
             return underlying.address;
         }
 
+        assert parent == null || changedEntries.size() >= 1;
+
         var serializedSize = serializedSize();
+        assert serializedSize <= pageSize || changedEntries.size() < 2;
+
         var newBuffer = LogUtil.allocatePage(serializedSize);
         var buffer = newBuffer.slice(ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET,
                         newBuffer.limit() - ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET).

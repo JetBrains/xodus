@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,11 +15,13 @@
  */
 package jetbrains.exodus.env;
 
+import jetbrains.exodus.ByteBufferByteIterable;
 import jetbrains.exodus.ByteIterable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.Closeable;
+import java.nio.ByteBuffer;
 
 /**
  * {@code Cursor} allows to access key/value pairs of a {@linkplain Store} in both successive (ascending and descending)
@@ -152,6 +154,17 @@ public interface Cursor extends Closeable {
     @NotNull
     ByteIterable getKey();
 
+    @Nullable
+    default ByteBuffer getKeyBuffer() {
+        var result = getKey();
+
+        if (result.getLength() == 0) {
+            return null;
+        }
+
+        return result.getByteBuffer();
+    }
+
     /**
      * @return current value
      * @see ByteIterable
@@ -159,6 +172,17 @@ public interface Cursor extends Closeable {
      */
     @NotNull
     ByteIterable getValue();
+
+    @Nullable
+    default ByteBuffer getValueBuffer() {
+        var result = getValue();
+
+        if (result.getLength() == 0) {
+            return null;
+        }
+
+        return result.getByteBuffer();
+    }
 
     /**
      * Moves the {@code Cursor} to the specified key, and returns the value associated with the key. In
@@ -176,6 +200,15 @@ public interface Cursor extends Closeable {
     @Nullable
     ByteIterable getSearchKey(final @NotNull ByteIterable key);
 
+    @Nullable
+    default ByteBuffer getSearchKey(final @NotNull ByteBuffer key) {
+        var result = getSearchKey(new ByteBufferByteIterable(key));
+        if (result == null) {
+            return null;
+        }
+        return result.getByteBuffer();
+    }
+
     /**
      * Moves the {@code Cursor} to the first pair in the {@linkplain Store} whose key is equal to or greater than the
      * specified key. It returns not-null value if it succeeds or {@code null} if nothing is found, and the position of
@@ -190,6 +223,16 @@ public interface Cursor extends Closeable {
     @Nullable
     ByteIterable getSearchKeyRange(final @NotNull ByteIterable key);
 
+    @Nullable
+    default ByteBuffer getSearchKeyRange(final @NotNull ByteBuffer key) {
+        var result = getSearchKeyRange(new ByteBufferByteIterable(key));
+        if (result != null) {
+            return result.getByteBuffer();
+        }
+
+        return null;
+    }
+
     /**
      * Moves the {@code Cursor} to the key/value pair with the specified key and value and returns {@code true} if
      * the pair exists in the {@linkplain Store}. Otherwise the position of the {@code Cursor} will be unchanged.
@@ -202,6 +245,10 @@ public interface Cursor extends Closeable {
      * @see #getSearchBothRange(ByteIterable, ByteIterable)
      */
     boolean getSearchBoth(final @NotNull ByteIterable key, final @NotNull ByteIterable value);
+
+    default boolean getSearchBoth(final @NotNull ByteBuffer key, final @NotNull ByteBuffer value) {
+        return getSearchBoth(new ByteBufferByteIterable(key), new ByteBufferByteIterable(value));
+    }
 
     /**
      * Moves the {@code Cursor} to the first pair in the {@linkplain Store} whose key matches the specified key and
@@ -220,6 +267,16 @@ public interface Cursor extends Closeable {
      */
     @Nullable
     ByteIterable getSearchBothRange(final @NotNull ByteIterable key, final @NotNull ByteIterable value);
+
+    @Nullable
+    default ByteBuffer getSearchBothRange(final @NotNull ByteBuffer key, final @NotNull ByteBuffer value) {
+        var result = getSearchBothRange(new ByteBufferByteIterable(key), new ByteBufferByteIterable(value));
+        if (result == null) {
+            return null;
+        }
+
+        return result.getByteBuffer();
+    }
 
     /**
      * @return the number of values in the {@linkplain Store} associated with current key

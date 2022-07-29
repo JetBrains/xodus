@@ -141,6 +141,10 @@ final class MutableInternalPage implements MutablePage {
         }
 
         var newBuffer = LogUtil.allocatePage(serializedSize());
+
+        assert changedEntries.size() >= 2;
+        assert newBuffer.limit() <= pageSize || changedEntries.size() < 4;
+
         var buffer = newBuffer.slice(ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET,
                         newBuffer.limit() - ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET).
                 order(ByteOrder.nativeOrder());
@@ -156,8 +160,6 @@ final class MutableInternalPage implements MutablePage {
         int childAddressesOffset = keyPositionsOffset + Long.BYTES * changedEntries.size();
         int subTreeSizeOffset = childAddressesOffset + Long.BYTES * changedEntries.size();
         int keysDataOffset = subTreeSizeOffset + Integer.BYTES * changedEntries.size();
-
-        assert changedEntries.size() >= 2;
 
         int treeSize = 0;
         for (var entry : changedEntries) {
@@ -341,8 +343,8 @@ final class MutableInternalPage implements MutablePage {
     private ObjectArrayList<Entry> splitAtPageSize() {
         assert changedEntries != null;
 
-        //page should contain at least two entries, root page can contain less entries
-        if (changedEntries.size() <= 2) {
+        //each page should contain at least two entries, root page can contain less entries
+        if (changedEntries.size() < 4) {
             return null;
         }
 
@@ -367,6 +369,11 @@ final class MutableInternalPage implements MutablePage {
             }
 
             indexSplitAt = i;
+        }
+
+        var splitResultSize = changedEntries.size() - (indexSplitAt + 1);
+        if (splitResultSize < 2) {
+            indexSplitAt = indexSplitAt - (2 - splitResultSize);
         }
 
         ObjectArrayList<Entry> result = null;

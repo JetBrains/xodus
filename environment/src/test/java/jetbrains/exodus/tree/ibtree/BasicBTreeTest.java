@@ -19,10 +19,8 @@
 package jetbrains.exodus.tree.ibtree;
 
 import jetbrains.exodus.ArrayByteIterable;
-import jetbrains.exodus.ByteBufferByteIterable;
 import jetbrains.exodus.ByteBufferComparator;
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.env.Cursor;
 import jetbrains.exodus.tree.ITreeMutable;
 import org.junit.Assert;
 import org.junit.Test;
@@ -161,54 +159,6 @@ public class BasicBTreeTest extends BTreeTestBase {
             tm.put(new ArrayByteIterable(key), new ArrayByteIterable(value));
         }
 
-        var keys = new ArrayList<>(expectedMap.keySet());
-        Collections.shuffle(keys, random);
-
-        checkTree(false, t -> {
-            Assert.assertEquals(expectedMap.size(), t.getSize());
-
-            for (var key : keys) {
-                var value = t.get(new ByteBufferByteIterable(key));
-                var expectedValue = expectedMap.get(key);
-
-                Assert.assertEquals(new ByteBufferByteIterable(expectedValue), value);
-            }
-
-            try (var cursor = t.openCursor()) {
-                checkForwardCursor(expectedMap.entrySet().iterator(), cursor);
-            }
-
-            try (var cursor = t.openCursor()) {
-                checkBackwardCursor(expectedMap.descendingMap().entrySet().iterator(), cursor);
-            }
-        });
-    }
-
-    private void checkForwardCursor(Iterator<Map.Entry<ByteBuffer, ByteBuffer>> iterator, final Cursor cursor) {
-        while (iterator.hasNext()) {
-            Assert.assertTrue(cursor.getNext());
-
-            var entry = iterator.next();
-            Assert.assertEquals(entry.getKey(), cursor.getKey().getByteBuffer());
-            Assert.assertEquals(entry.getValue(), cursor.getValue().getByteBuffer());
-
-            Assert.assertEquals(1, cursor.count());
-        }
-
-        Assert.assertFalse(cursor.getNext());
-    }
-
-    private void checkBackwardCursor(Iterator<Map.Entry<ByteBuffer, ByteBuffer>> iterator, final Cursor cursor) {
-        while (iterator.hasNext()) {
-            Assert.assertTrue(cursor.getPrev());
-
-            var entry = iterator.next();
-            Assert.assertEquals(entry.getKey(), cursor.getKey().getByteBuffer());
-            Assert.assertEquals(entry.getValue(), cursor.getValue().getByteBuffer());
-
-            Assert.assertEquals(1, cursor.count());
-        }
-
-        Assert.assertFalse(cursor.getPrev());
+        checkTree(false, new ImmutableTreeChecker(expectedMap, random));
     }
 }
