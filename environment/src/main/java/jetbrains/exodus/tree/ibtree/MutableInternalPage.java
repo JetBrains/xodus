@@ -250,7 +250,7 @@ final class MutableInternalPage implements MutablePage {
                 return null;
             }
 
-            assert parent.getEntriesCount() > 1 : "parent must have at least 2 children";
+            assert parent.getEntriesCount() > 1;
 
             // Destination node is right sibling if idx == 0, otherwise left sibling.
             // If both this node and the target node are too small then merge them.
@@ -270,6 +270,7 @@ final class MutableInternalPage implements MutablePage {
                 prevSibling.changedEntries.addAll(changedEntries);
                 parent.delete(parentIndex);
             }
+
         }
 
         return null;
@@ -412,6 +413,9 @@ final class MutableInternalPage implements MutablePage {
 
             changedEntries.add(new Entry(key, child.toMutable(tree, expiredLoggables, this)));
         }
+
+        firstKey = changedEntries.get(0).key;
+        underlying = null;
 
         return true;
     }

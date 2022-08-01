@@ -49,7 +49,7 @@ public final class MutableBTree implements IBTreeMutable {
         this.log = immutableTree.log;
 
         var immutableRoot = immutableTree.root;
-        if (root == null) {
+        if (immutableRoot == null) {
             this.root = new MutableLeafPage(this, null, log, log.getCachePageSize(),
                     expiredLoggables, null);
         } else {
@@ -307,7 +307,7 @@ public final class MutableBTree implements IBTreeMutable {
         while (true) {
             var index = page.find(key);
             if (page instanceof MutableLeafPage mutablePage) {
-                if (index > 0) {
+                if (index >= 0) {
                     if (value == null) {
                         mutablePage.delete(index);
                         return true;
