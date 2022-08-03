@@ -106,8 +106,7 @@ abstract class ImmutableBasePage implements TraversablePage {
         return keyView.get(index);
     }
 
-    abstract MutablePage toMutable(MutableBTree tree, ExpiredLoggableCollection expiredLoggables,
-                                   MutableInternalPage parent);
+    abstract MutablePage toMutable(MutableBTree tree, ExpiredLoggableCollection expiredLoggables);
 
     final class KeyView extends AbstractList<ByteBuffer> implements RandomAccess {
         @Override

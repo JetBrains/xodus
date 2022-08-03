@@ -17,9 +17,6 @@ import java.util.RandomAccess;
 
 final class MutableInternalPage implements MutablePage {
     @Nullable
-    MutableInternalPage parent;
-
-    @Nullable
     ImmutableInternalPage underlying;
 
     @Nullable
@@ -42,11 +39,7 @@ final class MutableInternalPage implements MutablePage {
     final int pageSize;
     final int maxKeySize;
 
-    ByteBuffer firstKey;
-
     final long pageAddress;
-
-    boolean unbalanced;
 
     long cachedTreeSize = -1;
 
@@ -55,9 +48,11 @@ final class MutableInternalPage implements MutablePage {
 
     boolean spilled;
 
+    boolean unbalanced;
+
     MutableInternalPage(@NotNull MutableBTree tree, @Nullable ImmutableInternalPage underlying,
                         @NotNull ExpiredLoggableCollection expiredLoggables, @NotNull Log log,
-                        int pageSize, @Nullable MutableInternalPage parent) {
+                        int pageSize) {
         this.tree = tree;
 
         if (underlying != null) {
@@ -69,7 +64,6 @@ final class MutableInternalPage implements MutablePage {
         this.expiredLoggables = expiredLoggables;
         this.log = log;
         this.pageSize = pageSize;
-        this.parent = parent;
         this.underlying = underlying;
         this.maxKeySize = pageSize / 4;
 
@@ -93,14 +87,6 @@ final class MutableInternalPage implements MutablePage {
         return changedEntries.get(index).mutablePage;
     }
 
-    void delete(int index) {
-        fetch();
-
-        assert changedEntries != null;
-
-        changedEntries.remove(index);
-        unbalanced = true;
-    }
 
     @Override
     public int getEntriesCount() {
@@ -134,7 +120,7 @@ final class MutableInternalPage implements MutablePage {
 
 
     @Override
-    public long save(int structureId) {
+    public long save(int structureId, @Nullable MutableInternalPage parent) {
         if (changedEntries == null) {
             assert underlying != null;
             return underlying.address;
@@ -166,7 +152,7 @@ final class MutableInternalPage implements MutablePage {
             var child = entry.mutablePage;
             //we need to save mutableChild first to cache tree size, otherwise it could impact big performance
             //overhead during save of the data
-            var childAddress = child.save(structureId);
+            var childAddress = child.save(structureId, this);
 
             long subTreeSize = child.treeSize();
             treeSize += subTreeSize;
@@ -210,70 +196,99 @@ final class MutableInternalPage implements MutablePage {
     }
 
     @Override
-    public MutablePage rebalance() {
-        if (changedEntries == null) {
-            return null;
-        }
-
-        //re-balance children first, so if tree completely empty it will be collapsed
-        for (var entry : changedEntries) {
-            var newRoot = entry.mutablePage.rebalance();
-            //only root can promote another root
-            assert newRoot == null;
-        }
-
+    public RebalanceResult rebalance(@Nullable MutableInternalPage parent, boolean rebalanceChildren) {
         if (!unbalanced) {
             return null;
         }
 
         assert changedEntries != null;
 
-        var threshold = pageSize / 4;
-        // Ignore if node is above threshold (25%) and has enough keys.
-        if (threshold < serializedSize() || changedEntries.size() < 2) {
-            // Root node has special handling.
-            if (parent == null) {
-                // If root node only has one node then collapse it.
-                if (changedEntries.size() == 1) {
-                    //page is already marked as expired by call of the fetch method
-                    //so we merely need to inform the tree that root is changed
-                    return changedEntries.get(0).mutablePage;
+        unbalanced = false;
+
+        boolean needsToBeRebalanced = false;
+        final int entriesCount = changedEntries.size();
+
+        if (rebalanceChildren) {
+            boolean rebalanceCurrentChildChildren = true;
+
+            for (int i = 0; i < changedEntries.size(); i++) {
+                var entry = changedEntries.get(i);
+                var page = entry.mutablePage;
+
+                var result = page.rebalance(this, rebalanceCurrentChildChildren);
+                rebalanceCurrentChildChildren = true;
+
+                if (result != null) {
+                    if (result.isEmpty) {
+                        changedEntries.remove(i);
+                        i--;
+                    } else if (result.mergeWithSibling) {
+                        if (changedEntries.size() == 1) {
+                            needsToBeRebalanced = true;
+                            break;
+                        }
+
+
+                        if (i == 0) {
+                            var nextEntry = changedEntries.remove(i + 1);
+                            var nextPage = nextEntry.mutablePage;
+
+                            var nextResult = nextPage.rebalance(this,
+                                    true);
+                            if (nextResult != null) {
+                                if (nextResult.isEmpty) {
+                                    rebalanceCurrentChildChildren = false;
+                                } else {
+                                    rebalanceCurrentChildChildren = result.rebalanceChildrenAfterMerge ||
+                                            nextResult.rebalanceChildrenAfterMerge;
+                                    page.merge(nextPage);
+                                }
+                            } else {
+                                rebalanceCurrentChildChildren = result.rebalanceChildrenAfterMerge;
+                                nextPage.fetch();
+                                page.merge(nextPage);
+                            }
+                        } else {
+                            var prevEntry = changedEntries.get(i - 1);
+                            var prevPage = prevEntry.mutablePage;
+
+                            prevPage.merge(page);
+
+                            changedEntries.remove(i);
+
+                            //if we need to rebalance merged sibling we need to step
+                            //one more step back, otherwise because current item
+                            //is removed we will process next item
+                            if (result.rebalanceChildrenAfterMerge) {
+                                i--;
+                            }
+                        }
+
+                        //because item is removed next item will have the same index
+                        //so we step back to have the same result after the index
+                        //increment by cycle
+                        i--;
+                    }
                 }
-
-                return null;
             }
-
-            // If node has no keys then just remove it.
-            if (changedEntries.isEmpty()) {
-                int index = parent.find(firstKey);
-                parent.delete(index);
-                return null;
-            }
-
-            assert parent.getEntriesCount() > 1;
-
-            // Destination node is right sibling if idx == 0, otherwise left sibling.
-            // If both this node and the target node are too small then merge them.
-            var parentIndex = parent.find(firstKey);
-            if (parentIndex == 0) {
-                var nextSibling = (MutableInternalPage) parent.mutableChild(1);
-                nextSibling.fetch();
-
-                changedEntries.addAll(nextSibling.changedEntries);
-                parent.delete(1);
-            } else {
-                var prevSibling = (MutableInternalPage) parent.mutableChild(parentIndex - 1);
-                prevSibling.fetch();
-
-                assert prevSibling.changedEntries != null;
-
-                prevSibling.changedEntries.addAll(changedEntries);
-                parent.delete(parentIndex);
-            }
-
         }
 
+        if (changedEntries.isEmpty()) {
+            return new RebalanceResult(false, false, true);
+        }
+
+        if (changedEntries.size() < 2 ||
+                entriesCount != changedEntries.size() && needsToBeMerged(pageSize / 4)) {
+            return new RebalanceResult(true, needsToBeRebalanced, false);
+        }
+
+
         return null;
+    }
+
+    @Override
+    public void unbalance() {
+        unbalanced = true;
     }
 
     private int serializedSize() {
@@ -289,22 +304,50 @@ final class MutableInternalPage implements MutablePage {
         return size;
     }
 
+    private boolean needsToBeMerged(int threshold) {
+        assert changedEntries != null;
+
+        int size = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET + ImmutableLeafPage.KEYS_OFFSET +
+                (2 * Long.BYTES + Integer.BYTES) * changedEntries.size() + Long.BYTES;
+
+        for (Entry entry : changedEntries) {
+            size += entry.key.limit();
+
+            if (size >= threshold) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     @Override
-    public void spill() {
+    public void merge(MutablePage page) {
+        fetch();
+
+        assert changedEntries != null;
+
+        var internalPage = (MutableInternalPage) page;
+
+        changedEntries.addAll(internalPage.changedEntries);
+
+        unbalanced = true;
+    }
+
+    @Override
+    public void spill(@Nullable MutableInternalPage parent) {
         if (spilled || changedEntries == null) {
             return;
         }
 
         //spill children first
         for (var childEntry : changedEntries) {
-            childEntry.mutablePage.spill();
+            childEntry.mutablePage.spill(this);
         }
 
         //new children were appended sort them
         if (sortBeforeInternalSpill) {
             changedEntries.sort(null);
-            firstKey = changedEntries.get(0).key;
         }
 
         var page = this;
@@ -316,21 +359,18 @@ final class MutableInternalPage implements MutablePage {
             }
 
             if (parent == null) {
-                parent = new MutableInternalPage(tree, null, expiredLoggables,
-                        log, pageSize,
-                        null);
+                parent = new MutableInternalPage(tree, null, expiredLoggables, log, pageSize);
                 assert tree.root == this;
                 tree.root = parent;
-                parent.addChild(page.firstKey, page);
+
+                parent.addChild(changedEntries.get(0).key, page);
             }
 
-            page = new MutableInternalPage(tree, null, expiredLoggables, log, pageSize,
-                    parent);
+            page = new MutableInternalPage(tree, null, expiredLoggables, log, pageSize);
             page.changedEntries = nextSiblingEntries;
-            page.firstKey = nextSiblingEntries.get(0).key;
             page.spilled = true;
 
-            parent.addChild(page.firstKey, page);
+            parent.addChild(nextSiblingEntries.get(0).key, page);
             parent.sortBeforeInternalSpill = true;
         }
 
@@ -373,7 +413,7 @@ final class MutableInternalPage implements MutablePage {
         }
 
         var splitResultSize = changedEntries.size() - (indexSplitAt + 1);
-        if (splitResultSize < 2) {
+        if (splitResultSize == 1) {
             indexSplitAt = indexSplitAt - (2 - splitResultSize);
         }
 
@@ -411,12 +451,10 @@ final class MutableInternalPage implements MutablePage {
             var key = underlying.key(i);
             var child = underlying.child(i);
 
-            changedEntries.add(new Entry(key, child.toMutable(tree, expiredLoggables, this)));
+            changedEntries.add(new Entry(key, child.toMutable(tree, expiredLoggables)));
         }
 
-        firstKey = changedEntries.get(0).key;
         underlying = null;
-
         return true;
     }
 
@@ -454,12 +492,14 @@ final class MutableInternalPage implements MutablePage {
         MutablePage mutablePage;
 
         public Entry(ByteBuffer key, MutablePage mutablePage) {
+            assert key != null;
+
             this.key = key;
             this.mutablePage = mutablePage;
         }
 
         @Override
-        public int compareTo(@NotNull MutableInternalPage.Entry entry) {
+        public int compareTo(@NotNull Entry entry) {
             return ByteBufferComparator.INSTANCE.compare(key, entry.key);
         }
     }

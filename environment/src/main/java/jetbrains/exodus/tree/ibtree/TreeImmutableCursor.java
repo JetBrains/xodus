@@ -95,7 +95,16 @@ public class TreeImmutableCursor implements ITreeCursor {
 
             initialized = true;
 
-            return !stack.isEmpty();
+            if (!stack.isEmpty()) {
+                var last = stack.last();
+
+                //if we found empty leaf page, we need to move to the next one
+                if (last.page.getEntriesCount() > 0) {
+                    return true;
+                }
+            } else {
+                return false;
+            }
         }
 
         if (stack.isEmpty()) {
@@ -111,19 +120,18 @@ public class TreeImmutableCursor implements ITreeCursor {
         }
 
         while (true) {
-            stack.dequeueLast();
-
-            if (stack.isEmpty()) {
+            var page = moveToTheNextNotVisitedDepthFirstPage();
+            if (page == null) {
                 return false;
             }
 
+            var elemRef = new ElemRef(page, 0);
+            stack.enqueue(elemRef);
+
+            downToTheFirstEntry(elemRef);
+
             var last = stack.last();
-            var lastIndex = last.index + 1;
-
-            if (lastIndex < last.page.getEntriesCount()) {
-                last.index = lastIndex;
-
-                downToTheFirstEntry(last);
+            if (last.page.getEntriesCount() > 0) {
                 return true;
             }
         }
@@ -152,12 +160,25 @@ public class TreeImmutableCursor implements ITreeCursor {
             return false;
         }
 
-        var rootRef = new ElemRef(page, rootSize - 1);
-        stack.enqueue(rootRef);
+        var elemRef = new ElemRef(page, rootSize - 1);
+        stack.enqueue(elemRef);
 
-        downToTheLastEntry(rootRef);
+        while (true) {
+            downToTheLastEntry(elemRef);
 
-        return true;
+            var last = stack.last();
+            if (last.page.getEntriesCount() > 0) {
+                return true;
+            }
+
+            page = moveToThePrevNotVisitedDepthFirstPage();
+            if (page == null) {
+                return false;
+            }
+
+            elemRef = new ElemRef(page, page.getEntriesCount() - 1);
+            stack.enqueue(elemRef);
+        }
     }
 
     @Override
@@ -179,19 +200,18 @@ public class TreeImmutableCursor implements ITreeCursor {
         }
 
         while (true) {
-            stack.dequeueLast();
-
-            if (stack.isEmpty()) {
+            var page = moveToThePrevNotVisitedDepthFirstPage();
+            if (page == null) {
                 return false;
             }
 
+            var elemRef = new ElemRef(page, page.getEntriesCount() - 1);
+            stack.enqueue(elemRef);
+
+            downToTheLastEntry(elemRef);
+
             var last = stack.last();
-            var lastIndex = last.index - 1;
-
-            if (lastIndex >= 0) {
-                last.index = lastIndex;
-
-                downToTheLastEntry(last);
+            if (last.page.getEntriesCount() > 0) {
                 return true;
             }
         }
@@ -380,7 +400,8 @@ public class TreeImmutableCursor implements ITreeCursor {
     }
 
     /**
-     * Goes up by the stack till it does not find ancestor which elements were not completely visited.
+     * Goes up by the stack till it does not find ancestor which elements were not completely visited in forward
+     * direction.
      * And fetches first page pointed by element which goes next to the last visited element
      * without putting it to the stack.
      */
@@ -396,6 +417,40 @@ public class TreeImmutableCursor implements ITreeCursor {
         while (true) {
             if (index < page.getEntriesCount() - 1) {
                 index++;
+                elemRef.index = index;
+                return page.child(index);
+            }
+
+            stack.dequeueLast();
+
+            if (!stack.isEmpty()) {
+                elemRef = stack.last();
+                page = elemRef.page;
+                index = elemRef.index;
+            } else {
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Goes up by the stack till it does not find ancestor which elements were not completely visited in backward
+     * direction.
+     * And fetches closest page pointed by element which goes next in backward direction to the last visited element
+     * without putting it to the stack.
+     */
+    private TraversablePage moveToThePrevNotVisitedDepthFirstPage() {
+        if (stack.isEmpty()) {
+            return null;
+        }
+
+        var elemRef = stack.last();
+        var page = elemRef.page;
+        var index = elemRef.index;
+
+        while (true) {
+            if (index > 0) {
+                index--;
                 elemRef.index = index;
                 return page.child(index);
             }
@@ -489,6 +544,8 @@ public class TreeImmutableCursor implements ITreeCursor {
         private final TraversablePage page;
 
         private ElemRef(TraversablePage page, int index) {
+            assert page != null;
+
             this.index = index;
             this.page = page;
         }

@@ -642,6 +642,7 @@ class Log(val config: LogConfig) : Closeable {
     fun writeInsideSinglePage(type: Byte, structureId: Int, page: ByteBuffer,
                               canBeConsumed: Boolean): Long {
         assert(page.order() == ByteOrder.nativeOrder())
+        assert(structureId >= 0)
 
         if (type < ImmutableBTree.INTERNAL_PAGE || type > ImmutableBTree.LEAF_ROOT_PAGE) {
             throw UnsupportedOperationException("This method can be used only to read loggables of BTree with" +
@@ -662,7 +663,7 @@ class Log(val config: LogConfig) : Closeable {
 
         val paddingOffset = Long.SIZE_BYTES - alignmentOffset
         if (pageOffset + paddingOffset + page.limit() <= cachePageSize) {
-            if (alignmentOffset > 0) {
+            if (paddingOffset > 0) {
                 val filler = ByteArray(paddingOffset)
                 Arrays.fill(filler, 0x80.toByte())
 

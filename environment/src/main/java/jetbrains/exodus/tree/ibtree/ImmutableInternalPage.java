@@ -34,8 +34,8 @@ final class ImmutableInternalPage extends ImmutableBasePage {
     }
 
     @Override
-    MutablePage toMutable(MutableBTree tree, ExpiredLoggableCollection expiredLoggables, MutableInternalPage parent) {
-        return new MutableInternalPage(tree, this, expiredLoggables, log, log.getCachePageSize(), parent);
+    MutablePage toMutable(MutableBTree tree, ExpiredLoggableCollection expiredLoggables) {
+        return new MutableInternalPage(tree, this, expiredLoggables, log, log.getCachePageSize());
     }
 
     private int getSubTreeSizePosition(int index) {

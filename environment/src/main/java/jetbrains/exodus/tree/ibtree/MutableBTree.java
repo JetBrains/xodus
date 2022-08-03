@@ -18,6 +18,7 @@
 
 package jetbrains.exodus.tree.ibtree;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import jetbrains.exodus.ByteBufferComparator;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.log.*;
@@ -51,9 +52,9 @@ public final class MutableBTree implements IBTreeMutable {
         var immutableRoot = immutableTree.root;
         if (immutableRoot == null) {
             this.root = new MutableLeafPage(this, null, log, log.getCachePageSize(),
-                    expiredLoggables, null);
+                    expiredLoggables);
         } else {
-            this.root = immutableRoot.toMutable(this, expiredLoggables, null);
+            this.root = immutableRoot.toMutable(this, expiredLoggables);
         }
 
         size = root.treeSize();
@@ -303,19 +304,35 @@ public final class MutableBTree implements IBTreeMutable {
     }
 
     private boolean doDelete(final ByteBuffer key, final ByteBuffer value) {
+        ObjectArrayList<MutablePage> stack = new ObjectArrayList<>(8);
+
         var page = root;
+        stack.add(page);
+
         while (true) {
             var index = page.find(key);
             if (page instanceof MutableLeafPage mutablePage) {
                 if (index >= 0) {
                     if (value == null) {
                         mutablePage.delete(index);
+
+                        //mark pages needs to be balance after removal
+                        for (var p : stack) {
+                            p.unbalance();
+                        }
+
                         return true;
                     }
 
                     var val = page.value(index);
                     if (ByteBufferComparator.INSTANCE.compare(val, value) == 0) {
                         mutablePage.delete(index);
+
+                        //mark pages needs to be balance after removal
+                        for (var p : stack) {
+                            p.unbalance();
+                        }
+
                         return true;
                     }
 
@@ -336,28 +353,46 @@ public final class MutableBTree implements IBTreeMutable {
 
                 var internalPage = (MutableInternalPage) page;
                 page = internalPage.mutableChild(index);
+
+                stack.add(page);
             }
         }
     }
 
     @Override
     public long save() {
-        var newRoot = root.rebalance();
-        if (newRoot != null) {
-            root = newRoot;
+        var rebalanceResult = root.rebalance(null, true);
+
+        if (rebalanceResult != null) {
+            while (root instanceof MutableInternalPage mutableRoot) {
+                var entriesCount = mutableRoot.getEntriesCount();
+
+                //if only single child left make it a root
+                if (entriesCount == 1) {
+                    root = mutableRoot.mutableChild(0);
+                } else if (entriesCount == 0) {
+                    //if tree is empty replace root page by leaf page
+                    assert getSize() == 0;
+                    root = new MutableLeafPage(this, null, log, mutableRoot.pageSize, expiredLoggables);
+                    break;
+                } else {
+                    break;
+                }
+            }
         }
 
         var prevRoot = root;
-        root.spill();
+        root.spill(null);
 
         //re-spill the root if it was changed
         while (root != prevRoot) {
             prevRoot = root;
-            root.spill();
+            root.spill(null);
         }
 
-        var address = root.save(immutableTree.getStructureId());
+        var address = root.save(immutableTree.getStructureId(), null);
         TreeMutableCursor.notifyCursors(this);
+
         return address;
     }
 

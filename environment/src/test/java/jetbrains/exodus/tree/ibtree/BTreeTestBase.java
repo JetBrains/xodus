@@ -39,6 +39,11 @@ public class BTreeTestBase extends TreeBaseTest {
         return t;
     }
 
+    protected ITree openTree(long address, boolean hasDuplicates, int structureId) {
+        t = new ImmutableBTree(log, structureId, log.getCachePageSize(), address);
+        return t;
+    }
+
     protected void checkTree(boolean hasDuplicates, Consumer<ITree> checker) {
         checker.accept(tm);
 
@@ -46,13 +51,15 @@ public class BTreeTestBase extends TreeBaseTest {
 
         checker.accept(tm);
 
-        openTree(address, hasDuplicates);
+        var structureId = tm.getStructureId();
+
+        openTree(address, hasDuplicates, structureId);
 
         checker.accept(t);
 
         reopen();
 
-        openTree(address, hasDuplicates);
+        openTree(address, hasDuplicates, structureId);
 
         checker.accept(t);
     }

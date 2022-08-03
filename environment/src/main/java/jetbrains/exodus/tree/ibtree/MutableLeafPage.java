@@ -31,8 +31,6 @@ final class MutableLeafPage implements MutablePage {
 
     final int pageSize;
 
-    @Nullable
-    MutableInternalPage parent;
     @NotNull
     final ExpiredLoggableCollection expiredLoggables;
 
@@ -40,16 +38,14 @@ final class MutableLeafPage implements MutablePage {
 
     boolean unbalanced;
 
-    ByteBuffer firstKey;
-
     @NotNull
     final MutableBTree tree;
+
     boolean spilled;
 
     MutableLeafPage(@NotNull MutableBTree tree, @Nullable ImmutableLeafPage underlying,
                     @NotNull Log log, int pageSize,
-                    @NotNull ExpiredLoggableCollection expiredLoggables,
-                    @Nullable MutableInternalPage parent) {
+                    @NotNull ExpiredLoggableCollection expiredLoggables) {
         this.tree = tree;
         this.underlying = underlying;
         if (underlying != null) {
@@ -60,7 +56,7 @@ final class MutableLeafPage implements MutablePage {
 
         this.log = log;
         this.pageSize = pageSize;
-        this.parent = parent;
+
         this.expiredLoggables = expiredLoggables;
 
         if (underlying == null) {
@@ -132,7 +128,12 @@ final class MutableLeafPage implements MutablePage {
     }
 
     @Override
-    public long save(int structureId) {
+    public void unbalance() {
+        unbalanced = true;
+    }
+
+    @Override
+    public long save(int structureId, @Nullable MutableInternalPage parent) {
         if (changedEntries == null) {
             assert underlying != null;
             return underlying.address;
@@ -204,54 +205,35 @@ final class MutableLeafPage implements MutablePage {
     }
 
     @Override
-    public MutablePage rebalance() {
+    @Nullable
+    public RebalanceResult rebalance(@Nullable MutableInternalPage parent, boolean rebalanceChildren) {
         if (unbalanced) {
-            unbalanced = false;
-
-            var threshold = pageSize / 4;
-
             assert changedEntries != null;
 
-            // Ignore if node is above threshold (25%) and contains at
-            if (serializedSize() < threshold || changedEntries.isEmpty()) {
-                // Root node has special handling.
-                if (parent == null) {
-                    return null;
-                }
+            unbalanced = false;
 
-                // If node has no keys then just remove it.
-                if (changedEntries.isEmpty()) {
-                    final int childIndex = parent.find(firstKey);
-                    assert childIndex >= 0;
+            if (changedEntries.isEmpty()) {
+                return new RebalanceResult(true, false, true);
+            }
 
-                    parent.delete(childIndex);
-                    return null;
-                }
-
-                assert parent.getEntriesCount() > 1 : "parent must have at least 2 children";
-
-                // Destination node is right sibling if idx == 0, otherwise left sibling.
-                // If both this node and the target node are too small then merge them.
-                var parentIndex = parent.find(firstKey);
-                if (parentIndex == 0) {
-                    var nextSibling = (MutableLeafPage) parent.mutableChild(1);
-                    nextSibling.fetch();
-
-                    changedEntries.addAll(nextSibling.changedEntries);
-                    parent.delete(1);
-                } else {
-                    var prevSibling = (MutableLeafPage) parent.mutableChild(parentIndex - 1);
-                    prevSibling.fetch();
-
-                    assert prevSibling.changedEntries != null;
-
-                    prevSibling.changedEntries.addAll(changedEntries);
-                    parent.delete(parentIndex);
-                }
+            if (needsToBeMerged(pageSize / 4)) {
+                return new RebalanceResult(true, false, false);
             }
         }
 
         return null;
+    }
+
+    @Override
+    public void merge(MutablePage page) {
+        fetch();
+
+        assert changedEntries != null;
+
+        var leafPage = (MutableLeafPage) page;
+
+        changedEntries.addAll(leafPage.changedEntries);
+        unbalanced = true;
     }
 
     private int serializedSize() {
@@ -268,8 +250,29 @@ final class MutableLeafPage implements MutablePage {
         return size;
     }
 
+    private boolean needsToBeMerged(int threshold) {
+        assert changedEntries != null;
+
+        int size = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET +
+                ImmutableLeafPage.KEYS_OFFSET + 2 * Long.BYTES * changedEntries.size();
+
+        for (Entry entry : changedEntries) {
+            size += entry.key.limit();
+            if (size >= threshold) {
+                return false;
+            }
+
+            size += entry.value.limit();
+            if (size >= threshold) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     @Override
-    public void spill() {
+    public void spill(@Nullable MutableInternalPage parent) {
         if (spilled || changedEntries == null) {
             return;
         }
@@ -284,28 +287,20 @@ final class MutableLeafPage implements MutablePage {
             }
 
             if (parent == null) {
-                parent = new MutableInternalPage(tree, null, expiredLoggables,
-                        log, pageSize,
-                        null);
+                parent = new MutableInternalPage(tree, null, expiredLoggables, log, pageSize);
                 assert tree.root == this;
 
                 tree.root = parent;
-
-                if (firstKey == null) {
-                    firstKey = changedEntries.get(0).key;
-                }
-
-                parent.addChild(firstKey, this);
+                parent.addChild(changedEntries.get(0).key, this);
             }
 
             page = new MutableLeafPage(tree, null, log, pageSize,
-                    expiredLoggables, parent);
+                    expiredLoggables);
 
             page.changedEntries = nextSiblingEntries;
-            page.firstKey = nextSiblingEntries.get(0).key;
             page.spilled = true;
 
-            parent.addChild(page.firstKey, page);
+            parent.addChild(nextSiblingEntries.get(0).key, page);
             parent.sortBeforeInternalSpill = true;
         }
 
@@ -342,7 +337,7 @@ final class MutableLeafPage implements MutablePage {
                 break;
             }
 
-            indexToSplit = 1;
+            indexToSplit = i;
         }
 
         ObjectArrayList<Entry> result = null;
@@ -374,8 +369,6 @@ final class MutableLeafPage implements MutablePage {
 
             changedEntries.add(new Entry(key, value));
         }
-
-        firstKey = changedEntries.get(0).key;
 
         //do not keep copy of the data for a long time
         underlying = null;
