@@ -42,6 +42,7 @@ final class ImmutableInternalPage extends ImmutableBasePage {
         return KEYS_OFFSET + 2 * getEntriesCount() * Long.BYTES + index * Integer.BYTES;
     }
 
+    @SuppressWarnings("unused")
     int getSubTreeSize(int index) {
         int position = getSubTreeSizePosition(index);
         assert page.alignmentOffset(position, Integer.BYTES) == 0;

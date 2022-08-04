@@ -19,7 +19,6 @@
 package jetbrains.exodus.tree.ibtree;
 
 import jetbrains.exodus.ByteBufferByteIterable;
-import jetbrains.exodus.ByteBufferIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.tree.ITree;
 import org.jetbrains.annotations.NotNull;

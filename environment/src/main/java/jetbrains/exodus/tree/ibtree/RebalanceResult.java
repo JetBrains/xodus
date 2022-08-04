@@ -20,12 +20,10 @@ package jetbrains.exodus.tree.ibtree;
 
 final class RebalanceResult {
     final boolean mergeWithSibling;
-    final boolean rebalanceChildrenAfterMerge;
     final boolean isEmpty;
 
-    RebalanceResult(boolean mergeWithSibling, boolean rebalanceChildrenAfterMerge, boolean isEmpty) {
+    RebalanceResult(boolean mergeWithSibling, boolean isEmpty) {
         this.mergeWithSibling = mergeWithSibling;
-        this.rebalanceChildrenAfterMerge = rebalanceChildrenAfterMerge;
         this.isEmpty = isEmpty;
     }
 }

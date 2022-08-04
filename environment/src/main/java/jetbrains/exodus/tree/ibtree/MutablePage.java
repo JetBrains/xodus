@@ -11,8 +11,7 @@ interface MutablePage extends TraversablePage {
 
     long save(int structureId, @Nullable MutableInternalPage parent);
 
-    @Nullable
-    RebalanceResult rebalance(@Nullable MutableInternalPage parent, boolean rebalanceChildren);
+    boolean rebalance(@Nullable MutableInternalPage parent);
 
     void spill(@Nullable MutableInternalPage parent);
 

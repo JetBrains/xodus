@@ -196,94 +196,55 @@ final class MutableInternalPage implements MutablePage {
     }
 
     @Override
-    public RebalanceResult rebalance(@Nullable MutableInternalPage parent, boolean rebalanceChildren) {
+    public boolean rebalance(@Nullable MutableInternalPage parent) {
         if (!unbalanced) {
-            return null;
+            return false;
         }
 
         assert changedEntries != null;
 
-        unbalanced = false;
+        for (int i = 0; i < changedEntries.size(); i++) {
+            var entry = changedEntries.get(i);
+            var page = entry.mutablePage;
 
-        boolean needsToBeRebalanced = false;
-        final int entriesCount = changedEntries.size();
+            var unbalanced = page.rebalance(this);
 
-        if (rebalanceChildren) {
-            boolean rebalanceCurrentChildChildren = true;
-
-            for (int i = 0; i < changedEntries.size(); i++) {
-                var entry = changedEntries.get(i);
-                var page = entry.mutablePage;
-
-                var result = page.rebalance(this, rebalanceCurrentChildChildren);
-                rebalanceCurrentChildChildren = true;
-
-                if (result != null) {
-                    if (result.isEmpty) {
-                        changedEntries.remove(i);
-                        i--;
-                    } else if (result.mergeWithSibling) {
-                        if (changedEntries.size() == 1) {
-                            needsToBeRebalanced = true;
-                            break;
-                        }
-
-
-                        if (i == 0) {
-                            var nextEntry = changedEntries.remove(i + 1);
-                            var nextPage = nextEntry.mutablePage;
-
-                            var nextResult = nextPage.rebalance(this,
-                                    true);
-                            if (nextResult != null) {
-                                if (nextResult.isEmpty) {
-                                    rebalanceCurrentChildChildren = false;
-                                } else {
-                                    rebalanceCurrentChildChildren = result.rebalanceChildrenAfterMerge ||
-                                            nextResult.rebalanceChildrenAfterMerge;
-                                    page.merge(nextPage);
-                                }
-                            } else {
-                                rebalanceCurrentChildChildren = result.rebalanceChildrenAfterMerge;
-                                nextPage.fetch();
-                                page.merge(nextPage);
-                            }
-                        } else {
-                            var prevEntry = changedEntries.get(i - 1);
-                            var prevPage = prevEntry.mutablePage;
-
-                            prevPage.merge(page);
-
-                            changedEntries.remove(i);
-
-                            //if we need to rebalance merged sibling we need to step
-                            //one more step back, otherwise because current item
-                            //is removed we will process next item
-                            if (result.rebalanceChildrenAfterMerge) {
-                                i--;
-                            }
-                        }
-
-                        //because item is removed next item will have the same index
-                        //so we step back to have the same result after the index
-                        //increment by cycle
-                        i--;
-                    }
+            if (unbalanced) {
+                if (changedEntries.size() == 1) {
+                    break;
                 }
+
+                if (i == 0) {
+                    var nextEntry = changedEntries.remove(i + 1);
+                    var nextPage = nextEntry.mutablePage;
+
+                    nextPage.rebalance(this);
+
+                    nextPage.fetch();
+                    page.merge(nextPage);
+                } else {
+                    var prevEntry = changedEntries.get(i - 1);
+                    var prevPage = prevEntry.mutablePage;
+
+                    prevPage.merge(page);
+
+                    changedEntries.remove(i);
+
+                    //we need to rebalance merged sibling we need to step
+                    //one more step back, otherwise because current item
+                    //is removed we will process next item
+                    i--;
+                }
+
+                //because item is removed next item will have the same index
+                //so we step back to have the same result after the index
+                //increment by cycle
+                i--;
             }
         }
 
-        if (changedEntries.isEmpty()) {
-            return new RebalanceResult(false, false, true);
-        }
-
-        if (changedEntries.size() < 2 ||
-                entriesCount != changedEntries.size() && needsToBeMerged(pageSize / 4)) {
-            return new RebalanceResult(true, needsToBeRebalanced, false);
-        }
-
-
-        return null;
+        unbalanced = changedEntries.size() < 2 || needsToBeMerged(pageSize / 4);
+        return unbalanced;
     }
 
     @Override

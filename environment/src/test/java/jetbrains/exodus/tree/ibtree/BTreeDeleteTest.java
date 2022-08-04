@@ -91,12 +91,83 @@ public class BTreeDeleteTest extends BTreeTestBase {
         insertDeleteAndCheckEntries(random, entriesCount);
     }
 
-//    @Test
-//    public void testAddRemoveHalfAddHalfAgain4Keys() {
-//        final long seed = System.nanoTime();
-//        System.out.println("testAddRemoveHalfAddHalfAgain4Keys seed : " + seed);
-//    }
+    @Test
+    public void testAddRemove64KKeys() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddRemove64KKeys seed : " + seed);
 
+        t = new ImmutableBTree(log, 6, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        var random = new Random(seed);
+
+        var entriesCount = 64 * 1024;
+        insertDeleteAndCheckEntries(random, entriesCount);
+    }
+
+    @Test
+    public void testAddRemoveHalfAddHalfAgain4Keys() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddRemoveHalfAddHalfAgain4Keys seed : " + seed);
+
+        t = new ImmutableBTree(log, 6, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        var random = new Random(seed);
+
+        var entriesCount = 4;
+
+        insertDeleteHalfAddHalfDeleteCheckEntries(random, entriesCount);
+    }
+
+
+    @Test
+    public void testAddRemoveHalfAddHalfAgain64Keys() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddRemoveHalfAddHalfAgain64Keys seed : " + seed);
+
+        t = new ImmutableBTree(log, 7, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        var random = new Random(seed);
+
+        var entriesCount = 64;
+
+        insertDeleteHalfAddHalfDeleteCheckEntries(random, entriesCount);
+    }
+
+    @Test
+    public void testAddRemoveHalfAddHalfAgain1KKeys() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddRemoveHalfAddHalfAgain1KKeys seed : " + seed);
+
+        t = new ImmutableBTree(log, 8, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        var random = new Random(seed);
+
+        var entriesCount = 1024;
+
+        insertDeleteHalfAddHalfDeleteCheckEntries(random, entriesCount);
+    }
+
+    @Test
+    public void testAddRemoveHalfAddHalfAgain32KKeys() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddRemoveHalfAddHalfAgain32KKeys seed : " + seed);
+
+        t = new ImmutableBTree(log, 8, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        var random = new Random(seed);
+
+        var entriesCount = 32 * 1024;
+
+        insertDeleteHalfAddHalfDeleteCheckEntries(random, entriesCount);
+    }
+
+    @Test
+    public void testAddRemoveHalfAddHalfAgain64KKeys() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddRemoveHalfAddHalfAgain64KKeys seed : " + seed);
+
+        t = new ImmutableBTree(log, 9, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        var random = new Random(seed);
+
+        var entriesCount = 64 * 1024;
+
+        insertDeleteHalfAddHalfDeleteCheckEntries(random, entriesCount);
+    }
 
     private void insertDeleteAndCheckEntries(Random random, int entriesCount) {
         final TreeMap<ByteBuffer, ByteBuffer> expectedMap = new TreeMap<>(ByteBufferComparator.INSTANCE);
@@ -112,11 +183,12 @@ public class BTreeDeleteTest extends BTreeTestBase {
     private void insertDeleteHalfAddHalfDeleteCheckEntries(Random random, int entriesCount) {
         final TreeMap<ByteBuffer, ByteBuffer> expectedMap = new TreeMap<>(ByteBufferComparator.INSTANCE);
         var checker = new ImmutableTreeChecker(expectedMap, random);
+        var interval = Math.max(1, entriesCount / 10);
 
-        addEntries(random, entriesCount, entriesCount / 10, expectedMap, checker);
-        removeEntries(random, entriesCount / 2, entriesCount / 10, expectedMap, checker);
-        addEntries(random, entriesCount / 2, entriesCount / 10, expectedMap, checker);
-        removeEntries(random, entriesCount, entriesCount / 10, expectedMap, checker);
+        addEntries(random, entriesCount, interval, expectedMap, checker);
+        removeEntries(random, expectedMap.size() / 2, interval, expectedMap, checker);
+        addEntries(random, entriesCount / 2, interval, expectedMap, checker);
+        removeEntries(random, expectedMap.size(), interval, expectedMap, checker);
     }
 
     private void removeEntries(Random random, int entriesToRemove, int interval, TreeMap<ByteBuffer,
@@ -140,10 +212,6 @@ public class BTreeDeleteTest extends BTreeTestBase {
                 var deleted = expectedMap.remove(key) != null;
                 Assert.assertTrue(deleted);
 
-                if (n == 3 && i == 1) {
-                    System.out.println();
-                    tm.get(key);
-                }
                 deleted = tm.delete(key);
                 Assert.assertTrue(deleted);
                 removed++;

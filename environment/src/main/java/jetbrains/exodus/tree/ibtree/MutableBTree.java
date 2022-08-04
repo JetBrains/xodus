@@ -385,12 +385,11 @@ public final class MutableBTree implements IBTreeMutable {
 
     @Override
     public long save() {
-        var rebalanceResult = root.rebalance(null, true);
+        var unbalanced = root.rebalance(null);
 
-        if (rebalanceResult != null) {
+        if (unbalanced) {
             while (root instanceof MutableInternalPage mutableRoot) {
                 var entriesCount = mutableRoot.getEntriesCount();
-
                 //if only single child left make it a root
                 if (entriesCount == 1) {
                     root = mutableRoot.mutableChild(0);

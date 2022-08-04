@@ -205,23 +205,15 @@ final class MutableLeafPage implements MutablePage {
     }
 
     @Override
-    @Nullable
-    public RebalanceResult rebalance(@Nullable MutableInternalPage parent, boolean rebalanceChildren) {
-        if (unbalanced) {
-            assert changedEntries != null;
-
-            unbalanced = false;
-
-            if (changedEntries.isEmpty()) {
-                return new RebalanceResult(true, false, true);
-            }
-
-            if (needsToBeMerged(pageSize / 4)) {
-                return new RebalanceResult(true, false, false);
-            }
+    public boolean rebalance(@Nullable MutableInternalPage parent) {
+        if (!unbalanced) {
+            return false;
         }
 
-        return null;
+        assert changedEntries != null;
+
+        unbalanced = changedEntries.isEmpty() || needsToBeMerged(pageSize / 4);
+        return unbalanced;
     }
 
     @Override

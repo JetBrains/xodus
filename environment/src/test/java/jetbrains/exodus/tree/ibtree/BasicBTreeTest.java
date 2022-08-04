@@ -105,6 +105,19 @@ public class BasicBTreeTest extends BTreeTestBase {
         insertAndCheckEntries(tm, random, entriesCount);
     }
 
+    @Test
+    public void testInsert64KEntries() {
+        final long seed = System.nanoTime();
+        System.out.println("testInsert64KEntries seed : " + seed);
+
+        var tm = createMutableTree(false, 2);
+        var random = new Random(seed);
+
+        var entriesCount = 64 * 1024;
+
+        insertAndCheckEntries(tm, random, entriesCount);
+    }
+
     private void insertAndCheckEntries(ITreeMutable tm, Random random, int entriesCount) {
         final TreeMap<ByteBuffer, ByteBuffer> expectedMap = new TreeMap<>(ByteBufferComparator.INSTANCE);
         for (int i = 0; i < entriesCount; i++) {
