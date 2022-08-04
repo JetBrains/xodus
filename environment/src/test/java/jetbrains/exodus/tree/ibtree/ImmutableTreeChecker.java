@@ -29,16 +29,20 @@ import java.util.function.Consumer;
 
 public class ImmutableTreeChecker implements Consumer<ITree> {
     final TreeMap<ByteBuffer, ByteBuffer> expectedMap;
-    final ArrayList<ByteBuffer> keys;
     final Random random;
 
     public ImmutableTreeChecker(TreeMap<ByteBuffer, ByteBuffer> expectedMap, Random random) {
         this.expectedMap = expectedMap;
-
-        keys = new ArrayList<>(expectedMap.size() + expectedMap.size() / 10 + 1);
-        keys.addAll(expectedMap.keySet());
-
         this.random = random;
+
+    }
+
+    @Override
+    public void accept(ITree tree) {
+        Assert.assertEquals(expectedMap.size(), tree.getSize());
+
+        var keys = new ArrayList<ByteBuffer>(expectedMap.size() + expectedMap.size() / 10 + 1);
+        keys.addAll(expectedMap.keySet());
 
         for (int i = 0; i < expectedMap.size() / 10; i++) {
             var keySize = random.nextInt(1, 64);
@@ -53,11 +57,6 @@ public class ImmutableTreeChecker implements Consumer<ITree> {
         }
 
         Collections.shuffle(keys, random);
-    }
-
-    @Override
-    public void accept(ITree tree) {
-        Assert.assertEquals(expectedMap.size(), tree.getSize());
 
         for (var key : keys) {
             var value = tree.get(new ByteBufferByteIterable(key));

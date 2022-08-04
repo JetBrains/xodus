@@ -20,9 +20,7 @@ package jetbrains.exodus.tree.ibtree;
 
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteBufferComparator;
-import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.tree.ITreeMutable;
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
@@ -121,6 +119,6 @@ public class BasicBTreeTest extends BTreeTestBase {
             tm.put(new ArrayByteIterable(key), new ArrayByteIterable(value));
         }
 
-        checkTree(false, new ImmutableTreeChecker(expectedMap, random));
+        checkAndSaveTree(false, new ImmutableTreeChecker(expectedMap, random));
     }
 }

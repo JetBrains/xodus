@@ -18,6 +18,7 @@
 
 package jetbrains.exodus.tree.ibtree;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayFIFOQueue;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import jetbrains.exodus.ByteBufferComparator;
 import jetbrains.exodus.ByteIterable;
@@ -133,12 +134,29 @@ public final class MutableBTree implements IBTreeMutable {
     @Override
     public boolean put(@NotNull ByteBuffer key, @NotNull ByteBuffer value) {
         var page = root;
+        ObjectArrayFIFOQueue<MutableInternalPage> invalidFirstPages = null;
 
         while (true) {
-            var index = page.find(key);
+            int index;
+            if (invalidFirstPages != null) {
+                index = -1;
+            } else {
+                index = page.find(key);
+            }
+
             if (page instanceof MutableLeafPage mutablePage) {
                 if (index < 0) {
                     mutablePage.insert(-index - 1, key, value);
+                    if (invalidFirstPages != null) {
+                        while (!invalidFirstPages.isEmpty()) {
+                            //going from last to first
+                            var pageToUpdate = invalidFirstPages.dequeueLast();
+
+                            assert pageToUpdate.changedEntries != null;
+                            var entry = pageToUpdate.changedEntries.get(0);
+                            entry.key = entry.mutablePage.key(0);
+                        }
+                    }
 
                     TreeMutableCursor.notifyCursors(this);
                     size++;
@@ -155,6 +173,12 @@ public final class MutableBTree implements IBTreeMutable {
 
                     if (index > 0) {
                         index--;
+                    } else {
+                        if (invalidFirstPages == null) {
+                            invalidFirstPages = new ObjectArrayFIFOQueue<>();
+                        }
+
+                        invalidFirstPages.enqueue((MutableInternalPage) page);
                     }
                 }
 

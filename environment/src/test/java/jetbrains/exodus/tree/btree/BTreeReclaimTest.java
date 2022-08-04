@@ -276,7 +276,7 @@ public class BTreeReclaimTest extends BTreeTestBase {
         }
 
         /* rootAddress = saveTree();
-        checkTree(tm = (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), true, 1)).getMutableCopy(), p, u).run(); */
+        checkAndSaveTree(tm = (t = new BTree(log, rootAddress, getTreeMutable().getBalancePolicy(), true, 1)).getMutableCopy(), p, u).run(); */
     }
 
     @Test

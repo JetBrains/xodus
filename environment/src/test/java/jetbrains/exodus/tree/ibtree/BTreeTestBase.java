@@ -44,7 +44,7 @@ public class BTreeTestBase extends TreeBaseTest {
         return t;
     }
 
-    protected void checkTree(boolean hasDuplicates, Consumer<ITree> checker) {
+    protected void checkAndSaveTree(boolean hasDuplicates, Consumer<ITree> checker) {
         checker.accept(tm);
 
         long address = saveTree();

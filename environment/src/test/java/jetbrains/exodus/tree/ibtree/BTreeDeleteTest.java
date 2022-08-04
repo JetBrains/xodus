@@ -18,8 +18,8 @@
 
 package jetbrains.exodus.tree.ibtree;
 
-import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteBufferComparator;
+import jetbrains.exodus.log.NullLoggable;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -35,7 +35,7 @@ public class BTreeDeleteTest extends BTreeTestBase {
         final long seed = System.nanoTime();
         System.out.println("testAddRemoveSingleKey seed : " + seed);
 
-        createMutableTree(false, 1);
+        t = new ImmutableBTree(log, 1, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
         var random = new Random(seed);
 
         var entriesCount = 1;
@@ -47,7 +47,7 @@ public class BTreeDeleteTest extends BTreeTestBase {
         final long seed = System.nanoTime();
         System.out.println("testAddRemove4Keys seed : " + seed);
 
-        createMutableTree(false, 2);
+        t = new ImmutableBTree(log, 2, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
         var random = new Random(seed);
 
         var entriesCount = 4;
@@ -59,7 +59,7 @@ public class BTreeDeleteTest extends BTreeTestBase {
         final long seed = System.nanoTime();
         System.out.println("testAddRemove64Keys seed : " + seed);
 
-        createMutableTree(false, 3);
+        t = new ImmutableBTree(log, 3, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
         var random = new Random(seed);
 
         var entriesCount = 64;
@@ -72,7 +72,7 @@ public class BTreeDeleteTest extends BTreeTestBase {
         final long seed = System.nanoTime();
         System.out.println("testAddRemove1KKeys seed : " + seed);
 
-        createMutableTree(false, 4);
+        t = new ImmutableBTree(log, 4, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
         var random = new Random(seed);
 
         var entriesCount = 1024;
@@ -84,49 +84,105 @@ public class BTreeDeleteTest extends BTreeTestBase {
         final long seed = System.nanoTime();
         System.out.println("testAddRemove32KKeys seed : " + seed);
 
-        createMutableTree(false, 5);
+        t = new ImmutableBTree(log, 5, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
         var random = new Random(seed);
 
         var entriesCount = 32 * 1024;
         insertDeleteAndCheckEntries(random, entriesCount);
     }
 
+//    @Test
+//    public void testAddRemoveHalfAddHalfAgain4Keys() {
+//        final long seed = System.nanoTime();
+//        System.out.println("testAddRemoveHalfAddHalfAgain4Keys seed : " + seed);
+//    }
+
 
     private void insertDeleteAndCheckEntries(Random random, int entriesCount) {
         final TreeMap<ByteBuffer, ByteBuffer> expectedMap = new TreeMap<>(ByteBufferComparator.INSTANCE);
-        for (int i = 0; i < entriesCount; i++) {
-            var keySize = random.nextInt(1, 16);
-            var key = new byte[keySize];
-            random.nextBytes(key);
+        var checker = new ImmutableTreeChecker(expectedMap, random);
+        var interval = Math.max(1, entriesCount / 10);
+        addEntries(random, entriesCount, interval, expectedMap, checker);
+        removeEntries(random, expectedMap.size(), interval, expectedMap, checker);
 
-            var value = new byte[32];
-            random.nextBytes(value);
+        Assert.assertTrue(expectedMap.isEmpty());
+        Assert.assertTrue(tm.isEmpty());
+    }
 
-            expectedMap.put(ByteBuffer.wrap(key), ByteBuffer.wrap(value));
-            tm.put(new ArrayByteIterable(key), new ArrayByteIterable(value));
+    private void insertDeleteHalfAddHalfDeleteCheckEntries(Random random, int entriesCount) {
+        final TreeMap<ByteBuffer, ByteBuffer> expectedMap = new TreeMap<>(ByteBufferComparator.INSTANCE);
+        var checker = new ImmutableTreeChecker(expectedMap, random);
+
+        addEntries(random, entriesCount, entriesCount / 10, expectedMap, checker);
+        removeEntries(random, entriesCount / 2, entriesCount / 10, expectedMap, checker);
+        addEntries(random, entriesCount / 2, entriesCount / 10, expectedMap, checker);
+        removeEntries(random, entriesCount, entriesCount / 10, expectedMap, checker);
+    }
+
+    private void removeEntries(Random random, int entriesToRemove, int interval, TreeMap<ByteBuffer,
+            ByteBuffer> expectedMap, ImmutableTreeChecker checker) {
+
+        var iterations = Math.max(1, entriesToRemove / interval);
+        if (iterations * interval < entriesToRemove) {
+            iterations++;
         }
 
-        var checker = new ImmutableTreeChecker(expectedMap, random);
-        final int border = Math.max(expectedMap.size() / 10, 1);
+        int removed = 0;
+        for (int n = 0; n < iterations; n++) {
+            tm = t.getMutableCopy();
 
-        while (!expectedMap.isEmpty()) {
             ArrayList<ByteBuffer> keys = new ArrayList<>(expectedMap.keySet());
             Collections.shuffle(keys, random);
 
-            var max = Math.min(border, keys.size());
-
-            for (int i = 0; i < max; i++) {
+            var currentInterval = Math.min(entriesToRemove - removed, interval);
+            for (int i = 0; i < currentInterval; i++) {
                 var key = keys.get(i);
                 var deleted = expectedMap.remove(key) != null;
                 Assert.assertTrue(deleted);
 
+                if (n == 3 && i == 1) {
+                    System.out.println();
+                    tm.get(key);
+                }
                 deleted = tm.delete(key);
                 Assert.assertTrue(deleted);
+                removed++;
             }
 
-            checkTree(false, checker);
+            checkAndSaveTree(false, checker);
+        }
+    }
 
+    private void addEntries(Random random, int entriesToAdd, int interval, TreeMap<ByteBuffer, ByteBuffer> expectedMap,
+                            ImmutableTreeChecker checker) {
+        var iterations = Math.max(1, entriesToAdd / interval);
+        if (iterations * interval < entriesToAdd) {
+            iterations++;
+        }
+
+        int added = 0;
+        for (int n = 0; n < iterations; n++) {
+            var currentInterval = Math.min(entriesToAdd - added, interval);
             tm = t.getMutableCopy();
+
+            for (int i = 0; i < currentInterval; i++) {
+                var keySize = random.nextInt(1, 16);
+                var keyArray = new byte[keySize];
+                random.nextBytes(keyArray);
+
+                var valueArray = new byte[32];
+                random.nextBytes(valueArray);
+
+                var key = ByteBuffer.wrap(keyArray);
+                var value = ByteBuffer.wrap(valueArray);
+
+                expectedMap.put(key, value);
+                tm.put(key, value);
+
+                added++;
+            }
+
+            checkAndSaveTree(false, checker);
         }
     }
 }

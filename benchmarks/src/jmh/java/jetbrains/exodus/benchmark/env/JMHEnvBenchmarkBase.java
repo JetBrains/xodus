@@ -36,8 +36,7 @@ public abstract class JMHEnvBenchmarkBase {
         temporaryFolder = new TemporaryFolder();
         temporaryFolder.create();
         final File testsDirectory = temporaryFolder.newFolder("data");
-        env = Environments.newInstance(testsDirectory,
-            adjustEnvironmentConfig(new EnvironmentConfig().setLogFileSize(32768)));
+        env = Environments.newInstance(testsDirectory);
         store = env.computeInTransaction(txn -> env.openStore("JMHEnvBenchmark", getStoreConfig(), txn));
     }
 
