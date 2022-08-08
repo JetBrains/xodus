@@ -37,7 +37,6 @@ import java.io.Closeable
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.util.*
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.collections.ArrayList
 import kotlin.experimental.xor
@@ -502,16 +501,23 @@ class Log(val config: LogConfig) : Closeable {
         val structureId: Int
         val dataLength: Int
 
-        if (type < ImmutableBTree.INTERNAL_PAGE || type > ImmutableBTree.LEAF_ROOT_PAGE) {
+
+        if (type < ImmutableBTree.TWO_BYTES_STUB || type > ImmutableBTree.LEAF_ROOT_PAGE) {
             throw UnsupportedOperationException("This method can be used only to read loggables of BTree with" +
                     " inlined keys")
-        } else {
-            val dataLengthStructureIdType = page.order(ByteOrder.BIG_ENDIAN).getLong(loggableOffset)
-            page.order(ByteOrder.nativeOrder())
-
-            dataLength = (dataLengthStructureIdType and 0xFF_FF_FF_FF).toInt()
-            structureId = (dataLengthStructureIdType shr 32).toInt() and 0x00_FF_FF_FF
         }
+
+        if (type < ImmutableBTree.SEVEN_BYTES_STUB) {
+            return ByteBufferLoggable(address, type, type - ImmutableBTree.TWO_BYTES_STUB + 2,
+                    0, Loggable.NO_STRUCTURE_ID, ByteBuffer.allocate(0))
+        }
+
+        val dataLengthStructureIdType = page.order(ByteOrder.BIG_ENDIAN).getLong(loggableOffset)
+        page.order(ByteOrder.nativeOrder())
+
+        dataLength = (dataLengthStructureIdType and 0xFF_FF_FF_FF).toInt()
+        structureId = (dataLengthStructureIdType shr 32).toInt() and 0x00_FF_FF_FF
+
 
         val loggableLength = dataLength + Long.SIZE_BYTES
         val dataOffset = loggableOffset + Long.SIZE_BYTES
@@ -571,7 +577,12 @@ class Log(val config: LogConfig) : Closeable {
         val structureId: Int
         val dataLength: Int
 
-        if (type < ImmutableBTree.INTERNAL_PAGE || type > ImmutableBTree.LEAF_ROOT_PAGE) {
+        if (type >= ImmutableBTree.TWO_BYTES_STUB && type <= ImmutableBTree.SEVEN_BYTES_STUB) {
+            return EmptyRandomAccessLoggable(
+                    address,
+                    type - ImmutableBTree.TWO_BYTES_STUB + 2, type
+            )
+        } else if (type < ImmutableBTree.TWO_BYTES_STUB || type > ImmutableBTree.LEAF_ROOT_PAGE) {
             structureId = CompressedUnsignedLongByteIterable.getInt(it)
             dataLength = CompressedUnsignedLongByteIterable.getInt(it)
         } else {
@@ -640,7 +651,7 @@ class Log(val config: LogConfig) : Closeable {
      * it satisfies constrains provided by Log
      */
     fun writeInsideSinglePage(type: Byte, structureId: Int, page: ByteBuffer,
-                              canBeConsumed: Boolean): Long {
+                              canBeConsumed: Boolean): LongArray {
         assert(page.order() == ByteOrder.nativeOrder())
         assert(structureId >= 0)
 
@@ -663,28 +674,37 @@ class Log(val config: LogConfig) : Closeable {
 
         val paddingOffset = Long.SIZE_BYTES - alignmentOffset
         if (pageOffset + paddingOffset + page.limit() <= cachePageSize) {
-            if (paddingOffset > 0) {
-                val filler = ByteArray(paddingOffset)
-                Arrays.fill(filler, 0x80.toByte())
+            var expiredLoggableAddress = (-1).toLong()
 
-                writer.write(ByteBuffer.wrap(filler), filler.size, false)
-                writer.incHighAddress(filler.size.toLong())
-                address += filler.size
+            if (paddingOffset > 0) {
+                expiredLoggableAddress = address
+
+                val filler = createFiller(paddingOffset)
+                val fillerSize = filler.limit()
+
+                writer.write(filler, paddingOffset, false)
+                writer.incHighAddress(paddingOffset.toLong())
+                address += fillerSize
             }
 
             writer.write(page, page.limit(), canBeConsumed)
             writer.incHighAddress(page.limit().toLong())
 
             closeFullFileIfNecessary(writer)
-            return address
+
+            val result = LongArray(3)
+            result[0] = address
+            result[1] = expiredLoggableAddress
+            result[2] = paddingOffset.toLong()
+
+            return result
         }
 
+        val expiredLoggableAddress = address
         val paddingBytes = cachePageSize - pageOffset
-        val filler = ByteArray(paddingBytes)
+        val filler = createFiller(paddingBytes)
 
-        Arrays.fill(filler, 0x80.toByte())
-
-        writer.write(ByteBuffer.wrap(filler), paddingBytes, false)
+        writer.write(filler, paddingBytes, false)
         writer.incHighAddress(paddingBytes.toLong())
 
         closeFullFileIfNecessary(writer)
@@ -698,7 +718,33 @@ class Log(val config: LogConfig) : Closeable {
 
         closeFullFileIfNecessary(writer)
 
-        return address
+        val result = LongArray(3)
+        result[0] = address
+        result[1] = expiredLoggableAddress
+        result[2] = paddingBytes.toLong()
+
+        return result
+    }
+
+    private fun createFiller(size: Int): ByteBuffer {
+        val filler = ByteArray(size)
+        if (size == 1) {
+            filler[0] = 0x80.toByte()
+            return ByteBuffer.wrap(filler)
+        }
+
+        if (size < 8) {
+            filler[0] = ((ImmutableBTree.TWO_BYTES_STUB + (size - 2)) xor 0x80).toByte()
+            return ByteBuffer.wrap(filler)
+        }
+
+        val type = ImmutableBTree.EIGHTS_BYTES_AND_MORE_STUB
+        val typeAndStructureIdDataLength = ((type.toLong() xor 0x80) shl (Long.SIZE_BITS - Byte.SIZE_BITS)) or
+                (size - Long.SIZE_BYTES).toLong()
+        val buffer = ByteBuffer.wrap(filler)
+        buffer.putLong(typeAndStructureIdDataLength)
+
+        return buffer
     }
 
     /**

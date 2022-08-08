@@ -192,7 +192,13 @@ final class MutableInternalPage implements MutablePage {
             type = ImmutableBTree.INTERNAL_PAGE;
         }
 
-        return log.writeInsideSinglePage(type, structureId, newBuffer, true);
+        var addressAndExpiredLoggable = log.writeInsideSinglePage(type, structureId, newBuffer, true);
+        if (addressAndExpiredLoggable[1] > 0) {
+            assert addressAndExpiredLoggable[2] > 0;
+            expiredLoggables.add(addressAndExpiredLoggable[1], (int) addressAndExpiredLoggable[2]);
+        }
+
+        return addressAndExpiredLoggable[0];
     }
 
     @Override

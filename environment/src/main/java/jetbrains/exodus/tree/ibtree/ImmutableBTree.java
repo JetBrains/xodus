@@ -12,11 +12,24 @@ import java.nio.ByteOrder;
 public final class ImmutableBTree implements BTree {
     static final int LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET = Long.BYTES;
 
-    public static final byte INTERNAL_PAGE = 44;
-    public static final byte LEAF_PAGE = 45;
+    public static final byte TWO_BYTES_STUB = 44;
+    @SuppressWarnings("unused")
+    public static final byte THREE_BYTES_STUB = 45;
+    @SuppressWarnings("unused")
+    public static final byte FOUR_BYTES_STUB = 46;
+    @SuppressWarnings("unused")
+    public static final byte FIVE_BYTES_STUB = 47;
+    @SuppressWarnings("unused")
+    public static final byte SIX_BYTES_STUB = 48;
+    public static final byte SEVEN_BYTES_STUB = 49;
+    public static final byte EIGHTS_BYTES_AND_MORE_STUB = 50;
 
-    public static final byte INTERNAL_ROOT_PAGE = 46;
-    public static final byte LEAF_ROOT_PAGE = 47;
+
+    public static final byte INTERNAL_PAGE = 51;
+    public static final byte LEAF_PAGE = 52;
+
+    public static final byte INTERNAL_ROOT_PAGE = 53;
+    public static final byte LEAF_ROOT_PAGE = 54;
 
     @NotNull
     final Log log;
@@ -150,7 +163,7 @@ public final class ImmutableBTree implements BTree {
 
         @Override
         public long next() {
-            var elemRef = stack.dequeue();
+            var elemRef = stack.dequeueLast();
             var page = elemRef.page;
 
             var address = page.address();
