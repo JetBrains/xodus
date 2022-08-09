@@ -27,7 +27,7 @@ import org.junit.Test;
 import java.nio.ByteBuffer;
 import java.util.*;
 
-public class BTreeReclaimTest extends BasicBTreeTest {
+public class BTreeReclaimTest extends BTreeTestBase {
     @Test
     public void testChangeSingleEntry() {
         final long seed = System.nanoTime();
@@ -94,36 +94,122 @@ public class BTreeReclaimTest extends BasicBTreeTest {
         add64KAndChangeEntriesThenReclaim(16 * 1024, rnd);
     }
 
-    private void add64KAndChangeEntriesThenReclaim(final int entriesToChange, final Random random) {
-        final int initialEntries = 64 * 1024;
+    @Test
+    public void testChange64Entries4Times() {
+        final long seed = System.nanoTime();
+        System.out.println("testChange64Entries4Times : " + seed);
 
+        t = new ImmutableBTree(log, 7, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        var rnd = new Random(seed);
+
+        add64EntriesChange64NTimes(4, rnd);
+    }
+
+    @Test
+    public void testChange64Entries64Times() {
+        final long seed = System.nanoTime();
+        System.out.println("testChange64Entries64Times : " + seed);
+
+        t = new ImmutableBTree(log, 7, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        var rnd = new Random(seed);
+
+        add64EntriesChange64NTimes(64, rnd);
+    }
+
+    @Test
+    public void testChange64Entries256Times() {
+        final long seed = System.nanoTime();
+        System.out.println("testChange64Entries256Times : " + seed);
+
+        t = new ImmutableBTree(log, 8, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        var rnd = new Random(seed);
+
+        add64EntriesChange64NTimes(256, rnd);
+    }
+
+    @Test
+    public void testChange64Entries1KTimes() {
+        final long seed = System.nanoTime();
+        System.out.println("testChange64Entries1KTimes : " + seed);
+
+        t = new ImmutableBTree(log, 9, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        var rnd = new Random(seed);
+
+        add64EntriesChange64NTimes(1024, rnd);
+    }
+
+    private void add64EntriesChange64NTimes(final int iterations, final Random random) {
         final TreeMap<ByteBuffer, ByteBuffer> expectedMap = new TreeMap<>(ByteBufferComparator.INSTANCE);
+        int structureId = addEntries(random, expectedMap);
+        long address = -1;
 
-        tm = t.getMutableCopy();
-        for (int i = 0; i < initialEntries; i++) {
-            var keySize = random.nextInt(1, 16);
-            var keyArray = new byte[keySize];
-            random.nextBytes(keyArray);
-
-            var valueArray = new byte[32];
-            random.nextBytes(valueArray);
-
-            var key = ByteBuffer.wrap(keyArray);
-            var value = ByteBuffer.wrap(valueArray);
-
-            expectedMap.put(key, value);
-            tm.put(key, value);
+        for (int i = 0; i < iterations; i++) {
+            address = changeEntries(64, random, expectedMap);
+            openTree(address, false, structureId);
         }
 
-        var structureId = t.getStructureId();
-        long address = saveTree();
-        reopen();
+        reclaimTree(random, expectedMap, structureId, address);
+    }
+
+    private void add64KAndChangeEntriesThenReclaim(final int entriesToChange, final Random random) {
+        final TreeMap<ByteBuffer, ByteBuffer> expectedMap = new TreeMap<>(ByteBufferComparator.INSTANCE);
+        int structureId = addEntries(random, expectedMap);
+        long address = changeEntries(entriesToChange, random, expectedMap);
+
+        reclaimTree(random, expectedMap, structureId, address);
+    }
+
+    private void reclaimTree(Random random, TreeMap<ByteBuffer, ByteBuffer> expectedMap, int structureId, long address) {
+
+        var highAddress = log.getHighAddress();
+        var fileLengthBound = log.getFileLengthBound();
+        var fileSize = log.getFileSize(highAddress / fileLengthBound);
+        var fileReminder = fileLengthBound - fileSize;
+
+        log.beginWrite();
+        for (long i = 0; i < fileReminder; i++) {
+            log.write(NullLoggable.create());
+        }
+        log.flush();
+        log.endWrite();
+
+        highAddress = log.getHighAddress();
+        var filesCount = (highAddress + fileLengthBound - 1) / fileLengthBound;
+        Assert.assertTrue(filesCount > 0);
 
         openTree(address, false, structureId);
-        checkBTreeAddresses(0);
-
         tm = t.getMutableCopy();
 
+        System.out.println("Reclaim " + filesCount + " files");
+
+        for (long i = 0; i < filesCount; i++) {
+            var fileAddress = i * fileLengthBound;
+            var nextFileAddress = fileAddress + fileLengthBound;
+
+            var loggables = log.getLoggableIterator(fileAddress);
+            while (loggables.hasNext()) {
+                var loggable = loggables.next();
+                if (loggable == null || loggable.getAddress() >= nextFileAddress) {
+                    break;
+                }
+                if (loggable.getStructureId() > 0) {
+                    tm.reclaim(loggable, loggables, fileLengthBound);
+                }
+            }
+        }
+
+        address = saveTree();
+        openTree(address, false, structureId);
+
+        checkBTreeAddresses(highAddress);
+
+        var checker = new ImmutableTreeChecker(expectedMap, random);
+        checker.accept(t);
+    }
+
+    private long changeEntries(int entriesToChange, Random random, TreeMap<ByteBuffer, ByteBuffer> expectedMap) {
+        long address;
+        tm = t.getMutableCopy();
         var keys = new ArrayList<>(expectedMap.keySet());
         Collections.shuffle(keys);
 
@@ -173,49 +259,34 @@ public class BTreeReclaimTest extends BasicBTreeTest {
         }
 
         address = saveTree();
+        return address;
+    }
 
-        var highAddress = log.getHighAddress();
-        var fileLengthBound = log.getFileLengthBound();
-        var fileSize = log.getFileSize(highAddress / fileLengthBound);
-        var fileReminder = fileLengthBound - fileSize;
-
-        log.beginWrite();
-        for (long i = 0; i < fileReminder; i++) {
-            log.write(NullLoggable.create());
-        }
-        log.flush();
-        log.endWrite();
-
-        highAddress = log.getHighAddress();
-        var filesCount = highAddress / fileLengthBound;
-        Assert.assertTrue(filesCount > 0);
-
-        openTree(address, false, structureId);
+    private int addEntries(Random random, TreeMap<ByteBuffer, ByteBuffer> expectedMap) {
+        final int initialEntries = 64 * 1024;
         tm = t.getMutableCopy();
+        for (int i = 0; i < initialEntries; i++) {
+            var keySize = random.nextInt(1, 16);
+            var keyArray = new byte[keySize];
+            random.nextBytes(keyArray);
 
-        for (long i = 0; i < filesCount; i++) {
-            var fileAddress = i * fileLengthBound;
-            var nextFileAddress = fileAddress + fileLengthBound;
+            var valueArray = new byte[32];
+            random.nextBytes(valueArray);
 
-            var loggables = log.getLoggableIterator(fileAddress);
-            while (loggables.hasNext()) {
-                var loggable = loggables.next();
-                if (loggable == null || loggable.getAddress() >= nextFileAddress) {
-                    break;
-                }
-                if (loggable.getStructureId() > 0) {
-                    tm.reclaim(loggable, loggables, fileLengthBound);
-                }
-            }
+            var key = ByteBuffer.wrap(keyArray);
+            var value = ByteBuffer.wrap(valueArray);
+
+            expectedMap.put(key, value);
+            tm.put(key, value);
         }
 
-        address = saveTree();
+        var structureId = t.getStructureId();
+        long address = saveTree();
+        reopen();
+
         openTree(address, false, structureId);
-
-        checkBTreeAddresses(highAddress);
-
-        var checker = new ImmutableTreeChecker(expectedMap, random);
-        checker.accept(t);
+        checkBTreeAddresses(0);
+        return structureId;
     }
 
     private void checkBTreeAddresses(long startAddress) {
