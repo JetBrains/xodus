@@ -133,6 +133,11 @@ public final class MutableBTree implements IBTreeMutable {
 
     @Override
     public boolean put(@NotNull ByteBuffer key, @NotNull ByteBuffer value) {
+        return doPut(key, value, true);
+    }
+
+    private boolean doPut(@NotNull ByteBuffer key, @NotNull ByteBuffer value,
+                          final boolean override) {
         var page = root;
         ObjectArrayFIFOQueue<MutableInternalPage> invalidFirstPages = null;
 
@@ -163,10 +168,14 @@ public final class MutableBTree implements IBTreeMutable {
                     return true;
                 }
 
-                mutablePage.set(index, key, value);
+                if (override) {
+                    mutablePage.set(index, key, value);
 
-                TreeMutableCursor.notifyCursors(this);
-                return true;
+                    TreeMutableCursor.notifyCursors(this);
+                    return true;
+                }
+
+                return false;
             } else {
                 if (index < 0) {
                     index = -index - 1;
@@ -220,39 +229,7 @@ public final class MutableBTree implements IBTreeMutable {
 
     @Override
     public boolean add(@NotNull ByteBuffer key, @NotNull ByteBuffer value) {
-        final var stack = new ArrayList<ElemRef>();
-        TraversablePage page = root;
-
-        while (true) {
-            var index = page.find(key);
-            if (!page.isInternalPage()) {
-                if (index < 0) {
-                    makeAllStackPagesMutable(stack);
-
-                    //reload page to insure that it is mutable page
-                    page = stack.get(stack.size() - 1).page;
-                    var mutablePage = (MutableLeafPage) page;
-
-                    mutablePage.insert(index, key, value);
-                    TreeMutableCursor.notifyCursors(this);
-
-                    size++;
-                    return true;
-                }
-
-                return false;
-            } else {
-                if (index < 0) {
-                    index = -index - 1;
-
-                    if (index > 0) {
-                        index--;
-                    }
-                }
-
-                page = page.child(index);
-            }
-        }
+        return doPut(key, value, false);
     }
 
     @Override
