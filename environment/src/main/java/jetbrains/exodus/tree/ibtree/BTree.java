@@ -39,7 +39,7 @@ interface BTree extends ITree {
             return null;
         }
 
-        return pageIndexPair.page.value(pageIndexPair.index);
+        return pageIndexPair.page.value(pageIndexPair.index).asReadOnlyBuffer();
     }
 
     @Nullable

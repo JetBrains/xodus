@@ -427,7 +427,6 @@ public final class MutableBTree implements IBTreeMutable {
     @Override
     public boolean reclaim(@NotNull RandomAccessLoggable loggable, @NotNull Iterator<RandomAccessLoggable> loggables,
                            long segmentSize) {
-        System.out.println("Reclaim !");
         final long fileAddress = loggable.getAddress() / segmentSize;
         final boolean isEmpty = isEmpty();
 
@@ -447,11 +446,18 @@ public final class MutableBTree implements IBTreeMutable {
             var type = loggable.getType();
             switch (type) {
                 case NullLoggable.TYPE:
-                    continue;
+                case ImmutableBTree.TWO_BYTES_STUB:
+                case ImmutableBTree.THREE_BYTES_STUB:
+                case ImmutableBTree.FOUR_BYTES_STUB:
+                case ImmutableBTree.FIVE_BYTES_STUB:
+                case ImmutableBTree.SIX_BYTES_STUB:
+                case ImmutableBTree.SEVEN_BYTES_STUB:
+                case ImmutableBTree.EIGHTS_BYTES_AND_MORE_STUB:
+                    break;
                 case ImmutableBTree.INTERNAL_PAGE:
                 case ImmutableBTree.LEAF_PAGE:
                     if (isEmpty) {
-                        continue;
+                        break;
                     }
                     reclaimed = reclaimed | doReclaimPage(loggable, stack);
                     break;
@@ -503,25 +509,29 @@ public final class MutableBTree implements IBTreeMutable {
             if (index == 0) {
                 return false;
             }
+            index--;
         }
         elemRef.index = index;
 
         while (true) {
             page = page.child(index);
 
-            if (!page.isInternalPage()) {
-                if (page.address() != pageAddress) {
-                    return false;
-                }
-
+            if (page.address() == pageAddress) {
                 //convert all stack of pages to mutable pages
                 makeAllStackPagesMutable(stack);
 
                 //make leaf page to be dirty so it will be saved again
-                var lastPage = stack.get(stack.size() - 1).page;
-                var childPage = lastPage.child(index);
-                ((MutablePage) childPage).fetch();
+                var lastPage = (MutableInternalPage) stack.get(stack.size() - 1).page;
+                var childPage = lastPage.mutableChild(index);
+                childPage.fetch();
+
+                return true;
+            } else {
+                if (!page.isInternalPage()) {
+                    return false;
+                }
             }
+
 
             index = page.find(firstKey);
 
@@ -533,6 +543,8 @@ public final class MutableBTree implements IBTreeMutable {
                 if (index == 0) {
                     return false;
                 }
+
+                index--;
             }
 
             stack.add(new ElemRef(page, index));

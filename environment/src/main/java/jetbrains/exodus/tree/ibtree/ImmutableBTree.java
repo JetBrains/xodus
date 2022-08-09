@@ -167,19 +167,21 @@ public final class ImmutableBTree implements BTree {
             var page = elemRef.page;
 
             var address = page.address();
-            var parentRef = stack.last();
+            if (!stack.isEmpty()) {
+                var parentRef = stack.last();
 
-            var parentPage = parentRef.page;
-            var parentIndex = parentRef.index;
+                var parentPage = parentRef.page;
+                var parentIndex = parentRef.index;
 
-            //if we do not reach end of the parent page
-            //iterate over all ancestors of this page
-            //otherwise return address of this page in upcoming call
-            //to the next.
-            parentIndex++;
-            if (parentIndex < parentPage.getEntriesCount()) {
-                parentRef.index = parentIndex;
-                fetchAncestors(parentRef);
+                //if we do not reach end of the parent page
+                //iterate over all ancestors of this page
+                //otherwise return address of this page in upcoming call
+                //to the next.
+                parentIndex++;
+                if (parentIndex < parentPage.getEntriesCount()) {
+                    parentRef.index = parentIndex;
+                    fetchAncestors(parentRef);
+                }
             }
 
             return address;
