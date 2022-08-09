@@ -42,6 +42,11 @@ class StoreTest : EnvironmentTestsBase() {
     }
 
     @Test
+    fun testPutWithoutDuplicatesOnline() {
+        putWithoutDuplicates(StoreConfig.WITHOUT_DUPLICATES_INLINE)
+    }
+
+    @Test
     fun testPutWithoutDuplicatesWithPrefixing() {
         putWithoutDuplicates(StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING)
     }

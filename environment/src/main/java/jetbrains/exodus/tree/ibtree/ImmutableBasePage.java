@@ -108,7 +108,7 @@ abstract class ImmutableBasePage implements TraversablePage {
 
     abstract MutablePage toMutable(MutableBTree tree, ExpiredLoggableCollection expiredLoggables);
 
-    final class KeyView extends AbstractList<ByteBuffer> implements RandomAccess {
+    private final class KeyView extends AbstractList<ByteBuffer> implements RandomAccess {
         @Override
         public ByteBuffer get(int i) {
             return getKey(i);
@@ -121,7 +121,7 @@ abstract class ImmutableBasePage implements TraversablePage {
     }
 
     @Override
-    public long address() {
+    public final long address() {
         return address;
     }
 }

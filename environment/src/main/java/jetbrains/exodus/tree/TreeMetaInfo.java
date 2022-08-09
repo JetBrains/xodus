@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,6 +22,7 @@ import jetbrains.exodus.env.StoreConfig;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.tree.btree.BTreeMetaInfo;
+import jetbrains.exodus.tree.ibtree.IBTreeMetaInfo;
 import jetbrains.exodus.tree.patricia.PatriciaMetaInfo;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
@@ -32,6 +33,7 @@ public abstract class TreeMetaInfo {
 
     protected static final int DUPLICATES_BIT = 1;
     protected static final int KEY_PREFIXING_BIT = 2;
+    protected static final int INLINE_TREE_BIT = 4;
 
     public final boolean duplicates;
     public final int structureId;
@@ -49,6 +51,8 @@ public abstract class TreeMetaInfo {
 
     public abstract boolean isKeyPrefixing();
 
+    public abstract boolean isInline();
+
     public int getStructureId() {
         return structureId;
     }
@@ -57,6 +61,9 @@ public abstract class TreeMetaInfo {
         byte flags = (byte) (duplicates ? DUPLICATES_BIT : 0);
         if (isKeyPrefixing()) {
             flags += KEY_PREFIXING_BIT;
+        }
+        if (isInline()) {
+            flags += INLINE_TREE_BIT;
         }
         final LightOutputStream output = new LightOutputStream(10);
         output.write(flags);
@@ -71,13 +78,17 @@ public abstract class TreeMetaInfo {
         if (metaInfo.getStructureId() < 0) {
             return StoreConfig.TEMPORARY_EMPTY;
         }
-        return StoreConfig.getStoreConfig(metaInfo.duplicates, metaInfo.isKeyPrefixing());
+        return StoreConfig.getStoreConfig(metaInfo.duplicates, metaInfo.isKeyPrefixing(), metaInfo.isInline());
     }
 
     public static TreeMetaInfo load(@NotNull final EnvironmentImpl environment,
+                                    final boolean inline,
                                     final boolean duplicates,
                                     final boolean keyPrefixing,
                                     final int structureId) {
+        if (inline) {
+            return new IBTreeMetaInfo(environment.getLog(), duplicates, structureId);
+        }
         if (keyPrefixing) {
             return new PatriciaMetaInfo(environment.getLog(), duplicates, structureId);
         } else {
@@ -117,6 +128,11 @@ public abstract class TreeMetaInfo {
 
         @Override
         public boolean isKeyPrefixing() {
+            return false;
+        }
+
+        @Override
+        public boolean isInline() {
             return false;
         }
 

@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -58,7 +58,9 @@ public enum StoreConfig {
      * {@code StoreConfig.USE_EXISTING} configuration. In that case, you don't need to know whether the
      * {@linkplain Store} can have duplicate keys or was it created with key prefixing.
      */
-    USE_EXISTING(5, "00001000");
+    USE_EXISTING(5, "00001000"),
+
+    WITHOUT_DUPLICATES_INLINE(6, "00010000");
 
     public final int id;
 
@@ -66,6 +68,7 @@ public enum StoreConfig {
     public final boolean prefixing;
     public final boolean temporaryEmpty;
     public final boolean useExisting;
+    public final boolean inlineTree;
 
     StoreConfig(final int id, final String mask) {
         this.id = id;
@@ -74,11 +77,14 @@ public enum StoreConfig {
         prefixing = ((bits >> 1) & 1) > 0;
         temporaryEmpty = ((bits >> 2) & 1) > 0;
         useExisting = ((bits >> 3) & 1) > 0;
+        inlineTree = ((bits >> 4) & 1) > 0;
     }
 
     @Override
     public String toString() {
-        return "duplicates: " + duplicates + ", prefixing: " + prefixing + ", temporaryEmpty: " + temporaryEmpty + ", useExisting: " + useExisting;
+        return "duplicates: " + duplicates + ", prefixing: " + prefixing +
+                ", temporaryEmpty: " + temporaryEmpty + ", useExisting: " + useExisting +
+                ", inlineTree: " + inlineTree;
     }
 
     /**
@@ -94,7 +100,12 @@ public enum StoreConfig {
      * @param prefixing  {@code true} if key prefixing is desired
      * @return {@code StoreConfig} value corresponding to the specified {@linkplain Store} attributes
      */
-    public static StoreConfig getStoreConfig(final boolean duplicates, final boolean prefixing) {
+    public static StoreConfig getStoreConfig(final boolean duplicates, final boolean prefixing,
+                                             final boolean isInline) {
+        if (isInline) {
+            return WITHOUT_DUPLICATES_INLINE;
+        }
+
         if (duplicates) {
             return prefixing ? WITH_DUPLICATES_WITH_PREFIXING : WITH_DUPLICATES;
         }

@@ -471,7 +471,7 @@ final class MutableInternalPage implements MutablePage {
         }
     }
 
-    final class KeyView extends AbstractList<ByteBuffer> implements RandomAccess {
+    private final class KeyView extends AbstractList<ByteBuffer> implements RandomAccess {
         @Override
         public ByteBuffer get(int index) {
             if (changedEntries != null) {

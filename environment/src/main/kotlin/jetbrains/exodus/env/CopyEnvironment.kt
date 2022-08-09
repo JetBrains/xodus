@@ -45,7 +45,8 @@ fun Environment.copyTo(there: File, forcePrefixing: Boolean, logger: KLogger? = 
                         executeInReadonlyTransaction { sourceTxn ->
                             val sourceStore = openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
                             val targetConfig = sourceStore.config.let { sourceConfig ->
-                                if (forcePrefixing) StoreConfig.getStoreConfig(sourceConfig.duplicates, true) else sourceConfig
+                                if (forcePrefixing) StoreConfig.getStoreConfig(sourceConfig.duplicates, true,
+                                        false) else sourceConfig
                             }
                             val targetStore = newEnv.openStore(name, targetConfig, targetTxn)
                             storeSize = sourceStore.count(sourceTxn)
@@ -77,7 +78,8 @@ fun Environment.copyTo(there: File, forcePrefixing: Boolean, logger: KLogger? = 
                             executeInReadonlyTransaction { sourceTxn ->
                                 val sourceStore = openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
                                 val targetConfig = sourceStore.config.let { sourceConfig ->
-                                    if (forcePrefixing) StoreConfig.getStoreConfig(sourceConfig.duplicates, true) else sourceConfig
+                                    if (forcePrefixing) StoreConfig.getStoreConfig(sourceConfig.duplicates,
+                                            true, false) else sourceConfig
                                 }
                                 val targetStore = newEnv.openStore(name, targetConfig, targetTxn)
                                 storeSize = sourceStore.count(sourceTxn)

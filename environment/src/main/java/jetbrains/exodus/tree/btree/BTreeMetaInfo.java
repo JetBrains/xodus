@@ -44,6 +44,11 @@ public class BTreeMetaInfo extends TreeMetaInfo {
     }
 
     @Override
+    public boolean isInline() {
+        return false;
+    }
+
+    @Override
     public BTreeMetaInfo clone(final int newStructureId) {
         return new BTreeMetaInfo(log, balancePolicy, duplicates, newStructureId);
     }

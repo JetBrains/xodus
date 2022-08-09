@@ -27,6 +27,7 @@ import jetbrains.exodus.tree.TreeMetaInfo;
 import jetbrains.exodus.tree.btree.BTree;
 import jetbrains.exodus.tree.btree.BTreeBalancePolicy;
 import jetbrains.exodus.tree.btree.BTreeEmpty;
+import jetbrains.exodus.tree.ibtree.ImmutableBTree;
 import jetbrains.exodus.tree.patricia.PatriciaTree;
 import jetbrains.exodus.tree.patricia.PatriciaTreeEmpty;
 import jetbrains.exodus.tree.patricia.PatriciaTreeWithDuplicates;
@@ -209,6 +210,9 @@ public class StoreImpl implements Store {
         final boolean treeIsEmpty = upToDateRootAddress == Loggable.NULL_ADDRESS;
         final Log log = environment.getLog();
         final ITree result;
+        if (metaInfo.isInline()) {
+            return new ImmutableBTree(log, structureId, log.getCachePageSize(), upToDateRootAddress);
+        }
         if (!metaInfo.isKeyPrefixing()) {
             final BTreeBalancePolicy balancePolicy = environment.getBTreeBalancePolicy();
             result = treeIsEmpty ?

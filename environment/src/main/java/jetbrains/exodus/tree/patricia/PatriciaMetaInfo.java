@@ -34,6 +34,11 @@ public class PatriciaMetaInfo extends TreeMetaInfo {
     }
 
     @Override
+    public boolean isInline() {
+        return false;
+    }
+
+    @Override
     public TreeMetaInfo clone(final int newStructureId) {
         return new PatriciaMetaInfo(log, duplicates, newStructureId);
     }

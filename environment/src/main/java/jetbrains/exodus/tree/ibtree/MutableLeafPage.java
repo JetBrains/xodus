@@ -403,7 +403,7 @@ final class MutableLeafPage implements MutablePage {
         }
     }
 
-    final class ValueView extends AbstractList<ByteBuffer> implements RandomAccess {
+    private final class ValueView extends AbstractList<ByteBuffer> implements RandomAccess {
         @Override
         public ByteBuffer get(int i) {
             if (changedEntries != null) {
@@ -425,7 +425,7 @@ final class MutableLeafPage implements MutablePage {
         }
     }
 
-    final class KeyView extends AbstractList<ByteBuffer> implements RandomAccess {
+    private final class KeyView extends AbstractList<ByteBuffer> implements RandomAccess {
         @Override
         public ByteBuffer get(int i) {
             if (changedEntries != null) {

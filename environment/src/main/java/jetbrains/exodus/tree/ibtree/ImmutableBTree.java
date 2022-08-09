@@ -40,7 +40,7 @@ public final class ImmutableBTree implements BTree {
 
     DataIterator dataIterator = null;
 
-    ImmutableBTree(@NotNull Log log, int structureId, int pageSize, long rootAddress) {
+    public ImmutableBTree(@NotNull Log log, int structureId, int pageSize, long rootAddress) {
         this.log = log;
         this.structureId = structureId;
         this.pageSize = pageSize;

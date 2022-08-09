@@ -239,7 +239,7 @@ public class TreeImmutableCursor implements ITreeCursor {
     }
 
     @Override
-    public ByteBuffer getKeyBuffer() {
+    public final ByteBuffer getKeyBuffer() {
         return doGetKey();
     }
 
@@ -269,7 +269,7 @@ public class TreeImmutableCursor implements ITreeCursor {
 
 
     @Override
-    public ByteBuffer getValueBuffer() {
+    public final ByteBuffer getValueBuffer() {
         if (stack.isEmpty()) {
             return null;
         }
@@ -283,7 +283,7 @@ public class TreeImmutableCursor implements ITreeCursor {
     }
 
     @Override
-    public @Nullable ByteIterable getSearchKey(@NotNull ByteIterable key) {
+    public final @Nullable ByteIterable getSearchKey(@NotNull ByteIterable key) {
         var result = getSearchKey(key.getByteBuffer());
         if (result == null) {
             return null;
@@ -336,7 +336,7 @@ public class TreeImmutableCursor implements ITreeCursor {
     }
 
     @Override
-    public @Nullable ByteIterable getSearchKeyRange(@NotNull ByteIterable key) {
+    public final @Nullable ByteIterable getSearchKeyRange(@NotNull ByteIterable key) {
         var result = getSearchKeyRange(key.getByteBuffer());
         if (result == null) {
             return null;
@@ -468,7 +468,7 @@ public class TreeImmutableCursor implements ITreeCursor {
     }
 
     @Override
-    public boolean getSearchBoth(@NotNull ByteIterable key, @NotNull ByteIterable value) {
+    public final boolean getSearchBoth(@NotNull ByteIterable key, @NotNull ByteIterable value) {
         return getSearchBoth(key.getByteBuffer(), value.getByteBuffer());
     }
 
@@ -483,7 +483,7 @@ public class TreeImmutableCursor implements ITreeCursor {
     }
 
     @Override
-    public @Nullable ByteIterable getSearchBothRange(@NotNull ByteIterable key, @NotNull ByteIterable value) {
+    public final @Nullable ByteIterable getSearchBothRange(@NotNull ByteIterable key, @NotNull ByteIterable value) {
         var result = getSearchBothRange(key.getByteBuffer(), value.getByteBuffer());
         if (result != null) {
             return new ByteBufferByteIterable(result);
