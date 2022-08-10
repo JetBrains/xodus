@@ -26,7 +26,7 @@ import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.*;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
-public class JMHEnvTokyoCabinetWriteBenchmark extends JMHEnvTokyoCabinetBenchmarkBase {
+public class JMHEnvTokyoCabinetWriteBatchBenchmark extends JMHEnvTokyoCabinetBenchmarkBase {
 
     @Setup(Level.Invocation)
     public void beforeBenchmark() throws IOException {

@@ -19,11 +19,8 @@
 package jetbrains.exodus.benchmark.env.tokyo;
 
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ByteIterator;
-import jetbrains.exodus.env.Cursor;
 import jetbrains.exodus.env.StoreConfig;
 import org.openjdk.jmh.annotations.*;
-import org.openjdk.jmh.infra.Blackhole;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -33,10 +30,18 @@ import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.FORKS;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
-public class JMHEnvTokyoCabinetReadInlineBenchmark  extends JMHEnvTokyoCabinetBenchmarkBase {
+public class JMHEnvTokyoCabinetWriteBatchInlineBenchmark extends JMHEnvTokyoCabinetBenchmarkBase {
     @Setup(Level.Invocation)
     public void beforeBenchmark() throws IOException {
         setup();
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.SingleShotTime)
+    @Warmup(iterations = WARMUP_ITERATIONS)
+    @Measurement(iterations = MEASUREMENT_ITERATIONS)
+    @Fork(FORKS)
+    public void successiveWrite() {
         writeSuccessiveKeys();
     }
 
@@ -45,29 +50,10 @@ public class JMHEnvTokyoCabinetReadInlineBenchmark  extends JMHEnvTokyoCabinetBe
     @Warmup(iterations = WARMUP_ITERATIONS)
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
-    public void successiveRead(final Blackhole bh) {
-        env.executeInReadonlyTransaction(txn -> {
-            try (Cursor c = store.openCursor(txn)) {
-                while (c.getNext()) {
-                    consumeBytes(bh, c.getKey());
-                    consumeBytes(bh, c.getValue());
-                }
-            }
-        });
-    }
-
-    @Benchmark
-    @BenchmarkMode(Mode.SingleShotTime)
-    @Warmup(iterations = WARMUP_ITERATIONS)
-    @Measurement(iterations = MEASUREMENT_ITERATIONS)
-    @Fork(FORKS)
-    public void randomRead(final Blackhole bh) {
-        env.executeInReadonlyTransaction(txn -> {
-            try (Cursor c = store.openCursor(txn)) {
-                for (final ByteIterable key : randomKeys) {
-                    c.getSearchKey(key);
-                    consumeBytes(bh, c.getValue());
-                }
+    public void randomWrite() {
+        env.executeInTransaction(txn -> {
+            for (final ByteIterable key : randomKeys) {
+                store.add(txn, key, key);
             }
         });
     }
@@ -75,12 +61,5 @@ public class JMHEnvTokyoCabinetReadInlineBenchmark  extends JMHEnvTokyoCabinetBe
     @Override
     protected StoreConfig getStoreConfig() {
         return StoreConfig.WITHOUT_DUPLICATES_INLINE;
-    }
-
-    private static void consumeBytes(final Blackhole bh, final ByteIterable it) {
-        final ByteIterator iterator = it.iterator();
-        while (iterator.hasNext()) {
-            bh.consume(iterator.next());
-        }
     }
 }

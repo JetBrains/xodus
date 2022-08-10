@@ -17,7 +17,7 @@ package jetbrains.exodus.benchmark.env.tokyo;
 
 import jetbrains.exodus.env.StoreConfig;
 
-public class JMHEnvWithPrefixingTokyoCabinetReadBenchmark extends JMHEnvTokyoCabinetReadBenchmark {
+public class JMHEnvWithPrefixingTokyoCabinetWriteBatchBenchmark extends JMHEnvTokyoCabinetWriteBatchBenchmark {
 
     @Override
     protected StoreConfig getStoreConfig() {

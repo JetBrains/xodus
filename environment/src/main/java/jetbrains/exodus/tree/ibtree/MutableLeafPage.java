@@ -345,6 +345,7 @@ final class MutableLeafPage implements MutablePage {
             result.addAll(0, changedEntries.subList(indexToSplit + 1, changedEntries.size()));
 
             changedEntries.removeElements(indexToSplit + 1, changedEntries.size());
+            changedEntries.trim();
         }
 
         return result;
