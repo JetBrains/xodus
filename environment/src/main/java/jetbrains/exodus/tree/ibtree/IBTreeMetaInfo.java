@@ -18,8 +18,13 @@
 
 package jetbrains.exodus.tree.ibtree;
 
+import jetbrains.exodus.ByteIterator;
+import jetbrains.exodus.env.EnvironmentImpl;
+import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.tree.TreeMetaInfo;
+import jetbrains.exodus.tree.btree.BTreeMetaInfo;
+import org.jetbrains.annotations.NotNull;
 
 public final class IBTreeMetaInfo extends TreeMetaInfo {
     public IBTreeMetaInfo(Log log, boolean duplicates, int structureId) {
@@ -37,7 +42,14 @@ public final class IBTreeMetaInfo extends TreeMetaInfo {
     }
 
     @Override
-    public TreeMetaInfo clone(int newStructureId) {
-        return null;
+    public IBTreeMetaInfo clone(final int newStructureId) {
+        return new IBTreeMetaInfo(log, duplicates, newStructureId);
+    }
+
+    public static IBTreeMetaInfo load(@NotNull final EnvironmentImpl env, byte flagsByte, ByteIterator it) {
+        final boolean duplicates = (flagsByte & DUPLICATES_BIT) != 0;
+        CompressedUnsignedLongByteIterable.getInt(it); // legacy format
+        final int structureId = CompressedUnsignedLongByteIterable.getInt(it);
+        return new IBTreeMetaInfo(env.getLog(), duplicates, structureId);
     }
 }

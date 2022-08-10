@@ -99,6 +99,9 @@ public abstract class TreeMetaInfo {
     public static TreeMetaInfo load(@NotNull final EnvironmentImpl environment, @NotNull final ByteIterable iterable) {
         final ByteIterator it = iterable.iterator();
         final byte flagsByte = it.next();
+        if ((flagsByte & INLINE_TREE_BIT) != 0) {
+            return IBTreeMetaInfo.load(environment,flagsByte, it);
+        }
         if ((flagsByte & KEY_PREFIXING_BIT) == 0) {
             return BTreeMetaInfo.load(environment, flagsByte, it);
         } else {
